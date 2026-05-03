@@ -6,6 +6,7 @@ import { api, PaginatedResponse, PaginationParams } from '../client';
 export interface Asset {
   id: string;
   name: string;
+  asset_reference?: string | null;
   kind: string;
   provider: string;
   environment: 'prod' | 'pre_prod' | 'qa' | 'test' | 'dev' | 'sandbox';

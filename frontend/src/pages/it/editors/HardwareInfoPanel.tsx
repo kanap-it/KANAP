@@ -2,7 +2,9 @@ import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Stack, TextField } from '@mui/material';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
+import { PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
+import { editableFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -45,6 +47,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
   const [notes, setNotes] = React.useState('');
 
   const [baseline, setBaseline] = React.useState<HardwareInfo>({});
+  const failedSaveSignatureRef = React.useRef<string | null>(null);
 
   const dirty = React.useMemo(() => {
     return (
@@ -101,36 +104,43 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
     void load();
   }, [load]);
 
-  const save = async () => {
+  const hardwarePayload = React.useMemo<HardwareInfo>(() => ({
+    serial_number: serialNumber || null,
+    manufacturer: manufacturer || null,
+    model: model || null,
+    purchase_date: purchaseDate || null,
+    rack_location: rackLocation || null,
+    rack_unit: rackUnit || null,
+    notes: notes || null,
+  }), [serialNumber, manufacturer, model, purchaseDate, rackLocation, rackUnit, notes]);
+
+  const saveSignature = React.useMemo(() => JSON.stringify(hardwarePayload), [hardwarePayload]);
+
+  const save = React.useCallback(async () => {
     if (readOnly) return;
     setSaving(true);
     setError(null);
     try {
-      await api.post(`/assets/${assetId}/hardware-info`, {
-        serial_number: serialNumber || null,
-        manufacturer: manufacturer || null,
-        model: model || null,
-        purchase_date: purchaseDate || null,
-        rack_location: rackLocation || null,
-        rack_unit: rackUnit || null,
-        notes: notes || null,
-      });
-      setBaseline({
-        serial_number: serialNumber || null,
-        manufacturer: manufacturer || null,
-        model: model || null,
-        purchase_date: purchaseDate || null,
-        rack_location: rackLocation || null,
-        rack_unit: rackUnit || null,
-        notes: notes || null,
-      });
+      await api.post(`/assets/${assetId}/hardware-info`, hardwarePayload);
+      failedSaveSignatureRef.current = null;
+      setBaseline(hardwarePayload);
     } catch (e: any) {
+      failedSaveSignatureRef.current = saveSignature;
       setError(getApiErrorMessage(e, t, t('messages.saveHardwareInfoFailed')));
       throw e;
     } finally {
       setSaving(false);
     }
-  };
+  }, [assetId, hardwarePayload, readOnly, saveSignature, t]);
+
+  React.useEffect(() => {
+    if (!dirty || loading || saving || readOnly) return undefined;
+    if (failedSaveSignatureRef.current === saveSignature) return undefined;
+    const timer = window.setTimeout(() => {
+      void save();
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [dirty, loading, readOnly, save, saveSignature, saving]);
 
   const reset = () => {
     setSerialNumber(baseline.serial_number || '');
@@ -148,72 +158,108 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
     isDirty: () => dirty,
   }), [save, dirty, baseline]);
 
-  if (loading) {
-    return <Alert severity="info">Loading hardware information...</Alert>;
-  }
-
   return (
     <Stack spacing={2} maxWidth={520}>
       {error && <Alert severity="error">{error}</Alert>}
 
-      <TextField
-        label="Serial number"
-        value={serialNumber}
-        onChange={(e) => setSerialNumber(e.target.value)}
-        disabled={saving || readOnly}
-        InputLabelProps={{ shrink: true }}
-      />
+      <PropertyRow label="Serial number">
+        <TextField
+          value={serialNumber}
+          onChange={(e) => setSerialNumber(e.target.value)}
+          disabled={saving || readOnly}
+          placeholder="Serial number"
+          size="small"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={editableFieldValueSx}
+          fullWidth
+        />
+      </PropertyRow>
 
-      <TextField
-        label="Manufacturer"
-        value={manufacturer}
-        onChange={(e) => setManufacturer(e.target.value)}
-        disabled={saving || readOnly}
-        InputLabelProps={{ shrink: true }}
-      />
+      <PropertyRow label="Manufacturer">
+        <TextField
+          value={manufacturer}
+          onChange={(e) => setManufacturer(e.target.value)}
+          disabled={saving || readOnly}
+          placeholder="Manufacturer"
+          size="small"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={editableFieldValueSx}
+          fullWidth
+        />
+      </PropertyRow>
 
-      <TextField
-        label="Model"
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-        disabled={saving || readOnly}
-        InputLabelProps={{ shrink: true }}
-      />
+      <PropertyRow label="Model">
+        <TextField
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          disabled={saving || readOnly}
+          placeholder="Model"
+          size="small"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={editableFieldValueSx}
+          fullWidth
+        />
+      </PropertyRow>
 
-      <DateEUField
-        label="Purchase date"
-        valueYmd={purchaseDate}
-        onChangeYmd={setPurchaseDate}
-        disabled={saving || readOnly}
-      />
+      <PropertyRow label="Purchase date" valueSx={{ maxWidth: 180 }}>
+        <DateEUField
+          label=""
+          hideLabel
+          valueYmd={purchaseDate}
+          onChangeYmd={setPurchaseDate}
+          disabled={saving || readOnly}
+          size="small"
+          textFieldSx={editableFieldValueSx}
+        />
+      </PropertyRow>
 
-      <TextField
-        label="Rack location"
-        value={rackLocation}
-        onChange={(e) => setRackLocation(e.target.value)}
-        disabled={saving || readOnly}
-        placeholder="e.g., Row A, Rack 12"
-        InputLabelProps={{ shrink: true }}
-      />
+      <PropertyRow label="Rack location">
+        <TextField
+          value={rackLocation}
+          onChange={(e) => setRackLocation(e.target.value)}
+          disabled={saving || readOnly}
+          placeholder="Rack location"
+          size="small"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={editableFieldValueSx}
+          fullWidth
+        />
+      </PropertyRow>
 
-      <TextField
-        label="Rack unit"
-        value={rackUnit}
-        onChange={(e) => setRackUnit(e.target.value)}
-        disabled={saving || readOnly}
-        placeholder="e.g., U1-U4"
-        InputLabelProps={{ shrink: true }}
-      />
+      <PropertyRow label="Rack unit">
+        <TextField
+          value={rackUnit}
+          onChange={(e) => setRackUnit(e.target.value)}
+          disabled={saving || readOnly}
+          placeholder="Rack unit"
+          size="small"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={editableFieldValueSx}
+          fullWidth
+        />
+      </PropertyRow>
 
-      <TextField
-        label="Notes"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        disabled={saving || readOnly}
-        multiline
-        minRows={3}
-        InputLabelProps={{ shrink: true }}
-      />
+      <PropertyRow label="Notes" valueSx={{ width: '100%' }}>
+        <TextField
+          id="asset-hardware-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          disabled={saving || readOnly}
+          multiline
+          minRows={4}
+          maxRows={12}
+          placeholder="Hardware notes"
+          variant="standard"
+          InputProps={{ disableUnderline: true }}
+          sx={longFormSurfaceFieldSx}
+          fullWidth
+        />
+      </PropertyRow>
     </Stack>
   );
 });

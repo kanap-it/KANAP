@@ -4,6 +4,7 @@ import { Brackets, EntityManager, ILike, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from '../roles/role.entity';
 import { RolesService } from '../roles/roles.service';
+import { UserRole } from './user-role.entity';
 import * as argon2 from 'argon2';
 import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
 import {
@@ -431,6 +432,15 @@ export class UsersService {
       status,
     });
     const saved = await repo.save(user);
+    const manager = opts?.manager ?? repo.manager;
+    const userRoleRepo = manager.getRepository(UserRole);
+    const tenantId = saved.tenant_id ?? params.tenant_id ?? (await manager.query(`SELECT app_current_tenant()::text AS tenant_id`))?.[0]?.tenant_id;
+    await userRoleRepo.save(userRoleRepo.create({
+      tenant_id: tenantId,
+      user_id: saved.id,
+      role_id: role.id,
+      is_primary: true,
+    }));
     if (this.audit) {
       await this.audit.log(
         {

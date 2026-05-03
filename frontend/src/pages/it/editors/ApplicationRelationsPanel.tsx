@@ -1,13 +1,12 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, IconButton, LinearProgress, Stack, TextField, Typography, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper } from '@mui/material';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, LinearProgress, Stack, TextField, Typography, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import { KanapDialog, PropertyRow } from '../../../components/design';
+import { KanapDialog, PropertyRow, RelevantWebsitesList } from '../../../components/design';
 import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 export type ApplicationRelationsPanelHandle = {
   save: () => Promise<void>;
@@ -31,12 +30,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
       {children}
     </Typography>
   );
-}
-
-function normalizeUrl(value: string) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
 
 export default forwardRef<ApplicationRelationsPanelHandle, Props>(function ApplicationRelationsPanel({ id, isSuite = false, onDirtyChange }, ref) {
@@ -68,6 +61,8 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
   const [baselineUrls, setBaselineUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
   const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
   const [linkDraft, setLinkDraft] = React.useState<{ description: string; url: string }>({ description: '', url: '' });
+  const [editingLinkIndex, setEditingLinkIndex] = React.useState<number | null>(null);
+  const linkNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const urlsEditedRef = React.useRef(false);
 
   const [attachments, setAttachments] = React.useState<Array<{ id: string; original_filename: string }>>([]);
@@ -87,6 +82,18 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
     return a || b || c || d || e;
   }, [linkedOpex, baselineOpex, linkedCapex, baselineCapex, linkedContracts, baselineContracts, linkedProjects, baselineProjects, urls, baselineUrls]);
   React.useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+
+  React.useEffect(() => {
+    if (!linkDialogOpen) return undefined;
+    const timer = window.setTimeout(() => {
+      const input = linkNameInputRef.current;
+      if (!input) return;
+      input.focus();
+      const cursorPosition = input.value.length;
+      input.setSelectionRange(cursorPosition, cursorPosition);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [editingLinkIndex, linkDialogOpen]);
 
   const load = React.useCallback(async () => {
     setLoading(true); setError(null);
@@ -319,20 +326,38 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
     }
   }, [baselineUrls, id, readOnly, t]);
 
-  const addLink = React.useCallback(async () => {
+  const openAddLinkDialog = React.useCallback(() => {
+    setEditingLinkIndex(null);
+    setLinkDraft({ description: '', url: '' });
+    setLinkDialogOpen(true);
+  }, []);
+
+  const openEditLinkDialog = React.useCallback((index: number) => {
+    const link = urls[index];
+    if (!link || readOnly) return;
+    setEditingLinkIndex(index);
+    setLinkDraft({ description: link.description || '', url: link.url || '' });
+    setLinkDialogOpen(true);
+  }, [readOnly, urls]);
+
+  const closeLinkDialog = React.useCallback(() => {
+    setLinkDialogOpen(false);
+    setEditingLinkIndex(null);
+    setLinkDraft({ description: '', url: '' });
+  }, []);
+
+  const saveLinkDraft = React.useCallback(async () => {
     const url = String(linkDraft.url || '').trim();
     if (!url) return;
-    const nextUrls = [
-      ...urls,
-      {
-        description: String(linkDraft.description || '').trim() || undefined,
-        url,
-      },
-    ];
+    const description = String(linkDraft.description || '').trim() || undefined;
+    const nextLink = { description, url };
+    const nextUrls = editingLinkIndex === null || !urls[editingLinkIndex]
+      ? [...urls, nextLink]
+      : urls.map((link, index) => (index === editingLinkIndex ? { ...link, ...nextLink } : link));
+    urlsEditedRef.current = true;
     await syncUrls(nextUrls);
-    setLinkDraft({ description: '', url: '' });
-    setLinkDialogOpen(false);
-  }, [linkDraft.description, linkDraft.url, syncUrls, urls]);
+    closeLinkDialog();
+  }, [closeLinkDialog, editingLinkIndex, linkDraft.description, linkDraft.url, syncUrls, urls]);
 
   return (
     <>
@@ -396,7 +421,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
           filterSelectedOptions
-          disabled={saving || readOnly}
+          disabled={readOnly}
           fullWidth
           sx={relationAutocompleteSx}
         />
@@ -429,7 +454,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
           filterSelectedOptions
-          disabled={saving || readOnly}
+          disabled={readOnly}
           fullWidth
           sx={relationAutocompleteSx}
         />
@@ -462,7 +487,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
           filterSelectedOptions
-          disabled={saving || readOnly}
+          disabled={readOnly}
           fullWidth
           sx={relationAutocompleteSx}
         />
@@ -495,99 +520,36 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
           filterSelectedOptions
-          disabled={saving || readOnly}
+          disabled={readOnly}
           fullWidth
           sx={relationAutocompleteSx}
         />
       </PropertyRow>
 
-        <SectionTitle>Relevant websites</SectionTitle>
-        <Stack spacing={1} sx={relationWideControlSx}>
-          {urls.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No URLs linked.
-            </Typography>
-          )}
-          {urls.map((link, index) => {
-            const label = String(link.description || '').trim() || link.url;
-            const href = normalizeUrl(link.url);
-            return (
-              <Stack
-                key={link.id || `${link.url}:${index}`}
-                direction="row"
-                alignItems="center"
-                spacing={0.5}
-                sx={(theme) => ({
-                  minHeight: 30,
-                  px: 1,
-                  borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
-                  '& .hover-actions': { opacity: 0, transition: 'opacity 120ms' },
-                  '&:hover': { bgcolor: theme.palette.kanap.bg.hover },
-                  '&:hover .hover-actions': { opacity: 1 },
-                })}
-              >
-                <Typography
-                  component="a"
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={(theme) => ({
-                    flex: 1,
-                    minWidth: 0,
-                    fontSize: 13,
-                    color: theme.palette.kanap.text.primary,
-                    textDecoration: 'none',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    '&:hover': {
-                      color: theme.palette.kanap.teal,
-                      textDecoration: 'underline',
-                    },
-                  })}
-                  title={link.url}
-                >
-                  {label}
-                </Typography>
-                <Box className="hover-actions">
-                  <IconButton
-                    aria-label="Open URL"
-                    size="small"
-                    onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}
-                    disabled={!href}
-                  >
-                    <OpenInNewIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                  {!readOnly && (
-                    <IconButton
-                      aria-label="Delete URL"
-                      size="small"
-                      onClick={() => {
-                        urlsEditedRef.current = true;
-                        void syncUrls(urls.filter((_, currentIndex) => currentIndex !== index));
-                      }}
-                    >
-                      <DeleteIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  )}
-                </Box>
-              </Stack>
-            );
-          })}
+        <Stack direction="row" alignItems="center" spacing={1} sx={relationWideControlSx}>
+          <SectionTitle>Relevant websites</SectionTitle>
           {!readOnly && (
-            <Box>
-              <Button
-                variant="action"
-                size="small"
-                onClick={() => {
-                  setLinkDraft({ description: '', url: '' });
-                  setLinkDialogOpen(true);
-                }}
-              >
-                Add URL
-              </Button>
-            </Box>
+            <Button variant="action" size="small" onClick={openAddLinkDialog}>
+              Add URL
+            </Button>
           )}
+        </Stack>
+        <Stack spacing={0.75}>
+          <RelevantWebsitesList
+            items={urls.map((link) => ({
+              id: link.id,
+              name: String(link.description || '').trim() || link.url,
+              url: link.url,
+            }))}
+            canEdit={!readOnly}
+            canDelete={!readOnly}
+            onEdit={openEditLinkDialog}
+            onDelete={(index) => {
+              urlsEditedRef.current = true;
+              void syncUrls(urls.filter((_, currentIndex) => currentIndex !== index));
+            }}
+            sx={relationWideControlSx}
+          />
         </Stack>
 
       <SectionTitle>Attachments</SectionTitle>
@@ -662,18 +624,20 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
 
       <KanapDialog
         open={linkDialogOpen}
-        title="New URL"
-        onClose={() => setLinkDialogOpen(false)}
-        onSave={addLink}
-        saveLabel="Add"
+        title={editingLinkIndex === null ? 'New URL' : 'Edit URL'}
+        onClose={closeLinkDialog}
+        onSave={saveLinkDraft}
+        saveLabel={editingLinkIndex === null ? 'Add' : 'Save'}
         saveDisabled={!String(linkDraft.url || '').trim()}
         saveLoading={saving}
       >
         <Stack spacing={1.25}>
-          <PropertyRow label="Label">
+          <PropertyRow label="Name">
             <TextField
               value={linkDraft.description}
               onChange={(event) => setLinkDraft((prev) => ({ ...prev, description: event.target.value }))}
+              autoFocus
+              inputRef={linkNameInputRef}
               variant="standard"
               fullWidth
               InputProps={{ disableUnderline: true }}

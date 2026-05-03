@@ -10,6 +10,8 @@ import api from '../../api';
 import { useProjectNav } from '../../hooks/useProjectNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { useAuth } from '../../auth/AuthContext';
+import DependencySelector from './components/DependencySelector';
+import RelationsSectionTitle from './components/RelationsSectionTitle';
 import StatusChangeDialog from './components/StatusChangeDialog';
 import { type ProjectScoringEditorHandle } from './editors/ProjectScoringEditor';
 import { type EffortAllocationData } from './components/EffortAllocationTable';
@@ -40,11 +42,12 @@ import { useTenant } from '../../tenant/TenantContext';
 import { useLocale } from '../../i18n/useLocale';
 import { getScoreColor } from '../tasks/theme/taskDetailTokens';
 
-type TabKey = 'summary' | 'tasks' | 'timeline' | 'effort' | 'scoring' | 'knowledge';
-type LegacyPanelRoute = 'overview' | 'activity' | 'team' | 'relations';
+type TabKey = 'summary' | 'tasks' | 'timeline' | 'effort' | 'scoring' | 'relations' | 'knowledge';
+type LegacyPanelRoute = 'overview' | 'activity' | 'team';
 type RouteTabKey = TabKey | LegacyPanelRoute;
+type DependencyTarget = { type: 'request' | 'project'; id: string; name: string };
 
-const PROJECT_TAB_KEYS: TabKey[] = ['summary', 'tasks', 'timeline', 'effort', 'scoring', 'knowledge'];
+const PROJECT_TAB_KEYS: TabKey[] = ['summary', 'tasks', 'timeline', 'effort', 'scoring', 'relations', 'knowledge'];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   waiting_list: ['planned', 'on_hold', 'cancelled'],
@@ -90,6 +93,7 @@ const ProjectScoringTab = React.lazy(() => import('./workspace/project/ProjectSc
 const ProjectEffortTab = React.lazy(() => import('./workspace/project/ProjectEffortTab'));
 const ProjectTasksPanel = React.lazy(() => import('./editors/ProjectTasksPanel'));
 const ProjectActivityTab = React.lazy(() => import('./workspace/project/ProjectActivityTab'));
+const ProjectRelationsPanel = React.lazy(() => import('./editors/ProjectRelationsPanel'));
 const ProjectKnowledgeTab = React.lazy(() => import('./workspace/project/ProjectKnowledgeTab'));
 
 export default function ProjectWorkspacePage() {
@@ -113,7 +117,7 @@ export default function ProjectWorkspacePage() {
   const routeTab: TabKey = PROJECT_TAB_KEYS.includes(rawRouteTab as TabKey)
     ? (rawRouteTab as TabKey)
     : 'summary';
-  const propertyPanelFocusSection = rawRouteTab === 'team' || rawRouteTab === 'relations'
+  const propertyPanelFocusSection = rawRouteTab === 'team'
     ? rawRouteTab
     : null;
   const projectInclude = React.useMemo(() => getProjectWorkspaceInclude(routeTab), [routeTab]);
@@ -123,6 +127,7 @@ export default function ProjectWorkspacePage() {
     { key: 'timeline', label: t('portfolio:labels.timeline') },
     { key: 'effort', label: t('portfolio:labels.progress') },
     { key: 'scoring', label: t('portfolio:labels.scoring') },
+    { key: 'relations', label: t('portfolio:labels.relations') },
     { key: 'knowledge', label: t('portfolio:labels.knowledge') },
   ], [t]);
   const statusOptions = React.useMemo(() => getProjectStatusOptions(t), [t]);
@@ -147,7 +152,7 @@ export default function ProjectWorkspacePage() {
   }, [id, isCreate, location.search, navigate, rawRouteTab, routeTab]);
 
   // Fetch project data
-  const { data, error, isFetching, isLoading, refetch } = useQuery({
+  const { data, error, isLoading, refetch } = useQuery({
     queryKey: ['portfolio-project', id, projectInclude],
     queryFn: async () => {
       const res = await api.get(`/portfolio/projects/${id}`, { params: { include: projectInclude } });
@@ -358,6 +363,58 @@ export default function ProjectWorkspacePage() {
       await refetch();
     }
   }, [canManage, id, isCreate, queryClient, refetch, t]);
+
+  const handleAddDependency = React.useCallback(async (target: DependencyTarget) => {
+    const projectId = form?.id;
+    if (!projectId) return;
+
+    setSaveError(null);
+    setForm((prev: any) => ({
+      ...prev,
+      dependencies: [
+        ...(Array.isArray(prev?.dependencies) ? prev.dependencies : []),
+        {
+          id: `optimistic:${target.type}:${target.id}`,
+          target_type: target.type,
+          target_id: target.id,
+          target_name: target.name,
+          target_status: '',
+        },
+      ],
+    }));
+
+    try {
+      await api.post(`/portfolio/projects/${projectId}/dependencies`, {
+        target_type: target.type,
+        target_id: target.id,
+      });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.savePanelFailed')));
+      await refetch();
+    }
+  }, [form?.id, queryClient, refetch, t]);
+
+  const handleRemoveDependency = React.useCallback(async (targetType: 'request' | 'project', targetId: string) => {
+    const projectId = form?.id;
+    if (!projectId) return;
+
+    setSaveError(null);
+    setForm((prev: any) => ({
+      ...prev,
+      dependencies: (Array.isArray(prev?.dependencies) ? prev.dependencies : []).filter(
+        (dep: any) => !(dep?.target_type === targetType && dep?.target_id === targetId),
+      ),
+    }));
+
+    try {
+      await api.delete(`/portfolio/projects/${projectId}/dependencies/${targetType}/${targetId}`);
+      queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.savePanelFailed')));
+      await refetch();
+    }
+  }, [form?.id, queryClient, refetch, t]);
 
   React.useEffect(() => {
     if (!isCreate || defaultsAppliedRef.current || classificationDefaultsLoading) return;
@@ -743,8 +800,6 @@ export default function ProjectWorkspacePage() {
     : null;
   const createDisabled = !String(form?.name || '').trim() || saveDisabled;
   const originLabel = originLabels[form?.origin] || form?.origin || '';
-  const showRefreshState = !isCreate && !!data && isFetching;
-
   if (!isCreate && isLoading && !data) {
     return (
       <Box sx={{ p: 2 }}>
@@ -893,9 +948,6 @@ export default function ProjectWorkspacePage() {
           />
         )}
       >
-        {showRefreshState && (
-          <LinearProgress sx={{ mb: 2 }} />
-        )}
         {routeTab === 'summary' && (
           <Stack spacing={3}>
             <ProjectSummaryTab
@@ -984,6 +1036,25 @@ export default function ProjectWorkspacePage() {
               phases={form?.phases || []}
               disabled={!canManage}
             />
+          </React.Suspense>
+        )}
+
+        {routeTab === 'relations' && !isCreate && form?.id && (
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.relations')} />}>
+            <Stack spacing={3}>
+              <Stack spacing={1.25}>
+                <RelationsSectionTitle>{t('portfolio:workspace.project.sections.dependencies')}</RelationsSectionTitle>
+                <DependencySelector
+                  entityType="project"
+                  entityId={form.id}
+                  dependencies={form?.dependencies || []}
+                  onAdd={handleAddDependency}
+                  onRemove={handleRemoveDependency}
+                  disabled={!canManage}
+                />
+              </Stack>
+              <ProjectRelationsPanel id={form.id} autoSave />
+            </Stack>
           </React.Suspense>
         )}
 

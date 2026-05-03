@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 
@@ -13,8 +14,10 @@ type Props = {
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
+  hideLabel?: boolean;
   required?: boolean;
   size?: 'small' | 'medium';
+  textFieldSx?: SxProps<Theme>;
 };
 
 export default function LocationSelect({
@@ -24,8 +27,10 @@ export default function LocationSelect({
   disabled,
   error,
   helperText,
+  hideLabel,
   required,
   size = 'medium',
+  textFieldSx,
 }: Props) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.location');
@@ -99,12 +104,12 @@ export default function LocationSelect({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={label}
+            label={hideLabel ? undefined : label}
             size={size}
             error={error}
             helperText={helperText}
             required={required}
-            InputLabelProps={{ shrink: true }}
+            InputLabelProps={hideLabel ? undefined : { shrink: true }}
             InputProps={{
               ...params.InputProps,
               endAdornment: (
@@ -114,6 +119,7 @@ export default function LocationSelect({
                 </>
               ),
             }}
+            sx={textFieldSx}
           />
         )}
         fullWidth

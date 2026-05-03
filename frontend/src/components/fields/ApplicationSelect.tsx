@@ -1,5 +1,6 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
@@ -17,8 +18,10 @@ type ApplicationSelectProps = {
   onChange: (v: string | null) => void;
   disabled?: boolean;
   helperText?: React.ReactNode;
+  hideLabel?: boolean;
   required?: boolean;
   placeholder?: string;
+  textFieldSx?: SxProps<Theme>;
   // When true, only applications with Data Integration / ETL enabled are listed.
   onlyEtl?: boolean;
 };
@@ -39,8 +42,10 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
     onChange,
     disabled,
     helperText,
+    hideLabel,
     required,
     placeholder,
+    textFieldSx,
     onlyEtl,
   },
   ref,
@@ -91,7 +96,7 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
           <div>
             <div style={{ fontWeight: 500 }}>{option.name}</div>
             <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-              {option.lifecycle ? option.lifecycle : '—'} · {option.criticality || '—'}
+              {option.lifecycle || '-'} / {option.criticality || '-'}
             </div>
           </div>
         </li>
@@ -103,10 +108,11 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={hideLabel ? undefined : label}
           placeholder={placeholder}
           required={required}
           helperText={helperText}
+          InputLabelProps={hideLabel ? undefined : { shrink: true }}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
@@ -120,6 +126,7 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
               </>
             ),
           }}
+          sx={textFieldSx}
         />
       )}
       loading={isLoading || loadingSelected}

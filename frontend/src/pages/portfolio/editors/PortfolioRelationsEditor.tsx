@@ -10,7 +10,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   LinearProgress,
   Stack,
   TextField,
@@ -22,6 +21,9 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, editableFieldValueSx } from '../../../theme/formSx';
+import { RelevantWebsitesList } from '../../../components/design';
+import RelationsSectionTitle from '../components/RelationsSectionTitle';
 
 export type PortfolioRelationsEditorHandle = {
   save: () => Promise<void>;
@@ -55,21 +57,15 @@ type Props = {
   onDirtyChange?: (dirty: boolean) => void;
 };
 
-const compactFieldSx = {
-  '& .MuiFormLabel-root': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiInputBase-root': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiInputBase-input': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiChip-root': {
-    fontSize: '0.78rem',
-    height: 24,
-  },
-};
+const relationTagSx = {
+  borderRadius: '6px',
+  height: 24,
+  '& .MuiChip-label': { px: '8px', fontSize: 12 },
+} as const;
+
+const relationControlSx = { maxWidth: 420 } as const;
+const relationWideControlSx = { maxWidth: 640 } as const;
+const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
 
 const endpointBaseByType: Record<EntityType, string> = {
   request: '/portfolio/requests',
@@ -80,12 +76,6 @@ const permissionByType: Record<EntityType, 'portfolio_requests' | 'portfolio_pro
   request: 'portfolio_requests',
   project: 'portfolio_projects',
 };
-
-function normalizeUrl(raw: string) {
-  const trimmed = String(raw || '').trim();
-  if (!trimmed) return '';
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-}
 
 function sortByName<T extends NamedItem>(items: T[]) {
   return [...items].sort((a, b) => a.name.localeCompare(b.name));
@@ -146,6 +136,8 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   const [uploadCount, setUploadCount] = React.useState(0);
   const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
   const [linkDraft, setLinkDraft] = React.useState<{ label: string; url: string }>({ label: '', url: '' });
+  const [editingLinkIndex, setEditingLinkIndex] = React.useState<number | null>(null);
+  const linkNameInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const dirty = React.useMemo(() => (
     !sameIdList(linkedOpex, baselineOpex)
@@ -169,6 +161,18 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   React.useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
+
+  React.useEffect(() => {
+    if (!linkDialogOpen) return undefined;
+    const timer = window.setTimeout(() => {
+      const input = linkNameInputRef.current;
+      if (!input) return;
+      input.focus();
+      const cursorPosition = input.value.length;
+      input.setSelectionRange(cursorPosition, cursorPosition);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [editingLinkIndex, linkDialogOpen]);
 
   const fetchAllPaged = React.useCallback(async (endpoint: string, sortField: string) => {
     const all: any[] = [];
@@ -366,20 +370,42 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
     isDirty: () => dirty,
   }), [dirty, load, save]);
 
-  const addLink = () => {
+  const openAddLinkDialog = () => {
+    setEditingLinkIndex(null);
+    setLinkDraft({ label: '', url: '' });
+    setLinkDialogOpen(true);
+  };
+
+  const openEditLinkDialog = (index: number) => {
+    const link = links[index];
+    if (!link || readOnly) return;
+    setEditingLinkIndex(index);
+    setLinkDraft({ label: link.label || '', url: link.url || '' });
+    setLinkDialogOpen(true);
+  };
+
+  const closeLinkDialog = () => {
+    setLinkDialogOpen(false);
+    setEditingLinkIndex(null);
+    setLinkDraft({ label: '', url: '' });
+  };
+
+  const saveLinkDraft = () => {
     const url = String(linkDraft.url || '').trim();
     if (!url) return;
-    setLinks((prev) => [...prev, {
-      label: String(linkDraft.label || '').trim() || undefined,
-      url,
-    }]);
-    setLinkDraft({ label: '', url: '' });
-    setLinkDialogOpen(false);
+    const label = String(linkDraft.label || '').trim() || undefined;
+    setLinks((prev) => {
+      if (editingLinkIndex === null || !prev[editingLinkIndex]) {
+        return [...prev, { label, url }];
+      }
+      return prev.map((item, index) => (index === editingLinkIndex ? { ...item, label, url } : item));
+    });
+    closeLinkDialog();
   };
 
   const handleLinkDialogSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    addLink();
+    saveLinkDraft();
   };
 
   const handleAttachmentUpload = async (files: File[]) => {
@@ -400,282 +426,260 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   };
 
   if (loading) {
-    return <LinearProgress />;
+    return null;
   }
 
   return (
     <>
-      <Stack spacing={3} sx={compactFieldSx}>
+      <Stack spacing={3}>
         {!!error && <Alert severity="error">{error}</Alert>}
 
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            {t('editors.relations.sections.budgetItems')}
-          </Typography>
-          <Stack spacing={1.25}>
-            <Autocomplete
-              multiple
-              size="small"
-              options={opexOptions}
-              value={linkedOpex}
-              getOptionLabel={(option) => option.product_name}
-              onChange={(_, value) => setLinkedOpex(value as any)}
-              onOpen={() => {
-                if (opexOptions.length === 0 && !loadingOpexOptions) {
-                  void loadOpexOptions();
-                }
-              }}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>{option.product_name}</li>
-              )}
-              renderTags={(value, getTagProps) => value.map((option, index) => (
-                <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} size="small" />
-              ))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('editors.relations.fields.opexItems')}
-                  placeholder={t('editors.relations.placeholders.opexItems')}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingOpexOptions ? <CircularProgress color="inherit" size={18} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              isOptionEqualToValue={(option, value) => option.id === (value as any).id}
-              filterSelectedOptions
-              disabled={saving || readOnly}
-              fullWidth
-            />
+        <Stack spacing={1.25}>
+          <RelationsSectionTitle>{t('editors.relations.sections.budgetItems')}</RelationsSectionTitle>
+          <Autocomplete
+            multiple
+            options={opexOptions}
+            value={linkedOpex}
+            getOptionLabel={(option) => option.product_name}
+            onChange={(_, value) => setLinkedOpex(value as any)}
+            onOpen={() => {
+              if (opexOptions.length === 0 && !loadingOpexOptions) {
+                void loadOpexOptions();
+              }
+            }}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>{option.product_name}</li>
+            )}
+            renderTags={(value, getTagProps) => value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} sx={relationTagSx} />
+            ))}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={t('editors.relations.placeholders.opexItems')}
+                variant="standard"
+                inputProps={{
+                  ...params.inputProps,
+                  'aria-label': t('editors.relations.fields.opexItems'),
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {loadingOpexOptions ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            isOptionEqualToValue={(option, value) => option.id === (value as any).id}
+            filterSelectedOptions
+            disabled={readOnly}
+            sx={relationAutocompleteSx}
+          />
 
-            <Autocomplete
-              multiple
-              size="small"
-              options={capexOptions}
-              value={linkedCapex}
-              getOptionLabel={(option) => option.description}
-              onChange={(_, value) => setLinkedCapex(value as any)}
-              onOpen={() => {
-                if (capexOptions.length === 0 && !loadingCapexOptions) {
-                  void loadCapexOptions();
-                }
-              }}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>{option.description}</li>
-              )}
-              renderTags={(value, getTagProps) => value.map((option, index) => (
-                <Chip {...getTagProps({ index })} key={option.id} label={option.description} size="small" />
-              ))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('editors.relations.fields.capexItems')}
-                  placeholder={t('editors.relations.placeholders.capexItems')}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingCapexOptions ? <CircularProgress color="inherit" size={18} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              isOptionEqualToValue={(option, value) => option.id === (value as any).id}
-              filterSelectedOptions
-              disabled={saving || readOnly}
-              fullWidth
-            />
-          </Stack>
-        </Box>
+          <Autocomplete
+            multiple
+            options={capexOptions}
+            value={linkedCapex}
+            getOptionLabel={(option) => option.description}
+            onChange={(_, value) => setLinkedCapex(value as any)}
+            onOpen={() => {
+              if (capexOptions.length === 0 && !loadingCapexOptions) {
+                void loadCapexOptions();
+              }
+            }}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>{option.description}</li>
+            )}
+            renderTags={(value, getTagProps) => value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={option.description} sx={relationTagSx} />
+            ))}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={t('editors.relations.placeholders.capexItems')}
+                variant="standard"
+                inputProps={{
+                  ...params.inputProps,
+                  'aria-label': t('editors.relations.fields.capexItems'),
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {loadingCapexOptions ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            isOptionEqualToValue={(option, value) => option.id === (value as any).id}
+            filterSelectedOptions
+            disabled={readOnly}
+            sx={relationAutocompleteSx}
+          />
+        </Stack>
 
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            {t('editors.relations.sections.appsAndAssets')}
-          </Typography>
-          <Stack spacing={1.25}>
-            <Autocomplete
-              multiple
-              size="small"
-              options={applicationOptions}
-              value={linkedApplications}
-              getOptionLabel={(option) => option.name}
-              onChange={(_, value) => setLinkedApplications(sortByName(value as NamedItem[]))}
-              onOpen={() => {
-                if (applicationOptions.length === 0 && !loadingApplications) {
-                  void loadNamedOptions('/applications', '', setApplicationOptions, setLoadingApplications);
-                }
-              }}
-              onInputChange={(_, value, reason) => {
-                if (reason !== 'reset') {
-                  void loadNamedOptions('/applications', value, setApplicationOptions, setLoadingApplications);
-                }
-              }}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  <Box sx={{ minWidth: 0, py: 0.25 }}>
-                    <Typography variant="body2">{option.name}</Typography>
-                  </Box>
-                </li>
-              )}
-              renderTags={(value, getTagProps) => value.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={option.id}
-                  label={option.name}
-                  size="small"
-                  title={option.name}
-                  onClick={() => window.open(`/it/applications/${option.id}/overview`, '_self')}
-                  clickable
-                />
-              ))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('activity.history.fields.applications')}
-                  placeholder={t('editors.relations.placeholders.applications')}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingApplications ? <CircularProgress color="inherit" size={18} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              filterSelectedOptions
-              disabled={saving || readOnly}
-              fullWidth
-            />
+        <Stack spacing={1.25}>
+          <RelationsSectionTitle>{t('editors.relations.sections.appsAndAssets')}</RelationsSectionTitle>
+          <Autocomplete
+            multiple
+            options={applicationOptions}
+            value={linkedApplications}
+            getOptionLabel={(option) => option.name}
+            onChange={(_, value) => setLinkedApplications(sortByName(value as NamedItem[]))}
+            onOpen={() => {
+              if (applicationOptions.length === 0 && !loadingApplications) {
+                void loadNamedOptions('/applications', '', setApplicationOptions, setLoadingApplications);
+              }
+            }}
+            onInputChange={(_, value, reason) => {
+              if (reason !== 'reset') {
+                void loadNamedOptions('/applications', value, setApplicationOptions, setLoadingApplications);
+              }
+            }}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>
+                <Box sx={{ minWidth: 0, py: 0.25 }}>
+                  <Typography variant="body2" sx={{ fontSize: 13 }}>{option.name}</Typography>
+                </Box>
+              </li>
+            )}
+            renderTags={(value, getTagProps) => value.map((option, index) => (
+              <Chip
+                {...getTagProps({ index })}
+                key={option.id}
+                label={option.name}
+                title={option.name}
+                onClick={() => window.open(`/it/applications/${option.id}/overview`, '_self')}
+                clickable
+                sx={relationTagSx}
+              />
+            ))}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={t('editors.relations.placeholders.applications')}
+                variant="standard"
+                inputProps={{
+                  ...params.inputProps,
+                  'aria-label': t('activity.history.fields.applications'),
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {loadingApplications ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            filterSelectedOptions
+            disabled={readOnly}
+            sx={relationAutocompleteSx}
+          />
 
-            <Autocomplete
-              multiple
-              size="small"
-              options={assetOptions}
-              value={linkedAssets}
-              getOptionLabel={(option) => option.name}
-              onChange={(_, value) => setLinkedAssets(sortByName(value as NamedItem[]))}
-              onOpen={() => {
-                if (assetOptions.length === 0 && !loadingAssets) {
-                  void loadNamedOptions('/assets', '', setAssetOptions, setLoadingAssets);
-                }
-              }}
-              onInputChange={(_, value, reason) => {
-                if (reason !== 'reset') {
-                  void loadNamedOptions('/assets', value, setAssetOptions, setLoadingAssets);
-                }
-              }}
-              renderTags={(value, getTagProps) => value.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={option.id}
-                  label={option.name}
-                  size="small"
-                  onClick={() => window.open(`/it/assets/${option.id}/overview`, '_self')}
-                  clickable
-                />
-              ))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={t('activity.history.fields.assets')}
-                  placeholder={t('editors.relations.placeholders.assets')}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingAssets ? <CircularProgress color="inherit" size={18} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              filterSelectedOptions
-              disabled={saving || readOnly}
-              fullWidth
-            />
-          </Stack>
-        </Box>
+          <Autocomplete
+            multiple
+            options={assetOptions}
+            value={linkedAssets}
+            getOptionLabel={(option) => option.name}
+            onChange={(_, value) => setLinkedAssets(sortByName(value as NamedItem[]))}
+            onOpen={() => {
+              if (assetOptions.length === 0 && !loadingAssets) {
+                void loadNamedOptions('/assets', '', setAssetOptions, setLoadingAssets);
+              }
+            }}
+            onInputChange={(_, value, reason) => {
+              if (reason !== 'reset') {
+                void loadNamedOptions('/assets', value, setAssetOptions, setLoadingAssets);
+              }
+            }}
+            renderTags={(value, getTagProps) => value.map((option, index) => (
+              <Chip
+                {...getTagProps({ index })}
+                key={option.id}
+                label={option.name}
+                onClick={() => window.open(`/it/assets/${option.id}/overview`, '_self')}
+                clickable
+                sx={relationTagSx}
+              />
+            ))}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={t('editors.relations.placeholders.assets')}
+                variant="standard"
+                inputProps={{
+                  ...params.inputProps,
+                  'aria-label': t('activity.history.fields.assets'),
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {loadingAssets ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            filterSelectedOptions
+            disabled={readOnly}
+            sx={relationAutocompleteSx}
+          />
+        </Stack>
 
-        <Box>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              {t('editors.relations.sections.externalLinks')}
-            </Typography>
+        <Stack spacing={1}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={relationWideControlSx}>
+            <RelationsSectionTitle>{t('editors.relations.sections.externalLinks')}</RelationsSectionTitle>
             {!readOnly && (
-              <Button size="small" startIcon={<AddIcon />} onClick={() => setLinkDialogOpen(true)}>
+              <Button size="small" startIcon={<AddIcon />} onClick={openAddLinkDialog}>
                 {t('editors.relations.actions.addUrl')}
               </Button>
             )}
           </Stack>
-          {links.length > 0 ? (
-            <Stack spacing={0.75}>
-              {links.map((item, index) => {
-                const href = normalizeUrl(item.url);
-                const label = String(item.label || '').trim() || item.url;
-                return (
-                  <Stack
-                    key={`${item.id || 'new'}-${index}`}
-                    direction="row"
-                    alignItems="center"
-                    spacing={0.5}
-                    sx={{ px: 1, py: 0.75, borderRadius: 1, bgcolor: 'action.hover' }}
-                  >
-                    <Typography
-                      component="a"
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      variant="body2"
-                      sx={{
-                        flex: 1,
-                        color: 'text.primary',
-                        textDecoration: 'none',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                      title={item.url}
-                    >
-                      {label}
-                    </Typography>
-                    {!readOnly && (
-                      <IconButton
-                        size="small"
-                        aria-label={t('editors.relations.actions.deleteLink')}
-                        onClick={() => setLinks((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Stack>
-                );
-              })}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              {t('editors.relations.states.noExternalLinks')}
-            </Typography>
-          )}
-        </Box>
+          <RelevantWebsitesList
+            items={links.map((item) => ({
+              id: item.id,
+              name: String(item.label || '').trim() || item.url,
+              url: item.url,
+            }))}
+            nameHeader={t('editors.relations.fields.name')}
+            urlHeader={t('editors.relations.fields.url')}
+            emptyLabel={t('editors.relations.states.noExternalLinks')}
+            deleteLabel={t('editors.relations.actions.deleteLink')}
+            canEdit={!readOnly}
+            canDelete={!readOnly}
+            onEdit={openEditLinkDialog}
+            onDelete={(index) => setLinks((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
+            sx={relationWideControlSx}
+          />
+        </Stack>
 
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            {t('editors.relations.sections.attachments')}
-          </Typography>
-          <Stack spacing={1}>
+        <Stack spacing={1.25}>
+          <RelationsSectionTitle>{t('editors.relations.sections.attachments')}</RelationsSectionTitle>
+          <Stack spacing={1} sx={relationControlSx}>
             <Box
               onDragOver={(event) => {
                 event.preventDefault();
@@ -687,16 +691,16 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 setHover(false);
                 void handleAttachmentUpload(Array.from(event.dataTransfer.files || []));
               }}
-              sx={{
-                border: '2px dashed',
-                borderColor: hover ? 'primary.main' : 'divider',
-                borderRadius: 1,
+              sx={(theme) => ({
+                border: `1px dashed ${hover ? theme.palette.kanap.teal : theme.palette.kanap.border.default}`,
+                borderRadius: '8px',
                 p: 2,
                 textAlign: 'center',
                 cursor: readOnly ? 'default' : 'pointer',
-              }}
+                bgcolor: hover ? theme.palette.kanap.bg.hover : 'transparent',
+              })}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
                 {t('editors.relations.messages.dragDropFiles')}
               </Typography>
               <Box sx={{ mt: 1 }}>
@@ -729,7 +733,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 <Chip
                   key={attachment.id}
                   label={attachment.original_filename}
-                  size="small"
                   onClick={async () => {
                     const res = await api.get(`${attachmentDownloadBase}/${attachment.id}`, { responseType: 'blob' });
                     const blob = new Blob([res.data]);
@@ -754,40 +757,50 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                       // best effort
                     }
                   } : undefined}
-                  deleteIcon={!readOnly ? <DeleteIcon fontSize="small" /> : undefined}
+                  deleteIcon={!readOnly ? <DeleteIcon sx={{ fontSize: 16 }} /> : undefined}
+                  sx={relationTagSx}
                 />
               ))}
             </Stack>
           </Stack>
-        </Box>
+        </Stack>
       </Stack>
 
-      <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={linkDialogOpen} onClose={closeLinkDialog} fullWidth maxWidth="xs">
         <Box component="form" onSubmit={handleLinkDialogSubmit}>
-          <DialogTitle>{t('editors.relations.dialogs.addExternalLink.title')}</DialogTitle>
+          <DialogTitle>
+            {editingLinkIndex === null
+              ? t('editors.relations.dialogs.addExternalLink.title')
+              : t('editors.relations.dialogs.editExternalLink.title')}
+          </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
               <TextField
-                size="small"
-                label={t('editors.relations.fields.linkDescription')}
+                aria-label={t('editors.relations.fields.name')}
                 placeholder={t('editors.relations.placeholders.linkDescription')}
                 value={linkDraft.label}
                 onChange={(event) => setLinkDraft((prev) => ({ ...prev, label: event.target.value }))}
+                autoFocus
+                inputRef={linkNameInputRef}
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={dialogBorderedFieldSx}
               />
               <TextField
-                size="small"
-                label={t('editors.relations.fields.url')}
+                aria-label={t('editors.relations.fields.url')}
                 placeholder={t('editors.relations.placeholders.url')}
                 value={linkDraft.url}
                 onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
-                autoFocus
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={dialogBorderedFieldSx}
               />
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setLinkDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
+            <Button onClick={closeLinkDialog}>{t('common:buttons.cancel')}</Button>
             <Button type="submit" variant="contained" disabled={!String(linkDraft.url || '').trim()}>
-              {t('common:buttons.add')}
+              {editingLinkIndex === null ? t('common:buttons.add') : t('common:buttons.save')}
             </Button>
           </DialogActions>
         </Box>

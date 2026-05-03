@@ -6,6 +6,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { drawerAutocompleteListboxSx, editableFieldValueSx } from '../../../theme/formSx';
 
 interface Dependency {
   id: string;
@@ -30,17 +31,9 @@ interface TargetOption {
   name: string;
 }
 
-const compactFieldSx = {
-  '& .MuiFormLabel-root': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiInputBase-root': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiInputBase-input': {
-    fontSize: '0.9rem',
-  },
-};
+const relationControlSx = { maxWidth: 420 } as const;
+const relationWideControlSx = { maxWidth: 640 } as const;
+const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
 
 export default function DependencySelector({
   entityType,
@@ -116,10 +109,9 @@ export default function DependencySelector({
   const isLoading = loadingRequests || loadingProjects || loading;
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={1.25}>
       <Autocomplete
         options={options}
-        size="small"
         groupBy={(option) => (
           option.type === 'request'
             ? t('activity.dependencies.groups.requests')
@@ -139,44 +131,71 @@ export default function DependencySelector({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={t('activity.dependencies.fields.addDependency')}
             placeholder={t('activity.dependencies.placeholders.search')}
-            sx={compactFieldSx}
+            variant="standard"
+            inputProps={{
+              ...params.inputProps,
+              'aria-label': t('activity.dependencies.fields.addDependency'),
+            }}
             InputProps={{
               ...params.InputProps,
+              disableUnderline: true,
               endAdornment: (
                 <>
-                  {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                  {isLoading ? <CircularProgress color="inherit" size={16} /> : null}
                   {params.InputProps.endAdornment}
                 </>
               ),
             }}
+            sx={editableFieldValueSx}
           />
         )}
+        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
         disabled={disabled || isLoading}
         loading={isLoading}
-        fullWidth
+        sx={relationAutocompleteSx}
       />
 
       {dependencies.length > 0 && (
-        <Stack spacing={1}>
-          <Typography variant="body2" color="text.secondary">
-            {t('activity.dependencies.labels.current')}
-          </Typography>
+        <Stack spacing={0} sx={relationWideControlSx}>
           {dependencies.map((dep) => (
             <Stack
               key={dep.id}
               direction="row"
               alignItems="center"
-              spacing={1}
-              sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}
+              spacing={0.75}
+              sx={(theme) => ({
+                minHeight: 30,
+                px: 1,
+                borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+                '&:hover': { bgcolor: theme.palette.kanap.bg.hover },
+              })}
             >
-              <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
+              <Box
+                component="span"
+                sx={(theme) => ({
+                  width: 56,
+                  flexShrink: 0,
+                  color: theme.palette.kanap.text.secondary,
+                  fontSize: 12,
+                })}
+              >
                 {dep.target_type === 'request'
                   ? t('activity.dependencies.types.request')
                   : t('activity.dependencies.types.project')}
               </Box>
-              <Typography variant="body2" sx={{ flex: 1 }}>
+              <Typography
+                variant="body2"
+                sx={(theme) => ({
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 13,
+                  color: theme.palette.kanap.text.primary,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                })}
+              >
                 {dep.target_name}
               </Typography>
               {!disabled && (
@@ -194,7 +213,7 @@ export default function DependencySelector({
       )}
 
       {dependencies.length === 0 && (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
           {t('activity.dependencies.states.empty')}
         </Typography>
       )}

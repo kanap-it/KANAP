@@ -29,6 +29,21 @@ export class RolesService {
     return repo.findOne({ where: { id } });
   }
 
+  private async ensureAdministratorPermissions(roleId: string, opts?: { manager?: EntityManager }) {
+    const permRepo = (opts?.manager ?? this.rolePermRepo.manager).getRepository(RolePermission);
+    for (const r of RESOURCES) {
+      const existingPerm = await permRepo.findOne({ where: { role_id: roleId, resource: r } });
+      if (existingPerm) {
+        if (existingPerm.level !== 'admin') {
+          existingPerm.level = 'admin' as any;
+          await permRepo.save(existingPerm);
+        }
+      } else {
+        await permRepo.save(permRepo.create({ role_id: roleId, resource: r, level: 'admin' as any }));
+      }
+    }
+  }
+
   async createRole(
     params: { role_name: string; role_description: string | null; is_system?: boolean; is_built_in?: boolean },
     opts?: { manager?: EntityManager },
@@ -55,6 +70,9 @@ export class RolesService {
       if (shouldPersist) {
         await repo.save(existing);
       }
+      if (normalizedName === 'administrator') {
+        await this.ensureAdministratorPermissions(existing.id, opts);
+      }
       return existing;
     }
 
@@ -65,20 +83,8 @@ export class RolesService {
       is_built_in: shouldBeBuiltIn,
     });
     const saved = await repo.save(role);
-    // If creating Administrator, grant admin on all resources for this tenant
     if (normalizedName === 'administrator') {
-      const permRepo = (opts?.manager ?? this.rolePermRepo.manager).getRepository(RolePermission);
-      for (const r of RESOURCES) {
-        const existingPerm = await permRepo.findOne({ where: { role_id: saved.id, resource: r } });
-        if (existingPerm) {
-          if (existingPerm.level !== 'admin') {
-            existingPerm.level = 'admin' as any;
-            await permRepo.save(existingPerm);
-          }
-        } else {
-          await permRepo.save(permRepo.create({ role_id: saved.id, resource: r, level: 'admin' as any }));
-        }
-      }
+      await this.ensureAdministratorPermissions(saved.id, opts);
     }
     return saved;
   }

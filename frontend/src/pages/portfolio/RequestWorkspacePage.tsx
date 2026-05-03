@@ -17,6 +17,8 @@ import ConvertToProjectDialog from './components/ConvertToProjectDialog';
 import StatusChangeDialog from './components/StatusChangeDialog';
 import RecommendationDialog from './components/RecommendationDialog';
 import { type RequestScoringEditorHandle } from './editors/RequestScoringEditor';
+import DependencySelector from './components/DependencySelector';
+import RelationsSectionTitle from './components/RelationsSectionTitle';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import ShareDialog from '../../components/ShareDialog';
@@ -44,11 +46,12 @@ import { useLocale } from '../../i18n/useLocale';
 import { useTenant } from '../../tenant/TenantContext';
 import { getScoreColor } from '../tasks/theme/taskDetailTokens';
 
-type TabKey = 'summary' | 'analysis' | 'scoring' | 'knowledge';
-type LegacyPanelRoute = 'overview' | 'activity' | 'team' | 'relations';
+type TabKey = 'summary' | 'analysis' | 'scoring' | 'relations' | 'knowledge';
+type LegacyPanelRoute = 'overview' | 'activity' | 'team';
 type RouteTabKey = TabKey | LegacyPanelRoute;
+type DependencyTarget = { type: 'request' | 'project'; id: string; name: string };
 
-const REQUEST_TAB_KEYS: TabKey[] = ['summary', 'analysis', 'scoring', 'knowledge'];
+const REQUEST_TAB_KEYS: TabKey[] = ['summary', 'analysis', 'scoring', 'relations', 'knowledge'];
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   pending_review: ['candidate', 'approved', 'rejected', 'on_hold'],
@@ -101,6 +104,7 @@ function formatDate(locale: string, value?: string | null) {
 const RequestAnalysisTab = React.lazy(() => import('./workspace/request/RequestAnalysisTab'));
 const RequestActivityTab = React.lazy(() => import('./workspace/request/RequestActivityTab'));
 const RequestScoringTab = React.lazy(() => import('./workspace/request/RequestScoringTab'));
+const RequestRelationsPanel = React.lazy(() => import('./editors/RequestRelationsPanel'));
 const RequestKnowledgeTab = React.lazy(() => import('./workspace/request/RequestKnowledgeTab'));
 
 export default function RequestWorkspacePage() {
@@ -124,7 +128,7 @@ export default function RequestWorkspacePage() {
   const routeTab: TabKey = REQUEST_TAB_KEYS.includes(rawRouteTab as TabKey)
     ? (rawRouteTab as TabKey)
     : 'summary';
-  const propertyPanelFocusSection = rawRouteTab === 'team' || rawRouteTab === 'relations'
+  const propertyPanelFocusSection = rawRouteTab === 'team'
     ? rawRouteTab
     : null;
   const requestInclude = React.useMemo(() => getRequestWorkspaceInclude(routeTab), [routeTab]);
@@ -132,6 +136,7 @@ export default function RequestWorkspacePage() {
     { key: 'summary', label: t('portfolio:labels.summary') },
     { key: 'analysis', label: t('portfolio:labels.analysis') },
     { key: 'scoring', label: t('portfolio:labels.scoring') },
+    { key: 'relations', label: t('portfolio:labels.relations') },
     { key: 'knowledge', label: t('portfolio:labels.knowledge') },
   ], [t]);
   const statusOptions = React.useMemo(() => getRequestStatusOptions(t), [t]);
@@ -147,7 +152,7 @@ export default function RequestWorkspacePage() {
   }, [id, isCreate, location.search, navigate, rawRouteTab, routeTab]);
 
   // Fetch request data
-  const { data, error, isFetching, isLoading, refetch } = useQuery({
+  const { data, error, isLoading, refetch } = useQuery({
     queryKey: ['portfolio-request', id, requestInclude],
     queryFn: async () => {
       const res = await api.get(`/portfolio/requests/${id}`, { params: { include: requestInclude } });
@@ -358,6 +363,58 @@ export default function RequestWorkspacePage() {
       await refetch();
     }
   }, [canManage, id, isCreate, queryClient, refetch, t]);
+
+  const handleAddDependency = React.useCallback(async (target: DependencyTarget) => {
+    const requestId = form?.id;
+    if (!requestId) return;
+
+    setSaveError(null);
+    setForm((prev: any) => ({
+      ...prev,
+      dependencies: [
+        ...(Array.isArray(prev?.dependencies) ? prev.dependencies : []),
+        {
+          id: `optimistic:${target.type}:${target.id}`,
+          target_type: target.type,
+          target_id: target.id,
+          target_name: target.name,
+          target_status: '',
+        },
+      ],
+    }));
+
+    try {
+      await api.post(`/portfolio/requests/${requestId}/dependencies`, {
+        target_type: target.type,
+        target_id: target.id,
+      });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
+      await refetch();
+    }
+  }, [form?.id, queryClient, refetch, t]);
+
+  const handleRemoveDependency = React.useCallback(async (targetType: 'request' | 'project', targetId: string) => {
+    const requestId = form?.id;
+    if (!requestId) return;
+
+    setSaveError(null);
+    setForm((prev: any) => ({
+      ...prev,
+      dependencies: (Array.isArray(prev?.dependencies) ? prev.dependencies : []).filter(
+        (dep: any) => !(dep?.target_type === targetType && dep?.target_id === targetId),
+      ),
+    }));
+
+    try {
+      await api.delete(`/portfolio/requests/${requestId}/dependencies/${targetType}/${targetId}`);
+      queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+    } catch (error) {
+      setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
+      await refetch();
+    }
+  }, [form?.id, queryClient, refetch, t]);
 
   const handleFeasibilityReviewChange = React.useCallback((value: any) => {
     setForm((prev: any) => ({ ...prev, feasibility_review: value }));
@@ -827,8 +884,6 @@ export default function RequestWorkspacePage() {
     })
     : '';
   const latestRecommendationStatusChange = latestAnalysisRecommendation?.changed_fields?.status;
-  const showRefreshState = !isCreate && !!data && isFetching;
-
   if (!isCreate && isLoading && !data) {
     return (
       <Box sx={{ p: 2 }}>
@@ -989,9 +1044,6 @@ export default function RequestWorkspacePage() {
           />
         )}
       >
-        {showRefreshState && (
-          <LinearProgress sx={{ mb: 2 }} />
-        )}
         {routeTab === 'summary' && (
           <Stack spacing={3}>
             <RequestSummaryTab
@@ -1068,6 +1120,25 @@ export default function RequestWorkspacePage() {
               readOnly={!canManage || form?.status === 'converted'}
               scoringEditorRef={scoringEditorRef}
             />
+          </React.Suspense>
+        )}
+
+        {routeTab === 'relations' && !isCreate && form?.id && (
+          <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.request.loadingTabs.relations')} />}>
+            <Stack spacing={3}>
+              <Stack spacing={1.25}>
+                <RelationsSectionTitle>{t('portfolio:workspace.request.sections.dependencies')}</RelationsSectionTitle>
+                <DependencySelector
+                  entityType="request"
+                  entityId={form.id}
+                  dependencies={form?.dependencies || []}
+                  onAdd={handleAddDependency}
+                  onRemove={handleRemoveDependency}
+                  disabled={!canManage}
+                />
+              </Stack>
+              <RequestRelationsPanel id={form.id} autoSave />
+            </Stack>
           </React.Suspense>
         )}
 

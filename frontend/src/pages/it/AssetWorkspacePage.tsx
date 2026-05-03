@@ -5,31 +5,24 @@ import {
   Box,
   Button,
   Chip,
-  Divider,
   IconButton,
+  Menu,
   MenuItem,
+  Select,
   Stack,
-  Tab,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   CircularProgress,
-  FormControlLabel,
   Switch,
+  useTheme,
 } from '@mui/material';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -51,11 +44,19 @@ import { useAuth } from '../../auth/AuthContext';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { KanapDialog, PropertyGroup, PropertyRow } from '../../components/design';
+import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx, nakedInputHoverSx } from '../../theme/formSx';
+import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
+import { getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
+import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
+import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/workspace/PortfolioMetadataBar';
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
 type AssetRecord = {
   id: string;
   name: string;
+  asset_reference?: string | null;
   kind: string;
   provider: string;
   environment: string;
@@ -70,6 +71,7 @@ type AssetRecord = {
   go_live_date: string | null;
   end_of_life_date: string | null;
   location_id: string | null;
+  sub_location_id?: string | null;
   operating_system: string | null;
   notes: string | null;
 };
@@ -109,8 +111,10 @@ type ClusterMember = {
   provider: string;
   location?: string | null;
   location_id?: string | null;
-   operating_system?: string | null;
+  operating_system?: string | null;
 };
+
+type LocationOption = { id: string; code: string; name: string };
 
 type ClusterSummary = {
   id: string;
@@ -130,7 +134,10 @@ type ServerConnectionRow = {
   destination_label?: string | null;
 };
 
-type TabKey = 'overview' | 'technical' | 'hardware' | 'support' | 'relations' | 'knowledge' | 'assignments' | 'connections';
+type TabKey = 'overview' | 'technical' | 'hardware' | 'support' | 'relations';
+
+const VALID_ASSET_TABS = new Set<TabKey>(['overview', 'technical', 'hardware', 'support', 'relations']);
+const OVERVIEW_LEGACY_TABS = new Set(['knowledge', 'assignments', 'connections']);
 
 const ENV_OPTIONS = [
   { value: 'prod', label: 'Prod' },
@@ -141,20 +148,111 @@ const ENV_OPTIONS = [
   { value: 'sandbox', label: 'Sandbox' },
 ] as const;
 
+function formatShortDate(value: string | null | undefined) {
+  if (!value) return 'Not set';
+  const date = new Date(String(value).includes('T') ? String(value) : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function humanize(value: string | null | undefined) {
+  const text = String(value || '').trim();
+  if (!text) return 'Not set';
+  return text.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function environmentLabel(value: string | null | undefined) {
+  return ENV_OPTIONS.find((option) => option.value === value)?.label || value || 'Not set';
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      component="h2"
+      sx={(theme) => ({
+        m: 0,
+        fontSize: 14,
+        fontWeight: 500,
+        lineHeight: 1.4,
+        color: theme.palette.kanap.text.primary,
+      })}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+const contentFieldSx = {
+  width: '100%',
+  maxWidth: 520,
+  ...nakedInputHoverSx,
+  '& .MuiInputBase-root': {
+    fontSize: 13,
+  },
+  '& .MuiInput-underline:before': { display: 'none' },
+  '& .MuiInput-underline:after': { display: 'none' },
+  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' },
+} as const;
+
+const denseTableSx = {
+  '& th': {
+    fontSize: 12,
+    fontWeight: 500,
+    borderBottom: '1px solid',
+    borderColor: 'kanap.border.default',
+    color: 'kanap.text.tertiary',
+    py: 0.75,
+  },
+  '& td': {
+    fontSize: 13,
+    borderBottom: '1px solid',
+    borderColor: 'kanap.border.soft',
+    color: 'kanap.text.primary',
+    py: 0.75,
+  },
+  '& tbody tr:hover': {
+    bgcolor: 'kanap.bg.hover',
+  },
+  '& .MuiButton-root': {
+    minWidth: 0,
+    p: 0,
+    height: 'auto',
+    color: 'kanap.text.primary',
+    fontSize: 13,
+    fontWeight: 400,
+    justifyContent: 'flex-start',
+    textTransform: 'none',
+    '&:hover': {
+      bgcolor: 'transparent',
+      color: 'kanap.teal',
+      textDecoration: 'underline',
+    },
+  },
+} as const;
+
 export default function AssetWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
+  const theme = useTheme();
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const id = String(params.id || '');
-  const tab = (params.tab as TabKey) || 'overview';
+  const rawTab = params.tab as string | undefined;
+  const tab = React.useMemo<TabKey>(() => {
+    if (VALID_ASSET_TABS.has(rawTab as TabKey)) return rawTab as TabKey;
+    if (rawTab && OVERVIEW_LEGACY_TABS.has(rawTab)) return 'overview';
+    return 'overview';
+  }, [rawTab]);
   const isCreate = id === 'new';
+  const canManage = hasLevel('infrastructure', 'member');
+  const canDelete = hasLevel('infrastructure', 'admin');
 
   // Refs for panel components
   const hardwareRef = React.useRef<HardwareInfoPanelHandle>(null);
   const supportRef = React.useRef<SupportInfoPanelHandle>(null);
   const relationsRef = React.useRef<AssetRelationsPanelHandle>(null);
+  const goLiveNativeRef = React.useRef<HTMLInputElement | null>(null);
 
   const [data, setData] = React.useState<AssetRecord | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -179,6 +277,9 @@ export default function AssetWorkspacePage() {
   const [connections, setConnections] = React.useState<ServerConnectionRow[]>([]);
   const [connectionsError, setConnectionsError] = React.useState<string | null>(null);
   const [connectionsLoading, setConnectionsLoading] = React.useState(false);
+  const [assetTypeAnchorEl, setAssetTypeAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [locationAnchorEl, setLocationAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [locationOptions, setLocationOptions] = React.useState<LocationOption[]>([]);
   const { byField, labelFor, settings } = useItOpsEnumOptions();
   const topologyLabel = React.useCallback((v?: string) => {
     if (v === 'server_to_server') return t('enums.topology.serverToServer');
@@ -206,6 +307,28 @@ export default function AssetWorkspacePage() {
   }, [id, isCreate]);
 
   React.useEffect(() => { void load(); }, [load]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const loadLocations = async () => {
+      try {
+        const res = await api.get<{ items: LocationOption[] }>('/locations', {
+          params: { limit: 500, sort: 'code:ASC' },
+        });
+        if (cancelled) return;
+        const items = [...(res.data?.items || [])].sort((a, b) => (
+          a.code.localeCompare(b.code, undefined, { sensitivity: 'base' })
+        ));
+        setLocationOptions(items);
+      } catch {
+        if (!cancelled) setLocationOptions([]);
+      }
+    };
+    void loadLocations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refreshAssignments = React.useCallback(async () => {
     if (isCreate) return;
@@ -349,29 +472,32 @@ export default function AssetWorkspacePage() {
 
   // Determine if the current asset type is physical (shows Hardware/Support tabs)
   const isPhysicalAsset = React.useMemo(() => {
-    if (!kind) return false;
-    const assetType = (settings?.serverKinds || []).find((o) => o.code === kind);
+    const assetKind = kind || data?.kind || '';
+    if (!assetKind) return false;
+    const assetType = (settings?.serverKinds || []).find((o) => o.code === assetKind);
     return assetType?.is_physical ?? false;
-  }, [kind, settings?.serverKinds]);
+  }, [data?.kind, kind, settings?.serverKinds]);
 
   // Redirect to valid tab if current tab is not available for this asset type
   React.useEffect(() => {
     if (isCreate) return;
     if (!data) return; // Wait for data to load
+    if (!settings) return; // Wait for asset type metadata before deciding physical-only tabs
     const physicalOnlyTabs = ['hardware', 'support'];
     if (physicalOnlyTabs.includes(tab) && !isPhysicalAsset) {
       navigate(`/it/assets/${id}/overview`, { replace: true });
     }
-  }, [tab, isPhysicalAsset, id, isCreate, data, navigate]);
+  }, [tab, isPhysicalAsset, id, isCreate, data, navigate, settings]);
 
   // Compute valid tab value for Tabs component (prevents MUI warning)
   const validTab = React.useMemo(() => {
+    if (!settings) return tab;
     const physicalOnlyTabs = ['hardware', 'support'];
     if (physicalOnlyTabs.includes(tab) && !isPhysicalAsset) {
       return 'overview'; // Fallback while redirect happens
     }
     return tab;
-  }, [tab, isPhysicalAsset]);
+  }, [tab, isPhysicalAsset, settings]);
 
   const operatingSystemOptions = React.useMemo(
     () => (settings?.operatingSystems || []).map((o) => ({
@@ -502,7 +628,7 @@ export default function AssetWorkspacePage() {
 
   React.useEffect(() => {
     let cancelled = false;
-    if (isCreate || tab !== 'connections') {
+    if (isCreate) {
       setConnections([]);
       setConnectionsError(null);
       setConnectionsLoading(false);
@@ -525,7 +651,7 @@ export default function AssetWorkspacePage() {
     };
     void loadConnections();
     return () => { cancelled = true; };
-  }, [id, tab, isCreate]);
+  }, [id, isCreate, t]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -811,16 +937,15 @@ export default function AssetWorkspacePage() {
     }
   };
 
-  const saveDisabled =
+  const createDisabled =
     saving ||
     locationInfoLoading ||
-    !dirty ||
     !name.trim() ||
     !locationId ||
     !kind ||
     !provider;
   const locationCategory = locationDetails ? getHostingCategory(locationDetails.hosting_type) : null;
-  const loadingPlaceholder = locationInfoLoading && locationId ? 'Loading...' : '—';
+  const loadingPlaceholder = '-';
   const hostingTypeDisplay = locationDetails
     ? labelFor('hostingType', locationDetails.hosting_type) || locationDetails.hosting_type
     : loadingPlaceholder;
@@ -833,8 +958,8 @@ export default function AssetWorkspacePage() {
     ? locationCategory === 'cloud'
       ? locationDetails.provider
         ? labelFor('serverProvider', locationDetails.provider) || locationDetails.provider
-        : '—'
-      : locationCompanyName || '—'
+        : '-'
+      : locationCompanyName || '-'
     : loadingPlaceholder;
   const countryDisplay = locationDetails && locationDetails.country_iso
     ? (() => {
@@ -843,10 +968,10 @@ export default function AssetWorkspacePage() {
         return `${name} (${code})`;
       })()
     : locationDetails
-      ? '—'
+      ? '-'
       : loadingPlaceholder;
   const cityDisplay = locationDetails
-    ? locationDetails.city || '—'
+    ? locationDetails.city || '-'
     : loadingPlaceholder;
 
   // Navigation for prev/next
@@ -869,15 +994,42 @@ export default function AssetWorkspacePage() {
     return sp;
   }, [searchParams]);
 
+  React.useEffect(() => {
+    if (!rawTab || VALID_ASSET_TABS.has(rawTab as TabKey)) return;
+    const qs = listContextParams.toString();
+    navigate(`/it/assets/${id}/overview${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [id, listContextParams, navigate, rawTab]);
+
   const handleReset = () => {
     setName(data?.name || '');
     setDirty(false);
     load();
   };
 
+  const patchAsset = React.useCallback(async (patch: Partial<AssetRecord> & { sub_location_id?: string | null }) => {
+    if (isCreate) {
+      setDirty(true);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setData((prev) => (prev ? ({ ...prev, ...patch } as AssetRecord) : prev));
+    try {
+      const res = await api.patch(`/assets/${id}`, patch);
+      setData(res.data as AssetRecord);
+      setDirty(false);
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.saveAssetFailed')));
+      await load();
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  }, [id, isCreate, load, t]);
+
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
-    if (dirty) {
+    if (isCreate && dirty) {
       const proceed = window.confirm(t('confirmations.unsavedSaveBeforeNav'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
@@ -887,235 +1039,720 @@ export default function AssetWorkspacePage() {
     }
     const qs = listContextParams.toString();
     navigate(`/it/assets/${targetId}/${tab}${qs ? `?${qs}` : ''}`);
-  }, [dirty, handleSave, handleReset, listContextParams, navigate, tab]);
+  }, [dirty, handleSave, handleReset, isCreate, listContextParams, navigate, tab, t]);
 
   const handleClose = () => {
+    if (isCreate && dirty && !window.confirm(t('confirmations.unsavedSaveBeforeNav'))) return;
     const qs = listContextParams.toString();
     navigate(`/it/assets${qs ? `?${qs}` : ''}`);
   };
 
+  const physicalOnlyTabs = ['hardware', 'support'];
+  const showPhysicalTabs = isPhysicalAsset || (!settings && physicalOnlyTabs.includes(tab));
+
+  const workspaceTabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'technical', label: 'Technical' },
+    ...(showPhysicalTabs ? [
+      { key: 'hardware', label: 'Hardware', disabled: isCreate },
+      { key: 'support', label: 'Support', disabled: isCreate },
+    ] : []),
+    { key: 'relations', label: 'Relations', disabled: isCreate },
+  ];
+
+  const canonicalPathFor = (targetId: string, nextTab: TabKey = validTab) => {
+    const qs = listContextParams.toString();
+    return `/it/assets/${targetId}/${nextTab}${qs ? `?${qs}` : ''}`;
+  };
+
+  const handleTabChange = (nextTab: string) => {
+    navigate(canonicalPathFor(id, nextTab as TabKey));
+  };
+
+  const updateAssetType = (nextValue: string) => {
+    setKind(nextValue);
+    if (isCreate) {
+      setDirty(true);
+    } else if (nextValue) {
+      void patchAsset({ kind: nextValue });
+    }
+  };
+
+  const updateLocation = (nextValue: string | null) => {
+    if (!nextValue && !isCreate) {
+      setError('Location is required.');
+      return;
+    }
+    if (nextValue !== locationId) {
+      setSubLocationId(null);
+    }
+    setLocationId(nextValue);
+    if (isCreate) {
+      setDirty(true);
+    } else {
+      void patchAsset({ location_id: nextValue, sub_location_id: null });
+    }
+  };
+
+  const updateScalar = <K extends keyof AssetRecord>(key: K, value: AssetRecord[K]) => {
+    if (isCreate) {
+      setDirty(true);
+      return;
+    }
+    void patchAsset({ [key]: value } as Partial<AssetRecord>);
+  };
+
+  const persistIpAddresses = (nextEntries: IpAddressEntry[]) => {
+    const clean = nextEntries.filter((entry) => entry.ip.trim());
+    if (isCreate) {
+      setDirty(true);
+    } else {
+      void patchAsset({ ip_addresses: clean.length > 0 ? clean : null });
+    }
+  };
+
+  const lifecycleMetadataOptions = lifecycleOptions.map((option) => ({
+    value: option.value,
+    label: option.label,
+    color: getDotColor(LIFECYCLE_COLORS[option.value] || 'default', theme.palette.mode),
+  }));
+
+  const environmentMetadataOptions = ENV_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+    color: getEnvDotColor(option.value, theme.palette.mode),
+  }));
+
+  const assetTypeLabel = labelFor('serverKind', kind) || kind || 'Not set';
+  const locationLabel = locationDetails?.code || (locationId ? 'Loading...' : 'Not set');
+
   const actions = (
-    <Stack direction="row" spacing={1} alignItems="center">
-      <IconButton
-        aria-label={t('common.previous')}
-        title={t('common.previous')}
-        onClick={() => confirmAndNavigate(prevId)}
-        disabled={!hasPrev}
-        size="small"
-      >
-        <ArrowBackIcon />
-      </IconButton>
-      <IconButton
-        aria-label={t('common.next')}
-        title={t('common.next')}
-        onClick={() => confirmAndNavigate(nextId)}
-        disabled={!hasNext}
-        size="small"
-      >
-        <ArrowForwardIcon />
-      </IconButton>
-      <Button onClick={handleReset}>{t('common:buttons.reset')}</Button>
-      <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>
-        Save
-      </Button>
-      <IconButton onClick={handleClose} title={t('common.close')}>
+    <>
+      {isCreate && (
+        <Button variant="contained" onClick={() => void handleSave()} disabled={createDisabled} size="small">
+          Create
+        </Button>
+      )}
+      {!isCreate && canDelete && (
+        <Button
+          variant="action-danger"
+          startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />}
+          size="small"
+          onClick={async () => {
+            if (!window.confirm(`Delete asset "${data?.name || name}"?`)) return;
+            await api.delete(`/assets/${id}`);
+            handleClose();
+          }}
+        >
+          Delete
+        </Button>
+      )}
+      <IconButton onClick={handleClose} title={t('common.close')} aria-label={t('common.close')} size="small">
         <CloseIcon />
       </IconButton>
-    </Stack>
+    </>
+  );
+
+  const properties = (
+    <>
+      <PropertyGroup>
+        <PropertyRow label="Asset type" required>
+          <Autocomplete
+            options={kindOptions.filter((opt) => !opt.deprecated || opt.value === kind)}
+            value={kind ? kindOptions.find((opt) => opt.value === kind) || { value: kind, label: kind, deprecated: false } : null}
+            onChange={(_, val) => updateAssetType(val?.value || '')}
+            getOptionLabel={(opt) => opt.label}
+            isOptionEqualToValue={(opt, val) => opt.value === val.value}
+            disabled={!canManage || saving}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="standard"
+                placeholder="Search asset types"
+                InputProps={{ ...params.InputProps, disableUnderline: true }}
+                sx={editableFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            fullWidth
+          />
+        </PropertyRow>
+        <PropertyRow label="Location" required>
+          <Box sx={drawerFieldValueSx}>
+            <LocationSelect
+              value={locationId}
+              onChange={updateLocation}
+              label="Location"
+              required
+              size="small"
+              hideLabel
+              textFieldSx={editableFieldValueSx}
+              disabled={!canManage || saving}
+            />
+          </Box>
+        </PropertyRow>
+        {subLocationOptions.length > 0 && (
+          <PropertyRow label="Sub-location">
+            <Autocomplete
+              options={subLocationOptions}
+              getOptionLabel={(option) => option.name}
+              value={subLocationOptions.find((o) => o.id === subLocationId) || null}
+              onChange={(_, val) => {
+                const next = val?.id || null;
+                setSubLocationId(next);
+                if (isCreate) setDirty(true);
+                else void patchAsset({ sub_location_id: next });
+              }}
+              loading={subLocationLoading}
+              disabled={!canManage || saving || !locationId}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  variant="standard"
+                  placeholder="Search sub-locations"
+                  InputProps={{ ...params.InputProps, disableUnderline: true }}
+                  sx={editableFieldValueSx}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box>
+                    <Typography className="kanap-autocomplete-option-primary">{option.name}</Typography>
+                    {option.description && (
+                      <Typography className="kanap-autocomplete-option-secondary">{option.description}</Typography>
+                    )}
+                  </Box>
+                </li>
+              )}
+              ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              fullWidth
+            />
+          </PropertyRow>
+        )}
+        {(locationId || !isCreate) && (
+          <>
+            {locationInfoError && (
+              <PropertyRow label="Location context">
+                <Typography sx={(muiTheme) => ({ fontSize: 13, color: muiTheme.palette.kanap.text.secondary })}>
+                  {locationInfoError}
+                </Typography>
+              </PropertyRow>
+            )}
+            <PropertyRow label="Hosting type">{hostingTypeDisplay}</PropertyRow>
+            <PropertyRow label={providerOrCompanyLabel}>{providerOrCompanyDisplay}</PropertyRow>
+            <PropertyRow label="Country">{countryDisplay}</PropertyRow>
+            <PropertyRow label="City">{cityDisplay}</PropertyRow>
+          </>
+        )}
+      </PropertyGroup>
+
+      <PropertyGroup>
+        <PropertyRow label="Environment">
+          <Select
+            value={environment}
+            onChange={(e) => {
+              const next = e.target.value;
+              setEnvironment(next);
+              updateScalar('environment', next as AssetRecord['environment']);
+            }}
+            variant="standard"
+            disableUnderline
+            disabled={!canManage || saving}
+            sx={drawerSelectSx}
+          >
+            {ENV_OPTIONS.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
+          </Select>
+        </PropertyRow>
+        <PropertyRow label="Lifecycle">
+          <Select
+            value={status}
+            onChange={(e) => {
+              const next = e.target.value;
+              setStatus(next);
+              updateScalar('status', next as AssetRecord['status']);
+            }}
+            variant="standard"
+            disableUnderline
+            disabled={!canManage || saving}
+            sx={drawerSelectSx}
+          >
+            {lifecycleOptions.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
+          </Select>
+        </PropertyRow>
+        <PropertyRow label="Go live">
+          <DateEUField label="" valueYmd={goLiveDate} onChangeYmd={(val) => { setGoLiveDate(val); updateScalar('go_live_date', (val || null) as AssetRecord['go_live_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={editableFieldValueSx} />
+        </PropertyRow>
+        <PropertyRow label="End of life">
+          <DateEUField label="" valueYmd={endOfLifeDate} onChangeYmd={(val) => { setEndOfLifeDate(val); updateScalar('end_of_life_date', (val || null) as AssetRecord['end_of_life_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={editableFieldValueSx} />
+        </PropertyRow>
+      </PropertyGroup>
+    </>
   );
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="h6">{isCreate ? 'New Server' : data?.name || 'Server'}</Typography>
-          {isCluster && <Typography variant="body2" color="text.secondary">Cluster</Typography>}
-          {!isCreate && total > 0 && (
-            <Typography variant="body2" color="text.secondary">
-              ({index + 1} of {total})
-            </Typography>
-          )}
-        </Stack>
-        {actions}
-      </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <Divider sx={{ mb: 2 }} />
-      <Box sx={{ display: 'flex', minHeight: 360 }}>
-        <Tabs
-          orientation="vertical"
-          value={validTab}
-          onChange={(_, v) => navigate(`/it/assets/${id}/${v}`)}
-          sx={{ borderRight: 1, borderColor: 'divider', minWidth: 160 }}
-        >
-          <Tab label="Overview" value="overview" />
-          <Tab label="Technical" value="technical" />
-          {isPhysicalAsset && <Tab label="Hardware" value="hardware" disabled={isCreate} />}
-          {isPhysicalAsset && <Tab label="Support" value="support" disabled={isCreate} />}
-          <Tab label="Relations" value="relations" disabled={isCreate} />
-          <Tab label="Knowledge" value="knowledge" disabled={isCreate} />
-          <Tab label="Assignments" value="assignments" disabled={isCreate} />
-          <Tab label="Connections" value="connections" disabled={isCreate} />
-        </Tabs>
-        <Box sx={{ flex: 1, pl: 3 }}>
-          {tab === 'overview' && (
-            <Stack spacing={2} maxWidth={520}>
-              <TextField label="Name" value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} required />
-              <Autocomplete
-                options={kindOptions.filter((opt) => !opt.deprecated || opt.value === kind)}
-                value={
-                  kind
-                    ? kindOptions.find((opt) => opt.value === kind) || { value: kind, label: kind, deprecated: false }
-                    : null
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{error}</Alert>}
+      <PortfolioDetailWorkspaceShell
+        activeTab={validTab}
+        tabs={workspaceTabs}
+        onTabChange={handleTabChange}
+        drawerStorageKey="kanap.assets.drawerOpen"
+        backLabel="Assets"
+        onBack={handleClose}
+        itemReference={!isCreate ? data?.asset_reference || data?.id?.slice(0, 8) || null : null}
+        onCopyReference={!isCreate && (data?.asset_reference || data?.id) ? () => { void navigator.clipboard?.writeText(data?.asset_reference || data?.id || ''); } : undefined}
+        title={isCreate ? name : data?.name || name || ''}
+        titleFallback={isCreate ? 'New asset' : 'Untitled asset'}
+        canEditTitle={canManage}
+        onTitleSave={(value) => {
+          const next = value.trim();
+          if (!next) return;
+          setName(next);
+          if (isCreate) setDirty(true);
+          else void patchAsset({ name: next });
+        }}
+        isCreate={isCreate}
+        nav={!isCreate && total > 0 ? {
+          currentIndex: index + 1,
+          totalCount: total,
+          hasPrev,
+          hasNext,
+          onPrev: () => { void confirmAndNavigate(prevId); },
+          onNext: () => { void confirmAndNavigate(nextId); },
+          previousLabel: 'Previous asset',
+          nextLabel: 'Next asset',
+        } : undefined}
+        onSaveShortcut={isCreate ? () => { void handleSave(); } : undefined}
+        metadata={!isCreate ? (
+          <>
+            <PortfolioStatusMetadata
+              value={status || 'active'}
+              label={humanize(labelFor('lifecycleStatus', status) || status)}
+              color={getDotColor(LIFECYCLE_COLORS[status] || 'default', theme.palette.mode)}
+              options={lifecycleMetadataOptions}
+              onChange={(value) => {
+                setStatus(value);
+                void patchAsset({ status: value });
+              }}
+              disabled={!canManage}
+            />
+            <PortfolioStatusMetadata
+              value={environment}
+              label={ENV_OPTIONS.find((option) => option.value === environment)?.label || environment}
+              color={getEnvDotColor(environment, theme.palette.mode)}
+              options={environmentMetadataOptions}
+              onChange={(value) => {
+                setEnvironment(value);
+                void patchAsset({ environment: value });
+              }}
+              disabled={!canManage}
+            />
+            <PortfolioMetadataItem
+              onClick={(event) => setAssetTypeAnchorEl(event.currentTarget)}
+              disabled={!canManage || saving}
+              title="Edit asset type"
+            >
+              {assetTypeLabel}
+            </PortfolioMetadataItem>
+            <Menu
+              anchorEl={assetTypeAnchorEl}
+              open={!!assetTypeAnchorEl}
+              onClose={() => setAssetTypeAnchorEl(null)}
+            >
+              {kindOptions.filter((option) => !option.deprecated || option.value === kind).map((option) => (
+                <MenuItem
+                  key={option.value}
+                  selected={option.value === kind}
+                  onClick={() => {
+                    updateAssetType(option.value);
+                    setAssetTypeAnchorEl(null);
+                  }}
+                  sx={drawerMenuItemSx}
+                >
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Menu>
+            {isCluster && <PortfolioMetadataItem>Cluster</PortfolioMetadataItem>}
+            <PortfolioMetadataItem
+              label="Location"
+              onClick={(event) => setLocationAnchorEl(event.currentTarget)}
+              disabled={!canManage || saving}
+              title="Edit location"
+            >
+              {locationLabel}
+            </PortfolioMetadataItem>
+            <Menu
+              anchorEl={locationAnchorEl}
+              open={!!locationAnchorEl}
+              onClose={() => setLocationAnchorEl(null)}
+            >
+              {locationOptions.map((option) => (
+                <MenuItem
+                  key={option.id}
+                  selected={option.id === locationId}
+                  onClick={() => {
+                    updateLocation(option.id);
+                    setLocationAnchorEl(null);
+                  }}
+                  sx={drawerMenuItemSx}
+                >
+                  {option.code}
+                </MenuItem>
+              ))}
+            </Menu>
+            {computedFqdn && <PortfolioMetadataItem mono>{computedFqdn}</PortfolioMetadataItem>}
+            <PortfolioMetadataItem
+              label="Go live"
+              onClick={(event) => {
+                const picker = goLiveNativeRef.current;
+                if (!picker) return;
+                const anchorX = event.clientX + 8;
+                const anchorY = event.clientY + 8;
+                picker.style.left = `${Math.min(anchorX, window.innerWidth - 24)}px`;
+                picker.style.top = `${Math.min(anchorY, window.innerHeight - 24)}px`;
+                picker.getBoundingClientRect();
+                try {
+                  picker.showPicker?.();
+                } catch {
+                  picker.click();
                 }
-                onChange={(_, val) => { setKind(val?.value || ''); setDirty(true); }}
-                getOptionLabel={(opt) => opt.label}
-                isOptionEqualToValue={(opt, val) => opt.value === val.value}
-                openOnFocus
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Asset type"
-                    required
-                    placeholder="Start typing to search"
+                if (!picker.showPicker) picker.click();
+              }}
+              disabled={!canManage || saving}
+              title="Edit go live"
+            >
+              {formatShortDate(goLiveDate)}
+            </PortfolioMetadataItem>
+            <Box
+              component="input"
+              ref={goLiveNativeRef}
+              data-testid="asset-metadata-go-live-date-input"
+              type="date"
+              value={goLiveDate || ''}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                const next = event.target.value || '';
+                setGoLiveDate(next);
+                updateScalar('go_live_date', (next || null) as AssetRecord['go_live_date']);
+              }}
+              aria-hidden="true"
+              disabled={!canManage || saving}
+              tabIndex={-1}
+              sx={{
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                opacity: 0,
+                width: 18,
+                height: 18,
+                pointerEvents: 'none',
+                zIndex: (theme) => theme.zIndex.tooltip,
+              }}
+            />
+          </>
+        ) : undefined}
+        actions={actions}
+        properties={properties}
+      >
+          {tab === 'overview' && (
+            <Stack spacing={3.5}>
+              {isCreate ? (
+                <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
+                  <Box>
+                    <SectionLabel>Basics</SectionLabel>
+                  </Box>
+                  <PropertyRow label="Name" required valueSx={{ maxWidth: 520 }}>
+                    <TextField
+                      value={name}
+                      onChange={(e) => { setName(e.target.value); setDirty(true); }}
+                      placeholder="Asset name"
+                      required
+                      size="small"
+                      variant="standard"
+                      InputProps={{ disableUnderline: true }}
+                      sx={contentFieldSx}
+                    />
+                  </PropertyRow>
+                  <Autocomplete
+                    options={kindOptions.filter((opt) => !opt.deprecated || opt.value === kind)}
+                    value={kind ? kindOptions.find((opt) => opt.value === kind) || { value: kind, label: kind, deprecated: false } : null}
+                    onChange={(_, val) => updateAssetType(val?.value || '')}
+                    getOptionLabel={(opt) => opt.label}
+                    isOptionEqualToValue={(opt, val) => opt.value === val.value}
+                    openOnFocus
+                    renderInput={(params) => (
+                      <PropertyRow label="Asset type" required valueSx={{ maxWidth: 520 }}>
+                        <TextField
+                          {...params}
+                          required
+                          placeholder="Search asset types"
+                          size="small"
+                          variant="standard"
+                          InputProps={{ ...params.InputProps, disableUnderline: true }}
+                          sx={contentFieldSx}
+                        />
+                      </PropertyRow>
+                    )}
                   />
-                )}
-              />
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={isCluster}
-                    onChange={(e) => {
-                      const next = e.target.checked;
-                      setIsCluster(next);
-                      if (next) setOperatingSystem('');
-                      setDirty(true);
-                    }}
-                    color="primary"
-                  />
-                )}
-                label="This server represents a cluster"
-              />
-              {isCluster && (
-                <Alert severity="info">
-                  Cluster servers can be endpoints in connections. Assign application instances to member hosts, not to the cluster itself.
-                </Alert>
-              )}
-              <LocationSelect
-                value={locationId}
-                onChange={(val) => {
-                  if (val !== locationId) {
-                    setSubLocationId(null);
-                  }
-                  setLocationId(val);
-                  setDirty(true);
-                }}
-                label="Location"
-                required
-              />
-              {subLocationOptions.length > 0 && (
-                <Autocomplete
-                  options={subLocationOptions}
-                  getOptionLabel={(option) => option.name}
-                  value={subLocationOptions.find((o) => o.id === subLocationId) || null}
-                  onChange={(_, val) => { setSubLocationId(val?.id || null); setDirty(true); }}
-                  loading={subLocationLoading}
-                  disabled={!locationId}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Sub-location" size="small" placeholder="Select sub-location" />
-                  )}
-                  renderOption={(props, option) => (
-                    <li {...props} key={option.id}>
-                      <Box>
-                        <Typography variant="body2">{option.name}</Typography>
-                        {option.description && (
-                          <Typography variant="caption" color="text.secondary">{option.description}</Typography>
+                  <PropertyRow label="Location" required valueSx={{ maxWidth: 520 }}>
+                    <LocationSelect
+                      value={locationId}
+                      onChange={updateLocation}
+                      label="Location"
+                      required
+                      size="small"
+                      hideLabel
+                      textFieldSx={contentFieldSx}
+                    />
+                  </PropertyRow>
+                  <PropertyRow label="Environment" valueSx={{ maxWidth: 260 }}>
+                    <TextField
+                      select
+                      value={environment}
+                      onChange={(e) => { setEnvironment(e.target.value); setDirty(true); }}
+                      size="small"
+                      variant="standard"
+                      InputProps={{ disableUnderline: true }}
+                      sx={contentFieldSx}
+                    >
+                      {ENV_OPTIONS.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
+                    </TextField>
+                  </PropertyRow>
+                </Stack>
+              ) : null}
+              <Box>
+                <Box sx={{ mb: 1 }}>
+                  <SectionLabel>Description</SectionLabel>
+                </Box>
+                <TextField
+                  multiline
+                  minRows={4}
+                  maxRows={12}
+                  value={notes}
+                  onChange={(e) => { setNotes(e.target.value); if (isCreate) setDirty(true); }}
+                  onBlur={(e) => {
+                    const next = e.currentTarget.value;
+                    setNotes(next);
+                    if (!isCreate && (next || '') !== (data?.notes || '')) void patchAsset({ notes: next || null });
+                  }}
+                  placeholder="Describe the asset"
+                  variant="standard"
+                  InputProps={{ disableUnderline: true }}
+                  sx={longFormSurfaceFieldSx}
+                  disabled={!canManage}
+                />
+              </Box>
+              {!isCreate && (
+                <>
+                  <Box>
+                    {assignmentsError && <Alert severity="error" sx={{ mb: 2 }}>{assignmentsError}</Alert>}
+                    {assignMessage && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setAssignMessage(null)}>{assignMessage}</Alert>}
+                    {isCluster && (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Cluster servers cannot host application assignments. Assign member hosts instead.
+                      </Alert>
+                    )}
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                      <SectionLabel>Assignments</SectionLabel>
+                      <Button
+                        variant="action"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={openAssignDialog}
+                        disabled={serverRoleOptions.length === 0 || isCluster}
+                      >
+                        Add assignment
+                      </Button>
+                    </Stack>
+                    <Table size="small" sx={denseTableSx}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Application</TableCell>
+                          <TableCell>Environment</TableCell>
+                          <TableCell>Role</TableCell>
+                          <TableCell>Since</TableCell>
+                          <TableCell>Notes</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {assignments.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6}>
+                              <Typography variant="body2" color="text.secondary">No assignments yet.</Typography>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </Box>
-                    </li>
-                  )}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  size="small"
-                />
-              )}
-              {locationInfoError && <Alert severity="warning">{locationInfoError}</Alert>}
-              <Stack spacing={2}>
-                <TextField
-                  label="Hosting type"
-                  value={hostingTypeDisplay}
-                  InputProps={{ readOnly: true }}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  label={providerOrCompanyLabel}
-                  value={providerOrCompanyDisplay}
-                  InputProps={{ readOnly: true }}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  label="Country"
-                  value={countryDisplay}
-                  InputProps={{ readOnly: true }}
-                  InputLabelProps={{ shrink: true }}
-                />
-                <TextField
-                  label="City"
-                  value={cityDisplay}
-                  InputProps={{ readOnly: true }}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Stack>
-              <TextField select label="Lifecycle" value={status} onChange={(e) => { setStatus(e.target.value as any); setDirty(true); }}>
-                {lifecycleOptions.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                ))}
-              </TextField>
-              <DateEUField
-                label="Go-live date"
-                valueYmd={goLiveDate}
-                onChangeYmd={(val) => { setGoLiveDate(val); setDirty(true); }}
-              />
-              <DateEUField
-                label="End-of-life date"
-                valueYmd={endOfLifeDate}
-                onChangeYmd={(val) => { setEndOfLifeDate(val); setDirty(true); }}
-              />
-              <TextField
-                label="Notes"
-                multiline
-                minRows={3}
-                value={notes}
-                onChange={(e) => { setNotes(e.target.value); setDirty(true); }}
-                InputLabelProps={{ shrink: true }}
-              />
+                        {assignments.map((assignment) => (
+                          <TableRow key={assignment.id}>
+                            <TableCell>
+                              <Button size="small" onClick={() => navigate(`/it/applications/${assignment.application.id}/assets`)}>
+                                {assignment.application.name}
+                              </Button>
+                            </TableCell>
+                            <TableCell>{environmentLabel(assignment.environment)}</TableCell>
+                            <TableCell>{labelFor('serverRole', assignment.role) || assignment.role}</TableCell>
+                            <TableCell>{assignment.since_date ? ymdToEu(assignment.since_date) : '-'}</TableCell>
+                            <TableCell>{assignment.notes || '-'}</TableCell>
+                            <TableCell align="right">
+                              <Tooltip title="Edit assignment">
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => navigate(`/it/applications/${assignment.application.id}/assets`)}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip title="Remove assignment">
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => void handleRemoveAssignment(assignment)}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
 
+                  <Box>
+                    <Box sx={{ mb: 1 }}>
+                      <SectionLabel>Connections</SectionLabel>
+                    </Box>
+                    {connectionsError && <Alert severity="error" sx={{ mb: 2 }}>{connectionsError}</Alert>}
+                    {!connectionsLoading && (
+                      connections.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">No connections found.</Typography>
+                      ) : (
+                        <Table size="small" sx={denseTableSx}>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Connection id</TableCell>
+                              <TableCell>Name</TableCell>
+                              <TableCell>Topology</TableCell>
+                              <TableCell>Protocols</TableCell>
+                              <TableCell>Source</TableCell>
+                              <TableCell>Destination</TableCell>
+                              <TableCell>Lifecycle</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {connections.map((conn) => (
+                              <TableRow key={conn.id} hover>
+                                <TableCell>
+                                  <Button size="small" onClick={() => navigate(`/it/connections/${conn.id}/overview`)}>
+                                    {conn.connection_id}
+                                  </Button>
+                                </TableCell>
+                                <TableCell>
+                                  <Button size="small" onClick={() => navigate(`/it/connections/${conn.id}/overview`)}>
+                                    {conn.name}
+                                  </Button>
+                                </TableCell>
+                                <TableCell>{topologyLabel(conn.topology)}</TableCell>
+                                <TableCell>
+                                  <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                                    {(conn.protocol_labels || []).map((p) => (
+                                      <Box key={p} component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{p}</Box>
+                                    ))}
+                                  </Stack>
+                                </TableCell>
+                                <TableCell>{conn.source_label || '-'}</TableCell>
+                                <TableCell>{conn.destination_label || '-'}</TableCell>
+                                <TableCell>{labelFor('lifecycleStatus', conn.lifecycle) || conn.lifecycle}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )
+                    )}
+                  </Box>
+
+                  <Box>
+                    <Box sx={{ mb: 1 }}>
+                      <SectionLabel>Knowledge</SectionLabel>
+                    </Box>
+                    <EntityKnowledgePanel
+                      entityType="assets"
+                      entityId={id}
+                      canCreate={canCreateKnowledge}
+                      controlsMaxWidth={560}
+                    />
+                  </Box>
+                </>
+              )}
             </Stack>
           )}
           {tab === 'technical' && (
-            <Stack spacing={3} maxWidth={520}>
-              {/* ENVIRONMENT SECTION */}
+            <Stack spacing={3.5} sx={{ maxWidth: 900 }}>
               <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
-                  Environment
-                </Typography>
-                <TextField
-                  select
-                  label="Environment"
-                  value={environment}
-                  onChange={(e) => { setEnvironment(e.target.value); setDirty(true); }}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                >
-                  {ENV_OPTIONS.map((opt) => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
-                </TextField>
+                <Box sx={{ mb: 1 }}>
+                  <SectionLabel>Cluster management</SectionLabel>
+                </Box>
+                <Stack spacing={1.25} sx={{ maxWidth: 560 }}>
+                  <Box
+                    component="label"
+                    sx={(muiTheme) => ({
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      width: 'fit-content',
+                      color: muiTheme.palette.kanap.text.tertiary,
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                    })}
+                  >
+                    Cluster
+                    <Switch
+                      checked={isCluster}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setIsCluster(next);
+                        if (next) setOperatingSystem('');
+                        if (isCreate) setDirty(true);
+                        else void patchAsset({ is_cluster: next, operating_system: next ? null : operatingSystem || null });
+                      }}
+                      disabled={!canManage || saving}
+                      color="primary"
+                      size="small"
+                      inputProps={{ 'aria-label': 'Cluster' }}
+                    />
+                  </Box>
+                  {isCluster && (
+                    <Alert
+                      severity="info"
+                      sx={(muiTheme) => ({
+                        bgcolor: muiTheme.palette.kanap.bg.composer,
+                        border: `1px solid ${muiTheme.palette.kanap.border.default}`,
+                        borderRadius: 1,
+                        color: muiTheme.palette.kanap.text.secondary,
+                        fontSize: 13,
+                        '& .MuiAlert-icon': {
+                          color: muiTheme.palette.kanap.text.tertiary,
+                        },
+                      })}
+                    >
+                      Cluster servers can be endpoints in connections. Assign application instances to member hosts, not to the cluster itself.
+                    </Alert>
+                  )}
+                </Stack>
               </Box>
-
               {/* CLUSTER SECTIONS */}
               {isCluster && (
                 <Box>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography variant="subtitle1">Members</Typography>
+                    <SectionLabel>Members</SectionLabel>
                     <Button
-                      variant="outlined"
+                      variant="action"
                       size="small"
                       onClick={openMemberDialog}
                       disabled={isCreate}
@@ -1127,20 +1764,17 @@ export default function AssetWorkspacePage() {
                     <Alert severity="info">Save this cluster before managing members.</Alert>
                   )}
                   {!isCreate && clusterError && <Alert severity="error" sx={{ mb: 1 }}>{clusterError}</Alert>}
-                  {!isCreate && clusterLoading && (
-                    <Typography variant="body2" color="text.secondary">Loading members…</Typography>
-                  )}
                   {!isCreate && !clusterLoading && clusterMembers.length === 0 && (
                     <Typography variant="body2" color="text.secondary">No members added yet.</Typography>
                   )}
                   {!isCreate && !clusterLoading && clusterMembers.length > 0 && (
-                    <Table size="small">
+                    <Table size="small" sx={denseTableSx}>
                       <TableHead>
                         <TableRow>
                           <TableCell>Name</TableCell>
                           <TableCell>Environment</TableCell>
                           <TableCell>Status</TableCell>
-                          <TableCell>Operating System</TableCell>
+                          <TableCell>Operating system</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -1151,12 +1785,12 @@ export default function AssetWorkspacePage() {
                                 {member.name}
                               </Button>
                             </TableCell>
-                            <TableCell>{member.environment?.toUpperCase()}</TableCell>
+                            <TableCell>{environmentLabel(member.environment)}</TableCell>
                             <TableCell>{labelFor('lifecycleStatus', member.status) || member.status}</TableCell>
                             <TableCell>
                               {labelFor('operatingSystem', member.operating_system || '') ||
                                 member.operating_system ||
-                                '—'}
+                                '-'}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1167,75 +1801,111 @@ export default function AssetWorkspacePage() {
               )}
               {!isCluster && !isCreate && (
                 <Box>
-                  <Typography variant="subtitle1">Cluster membership</Typography>
+                  <Box sx={{ mb: 1 }}>
+                    <SectionLabel>Cluster membership</SectionLabel>
+                  </Box>
                   {clustersError && <Alert severity="error" sx={{ mb: 1 }}>{clustersError}</Alert>}
-                  {clustersLoading ? (
-                    <Typography variant="body2" color="text.secondary">Loading clusters…</Typography>
-                  ) : clustersForServer.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">Not part of any cluster.</Typography>
-                  ) : (
-                    <Stack spacing={0.75} sx={{ mt: 0.5 }}>
-                      {clustersForServer.map((c) => (
-                        <Stack key={c.id} direction="row" justifyContent="space-between" alignItems="center">
-                          <Box>
-                            <Button size="small" onClick={() => navigate(`/it/assets/${c.id}/overview`)}>{c.name}</Button>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              {c.environment?.toUpperCase()} · {labelFor('lifecycleStatus', c.status) || c.status}
-                            </Typography>
-                          </Box>
-                          <Typography variant="body2" color="text.secondary">Cluster</Typography>
-                        </Stack>
-                      ))}
-                    </Stack>
+                  {!clustersLoading && (
+                    clustersForServer.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">Not part of any cluster.</Typography>
+                    ) : (
+                      <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                        {clustersForServer.map((c) => (
+                          <Stack key={c.id} direction="row" justifyContent="space-between" alignItems="center">
+                            <Box>
+                              <Button size="small" onClick={() => navigate(`/it/assets/${c.id}/overview`)}>{c.name}</Button>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                {environmentLabel(c.environment)} / {labelFor('lifecycleStatus', c.status) || c.status}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary">Cluster</Typography>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )
                   )}
                 </Box>
               )}
 
               {/* IDENTITY SECTION */}
               <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
-                  Identity
-                </Typography>
-                <Stack spacing={2}>
-                  <TextField
-                    label="Hostname"
-                    value={hostname}
-                    onChange={(e) => { setHostname(e.target.value); setHostnameManuallyEdited(true); setDirty(true); }}
-                    InputLabelProps={{ shrink: true }}
-                    error={!!hostnameRequired && !hostname}
-                    helperText={hostnameRequired && !hostname ? 'Hostname is required when a domain is selected' : undefined}
-                  />
-                  <TextField
-                    select
-                    label="Domain"
-                    value={domain}
-                    onChange={(e) => { setDomain(e.target.value); setDirty(true); }}
-                    InputLabelProps={{ shrink: true }}
-                  >
-                    <MenuItem value="">—</MenuItem>
-                    {domainOptions
-                      .filter((opt) => !opt.deprecated || opt.value === domain)
-                      .map((opt) => (
-                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                      ))}
-                  </TextField>
-                  <TextField
-                    label="FQDN"
-                    value={computedFqdn}
-                    InputProps={{
-                      readOnly: true,
-                      sx: { color: 'text.secondary', '& input': { cursor: 'default' } },
-                    }}
-                    InputLabelProps={{ shrink: true }}
-                  />
+                <Box sx={{ mb: 1.5 }}>
+                  <SectionLabel>Identity</SectionLabel>
+                </Box>
+                <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
+                  <PropertyRow label="Hostname" valueSx={{ maxWidth: 520 }}>
+                    <TextField
+                      value={hostname}
+                      onChange={(e) => { setHostname(e.target.value); setHostnameManuallyEdited(true); if (isCreate) setDirty(true); }}
+                      onBlur={(e) => {
+                        const next = e.currentTarget.value;
+                        const cleanHostname = next.trim().toLowerCase();
+                        const domainOpt = domainOptions.find((domainOption) => domainOption.value === domain);
+                        const nextFqdn = cleanHostname
+                          ? (!domain || domain === 'workgroup' || domain === 'n-a' || !domainOpt?.dns_suffix
+                              ? cleanHostname
+                              : `${cleanHostname}.${domainOpt.dns_suffix}`)
+                          : null;
+                        setHostname(next);
+                        if (!isCreate && (next || '') !== (data?.hostname || '')) void patchAsset({ hostname: next || null, fqdn: nextFqdn });
+                      }}
+                      error={!!hostnameRequired && !hostname}
+                      helperText={hostnameRequired && !hostname ? 'Hostname is required when a domain is selected' : undefined}
+                      placeholder="Hostname"
+                      size="small"
+                      variant="standard"
+                      InputProps={{ disableUnderline: true }}
+                      sx={contentFieldSx}
+                      disabled={!canManage}
+                    />
+                  </PropertyRow>
+                  <PropertyRow label="Domain" valueSx={{ maxWidth: 520 }}>
+                    <TextField
+                      select
+                      value={domain}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setDomain(next);
+                        if (isCreate) setDirty(true);
+                        else void patchAsset({ domain: next || null });
+                      }}
+                      size="small"
+                      variant="standard"
+                      InputProps={{ disableUnderline: true }}
+                      sx={contentFieldSx}
+                      disabled={!canManage}
+                    >
+                      <MenuItem value="" sx={drawerMenuItemSx}>None</MenuItem>
+                      {domainOptions
+                        .filter((opt) => !opt.deprecated || opt.value === domain)
+                        .map((opt) => (
+                          <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>
+                        ))}
+                    </TextField>
+                  </PropertyRow>
+                  <PropertyRow label="FQDN" valueSx={{ maxWidth: 520 }}>
+                    <TextField
+                      value={computedFqdn}
+                      InputProps={{
+                        readOnly: true,
+                        disableUnderline: true,
+                        sx: { color: 'text.secondary', '& input': { cursor: 'default' } },
+                      }}
+                      size="small"
+                      variant="standard"
+                      sx={contentFieldSx}
+                    />
+                  </PropertyRow>
                   <Autocomplete
                     multiple
                     freeSolo
                     options={[]}
                     value={aliases}
                     onChange={(_, newValue) => {
-                      setAliases(newValue.map((v) => String(v).trim().toLowerCase()).filter(Boolean));
-                      setDirty(true);
+                      const next = newValue.map((v) => String(v).trim().toLowerCase()).filter(Boolean);
+                      setAliases(next);
+                      if (isCreate) setDirty(true);
+                      else void patchAsset({ aliases: next.length > 0 ? next : null });
                     }}
                     renderTags={(value, getTagProps) =>
                       value.map((option, index) => (
@@ -1243,56 +1913,72 @@ export default function AssetWorkspacePage() {
                       ))
                     }
                     renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Aliases"
-                        placeholder={aliases.length === 0 ? 'Type and press Enter' : ''}
-                        InputLabelProps={{ shrink: true }}
-                      />
+                      <PropertyRow label="Aliases" valueSx={{ maxWidth: 520 }}>
+                        <TextField
+                          {...params}
+                          placeholder={aliases.length === 0 ? 'Alias names' : ''}
+                          size="small"
+                          variant="standard"
+                          InputProps={{ ...params.InputProps, disableUnderline: true }}
+                          sx={contentFieldSx}
+                        />
+                      </PropertyRow>
                     )}
+                    disabled={!canManage}
                   />
-                  <TextField
-                    select
-                    label="Operating System"
-                    value={operatingSystem}
-                    onChange={(e) => { setOperatingSystem(e.target.value); setDirty(true); }}
-                    disabled={isCluster}
-                    helperText={(() => {
-                      if (isCluster) return 'Operating system is defined by cluster member servers.';
-                      const sel = operatingSystemOptions.find((opt) => opt.value === operatingSystem);
-                      if (!sel) return 'Choose from the Operating Systems list in Settings.';
-                      const ss = sel.standardSupportEnd ? `Standard support ends ${ymdToEu(sel.standardSupportEnd)}` : '';
-                      const es = sel.extendedSupportEnd ? `Extended support ends ${ymdToEu(sel.extendedSupportEnd)}` : '';
-                      return [ss, es].filter(Boolean).join(' · ');
-                    })()}
-                    InputLabelProps={{ shrink: true }}
-                  >
-                    <MenuItem value="">—</MenuItem>
-                    {operatingSystemOptions.map((opt) => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                    ))}
-                  </TextField>
+                  <PropertyRow label="Operating system" valueSx={{ maxWidth: 520 }}>
+                    <TextField
+                      select
+                      value={operatingSystem}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setOperatingSystem(next);
+                        if (isCreate) setDirty(true);
+                        else void patchAsset({ operating_system: next || null });
+                      }}
+                      disabled={isCluster || !canManage}
+                      helperText={(() => {
+                        if (isCluster) return 'Operating system is defined by cluster member assets.';
+                        const sel = operatingSystemOptions.find((opt) => opt.value === operatingSystem);
+                        if (!sel) return 'Choose from the operating systems list in settings.';
+                        const ss = sel.standardSupportEnd ? `Standard support ends ${ymdToEu(sel.standardSupportEnd)}` : '';
+                        const es = sel.extendedSupportEnd ? `Extended support ends ${ymdToEu(sel.extendedSupportEnd)}` : '';
+                        return [ss, es].filter(Boolean).join(' / ');
+                      })()}
+                      size="small"
+                      variant="standard"
+                      InputProps={{ disableUnderline: true }}
+                      sx={contentFieldSx}
+                    >
+                      <MenuItem value="" sx={drawerMenuItemSx}>None</MenuItem>
+                      {operatingSystemOptions.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>
+                      ))}
+                    </TextField>
+                  </PropertyRow>
                 </Stack>
               </Box>
 
               {/* NETWORK INFORMATION SECTION */}
               <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
-                  IP Addresses
-                </Typography>
+                <Box sx={{ mb: 1.5 }}>
+                  <SectionLabel>IP addresses</SectionLabel>
+                </Box>
                 <Stack spacing={2}>
-                  {/* Add IP Address button at TOP */}
+                  {/* Keep the network block in the main work area; it is too wide for the properties drawer. */}
                   <Button
                     size="small"
+                    variant="action"
                     startIcon={<AddIcon />}
                     onClick={() => {
                       const defaultType = ipAddressTypeOptions[0]?.value || 'host';
                       setIpAddresses((prev) => [...prev, { type: defaultType, ip: '', subnet_cidr: null }]);
-                      setDirty(true);
+                      if (isCreate) setDirty(true);
                     }}
+                    disabled={!canManage}
                     sx={{ alignSelf: 'flex-start' }}
                   >
-                    Add IP Address
+                    Add IP address
                   </Button>
                   {ipAddresses.length === 0 && (
                     <Typography variant="body2" color="text.secondary">
@@ -1304,98 +1990,114 @@ export default function AssetWorkspacePage() {
                     return (
                       <Box
                         key={idx}
-                        sx={{
+                        sx={(muiTheme) => ({
                           p: 1.5,
-                          border: 1,
-                          borderColor: 'divider',
-                          borderRadius: 1,
-                          bgcolor: 'background.paper',
-                        }}
+                          border: `1px solid ${muiTheme.palette.kanap.border.default}`,
+                          borderRadius: '8px',
+                          bgcolor: muiTheme.palette.kanap.bg.primary,
+                          maxWidth: 760,
+                        })}
                       >
-                        {/* Row 1: Type + IP + Delete */}
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-                          <TextField
-                            select
-                            label="Type"
-                            value={entry.type}
-                            onChange={(e) => {
-                              setIpAddresses((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, type: e.target.value } : x))
-                              );
-                              setDirty(true);
-                            }}
-                            size="small"
-                            sx={{ minWidth: 130 }}
-                            InputLabelProps={{ shrink: true }}
-                          >
-                            {ipAddressTypeOptions.map((opt) => (
-                              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                            ))}
-                          </TextField>
-                          <TextField
-                            label="IP Address"
-                            value={entry.ip}
-                            onChange={(e) => {
-                              setIpAddresses((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, ip: e.target.value } : x))
-                              );
-                              setDirty(true);
-                            }}
-                            fullWidth
-                            size="small"
-                            InputLabelProps={{ shrink: true }}
-                          />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'flex-end' }} sx={{ mb: 1.5 }}>
+                          <PropertyRow label="Type" valueSx={{ minWidth: { xs: '100%', sm: 130 } }}>
+                            <TextField
+                              select
+                              value={entry.type}
+                              onChange={(e) => {
+                                const next = ipAddresses.map((x, i) => (i === idx ? { ...x, type: e.target.value } : x));
+                                setIpAddresses(next);
+                                persistIpAddresses(next);
+                              }}
+                              size="small"
+                              variant="standard"
+                              InputProps={{ disableUnderline: true }}
+                              sx={contentFieldSx}
+                              disabled={!canManage}
+                            >
+                              {ipAddressTypeOptions.map((opt) => (
+                                <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>
+                              ))}
+                            </TextField>
+                          </PropertyRow>
+                          <PropertyRow label="IP address" valueSx={{ flex: 1, minWidth: { xs: '100%', sm: 220 } }}>
+                            <TextField
+                              value={entry.ip}
+                              onChange={(e) => {
+                                const next = ipAddresses.map((x, i) => (i === idx ? { ...x, ip: e.target.value } : x));
+                                setIpAddresses(next);
+                                if (isCreate) setDirty(true);
+                              }}
+                              onBlur={(e) => {
+                                const next = ipAddresses.map((x, i) => (i === idx ? { ...x, ip: e.currentTarget.value } : x));
+                                setIpAddresses(next);
+                                persistIpAddresses(next);
+                              }}
+                              placeholder="IP address"
+                              fullWidth
+                              size="small"
+                              variant="standard"
+                              InputProps={{ disableUnderline: true }}
+                              sx={contentFieldSx}
+                              disabled={!canManage}
+                            />
+                          </PropertyRow>
                           <IconButton
+                            aria-label="Remove IP address"
                             onClick={() => {
-                              setIpAddresses((prev) => prev.filter((_, i) => i !== idx));
-                              setDirty(true);
+                              const next = ipAddresses.filter((_, i) => i !== idx);
+                              setIpAddresses(next);
+                              persistIpAddresses(next);
                             }}
                             size="small"
+                            disabled={!canManage}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Stack>
-                        {/* Row 2: Subnet + Network Zone + VLAN */}
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <TextField
-                            select
-                            label="Subnet"
-                            value={entry.subnet_cidr || ''}
-                            onChange={(e) => {
-                              setIpAddresses((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, subnet_cidr: e.target.value || null } : x))
-                              );
-                              setDirty(true);
-                            }}
-                            size="small"
-                            sx={{ minWidth: 180 }}
-                            InputLabelProps={{ shrink: true }}
-                            helperText={subnetOptions.length === 0 ? 'Define subnets in Settings.' : undefined}
-                          >
-                            <MenuItem value="">—</MenuItem>
-                            {subnetOptions.map((opt) => (
-                              <MenuItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                                {opt.description && ` - ${opt.description}`}
-                              </MenuItem>
-                            ))}
-                          </TextField>
-                          <TextField
-                            label="Network Zone"
-                            value={selectedSubnet ? (labelFor('networkSegment', selectedSubnet.network_zone) || selectedSubnet.network_zone || '—') : '—'}
-                            size="small"
-                            sx={{ minWidth: 120 }}
-                            InputProps={{ readOnly: true }}
-                            InputLabelProps={{ shrink: true }}
-                          />
-                          <TextField
-                            label="VLAN"
-                            value={selectedSubnet?.vlan_number ?? '—'}
-                            size="small"
-                            sx={{ minWidth: 80 }}
-                            InputProps={{ readOnly: true }}
-                            InputLabelProps={{ shrink: true }}
-                          />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
+                          <PropertyRow label="Subnet" valueSx={{ minWidth: { xs: '100%', sm: 220 } }}>
+                            <TextField
+                              select
+                              value={entry.subnet_cidr || ''}
+                              onChange={(e) => {
+                                const next = ipAddresses.map((x, i) => (i === idx ? { ...x, subnet_cidr: e.target.value || null } : x));
+                                setIpAddresses(next);
+                                persistIpAddresses(next);
+                              }}
+                              size="small"
+                              variant="standard"
+                              InputProps={{ disableUnderline: true }}
+                              sx={contentFieldSx}
+                              helperText={subnetOptions.length === 0 ? 'Define subnets in settings.' : undefined}
+                              disabled={!canManage}
+                            >
+                              <MenuItem value="" sx={drawerMenuItemSx}>None</MenuItem>
+                              {subnetOptions.map((opt) => (
+                                <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>
+                                  {opt.label}
+                                  {opt.description && ` / ${opt.description}`}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </PropertyRow>
+                          <PropertyRow label="Network zone" valueSx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                            <TextField
+                              value={selectedSubnet ? (labelFor('networkSegment', selectedSubnet.network_zone) || selectedSubnet.network_zone || '-') : '-'}
+                              size="small"
+                              variant="standard"
+                              sx={contentFieldSx}
+                              InputProps={{ readOnly: true, disableUnderline: true }}
+                            />
+                          </PropertyRow>
+                          <PropertyRow label="VLAN" valueSx={{ minWidth: { xs: '100%', sm: 90 } }}>
+                            <TextField
+                              value={selectedSubnet?.vlan_number ?? '-'}
+                              size="small"
+                              variant="standard"
+                              sx={contentFieldSx}
+                              InputProps={{ readOnly: true, disableUnderline: true }}
+                            />
+                          </PropertyRow>
                         </Stack>
                       </Box>
                     );
@@ -1404,165 +2106,36 @@ export default function AssetWorkspacePage() {
               </Box>
             </Stack>
           )}
-          {tab === 'assignments' && !isCreate && (
-            <Box>
-              {assignmentsError && <Alert severity="error" sx={{ mb: 2 }}>{assignmentsError}</Alert>}
-              {assignMessage && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setAssignMessage(null)}>{assignMessage}</Alert>}
-              {isCluster && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  Cluster servers cannot host application assignments. Assign member hosts instead.
-                </Alert>
-              )}
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                <Typography variant="subtitle1">Assignments</Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={openAssignDialog}
-                  disabled={serverRoleOptions.length === 0 || isCluster}
-                >
-                  Add assignment
-                </Button>
-              </Stack>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Application</TableCell>
-                    <TableCell>Environment</TableCell>
-                    <TableCell>Role</TableCell>
-                    <TableCell>Since</TableCell>
-                    <TableCell>Notes</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {assignments.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6}>
-                        <Typography variant="body2" color="text.secondary">No assignments yet.</Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {assignments.map((assignment) => (
-                    <TableRow key={assignment.id}>
-                      <TableCell>
-                        <Button size="small" onClick={() => navigate(`/it/applications/${assignment.application.id}/assets`)}>{assignment.application.name}</Button>
-                      </TableCell>
-                      <TableCell>{assignment.environment?.toUpperCase()}</TableCell>
-                      <TableCell>{assignment.role}</TableCell>
-                      <TableCell>{assignment.since_date || '—'}</TableCell>
-                      <TableCell>{assignment.notes || '—'}</TableCell>
-                      <TableCell align="right">
-                        <Tooltip title="Edit assignment">
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/it/applications/${assignment.application.id}/assets`)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title="Remove assignment">
-                          <span>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => void handleRemoveAssignment(assignment)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          )}
-          {tab === 'connections' && !isCreate && (
-            <Box>
-              {connectionsError && <Alert severity="error" sx={{ mb: 2 }}>{connectionsError}</Alert>}
-              {connectionsLoading ? (
-                <Typography variant="body2" color="text.secondary">Loading connections…</Typography>
-              ) : connections.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">No connections found.</Typography>
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Connection ID</TableCell>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Topology</TableCell>
-                      <TableCell>Protocols</TableCell>
-                      <TableCell>Source</TableCell>
-                      <TableCell>Destination</TableCell>
-                      <TableCell>Lifecycle</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {connections.map((conn) => (
-                      <TableRow key={conn.id} hover>
-                        <TableCell>
-                          <Button size="small" onClick={() => navigate(`/it/connections/${conn.id}/overview`)}>
-                            {conn.connection_id}
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          <Button size="small" onClick={() => navigate(`/it/connections/${conn.id}/overview`)}>
-                            {conn.name}
-                          </Button>
-                        </TableCell>
-                        <TableCell>{topologyLabel(conn.topology)}</TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                            {(conn.protocol_labels || []).map((p) => (
-                              <Box key={p} component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{p}</Box>
-                            ))}
-                          </Stack>
-                        </TableCell>
-                        <TableCell>{conn.source_label || '—'}</TableCell>
-                        <TableCell>{conn.destination_label || '—'}</TableCell>
-                        <TableCell>{labelFor('lifecycleStatus', conn.lifecycle) || conn.lifecycle}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </Box>
-          )}
           {tab === 'hardware' && isPhysicalAsset && !isCreate && (
             <HardwareInfoPanel
               ref={hardwareRef}
               assetId={id}
-              onDirtyChange={(d) => d && setDirty(true)}
             />
           )}
           {tab === 'support' && isPhysicalAsset && !isCreate && (
             <SupportInfoPanel
               ref={supportRef}
               assetId={id}
-              onDirtyChange={(d) => d && setDirty(true)}
             />
           )}
           {tab === 'relations' && !isCreate && (
             <AssetRelationsPanel
               ref={relationsRef}
               assetId={id}
-              onDirtyChange={(d) => d && setDirty(true)}
             />
           )}
-          {tab === 'knowledge' && !isCreate && (
-            <EntityKnowledgePanel entityType="assets" entityId={id} canCreate={canCreateKnowledge} />
-          )}
-        </Box>
-      </Box>
-      <Dialog open={memberDialogOpen} onClose={() => setMemberDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit members</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+      </PortfolioDetailWorkspaceShell>
+      <KanapDialog
+        open={memberDialogOpen}
+        title="Edit members"
+        onClose={() => setMemberDialogOpen(false)}
+        onSave={handleSaveMembers}
+        saveLabel="Save"
+        saveDisabled={memberSaving}
+        saveLoading={memberSaving}
+        sx={{ maxWidth: 560 }}
+      >
+          <Stack spacing={1.5}>
             <Autocomplete
               multiple
               options={memberOptionsCombined}
@@ -1577,109 +2150,122 @@ export default function AssetWorkspacePage() {
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{option.name}</div>
+                    <div style={{ fontWeight: 500 }}>{option.name}</div>
                     <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                      {option.environment?.toUpperCase()} · {option.kind}
-                      {option.is_cluster ? ' · cluster' : ''}
-                      {' · '}
+                      {environmentLabel(option.environment)} / {option.kind}
+                      {option.is_cluster ? ' / cluster' : ''}
+                      {' / '}
                       {option.provider}
                     </div>
                   </div>
                 </li>
               )}
               renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Member servers"
-                  placeholder="Search servers"
-                  helperText="Members must be non-cluster servers."
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {memberOptionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
+                <PropertyRow label="Member servers" valueSx={{ width: '100%' }}>
+                  <TextField
+                    {...params}
+                    placeholder="Search member servers"
+                    helperText="Members must be non-cluster servers."
+                    variant="standard"
+                    sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                    InputProps={{
+                      ...params.InputProps,
+                      disableUnderline: true,
+                      endAdornment: (
+                        <>
+                          {memberOptionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                </PropertyRow>
               )}
             />
             {memberSaveError && <Alert severity="error">{memberSaveError}</Alert>}
           </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMemberDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button variant="contained" onClick={() => void handleSaveMembers()} disabled={memberSaving}>
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </KanapDialog>
 
-      <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add assignment</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <ApplicationSelect
-              label="Application"
-              value={selectedAppId}
-              onChange={(appId) => { void onSelectApplication(appId); }}
-              required
-            />
-            <TextField
-              select
-              label="Environment"
-              value={instanceId || ''}
-              onChange={(e) => setInstanceId(e.target.value)}
-              disabled={!selectedAppId}
-              required
-              helperText={!selectedAppId ? 'Select an application to choose an environment.' : undefined}
-            >
-              {(selectedAppId ? appInstances[selectedAppId] || [] : []).map((inst) => (
-                <MenuItem key={inst.id} value={inst.id}>{inst.environment.toUpperCase()}</MenuItem>
-              ))}
-              {selectedAppId && (appInstances[selectedAppId] || []).length === 0 && (
-                <MenuItem value="" disabled>No instances for this application</MenuItem>
-              )}
-            </TextField>
-            <TextField
-              select
-              label="Role"
-              value={assignRole}
-              onChange={(e) => setAssignRole(e.target.value)}
-              required
-              helperText={serverRoleOptions.length === 0 ? 'No server roles configured; update IT Ops settings.' : undefined}
-            >
-              {serverRoleOptions.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-              ))}
-            </TextField>
-            <DateEUField
-              label="Since date"
-              valueYmd={assignSince}
-              onChangeYmd={setAssignSince}
-            />
-            <TextField
-              label="Notes"
-              multiline
-              minRows={3}
-              value={assignNotes}
-              onChange={(e) => setAssignNotes(e.target.value)}
-            />
+      <KanapDialog
+        open={assignDialogOpen}
+        title="Add assignment"
+        onClose={() => setAssignDialogOpen(false)}
+        onSave={handleAssignSave}
+        saveLabel="Assign"
+        saveDisabled={assigning || serverRoleOptions.length === 0}
+        saveLoading={assigning}
+        sx={{ maxWidth: 560 }}
+      >
+          <Stack spacing={1.5}>
+            <PropertyRow label="Application" required>
+              <ApplicationSelect
+                label="Application"
+                value={selectedAppId}
+                onChange={(appId) => { void onSelectApplication(appId); }}
+                required
+                hideLabel
+                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              />
+            </PropertyRow>
+            <PropertyRow label="Environment" required>
+              <TextField
+                select
+                value={instanceId || ''}
+                onChange={(e) => setInstanceId(e.target.value)}
+                disabled={!selectedAppId}
+                required
+                helperText={!selectedAppId ? 'Select an application to choose an environment.' : undefined}
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              >
+                {(selectedAppId ? appInstances[selectedAppId] || [] : []).map((inst) => (
+                  <MenuItem key={inst.id} value={inst.id} sx={drawerMenuItemSx}>{environmentLabel(inst.environment)}</MenuItem>
+                ))}
+                {selectedAppId && (appInstances[selectedAppId] || []).length === 0 && (
+                  <MenuItem value="" disabled sx={drawerMenuItemSx}>No instances for this application</MenuItem>
+                )}
+              </TextField>
+            </PropertyRow>
+            <PropertyRow label="Role" required>
+              <TextField
+                select
+                value={assignRole}
+                onChange={(e) => setAssignRole(e.target.value)}
+                required
+                helperText={serverRoleOptions.length === 0 ? 'No server roles configured; update IT ops settings.' : undefined}
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              >
+                {serverRoleOptions.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>
+                ))}
+              </TextField>
+            </PropertyRow>
+            <PropertyRow label="Since date">
+              <DateEUField
+                label=""
+                hideLabel
+                valueYmd={assignSince}
+                onChangeYmd={setAssignSince}
+                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              />
+            </PropertyRow>
+            <PropertyRow label="Notes">
+              <TextField
+                multiline
+                minRows={3}
+                value={assignNotes}
+                onChange={(e) => setAssignNotes(e.target.value)}
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              />
+            </PropertyRow>
             {assignError && <Alert severity="error">{assignError}</Alert>}
           </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAssignDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={() => void handleAssignSave()}
-            disabled={assigning || serverRoleOptions.length === 0}
-          >
-            Assign
-          </Button>
-        </DialogActions>
-      </Dialog>
+      </KanapDialog>
     </Box>
   );
 }

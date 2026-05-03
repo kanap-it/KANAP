@@ -797,7 +797,7 @@ function InterfacesTab({
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [app.id, rows]);
 
-  if (loading) return <LinearProgress />;
+  if (loading) return null;
   if (rows.length === 0) {
     return (
       <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
@@ -1400,8 +1400,6 @@ export default function ApplicationWorkspacePage() {
           />
         ) : <Box />}
       >
-        {appQuery.isFetching && !isCreate && <LinearProgress sx={{ mb: 2 }} />}
-
         {isCreate && routeTab === 'overview' && (
           <ApplicationCreateEditor ref={createRef} onDirtyChange={setCreateDirty} />
         )}

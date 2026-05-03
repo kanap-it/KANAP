@@ -235,6 +235,7 @@ export default function PortfolioDetailWorkspaceShell({
   const theme = useTheme();
   const { t } = useTranslation('portfolio');
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
   const [drawerOpen, setDrawerOpen] = React.useState(() => getStoredDrawerState(drawerStorageKey));
 
   React.useEffect(() => {
@@ -297,7 +298,7 @@ export default function PortfolioDetailWorkspaceShell({
             display: 'flex',
             alignItems: 'center',
             py: taskDetailTokens.topbar.py,
-            px: taskDetailTokens.topbar.px,
+            px: isCompact ? 2 : taskDetailTokens.topbar.px,
             borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
           })}
         >
@@ -327,17 +328,29 @@ export default function PortfolioDetailWorkspaceShell({
           </Box>
         </Box>
 
-        <Box sx={{ pt: taskDetailTokens.titleBlock.pt, px: taskDetailTokens.titleBlock.px, pb: taskDetailTokens.titleBlock.pb }}>
+        <Box sx={{ pt: taskDetailTokens.titleBlock.pt, px: isCompact ? 2 : taskDetailTokens.titleBlock.px, pb: taskDetailTokens.titleBlock.pb }}>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'flex-start',
               gap: taskDetailTokens.titleRow.gap,
+              flexDirection: isCompact ? 'column' : 'row',
               mb: tabs.length > 1 ? (metadata ? taskDetailTokens.titleStack.metadataToTabsGap : taskDetailTokens.titleRow.mb) : 0,
             }}
           >
             <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: taskDetailTokens.titleStack.gap }}>
-              <Box component="h1" sx={{ ...taskDetailTypography.title, m: 0, minWidth: 0, display: 'flex', alignItems: 'baseline' }}>
+              <Box
+                component="h1"
+                sx={{
+                  ...taskDetailTypography.title,
+                  m: 0,
+                  minWidth: 0,
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  flexWrap: isCompact ? 'wrap' : 'nowrap',
+                  rowGap: '4px',
+                }}
+              >
                 {itemReference && (
                   <Box
                     component="span"
@@ -356,7 +369,7 @@ export default function PortfolioDetailWorkspaceShell({
                     {itemReference}
                   </Box>
                 )}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ flex: 1, minWidth: isCompact ? '100%' : 0 }}>
                   <EditableTitle
                     value={title}
                     fallback={titleFallback}
@@ -374,7 +387,18 @@ export default function PortfolioDetailWorkspaceShell({
             </Box>
 
             {actions && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.actionPills.gap, flexShrink: 0, mt: '7px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: taskDetailTokens.actionPills.gap,
+                  flexShrink: 0,
+                  mt: isCompact ? 0 : '7px',
+                  flexWrap: 'wrap',
+                  justifyContent: isCompact ? 'flex-start' : 'flex-end',
+                  width: isCompact ? '100%' : 'auto',
+                }}
+              >
                 {actions}
               </Box>
             )}
@@ -476,7 +500,7 @@ export default function PortfolioDetailWorkspaceShell({
           minHeight: 380,
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto', pt: '8px', pl: 3, pr: isMobile ? 3 : '29px', pb: 3 }}>
+        <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto', pt: '8px', pl: isCompact ? 2 : 3, pr: isCompact ? 2 : (isMobile ? 3 : '29px'), pb: 3 }}>
           {children}
         </Box>
 

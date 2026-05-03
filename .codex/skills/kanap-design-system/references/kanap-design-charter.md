@@ -68,6 +68,7 @@ MUI palette mappings (set in `ThemeContext.tsx`):
 | `kanap.bg.page` | `#FAFAFA` | `#0F1117` | Page-level wrapper background |
 | `kanap.bg.drawer` | `#FBFBFC` | `#14161C` | Right drawer / side panel surfaces |
 | `kanap.bg.composer` | `#FFFFFF` | `#1F2128` | Editor/composer surfaces |
+| `kanap.bg.hover` | `rgba(0,0,0,0.04)` | `rgba(255,255,255,0.06)` | Subtle hover affordance for rows and list items |
 
 ### Text
 
@@ -193,6 +194,15 @@ All technical identifiers use JetBrains Mono with these properties:
 Applies to: task IDs (`T-48`), project IDs (`PRJ-5`), request IDs (`REQ-12`), interface IDs, asset IDs, connection IDs, location codes, error codes, hash values, version strings — any system-generated reference number.
 
 In AG Grid columns, set via `cellStyle` on the column definition. The `--kanap-text-secondary` CSS variable is defined in `ag-grid-overrides.css` for both light and dark themes.
+
+### Entity references vs technical IDs
+
+Workspace titles and list identity columns must show human/business references, not database identifiers. Use references such as `T-4`, `PRJ-3`, `REQ-12`, `AST-5`, `INT-8`, and `CONN-2`.
+
+- Never show raw UUIDs or truncated UUID fragments as the primary title prefix.
+- If an entity type lacks a display reference, add a proper reference field and migration/backfill before rebuilding the workspace UI.
+- Keep the reference monospace and secondary/tertiary; keep the entity name/title as the primary visual signal.
+- Tooltip/copy affordances may expose the display reference. Technical database IDs belong in developer tooling, API payloads, or diagnostic views only.
 
 ### Sentence case rule
 
@@ -372,7 +382,21 @@ Rules:
 - All `<MenuItem>` use `drawerMenuItemSx` (fontSize 13, py 6px, minHeight auto) — prevents zoom effect
 - All MUI underlines suppressed via CSS overrides
 - Complex components (UserSelect, CompanySelect, DateEUField) keep their internal logic but their MUI labels are hidden via `'& .MuiInputLabel-root': { display: 'none' }`
+- Content-tab scalar fields use the same naked `PropertyRow` treatment as drawer fields: label above, `variant="standard"`, underline disabled, and shared compact `sx`. Bordered inputs are for dialogs and defined long-form editor/composer surfaces, not ordinary one-line fields.
+- Underline-disabled editable fields must show a subtle hover affordance in both empty and populated states: `background-color: kanap.bg.composer`, 120ms transition, 4px radius, no border or shadow. Apply exactly one hover surface around the editable value, not around both the wrapper and the nested input: use about `margin: -3px -6px` and `padding: 3px 6px`, and reset to transparent on `:focus-within`.
+- Empty editable fields must use concrete data-shape placeholders, not instruction copy. Prefer examples such as `e.g., Dell, HPE, Cisco`, `e.g., gou-esx-01`, or `e.g., 10.24.16.10`; avoid generic text like "Enter manufacturer..." or "Search items".
+- For display/read-only empty values, use the drawer-style tertiary `Not set` pattern. Do not use `Not set` as the placeholder for ordinary editable free-text fields.
 - Generous vertical gap between fields: **16–20px**
+
+### Selects, menus, and dropdowns
+
+Dropdowns support an already useful page; they must not be the whole page experience. Avoid "dropdown-only" pages where the main viewport is mostly empty until the user opens menus.
+
+- Metadata-bar dropdowns render as plain inline text/buttons at rest, then open compact menus anchored to the clicked item.
+- Drawer dropdowns use the full drawer row width because the drawer is already narrow; page-level dropdowns and metadata dropdowns should size to content or a modest max width, never stretch across the full page.
+- Use the same visual treatment for comparable metadata controls. For example, asset type and location in a metadata bar should both look like compact inline metadata buttons and open similarly styled menus.
+- `MenuItem` typography must match field values (13px, weight 400) to avoid a zoom effect when a menu opens.
+- Do not introduce a full-width popover or modal when a simple anchored menu, autocomplete, or date picker is enough.
 
 ### Status display — two patterns
 
@@ -444,6 +468,19 @@ Use inline metric strips when a workspace tab needs quick context before detaile
 - Do not repeat the same story twice. If a calculated metric appears in the overview, avoid duplicating the same breakdown as a second section unless the section adds actionable detail
 - Use `kanap.bg.drawer`, `kanap.border.soft`, and 8px radius for subtle surfaces; avoid white cards inside already neutral work areas
 
+### Separators and grouping
+
+Use spacing first. Do not add subtle separator lines between normal content groups unless a documented pattern calls for them.
+
+Allowed separators:
+
+- Drawer property groups (`kanap.border.soft`)
+- Table headers and table rows
+- Composer/editor borders around long-form text surfaces
+- Intentional dividers between adjacent tables/lists that otherwise read as one merged block
+
+Avoid separators inside simple overview fact groups such as location context; grid spacing and label/value typography are enough.
+
 ### Editable inline fields (click-to-edit)
 
 Titles and other prominent editable fields use click-to-edit:
@@ -481,6 +518,22 @@ For description editors, also hide the border at rest:
 ```
 
 Do NOT use this pattern on the comment composer's main editor — the composer has its own permanent border, so only the toolbar should toggle.
+
+### Long-form text surfaces
+
+Long-form readable/editable text must sit on a defined surface so it is clearly separated from the page background in both light and dark mode.
+
+Use this for Description, Notes, Purpose, Risks, Support notes, PII descriptions, and similar multi-line fields:
+
+- Background: `kanap.bg.composer`
+- Border: `1px solid kanap.border.default`
+- Border radius: 8px
+- Padding: 14px 16px for plain text fields, or the shared editor padding for rich text
+- Body text: 14px, weight 400, line-height 1.6, `kanap.text.primary`
+- Focus: teal border/focus ring only; no heavy shadow
+- Empty placeholder: `kanap.text.tertiary`
+
+Do not leave long-form Notes/Description content as naked text directly on `kanap.bg.primary` or `kanap.bg.page`. Short scalar values can be plain text; long-form content needs a surface.
 
 ### Composer pattern (unified action panel)
 
@@ -542,15 +595,26 @@ function formatShortDate(date: string | Date | null): string {
 
 Output: `15 Mar` (same year) or `30 Nov 2025` (different year).
 
+### Metadata date interaction
+
+Dates shown in metadata bars should open the date picker immediately when clicked.
+
+- Do not first replace the metadata item with another full-width date field.
+- Anchor the picker to the clicked item or to the mouse cursor position, especially when using native `input[type="date"].showPicker()`.
+- Keep the formatted metadata value visible and compact at rest.
+- Use the drawer date field for slower property editing; use the metadata date for direct quick edits.
+
 ### Auto-save and feedback
 
-All fields auto-save. No explicit Save buttons for editing existing content.
+Autosave is the default for every in-place edit on existing workspace entities. No explicit Save buttons or global "Save changes" actions for editing existing content.
 
 - **Selects, dates, autocompletes**: save on change (onChange handler). No feedback needed — don't block UI on save round-trips.
+- **Toggles, relation pickers, linked URLs, child-tab detail panels**: save on change or with a short debounce. Child panels must not bubble ordinary dirty state up into a global workspace save action.
 - **Titles**: blur-to-save on the inline editor input (silent, no feedback needed)
-- **Descriptions (rich text)**: debounced autosave — saves 2 seconds after the last keystroke via a lightweight partial PATCH (description field only). Shows a subtle status indicator in the section header: "Saving..." during the API call, "Saved" for ~1.5s after success, then hidden. Ctrl+S remains as an immediate-save escape hatch (flushes the pending debounce). On navigation away, any pending debounce is cancelled and the full save flow handles the payload.
+- **One-line text fields**: blur-to-save or short debounced autosave. Do not require a manual workspace-level save.
+- **Descriptions and other long-form text**: debounced autosave — saves after the last keystroke via a lightweight partial PATCH where possible. Shows a subtle status indicator in the section header when useful: "Saving..." during the API call, "Saved" for ~1.5s after success, then hidden. Ctrl+S may flush pending autosave, but it must not be required for normal persistence.
 
-Create forms and composers (comments) still use explicit submit buttons — autosave applies to in-place editing of existing entities only.
+Create forms, dialogs, composers/comments, imports/uploads, and other bounded transactional flows still use explicit submit buttons — autosave applies to in-place editing of existing entities only.
 
 ---
 
@@ -600,11 +664,17 @@ WorkspacePage (full height, flex column)
   - Due date chip: `kanap.text.tertiary` label + formatted date, click -> Popover with DatePicker
   - Project chip (conditional): `kanap.text.tertiary` label + project name (max 220px, ellipsis), click -> navigate
 
+- Use metadata bars for the fields users scan and adjust while navigating records: lifecycle/status, environment, type/classification, assignee/owner, location, and important dates. If a field is important enough to summarize in metadata, make it editable there when permissions allow.
+- Comparable metadata controls should use comparable styling. Do not make one control look like a metadata menu and another like a drawer form field.
+- Metadata menus/popovers should be compact and anchored to the clicked metadata item. Avoid full-width menus across the page.
+- Metadata values remain neutral at rest. Use teal only for hover/focus/active interaction, not permanent value text.
+
 ### Content column
 
 - Flex: 1, min-width: 0, overflow: auto
 - Padding: `8px 0 24px 24px`, **right padding: 29px** (permanent gutter for the classeur tab)
 - **Description section**: label 12px weight 500, rich text editor with toolbar hidden until focus
+- **Notes and other long-form text**: same defined editor/composer surface as Description; never naked text floating directly on the page background
 - **Activity section**: no section label — tabs serve as section title
 - **Activity composer**: card with `border 1px solid kanap.border.default`, border-radius 8px. See Composer pattern above.
 
@@ -644,6 +714,13 @@ Groups separated by soft dividers (`1px solid kanap.border.soft`). No section ti
 
 All fields inside groups use the PropertyRow pattern. All Selects use `drawerSelectSx`, all MenuItems use `drawerMenuItemSx`.
 
+**Drawer placement boundary:**
+
+- Put scalar, low-density properties in the drawer: lifecycle, environment, ownership, classifications, dates, toggles, and simple one-line values.
+- Keep high-density technical blocks in the content column when users need comparison, scanning, or inline context. Examples include IP address/subnet/VLAN rows, mapping matrices, endpoint tables, assignment tables, and hardware/support detail groups.
+- Do not move a field to the drawer just because it is editable. If drawer placement makes the workflow cramped or hides related context, keep it in the tab content and style it with the same form rules.
+- Duplicating a value between metadata and drawer is acceptable when metadata supports fast navigation/editing and the drawer supports slower property review.
+
 **Knowledge section (example of a list-in-drawer pattern):**
 - One line per document: ID mono 11px `kanap.text.tertiary` + title 13px `kanap.text.primary` (ellipsis overflow)
 - Hover reveals action icons (open, unlink — turns `kanap.danger` on hover)
@@ -672,11 +749,15 @@ When converting an existing page to this pattern:
 3. Create a `{Entity}PropertiesDrawer` using PropertyRow pattern (no FormControl/InputLabel)
 4. Replace any left sidebar with right-side drawer + classeur tab
 5. Add toolbar-reveal-on-focus to all rich text editors
-6. Replace ToggleButtonGroup with compact Tabs (13px, no indicator)
-7. Add keyboard shortcuts (J/K/arrows/Escape/P)
-8. Wire title blur-to-save
-9. Add `kanap` palette tokens if not already present (they're shared)
-10. Test light + dark mode, mobile responsive, auto-save on all fields
+6. Ensure the title prefix uses a proper display reference, not a raw UUID; add/backfill one if missing
+7. Make primary metadata fields editable inline with compact anchored menus/date pickers
+8. Give Description/Notes/Purpose/Risks-style text a defined editor/composer surface
+9. Decide drawer vs content placement by workflow density, not by whether a field is editable
+10. Replace ToggleButtonGroup with compact Tabs (13px, no indicator)
+11. Add keyboard shortcuts (J/K/arrows/Escape/P)
+12. Wire title blur-to-save
+13. Add `kanap` palette tokens if not already present (they're shared)
+14. Test light + dark mode, mobile responsive, auto-save on all fields
 
 ---
 
@@ -810,7 +891,7 @@ Most form fields save on every change, optimistically update the UI, and show a 
 12. **No custom input components replacing MUI TextField.** Use theme overrides for styling.
 13. **No `FormControl` + `InputLabel`** on form fields. Use PropertyRow exclusively.
 14. **No `cursor: help`** on tooltipped elements. Let the tooltip work without visual cue.
-15. **No save buttons for in-place editing.** All entity fields auto-save: selects on change, titles on blur, descriptions on debounced timer (2s). Ctrl+S flushes pending autosave. Create forms and composers still have explicit submit buttons.
+15. **No save buttons for in-place editing.** All existing-entity workspace fields auto-save by default, including drawer fields, metadata controls, relations, linked URLs, and child-tab detail panels. Selects/dates/autocompletes/toggles save on change; titles save on blur; short text saves on blur or short debounce; long-form text saves on debounce. Ctrl+S may flush pending autosave, but it must not be required. Create forms, dialogs, composers, imports, and uploads still have explicit submit buttons.
 16. **No permanent toolbars** on rich text editors. Hide them, reveal on focus.
 17. **No auto-focus on form inputs at page load.** Let users orient themselves first.
 18. **No font weights other than 400 and 500.** No 600, 700, or bold.
@@ -821,6 +902,13 @@ Most form fields save on every change, optimistically update the UI, and show a 
 23. **No section headers in bold with collapse chevrons** inside drawers. Use plain dividers.
 24. **No duplicating action labels** (e.g. label "Status" both above and inside a dropdown).
 25. **No duplicate metric storytelling.** If two sections communicate the same value or progression, consolidate them.
+26. **No raw or truncated UUIDs** as title/list references. Use business references such as `AST-5`.
+27. **No dropdown-only workspace pages** and no full-page-width metadata dropdowns. Menus must be compact and anchored.
+28. **No naked long-form text areas** on page backgrounds. Notes/Description-like content needs a composer/editor surface.
+29. **No automatic drawer dumping ground.** Keep technical/high-density blocks in the content column when drawer placement harms scanning or comparison.
+30. **No undocumented separator lines** between normal content groups. Use spacing first.
+31. **No bordered one-line content-tab fields** for ordinary scalar properties. Use the same naked `PropertyRow` field pattern as the properties drawer; keep borders for dialogs and long-form editor/composer surfaces.
+32. **No invisible empty editable fields.** Naked underline-disabled inputs need concrete example placeholders and the shared hover background on both empty and populated states.
 
 ---
 
@@ -844,8 +932,13 @@ Before merging any new UI component, verify:
 - [ ] Font weights are only 400 or 500
 - [ ] Sentence case throughout
 - [ ] All technical IDs in monospace font
+- [ ] Workspace title/list references use display references, not UUID fragments
 - [ ] Sx constants are shared, not inlined per field
 - [ ] `disableUnderline` applied to all standard variant inputs
+- [ ] Metadata bar controls are compact, editable where useful, and anchored to the clicked item
+- [ ] Metadata date clicks open the picker immediately near the click target/cursor
+- [ ] Long-form Notes/Description-style fields use `kanap.bg.composer` plus `kanap.border.default`
+- [ ] Drawer contains scalar properties; dense technical blocks remain in content when needed
 - [ ] Auto-save on all fields: selects/dates on change, titles on blur, descriptions on debounced timer (2s)
 - [ ] Hover/focus states defined explicitly
 - [ ] Keyboard accessible (proper aria-labels, focus order, escape handling)

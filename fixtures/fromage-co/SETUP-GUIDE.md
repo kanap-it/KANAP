@@ -1,84 +1,101 @@
-# Fromage & Co — Tenant Initialization Guide
+# Fromage & Co Tenant Initialization Guide
 
-This guide contains the minimum required procedure to initialize the Fromage & Co demo tenant.
+This guide contains the minimum procedure to initialize the Fromage & Co demo
+tenant in a local KANAP environment.
 
 ## Scope
 
-- Tenant creation is manual (preferred).
-- Everything after tenant creation is automated with `setup-tenant.sh`.
-- The script is idempotent and safe to rerun.
+- The local Docker stack runs in single-tenant mode.
+- The local tenant should resolve through `DEFAULT_TENANT_SLUG=fromage`.
+- The Node setup runner is idempotent and safe to rerun.
+- The legacy shell scripts are kept for hosted environments that already have
+  `bash`, `curl`, and `jq`.
 
-## 1. Prerequisites
+## 1. Local Prerequisites
 
-- A tenant already exists (name: `Fromage & Co`, code: `Fromage`).
-- Fiscal year is configured (`Y-1 = 2025`, `Y = 2026`, `Y+1 = 2027`).
-- You have tenant admin credentials.
-- `curl` and `jq` are installed.
+Start the local stack from the repository root:
 
-## 2. Initialize The Tenant (Recommended)
-
-Run from `fixtures/fromage-co`:
-
-```bash
-chmod +x setup-tenant.sh setup-settings.sh
-./setup-tenant.sh <BASE_URL> <TENANT_ADMIN_EMAIL> <TENANT_ADMIN_PASSWORD>
+```powershell
+docker compose -f infra/docker-compose.example.yml up --build -d
 ```
 
-Examples:
+For the local demo tenant, `backend/env.dev` should contain:
 
-```bash
-./setup-tenant.sh http://localhost:5173 thomas.berger@fromage-co.com MyPass123
-./setup-tenant.sh https://fromage.qa.kanap.net thomas.berger@fromage-co.com '***'
+```dotenv
+DEFAULT_TENANT_SLUG=fromage
+DEFAULT_TENANT_NAME=Fromage & Co
 ```
 
-`BASE_URL` is the tenant root URL without `/api`.
+If you change these values after the stack is running, recreate the API
+container. A plain restart does not reload `env.dev`.
 
-## 3. What The Script Initializes
+```powershell
+docker compose -f infra/docker-compose.example.yml up -d --force-recreate api
+```
 
-In order, the script performs:
+## 2. Snapshot Before Iterating
 
-1. Settings bootstrap via `setup-settings.sh`.
-2. Currency setup early:
-   - reporting/default spend/default CAPEX = `EUR`
-   - allowed currencies = `EUR`, `USD`
-3. CSV imports in dependency order (`01` → `19`).
-4. CoA creation/import/assignment per country before spend and CAPEX imports.
-5. Location creation.
-6. IT integration/network model from fixture files:
+Use a database dump before experimenting so you can restore quickly:
+
+```powershell
+New-Item -ItemType Directory -Force .codex\snapshots | Out-Null
+docker compose -f infra/docker-compose.example.yml exec -T db pg_dump -U postgres -d appdb -Fc > .codex\snapshots\pre-fromage-fixture.dump
+```
+
+Restore with:
+
+```powershell
+Get-Content .codex\snapshots\pre-fromage-fixture.dump -Encoding Byte -ReadCount 0 |
+  docker compose -f infra/docker-compose.example.yml exec -T db pg_restore -U postgres -d appdb --clean --if-exists
+```
+
+## 3. Initialize The Tenant Locally
+
+Run from the repository root:
+
+```powershell
+& 'C:\Users\fried\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' fixtures\fromage-co\setup-tenant.mjs --base-url http://localhost:8080
+```
+
+By default the runner uses the local disposable administrator:
+
+- Email: `admin@example.com`
+- Password: `KANAPLocalDev!2026`
+
+You can override the credentials:
+
+```powershell
+& 'C:\Users\fried\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' fixtures\fromage-co\setup-tenant.mjs --base-url http://localhost:8080 --email thomas.berger@fromage-co.com --password '<password>'
+```
+
+## 4. What The Runner Initializes
+
+In order, the Node runner performs:
+
+1. Currency and IT Ops settings bootstrap.
+2. Company import.
+3. Chart of accounts creation, account imports, and company CoA assignment.
+4. CSV imports for suppliers, departments, contacts, users, business processes,
+   applications, contracts, spend, CAPEX, portfolio projects, and requests.
+5. Location creation before asset import, because assets now validate
+   `location_code`.
+6. Asset and task imports.
+7. IT integration/network setup:
    - `20-app-instances.csv`
    - `21-interfaces.csv`
    - `22-interface-bindings.csv`
    - `23-connections.csv`
    - `24-connection-legs.csv`
    - `25-interface-connection-links.csv`
-   - Middleware prerequisites are enforced automatically:
-     - middleware applications are set to `etl_enabled=true`
-     - `via_middleware` interfaces get `middleware_application_ids` from `21-interfaces.csv`
-7. Post-import linking (suites, app-departments, contract-app links, spend-app links, allocations, project timeline/team).
-8. Roadmap-generator setup:
-   - creates/updates portfolio teams: `Business Applications`, `Development`, `Infrastructure`
-   - assigns identified project contributors to those teams
-   - sets each contributor `project_availability` to `10` days/month
+8. Post-import links for suites, departments, contracts, spend, and portfolio
+   team capacity.
 
-## 4. Idempotency And Reruns
+## 5. Verification
 
-- Re-running `setup-tenant.sh` is supported.
-- Existing entities are updated/reused using upsert or bulk-replace semantics where available.
-- Use reruns after CSV adjustments or partial failures.
+Run the login verifier from the repository root:
 
-## 5. Notes
-
-- User import does not send invite emails automatically.
-- If invites are needed, send them explicitly after initialization.
-- Department hierarchy is intentionally not part of this setup (unsupported/not planned).
-- Interface bindings are seeded for `prod`; one showcase flow (`IF-FROMAGE-001`) is seeded in both `prod` and `qa`.
-
-## 6. Optional: Settings-Only Bootstrap
-
-If you only need base settings (without data imports):
-
-```bash
-./setup-settings.sh <BASE_URL> <TENANT_ADMIN_EMAIL> <TENANT_ADMIN_PASSWORD>
+```powershell
+& 'C:\Users\fried\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' .codex\tools\verify-kanap-login.mjs
 ```
 
-This includes currency setup (`EUR` + `USD`) and portfolio/IT-ops/analytics settings.
+The verifier saves a screenshot to `.codex\tools\kanap-after-login.png`.
