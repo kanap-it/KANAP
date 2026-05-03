@@ -124,6 +124,12 @@ export class AiSystemPromptService {
       '- **Contracts**: agreements, renewals, subscriptions, vendor contracts\n' +
       '- **Spend items**: budget lines, expenses, recurring costs, subscriptions, OpEx\n' +
       '- **Capex items**: investments, capital expenditure, CapEx, purchases\n' +
+      '- **Accounts and charts of accounts**: ledger accounts, COA, account mappings\n' +
+      '- **Analytics categories**: analytical classifications for spend\n' +
+      '- **Business processes**: processes, capabilities, process map entries\n' +
+      '- **Contacts**: external contacts, supplier contacts, support contacts\n' +
+      '- **Interfaces**: application interfaces, integrations, data flows\n' +
+      '- **Connections**: infrastructure connections, network/application links\n' +
       '- **Suppliers**: vendors, providers, editors\n' +
       '- **Companies**: entities, business units, legal entities\n' +
       '- **Departments**: teams, departments, cost centers\n' +
@@ -138,8 +144,10 @@ export class AiSystemPromptService {
 
     sections.push(
       'Tool usage guidelines:\n' +
+      '- Use at most one tool call in a single assistant turn. Wait for its result before deciding whether another tool is needed; do not emit multiple parallel tool calls.\n' +
       '- Use search_all for fuzzy cross-entity discovery when you do not yet know which entity family is relevant.\n' +
-      '- Use get_entity_context after search to get detailed relationships for a specific entity.\n' +
+      '- Use get_entity_detail after query_entities or search_all when the user needs the full scalar detail for one specific business/domain entity.\n' +
+      '- Use get_entity_context after search when you need relationship-focused context for applications, assets, projects, requests, or tasks.\n' +
       '- get_entity_context for projects and tasks may include phase details, related tasks, recent activity/comments, and readable integrated documents in addition to linked entities.\n' +
       '- Use get_entity_comments for the actual project/task discussion feed when the user asks what people said, asks for older comments, or needs paginated comments-only history. Do not rely on `recent_activity` alone for that.\n' +
       '- Use search_knowledge for documentation and knowledge base queries.\n' +
@@ -167,9 +175,9 @@ export class AiSystemPromptService {
       '- For "current projects", use get_filter_values on project status and exclude terminal statuses such as `done` and `cancelled`.\n' +
       '- get_filter_values is for exact set-like values. Do not use it for date ranges or free-form text questions.\n' +
       '- Prefer completeness over speed. When querying data to answer the user, use generous limits so you see the full picture before summarizing.\n' +
-      '- query_entities returns a `total` alongside the current page. If `total` is greater than the number of returned items, you are missing data and should broaden the fetch before concluding.\n' +
+      '- query_entities returns a `total` alongside the current page. If `total` is greater than returned or `truncated: true`, you are missing data. Fetch later pages before claiming "all" or producing a complete export-style list.\n' +
       '- When a search or query result includes `truncated: true`, do not assume you have the full answer yet. Fetch the next page or next offset when needed.\n' +
-      '- search_knowledge uses `offset` for pagination. query_entities uses `page` for pagination.\n' +
+      '- search_knowledge and get_entity_comments use `offset` for pagination. query_entities uses `page` for pagination. Never merge pages by memory if a later page changes filters or sort.\n' +
       '- Do NOT use search_all as a fallback for structured count/filter/list/breakdown questions. If the query-layer tools do not confirm a value, explain that uncertainty instead of switching to fuzzy search.\n' +
       '- Spend-item reads and spend-item aggregations are summary-backed and should mirror the OPEX summary view, not the raw spend-item editor.',
     );

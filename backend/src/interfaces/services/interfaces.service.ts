@@ -34,6 +34,10 @@ export class InterfacesService {
     return this.listService.list(query, opts);
   }
 
+  listIds(query: any, opts?: ServiceOpts) {
+    return this.listService.listIds(query, opts);
+  }
+
   listByApplication(applicationId: string, tenantId: string, opts?: ServiceOpts) {
     return this.listService.listByApplication(applicationId, tenantId, opts);
   }

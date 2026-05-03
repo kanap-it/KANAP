@@ -31,6 +31,10 @@ export class ConnectionsService {
     return this.listService.list(tenantId, query, opts);
   }
 
+  listIds(tenantId: string, query: any, opts?: ServiceOpts) {
+    return this.listService.listIds(tenantId, query, opts);
+  }
+
   listByAsset(assetId: string, tenantId: string, opts?: ServiceOpts) {
     return this.listService.listByAsset(assetId, tenantId, opts);
   }

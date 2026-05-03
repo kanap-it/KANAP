@@ -170,11 +170,12 @@ export class BusinessProcessesService {
       qb.orderBy(`bp.${safeSortField}`, sort.direction as 'ASC' | 'DESC');
     }
 
+    const total = await qb.clone().getCount();
     const limit = Math.min(Number(query?.limit) || 10000, 10000);
     qb.take(limit);
     const rows = await qb.getRawMany<{ id: string }>();
     const ids = rows.map((r) => r.id).filter((v) => !!v);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async get(id: string, opts?: { manager?: EntityManager }) {

@@ -163,18 +163,20 @@ export class AssetsListService extends AssetsBaseService {
     };
     const sortField = sortFieldMap[sort.field] || 'a.created_at';
 
-    const idsQuery = `
-      SELECT DISTINCT a.id
+    const countQuery = `
+      SELECT COUNT(DISTINCT a.id)::int as count
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
       LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
-      ORDER BY a.id
     `;
+    const countResult = await mg.query(countQuery, params);
+    const total = Number(countResult[0]?.count) || 0;
 
     // Need a subquery to properly order by sort field
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
     const orderedIdsQuery = `
       SELECT DISTINCT a.id, ${sortField} as sort_value
       FROM assets a
@@ -184,11 +186,12 @@ export class AssetsListService extends AssetsBaseService {
       LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
+      LIMIT $${params.length + 1}
     `;
 
-    const rows: Array<{ id: string }> = await mg.query(orderedIdsQuery, params);
+    const rows: Array<{ id: string }> = await mg.query(orderedIdsQuery, [...params, limit]);
     const ids = rows.map((r) => r.id);
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   /**

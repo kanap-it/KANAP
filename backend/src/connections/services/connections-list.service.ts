@@ -216,6 +216,59 @@ export class ConnectionsListService extends ConnectionsBaseService {
     return { items, total, page, limit };
   }
 
+  async listIds(tenantId: string, query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+    const tenant = this.ensureTenantId(tenantId);
+    const repo = this.getRepo(opts?.manager);
+    const mg = opts?.manager ?? repo.manager;
+    const { sort, q, filters } = parsePagination(query);
+    const allowedFilters = ['connection_id', 'name', 'topology', 'lifecycle', 'criticality', 'data_class', 'contains_pii'];
+    const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
+    where.tenant_id = tenant;
+    if (query.topology) {
+      where.topology = this.normalizeTopology(query.topology);
+    }
+    if (query.lifecycle) {
+      where.lifecycle = String(query.lifecycle || '').trim().toLowerCase();
+    }
+    if (query.criticality) {
+      where.criticality = this.normalizeCriticality(query.criticality);
+    }
+    if (query.data_class) {
+      where.data_class = await this.normalizeDataClass(query.data_class, tenant, mg);
+    }
+    if (query.contains_pii !== undefined) {
+      where.contains_pii = this.normalizeContainsPii(query.contains_pii);
+    }
+
+    let whereArr: any[] | undefined;
+    if (q) {
+      const like = ILike(`%${q}%`);
+      whereArr = [{ ...where, connection_id: like }, { ...where, name: like }];
+    }
+
+    const allowedSortFields = [
+      'connection_id',
+      'name',
+      'topology',
+      'lifecycle',
+      'criticality',
+      'data_class',
+      'contains_pii',
+      'created_at',
+      'updated_at',
+    ];
+    const sortField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const [rows, total] = await repo.findAndCount({
+      where: whereArr ?? where,
+      order: { [sortField]: sort.direction as any },
+      take: limit,
+      skip: 0,
+      select: ['id'],
+    });
+    return { ids: rows.map((row) => row.id), total };
+  }
+
   /**
    * List connections associated with a specific asset.
    */

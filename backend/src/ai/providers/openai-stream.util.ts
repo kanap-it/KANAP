@@ -15,6 +15,116 @@ function toUsage(usage?: { prompt_tokens?: number | null; completion_tokens?: nu
   };
 }
 
+function isUnsupportedParallelToolCallsError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const maybeError = error as { message?: string; status?: number };
+  const message = String(maybeError.message || '').toLowerCase();
+  return maybeError.status === 400
+    && message.includes('parallel_tool_calls')
+    && (
+      message.includes('unsupported')
+      || message.includes('unknown')
+      || message.includes('unrecognized')
+      || message.includes('extra')
+      || message.includes('not permitted')
+    );
+}
+
+function extractErrorText(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object') {
+    const candidate = error as { message?: unknown; error?: unknown; body?: unknown };
+    return [
+      typeof candidate.message === 'string' ? candidate.message : '',
+      typeof candidate.error === 'string' ? candidate.error : '',
+      typeof candidate.body === 'string' ? candidate.body : '',
+    ].filter(Boolean).join('\n');
+  }
+  return '';
+}
+
+function parseToolParameterValue(rawValue: string): unknown {
+  const value = rawValue.trim();
+  if (!value) {
+    return '';
+  }
+  if (/^[\[{]/.test(value)) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+  }
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (value === 'null') return null;
+  return value;
+}
+
+function parseXmlStyleToolCallsFromText(text: string): Array<{ id: string; name: string; arguments: string }> {
+  const calls: Array<{ id: string; name: string; arguments: string }> = [];
+  const toolCallPattern = /<tool_call>([\s\S]*?)<\/tool_call>/gi;
+  let toolCallMatch: RegExpExecArray | null;
+  let index = 0;
+
+  while ((toolCallMatch = toolCallPattern.exec(text)) !== null) {
+    const toolCallBody = toolCallMatch[1] || '';
+    const functionMatch = toolCallBody.match(/<function=([A-Za-z0-9_.-]+)>([\s\S]*?)<\/function>/i);
+    if (!functionMatch) {
+      continue;
+    }
+
+    const [, name, functionBody] = functionMatch;
+    const args: Record<string, unknown> = {};
+    const parameterPattern = /<parameter=([A-Za-z0-9_.-]+)>([\s\S]*?)<\/parameter>/gi;
+    let parameterMatch: RegExpExecArray | null;
+    while ((parameterMatch = parameterPattern.exec(functionBody || '')) !== null) {
+      args[parameterMatch[1]] = parseToolParameterValue(parameterMatch[2] || '');
+    }
+
+    calls.push({
+      id: `xml-tool-call-${++index}`,
+      name,
+      arguments: JSON.stringify(args),
+    });
+  }
+
+  return calls;
+}
+
+async function* emitXmlStyleToolCallsFromError(
+  error: unknown,
+  params: AiStreamParams,
+): AsyncGenerator<AiStreamEvent> {
+  const parsedCalls = parseXmlStyleToolCallsFromText(extractErrorText(error));
+  if (parsedCalls.length === 0) {
+    throw error;
+  }
+
+  logger.warn(
+    `provider=${params.providerId ?? 'unknown'} model=${params.model} recovered_xml_style_tool_calls=${parsedCalls.length}`,
+  );
+
+  for (const call of parsedCalls) {
+    yield { type: 'tool_call_start', id: call.id, name: call.name };
+    yield { type: 'tool_call_delta', id: call.id, arguments: call.arguments };
+    yield { type: 'tool_call_end', id: call.id };
+  }
+}
+
 export function isOpenAiReasoningModel(model: string): boolean {
   const normalized = String(model || '').trim().toLowerCase();
   return normalized.startsWith('gpt-5')
@@ -82,12 +192,34 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
     ...(tools.length > 0 ? { tools } : {}),
     stream: true,
   };
+  if (tools.length > 0 && params.parallelToolCalls !== true) {
+    request.parallel_tool_calls = false;
+  }
   request[params.maxTokensParam ?? 'max_completion_tokens'] = params.maxTokens;
 
-  const stream = await client.chat.completions.create(
-    request as unknown as OpenAI.ChatCompletionCreateParamsStreaming,
-    params.signal ? { signal: params.signal } : undefined,
-  );
+  let stream: Awaited<ReturnType<typeof client.chat.completions.create>>;
+  try {
+    stream = await client.chat.completions.create(
+      request as unknown as OpenAI.ChatCompletionCreateParamsStreaming,
+      params.signal ? { signal: params.signal } : undefined,
+    );
+  } catch (error) {
+    if (request.parallel_tool_calls === false && isUnsupportedParallelToolCallsError(error)) {
+      delete request.parallel_tool_calls;
+      try {
+        stream = await client.chat.completions.create(
+          request as unknown as OpenAI.ChatCompletionCreateParamsStreaming,
+          params.signal ? { signal: params.signal } : undefined,
+        );
+      } catch (retryError) {
+        yield* emitXmlStyleToolCallsFromError(retryError, params);
+        return;
+      }
+    } else {
+      yield* emitXmlStyleToolCallsFromError(error, params);
+      return;
+    }
+  }
 
   const pendingToolCalls = new Map<number, { id: string; name: string; args: string }>();
   let emittedDone = false;
@@ -171,7 +303,8 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
     if (params.signal?.aborted || isAbortError(error)) {
       return;
     }
-    throw error;
+    yield* emitXmlStyleToolCallsFromError(error, params);
+    return;
   }
 
   // Ensure done is always emitted even if no finish_reason was seen

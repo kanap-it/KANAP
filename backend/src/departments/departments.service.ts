@@ -401,9 +401,11 @@ export class DepartmentsService {
       qb.orderBy('d.name', 'ASC');
     }
 
-    const rows = await qb.getRawMany();
+    const total = await qb.clone().getCount();
+    const limit = Math.min(Number(query?.limit) || 10000, 10000);
+    const rows = await qb.take(limit).getRawMany();
     const ids = rows.map((r: any) => String(r.id ?? r.d_id ?? r["d_id"])) as string[];
-    return { ids, total: ids.length };
+    return { ids, total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {

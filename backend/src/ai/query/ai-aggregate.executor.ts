@@ -1,13 +1,22 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { normalizeAgFilterModel } from '../../common/ag-grid-filtering';
+import { AccountsService } from '../../accounts/accounts.service';
+import { ChartOfAccountsService } from '../../accounts/chart-of-accounts.service';
+import { AnalyticsCategoriesService } from '../../analytics/analytics-categories.service';
 import { ApplicationsService } from '../../applications/services';
 import { AssetsService } from '../../assets/services';
+import { BusinessProcessesService } from '../../business-processes/business-processes.service';
+import { CapexItemsService } from '../../capex/capex-items.service';
 import { CompaniesService } from '../../companies/companies.service';
+import { ConnectionsService } from '../../connections/services';
+import { ContactsService } from '../../contacts/contacts.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { DepartmentsService } from '../../departments/departments.service';
+import { InterfacesService } from '../../interfaces/services';
 import { Document } from '../../knowledge/document.entity';
 import { isDocumentStatus } from '../../knowledge/document-status';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
+import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
@@ -55,11 +64,19 @@ type DocumentLinkedEntitySurface =
       targetMatchExpressions: string[];
     };
 type SupportedAggregateEntityType =
-  'applications'
+  'accounts'
+  | 'analytics_categories'
+  | 'applications'
   | 'assets'
+  | 'business_processes'
+  | 'capex_items'
+  | 'chart_of_accounts'
   | 'companies'
+  | 'connections'
+  | 'contacts'
   | 'contracts'
   | 'departments'
+  | 'interfaces'
   | 'locations'
   | 'projects'
   | 'requests'
@@ -161,6 +178,33 @@ function getDocumentSearchState(input?: string): DocumentSearchState | null {
     term,
     itemNumber: parseDocumentItemNumberQuery(term),
   };
+}
+
+function getCapexSummaryFieldValue(row: any, field: string): any {
+  if (!row) return null;
+  const metric = (slotKey: 'yMinus1' | 'y' | 'yPlus1', key: 'budget' | 'revision' | 'follow_up' | 'landing') => {
+    const slot = row?.versions?.[slotKey];
+    if (!slot || typeof slot !== 'object') return null;
+    if (typeof slot.reporting?.[key] === 'number') return slot.reporting[key];
+    if (typeof slot.totals?.[key] === 'number') return slot.totals[key];
+    return null;
+  };
+  switch (field) {
+    case 'yMinus1Landing':
+      return metric('yMinus1', 'landing');
+    case 'yBudget':
+      return metric('y', 'budget');
+    case 'yRevision':
+      return metric('y', 'revision');
+    case 'yFollowUp':
+      return metric('y', 'follow_up');
+    case 'yLanding':
+      return metric('y', 'landing');
+    case 'yPlus1Budget':
+      return metric('yPlus1', 'budget');
+    default:
+      return row[field];
+  }
 }
 
 function buildDocumentSearchSql(
@@ -392,7 +436,16 @@ export class AiAggregateExecutor {
     private readonly suppliers: SuppliersService,
     private readonly departments: DepartmentsService,
     private readonly knowledge: KnowledgeService,
+    private readonly locations: LocationsService,
     private readonly users: UsersService,
+    private readonly accounts: AccountsService,
+    private readonly chartOfAccounts: ChartOfAccountsService,
+    private readonly analyticsCategories: AnalyticsCategoriesService,
+    private readonly businessProcesses: BusinessProcessesService,
+    private readonly capexItems: CapexItemsService,
+    private readonly contacts: ContactsService,
+    private readonly interfaces: InterfacesService,
+    private readonly connections: ConnectionsService,
   ) {}
 
   private serializeFiltersForTasks(filters: Record<string, any>): string | undefined {
@@ -513,6 +566,24 @@ export class AiAggregateExecutor {
       };
     }
 
+    if (entityType === 'capex_items') {
+      const result = await this.capexItems.summaryIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
+    }
+
     if (entityType === 'spend_items') {
       const result = await this.spendItems.summaryIds(
         {
@@ -567,6 +638,76 @@ export class AiAggregateExecutor {
       };
     }
 
+    if (entityType === 'accounts') {
+      const result = await this.accounts.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
+    }
+
+    if (entityType === 'chart_of_accounts') {
+      const result = await this.chartOfAccounts.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+        },
+        { manager: context.manager },
+      );
+      return {
+        ids: result.ids || [],
+        total: typeof result.total === 'number' ? result.total : (result.ids || []).length,
+        scope: null,
+      };
+    }
+
+    if (entityType === 'analytics_categories') {
+      const result = await this.analyticsCategories.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
+    }
+
+    if (entityType === 'business_processes') {
+      const result = await this.businessProcesses.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
+    }
+
     if (entityType === 'suppliers') {
       const result = await this.suppliers.listIds(
         {
@@ -603,6 +744,23 @@ export class AiAggregateExecutor {
       };
     }
 
+    if (entityType === 'contacts') {
+      const result = await this.contacts.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+          includeDisabled: true,
+        },
+        { manager: context.manager },
+      );
+      return {
+        ids: result.ids || [],
+        total: typeof result.total === 'number' ? result.total : (result.ids || []).length,
+        scope: null,
+      };
+    }
+
     if (entityType === 'assets') {
       const scoped = await applyScopeToAiQuery(
         context,
@@ -627,13 +785,52 @@ export class AiAggregateExecutor {
     }
 
     if (entityType === 'locations') {
-      // Locations don't support scope — just list IDs with tenant filter
-      const rows: Array<{ id: string }> = await context.manager.query(
-        `SELECT id FROM locations WHERE tenant_id = $1`,
-        [context.tenantId],
+      const result = await this.locations.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+        },
+        { manager: context.manager, tenantId: context.tenantId },
       );
-      const ids = rows.map((r) => r.id);
-      return { ids, total: ids.length, scope: null };
+      return {
+        ids: result.ids || [],
+        total: typeof result.total === 'number' ? result.total : (result.ids || []).length,
+        scope: null,
+      };
+    }
+
+    if (entityType === 'interfaces') {
+      const result = await this.interfaces.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+        },
+        { manager: context.manager },
+      );
+      return {
+        ids: result.ids || [],
+        total: typeof result.total === 'number' ? result.total : (result.ids || []).length,
+        scope: null,
+      };
+    }
+
+    if (entityType === 'connections') {
+      const result = await this.connections.listIds(
+        context.tenantId,
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+        },
+        { manager: context.manager },
+      );
+      return {
+        ids: result.ids || [],
+        total: typeof result.total === 'number' ? result.total : (result.ids || []).length,
+        scope: null,
+      };
     }
 
     if (entityType === 'users') {
@@ -958,6 +1155,124 @@ export class AiAggregateExecutor {
     });
   }
 
+  private async aggregateCapexSummaryByIds(
+    context: AiExecutionContextWithManager,
+    groupBy: string,
+    ids: string[],
+    fn: AiAggregateFunction,
+    metric: { key: string; def: AiAggregateMetricDef } | null,
+  ): Promise<Array<{ key: string | null; count: number } | { key: string | null; value: number | string | null }>> {
+    const registry = getAiEntityRegistry('capex_items');
+    const groupField = registry.fields[groupBy];
+    if (!groupField) {
+      throw new BadRequestException('Unsupported group_by field.');
+    }
+
+    const rowsResult = await this.capexItems.summary(
+      {
+        page: 1,
+        limit: AGGREGATE_ID_COLLECTION_LIMIT,
+        filters: {
+          id: {
+            filterType: 'set',
+            values: ids,
+          },
+        },
+        includeDisabled: true,
+      },
+      { manager: context.manager },
+    );
+    const rows = rowsResult.items || [];
+
+    if (fn === 'count' || !metric) {
+      const counts = new Map<string, { key: string | null; count: number }>();
+      for (const row of rows) {
+        const rawKey = getCapexSummaryFieldValue(row, groupField.grid);
+        const key = rawKey == null || rawKey === '' ? null : String(rawKey);
+        const bucketKey = key ?? '__NULL__';
+        const current = counts.get(bucketKey) ?? { key, count: 0 };
+        current.count += 1;
+        counts.set(bucketKey, current);
+      }
+      return Array.from(counts.values()).sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return (a.key ?? '').localeCompare(b.key ?? '');
+      });
+    }
+
+    const metricField = registry.fields[metric.key];
+    if (!metricField) {
+      throw new BadRequestException('Unsupported metric field.');
+    }
+
+    type AggregateBucket = {
+      key: string | null;
+      sum: number;
+      count: number;
+      min: number | null;
+      max: number | null;
+    };
+    const buckets = new Map<string, AggregateBucket>();
+
+    for (const row of rows) {
+      const rawKey = getCapexSummaryFieldValue(row, groupField.grid);
+      const key = rawKey == null || rawKey === '' ? null : String(rawKey);
+      const rawMetric = getCapexSummaryFieldValue(row, metricField.grid);
+      const value = rawMetric == null || rawMetric === '' ? null : Number(rawMetric);
+      if (value == null || !Number.isFinite(value)) continue;
+
+      const bucketKey = key ?? '__NULL__';
+      const bucket = buckets.get(bucketKey) ?? {
+        key,
+        sum: 0,
+        count: 0,
+        min: null,
+        max: null,
+      };
+      bucket.sum += value;
+      bucket.count += 1;
+      bucket.min = bucket.min == null ? value : Math.min(bucket.min, value);
+      bucket.max = bucket.max == null ? value : Math.max(bucket.max, value);
+      buckets.set(bucketKey, bucket);
+    }
+
+    const values = Array.from(buckets.values()).map((bucket) => {
+      let value: number | null = null;
+      switch (fn) {
+        case 'sum':
+          value = bucket.sum;
+          break;
+        case 'avg':
+          value = bucket.count > 0 ? bucket.sum / bucket.count : null;
+          break;
+        case 'min':
+          value = bucket.min;
+          break;
+        case 'max':
+          value = bucket.max;
+          break;
+        default:
+          value = null;
+      }
+      return {
+        key: bucket.key,
+        value,
+      };
+    });
+
+    return values.sort((a, b) => {
+      const av = a.value;
+      const bv = b.value;
+      if (av == null && bv == null) return (a.key ?? '').localeCompare(b.key ?? '');
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av !== bv) {
+        return fn === 'min' ? av - bv : bv - av;
+      }
+      return (a.key ?? '').localeCompare(b.key ?? '');
+    });
+  }
+
   async execute(
     context: AiExecutionContextWithManager,
     input: {
@@ -1100,7 +1415,9 @@ export class AiAggregateExecutor {
 
     const groups = input.entity_type === 'spend_items'
       ? await this.aggregateSpendSummaryByIds(context, input.group_by, ids, fn, metric)
-      : await this.aggregateByIds(context, input.entity_type, input.group_by, ids, fn, metric);
+      : input.entity_type === 'capex_items'
+        ? await this.aggregateCapexSummaryByIds(context, input.group_by, ids, fn, metric)
+        : await this.aggregateByIds(context, input.entity_type, input.group_by, ids, fn, metric);
     return {
       group_by: input.group_by,
       metric: metric?.key ?? null,

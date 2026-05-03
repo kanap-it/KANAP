@@ -46,5 +46,6 @@ import { PortfolioProject } from '../portfolio/portfolio-project.entity';
   ],
   controllers: [CapexItemsController, CapexVersionsController, CapexTasksController],
   providers: [CapexItemsService, CapexItemsDeleteService, CapexVersionsService, CapexAmountsService, CapexAllocationsService, CapexAllocationCalculatorService, CapexItemContactsService],
+  exports: [CapexItemsService],
 })
 export class CapexModule {}

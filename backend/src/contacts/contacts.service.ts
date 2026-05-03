@@ -150,6 +150,85 @@ export class ContactsService {
     return { items: withSupplier, total, page, limit };
   }
 
+  async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+    const repo = this.getRepo(opts?.manager);
+    const { sort, q, filters } = parsePagination(query);
+    const allowedSortFields = [
+      'last_name', 'first_name', 'email', 'active', 'created_at', 'updated_at', 'supplier_name'
+    ];
+    const qb = repo.createQueryBuilder('c').leftJoin('c.supplier', 's').select('c.id', 'id');
+
+    const filterWhere = buildWhereFromAgFilters(filters, ['last_name', 'first_name', 'email', 'phone', 'mobile', 'country', 'active', 'supplier_id']);
+    if (Object.keys(filterWhere).length > 0) qb.where(filterWhere);
+
+    const supplierNameFilter = filters?.supplier_name;
+    if (supplierNameFilter) {
+      let model: any = supplierNameFilter;
+      if (model && model.operator && Array.isArray(model.conditions) && model.conditions.length > 0) {
+        model = model.conditions[0];
+      }
+      const type = (model?.type ?? model?.filterType ?? 'contains') as string;
+      const valRaw = model?.filter ?? model?.value ?? (Array.isArray(model?.values) ? model.values[0] : undefined);
+      const requiresValue = !(type === 'blank' || type === 'notBlank');
+      if (!requiresValue || (valRaw != null && valRaw !== '')) {
+        const val = valRaw != null ? String(valRaw) : '';
+        switch (type) {
+          case 'equals':
+            qb.andWhere('s.name ILIKE :supplierFilterEq', { supplierFilterEq: val });
+            break;
+          case 'notEqual':
+            qb.andWhere('s.name NOT ILIKE :supplierFilterNe', { supplierFilterNe: val });
+            break;
+          case 'startsWith':
+            qb.andWhere('s.name ILIKE :supplierFilterSw', { supplierFilterSw: `${val}%` });
+            break;
+          case 'endsWith':
+            qb.andWhere('s.name ILIKE :supplierFilterEw', { supplierFilterEw: `%${val}` });
+            break;
+          case 'notContains':
+            qb.andWhere('s.name NOT ILIKE :supplierFilterNc', { supplierFilterNc: `%${val}%` });
+            break;
+          case 'blank':
+            qb.andWhere("s.name IS NULL OR NULLIF(s.name, '') IS NULL");
+            break;
+          case 'notBlank':
+            qb.andWhere("s.name IS NOT NULL AND NULLIF(s.name, '') IS NOT NULL");
+            break;
+          case 'contains':
+          default:
+            qb.andWhere('s.name ILIKE :supplierFilter', { supplierFilter: `%${val}%` });
+            break;
+        }
+      }
+    }
+
+    if (typeof query?.active === 'string') {
+      const v = String(query.active).toLowerCase();
+      if (v === 'true' || v === 'false') qb.andWhere({ active: v === 'true' });
+    }
+
+    if (q) {
+      const like = `%${q}%`;
+      qb.andWhere(new Brackets((qb2) => qb2
+        .where('c.email ILIKE :like', { like })
+        .orWhere('c.first_name ILIKE :like', { like })
+        .orWhere('c.last_name ILIKE :like', { like })
+        .orWhere('c.phone ILIKE :like', { like })
+        .orWhere('c.mobile ILIKE :like', { like })
+        .orWhere('s.name ILIKE :like', { like })
+      ));
+    }
+
+    const orderField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
+    if (orderField === 'supplier_name') qb.orderBy('s.name', sort.direction as any);
+    else qb.orderBy(`c.${orderField}`, sort.direction as any);
+
+    const total = await qb.clone().getCount();
+    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const rows = await qb.take(limit).getRawMany<{ id: string }>();
+    return { ids: rows.map((row) => row.id).filter(Boolean), total };
+  }
+
   async get(id: string, opts?: { manager?: EntityManager }) {
     const repo = this.getRepo(opts?.manager);
     const item = await repo.findOne({ where: { id }, relations: ['supplier'] });
