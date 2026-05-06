@@ -27,7 +27,13 @@ export interface AiMutationOperation<TInput = unknown> {
   readonly inputSchema: z.ZodTypeAny;
   readonly inputSummary: Record<string, string>;
   readonly businessResource: string;
+  readonly businessResources?: readonly string[];
   readonly writePreview: AiWritePreviewCapabilityDto;
+
+  resolveBusinessResource?(params: {
+    input?: TInput;
+    preview?: AiMutationPreview;
+  }): string;
 
   prepareCreatePreview(
     context: AiExecutionContextWithManager,

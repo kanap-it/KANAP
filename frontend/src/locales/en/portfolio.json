@@ -560,6 +560,9 @@
         "stream": "Stream",
         "targetDeliveryDate": "Target Delivery Date"
       },
+      "values": {
+        "requestorMissing": "Requestor missing"
+      },
       "sections": {
         "core": "Core Properties",
         "dependencies": "Dependencies",
@@ -751,6 +754,7 @@
           "time": "Time"
         },
         "values": {
+          "assigneeMissing": "Assignee missing",
           "doneRequiresTime": "{{status}} (requires time)",
           "noClassification": "No classification set.",
           "projectLevel": "Project-level",
@@ -1374,6 +1378,7 @@
         "allDimensionsNotAssessed": "All dimensions not assessed",
         "dimensionsAssessed": "{{count}} dimensions assessed",
         "empty": "(empty)",
+        "itLeadMissing": "IT lead missing",
         "no": "No",
         "none": "(none)",
         "notSet": "(not set)",

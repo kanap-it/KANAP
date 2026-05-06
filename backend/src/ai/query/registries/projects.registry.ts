@@ -93,6 +93,16 @@ export const projectsRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: true,
     },
+    source: {
+      ai: 'source',
+      grid: 'source_name',
+      type: 'set',
+      description: 'Portfolio source name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
     priority_score: {
       ai: 'priority_score',
       grid: 'priority_score',
@@ -187,6 +197,12 @@ export const projectsRegistry: AiEntityFilterRegistry = {
         ],
       },
       origin: { expression: 'p.origin' },
+      source: {
+        expression: 'src.name',
+        joins: [
+          `LEFT JOIN portfolio_sources src ON src.id = p.source_id AND src.tenant_id = p.tenant_id`,
+        ],
+      },
     },
     metricFields: {
       execution_progress: {

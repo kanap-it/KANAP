@@ -63,6 +63,43 @@ export const companiesRegistry: AiEntityFilterRegistry = {
       sortable: true,
       groupable: true,
     },
+    headcount_year: {
+      ai: 'headcount_year',
+      grid: 'headcount_year',
+      type: 'number',
+      description: 'Company headcount for the selected metric year. Query year defaults to the current year.',
+      sortable: true,
+      groupable: false,
+      aggregable: true,
+    },
+    it_users_year: {
+      ai: 'it_users_year',
+      grid: 'it_users_year',
+      type: 'number',
+      description: 'Company IT users for the selected metric year. Query year defaults to the current year.',
+      sortable: true,
+      groupable: false,
+      aggregable: true,
+    },
+    turnover_year: {
+      ai: 'turnover_year',
+      grid: 'turnover_year',
+      type: 'number',
+      description: 'Company turnover for the selected metric year. Query year defaults to the current year.',
+      sortable: true,
+      groupable: false,
+      aggregable: true,
+    },
+    metrics_frozen: {
+      ai: 'metrics_frozen',
+      grid: 'metrics_frozen',
+      type: 'set',
+      description: 'Whether company metrics are frozen for the selected metric year.',
+      values: ['true', 'false'],
+      discoverable: true,
+      sortable: true,
+      groupable: true,
+    },
   },
   sortFields: {
     label: 'name',
@@ -72,6 +109,10 @@ export const companiesRegistry: AiEntityFilterRegistry = {
     city: 'city',
     state: 'state',
     base_currency: 'base_currency',
+    headcount_year: 'headcount_year',
+    it_users_year: 'it_users_year',
+    turnover_year: 'turnover_year',
+    metrics_frozen: 'metrics_frozen',
     created_at: 'created_at',
     updated_at: 'updated_at',
   },
@@ -89,6 +130,35 @@ export const companiesRegistry: AiEntityFilterRegistry = {
       city: { expression: 'c.city' },
       state: { expression: 'c.state' },
       base_currency: { expression: 'c.base_currency' },
+      metrics_frozen: {
+        expression: `CASE WHEN COALESCE(m.is_frozen, false) THEN 'true' ELSE 'false' END`,
+        joins: [
+          `LEFT JOIN company_metrics m ON m.company_id = c.id AND m.tenant_id = c.tenant_id AND m.fiscal_year = EXTRACT(YEAR FROM CURRENT_DATE)::int`,
+        ],
+      },
+    },
+    metricFields: {
+      headcount_year: {
+        expression: 'm.headcount',
+        type: 'number',
+        joins: [
+          `LEFT JOIN company_metrics m ON m.company_id = c.id AND m.tenant_id = c.tenant_id AND m.fiscal_year = EXTRACT(YEAR FROM CURRENT_DATE)::int`,
+        ],
+      },
+      it_users_year: {
+        expression: 'm.it_users',
+        type: 'number',
+        joins: [
+          `LEFT JOIN company_metrics m ON m.company_id = c.id AND m.tenant_id = c.tenant_id AND m.fiscal_year = EXTRACT(YEAR FROM CURRENT_DATE)::int`,
+        ],
+      },
+      turnover_year: {
+        expression: 'm.turnover',
+        type: 'number',
+        joins: [
+          `LEFT JOIN company_metrics m ON m.company_id = c.id AND m.tenant_id = c.tenant_id AND m.fiscal_year = EXTRACT(YEAR FROM CURRENT_DATE)::int`,
+        ],
+      },
     },
   },
 };

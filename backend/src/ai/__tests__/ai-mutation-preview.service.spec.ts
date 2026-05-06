@@ -141,6 +141,7 @@ function createService(options?: {
   updateError?: Error;
   taskCreateResult?: any;
   contextUserId?: string;
+  queryRunner?: any;
 }) {
   const previews = [...(options?.previews || [createStatusPreview()])];
   const saved: any[] = [];
@@ -232,6 +233,7 @@ function createService(options?: {
   };
 
   const manager = {
+    queryRunner: options?.queryRunner,
     getRepository: (entity?: any) => (entity?.name === 'Task' ? taskRepo : previewRepo),
     query: async (sql: string, params?: any[]) => {
       for (const response of options?.sqlResponses || []) {
@@ -386,6 +388,76 @@ function createService(options?: {
     },
   };
   const documentSupport = new AiDocumentMutationSupportService(knowledge as any);
+  const createMasterDataOperation = {
+    toolName: 'create_master_data_record',
+    businessResource: 'companies',
+    writePreview: { reversible: false },
+    presentPreview: () => ({
+      target: { entity_type: 'companies', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Create master data record.',
+    }),
+  };
+  const updateMasterDataOperation = {
+    toolName: 'update_master_data_record',
+    businessResource: 'companies',
+    writePreview: { reversible: false },
+    presentPreview: () => ({
+      target: { entity_type: 'companies', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Update master data record.',
+    }),
+  };
+  const createBusinessRecordOperation = {
+    toolName: 'create_business_record',
+    businessResource: 'applications',
+    writePreview: { reversible: false },
+    presentPreview: () => ({
+      target: { entity_type: 'applications', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Create business record.',
+    }),
+  };
+  const writeFinancialPlanOperation = {
+    toolName: 'write_financial_plan',
+    businessResource: 'opex',
+    writePreview: { reversible: true },
+    presentPreview: () => ({
+      target: { entity_type: 'spend_items', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Write financial plan.',
+    }),
+  };
+  const updateBusinessRecordOperation = {
+    toolName: 'update_business_record',
+    businessResource: 'applications',
+    writePreview: { reversible: true },
+    presentPreview: () => ({
+      target: { entity_type: 'applications', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Update business record.',
+    }),
+  };
+  const updateEntityRelationsOperation = {
+    toolName: 'update_entity_relations',
+    businessResource: 'applications',
+    writePreview: { reversible: true },
+    presentPreview: () => ({
+      target: { entity_type: 'applications', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Update entity relations.',
+    }),
+  };
+  const updateTaskFieldsOperation = {
+    toolName: 'update_task_fields',
+    businessResource: 'tasks',
+    writePreview: { reversible: true },
+    presentPreview: () => ({
+      target: { entity_type: 'tasks', entity_id: null, ref: null, title: null },
+      changes: {},
+      summary: 'Update task fields.',
+    }),
+  };
   const operations = new AiMutationOperationRegistry(
     new ImportGlpiTicketAiMutationOperation(
       support,
@@ -403,6 +475,9 @@ function createService(options?: {
       tasks as any,
       policy as any,
     ),
+    createMasterDataOperation as any,
+    createBusinessRecordOperation as any,
+    writeFinancialPlanOperation as any,
     new UpdateDocumentContentAiMutationOperation(
       documentSupport,
       knowledge as any,
@@ -415,6 +490,10 @@ function createService(options?: {
       documentSupport,
       knowledge as any,
     ),
+    updateMasterDataOperation as any,
+    updateBusinessRecordOperation as any,
+    updateEntityRelationsOperation as any,
+    updateTaskFieldsOperation as any,
     new UpdateTaskStatusAiMutationOperation(
       support,
       tasks as any,
@@ -987,7 +1066,7 @@ async function testExecuteCreateDocumentRoutesThroughKnowledgeService() {
   assert.equal(documentCreates[0][2], 'user-1');
   assert.deepEqual(documentCreates[0][3]?.audit, {
     source: 'ai_chat',
-    sourceRef: 'conv-1',
+    sourceRef: 'preview-1',
   });
 }
 
@@ -1146,7 +1225,7 @@ async function testExecuteCreateTaskRoutesThroughTasksService() {
   assert.equal(taskCreates[0][1], 'user-1');
   assert.deepEqual(taskCreates[0][2]?.audit, {
     source: 'ai_chat',
-    sourceRef: 'conv-1',
+    sourceRef: 'preview-1',
   });
 }
 
@@ -1657,7 +1736,7 @@ async function testExecuteDocumentMetadataPreviewUsesLockAndAudit() {
   assert.equal(documentUpdates[0][3], 'lock-token-1');
   assert.deepEqual(documentUpdates[0][4]?.audit, {
     source: 'ai_chat',
-    sourceRef: 'conv-1',
+    sourceRef: 'preview-1',
   });
 }
 
@@ -1796,7 +1875,7 @@ async function testExecuteDocumentContentPreviewUsesLockAndAudit() {
   assert.equal(documentUpdates[0][3], 'lock-token-1');
   assert.deepEqual(documentUpdates[0][4]?.audit, {
     source: 'ai_chat',
-    sourceRef: 'conv-1',
+    sourceRef: 'preview-1',
   });
 }
 
@@ -1925,7 +2004,7 @@ async function testExecuteDocumentRelationsPreviewUsesLockAndAudit() {
   });
   assert.deepEqual(documentUpdates[0][4]?.audit, {
     source: 'ai_chat',
-    sourceRef: 'conv-1',
+    sourceRef: 'preview-1',
   });
 }
 
@@ -2005,6 +2084,32 @@ async function testDocumentRevisionDriftFailsExecutionAndReleasesLock() {
   assert.equal(result.error_message, 'Document changed after the preview was created.');
   assert.equal(documentUpdates.length, 0);
   assert.equal(documentLocksReleased.length, 1);
+}
+
+async function testFailedExecutionRollsBackDomainWritesBeforeSavingFailedPreview() {
+  const queryRunnerQueries: string[] = [];
+  const { service, context, saved, documentUpdates } = createService({
+    previews: [createDocumentContentPreview()],
+    updateError: new BadRequestException('Simulated document update failure.'),
+    queryRunner: {
+      isTransactionActive: true,
+      query: async (sql: string) => {
+        queryRunnerQueries.push(sql);
+        return [];
+      },
+    },
+  });
+
+  const result = await service.executePreview(context, 'preview-1');
+
+  assert.equal(result.status, 'failed');
+  assert.equal(result.error_message, 'Simulated document update failure.');
+  assert.equal(documentUpdates.length, 1);
+  assert.deepEqual(queryRunnerQueries, [
+    'SAVEPOINT ai_mutation_preview_execution',
+    'ROLLBACK TO SAVEPOINT ai_mutation_preview_execution',
+  ]);
+  assert.equal(saved[saved.length - 1].status, 'failed');
 }
 
 async function testDocumentContentRevisionDriftFailsExecutionAndReleasesLock() {
@@ -2170,7 +2275,7 @@ async function testExecuteCommentPreviewRoutesThroughTaskActivities() {
   assert.equal(activityCreates[0][3], 'user-1');
   assert.deepEqual(activityCreates[0][4]?.audit, {
     source: 'ai_chat',
-    sourceRef: 'conv-1',
+    sourceRef: 'preview-1',
   });
 }
 
@@ -2327,6 +2432,7 @@ async function main() {
   await testExecuteDocumentRelationsPreviewUsesLockAndAudit();
   await testExecuteDocumentRelationsPreviewRoutesRemovalThroughKnowledgeService();
   await testDocumentRevisionDriftFailsExecutionAndReleasesLock();
+  await testFailedExecutionRollsBackDomainWritesBeforeSavingFailedPreview();
   await testDocumentContentRevisionDriftFailsExecutionAndReleasesLock();
   await testDocumentRelationDriftFailsExecutionAndReleasesLock();
   await testPreviewActionsStayScopedToConversation();

@@ -72,6 +72,8 @@ async function testStructuredReadGuidancePrefersQueryLayerTools() {
   assert.match(prompt, /tasks for projects in a stream/i);
   assert.match(prompt, /applications linked to a project/i);
   assert.match(prompt, /Use get_entity_comments for the actual project\/task discussion feed/i);
+  assert.match(prompt, /headcount_year/);
+  assert.match(prompt, /pass `year` on query_entities or get_entity_detail/i);
   assert.match(prompt, /Spend-item reads and spend-item aggregations are summary-backed/i);
   assert.match(prompt, /Prefer completeness over speed/i);
   assert.match(prompt, /`q` on query_entities and aggregate_entities is literal text quick-search only/i);

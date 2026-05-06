@@ -198,6 +198,7 @@ async function testPrepareCreatePreviewConvertsEscapedHtmlContent() {
 
 async function testExecutePreviewImportsInlineImagesBestEffort() {
   const uploads: any[] = [];
+  const taskCreates: any[] = [];
   const taskUpdates: any[] = [];
   let killSessionCalls = 0;
 
@@ -212,12 +213,15 @@ async function testExecutePreviewImportsInlineImagesBestEffort() {
       }),
     } as any,
     {
-      createForTarget: async () => ({
-        id: 'task-1',
-        item_number: 44,
-        title: 'VPN access broken',
-        description: '![one](front/document.send.php?docid=19)\n\n![two](front/document.send.php?docid=20)',
-      }),
+      createForTarget: async (...args: any[]) => {
+        taskCreates.push(args);
+        return {
+          id: 'task-1',
+          item_number: 44,
+          title: 'VPN access broken',
+          description: '![one](front/document.send.php?docid=19)\n\n![two](front/document.send.php?docid=20)',
+        };
+      },
       updateById: async (...args: any[]) => {
         taskUpdates.push(args);
       },
@@ -287,7 +291,15 @@ async function testExecutePreviewImportsInlineImagesBestEffort() {
   assert.equal(Array.isArray(currentValues.glpi_image_warnings), true);
   assert.equal(currentValues.glpi_image_warnings.length, 1);
   assert.equal(uploads.length, 1);
+  assert.deepEqual(taskCreates[0][2]?.audit, {
+    source: 'ai_chat',
+    sourceRef: 'preview-1',
+  });
   assert.equal(taskUpdates.length, 1);
+  assert.deepEqual(taskUpdates[0][3]?.audit, {
+    source: 'ai_chat',
+    sourceRef: 'preview-1',
+  });
   assert.match(String(taskUpdates[0][1]?.description || ''), /\/api\/tasks\/attachments\/tenant-slug\/attachment-1\/inline/);
   assert.equal(killSessionCalls, 1);
 }

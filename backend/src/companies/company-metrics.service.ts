@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { CompanyMetric } from './company-metric.entity';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { FreezeService } from '../freeze/freeze.service';
 
 @Injectable()
@@ -26,7 +26,13 @@ export class CompanyMetricsService {
     return found || null;
   }
 
-  async upsertForCompany(companyId: string, year: number, body: Partial<CompanyMetric>, userId?: string, opts?: { manager?: EntityManager }) {
+  async upsertForCompany(
+    companyId: string,
+    year: number,
+    body: Partial<CompanyMetric>,
+    userId?: string,
+    opts?: { manager?: EntityManager; audit?: AuditSourceOptions },
+  ) {
     if (!Number.isInteger(year)) throw new BadRequestException('year is required');
     if (body.headcount == null || !Number.isInteger(Number(body.headcount)) || Number(body.headcount) < 0) {
       throw new BadRequestException('headcount is required and must be a non-negative integer');
@@ -54,7 +60,16 @@ export class CompanyMetricsService {
       turnover: body.turnover != null ? Number(body.turnover) : null,
     });
     const saved = await repo.save(next);
-    await this.audit.log({ table: 'company_metrics', recordId: saved.id, action: existing ? 'update' : 'create', before: existing, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log({
+      table: 'company_metrics',
+      recordId: saved.id,
+      action: existing ? 'update' : 'create',
+      before: existing,
+      after: saved,
+      userId,
+      source: opts?.audit?.source,
+      sourceRef: opts?.audit?.sourceRef,
+    }, { manager: opts?.manager ?? repo.manager });
     return saved;
   }
 }

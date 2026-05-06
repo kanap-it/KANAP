@@ -210,6 +210,57 @@ export class AiChatOrchestratorService {
     return text;
   }
 
+  private sanitizeReplayToolCalls(toolCalls: unknown): AiProviderToolCall[] | null {
+    if (!Array.isArray(toolCalls)) {
+      return null;
+    }
+
+    const sanitized: AiProviderToolCall[] = [];
+    for (const rawToolCall of toolCalls) {
+      if (!rawToolCall || typeof rawToolCall !== 'object') {
+        continue;
+      }
+      const candidate = rawToolCall as Record<string, unknown>;
+      const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+      const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
+      const args = typeof candidate.arguments === 'string' ? candidate.arguments : '';
+      const parsed = tryParseToolCallArguments(args || '{}');
+
+      if (!id || !name || !parsed.ok) {
+        this.logger.warn(
+          `Skipping malformed persisted assistant tool call during replay: id=${id || 'missing'} tool=${name || 'missing'}.`,
+        );
+        continue;
+      }
+
+      sanitized.push({ id, name, arguments: args });
+    }
+
+    return sanitized.length > 0 ? sanitized : null;
+  }
+
+  private parsePersistedToolMessageId(content: string): string | null {
+    try {
+      const parsed = JSON.parse(content);
+      return typeof parsed?.tool_call_id === 'string' && parsed.tool_call_id.trim()
+        ? parsed.tool_call_id.trim()
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private buildSkippedToolCallAssistantText(
+    assistantContent: string,
+    toolCall: AiProviderToolCall,
+    reason: string,
+  ): string {
+    const text = String(assistantContent || '').trim();
+    const toolName = String(toolCall.name || '').trim() || 'unknown';
+    const note = `Tool call ${toolName} was not executed because ${reason}`;
+    return text ? `${text}\n\n${note}` : note;
+  }
+
   private buildDisplayName(row: {
     first_name?: string | null;
     last_name?: string | null;
@@ -442,22 +493,33 @@ export class AiChatOrchestratorService {
 
         // Build provider messages from history (excluding the just-persisted user msg for reconstruction)
         const msgs: AiProviderMessage[] = [];
+        let replayableToolCallIds = new Set<string>();
         for (const msg of history) {
           if (msg.role === 'user') {
             msgs.push({ role: 'user', content: this.toProviderUserContent(msg.content) });
+            replayableToolCallIds = new Set<string>();
           } else if (msg.role === 'assistant') {
+            const toolCalls = this.sanitizeReplayToolCalls(msg.tool_calls);
             msgs.push({
               role: 'assistant',
               content: stripBase64Images(msg.content),
-              tool_calls: msg.tool_calls as AiProviderToolCall[] | null,
+              ...(toolCalls ? { tool_calls: toolCalls } : {}),
             });
+            replayableToolCallIds = new Set((toolCalls ?? []).map((toolCall) => toolCall.id));
           } else if (msg.role === 'tool') {
-            const parsed = JSON.parse(msg.content);
+            const toolCallId = this.parsePersistedToolMessageId(msg.content);
+            if (!toolCallId || !replayableToolCallIds.has(toolCallId)) {
+              this.logger.warn(
+                `Skipping persisted tool message during replay because its assistant tool call is unavailable: id=${toolCallId || 'missing'}.`,
+              );
+              continue;
+            }
             msgs.push({
               role: 'tool',
               content: msg.content,
-              tool_call_id: parsed.tool_call_id,
+              tool_call_id: toolCallId,
             });
+            replayableToolCallIds.delete(toolCallId);
           }
         }
         // Get tools and system prompt
@@ -675,32 +737,6 @@ export class AiChatOrchestratorService {
           const tc = assistantToolCalls[toolCallIndex];
           const assistantContent = toolCallIndex === 0 ? accumulatedText : '';
           const assistantUsage = toolCallIndex === 0 ? (iterationUsage ?? null) : null;
-
-          messages.push({
-            role: 'assistant',
-            content: assistantContent,
-            tool_calls: [tc],
-          });
-
-          // Persist the assistant turn before tool execution so usage survives interrupted loops.
-          // Multiple parallel tool calls are stored as sequential one-call turns for stricter
-          // OpenAI-compatible backends such as Qwen tool parsers.
-          await this.tenantExecutor.runWithContext(context, async (ctx) => {
-            await this.conversations.appendMessage(
-              {
-                conversationId,
-                tenantId: ctx.tenantId,
-                conversationUserId: ctx.userId,
-                userId: null,
-                role: 'assistant',
-                content: assistantContent,
-                toolCalls: [tc],
-                usage: assistantUsage,
-              },
-              { manager: ctx.manager },
-            );
-          });
-
           const parsedArgsResult = tryParseToolCallArguments(tc.arguments || '{}');
           const parseErrorMessage = 'message' in parsedArgsResult ? parsedArgsResult.message : null;
           const parsedArgs = 'value' in parsedArgsResult ? parsedArgsResult.value : {};
@@ -716,12 +752,77 @@ export class AiChatOrchestratorService {
           if (!tc.name?.trim()) {
             this.logger.warn(`Skipping tool execution for tool_call_id=${tc.id} because the tool name was empty.`);
             result = { error: 'Tool call was missing a tool name. Ask the model to retry.' };
+            const skippedAssistantText = this.buildSkippedToolCallAssistantText(
+              assistantContent,
+              tc,
+              'the tool name was missing.',
+            );
+            messages.push({ role: 'assistant', content: skippedAssistantText });
+            await this.tenantExecutor.runWithContext(context, async (ctx) => {
+              await this.conversations.appendMessage(
+                {
+                  conversationId,
+                  tenantId: ctx.tenantId,
+                  conversationUserId: ctx.userId,
+                  userId: null,
+                  role: 'assistant',
+                  content: skippedAssistantText,
+                  usage: assistantUsage,
+                },
+                { manager: ctx.manager },
+              );
+            });
           } else if (parseErrorMessage) {
             this.logger.warn(
               `Skipping tool execution for tool_call_id=${tc.id} tool=${tc.name} because arguments were invalid JSON.`,
             );
             result = { error: `${parseErrorMessage} Ask the model to retry with valid JSON arguments.` };
+            const skippedAssistantText = this.buildSkippedToolCallAssistantText(
+              assistantContent,
+              tc,
+              'the arguments were invalid JSON.',
+            );
+            messages.push({ role: 'assistant', content: skippedAssistantText });
+            await this.tenantExecutor.runWithContext(context, async (ctx) => {
+              await this.conversations.appendMessage(
+                {
+                  conversationId,
+                  tenantId: ctx.tenantId,
+                  conversationUserId: ctx.userId,
+                  userId: null,
+                  role: 'assistant',
+                  content: skippedAssistantText,
+                  usage: assistantUsage,
+                },
+                { manager: ctx.manager },
+              );
+            });
           } else {
+            messages.push({
+              role: 'assistant',
+              content: assistantContent,
+              tool_calls: [tc],
+            });
+
+            // Persist the assistant turn before tool execution so usage survives interrupted loops.
+            // Multiple parallel tool calls are stored as sequential one-call turns for stricter
+            // OpenAI-compatible backends such as Qwen tool parsers.
+            await this.tenantExecutor.runWithContext(context, async (ctx) => {
+              await this.conversations.appendMessage(
+                {
+                  conversationId,
+                  tenantId: ctx.tenantId,
+                  conversationUserId: ctx.userId,
+                  userId: null,
+                  role: 'assistant',
+                  content: assistantContent,
+                  toolCalls: [tc],
+                  usage: assistantUsage,
+                },
+                { manager: ctx.manager },
+              );
+            });
+
             try {
               result = await this.tenantExecutor.runWithContext({ ...context, conversationId }, async (ctx) => {
                 return this.toolRegistry.execute(ctx, tc.name, parsedArgs);
@@ -729,6 +830,49 @@ export class AiChatOrchestratorService {
             } catch (err: any) {
               result = { error: err.message || 'Tool execution failed.' };
             }
+
+            yield {
+              type: 'tool_result',
+              id: tc.id,
+              name: tc.name,
+              result,
+            };
+
+            if (this.isMutationPreviewDto(result)) {
+              yield {
+                type: 'preview',
+                ...result,
+              };
+            }
+
+            const validation = buildStructuredToolResultValidation(tc.name, result);
+            const toolContent = JSON.stringify({
+              tool_call_id: tc.id,
+              tool_name: tc.name,
+              result,
+              ...(validation ? { validation } : {}),
+            });
+
+            messages.push({
+              role: 'tool',
+              content: toolContent,
+              tool_call_id: tc.id,
+            });
+
+            await this.tenantExecutor.runWithContext(context, async (ctx) => {
+              await this.conversations.appendMessage(
+                {
+                  conversationId,
+                  tenantId: ctx.tenantId,
+                  conversationUserId: ctx.userId,
+                  userId: null,
+                  role: 'tool',
+                  content: toolContent,
+                },
+                { manager: ctx.manager },
+              );
+            });
+            continue;
           }
 
           yield {
@@ -737,41 +881,6 @@ export class AiChatOrchestratorService {
             name: tc.name,
             result,
           };
-
-          if (this.isMutationPreviewDto(result)) {
-            yield {
-              type: 'preview',
-              ...result,
-            };
-          }
-
-          const validation = buildStructuredToolResultValidation(tc.name, result);
-          const toolContent = JSON.stringify({
-            tool_call_id: tc.id,
-            tool_name: tc.name,
-            result,
-            ...(validation ? { validation } : {}),
-          });
-
-          messages.push({
-            role: 'tool',
-            content: toolContent,
-            tool_call_id: tc.id,
-          });
-
-          await this.tenantExecutor.runWithContext(context, async (ctx) => {
-            await this.conversations.appendMessage(
-              {
-                conversationId,
-                tenantId: ctx.tenantId,
-                conversationUserId: ctx.userId,
-                userId: null,
-                role: 'tool',
-                content: toolContent,
-              },
-              { manager: ctx.manager },
-            );
-          });
         }
 
         // Continue loop for next iteration

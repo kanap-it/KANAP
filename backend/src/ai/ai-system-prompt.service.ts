@@ -70,7 +70,9 @@ export class AiSystemPromptService {
       sections.push(
         'Writable fields currently available:\n' +
         writePreviewTools
-          .flatMap((tool) => tool.write_preview.fields.map((field) => `- ${tool.write_preview.entity_type}.${field}`))
+          .flatMap((tool) => tool.write_preview.fields.map((field) =>
+            field.includes(':') ? `- ${field}` : `- ${tool.write_preview.entity_type}.${field}`,
+          ))
           .join('\n'),
       );
       if (hasUndoPreviewTool) {
@@ -131,8 +133,8 @@ export class AiSystemPromptService {
       '- **Interfaces**: application interfaces, integrations, data flows\n' +
       '- **Connections**: infrastructure connections, network/application links\n' +
       '- **Suppliers**: vendors, providers, editors\n' +
-      '- **Companies**: entities, business units, legal entities\n' +
-      '- **Departments**: teams, departments, cost centers\n' +
+      '- **Companies**: entities, business units, legal entities. Year-backed company metrics use `headcount_year`, `it_users_year`, `turnover_year`, and `metrics_frozen`; pass `year` on query_entities or get_entity_detail when the user names a fiscal/calendar year.\n' +
+      '- **Departments**: teams, departments, cost centers. Year-backed department metrics use `headcount_year` and `metrics_frozen`; pass `year` on query_entities or get_entity_detail when the user names a fiscal/calendar year.\n' +
       '- **Users**: people, teammates, contributors, collaborators, owners, assignees\n' +
       '- **Streams**: value streams, programmes\n' +
       '- **Categories**: portfolio categories, classification\n' +

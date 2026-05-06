@@ -45,6 +45,7 @@ const applyOwnerScopeCondition = (qb: SelectQueryBuilder<Application>, scope: Ow
         SELECT 1
         FROM application_owners ao
         WHERE ao.application_id = a.id
+          AND ao.tenant_id = a.tenant_id
           AND (
             ao.user_id = :ownerUserId
             OR ao.user_id IN (
@@ -65,6 +66,7 @@ const applyOwnerScopeCondition = (qb: SelectQueryBuilder<Application>, scope: Ow
         SELECT 1
         FROM application_owners ao
         WHERE ao.application_id = a.id
+          AND ao.tenant_id = a.tenant_id
           AND ao.user_id = :ownerUserId
       )`,
       { ownerUserId },
@@ -77,6 +79,7 @@ const applyOwnerScopeCondition = (qb: SelectQueryBuilder<Application>, scope: Ow
       SELECT 1
       FROM application_owners ao
       WHERE ao.application_id = a.id
+        AND ao.tenant_id = a.tenant_id
         AND ao.user_id IN (
           SELECT tmc.user_id
           FROM portfolio_team_member_configs tmc
@@ -136,6 +139,7 @@ const compileEnvironmentsSetFilter = (model: any, nextParam: ParamNameFactory): 
     sql: `EXISTS (
       SELECT 1 FROM app_instances ai
       WHERE ai.application_id = a.id
+        AND ai.tenant_id = a.tenant_id
         AND ${activeCondition}
         AND ai.environment IN (:...${param})
     )`,
@@ -153,10 +157,11 @@ const compileHostingTypesSetFilter = (model: any, nextParam: ParamNameFactory): 
     sql: `EXISTS (
       SELECT 1
       FROM app_instances ai
-      JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id
-      JOIN assets ast ON ast.id = aaa.asset_id
-      LEFT JOIN locations l ON l.id = ast.location_id
+      JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
+      JOIN assets ast ON ast.id = aaa.asset_id AND ast.tenant_id = ai.tenant_id
+      LEFT JOIN locations l ON l.id = ast.location_id AND l.tenant_id = ai.tenant_id
       WHERE ai.application_id = a.id
+        AND ai.tenant_id = a.tenant_id
         AND l.hosting_type IN (:...${param})
     )`,
     params: { [param]: values },
@@ -344,7 +349,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       textExpression:
         `COALESCE((SELECT string_agg(ai.environment, ',') ` +
         `FROM app_instances ai ` +
-        `WHERE ai.application_id = a.id), '')`,
+        `WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id), '')`,
       dataType: 'string',
     };
 
@@ -353,22 +358,22 @@ export class ApplicationsListService extends ApplicationsBaseService {
     }
 
     // Derived filter targets
-    targets['spend_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = a.id)`, dataType: 'number' };
-    targets['capex_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_capex_items l WHERE l.application_id = a.id)`, dataType: 'number' };
-    targets['contracts_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = a.id)`, dataType: 'number' };
-    targets['suites_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_suites l WHERE l.application_id = a.id)`, dataType: 'number' };
-    targets['components_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_suites l WHERE l.suite_id = a.id)`, dataType: 'number' };
+    targets['spend_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, dataType: 'number' };
+    targets['capex_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_capex_items l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, dataType: 'number' };
+    targets['contracts_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, dataType: 'number' };
+    targets['suites_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_suites l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, dataType: 'number' };
+    targets['components_count'] = { expression: 'a.id', numericExpression: `(SELECT COUNT(*) FROM application_suites l WHERE l.suite_id = a.id AND l.tenant_id = a.tenant_id)`, dataType: 'number' };
     targets['owners_business'] = { expression: 'a.id', textExpression: buildApplicationOwnerNamesSql('business'), dataType: 'string' };
     targets['owners_it'] = { expression: 'a.id', textExpression: buildApplicationOwnerNamesSql('it'), dataType: 'string' };
-    targets['data_residency'] = { expression: 'a.id', textExpression: `COALESCE((SELECT string_agg(dr.country_iso, ',') FROM application_data_residency dr WHERE dr.application_id = a.id), '')`, dataType: 'string' };
+    targets['data_residency'] = { expression: 'a.id', textExpression: `COALESCE((SELECT string_agg(dr.country_iso, ',') FROM application_data_residency dr WHERE dr.application_id = a.id AND dr.tenant_id = a.tenant_id), '')`, dataType: 'string' };
     targets['hosting_types'] = {
       expression: 'a.id',
       textExpression: `COALESCE((SELECT string_agg(DISTINCT l.hosting_type, ',')
         FROM app_instances ai
-        JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id
-        JOIN assets ast ON ast.id = aaa.asset_id
-        LEFT JOIN locations l ON l.id = ast.location_id
-        WHERE ai.application_id = a.id AND l.hosting_type IS NOT NULL), '')`,
+        JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
+        JOIN assets ast ON ast.id = aaa.asset_id AND ast.tenant_id = ai.tenant_id
+        LEFT JOIN locations l ON l.id = ast.location_id AND l.tenant_id = ai.tenant_id
+        WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id AND l.hosting_type IS NOT NULL), '')`,
       dataType: 'string',
     };
     const lifecycleFilterPresent = !!(fm && Object.prototype.hasOwnProperty.call(fm, 'lifecycle'));
@@ -470,21 +475,24 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Sorting
     const appFields = new Set([
-      'id', 'name', 'supplier_id', 'category', 'editor', 'lifecycle', 'criticality', 'data_class', 'hosting_model', 'external_facing', 'is_suite', 'last_dr_test', 'sso_enabled', 'mfa_supported', 'contains_pii', 'users_mode', 'users_year', 'users_override', 'status', 'disabled_at', 'created_at', 'updated_at'
+      'id', 'name', 'supplier_id', 'category', 'editor', 'environment', 'lifecycle', 'criticality',
+      'data_class', 'hosting_model', 'external_facing', 'is_suite', 'last_dr_test', 'sso_enabled',
+      'mfa_supported', 'etl_enabled', 'contains_pii', 'users_mode', 'users_year', 'users_override',
+      'status', 'disabled_at', 'created_at', 'updated_at',
     ]);
     const direction: 'ASC' | 'DESC' = (String(sort.direction).toUpperCase() === 'ASC' ? 'ASC' : 'DESC');
     if (sort.field === 'supplier_name' && needsSupplierJoin) {
       qb.addOrderBy('s.name', direction);
     } else if (include.has('counts') && sort.field === 'spend_count') {
-      qb.addOrderBy(`(SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = a.id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
+      qb.addOrderBy(`(SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
     } else if (include.has('counts') && sort.field === 'capex_count') {
-      qb.addOrderBy(`(SELECT COUNT(*) FROM application_capex_items l WHERE l.application_id = a.id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
+      qb.addOrderBy(`(SELECT COUNT(*) FROM application_capex_items l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
     } else if (include.has('counts') && sort.field === 'contracts_count') {
-      qb.addOrderBy(`(SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = a.id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
+      qb.addOrderBy(`(SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
     } else if (include.has('structure') && sort.field === 'suites_count') {
-      qb.addOrderBy(`(SELECT COUNT(*) FROM application_suites l WHERE l.application_id = a.id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
+      qb.addOrderBy(`(SELECT COUNT(*) FROM application_suites l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
     } else if (include.has('structure') && sort.field === 'components_count') {
-      qb.addOrderBy(`(SELECT COUNT(*) FROM application_suites l WHERE l.suite_id = a.id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
+      qb.addOrderBy(`(SELECT COUNT(*) FROM application_suites l WHERE l.suite_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
     } else if (appFields.has(sort.field)) {
       qb.orderBy(`a.${sort.field}`, direction);
     } else {
@@ -590,17 +598,17 @@ export class ApplicationsListService extends ApplicationsBaseService {
       textExpression:
         `COALESCE((SELECT string_agg(ai.environment, ',') ` +
         `FROM app_instances ai ` +
-        `WHERE ai.application_id = a.id), '')`,
+        `WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id), '')`,
       dataType: 'string',
     };
     targets['hosting_types'] = {
       expression: 'a.id',
       textExpression: `COALESCE((SELECT string_agg(DISTINCT l.hosting_type, ',')
         FROM app_instances ai
-        JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id
-        JOIN assets ast ON ast.id = aaa.asset_id
-        LEFT JOIN locations l ON l.id = ast.location_id
-        WHERE ai.application_id = a.id AND l.hosting_type IS NOT NULL), '')`,
+        JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
+        JOIN assets ast ON ast.id = aaa.asset_id AND ast.tenant_id = ai.tenant_id
+        LEFT JOIN locations l ON l.id = ast.location_id AND l.tenant_id = ai.tenant_id
+        WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id AND l.hosting_type IS NOT NULL), '')`,
       dataType: 'string',
     };
 
@@ -683,8 +691,10 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Sorting
     const appFields = new Set([
-      'id', 'name', 'supplier_id', 'category', 'editor', 'lifecycle', 'criticality',
-      'data_class', 'hosting_model', 'status', 'created_at', 'updated_at',
+      'id', 'name', 'supplier_id', 'category', 'editor', 'environment', 'lifecycle', 'criticality',
+      'data_class', 'hosting_model', 'external_facing', 'is_suite', 'sso_enabled', 'mfa_supported',
+      'etl_enabled', 'contains_pii', 'users_mode', 'users_year', 'users_override', 'status',
+      'created_at', 'updated_at',
     ]);
     const direction: 'ASC' | 'DESC' = (String(sort.direction).toUpperCase() === 'ASC' ? 'ASC' : 'DESC');
     if (appFields.has(sort.field)) {
@@ -716,6 +726,8 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
     const allowed = new Set([
       'category',
+      'editor',
+      'environment',
       'status',
       'environments',
       'lifecycle',
@@ -725,11 +737,15 @@ export class ApplicationsListService extends ApplicationsBaseService {
       'supplier_name',
       'owners_business',
       'owners_it',
+      'data_residency',
       'external_facing',
+      'is_suite',
       'sso_enabled',
       'mfa_supported',
+      'etl_enabled',
       'data_class',
       'contains_pii',
+      'users_mode',
     ]);
     const fields = rawFields.filter((field) => allowed.has(field));
     if (fields.length === 0) return {};
@@ -755,6 +771,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       mfa_supported: { expression: 'a.mfa_supported', numericExpression: 'COALESCE(a.mfa_supported, false)', dataType: 'boolean' },
       etl_enabled: { expression: 'a.etl_enabled', numericExpression: 'COALESCE(a.etl_enabled, false)', dataType: 'boolean' },
       contains_pii: { expression: 'a.contains_pii', numericExpression: 'COALESCE(a.contains_pii, false)', dataType: 'boolean' },
+      users_mode: { expression: 'a.users_mode', dataType: 'string' },
       status: { expression: 'a.status', textExpression: 'CAST(a.status AS TEXT)', dataType: 'string' },
       disabled_at: { expression: 'a.disabled_at', textExpression: 'CAST(a.disabled_at AS TEXT)', dataType: 'string' },
       created_at: { expression: 'a.created_at', textExpression: 'CAST(a.created_at AS TEXT)', dataType: 'string' },
@@ -775,17 +792,17 @@ export class ApplicationsListService extends ApplicationsBaseService {
         textExpression:
           `COALESCE((SELECT string_agg(ai.environment, ',') ` +
           `FROM app_instances ai ` +
-          `WHERE ai.application_id = a.id), '')`,
+          `WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id), '')`,
         dataType: 'string',
       },
       hosting_types: {
         expression: 'a.id',
         textExpression: `COALESCE((SELECT string_agg(DISTINCT l.hosting_type, ',')
           FROM app_instances ai
-          JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id
-          JOIN assets ast ON ast.id = aaa.asset_id
-          LEFT JOIN locations l ON l.id = ast.location_id
-          WHERE ai.application_id = a.id AND l.hosting_type IS NOT NULL), '')`,
+          JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
+          JOIN assets ast ON ast.id = aaa.asset_id AND ast.tenant_id = ai.tenant_id
+          LEFT JOIN locations l ON l.id = ast.location_id AND l.tenant_id = ai.tenant_id
+          WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id AND l.hosting_type IS NOT NULL), '')`,
         dataType: 'string',
       },
     };
@@ -884,7 +901,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
       if (field === 'environments') {
         const qb = baseQb.clone();
-        qb.innerJoin('app_instances', 'ai', 'ai.application_id = a.id');
+        qb.innerJoin('app_instances', 'ai', 'ai.application_id = a.id AND ai.tenant_id = a.tenant_id');
         qb.andWhere(buildActiveInstanceCondition('ai'));
         qb.select('DISTINCT ai.environment', 'value');
         qb.orderBy('value', 'ASC');
@@ -895,10 +912,10 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
       if (field === 'hosting_types') {
         const qb = baseQb.clone();
-        qb.innerJoin('app_instances', 'ai', 'ai.application_id = a.id');
-        qb.innerJoin('app_asset_assignments', 'aaa', 'aaa.app_instance_id = ai.id');
-        qb.innerJoin('assets', 'ast', 'ast.id = aaa.asset_id');
-        qb.leftJoin('locations', 'l', 'l.id = ast.location_id');
+        qb.innerJoin('app_instances', 'ai', 'ai.application_id = a.id AND ai.tenant_id = a.tenant_id');
+        qb.innerJoin('app_asset_assignments', 'aaa', 'aaa.app_instance_id = ai.id AND aaa.tenant_id = a.tenant_id');
+        qb.innerJoin('assets', 'ast', 'ast.id = aaa.asset_id AND ast.tenant_id = a.tenant_id');
+        qb.leftJoin('locations', 'l', 'l.id = ast.location_id AND l.tenant_id = a.tenant_id');
         qb.andWhere('l.hosting_type IS NOT NULL');
         qb.select('DISTINCT l.hosting_type', 'value');
         qb.orderBy('value', 'ASC');
@@ -934,6 +951,12 @@ export class ApplicationsListService extends ApplicationsBaseService {
         case 'category':
           expression = 'a.category';
           break;
+        case 'editor':
+          expression = 'a.editor';
+          break;
+        case 'environment':
+          expression = 'a.environment';
+          break;
         case 'status':
           expression = 'a.status';
           break;
@@ -955,14 +978,28 @@ export class ApplicationsListService extends ApplicationsBaseService {
         case 'external_facing':
           expression = 'COALESCE(a.external_facing, false)';
           break;
+        case 'is_suite':
+          expression = 'COALESCE(a.is_suite, false)';
+          break;
         case 'sso_enabled':
           expression = 'COALESCE(a.sso_enabled, false)';
           break;
         case 'mfa_supported':
           expression = 'COALESCE(a.mfa_supported, false)';
           break;
+        case 'etl_enabled':
+          expression = 'COALESCE(a.etl_enabled, false)';
+          break;
         case 'contains_pii':
           expression = 'COALESCE(a.contains_pii, false)';
+          break;
+        case 'users_mode':
+          expression = 'a.users_mode';
+          break;
+        case 'data_residency':
+          expression = `(SELECT string_agg(DISTINCT dr.country_iso, ',')
+            FROM application_data_residency dr
+            WHERE dr.application_id = a.id AND dr.tenant_id = a.tenant_id)`;
           break;
         default:
           expression = '';
@@ -1028,9 +1065,9 @@ export class ApplicationsListService extends ApplicationsBaseService {
       const hostingRows: Array<{ application_id: string; hosting_type: string }> = await mg.query(
         `SELECT DISTINCT ai.application_id, l.hosting_type
          FROM app_instances ai
-         JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id
-         JOIN assets ast ON ast.id = aaa.asset_id
-         LEFT JOIN locations l ON l.id = ast.location_id
+         JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
+         JOIN assets ast ON ast.id = aaa.asset_id AND ast.tenant_id = ai.tenant_id
+         LEFT JOIN locations l ON l.id = ast.location_id AND l.tenant_id = ai.tenant_id
          WHERE ai.application_id = ANY($1) AND l.hosting_type IS NOT NULL
          ORDER BY l.hosting_type ASC`,
         [pageIds],
@@ -1087,7 +1124,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       const spendRows: Array<{ application_id: string; c: string; first_name: string | null }> = await mg.query(
         `SELECT l.application_id, COUNT(*)::text as c, MIN(si.product_name) as first_name
          FROM application_spend_items l
-         JOIN spend_items si ON si.id = l.spend_item_id
+         JOIN spend_items si ON si.id = l.spend_item_id AND si.tenant_id = l.tenant_id
          WHERE l.application_id = ANY($1)
          GROUP BY l.application_id`,
         [pageIds],
@@ -1095,7 +1132,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       const capexRows: Array<{ application_id: string; c: string; first_description: string | null }> = await mg.query(
         `SELECT l.application_id, COUNT(*)::text as c, MIN(cx.description) as first_description
          FROM application_capex_items l
-         JOIN capex_items cx ON cx.id = l.capex_item_id
+         JOIN capex_items cx ON cx.id = l.capex_item_id AND cx.tenant_id = l.tenant_id
          WHERE l.application_id = ANY($1)
          GROUP BY l.application_id`,
         [pageIds],
@@ -1103,7 +1140,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       const contractRows: Array<{ application_id: string; c: string; first_name: string | null }> = await mg.query(
         `SELECT l.application_id, COUNT(*)::text as c, MIN(ct.name) as first_name
          FROM application_contracts l
-         JOIN contracts ct ON ct.id = l.contract_id
+         JOIN contracts ct ON ct.id = l.contract_id AND ct.tenant_id = l.tenant_id
          WHERE l.application_id = ANY($1)
          GROUP BY l.application_id`,
         [pageIds],
@@ -1117,7 +1154,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       const suiteRows: Array<{ application_id: string; c: string; first_name: string | null }> = await mg.query(
         `SELECT l.application_id, COUNT(*)::text as c, MIN(sa.name) as first_name
          FROM application_suites l
-         JOIN applications sa ON sa.id = l.suite_id
+         JOIN applications sa ON sa.id = l.suite_id AND sa.tenant_id = l.tenant_id
          WHERE l.application_id = ANY($1)
          GROUP BY l.application_id`,
         [pageIds],
@@ -1125,7 +1162,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       const componentRows: Array<{ application_id: string; c: string; first_name: string | null }> = await mg.query(
         `SELECT l.suite_id as application_id, COUNT(*)::text as c, MIN(ca.name) as first_name
          FROM application_suites l
-         JOIN applications ca ON ca.id = l.application_id
+         JOIN applications ca ON ca.id = l.application_id AND ca.tenant_id = l.tenant_id
          WHERE l.suite_id = ANY($1)
          GROUP BY l.suite_id`,
         [pageIds],

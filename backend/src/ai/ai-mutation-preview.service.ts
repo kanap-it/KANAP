@@ -18,9 +18,14 @@ import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.re
 
 const PREVIEW_TTL_MS = 10 * 60 * 1000;
 const MAX_CONVERSATION_PREVIEWS = 20;
+const EXECUTION_SAVEPOINT_NAME = 'ai_mutation_preview_execution';
 
 function toIso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
+}
+
+function cloneJsonRecord(value: Record<string, unknown> | null): Record<string, unknown> | null {
+  return value == null ? null : JSON.parse(JSON.stringify(value));
 }
 
 @Injectable()
@@ -71,6 +76,13 @@ export class AiMutationPreviewService {
       rejected_at: toIso(preview.rejected_at),
       executed_at: toIso(preview.executed_at),
     };
+  }
+
+  private getOperationBusinessResource<TInput>(
+    operation: ReturnType<AiMutationOperationRegistry['getOperation']>,
+    params: { input?: TInput; preview?: AiMutationPreview },
+  ): string {
+    return operation.resolveBusinessResource?.(params as any) ?? operation.businessResource;
   }
 
   async expireStalePreviews(
@@ -124,7 +136,11 @@ export class AiMutationPreviewService {
     input: TInput,
   ): Promise<AiMutationPreviewDto> {
     const operation = this.operations.getOperation<TInput>(toolName);
-    await this.policy.assertWriteAccess(context, operation.businessResource, context.manager);
+    await this.policy.assertWriteAccess(
+      context,
+      this.getOperationBusinessResource(operation, { input }),
+      context.manager,
+    );
     await this.assertPendingSlotAvailable(context, context.conversationId ?? null);
 
     const prepared = await operation.prepareCreatePreview(context, input);
@@ -182,8 +198,15 @@ export class AiMutationPreviewService {
   ): Promise<AiMutationPreviewDto> {
     const repo = this.getRepo(context.manager);
     const operation = this.operations.getOperation(preview.tool_name);
+    const originalTargetEntityId = preview.target_entity_id;
+    const originalCurrentValues = cloneJsonRecord(preview.current_values);
+    const queryRunner = context.manager.queryRunner;
+    const useSavepoint = queryRunner?.isTransactionActive === true;
 
     try {
+      if (useSavepoint) {
+        await queryRunner.query(`SAVEPOINT ${EXECUTION_SAVEPOINT_NAME}`);
+      }
       await operation.executePreview(context, preview);
       preview.status = 'executed';
       preview.approved_at = new Date();
@@ -192,6 +215,11 @@ export class AiMutationPreviewService {
       const saved = await repo.save(preview);
       return this.toPreviewDto(saved);
     } catch (error: any) {
+      if (useSavepoint) {
+        await queryRunner.query(`ROLLBACK TO SAVEPOINT ${EXECUTION_SAVEPOINT_NAME}`);
+        preview.target_entity_id = originalTargetEntityId;
+        preview.current_values = originalCurrentValues;
+      }
       preview.status = 'failed';
       preview.approved_at = new Date();
       preview.error_message = error?.message || 'Preview execution failed.';
@@ -206,7 +234,11 @@ export class AiMutationPreviewService {
   ): Promise<AiMutationPreviewDto> {
     const preview = await this.getPreviewForUser(context, previewId);
     const operation = this.operations.getOperation(preview.tool_name);
-    await this.policy.assertWriteAccess(context, operation.businessResource, context.manager);
+    await this.policy.assertWriteAccess(
+      context,
+      this.getOperationBusinessResource(operation, { preview }),
+      context.manager,
+    );
     this.assertConversationScope(preview, context.conversationId ?? null);
 
     if (preview.status !== 'pending') {
@@ -230,7 +262,11 @@ export class AiMutationPreviewService {
     const repo = this.getRepo(context.manager);
     const preview = await this.getPreviewForUser(context, previewId);
     const operation = this.operations.getOperation(preview.tool_name);
-    await this.policy.assertWriteAccess(context, operation.businessResource, context.manager);
+    await this.policy.assertWriteAccess(
+      context,
+      this.getOperationBusinessResource(operation, { preview }),
+      context.manager,
+    );
     this.assertConversationScope(preview, context.conversationId ?? null);
 
     if (preview.status === 'pending') {
@@ -254,7 +290,11 @@ export class AiMutationPreviewService {
   ): Promise<AiMutationPreviewDto> {
     const original = await this.getPreviewForUser(context, previewId);
     const operation = this.operations.getOperation(original.tool_name);
-    await this.policy.assertWriteAccess(context, operation.businessResource, context.manager);
+    await this.policy.assertWriteAccess(
+      context,
+      this.getOperationBusinessResource(operation, { preview: original }),
+      context.manager,
+    );
     this.assertConversationScope(original, context.conversationId ?? null);
 
     if (original.status !== 'executed') {

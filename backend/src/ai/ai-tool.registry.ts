@@ -45,6 +45,8 @@ const GetEntityContextInputSchema = z.object({
 const GetEntityDetailInputSchema = z.object({
   entity_type: AiQueryEntityTypeSchema,
   entity_id: z.string().trim().min(1).describe('Entity UUID or canonical reference when that entity supports references.'),
+  year: z.number().int().min(1900).max(3000).optional()
+    .describe('Optional fiscal/calendar year for year-backed metrics on supported entities such as companies and departments.'),
 });
 
 const GetEntityCommentsInputSchema = z.object({
@@ -84,6 +86,8 @@ const QueryEntitiesInputSchema = z.object({
   scope: AiQueryScopeSchema.optional(),
   filters: z.record(z.string(), AiFilterValueSchema).optional(),
   q: z.string().trim().optional(),
+  year: z.number().int().min(1900).max(3000).optional()
+    .describe('Optional fiscal/calendar year for year-backed metrics on supported entities such as companies and departments. Defaults to the current year when metric fields are included.'),
   sort: z.object({
     field: z.string().trim().min(1),
     direction: z.enum(['asc', 'desc']),
@@ -207,6 +211,7 @@ export class AiToolRegistry {
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
             filters: 'Optional field filters keyed by AI field name.',
             q: 'Optional literal quick-search text. Use plain text only; never encode filters like status:in_progress or assignee=bob@example.com here.',
+            year: 'Optional fiscal/calendar year for year-backed metrics, such as company headcount, IT users, turnover, and department headcount. Defaults to the current year when metric fields are included.',
             sort: 'Optional sort field and direction.',
             page: 'Page number to fetch (default 1). Use later pages when total is greater than returned.',
             limit: 'Maximum number of items to return per page (default 200). Use the maximum unless you have a reason to limit.',
@@ -272,6 +277,7 @@ export class AiToolRegistry {
           inputSummary: {
             entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
             entity_id: 'The entity UUID, or canonical reference such as PRJ-12, REQ-7, T-42, or DOC-3 when supported.',
+            year: 'Optional fiscal/calendar year for year-backed metrics on supported entities such as companies and departments.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,
@@ -424,7 +430,7 @@ export class AiToolRegistry {
         {
           name: 'undo_preview',
           category: 'mutation',
-          description: 'Create a reversal preview for a previously executed task write. Requires explicit user approval before execution.',
+          description: 'Create a reversal preview for a previously executed reversible AI write. Requires explicit user approval before execution.',
           inputSchema: UndoPreviewInputSchema,
           inputSummary: {
             preview_id: 'The preview ID of a previously executed task write in this conversation.',
@@ -573,23 +579,30 @@ export class AiToolRegistry {
     const settings = await this.settingsService.find(context.tenantId, { manager: context.manager });
     const webSearchEnabled = settings?.web_search_enabled === true;
 
+    const operationResources = (operation: { businessResource: string; businessResources?: readonly string[] }) =>
+      operation.businessResources && operation.businessResources.length > 0
+        ? operation.businessResources
+        : [operation.businessResource];
+
     const writeAccessByResource = new Map<string, boolean>();
     for (const operation of this.mutationOperations.listOperations()) {
-      if (writeAccessByResource.has(operation.businessResource)) {
-        continue;
-      }
-      try {
-        await this.policy.assertWriteAccess(context, operation.businessResource, context.manager);
-        writeAccessByResource.set(operation.businessResource, true);
-      } catch {
-        writeAccessByResource.set(operation.businessResource, false);
+      for (const resource of operationResources(operation)) {
+        if (writeAccessByResource.has(resource)) {
+          continue;
+        }
+        try {
+          await this.policy.assertWriteAccess(context, resource, context.manager);
+          writeAccessByResource.set(resource, true);
+        } catch {
+          writeAccessByResource.set(resource, false);
+        }
       }
     }
 
     const writableMutationToolNames = new Set<AiToolName>(
       this.mutationOperations.listOperations()
         .filter((operation) =>
-          writeAccessByResource.get(operation.businessResource) === true
+          operationResources(operation).some((resource) => writeAccessByResource.get(resource) === true)
           && this.isMutationOperationConfigured(operation.toolName, settings),
         )
         .map((operation) => operation.toolName),

@@ -591,6 +591,18 @@ function buildLargeToolMessage(index: number) {
   };
 }
 
+function buildLargeToolCallMessage(index: number) {
+  return {
+    role: 'assistant',
+    content: '',
+    tool_calls: [{
+      id: `tool-call-${index}`,
+      name: 'query_entities',
+      arguments: JSON.stringify({ entity_type: 'applications', limit: 200 }),
+    }],
+  };
+}
+
 function buildLargeAssistantMessage(index: number) {
   return {
     role: 'assistant',
@@ -607,6 +619,7 @@ function buildRecentMessage(index: number) {
 function buildCompactionHistory() {
   const messages: any[] = [];
   for (let index = 0; index < 3; index++) {
+    messages.push(buildLargeToolCallMessage(index));
     messages.push(buildLargeToolMessage(index));
     messages.push(buildLargeAssistantMessage(index));
   }
@@ -646,9 +659,19 @@ async function testContextCompaction() {
     assert.equal(recordedRequests.length, 1);
     const requestMessages = recordedRequests[0].messages as any[];
     assert.equal(recordedRequests[0].systemPrompt, 'You are Plaid.');
-    assert.match(requestMessages[0].content, /^\[tool result truncated: query_entities/);
-    assert.match(requestMessages[0].content, /complete=false/);
-    assert.match(requestMessages[1].content, /^\[assistant message truncated:/);
+    assert.ok(
+      requestMessages.some((message) =>
+        message.role === 'tool'
+        && /^\[tool result truncated: query_entities/.test(message.content)
+        && /complete=false/.test(message.content)
+      ),
+    );
+    assert.ok(
+      requestMessages.some((message) =>
+        message.role === 'assistant'
+        && /^\[assistant message truncated:/.test(message.content)
+      ),
+    );
     assert.deepEqual(
       requestMessages.slice(-8).map((message) => message.content),
       [
@@ -710,7 +733,7 @@ async function testToolExecutionError() {
 }
 
 async function testMalformedToolArgumentsReturnSyntheticToolError() {
-  const { orchestrator, toolExecuteCount } = createOrchestrator({
+  const { orchestrator, persistedMessages, recordedRequests, toolExecuteCount } = createOrchestrator({
     providerEvents: [
       { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
       { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"test"' },
@@ -740,6 +763,88 @@ async function testMalformedToolArgumentsReturnSyntheticToolError() {
   assert.ok(toolResult);
   assert.match(toolResult.result.error, /valid JSON arguments/i);
   assert.equal(toolExecuteCount.value, 0);
+  assert.equal(
+    persistedMessages.some((message) => message.role === 'assistant' && message.toolCalls?.length),
+    false,
+  );
+  assert.equal(
+    recordedRequests[1].messages.some((message: any) => message.role === 'tool'),
+    false,
+  );
+}
+
+async function testMalformedPersistedToolCallsAreSkippedDuringReplay() {
+  const invalidToolCall = {
+    id: 'bad-1',
+    name: 'update_business_record',
+    arguments: '{"entity_type":"applications"',
+  };
+  const validToolCall = {
+    id: 'good-1',
+    name: 'update_business_record',
+    arguments: '{"entity_type":"applications","ref":"APP-47","fields":{"etl_enabled":false}}',
+  };
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    historyMessages: [
+      { role: 'user', content: 'Disable ETL on Talend' },
+      { role: 'assistant', content: 'I will prepare the update.', tool_calls: [invalidToolCall] },
+      {
+        role: 'tool',
+        content: JSON.stringify({
+          tool_call_id: 'bad-1',
+          tool_name: 'update_business_record',
+          result: { error: 'Tool arguments were not valid JSON.' },
+        }),
+      },
+      { role: 'assistant', content: '', tool_calls: [validToolCall] },
+      {
+        role: 'tool',
+        content: JSON.stringify({
+          tool_call_id: 'good-1',
+          tool_name: 'update_business_record',
+          result: { preview_id: 'preview-1' },
+        }),
+      },
+      { role: 'user', content: 'Try again' },
+    ],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Try again',
+    }),
+  );
+
+  const replayedMessages = recordedRequests[0].messages;
+  assert.equal(
+    replayedMessages.some((message: any) =>
+      message.role === 'assistant'
+      && message.tool_calls?.some((toolCall: any) => toolCall.id === 'bad-1')
+    ),
+    false,
+  );
+  assert.equal(
+    replayedMessages.some((message: any) => message.role === 'tool' && message.tool_call_id === 'bad-1'),
+    false,
+  );
+  assert.equal(
+    replayedMessages.some((message: any) =>
+      message.role === 'assistant'
+      && message.tool_calls?.some((toolCall: any) => toolCall.id === 'good-1')
+    ),
+    true,
+  );
+  assert.equal(
+    replayedMessages.some((message: any) => message.role === 'tool' && message.tool_call_id === 'good-1'),
+    true,
+  );
 }
 
 async function testStructuredToolResultsCarryBlockingValidationMetadataForIgnoredFilters() {
@@ -821,6 +926,7 @@ async function run() {
   await testContextCompaction();
   await testToolExecutionError();
   await testMalformedToolArgumentsReturnSyntheticToolError();
+  await testMalformedPersistedToolCallsAreSkippedDuringReplay();
   await testStructuredToolResultsCarryBlockingValidationMetadataForIgnoredFilters();
   await testReasoningModelsGetLargerOpenAiTokenBudget();
   await testChatProviderTimeoutResolver();

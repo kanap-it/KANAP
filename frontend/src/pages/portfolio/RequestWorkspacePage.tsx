@@ -24,6 +24,7 @@ import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/i
 import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
+import MetadataUserPicker, { formatMetadataUserName } from '../../components/workspace/MetadataUserPicker';
 import PortfolioDetailWorkspaceShell from './workspace/PortfolioDetailWorkspaceShell';
 import {
   PortfolioMetadataItem,
@@ -943,6 +944,19 @@ export default function RequestWorkspacePage() {
               value={form?.priority_score}
               color={scoreColor}
               title={form?.priority_override ? t('portfolio:workspace.request.priority.overriddenTitle') : t('portfolio:workspace.request.priority.title')}
+            />
+            <MetadataUserPicker
+              label={t('portfolio:workspace.request.fields.requestor')}
+              value={form?.requestor_id || null}
+              displayName={
+                form?.requestor_id && form?.requestor?.id === form.requestor_id
+                  ? formatMetadataUserName(form.requestor)
+                  : null
+              }
+              placeholder={t('portfolio:workspace.request.values.requestorMissing', 'Requestor missing')}
+              searchPlaceholder={t('portfolio:workspace.request.fields.requestor')}
+              disabled={!canManage || form?.status === 'converted'}
+              onChange={(value) => { void persistPanelPatch({ requestor_id: value }); }}
             />
             {targetDeliveryDateLabel && (
               <PortfolioMetadataItem label={t('portfolio:workspace.request.fields.targetDeliveryDate')}>

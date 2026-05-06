@@ -28,7 +28,8 @@
     "clear": "Effacer",
     "continue": "Continuer",
     "selectAll": "Tout sélectionner",
-    "browse": "Parcourir"
+    "browse": "Parcourir",
+    "loadMore": "Charger plus"
   },
   "status": {
     "loading": "Chargement...",

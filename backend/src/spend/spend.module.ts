@@ -83,6 +83,9 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
   ],
   exports: [
     SpendItemsService,
+    SpendVersionsService,
+    SpendAmountsService,
+    SpendAllocationsService,
     TasksService,
   ],
 })

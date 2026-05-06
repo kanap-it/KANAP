@@ -559,6 +559,9 @@
         "stream": "Filière",
         "targetDeliveryDate": "Date de livraison cible"
       },
+      "values": {
+        "requestorMissing": "Demandeur manquant"
+      },
       "sections": {
         "core": "Propriétés principales",
         "dependencies": "Dépendances",
@@ -750,6 +753,7 @@
           "time": "Temps"
         },
         "values": {
+          "assigneeMissing": "Assigné manquant",
           "doneRequiresTime": "{{status}} (temps requis)",
           "noClassification": "Aucune classification définie.",
           "projectLevel": "Niveau projet",
@@ -1373,6 +1377,7 @@
         "allDimensionsNotAssessed": "Toutes les dimensions non évaluées",
         "dimensionsAssessed": "{{count}} dimensions évaluées",
         "empty": "(vide)",
+        "itLeadMissing": "Responsable IT manquant",
         "no": "Non",
         "none": "(aucun)",
         "notSet": "(non défini)",

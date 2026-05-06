@@ -15,6 +15,7 @@ import {
   AiMutationPreviewPresentation,
   AiPreparedMutationPreview,
 } from '../ai-mutation-operation.types';
+import { buildAiMutationAudit } from '../ai-mutation-audit.util';
 import {
   AiTaskCreateTarget,
   AiTaskMutationSupportService,
@@ -647,10 +648,7 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
       {
         manager: context.manager,
         tenantId: context.tenantId,
-        audit: {
-          source: 'ai_chat',
-          sourceRef: preview.conversation_id ?? null,
-        },
+        audit: buildAiMutationAudit(preview),
       },
     );
 
@@ -710,10 +708,7 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
                 {
                   manager: context.manager,
                   tenantId: context.tenantId,
-                  audit: {
-                    source: 'ai_chat',
-                    sourceRef: preview.conversation_id ?? null,
-                  },
+                  audit: buildAiMutationAudit(preview),
                 },
               );
             }

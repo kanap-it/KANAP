@@ -28,7 +28,8 @@
     "clear": "Limpiar",
     "continue": "Continuar",
     "selectAll": "Seleccionar todo",
-    "browse": "Explorar"
+    "browse": "Explorar",
+    "loadMore": "Cargar más"
   },
   "status": {
     "loading": "Cargando...",

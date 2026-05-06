@@ -111,10 +111,82 @@ async function testKnowledgeSearchFallsBackToRawMarkdownText() {
   }
 }
 
+async function testLinkOptionsSearchesBeyondInitialPage() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  try {
+    const tenantId = randomUUID();
+    const libraryId = randomUUID();
+    const targetDocumentId = randomUUID();
+    const service = createKnowledgeService(runner.manager);
+
+    await setCurrentTenant(runner, tenantId);
+    await runner.query(
+      `INSERT INTO tenants (id, slug, name, status, metadata, branding, created_at, updated_at)
+       VALUES ($1, $2, $3, 'active', '{}'::jsonb, '{"logo_version":0,"use_logo_in_dark":true}'::jsonb, now(), now())`,
+      [tenantId, `link-options-spec-${tenantId.slice(0, 8)}`, 'Link Options Spec Tenant'],
+    );
+    await runner.query(
+      `INSERT INTO document_libraries (
+         id, tenant_id, name, slug, is_system, display_order, created_at, updated_at
+       )
+       VALUES ($1, $2, 'Knowledge Link Options Spec', 'knowledge-link-options-spec', false, 0, now(), now())`,
+      [libraryId, tenantId],
+    );
+
+    for (let index = 0; index < 8; index += 1) {
+      await runner.query(
+        `INSERT INTO documents (
+           id, tenant_id, item_number, title, summary, content_markdown, content_plain,
+           library_id, document_type_id, status, revision, current_version_number, created_at, updated_at
+         )
+         VALUES (
+           $1, $2, $3, $4, '', '', '',
+           $5, null, 'published', 1, 0, now(), now()
+         )`,
+        [
+          randomUUID(),
+          tenantId,
+          100 + index,
+          `Alpha Link Option ${index}`,
+          libraryId,
+        ],
+      );
+    }
+
+    await runner.query(
+      `INSERT INTO documents (
+         id, tenant_id, item_number, title, summary, content_markdown, content_plain,
+         library_id, document_type_id, status, revision, current_version_number, created_at, updated_at
+       )
+       VALUES (
+         $1, $2, 909, 'Zzz External Link Target', '', '', '',
+         $3, null, 'published', 1, 0, now(), now()
+       )`,
+      [targetDocumentId, tenantId, libraryId],
+    );
+
+    const firstPage = await service.listLinkOptions({ page: 1, limit: 5 }, { manager: runner.manager });
+    assert.equal(firstPage.items.some((item: any) => item.id === targetDocumentId), false);
+
+    const refResult = await service.listLinkOptions({ q: 'DOC-909', page: 1, limit: 5 }, { manager: runner.manager });
+    assert.deepEqual(refResult.items.map((item: any) => item.id), [targetDocumentId]);
+
+    const titleResult = await service.listLinkOptions({ q: 'External Link Target', page: 1, limit: 5 }, { manager: runner.manager });
+    assert.deepEqual(titleResult.items.map((item: any) => item.id), [targetDocumentId]);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function run() {
   await dataSource.initialize();
   try {
     await testKnowledgeSearchFallsBackToRawMarkdownText();
+    await testLinkOptionsSearchesBeyondInitialPage();
   } finally {
     await dataSource.destroy();
   }

@@ -28,7 +28,8 @@
     "clear": "Clear",
     "continue": "Continue",
     "selectAll": "Select all",
-    "browse": "Browse"
+    "browse": "Browse",
+    "loadMore": "Load more"
   },
   "status": {
     "loading": "Loading...",

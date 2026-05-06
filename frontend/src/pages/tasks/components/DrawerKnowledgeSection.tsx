@@ -5,17 +5,14 @@
  */
 import React from 'react';
 import {
-  Autocomplete,
   Box,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Button,
-  ListSubheader,
   Menu,
   MenuItem,
-  TextField,
   Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import KnowledgeLinkPickerDialog, { type KnowledgeLinkOption } from '../../../components/knowledge/KnowledgeLinkPickerDialog';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -51,13 +49,7 @@ type KnowledgeContextResponse = {
   groups: KnowledgeContextGroup[];
 };
 
-type DocumentListItem = {
-  id: string;
-  item_number: number;
-  item_ref?: string;
-  title: string;
-  status: string;
-};
+type DocumentListItem = KnowledgeLinkOption;
 
 type TemplateListItem = {
   id: string;
@@ -82,7 +74,6 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
   const queryClient = useQueryClient();
 
   const [linkOpen, setLinkOpen] = React.useState(false);
-  const [selectedDoc, setSelectedDoc] = React.useState<DocumentListItem | null>(null);
   const [newDocAnchor, setNewDocAnchor] = React.useState<HTMLElement | null>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = React.useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState('');
@@ -107,22 +98,6 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
 
   const linkedDocIds = React.useMemo(() => new Set(directDocs.map((d) => d.id)), [directDocs]);
 
-  // Available docs for linking (exclude already linked)
-  const { data: availableDocsData } = useQuery({
-    queryKey: ['knowledge-docs-available', taskId],
-    queryFn: async () => {
-      const res = await api.get<{ items: DocumentListItem[] }>('/knowledge', {
-        params: { limit: 50, sort: 'title:ASC', status: 'published,draft' },
-      });
-      return res.data.items;
-    },
-    enabled: linkOpen,
-  });
-  const availableDocs = React.useMemo(
-    () => (availableDocsData || []).filter((d) => !linkedDocIds.has(d.id)),
-    [availableDocsData, linkedDocIds],
-  );
-
   // Templates for the picker
   const { data: templatesData } = useQuery({
     queryKey: ['knowledge-templates'],
@@ -143,7 +118,6 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
   const invalidateAll = React.useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['task-knowledge-context', taskId] }),
-      queryClient.invalidateQueries({ queryKey: ['knowledge-docs-available', taskId] }),
     ]);
   }, [queryClient, taskId]);
 
@@ -160,7 +134,7 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
 
   const linkMutation = useMutation({
     mutationFn: async (doc: DocumentListItem) => { await updateRelation(doc.id, 'link'); },
-    onSuccess: async () => { setSelectedDoc(null); setLinkOpen(false); await invalidateAll(); },
+    onSuccess: async () => { setLinkOpen(false); await invalidateAll(); },
   });
 
   const unlinkMutation = useMutation({
@@ -308,33 +282,14 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
         </Box>
       )}
 
-      {/* Link existing dialog */}
-      <Dialog open={linkOpen} onClose={() => setLinkOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 14 }}>{t('portfolio:knowledgePanel.linkExistingKnowledge', 'Link existing document')}</DialogTitle>
-        <DialogContent>
-          <Autocomplete<DocumentListItem, false, false, false>
-            size="small"
-            options={availableDocs}
-            value={selectedDoc}
-            onChange={(_, v) => setSelectedDoc(v)}
-            getOptionLabel={(o) => `${o.title} (DOC-${o.item_number})`}
-            isOptionEqualToValue={(a, b) => a.id === b.id}
-            renderInput={(params) => <TextField {...params} label="" placeholder={t('portfolio:knowledgePanel.searchPlaceholder', 'Search by name or ref')} autoFocus />}
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLinkOpen(false)} size="small">{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={() => { if (selectedDoc) linkMutation.mutate(selectedDoc); }}
-            disabled={!selectedDoc || linkMutation.isPending}
-          >
-            {t('common:buttons.link', 'Link')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <KnowledgeLinkPickerDialog
+        open={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        linkedDocumentIds={linkedDocIds}
+        linkPending={linkMutation.isPending}
+        onLink={(document) => linkMutation.mutate(document)}
+        title={t('common:knowledgePanel.linkExistingKnowledge', 'Link existing document')}
+      />
 
       {/* Template picker dialog */}
       <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} maxWidth="xs" fullWidth>

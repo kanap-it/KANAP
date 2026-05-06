@@ -56,17 +56,28 @@ import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { GlpiService } from './glpi/glpi.service';
 import { AiDocumentMutationSupportService } from './mutation/ai-document-mutation-support.service';
+import { AiBusinessRecordMutationSupportService } from './mutation/ai-business-record-mutation-support.service';
+import { AiFinancialPlanMutationSupportService } from './mutation/ai-financial-plan-mutation-support.service';
+import { AiMasterDataMutationSupportService } from './mutation/ai-master-data-mutation-support.service';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
+import { AiRelationMutationSupportService } from './mutation/ai-relation-mutation-support.service';
 import { AiTaskMutationSupportService } from './mutation/ai-task-mutation-support.service';
 import { AddTaskCommentAiMutationOperation } from './mutation/operations/add-task-comment.ai-mutation-operation';
+import { CreateBusinessRecordAiMutationOperation } from './mutation/operations/create-business-record.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from './mutation/operations/create-document.ai-mutation-operation';
+import { CreateMasterDataRecordAiMutationOperation } from './mutation/operations/create-master-data-record.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from './mutation/operations/create-task.ai-mutation-operation';
 import { ImportGlpiTicketAiMutationOperation } from './mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './mutation/operations/update-document-relations.ai-mutation-operation';
+import { UpdateBusinessRecordAiMutationOperation } from './mutation/operations/update-business-record.ai-mutation-operation';
+import { UpdateEntityRelationsAiMutationOperation } from './mutation/operations/update-entity-relations.ai-mutation-operation';
+import { UpdateMasterDataRecordAiMutationOperation } from './mutation/operations/update-master-data-record.ai-mutation-operation';
 import { UpdateTaskAssigneeAiMutationOperation } from './mutation/operations/update-task-assignee.ai-mutation-operation';
+import { UpdateTaskFieldsAiMutationOperation } from './mutation/operations/update-task-fields.ai-mutation-operation';
 import { UpdateTaskStatusAiMutationOperation } from './mutation/operations/update-task-status.ai-mutation-operation';
+import { WriteFinancialPlanAiMutationOperation } from './mutation/operations/write-financial-plan.ai-mutation-operation';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
 import { PlatformAiModule } from './platform/platform-ai.module';
@@ -128,13 +139,24 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiConversationService,
     GlpiService,
     AiDocumentMutationSupportService,
+    AiBusinessRecordMutationSupportService,
+    AiFinancialPlanMutationSupportService,
+    AiMasterDataMutationSupportService,
+    AiRelationMutationSupportService,
     AiTaskMutationSupportService,
     ImportGlpiTicketAiMutationOperation,
+    CreateBusinessRecordAiMutationOperation,
     CreateDocumentAiMutationOperation,
     CreateTaskAiMutationOperation,
+    CreateMasterDataRecordAiMutationOperation,
+    WriteFinancialPlanAiMutationOperation,
     UpdateDocumentContentAiMutationOperation,
     UpdateDocumentMetadataAiMutationOperation,
     UpdateDocumentRelationsAiMutationOperation,
+    UpdateBusinessRecordAiMutationOperation,
+    UpdateEntityRelationsAiMutationOperation,
+    UpdateMasterDataRecordAiMutationOperation,
+    UpdateTaskFieldsAiMutationOperation,
     UpdateTaskStatusAiMutationOperation,
     UpdateTaskAssigneeAiMutationOperation,
     AddTaskCommentAiMutationOperation,

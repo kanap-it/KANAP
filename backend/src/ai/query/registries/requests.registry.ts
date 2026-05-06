@@ -93,6 +93,16 @@ export const requestsRegistry: AiEntityFilterRegistry = {
       sortable: false,
       groupable: false,
     },
+    source: {
+      ai: 'source',
+      grid: 'source_name',
+      type: 'set',
+      description: 'Portfolio source name.',
+      dynamic: true,
+      discoverable: true,
+      sortable: false,
+      groupable: true,
+    },
     priority_score: {
       ai: 'priority_score',
       grid: 'priority_score',
@@ -169,6 +179,12 @@ export const requestsRegistry: AiEntityFilterRegistry = {
         expression: `COALESCE(NULLIF(TRIM(CONCAT(u_il.first_name, ' ', u_il.last_name)), ''), u_il.email)`,
         joins: [
           `LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id`,
+        ],
+      },
+      source: {
+        expression: 'src.name',
+        joins: [
+          `LEFT JOIN portfolio_sources src ON src.id = r.source_id AND src.tenant_id = r.tenant_id`,
         ],
       },
     },

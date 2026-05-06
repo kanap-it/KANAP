@@ -21,6 +21,7 @@ import { formatItemRef } from '../../utils/item-ref';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../utils/statusColors';
 import ShareDialog from '../../components/ShareDialog';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
+import MetadataUserPicker, { formatMetadataUserName } from '../../components/workspace/MetadataUserPicker';
 import PortfolioDetailWorkspaceShell from './workspace/PortfolioDetailWorkspaceShell';
 import {
   PortfolioMetadataItem,
@@ -863,6 +864,24 @@ export default function ProjectWorkspacePage() {
             <PortfolioProgressMetadata
               label={t('portfolio:workspace.project.summary.fields.executionProgress')}
               value={form?.execution_progress}
+            />
+            <MetadataUserPicker
+              label={t('portfolio:workspace.project.fields.itLead')}
+              value={form?.it_lead_id || null}
+              displayName={
+                form?.it_lead_id && form?.it_lead?.id === form.it_lead_id
+                  ? formatMetadataUserName(form.it_lead)
+                  : null
+              }
+              placeholder={t('portfolio:workspace.project.values.itLeadMissing', 'IT lead missing')}
+              searchPlaceholder={t('portfolio:workspace.project.fields.itLead')}
+              disabled={!canManage}
+              onChange={(value) => {
+                void (async () => {
+                  await persistPanelPatch({ it_lead_id: value });
+                  await queryClient.invalidateQueries({ queryKey: ['project-effort-allocations', form.id, 'it'] });
+                })();
+              }}
             />
             {plannedEndLabel && (
               <PortfolioMetadataItem label={t('portfolio:workspace.project.fields.plannedEnd')}>

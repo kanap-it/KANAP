@@ -4996,6 +4996,88 @@ export class KnowledgeService {
     };
   }
 
+  async listLinkOptions(query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
+    const manager = this.getManager(opts);
+    const page = Math.max(1, parseInt(query?.page ?? '1', 10) || 1);
+    const limit = Math.min(Math.max(parseInt(query?.limit ?? '100', 10) || 100, 1), 200);
+    const offset = (page - 1) * limit;
+    const rawSearch = String(query?.q || '').trim();
+    const itemNumber = rawSearch ? this.parseItemNumberQuery(rawSearch) : null;
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return { items: [], total: 0, page, limit };
+    }
+
+    const whereClauses = ['d.tenant_id = app_current_tenant()'];
+    const params: Array<string | number | string[]> = [];
+    if (accessibleLibraries) {
+      params.push(accessibleLibraries);
+      whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
+    }
+
+    if (rawSearch) {
+      params.push(`%${rawSearch}%`);
+      const likeIndex = params.length;
+      const searchClauses = [
+        `d.title ILIKE $${likeIndex}`,
+        `('DOC-' || d.item_number::text) ILIKE $${likeIndex}`,
+        `COALESCE(d.summary, '') ILIKE $${likeIndex}`,
+        `COALESCE(d.content_plain, '') ILIKE $${likeIndex}`,
+        `COALESCE(d.content_markdown, '') ILIKE $${likeIndex}`,
+      ];
+      if (itemNumber != null) {
+        params.push(itemNumber);
+        searchClauses.unshift(`d.item_number = $${params.length}`);
+      }
+      whereClauses.push(`(${searchClauses.join(' OR ')})`);
+    }
+
+    params.push(limit);
+    params.push(offset);
+    const limitIndex = params.length - 1;
+    const offsetIndex = params.length;
+
+    const rows = await manager.query(
+      `SELECT d.id,
+              d.item_number,
+              'DOC-' || d.item_number::text AS item_ref,
+              d.title,
+              d.status,
+              d.updated_at,
+              d.library_id,
+              dl.name AS library_name,
+              dl.slug AS library_slug,
+              COUNT(*) OVER()::int AS total_count
+       FROM documents d
+       LEFT JOIN document_libraries dl
+         ON dl.id = d.library_id
+        AND dl.tenant_id = d.tenant_id
+       WHERE ${whereClauses.join(' AND ')}
+       ORDER BY lower(d.title) ASC, d.item_number DESC
+       LIMIT $${limitIndex}
+       OFFSET $${offsetIndex}`,
+      params,
+    );
+    const total = rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0;
+
+    return {
+      items: rows.map((row: any) => ({
+        id: row.id,
+        item_number: Number(row.item_number),
+        item_ref: row.item_ref || `DOC-${row.item_number}`,
+        title: row.title,
+        status: row.status,
+        updated_at: row.updated_at,
+        library_id: row.library_id,
+        library_name: row.library_name,
+        library_slug: row.library_slug,
+      })),
+      total,
+      page,
+      limit,
+    };
+  }
+
   async listAttachments(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);

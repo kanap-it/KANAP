@@ -128,9 +128,48 @@ async function testLengthFinishReasonWithPendingToolCallEmitsError() {
   }));
 
   assert.deepEqual(events, [
-    { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
-    { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"crm"' },
     { type: 'error', message: 'Model output was truncated before the tool call completed.' },
+  ]);
+  assert.equal(state.requests[0].parallel_tool_calls, false);
+}
+
+async function testCompletedNativeToolCallIsEmitted() {
+  resetState([
+    {
+      choices: [{
+        delta: {
+          tool_calls: [{ index: 0, id: 'tc-1', function: { name: 'search_all' } }],
+        },
+        finish_reason: null,
+      }],
+    },
+    {
+      choices: [{
+        delta: {
+          tool_calls: [{ index: 0, function: { arguments: '{"query":"crm"}' } }],
+        },
+        finish_reason: 'tool_calls',
+      }],
+    },
+  ]);
+
+  const events = await collectEvents(openaiCompatibleStream({
+    providerId: 'openai',
+    model: 'gpt-5.4',
+    apiKey: 'test-key',
+    endpointUrl: null,
+    systemPrompt: 'Use tools.',
+    systemPromptRole: 'developer',
+    messages: [{ role: 'user', content: 'Search for CRM' }],
+    tools: [{ name: 'search_all', description: 'Search', parameters: { type: 'object' } }],
+    maxTokens: 128,
+  }));
+
+  assert.deepEqual(events, [
+    { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
+    { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"crm"}' },
+    { type: 'tool_call_end', id: 'tc-1' },
+    { type: 'done', usage: undefined },
   ]);
   assert.equal(state.requests[0].parallel_tool_calls, false);
 }
@@ -227,6 +266,57 @@ async function testXmlStyleToolCallStreamErrorIsRecovered() {
   ]);
 }
 
+async function testXmlStyleToolCallStreamErrorDiscardsPartialNativeToolCall() {
+  resetState([
+    {
+      choices: [{
+        delta: {
+          content: 'I will prepare the update.',
+          tool_calls: [{ index: 0, id: 'native-1', function: { name: 'update_business_record' } }],
+        },
+        finish_reason: null,
+      }],
+    },
+    {
+      choices: [{
+        delta: {
+          tool_calls: [{ index: 0, function: { arguments: '{"entity_type":"applications"' } }],
+        },
+        finish_reason: null,
+      }],
+    },
+    new Error(
+      'Failed to parse tool call arguments as JSON: <tool_call> <function=update_business_record> <parameter=entity_type> applications </parameter> <parameter=ref> APP-47 </parameter> <parameter=fields> {"etl_enabled":false} </parameter> </function> </tool_call>',
+    ),
+  ]);
+
+  const events = await collectEvents(openaiCompatibleStream({
+    providerId: 'custom',
+    model: 'qwen3.6-27b',
+    apiKey: 'test-key',
+    endpointUrl: 'http://local-llm.test/v1',
+    systemPrompt: 'Use tools.',
+    messages: [{ role: 'user', content: 'Disable ETL on Talend' }],
+    tools: [{ name: 'update_business_record', description: 'Update', parameters: { type: 'object' } }],
+    maxTokens: 128,
+  }));
+
+  assert.deepEqual(events, [
+    { type: 'text_delta', text: 'I will prepare the update.' },
+    { type: 'tool_call_start', id: 'xml-tool-call-1', name: 'update_business_record' },
+    {
+      type: 'tool_call_delta',
+      id: 'xml-tool-call-1',
+      arguments: JSON.stringify({
+        entity_type: 'applications',
+        ref: 'APP-47',
+        fields: { etl_enabled: false },
+      }),
+    },
+    { type: 'tool_call_end', id: 'xml-tool-call-1' },
+  ]);
+}
+
 async function testReasoningModelHelpers() {
   assert.equal(isOpenAiReasoningModel('gpt-5.4'), true);
   assert.equal(isOpenAiReasoningModel('o3'), true);
@@ -238,9 +328,11 @@ async function testReasoningModelHelpers() {
 async function run() {
   await testReasoningModelsPreferDeveloperRole();
   await testLengthFinishReasonWithPendingToolCallEmitsError();
+  await testCompletedNativeToolCallIsEmitted();
   await testUnsupportedParallelToolCallsFallback();
   await testXmlStyleToolCallCreateErrorIsRecovered();
   await testXmlStyleToolCallStreamErrorIsRecovered();
+  await testXmlStyleToolCallStreamErrorDiscardsPartialNativeToolCall();
   await testReasoningModelHelpers();
 }
 

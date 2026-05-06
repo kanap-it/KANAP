@@ -70,6 +70,13 @@ function numericScalar(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeMetricYear(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1900 || parsed > 3000) return null;
+  return parsed;
+}
+
 function displayName(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === 'string') {
@@ -253,6 +260,7 @@ export class AiQueryExecutor {
     input: {
       filters?: Record<string, AiFilterValue>;
       q?: string;
+      year?: number;
       sort?: { field: string; direction: 'asc' | 'desc' };
       page?: number;
       limit?: number;
@@ -271,6 +279,8 @@ export class AiQueryExecutor {
     if (input.q?.trim()) query.q = input.q.trim();
     if (Object.keys(adapted.filters).length > 0) query.filters = adapted.filters;
 
+    const metricYear = normalizeMetricYear(input.year);
+
     if (entityType === 'projects') {
       query.include = 'classification,company,sponsors,team';
       if (!Object.prototype.hasOwnProperty.call(adapted.filters, 'status')) {
@@ -282,7 +292,7 @@ export class AiQueryExecutor {
         query.status = 'all';
       }
     } else if (entityType === 'applications') {
-      query.include = 'supplier,owners';
+      query.include = 'supplier,owners,residency,hosting,counts,structure,instances';
       query.include_inactive = true;
     } else if (
       entityType === 'spend_items'
@@ -298,6 +308,9 @@ export class AiQueryExecutor {
       || entityType === 'departments'
     ) {
       query.includeDisabled = true;
+    }
+    if (entityType === 'companies' || entityType === 'departments') {
+      query.year = metricYear ?? new Date().getFullYear();
     }
 
     return {
@@ -356,6 +369,7 @@ export class AiQueryExecutor {
       updated_at: row.updated_at ?? null,
       metadata: {
         origin: scalar(row.origin),
+        source: scalar(row.source_name),
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company?.name ?? row.company_name),
@@ -380,6 +394,7 @@ export class AiQueryExecutor {
       summary: row.current_situation ?? row.expected_benefits ?? null,
       updated_at: row.updated_at ?? null,
       metadata: {
+        source: scalar(row.source_name),
         requestor: scalar(displayName(row.requestor) ?? row.requestor_name),
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
@@ -402,15 +417,51 @@ export class AiQueryExecutor {
       summary: row.description ?? null,
       updated_at: row.updated_at ?? null,
       metadata: {
+        ref: scalar(row.sequential_id),
         lifecycle: scalar(row.lifecycle),
         criticality: scalar(row.criticality),
         category: scalar(row.category),
+        editor: scalar(row.editor),
+        environment: scalar(row.environment),
+        environments: scalar(Array.isArray(row.instances)
+          ? row.instances.map((item: any) => item.environment).filter(Boolean).join(', ')
+          : null),
         hosting_model: scalar(row.hosting_model),
+        hosting_types: scalar(Array.isArray(row.hosting_types) ? row.hosting_types.join(', ') : null),
         data_class: scalar(row.data_class),
         version: scalar(row.version),
+        go_live_date: scalar(row.go_live_date),
+        end_of_support_date: scalar(row.end_of_support_date),
+        retired_date: scalar(row.retired_date),
         supplier: scalar(row.supplier_name),
-        business_owner: scalar(joinDisplayNames(Array.isArray(row.owners_business) ? row.owners_business : [])),
-        it_owner: scalar(joinDisplayNames(Array.isArray(row.owners_it) ? row.owners_it : [])),
+        business_owner: scalar(joinDisplayNames(Array.isArray(row.owners_business)
+          ? row.owners_business
+          : Array.isArray(row.owners)
+            ? row.owners.filter((owner: any) => owner.owner_type === 'business')
+            : [])),
+        it_owner: scalar(joinDisplayNames(Array.isArray(row.owners_it)
+          ? row.owners_it
+          : Array.isArray(row.owners)
+            ? row.owners.filter((owner: any) => owner.owner_type === 'it')
+            : [])),
+        external_facing: row.external_facing == null ? null : Boolean(row.external_facing),
+        is_suite: row.is_suite == null ? null : Boolean(row.is_suite),
+        sso_enabled: row.sso_enabled == null ? null : Boolean(row.sso_enabled),
+        mfa_supported: row.mfa_supported == null ? null : Boolean(row.mfa_supported),
+        etl_enabled: row.etl_enabled == null ? null : Boolean(row.etl_enabled),
+        contains_pii: row.contains_pii == null ? null : Boolean(row.contains_pii),
+        users_mode: scalar(row.users_mode),
+        users_year: numericScalar(row.users_year),
+        users_override: numericScalar(row.users_override),
+        derived_total_users: numericScalar(row.derived_total_users),
+        data_residency: scalar(Array.isArray(row.data_residency)
+          ? row.data_residency.map((entry: any) => typeof entry === 'string' ? entry : entry?.country_iso).filter(Boolean).join(', ')
+          : null),
+        spend_count: numericScalar(row.spend_count),
+        capex_count: numericScalar(row.capex_count),
+        contracts_count: numericScalar(row.contracts_count),
+        suites_count: numericScalar(row.suites_count),
+        components_count: numericScalar(row.components_count),
       },
     });
   }
@@ -588,6 +639,10 @@ export class AiQueryExecutor {
   }
 
   private mapCompany(row: any): AiEntitySummaryDto {
+    const metricYear = numericScalar(row.metrics_year);
+    const headcount = numericScalar(row.headcount_year);
+    const itUsers = numericScalar(row.it_users_year);
+    const turnover = numericScalar(row.turnover_year);
     return toEntitySummary('companies', {
       id: row.id,
       label: row.name,
@@ -600,6 +655,11 @@ export class AiQueryExecutor {
         city: scalar(row.city),
         state: scalar(row.state),
         base_currency: scalar(row.base_currency),
+        metrics_year: metricYear,
+        headcount,
+        it_users: itUsers,
+        turnover,
+        metrics_frozen: row.metrics_frozen == null ? null : Boolean(row.metrics_frozen),
       },
     });
   }
@@ -618,6 +678,8 @@ export class AiQueryExecutor {
   }
 
   private mapDepartment(row: any): AiEntitySummaryDto {
+    const metricYear = numericScalar(row.metrics_year);
+    const headcount = numericScalar(row.headcount_year);
     return toEntitySummary('departments', {
       id: row.id,
       label: row.name,
@@ -626,6 +688,9 @@ export class AiQueryExecutor {
       updated_at: row.updated_at ?? null,
       metadata: {
         company: scalar(row.company_name),
+        metrics_year: metricYear,
+        headcount,
+        metrics_frozen: row.metrics_frozen == null ? null : Boolean(row.metrics_frozen),
       },
     });
   }
@@ -659,21 +724,36 @@ export class AiQueryExecutor {
       summary: row.fqdn ?? row.hostname ?? row.notes ?? null,
       updated_at: row.updated_at ?? null,
       metadata: {
+        asset_reference: scalar(row.asset_reference),
         kind: scalar(row.kind),
         provider: scalar(row.provider),
         environment: scalar(row.environment),
+        region: scalar(row.region),
+        zone: scalar(row.zone),
         os: scalar(row.operating_system),
         hostname: scalar(row.hostname),
+        domain: scalar(row.domain),
         fqdn: scalar(row.fqdn),
+        aliases: scalar(Array.isArray(row.aliases) ? row.aliases.join(', ') : null),
+        network_segment: scalar(row.network_segment),
         location: scalar(row.location_name),
+        hosting_type: scalar(row.hosting_type),
         sub_location: scalar(row.sub_location_name),
+        cluster: scalar(row.cluster),
+        is_cluster: row.is_cluster == null ? null : Boolean(row.is_cluster),
+        assignments_count: numericScalar(row.assignments_count),
+        go_live_date: scalar(row.go_live_date),
+        end_of_life_date: scalar(row.end_of_life_date),
       },
     });
   }
 
   private mapLocation(row: any): AiEntitySummaryDto {
     const subLocations = Array.isArray(row.sub_locations) && row.sub_locations.length > 0
-      ? row.sub_locations.join(', ')
+      ? row.sub_locations
+          .map((item: any) => typeof item === 'string' ? item : item?.name)
+          .filter(Boolean)
+          .join(', ')
       : null;
     return toEntitySummary('locations', {
       id: row.id,
@@ -685,6 +765,7 @@ export class AiQueryExecutor {
         hosting_type: scalar(row.hosting_type),
         provider: scalar(row.provider) ?? scalar(row.operating_company_name),
         country: scalar(row.country_iso),
+        country_iso: scalar(row.country_iso),
         city: scalar(row.city),
         assets: row.servers_count ?? 0,
         sub_locations: subLocations,
@@ -790,6 +871,7 @@ export class AiQueryExecutor {
       entity_type: AiQueryEntityType;
       filters?: Record<string, AiFilterValue>;
       q?: string;
+      year?: number;
       sort?: { field: string; direction: 'asc' | 'desc' };
       page?: number;
       limit?: number;
@@ -989,12 +1071,13 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'companies') {
       const result = await this.companies.list(scoped.query, { manager: context.manager });
+      const metricsYear = normalizeMetricYear(scoped.query.year);
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
       const returned = Array.isArray(result.items) ? result.items.length : 0;
       const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
-        items: (result.items || []).map((row: any) => this.mapCompany(row)),
+        items: (result.items || []).map((row: any) => this.mapCompany({ ...row, metrics_year: metricsYear })),
         total: result.total ?? 0,
         page: resultPage,
         limit: resultLimit,
@@ -1109,12 +1192,13 @@ export class AiQueryExecutor {
 
     if (input.entity_type === 'departments') {
       const result = await this.departments.list(scoped.query, { manager: context.manager });
+      const metricsYear = normalizeMetricYear(scoped.query.year);
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
       const returned = Array.isArray(result.items) ? result.items.length : 0;
       const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
-        items: (result.items || []).map((row: any) => this.mapDepartment(row)),
+        items: (result.items || []).map((row: any) => this.mapDepartment({ ...row, metrics_year: metricsYear })),
         total: result.total ?? 0,
         page: resultPage,
         limit: resultLimit,
@@ -1324,11 +1408,337 @@ export class AiQueryExecutor {
     };
   }
 
+  private async loadCompanyMetrics(
+    context: AiExecutionContextWithManager,
+    companyId: string,
+  ): Promise<Array<{
+    fiscal_year: number;
+    headcount: number;
+    it_users: number | null;
+    turnover: number | null;
+    is_frozen: boolean;
+    frozen_at: string | null;
+    updated_at: string | null;
+  }>> {
+    const rows = await context.manager.query(
+      `
+      SELECT fiscal_year,
+             headcount,
+             it_users,
+             turnover,
+             is_frozen,
+             frozen_at,
+             updated_at
+      FROM company_metrics
+      WHERE tenant_id = $1
+        AND company_id = $2
+      ORDER BY fiscal_year DESC
+      `,
+      [context.tenantId, companyId],
+    );
+
+    return (rows || []).map((row: any) => ({
+      fiscal_year: Number(row.fiscal_year),
+      headcount: Number(row.headcount ?? 0),
+      it_users: row.it_users == null ? null : Number(row.it_users),
+      turnover: row.turnover == null ? null : Number(row.turnover),
+      is_frozen: row.is_frozen === true,
+      frozen_at: toIso(row.frozen_at),
+      updated_at: toIso(row.updated_at),
+    }));
+  }
+
+  private async loadDepartmentMetrics(
+    context: AiExecutionContextWithManager,
+    departmentId: string,
+  ): Promise<Array<{
+    fiscal_year: number;
+    headcount: number;
+    is_frozen: boolean;
+    frozen_at: string | null;
+    updated_at: string | null;
+  }>> {
+    const rows = await context.manager.query(
+      `
+      SELECT fiscal_year,
+             headcount,
+             is_frozen,
+             frozen_at,
+             updated_at
+      FROM department_metrics
+      WHERE tenant_id = $1
+        AND department_id = $2
+      ORDER BY fiscal_year DESC
+      `,
+      [context.tenantId, departmentId],
+    );
+
+    return (rows || []).map((row: any) => ({
+      fiscal_year: Number(row.fiscal_year),
+      headcount: Number(row.headcount ?? 0),
+      is_frozen: row.is_frozen === true,
+      frozen_at: toIso(row.frozen_at),
+      updated_at: toIso(row.updated_at),
+    }));
+  }
+
+  private groupRowsByKey(rows: any[], key: string): Record<string, any[]> {
+    const grouped: Record<string, any[]> = {};
+    for (const row of rows || []) {
+      const groupKey = String(row?.[key] ?? '');
+      if (!groupKey) continue;
+      const list = grouped[groupKey] ?? [];
+      list.push(row);
+      grouped[groupKey] = list;
+    }
+    return grouped;
+  }
+
+  private async loadFinancialVersions(
+    context: AiExecutionContextWithManager,
+    params: {
+      versionTable: 'spend_versions' | 'capex_versions';
+      amountTable: 'spend_amounts' | 'capex_amounts';
+      allocationTable: 'spend_allocations' | 'capex_allocations';
+      itemColumn: 'spend_item_id' | 'capex_item_id';
+      itemId: string;
+    },
+  ): Promise<any[]> {
+    const versions = await context.manager.query(
+      `
+      SELECT *
+      FROM ${params.versionTable}
+      WHERE tenant_id = $1
+        AND ${params.itemColumn} = $2
+      ORDER BY budget_year DESC, as_of_date DESC, created_at DESC
+      `,
+      [context.tenantId, params.itemId],
+    );
+    const versionIds = (versions || []).map((row: any) => row.id).filter(Boolean);
+    if (versionIds.length === 0) return [];
+
+    const amounts = await context.manager.query(
+      `
+      SELECT *
+      FROM ${params.amountTable}
+      WHERE tenant_id = $1
+        AND version_id = ANY($2::uuid[])
+      ORDER BY period ASC
+      `,
+      [context.tenantId, versionIds],
+    );
+    const allocations = await context.manager.query(
+      `
+      SELECT a.*,
+             c.name AS company_name,
+             d.name AS department_name
+      FROM ${params.allocationTable} a
+      LEFT JOIN companies c ON c.id = a.company_id AND c.tenant_id = a.tenant_id
+      LEFT JOIN departments d ON d.id = a.department_id AND d.tenant_id = a.tenant_id
+      WHERE a.tenant_id = $1
+        AND a.version_id = ANY($2::uuid[])
+      ORDER BY c.name ASC NULLS LAST, d.name ASC NULLS LAST, a.created_at ASC
+      `,
+      [context.tenantId, versionIds],
+    );
+
+    const amountsByVersion = this.groupRowsByKey(amounts, 'version_id');
+    const allocationsByVersion = this.groupRowsByKey(allocations, 'version_id');
+    return versions.map((version: any) => ({
+      ...version,
+      amounts: amountsByVersion[version.id] ?? [],
+      allocations: allocationsByVersion[version.id] ?? [],
+    }));
+  }
+
+  private async loadLinkedContacts(
+    context: AiExecutionContextWithManager,
+    params: {
+      table: 'spend_item_contacts' | 'capex_item_contacts' | 'contract_contacts';
+      foreignKey: 'spend_item_id' | 'capex_item_id' | 'contract_id';
+      id: string;
+    },
+  ): Promise<any[]> {
+    return context.manager.query(
+      `
+      SELECT link.*,
+             contact.first_name,
+             contact.last_name,
+             contact.job_title,
+             contact.email,
+             contact.phone,
+             contact.mobile,
+             contact.country,
+             contact.active
+      FROM ${params.table} link
+      LEFT JOIN contacts contact ON contact.id = link.contact_id AND contact.tenant_id = link.tenant_id
+      WHERE link.tenant_id = $1
+        AND link.${params.foreignKey} = $2
+      ORDER BY link.role ASC, link.created_at DESC
+      `,
+      [context.tenantId, params.id],
+    );
+  }
+
+  private async loadSpendItemDeepDetail(
+    context: AiExecutionContextWithManager,
+    spendItemId: string,
+  ): Promise<Record<string, unknown>> {
+    const anchorYear = new Date().getFullYear();
+    const [summary] = await this.spendItems.summaryRowsByIds(
+      [spendItemId],
+      {
+        years: [anchorYear - 2, anchorYear - 1, anchorYear, anchorYear + 1, anchorYear + 2],
+        includeRecipientDetails: true,
+        includeLatestTask: true,
+      },
+      { manager: context.manager },
+    );
+
+    const [
+      financialVersions,
+      contacts,
+      linkedApplications,
+      linkedProjects,
+      linkedContracts,
+      links,
+      attachments,
+    ] = await Promise.all([
+      this.loadFinancialVersions(context, {
+        versionTable: 'spend_versions',
+        amountTable: 'spend_amounts',
+        allocationTable: 'spend_allocations',
+        itemColumn: 'spend_item_id',
+        itemId: spendItemId,
+      }),
+      this.loadLinkedContacts(context, {
+        table: 'spend_item_contacts',
+        foreignKey: 'spend_item_id',
+        id: spendItemId,
+      }).catch(() => []),
+      this.spendItems.listApplications(spendItemId, { manager: context.manager }).catch(() => ({ items: [] })),
+      this.spendItems.listProjects(spendItemId, { manager: context.manager }).catch(() => ({ items: [] })),
+      this.contracts.listContractsForSpendItem(spendItemId, { manager: context.manager }).catch(() => ({ items: [] })),
+      this.spendItems.listLinks(spendItemId, { manager: context.manager }).catch(() => []),
+      this.spendItems.listAttachments(spendItemId, { manager: context.manager }).catch(() => []),
+    ]);
+
+    return {
+      ...(summary ?? {}),
+      financial_summary: summary ?? null,
+      financial_versions: financialVersions,
+      contacts,
+      linked_applications: linkedApplications,
+      projects: linkedProjects,
+      linked_contracts: linkedContracts,
+      links,
+      attachments,
+    };
+  }
+
+  private async loadCapexItemDeepDetail(
+    context: AiExecutionContextWithManager,
+    capexItemId: string,
+  ): Promise<Record<string, unknown>> {
+    const [summaryResult, financialVersions, contacts, linkedProjects, linkedContracts] = await Promise.all([
+      this.capexItems.summary(
+        {
+          page: 1,
+          limit: 1,
+          includeDisabled: true,
+          filters: {
+            id: { filterType: 'set', values: [capexItemId] },
+          },
+        },
+        { manager: context.manager },
+      ).catch(() => ({ items: [] })),
+      this.loadFinancialVersions(context, {
+        versionTable: 'capex_versions',
+        amountTable: 'capex_amounts',
+        allocationTable: 'capex_allocations',
+        itemColumn: 'capex_item_id',
+        itemId: capexItemId,
+      }),
+      this.loadLinkedContacts(context, {
+        table: 'capex_item_contacts',
+        foreignKey: 'capex_item_id',
+        id: capexItemId,
+      }).catch(() => []),
+      this.capexItems.listProjects(capexItemId, { manager: context.manager }).catch(() => ({ items: [] })),
+      this.contracts.listContractsForCapexItem(capexItemId, { manager: context.manager }).catch(() => ({ items: [] })),
+    ]);
+    const summary = Array.isArray((summaryResult as any).items) ? (summaryResult as any).items[0] ?? null : null;
+
+    return {
+      ...(summary ?? {}),
+      financial_summary: summary,
+      financial_versions: financialVersions,
+      contacts,
+      projects: linkedProjects,
+      linked_contracts: linkedContracts,
+    };
+  }
+
+  private async loadContractDeepDetail(
+    context: AiExecutionContextWithManager,
+    contractId: string,
+  ): Promise<Record<string, unknown>> {
+    const rows = await context.manager.query(
+      `
+      SELECT c.id,
+             comp.name AS company_name,
+             sup.name AS supplier_name,
+             owner.email AS owner_email,
+             owner.first_name AS owner_first_name,
+             owner.last_name AS owner_last_name
+      FROM contracts c
+      LEFT JOIN companies comp ON comp.id = c.company_id AND comp.tenant_id = c.tenant_id
+      LEFT JOIN suppliers sup ON sup.id = c.supplier_id AND sup.tenant_id = c.tenant_id
+      LEFT JOIN users owner ON owner.id = c.owner_user_id AND owner.tenant_id = c.tenant_id
+      WHERE c.tenant_id = $1
+        AND c.id = $2
+      LIMIT 1
+      `,
+      [context.tenantId, contractId],
+    );
+    const names = rows[0] ?? {};
+    const ownerName = displayName({
+      first_name: names.owner_first_name,
+      last_name: names.owner_last_name,
+      email: names.owner_email,
+    });
+
+    const [contacts, linkedCapexItems, tasks] = await Promise.all([
+      this.loadLinkedContacts(context, {
+        table: 'contract_contacts',
+        foreignKey: 'contract_id',
+        id: contractId,
+      }).catch(() => []),
+      this.contracts.listLinkedCapexItems(contractId, { manager: context.manager }).catch(() => ({ items: [] })),
+      this.contracts.listTasks(contractId, { manager: context.manager }).catch(() => []),
+    ]);
+
+    return {
+      company_name: names.company_name ?? null,
+      supplier_name: names.supplier_name ?? null,
+      owner: ownerName
+        ? {
+            name: ownerName,
+            email: names.owner_email ?? null,
+          }
+        : null,
+      contacts,
+      linked_capex_items: linkedCapexItems,
+      tasks,
+    };
+  }
+
   async executeDetail(
     context: AiExecutionContextWithManager,
     input: {
       entity_type: AiQueryEntityType;
       entity_id: string;
+      year?: number;
     },
   ): Promise<AiEntityDetailDto> {
     const entityType = input.entity_type;
@@ -1359,42 +1769,108 @@ export class AiQueryExecutor {
     }
 
     if (entityType === 'applications') {
-      const row = await this.applications.get(entityId, {
+      const row: any = await this.applications.get(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
         include: 'instances,deployments,support',
       });
+      row.relation_counts = await this.applications.relationCounts(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => null);
+      if (row.supplier_id) {
+        const supplierRows = await context.manager.query(
+          `SELECT name FROM suppliers WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+          [row.supplier_id, context.tenantId],
+        );
+        row.supplier_name = supplierRows[0]?.name ?? null;
+      }
+      if (row.relation_counts) {
+        row.spend_count = row.relation_counts.opex;
+        row.capex_count = row.relation_counts.capex;
+        row.contracts_count = row.relation_counts.contracts;
+      }
+      row.linked_spend_items = await this.applications.listLinkedSpendItems(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => ({ items: [] }));
+      row.linked_capex_items = await this.applications.listLinkedCapexItems(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => ({ items: [] }));
+      row.linked_contracts = await this.applications.listLinkedContracts(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => ({ items: [] }));
+      row.projects = await this.applications.listProjects(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => ({ items: [] }));
+      row.suites = await this.applications.listSuites(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => ({ items: [] }));
+      row.components = await this.applications.listComponents(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+      }).catch(() => ({ items: [] }));
       return this.toDetailResult(this.mapApplication(row), row);
     }
 
     if (entityType === 'assets') {
       const row: any = await this.assets.get(entityId, { manager: context.manager, tenantId: context.tenantId });
+      row.hardware_info = await this.assets.getHardwareInfo(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => null);
       row.support_info = await this.assets.getSupportInfo(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => null);
       row.support_contacts = await this.assets.listSupportContacts(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
+      row.relations = await this.assets.listRelations(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => ({ outgoing: [], incoming: [] }));
+      row.linked_spend_items = await this.assets.listLinkedSpendItems(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => ({ items: [] }));
+      row.linked_capex_items = await this.assets.listLinkedCapexItems(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => ({ items: [] }));
+      row.linked_contracts = await this.assets.listLinkedContracts(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => ({ items: [] }));
+      row.projects = await this.assets.listProjects(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => ({ items: [] }));
+      row.cluster_members = await this.assets.listClusterMembers(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
+      row.clusters = await this.assets.listClustersForAsset(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
       row.links = await this.assets.listLinks(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
       row.attachments = await this.assets.listAttachments(entityId, { manager: context.manager, tenantId: context.tenantId }).catch(() => []);
       return this.toDetailResult(this.mapAsset(row), row);
     }
 
     if (entityType === 'spend_items') {
-      const row = await this.spendItems.get(entityId, { manager: context.manager });
+      const row: any = await this.spendItems.get(entityId, { manager: context.manager });
+      if (row.tenant_id && row.tenant_id !== context.tenantId) throw new NotFoundException('Spend item not found.');
+      Object.assign(row, await this.loadSpendItemDeepDetail(context, entityId));
       return this.toDetailResult(this.mapSpendItem(row), row);
     }
 
     if (entityType === 'capex_items') {
       const row: any = await this.capexItems.get(entityId, { manager: context.manager });
+      if (row.tenant_id && row.tenant_id !== context.tenantId) throw new NotFoundException('CAPEX item not found.');
+      Object.assign(row, await this.loadCapexItemDeepDetail(context, entityId));
       row.links = await this.capexItems.listLinks(entityId, { manager: context.manager }).catch(() => []);
       row.attachments = await this.capexItems.listAttachments(entityId, { manager: context.manager }).catch(() => []);
       return this.toDetailResult(this.mapCapexItem(row), row);
     }
 
     if (entityType === 'contracts') {
-      const row = await this.contracts.get(entityId, { manager: context.manager });
+      const row: any = await this.contracts.get(entityId, { manager: context.manager });
+      if (row.tenant_id && row.tenant_id !== context.tenantId) throw new NotFoundException('Contract not found.');
+      Object.assign(row, await this.loadContractDeepDetail(context, entityId));
       return this.toDetailResult(this.mapContract(row), row);
     }
 
     if (entityType === 'companies') {
-      const row = await this.companies.get(entityId, { manager: context.manager });
+      const row: any = await this.companies.get(entityId, { manager: context.manager });
+      row.metrics = await this.loadCompanyMetrics(context, entityId);
+      const selectedYear = normalizeMetricYear(input.year) ?? new Date().getFullYear();
+      const selectedMetric = row.metrics.find((metric: any) => metric.fiscal_year === selectedYear) ?? null;
+      row.selected_metrics_year = selectedYear;
+      row.selected_metrics = selectedMetric;
+      if (selectedMetric) {
+        row.metrics_year = selectedYear;
+        row.headcount_year = selectedMetric.headcount;
+        row.it_users_year = selectedMetric.it_users;
+        row.turnover_year = selectedMetric.turnover;
+        row.metrics_frozen = selectedMetric.is_frozen;
+      }
       return this.toDetailResult(this.mapCompany(row), row);
     }
 
@@ -1404,7 +1880,17 @@ export class AiQueryExecutor {
     }
 
     if (entityType === 'departments') {
-      const row = await this.departments.get(entityId, { manager: context.manager });
+      const row: any = await this.departments.get(entityId, { manager: context.manager });
+      row.metrics = await this.loadDepartmentMetrics(context, entityId);
+      const selectedYear = normalizeMetricYear(input.year) ?? new Date().getFullYear();
+      const selectedMetric = row.metrics.find((metric: any) => metric.fiscal_year === selectedYear) ?? null;
+      row.selected_metrics_year = selectedYear;
+      row.selected_metrics = selectedMetric;
+      if (selectedMetric) {
+        row.metrics_year = selectedYear;
+        row.headcount_year = selectedMetric.headcount;
+        row.metrics_frozen = selectedMetric.is_frozen;
+      }
       return this.toDetailResult(this.mapDepartment(row), row);
     }
 
@@ -1434,7 +1920,11 @@ export class AiQueryExecutor {
     }
 
     if (entityType === 'locations') {
-      const row = await this.locations.get(entityId, { manager: context.manager, tenantId: context.tenantId } as any);
+      const row: any = await this.locations.get(entityId, {
+        manager: context.manager,
+        include: ['internal_contacts', 'external_contacts', 'links'],
+      });
+      row.sub_locations = await this.locations.listSubItems(entityId, { manager: context.manager }).catch(() => []);
       return this.toDetailResult(this.mapLocation(row), row);
     }
 

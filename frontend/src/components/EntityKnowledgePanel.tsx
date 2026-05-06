@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   ButtonGroup,
@@ -18,7 +17,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -30,7 +28,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import { KanapDialog, PropertyRow } from './design';
-import { drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
+import KnowledgeLinkPickerDialog, { type KnowledgeLinkOption } from './knowledge/KnowledgeLinkPickerDialog';
+import { drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
 
 export type EntityKnowledgeType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
 
@@ -42,19 +41,7 @@ type EntityKnowledgePanelProps = {
   variant?: 'default' | 'sidebar';
 };
 
-type DocumentListItem = {
-  id: string;
-  item_number: number;
-  item_ref?: string;
-  title: string;
-  status: string;
-  updated_at?: string | null;
-};
-
-type DocumentsListResponse = {
-  items: DocumentListItem[];
-  total: number;
-};
+type DocumentListItem = KnowledgeLinkOption;
 
 type DocumentLibrary = {
   id: string;
@@ -165,12 +152,6 @@ const TEMPLATE_LIBRARY_SLUG = 'templates';
 
 function uniqueIds(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
-
-function formatDocumentOptionLabel(option: Pick<DocumentListItem, 'title' | 'item_ref' | 'item_number'>): string {
-  const ref = option.item_ref || `DOC-${option.item_number}`;
-  const title = String(option.title || '').trim();
-  return title ? `${title} (${ref})` : ref;
 }
 
 function mergeProvenance(
@@ -430,13 +411,10 @@ export default function EntityKnowledgePanel({
   const navigate = useNavigate();
   const { t } = useTranslation('common');
   const qc = useQueryClient();
-  const [search, setSearch] = React.useState('');
-  const [selectedDoc, setSelectedDoc] = React.useState<DocumentListItem | null>(null);
   const [linkOptionsOpen, setLinkOptionsOpen] = React.useState(false);
   const [newDocAnchorEl, setNewDocAnchorEl] = React.useState<null | HTMLElement>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = React.useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState('');
-  const deferredSearch = React.useDeferredValue(search.trim());
 
   const endpoint = ENTITY_ENDPOINTS[entityType];
 
@@ -467,27 +445,6 @@ export default function EntityKnowledgePanel({
     queryFn: async () => (await api.get('/knowledge-libraries')).data as DocumentLibrary[],
     enabled: canCreate,
     staleTime: 5 * 60_000,
-  });
-
-  const { data: docsList, isFetching: isSearchingDocs } = useQuery({
-    queryKey: ['knowledge-link-options', entityType, entityId, deferredSearch],
-    queryFn: async () => {
-      const params = {
-        limit: 50,
-        sort: 'title:ASC',
-      };
-      const res = deferredSearch
-        ? await api.get<DocumentsListResponse>('/knowledge/search', {
-            params: {
-              ...params,
-              q: deferredSearch,
-            },
-          })
-        : await api.get<DocumentsListResponse>('/knowledge', { params });
-      return res.data;
-    },
-    enabled: canCreate && !!entityId && (linkOptionsOpen || deferredSearch.length > 0),
-    staleTime: 30_000,
   });
 
   const templatesLibrary = React.useMemo(
@@ -578,10 +535,6 @@ export default function EntityKnowledgePanel({
     () => new Set((directGroup?.items || []).map((item) => item.id)),
     [directGroup],
   );
-  const availableDocs = React.useMemo(
-    () => (docsList?.items || []).filter((item) => !linkedDocIds.has(item.id)),
-    [docsList?.items, linkedDocIds],
-  );
 
   const isRestricted = contextData?.access === 'restricted';
   const restrictedCount = Number(contextData?.total || 0);
@@ -647,8 +600,7 @@ export default function EntityKnowledgePanel({
       return document;
     },
     onSuccess: async () => {
-      setSelectedDoc(null);
-      setSearch('');
+      setLinkOptionsOpen(false);
       await invalidateKnowledgeQueries();
     },
   });
@@ -680,7 +632,6 @@ export default function EntityKnowledgePanel({
   }, [entityId, entityType, navigate, selectedTemplateId, templatesData?.items]);
 
   const handleExistingKnowledgeSelected = React.useCallback((document: DocumentListItem | null) => {
-    setSelectedDoc(document);
     if (!document) return;
     linkExistingMutation.mutate(document);
   }, [linkExistingMutation]);
@@ -704,43 +655,15 @@ export default function EntityKnowledgePanel({
             <ArrowDropDownIcon />
           </Button>
         </ButtonGroup>
-        <Autocomplete<DocumentListItem, false, false, false>
+        <Button
+          variant="outlined"
           size="small"
-          options={availableDocs}
-          open={linkOptionsOpen}
-          onOpen={() => setLinkOptionsOpen(true)}
-          onClose={() => setLinkOptionsOpen(false)}
-          value={selectedDoc}
-          onChange={(_, value) => handleExistingKnowledgeSelected(value)}
-          inputValue={search}
-          onInputChange={(_, value) => setSearch(value)}
-          loading={canCreate && !!entityId && isSearchingDocs}
-          getOptionLabel={formatDocumentOptionLabel}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          noOptionsText={deferredSearch ? t('knowledgePanel.noMatchingKnowledge') : t('knowledgePanel.noAvailableKnowledge')}
-          renderOption={(props, option) => {
-            const { key, ...optionProps } = props;
-            return (
-              <Box key={key} component="li" {...optionProps}>
-                <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
-                  {formatDocumentOptionLabel(option)}
-                </Typography>
-              </Box>
-            );
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              placeholder={t('knowledgePanel.searchByNameOrRef')}
-              variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
-              sx={drawerFieldValueSx}
-            />
-          )}
-          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-          sx={{ width: '100%', ...drawerFieldValueSx }}
+          fullWidth
+          onClick={() => setLinkOptionsOpen(true)}
           disabled={linkExistingMutation.isPending}
-        />
+        >
+          {t('knowledgePanel.linkExisting')}
+        </Button>
       </Stack>
     ) : (
       <Stack spacing={2}>
@@ -775,43 +698,14 @@ export default function EntityKnowledgePanel({
         </Stack>
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }}>
-          <Autocomplete<DocumentListItem, false, false, false>
+          <Button
+            variant="outlined"
             size="small"
-            options={availableDocs}
-            open={linkOptionsOpen}
-            onOpen={() => setLinkOptionsOpen(true)}
-            onClose={() => setLinkOptionsOpen(false)}
-            value={selectedDoc}
-            onChange={(_, value) => handleExistingKnowledgeSelected(value)}
-            inputValue={search}
-            onInputChange={(_, value) => setSearch(value)}
-            loading={canCreate && !!entityId && isSearchingDocs}
-            getOptionLabel={formatDocumentOptionLabel}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            noOptionsText={deferredSearch ? 'No matching knowledge' : 'No available knowledge'}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                placeholder={t('knowledgePanel.searchByNameOrRef')}
-                variant="standard"
-                InputProps={{ ...params.InputProps, disableUnderline: true }}
-                sx={drawerFieldValueSx}
-              />
-            )}
-            renderOption={(props, option) => {
-              const { key, ...optionProps } = props;
-              return (
-                <Box key={key} component="li" {...optionProps}>
-                  <Typography className="kanap-autocomplete-option-primary" noWrap title={formatDocumentOptionLabel(option)}>
-                    {formatDocumentOptionLabel(option)}
-                  </Typography>
-                </Box>
-              );
-            }}
-            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-            sx={{ minWidth: 320, flex: 1, ...drawerFieldValueSx }}
+            onClick={() => setLinkOptionsOpen(true)}
             disabled={linkExistingMutation.isPending}
-          />
+          >
+            {t('knowledgePanel.linkExisting')}
+          </Button>
         </Stack>
       </Stack>
     )
@@ -867,6 +761,14 @@ export default function EntityKnowledgePanel({
           {t('knowledgePanel.fromTemplate')}
         </MenuItem>
       </Menu>
+
+      <KnowledgeLinkPickerDialog
+        open={linkOptionsOpen}
+        onClose={() => setLinkOptionsOpen(false)}
+        linkedDocumentIds={linkedDocIds}
+        linkPending={linkExistingMutation.isPending}
+        onLink={handleExistingKnowledgeSelected}
+      />
 
       <KanapDialog
         open={templatePickerOpen}

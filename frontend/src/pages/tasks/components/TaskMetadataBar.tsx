@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Avatar,
   Box,
   Menu,
   MenuItem,
@@ -14,8 +13,8 @@ import type { PriorityLevel } from '../theme/taskDetailTokens';
 import type { TaskStatus } from '../task.constants';
 import { TASK_STATUS_OPTIONS } from '../task.constants';
 import { getTaskStatusLabel, getPriorityLabel } from '../../../utils/portfolioI18n';
-import UserSelect from '../../../components/fields/UserSelect';
 import DateEUField from '../../../components/fields/DateEUField';
+import MetadataUserPicker from '../../../components/workspace/MetadataUserPicker';
 
 interface TaskMetadataBarProps {
   status: TaskStatus;
@@ -156,62 +155,6 @@ function ScoreChip({ score, isProjectTask }: { score: number; isProjectTask?: bo
 }
 
 /* ================================================================== */
-/*  AssigneeChip                                                      */
-/* ================================================================== */
-
-function getInitials(name: string | null): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  return (parts[0]?.[0] ?? '').toUpperCase() + (parts[1]?.[0] ?? '').toUpperCase() || '?';
-}
-
-function AssigneeChip({ userId, name, readOnly, onPatch }: { userId: string | null; name: string | null; readOnly?: boolean; onPatch: (p: Record<string, any>) => void }) {
-  const { t } = useTranslation('portfolio');
-  const theme = useTheme();
-  const [anchor, setAnchor] = React.useState<HTMLElement | null>(null);
-
-  const displayName = name || t('workspace.task.sidebar.values.unassigned');
-
-  return (
-    <>
-      <Box
-        sx={{ ...metaItemSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
-        onClick={readOnly ? undefined : (e) => setAnchor(e.currentTarget)}
-      >
-        <Avatar
-          sx={{
-            width: taskDetailAvatarSizes.metadata,
-            height: taskDetailAvatarSizes.metadata,
-            fontSize: 9,
-            fontWeight: 500,
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.primary.contrastText,
-          }}
-        >
-          {getInitials(name)}
-        </Avatar>
-        <span>{displayName}</span>
-      </Box>
-      <Popover
-        open={!!anchor}
-        anchorEl={anchor}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { p: 1.5, width: 260 } } }}
-      >
-        <UserSelect
-          label={t('workspace.task.sidebar.fields.assignee')}
-          value={userId}
-          onChange={(v) => { onPatch({ assignee_user_id: v }); setAnchor(null); }}
-          size="small"
-        />
-      </Popover>
-    </>
-  );
-}
-
-/* ================================================================== */
 /*  DueDateChip                                                       */
 /* ================================================================== */
 
@@ -274,8 +217,6 @@ function DueDateChip({ dueDate, readOnly, onPatch }: { dueDate: string | null; r
 /*  TaskMetadataBar                                                   */
 /* ================================================================== */
 
-import { taskDetailAvatarSizes } from '../theme/taskDetailTokens';
-
 export default function TaskMetadataBar({
   status,
   priorityLevel,
@@ -291,6 +232,7 @@ export default function TaskMetadataBar({
   onNavigateToProject,
 }: TaskMetadataBarProps) {
   const theme = useTheme();
+  const { t } = useTranslation('portfolio');
 
   return (
     <Box
@@ -305,7 +247,14 @@ export default function TaskMetadataBar({
       <StatusChip status={status} readOnly={readOnly} onPatch={onPatch} />
       <ScoreChip score={priorityScore} isProjectTask={isProjectTask} />
       <PriorityChip priority={priorityLevel} readOnly={readOnly} onPatch={onPatch} />
-      <AssigneeChip userId={assigneeUserId} name={assigneeName} readOnly={readOnly} onPatch={onPatch} />
+      <MetadataUserPicker
+        value={assigneeUserId}
+        displayName={assigneeName}
+        placeholder={t('workspace.task.sidebar.values.assigneeMissing')}
+        searchPlaceholder={t('workspace.task.sidebar.fields.assignee')}
+        disabled={readOnly}
+        onChange={(nextUserId) => onPatch({ assignee_user_id: nextUserId })}
+      />
       <DueDateChip dueDate={dueDate} readOnly={readOnly} onPatch={onPatch} />
 
       {/* Project chip — clickable link to project workspace */}

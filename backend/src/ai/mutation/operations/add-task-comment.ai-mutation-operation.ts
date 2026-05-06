@@ -5,6 +5,7 @@ import { TaskActivitiesService } from '../../../tasks/task-activities.service';
 import { AiMutationPreview } from '../../ai-mutation-preview.entity';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiMutationOperation, AiMutationPreviewPresentation, AiPreparedMutationPreview } from '../ai-mutation-operation.types';
+import { buildAiMutationAudit } from '../ai-mutation-audit.util';
 import { AiTaskMutationSupportService } from '../ai-task-mutation-support.service';
 
 type AddTaskCommentInput = {
@@ -129,10 +130,7 @@ export class AddTaskCommentAiMutationOperation implements AiMutationOperation<Ad
       context.userId,
       {
         manager: context.manager,
-        audit: {
-          source: 'ai_chat',
-          sourceRef: preview.conversation_id ?? null,
-        },
+        audit: buildAiMutationAudit(preview),
       },
     );
   }

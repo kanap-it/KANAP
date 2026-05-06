@@ -1889,6 +1889,27 @@ function buildToolIsolationCases(
             assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.applicationId]);
             assert.equal(String(result.items[0].metadata.it_owner).includes(fixtures.peopleA.applicationItOwner.name), true);
             assert.equal(result.items[0].metadata.version, fixtures.graphA.applicationVersion);
+            assert.equal(result.items[0].metadata.environment, 'prod');
+            assert.equal(result.items[0].metadata.environments, 'prod');
+            assert.equal(result.items[0].metadata.hosting_model, 'saas');
+            assert.equal(result.items[0].metadata.users_mode, 'manual');
+          },
+        },
+        {
+          label: 'assets-expanded-metadata',
+          input: {
+            entity_type: 'assets',
+            q: 'Shared Boundary Asset',
+            limit: 10,
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.complete, true);
+            assert.equal(result.total, 1);
+            assert.deepEqual(result.items.map((item: any) => item.id), [fixtures.graphA.assetId]);
+            assert.equal(result.items[0].metadata.provider, 'aws');
+            assert.equal(result.items[0].metadata.environment, 'prod');
+            assert.match(String(result.items[0].metadata.hostname), /^asset-/);
+            assert.match(String(result.items[0].metadata.fqdn), /^asset-.*\.example\.com$/);
           },
         },
       ];
@@ -1954,17 +1975,22 @@ function buildToolIsolationCases(
           label: 'applications-values',
           input: {
             entity_type: 'applications',
-            fields: ['status', 'lifecycle', 'business_owner', 'it_owner'],
+            fields: ['status', 'lifecycle', 'business_owner', 'it_owner', 'environment', 'environments', 'hosting_model', 'data_class', 'users_mode'],
           },
           assertResult: (result: any) => {
-            assert.equal(result.total, 4);
-            assert.equal(result.returned, 4);
+            assert.equal(result.total, 9);
+            assert.equal(result.returned, 9);
             assert.equal(result.truncated, false);
             assert.equal(result.complete, true);
             assert.equal(result.values.status.includes('enabled'), true);
             assert.equal(result.values.lifecycle.includes('active'), true);
             assert.equal(result.values.business_owner.includes(fixtures.peopleA.applicationBusinessOwner.name), true);
             assert.equal(result.values.it_owner.includes(fixtures.peopleA.applicationItOwner.name), true);
+            assert.equal(result.values.environment.includes('prod'), true);
+            assert.equal(result.values.environments.includes('prod'), true);
+            assert.equal(result.values.hosting_model.includes('saas'), true);
+            assert.equal(result.values.data_class.includes('internal'), true);
+            assert.equal(result.values.users_mode.includes('manual'), true);
             assert.deepEqual(result.fields_ignored, []);
           },
         },
@@ -2061,6 +2087,13 @@ function buildToolIsolationCases(
 
     case 'import_glpi_ticket':
     case 'create_task':
+    case 'create_master_data_record':
+    case 'create_business_record':
+    case 'write_financial_plan':
+    case 'update_master_data_record':
+    case 'update_business_record':
+    case 'update_entity_relations':
+    case 'update_task_fields':
     case 'update_task_status':
     case 'update_task_assignee':
     case 'add_task_comment':
@@ -3673,6 +3706,22 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
     const otherCompanyId = await seedCompany(runner, tenantId, 'Tenant B Holdings');
     await runner.query(`UPDATE companies SET state = 'Ile-de-France' WHERE id = $1`, [companyId]);
     await runner.query(`UPDATE companies SET country_iso = 'DE', city = 'Berlin', state = 'Berlin' WHERE id = $1`, [otherCompanyId]);
+    const metricYear = new Date().getFullYear();
+    await runner.query(
+      `INSERT INTO company_metrics (
+         id, tenant_id, company_id, fiscal_year, headcount, it_users, turnover, is_frozen, frozen_at, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, 42, 21, 123.456, false, null, now(), now())`,
+      [randomUUID(), tenantId, companyId, metricYear],
+    );
+    const departmentId = await seedDepartment(runner, tenantId, companyId, 'Digital Workplace');
+    await runner.query(
+      `INSERT INTO department_metrics (
+         id, tenant_id, department_id, fiscal_year, headcount, is_frozen, frozen_at, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, 11, false, null, now(), now())`,
+      [randomUUID(), tenantId, departmentId, metricYear],
+    );
 
     const supplierId = await seedSupplier(runner, tenantId, 'ERP Vendor', 'SUP-001');
     const otherSupplierId = await seedSupplier(runner, tenantId, 'Legacy Vendor', 'SUP-999');
@@ -3709,6 +3758,11 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
       runner.manager.getRepository(Supplier),
       {} as any,
     );
+    const departmentsService = new DepartmentsService(
+      runner.manager.getRepository(Department),
+      runner.manager.getRepository(Company),
+      {} as any,
+    );
     const contractsService = new ContractsService(
       runner.manager.getRepository(Contract),
       runner.manager.getRepository(ContractSpendItem),
@@ -3731,7 +3785,7 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
       contractsService as any,
       companiesService as any,
       suppliersService as any,
-      {} as any,
+      departmentsService as any,
       {} as any,
       {} as any,
       {} as any,
@@ -3813,6 +3867,57 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
     assert.deepEqual(companyResult.items.map((item: any) => item.id), [companyId]);
     assert.equal(companyResult.items[0].metadata.country_iso, 'FR');
     assert.equal(companyResult.items[0].metadata.state, 'Ile-de-France');
+    assert.equal(companyResult.items[0].metadata.metrics_year, metricYear);
+    assert.equal(companyResult.items[0].metadata.headcount, 42);
+    assert.equal(companyResult.items[0].metadata.it_users, 21);
+    assert.equal(companyResult.items[0].metadata.turnover, 123.456);
+
+    const companyMetricResult = await queryExecutor.execute(context, {
+      entity_type: 'companies',
+      filters: {
+        headcount_year: { op: 'gte', value: 40 },
+      },
+      sort: { field: 'headcount_year', direction: 'desc' },
+      year: metricYear,
+      limit: 10,
+    });
+    assert.equal(companyMetricResult.filters_ignored.length, 0);
+    assert.equal(companyMetricResult.total, 1);
+    assert.deepEqual(companyMetricResult.items.map((item: any) => item.id), [companyId]);
+    assert.equal(companyMetricResult.items[0].metadata.headcount, 42);
+
+    const companyDetail = await queryExecutor.executeDetail(context, {
+      entity_type: 'companies',
+      entity_id: companyId,
+      year: metricYear,
+    });
+    assert.equal(companyDetail.entity.metadata?.headcount, 42);
+    assert.equal((companyDetail.data.selected_metrics as any).headcount, 42);
+    assert.equal((companyDetail.data.metrics as any[]).some((metric) => metric.fiscal_year === metricYear && metric.headcount === 42), true);
+
+    const departmentMetricResult = await queryExecutor.execute(context, {
+      entity_type: 'departments',
+      filters: {
+        headcount_year: { op: 'gte', value: 10 },
+      },
+      sort: { field: 'headcount_year', direction: 'desc' },
+      year: metricYear,
+      limit: 10,
+    });
+    assert.equal(departmentMetricResult.filters_ignored.length, 0);
+    assert.equal(departmentMetricResult.total, 1);
+    assert.deepEqual(departmentMetricResult.items.map((item: any) => item.id), [departmentId]);
+    assert.equal(departmentMetricResult.items[0].metadata.headcount, 11);
+    assert.equal(departmentMetricResult.items[0].metadata.metrics_year, metricYear);
+
+    const departmentDetail = await queryExecutor.executeDetail(context, {
+      entity_type: 'departments',
+      entity_id: departmentId,
+      year: metricYear,
+    });
+    assert.equal(departmentDetail.entity.metadata?.headcount, 11);
+    assert.equal((departmentDetail.data.selected_metrics as any).headcount, 11);
+    assert.equal((departmentDetail.data.metrics as any[]).some((metric) => metric.fiscal_year === metricYear && metric.headcount === 11), true);
   } finally {
     await runner.rollbackTransaction();
     await runner.release();
