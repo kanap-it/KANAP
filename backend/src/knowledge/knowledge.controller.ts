@@ -83,6 +83,13 @@ export class KnowledgeController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'reader')
+  @Get('link-options')
+  listLinkOptions(@Query() query: any, @Tenant() ctx: TenantRequest) {
+    return this.docs.listLinkOptions(query, { manager: ctx.manager, userId: ctx.userId || null });
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'member')
   @Get('relation-options/:entity')
   listRelationOptions(

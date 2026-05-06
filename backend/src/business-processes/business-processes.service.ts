@@ -6,7 +6,7 @@ import { BusinessProcessCategory } from './business-process-category.entity';
 import { BusinessProcessCategoryLink } from './business-process-category-link.entity';
 import { parsePagination } from '../common/pagination';
 import { applyStatusFilter, extractStatusFilterFromAgModel } from '../common/status-filter';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { BusinessProcessUpsertDto } from './dto/business-process.dto';
 import { StatusState, resolveLifecycleState } from '../common/status';
 import { format } from '@fast-csv/format';
@@ -238,7 +238,7 @@ export class BusinessProcessesService {
     return map;
   }
 
-  async create(body: BusinessProcessUpsertDto, userId?: string | null, opts?: { manager?: EntityManager }) {
+  async create(body: BusinessProcessUpsertDto, userId?: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const rawName = (body.name ?? '').toString().trim();
     if (!rawName) throw new BadRequestException('Name is required');
@@ -266,13 +266,22 @@ export class BusinessProcessesService {
     await this.syncCategories(saved.id, body.category_ids ?? [], opts);
 
     await this.audit.log(
-      { table: 'business_processes', recordId: saved.id, action: 'create', before: null, after: saved, userId: userId ?? null },
+      {
+        table: 'business_processes',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId: userId ?? null,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
       { manager: opts?.manager ?? repo.manager },
     );
     return saved;
   }
 
-  async update(id: string, body: BusinessProcessUpsertDto, userId?: string | null, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: BusinessProcessUpsertDto, userId?: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const existing = await this.get(id, opts);
     const before = { ...existing };
@@ -321,7 +330,16 @@ export class BusinessProcessesService {
     const mgr = opts?.manager ?? repo.manager;
     const saved = await mgr.getRepository(BusinessProcess).save(existing as any);
     await this.audit.log(
-      { table: 'business_processes', recordId: saved.id, action: 'update', before, after: saved, userId: userId ?? null },
+      {
+        table: 'business_processes',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId: userId ?? null,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
       { manager: mgr },
     );
     return saved;

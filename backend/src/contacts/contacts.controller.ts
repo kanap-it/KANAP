@@ -31,12 +31,16 @@ export class ContactsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('contacts', 'member')
   @Post()
-  create(@Body() body: ContactUpsertDto, @Req() req: any) { return this.svc.create(body, { manager: req?.queryRunner?.manager }); }
+  create(@Body() body: ContactUpsertDto, @Req() req: any) {
+    return this.svc.create(body, { manager: req?.queryRunner?.manager, userId: req.user?.sub ?? null });
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('contacts', 'member')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: ContactUpsertDto, @Req() req: any) { return this.svc.update(id, body, { manager: req?.queryRunner?.manager }); }
+  update(@Param('id') id: string, @Body() body: ContactUpsertDto, @Req() req: any) {
+    return this.svc.update(id, body, { manager: req?.queryRunner?.manager, userId: req.user?.sub ?? null });
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('contacts', 'admin')

@@ -3,6 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AuditLog } from './audit.entity';
 
+export type AuditSourceOptions = {
+  source?: 'user' | 'system' | 'webhook' | string;
+  sourceRef?: string | null;
+};
+
 @Injectable()
 export class AuditService {
   constructor(@InjectRepository(AuditLog) private readonly repo: Repository<AuditLog>) {}

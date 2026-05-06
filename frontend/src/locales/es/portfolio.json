@@ -559,6 +559,9 @@
         "stream": "Línea",
         "targetDeliveryDate": "Fecha de entrega objetivo"
       },
+      "values": {
+        "requestorMissing": "Falta solicitante"
+      },
       "sections": {
         "core": "Propiedades principales",
         "dependencies": "Dependencias",
@@ -750,6 +753,7 @@
           "time": "Tiempo"
         },
         "values": {
+          "assigneeMissing": "Falta asignado",
           "doneRequiresTime": "{{status}} (requiere tiempo)",
           "noClassification": "Sin clasificación definida.",
           "projectLevel": "Nivel de proyecto",
@@ -1373,6 +1377,7 @@
         "allDimensionsNotAssessed": "Todas las dimensiones no evaluadas",
         "dimensionsAssessed": "{{count}} dimensiones evaluadas",
         "empty": "(vacío)",
+        "itLeadMissing": "Falta responsable IT",
         "no": "No",
         "none": "(ninguno)",
         "notSet": "(no definido)",

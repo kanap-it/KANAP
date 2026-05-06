@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, GlobalStyles, MenuItem, Select } from '@mui/material';
+import { Box, ClickAwayListener, GlobalStyles, MenuItem, MenuList, Paper, Popper } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
   AdmonitionDirectiveDescriptor,
@@ -129,11 +130,14 @@ function KanapBlockStyleSelect({
 }: {
   allowedHeadingLevels: MarkdownEditorHeadingLevel[];
 }) {
+  const theme = useTheme();
   const convertSelectionToNode = usePublisher(convertSelectionToNode$);
   const currentBlockType = useCellValue(currentBlockType$);
   const activePlugins = useCellValue(activePlugins$);
   const hasQuote = activePlugins.includes('quote');
   const hasHeadings = activePlugins.includes('headings');
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const items = React.useMemo(() => {
     const next = [{ label: 'Paragraph', value: 'paragraph' }];
@@ -154,66 +158,130 @@ function KanapBlockStyleSelect({
   const value = items.some((item) => item.value === currentBlockType)
     ? currentBlockType
     : 'paragraph';
+  const selectedLabel = items.find((item) => item.value === value)?.label || 'Paragraph';
+  const open = Boolean(anchorEl);
+
+  const applyBlockType = React.useCallback((blockType: string) => {
+    switch (blockType) {
+      case 'quote':
+        convertSelectionToNode(() => $createQuoteNode());
+        break;
+      case 'paragraph':
+        convertSelectionToNode(() => $createParagraphNode());
+        break;
+      default:
+        if (blockType.startsWith('h')) {
+          convertSelectionToNode(() => $createHeadingNode(blockType as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'));
+        }
+    }
+  }, [convertSelectionToNode]);
 
   return (
-    <Select
-      value={value}
-      variant="standard"
-      disableUnderline
-      size="small"
-      onChange={(event) => {
-        const blockType = String(event.target.value);
-        switch (blockType) {
-          case 'quote':
-            convertSelectionToNode(() => $createQuoteNode());
-            break;
-          case 'paragraph':
-            convertSelectionToNode(() => $createParagraphNode());
-            break;
-          default:
-            if (blockType.startsWith('h')) {
-              convertSelectionToNode(() => $createHeadingNode(blockType as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'));
-            }
-        }
-      }}
-      MenuProps={{
-        disablePortal: false,
-        PaperProps: {
-          sx: {
-            borderRadius: 1,
-            border: 1,
-            borderColor: 'divider',
-            boxShadow: 3,
+    <>
+      <Box
+        component="button"
+        type="button"
+        ref={buttonRef}
+        aria-haspopup="menu"
+        aria-expanded={open ? 'true' : undefined}
+        onClick={(event) => {
+          setAnchorEl((current) => current ? null : event.currentTarget);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setAnchorEl(null);
+            return;
+          }
+          if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setAnchorEl(event.currentTarget);
+          }
+        }}
+        sx={{
+          minWidth: 116,
+          height: 26,
+          px: 0.75,
+          py: 0,
+          border: 0,
+          borderRadius: 0.75,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 0.5,
+          font: 'inherit',
+          fontSize: '0.8125rem',
+          lineHeight: 1.5,
+          color: 'text.primary',
+          bgcolor: 'transparent',
+          cursor: 'pointer',
+          '&:hover': { bgcolor: 'action.hover' },
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 1,
           },
-        },
-      }}
-      sx={{
-        minWidth: 116,
-        px: 0.75,
-        py: 0,
-        borderRadius: 0.75,
-        fontSize: '0.8125rem',
-        lineHeight: 1.5,
-        color: 'text.primary',
-        bgcolor: 'transparent',
-        '&:hover': { bgcolor: 'action.hover' },
-        '& .MuiSelect-select': {
-          py: 0.375,
-          pr: '22px !important',
-        },
-        '& .MuiSelect-icon': {
-          right: 2,
-          color: 'text.secondary',
-          fontSize: 18,
-        },
-      }}
-    >
-      {items.map((item) => (
-        <MenuItem key={item.value} value={item.value} sx={{ fontSize: '0.8125rem' }}>
-          {item.label}
-        </MenuItem>
-      ))}
-    </Select>
+        }}
+      >
+        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedLabel}
+        </Box>
+        <KeyboardArrowDownIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+      </Box>
+      <Popper
+        open={open}
+        anchorEl={anchorEl}
+        placement="bottom-start"
+        sx={{ zIndex: theme.zIndex.modal + 2 }}
+        modifiers={[
+          { name: 'offset', options: { offset: [0, 4] } },
+          { name: 'preventOverflow', options: { padding: 8 } },
+        ]}
+      >
+        <ClickAwayListener
+          onClickAway={(event) => {
+            if (anchorEl?.contains(event.target as Node)) return;
+            setAnchorEl(null);
+          }}
+        >
+          <Paper
+            elevation={3}
+            sx={{
+              minWidth: anchorEl?.clientWidth || 116,
+              borderRadius: 1,
+              border: 1,
+              borderColor: 'divider',
+              overflow: 'hidden',
+            }}
+          >
+            <MenuList
+              dense
+              disablePadding
+              aria-label="Block style"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' || event.key === 'Tab') {
+                  setAnchorEl(null);
+                  buttonRef.current?.focus();
+                }
+              }}
+            >
+              {items.map((item) => (
+                <MenuItem
+                  key={item.value}
+                  selected={item.value === value}
+                  onClick={() => {
+                    applyBlockType(item.value);
+                    setAnchorEl(null);
+                    buttonRef.current?.focus();
+                  }}
+                  sx={{ fontSize: '0.8125rem', minHeight: 28 }}
+                >
+                  {item.label}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
+    </>
   );
 }
 

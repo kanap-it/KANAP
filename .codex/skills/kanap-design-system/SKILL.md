@@ -81,6 +81,16 @@ For dense workspace sections:
 - Keep related tables as separate tables in a grid, with enough gap or a subtle divider so they do not read as one merged table.
 - When allocation values are derived from editable base totals, expose the base totals inline near the allocation result; dialogs should edit distribution, not hide the calculation basis.
 
+## Shared Workspace Pickers
+
+Use these shared components instead of local picker variants on workspace pages:
+
+- `frontend/src/components/workspace/MetadataUserPicker.tsx` is the standard single-user picker for metadata bars: assignee, requestor, owner, lead, and similar one-person fields. One click on the current value must open the anchored search popover directly. Lists show names only, never email addresses. Search matches names only. The active user appears first with the "me" suffix, followed by a subtle separator before other users. Empty values use field-specific placeholders such as "Assignee missing", not raw translation keys or generic `Not set`.
+- Do not use `UserSelect`, MUI `Autocomplete`, or local menu/popover code for single-user metadata controls unless the shared picker cannot represent the behavior. If extra behavior is needed, extend `MetadataUserPicker` first.
+- `frontend/src/components/knowledge/KnowledgeLinkPickerDialog.tsx` is the standard "Link existing" document picker for workspace knowledge relations. Prefer using it through `EntityKnowledgePanel`; compact task drawers may use the dialog directly.
+- The link picker must query `/knowledge/link-options` with server-side `q`, `page`, and `limit`. Never implement this by fetching only the first `/knowledge` page and filtering locally. Search must work for title/name and business refs such as `DOC-...`.
+- Searching in the link picker must keep the modal shell stable: redraw only the document list area, keep the search field focused, and show a thin in-list loading indicator when replacing results. Keep pagination through a compact "Load more" action.
+
 ## Tables And Status
 
 For AG Grid and dense lists:

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, EntityManager, ILike, Repository } from 'typeorm';
 import { ChartOfAccounts } from './chart-of-accounts.entity';
 import { parsePagination, buildWhereFromAgFilters } from '../common/pagination';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { ChartOfAccountsUpsertDto } from './dto/chart-of-accounts.dto';
 import { Company } from '../companies/company.entity';
 import { Account } from './account.entity';
@@ -102,7 +102,7 @@ export class ChartOfAccountsService {
     );
   }
 
-  async create(body: ChartOfAccountsUpsertDto, userId?: string | null, opts?: { manager?: EntityManager }) {
+  async create(body: ChartOfAccountsUpsertDto, userId?: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const mg = opts?.manager ?? this.repo.manager;
     if (!body.code) throw new BadRequestException('code is required');
     if (!body.name) throw new BadRequestException('name is required');
@@ -131,7 +131,19 @@ export class ChartOfAccountsService {
     try {
       const entity = this.getRepo(mg).create(toCreate);
       const saved = await this.getRepo(mg).save(entity);
-      await this.audit.log({ table: 'chart_of_accounts', recordId: saved.id, action: 'create', before: null, after: saved, userId: userId ?? null }, { manager: mg });
+      await this.audit.log(
+        {
+          table: 'chart_of_accounts',
+          recordId: saved.id,
+          action: 'create',
+          before: null,
+          after: saved,
+          userId: userId ?? null,
+          source: opts?.audit?.source,
+          sourceRef: opts?.audit?.sourceRef ?? null,
+        },
+        { manager: mg },
+      );
       return saved;
     } catch (e: any) {
       if (e?.code === '23505') {
@@ -141,7 +153,7 @@ export class ChartOfAccountsService {
     }
   }
 
-  async update(id: string, body: ChartOfAccountsUpsertDto, userId?: string | null, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: ChartOfAccountsUpsertDto, userId?: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = this.getRepo(mg);
     const existing = await repo.findOne({ where: { id } });
@@ -180,7 +192,19 @@ export class ChartOfAccountsService {
     }
     try {
       const saved = await repo.save(existing);
-      await this.audit.log({ table: 'chart_of_accounts', recordId: saved.id, action: 'update', before, after: saved, userId: userId ?? null }, { manager: mg });
+      await this.audit.log(
+        {
+          table: 'chart_of_accounts',
+          recordId: saved.id,
+          action: 'update',
+          before,
+          after: saved,
+          userId: userId ?? null,
+          source: opts?.audit?.source,
+          sourceRef: opts?.audit?.sourceRef ?? null,
+        },
+        { manager: mg },
+      );
       return saved;
     } catch (e: any) {
       if (e?.code === '23505') {

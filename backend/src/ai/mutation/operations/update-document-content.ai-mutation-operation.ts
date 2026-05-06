@@ -18,6 +18,7 @@ import {
   hasAiDocumentRelationInput,
 } from '../ai-document-relation-input';
 import { AiDocumentMutationSupportService } from '../ai-document-mutation-support.service';
+import { buildAiMutationAudit } from '../ai-mutation-audit.util';
 import {
   AiMutationOperation,
   AiMutationPreviewPresentation,
@@ -276,10 +277,7 @@ export class UpdateDocumentContentAiMutationOperation implements AiMutationOpera
         lock.lock_token,
         {
           manager: context.manager,
-          audit: {
-            source: 'ai_chat',
-            sourceRef: preview.conversation_id ?? null,
-          },
+          audit: buildAiMutationAudit(preview),
         },
       );
     } finally {

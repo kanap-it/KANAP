@@ -224,6 +224,21 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
   const pendingToolCalls = new Map<number, { id: string; name: string; args: string }>();
   let emittedDone = false;
 
+  const emitPendingNativeToolCalls = function* (): Generator<AiStreamEvent> {
+    const orderedCalls = [...pendingToolCalls.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([, pending]) => pending);
+
+    for (const pending of orderedCalls) {
+      yield { type: 'tool_call_start', id: pending.id, name: pending.name };
+      if (pending.args) {
+        yield { type: 'tool_call_delta', id: pending.id, arguments: pending.args };
+      }
+      yield { type: 'tool_call_end', id: pending.id };
+    }
+    pendingToolCalls.clear();
+  };
+
   try {
     for await (const chunk of stream) {
       const choice = chunk.choices?.[0];
@@ -242,7 +257,6 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
           const idx = tc.index;
           if (tc.id) {
             pendingToolCalls.set(idx, { id: tc.id, name: tc.function?.name || '', args: '' });
-            yield { type: 'tool_call_start', id: tc.id, name: tc.function?.name || '' };
           }
           if (tc.function?.name) {
             const pending = pendingToolCalls.get(idx);
@@ -254,7 +268,6 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
             const pending = pendingToolCalls.get(idx);
             if (pending) {
               pending.args += tc.function.arguments;
-              yield { type: 'tool_call_delta', id: pending.id, arguments: tc.function.arguments };
             } else {
               logger.warn(
                 `provider=${params.providerId ?? 'unknown'} model=${params.model} tool_call_arguments_without_id index=${idx}`,
@@ -287,10 +300,7 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
       }
 
       if (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'stop' || choice.finish_reason === 'function_call') {
-        for (const [, pending] of pendingToolCalls) {
-          yield { type: 'tool_call_end', id: pending.id };
-        }
-        pendingToolCalls.clear();
+        yield* emitPendingNativeToolCalls();
 
         yield {
           type: 'done',

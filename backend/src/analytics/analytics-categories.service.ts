@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AnalyticsCategory } from './analytics-category.entity';
 import { parsePagination } from '../common/pagination';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { applyStatusFilter, extractStatusFilterFromAgModel } from '../common/status-filter';
 import { StatusState, resolveLifecycleState } from '../common/status';
 
@@ -101,7 +101,7 @@ export class AnalyticsCategoriesService {
     return { ids, total };
   }
 
-  async create(body: Partial<AnalyticsCategory>, userId?: string | null, opts?: { manager?: EntityManager }) {
+  async create(body: Partial<AnalyticsCategory>, userId?: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const name = (body.name ?? '').toString().trim();
     if (!name) throw new BadRequestException('Name is required');
@@ -121,11 +121,23 @@ export class AnalyticsCategoriesService {
       disabled_at: lifecycle.disabled_at,
     });
     const saved = await repo.save(entity);
-    await this.audit.log({ table: 'analytics_categories', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'analytics_categories',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 
-  async update(id: string, body: Partial<AnalyticsCategory>, userId?: string | null, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: Partial<AnalyticsCategory>, userId?: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const existing = await this.get(id, opts);
     const before = { ...existing };
@@ -152,7 +164,19 @@ export class AnalyticsCategoriesService {
     existing.status = lifecycle.status;
     existing.disabled_at = lifecycle.disabled_at;
     const saved = await repo.save(existing);
-    await this.audit.log({ table: 'analytics_categories', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'analytics_categories',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 }

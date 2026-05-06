@@ -7,7 +7,7 @@ import { LocationContactLink } from './location-contact.entity';
 import { LocationLink } from './location-link.entity';
 import { LocationSubItem } from './location-sub-item.entity';
 import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { ItOpsSettings, ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
 import { Company } from '../companies/company.entity';
 import { Asset } from '../assets/asset.entity';
@@ -302,7 +302,7 @@ export class LocationsService {
     return result;
   }
 
-  async create(body: any, tenantId: string, userId: string | null, opts?: { manager?: EntityManager }) {
+  async create(body: any, tenantId: string, userId: string | null, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const tenant = this.requireTenantId(tenantId);
     const repo = this.getRepo(opts?.manager);
     const mg = opts?.manager ?? repo.manager;
@@ -323,6 +323,7 @@ export class LocationsService {
     }
     const provider = category === 'cloud' ? await this.resolveProvider(body.provider, tenant, { manager: mg, settings }) : null;
     const region = category === 'cloud' ? this.normalizeNullable(body.region) : null;
+    const datacenter = category === 'on_prem' ? this.normalizeNullable(body.datacenter) : null;
     const additionalInfo = this.normalizeNullable(body.additional_info);
     const entity = repo.create({
       code,
@@ -331,14 +332,23 @@ export class LocationsService {
       operating_company_id: operatingCompany?.id ?? null,
       country_iso: countryIso,
       city,
-      datacenter: null,
+      datacenter,
       provider,
       region,
       additional_info: additionalInfo,
     });
     const saved = await repo.save(entity);
     await this.audit.log(
-      { table: 'locations', recordId: saved.id, action: 'create', before: null, after: saved, userId },
+      {
+        table: 'locations',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
       { manager: mg },
     );
     return saved;
@@ -349,7 +359,7 @@ export class LocationsService {
     body: any,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; audit?: AuditSourceOptions },
   ) {
     const tenant = this.requireTenantId(tenantId);
     const repo = this.getRepo(opts?.manager);
@@ -402,6 +412,9 @@ export class LocationsService {
           }
         }
       }
+      if (has('datacenter')) {
+        existing.datacenter = this.normalizeNullable(body.datacenter);
+      }
     } else {
       existing.operating_company_id = null;
       existing.datacenter = null;
@@ -433,7 +446,16 @@ export class LocationsService {
     existing.updated_at = new Date();
     const saved = await repo.save(existing);
     await this.audit.log(
-      { table: 'locations', recordId: saved.id, action: 'update', before, after: saved, userId },
+      {
+        table: 'locations',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
       { manager: mg },
     );
     return saved;

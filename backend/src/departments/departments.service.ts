@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, EntityManager, Repository } from 'typeorm';
 import { Department } from './department.entity';
 import { parsePagination } from '../common/pagination';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { Company } from '../companies/company.entity';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
@@ -221,7 +221,7 @@ export class DepartmentsService {
     return found;
   }
 
-  async create(body: DepartmentUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
+  async create(body: DepartmentUpsertDto, userId?: string, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const compRepo = this.getCompanyRepo(opts?.manager);
     if (!body.company_id) throw new BadRequestException('company_id is required');
@@ -244,11 +244,23 @@ export class DepartmentsService {
       }
       throw err;
     }
-    await this.audit.log({ table: 'departments', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'departments',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 
-  async update(id: string, body: DepartmentUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: DepartmentUpsertDto, userId?: string, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const compRepo = this.getCompanyRepo(opts?.manager);
     const existing = await this.get(id, { manager: opts?.manager });
@@ -275,7 +287,19 @@ export class DepartmentsService {
       }
       throw err;
     }
-    await this.audit.log({ table: 'departments', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'departments',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 

@@ -5,6 +5,7 @@ import { TasksUnifiedService } from '../../../tasks/tasks-unified.service';
 import { AiMutationPreview } from '../../ai-mutation-preview.entity';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiMutationOperation, AiMutationPreviewPresentation, AiPreparedMutationPreview } from '../ai-mutation-operation.types';
+import { buildAiMutationAudit } from '../ai-mutation-audit.util';
 import { AiTaskMutationSupportService, toDisplayAssignee } from '../ai-task-mutation-support.service';
 
 type UpdateTaskAssigneeInput = {
@@ -149,10 +150,7 @@ export class UpdateTaskAssigneeAiMutationOperation implements AiMutationOperatio
       {
         manager: context.manager,
         tenantId: context.tenantId,
-        audit: {
-          source: 'ai_chat',
-          sourceRef: preview.conversation_id ?? null,
-        },
+        audit: buildAiMutationAudit(preview),
       },
     );
   }

@@ -40,7 +40,7 @@ export class AssetsListService extends AssetsBaseService {
       hostname: 'a.hostname',
       fqdn: 'a.fqdn',
       operating_system: 'a.operating_system',
-      is_cluster: 'a.is_cluster',
+      is_cluster: 'COALESCE(a.is_cluster, false)::text',
       created_at: 'a.created_at',
       updated_at: 'a.updated_at',
       location_name: 'l.name',
@@ -56,8 +56,8 @@ export class AssetsListService extends AssetsBaseService {
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
-      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
+      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id
       WHERE ${whereConditions}
     `;
     const countResult = await mg.query(countQuery, params);
@@ -77,8 +77,8 @@ export class AssetsListService extends AssetsBaseService {
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
-      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
+      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id
       WHERE ${whereConditions}
       ORDER BY a.id, ${sortField} ${sort.direction}
     `;
@@ -89,8 +89,8 @@ export class AssetsListService extends AssetsBaseService {
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
-      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
+      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -155,7 +155,7 @@ export class AssetsListService extends AssetsBaseService {
       hostname: 'a.hostname',
       fqdn: 'a.fqdn',
       operating_system: 'a.operating_system',
-      is_cluster: 'a.is_cluster',
+      is_cluster: 'COALESCE(a.is_cluster, false)::text',
       created_at: 'a.created_at',
       updated_at: 'a.updated_at',
       location_name: 'l.name',
@@ -170,8 +170,8 @@ export class AssetsListService extends AssetsBaseService {
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
-      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
+      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id
       WHERE ${whereConditions}
     `;
     const countResult = await mg.query(countQuery, params);
@@ -184,8 +184,8 @@ export class AssetsListService extends AssetsBaseService {
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
-      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id
+      LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+      LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id
       WHERE ${whereConditions}
       ORDER BY ${sortField} ${sort.direction}
       LIMIT $${params.length + 1}
@@ -268,10 +268,13 @@ export class AssetsListService extends AssetsBaseService {
       asset_reference: 'a.asset_reference',
       environment: 'a.environment',
       provider: 'a.provider',
+      region: 'a.region',
+      zone: 'a.zone',
       operating_system: 'a.operating_system',
       status: 'a.status',
       hostname: 'a.hostname',
       fqdn: 'a.fqdn',
+      is_cluster: 'COALESCE(a.is_cluster, false)::text',
       location_name: 'l.name',
       hosting_type: 'l.hosting_type',
       sub_location_name: 'sl.name',
@@ -290,10 +293,10 @@ export class AssetsListService extends AssetsBaseService {
 
       // For cluster field, we need a different join strategy
       const clusterJoin = field === 'cluster'
-        ? `LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-           LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id`
-        : `LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id
-           LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id`;
+        ? `LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+           LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id`
+        : `LEFT JOIN asset_cluster_members acm ON acm.asset_id = a.id AND acm.tenant_id = a.tenant_id
+           LEFT JOIN assets cluster_asset ON cluster_asset.id = acm.cluster_id AND cluster_asset.tenant_id = a.tenant_id`;
 
       const distinctQuery = `
         SELECT DISTINCT ${expression} as value
@@ -333,10 +336,14 @@ export class AssetsListService extends AssetsBaseService {
       kind: 'a.kind',
       asset_reference: 'a.asset_reference',
       environment: 'a.environment',
+      provider: 'a.provider',
+      region: 'a.region',
+      zone: 'a.zone',
       operating_system: 'a.operating_system',
       status: 'a.status',
       hostname: 'a.hostname',
       fqdn: 'a.fqdn',
+      is_cluster: 'COALESCE(a.is_cluster, false)::text',
       location_name: 'l.name',
       hosting_type: 'l.hosting_type',
       sub_location_name: 'sl.name',

@@ -4,7 +4,7 @@ import { Brackets, EntityManager, Repository } from 'typeorm';
 import { Company } from './company.entity';
 import { ChartOfAccounts } from '../accounts/chart-of-accounts.entity';
 import { parsePagination } from '../common/pagination';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
@@ -625,7 +625,7 @@ export class CompaniesService {
     return found;
   }
 
-  async create(body: CompanyUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
+  async create(body: CompanyUpsertDto, userId?: string, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const { status: statusInput, disabled_at, ...rest } = body ?? {};
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
@@ -650,11 +650,23 @@ export class CompaniesService {
       console.warn('[companies] CoA auto-assign skipped:', (e as Error)?.message);
     }
     const saved = await repo.save(entity);
-    await this.audit.log({ table: 'companies', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'companies',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 
-  async update(id: string, body: CompanyUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: CompanyUpsertDto, userId?: string, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const existing = await this.get(id, { manager: opts?.manager });
     const before = { ...existing };
@@ -688,7 +700,19 @@ export class CompaniesService {
     existing.status = lifecycle.status;
     existing.disabled_at = lifecycle.disabled_at;
     const saved = await repo.save(existing);
-    await this.audit.log({ table: 'companies', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'companies',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 

@@ -5,7 +5,7 @@ import { Supplier } from './supplier.entity';
 import { ExternalContact } from '../contacts/external-contact.entity';
 import { SupplierContactLink, SupplierContactRole } from '../contacts/supplier-contact.entity';
 import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
-import { AuditService } from '../audit/audit.service';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
@@ -164,7 +164,7 @@ export class SuppliersService {
     return results;
   }
 
-  async create(body: SupplierUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
+  async create(body: SupplierUpsertDto, userId?: string, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const { status: statusInput, disabled_at, ...rest } = body ?? {};
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
@@ -174,11 +174,23 @@ export class SuppliersService {
       disabled_at: lifecycle.disabled_at,
     });
     const saved = await repo.save(entity);
-    await this.audit.log({ table: 'suppliers', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'suppliers',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 
-  async update(id: string, body: SupplierUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: SupplierUpsertDto, userId?: string, opts?: { manager?: EntityManager; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const existing = await this.get(id, { manager: opts?.manager });
     const before = { ...existing };
@@ -192,7 +204,19 @@ export class SuppliersService {
     existing.status = lifecycle.status;
     existing.disabled_at = lifecycle.disabled_at;
     const saved = await repo.save(existing);
-    await this.audit.log({ table: 'suppliers', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager: opts?.manager ?? repo.manager });
+    await this.audit.log(
+      {
+        table: 'suppliers',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return saved;
   }
 

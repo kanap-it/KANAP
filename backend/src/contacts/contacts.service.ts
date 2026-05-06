@@ -6,6 +6,7 @@ import { SupplierContactLink, SupplierContactRole } from './supplier-contact.ent
 import { Supplier } from '../suppliers/supplier.entity';
 import { SupplierContactsService } from '../suppliers/supplier-contacts.service';
 import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
+import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
@@ -22,6 +23,7 @@ export class ContactsService {
     private readonly supplierRepo: Repository<Supplier>,
     @Inject(forwardRef(() => SupplierContactsService))
     private readonly supplierContactsService: SupplierContactsService,
+    private readonly audit: AuditService,
   ) {}
 
   private getRepo(manager?: EntityManager) {
@@ -238,7 +240,7 @@ export class ContactsService {
     return { ...rest, supplier_role: supplierRole ?? null, supplier_name: supplier?.name ?? null };
   }
 
-  async create(body: Partial<ExternalContact>, opts?: { manager?: EntityManager }) {
+  async create(body: Partial<ExternalContact>, opts?: { manager?: EntityManager; userId?: string | null; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const supplierRepo = this.getSupplierRepo(opts?.manager);
     if (!body?.email) throw new BadRequestException('email is required');
@@ -278,14 +280,29 @@ export class ContactsService {
     }
 
     const supplier_role = await this.findSupplierRole(saved.id, supplierId, opts?.manager);
+    await this.audit.log(
+      {
+        table: 'contacts',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: { ...saved, supplier_role },
+        userId: opts?.userId ?? null,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return { ...saved, supplier_role };
   }
 
-  async update(id: string, body: Partial<ExternalContact>, opts?: { manager?: EntityManager }) {
+  async update(id: string, body: Partial<ExternalContact>, opts?: { manager?: EntityManager; userId?: string | null; audit?: AuditSourceOptions }) {
     const repo = this.getRepo(opts?.manager);
     const supplierRepo = this.getSupplierRepo(opts?.manager);
     const existing = await repo.findOne({ where: { id } });
     if (!existing) throw new NotFoundException('Contact not found');
+    const beforeRole = await this.findSupplierRole(id, existing.supplier_id, opts?.manager);
+    const before = { ...existing, supplier_role: beforeRole };
     const supplierRoleProvided = Object.prototype.hasOwnProperty.call(body, 'supplier_role');
     const supplierRole = supplierRoleProvided ? this.normalizeSupplierRole((body as any).supplier_role) : null;
     if (supplierRoleProvided && (body as any).supplier_role != null && !supplierRole) {
@@ -333,6 +350,19 @@ export class ContactsService {
       }
     }
     const supplier_role = await this.findSupplierRole(saved.id, saved.supplier_id, opts?.manager);
+    await this.audit.log(
+      {
+        table: 'contacts',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: { ...saved, supplier_role },
+        userId: opts?.userId ?? null,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
+      { manager: opts?.manager ?? repo.manager },
+    );
     return { ...saved, supplier_role };
   }
 

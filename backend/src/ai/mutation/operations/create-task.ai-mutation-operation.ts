@@ -10,6 +10,7 @@ import {
   AiTaskMutationSupportService,
 } from '../ai-task-mutation-support.service';
 import { TasksUnifiedService } from '../../../tasks/tasks-unified.service';
+import { buildAiMutationAudit } from '../ai-mutation-audit.util';
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -417,10 +418,7 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
       {
         manager: context.manager,
         tenantId: context.tenantId,
-        audit: {
-          source: 'ai_chat',
-          sourceRef: preview.conversation_id ?? null,
-        },
+        audit: buildAiMutationAudit(preview),
       },
     );
 
