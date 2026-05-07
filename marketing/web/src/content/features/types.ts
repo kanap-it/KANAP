@@ -4,7 +4,7 @@ export interface FeatureSection {
   title: string;
   body: string;
   bullets: string[];
-  /** Placeholder alt text until screenshots land. */
+  /** Product screenshot alt text. */
   shotAlt: string;
 }
 
@@ -61,7 +61,7 @@ export interface Persona {
   outcome: string;
   /** Modules combined in the scenario; chips link to the deep-dive pages. */
   modules: PersonaModuleRef[];
-  /** Alt text for the placeholder screenshot. */
+  /** Product screenshot alt text. */
   shotAlt: string;
 }
 

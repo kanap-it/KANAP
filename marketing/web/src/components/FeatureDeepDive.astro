@@ -10,6 +10,7 @@ import {
 } from './sections';
 import { getLocaleFromUrl, localePath } from '../i18n/ui';
 import type { FeatureContent } from '../content/features/types';
+import { FEATURE_SCREENSHOTS, getFeatureSlugFromPath } from '../content/screenshots';
 
 interface Props {
   content: FeatureContent;
@@ -17,6 +18,8 @@ interface Props {
 
 const { content } = Astro.props;
 const locale = getLocaleFromUrl(Astro.url);
+const featureSlug = getFeatureSlugFromPath(Astro.url.pathname);
+const featureScreenshots = featureSlug ? FEATURE_SCREENSHOTS[featureSlug] : undefined;
 ---
 
 <BaseLayout title={content.meta.title} description={content.meta.description}>
@@ -35,7 +38,7 @@ const locale = getLocaleFromUrl(Astro.url);
         reverse={i % 2 === 1}
       >
         <Fragment slot="visual">
-          <ScreenshotFrame placeholder alt={section.shotAlt} />
+          <ScreenshotFrame src={featureScreenshots?.[i]} alt={section.shotAlt} />
         </Fragment>
       </SplitSection>
     </Section>
