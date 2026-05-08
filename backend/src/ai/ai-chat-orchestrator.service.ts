@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { AiAttachmentService } from './ai-attachment.service';
 import { AiConversationService } from './ai-conversation.service';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
@@ -9,7 +10,13 @@ import { AiToolRegistry } from './ai-tool.registry';
 import { prepareAiProviderMessages } from './ai-context-budget.helper';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
-import { AiProviderAdapter, AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
+import {
+  AiProviderAdapter,
+  AiProviderImageAttachment,
+  AiProviderMessage,
+  AiProviderToolCall,
+  AiStreamEvent,
+} from './providers/ai-provider.types';
 import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from './providers/streaming.util';
 import { isOpenAiReasoningModel } from './providers/openai-stream.util';
 import {
@@ -44,6 +51,8 @@ type ChatStreamParams = {
   context: AiExecutionContext;
   conversationId?: string | null;
   userMessage: string;
+  /** Attachment ids that have already been uploaded for the current user message (multimodal). */
+  attachmentIds?: string[] | null;
   signal?: AbortSignal | null;
 };
 
@@ -67,6 +76,7 @@ type PreparedChatRequest = {
   context: AiExecutionContext;
   inputConversationId?: string | null;
   userMessage: string;
+  attachmentIds?: string[] | null;
   approvalAction: ApprovalAction | null;
   providerSource: 'builtin' | 'custom';
   provider: AiProviderAdapter;
@@ -131,6 +141,7 @@ export class AiChatOrchestratorService {
     private readonly previews: AiMutationPreviewService,
     private readonly toolRegistry: AiToolRegistry,
     private readonly systemPrompt: AiSystemPromptService,
+    private readonly attachments: AiAttachmentService,
   ) {}
 
   private parseApprovalAction(userMessage: string): ApprovalAction | null {
@@ -306,6 +317,7 @@ export class AiChatOrchestratorService {
           context: params.context,
           inputConversationId: params.conversationId ?? null,
           userMessage: params.userMessage,
+          attachmentIds: params.attachmentIds ?? null,
           approvalAction,
           providerSource,
           provider: adapter,
@@ -329,6 +341,7 @@ export class AiChatOrchestratorService {
         context: params.context,
         inputConversationId: params.conversationId ?? null,
         userMessage: params.userMessage,
+        attachmentIds: params.attachmentIds ?? null,
         approvalAction,
         providerSource,
         provider: adapter,
@@ -448,8 +461,18 @@ export class AiChatOrchestratorService {
           convId = conv.id;
         }
 
+        // Validate attachment ownership BEFORE persisting (fail fast)
+        const requestedAttachmentIds = Array.isArray(prepared.attachmentIds) ? prepared.attachmentIds : [];
+        if (requestedAttachmentIds.length > 0) {
+          await this.attachments.assertAndLoadAttachments(
+            requestedAttachmentIds,
+            { conversationId: convId!, tenantId: ctx.tenantId, userId: ctx.userId },
+            ctx.manager,
+          );
+        }
+
         // Persist user message
-        await this.conversations.appendMessage(
+        const persistedUserMessage = await this.conversations.appendMessage(
           {
             conversationId: convId!,
             tenantId: ctx.tenantId,
@@ -460,6 +483,17 @@ export class AiChatOrchestratorService {
           },
           { manager: ctx.manager },
         );
+
+        // Link attachments to the persisted user message (idempotent — safe to retry).
+        if (requestedAttachmentIds.length > 0) {
+          await this.attachments.linkAttachmentsToMessage(
+            requestedAttachmentIds,
+            persistedUserMessage.id,
+            ctx.tenantId,
+            ctx.manager,
+          );
+        }
+
         const streamEvents: ChatStreamEvent[] = [];
 
         if (approvalAction) {
@@ -491,12 +525,50 @@ export class AiChatOrchestratorService {
           { manager: ctx.manager },
         );
 
+        // Pre-load image attachments for user messages so we can inject them into multimodal
+        // content blocks. Only Anthropic currently honors images; other providers ignore them.
+        // Performance: at most ~20MB per image x typically <10 attachments per conversation.
+        const userMessageIds = history
+          .filter((msg) => msg.role === 'user')
+          .map((msg) => msg.id);
+        const attachmentImagesByMessage = new Map<string, AiProviderImageAttachment[]>();
+        if (userMessageIds.length > 0) {
+          const attachmentRows = await this.attachments.listAttachmentsForMessages(
+            userMessageIds,
+            ctx.tenantId,
+            ctx.manager,
+          );
+          await Promise.all(attachmentRows.map(async (row) => {
+            if (!row.message_id) return;
+            try {
+              const { buffer } = await this.attachments.loadAttachmentBuffer(
+                row.id,
+                ctx.tenantId,
+                ctx.manager,
+              );
+              const list = attachmentImagesByMessage.get(row.message_id) || [];
+              list.push({
+                mime_type: row.mime_type,
+                base64_data: buffer.toString('base64'),
+              });
+              attachmentImagesByMessage.set(row.message_id, list);
+            } catch (err) {
+              this.logger.warn(`Failed to load attachment ${row.id} for replay: ${(err as Error).message}`);
+            }
+          }));
+        }
+
         // Build provider messages from history (excluding the just-persisted user msg for reconstruction)
         const msgs: AiProviderMessage[] = [];
         let replayableToolCallIds = new Set<string>();
         for (const msg of history) {
           if (msg.role === 'user') {
-            msgs.push({ role: 'user', content: this.toProviderUserContent(msg.content) });
+            const images = attachmentImagesByMessage.get(msg.id);
+            msgs.push({
+              role: 'user',
+              content: this.toProviderUserContent(msg.content),
+              ...(images && images.length > 0 ? { images } : {}),
+            });
             replayableToolCallIds = new Set<string>();
           } else if (msg.role === 'assistant') {
             const toolCalls = this.sanitizeReplayToolCalls(msg.tool_calls);

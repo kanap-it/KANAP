@@ -229,6 +229,12 @@ function createOrchestrator(options?: {
     mockPreviews as any,
     mockToolRegistry as any,
     mockSystemPrompt as any,
+    {
+      assertAndLoadAttachments: async () => [],
+      linkAttachmentsToMessage: async () => undefined,
+      listAttachmentsForMessages: async () => [],
+      loadAttachmentBuffer: async () => ({ attachment: {} as any, buffer: Buffer.alloc(0) }),
+    } as any,
   );
 
   return { orchestrator, persistedMessages, providerCallCount, recordedRequests, toolExecuteCount };
