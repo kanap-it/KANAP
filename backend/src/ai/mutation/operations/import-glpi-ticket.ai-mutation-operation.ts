@@ -3,13 +3,14 @@ import { z } from 'zod';
 import { htmlToMarkdown, resolveHtmlContentSource } from '../../../common/html-to-markdown';
 import { normalizeMarkdownRichText } from '../../../common/markdown-rich-text';
 import { TaskPriorityLevel } from '../../../tasks/task.entity';
+import { TaskActivitiesService } from '../../../tasks/task-activities.service';
 import { TaskAttachmentsService } from '../../../tasks/task-attachments.service';
 import { TasksUnifiedService } from '../../../tasks/tasks-unified.service';
 import { AiPolicyService } from '../../ai-policy.service';
 import { AiMutationPreview } from '../../ai-mutation-preview.entity';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { GlpiService } from '../../glpi/glpi.service';
-import { GlpiTicket } from '../../glpi/glpi.types';
+import { GlpiSession, GlpiTicket, GlpiTicketFollowup } from '../../glpi/glpi.types';
 import {
   AiMutationOperation,
   AiMutationPreviewPresentation,
@@ -189,6 +190,53 @@ function buildDescription(ticket: GlpiTicket, contentHtml: string | null): strin
   const converted = htmlToMarkdown(contentHtml || '');
   const sections = [textOrNull(converted), buildSourceFooter(ticket)].filter((part): part is string => !!part);
   return sections.join('\n\n');
+}
+
+function buildImportedFollowupComment(
+  ticketId: number,
+  followup: GlpiTicketFollowup,
+  markdownBody: string,
+): string {
+  const lines = [
+    `Source: GLPI Ticket #${ticketId} followup #${followup.id}`,
+    `Author: ${textOrNull(followup.author_label) ?? 'Unknown'}`,
+    `Date: ${textOrNull(followup.date) ?? 'Unknown'}`,
+    '---',
+    textOrNull(markdownBody) ?? '(empty comment)',
+  ];
+  return lines.join('\n');
+}
+
+function parseGlpiDate(value: string | null): Date | null {
+  const text = textOrNull(value);
+  if (!text) {
+    return null;
+  }
+  const parsed = new Date(text.replace(' ', 'T'));
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+function normalizeStoredFollowup(value: unknown): GlpiTicketFollowup | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === 'number' && Number.isFinite(record.id)
+    ? Math.trunc(record.id)
+    : parseNumericLevel(record.id);
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    content_html: textOrNull(record.content_html),
+    author_label: textOrNull(record.author_label),
+    date: textOrNull(record.date),
+    is_private: record.is_private === true,
+    image_targets: Array.isArray(record.image_targets)
+      ? record.image_targets.map((target) => String(target || '').trim()).filter(Boolean)
+      : [],
+  };
 }
 
 function buildMulterFile(document: { buffer: Buffer; mimeType: string; filename: string }): Express.Multer.File {
@@ -396,7 +444,7 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
   readonly businessResource = 'tasks';
   readonly writePreview = {
     entity_type: 'tasks',
-    fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'task_type', 'source'],
+    fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'task_type', 'source', 'comments'],
     reversible: false,
     prompt_hint: 'For GLPI escalation, use `import_glpi_ticket` with the numeric GLPI ticket id. The task requestor is always the current Plaid user.',
   };
@@ -405,6 +453,7 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
     private readonly support: AiTaskMutationSupportService,
     private readonly tasks: TasksUnifiedService,
     private readonly attachments: TaskAttachmentsService,
+    private readonly activities: TaskActivitiesService,
     private readonly glpi: GlpiService,
     private readonly policy: AiPolicyService,
   ) {}
@@ -446,6 +495,43 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
     return slug || context.tenantId;
   }
 
+  private async importInlineImagesForSourceField(params: {
+    taskId: string;
+    context: AiExecutionContextWithManager;
+    session: GlpiSession;
+    tenantSlug: string;
+    rawTargets: string[];
+    sourceField: 'description' | 'content';
+  }): Promise<{ replacements: Map<string, string>; importedCount: number; warnings: string[] }> {
+    const replacements = new Map<string, string>();
+    const warnings: string[] = [];
+    let importedCount = 0;
+
+    for (const rawTarget of [...new Set(params.rawTargets.map((target) => String(target || '').trim()).filter(Boolean))]) {
+      try {
+        const document = await this.glpi.fetchDocument(params.session, rawTarget);
+        const attachment = await this.attachments.uploadAttachment(
+          params.taskId,
+          buildMulterFile(document),
+          params.context.userId,
+          {
+            manager: params.context.manager,
+            sourceField: params.sourceField,
+          },
+        );
+        const inlineUrl = `/api/tasks/attachments/${params.tenantSlug}/${attachment.id}/inline`;
+        registerReplacementKeys(replacements, params.session.baseUrl, rawTarget, inlineUrl);
+        importedCount += 1;
+      } catch (error: any) {
+        warnings.push(
+          `Skipped GLPI ${params.sourceField} image ${rawTarget}: ${String(error?.message || error || 'unknown error')}`,
+        );
+      }
+    }
+
+    return { replacements, importedCount, warnings };
+  }
+
   async prepareCreatePreview(
     context: AiExecutionContextWithManager,
     input: ImportGlpiTicketInput,
@@ -462,10 +548,14 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
     try {
       session = await this.glpi.initSession(context.tenantId, context.manager);
       const ticket = await this.glpi.getTicket(session, input.ticket_id);
+      const followups = await this.glpi.getTicketFollowups(session, ticket.id);
+      const publicFollowups = followups.filter((followup) => !followup.is_private);
+      const privateFollowupCount = followups.length - publicFollowups.length;
       const normalizedContentHtml = textOrNull(resolveHtmlContentSource(ticket.content_html || ''));
       const description = normalizeMarkdownRichText(buildDescription(ticket, normalizedContentHtml), { fieldName: 'description' });
       const taskType = await this.resolveMappedTaskType(context, ticket.type);
       const imageTargets = extractImageTargets(normalizedContentHtml);
+      const followupImageTargets = publicFollowups.flatMap((followup) => followup.image_targets);
       const title = textOrNull(ticket.name) || `GLPI Ticket #${ticket.id}`;
 
       return {
@@ -489,6 +579,10 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
           glpi_ticket_id: ticket.id,
           glpi_source_url: ticket.glpi_url,
           glpi_image_targets: imageTargets,
+          glpi_followups: publicFollowups,
+          glpi_followup_public_count: publicFollowups.length,
+          glpi_followup_private_skipped_count: privateFollowupCount,
+          glpi_followup_image_total_count: followupImageTargets.length,
           status: 'open',
         },
         currentValues: {
@@ -497,6 +591,9 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
           glpi_ticket_id: ticket.id,
           glpi_source_url: ticket.glpi_url,
           glpi_image_total_count: imageTargets.length,
+          glpi_followup_public_count: publicFollowups.length,
+          glpi_followup_private_skipped_count: privateFollowupCount,
+          glpi_followup_image_total_count: followupImageTargets.length,
         },
       };
     } finally {
@@ -516,6 +613,11 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
     const glpiTicketId = textOrNull(current.glpi_ticket_id) ?? textOrNull(mutation.glpi_ticket_id) ?? 'unknown';
     const imageTotalCount = Number(current.glpi_image_total_count ?? (Array.isArray(mutation.glpi_image_targets) ? mutation.glpi_image_targets.length : 0));
     const imageImportedCount = Number(current.glpi_image_imported_count ?? 0);
+    const followupPublicCount = Number(current.glpi_followup_public_count ?? mutation.glpi_followup_public_count ?? (Array.isArray(mutation.glpi_followups) ? mutation.glpi_followups.length : 0));
+    const followupImportedCount = Number(current.glpi_followup_imported_count ?? 0);
+    const privateFollowupSkippedCount = Number(current.glpi_followup_private_skipped_count ?? mutation.glpi_followup_private_skipped_count ?? 0);
+    const followupImageTotalCount = Number(current.glpi_followup_image_total_count ?? mutation.glpi_followup_image_total_count ?? 0);
+    const followupImageImportedCount = Number(current.glpi_followup_image_imported_count ?? 0);
     const warningCount = Array.isArray(current.glpi_image_warnings) ? current.glpi_image_warnings.length : 0;
 
     let summary = `Preview ${preview.id} ${preview.status}.`;
@@ -531,6 +633,12 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
         if (imageTotalCount > 0) {
           summary += ` ${imageTotalCount} inline image${imageTotalCount === 1 ? '' : 's'} queued for import.`;
         }
+        if (followupPublicCount > 0) {
+          summary += ` ${followupPublicCount} public followup${followupPublicCount === 1 ? '' : 's'} queued as comments.`;
+        }
+        if (privateFollowupSkippedCount > 0) {
+          summary += ` ${privateFollowupSkippedCount} private followup${privateFollowupSkippedCount === 1 ? '' : 's'} will be skipped.`;
+        }
         break;
       case 'executed':
         summary = ref
@@ -538,6 +646,9 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
           : `Created task "${title}" from GLPI ticket #${glpiTicketId}.`;
         if (imageTotalCount > 0) {
           summary += ` Imported ${imageImportedCount} of ${imageTotalCount} inline image${imageTotalCount === 1 ? '' : 's'}.`;
+        }
+        if (followupPublicCount > 0) {
+          summary += ` Imported ${followupImportedCount} of ${followupPublicCount} public followup${followupPublicCount === 1 ? '' : 's'} as comments.`;
         }
         if (warningCount > 0) {
           summary += ` ${warningCount} warning${warningCount === 1 ? '' : 's'} recorded during image import.`;
@@ -607,6 +718,22 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
           to: imageTotalCount > 0 ? `${imageTotalCount} queued for import` : 'None',
           format: 'text',
         },
+        followups: {
+          label: 'Followups',
+          from: null,
+          to: followupPublicCount > 0
+            ? `${followupPublicCount} public queued as comments${privateFollowupSkippedCount > 0 ? `, ${privateFollowupSkippedCount} private skipped` : ''}`
+            : privateFollowupSkippedCount > 0 ? `${privateFollowupSkippedCount} private skipped` : 'None',
+          format: 'text',
+        },
+        followup_inline_images: {
+          label: 'Followup Inline Images',
+          from: null,
+          to: followupImageTotalCount > 0
+            ? `${followupImageImportedCount > 0 ? `${followupImageImportedCount} imported of ` : ''}${followupImageTotalCount} queued`
+            : 'None',
+          format: 'text',
+        },
         description: {
           label: 'Description',
           from: null,
@@ -655,72 +782,114 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
     const rawImageTargets = Array.isArray(mutation.glpi_image_targets)
       ? mutation.glpi_image_targets.map((target) => String(target || '').trim()).filter(Boolean)
       : [];
+    const followups = Array.isArray(mutation.glpi_followups)
+      ? mutation.glpi_followups.map(normalizeStoredFollowup).filter((item): item is GlpiTicketFollowup => !!item && !item.is_private)
+      : [];
+    const followupImageTargets = followups.flatMap((followup) => followup.image_targets);
+    const glpiTicketId = parseNumericLevel(mutation.glpi_ticket_id) ?? 0;
     const warnings: string[] = [];
     let importedImageCount = 0;
+    let importedFollowupImageCount = 0;
+    let importedFollowupCount = 0;
+    let followupImageReplacements = new Map<string, string>();
 
-    if (rawImageTargets.length > 0) {
+    if (rawImageTargets.length > 0 || followupImageTargets.length > 0) {
       try {
         const tenantSlug = await this.loadCurrentTenantSlug(context);
-        const replacements = new Map<string, string>();
-        const uniqueTargets = [...new Set(rawImageTargets)];
-        let session = null;
+        let session: GlpiSession | null = null;
 
         try {
           session = await this.glpi.initSession(context.tenantId, context.manager);
-          for (const rawTarget of uniqueTargets) {
-            try {
-              const document = await this.glpi.fetchDocument(session, rawTarget);
-              const attachment = await this.attachments.uploadAttachment(
-                created.id,
-                buildMulterFile(document),
-                context.userId,
-                {
-                  manager: context.manager,
-                  sourceField: 'description',
-                },
-              );
-              const inlineUrl = `/api/tasks/attachments/${tenantSlug}/${attachment.id}/inline`;
-              registerReplacementKeys(replacements, session.baseUrl, rawTarget, inlineUrl);
-              importedImageCount += 1;
-            } catch (error: any) {
-              warnings.push(
-                `Skipped GLPI image ${rawTarget}: ${String(error?.message || error || 'unknown error')}`,
-              );
+
+          if (rawImageTargets.length > 0) {
+            const descriptionImages = await this.importInlineImagesForSourceField({
+              taskId: created.id,
+              context,
+              session,
+              tenantSlug,
+              rawTargets: rawImageTargets,
+              sourceField: 'description',
+            });
+            importedImageCount = descriptionImages.importedCount;
+            warnings.push(...descriptionImages.warnings);
+
+            if (descriptionImages.replacements.size > 0) {
+              try {
+                const rewrittenDescription = rewriteMarkdownImageTargets(
+                  created.description || textOrNull(mutation.description) || '',
+                  descriptionImages.replacements,
+                );
+                if (rewrittenDescription !== (created.description || '')) {
+                  await this.tasks.updateById(
+                    created.id,
+                    { description: rewrittenDescription },
+                    context.userId,
+                    {
+                      manager: context.manager,
+                      tenantId: context.tenantId,
+                      audit: buildAiMutationAudit(preview),
+                    },
+                  );
+                }
+              } catch (error: any) {
+                warnings.push(
+                  `Failed to rewrite imported GLPI images in the task description: ${String(error?.message || error || 'unknown error')}`,
+                );
+              }
             }
+          }
+
+          if (followupImageTargets.length > 0) {
+            const followupImages = await this.importInlineImagesForSourceField({
+              taskId: created.id,
+              context,
+              session,
+              tenantSlug,
+              rawTargets: followupImageTargets,
+              sourceField: 'content',
+            });
+            followupImageReplacements = followupImages.replacements;
+            importedFollowupImageCount = followupImages.importedCount;
+            warnings.push(...followupImages.warnings);
           }
         } finally {
           if (session) {
             await this.glpi.killSession(session);
           }
         }
-
-        if (replacements.size > 0) {
-          try {
-            const rewrittenDescription = rewriteMarkdownImageTargets(
-              created.description || textOrNull(mutation.description) || '',
-              replacements,
-            );
-            if (rewrittenDescription !== (created.description || '')) {
-              await this.tasks.updateById(
-                created.id,
-                { description: rewrittenDescription },
-                context.userId,
-                {
-                  manager: context.manager,
-                  tenantId: context.tenantId,
-                  audit: buildAiMutationAudit(preview),
-                },
-              );
-            }
-          } catch (error: any) {
-            warnings.push(
-              `Failed to rewrite imported GLPI images in the task description: ${String(error?.message || error || 'unknown error')}`,
-            );
-          }
-        }
       } catch (error: any) {
         warnings.push(
           `GLPI inline image import did not complete: ${String(error?.message || error || 'unknown error')}`,
+        );
+      }
+    }
+
+    for (const followup of followups) {
+      try {
+        const normalizedContentHtml = textOrNull(resolveHtmlContentSource(followup.content_html || ''));
+        const converted = htmlToMarkdown(normalizedContentHtml || '');
+        const rewritten = followupImageReplacements.size > 0
+          ? rewriteMarkdownImageTargets(converted, followupImageReplacements)
+          : converted;
+        const content = buildImportedFollowupComment(glpiTicketId, followup, rewritten);
+        await this.activities.createImportedComment(
+          created.id,
+          {
+            content,
+            context: 'glpi_import',
+            created_at: parseGlpiDate(followup.date),
+          },
+          context.tenantId,
+          context.userId,
+          {
+            manager: context.manager,
+            audit: buildAiMutationAudit(preview),
+          },
+        );
+        importedFollowupCount += 1;
+      } catch (error: any) {
+        warnings.push(
+          `Failed to import GLPI followup #${followup.id}: ${String(error?.message || error || 'unknown error')}`,
         );
       }
     }
@@ -732,6 +901,11 @@ export class ImportGlpiTicketAiMutationOperation implements AiMutationOperation<
       target_title: created.title ?? textOrNull(mutation.title),
       glpi_image_total_count: rawImageTargets.length,
       glpi_image_imported_count: importedImageCount,
+      glpi_followup_public_count: followups.length,
+      glpi_followup_imported_count: importedFollowupCount,
+      glpi_followup_private_skipped_count: Number(mutation.glpi_followup_private_skipped_count ?? 0),
+      glpi_followup_image_total_count: followupImageTargets.length,
+      glpi_followup_image_imported_count: importedFollowupImageCount,
       glpi_image_warnings: warnings,
     };
   }
