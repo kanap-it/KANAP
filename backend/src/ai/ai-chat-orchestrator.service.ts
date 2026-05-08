@@ -33,8 +33,28 @@ import { PlatformAiConfigService } from './platform/platform-ai-config.service';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 
 const MAX_TOOL_ITERATIONS = 20;
-const DEFAULT_MAX_TOKENS = 4096;
-const OPENAI_REASONING_MAX_TOKENS = 8192;
+/**
+ * Per-turn output cap. The previous 4096 was too tight: when a write tool such as
+ * create_document or update_document_content streams its arguments (the document
+ * body lives inside the tool_call JSON), the model would hit finish_reason='length'
+ * mid-arguments and the orchestrator would surface "Model output was truncated
+ * before the tool call completed.". 16K covers ~12k words of markdown, which is
+ * enough for the documents Plaid produces in practice. Modern providers (Anthropic
+ * Claude 3.5+, GPT-4o, qwen3-* with vLLM) all support at least this much output.
+ * Operators can override via env if their model needs more or less.
+ */
+const DEFAULT_MAX_TOKENS = parsePositiveIntEnv(process.env.AI_CHAT_MAX_TOKENS, 16384);
+const OPENAI_REASONING_MAX_TOKENS = parsePositiveIntEnv(
+  process.env.AI_CHAT_REASONING_MAX_TOKENS,
+  Math.max(DEFAULT_MAX_TOKENS, 16384),
+);
+
+function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return fallback;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 const DEFAULT_CHAT_PROVIDER_TIMEOUT_MS = 300_000;
 const APPROVE_MARKER_RE = /^\[APPROVE:([0-9a-f-]{36})\]$/i;
 const REJECT_MARKER_RE = /^\[REJECT:([0-9a-f-]{36})\]$/i;
