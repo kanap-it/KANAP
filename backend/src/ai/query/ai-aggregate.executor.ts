@@ -25,6 +25,10 @@ import { SuppliersService } from '../../suppliers/suppliers.service';
 import { UsersService } from '../../users/users.service';
 import { AiExecutionContextWithManager, AiQueryEntityType, AiQueryScope } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
+import {
+  buildFilterRepairSuggestions,
+  hasEmailOrUuidFilterValue,
+} from './ai-filter-description.util';
 import { applyScopeToAiQuery, ResolvedAiScope } from './ai-query-scope.util';
 import {
   AiAggregateMetricDef,
@@ -447,6 +451,47 @@ export class AiAggregateExecutor {
     private readonly interfaces: InterfacesService,
     private readonly connections: ConnectionsService,
   ) {}
+
+  private async normalizePersonFilters(
+    context: AiExecutionContextWithManager,
+    entityType: AiQueryEntityType,
+    filters?: Record<string, AiFilterValue>,
+  ): Promise<Record<string, AiFilterValue> | undefined> {
+    if (entityType !== 'tasks' || !filters) return filters;
+
+    const normalized: Record<string, AiFilterValue> = { ...filters };
+    for (const field of ['assignee', 'creator'] as const) {
+      const rawValue = normalized[field];
+      if (!rawValue || !hasEmailOrUuidFilterValue(rawValue)) continue;
+      const values = Array.isArray(rawValue)
+        ? rawValue
+        : typeof rawValue === 'string'
+          ? [rawValue]
+          : [];
+      const resolvedValues: Array<string | null> = [];
+      for (const value of values) {
+        if (value === null) {
+          resolvedValues.push(null);
+          continue;
+        }
+        if (typeof value !== 'string' || !value.trim()) continue;
+        const rows = await context.manager.query(
+          `SELECT COALESCE(NULLIF(TRIM(CONCAT(first_name, ' ', last_name)), ''), email) AS display_name
+           FROM users
+           WHERE tenant_id = $1
+             AND (LOWER(email) = LOWER($2) OR id::text = $2)
+           LIMIT 1`,
+          [context.tenantId, value.trim()],
+        );
+        resolvedValues.push(rows[0]?.display_name ?? value.trim());
+      }
+      if (resolvedValues.length > 0) {
+        normalized[field] = Array.isArray(rawValue) ? resolvedValues : resolvedValues[0] ?? rawValue;
+      }
+    }
+
+    return normalized;
+  }
 
   private serializeFiltersForTasks(filters: Record<string, any>): string | undefined {
     return Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined;
@@ -1294,7 +1339,25 @@ export class AiAggregateExecutor {
 
     const fn = normalizeAggregateFunction(input.function);
     const metric = this.resolveMetric(input.entity_type, input.metric?.trim(), fn);
-    const adapted = adaptFilters(registry, input.filters);
+    const normalizedFilters = await this.normalizePersonFilters(context, input.entity_type, input.filters);
+    const adapted = adaptFilters(registry, normalizedFilters);
+    if (adapted.ignored.length > 0) {
+      return {
+        status: 'invalid_filter',
+        group_by: input.group_by,
+        metric: metric ? input.metric?.trim() ?? null : null,
+        function: fn,
+        groups: [],
+        total: 0,
+        returned: 0,
+        truncated: false,
+        complete: false,
+        filters_applied: adapted.applied,
+        filters_ignored: adapted.ignored,
+        suggested_repairs: buildFilterRepairSuggestions(registry, adapted.ignored),
+        scope: null,
+      };
+    }
     const isCompleteAggregateResult = (scope: ResolvedAiScope | null): boolean =>
       adapted.ignored.length === 0 && (scope?.resolved !== false);
     if (input.entity_type === 'documents') {

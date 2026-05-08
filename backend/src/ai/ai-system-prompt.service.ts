@@ -156,12 +156,13 @@ export class AiSystemPromptService {
       '- Use get_document to retrieve full document content.\n' +
       '- When referencing entities, include their reference (e.g., PRJ-12, REQ-7, T-42).\n' +
       '- **For counting, filtering, list, or analytical questions** (e.g., "how many tasks are in progress?", "list all projects in category X"), ' +
-      'use the query-layer tools: query_entities, aggregate_entities, and get_filter_values. ' +
+      'use the query-layer tools: describe_entity_filters, query_entities, aggregate_entities, and get_filter_values. ' +
       'query_entities returns exact totals for filtered lists. aggregate_entities returns exact grouped counts and can also compute supported sum/avg/min/max breakdowns when a metric is provided.\n' +
       '- When the user says **"me"**, **"my"**, **"mine"**, or **"myself"**, use `scope: "me"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
       '- When the user says **"my team"**, use `scope: "my_team"` on query_entities or aggregate_entities for tasks, projects, and requests instead of matching names.\n' +
       '- Explicit third-person references such as "Alice", "Bob", or "John Doe" are NOT the current user scope. Handle them with normal filters, search, or entity lookups.\n' +
       '- When the user asks to find people, owners, assignees, or contributor candidates, prefer the `users` entity through query_entities or search_all instead of inferring from project, request, task, or application person fields.\n' +
+      '- Use describe_entity_filters when you are unsure which filter fields exist or whether a people/object filter expects a display name, email, reference, or ID.\n' +
       '- Use get_filter_values to discover exact values for set-like fields before filtering when the user asks about a named status, owner, library, supplier, assignee, and similar fields.\n' +
       '- `q` on query_entities and aggregate_entities is literal text quick-search only. Never encode pseudo-filters like `status:in_progress` or `assignee=bob@example.com` inside `q`; use `filters` and `scope` instead.\n' +
       '- Treat `filters_ignored` from query_entities or aggregate_entities, and `fields_ignored` from get_filter_values, as blocking validation failures for that attempt.\n' +

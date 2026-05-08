@@ -22,6 +22,10 @@ export const tasksRegistry: AiEntityFilterRegistry = {
       discoverable: true,
       sortable: true,
       groupable: true,
+      aliases: ['assignee_id', 'assignee_user_id', 'assignee_name', 'assignee_email'],
+      acceptedValueKind: 'user display name; email and UUID are accepted and normalized before filtering',
+      lookupEntity: 'users',
+      examples: ['Franck BONGAY'],
     },
     creator: {
       ai: 'creator',
@@ -32,6 +36,9 @@ export const tasksRegistry: AiEntityFilterRegistry = {
       discoverable: true,
       sortable: false,
       groupable: true,
+      aliases: ['creator_id', 'creator_user_id', 'creator_name', 'creator_email'],
+      acceptedValueKind: 'user display name; email and UUID are accepted and normalized before filtering',
+      lookupEntity: 'users',
     },
     priority: {
       ai: 'priority',
