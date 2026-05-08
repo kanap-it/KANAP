@@ -1,23 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Alert,
   Box,
-  Collapse,
-  IconButton,
   Stack,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import BuildIcon from '@mui/icons-material/Build';
 import { useTranslation } from 'react-i18next';
 
-type ToolResultRendererProps = {
+type ToolResultBodyProps = {
   name: string;
   result: unknown;
-  arguments?: Record<string, unknown>;
 };
 
 function getIgnoredFields(result: unknown): string[] {
@@ -42,7 +36,7 @@ function EntityList({ items }: { items: any[] }) {
       {items.map((item: any, i: number) => (
         <Stack key={item.id || i} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{item.type}</Box>
-          {item.ref && <Typography variant="body2" fontWeight={600}>{item.ref}</Typography>}
+          {item.ref && <Typography variant="body2" fontWeight={500}>{item.ref}</Typography>}
           <Typography variant="body2">{item.label}</Typography>
           {item.status && (
             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
@@ -64,7 +58,7 @@ function DocumentList({ items }: { items: any[] }) {
       {items.map((item: any, i: number) => (
         <Stack key={item.id || i} spacing={0.25}>
           <Stack direction="row" spacing={1} alignItems="center">
-            {item.ref && <Typography variant="body2" fontWeight={600}>{item.ref}</Typography>}
+            {item.ref && <Typography variant="body2" fontWeight={500}>{item.ref}</Typography>}
             <Typography variant="body2">{item.title}</Typography>
           </Stack>
           {item.snippet && (
@@ -87,14 +81,14 @@ function CommentsList({ result }: { result: any }) {
       {result?.entity && (
         <Stack direction="row" spacing={1} alignItems="center">
           <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{result.entity.type}</Box>
-          {result.entity.ref && <Typography variant="body2" fontWeight={600}>{result.entity.ref}</Typography>}
+          {result.entity.ref && <Typography variant="body2" fontWeight={500}>{result.entity.ref}</Typography>}
           <Typography variant="body2">{result.entity.label}</Typography>
         </Stack>
       )}
       {items.map((item: any, i: number) => (
         <Stack key={`${item.created_at || 'comment'}-${i}`} spacing={0.25}>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Typography variant="caption" fontWeight={600}>
+            <Typography variant="caption" fontWeight={500}>
               {item.author || t('toolResults.unknownAuthor', { defaultValue: 'Unknown author' })}
             </Typography>
             {item.created_at && (
@@ -128,6 +122,7 @@ function GenericResult({ result }: { result: unknown }) {
         borderRadius: 1,
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
+        fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace",
       }}
     >
       {JSON.stringify(result, null, 2)}
@@ -236,9 +231,12 @@ function FilterDescriptions({ result }: { result: any }) {
   );
 }
 
-export default function ToolResultRenderer({ name, result, arguments: args }: ToolResultRendererProps) {
+/**
+ * ToolResultBody renders a tool call's result content without wrapper chrome.
+ * Wrap it in your own collapsible UI (e.g. ChatToolRibbon).
+ */
+export function ToolResultBody({ name, result }: ToolResultBodyProps) {
   const { t } = useTranslation(['ai']);
-  const [expanded, setExpanded] = useState(false);
   const data = result as any;
   const ignoredFields = getIgnoredFields(result);
 
@@ -282,7 +280,7 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
             {data?.entity && (
               <Stack direction="row" spacing={1} alignItems="center">
                 <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{data.entity.type}</Box>
-                {data.entity.ref && <Typography variant="body2" fontWeight={600}>{data.entity.ref}</Typography>}
+                {data.entity.ref && <Typography variant="body2" fontWeight={500}>{data.entity.ref}</Typography>}
                 <Typography variant="body2">{data.entity.label}</Typography>
               </Stack>
             )}
@@ -301,7 +299,7 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
       case 'get_document':
         return (
           <Stack spacing={0.5}>
-            {data?.ref && <Typography variant="body2" fontWeight={600}>{data.ref}: {data.title}</Typography>}
+            {data?.ref && <Typography variant="body2" fontWeight={500}>{data.ref}: {data.title}</Typography>}
             {data?.summary && <Typography variant="body2" color="text.secondary">{data.summary}</Typography>}
           </Stack>
         );
@@ -310,52 +308,61 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
     }
   };
 
-  const label = t(`toolResults.toolNames.${name}`, { defaultValue: name.replace(/_/g, ' ') });
-
   return (
-    <Box
-      sx={{
-        bgcolor: 'action.hover',
-        borderRadius: 1,
-        my: 0.5,
-        overflow: 'hidden',
-      }}
-    >
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        sx={{ px: 1.5, py: 0.75, cursor: 'pointer' }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <BuildIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-        <Typography variant="caption" fontWeight={600} sx={{ flex: 1 }}>
-          {label}
-        </Typography>
-        {args && Object.keys(args).length > 0 && (
-          <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", fontSize: '12px', color: 'text.secondary' }}>
-            {Object.values(args).join(', ').slice(0, 40)}
+    <Box>
+      {ignoredFields.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 1, py: 0 }}>
+          <Typography variant="body2">
+            {t('toolResults.ignoredFields', {
+              fields: ignoredFields.join(', '),
+              defaultValue: `Ignored fields: ${ignoredFields.join(', ')}`,
+            })}
           </Typography>
-        )}
-        <IconButton size="small">
-          {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-        </IconButton>
-      </Stack>
-      <Collapse in={expanded}>
-        <Box sx={{ px: 1.5, pb: 1 }}>
-          {ignoredFields.length > 0 && (
-            <Alert severity="warning" sx={{ mb: 1, py: 0 }}>
-              <Typography variant="body2">
-                {t('toolResults.ignoredFields', {
-                  fields: ignoredFields.join(', '),
-                  defaultValue: `Ignored fields: ${ignoredFields.join(', ')}`,
-                })}
-              </Typography>
-            </Alert>
-          )}
-          {renderContent()}
-        </Box>
-      </Collapse>
+        </Alert>
+      )}
+      {renderContent()}
     </Box>
   );
+}
+
+/**
+ * Get a short, human-readable summary of a tool result (e.g. "16 results", "no result").
+ * Returns null when no useful summary can be derived.
+ */
+export function getToolResultSummary(name: string, result: unknown): { count: number; kind: 'results' | 'documents' | 'groups' | 'fields' | 'none' } | null {
+  if (!result || typeof result !== 'object') return null;
+  const data = result as any;
+
+  switch (name) {
+    case 'search_all':
+    case 'query_entities':
+    case 'get_entity_context': {
+      const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data?.related) ? data.related.flatMap((g: any) => g.items || []) : []);
+      return { count: typeof data?.total === 'number' ? data.total : items.length, kind: 'results' };
+    }
+    case 'aggregate_entities': {
+      const groups = Array.isArray(data?.groups) ? data.groups : [];
+      return { count: groups.length, kind: 'groups' };
+    }
+    case 'search_knowledge': {
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return { count: items.length, kind: 'documents' };
+    }
+    case 'get_document':
+      return data?.ref ? { count: 1, kind: 'documents' } : null;
+    case 'get_entity_comments': {
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return { count: items.length, kind: 'results' };
+    }
+    case 'describe_entity_filters': {
+      const fields = Array.isArray(data?.fields) ? data.fields : [];
+      return { count: fields.length, kind: 'fields' };
+    }
+    case 'get_filter_values': {
+      const values = data?.values && typeof data.values === 'object' ? Object.keys(data.values) : [];
+      return { count: values.length, kind: 'fields' };
+    }
+    default:
+      return null;
+  }
 }

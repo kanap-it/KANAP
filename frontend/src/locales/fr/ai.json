@@ -1,7 +1,16 @@
 {
   "conversationList": {
     "archive": "Archiver",
+    "dateGroups": {
+      "lastWeek": "7 derniers jours",
+      "older": "Plus ancien",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier"
+    },
+    "empty": "Aucune conversation",
     "newChat": "Nouvelle conversation",
+    "noMatch": "Aucune conversation ne correspond",
+    "search": "Rechercher une conversation...",
     "untitled": "Sans titre"
   },
   "errors": {
@@ -12,13 +21,25 @@
     "streamRequestFailed": "La requête de flux a échoué."
   },
   "input": {
-    "placeholder": "Envoyer un message...",
+    "hintEnter": "Entrée pour envoyer",
+    "hintShiftEnter": "Maj+Entrée retour à la ligne",
+    "placeholder": "Posez votre question à Plaid sur vos données KANAP...",
     "send": "Envoyer"
   },
   "messageList": {
+    "assistantRole": "Plaid",
+    "copied": "Copié",
+    "copy": "Copier le message",
+    "regenerate": "Régénérer",
+    "toolCallLabel": "a utilisé {{name}}",
+    "toolCallNoResult": "aucun résultat",
+    "toolCallResults_one": "{{count}} résultat",
+    "toolCallResults_other": "{{count}} résultats",
+    "toolCallStreaming": "appel de {{name}}…",
     "toolUseCount_one": "{{count}} outil utilisé",
     "toolUseCount_other": "{{count}} outils utilisés",
-    "toolUseProgress": "Utilisation des outils..."
+    "toolUseProgress": "Utilisation des outils...",
+    "userRole": "Vous"
   },
   "previewCard": {
     "after": "Après",
@@ -55,12 +76,19 @@
   },
   "workspace": {
     "empty": {
-      "subtitle": "Posez une question pour commencer.",
-      "title": "Démarrer une nouvelle conversation"
+      "subtitle": "Posez n'importe quelle question sur vos tâches, projets, assets ou documents.",
+      "suggestionsTitle": "Pour démarrer",
+      "title": "Plaid est prêt"
     },
     "messages": {
       "disabled": "Le chat IA est désactivé pour cet espace de travail."
     },
-    "title": "IA"
+    "suggestions": {
+      "applicationsCount": "Combien d'applications ai-je ?",
+      "knowledgeSearch": "Trouve des documents sur les sauvegardes",
+      "myProjects": "Quels projets me sont assignés ?",
+      "overdueTasks": "Liste mes tâches en retard"
+    },
+    "title": "Plaid"
   }
 }

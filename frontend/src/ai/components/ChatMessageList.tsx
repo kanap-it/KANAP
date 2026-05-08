@@ -2,19 +2,18 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   CircularProgress,
-  Collapse,
   IconButton,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import BuildIcon from '@mui/icons-material/Build';
+import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined';
+import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { AiMutationPreview, ChatMessage } from '../aiTypes';
 import PreviewCard from './PreviewCard';
-import ToolResultRenderer from './ToolResultRenderer';
+import ChatToolRibbon from './ChatToolRibbon';
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
@@ -35,89 +34,121 @@ function isMutationPreview(value: unknown): value is AiMutationPreview {
     && candidate.changes != null;
 }
 
-function UserBubble({ message }: { message: ChatMessage }) {
-  return (
-    <Box sx={{ pl: 10, pr: 2 }}>
-      <Box
-        sx={{
-          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : '#F3F4F6',
-          color: 'text.primary',
-          px: 2,
-          py: 1,
-          borderRadius: 2,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          width: 'fit-content',
-          maxWidth: '85%',
-        }}
-      >
-        <Typography variant="body2">{message.content}</Typography>
-      </Box>
-    </Box>
-  );
-}
+function MessageActions({
+  text,
+  ariaLabel,
+  copiedLabel,
+}: {
+  text: string;
+  ariaLabel: string;
+  copiedLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
 
-function ToolCallsPanel({ message }: { message: ChatMessage }) {
-  const { t } = useTranslation(['ai']);
-  const [expanded, setExpanded] = useState(false);
-  const toolCalls = (message.toolCalls || []).filter((toolCall) => {
-    const result = (message.toolResults || []).find((item) => item.id === toolCall.id);
-    return !isMutationPreview(result?.result);
-  });
-  const toolResults = message.toolResults || [];
-  const count = toolCalls.length;
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore — clipboard may be unavailable in non-secure contexts
+    }
+  }, [text]);
 
-  if (count === 0) return null;
-
-  const isStreaming = message.isStreaming && toolResults.length < toolCalls.length;
-  const label = isStreaming
-    ? t('messageList.toolUseProgress', { completed: toolResults.length, count })
-    : t('messageList.toolUseCount', { count });
+  if (!text) return null;
 
   return (
-    <Box
+    <Stack
+      className="kanap-chat-message-actions"
+      direction="row"
+      spacing={0.25}
       sx={{
-        bgcolor: 'action.hover',
-        borderRadius: 1,
-        overflow: 'hidden',
+        mt: 0.5,
+        opacity: 0,
+        transition: 'opacity 120ms ease',
+        '.kanap-chat-message-row:hover &, .kanap-chat-message-row:focus-within &': {
+          opacity: 1,
+        },
       }}
     >
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        sx={{ px: 1.5, py: 0.5, cursor: 'pointer' }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <BuildIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-        <Typography variant="caption" fontWeight={600} sx={{ flex: 1 }}>
-          {label}
-        </Typography>
-        {isStreaming && <CircularProgress size={12} />}
-        <IconButton size="small">
-          {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+      <Tooltip title={copied ? copiedLabel : ariaLabel} placement="bottom">
+        <IconButton
+          size="small"
+          onClick={handleCopy}
+          aria-label={ariaLabel}
+          sx={{
+            color: 'kanap.text.tertiary',
+            '&:hover': { color: 'kanap.text.secondary', bgcolor: 'kanap.bg.hover' },
+            width: 24,
+            height: 24,
+          }}
+        >
+          {copied
+            ? <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />
+            : <ContentCopyIcon sx={{ fontSize: 14 }} />}
         </IconButton>
-      </Stack>
-      <Collapse in={expanded}>
-        <Stack spacing={0.5} sx={{ px: 1.5, pb: 1 }}>
-          {toolCalls.map((tc, i) => {
-            const result = toolResults.find((tr) => tr.id === tc.id);
-            return (
-              <ToolResultRenderer
-                key={tc.id || i}
-                name={tc.name}
-                arguments={tc.arguments}
-                result={result?.result}
-              />
-            );
-          })}
-        </Stack>
-      </Collapse>
+      </Tooltip>
+    </Stack>
+  );
+}
+
+function MessageRow({
+  role,
+  children,
+  copyText,
+}: {
+  role: 'user' | 'assistant';
+  children: React.ReactNode;
+  copyText?: string;
+}) {
+  const { t } = useTranslation(['ai']);
+  const roleLabel = role === 'user' ? t('messageList.userRole') : t('messageList.assistantRole');
+
+  return (
+    <Box className="kanap-chat-message-row" sx={{ pt: 0, pb: 1 }}>
+      <Typography
+        component="div"
+        sx={{
+          fontSize: 12,
+          fontWeight: 500,
+          color: 'kanap.text.secondary',
+          mb: 0.5,
+          letterSpacing: 0.1,
+        }}
+      >
+        {roleLabel}
+      </Typography>
+      <Box>{children}</Box>
+      {copyText && (
+        <MessageActions
+          text={copyText}
+          ariaLabel={t('messageList.copy')}
+          copiedLabel={t('messageList.copied')}
+        />
+      )}
     </Box>
   );
 }
 
-function AssistantBubble({
+function UserMessage({ message }: { message: ChatMessage }) {
+  return (
+    <MessageRow role="user" copyText={message.content}>
+      <Box
+        sx={{
+          fontSize: 14,
+          lineHeight: 1.6,
+          color: 'kanap.text.primary',
+          '& p:first-of-type': { mt: 0 },
+          '& p:last-of-type': { mb: 0 },
+        }}
+      >
+        <MarkdownContent content={message.content} />
+      </Box>
+    </MessageRow>
+  );
+}
+
+function AssistantMessage({
   message,
   previews,
   disabled,
@@ -128,27 +159,64 @@ function AssistantBubble({
   disabled?: boolean;
   onSend: (text: string) => void;
 }) {
+  const toolCalls = message.toolCalls || [];
+  const toolResults = message.toolResults || [];
+
   const previewResults = useMemo(() => (
-    (message.toolResults || [])
+    toolResults
       .filter((toolResult) => toolResult.name !== 'preview_execution_result')
       .map((toolResult) => toolResult.result)
       .filter(isMutationPreview)
       .map((preview) => previews.find((item) => item.preview_id === preview.preview_id) || preview)
-  ), [message.toolResults, previews]);
+  ), [toolResults, previews]);
+
   const handleApprove = useCallback((previewId: string) => {
     onSend(`[APPROVE:${previewId}]`);
   }, [onSend]);
+
   const handleReject = useCallback((previewId: string) => {
     onSend(`[REJECT:${previewId}]`);
   }, [onSend]);
 
+  // Filter out tool calls that are mutation previews (those render as PreviewCard)
+  const visibleToolCalls = toolCalls.filter((toolCall) => {
+    const result = toolResults.find((item) => item.id === toolCall.id);
+    return !isMutationPreview(result?.result);
+  });
+
+  const showInitialSpinner = message.isStreaming
+    && !message.content
+    && visibleToolCalls.length === 0;
+
   return (
-    <Box sx={{ px: 2, maxWidth: '90%' }}>
+    <MessageRow role="assistant" copyText={message.content}>
       <Stack spacing={0.5}>
-        <ToolCallsPanel message={message} />
+        {visibleToolCalls.length > 0 && (
+          <Stack spacing={0}>
+            {visibleToolCalls.map((toolCall) => {
+              const matchingResult = toolResults.find((item) => item.id === toolCall.id);
+              return (
+                <ChatToolRibbon
+                  key={toolCall.id || toolCall.name}
+                  toolName={toolCall.name}
+                  toolArgs={toolCall.arguments}
+                  result={matchingResult ? matchingResult.result : undefined}
+                  isStreaming={message.isStreaming}
+                />
+              );
+            })}
+          </Stack>
+        )}
 
         {message.content && (
-          <Box>
+          <Box
+            sx={{
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: 'kanap.text.primary',
+              mt: visibleToolCalls.length > 0 ? 0.5 : 0,
+            }}
+          >
             <MarkdownContent content={message.content} />
           </Box>
         )}
@@ -163,13 +231,13 @@ function AssistantBubble({
           />
         ))}
 
-        {message.isStreaming && !message.content && !(message.toolCalls?.length) && (
-          <Box sx={{ px: 1 }}>
-            <CircularProgress size={16} />
+        {showInitialSpinner && (
+          <Box sx={{ py: 0.5 }}>
+            <CircularProgress size={14} thickness={5} sx={{ color: 'kanap.text.tertiary' }} />
           </Box>
         )}
       </Stack>
-    </Box>
+    </MessageRow>
   );
 }
 
@@ -183,12 +251,12 @@ export default function ChatMessageList({ messages, previews, disabled, onSend }
   if (!messages.length) return null;
 
   return (
-    <Stack spacing={2} sx={{ py: 2, pb: 8 }}>
+    <Stack spacing={3} sx={{ py: 3, pb: 4 }}>
       {messages.map((msg) =>
         msg.hidden ? null : msg.role === 'user' ? (
-          <UserBubble key={msg.id} message={msg} />
+          <UserMessage key={msg.id} message={msg} />
         ) : msg.role === 'assistant' ? (
-          <AssistantBubble
+          <AssistantMessage
             key={msg.id}
             message={msg}
             previews={previews}

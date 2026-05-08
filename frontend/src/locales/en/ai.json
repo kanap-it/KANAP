@@ -1,7 +1,16 @@
 {
   "conversationList": {
     "archive": "Archive",
-    "newChat": "New Chat",
+    "dateGroups": {
+      "lastWeek": "Last 7 days",
+      "older": "Older",
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
+    "empty": "No conversations yet",
+    "newChat": "New conversation",
+    "noMatch": "No conversation matches",
+    "search": "Search conversations...",
     "untitled": "Untitled"
   },
   "errors": {
@@ -12,13 +21,25 @@
     "streamRequestFailed": "Stream request failed."
   },
   "input": {
-    "placeholder": "Send a message...",
+    "hintEnter": "Enter to send",
+    "hintShiftEnter": "Shift+Enter for new line",
+    "placeholder": "Ask Plaid about your KANAP data...",
     "send": "Send"
   },
   "messageList": {
+    "assistantRole": "Plaid",
+    "copied": "Copied",
+    "copy": "Copy message",
+    "regenerate": "Regenerate",
+    "toolCallLabel": "used {{name}}",
+    "toolCallNoResult": "no result",
+    "toolCallResults_one": "{{count}} result",
+    "toolCallResults_other": "{{count}} results",
+    "toolCallStreaming": "calling {{name}}…",
     "toolUseCount_one": "{{count}} tool used",
     "toolUseCount_other": "{{count}} tools used",
-    "toolUseProgress": "Using tools..."
+    "toolUseProgress": "Using tools...",
+    "userRole": "You"
   },
   "previewCard": {
     "after": "After",
@@ -55,12 +76,19 @@
   },
   "workspace": {
     "empty": {
-      "subtitle": "Ask a question to begin.",
-      "title": "Start a new conversation"
+      "subtitle": "Ask anything about your tasks, projects, assets or documents.",
+      "suggestionsTitle": "Try asking",
+      "title": "Plaid is ready"
     },
     "messages": {
       "disabled": "AI chat is disabled for this workspace."
     },
-    "title": "AI"
+    "suggestions": {
+      "applicationsCount": "How many applications do I have?",
+      "knowledgeSearch": "Find documents about backups",
+      "myProjects": "Which projects am I working on?",
+      "overdueTasks": "Show me my overdue tasks"
+    },
+    "title": "Plaid"
   }
 }
