@@ -76,6 +76,8 @@ interface MarkdownEditorProps {
   fullToolbar?: boolean;
   /** Hide the toolbar until the editor receives focus (via :focus-within). */
   hideToolbarUntilFocus?: boolean;
+  /** Render on the KANAP long-form composer surface. */
+  surface?: boolean;
   /** Called when Ctrl+Enter or Cmd+Enter is pressed inside the editor. */
   onModEnter?: () => void;
   /** Called when Ctrl+S or Cmd+S is pressed inside the editor. */
@@ -320,6 +322,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   onImageUrlImport,
   fullToolbar = false,
   hideToolbarUntilFocus = false,
+  surface = false,
   onModEnter,
   onModSave,
 }: MarkdownEditorProps) {
@@ -350,8 +353,8 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   imageUrlImportHandlerRef.current = onImageUrlImport;
   const [editorInstanceKey, setEditorInstanceKey] = React.useState(0);
   const mdxRootClassName = React.useMemo(
-    () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}${hideToolbarUntilFocus ? ' kanap-mdx-hide-toolbar' : ''}`,
-    [isDarkMode, hideToolbarUntilFocus],
+    () => `kanap-mdx-root ${isDarkMode ? 'dark-theme' : 'light-theme'}${hideToolbarUntilFocus ? ' kanap-mdx-hide-toolbar' : ''}${surface ? ' kanap-mdx-surface' : ''}`,
+    [isDarkMode, hideToolbarUntilFocus, surface],
   );
   const mdxEditorKey = React.useMemo(
     () => `${editorInstanceKey}:${disabled ? 'readonly' : 'editable'}:${onImageUpload ? 'image' : 'no-image'}`,
@@ -360,8 +363,8 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const mdxThemeVariables = React.useMemo<Record<string, string>>(
     () => ({
       colorScheme: isDarkMode ? 'dark' : 'light',
-      '--basePageBg': theme.palette.background.paper,
-      '--baseBase': theme.palette.background.paper,
+      '--basePageBg': surface ? theme.palette.kanap.bg.composer : theme.palette.background.paper,
+      '--baseBase': surface ? theme.palette.kanap.bg.composer : theme.palette.background.paper,
       '--baseBgSubtle': isDarkMode ? alpha(theme.palette.common.white, 0.04) : theme.palette.grey[50],
       '--baseBg': isDarkMode ? alpha(theme.palette.common.white, 0.06) : theme.palette.grey[100],
       '--baseBgHover': isDarkMode ? alpha(theme.palette.common.white, 0.1) : theme.palette.grey[200],
@@ -379,7 +382,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       '--accentText': theme.palette.primary.main,
       '--accentTextContrast': theme.palette.primary.contrastText,
     }),
-    [isDarkMode, theme],
+    [isDarkMode, surface, theme],
   );
   const mdxThemeVariablesImportant = React.useMemo<Record<string, string>>(
     () =>
@@ -770,9 +773,12 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
           minHeight: 0,
           overflow: 'visible',
           border: 1,
-          borderColor: disabled ? 'divider' : 'divider',
-          borderRadius: 1,
-          bgcolor: disabled && isDarkMode ? 'action.disabledBackground' : 'background.paper',
+          borderColor: surface ? 'kanap.border.default' : 'divider',
+          borderRadius: surface ? '8px' : 1,
+          bgcolor: surface
+            ? 'kanap.bg.composer'
+            : disabled && isDarkMode ? 'action.disabledBackground' : 'background.paper',
+          ...(surface ? { p: '14px 16px' } : {}),
           ...(disabled && !isDarkMode ? {
             boxShadow: `inset 0 1px 0 ${alpha(theme.palette.primary.main, 0.06)}`,
             '&::before': {
@@ -787,7 +793,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
             },
           } : {}),
           '&:focus-within': {
-            borderColor: 'primary.main',
+            borderColor: surface ? 'kanap.teal' : 'primary.main',
             borderWidth: 2,
           },
           '& .kanap-mdx-toolbar': {
@@ -800,7 +806,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
             flexShrink: 0,
             top: 0,
             zIndex: 1,
-            bgcolor: 'background.paper',
+            bgcolor: surface ? 'transparent' : 'background.paper',
           },
           // Hide toolbar until the editor container has focus-within
           '&:not(:focus-within) .kanap-mdx-hide-toolbar .kanap-mdx-toolbar': {
@@ -909,6 +915,15 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
               borderRadius: 1,
               my: 1,
             },
+          },
+          '&:not(:focus-within) .kanap-mdx-root.kanap-mdx-hide-toolbar.kanap-mdx-surface .kanap-mdx-content': {
+            p: 0,
+          },
+          '&:not(:focus-within) .kanap-mdx-root.kanap-mdx-hide-toolbar .kanap-mdx-content > :first-child': {
+            mt: 0,
+          },
+          '&:not(:focus-within) .kanap-mdx-root.kanap-mdx-hide-toolbar .kanap-mdx-content > :last-child': {
+            mb: 0,
           },
         }}
       >

@@ -67,6 +67,21 @@ export abstract class AssetsBaseService {
     return asset;
   }
 
+  async ensureAssetByReference(reference: string, manager?: EntityManager, tenantId?: string): Promise<Asset> {
+    const normalized = String(reference || '').trim().toUpperCase();
+    if (!/^AST-\d+$/.test(normalized)) {
+      throw new BadRequestException('Invalid asset reference');
+    }
+    const repo = this.getRepo(manager);
+    const where: Record<string, any> = { asset_reference: normalized };
+    if (tenantId) {
+      where.tenant_id = tenantId;
+    }
+    const asset = await repo.findOne({ where: where as any });
+    if (!asset) throw new NotFoundException('Asset not found');
+    return asset;
+  }
+
   protected async ensureAssetIsCluster(id: string, manager?: EntityManager, tenantId?: string): Promise<Asset> {
     const asset = await this.ensureAsset(id, manager, tenantId);
     if (!asset.is_cluster) {

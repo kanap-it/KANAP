@@ -58,6 +58,7 @@ export default function RequestSummaryTab({
           draftValue={form?.purpose || ''}
           onDraftChange={onPurposeDraftChange}
           onDirtyChange={onPurposeDirtyChange}
+          surface
         />
       </Box>
     </Stack>

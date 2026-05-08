@@ -14,6 +14,7 @@ import { ApplicationsInstancesService } from './applications-instances.service';
 import { ApplicationsResidencyService } from './applications-residency.service';
 import { ApplicationsStructureService } from './applications-structure.service';
 import { ApplicationsLifecycleService } from './applications-lifecycle.service';
+import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 
 /**
  * Options for service methods.
@@ -77,6 +78,10 @@ export class ApplicationsService {
 
   update(id: string, body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
     return this.crudService.update(id, body, userId, opts);
+  }
+
+  shareApplication(id: string, body: ShareItemDto, tenantId: string, userId: string, opts?: ServiceOpts) {
+    return this.crudService.shareApplication(id, body, tenantId, userId, opts);
   }
 
   delete(id: string, userId?: string | null, opts?: ServiceOpts) {

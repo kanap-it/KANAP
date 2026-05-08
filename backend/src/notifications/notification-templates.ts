@@ -25,7 +25,7 @@ export interface ActionButton {
   url: string;
 }
 
-type ItemTypeLabelKey = 'request' | 'project' | 'task' | 'contract' | 'opex';
+type ItemTypeLabelKey = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'asset' | 'application';
 type EmailTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'testing';
 
 const EMAIL_TOKENS = {
@@ -634,7 +634,7 @@ export function buildCommentEmail(params: {
 
 // Template: Share Item
 export function buildShareEmail(params: {
-  itemType: 'request' | 'project' | 'task';
+  itemType: 'request' | 'project' | 'task' | 'asset' | 'application';
   itemName: string;
   itemUrl: string;
   senderName: string;

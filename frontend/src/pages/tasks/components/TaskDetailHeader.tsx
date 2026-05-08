@@ -6,7 +6,6 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import ShareIcon from '@mui/icons-material/Share';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
@@ -15,6 +14,7 @@ import type { TaskStatus } from '../task.constants';
 import type { PriorityLevel } from '../theme/taskDetailTokens';
 import TaskNavChip from './TaskNavChip';
 import TaskMetadataBar from './TaskMetadataBar';
+import SendLinkButton from '../../../components/workspace/SendLinkButton';
 
 interface TaskDetailHeaderProps {
   // Task data
@@ -43,7 +43,6 @@ interface TaskDetailHeaderProps {
 
   // Actions
   onClose: () => void;
-  onSendLink: () => void;
   onConvertToRequest: () => void;
   onDelete: () => void;
   onTitleChange: (newTitle: string) => void;
@@ -144,6 +143,7 @@ function EditableTitle({
 /* ------------------------------------------------------------------ */
 
 export default function TaskDetailHeader({
+  taskId,
   itemNumber,
   title,
   status,
@@ -164,7 +164,6 @@ export default function TaskDetailHeader({
   onPrev,
   onNext,
   onClose,
-  onSendLink,
   onConvertToRequest,
   onDelete,
   onTitleChange,
@@ -276,9 +275,12 @@ export default function TaskDetailHeader({
 
           {/* Actions bar */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.actionPills.gap, flexShrink: 0, mt: '7px' }}>
-            <Button variant="action" onClick={onSendLink} startIcon={<ShareIcon sx={{ fontSize: '14px !important' }} />}>
-              {t('portfolio:actions.sendLink')}
-            </Button>
+            <SendLinkButton
+              itemType="task"
+              itemId={taskId}
+              itemName={title || t('portfolio:workspace.task.title.untitled')}
+              itemNumber={itemNumber}
+            />
 
             <Button
               variant="action"

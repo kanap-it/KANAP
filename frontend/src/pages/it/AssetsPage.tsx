@@ -18,6 +18,7 @@ import api from '../../api';
 import { useTranslation } from 'react-i18next';
 type AssetRow = {
   id: string;
+  asset_reference: string | null;
   name: string;
   kind: string;
   provider: string;
@@ -181,7 +182,7 @@ export default function AssetsPage() {
 
   const getAssetHref = useCallback((row: AssetRow) => {
     const sp = buildWorkspaceSearch();
-    return `/it/assets/${row.id}/overview?${sp.toString()}`;
+    return `/it/assets/${row.asset_reference || row.id}/overview?${sp.toString()}`;
   }, [buildWorkspaceSearch]);
 
   const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string) => {
@@ -256,6 +257,24 @@ export default function AssetsPage() {
   }, [getAssetHref, handleInternalNavigate]);
 
   const columns: EnhancedColDef<AssetRow>[] = useMemo(() => [
+    {
+      field: 'asset_reference',
+      headerName: '#',
+      width: 90,
+      valueGetter: (p) => p.data?.asset_reference || '',
+      cellStyle: {
+        fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+        fontSize: '12px',
+        color: 'var(--kanap-text-secondary)',
+        fontVariantNumeric: 'tabular-nums',
+      },
+      comparator: (a, b) => {
+        const na = parseInt(String(a || '').replace(/^AST-/i, ''), 10) || 0;
+        const nb = parseInt(String(b || '').replace(/^AST-/i, ''), 10) || 0;
+        return na - nb;
+      },
+      cellRenderer: ClickToWorkspace,
+    },
     { headerName: t('common.name'), field: 'name', minWidth: 180, cellRenderer: ClickToWorkspace },
     {
       headerName: t('pages.assets.columns.assetType'),

@@ -261,7 +261,7 @@ export default function MetadataUserPicker({
                   {isCurrentUser ? ` ${t('selects.meSuffix')}` : ''}
                 </MenuItem>
                 {index === 0 && isCurrentUser && filteredUsers.length > 1 && (
-                  <Divider sx={(theme) => ({ my: 0.25, borderColor: theme.palette.kanap.border.soft })} />
+                  <Divider sx={(theme) => ({ my: 0.5, borderColor: theme.palette.kanap.border.default })} />
                 )}
               </React.Fragment>
             );

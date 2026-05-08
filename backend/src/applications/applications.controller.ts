@@ -18,6 +18,7 @@ import { KnowledgeService } from '../knowledge/knowledge.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { RateLimitGuard } from '../common/rate-limit.guard';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import {
   CreateApplicationInput,
   UpdateApplicationInput,
@@ -234,6 +235,20 @@ export class ApplicationsController {
     @Tenant() ctx: TenantRequest,
   ): Promise<Record<string, unknown>> {
     return this.svc.get(id, { manager: ctx.manager, include });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Post(':id/share')
+  share(
+    @Param('id') id: string,
+    @Body() body: ShareItemDto,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.shareApplication(id, body, ctx.tenantId, ctx.userId || '', {
+      manager: ctx.manager,
+      tenantId: ctx.tenantId,
+    });
   }
 
   @UseGuards(PermissionGuard)

@@ -19,7 +19,7 @@ import api from '../api';
 import { useTranslation } from 'react-i18next';
 import { formatItemRef } from '../utils/item-ref';
 
-type ItemType = 'task' | 'project' | 'request';
+export type ShareItemType = 'task' | 'project' | 'request' | 'asset' | 'application';
 
 type User = {
   id: string;
@@ -35,13 +35,14 @@ type RecipientValue = User | string;
 interface ShareDialogProps {
   open: boolean;
   onClose: () => void;
-  itemType: ItemType;
+  itemType: ShareItemType;
   itemId: string;
   itemName: string;
   itemNumber?: number | null;
+  itemRef?: string | null;
 }
 
-function buildItemPath(itemType: ItemType, itemId: string): string {
+function buildItemPath(itemType: ShareItemType, itemId: string): string {
   switch (itemType) {
     case 'task':
       return `/portfolio/tasks/${itemId}`;
@@ -49,10 +50,14 @@ function buildItemPath(itemType: ItemType, itemId: string): string {
       return `/portfolio/projects/${itemId}`;
     case 'request':
       return `/portfolio/requests/${itemId}`;
+    case 'asset':
+      return `/it/assets/${itemId}/overview`;
+    case 'application':
+      return `/it/applications/${itemId}/overview`;
   }
 }
 
-function buildApiEndpoint(itemType: ItemType, itemId: string): string {
+function buildApiEndpoint(itemType: ShareItemType, itemId: string): string {
   switch (itemType) {
     case 'task':
       return `/tasks/${itemId}/share`;
@@ -60,6 +65,10 @@ function buildApiEndpoint(itemType: ItemType, itemId: string): string {
       return `/portfolio/projects/${itemId}/share`;
     case 'request':
       return `/portfolio/requests/${itemId}/share`;
+    case 'asset':
+      return `/assets/${itemId}/share`;
+    case 'application':
+      return `/applications/${itemId}/share`;
   }
 }
 
@@ -79,6 +88,7 @@ export default function ShareDialog({
   itemId,
   itemName,
   itemNumber,
+  itemRef,
 }: ShareDialogProps) {
   const { t } = useTranslation('common');
   const [recipients, setRecipients] = React.useState<RecipientValue[]>([]);
@@ -88,7 +98,7 @@ export default function ShareDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
 
-  const refOrId = itemNumber ? formatItemRef(itemType, itemNumber) : itemId;
+  const refOrId = itemRef || (itemNumber ? formatItemRef(itemType, itemNumber) : itemId);
   const itemUrl = `${window.location.origin}${buildItemPath(itemType, refOrId)}`;
 
   const { data: users, isLoading } = useQuery({

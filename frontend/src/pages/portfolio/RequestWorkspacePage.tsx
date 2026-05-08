@@ -7,7 +7,6 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ShareIcon from '@mui/icons-material/Share';
 import TransformIcon from '@mui/icons-material/Transform';
 import api from '../../api';
 import { useRequestNav } from '../../hooks/useRequestNav';
@@ -21,8 +20,8 @@ import DependencySelector from './components/DependencySelector';
 import RelationsSectionTitle from './components/RelationsSectionTitle';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
-import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
 import MetadataUserPicker, { formatMetadataUserName } from '../../components/workspace/MetadataUserPicker';
 import PortfolioDetailWorkspaceShell from './workspace/PortfolioDetailWorkspaceShell';
@@ -223,7 +222,6 @@ export default function RequestWorkspacePage() {
 
   const [form, setForm] = React.useState<any>({});
   const [saveError, setSaveError] = React.useState<string | null>(null);
-  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = React.useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
@@ -958,6 +956,19 @@ export default function RequestWorkspacePage() {
               disabled={!canManage || form?.status === 'converted'}
               onChange={(value) => { void persistPanelPatch({ requestor_id: value }); }}
             />
+            <MetadataUserPicker
+              label={t('portfolio:workspace.request.fields.itLead', 'IT owner')}
+              value={form?.it_lead_id || null}
+              displayName={
+                form?.it_lead_id && form?.it_lead?.id === form.it_lead_id
+                  ? formatMetadataUserName(form.it_lead)
+                  : null
+              }
+              placeholder={t('portfolio:workspace.request.values.itOwnerMissing', 'IT owner missing')}
+              searchPlaceholder={t('portfolio:workspace.request.fields.itLead', 'IT owner')}
+              disabled={!canManage || form?.status === 'converted'}
+              onChange={(value) => { void persistPanelPatch({ it_lead_id: value }); }}
+            />
             {targetDeliveryDateLabel && (
               <PortfolioMetadataItem label={t('portfolio:workspace.request.fields.targetDeliveryDate')}>
                 {targetDeliveryDateLabel}
@@ -978,14 +989,12 @@ export default function RequestWorkspacePage() {
         actions={(
           <>
             {!isCreate && (
-              <Button
-                variant="action"
-                startIcon={<ShareIcon sx={{ fontSize: '14px !important' }} />}
-                onClick={() => setShareDialogOpen(true)}
-                size="small"
-              >
-                {t('portfolio:actions.sendLink')}
-              </Button>
+              <SendLinkButton
+                itemType="request"
+                itemId={form?.id || id}
+                itemName={form?.name || t('portfolio:workspace.request.title.fallback')}
+                itemNumber={form?.item_number}
+              />
             )}
             {!isCreate && (form?.status === 'approved' || form?.status === 'converted') && (
               <Button
@@ -1201,15 +1210,6 @@ export default function RequestWorkspacePage() {
         newStatus={pendingStatus || ''}
         onConfirm={handleStatusDialogConfirm}
         onCancel={handleStatusDialogCancel}
-      />
-
-      <ShareDialog
-        open={shareDialogOpen}
-        onClose={() => setShareDialogOpen(false)}
-        itemType="request"
-        itemId={form?.id || id}
-        itemName={form?.name || t('portfolio:workspace.request.title.fallback')}
-        itemNumber={data?.item_number}
       />
 
       <Snackbar

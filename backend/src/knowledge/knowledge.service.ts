@@ -86,6 +86,7 @@ export type EntityKnowledgeContextSource = {
   entity_type: RelationEntityType;
   entity_id: string;
   item_number: number | null;
+  item_ref?: string | null;
   name: string;
   status: string | null;
 };
@@ -554,6 +555,7 @@ type KnowledgeContextRootEntityType = RelationEntityType;
 type KnowledgeContextSourceRow = {
   entity_id: string;
   item_number: number | null;
+  item_ref?: string | null;
   name: string;
   status: string | null;
 };
@@ -5474,12 +5476,25 @@ export class KnowledgeService {
         entity_type: entityType,
         entity_id: entityId,
         item_number: row?.item_number != null ? Number(row.item_number) : null,
+        item_ref: row?.item_ref != null ? String(row.item_ref) : this.formatKnowledgeSourceRef(entityType, row?.item_number),
         name: String(row?.name || entityId),
         status: row?.status != null ? String(row.status) : null,
       });
     }
 
     return sources;
+  }
+
+  private formatKnowledgeSourceRef(entityType: RelationEntityType, itemNumber: number | null | undefined): string | null {
+    if (itemNumber == null) return null;
+    const prefix = entityType === 'tasks'
+      ? 'T'
+      : entityType === 'requests'
+        ? 'REQ'
+        : entityType === 'projects'
+          ? 'PRJ'
+          : null;
+    return prefix ? `${prefix}-${Number(itemNumber)}` : null;
   }
 
   private async listDocumentRowsForEntityIds(
@@ -5661,7 +5676,7 @@ export class KnowledgeService {
         [requestId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.sequential_id AS item_ref, a.name, NULL::text AS status
          FROM portfolio_request_applications l
          JOIN applications a ON a.id = l.application_id AND a.tenant_id = l.tenant_id
          WHERE l.request_id = $1
@@ -5669,7 +5684,7 @@ export class KnowledgeService {
         [requestId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.asset_reference AS item_ref, a.name, NULL::text AS status
          FROM portfolio_request_assets l
          JOIN assets a ON a.id = l.asset_id AND a.tenant_id = l.tenant_id
          WHERE l.request_id = $1
@@ -5744,7 +5759,7 @@ export class KnowledgeService {
         [projectId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.sequential_id AS item_ref, a.name, NULL::text AS status
          FROM application_projects l
          JOIN applications a ON a.id = l.application_id AND a.tenant_id = l.tenant_id
          WHERE l.project_id = $1
@@ -5752,7 +5767,7 @@ export class KnowledgeService {
         [projectId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, NULL::text AS status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.asset_reference AS item_ref, a.name, NULL::text AS status
          FROM asset_projects l
          JOIN assets a ON a.id = l.asset_id AND a.tenant_id = l.tenant_id
          WHERE l.project_id = $1
@@ -5801,7 +5816,7 @@ export class KnowledgeService {
   ): Promise<EntityKnowledgeContextGroupDefinition[]> {
     const [applicationRows, requestRows, projectRows, relatedApplicationRows, assetRows] = await Promise.all([
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.sequential_id AS item_ref, a.name, a.status
          FROM applications a
          WHERE a.id = $1
          LIMIT 1`,
@@ -5824,19 +5839,19 @@ export class KnowledgeService {
         [applicationId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.sequential_id AS item_ref, a.name, a.status
          FROM application_suites l
          JOIN applications a ON a.id = l.suite_id AND a.tenant_id = l.tenant_id
          WHERE l.application_id = $1
          UNION ALL
-         SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         SELECT a.id AS entity_id, NULL::int AS item_number, a.sequential_id AS item_ref, a.name, a.status
          FROM application_suites l
          JOIN applications a ON a.id = l.application_id AND a.tenant_id = l.tenant_id
          WHERE l.suite_id = $1`,
         [applicationId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.asset_reference AS item_ref, a.name, a.status
          FROM app_instances ai
          JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
          JOIN assets a ON a.id = aaa.asset_id AND a.tenant_id = aaa.tenant_id
@@ -5886,7 +5901,7 @@ export class KnowledgeService {
   ): Promise<EntityKnowledgeContextGroupDefinition[]> {
     const [assetRows, requestRows, projectRows, relatedAssetRows, applicationRows] = await Promise.all([
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.asset_reference AS item_ref, a.name, a.status
          FROM assets a
          WHERE a.id = $1
          LIMIT 1`,
@@ -5909,19 +5924,19 @@ export class KnowledgeService {
         [assetId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.asset_reference AS item_ref, a.name, a.status
          FROM asset_relations r
          JOIN assets a ON a.id = r.related_asset_id AND a.tenant_id = r.tenant_id
          WHERE r.asset_id = $1
          UNION ALL
-         SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+         SELECT a.id AS entity_id, NULL::int AS item_number, a.asset_reference AS item_ref, a.name, a.status
          FROM asset_relations r
          JOIN assets a ON a.id = r.asset_id AND a.tenant_id = r.tenant_id
          WHERE r.related_asset_id = $1`,
         [assetId],
       ),
       manager.query<KnowledgeContextSourceRow[]>(
-        `SELECT a.id AS entity_id, NULL::int AS item_number, a.name, a.status
+        `SELECT a.id AS entity_id, NULL::int AS item_number, a.sequential_id AS item_ref, a.name, a.status
          FROM app_asset_assignments aaa
          JOIN app_instances ai ON ai.id = aaa.app_instance_id AND ai.tenant_id = aaa.tenant_id
          JOIN applications a ON a.id = ai.application_id AND a.tenant_id = ai.tenant_id

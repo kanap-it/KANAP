@@ -311,6 +311,7 @@ export default function PortfolioComments({
                   minRows={8}
                   maxRows={14}
                   disabled={submitting}
+                  hideToolbarUntilFocus
                   onModSave={() => { void handleSubmit(); }}
                   onImageUpload={onImageUpload ? handleImageUpload : undefined}
                   onImageUrlImport={onImageUrlImport ? handleImageUrlImport : undefined}
@@ -329,6 +330,24 @@ export default function PortfolioComments({
                     ? !commentContext.trim() || !decisionOutcome
                     : !commentContent.trim())
                 }
+                sx={(theme) => ({
+                  bgcolor: isDecision ? theme.palette.kanap.orange : theme.palette.kanap.teal,
+                  color: theme.palette.kanap.tealForeground,
+                  borderRadius: '6px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  px: '18px',
+                  py: '7px',
+                  minHeight: 0,
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: isDecision ? theme.palette.warning.dark : theme.palette.kanap.teal,
+                    boxShadow: 'none',
+                  },
+                  '&.Mui-disabled': {
+                    pointerEvents: 'none',
+                  },
+                })}
               >
                 {submitting
                   ? t('portfolio:activity.actions.adding')

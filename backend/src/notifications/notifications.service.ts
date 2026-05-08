@@ -23,7 +23,7 @@ import { renderMarkdownToHtml } from '../common/markdown-to-html';
 import { EmailBranding, resolveEmailBranding } from '../email/email-branding';
 import { getEmailStrings, resolveEmailLocale } from '../i18n/email-i18n';
 
-type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex';
+type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'asset' | 'application';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
 
 interface NotificationRecipient {
@@ -171,26 +171,32 @@ export class NotificationsService {
         return `${base}/ops/contracts/${id}`;
       case 'opex':
         return `${base}/ops/opex/${id}`;
+      case 'asset':
+        return `${base}/it/assets/${id}/overview`;
+      case 'application':
+        return `${base}/it/applications/${id}/overview`;
       default:
         return base;
     }
   }
 
   private async resolveItemRef(itemType: ItemType, itemId: string, manager: import('typeorm').EntityManager): Promise<string | null> {
-    const tableMap: Record<string, { table: string; prefix: string }> = {
-      task: { table: 'tasks', prefix: 'T' },
-      request: { table: 'portfolio_requests', prefix: 'REQ' },
-      project: { table: 'portfolio_projects', prefix: 'PRJ' },
+    const tableMap: Record<string, { table: string; expression: string }> = {
+      task: { table: 'tasks', expression: `'T-' || item_number::text` },
+      request: { table: 'portfolio_requests', expression: `'REQ-' || item_number::text` },
+      project: { table: 'portfolio_projects', expression: `'PRJ-' || item_number::text` },
+      asset: { table: 'assets', expression: 'asset_reference' },
+      application: { table: 'applications', expression: 'sequential_id' },
     };
     const config = tableMap[itemType];
     if (!config) return null;
     try {
       const rows = await manager.query(
-        `SELECT item_number FROM ${config.table} WHERE id = $1 LIMIT 1`,
+        `SELECT ${config.expression} AS item_ref FROM ${config.table} WHERE id = $1 LIMIT 1`,
         [itemId],
       );
-      if (rows.length > 0 && rows[0].item_number != null) {
-        return `${config.prefix}-${rows[0].item_number}`;
+      if (rows.length > 0 && rows[0].item_ref) {
+        return String(rows[0].item_ref);
       }
     } catch {
       // Fallback to UUID if lookup fails
@@ -584,7 +590,7 @@ export class NotificationsService {
    * Notify about status change on an item.
    */
   async notifyStatusChange(params: {
-    itemType: ItemType;
+    itemType: Exclude<ItemType, 'asset' | 'application'>;
     itemId: string;
     itemName: string;
     oldStatus: string;
@@ -1109,7 +1115,7 @@ export class NotificationsService {
    * Notify recipients about a shared item (fire-and-forget, no dedupe).
    */
   async notifyShare(params: {
-    itemType: 'request' | 'project' | 'task';
+    itemType: 'request' | 'project' | 'task' | 'asset' | 'application';
     itemId: string;
     itemName: string;
     senderName: string;
@@ -1117,8 +1123,9 @@ export class NotificationsService {
     recipients: NotificationRecipient[];
     rawEmails?: string[];
     tenantId: string;
+    manager?: EntityManager;
   }): Promise<void> {
-    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, params.manager);
     const branding = await this.resolveBranding(params.tenantId);
     const localeGroups = this.groupRecipientsByLocale(params.recipients);
 
@@ -1166,6 +1173,9 @@ export class NotificationsService {
       case 'contract':
       case 'opex':
         return 'budget';
+      case 'asset':
+      case 'application':
+        return 'portfolio';
       default:
         return 'portfolio';
     }

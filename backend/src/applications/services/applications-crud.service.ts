@@ -19,6 +19,8 @@ import * as path from 'path';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
 import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
+import { ShareItemDto } from '../../notifications/dto/share-item.dto';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 type OwnerQueryRow = ApplicationOwner & {
   email?: string | null;
@@ -37,6 +39,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     private readonly audit: AuditService,
     private readonly storage: StorageService,
     private readonly itOpsSettings: ItOpsSettingsService,
+    private readonly notifications: NotificationsService,
   ) {
     super(appRepo);
   }
@@ -100,6 +103,57 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
       result.deployments = instances;
     }
     return result;
+  }
+
+  async shareApplication(
+    applicationId: string,
+    dto: ShareItemDto,
+    tenantId: string,
+    userId: string,
+    opts?: ServiceOpts,
+  ) {
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+
+    const mg = this.getManager(opts);
+    const appId = await this.resolveApplicationIdentifier(applicationId, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
+    if (!app) throw new NotFoundException('Application not found');
+
+    const senderRows = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name || ''} ${senderRows[0].last_name || ''}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await mg.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'application',
+        itemId: app.id,
+        itemName: app.name,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId,
+        manager: mg,
+      });
+    }
+
+    return { ok: true };
   }
 
   /**

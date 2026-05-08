@@ -25,6 +25,7 @@ import { CsvModule } from '../common/csv';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { InterfacesModule } from '../interfaces/interfaces.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 // Decomposed services
 import {
@@ -64,6 +65,7 @@ import {
     CsvModule,
     KnowledgeModule,
     InterfacesModule,
+    NotificationsModule,
   ],
   providers: [
     // Decomposed services (order matters for DI)

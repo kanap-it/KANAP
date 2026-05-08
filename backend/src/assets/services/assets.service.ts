@@ -4,6 +4,7 @@ import { Asset } from '../asset.entity';
 import { AssetHardwareInfo } from '../asset-hardware-info.entity';
 import { AssetSupportInfo } from '../asset-support-info.entity';
 import { AssetLink } from '../asset-link.entity';
+import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 import { AssetsListService } from './assets-list.service';
 import { AssetsCrudService } from './assets-crud.service';
 import { AssetsHardwareService } from './assets-hardware.service';
@@ -62,12 +63,20 @@ export class AssetsService {
     return this.crudService.get(id, opts);
   }
 
+  getByReference(reference: string, opts?: ServiceOpts) {
+    return this.crudService.getByReference(reference, opts);
+  }
+
   create(body: Partial<Asset>, tenantId: string, userId: string | null, opts?: ServiceOpts) {
     return this.crudService.create(body, tenantId, userId, opts);
   }
 
   update(id: string, body: Partial<Asset>, tenantId: string, userId: string | null, opts?: ServiceOpts) {
     return this.crudService.update(id, body, tenantId, userId, opts);
+  }
+
+  shareAsset(id: string, body: ShareItemDto, tenantId: string, userId: string, opts?: ServiceOpts) {
+    return this.crudService.shareAsset(id, body, tenantId, userId, opts);
   }
 
   // =========================================================================

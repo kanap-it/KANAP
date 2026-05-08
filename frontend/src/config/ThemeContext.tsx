@@ -67,6 +67,42 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
     MuiSelect: {
       defaultProps: { variant: 'standard' },
     },
+    MuiAlert: {
+      styleOverrides: {
+        standardInfo: ({ theme }) => ({
+          backgroundColor: theme.palette.kanap.bg.composer,
+          color: theme.palette.kanap.text.primary,
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: 8,
+          fontSize: 13,
+          '& .MuiAlert-icon': { color: theme.palette.info.main },
+        }),
+        standardWarning: ({ theme }) => ({
+          backgroundColor: theme.palette.kanap.bg.composer,
+          color: theme.palette.kanap.text.primary,
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: 8,
+          fontSize: 13,
+          '& .MuiAlert-icon': { color: theme.palette.kanap.orange },
+        }),
+        standardError: ({ theme }) => ({
+          backgroundColor: theme.palette.kanap.bg.composer,
+          color: theme.palette.kanap.text.primary,
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: 8,
+          fontSize: 13,
+          '& .MuiAlert-icon': { color: theme.palette.kanap.danger },
+        }),
+        standardSuccess: ({ theme }) => ({
+          backgroundColor: theme.palette.kanap.bg.composer,
+          color: theme.palette.kanap.text.primary,
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: 8,
+          fontSize: 13,
+          '& .MuiAlert-icon': { color: theme.palette.success.main },
+        }),
+      },
+    },
     MuiInputLabel: {
       defaultProps: { shrink: true },
       styleOverrides: {
@@ -212,7 +248,7 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
       styleOverrides: {
         root: {
           backgroundColor: isDark ? '#181A20' : '#FFFFFF',
-          color: isDark ? 'rgba(255,255,255,0.95)' : '#111827',
+          color: isDark ? '#E5E7EB' : '#111827',
           borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB'}`,
         },
       },
@@ -350,7 +386,7 @@ export function createAppTheme(mode: PaletteMode, brandingPrimaryColors?: Brandi
       },
       divider: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB',
       text: {
-        primary: isDark ? 'rgba(255,255,255,0.95)' : '#111827',
+        primary: isDark ? '#E5E7EB' : '#111827',
         secondary: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280',
       },
       action: {
