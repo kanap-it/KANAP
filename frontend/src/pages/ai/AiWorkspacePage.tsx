@@ -16,7 +16,7 @@ import ChatInput, { ChatInputHandle } from '../../ai/components/ChatInput';
 import ChatConversationList from '../../ai/components/ChatConversationList';
 import ChatEmptyState from '../../ai/components/ChatEmptyState';
 import TokenUsageBar from '../../ai/components/TokenUsageBar';
-import { selectLongPreviews } from '../../ai/utils/previewClassification';
+import { isLongPreview } from '../../ai/utils/previewClassification';
 
 const SIDEBAR_WIDTH = 260;
 const CONTENT_MAX_WIDTH = 760;
@@ -35,7 +35,12 @@ export default function AiWorkspacePage() {
 
   const isEmpty = chat.messages.length === 0;
 
-  const longPreviews = useMemo(() => selectLongPreviews(chat.previews), [chat.previews]);
+  // The panel surfaces every preview attached to the conversation, regardless of length
+  // or status — that way users can always recover an artifact view even when the inline
+  // chip rendering fails (e.g. on a partial conversation reload after navigating away
+  // mid-stream). Long-vs-short is only a hint for *inline* rendering inside the chat
+  // thread (chip vs PreviewCard), not for what the panel shows.
+  const allPreviews = chat.previews;
 
   const [artifactPanelOpen, setArtifactPanelOpen] = useState<boolean>(() => {
     try {
@@ -47,18 +52,25 @@ export default function AiWorkspacePage() {
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
   const seenArtifactIdsRef = useRef<Set<string>>(new Set());
 
-  // Auto-open and auto-select when a new long preview arrives. We track the ids we've
-  // already seen so reordering or status updates on existing previews don't pop the
-  // panel back open after the user closed it.
+  // Auto-open behavior:
+  //   - On a freshly arriving preview during a stream → pop the panel only if the
+  //     preview is long (an inline PreviewCard handles short ones in the message flow).
+  //   - On any pending preview the user hasn't acknowledged → always pop the panel,
+  //     because the user MUST act on it (approve/reject) and we shouldn't bury it.
   useEffect(() => {
-    if (longPreviews.length === 0) return;
-    const newOnes = longPreviews.filter((p) => !seenArtifactIdsRef.current.has(p.preview_id));
+    if (allPreviews.length === 0) return;
+    const newOnes = allPreviews.filter((p) => !seenArtifactIdsRef.current.has(p.preview_id));
     if (newOnes.length === 0) return;
     for (const p of newOnes) seenArtifactIdsRef.current.add(p.preview_id);
-    const latest = newOnes[newOnes.length - 1];
-    setSelectedArtifactId(latest.preview_id);
+
+    // Prefer a pending preview as the auto-selected artifact (most actionable).
+    const pending = newOnes.find((p) => p.status === 'pending');
+    const trigger = pending || newOnes.find((p) => isLongPreview(p)) || null;
+    if (!trigger) return;
+
+    setSelectedArtifactId(trigger.preview_id);
     setArtifactPanelOpen(true);
-  }, [longPreviews]);
+  }, [allPreviews]);
 
   useEffect(() => {
     try {
@@ -293,7 +305,7 @@ export default function AiWorkspacePage() {
       </Stack>
 
       <ArtifactPanel
-        previews={longPreviews}
+        previews={allPreviews}
         selectedId={selectedArtifactId}
         open={artifactPanelOpen}
         disabled={chat.isStreaming || builtinLimitReached}
