@@ -2046,6 +2046,26 @@ function buildToolIsolationCases(
         },
       ];
 
+    case 'describe_entity_filters':
+      return [
+        {
+          label: 'tasks-filter-contract',
+          input: {
+            entity_type: 'tasks',
+          },
+          assertResult: (result: any) => {
+            assert.equal(result.entity_type, 'tasks');
+            assert.equal(result.complete, true);
+            assert.equal(result.truncated, false);
+            assert.equal(result.fields.some((field: any) => field.field === 'assignee'), true);
+            assert.equal(
+              result.fields.find((field: any) => field.field === 'assignee').aliases.includes('assignee_id'),
+              true,
+            );
+          },
+        },
+      ];
+
     case 'search_knowledge':
       return [{
         label: 'search-knowledge',
