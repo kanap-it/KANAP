@@ -55,6 +55,7 @@ type Props = {
   entityId: string;
   entityType: EntityType;
   onDirtyChange?: (dirty: boolean) => void;
+  onRelationsChange?: () => void;
 };
 
 const relationTagSx = {
@@ -97,6 +98,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   entityId,
   entityType,
   onDirtyChange,
+  onRelationsChange,
 }, ref) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const { hasLevel } = useAuth();
@@ -346,13 +348,14 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
           })),
       });
       setBaselineLinks(links);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('editors.relations.messages.saveFailed')));
       throw e;
     } finally {
       setSaving(false);
     }
-  }, [endpointBase, linkedApplications, linkedAssets, linkedCapex, linkedOpex, links, readOnly, t]);
+  }, [endpointBase, linkedApplications, linkedAssets, linkedCapex, linkedOpex, links, onRelationsChange, readOnly, t]);
 
   React.useEffect(() => {
     if (!autoSave || !dirty || saving || loading || readOnly) return undefined;
@@ -419,6 +422,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
         await api.post(`${endpointBase}/attachments`, formData);
       }
       await load();
+      onRelationsChange?.();
     } finally {
       setUploading(false);
       setUploadCount(0);

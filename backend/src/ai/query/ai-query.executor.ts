@@ -409,6 +409,8 @@ export class AiQueryExecutor {
         labels: scalar(Array.isArray(row.labels) ? row.labels.join(', ') : null),
         related: scalar(row.related_object_type),
         related_label: scalar(row.related_object_name),
+        applications: scalar(Array.isArray(row.applications) ? row.applications.map((item: any) => item?.name).filter(Boolean).join(', ') : null),
+        assets: scalar(Array.isArray(row.assets) ? row.assets.map((item: any) => item?.name).filter(Boolean).join(', ') : null),
         category: scalar(row.category_name),
         stream: scalar(row.stream_name),
         company: scalar(row.company_name),

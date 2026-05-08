@@ -45,6 +45,7 @@ import {
 import { useLocale } from '../../i18n/useLocale';
 import { useTenant } from '../../tenant/TenantContext';
 import { getScoreColor } from '../tasks/theme/taskDetailTokens';
+import { fetchPortfolioRelationsCount } from '../../utils/workspaceTabCounts';
 
 type TabKey = 'summary' | 'analysis' | 'scoring' | 'relations' | 'knowledge';
 type LegacyPanelRoute = 'overview' | 'activity' | 'team';
@@ -243,6 +244,20 @@ export default function RequestWorkspacePage() {
   const [scoringDirty, setScoringDirty] = React.useState(false);
   const [purposeDirty, setPurposeDirty] = React.useState(false);
   const [risksDirty, setRisksDirty] = React.useState(false);
+  const requestDependenciesCount = Array.isArray(form?.dependencies) ? form.dependencies.length : 0;
+  const requestRelationsCountQuery = useQuery({
+    queryKey: ['request-workspace-relations-count', form?.id, requestDependenciesCount],
+    queryFn: () => fetchPortfolioRelationsCount('request', form.id, requestDependenciesCount),
+    enabled: !isCreate && !!form?.id,
+  });
+  const requestKnowledgeContextQuery = useQuery<{ total?: number }>({
+    queryKey: ['entity-knowledge-context', 'requests', form?.id],
+    queryFn: async () => {
+      const res = await api.get(`/portfolio/requests/${form.id}/knowledge-context`);
+      return res.data;
+    },
+    enabled: !isCreate && !!form?.id,
+  });
   const hasTabDirtyChanges = tabDirty || scoringDirty;
   const hasManagedDocumentChanges = purposeDirty || risksDirty;
   const hasUnsavedChanges = hasTabDirtyChanges || hasManagedDocumentChanges;
@@ -388,6 +403,7 @@ export default function RequestWorkspacePage() {
         target_id: target.id,
       });
       queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['request-workspace-relations-count', requestId] });
     } catch (error) {
       setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
       await refetch();
@@ -409,6 +425,7 @@ export default function RequestWorkspacePage() {
     try {
       await api.delete(`/portfolio/requests/${requestId}/dependencies/${targetType}/${targetId}`);
       queryClient.invalidateQueries({ queryKey: ['portfolio-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['request-workspace-relations-count', requestId] });
     } catch (error) {
       setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.request.messages.savePanelFailed')));
       await refetch();
@@ -903,6 +920,11 @@ export default function RequestWorkspacePage() {
         activeTab={routeTab}
         tabs={tabs.map((tab) => ({
           ...tab,
+          badge: tab.key === 'relations'
+            ? requestRelationsCountQuery.data ?? 0
+            : tab.key === 'knowledge'
+              ? Number(requestKnowledgeContextQuery.data?.total || 0)
+              : undefined,
           disabled: isCreate && tab.key !== 'summary',
         }))}
         onTabChange={(nextTab) => onTabChange(null, nextTab as TabKey)}
@@ -1160,7 +1182,13 @@ export default function RequestWorkspacePage() {
                   disabled={!canManage}
                 />
               </Stack>
-              <RequestRelationsPanel id={form.id} autoSave />
+              <RequestRelationsPanel
+                id={form.id}
+                autoSave
+                onRelationsChange={() => {
+                  void requestRelationsCountQuery.refetch();
+                }}
+              />
             </Stack>
           </React.Suspense>
         )}

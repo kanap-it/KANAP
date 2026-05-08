@@ -24,6 +24,7 @@ import { CsvModule } from '../common/csv';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { TasksModule } from '../tasks/tasks.module';
 
 // Decomposed services
 import {
@@ -62,6 +63,7 @@ import {
     CsvModule,
     KnowledgeModule,
     NotificationsModule,
+    TasksModule,
   ],
   providers: [
     // Validation service (no dependencies on other asset services)

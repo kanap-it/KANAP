@@ -1,4 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index, OneToMany } from 'typeorm';
+import { TaskApplication } from './task-application.entity';
+import { TaskAsset } from './task-asset.entity';
 
 export type TaskRelatedObjectType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
 export type TaskPriorityLevel = 'blocker' | 'high' | 'normal' | 'low' | 'optional';
@@ -95,4 +97,10 @@ export class Task {
 
   @Column('timestamptz', { default: () => 'now()' })
   updated_at!: Date;
+
+  @OneToMany(() => TaskApplication, (link) => link.task)
+  application_links!: TaskApplication[];
+
+  @OneToMany(() => TaskAsset, (link) => link.task)
+  asset_links!: TaskAsset[];
 }

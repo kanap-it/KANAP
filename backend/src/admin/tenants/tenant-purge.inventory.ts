@@ -129,7 +129,9 @@ export const TENANT_PURGE_TABLES = [
   'contract_capex_items',
   'contract_contacts',
   'contracts',
-  // unified tasks table (attachments and time entries before tasks due to FK)
+  // unified tasks table (link tables, attachments, and time entries before tasks due to FK)
+  'task_applications',
+  'task_assets',
   'task_attachments',
   'task_time_entries',
   'user_time_monthly_aggregates',

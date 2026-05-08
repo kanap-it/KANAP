@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { validate as isUuid } from 'uuid';
 import { normalizeMarkdownRichText } from '../../../common/markdown-rich-text';
 import { AiPolicyService } from '../../ai-policy.service';
 import { AiMutationPreview } from '../../ai-mutation-preview.entity';
@@ -31,6 +32,8 @@ type CreateTaskInput = {
   due_date?: string | null;
   task_type?: string | null;
   phase?: string | null;
+  applications?: string[];
+  assets?: string[];
 };
 
 function normalizeRelationType(value: unknown): unknown {
@@ -56,6 +59,12 @@ function textOrNull(value: unknown): string | null {
   }
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function parseEntityList(value: unknown): string[] {
+  if (value == null) return [];
+  const raw = Array.isArray(value) ? value : String(value).split(',');
+  return Array.from(new Set(raw.map((item) => String(item || '').trim()).filter(Boolean)));
 }
 
 function buildTarget(preview: AiMutationPreview): AiMutationPreviewPresentation['target'] {
@@ -121,6 +130,10 @@ const CreateTaskInputSchema = z.object({
     .describe('Alias for task_type. Optional task type name or UUID in the current tenant.'),
   phase: z.union([z.string(), z.null()]).optional()
     .describe('Optional project phase name or UUID. Only valid when relation_type is `project`.'),
+  applications: z.union([z.array(z.string()), z.string(), z.null()]).optional()
+    .describe('Optional linked applications as exact names, APP references, UUIDs, or a comma-separated list.'),
+  assets: z.union([z.array(z.string()), z.string(), z.null()]).optional()
+    .describe('Optional linked assets as exact names, AST references, hostnames, UUIDs, or a comma-separated list.'),
 }).superRefine((value, ctx) => {
   const relationType = value.relation_type ?? 'standalone';
   const relationRef = textOrNull(value.relation_ref);
@@ -178,6 +191,8 @@ const CreateTaskInputSchema = z.object({
   due_date: value.due_date ?? null,
   task_type: textOrNull(value.task_type ?? value.type),
   phase: textOrNull(value.phase),
+  applications: parseEntityList(value.applications),
+  assets: parseEntityList(value.assets),
 }));
 
 @Injectable()
@@ -198,11 +213,13 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
     task_type: 'Optional task type name or UUID in the current tenant.',
     type: 'Alias for task_type.',
     phase: 'Optional project phase name or UUID. Only valid for project-linked tasks.',
+    applications: 'Optional linked application names, APP references, UUIDs, or comma-separated list.',
+    assets: 'Optional linked asset names, AST references, hostnames, UUIDs, or comma-separated list.',
   };
   readonly businessResource = 'tasks';
   readonly writePreview = {
     entity_type: 'tasks',
-    fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'start_date', 'due_date', 'task_type', 'phase'],
+    fields: ['relation', 'title', 'description', 'assignee', 'priority_level', 'start_date', 'due_date', 'task_type', 'phase', 'applications', 'assets'],
     reversible: false,
     prompt_hint: 'For task creation, use `create_task` with a title. Use `relation_type` plus `relation_ref` for project, OPEX, or CAPEX tasks. Omit the relation fields to create a standalone task. The requestor is always the current user. If the assignee, relation target, task type, or phase is ambiguous, ask the user to confirm before retrying.',
   };
@@ -244,6 +261,8 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
     const phase = input.phase && relation.mode === 'project'
       ? await this.support.resolveProjectPhase(context, relation.id ?? '', relation.label, input.phase)
       : null;
+    const applications = await this.resolveEntityArray(context, 'applications', input.applications || []);
+    const assets = await this.resolveEntityArray(context, 'assets', input.assets || []);
 
     return {
       targetEntityType: 'tasks',
@@ -267,6 +286,10 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
         task_type_label: taskType?.label ?? null,
         phase_id: phase?.id ?? null,
         phase_label: phase?.label ?? null,
+        application_ids: applications.ids,
+        application_labels: applications.labels,
+        asset_ids: assets.ids,
+        asset_labels: assets.labels,
         status: 'open',
       },
       currentValues: {
@@ -283,6 +306,8 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
     const title = textOrNull(current.target_title) ?? textOrNull(mutation.title) ?? 'Untitled task';
     const assigneeLabel = textOrNull(mutation.assignee_label);
     const priorityLabel = toDisplayPriority(mutation.priority_level) ?? 'Normal';
+    const applicationLabels = Array.isArray(mutation.application_labels) ? mutation.application_labels.join(', ') : null;
+    const assetLabels = Array.isArray(mutation.asset_labels) ? mutation.asset_labels.join(', ') : null;
 
     let summary = `Preview ${preview.id} ${preview.status}.`;
     switch (preview.status) {
@@ -374,6 +399,18 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
           to: textOrNull(mutation.phase_label),
           format: 'text',
         },
+        applications: {
+          label: 'Linked Applications',
+          from: null,
+          to: applicationLabels,
+          format: 'text',
+        },
+        assets: {
+          label: 'Linked Assets',
+          from: null,
+          to: assetLabels,
+          format: 'text',
+        },
         description: {
           label: 'Description',
           from: null,
@@ -411,6 +448,8 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
           due_date: (mutation.due_date as string | null | undefined) ?? null,
           task_type_id: (mutation.task_type_id as string | null | undefined) ?? null,
           phase_id: (mutation.phase_id as string | null | undefined) ?? null,
+          ...(Array.isArray(mutation.application_ids) && mutation.application_ids.length > 0 ? { application_ids: mutation.application_ids as string[] } : {}),
+          ...(Array.isArray(mutation.asset_ids) && mutation.asset_ids.length > 0 ? { asset_ids: mutation.asset_ids as string[] } : {}),
           creator_id: context.userId,
         },
       },
@@ -428,5 +467,42 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
       target_ref: created.item_number ? `T-${created.item_number}` : null,
       target_title: created.title ?? textOrNull(mutation.title),
     };
+  }
+
+  private async resolveEntityArray(
+    context: AiExecutionContextWithManager,
+    target: 'applications' | 'assets',
+    refs: string[],
+  ): Promise<{ ids: string[]; labels: string[] }> {
+    if (refs.length === 0) return { ids: [], labels: [] };
+    const ids: string[] = [];
+    const labels: string[] = [];
+    for (const ref of refs) {
+      const uuid = isUuid(ref);
+      const rows = target === 'applications'
+        ? await context.manager.query(
+          `SELECT id, name AS label
+           FROM applications
+           WHERE tenant_id = $1
+             AND (${uuid ? 'id = $2 OR ' : ''}LOWER(name) = LOWER($2::text) OR LOWER(sequential_id) = LOWER($2::text))
+           ORDER BY name
+           LIMIT 6`,
+          [context.tenantId, ref],
+        )
+        : await context.manager.query(
+          `SELECT id, COALESCE(name, hostname, asset_reference) AS label
+           FROM assets
+           WHERE tenant_id = $1
+             AND (${uuid ? 'id = $2 OR ' : ''}LOWER(name) = LOWER($2::text) OR LOWER(asset_reference) = LOWER($2::text) OR LOWER(hostname) = LOWER($2::text))
+           ORDER BY name
+           LIMIT 6`,
+          [context.tenantId, ref],
+        );
+      if (rows.length === 0) throw new BadRequestException(`${target.slice(0, -1)} "${ref}" not found.`);
+      if (rows.length > 1) throw new BadRequestException(`Multiple ${target} matched "${ref}". Use a UUID or exact reference.`);
+      ids.push(String(rows[0].id));
+      labels.push(String(rows[0].label || rows[0].id));
+    }
+    return { ids, labels };
   }
 }

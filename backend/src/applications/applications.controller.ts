@@ -19,6 +19,7 @@ import { IntegratedDocumentsService } from '../knowledge/integrated-documents.se
 import { RATE_LIMITS } from '../common/rate-limit';
 import { RateLimitGuard } from '../common/rate-limit.guard';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { TasksUnifiedService } from '../tasks/tasks-unified.service';
 import {
   CreateApplicationInput,
   UpdateApplicationInput,
@@ -51,6 +52,7 @@ export class ApplicationsController {
     private readonly knowledge: KnowledgeService,
     private readonly integratedDocuments: IntegratedDocumentsService,
     private readonly dataSource: DataSource,
+    private readonly tasks: TasksUnifiedService,
   ) {}
 
   @UseGuards(PermissionGuard)
@@ -246,6 +248,21 @@ export class ApplicationsController {
     @Tenant() ctx: TenantRequest,
   ) {
     return this.svc.shareApplication(id, body, ctx.tenantId, ctx.userId || '', {
+      manager: ctx.manager,
+      tenantId: ctx.tenantId,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/related-tasks')
+  async listRelatedTasks(
+    @Param('id') id: string,
+    @Query() query: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const app = await this.svc.get(id, { manager: ctx.manager });
+    return this.tasks.listRelatedTasksForApplication(String((app as any).id), query, {
       manager: ctx.manager,
       tenantId: ctx.tenantId,
     });

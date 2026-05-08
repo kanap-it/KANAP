@@ -26,6 +26,7 @@ import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { InterfacesModule } from '../interfaces/interfaces.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { TasksModule } from '../tasks/tasks.module';
 
 // Decomposed services
 import {
@@ -66,6 +67,7 @@ import {
     KnowledgeModule,
     InterfacesModule,
     NotificationsModule,
+    TasksModule,
   ],
   providers: [
     // Decomposed services (order matters for DI)

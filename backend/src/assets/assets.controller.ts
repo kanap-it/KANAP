@@ -12,6 +12,7 @@ import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { TasksUnifiedService } from '../tasks/tasks-unified.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('assets')
@@ -22,6 +23,7 @@ export class AssetsController {
     private readonly csvSvc: AssetsCsvService,
     private readonly storage: StorageService,
     private readonly knowledge: KnowledgeService,
+    private readonly tasks: TasksUnifiedService,
   ) {}
 
   // Attachment download/delete (static routes before :id param routes)
@@ -166,6 +168,19 @@ export class AssetsController {
   @Post(':id/share')
   share(@Param('id') id: string, @Body() body: ShareItemDto, @Req() req: any) {
     return this.svc.shareAsset(id, body, req?.tenant?.id ?? '', req.user?.sub ?? '', {
+      manager: req?.queryRunner?.manager,
+      tenantId: req?.tenant?.id,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('infrastructure', 'reader')
+  @Get(':id/related-tasks')
+  async listRelatedTasks(@Param('id') id: string, @Query() query: any, @Req() req: any) {
+    const asset = /^AST-\d+$/i.test(String(id || '').trim())
+      ? await this.svc.getByReference(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id })
+      : await this.svc.get(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
+    return this.tasks.listRelatedTasksForAsset(asset.id, query, {
       manager: req?.queryRunner?.manager,
       tenantId: req?.tenant?.id,
     });
