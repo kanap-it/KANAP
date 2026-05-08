@@ -25,6 +25,7 @@ const content: ContactContent = {
     companyLabel: 'Entreprise',
     messageLabel: 'Comment pouvons-nous aider ?',
     messagePlaceholder: 'Dites-nous en quelques mots ce que vous cherchez.',
+    captchaLabel: 'Verification de securite',
     submitLabel: 'Envoyer le message',
     submitting: 'Envoi…',
     successTitle: 'Message envoyé.',

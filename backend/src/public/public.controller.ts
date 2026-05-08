@@ -35,10 +35,16 @@ import { resolveEmailLocale } from '../i18n/email-i18n';
 const STRIPE_EU_BANK_TRANSFER_COUNTRIES = new Set<string>(['BE', 'DE', 'ES', 'FR', 'IE', 'NL']);
 const STRIPE_DEFAULT_EU_BANK_TRANSFER_COUNTRY = 'FR';
 
-class StartTrialDto {
+export class StartTrialDto {
   @IsString()
   @MinLength(2)
-  org!: string;
+  @IsOptional()
+  org?: string;
+
+  @IsString()
+  @MinLength(2)
+  @IsOptional()
+  org_name?: string;
 
   @IsString()
   @Matches(/^[a-z0-9-]+$/)
@@ -48,20 +54,24 @@ class StartTrialDto {
   email!: string;
 
   @IsString()
-  @Matches(/^[A-Z]{2}$/)
+  @Matches(/^([A-Z]{2}|OTHER)$/)
   country_iso!: string;
 
   @IsString()
   @IsOptional()
   captchaToken?: string;
+
+  @IsString()
+  @IsOptional()
+  captcha_token?: string;
 }
 
-class ActivateTrialDto {
+export class ActivateTrialDto {
   @IsString()
   token!: string;
 }
 
-class SendContactDto {
+export class SendContactDto {
   @IsString()
   @MinLength(2)
   name!: string;
@@ -80,9 +90,13 @@ class SendContactDto {
   @IsString()
   @IsOptional()
   captchaToken?: string;
+
+  @IsString()
+  @IsOptional()
+  captcha_token?: string;
 }
 
-class RequestSupportInvoiceDto {
+export class RequestSupportInvoiceDto {
   @IsString()
   @MinLength(2)
   company_name!: string;
@@ -121,6 +135,10 @@ class RequestSupportInvoiceDto {
   @IsString()
   @IsOptional()
   captchaToken?: string;
+
+  @IsString()
+  @IsOptional()
+  captcha_token?: string;
 }
 
 @Controller('public')
@@ -212,15 +230,19 @@ export class PublicController {
   async startTrial(@Body() body: StartTrialDto, @Req() req: any) {
     if (Features.SINGLE_TENANT) throwNotAvailableInMode();
     await this.turnstile.verifyOrThrow({
-      token: body.captchaToken,
+      token: this.resolveCaptchaToken(body),
       remoteIp: this.resolveClientIp(req),
       action: 'start-trial',
     });
 
-    const org = body.org.trim();
+    const org = String(body.org ?? body.org_name ?? '').trim();
+    if (org.length < 2) {
+      throw new BadRequestException({ code: 'INVALID_ORG', message: 'Organization name is required' });
+    }
     const slug = normalizeTenantSlug(body.slug);
     const email = body.email.trim().toLowerCase();
-    const countryIso = body.country_iso.trim().toUpperCase();
+    const requestedCountryIso = body.country_iso.trim().toUpperCase();
+    const countryIso = requestedCountryIso === 'OTHER' ? null : requestedCountryIso;
 
     if (isReservedTenantSlug(slug)) {
       throw new BadRequestException({ code: 'SUBDOMAIN_NOT_AVAILABLE', message: 'Slug not available' });
@@ -295,7 +317,7 @@ export class PublicController {
   @Throttle({ default: RATE_LIMITS.publicContact })
   async sendContact(@Body() body: SendContactDto, @Req() req: any) {
     await this.turnstile.verifyOrThrow({
-      token: body.captchaToken,
+      token: this.resolveCaptchaToken(body),
       remoteIp: this.resolveClientIp(req),
       action: 'contact',
     });
@@ -324,7 +346,7 @@ export class PublicController {
   async requestSupportInvoice(@Body() body: RequestSupportInvoiceDto, @Req() req: any) {
     if (Features.SINGLE_TENANT) throwNotAvailableInMode();
     await this.turnstile.verifyOrThrow({
-      token: body.captchaToken,
+      token: this.resolveCaptchaToken(body),
       remoteIp: this.resolveClientIp(req),
       action: 'support-invoice',
     });
@@ -511,8 +533,8 @@ export class PublicController {
       }
     }
 
-    const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || '';
-    const proto = (req.headers['x-forwarded-proto'] as string) || 'http';
+    const host = this.sanitizeForwardedHost((req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || '');
+    const proto = this.normalizeForwardedProto((req.headers['x-forwarded-proto'] as string) || req.protocol || 'http');
     const tenantUrl = this.computeTenantUrl(proto, host, signup.slug);
     const resetToken = this.auth.createPasswordResetToken({ id: owner.id, email: owner.email, tenant_id: tenant.id });
 
@@ -552,9 +574,32 @@ export class PublicController {
       return configured.replace(/\/$/, '');
     }
     const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string);
-    const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-    if (!host) throw new BadRequestException('Unable to resolve marketing host');
-    return `${proto}://${host}`.replace(/\/$/, '');
+    const proto = this.normalizeForwardedProto((req.headers['x-forwarded-proto'] as string) || req.protocol || 'http');
+    const safeHost = this.sanitizeForwardedHost(host);
+    if (!safeHost) throw new BadRequestException('Unable to resolve marketing host');
+    return `${proto}://${safeHost}`.replace(/\/$/, '');
+  }
+
+  private resolveCaptchaToken(body: { captchaToken?: string | null; captcha_token?: string | null }): string | undefined {
+    return (body.captchaToken ?? body.captcha_token ?? undefined) || undefined;
+  }
+
+  private normalizeForwardedProto(raw: string | undefined): 'http' | 'https' {
+    const first = String(raw || '').split(',')[0]?.trim().replace(/:$/, '').toLowerCase();
+    return first === 'https' ? 'https' : 'http';
+  }
+
+  private sanitizeForwardedHost(raw: string | undefined): string {
+    const first = String(raw || '').split(',')[0]?.trim();
+    if (!first) return '';
+    const withoutScheme = first.replace(/^https?:\/\//i, '');
+    const hostAndPort = withoutScheme.split('/')[0] || '';
+    if (hostAndPort.startsWith('[')) {
+      const end = hostAndPort.indexOf(']');
+      return (end >= 0 ? hostAndPort.slice(0, end + 1) : '').toLowerCase();
+    }
+    const colon = hostAndPort.indexOf(':');
+    return (colon >= 0 ? hostAndPort.slice(0, colon) : hostAndPort).toLowerCase();
   }
 
   private resolveActivationEmailLocale(req: any): string {
