@@ -7,10 +7,11 @@ type Props = {
   id: string;
   autoSave?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  onRelationsChange?: () => void;
 };
 
 export default forwardRef<ProjectRelationsPanelHandle, Props>(function ProjectRelationsPanel(
-  { id, autoSave = false, onDirtyChange },
+  { id, autoSave = false, onDirtyChange, onRelationsChange },
   ref,
 ) {
   return (
@@ -20,6 +21,7 @@ export default forwardRef<ProjectRelationsPanelHandle, Props>(function ProjectRe
       entityType="project"
       autoSave={autoSave}
       onDirtyChange={onDirtyChange}
+      onRelationsChange={onRelationsChange}
     />
   );
 });

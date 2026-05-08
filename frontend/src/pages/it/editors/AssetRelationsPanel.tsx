@@ -33,6 +33,7 @@ export type AssetRelationsPanelHandle = {
 };
 
 type AssetOption = { id: string; name: string; kind: string; environment: string };
+type RelatedTaskOption = { id: string; item_number: number | null; title: string | null };
 
 type OutgoingRelation = {
   id: string;
@@ -53,6 +54,7 @@ type IncomingRelation = {
 type Props = {
   assetId: string;
   onDirtyChange?: (dirty: boolean) => void;
+  onRelationsChange?: () => void;
 };
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -73,7 +75,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelationsPanel(
-  { assetId, onDirtyChange },
+  { assetId, onDirtyChange, onRelationsChange },
   ref
 ) {
   const { t } = useTranslation(['it', 'common']);
@@ -87,6 +89,11 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   const relationControlSx = { maxWidth: 420 } as const;
   const relationWideControlSx = { maxWidth: 640 } as const;
   const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
+  const taskLabel = React.useCallback((task: RelatedTaskOption) => {
+    const prefix = task.item_number ? `#${task.item_number}` : '';
+    const title = String(task.title || '').trim();
+    return [prefix, title].filter(Boolean).join(' ') || task.id;
+  }, []);
 
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -121,6 +128,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   const [linkedProjects, setLinkedProjects] = React.useState<Array<{ id: string; name: string }>>([]);
   const [baselineProjects, setBaselineProjects] = React.useState<Array<{ id: string; name: string }>>([]);
   const [projectOptions, setProjectOptions] = React.useState<Array<{ id: string; name: string }>>([]);
+  const [linkedTasks, setLinkedTasks] = React.useState<RelatedTaskOption[]>([]);
 
   // URLs
   const [urls, setUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
@@ -250,6 +258,13 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         setLinkedProjects(items);
         setBaselineProjects(items);
       } catch { setLinkedProjects([]); setBaselineProjects([]); }
+
+      // Tasks
+      try {
+        const res = await api.get(`/assets/${assetId}/related-tasks`, { params: { limit: 100, sort: 'updated_at:DESC' } });
+        const items = (res.data?.items || []) as RelatedTaskOption[];
+        setLinkedTasks(items);
+      } catch { setLinkedTasks([]); }
 
       // URLs
       try {
@@ -395,12 +410,13 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
       urlsEditedRef.current = false;
       setBaselineUrls(urlItems);
       setUrls(urlItems);
+      onRelationsChange?.();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
     } finally {
       setSaving(false);
     }
-  }, [assetId, baselineUrls, readOnly, t]);
+  }, [assetId, baselineUrls, onRelationsChange, readOnly, t]);
 
   const save = React.useCallback(async () => {
     if (readOnly) return;
@@ -449,6 +465,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
       }
       setBaselineUrls(urls);
       failedSaveSignatureRef.current = null;
+      onRelationsChange?.();
     } catch (e: any) {
       failedSaveSignatureRef.current = saveSignature;
       setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
@@ -456,7 +473,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
     } finally {
       setSaving(false);
     }
-  }, [assetId, baselineUrls, containsAssets, dependsOnAssets, linkedCapex, linkedContracts, linkedOpex, linkedProjects, readOnly, saveSignature, t, urls]);
+  }, [assetId, baselineUrls, containsAssets, dependsOnAssets, linkedCapex, linkedContracts, linkedOpex, linkedProjects, onRelationsChange, readOnly, saveSignature, t, urls]);
 
   React.useEffect(() => {
     if (!dirty || loading || saving || readOnly) return undefined;
@@ -640,125 +657,160 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
         </>
       )}
 
-      {/* Financial relations */}
-      <SectionTitle>Financials</SectionTitle>
-      <Autocomplete
-        multiple
-        options={opexOptions}
-        value={linkedOpex}
-        getOptionLabel={(o) => o.product_name}
-        onChange={(_, v) => setLinkedOpex(v as any)}
-        renderOption={(props, option) => {
-          const { key, ...optionProps } = props;
-          return <li key={key} {...optionProps}>{option.product_name}</li>;
-        }}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} sx={relationTagSx} />)
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Search OPEX items"
-            variant="standard"
-            InputProps={{ ...params.InputProps, disableUnderline: true }}
-            sx={editableFieldValueSx}
-          />
-        )}
-        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={readOnly}
-        sx={relationAutocompleteSx}
-      />
+      {/* Relations */}
+      <SectionTitle>Relations</SectionTitle>
+      <PropertyRow label="OPEX items" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={opexOptions}
+          value={linkedOpex}
+          getOptionLabel={(o) => o.product_name}
+          onChange={(_, v) => setLinkedOpex(v as any)}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return <li key={key} {...optionProps}>{option.product_name}</li>;
+          }}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.product_name} sx={relationTagSx} />)
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search OPEX items"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={editableFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
+          filterSelectedOptions
+          disabled={readOnly}
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
 
-      <Autocomplete
-        multiple
-        options={capexOptions}
-        value={linkedCapex}
-        getOptionLabel={(o) => o.description}
-        onChange={(_, v) => setLinkedCapex(v as any)}
-        renderOption={(props, option) => {
-          const { key, ...optionProps } = props;
-          return <li key={key} {...optionProps}>{option.description}</li>;
-        }}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.description} sx={relationTagSx} />)
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Search CAPEX items"
-            variant="standard"
-            InputProps={{ ...params.InputProps, disableUnderline: true }}
-            sx={editableFieldValueSx}
-          />
-        )}
-        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={readOnly}
-        sx={relationAutocompleteSx}
-      />
+      <PropertyRow label="CAPEX items" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={capexOptions}
+          value={linkedCapex}
+          getOptionLabel={(o) => o.description}
+          onChange={(_, v) => setLinkedCapex(v as any)}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return <li key={key} {...optionProps}>{option.description}</li>;
+          }}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.description} sx={relationTagSx} />)
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search CAPEX items"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={editableFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
+          filterSelectedOptions
+          disabled={readOnly}
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
 
-      <Autocomplete
-        multiple
-        options={contractOptions}
-        value={linkedContracts}
-        getOptionLabel={(o) => o.name}
-        onChange={(_, v) => setLinkedContracts(v as any)}
-        renderOption={(props, option) => {
-          const { key, ...optionProps } = props;
-          return <li key={key} {...optionProps}>{option.name}</li>;
-        }}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Search contracts"
-            variant="standard"
-            InputProps={{ ...params.InputProps, disableUnderline: true }}
-            sx={editableFieldValueSx}
-          />
-        )}
-        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={readOnly}
-        sx={relationAutocompleteSx}
-      />
+      <PropertyRow label="Contracts" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={contractOptions}
+          value={linkedContracts}
+          getOptionLabel={(o) => o.name}
+          onChange={(_, v) => setLinkedContracts(v as any)}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return <li key={key} {...optionProps}>{option.name}</li>;
+          }}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search contracts"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={editableFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
+          filterSelectedOptions
+          disabled={readOnly}
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
 
-      {/* Projects */}
-      <SectionTitle>Projects</SectionTitle>
-      <Autocomplete
-        multiple
-        options={projectOptions}
-        value={linkedProjects}
-        getOptionLabel={(o) => o.name}
-        onChange={(_, v) => setLinkedProjects(v as any)}
-        renderOption={(props, option) => {
-          const { key, ...optionProps } = props;
-          return <li key={key} {...optionProps}>{option.name}</li>;
-        }}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Search projects"
-            variant="standard"
-            InputProps={{ ...params.InputProps, disableUnderline: true }}
-            sx={editableFieldValueSx}
-          />
-        )}
-        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-        isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
-        filterSelectedOptions
-        disabled={readOnly}
-        sx={relationAutocompleteSx}
-      />
+      <PropertyRow label="Projects" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={projectOptions}
+          value={linkedProjects}
+          getOptionLabel={(o) => o.name}
+          onChange={(_, v) => setLinkedProjects(v as any)}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return <li key={key} {...optionProps}>{option.name}</li>;
+          }}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search projects"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={editableFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === (val as any).id}
+          filterSelectedOptions
+          disabled={readOnly}
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="Tasks" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={linkedTasks}
+          value={linkedTasks}
+          getOptionLabel={taskLabel}
+          readOnly
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return <li key={key} {...optionProps}>{taskLabel(option)}</li>;
+          }}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={taskLabel(option)} sx={relationTagSx} />)
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search tasks"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={editableFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
 
       {/* URLs */}
       <Stack direction="row" alignItems="center" spacing={1} sx={relationWideControlSx}>
@@ -807,6 +859,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               }
               const res = await api.get(`/assets/${assetId}/attachments`);
               setAttachments(res.data || []);
+              onRelationsChange?.();
             } finally {
               setUploading(false);
               setUploadCount(0);
@@ -841,6 +894,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
                     }
                     const res = await api.get(`/assets/${assetId}/attachments`);
                     setAttachments(res.data || []);
+                    onRelationsChange?.();
                   } finally {
                     setUploading(false);
                     setUploadCount(0);

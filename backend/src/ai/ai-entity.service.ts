@@ -2475,6 +2475,53 @@ export class AiEntityService {
     }
 
     const relatedGroups: AiEntityRelationshipGroupDto[] = [];
+    const [applicationRows, assetRows] = await Promise.all([
+      manager.query<SearchRow[]>(
+        `SELECT a.id,
+                a.sequential_id AS item_ref,
+                a.name AS label,
+                a.description AS summary,
+                a.lifecycle AS status,
+                a.updated_at
+         FROM task_applications ta
+         JOIN applications a ON a.id = ta.application_id AND a.tenant_id = ta.tenant_id
+         WHERE ta.task_id = $1
+           AND ta.tenant_id = $2
+         ORDER BY a.name ASC`,
+        [taskId, tenantId],
+      ),
+      manager.query<SearchRow[]>(
+        `SELECT a.id,
+                a.asset_reference AS item_ref,
+                a.name AS label,
+                a.notes AS summary,
+                a.status,
+                a.updated_at
+         FROM task_assets ta
+         JOIN assets a ON a.id = ta.asset_id AND a.tenant_id = ta.tenant_id
+         WHERE ta.task_id = $1
+           AND ta.tenant_id = $2
+         ORDER BY a.name ASC`,
+        [taskId, tenantId],
+      ),
+    ]);
+
+    if (applicationRows.length > 0) {
+      relatedGroups.push({
+        relation: 'linked_applications',
+        label: 'Linked Applications',
+        items: applicationRows.map((row) => toSummary('applications', row)),
+      });
+    }
+
+    if (assetRows.length > 0) {
+      relatedGroups.push({
+        relation: 'linked_assets',
+        label: 'Linked Assets',
+        items: assetRows.map((row) => toSummary('assets', row)),
+      });
+    }
+
     if (task.related_object_type === 'project' && task.related_object_id) {
       const projectRows = await manager.query<SearchRow[]>(
         `SELECT p.id, p.item_number, p.name AS label, ${buildProjectSummarySql('p')} AS summary, p.status, p.updated_at

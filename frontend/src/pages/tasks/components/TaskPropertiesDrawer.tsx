@@ -10,6 +10,8 @@ import { PropertyGroup, PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
 import UserMultiSelect from '../../../components/fields/UserMultiSelect';
+import ApplicationMultiSelect from '../../../components/fields/ApplicationMultiSelect';
+import AssetMultiSelect from '../../../components/fields/AssetMultiSelect';
 import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
 import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
@@ -36,6 +38,10 @@ interface TaskData {
   owner_ids: string[];
   viewer_ids: string[];
   labels: string[];
+  application_ids?: string[];
+  asset_ids?: string[];
+  applications?: Array<{ id: string; name?: string | null; sequential_id?: string | null }>;
+  assets?: Array<{ id: string; name?: string | null; asset_reference?: string | null; hostname?: string | null }>;
   related_object_type: string | null;
   related_object_id: string | null;
   related_object_name: string | null;
@@ -94,6 +100,15 @@ function formatHours(t: any, hours: number) {
   if (days > 0 && remaining > 0) return t('workspace.task.workLog.duration.daysHours', { days, hours: remaining });
   if (days > 0) return t('workspace.task.workLog.duration.daysOnly', { days });
   return t('workspace.task.workLog.duration.hoursOnly', { hours });
+}
+
+function formatLinkedNames(items?: Array<{ id: string; name?: string | null; sequential_id?: string | null; asset_reference?: string | null; hostname?: string | null }>): string {
+  const names = (items || []).map((item) => {
+    const ref = item.sequential_id || item.asset_reference;
+    const name = item.name || item.hostname || item.id;
+    return ref ? `${ref} ${name}` : name;
+  });
+  return names.length > 0 ? names.join(', ') : '-';
 }
 
 /* ------------------------------------------------------------------ */
@@ -315,6 +330,33 @@ export default function TaskPropertiesDrawer({
             </Box>
           </PropertyRow>
         )}
+
+        <PropertyRow label={t('workspace.task.sidebar.fields.applications', { defaultValue: 'Applications' })}>
+          {readOnly ? (
+            <Typography sx={{ fontSize: 13 }}>{formatLinkedNames(task.applications)}</Typography>
+          ) : (
+            <ApplicationMultiSelect
+              label=""
+              value={task.application_ids || []}
+              onChange={(ids) => onPatch({ application_ids: ids })}
+              disabled={readOnly}
+              size="small"
+            />
+          )}
+        </PropertyRow>
+        <PropertyRow label={t('workspace.task.sidebar.fields.assets', { defaultValue: 'Assets' })}>
+          {readOnly ? (
+            <Typography sx={{ fontSize: 13 }}>{formatLinkedNames(task.assets)}</Typography>
+          ) : (
+            <AssetMultiSelect
+              label=""
+              value={task.asset_ids || []}
+              onChange={(ids) => onPatch({ asset_ids: ids })}
+              disabled={readOnly}
+              size="small"
+            />
+          )}
+        </PropertyRow>
 
         {showKnowledge && (
           <PropertyRow label={t('workspace.task.sidebar.sections.knowledge')}>

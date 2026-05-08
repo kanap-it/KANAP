@@ -6,9 +6,10 @@ type Props = {
   projectId: string;
   phases?: Array<{ id: string; name: string }>;
   disabled?: boolean;
+  onTasksChange?: () => void;
 };
 
-export default function ProjectTasksPanel({ projectId, phases = [], disabled = false }: Props) {
+export default function ProjectTasksPanel({ projectId, phases = [], disabled = false, onTasksChange }: Props) {
   const { hasLevel } = useAuth();
   const canManage = hasLevel('portfolio_projects', 'member');
 
@@ -18,6 +19,7 @@ export default function ProjectTasksPanel({ projectId, phases = [], disabled = f
       entityId={projectId}
       phases={phases}
       disabled={disabled || !canManage}
+      onTasksChange={onTasksChange}
     />
   );
 }

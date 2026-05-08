@@ -34,6 +34,11 @@ type TaskMutationOptions = {
   audit?: TaskAuditOptions;
 };
 
+type TaskRelationPayload = Partial<Task> & {
+  application_ids?: string[];
+  asset_ids?: string[];
+};
+
 @Injectable()
 export class TasksUnifiedService {
   private readonly logger = new Logger(TasksUnifiedService.name);
@@ -64,6 +69,290 @@ export class TasksUnifiedService {
 
   private hasOwn(payload: Partial<Task>, key: keyof Task): boolean {
     return Object.prototype.hasOwnProperty.call(payload, key);
+  }
+
+  private hasPayloadKey(payload: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(payload, key);
+  }
+
+  private normalizeLinkIds(value: unknown, fieldName: string): string[] {
+    if (value == null) return [];
+    if (!Array.isArray(value)) {
+      throw new BadRequestException(`${fieldName} must be an array`);
+    }
+    const normalized = value.map((item) => String(item || '').trim()).filter(Boolean);
+    return Array.from(new Set(normalized));
+  }
+
+  private async getTaskTenant(taskId: string, manager: EntityManager): Promise<string> {
+    const rows: Array<{ tenant_id: string }> = await manager.query(
+      `SELECT tenant_id::text AS tenant_id
+       FROM tasks
+       WHERE id = $1
+       LIMIT 1`,
+      [taskId],
+    );
+    const tenantId = rows[0]?.tenant_id;
+    if (!tenantId) throw new NotFoundException('Task not found');
+    return tenantId;
+  }
+
+  private async resolveLinkNames(
+    table: 'applications' | 'assets',
+    ids: string[],
+    tenantId: string,
+    manager: EntityManager,
+  ): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const rows: Array<{ id: string; name: string | null }> = await manager.query(
+      `SELECT id::text AS id, name
+       FROM ${table}
+       WHERE tenant_id = $1
+         AND id = ANY($2::uuid[])
+       ORDER BY name ASC NULLS LAST, id ASC`,
+      [tenantId, ids],
+    );
+    const byId = new Map(rows.map((row) => [row.id, row.name || row.id]));
+    return ids.map((id) => byId.get(id) || id);
+  }
+
+  private async validateLinkedIds(
+    table: 'applications' | 'assets',
+    ids: string[],
+    tenantId: string,
+    manager: EntityManager,
+    fieldName: string,
+  ): Promise<void> {
+    if (ids.length === 0) return;
+    const rows: Array<{ id: string }> = await manager.query(
+      `SELECT id::text AS id
+       FROM ${table}
+       WHERE tenant_id = $1
+         AND id = ANY($2::uuid[])`,
+      [tenantId, ids],
+    );
+    const found = new Set(rows.map((row) => row.id));
+    const missing = ids.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new BadRequestException(`Invalid ${fieldName}: ${missing.join(', ')}`);
+    }
+  }
+
+  private async syncTaskLinks(params: {
+    taskId: string;
+    ids: string[];
+    table: 'task_applications' | 'task_assets';
+    targetTable: 'applications' | 'assets';
+    targetColumn: 'application_id' | 'asset_id';
+    fieldName: 'application_ids' | 'asset_ids';
+    changedField: 'linked_applications' | 'linked_assets';
+    tenantId?: string;
+    userId?: string | null;
+    manager: EntityManager;
+  }): Promise<void> {
+    const tenantId = params.tenantId || await this.getTaskTenant(params.taskId, params.manager);
+    const ids = this.normalizeLinkIds(params.ids, params.fieldName);
+    await this.validateLinkedIds(params.targetTable, ids, tenantId, params.manager, params.fieldName);
+
+    const existingRows: Array<{ id: string }> = await params.manager.query(
+      `SELECT ${params.targetColumn}::text AS id
+       FROM ${params.table}
+       WHERE tenant_id = $1
+         AND task_id = $2`,
+      [tenantId, params.taskId],
+    );
+    const existingIds = existingRows.map((row) => row.id);
+    const existingSet = new Set(existingIds);
+    const nextSet = new Set(ids);
+    const toInsert = ids.filter((id) => !existingSet.has(id));
+    const toDelete = existingIds.filter((id) => !nextSet.has(id));
+
+    if (toInsert.length === 0 && toDelete.length === 0) {
+      return;
+    }
+
+    const beforeNames = await this.resolveLinkNames(params.targetTable, existingIds, tenantId, params.manager);
+    const afterNames = await this.resolveLinkNames(params.targetTable, ids, tenantId, params.manager);
+
+    if (toDelete.length > 0) {
+      await params.manager.query(
+        `DELETE FROM ${params.table}
+         WHERE tenant_id = $1
+           AND task_id = $2
+           AND ${params.targetColumn} = ANY($3::uuid[])`,
+        [tenantId, params.taskId, toDelete],
+      );
+    }
+
+    if (toInsert.length > 0) {
+      await params.manager.query(
+        `INSERT INTO ${params.table} (tenant_id, task_id, ${params.targetColumn})
+         SELECT $1::uuid, $2::uuid, unnest($3::uuid[])
+         ON CONFLICT (task_id, ${params.targetColumn}) DO NOTHING`,
+        [tenantId, params.taskId, toInsert],
+      );
+    }
+
+    await this.taskActivitiesSvc.logChange(
+      params.taskId,
+      { [params.changedField]: [beforeNames, afterNames] },
+      tenantId,
+      params.userId ?? null,
+      { manager: params.manager },
+    );
+  }
+
+  async setApplicationLinks(taskId: string, applicationIds: string[], opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null }): Promise<void> {
+    const manager = opts?.manager ?? this.repo.manager;
+    const run = (mg: EntityManager) => this.syncTaskLinks({
+      taskId,
+      ids: applicationIds,
+      table: 'task_applications',
+      targetTable: 'applications',
+      targetColumn: 'application_id',
+      fieldName: 'application_ids',
+      changedField: 'linked_applications',
+      tenantId: opts?.tenantId,
+      userId: opts?.userId,
+      manager: mg,
+    });
+    if (opts?.manager) return run(manager);
+    return this.dataSource.transaction(run);
+  }
+
+  async setAssetLinks(taskId: string, assetIds: string[], opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null }): Promise<void> {
+    const manager = opts?.manager ?? this.repo.manager;
+    const run = (mg: EntityManager) => this.syncTaskLinks({
+      taskId,
+      ids: assetIds,
+      table: 'task_assets',
+      targetTable: 'assets',
+      targetColumn: 'asset_id',
+      fieldName: 'asset_ids',
+      changedField: 'linked_assets',
+      tenantId: opts?.tenantId,
+      userId: opts?.userId,
+      manager: mg,
+    });
+    if (opts?.manager) return run(manager);
+    return this.dataSource.transaction(run);
+  }
+
+  async listApplicationsForTask(taskId: string, opts?: { manager?: EntityManager; tenantId?: string }) {
+    const manager = opts?.manager ?? this.repo.manager;
+    const tenantId = opts?.tenantId || await this.getTaskTenant(taskId, manager);
+    return manager.query(
+      `SELECT a.id, a.name, a.sequential_id, a.lifecycle, a.criticality
+       FROM task_applications ta
+       JOIN applications a ON a.id = ta.application_id AND a.tenant_id = ta.tenant_id
+       WHERE ta.tenant_id = $1
+         AND ta.task_id = $2
+       ORDER BY a.name ASC, a.id ASC`,
+      [tenantId, taskId],
+    );
+  }
+
+  async listAssetsForTask(taskId: string, opts?: { manager?: EntityManager; tenantId?: string }) {
+    const manager = opts?.manager ?? this.repo.manager;
+    const tenantId = opts?.tenantId || await this.getTaskTenant(taskId, manager);
+    return manager.query(
+      `SELECT a.id, a.name, a.asset_reference, a.hostname, a.environment, a.status
+       FROM task_assets ta
+       JOIN assets a ON a.id = ta.asset_id AND a.tenant_id = ta.tenant_id
+       WHERE ta.tenant_id = $1
+         AND ta.task_id = $2
+       ORDER BY a.name ASC, a.id ASC`,
+      [tenantId, taskId],
+    );
+  }
+
+  async listRelatedTasksForApplication(applicationId: string, query?: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+    return this.listRelatedTasksByLink({
+      linkTable: 'task_applications',
+      targetColumn: 'application_id',
+      targetId: applicationId,
+      query,
+      opts,
+    });
+  }
+
+  async listRelatedTasksForAsset(assetId: string, query?: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+    return this.listRelatedTasksByLink({
+      linkTable: 'task_assets',
+      targetColumn: 'asset_id',
+      targetId: assetId,
+      query,
+      opts,
+    });
+  }
+
+  private async listRelatedTasksByLink(params: {
+    linkTable: 'task_applications' | 'task_assets';
+    targetColumn: 'application_id' | 'asset_id';
+    targetId: string;
+    query?: any;
+    opts?: { manager?: EntityManager; tenantId?: string };
+  }) {
+    const manager = params.opts?.manager ?? this.repo.manager;
+    const tenantId = params.opts?.tenantId || await this.getTaskTenantContext(manager);
+    const page = Math.max(Number(params.query?.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(params.query?.limit) || 20, 1), 100);
+    const skip = (page - 1) * limit;
+    const sortRaw = String(params.query?.sort || 'updated_at:DESC');
+    const [field, directionRaw] = sortRaw.split(':');
+    const direction = directionRaw?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const sortFieldMap: Record<string, string> = {
+      title: 't.title',
+      status: 't.status',
+      due_date: 't.due_date',
+      created_at: 't.created_at',
+      updated_at: 't.updated_at',
+      item_number: 't.item_number',
+    };
+    const sortField = sortFieldMap[field] || 't.updated_at';
+
+    const countRows: Array<{ count: number }> = await manager.query(
+      `SELECT COUNT(*)::int AS count
+       FROM ${params.linkTable} rel
+       JOIN tasks t ON t.id = rel.task_id AND t.tenant_id = rel.tenant_id
+       WHERE rel.tenant_id = $1
+         AND rel.${params.targetColumn} = $2`,
+      [tenantId, params.targetId],
+    );
+
+    const items = await manager.query(
+      `SELECT t.id,
+              t.tenant_id,
+              t.item_number,
+              t.title,
+              t.description,
+              t.status,
+              t.due_date,
+              t.start_date,
+              t.created_at,
+              t.updated_at,
+              t.assignee_user_id,
+              COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), ''), u.email) AS assignee_name,
+              t.related_object_type,
+              t.related_object_id
+       FROM ${params.linkTable} rel
+       JOIN tasks t ON t.id = rel.task_id AND t.tenant_id = rel.tenant_id
+       LEFT JOIN users u ON u.id = t.assignee_user_id AND u.tenant_id = t.tenant_id
+       WHERE rel.tenant_id = $1
+         AND rel.${params.targetColumn} = $2
+       ORDER BY ${sortField} ${direction}, t.id ASC
+       LIMIT $3 OFFSET $4`,
+      [tenantId, params.targetId, limit, skip],
+    );
+
+    return { items, total: countRows[0]?.count || 0, page, limit };
+  }
+
+  private async getTaskTenantContext(manager: EntityManager): Promise<string> {
+    const rows: Array<{ tenant_id: string }> = await manager.query(`SELECT app_current_tenant()::text AS tenant_id`);
+    const tenantId = rows[0]?.tenant_id;
+    if (!tenantId) throw new BadRequestException('Tenant context is required');
+    return tenantId;
   }
 
   private notifyTaskAssignedSafely(params: Parameters<NotificationsService['notifyTaskAssigned']>[0]): void {
@@ -225,10 +514,15 @@ export class TasksUnifiedService {
     });
   }
 
-  async createForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> }, userId?: string, opts?: TaskMutationOptions) {
+  async createForTarget(target: { type: RelatedType; id: string | null; payload: TaskRelationPayload }, userId?: string, opts?: TaskMutationOptions) {
     const manager = opts?.manager ?? this.repo.manager;
     const repo = manager.getRepository(Task);
     const { payload } = target;
+    const payloadRecord = payload as Record<string, unknown>;
+    const hasApplicationIds = this.hasPayloadKey(payloadRecord, 'application_ids');
+    const hasAssetIds = this.hasPayloadKey(payloadRecord, 'asset_ids');
+    const applicationIds = hasApplicationIds ? this.normalizeLinkIds(payloadRecord.application_ids, 'application_ids') : [];
+    const assetIds = hasAssetIds ? this.normalizeLinkIds(payloadRecord.asset_ids, 'asset_ids') : [];
     if (!payload?.title || !payload.title.toString().trim()) throw new BadRequestException('title required');
 
     const isStandalone = target.type === null;
@@ -313,14 +607,28 @@ export class TasksUnifiedService {
 
     await this.queueTaskAssignmentNotification(saved, null, userId, opts?.tenantId, manager);
 
+    if (hasApplicationIds) {
+      await this.setApplicationLinks(saved.id, applicationIds, { manager, tenantId: opts?.tenantId, userId });
+    }
+    if (hasAssetIds) {
+      await this.setAssetLinks(saved.id, assetIds, { manager, tenantId: opts?.tenantId, userId });
+    }
+
     return saved;
   }
 
-  async updateForTarget(target: { type: RelatedType; id: string | null; payload: Partial<Task> & { id: string } }, userId?: string, opts?: TaskMutationOptions) {
+  async updateForTarget(target: { type: RelatedType; id: string | null; payload: TaskRelationPayload & { id: string } }, userId?: string, opts?: TaskMutationOptions) {
     const manager = opts?.manager ?? this.repo.manager;
     const tenantId = opts?.tenantId;
     const repo = manager.getRepository(Task);
     const { payload } = target;
+    const payloadRecord = payload as Record<string, unknown>;
+    const hasApplicationIds = this.hasPayloadKey(payloadRecord, 'application_ids');
+    const hasAssetIds = this.hasPayloadKey(payloadRecord, 'asset_ids');
+    const applicationIds = hasApplicationIds ? this.normalizeLinkIds(payloadRecord.application_ids, 'application_ids') : [];
+    const assetIds = hasAssetIds ? this.normalizeLinkIds(payloadRecord.asset_ids, 'asset_ids') : [];
+    delete (payload as any).application_ids;
+    delete (payload as any).asset_ids;
     if (!payload?.id) throw new BadRequestException('id is required');
     const existing = await repo.findOne({ where: { id: payload.id } });
     if (!existing) throw new NotFoundException('Task not found');
@@ -416,16 +724,31 @@ export class TasksUnifiedService {
       }
     }
 
+    if (hasApplicationIds) {
+      await this.setApplicationLinks(saved.id, applicationIds, { manager, tenantId, userId });
+    }
+    if (hasAssetIds) {
+      await this.setAssetLinks(saved.id, assetIds, { manager, tenantId, userId });
+    }
+
     return saved;
   }
 
   /**
    * Update a task directly by ID (for standalone tasks or general updates)
    */
-  async updateById(taskId: string, payload: Partial<Task>, userId?: string, opts?: TaskMutationOptions) {
+  async updateById(taskId: string, payload: TaskRelationPayload, userId?: string, opts?: TaskMutationOptions) {
     const manager = opts?.manager ?? this.repo.manager;
     const tenantId = opts?.tenantId;
     const repo = manager.getRepository(Task);
+    const payloadRecord = payload as Record<string, unknown>;
+    const hasApplicationIds = this.hasPayloadKey(payloadRecord, 'application_ids');
+    const hasAssetIds = this.hasPayloadKey(payloadRecord, 'asset_ids');
+    const applicationIds = hasApplicationIds ? this.normalizeLinkIds(payloadRecord.application_ids, 'application_ids') : [];
+    const assetIds = hasAssetIds ? this.normalizeLinkIds(payloadRecord.asset_ids, 'asset_ids') : [];
+    delete (payload as any).application_ids;
+    delete (payload as any).asset_ids;
+
     const existing = await repo.findOne({ where: { id: taskId } });
     if (!existing) throw new NotFoundException('Task not found');
 
@@ -588,6 +911,13 @@ export class TasksUnifiedService {
           manager,
         });
       }
+    }
+
+    if (hasApplicationIds) {
+      await this.setApplicationLinks(saved.id, applicationIds, { manager, tenantId, userId });
+    }
+    if (hasAssetIds) {
+      await this.setAssetLinks(saved.id, assetIds, { manager, tenantId, userId });
     }
 
     return saved;

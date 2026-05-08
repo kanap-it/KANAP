@@ -22,6 +22,7 @@ import {
   Switch,
   useTheme,
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
@@ -52,6 +53,7 @@ import { getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
 import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/workspace/PortfolioMetadataBar';
 import SendLinkButton from '../../components/workspace/SendLinkButton';
+import { fetchAssetRelationsCount } from '../../utils/workspaceTabCounts';
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
@@ -994,6 +996,11 @@ export default function AssetWorkspacePage() {
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
     : nav;
+  const assetRelationsCountQuery = useQuery({
+    queryKey: ['asset-workspace-relations-count', id],
+    queryFn: () => fetchAssetRelationsCount(id),
+    enabled: !isCreate && !!id,
+  });
 
   const listContextParams = React.useMemo(() => {
     const sp = new URLSearchParams();
@@ -1093,7 +1100,7 @@ export default function AssetWorkspacePage() {
       { key: 'hardware', label: 'Hardware', disabled: isCreate },
       { key: 'support', label: 'Support', disabled: isCreate },
     ] : []),
-    { key: 'relations', label: 'Relations', disabled: isCreate },
+    { key: 'relations', label: 'Relations', badge: assetRelationsCountQuery.data ?? 0, disabled: isCreate },
   ];
 
   const canonicalPathFor = (targetId: string, nextTab: TabKey = validTab) => {
@@ -2147,6 +2154,9 @@ export default function AssetWorkspacePage() {
             <AssetRelationsPanel
               ref={relationsRef}
               assetId={id}
+              onRelationsChange={() => {
+                void assetRelationsCountQuery.refetch();
+              }}
             />
           )}
       </PortfolioDetailWorkspaceShell>

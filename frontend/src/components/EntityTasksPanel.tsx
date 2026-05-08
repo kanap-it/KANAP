@@ -37,6 +37,7 @@ type Props = {
   entityId: string;
   phases?: Array<{ id: string; name: string }>; // Only used for projects
   disabled?: boolean;
+  onTasksChange?: () => void;
 };
 
 const STATUS_LABELS = TASK_STATUS_LABELS as Record<string, string>;
@@ -66,7 +67,7 @@ const PARAM_NAMES: Record<EntityType, string> = {
   contract: 'contractId',
 };
 
-export default function EntityTasksPanel({ entityType, entityId, phases = [], disabled = false }: Props) {
+export default function EntityTasksPanel({ entityType, entityId, phases = [], disabled = false, onTasksChange }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -144,6 +145,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
       await api.delete(`/tasks/bulk`, { data: { ids: [taskId] } });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      onTasksChange?.();
     } catch (e: any) {
       alert(getApiErrorMessage(e, t, t('portfolio:shared.entityTasksPanel.messages.deleteFailed')));
     }

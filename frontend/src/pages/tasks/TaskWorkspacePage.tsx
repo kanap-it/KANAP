@@ -80,6 +80,10 @@ interface TaskData {
   owner_ids: string[];
   viewer_ids: string[];
   labels: string[];
+  application_ids: string[];
+  asset_ids: string[];
+  applications?: Array<{ id: string; name?: string | null; sequential_id?: string | null }>;
+  assets?: Array<{ id: string; name?: string | null; asset_reference?: string | null; hostname?: string | null }>;
   related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
   related_object_id: string | null;
   related_object_name: string | null;
@@ -353,6 +357,10 @@ export default function TaskWorkspacePage() {
     phase_id: source.phase_id,
     labels: source.labels,
     viewer_ids: source.viewer_ids,
+    application_ids: source.application_ids || [],
+    asset_ids: source.asset_ids || [],
+    applications: source.applications || [],
+    assets: source.assets || [],
     related_object_type: source.related_object_type,
     related_object_id: source.related_object_id,
     related_object_name: source.related_object_name,
@@ -593,6 +601,10 @@ export default function TaskWorkspacePage() {
       phase_id: createPhaseId || null,
       labels: [],
       viewer_ids: [],
+      application_ids: [],
+      asset_ids: [],
+      applications: [],
+      assets: [],
     });
     setTitle('');
     setDescription('');
@@ -1058,12 +1070,16 @@ export default function TaskWorkspacePage() {
   // Read scope params for filtered navigation
   const assigneeUserId = cleanedSearchParams.get('assigneeUserId') || undefined;
   const teamId = cleanedSearchParams.get('teamId') || undefined;
+  const applicationId = cleanedSearchParams.get('applicationId') || undefined;
+  const assetId = cleanedSearchParams.get('assetId') || undefined;
   const navExtraParams = React.useMemo(() => {
     const params: Record<string, string | undefined> = {};
     if (assigneeUserId) params.assigneeUserId = assigneeUserId;
     if (teamId) params.teamId = teamId;
+    if (applicationId) params.applicationId = applicationId;
+    if (assetId) params.assetId = assetId;
     return Object.keys(params).length > 0 ? params : undefined;
-  }, [assigneeUserId, teamId]);
+  }, [assigneeUserId, applicationId, assetId, teamId]);
   const nav = useTaskNav({ id, sort, q, filters, extraParams: navExtraParams });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
@@ -1134,6 +1150,8 @@ export default function TaskWorkspacePage() {
         phase_id: form.phase_id || null,
         viewer_ids: form.viewer_ids || [],
         task_type_id: (form as any).task_type_id || null,
+        application_ids: Array.isArray((form as any).application_ids) ? (form as any).application_ids : [],
+        asset_ids: Array.isArray((form as any).asset_ids) ? (form as any).asset_ids : [],
         // Classification fields (for standalone and project tasks)
         // Only include fields the user has touched (incl. explicit null); omitted fields let backend default from project
         ...((isStandaloneCreate || createRelation.type === 'project') && (form as any).source_id !== undefined ? { source_id: (form as any).source_id } : {}),

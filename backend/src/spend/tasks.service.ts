@@ -40,6 +40,10 @@ export interface TaskListItem {
   creator_name: string | null;
   owner_ids: string[];
   viewer_ids: string[];
+  application_ids: string[];
+  asset_ids: string[];
+  applications?: Array<{ id: string; name: string | null; sequential_id?: string | null }>;
+  assets?: Array<{ id: string; name: string | null; asset_reference?: string | null; hostname?: string | null }>;
   converted_request_id?: string | null;
   converted_request_item_number?: number | null;
 }
@@ -169,6 +173,71 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
     }
   };
 
+  const normalizeMultiValue = (value: any): string[] => {
+    const values = Array.isArray(value) ? value : String(value || '').split(',');
+    return values.map((item) => String(item || '').trim()).filter(Boolean);
+  };
+
+  const applyRelationIdFilter = (
+    value: any,
+    table: 'task_applications' | 'task_assets',
+    column: 'application_id' | 'asset_id',
+  ) => {
+    const ids = normalizeMultiValue(value);
+    if (ids.length === 0) return;
+    const placeholders = ids.map((id) => {
+      params.push(id);
+      return `$${params.length}::uuid`;
+    });
+    whereConditions += ` AND EXISTS (
+      SELECT 1
+      FROM ${table} rel
+      WHERE rel.task_id = t.id
+        AND rel.tenant_id = t.tenant_id
+        AND rel.${column} IN (${placeholders.join(', ')})
+    )`;
+  };
+
+  const applyRelationNameFilter = (
+    model: any,
+    table: 'task_applications' | 'task_assets',
+    column: 'application_id' | 'asset_id',
+    targetTable: 'applications' | 'assets',
+    nameColumn: 'name',
+  ) => {
+    if (isSetFilter(model)) {
+      if (model.values.length === 0) {
+        whereConditions += ' AND 1=0';
+        return true;
+      }
+      const values = model.values.map((value: any) => String(value || '').trim()).filter(Boolean);
+      if (values.length === 0) return true;
+      params.push(values);
+      whereConditions += ` AND EXISTS (
+        SELECT 1
+        FROM ${table} rel
+        JOIN ${targetTable} target ON target.id = rel.${column} AND target.tenant_id = rel.tenant_id
+        WHERE rel.task_id = t.id
+          AND rel.tenant_id = t.tenant_id
+          AND target.${nameColumn} = ANY($${params.length}::text[])
+      )`;
+      return true;
+    }
+    if (model?.filter) {
+      params.push(`%${model.filter}%`);
+      whereConditions += ` AND EXISTS (
+        SELECT 1
+        FROM ${table} rel
+        JOIN ${targetTable} target ON target.id = rel.${column} AND target.tenant_id = rel.tenant_id
+        WHERE rel.task_id = t.id
+          AND rel.tenant_id = t.tenant_id
+          AND target.${nameColumn} ILIKE $${params.length}
+      )`;
+      return true;
+    }
+    return false;
+  };
+
   // Apply scope filters (assigneeUserId or teamId)
   if (query.assigneeUserId) {
     params.push(query.assigneeUserId);
@@ -182,6 +251,14 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
         tenantParamRef ? ` AND tenant_id = ${tenantParamRef}` : ''
       }
     )`;
+  }
+
+  if (query.applicationId) {
+    applyRelationIdFilter(query.applicationId, 'task_applications', 'application_id');
+  }
+
+  if (query.assetId) {
+    applyRelationIdFilter(query.assetId, 'task_assets', 'asset_id');
   }
 
   // Apply filters from AG Grid
@@ -351,6 +428,14 @@ function buildWhereConditions(query: any, rawFilters: any, q: string, skipField?
     }
   }
 
+  if (!shouldSkip('application_name') && filters.application_name) {
+    applyRelationNameFilter(filters.application_name, 'task_applications', 'application_id', 'applications', 'name');
+  }
+
+  if (!shouldSkip('asset_name') && filters.asset_name) {
+    applyRelationNameFilter(filters.asset_name, 'task_assets', 'asset_id', 'assets', 'name');
+  }
+
   if (!shouldSkip('description') && filters.description?.filter) {
     params.push(`%${filters.description.filter}%`);
     whereConditions += ` AND t.description ILIKE $${params.length}`;
@@ -413,7 +498,54 @@ const TASK_FILTER_VALUE_FIELDS: Record<string, string> = {
   labels: 'labels',
   project_stream_name: 'project_pst.name',
   project_category_name: 'project_pc.name',
+  application_name: 'application_name',
+  asset_name: 'asset_name',
 };
+
+const TASK_APPLICATION_IDS_SQL = `
+  COALESCE((
+    SELECT jsonb_agg(app_link.application_id ORDER BY app.name ASC NULLS LAST, app_link.application_id)
+    FROM task_applications app_link
+    JOIN applications app ON app.id = app_link.application_id AND app.tenant_id = app_link.tenant_id
+    WHERE app_link.task_id = t.id
+      AND app_link.tenant_id = t.tenant_id
+  ), '[]'::jsonb)`;
+
+const TASK_ASSET_IDS_SQL = `
+  COALESCE((
+    SELECT jsonb_agg(asset_link.asset_id ORDER BY asset.name ASC NULLS LAST, asset_link.asset_id)
+    FROM task_assets asset_link
+    JOIN assets asset ON asset.id = asset_link.asset_id AND asset.tenant_id = asset_link.tenant_id
+    WHERE asset_link.task_id = t.id
+      AND asset_link.tenant_id = t.tenant_id
+  ), '[]'::jsonb)`;
+
+const TASK_APPLICATIONS_SQL = `
+  COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id', app.id,
+      'name', app.name,
+      'sequential_id', app.sequential_id
+    ) ORDER BY app.name ASC NULLS LAST, app.id)
+    FROM task_applications app_link
+    JOIN applications app ON app.id = app_link.application_id AND app.tenant_id = app_link.tenant_id
+    WHERE app_link.task_id = t.id
+      AND app_link.tenant_id = t.tenant_id
+  ), '[]'::jsonb)`;
+
+const TASK_ASSETS_SQL = `
+  COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id', asset.id,
+      'name', asset.name,
+      'asset_reference', asset.asset_reference,
+      'hostname', asset.hostname
+    ) ORDER BY asset.name ASC NULLS LAST, asset.id)
+    FROM task_assets asset_link
+    JOIN assets asset ON asset.id = asset_link.asset_id AND asset.tenant_id = asset_link.tenant_id
+    WHERE asset_link.task_id = t.id
+      AND asset_link.tenant_id = t.tenant_id
+  ), '[]'::jsonb)`;
 
 @Injectable()
 export class TasksService {
@@ -550,6 +682,10 @@ export class TasksService {
         t.creator_id,
         t.owner_ids,
         t.viewer_ids,
+        ${TASK_APPLICATION_IDS_SQL} AS application_ids,
+        ${TASK_ASSET_IDS_SQL} AS asset_ids,
+        ${TASK_APPLICATIONS_SQL} AS applications,
+        ${TASK_ASSETS_SQL} AS assets,
         pr_origin.id as converted_request_id,
         pr_origin.item_number as converted_request_item_number
       FROM tasks t
@@ -707,6 +843,39 @@ export class TasksService {
 
     for (const field of fields) {
       const { whereConditions, params } = buildWhereConditions(query, filters, q, field, tenantId);
+      if (field === 'application_name' || field === 'asset_name') {
+        const relation = field === 'application_name'
+          ? { table: 'task_applications', column: 'application_id', target: 'applications' }
+          : { table: 'task_assets', column: 'asset_id', target: 'assets' };
+        const rows: Array<{ value: string | null }> = await manager.query(
+          `
+            SELECT DISTINCT target.name AS value
+            FROM tasks t
+            JOIN ${relation.table} rel ON rel.task_id = t.id AND rel.tenant_id = t.tenant_id
+            JOIN ${relation.target} target ON target.id = rel.${relation.column} AND target.tenant_id = rel.tenant_id
+            LEFT JOIN users u ON t.assignee_user_id = u.id AND u.tenant_id = t.tenant_id
+            LEFT JOIN users uc ON t.creator_id = uc.id AND uc.tenant_id = t.tenant_id
+            LEFT JOIN spend_items si ON (t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id)
+            LEFT JOIN contracts c ON (t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id)
+            LEFT JOIN capex_items ci ON (t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id)
+            LEFT JOIN portfolio_projects pp ON (t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id)
+            LEFT JOIN portfolio_project_phases phase ON t.phase_id = phase.id AND phase.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_task_types tt ON t.task_type_id = tt.id AND tt.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_sources ps ON COALESCE(t.source_id, pp.source_id) = ps.id AND ps.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_categories pc ON COALESCE(t.category_id, pp.category_id) = pc.id AND pc.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_streams pst ON COALESCE(t.stream_id, pp.stream_id) = pst.id AND pst.tenant_id = t.tenant_id
+            LEFT JOIN companies comp ON COALESCE(t.company_id, pp.company_id) = comp.id AND comp.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_streams project_pst ON project_pst.id = pp.stream_id AND project_pst.tenant_id = t.tenant_id
+            LEFT JOIN portfolio_categories project_pc ON project_pc.id = pp.category_id AND project_pc.tenant_id = t.tenant_id
+            WHERE ${whereConditions}
+            ORDER BY value ASC
+          `,
+          params,
+        );
+        results[field] = rows.map((row) => row.value);
+        continue;
+      }
+
       if (field === 'labels') {
         const labelRows: Array<{ value: string | null }> = await manager.query(
           `
@@ -833,6 +1002,10 @@ export class TasksService {
         t.creator_id,
         t.owner_ids,
         t.viewer_ids,
+        ${TASK_APPLICATION_IDS_SQL} AS application_ids,
+        ${TASK_ASSET_IDS_SQL} AS asset_ids,
+        ${TASK_APPLICATIONS_SQL} AS applications,
+        ${TASK_ASSETS_SQL} AS assets,
         pr_origin.id as converted_request_id,
         pr_origin.item_number as converted_request_item_number
       FROM tasks t

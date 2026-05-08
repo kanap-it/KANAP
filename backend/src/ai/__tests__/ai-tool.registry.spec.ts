@@ -530,12 +530,20 @@ async function testDescribeEntityFiltersExposesAssigneeFormat() {
     entity_type: 'tasks',
   }) as any;
   const assignee = result.fields.find((field: any) => field.field === 'assignee');
+  const application = result.fields.find((field: any) => field.field === 'application');
+  const asset = result.fields.find((field: any) => field.field === 'asset');
 
   assert.equal(result.entity_type, 'tasks');
   assert.equal(result.complete, true);
   assert.equal(assignee.lookup_entity, 'users');
   assert.match(assignee.accepted_value_kind, /email and UUID are accepted/i);
   assert.ok(assignee.aliases.includes('assignee_id'));
+  assert.equal(application.lookup_entity, 'applications');
+  assert.equal(application.groupable, true);
+  assert.ok(application.aliases.includes('app'));
+  assert.equal(asset.lookup_entity, 'assets');
+  assert.equal(asset.groupable, true);
+  assert.ok(asset.aliases.includes('server'));
 }
 
 async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {

@@ -34,11 +34,13 @@ type FieldConfig = {
     | 'status'
     | 'task_type'
     | 'phase'
+    | 'entity_array'
     | 'portfolio_ref'
     | 'text';
   nullable?: boolean;
   targetField?: string;
   relationTarget?: 'companies' | 'portfolio_categories' | 'portfolio_sources' | 'portfolio_streams';
+  entityTarget?: 'applications' | 'assets';
 };
 
 type TaskSnapshot = Record<string, unknown> & {
@@ -63,6 +65,10 @@ const FIELD_CONFIG: Record<string, FieldConfig> = {
   type: { label: 'Task Type', kind: 'task_type', nullable: true, targetField: 'task_type_id' },
   phase: { label: 'Phase', kind: 'phase', nullable: true, targetField: 'phase_id' },
   labels: { label: 'Labels', kind: 'json_text_array' },
+  applications: { label: 'Linked Applications', kind: 'entity_array', targetField: 'application_ids', entityTarget: 'applications' },
+  application_ids: { label: 'Linked Applications', kind: 'entity_array', entityTarget: 'applications' },
+  assets: { label: 'Linked Assets', kind: 'entity_array', targetField: 'asset_ids', entityTarget: 'assets' },
+  asset_ids: { label: 'Linked Assets', kind: 'entity_array', entityTarget: 'assets' },
   relation_type: { label: 'Relation', kind: 'relation' },
   relation_ref: { label: 'Relation', kind: 'relation' },
   company: { label: 'Company', kind: 'portfolio_ref', nullable: true, targetField: 'company_id', relationTarget: 'companies' },
@@ -79,7 +85,7 @@ const UpdateTaskFieldsInputSchema = z.object({
   ref: z.string().trim().min(1)
     .describe('Task UUID or canonical task reference such as T-42.'),
   fields: z.record(z.string(), z.unknown())
-    .describe('Task fields to change. Supported: title, description, status, assignee, priority_level, start_date, due_date, task_type, phase, labels, relation_type/relation_ref, source, category, stream, company.'),
+    .describe('Task fields to change. Supported: title, description, status, assignee, priority_level, start_date, due_date, task_type, phase, labels, applications, assets, relation_type/relation_ref, source, category, stream, company.'),
 });
 
 function textOrNull(value: unknown): string | null {
@@ -155,7 +161,7 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
   readonly inputSchema = UpdateTaskFieldsInputSchema;
   readonly inputSummary = {
     ref: 'Task UUID or canonical reference such as T-42.',
-    fields: 'Fields to change: title, description, status, assignee, priority_level, start_date, due_date, task_type, phase, labels, relation_type/relation_ref, source, category, stream, company.',
+    fields: 'Fields to change: title, description, status, assignee, priority_level, start_date, due_date, task_type, phase, labels, applications, assets, relation_type/relation_ref, source, category, stream, company.',
   };
   readonly businessResource = 'tasks';
   readonly writePreview = {
@@ -424,6 +430,13 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
         : String(rawValue).split(',').map((item) => item.trim()).filter(Boolean);
       return { value: values, display: values.join(', ') };
     }
+    if (config.kind === 'entity_array') {
+      const values = Array.isArray(rawValue)
+        ? rawValue.map((item) => String(item).trim()).filter(Boolean)
+        : String(rawValue).split(',').map((item) => item.trim()).filter(Boolean);
+      const resolved = await this.resolveEntityArray(context, config.entityTarget!, values);
+      return { value: resolved.ids, display: resolved.labels.join(', ') || null };
+    }
     if (config.kind === 'portfolio_ref') {
       const ref = textOrNull(rawValue);
       if (!ref) return { value: null, display: null };
@@ -437,6 +450,8 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
     if (fieldName === 'assignee_user_id') return task.assignee_user_id ?? null;
     if (fieldName === 'task_type_id') return task.task_type_id ?? null;
     if (fieldName === 'phase_id') return task.phase_id ?? null;
+    if (fieldName === 'application_ids') return task.application_ids ?? [];
+    if (fieldName === 'asset_ids') return task.asset_ids ?? [];
     return task[fieldName] ?? null;
   }
 
@@ -449,6 +464,8 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
     if (fieldName === 'source_id') return textOrNull(task.source_name);
     if (fieldName === 'category_id') return textOrNull(task.category_name);
     if (fieldName === 'stream_id') return textOrNull(task.stream_name);
+    if (fieldName === 'application_ids') return formatValue(task.application_names);
+    if (fieldName === 'asset_ids') return formatValue(task.asset_names);
     return formatValue(task[fieldName]);
   }
 
@@ -466,7 +483,31 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
              comp.name AS company_name,
              ps.name AS source_name,
              pc.name AS category_name,
-             pst.name AS stream_name
+             pst.name AS stream_name,
+             COALESCE((
+               SELECT jsonb_agg(ta.application_id ORDER BY app.name ASC NULLS LAST, ta.application_id)
+               FROM task_applications ta
+               JOIN applications app ON app.id = ta.application_id AND app.tenant_id = ta.tenant_id
+               WHERE ta.task_id = t.id AND ta.tenant_id = t.tenant_id
+             ), '[]'::jsonb) AS application_ids,
+             COALESCE((
+               SELECT jsonb_agg(app.name ORDER BY app.name ASC NULLS LAST, app.id)
+               FROM task_applications ta
+               JOIN applications app ON app.id = ta.application_id AND app.tenant_id = ta.tenant_id
+               WHERE ta.task_id = t.id AND ta.tenant_id = t.tenant_id
+             ), '[]'::jsonb) AS application_names,
+             COALESCE((
+               SELECT jsonb_agg(ta.asset_id ORDER BY asset.name ASC NULLS LAST, ta.asset_id)
+               FROM task_assets ta
+               JOIN assets asset ON asset.id = ta.asset_id AND asset.tenant_id = ta.tenant_id
+               WHERE ta.task_id = t.id AND ta.tenant_id = t.tenant_id
+             ), '[]'::jsonb) AS asset_ids,
+             COALESCE((
+               SELECT jsonb_agg(asset.name ORDER BY asset.name ASC NULLS LAST, asset.id)
+               FROM task_assets ta
+               JOIN assets asset ON asset.id = ta.asset_id AND asset.tenant_id = ta.tenant_id
+               WHERE ta.task_id = t.id AND ta.tenant_id = t.tenant_id
+             ), '[]'::jsonb) AS asset_names
       FROM tasks t
       LEFT JOIN users u ON u.id = t.assignee_user_id AND u.tenant_id = t.tenant_id
       LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = t.tenant_id
@@ -504,6 +545,43 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
     if (rows.length === 0) throw new NotFoundException(`${target.replace(/_/g, ' ')} "${ref}" not found.`);
     if (rows.length > 1) throw new BadRequestException(`Multiple ${target.replace(/_/g, ' ')} matched "${ref}". Use a UUID.`);
     return { id: String(rows[0].id), label: String(rows[0].label || rows[0].id) };
+  }
+
+  private async resolveEntityArray(
+    context: AiExecutionContextWithManager,
+    target: 'applications' | 'assets',
+    refs: string[],
+  ): Promise<{ ids: string[]; labels: string[] }> {
+    if (refs.length === 0) return { ids: [], labels: [] };
+    const ids: string[] = [];
+    const labels: string[] = [];
+    for (const ref of Array.from(new Set(refs))) {
+      const uuid = isUuid(ref);
+      const rows = target === 'applications'
+        ? await context.manager.query(
+          `SELECT id, name AS label
+           FROM applications
+           WHERE tenant_id = $1
+             AND (${uuid ? 'id = $2 OR ' : ''}LOWER(name) = LOWER($2::text) OR LOWER(sequential_id) = LOWER($2::text))
+           ORDER BY name
+           LIMIT 6`,
+          [context.tenantId, ref],
+        )
+        : await context.manager.query(
+          `SELECT id, COALESCE(name, hostname, asset_reference) AS label
+           FROM assets
+           WHERE tenant_id = $1
+             AND (${uuid ? 'id = $2 OR ' : ''}LOWER(name) = LOWER($2::text) OR LOWER(asset_reference) = LOWER($2::text) OR LOWER(hostname) = LOWER($2::text))
+           ORDER BY name
+           LIMIT 6`,
+          [context.tenantId, ref],
+        );
+      if (rows.length === 0) throw new NotFoundException(`${target.slice(0, -1)} "${ref}" not found.`);
+      if (rows.length > 1) throw new BadRequestException(`Multiple ${target} matched "${ref}". Use a UUID or exact reference.`);
+      ids.push(String(rows[0].id));
+      labels.push(String(rows[0].label || rows[0].id));
+    }
+    return { ids, labels };
   }
 
   private async resolveContractRelation(

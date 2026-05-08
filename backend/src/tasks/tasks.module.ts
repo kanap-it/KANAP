@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Task } from './task.entity';
 import { TaskTimeEntry } from './task-time-entry.entity';
 import { TaskAttachment } from './task-attachment.entity';
+import { TaskApplication } from './task-application.entity';
+import { TaskAsset } from './task-asset.entity';
 import { TasksUnifiedService } from './tasks-unified.service';
 import { TasksDeleteService } from './tasks-delete.service';
 import { TaskTimeEntriesService } from './task-time-entries.service';
@@ -22,7 +24,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Task, TaskTimeEntry, TaskAttachment, PortfolioProjectPhase, PortfolioActivity]),
+    TypeOrmModule.forFeature([Task, TaskTimeEntry, TaskAttachment, TaskApplication, TaskAsset, PortfolioProjectPhase, PortfolioActivity]),
     forwardRef(() => AuditModule),
     forwardRef(() => PortfolioModule),
     forwardRef(() => UsersModule),

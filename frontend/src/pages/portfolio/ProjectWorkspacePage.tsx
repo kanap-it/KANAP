@@ -41,6 +41,10 @@ import {
 import { useTenant } from '../../tenant/TenantContext';
 import { useLocale } from '../../i18n/useLocale';
 import { getScoreColor } from '../tasks/theme/taskDetailTokens';
+import {
+  fetchPortfolioRelationsCount,
+  fetchProjectTasksCount,
+} from '../../utils/workspaceTabCounts';
 
 type TabKey = 'summary' | 'tasks' | 'timeline' | 'effort' | 'scoring' | 'relations' | 'knowledge';
 type LegacyPanelRoute = 'overview' | 'activity' | 'team';
@@ -283,6 +287,25 @@ export default function ProjectWorkspacePage() {
   const canManage = hasLevel('portfolio_projects', 'manager');
   const canContributeToProject = hasLevel('portfolio_projects', 'contributor');
   const canProjectAdmin = hasLevel('portfolio_projects', 'admin');
+  const projectDependenciesCount = Array.isArray(form?.dependencies) ? form.dependencies.length : 0;
+  const projectTasksCountQuery = useQuery({
+    queryKey: ['project-workspace-tasks-count', form?.id],
+    queryFn: () => fetchProjectTasksCount(form.id),
+    enabled: !isCreate && !!form?.id,
+  });
+  const projectRelationsCountQuery = useQuery({
+    queryKey: ['project-workspace-relations-count', form?.id, projectDependenciesCount],
+    queryFn: () => fetchPortfolioRelationsCount('project', form.id, projectDependenciesCount),
+    enabled: !isCreate && !!form?.id,
+  });
+  const projectKnowledgeContextQuery = useQuery<{ total?: number }>({
+    queryKey: ['entity-knowledge-context', 'projects', form?.id],
+    queryFn: async () => {
+      const res = await api.get(`/portfolio/projects/${form.id}/knowledge-context`);
+      return res.data;
+    },
+    enabled: !isCreate && !!form?.id,
+  });
 
   React.useEffect(() => {
     setForm(isCreate ? { origin: 'fast_track' } : {});
@@ -388,6 +411,7 @@ export default function ProjectWorkspacePage() {
         target_id: target.id,
       });
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project-workspace-relations-count', projectId] });
     } catch (error) {
       setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.savePanelFailed')));
       await refetch();
@@ -409,6 +433,7 @@ export default function ProjectWorkspacePage() {
     try {
       await api.delete(`/portfolio/projects/${projectId}/dependencies/${targetType}/${targetId}`);
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['project-workspace-relations-count', projectId] });
     } catch (error) {
       setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.savePanelFailed')));
       await refetch();
@@ -819,6 +844,13 @@ export default function ProjectWorkspacePage() {
         activeTab={routeTab}
         tabs={tabs.map((tab) => ({
           ...tab,
+          badge: tab.key === 'tasks'
+            ? projectTasksCountQuery.data ?? 0
+            : tab.key === 'relations'
+              ? projectRelationsCountQuery.data ?? 0
+              : tab.key === 'knowledge'
+                ? Number(projectKnowledgeContextQuery.data?.total || 0)
+                : undefined,
           disabled: isCreate && tab.key !== 'summary',
         }))}
         onTabChange={(nextTab) => onTabChange(null as any, nextTab as TabKey)}
@@ -1050,6 +1082,9 @@ export default function ProjectWorkspacePage() {
               projectId={id}
               phases={form?.phases || []}
               disabled={!canManage}
+              onTasksChange={() => {
+                void projectTasksCountQuery.refetch();
+              }}
             />
           </React.Suspense>
         )}
@@ -1068,7 +1103,13 @@ export default function ProjectWorkspacePage() {
                   disabled={!canManage}
                 />
               </Stack>
-              <ProjectRelationsPanel id={form.id} autoSave />
+              <ProjectRelationsPanel
+                id={form.id}
+                autoSave
+                onRelationsChange={() => {
+                  void projectRelationsCountQuery.refetch();
+                }}
+              />
             </Stack>
           </React.Suspense>
         )}

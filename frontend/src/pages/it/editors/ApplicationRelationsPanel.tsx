@@ -14,6 +14,7 @@ export type ApplicationRelationsPanelHandle = {
 };
 
 type Props = { id: string; isSuite?: boolean; onDirtyChange?: (dirty: boolean) => void; onRelationsChange?: () => void };
+type RelatedTaskOption = { id: string; item_number: number | null; title: string | null };
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -56,6 +57,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
   const [linkedProjects, setLinkedProjects] = React.useState<Array<{ id: string; name: string }>>([]);
   const [baselineProjects, setBaselineProjects] = React.useState<Array<{ id: string; name: string }>>([]);
   const [projectOptions, setProjectOptions] = React.useState<Array<{ id: string; name: string }>>([]);
+  const [linkedTasks, setLinkedTasks] = React.useState<RelatedTaskOption[]>([]);
 
   const [urls, setUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
   const [baselineUrls, setBaselineUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
@@ -121,6 +123,12 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
         const items = (res.data?.items || []) as Array<{ id: string; name: string }>;
         setLinkedProjects(items); setBaselineProjects(items);
       } catch { setLinkedProjects([]); setBaselineProjects([]); }
+
+      try {
+        const res = await api.get(`/applications/${id}/related-tasks`, { params: { limit: 100, sort: 'updated_at:DESC' } });
+        const items = (res.data?.items || []) as RelatedTaskOption[];
+        setLinkedTasks(items);
+      } catch { setLinkedTasks([]); }
 
       // URLs
       try {
@@ -230,6 +238,11 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
   const relationControlSx = { maxWidth: 420 } as const;
   const relationWideControlSx = { maxWidth: 640 } as const;
   const relationAutocompleteSx = [drawerFieldValueSx, { width: '100%' }] as const;
+  const taskLabel = React.useCallback((task: RelatedTaskOption) => {
+    const prefix = task.item_number ? `#${task.item_number}` : '';
+    const title = String(task.title || '').trim();
+    return [prefix, title].filter(Boolean).join(' ') || task.id;
+  }, []);
 
   const replaceOpexRelations = React.useCallback(async (next: Array<{ id: string; product_name: string }>) => {
     setLinkedOpex(next);
@@ -399,6 +412,8 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
         </>
       )}
 
+      <SectionTitle>Relations</SectionTitle>
+
       <PropertyRow label="OPEX items" valueSx={relationControlSx}>
         <Autocomplete
           multiple
@@ -526,6 +541,37 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
           filterSelectedOptions
           disabled={readOnly}
+          fullWidth
+          sx={relationAutocompleteSx}
+        />
+      </PropertyRow>
+
+      <PropertyRow label="Tasks" valueSx={relationControlSx}>
+        <Autocomplete
+          multiple
+          options={linkedTasks}
+          value={linkedTasks}
+          getOptionLabel={taskLabel}
+          readOnly
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>{taskLabel(option)}</li>
+          )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip {...getTagProps({ index })} key={option.id} label={taskLabel(option)} sx={relationTagSx} />
+            ))
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search tasks"
+              variant="standard"
+              InputProps={{ ...params.InputProps, disableUnderline: true }}
+              sx={drawerFieldValueSx}
+            />
+          )}
+          ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+          isOptionEqualToValue={(opt, val) => opt.id === val.id}
           fullWidth
           sx={relationAutocompleteSx}
         />
