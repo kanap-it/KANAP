@@ -11,6 +11,7 @@ import { AiProviderToolDef } from './providers/ai-provider.types';
 import { BraveSearchService } from './web-search/brave-search.service';
 import { AiAggregateExecutor } from './query/ai-aggregate.executor';
 import { AiQueryExecutor } from './query/ai-query.executor';
+import { describeAiEntityFilters } from './query/ai-filter-description.util';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
 import { AiSettings } from './ai-settings.entity';
 import {
@@ -94,6 +95,10 @@ const QueryEntitiesInputSchema = z.object({
   }).optional(),
   page: z.number().int().min(1).max(100).default(1),
   limit: z.number().int().min(1).max(200).default(200),
+});
+
+const DescribeEntityFiltersInputSchema = z.object({
+  entity_type: AiQueryEntityTypeSchema,
 });
 
 const AggregateEntitiesInputSchema = z.object({
@@ -200,6 +205,24 @@ export class AiToolRegistry {
         },
       ],
       [
+        'describe_entity_filters',
+        {
+          name: 'describe_entity_filters',
+          category: 'authoritative',
+          description: 'Describe supported AI filter fields for one readable entity family, including aliases, expected value kinds, examples, and lookup hints. Use this before structured filtering when field names or value formats are uncertain.',
+          inputSchema: DescribeEntityFiltersInputSchema,
+          inputSummary: {
+            entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
+          },
+          surfaces: ['chat', 'mcp'],
+          readOnly: true,
+          execute: async (context, input) => {
+            await this.policy.assertEntityTypeReadAccess(context, input.entity_type, context.manager);
+            return describeAiEntityFilters(input.entity_type);
+          },
+        },
+      ],
+      [
         'query_entities',
         {
           name: 'query_entities',
@@ -209,7 +232,7 @@ export class AiToolRegistry {
           inputSummary: {
             entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
             scope: 'Optional first-person scope. Use "me" or "my_team" for tasks, projects, and requests.',
-            filters: 'Optional field filters keyed by AI field name.',
+            filters: 'Optional field filters keyed by AI field name. Use describe_entity_filters when unsure which fields or value formats are supported.',
             q: 'Optional literal quick-search text. Use plain text only; never encode filters like status:in_progress or assignee=bob@example.com here.',
             year: 'Optional fiscal/calendar year for year-backed metrics, such as company headcount, IT users, turnover, and department headcount. Defaults to the current year when metric fields are included.',
             sort: 'Optional sort field and direction.',
@@ -534,6 +557,7 @@ export class AiToolRegistry {
 
     switch (toolName) {
       case 'search_all':
+      case 'describe_entity_filters':
       case 'query_entities':
       case 'aggregate_entities':
       case 'get_filter_values':

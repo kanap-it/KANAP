@@ -56,6 +56,10 @@ function summarizeToolResult(result: unknown): string {
     summaryParts.push(`fields=${Object.keys(typedResult.values as Record<string, unknown>).length}`);
   }
 
+  if (typeof typedResult.status === 'string') {
+    summaryParts.push(`status=${typedResult.status}`);
+  }
+
   for (const key of ['total', 'returned', 'count', 'matched'] as const) {
     const value = typedResult[key];
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -69,6 +73,13 @@ function summarizeToolResult(result: unknown): string {
 
   if (typeof typedResult.complete === 'boolean') {
     summaryParts.push(`complete=${typedResult.complete}`);
+  }
+
+  for (const key of ['filters_ignored', 'fields_ignored'] as const) {
+    const value = typedResult[key];
+    if (Array.isArray(value) && value.length > 0) {
+      summaryParts.push(`${key}=${value.join(',')}`);
+    }
   }
 
   return summaryParts.join(' ');

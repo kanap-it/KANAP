@@ -23,6 +23,7 @@ export type AiMutationWriteToolName =
 export type AiToolCategory = 'discovery' | 'authoritative' | 'inspection' | 'mutation';
 export type AiToolName =
   | 'search_all'
+  | 'describe_entity_filters'
   | 'query_entities'
   | 'aggregate_entities'
   | 'get_filter_values'

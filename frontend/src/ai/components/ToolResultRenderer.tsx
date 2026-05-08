@@ -135,6 +135,107 @@ function GenericResult({ result }: { result: unknown }) {
   );
 }
 
+function ResultMeta({ result }: { result: any }) {
+  const rawItems: Array<[string, unknown]> = [
+    ['status', result?.status],
+    ['total', result?.total],
+    ['returned', result?.returned],
+    ['complete', result?.complete],
+    ['truncated', result?.truncated],
+  ];
+  const items = rawItems.filter(([, value]) => value !== undefined && value !== null);
+
+  if (!items.length) return null;
+
+  return (
+    <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+      {items.map(([label, value]) => (
+        <Typography
+          key={label}
+          variant="caption"
+          sx={{ color: 'text.secondary', fontFamily: label === 'status' ? undefined : "'JetBrains Mono Variable', ui-monospace, monospace" }}
+        >
+          {label}: {String(value)}
+        </Typography>
+      ))}
+    </Stack>
+  );
+}
+
+function RepairSuggestions({ result }: { result: any }) {
+  const suggestions = Array.isArray(result?.suggested_repairs) ? result.suggested_repairs : [];
+  if (!suggestions.length) return null;
+  return (
+    <Stack spacing={0.5} sx={{ mb: 1 }}>
+      {suggestions.map((suggestion: any, index: number) => (
+        <Typography key={`${suggestion.field || 'field'}-${index}`} variant="caption" color="text.secondary">
+          {suggestion.field}: {suggestion.reason}
+        </Typography>
+      ))}
+    </Stack>
+  );
+}
+
+function AggregateGroups({ result }: { result: any }) {
+  const groups = Array.isArray(result?.groups) ? result.groups : [];
+  if (!groups.length) return <Typography variant="body2" color="text.secondary">No groups found.</Typography>;
+  return (
+    <Stack spacing={0.5}>
+      {groups.slice(0, 20).map((group: any, index: number) => (
+        <Stack key={`${group.key ?? 'empty'}-${index}`} direction="row" spacing={1} alignItems="center">
+          <Typography variant="body2" sx={{ flex: 1 }}>{group.key ?? '(empty)'}</Typography>
+          <Typography variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace", color: 'text.secondary' }}>
+            {group.count ?? group.value ?? 0}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
+function FilterValues({ result }: { result: any }) {
+  const values = result?.values && typeof result.values === 'object' ? result.values : {};
+  const fields = Object.entries(values);
+  if (!fields.length) return <Typography variant="body2" color="text.secondary">No filter values found.</Typography>;
+  return (
+    <Stack spacing={0.75}>
+      {fields.map(([field, entries]) => (
+        <Stack key={field} spacing={0.25}>
+          <Typography variant="caption" color="text.secondary">{field}</Typography>
+          <Typography variant="body2">
+            {(Array.isArray(entries) ? entries : []).slice(0, 12).map((entry) => entry === null ? '(empty)' : String(entry)).join(', ')}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
+function FilterDescriptions({ result }: { result: any }) {
+  const fields = Array.isArray(result?.fields) ? result.fields : [];
+  if (!fields.length) return <Typography variant="body2" color="text.secondary">No filter fields found.</Typography>;
+  return (
+    <Stack spacing={0.75}>
+      {fields.slice(0, 24).map((field: any) => (
+        <Stack key={field.field} spacing={0.25}>
+          <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>{field.field}</Typography>
+            <Typography variant="caption" color="text.secondary">{field.type}</Typography>
+            {field.accepted_value_kind && (
+              <Typography variant="caption" color="text.secondary">{field.accepted_value_kind}</Typography>
+            )}
+          </Stack>
+          {field.aliases?.length > 0 && (
+            <Typography variant="caption" color="text.secondary">
+              aliases: {field.aliases.join(', ')}
+            </Typography>
+          )}
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
 export default function ToolResultRenderer({ name, result, arguments: args }: ToolResultRendererProps) {
   const { t } = useTranslation(['ai']);
   const [expanded, setExpanded] = useState(false);
@@ -145,6 +246,36 @@ export default function ToolResultRenderer({ name, result, arguments: args }: To
     switch (name) {
       case 'search_all':
         return <EntityList items={data?.items || []} />;
+      case 'query_entities':
+        return (
+          <Stack spacing={1}>
+            <ResultMeta result={data} />
+            <RepairSuggestions result={data} />
+            <EntityList items={data?.items || []} />
+          </Stack>
+        );
+      case 'aggregate_entities':
+        return (
+          <Stack spacing={1}>
+            <ResultMeta result={data} />
+            <RepairSuggestions result={data} />
+            <AggregateGroups result={data} />
+          </Stack>
+        );
+      case 'get_filter_values':
+        return (
+          <Stack spacing={1}>
+            <ResultMeta result={data} />
+            <FilterValues result={data} />
+          </Stack>
+        );
+      case 'describe_entity_filters':
+        return (
+          <Stack spacing={1}>
+            <ResultMeta result={data} />
+            <FilterDescriptions result={data} />
+          </Stack>
+        );
       case 'get_entity_context':
         return (
           <Stack spacing={1}>

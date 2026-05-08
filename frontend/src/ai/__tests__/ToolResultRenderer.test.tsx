@@ -113,4 +113,62 @@ describe('ToolResultRenderer', () => {
 
     expect(screen.getByText('Ignored fields: assignee')).toBeInTheDocument();
   });
+
+  it('renders structured query metadata and repair suggestions', () => {
+    render(
+      <ToolResultRenderer
+        name="query_entities"
+        result={{
+          status: 'invalid_filter',
+          items: [],
+          total: 0,
+          returned: 0,
+          complete: false,
+          truncated: false,
+          filters_applied: [],
+          filters_ignored: ['assignee_id'],
+          suggested_repairs: [
+            {
+              field: 'assignee',
+              reason: 'Use supported AI field "assignee" instead of unsupported alias "assignee_id".',
+            },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('query entities'));
+
+    expect(screen.getByText('status: invalid_filter')).toBeInTheDocument();
+    expect(screen.getByText(/assignee: Use supported AI field/)).toBeInTheDocument();
+  });
+
+  it('renders filter descriptions', () => {
+    render(
+      <ToolResultRenderer
+        name="describe_entity_filters"
+        result={{
+          entity_type: 'tasks',
+          fields: [
+            {
+              field: 'assignee',
+              type: 'set',
+              accepted_value_kind: 'user display name',
+              aliases: ['assignee_id'],
+            },
+          ],
+          total: 1,
+          returned: 1,
+          complete: true,
+          truncated: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('describe entity filters'));
+
+    expect(screen.getByText('assignee')).toBeInTheDocument();
+    expect(screen.getByText('user display name')).toBeInTheDocument();
+    expect(screen.getByText('aliases: assignee_id')).toBeInTheDocument();
+  });
 });

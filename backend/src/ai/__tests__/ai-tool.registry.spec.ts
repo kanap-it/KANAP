@@ -411,7 +411,11 @@ async function testListAvailableTools() {
   const tools = await registry.listAvailableTools(createContext());
   assert.deepEqual(
     tools.map((tool) => tool.name),
-    ['search_all', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_detail', 'get_entity_context', 'search_knowledge', 'get_document'],
+    ['search_all', 'describe_entity_filters', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_detail', 'get_entity_context', 'search_knowledge', 'get_document'],
+  );
+  assert.match(
+    tools.find((tool) => tool.name === 'describe_entity_filters')?.description || '',
+    /expected value kinds/i,
   );
   assert.match(
     tools.find((tool) => tool.name === 'query_entities')?.description || '',
@@ -453,6 +457,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
     registry.listRegisteredTools().map((tool) => tool.name),
     [
       'search_all',
+      'describe_entity_filters',
       'query_entities',
       'aggregate_entities',
       'get_filter_values',
@@ -481,6 +486,7 @@ async function testListAvailableToolsIncludesCategories() {
   const tools = await registry.listAvailableTools(createContext());
 
   assert.equal(tools.find((tool) => tool.name === 'search_all')?.category, 'discovery');
+  assert.equal(tools.find((tool) => tool.name === 'describe_entity_filters')?.category, 'authoritative');
   assert.equal(tools.find((tool) => tool.name === 'query_entities')?.category, 'authoritative');
   assert.equal(tools.find((tool) => tool.name === 'get_entity_detail')?.category, 'inspection');
   assert.equal(tools.find((tool) => tool.name === 'get_entity_context')?.category, 'inspection');
@@ -497,6 +503,7 @@ async function testRegisteredToolCategoriesMatchExpectedAssignments() {
   }
 
   assert.equal(categories.get('search_all'), 'discovery');
+  assert.equal(categories.get('describe_entity_filters'), 'authoritative');
   assert.equal(categories.get('query_entities'), 'authoritative');
   assert.equal(categories.get('aggregate_entities'), 'authoritative');
   assert.equal(categories.get('get_filter_values'), 'authoritative');
@@ -510,6 +517,25 @@ async function testRegisteredToolCategoriesMatchExpectedAssignments() {
   assert.equal(categories.get('import_glpi_ticket'), 'mutation');
   assert.equal(categories.get('create_task'), 'mutation');
   assert.equal(categories.get('update_task_status'), 'mutation');
+}
+
+async function testDescribeEntityFiltersExposesAssigneeFormat() {
+  const registry = createRegistry({
+    policy: {
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+  });
+
+  const result = await registry.execute(createContext(), 'describe_entity_filters', {
+    entity_type: 'tasks',
+  }) as any;
+  const assignee = result.fields.find((field: any) => field.field === 'assignee');
+
+  assert.equal(result.entity_type, 'tasks');
+  assert.equal(result.complete, true);
+  assert.equal(assignee.lookup_entity, 'users');
+  assert.match(assignee.accepted_value_kind, /email and UUID are accepted/i);
+  assert.ok(assignee.aliases.includes('assignee_id'));
 }
 
 async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
@@ -1243,14 +1269,18 @@ async function testQueryExecutorMarksLaterPagesIncompleteEvenWhenNotTruncated() 
 }
 
 async function testQueryExecutorMarksIgnoredFiltersIncomplete() {
+  let called = false;
   const executor = createQueryExecutor({
     tasks: {
-      listAllTasks: async () => ({
-        items: [],
-        total: 0,
-        page: 1,
-        limit: 25,
-      }),
+      listAllTasks: async () => {
+        called = true;
+        return {
+          items: [],
+          total: 0,
+          page: 1,
+          limit: 25,
+        };
+      },
     },
   });
 
@@ -1260,8 +1290,59 @@ async function testQueryExecutorMarksIgnoredFiltersIncomplete() {
     limit: 25,
   });
 
+  assert.equal(called, false);
+  assert.equal((result as any).status, 'invalid_filter');
   assert.deepEqual(result.filters_ignored, ['not_a_real_field']);
+  assert.match((result as any).suggested_repairs[0].reason, /describe_entity_filters/i);
   assert.equal(result.complete, false);
+}
+
+async function testQueryExecutorSuggestsSupportedFieldForAssigneeAlias() {
+  const executor = createQueryExecutor();
+
+  const result = await executor.execute(createContext(), {
+    entity_type: 'tasks',
+    filters: { assignee_id: ['user-1'] } as any,
+    limit: 25,
+  });
+
+  assert.equal((result as any).status, 'invalid_filter');
+  assert.deepEqual(result.filters_ignored, ['assignee_id']);
+  assert.deepEqual((result as any).suggested_repairs, [{
+    field: 'assignee',
+    reason: 'Use supported AI field "assignee" instead of unsupported alias "assignee_id".',
+  }]);
+}
+
+async function testQueryExecutorNormalizesTaskAssigneeEmailFilter() {
+  const calls: unknown[] = [];
+  const executor = createQueryExecutor({
+    tasks: {
+      listAllTasks: async (query: unknown) => {
+        calls.push(query);
+        return { items: [], total: 0, page: 1, limit: 25 };
+      },
+    },
+  });
+  const context = {
+    ...createContext(),
+    manager: {
+      query: async () => ([{ display_name: 'Franck BONGAY' }]),
+    } as any,
+  };
+
+  await executor.execute(context, {
+    entity_type: 'tasks',
+    filters: { assignee: 'franck.bongay@lohr.group' },
+    limit: 25,
+  });
+
+  assert.equal(calls.length, 1);
+  const filters = JSON.parse((calls[0] as any).filters);
+  assert.deepEqual(filters.assignee_name, {
+    filterType: 'set',
+    values: ['Franck BONGAY'],
+  });
 }
 
 async function testQueryExecutorMarksUnresolvedScopeIncomplete() {
@@ -1354,8 +1435,36 @@ async function testAggregateExecutorMarksIgnoredFiltersIncomplete() {
     filters: { not_a_real_field: ['open'] } as any,
   });
 
+  assert.equal((result as any).status, 'invalid_filter');
   assert.deepEqual(result.filters_ignored, ['not_a_real_field']);
   assert.equal(result.complete, false);
+}
+
+async function testAggregateExecutorNormalizesTaskAssigneeEmailFilter() {
+  const executor = createAggregateExecutor({
+    tasks: {
+      listIds: async (query: any) => {
+        const filters = JSON.parse(query.filters);
+        assert.deepEqual(filters.assignee_name, {
+          filterType: 'set',
+          values: ['Franck BONGAY'],
+        });
+        return { ids: [], total: 0 };
+      },
+    },
+  });
+  const context = {
+    ...createContext(),
+    manager: {
+      query: async () => ([{ display_name: 'Franck BONGAY' }]),
+    } as any,
+  };
+
+  await executor.execute(context, {
+    entity_type: 'tasks',
+    group_by: 'status',
+    filters: { assignee: 'franck.bongay@lohr.group' },
+  });
 }
 
 async function testAggregateExecutorMarksTruncatedWhenCollectedIdsAreCapped() {
@@ -1415,6 +1524,7 @@ async function run() {
   await testListRegisteredToolsExposesRuntimeRegistry();
   await testListAvailableToolsIncludesCategories();
   await testRegisteredToolCategoriesMatchExpectedAssignments();
+  await testDescribeEntityFiltersExposesAssigneeFormat();
   await testSearchAllDelegatesToEntityTools();
   await testSearchAllAppliesGenerousDefaultLimit();
   await testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed();
@@ -1445,12 +1555,15 @@ async function run() {
   await testQueryExecutorMarksFirstPageAsCompleteWhenFull();
   await testQueryExecutorMarksLaterPagesIncompleteEvenWhenNotTruncated();
   await testQueryExecutorMarksIgnoredFiltersIncomplete();
+  await testQueryExecutorSuggestsSupportedFieldForAssigneeAlias();
+  await testQueryExecutorNormalizesTaskAssigneeEmailFilter();
   await testQueryExecutorMarksUnresolvedScopeIncomplete();
   await testFilterValuesMarksSupportedFieldsComplete();
   await testFilterValuesMarksIgnoredFieldsIncomplete();
   await testAggregateExecutorRejectsStructuredPredicatesInsideQuickSearch();
   await testAggregateExecutorMarksCompleteWhenNoIgnoredFilters();
   await testAggregateExecutorMarksIgnoredFiltersIncomplete();
+  await testAggregateExecutorNormalizesTaskAssigneeEmailFilter();
   await testAggregateExecutorMarksTruncatedWhenCollectedIdsAreCapped();
   await testAggregateExecutorMarksUnresolvedScopeIncomplete();
 }

@@ -29,6 +29,10 @@ import {
   AiQueryScope,
 } from '../ai.types';
 import { adaptFilters } from './ai-filter.adapter';
+import {
+  buildFilterRepairSuggestions,
+  hasEmailOrUuidFilterValue,
+} from './ai-filter-description.util';
 import { applyScopeToAiQuery } from './ai-query-scope.util';
 import {
   AiFilterValue,
@@ -255,7 +259,63 @@ export class AiQueryExecutor {
     return `${mappedField}:${direction}`;
   }
 
-  private buildBaseQuery(
+  private async normalizePersonFilters(
+    context: AiExecutionContextWithManager,
+    entityType: AiQueryEntityType,
+    filters?: Record<string, AiFilterValue>,
+  ): Promise<Record<string, AiFilterValue> | undefined> {
+    if (entityType !== 'tasks' || !filters) return filters;
+
+    const normalized: Record<string, AiFilterValue> = { ...filters };
+    const personFields: Array<{ field: 'assignee' | 'creator'; idColumn: string }> = [
+      { field: 'assignee', idColumn: 'assignee_user_id' },
+      { field: 'creator', idColumn: 'creator_id' },
+    ];
+
+    for (const { field, idColumn } of personFields) {
+      const rawValue = normalized[field];
+      if (!rawValue || !hasEmailOrUuidFilterValue(rawValue)) continue;
+
+      const values = Array.isArray(rawValue)
+        ? rawValue
+        : typeof rawValue === 'string'
+          ? [rawValue]
+          : [];
+      const resolvedValues: Array<string | null> = [];
+
+      for (const value of values) {
+        if (value === null) {
+          resolvedValues.push(null);
+          continue;
+        }
+        if (typeof value !== 'string' || !value.trim()) continue;
+        const trimmed = value.trim();
+        const rows = await context.manager.query(
+          `SELECT COALESCE(NULLIF(TRIM(CONCAT(first_name, ' ', last_name)), ''), email) AS display_name
+           FROM users
+           WHERE tenant_id = $1
+             AND (LOWER(email) = LOWER($2) OR id::text = $2)
+           LIMIT 1`,
+          [context.tenantId, trimmed],
+        );
+        resolvedValues.push(rows[0]?.display_name ?? trimmed);
+      }
+
+      if (resolvedValues.length > 0) {
+        normalized[field] = Array.isArray(rawValue) ? resolvedValues : resolvedValues[0] ?? rawValue;
+      }
+
+      const aliasValue = normalized[idColumn];
+      if (aliasValue && !normalized[field]) {
+        normalized[field] = aliasValue;
+      }
+    }
+
+    return normalized;
+  }
+
+  private async buildBaseQuery(
+    context: AiExecutionContextWithManager,
     entityType: AiQueryEntityType,
     input: {
       filters?: Record<string, AiFilterValue>;
@@ -265,9 +325,10 @@ export class AiQueryExecutor {
       page?: number;
       limit?: number;
     },
-  ): { query: Record<string, any>; filtersApplied: string[]; filtersIgnored: string[] } {
+  ): Promise<{ query: Record<string, any>; filtersApplied: string[]; filtersIgnored: string[] }> {
     const registry = getAiEntityRegistry(entityType);
-    const adapted = adaptFilters(registry, input.filters);
+    const normalizedFilters = await this.normalizePersonFilters(context, entityType, input.filters);
+    const adapted = adaptFilters(registry, normalizedFilters);
     const page = Math.min(Math.max(Number(input.page) || 1, 1), 100);
     const limit = Math.min(Math.max(Number(input.limit) || 200, 1), 200);
     assertPlainTextQuickSearch(entityType, input.q);
@@ -878,9 +939,26 @@ export class AiQueryExecutor {
       scope?: AiQueryScope;
     },
   ): Promise<AiQueryResult> {
-    const { query, filtersApplied, filtersIgnored } = this.buildBaseQuery(input.entity_type, input);
+    const { query, filtersApplied, filtersIgnored } = await this.buildBaseQuery(context, input.entity_type, input);
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 200;
+    if (filtersIgnored.length > 0) {
+      const registry = getAiEntityRegistry(input.entity_type);
+      return {
+        status: 'invalid_filter',
+        items: [],
+        total: 0,
+        page,
+        limit,
+        returned: 0,
+        truncated: false,
+        complete: false,
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        suggested_repairs: buildFilterRepairSuggestions(registry, filtersIgnored),
+        scope: null,
+      };
+    }
     const scoped = await applyScopeToAiQuery(context, input.entity_type, query, input.scope);
     if (scoped.scope && scoped.scope.resolved === false) {
       return {

@@ -53,6 +53,11 @@ export type AiFilterFieldDef = {
   sortable?: boolean;
   groupable?: boolean;
   aggregable?: boolean;
+  aliases?: string[];
+  acceptedValueKind?: string;
+  lookupEntity?: AiQueryEntityType;
+  examples?: string[];
+  doesNotAccept?: string[];
 };
 
 export type AiAggregateGroupDef = {
@@ -94,6 +99,7 @@ export type AiAdaptedFilters = {
 };
 
 export type AiQueryResult = {
+  status?: 'ok' | 'invalid_filter';
   items: AiEntitySummaryDto[];
   total: number;
   page: number;
@@ -103,6 +109,7 @@ export type AiQueryResult = {
   complete: boolean;
   filters_applied: string[];
   filters_ignored: string[];
+  suggested_repairs?: AiFilterRepairSuggestion[];
   scope: {
     requested: AiQueryScope;
     resolved: boolean;
@@ -111,6 +118,7 @@ export type AiQueryResult = {
 };
 
 export type AiAggregateResult = {
+  status?: 'ok' | 'invalid_filter';
   group_by: string;
   metric?: string | null;
   function?: 'count' | 'sum' | 'avg' | 'min' | 'max';
@@ -124,6 +132,7 @@ export type AiAggregateResult = {
   complete: boolean;
   filters_applied: string[];
   filters_ignored: string[];
+  suggested_repairs?: AiFilterRepairSuggestion[];
   scope: {
     requested: AiQueryScope;
     resolved: boolean;
@@ -134,6 +143,36 @@ export type AiAggregateResult = {
 export type AiFilterValuesResult = {
   values: Record<string, Array<string | boolean | null>>;
   fields_ignored: string[];
+  total: number;
+  returned: number;
+  truncated: boolean;
+  complete: boolean;
+};
+
+export type AiFilterRepairSuggestion = {
+  field: string;
+  reason: string;
+};
+
+export type AiFilterDescription = {
+  field: string;
+  type: AiFilterFieldType;
+  description: string;
+  accepted_value_kind: string;
+  aliases: string[];
+  lookup_entity: AiQueryEntityType | null;
+  examples: string[];
+  does_not_accept: string[];
+  discoverable: boolean;
+  sortable: boolean;
+  groupable: boolean;
+  aggregable: boolean;
+  values?: Array<string | null>;
+};
+
+export type AiFilterDescriptionResult = {
+  entity_type: AiQueryEntityType;
+  fields: AiFilterDescription[];
   total: number;
   returned: number;
   truncated: boolean;
