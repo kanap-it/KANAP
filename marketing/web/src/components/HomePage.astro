@@ -12,12 +12,13 @@ import {
   Section,
   PillarGrid,
   FeatureGrid,
-  ScreenshotFrame,
   TrustStrip,
   CTABand,
 } from './sections';
+import HomeHeroVisual from './HomeHeroVisual.astro';
 import { getLocaleFromUrl, localePath } from '../i18n/ui';
 import { getHomeContent } from '../content/resolve';
+import { HOME_HERO_SCREENSHOTS } from '../content/screenshots';
 import { organizationLd, softwareApplicationLd } from '../lib/jsonld';
 
 const locale = getLocaleFromUrl(Astro.url);
@@ -65,9 +66,10 @@ const crossItems = content.crossCutting.items.map((i) => ({
       <p class="mk-small mk-home__trial-note">{content.hero.trialNote}</p>
     </Fragment>
     <Fragment slot="visual">
-      <ScreenshotFrame
-        placeholder
-        alt="KANAP dashboard showing integrated modules"
+      <HomeHeroVisual
+        mainSrc={HOME_HERO_SCREENSHOTS.main}
+        mapSrc={HOME_HERO_SCREENSHOTS.map}
+        budgetSrc={HOME_HERO_SCREENSHOTS.budget}
       />
     </Fragment>
   </Hero>

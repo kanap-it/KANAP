@@ -49,6 +49,7 @@ async function testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsReque
     } as any,
     {} as any,
     {} as any,
+    {} as any,
     {
       initSession: async () => ({
         baseUrl: 'https://glpi.internal/helpdesk/',
@@ -65,6 +66,7 @@ async function testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsReque
         type: 2,
         glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=4523',
       }),
+      getTicketFollowups: async () => [],
       killSession: async () => {
         killSessionCalls += 1;
       },
@@ -111,6 +113,7 @@ async function testPrepareCreatePreviewFallsBackToUrgencyWhenPriorityIsMissing()
     } as any,
     {} as any,
     {} as any,
+    {} as any,
     {
       initSession: async () => ({
         baseUrl: 'https://glpi.internal/helpdesk/',
@@ -127,6 +130,7 @@ async function testPrepareCreatePreviewFallsBackToUrgencyWhenPriorityIsMissing()
         type: 1,
         glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=5000',
       }),
+      getTicketFollowups: async () => [],
       killSession: async () => undefined,
     } as any,
     {
@@ -160,6 +164,7 @@ async function testPrepareCreatePreviewConvertsEscapedHtmlContent() {
     } as any,
     {} as any,
     {} as any,
+    {} as any,
     {
       initSession: async () => ({
         baseUrl: 'https://glpi.internal/helpdesk/',
@@ -179,6 +184,7 @@ async function testPrepareCreatePreviewConvertsEscapedHtmlContent() {
         type: 1,
         glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=59925',
       }),
+      getTicketFollowups: async () => [],
       killSession: async () => undefined,
     } as any,
     {
@@ -194,6 +200,78 @@ async function testPrepareCreatePreviewConvertsEscapedHtmlContent() {
   assert.match(String(prepared.mutationInput.description || ''), /# Données du formulaire/i);
   assert.doesNotMatch(String(prepared.mutationInput.description || ''), /<div>|&lt;div&gt;/i);
   assert.deepEqual(prepared.mutationInput.glpi_image_targets, ['/front/document.send.php?docid=41260&itemtype=Ticket&items_id=59925']);
+}
+
+async function testPrepareCreatePreviewQueuesPublicFollowupsAndSkipsPrivateFollowups() {
+  const operation = new ImportGlpiTicketAiMutationOperation(
+    {
+      resolveCurrentUser: async () => ({
+        id: 'user-1',
+        email: 'requestor@example.com',
+        label: 'Requestor User',
+      }),
+      resolveCreateTarget: async () => ({
+        mode: 'standalone',
+        type: null,
+        id: null,
+        ref: null,
+        label: 'Standalone',
+      }),
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      initSession: async () => ({
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: null,
+      }),
+      getTicket: async () => ({
+        id: 4523,
+        name: 'VPN access broken',
+        content_html: '<p>User cannot connect.</p>',
+        status: 'Assigned',
+        priority: 4,
+        urgency: '5',
+        type: 2,
+        glpi_url: 'https://glpi.internal/helpdesk/front/ticket.form.php?id=4523',
+      }),
+      getTicketFollowups: async () => [
+        {
+          id: 101,
+          content_html: '<p>Public update</p><p><img src="/front/document.send.php?docid=88" /></p>',
+          author_label: 'Alice Technician',
+          date: '2026-01-04 10:00:00',
+          is_private: false,
+          image_targets: ['/front/document.send.php?docid=88'],
+        },
+        {
+          id: 102,
+          content_html: '<p>Private update</p>',
+          author_label: 'Manager',
+          date: '2026-01-05 10:00:00',
+          is_private: true,
+          image_targets: [],
+        },
+      ],
+      killSession: async () => undefined,
+    } as any,
+    {
+      assertBusinessPermission: async () => undefined,
+    } as any,
+  );
+
+  const prepared = await operation.prepareCreatePreview(createContext() as any, {
+    ticket_id: 4523,
+    relation_type: 'standalone',
+  });
+
+  assert.equal(prepared.mutationInput.glpi_followup_public_count, 1);
+  assert.equal(prepared.mutationInput.glpi_followup_private_skipped_count, 1);
+  assert.equal(prepared.mutationInput.glpi_followup_image_total_count, 1);
+  assert.equal((prepared.mutationInput.glpi_followups as any[]).length, 1);
+  assert.equal((prepared.mutationInput.glpi_followups as any[])[0].id, 101);
 }
 
 async function testExecutePreviewImportsInlineImagesBestEffort() {
@@ -232,6 +310,7 @@ async function testExecutePreviewImportsInlineImagesBestEffort() {
         return { id: `attachment-${uploads.length}` };
       },
     } as any,
+    {} as any,
     {
       initSession: async () => ({
         baseUrl: 'https://glpi.internal/helpdesk/',
@@ -304,11 +383,132 @@ async function testExecutePreviewImportsInlineImagesBestEffort() {
   assert.equal(killSessionCalls, 1);
 }
 
+async function testExecutePreviewImportsFollowupsAsNativeCommentsWithInlineImages() {
+  const uploads: any[] = [];
+  const comments: any[] = [];
+  let killSessionCalls = 0;
+
+  const operation = new ImportGlpiTicketAiMutationOperation(
+    {
+      resolveStoredCreateTarget: async () => ({
+        mode: 'standalone',
+        type: null,
+        id: null,
+        ref: null,
+        label: 'Standalone',
+      }),
+    } as any,
+    {
+      createForTarget: async () => ({
+        id: 'task-1',
+        item_number: 44,
+        title: 'VPN access broken',
+        description: 'User cannot connect.',
+      }),
+    } as any,
+    {
+      uploadAttachment: async (...args: any[]) => {
+        uploads.push(args);
+        return { id: `attachment-${uploads.length}` };
+      },
+    } as any,
+    {
+      createImportedComment: async (...args: any[]) => {
+        comments.push(args);
+        return { id: `comment-${comments.length}` };
+      },
+      create: async () => {
+        throw new Error('Standard comment creation should not be used for GLPI imports.');
+      },
+    } as any,
+    {
+      initSession: async () => ({
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: null,
+      }),
+      fetchDocument: async (_session: any, sourceUrl: string) => {
+        if (sourceUrl.includes('docid=89')) {
+          throw new BadRequestException('image not found');
+        }
+        return {
+          buffer: Buffer.from('fake-image'),
+          mimeType: 'image/png',
+          filename: 'followup.png',
+        };
+      },
+      killSession: async () => {
+        killSessionCalls += 1;
+      },
+    } as any,
+    {
+      assertBusinessPermission: async () => undefined,
+    } as any,
+  );
+
+  const preview = {
+    id: 'preview-1',
+    tenant_id: 'tenant-1',
+    conversation_id: 'conv-1',
+    user_id: 'user-1',
+    tool_name: 'import_glpi_ticket',
+    target_entity_type: 'tasks',
+    target_entity_id: null,
+    mutation_input: {
+      relation_type: 'standalone',
+      relation_id: null,
+      title: 'VPN access broken',
+      description: 'User cannot connect.',
+      assignee_user_id: null,
+      priority_level: 'high',
+      task_type_id: null,
+      glpi_ticket_id: 4523,
+      glpi_image_targets: [],
+      glpi_followup_private_skipped_count: 1,
+      glpi_followups: [
+        {
+          id: 101,
+          content_html: '<p>Public update</p><p><img src="/front/document.send.php?docid=88" /></p><p><img src="/front/document.send.php?docid=89" /></p>',
+          author_label: 'Alice Technician',
+          date: '2026-01-04 10:00:00',
+          is_private: false,
+          image_targets: ['/front/document.send.php?docid=88', '/front/document.send.php?docid=89'],
+        },
+      ],
+    },
+    current_values: {},
+  };
+
+  await operation.executePreview(createContext() as any, preview as any);
+
+  const currentValues = preview.current_values as Record<string, any>;
+  assert.equal(comments.length, 1);
+  assert.equal(comments[0][0], 'task-1');
+  assert.equal(comments[0][2], 'tenant-1');
+  assert.equal(comments[0][3], 'user-1');
+  assert.equal(comments[0][1].context, 'glpi_import');
+  assert.equal(comments[0][1].created_at instanceof Date, true);
+  assert.match(String(comments[0][1].content || ''), /Source: GLPI Ticket #4523 followup #101/);
+  assert.match(String(comments[0][1].content || ''), /Author: Alice Technician/);
+  assert.match(String(comments[0][1].content || ''), /\/api\/tasks\/attachments\/tenant-slug\/attachment-1\/inline/);
+  assert.equal(uploads.length, 1);
+  assert.equal(uploads[0][3]?.sourceField, 'content');
+  assert.equal(currentValues.glpi_followup_public_count, 1);
+  assert.equal(currentValues.glpi_followup_imported_count, 1);
+  assert.equal(currentValues.glpi_followup_private_skipped_count, 1);
+  assert.equal(currentValues.glpi_followup_image_total_count, 2);
+  assert.equal(currentValues.glpi_followup_image_imported_count, 1);
+  assert.equal(currentValues.glpi_image_warnings.length, 1);
+  assert.equal(killSessionCalls, 1);
+}
+
 async function run() {
   await testPrepareCreatePreviewMapsTicketFieldsAndUsesCurrentUserAsRequestor();
   await testPrepareCreatePreviewFallsBackToUrgencyWhenPriorityIsMissing();
   await testPrepareCreatePreviewConvertsEscapedHtmlContent();
+  await testPrepareCreatePreviewQueuesPublicFollowupsAndSkipsPrivateFollowups();
   await testExecutePreviewImportsInlineImagesBestEffort();
+  await testExecutePreviewImportsFollowupsAsNativeCommentsWithInlineImages();
 }
 
 void run();

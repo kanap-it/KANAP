@@ -37,6 +37,12 @@ export interface CreateUnifiedActivityDto {
   time_category?: 'it' | 'business';
 }
 
+export interface CreateImportedTaskCommentDto {
+  content: string;
+  context?: string | null;
+  created_at?: Date | string | null;
+}
+
 export type ActivityBodyDto = CreateTaskActivityDto | CreateUnifiedActivityDto;
 
 type TaskActivityAuditOptions = {
@@ -49,6 +55,19 @@ type TaskActivityMutationOptions = {
   isAdmin?: boolean;
   audit?: TaskActivityAuditOptions;
 };
+
+function parseImportedCreatedAt(value: Date | string | null | undefined): Date | undefined {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = new Date(value.trim().replace(' ', 'T'));
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
 
 @Injectable()
 export class TaskActivitiesService {
@@ -194,6 +213,42 @@ export class TaskActivitiesService {
       });
     }
 
+    return saved;
+  }
+
+  /**
+   * Create an externally imported comment without notifying task recipients.
+   */
+  async createImportedComment(
+    taskId: string,
+    dto: CreateImportedTaskCommentDto,
+    tenantId: string,
+    userId: string | null,
+    opts?: TaskActivityMutationOptions,
+  ): Promise<PortfolioActivity> {
+    const mg = opts?.manager ?? this.activityRepo.manager;
+
+    const task = await mg.getRepository(Task).findOne({ where: { id: taskId } });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const repo = mg.getRepository(PortfolioActivity);
+    const normalizedContent = normalizeMarkdownRichText(dto.content, { fieldName: 'content' });
+    const createdAt = parseImportedCreatedAt(dto.created_at);
+    const activity = repo.create({
+      task_id: taskId,
+      tenant_id: tenantId,
+      author_id: null,
+      type: 'comment',
+      content: normalizedContent,
+      context: dto.context?.trim() || null,
+      changed_fields: null,
+      ...(createdAt ? { created_at: createdAt } : {}),
+    });
+
+    const saved = await repo.save(activity);
+    await this.logActivityAuditIfNeeded(saved, userId, opts, mg);
     return saved;
   }
 
