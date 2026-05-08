@@ -126,6 +126,39 @@ function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: stri
     .join('\u0001');
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Frontend deep-link patterns keyed by the entity_type stored on a mutation preview's
+ * target. When the user approves a mutation, the executed-state summary contains the
+ * entity ref (e.g. "Created DOC-152.") and we rewrite that ref into a markdown link so
+ * the assistant's confirmation is one click away from the artifact.
+ *
+ * Keep this in sync with frontend/src/App.tsx routes. Sub-entities of master-data
+ * such as accounts/chart_of_accounts/analytics_categories don't have workspace pages
+ * yet — leave them out so we don't surface dead links.
+ */
+const ENTITY_URL_BUILDERS: Record<string, (id: string) => string> = {
+  documents: (id) => `/knowledge/${id}`,
+  tasks: (id) => `/portfolio/tasks/${id}`,
+  projects: (id) => `/portfolio/projects/${id}`,
+  requests: (id) => `/portfolio/requests/${id}`,
+  applications: (id) => `/it/applications/${id}`,
+  assets: (id) => `/it/assets/${id}`,
+  connections: (id) => `/it/connections/${id}`,
+  interfaces: (id) => `/it/interfaces/${id}`,
+  locations: (id) => `/it/locations/${id}`,
+  contracts: (id) => `/ops/contracts/${id}`,
+  capex_items: (id) => `/ops/capex/${id}`,
+  companies: (id) => `/master-data/companies/${id}`,
+  contacts: (id) => `/master-data/contacts/${id}`,
+  departments: (id) => `/master-data/departments/${id}`,
+  suppliers: (id) => `/master-data/suppliers/${id}`,
+  business_processes: (id) => `/master-data/business-processes/${id}`,
+};
+
 export function resolveProviderMaxTokens(providerId: string, model: string): number {
   if (providerId === 'openai' && isOpenAiReasoningModel(model)) {
     return OPENAI_REASONING_MAX_TOKENS;
@@ -226,19 +259,26 @@ export class AiChatOrchestratorService {
 
   private linkifyPreviewSummary(preview: AiMutationPreviewDto, summary: string): string {
     const text = String(summary || '').trim();
-    if (!text) {
-      return text;
-    }
+    if (!text) return text;
 
     const targetEntityType = String(preview.target?.entity_type || '').trim().toLowerCase();
     const targetEntityId = String(preview.target?.entity_id || '').trim();
     const targetRef = String(preview.target?.ref || '').trim();
+    if (!targetEntityType || !targetEntityId || !targetRef) return text;
 
-    if (targetEntityType === 'tasks' && targetEntityId && targetRef && text.includes(targetRef)) {
-      return text.replace(targetRef, `[${targetRef}](/portfolio/tasks/${targetEntityId})`);
-    }
+    const builder = ENTITY_URL_BUILDERS[targetEntityType];
+    if (!builder) return text;
 
-    return text;
+    const url = builder(targetEntityId);
+    // Replace every standalone occurrence of the ref with a markdown link, but skip refs
+    // already inside `[ ]( )`. A negative lookbehind for `[`/`-`/word and a negative
+    // lookahead for word/dash prevents partial matches like T-87 inside T-879 or
+    // already-linked refs from being clobbered.
+    const refPattern = new RegExp(
+      `(?<![\\[\\w-])${escapeRegExp(targetRef)}(?![\\w-])`,
+      'g',
+    );
+    return text.replace(refPattern, `[${targetRef}](${url})`);
   }
 
   private sanitizeReplayToolCalls(toolCalls: unknown): AiProviderToolCall[] | null {
