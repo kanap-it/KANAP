@@ -21,9 +21,12 @@
     "streamRequestFailed": "La solicitud de flujo falló."
   },
   "input": {
+    "attach": "Adjuntar imagen",
+    "dropHint": "Suelta la imagen para adjuntar",
     "hintEnter": "Intro para enviar",
     "hintShiftEnter": "Mayús+Intro para nueva línea",
     "placeholder": "Pregunta a Plaid sobre tus datos KANAP...",
+    "removeAttachment": "Quitar adjunto",
     "send": "Enviar"
   },
   "messageList": {

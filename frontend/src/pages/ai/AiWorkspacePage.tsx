@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { useFeatures } from '../../config/FeaturesContext';
-import { useChat } from '../../ai/useChat';
+import { useChat, MAX_PENDING_ATTACHMENTS } from '../../ai/useChat';
 import { aiConversationsApi } from '../../ai/aiApi';
 import { ChatConversation } from '../../ai/aiTypes';
 import BuiltinUsageIndicator from '../../ai/components/BuiltinUsageIndicator';
@@ -107,6 +107,10 @@ export default function AiWorkspacePage() {
       disabled={chat.isStreaming || builtinLimitReached}
       autoFocus={isEmpty}
       helperText={limitReachedHelper}
+      pendingAttachments={chat.pendingAttachments}
+      onAddFiles={chat.addPendingFiles}
+      onRemoveAttachment={chat.removePendingAttachment}
+      attachmentLimit={MAX_PENDING_ATTACHMENTS}
     />
   );
 

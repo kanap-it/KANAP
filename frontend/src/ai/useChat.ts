@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChatStreamRequestError, streamChat, aiConversationsApi } from './aiApi';
-import { AiMutationPreview, BuiltinUsage, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
+import { AiMutationPreview, BuiltinUsage, ChatAttachment, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
 import i18n from '../i18n';
 
 let msgCounter = 0;
 const CONTROL_MARKER_RE = /^\[(APPROVE|REJECT):[0-9a-f-]{36}\]$/i;
+/** Hard cap on attachments per message — matches multimodal model practical limit. */
+export const MAX_PENDING_ATTACHMENTS = 8;
+
+export type PendingAttachment = {
+  /** Local-only id, used to remove the attachment before send. */
+  localId: string;
+  file: File;
+  previewUrl: string;
+};
 
 function nextId() {
   return `local-${++msgCounter}-${Date.now()}`;
@@ -78,6 +87,7 @@ export function useChat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const streamGenerationRef = useRef(0);
@@ -95,6 +105,15 @@ export function useChat() {
     };
   }, [abortActiveStream]);
 
+  // Revoke pending object URLs on unmount to avoid leaks
+  useEffect(() => {
+    return () => {
+      for (const att of pendingAttachments) {
+        try { URL.revokeObjectURL(att.previewUrl); } catch { /* ignore */ }
+      }
+    };
+  }, [pendingAttachments]);
+
   const refreshConversationUsage = useCallback(async (id: string) => {
     try {
       const response = await aiConversationsApi.getMessages(id);
@@ -107,6 +126,47 @@ export function useChat() {
     }
   }, []);
 
+  const addPendingFiles = useCallback((files: File[]): { added: number; rejected: number } => {
+    let added = 0;
+    let rejected = 0;
+    setPendingAttachments((prev) => {
+      const remaining = MAX_PENDING_ATTACHMENTS - prev.length;
+      if (remaining <= 0) {
+        rejected = files.length;
+        return prev;
+      }
+      const accepted = files.slice(0, remaining);
+      rejected = files.length - accepted.length;
+      const next = accepted.map((file) => ({
+        localId: nextId(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      added = next.length;
+      return [...prev, ...next];
+    });
+    return { added, rejected };
+  }, []);
+
+  const removePendingAttachment = useCallback((localId: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((p) => p.localId === localId);
+      if (target) {
+        try { URL.revokeObjectURL(target.previewUrl); } catch { /* ignore */ }
+      }
+      return prev.filter((p) => p.localId !== localId);
+    });
+  }, []);
+
+  const clearPendingAttachments = useCallback(() => {
+    setPendingAttachments((prev) => {
+      for (const p of prev) {
+        try { URL.revokeObjectURL(p.previewUrl); } catch { /* ignore */ }
+      }
+      return [];
+    });
+  }, []);
+
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return;
     setError(null);
@@ -116,11 +176,27 @@ export function useChat() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // Snapshot pending attachments so subsequent UI changes don't mutate the in-flight send.
+    const attachmentsToSend = pendingAttachments;
+
+    let activeConversationId = conversationId;
+
+    // Optimistic user message — thumbnails reuse the in-memory previewUrl until the
+    // message is persisted. We swap them for server URLs once we have attachment ids.
+    const userMsgId = nextId();
+    const optimisticUserAttachments: ChatAttachment[] = attachmentsToSend.map((a) => ({
+      id: a.localId,
+      mime_type: a.file.type || 'image/png',
+      size: a.file.size,
+      kind: 'image',
+      preview_url: a.previewUrl,
+    }));
     const userMsg: ChatMessage = {
-      id: nextId(),
+      id: userMsgId,
       role: 'user',
       content: text,
       hidden: isControlMarker(text),
+      attachments: optimisticUserAttachments.length > 0 ? optimisticUserAttachments : undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
 
@@ -135,12 +211,50 @@ export function useChat() {
     };
     setMessages((prev) => [...prev, assistantMsg]);
 
-    let activeConversationId = conversationId;
-
     try {
+      let attachmentIds: string[] | undefined;
+
+      if (attachmentsToSend.length > 0) {
+        // Need a conversation_id before we can upload (attachments are conv-scoped for tenant safety).
+        if (!activeConversationId) {
+          const conv = await aiConversationsApi.create();
+          activeConversationId = conv.id;
+          conversationIdRef.current = conv.id;
+          setConversationId(conv.id);
+        }
+        const uploaded = await Promise.all(
+          attachmentsToSend.map(async (att) => {
+            const result = await aiConversationsApi.uploadInlineAttachment(activeConversationId!, att.file);
+            return {
+              localId: att.localId,
+              serverId: result.id,
+              mime_type: result.mime_type,
+              size: result.size,
+              kind: result.kind,
+            };
+          }),
+        );
+        attachmentIds = uploaded.map((u) => u.serverId);
+
+        // Upgrade the optimistic user message to use server-side attachment URLs.
+        const serverAttachments: ChatAttachment[] = uploaded.map((u) => ({
+          id: u.serverId,
+          mime_type: u.mime_type,
+          size: u.size,
+          kind: u.kind,
+          preview_url: aiConversationsApi.buildAttachmentUrl(activeConversationId!, u.serverId),
+        }));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMsgId ? { ...m, attachments: serverAttachments } : m)),
+        );
+        // Pending attachments have been uploaded; clear them so the composer is reset.
+        clearPendingAttachments();
+      }
+
       const stream = streamChat({
         message: text,
-        conversation_id: conversationId || undefined,
+        conversation_id: activeConversationId || undefined,
+        attachment_ids: attachmentIds,
         signal: controller.signal,
       });
 
@@ -283,7 +397,7 @@ export function useChat() {
         setIsStreaming(false);
       }
     }
-  }, [conversationId, isStreaming, refreshConversationUsage]);
+  }, [conversationId, isStreaming, pendingAttachments, refreshConversationUsage, clearPendingAttachments]);
 
   const loadConversation = useCallback(async (id: string) => {
     abortActiveStream();
@@ -291,6 +405,7 @@ export function useChat() {
     conversationIdRef.current = id;
     setConversationId(id);
     setIsStreaming(false);
+    clearPendingAttachments();
 
     const [loadedConversation, loadedPreviews] = await Promise.all([
       aiConversationsApi.getMessages(id),
@@ -298,6 +413,17 @@ export function useChat() {
     ]);
     const { messages: rawMessages, conversation_usage } = loadedConversation;
     const loaded: ChatMessage[] = [];
+
+    const buildAttachments = (msg: StoredChatMessage): ChatAttachment[] | undefined => {
+      if (!msg.attachments || !msg.attachments.length) return undefined;
+      return msg.attachments.map((a) => ({
+        id: a.id,
+        mime_type: a.mime_type,
+        size: a.size,
+        kind: a.kind,
+        preview_url: aiConversationsApi.buildAttachmentUrl(id, a.id),
+      }));
+    };
 
     let i = 0;
     while (i < rawMessages.length) {
@@ -309,6 +435,7 @@ export function useChat() {
           role: 'user',
           content: msg.content,
           hidden: isControlMarker(msg.content),
+          attachments: buildAttachments(msg),
         });
         i++;
       } else if (msg.role === 'assistant' && msg.tool_calls?.length) {
@@ -374,7 +501,7 @@ export function useChat() {
     setPreviews(loadedPreviews);
     setConversationUsage(normalizeConversationUsage(conversation_usage));
     setLastRequestUsage(findLastUsage(rawMessages));
-  }, [abortActiveStream]);
+  }, [abortActiveStream, clearPendingAttachments]);
 
   const newConversation = useCallback(() => {
     abortActiveStream();
@@ -386,7 +513,8 @@ export function useChat() {
     setConversationId(null);
     setError(null);
     setIsStreaming(false);
-  }, [abortActiveStream]);
+    clearPendingAttachments();
+  }, [abortActiveStream, clearPendingAttachments]);
 
   const cancelStream = useCallback(() => {
     const activeConversationId = conversationIdRef.current;
@@ -411,10 +539,14 @@ export function useChat() {
     isStreaming,
     error,
     conversationId,
+    pendingAttachments,
     sendMessage,
     loadConversation,
     newConversation,
     cancelStream,
+    addPendingFiles,
+    removePendingAttachment,
+    clearPendingAttachments,
   }), [
     messages,
     previews,
@@ -424,9 +556,13 @@ export function useChat() {
     isStreaming,
     error,
     conversationId,
+    pendingAttachments,
     sendMessage,
     loadConversation,
     newConversation,
     cancelStream,
+    addPendingFiles,
+    removePendingAttachment,
+    clearPendingAttachments,
   ]);
 }

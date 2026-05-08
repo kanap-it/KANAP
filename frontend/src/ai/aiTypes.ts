@@ -66,6 +66,15 @@ export type ChatStreamEvent =
   | { type: 'done'; usage?: TokenUsage; last_usage?: TokenUsage; conversation_usage?: TokenUsage; builtin_usage?: BuiltinUsage }
   | { type: 'error'; message: string; last_usage?: TokenUsage; conversation_usage?: TokenUsage; builtin_usage?: BuiltinUsage };
 
+export type ChatAttachment = {
+  id: string;
+  mime_type: string;
+  size: number;
+  kind: 'image' | string;
+  /** Only present right after upload — used to render thumbnails before sending. */
+  preview_url?: string | null;
+};
+
 export type StoredChatMessage = {
   id: string;
   role: 'user' | 'assistant' | 'tool';
@@ -73,6 +82,7 @@ export type StoredChatMessage = {
   tool_calls?: Array<{ id: string; name: string; arguments: Record<string, unknown> }> | null;
   usage_json?: TokenUsage | null;
   created_at?: string;
+  attachments?: ChatAttachment[];
 };
 
 export type ConversationMessagesResponse = {
@@ -89,6 +99,7 @@ export type ChatMessage = {
   usage?: TokenUsage;
   isStreaming?: boolean;
   hidden?: boolean;
+  attachments?: ChatAttachment[];
 };
 
 export type ChatConversation = {

@@ -13,6 +13,7 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { AiMutationPreview, ChatMessage } from '../aiTypes';
+import AttachmentImage from './AttachmentImage';
 import PreviewCard from './PreviewCard';
 import ChatToolRibbon from './ChatToolRibbon';
 
@@ -163,6 +164,26 @@ function MessageRow({
   );
 }
 
+function MessageAttachments({ message }: { message: ChatMessage }) {
+  const attachments = message.attachments || [];
+  if (!attachments.length) return null;
+  return (
+    <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.75 }}>
+      {attachments.map((att) => {
+        if (!att.preview_url) return null;
+        const isLocalObjectUrl = att.preview_url.startsWith('blob:');
+        return (
+          <AttachmentImage
+            key={att.id}
+            fetchUrl={isLocalObjectUrl ? '' : att.preview_url}
+            localObjectUrl={isLocalObjectUrl ? att.preview_url : null}
+          />
+        );
+      })}
+    </Stack>
+  );
+}
+
 function UserMessage({ message }: { message: ChatMessage }) {
   return (
     <MessageRow role="user" copyText={message.content}>
@@ -181,7 +202,8 @@ function UserMessage({ message }: { message: ChatMessage }) {
           '& p:last-of-type': { mb: 0 },
         })}
       >
-        <MarkdownContent content={message.content} />
+        {message.content && <MarkdownContent content={message.content} />}
+        <MessageAttachments message={message} />
       </Box>
     </MessageRow>
   );

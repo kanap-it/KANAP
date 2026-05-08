@@ -21,9 +21,12 @@
     "streamRequestFailed": "Stream request failed."
   },
   "input": {
+    "attach": "Attach image",
+    "dropHint": "Drop image to attach",
     "hintEnter": "Enter to send",
     "hintShiftEnter": "Shift+Enter for new line",
     "placeholder": "Ask Plaid about your KANAP data...",
+    "removeAttachment": "Remove attachment",
     "send": "Send"
   },
   "messageList": {

@@ -132,6 +132,7 @@ function getBaseURL(): string {
 export async function* streamChat(params: {
   message: string;
   conversation_id?: string;
+  attachment_ids?: string[];
   signal?: AbortSignal;
 }): AsyncGenerator<ChatStreamEvent> {
   const { signal, ...body } = params;
@@ -221,6 +222,10 @@ export const aiConversationsApi = {
     const res = await api.get('/ai/conversations', { params });
     return res.data;
   },
+  async create(): Promise<ChatConversation> {
+    const res = await api.post('/ai/conversations');
+    return res.data;
+  },
   async getMessages(id: string): Promise<ConversationMessagesResponse> {
     const res = await api.get(`/ai/conversations/${id}/messages`);
     const { messages, conversation_usage } = res.data;
@@ -233,6 +238,24 @@ export const aiConversationsApi = {
   async archive(id: string) {
     const res = await api.delete(`/ai/conversations/${id}`);
     return res.data;
+  },
+  async uploadInlineAttachment(conversationId: string, file: File): Promise<{
+    id: string;
+    conversation_id: string;
+    mime_type: string;
+    size: number;
+    kind: string;
+    original_filename: string;
+  }> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post(`/ai/conversations/${conversationId}/attachments/inline`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+  buildAttachmentUrl(conversationId: string, attachmentId: string): string {
+    return `/ai/conversations/${conversationId}/attachments/${attachmentId}/inline`;
   },
 };
 
