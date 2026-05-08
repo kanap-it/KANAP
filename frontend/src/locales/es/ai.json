@@ -48,6 +48,7 @@
   "artifactPanel": {
     "chipLabel": "Abrir en el panel",
     "close": "Cerrar panel",
+    "resize": "Cambiar tamaño",
     "tab": "Artefactos",
     "title": "Artefactos"
   },

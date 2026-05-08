@@ -56,6 +56,37 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           color: theme.palette.primary.main,
           '&:visited': { color: theme.palette.primary.main },
         },
+        // Subtle, theme-aware scrollbars on every scrollable region.
+        // The previous defaults rendered as bright white tracks in dark mode,
+        // visually clashing with the surface palette. Components are free to
+        // opt out by re-setting their own ::-webkit-scrollbar rules.
+        '*': {
+          scrollbarWidth: 'thin',
+          scrollbarColor: isDark
+            ? 'rgba(255,255,255,0.18) transparent'
+            : 'rgba(0,0,0,0.22) transparent',
+        },
+        '*::-webkit-scrollbar': {
+          width: 10,
+          height: 10,
+        },
+        '*::-webkit-scrollbar-track': {
+          backgroundColor: 'transparent',
+        },
+        '*::-webkit-scrollbar-thumb': {
+          // border + background-clip gives the thumb visual padding so it doesn't
+          // fill the full track width, reading as a thin pill rather than a slab.
+          backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.22)',
+          borderRadius: 8,
+          border: '2px solid transparent',
+          backgroundClip: 'padding-box',
+        },
+        '*::-webkit-scrollbar-thumb:hover': {
+          backgroundColor: isDark ? 'rgba(255,255,255,0.32)' : 'rgba(0,0,0,0.38)',
+        },
+        '*::-webkit-scrollbar-corner': {
+          backgroundColor: 'transparent',
+        },
       }),
     },
     MuiTextField: {

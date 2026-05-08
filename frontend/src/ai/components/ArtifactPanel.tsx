@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, IconButton, Stack, Typography } from '@mui/material';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
@@ -8,9 +8,29 @@ import { AiMutationPreview } from '../aiTypes';
 import { getPreviewLabel } from '../utils/previewClassification';
 import PreviewCard from './PreviewCard';
 
-const PANEL_WIDTH = 380;
+const DEFAULT_PANEL_WIDTH = 480;
+const MIN_PANEL_WIDTH = 320;
 const TAB_WIDTH = 28;
 const TAB_HEIGHT = 132;
+const WIDTH_STORAGE_KEY = 'kanap.ai.artifactPanelWidth';
+
+function readStoredWidth(): number {
+  try {
+    const raw = window.localStorage.getItem(WIDTH_STORAGE_KEY);
+    if (!raw) return DEFAULT_PANEL_WIDTH;
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_PANEL_WIDTH;
+    return parsed;
+  } catch {
+    return DEFAULT_PANEL_WIDTH;
+  }
+}
+
+function clampWidth(value: number): number {
+  // Cap at 70% of the viewport so the chat thread always retains a usable column.
+  const max = Math.max(MIN_PANEL_WIDTH, Math.floor(window.innerWidth * 0.7));
+  return Math.min(Math.max(value, MIN_PANEL_WIDTH), max);
+}
 
 type ArtifactPanelProps = {
   previews: AiMutationPreview[];
@@ -80,6 +100,67 @@ function ArtifactTab({ open, onToggle, label }: { open: boolean; onToggle: () =>
         </Box>
       </Box>
     </Box>
+  );
+}
+
+function ResizeHandle({ onResize, ariaLabel }: { onResize: (delta: number) => void; ariaLabel: string }) {
+  const startRef = useRef<{ x: number; pointerId: number } | null>(null);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    startRef.current = { x: e.clientX, pointerId: e.pointerId };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!startRef.current || startRef.current.pointerId !== e.pointerId) return;
+    const delta = startRef.current.x - e.clientX; // dragging left widens the panel
+    if (delta !== 0) {
+      onResize(delta);
+      startRef.current.x = e.clientX;
+    }
+  }, [onResize]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (startRef.current && startRef.current.pointerId === e.pointerId) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      startRef.current = null;
+    }
+  }, []);
+
+  return (
+    <Box
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={ariaLabel}
+      tabIndex={0}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      sx={(theme) => ({
+        position: 'absolute',
+        left: -3,
+        top: 0,
+        bottom: 0,
+        width: 6,
+        cursor: 'col-resize',
+        zIndex: 3,
+        userSelect: 'none',
+        touchAction: 'none',
+        // Visible feedback only on hover/focus to avoid drawing a permanent vertical bar.
+        '&:hover::after, &:focus-visible::after': {
+          content: '""',
+          position: 'absolute',
+          left: 2,
+          top: 0,
+          bottom: 0,
+          width: 2,
+          borderRadius: 1,
+          background: theme.palette.primary.main,
+        },
+      })}
+    />
   );
 }
 
@@ -153,8 +234,24 @@ export default function ArtifactPanel({
   onReject,
 }: ArtifactPanelProps) {
   const { t } = useTranslation(['ai']);
+  const [width, setWidth] = useState<number>(() => clampWidth(readStoredWidth()));
 
-  // Always render nothing if there are no artifacts at all (avoids leaking the tab into views without long previews).
+  // Persist resize value (debounced via the natural drag granularity is good enough).
+  useEffect(() => {
+    try { window.localStorage.setItem(WIDTH_STORAGE_KEY, String(width)); } catch { /* ignore */ }
+  }, [width]);
+
+  // Re-clamp on window resize so the panel never exceeds 70% of the viewport.
+  useEffect(() => {
+    const handler = () => setWidth((current) => clampWidth(current));
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
+  const handleResize = useCallback((delta: number) => {
+    setWidth((current) => clampWidth(current + delta));
+  }, []);
+
   if (previews.length === 0) return null;
 
   const tabLabel = t('artifactPanel.tab');
@@ -167,8 +264,8 @@ export default function ArtifactPanel({
       {open && (
         <Box
           sx={(theme) => ({
-            width: PANEL_WIDTH,
-            minWidth: PANEL_WIDTH,
+            width,
+            minWidth: MIN_PANEL_WIDTH,
             display: 'flex',
             flexDirection: 'column',
             bgcolor: theme.palette.kanap.bg.drawer,
@@ -178,6 +275,8 @@ export default function ArtifactPanel({
             zIndex: 1,
           })}
         >
+          <ResizeHandle onResize={handleResize} ariaLabel={t('artifactPanel.resize')} />
+
           <Stack
             direction="row"
             alignItems="center"
@@ -218,11 +317,6 @@ export default function ArtifactPanel({
               overflow: 'auto',
               p: 1.5,
               minHeight: 0,
-              '&::-webkit-scrollbar': { width: 4 },
-              '&::-webkit-scrollbar-thumb': { bgcolor: 'action.disabled', borderRadius: 2 },
-              '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'auto transparent',
             }}
           >
             <PreviewCard
