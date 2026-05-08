@@ -13,6 +13,8 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { AiMutationPreview, ChatMessage } from '../aiTypes';
+import { isLongPreview } from '../utils/previewClassification';
+import ArtifactPreviewChip from './ArtifactPreviewChip';
 import AttachmentImage from './AttachmentImage';
 import PreviewCard from './PreviewCard';
 import ChatToolRibbon from './ChatToolRibbon';
@@ -22,6 +24,10 @@ type ChatMessageListProps = {
   previews: AiMutationPreview[];
   disabled?: boolean;
   onSend: (text: string) => void;
+  /** When provided, long markdown previews are routed to the artifact panel via this callback. */
+  onOpenArtifact?: (previewId: string) => void;
+  /** Used to highlight the chip whose artifact is currently visible in the panel. */
+  selectedArtifactId?: string | null;
 };
 
 function isMutationPreview(value: unknown): value is AiMutationPreview {
@@ -214,11 +220,15 @@ function AssistantMessage({
   previews,
   disabled,
   onSend,
+  onOpenArtifact,
+  selectedArtifactId,
 }: {
   message: ChatMessage;
   previews: AiMutationPreview[];
   disabled?: boolean;
   onSend: (text: string) => void;
+  onOpenArtifact?: (previewId: string) => void;
+  selectedArtifactId?: string | null;
 }) {
   const toolCalls = message.toolCalls || [];
   const toolResults = message.toolResults || [];
@@ -282,15 +292,27 @@ function AssistantMessage({
           </Box>
         )}
 
-        {previewResults.map((preview) => (
-          <PreviewCard
-            key={preview.preview_id}
-            preview={preview}
-            disabled={disabled}
-            onApprove={handleApprove}
-            onReject={handleReject}
-          />
-        ))}
+        {previewResults.map((preview) => {
+          if (onOpenArtifact && isLongPreview(preview)) {
+            return (
+              <ArtifactPreviewChip
+                key={preview.preview_id}
+                preview={preview}
+                active={selectedArtifactId === preview.preview_id}
+                onOpen={onOpenArtifact}
+              />
+            );
+          }
+          return (
+            <PreviewCard
+              key={preview.preview_id}
+              preview={preview}
+              disabled={disabled}
+              onApprove={handleApprove}
+              onReject={handleReject}
+            />
+          );
+        })}
 
         {showInitialSpinner && (
           <Box sx={{ py: 0.5 }}>
@@ -302,7 +324,14 @@ function AssistantMessage({
   );
 }
 
-export default function ChatMessageList({ messages, previews, disabled, onSend }: ChatMessageListProps) {
+export default function ChatMessageList({
+  messages,
+  previews,
+  disabled,
+  onSend,
+  onOpenArtifact,
+  selectedArtifactId,
+}: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -323,6 +352,8 @@ export default function ChatMessageList({ messages, previews, disabled, onSend }
             previews={previews}
             disabled={disabled}
             onSend={onSend}
+            onOpenArtifact={onOpenArtifact}
+            selectedArtifactId={selectedArtifactId}
           />
         ) : null,
       )}

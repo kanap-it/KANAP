@@ -44,6 +44,12 @@
     "toolUseProgress": "Tools werden verwendet...",
     "userRole": "Sie"
   },
+  "artifactPanel": {
+    "chipLabel": "Im Panel öffnen",
+    "close": "Panel schließen",
+    "tab": "Artefakte",
+    "title": "Artefakte"
+  },
   "previewCard": {
     "after": "Nachher",
     "approve": "Genehmigen",

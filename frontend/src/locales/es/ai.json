@@ -44,6 +44,12 @@
     "toolUseProgress": "Usando herramientas...",
     "userRole": "Tú"
   },
+  "artifactPanel": {
+    "chipLabel": "Abrir en el panel",
+    "close": "Cerrar panel",
+    "tab": "Artefactos",
+    "title": "Artefactos"
+  },
   "previewCard": {
     "after": "Después",
     "approve": "Aprobar",

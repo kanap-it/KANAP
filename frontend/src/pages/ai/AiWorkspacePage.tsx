@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Box, IconButton, Link, Stack, Typography } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -9,15 +9,19 @@ import { useFeatures } from '../../config/FeaturesContext';
 import { useChat, MAX_PENDING_ATTACHMENTS } from '../../ai/useChat';
 import { aiConversationsApi } from '../../ai/aiApi';
 import { ChatConversation } from '../../ai/aiTypes';
+import ArtifactPanel from '../../ai/components/ArtifactPanel';
 import BuiltinUsageIndicator from '../../ai/components/BuiltinUsageIndicator';
 import ChatMessageList from '../../ai/components/ChatMessageList';
 import ChatInput, { ChatInputHandle } from '../../ai/components/ChatInput';
 import ChatConversationList from '../../ai/components/ChatConversationList';
 import ChatEmptyState from '../../ai/components/ChatEmptyState';
 import TokenUsageBar from '../../ai/components/TokenUsageBar';
+import { selectLongPreviews } from '../../ai/utils/previewClassification';
 
 const SIDEBAR_WIDTH = 260;
 const CONTENT_MAX_WIDTH = 760;
+
+const ARTIFACT_OPEN_STORAGE_KEY = 'kanap.ai.artifactPanelOpen';
 
 export default function AiWorkspacePage() {
   const { config } = useFeatures();
@@ -30,6 +34,56 @@ export default function AiWorkspacePage() {
     && (chat.builtinUsage?.count ?? 0) >= (chat.builtinUsage?.limit ?? 0);
 
   const isEmpty = chat.messages.length === 0;
+
+  const longPreviews = useMemo(() => selectLongPreviews(chat.previews), [chat.previews]);
+
+  const [artifactPanelOpen, setArtifactPanelOpen] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(ARTIFACT_OPEN_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
+  const seenArtifactIdsRef = useRef<Set<string>>(new Set());
+
+  // Auto-open and auto-select when a new long preview arrives. We track the ids we've
+  // already seen so reordering or status updates on existing previews don't pop the
+  // panel back open after the user closed it.
+  useEffect(() => {
+    if (longPreviews.length === 0) return;
+    const newOnes = longPreviews.filter((p) => !seenArtifactIdsRef.current.has(p.preview_id));
+    if (newOnes.length === 0) return;
+    for (const p of newOnes) seenArtifactIdsRef.current.add(p.preview_id);
+    const latest = newOnes[newOnes.length - 1];
+    setSelectedArtifactId(latest.preview_id);
+    setArtifactPanelOpen(true);
+  }, [longPreviews]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ARTIFACT_OPEN_STORAGE_KEY, artifactPanelOpen ? '1' : '0');
+    } catch {
+      // ignore quota / privacy errors
+    }
+  }, [artifactPanelOpen]);
+
+  const toggleArtifactPanel = useCallback(() => {
+    setArtifactPanelOpen((prev) => !prev);
+  }, []);
+
+  const openArtifactPanel = useCallback((previewId: string) => {
+    setSelectedArtifactId(previewId);
+    setArtifactPanelOpen(true);
+  }, []);
+
+  const handleArtifactApprove = useCallback((previewId: string) => {
+    void chat.sendMessage(`[APPROVE:${previewId}]`);
+  }, [chat.sendMessage]);
+
+  const handleArtifactReject = useCallback((previewId: string) => {
+    void chat.sendMessage(`[REJECT:${previewId}]`);
+  }, [chat.sendMessage]);
 
   // Auto-focus input when AI finishes responding
   const wasStreamingRef = useRef(false);
@@ -138,7 +192,7 @@ export default function AiWorkspacePage() {
       )}
 
       {/* Main chat area */}
-      <Stack sx={{ flex: 1, minWidth: 0, height: '100%' }}>
+      <Stack sx={{ flex: 1, minWidth: 0, height: '100%', position: 'relative' }}>
         {/* Toolbar */}
         <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.5, flexShrink: 0 }}>
           <IconButton
@@ -197,6 +251,8 @@ export default function AiWorkspacePage() {
                   previews={chat.previews}
                   disabled={chat.isStreaming}
                   onSend={handleSend}
+                  onOpenArtifact={openArtifactPanel}
+                  selectedArtifactId={artifactPanelOpen ? selectedArtifactId : null}
                 />
               </Box>
             </Box>
@@ -233,6 +289,17 @@ export default function AiWorkspacePage() {
           </>
         )}
       </Stack>
+
+      <ArtifactPanel
+        previews={longPreviews}
+        selectedId={selectedArtifactId}
+        open={artifactPanelOpen}
+        disabled={chat.isStreaming || builtinLimitReached}
+        onToggle={toggleArtifactPanel}
+        onSelect={openArtifactPanel}
+        onApprove={handleArtifactApprove}
+        onReject={handleArtifactReject}
+      />
     </Box>
   );
 }
