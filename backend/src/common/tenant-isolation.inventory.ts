@@ -156,6 +156,8 @@ export const TENANT_SCOPED_TABLES = [
   'subscriptions',
   'supplier_contacts',
   'suppliers',
+  'task_applications',
+  'task_assets',
   'task_attachments',
   'task_time_entries',
   'tasks',
