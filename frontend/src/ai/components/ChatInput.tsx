@@ -345,12 +345,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                   width: 28,
                   height: 28,
                   borderRadius: '6px',
-                  bgcolor: theme.palette.error.main,
-                  color: '#fff',
-                  '&:hover': { bgcolor: theme.palette.error.dark },
+                  bgcolor: theme.palette.kanap.pill.bg,
+                  border: `1px solid ${theme.palette.kanap.pill.border}`,
+                  color: theme.palette.kanap.text.secondary,
+                  transition: 'background-color 120ms ease, color 120ms ease',
+                  '&:hover': {
+                    bgcolor: theme.palette.kanap.pill.hoverBg,
+                    color: theme.palette.kanap.text.primary,
+                  },
                 })}
               >
-                <StopIcon sx={{ fontSize: 16 }} />
+                <StopIcon sx={{ fontSize: 14 }} />
               </IconButton>
             ) : (
               <IconButton
