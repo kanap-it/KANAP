@@ -60,6 +60,30 @@ export class AiConversationService {
     return (manager ?? this.messageRepo.manager).getRepository(AiMessage);
   }
 
+  /**
+   * Set conversation.title if it is currently null/empty. Used to auto-title a
+   * conversation that was first created empty (via POST /ai/conversations) and gets
+   * its first user message later. No-op if a title is already set, so the user can
+   * rename without us clobbering their value on the next send.
+   */
+  async setTitleIfMissing(
+    conversationId: string,
+    tenantId: string,
+    title: string,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    await this.getConversationRepo(opts?.manager)
+      .createQueryBuilder()
+      .update(AiConversation)
+      .set({ title: trimmed })
+      .where('id = :id', { id: conversationId })
+      .andWhere('tenant_id = :tenantId', { tenantId })
+      .andWhere('(title IS NULL OR title = :empty)', { empty: '' })
+      .execute();
+  }
+
   createConversation(input: CreateAiConversationInput, opts?: { manager?: EntityManager }) {
     const repo = this.getConversationRepo(opts?.manager);
     return repo.save(repo.create({

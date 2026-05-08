@@ -27,7 +27,8 @@
     "hintShiftEnter": "Maj+Entrée retour à la ligne",
     "placeholder": "Posez votre question à Plaid sur vos données KANAP...",
     "removeAttachment": "Retirer la pièce jointe",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "stop": "Arrêter la génération"
   },
   "messageList": {
     "assistantRole": "Plaid",

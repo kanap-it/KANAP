@@ -27,7 +27,8 @@
     "hintShiftEnter": "Mayús+Intro para nueva línea",
     "placeholder": "Pregunta a Plaid sobre tus datos KANAP...",
     "removeAttachment": "Quitar adjunto",
-    "send": "Enviar"
+    "send": "Enviar",
+    "stop": "Detener la generación"
   },
   "messageList": {
     "assistantRole": "Plaid",

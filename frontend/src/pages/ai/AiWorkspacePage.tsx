@@ -165,6 +165,8 @@ export default function AiWorkspacePage() {
       onAddFiles={chat.addPendingFiles}
       onRemoveAttachment={chat.removePendingAttachment}
       attachmentLimit={MAX_PENDING_ATTACHMENTS}
+      isStreaming={chat.isStreaming}
+      onStop={chat.cancelStream}
     />
   );
 

@@ -445,6 +445,16 @@ export class AiChatOrchestratorService {
             { manager: ctx.manager },
           );
           convTitle = conv.title || userMessage.slice(0, 100);
+          // Auto-title pre-created conversations (e.g. created empty for an attachment-first
+          // upload). Approval/rejection markers don't deserve to become titles.
+          if (!conv.title && userMessage.trim() && !approvalAction) {
+            await this.conversations.setTitleIfMissing(
+              convId,
+              ctx.tenantId,
+              userMessage.slice(0, 100),
+              { manager: ctx.manager },
+            );
+          }
         } else {
           convTitle = userMessage.slice(0, 100);
           const conv = await this.conversations.createConversation(

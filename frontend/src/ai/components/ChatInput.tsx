@@ -1,6 +1,7 @@
 import React, { useCallback, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { Box, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import SendIcon from '@mui/icons-material/ArrowUpwardRounded';
+import StopIcon from '@mui/icons-material/StopRounded';
 import AttachFileIcon from '@mui/icons-material/AttachFileOutlined';
 import CloseIcon from '@mui/icons-material/CloseRounded';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,13 @@ type ChatInputProps = {
   onAddFiles?: (files: File[]) => { added: number; rejected: number };
   onRemoveAttachment?: (localId: string) => void;
   attachmentLimit?: number;
+  /**
+   * When true, the send button morphs into a red Stop button. Clicking it triggers
+   * onStop instead of onSend. The textarea remains usable so the user can prepare
+   * the next message while cancelling.
+   */
+  isStreaming?: boolean;
+  onStop?: () => void;
 };
 
 export type ChatInputHandle = {
@@ -98,6 +106,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       onAddFiles,
       onRemoveAttachment,
       attachmentLimit,
+      isStreaming,
+      onStop,
     },
     ref,
   ) {
@@ -326,29 +336,47 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               {t('input.hintEnter')} · {t('input.hintShiftEnter')}
             </Typography>
 
-            <IconButton
-              onClick={handleSend}
-              disabled={!canSend}
-              aria-label={t('input.send')}
-              title={t('input.send')}
-              sx={(theme) => ({
-                width: 28,
-                height: 28,
-                borderRadius: '6px',
-                bgcolor: canSend ? theme.palette.primary.main : theme.palette.kanap.pill.bg,
-                color: canSend ? theme.palette.primary.contrastText : theme.palette.kanap.text.tertiary,
-                transition: 'background-color 120ms ease, color 120ms ease',
-                '&:hover': {
-                  bgcolor: canSend ? theme.palette.primary.dark : theme.palette.kanap.pill.hoverBg,
-                },
-                '&.Mui-disabled': {
-                  bgcolor: theme.palette.kanap.pill.bg,
-                  color: theme.palette.kanap.text.tertiary,
-                },
-              })}
-            >
-              <SendIcon sx={{ fontSize: 18 }} />
-            </IconButton>
+            {isStreaming && onStop ? (
+              <IconButton
+                onClick={onStop}
+                aria-label={t('input.stop')}
+                title={t('input.stop')}
+                sx={(theme) => ({
+                  width: 28,
+                  height: 28,
+                  borderRadius: '6px',
+                  bgcolor: theme.palette.error.main,
+                  color: '#fff',
+                  '&:hover': { bgcolor: theme.palette.error.dark },
+                })}
+              >
+                <StopIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            ) : (
+              <IconButton
+                onClick={handleSend}
+                disabled={!canSend}
+                aria-label={t('input.send')}
+                title={t('input.send')}
+                sx={(theme) => ({
+                  width: 28,
+                  height: 28,
+                  borderRadius: '6px',
+                  bgcolor: canSend ? theme.palette.primary.main : theme.palette.kanap.pill.bg,
+                  color: canSend ? theme.palette.primary.contrastText : theme.palette.kanap.text.tertiary,
+                  transition: 'background-color 120ms ease, color 120ms ease',
+                  '&:hover': {
+                    bgcolor: canSend ? theme.palette.primary.dark : theme.palette.kanap.pill.hoverBg,
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: theme.palette.kanap.pill.bg,
+                    color: theme.palette.kanap.text.tertiary,
+                  },
+                })}
+              >
+                <SendIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            )}
           </Stack>
 
           {dragOver && (

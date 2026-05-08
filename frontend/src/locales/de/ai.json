@@ -27,7 +27,8 @@
     "hintShiftEnter": "Umschalt+Eingabe für neue Zeile",
     "placeholder": "Fragen Sie Plaid zu Ihren KANAP-Daten...",
     "removeAttachment": "Anhang entfernen",
-    "send": "Senden"
+    "send": "Senden",
+    "stop": "Generierung stoppen"
   },
   "messageList": {
     "assistantRole": "Plaid",

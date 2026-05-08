@@ -27,7 +27,8 @@
     "hintShiftEnter": "Shift+Enter for new line",
     "placeholder": "Ask Plaid about your KANAP data...",
     "removeAttachment": "Remove attachment",
-    "send": "Send"
+    "send": "Send",
+    "stop": "Stop generating"
   },
   "messageList": {
     "assistantRole": "Plaid",
