@@ -653,6 +653,7 @@ async function testImportGlpiTicketToolSchemaUsesNumericExclusiveMinimum() {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   );
   const registry = createRegistry({
     policy: {

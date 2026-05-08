@@ -21,6 +21,15 @@ export type GlpiTicket = {
   glpi_url: string;
 };
 
+export type GlpiTicketFollowup = {
+  id: number;
+  content_html: string | null;
+  author_label: string | null;
+  date: string | null;
+  is_private: boolean;
+  image_targets: string[];
+};
+
 export type GlpiDocument = {
   buffer: Buffer;
   mimeType: string;

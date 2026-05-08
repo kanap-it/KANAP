@@ -123,11 +123,129 @@ async function testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls() {
   }
 }
 
+async function testGetTicketFollowupsPaginatesAndNormalizesNewestFirst() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.includes('range=0-49')) {
+        return new Response(JSON.stringify([
+          {
+            id: 10,
+            itemtype: 'Ticket',
+            items_id: 4523,
+            content: '<p>Older public</p><img src="/front/document.send.php?docid=88&amp;itemtype=Ticket" />',
+            users_id: 'Alice Technician',
+            date: '2026-01-02 10:00:00',
+            is_private: 0,
+          },
+          {
+            id: 11,
+            itemtype: 'Ticket',
+            items_id: 4523,
+            content: '<p>Private note</p>',
+            user_name: 'Manager',
+            date_creation: '2026-01-03 10:00:00',
+            is_private: '1',
+          },
+        ]), {
+          status: 206,
+          headers: {
+            'content-type': 'application/json',
+            'content-range': '0-1/3',
+          },
+        });
+      }
+
+      return new Response(JSON.stringify([
+        {
+          id: 12,
+          itemtype: 'Ticket',
+          items_id: 4523,
+          content: '<p>Newest public</p>',
+          users_id: { name: 'Bob Requester' },
+          date_mod: '2026-01-04 10:00:00',
+          is_private: false,
+        },
+      ]), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'content-range': '2-2/3',
+        },
+      });
+    }) as typeof fetch;
+
+    const followups = await service.getTicketFollowups(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      4523,
+    );
+
+    assert.equal(requestedUrls.length, 2);
+    assert.match(requestedUrls[0], /Ticket\/4523\/ITILFollowup/);
+    assert.deepEqual(followups.map((item) => item.id), [12, 11, 10]);
+    assert.equal(followups[0].author_label, 'Bob Requester');
+    assert.equal(followups[1].is_private, true);
+    assert.equal(followups[2].author_label, 'Alice Technician');
+    assert.deepEqual(followups[2].image_targets, ['/front/document.send.php?docid=88&itemtype=Ticket']);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  let calls = 0;
+
+  try {
+    global.fetch = (async () => {
+      calls += 1;
+      return new Response(JSON.stringify(
+        Array.from({ length: 50 }, (_, index) => ({
+          id: index + 1,
+          content: `<p>Followup ${index + 1}</p>`,
+          users_id: `User ${index + 1}`,
+          date: `2026-01-01 10:${String(index).padStart(2, '0')}:00`,
+          is_private: 0,
+        })),
+      ), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const followups = await service.getTicketFollowups(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: null,
+      },
+      4523,
+    );
+
+    assert.equal(calls, 2);
+    assert.equal(followups.length, 50);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
   await testInitSessionNormalizesApiEndpointBaseUrl();
   await testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls();
+  await testGetTicketFollowupsPaginatesAndNormalizesNewestFirst();
+  await testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored();
 }
 
 void run();

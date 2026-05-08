@@ -8,10 +8,12 @@ import {
   GlpiSession,
   GlpiTestResult,
   GlpiTicket,
+  GlpiTicketFollowup,
 } from './glpi.types';
 
 const GLPI_TIMEOUT_MS = 10_000;
 const GLPI_MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+const GLPI_PAGE_SIZE = 50;
 
 type ResolvedGlpiSettings = {
   baseUrl: string;
@@ -106,12 +108,83 @@ function parseNumericGlpiValue(value: unknown): number | null {
   return null;
 }
 
+function parseBooleanGlpiValue(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+  if (typeof value === 'object' && value) {
+    const record = value as Record<string, unknown>;
+    return parseBooleanGlpiValue(record.id ?? record.value ?? record.name ?? null);
+  }
+  return false;
+}
+
 function decodeFilenameComponent(value: string): string {
   try {
     return decodeURIComponent(value);
   } catch {
     return value;
   }
+}
+
+function decodeHtmlAttribute(value: string): string {
+  return String(value || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, '\'')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+}
+
+function extractImageTargets(html: string | null): string[] {
+  if (!html) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const results: string[] = [];
+  const regex = /<img\b[^>]*\bsrc\s*=\s*(['"])(.*?)\1[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(html)) !== null) {
+    const rawTarget = decodeHtmlAttribute(String(match[2] || '').trim());
+    if (!rawTarget || seen.has(rawTarget)) {
+      continue;
+    }
+    seen.add(rawTarget);
+    results.push(rawTarget);
+  }
+  return results;
+}
+
+function parseContentRangeTotal(value: string | null): number | null {
+  const match = String(value || '').match(/\/(\d+)\s*$/);
+  if (!match?.[1]) {
+    return null;
+  }
+  const total = Number.parseInt(match[1], 10);
+  return Number.isFinite(total) ? total : null;
+}
+
+function normalizeGlpiDate(value: unknown): string | null {
+  return textOrNull(value);
+}
+
+function compareGlpiDatesDesc(a: GlpiTicketFollowup, b: GlpiTicketFollowup): number {
+  const aTime = a.date ? Date.parse(a.date.replace(' ', 'T')) : Number.NaN;
+  const bTime = b.date ? Date.parse(b.date.replace(' ', 'T')) : Number.NaN;
+  const aValue = Number.isFinite(aTime) ? aTime : 0;
+  const bValue = Number.isFinite(bTime) ? bTime : 0;
+  if (bValue !== aValue) {
+    return bValue - aValue;
+  }
+  return b.id - a.id;
 }
 
 function isLikelyJsonPayload(contentType: string | null, raw: string): boolean {
@@ -177,6 +250,70 @@ export class GlpiService {
       type: parseNumericGlpiValue(record.type),
       glpi_url: this.buildUrl(session.baseUrl, `front/ticket.form.php?id=${resolvedTicketId}`),
     };
+  }
+
+  async getTicketFollowups(
+    session: GlpiSession,
+    ticketId: number,
+  ): Promise<GlpiTicketFollowup[]> {
+    const results: GlpiTicketFollowup[] = [];
+    const seenIds = new Set<number>();
+    let offset = 0;
+    let total: number | null = null;
+
+    while (total == null || offset < total) {
+      const end = offset + GLPI_PAGE_SIZE - 1;
+      const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/ITILFollowup`));
+      pageUrl.searchParams.set('range', `${offset}-${end}`);
+      pageUrl.searchParams.set('expand_dropdowns', 'true');
+      pageUrl.searchParams.set('get_hateoas', 'false');
+      pageUrl.searchParams.set('order', 'DESC');
+
+      const response = await this.request(
+        pageUrl.toString(),
+        {
+          headers: this.buildSessionHeaders(session),
+        },
+      );
+      const raw = await response.text();
+      const payload = this.safeParseJson(raw, {
+        requestUrl: pageUrl.toString(),
+        responseUrl: response.url || pageUrl.toString(),
+        contentType: response.headers.get('content-type'),
+        status: response.status,
+      });
+      const mappedError = this.extractGlpiError(payload);
+      if (!response.ok) {
+        throw this.createHttpError(response.status, mappedError, `Unable to fetch GLPI ticket #${ticketId} followups.`);
+      }
+      if (mappedError) {
+        throw new BadRequestException(mappedError);
+      }
+      if (!Array.isArray(payload)) {
+        throw new BadRequestException('GLPI ticket followups response was malformed.');
+      }
+
+      const pageItems = payload
+        .map((item) => this.normalizeFollowup(item))
+        .filter((item): item is GlpiTicketFollowup => !!item);
+      let newItemCount = 0;
+      for (const item of pageItems) {
+        if (seenIds.has(item.id)) {
+          continue;
+        }
+        seenIds.add(item.id);
+        results.push(item);
+        newItemCount += 1;
+      }
+
+      total = parseContentRangeTotal(response.headers.get('content-range'));
+      if (payload.length === 0 || newItemCount === 0 || (total == null && payload.length < GLPI_PAGE_SIZE)) {
+        break;
+      }
+      offset += payload.length;
+    }
+
+    return results.sort(compareGlpiDatesDesc);
   }
 
   async fetchDocument(
@@ -333,6 +470,33 @@ export class GlpiService {
     }
 
     return { baseUrl, userToken, appToken };
+  }
+
+  private normalizeFollowup(payload: unknown): GlpiTicketFollowup | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const record = payload as Record<string, unknown>;
+    const id = parseNumericGlpiValue(record.id);
+    if (!id) {
+      return null;
+    }
+
+    const contentHtml = textOrNull(record.content);
+    const authorLabel = textOrNull(record.user_name)
+      ?? stringifyGlpiValue(record.users_id)
+      ?? stringifyGlpiValue(record.users_id_editor)
+      ?? null;
+
+    return {
+      id,
+      content_html: contentHtml,
+      author_label: authorLabel,
+      date: normalizeGlpiDate(record.date ?? record.date_creation ?? record.date_mod),
+      is_private: parseBooleanGlpiValue(record.is_private),
+      image_targets: extractImageTargets(contentHtml),
+    };
   }
 
   private buildInitHeaders(
