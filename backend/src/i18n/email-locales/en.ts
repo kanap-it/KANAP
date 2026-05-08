@@ -12,6 +12,8 @@ export const en = {
       task: { label: 'Task', lower: 'task', view: 'View Task' },
       contract: { label: 'Contract', lower: 'contract', view: 'View Contract' },
       opex: { label: 'OPEX Item', lower: 'OPEX item', view: 'View OPEX Item' },
+      asset: { label: 'Asset', lower: 'asset', view: 'View Asset' },
+      application: { label: 'Application', lower: 'application', view: 'View Application' },
     },
     labels: {
       openDocument: 'Open Document',

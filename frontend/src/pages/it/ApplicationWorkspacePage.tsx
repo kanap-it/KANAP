@@ -41,6 +41,7 @@ import { CRITICALITY_COLORS, getDotColor, LIFECYCLE_COLORS } from '../../utils/s
 import { COUNTRY_OPTIONS } from '../../constants/isoOptions';
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
 import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/workspace/PortfolioMetadataBar';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
 import DeploymentsEditor from './components/DeploymentsEditor';
 import ApplicationRelationsPanel from './editors/ApplicationRelationsPanel';
 import ApplicationCreateEditor, { type ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
@@ -682,9 +683,6 @@ function OverviewTab({
         </Box>
       )}
       <Box>
-        <Box sx={{ mb: 1 }}>
-          <SectionLabel>Knowledge</SectionLabel>
-        </Box>
         <EntityKnowledgePanel entityType="applications" entityId={app.id} canCreate={canCreateKnowledge} />
       </Box>
     </Stack>
@@ -1393,6 +1391,14 @@ export default function ApplicationWorkspacePage() {
         ) : undefined}
         actions={(
           <>
+            {!isCreate && app && (
+              <SendLinkButton
+                itemType="application"
+                itemId={app.id}
+                itemRef={appReference}
+                itemName={app.name || 'Untitled application'}
+              />
+            )}
             {!isCreate && (
               <Button variant="action" onClick={() => setVersionDialogOpen(true)} size="small">
                 Create new version

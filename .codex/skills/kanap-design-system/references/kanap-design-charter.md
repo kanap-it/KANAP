@@ -384,7 +384,7 @@ Rules:
 - Complex components (UserSelect, CompanySelect, DateEUField) keep their internal logic but their MUI labels are hidden via `'& .MuiInputLabel-root': { display: 'none' }`
 - Content-tab scalar fields use the same naked `PropertyRow` treatment as drawer fields: label above, `variant="standard"`, underline disabled, and shared compact `sx`. Bordered inputs are for dialogs and defined long-form editor/composer surfaces, not ordinary one-line fields.
 - Underline-disabled editable fields must show a subtle hover affordance in both empty and populated states: `background-color: kanap.bg.composer`, 120ms transition, 4px radius, no border or shadow. Apply exactly one hover surface around the editable value, not around both the wrapper and the nested input: use about `margin: -3px -6px` and `padding: 3px 6px`, and reset to transparent on `:focus-within`.
-- Empty editable fields must use concrete data-shape placeholders, not instruction copy. Prefer examples such as `e.g., Dell, HPE, Cisco`, `e.g., gou-esx-01`, or `e.g., 10.24.16.10`; avoid generic text like "Enter manufacturer..." or "Search items".
+- Empty editable fields must use concrete data-shape placeholders, not instruction copy. Prefer generic, non-realistic examples such as `e.g., server1` or `e.g., 10.12.34.56`; avoid generic text like "Enter manufacturer..." or "Search items". Never reference real product/vendor names or tenant-like hostnames that could appear as another tenant's data.
 - For display/read-only empty values, use the drawer-style tertiary `Not set` pattern. Do not use `Not set` as the placeholder for ordinary editable free-text fields.
 - Generous vertical gap between fields: **16–20px**
 
@@ -492,38 +492,24 @@ Titles and other prominent editable fields use click-to-edit:
 
 ### Rich text editors (toolbar reveal on focus)
 
-Rich text editors hide their toolbar at rest and reveal it on focus:
+Rich text editors can hide their toolbar at rest and reveal it on focus:
 
 ```css
-.kanap-rich-editor[data-hide-toolbar='true'] .editor-toolbar {
+.kanap-mdx-root.kanap-mdx-hide-toolbar .kanap-mdx-toolbar {
   display: none;
 }
-.kanap-rich-editor[data-hide-toolbar='true']:focus-within .editor-toolbar {
+.kanap-mdx-root.kanap-mdx-hide-toolbar:focus-within .kanap-mdx-toolbar {
   display: flex;
 }
 ```
 
-For description editors, also hide the border at rest:
-
-```css
-.kanap-rich-editor[data-hide-border='true'] .editor-content {
-  border: 1px solid transparent;
-  padding: 0;
-}
-.kanap-rich-editor[data-hide-border='true']:focus-within .editor-content {
-  border-color: var(--kanap-border-default);
-  border-radius: 8px;
-  padding: 12px;
-}
-```
-
-Do NOT use this pattern on the comment composer's main editor — the composer has its own permanent border, so only the toolbar should toggle.
+Use the `MarkdownEditor` `surface` prop, which adds the `kanap-mdx-surface` class, for description-like long-form editors. The surface remains visible at rest; only the toolbar may toggle.
 
 ### Long-form text surfaces
 
 Long-form readable/editable text must sit on a defined surface so it is clearly separated from the page background in both light and dark mode.
 
-Use this for Description, Notes, Purpose, Risks, Support notes, PII descriptions, and similar multi-line fields:
+Use this for Description, Notes, Purpose, Risks, Support notes, PII descriptions, and similar multi-line fields. Description has no exception: the surface is always visible, while the toolbar may stay hidden until focus.
 
 - Background: `kanap.bg.composer`
 - Border: `1px solid kanap.border.default`

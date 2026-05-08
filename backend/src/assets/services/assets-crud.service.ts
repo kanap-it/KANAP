@@ -6,6 +6,8 @@ import { AssetClusterMember } from '../asset-cluster-member.entity';
 import { AuditService } from '../../audit/audit.service';
 import { AssetsBaseService, ServiceOpts } from './assets-base.service';
 import { AssetsValidationService } from './assets-validation.service';
+import { ShareItemDto } from '../../notifications/dto/share-item.dto';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 /**
  * Service for core CRUD operations on assets.
@@ -17,6 +19,7 @@ export class AssetsCrudService extends AssetsBaseService {
     @InjectRepository(AssetClusterMember) private readonly clusterMembers: Repository<AssetClusterMember>,
     private readonly audit: AuditService,
     private readonly validation: AssetsValidationService,
+    private readonly notifications: NotificationsService,
   ) {
     super(assetRepo);
   }
@@ -30,6 +33,58 @@ export class AssetsCrudService extends AssetsBaseService {
    */
   async get(id: string, opts?: ServiceOpts) {
     return this.ensureAsset(id, opts?.manager, opts?.tenantId);
+  }
+
+  async getByReference(reference: string, opts?: ServiceOpts) {
+    return this.ensureAssetByReference(reference, opts?.manager, opts?.tenantId);
+  }
+
+  async shareAsset(
+    assetId: string,
+    dto: ShareItemDto,
+    tenantId: string,
+    userId: string,
+    opts?: ServiceOpts,
+  ) {
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+
+    const mg = this.getManager(opts);
+    const asset = await this.ensureAsset(assetId, opts?.manager, tenantId);
+    const senderRows = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name || ''} ${senderRows[0].last_name || ''}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await mg.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'asset',
+        itemId: asset.id,
+        itemName: asset.name,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId,
+        manager: mg,
+      });
+    }
+
+    return { ok: true };
   }
 
   /**

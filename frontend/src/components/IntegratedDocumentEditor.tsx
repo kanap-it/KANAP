@@ -75,6 +75,7 @@ type IntegratedDocumentEditorProps = {
   showDocumentControls?: boolean;
   autosaveEnabled?: boolean;
   autosaveDelayMs?: number;
+  surface?: boolean;
 };
 
 const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
@@ -127,6 +128,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     showDocumentControls = true,
     autosaveEnabled = true,
     autosaveDelayMs = 1800,
+    surface = false,
   },
   ref,
 ) {
@@ -602,6 +604,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
               minRows={minRows}
               maxRows={maxRows}
               disabled={disabled}
+              surface={surface}
             />
           </React.Suspense>
         )}
@@ -744,6 +747,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             refreshNonce={contentResetNonce}
             onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
             onImageUrlImport={canEditContent ? handleInlineImageImport : undefined}
+            surface={surface}
           />
         </React.Suspense>
       ) : (
@@ -763,10 +767,10 @@ export const IntegratedDocumentEditor = React.forwardRef<
             overflowY: 'auto',
             overflowX: 'hidden',
             border: 1,
-            borderColor: 'divider',
-            borderRadius: 1,
-            bgcolor: 'background.paper',
-            p: 1.5,
+            borderColor: surface ? 'kanap.border.default' : 'divider',
+            borderRadius: surface ? '8px' : 1,
+            bgcolor: surface ? 'kanap.bg.composer' : 'background.paper',
+            p: surface ? '14px 16px' : 1.5,
             cursor: editModeBehavior === 'auto' && canEdit && !isLockedByAnotherUser ? 'text' : 'default',
           }}
         >

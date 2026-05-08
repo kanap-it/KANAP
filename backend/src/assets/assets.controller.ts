@@ -11,6 +11,7 @@ import { attachmentMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('assets')
@@ -141,6 +142,13 @@ export class AssetsController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('infrastructure', 'reader')
+  @Get('by-ref/:reference')
+  getByReference(@Param('reference') reference: string, @Req() req: any) {
+    return this.svc.getByReference(reference, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('infrastructure', 'reader')
   @Get(':id/map-summary')
   mapSummary(@Param('id') id: string, @Req() req: any) {
     return this.svc.mapSummary(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
@@ -151,6 +159,16 @@ export class AssetsController {
   @Get(':id')
   get(@Param('id') id: string, @Req() req: any) {
     return this.svc.get(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('infrastructure', 'reader')
+  @Post(':id/share')
+  share(@Param('id') id: string, @Body() body: ShareItemDto, @Req() req: any) {
+    return this.svc.shareAsset(id, body, req?.tenant?.id ?? '', req.user?.sub ?? '', {
+      manager: req?.queryRunner?.manager,
+      tenantId: req?.tenant?.id,
+    });
   }
 
   @UseGuards(PermissionGuard)

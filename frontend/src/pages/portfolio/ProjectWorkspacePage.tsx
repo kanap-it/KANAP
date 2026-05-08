@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Box, Button, IconButton, LinearProgress, Stack, Typography, useTheme,
 } from '@mui/material';
-import ShareIcon from '@mui/icons-material/Share';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
 import { useProjectNav } from '../../hooks/useProjectNav';
@@ -19,9 +18,9 @@ import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import { formatItemRef } from '../../utils/item-ref';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../utils/statusColors';
-import ShareDialog from '../../components/ShareDialog';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
 import MetadataUserPicker, { formatMetadataUserName } from '../../components/workspace/MetadataUserPicker';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
 import PortfolioDetailWorkspaceShell from './workspace/PortfolioDetailWorkspaceShell';
 import {
   PortfolioMetadataItem,
@@ -281,7 +280,6 @@ export default function ProjectWorkspacePage() {
   const defaultsAppliedRef = React.useRef(false);
   const { data: classificationDefaults, isLoading: classificationDefaultsLoading } = useClassificationDefaults();
 
-  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const canManage = hasLevel('portfolio_projects', 'manager');
   const canContributeToProject = hasLevel('portfolio_projects', 'contributor');
   const canProjectAdmin = hasLevel('portfolio_projects', 'admin');
@@ -903,14 +901,12 @@ export default function ProjectWorkspacePage() {
         actions={(
           <>
             {!isCreate && (
-              <Button
-                variant="action"
-                startIcon={<ShareIcon sx={{ fontSize: '14px !important' }} />}
-                onClick={() => setShareDialogOpen(true)}
-                size="small"
-              >
-                {t('portfolio:actions.sendLink')}
-              </Button>
+              <SendLinkButton
+                itemType="project"
+                itemId={form?.id || id}
+                itemName={form?.name || t('portfolio:workspace.project.title.fallback')}
+                itemNumber={form?.item_number}
+              />
             )}
             {isCreate && (
               <Button variant="contained" onClick={() => void handleSave()} disabled={createDisabled} size="small">
@@ -1096,14 +1092,6 @@ export default function ProjectWorkspacePage() {
         onCancel={handleStatusDialogCancel}
       />
 
-      <ShareDialog
-        open={shareDialogOpen}
-        onClose={() => setShareDialogOpen(false)}
-        itemType="project"
-        itemId={form?.id || id}
-        itemName={form?.name || t('portfolio:workspace.project.title.fallback')}
-        itemNumber={data?.item_number}
-      />
     </Box>
   );
 }

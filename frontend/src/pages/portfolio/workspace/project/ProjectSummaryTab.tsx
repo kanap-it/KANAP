@@ -58,6 +58,7 @@ export default function ProjectSummaryTab({
           draftValue={form?.purpose || ''}
           onDraftChange={onPurposeDraftChange}
           onDirtyChange={onPurposeDirtyChange}
+          surface
         />
       </Box>
     </Stack>

@@ -46,11 +46,13 @@ import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { KanapDialog, PropertyGroup, PropertyRow } from '../../components/design';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx, nakedInputHoverSx } from '../../theme/formSx';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, nakedInputHoverSx } from '../../theme/formSx';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
 import { getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
 import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/workspace/PortfolioMetadataBar';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
+const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
 type AssetRecord = {
@@ -237,14 +239,17 @@ export default function AssetWorkspacePage() {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const id = String(params.id || '');
+  const routeId = String(params.id || '');
+  const assetReferenceRoute = /^AST-\d+$/i.test(routeId);
   const rawTab = params.tab as string | undefined;
   const tab = React.useMemo<TabKey>(() => {
     if (VALID_ASSET_TABS.has(rawTab as TabKey)) return rawTab as TabKey;
     if (rawTab && OVERVIEW_LEGACY_TABS.has(rawTab)) return 'overview';
     return 'overview';
   }, [rawTab]);
-  const isCreate = id === 'new';
+  const isCreate = routeId === 'new';
+  const [canonicalAssetId, setCanonicalAssetId] = React.useState<string | null>(null);
+  const id = isCreate ? routeId : (assetReferenceRoute ? canonicalAssetId || '' : routeId);
   const canManage = hasLevel('infrastructure', 'member');
   const canDelete = hasLevel('infrastructure', 'admin');
 
@@ -253,6 +258,7 @@ export default function AssetWorkspacePage() {
   const supportRef = React.useRef<SupportInfoPanelHandle>(null);
   const relationsRef = React.useRef<AssetRelationsPanelHandle>(null);
   const goLiveNativeRef = React.useRef<HTMLInputElement | null>(null);
+  const notesSaveTimerRef = React.useRef<number | null>(null);
 
   const [data, setData] = React.useState<AssetRecord | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -299,12 +305,17 @@ export default function AssetWorkspacePage() {
     if (isCreate) return;
     setError(null);
     try {
-      const res = await api.get<AssetRecord>(`/assets/${id}`);
+      const res = await api.get<AssetRecord>(assetReferenceRoute ? `/assets/by-ref/${routeId}` : `/assets/${routeId}`);
       setData(res.data as any);
+      if (assetReferenceRoute) {
+        setCanonicalAssetId(res.data.id);
+      } else {
+        setCanonicalAssetId(null);
+      }
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.loadAssetFailed')));
     }
-  }, [id, isCreate]);
+  }, [assetReferenceRoute, isCreate, routeId, t]);
 
   React.useEffect(() => { void load(); }, [load]);
 
@@ -331,7 +342,7 @@ export default function AssetWorkspacePage() {
   }, []);
 
   const refreshAssignments = React.useCallback(async () => {
-    if (isCreate) return;
+    if (isCreate || !id) return;
     setAssignmentsError(null);
     try {
       const res = await api.get<AssignmentRow[]>(`/assets/${id}/assignments`);
@@ -383,7 +394,7 @@ export default function AssetWorkspacePage() {
   }, [byField.serverProvider]);
 
   const loadClusterMembers = React.useCallback(async () => {
-    if (isCreate || !isCluster) {
+    if (isCreate || !id || !isCluster) {
       setClusterMembers([]);
       setClusterError(null);
       setClusterLoading(false);
@@ -403,7 +414,7 @@ export default function AssetWorkspacePage() {
   }, [id, isCluster, isCreate]);
 
   const loadClustersForServer = React.useCallback(async () => {
-    if (isCreate || isCluster) {
+    if (isCreate || !id || isCluster) {
       setClustersForServer([]);
       setClustersError(null);
       setClustersLoading(false);
@@ -628,7 +639,7 @@ export default function AssetWorkspacePage() {
 
   React.useEffect(() => {
     let cancelled = false;
-    if (isCreate) {
+    if (isCreate || !id) {
       setConnections([]);
       setConnectionsError(null);
       setConnectionsLoading(false);
@@ -865,6 +876,7 @@ export default function AssetWorkspacePage() {
   };
 
   const handleAssignSave = async () => {
+    if (!id) return;
     if (!selectedAppId) {
       setAssignError('Application is required');
       return;
@@ -922,7 +934,7 @@ export default function AssetWorkspacePage() {
   };
 
   const handleSaveMembers = async () => {
-    if (isCreate) return;
+    if (isCreate || !id) return;
     setMemberSaving(true);
     setMemberSaveError(null);
     try {
@@ -1011,6 +1023,7 @@ export default function AssetWorkspacePage() {
       setDirty(true);
       return;
     }
+    if (!id) return;
     setSaving(true);
     setError(null);
     setData((prev) => (prev ? ({ ...prev, ...patch } as AssetRecord) : prev));
@@ -1026,6 +1039,29 @@ export default function AssetWorkspacePage() {
       setSaving(false);
     }
   }, [id, isCreate, load, t]);
+
+  const handleNotesChange = React.useCallback((value: string) => {
+    setNotes(value);
+    if (isCreate) {
+      setDirty(true);
+      return;
+    }
+    if (notesSaveTimerRef.current != null) {
+      window.clearTimeout(notesSaveTimerRef.current);
+    }
+    notesSaveTimerRef.current = window.setTimeout(() => {
+      notesSaveTimerRef.current = null;
+      if ((value || '') !== (data?.notes || '')) {
+        void patchAsset({ notes: value || null });
+      }
+    }, 900);
+  }, [data?.notes, isCreate, patchAsset]);
+
+  React.useEffect(() => () => {
+    if (notesSaveTimerRef.current != null) {
+      window.clearTimeout(notesSaveTimerRef.current);
+    }
+  }, []);
 
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
@@ -1139,6 +1175,7 @@ export default function AssetWorkspacePage() {
           startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />}
           size="small"
           onClick={async () => {
+            if (!id) return;
             if (!window.confirm(`Delete asset "${data?.name || name}"?`)) return;
             await api.delete(`/assets/${id}`);
             handleClose();
@@ -1146,6 +1183,14 @@ export default function AssetWorkspacePage() {
         >
           Delete
         </Button>
+      )}
+      {!isCreate && data && id && (
+        <SendLinkButton
+          itemType="asset"
+          itemId={id}
+          itemRef={data.asset_reference || null}
+          itemName={data.name || name || 'Untitled asset'}
+        />
       )}
       <IconButton onClick={handleClose} title={t('common.close')} aria-label={t('common.close')} size="small">
         <CloseIcon />
@@ -1525,23 +1570,18 @@ export default function AssetWorkspacePage() {
                 <Box sx={{ mb: 1 }}>
                   <SectionLabel>Description</SectionLabel>
                 </Box>
-                <TextField
-                  multiline
-                  minRows={4}
-                  maxRows={12}
-                  value={notes}
-                  onChange={(e) => { setNotes(e.target.value); if (isCreate) setDirty(true); }}
-                  onBlur={(e) => {
-                    const next = e.currentTarget.value;
-                    setNotes(next);
-                    if (!isCreate && (next || '') !== (data?.notes || '')) void patchAsset({ notes: next || null });
-                  }}
-                  placeholder="Describe the asset"
-                  variant="standard"
-                  InputProps={{ disableUnderline: true }}
-                  sx={longFormSurfaceFieldSx}
-                  disabled={!canManage}
-                />
+                <React.Suspense fallback={<Box sx={(muiTheme) => ({ minHeight: 154, maxWidth: 900, border: `1px solid ${muiTheme.palette.kanap.border.default}`, borderRadius: '8px', bgcolor: muiTheme.palette.kanap.bg.composer })} />}>
+                  <MarkdownEditor
+                    value={notes}
+                    onChange={handleNotesChange}
+                    placeholder="Describe the asset"
+                    minRows={4}
+                    maxRows={12}
+                    disabled={!canManage}
+                    hideToolbarUntilFocus
+                    surface
+                  />
+                </React.Suspense>
               </Box>
               {!isCreate && (
                 <>
@@ -1678,9 +1718,6 @@ export default function AssetWorkspacePage() {
                   </Box>
 
                   <Box>
-                    <Box sx={{ mb: 1 }}>
-                      <SectionLabel>Knowledge</SectionLabel>
-                    </Box>
                     <EntityKnowledgePanel
                       entityType="assets"
                       entityId={id}
@@ -1728,19 +1765,7 @@ export default function AssetWorkspacePage() {
                     />
                   </Box>
                   {isCluster && (
-                    <Alert
-                      severity="info"
-                      sx={(muiTheme) => ({
-                        bgcolor: muiTheme.palette.kanap.bg.composer,
-                        border: `1px solid ${muiTheme.palette.kanap.border.default}`,
-                        borderRadius: 1,
-                        color: muiTheme.palette.kanap.text.secondary,
-                        fontSize: 13,
-                        '& .MuiAlert-icon': {
-                          color: muiTheme.palette.kanap.text.tertiary,
-                        },
-                      })}
-                    >
+                    <Alert severity="info">
                       Cluster servers can be endpoints in connections. Assign application instances to member hosts, not to the cluster itself.
                     </Alert>
                   )}
@@ -1851,7 +1876,7 @@ export default function AssetWorkspacePage() {
                       }}
                       error={!!hostnameRequired && !hostname}
                       helperText={hostnameRequired && !hostname ? 'Hostname is required when a domain is selected' : undefined}
-                      placeholder="Hostname"
+                      placeholder="e.g., server1"
                       size="small"
                       variant="standard"
                       InputProps={{ disableUnderline: true }}
@@ -1916,7 +1941,7 @@ export default function AssetWorkspacePage() {
                       <PropertyRow label="Aliases" valueSx={{ maxWidth: 520 }}>
                         <TextField
                           {...params}
-                          placeholder={aliases.length === 0 ? 'Alias names' : ''}
+                          placeholder={aliases.length === 0 ? 'e.g., server1, srv1' : ''}
                           size="small"
                           variant="standard"
                           InputProps={{ ...params.InputProps, disableUnderline: true }}
@@ -2032,7 +2057,7 @@ export default function AssetWorkspacePage() {
                                 setIpAddresses(next);
                                 persistIpAddresses(next);
                               }}
-                              placeholder="IP address"
+                              placeholder="e.g., 10.12.34.56"
                               fullWidth
                               size="small"
                               variant="standard"

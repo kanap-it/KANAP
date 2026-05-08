@@ -30,7 +30,6 @@ import TaskPropertiesDrawer from './components/TaskPropertiesDrawer';
 import { taskDetailTokens, type PriorityLevel } from './theme/taskDetailTokens';
 import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
-import ShareDialog from '../../components/ShareDialog';
 import { formatItemRef } from '../../utils/item-ref';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import ConvertToRequestDialog from './components/ConvertToRequestDialog';
@@ -323,7 +322,6 @@ export default function TaskWorkspacePage() {
     enabled: !!id && !isCreate && !!task,
   });
 
-  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(() => {
     try {
@@ -1515,6 +1513,8 @@ export default function TaskWorkspacePage() {
                     maxRows={26}
                     focusNonce={descriptionFocusNonce}
                     refreshNonce={descriptionResetNonce}
+                    hideToolbarUntilFocus
+                    surface
                   />
                 </React.Suspense>
               ) : (
@@ -1588,7 +1588,6 @@ export default function TaskWorkspacePage() {
         onPrev={() => confirmAndNavigate(prevId)}
         onNext={() => confirmAndNavigate(nextId)}
         onClose={handleBack}
-        onSendLink={() => setShareDialogOpen(true)}
         onConvertToRequest={() => setConvertToRequestOpen(true)}
         onDelete={handleDelete}
         onTitleChange={(v) => { setTitle(v); setDirty(true); }}
@@ -1660,6 +1659,7 @@ export default function TaskWorkspacePage() {
                   focusNonce={descriptionFocusNonce}
                   refreshNonce={descriptionResetNonce}
                   hideToolbarUntilFocus
+                  surface
                 />
               </React.Suspense>
             ) : (
@@ -1765,14 +1765,6 @@ export default function TaskWorkspacePage() {
         )}
       </Box>
 
-      <ShareDialog
-        open={shareDialogOpen}
-        onClose={() => setShareDialogOpen(false)}
-        itemType="task"
-        itemId={id}
-        itemName={title || t('portfolio:workspace.task.title.untitled')}
-        itemNumber={task?.item_number}
-      />
       <ConvertToRequestDialog
         open={convertToRequestOpen}
         onClose={() => setConvertToRequestOpen(false)}

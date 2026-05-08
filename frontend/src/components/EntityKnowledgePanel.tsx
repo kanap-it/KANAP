@@ -6,6 +6,7 @@ import {
   ButtonGroup,
   CircularProgress,
   IconButton,
+  Link,
   ListSubheader,
   Menu,
   MenuItem,
@@ -21,6 +22,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import LinkIcon from '@mui/icons-material/Link';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -70,6 +72,7 @@ type KnowledgeContextSource = {
   entity_type: EntityKnowledgeType;
   entity_id: string;
   item_number: number | null;
+  item_ref?: string | null;
   name: string;
   status: string | null;
 };
@@ -127,9 +130,11 @@ const ENTITY_ENDPOINTS: Record<EntityKnowledgeType, string> = {
 };
 
 const ENTITY_REF_PREFIXES: Partial<Record<EntityKnowledgeType, string>> = {
+  applications: 'APP',
+  assets: 'AST',
   projects: 'PRJ',
   requests: 'REQ',
-  tasks: 'TSK',
+  tasks: 'T',
 };
 
 const RELATION_KEYS: Record<EntityKnowledgeType, string> = {
@@ -189,7 +194,7 @@ function dedupeKnowledgeItems(
   return Array.from(byId.values());
 }
 
-function formatDateTime(value?: string | null): string {
+function formatDateOnly(value?: string | null): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -197,17 +202,24 @@ function formatDateTime(value?: string | null): string {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   });
 }
 
 function formatSourceLabel(source: KnowledgeContextSource): string {
   const prefix = ENTITY_REF_PREFIXES[source.entity_type];
-  const ref = prefix && source.item_number != null ? `${prefix}-${source.item_number}` : null;
+  const ref = source.item_ref || (prefix && source.item_number != null ? `${prefix}-${source.item_number}` : null);
   const name = String(source.name || '').trim();
   if (ref && name) return `${ref} ${name}`;
   return ref || name || source.entity_id;
+}
+
+function sourceHref(source: KnowledgeContextSource): string {
+  const routeId = source.item_ref || source.entity_id;
+  if (source.entity_type === 'applications') return `/it/applications/${routeId}/overview`;
+  if (source.entity_type === 'assets') return `/it/assets/${routeId}/overview`;
+  if (source.entity_type === 'projects') return `/portfolio/projects/${routeId}/summary`;
+  if (source.entity_type === 'requests') return `/portfolio/requests/${routeId}/summary`;
+  return `/portfolio/tasks/${routeId}/overview`;
 }
 
 function KnowledgeGroupTable({
@@ -243,50 +255,48 @@ function KnowledgeGroupTable({
             <TableRow>
               <TableCell>{t('knowledgePanel.ref')}</TableCell>
               <TableCell>{t('knowledgePanel.titleColumn')}</TableCell>
-              <TableCell>{t('knowledgePanel.statusColumn')}</TableCell>
-              <TableCell>{t('knowledgePanel.linkedVia')}</TableCell>
               <TableCell>{t('knowledgePanel.sourceObject')}</TableCell>
               <TableCell>{t('knowledgePanel.updatedColumn')}</TableCell>
-              <TableCell align="right">{t('knowledgePanel.openColumn')}</TableCell>
+              <TableCell align="right" />
             </TableRow>
           </TableHead>
           <TableBody>
             {group.items.map((item) => (
-              <TableRow key={`${group.key}:${item.id}:${item.linked_via_label}`} hover>
-                <TableCell>{`DOC-${item.item_number}`}</TableCell>
-                <TableCell>{item.title}</TableCell>
-                <TableCell>{item.status}</TableCell>
-                <TableCell>{item.linked_via_label}</TableCell>
+              <TableRow
+                key={`${group.key}:${item.id}:${item.linked_via_label}`}
+                hover
+                sx={{
+                  '& .knowledge-row-delete': { opacity: 0, transition: 'opacity 120ms ease' },
+                  '&:hover .knowledge-row-delete': { opacity: 1 },
+                }}
+              >
+                <TableCell>
+                  <Link href={`/knowledge/DOC-${item.item_number}`} underline="none" sx={{ color: 'kanap.text.primary', '&:hover': { color: 'kanap.teal', textDecoration: 'underline' } }}>
+                    {`DOC-${item.item_number}`}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Link href={`/knowledge/DOC-${item.item_number}`} underline="none" sx={{ color: 'kanap.text.primary', '&:hover': { color: 'kanap.teal', textDecoration: 'underline' } }}>
+                    {item.title}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <Stack spacing={0.5}>
                     {item.provenance.map((source) => (
                       <Box key={`${item.id}:${source.entity_type}:${source.entity_id}`}>
-                        <Typography variant="body2">{formatSourceLabel(source)}</Typography>
-                        {source.status && (
-                          <Typography variant="caption" color="text.secondary">
-                            {source.status}
-                          </Typography>
-                        )}
+                        <Link href={sourceHref(source)} underline="none" sx={{ color: 'kanap.text.primary', '&:hover': { color: 'kanap.teal', textDecoration: 'underline' } }}>
+                          {formatSourceLabel(source)}
+                        </Link>
                       </Box>
                     ))}
                   </Stack>
                 </TableCell>
-                <TableCell>{formatDateTime(item.updated_at || item.created_at)}</TableCell>
+                <TableCell>{formatDateOnly(item.updated_at || item.created_at)}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      endIcon={<OpenInNewIcon fontSize="small" />}
-                      component="a"
-                      href={`/knowledge/DOC-${item.item_number}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {t('buttons.open')}
-                    </Button>
                     {showUnlink && (
                       <IconButton
+                        className="knowledge-row-delete"
                         size="small"
                         color="error"
                         aria-label={t('knowledgePanel.unlinkDocument')}
@@ -384,8 +394,8 @@ function SidebarKnowledgeGroupList({
                   {item.linked_via_label}
                 </Typography>
               )}
-              <Typography variant="caption" color="text.secondary" noWrap title={formatDateTime(item.updated_at || item.created_at)}>
-                {formatDateTime(item.updated_at || item.created_at)}
+              <Typography variant="caption" color="text.secondary" noWrap title={formatDateOnly(item.updated_at || item.created_at)}>
+                {formatDateOnly(item.updated_at || item.created_at)}
               </Typography>
             </Stack>
 
@@ -666,52 +676,74 @@ export default function EntityKnowledgePanel({
         </Button>
       </Stack>
     ) : (
-      <Stack spacing={2}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-          justifyContent="space-between"
-          spacing={1.5}
+      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.5}>
+        <Typography
+          component="h2"
+          sx={(theme) => ({
+            m: 0,
+            fontSize: 14,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            color: theme.palette.kanap.text.primary,
+            whiteSpace: 'nowrap',
+          })}
         >
-          <Stack spacing={0.75}>
-            <Typography variant="h6" sx={{ fontWeight: 500 }}>
-              {t('knowledgePanel.title')}
-            </Typography>
-          </Stack>
-
-          <ButtonGroup variant="contained" size="small">
-            <Button
-              startIcon={<AddIcon />}
-              onClick={handleCreateBlank}
-              disabled={createLinkedMutation.isPending}
-            >
-              {t('knowledgePanel.newDocument')}
-            </Button>
-            <Button
-              onClick={(event) => setNewDocAnchorEl(event.currentTarget)}
-              disabled={createLinkedMutation.isPending}
-              sx={{ px: 0.5, minWidth: 'auto' }}
-            >
-              <ArrowDropDownIcon />
-            </Button>
-          </ButtonGroup>
-        </Stack>
-
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }}>
+          {t('knowledgePanel.title')}
+        </Typography>
+        <Stack direction="row" alignItems="center" spacing={0.75}>
           <Button
-            variant="outlined"
-            size="small"
+            variant="action"
+            startIcon={<LinkIcon fontSize="small" />}
             onClick={() => setLinkOptionsOpen(true)}
             disabled={linkExistingMutation.isPending}
           >
             {t('knowledgePanel.linkExisting')}
           </Button>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+            <Button
+              variant="action"
+              startIcon={<AddIcon />}
+              onClick={handleCreateBlank}
+              disabled={createLinkedMutation.isPending}
+              sx={{
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+                pr: 1,
+              }}
+            >
+              {t('knowledgePanel.newDocument')}
+            </Button>
+            <Button
+              variant="action"
+              aria-label={t('knowledgePanel.newDocumentOptions', 'New document options')}
+              onClick={(event) => setNewDocAnchorEl(event.currentTarget)}
+              disabled={createLinkedMutation.isPending}
+              sx={{
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                ml: '-1px',
+                px: 0.25,
+                minWidth: 24,
+              }}
+            >
+              <ArrowDropDownIcon sx={{ fontSize: 18 }} />
+            </Button>
+          </Box>
         </Stack>
       </Stack>
     )
   ) : (!isSidebar ? (
     <Stack spacing={0.75}>
-      <Typography variant="h6" sx={{ fontWeight: 500 }}>
+      <Typography
+        component="h2"
+        sx={(theme) => ({
+          m: 0,
+          fontSize: 14,
+          fontWeight: 500,
+          lineHeight: 1.4,
+          color: theme.palette.kanap.text.primary,
+        })}
+      >
         Knowledge
       </Typography>
     </Stack>
@@ -730,16 +762,14 @@ export default function EntityKnowledgePanel({
             )}
           </Stack>
         ) : (
-          <Paper variant="outlined" sx={{ p: 2, width: '100%', maxWidth: controlsMaxWidth }}>
-            <Stack spacing={2}>
-              {headerActions}
-              {(linkExistingMutation.isError || unlinkMutation.isError || createLinkedMutation.isError) && (
-                <Alert severity="error">
-                  Failed to update knowledge links.
-                </Alert>
-              )}
-            </Stack>
-          </Paper>
+          <Stack spacing={1.25} sx={{ width: '100%', maxWidth: controlsMaxWidth }}>
+            {headerActions}
+            {(linkExistingMutation.isError || unlinkMutation.isError || createLinkedMutation.isError) && (
+              <Alert severity="error">
+                Failed to update knowledge links.
+              </Alert>
+            )}
+          </Stack>
         )
       )}
 
