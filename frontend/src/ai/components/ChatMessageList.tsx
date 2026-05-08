@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined';
 import CheckIcon from '@mui/icons-material/Check';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { AiMutationPreview, ChatMessage } from '../aiTypes';
@@ -92,6 +93,50 @@ function MessageActions({
   );
 }
 
+function RoleHeader({ role }: { role: 'user' | 'assistant' }) {
+  const { t } = useTranslation(['ai']);
+  const label = role === 'user' ? t('messageList.userRole') : t('messageList.assistantRole');
+
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.75}
+      sx={{ mb: 0.5, height: 18 }}
+    >
+      {role === 'assistant' && (
+        <Box
+          sx={(theme) => ({
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: theme.palette.primary.light,
+            color: theme.palette.primary.main,
+            flexShrink: 0,
+          })}
+        >
+          <AutoAwesomeOutlinedIcon sx={{ fontSize: 10 }} />
+        </Box>
+      )}
+      <Typography
+        component="span"
+        sx={{
+          fontSize: 12,
+          fontWeight: 500,
+          color: 'kanap.text.secondary',
+          letterSpacing: 0.1,
+          lineHeight: 1,
+        }}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  );
+}
+
 function MessageRow({
   role,
   children,
@@ -102,22 +147,10 @@ function MessageRow({
   copyText?: string;
 }) {
   const { t } = useTranslation(['ai']);
-  const roleLabel = role === 'user' ? t('messageList.userRole') : t('messageList.assistantRole');
 
   return (
-    <Box className="kanap-chat-message-row" sx={{ pt: 0, pb: 1 }}>
-      <Typography
-        component="div"
-        sx={{
-          fontSize: 12,
-          fontWeight: 500,
-          color: 'kanap.text.secondary',
-          mb: 0.5,
-          letterSpacing: 0.1,
-        }}
-      >
-        {roleLabel}
-      </Typography>
+    <Box className="kanap-chat-message-row">
+      <RoleHeader role={role} />
       <Box>{children}</Box>
       {copyText && (
         <MessageActions
@@ -134,13 +167,19 @@ function UserMessage({ message }: { message: ChatMessage }) {
   return (
     <MessageRow role="user" copyText={message.content}>
       <Box
-        sx={{
+        sx={(theme) => ({
+          bgcolor: theme.palette.mode === 'dark'
+            ? 'rgba(255,255,255,0.06)'
+            : 'rgba(15,17,23,0.05)',
+          borderRadius: '10px',
+          px: 1.75,
+          py: 1.25,
           fontSize: 14,
           lineHeight: 1.6,
-          color: 'kanap.text.primary',
+          color: theme.palette.kanap.text.primary,
           '& p:first-of-type': { mt: 0 },
           '& p:last-of-type': { mb: 0 },
-        }}
+        })}
       >
         <MarkdownContent content={message.content} />
       </Box>
