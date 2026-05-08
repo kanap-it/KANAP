@@ -17,7 +17,7 @@ WORKDIR /app
 
 # Install dependencies first for better layer caching
 COPY web/package.json web/package-lock.json* ./
-RUN npm install --no-audit --no-fund --prefer-offline
+RUN npm ci --no-audit --no-fund
 
 # Copy the rest of the Astro project
 COPY web/ ./

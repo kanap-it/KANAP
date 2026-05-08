@@ -7,20 +7,11 @@ import { getTrialContent } from '../../content/resolve';
 const locale = getLocaleFromUrl(Astro.url);
 const c = getTrialContent(locale).start;
 
-/**
- * Turnstile site key is injected at build time via PUBLIC_TURNSTILE_SITE_KEY.
- * When unset, we render a placeholder pass-through (dev mode) and log a
- * warning in the browser so forms remain testable locally.
- */
-const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
 ---
 
 <BaseLayout title={c.title} description={c.description}>
   <Fragment slot="head">
     <meta name="robots" content="noindex, nofollow" />
-    {turnstileSiteKey && (
-      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    )}
   </Fragment>
 
   <PageHeader eyebrow={c.eyebrow} title={c.heading} lead={c.lead} />
@@ -75,12 +66,10 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
           <p class="mk-tf__help">{c.form.emailHelp}</p>
         </div>
 
-        {turnstileSiteKey && (
-          <div class="mk-tf__field">
-            <span class="mk-tf__label-spacer">{c.form.captchaLabel}</span>
-            <div class="cf-turnstile" data-sitekey={turnstileSiteKey}></div>
-          </div>
-        )}
+        <div class="mk-tf__field" data-turnstile-field hidden>
+          <span class="mk-tf__label-spacer">{c.form.captchaLabel}</span>
+          <div data-turnstile-container data-turnstile-action="start_trial"></div>
+        </div>
 
         <div class="mk-tf__status" role="status" aria-live="polite" data-trial-status></div>
 
@@ -101,12 +90,12 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
   errorRequired: c.form.errorRequired,
   errorEmail: c.form.errorEmail,
   errorSlug: c.form.errorSlug,
-  needsCaptcha: !!turnstileSiteKey,
   checkEmailHref: localePath(locale, '/trial/check-email'),
 }}>
   const form = document.querySelector('[data-trial-form]');
   const btn = document.querySelector('[data-trial-submit]');
   const statusEl = document.querySelector('[data-trial-status]');
+  const captcha = { enabled: false, required: false, token: '' };
 
   function setStatus(text, kind) {
     if (!statusEl) return;
@@ -114,27 +103,67 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
     statusEl.className = 'mk-tf__status' + (kind ? ' mk-tf__status--' + kind : '');
   }
 
-  function getToken() {
-    if (!needsCaptcha) return 'dev';
-    // Cloudflare Turnstile puts the token in a hidden input named cf-turnstile-response
-    const el = document.querySelector('input[name=cf-turnstile-response]');
-    return el ? el.value : '';
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-turnstile-script]');
+      if (existing) {
+        if (window.turnstile) resolve();
+        else existing.addEventListener('load', resolve, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.defer = true;
+      script.dataset.turnstileScript = 'true';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
   }
+
+  async function setupCaptcha() {
+    const field = document.querySelector('[data-turnstile-field]');
+    const container = document.querySelector('[data-turnstile-container]');
+    if (!field || !container) return;
+    try {
+      const res = await fetch('/api/public/captcha-config', { headers: { accept: 'application/json' } });
+      if (!res.ok) return;
+      const config = await res.json();
+      if (!config || !config.enabled || !config.siteKey) return;
+      captcha.enabled = true;
+      captcha.required = config.required === true;
+      field.hidden = false;
+      await loadScript('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit');
+      if (!window.turnstile) throw new Error('turnstile unavailable');
+      window.turnstile.render(container, {
+        sitekey: config.siteKey,
+        action: container.dataset.turnstileAction || 'start_trial',
+        callback: function (token) { captcha.token = token || ''; },
+        'expired-callback': function () { captcha.token = ''; },
+        'error-callback': function () { captcha.token = ''; },
+      });
+    } catch (err) {
+      if (captcha.required) setStatus(errorGeneric, 'error');
+    }
+  }
+
+  setupCaptcha();
 
   if (form && btn) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
       const payload = {
-        org_name: String(fd.get('org_name') ?? '').trim(),
+        org: String(fd.get('org_name') ?? '').trim(),
         slug: String(fd.get('slug') ?? '').trim().toLowerCase(),
         email: String(fd.get('email') ?? '').trim(),
         country_iso: String(fd.get('country_iso') ?? ''),
-        captcha_token: getToken(),
+        captchaToken: captcha.enabled ? captcha.token : undefined,
       };
 
       // Client-side checks (backend revalidates everything)
-      if (!payload.org_name || !payload.email || !payload.slug || !payload.country_iso) {
+      if (!payload.org || !payload.email || !payload.slug || !payload.country_iso) {
         setStatus(errorRequired, 'error');
         return;
       }
@@ -146,7 +175,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
         setStatus(errorSlug, 'error');
         return;
       }
-      if (needsCaptcha && !payload.captcha_token) {
+      if (captcha.required && !payload.captchaToken) {
         setStatus(errorGeneric, 'error');
         return;
       }
