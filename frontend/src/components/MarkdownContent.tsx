@@ -11,7 +11,6 @@ import rehypeHighlight from 'rehype-highlight';
 // Highlight.js languages outside the lowlight "common" preset that are useful for an
 // IT governance platform but not bundled by default.
 import dockerfile from 'highlight.js/lib/languages/dockerfile';
-import hcl from 'highlight.js/lib/languages/hcl';
 import nginx from 'highlight.js/lib/languages/nginx';
 import powershell from 'highlight.js/lib/languages/powershell';
 import properties from 'highlight.js/lib/languages/properties';
@@ -265,7 +264,7 @@ export function MarkdownContent({ content, variant = 'default' }: MarkdownConten
           [rehypeHighlight, {
             detect: true,
             ignoreMissing: true,
-            languages: { powershell, dockerfile, nginx, hcl, properties },
+            languages: { powershell, dockerfile, nginx, properties },
           }],
         ]}
         urlTransform={sanitizeUrl}
