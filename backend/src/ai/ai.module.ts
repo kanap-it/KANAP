@@ -40,6 +40,7 @@ import { AiConversationService } from './ai-conversation.service';
 import { AiConversationsController } from './ai-conversations.controller';
 import { AiEntityService } from './ai-entity.service';
 import { AiMcpController } from './ai-mcp.controller';
+import { AiSearchController } from './ai-search.controller';
 import { AiMessage } from './ai-message.entity';
 import { AiMessageAttachment } from './ai-message-attachment.entity';
 import { AiMutationPreview } from './ai-mutation-preview.entity';
@@ -134,6 +135,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiConversationsController,
     AiApiKeysController,
     AiMcpController,
+    AiSearchController,
   ],
   providers: [
     AiTenantExecutionService,

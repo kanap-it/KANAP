@@ -53,6 +53,10 @@
     "tab": "Artifacts",
     "title": "Artifacts"
   },
+  "mention": {
+    "noResults": "No matches",
+    "searching": "Searching..."
+  },
   "previewCard": {
     "after": "After",
     "approve": "Approve",

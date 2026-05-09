@@ -53,6 +53,10 @@
     "tab": "Artefacts",
     "title": "Artefacts"
   },
+  "mention": {
+    "noResults": "Aucun résultat",
+    "searching": "Recherche..."
+  },
   "previewCard": {
     "after": "Après",
     "approve": "Approuver",

@@ -6,6 +6,9 @@ import AttachFileIcon from '@mui/icons-material/AttachFileOutlined';
 import CloseIcon from '@mui/icons-material/CloseRounded';
 import { useTranslation } from 'react-i18next';
 import type { PendingAttachment } from '../useChat';
+import type { EntitySearchResult } from '../aiApi';
+import { buildEntityUrl } from '../utils/entityUrls';
+import MentionPopover, { MentionPopoverHandle } from './MentionPopover';
 
 const ACCEPTED_IMAGE_MIME_PREFIX = 'image/';
 const ACCEPTED_IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp)$/i;
@@ -115,8 +118,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     const { t } = useTranslation(['ai']);
     const [value, setValue] = useState('');
     const [dragOver, setDragOver] = useState(false);
+    const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const mentionPopoverRef = useRef<MentionPopoverHandle>(null);
 
     useImperativeHandle(ref, () => ({
       focus: () => inputRef.current?.focus(),
@@ -143,9 +148,96 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       if ((!text && !hasPending) || disabled) return;
       onSend(text);
       setValue('');
+      setMentionState(null);
     };
 
+    const updateMentionFromCaret = useCallback((nextValue: string, caret: number) => {
+      // Look back from the caret for the most recent `@`. If we find one with no
+      // whitespace between it and the caret, and it sits at a word boundary (start
+      // of buffer or preceded by whitespace) so we don't snag email-style addresses,
+      // promote it to an active mention.
+      const before = nextValue.slice(0, caret);
+      const atIdx = before.lastIndexOf('@');
+      if (atIdx === -1) {
+        setMentionState((prev) => (prev ? null : prev));
+        return;
+      }
+      const between = before.slice(atIdx + 1);
+      if (/[\s\n]/.test(between)) {
+        setMentionState((prev) => (prev ? null : prev));
+        return;
+      }
+      const charBefore = atIdx > 0 ? nextValue[atIdx - 1] : '';
+      if (atIdx > 0 && !/\s/.test(charBefore)) {
+        setMentionState((prev) => (prev ? null : prev));
+        return;
+      }
+      setMentionState({ start: atIdx, query: between });
+    }, []);
+
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const next = e.target.value;
+      setValue(next);
+      const caret = (e.target as HTMLTextAreaElement).selectionStart ?? next.length;
+      updateMentionFromCaret(next, caret);
+    }, [updateMentionFromCaret]);
+
+    const handleSelectionChange = useCallback(() => {
+      const el = inputRef.current as unknown as HTMLTextAreaElement | null;
+      if (!el) return;
+      const caret = el.selectionStart ?? value.length;
+      updateMentionFromCaret(value, caret);
+    }, [value, updateMentionFromCaret]);
+
+    const handleMentionSelect = useCallback((item: EntitySearchResult) => {
+      if (!mentionState) return;
+      const url = buildEntityUrl(item.entity_type, item.id);
+      if (!url) {
+        setMentionState(null);
+        return;
+      }
+      // Markdown link with the ref as visible text — that's what the LLM will read AND
+      // what the renderer turns into a clickable link in the rendered message.
+      const visible = item.ref || item.label || item.id;
+      const insertion = `[${visible}](${url}) `;
+      const before = value.slice(0, mentionState.start);
+      const after = value.slice(mentionState.start + 1 + mentionState.query.length);
+      const next = before + insertion + after;
+      setValue(next);
+      setMentionState(null);
+      // Restore caret immediately after the insertion.
+      window.setTimeout(() => {
+        const el = inputRef.current as unknown as HTMLTextAreaElement | null;
+        if (!el) return;
+        el.focus();
+        const newCaret = before.length + insertion.length;
+        try { el.setSelectionRange(newCaret, newCaret); } catch { /* ignore */ }
+      }, 0);
+    }, [mentionState, value]);
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (mentionState) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          mentionPopoverRef.current?.moveSelection(1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          mentionPopoverRef.current?.moveSelection(-1);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          mentionPopoverRef.current?.confirmSelection();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMentionState(null);
+          return;
+        }
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSend();
@@ -242,6 +334,23 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
             },
           })}
         >
+          {mentionState && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 'calc(100% + 8px)',
+                left: 0,
+                zIndex: 20,
+              }}
+            >
+              <MentionPopover
+                ref={mentionPopoverRef}
+                query={mentionState.query}
+                onSelect={handleMentionSelect}
+                onCancel={() => setMentionState(null)}
+              />
+            </Box>
+          )}
           {hasPending && (
             <Stack
               direction="row"
@@ -274,8 +383,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               variant="standard"
               placeholder={t('input.placeholder')}
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={handleChange}
               onKeyDown={handleKeyDown}
+              onKeyUp={handleSelectionChange}
+              onMouseUp={handleSelectionChange}
               onPaste={handlePaste}
               disabled={disabled}
               inputRef={inputRef}

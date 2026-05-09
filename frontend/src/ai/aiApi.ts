@@ -291,6 +291,22 @@ export const aiAdminApi = {
   },
 };
 
+export type EntitySearchResult = {
+  entity_type: string;
+  id: string;
+  ref: string | null;
+  label: string | null;
+};
+
+export const aiSearchApi = {
+  async searchEntities(q: string, signal?: AbortSignal): Promise<EntitySearchResult[]> {
+    const trimmed = q.trim();
+    if (!trimmed) return [];
+    const res = await api.get('/ai/search/entities', { params: { q: trimmed }, signal });
+    return Array.isArray(res.data?.items) ? res.data.items : [];
+  },
+};
+
 export const aiKeysApi = {
   async create(params: { label: string; expires_at?: string }): Promise<{ key: string; record: AiApiKeyRecord }> {
     const res = await api.post('/ai/keys', params);
