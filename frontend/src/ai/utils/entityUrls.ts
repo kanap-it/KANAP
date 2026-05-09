@@ -53,14 +53,31 @@ const REF_PREFIX_TO_ENTITY_TYPE: Record<string, string> = {
 };
 
 /**
- * If the @-mention query starts with a recognized ref prefix followed by `-`
- * (e.g. `T-`, `DOC-12`), return the corresponding entity_type so the picker can
- * narrow its search. Returns null when the query is too short or the prefix
- * doesn't match anything we can resolve to a workspace.
+ * Parse an @-mention query into an optional narrowed entity_type and the actual
+ * search term to send to the backend.
+ *
+ * The backend `parseNumericRef` accepts a bare number (`5`) just as well as a
+ * prefixed ref (`T-5`), so once we've recognised the prefix we strip it from
+ * the query — that way the backend never has to ILIKE on the literal `T-` /
+ * `DOC-` text (which would over-filter, since only documents that happen to
+ * contain "DOC-" in their snippet would match).
+ *
+ *   "T-"        → { entityType: 'tasks',     searchTerm: ''       }  // recent tasks
+ *   "T-5"       → { entityType: 'tasks',     searchTerm: '5'      }  // T-5 + tasks containing "5"
+ *   "DOC-conf"  → { entityType: 'documents', searchTerm: 'conf'   }
+ *   "doc"       → { entityType: null,        searchTerm: 'doc'    }  // multi-type text search
+ *   "@T"        → { entityType: null,        searchTerm: 'T'      }  // ambiguous, no narrow yet
  */
-export function detectEntityTypeFromQuery(query: string): string | null {
-  const match = query.match(/^([A-Za-z]+)-/);
-  if (!match) return null;
+export function parseAtMentionQuery(query: string): { entityType: string | null; searchTerm: string } {
+  const match = query.match(/^([A-Za-z]+)-(.*)$/);
+  if (!match) return { entityType: null, searchTerm: query };
   const prefix = match[1].toUpperCase();
-  return REF_PREFIX_TO_ENTITY_TYPE[prefix] ?? null;
+  const entityType = REF_PREFIX_TO_ENTITY_TYPE[prefix] ?? null;
+  if (!entityType) return { entityType: null, searchTerm: query };
+  return { entityType, searchTerm: match[2] };
+}
+
+/** @deprecated kept for backwards compatibility — prefer parseAtMentionQuery. */
+export function detectEntityTypeFromQuery(query: string): string | null {
+  return parseAtMentionQuery(query).entityType;
 }

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { aiSearchApi, EntitySearchResult } from '../aiApi';
-import { detectEntityTypeFromQuery, isLinkableEntityType } from '../utils/entityUrls';
+import { isLinkableEntityType, parseAtMentionQuery } from '../utils/entityUrls';
 
 export type MentionSelection = EntitySearchResult;
 
@@ -56,7 +56,10 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
 
     // Debounced search.
     useEffect(() => {
-      if (!query || query.length < 1) {
+      const { entityType, searchTerm } = parseAtMentionQuery(query);
+      // Skip if user hasn't typed anything AND no narrow detected — empty query
+      // without a narrow would be a workspace-wide dump we don't want.
+      if (!entityType && searchTerm.length < 1) {
         setResults([]);
         setLoading(false);
         return;
@@ -65,14 +68,14 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
       setLoading(true);
       const handle = window.setTimeout(async () => {
         try {
-          // When the query starts with a recognized ref prefix (T-, DOC-, …),
-          // narrow the server-side search to that single entity_type so the user
-          // doesn't get noisy cross-type matches (e.g. typing `@T-` shouldn't
-          // surface documents that happen to contain "T-something" in their title).
-          const narrowedType = detectEntityTypeFromQuery(query);
-          const items = await aiSearchApi.searchEntities(query, {
+          // When parseAtMentionQuery recognises a prefix (e.g. `@T-…`), it strips
+          // it and narrows entityTypes to that single type. So `@T-5` becomes
+          // {searchTerm: '5', entityType: 'tasks'} — the backend's parseNumericRef
+          // still picks up the bare number for the item_number boost, and we
+          // don't accidentally ILIKE on the literal "T-" text.
+          const items = await aiSearchApi.searchEntities(searchTerm, {
             signal: controller.signal,
-            entityTypes: narrowedType ? [narrowedType] : undefined,
+            entityTypes: entityType ? [entityType] : undefined,
           });
           // Drop entity types that don't have a frontend workspace route — no point
           // mentioning something the user can't navigate to from the chip.
