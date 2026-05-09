@@ -356,6 +356,12 @@ export class AiChatOrchestratorService {
 
   async prepareRequest(params: ChatStreamParams): Promise<PreparedChatRequest> {
     const approvalAction = this.parseApprovalAction(params.userMessage);
+    this.logger.log(
+      `prepareRequest: conversation_id=${params.conversationId || 'NONE'} `
+      + `userMessage_len=${params.userMessage?.length ?? 0} `
+      + `attachment_ids=${(params.attachmentIds || []).length} `
+      + `truncate_from_message_id=${params.truncateFromMessageId || 'NONE'}`,
+    );
     return this.tenantExecutor.runWithContext(params.context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
 
@@ -416,6 +422,7 @@ export class AiChatOrchestratorService {
         inputConversationId: params.conversationId ?? null,
         userMessage: params.userMessage,
         attachmentIds: params.attachmentIds ?? null,
+        truncateFromMessageId: params.truncateFromMessageId ?? null,
         approvalAction,
         providerSource,
         provider: adapter,
