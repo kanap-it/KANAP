@@ -80,29 +80,37 @@ export class AiSearchController {
     @Req() req: any,
     @Query('q') q?: string,
     @Query('limit') limitRaw?: string,
+    @Query('entity_types') entityTypesRaw?: string,
   ) {
     const query = (q || '').trim();
     const limit = Math.min(Math.max(Number.parseInt(limitRaw || '', 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
+
+    // Comma-separated entity_types narrow the search to a specific subset.
+    // The frontend sets this when the user typed a recognised type-token prefix
+    // (`@APP`, `@PRJ`, `@T-5`, …). With a narrow active, an empty query is
+    // legitimate ("show recent items of this type"). Without a narrow, an empty
+    // query is rejected so we don't dump the whole workspace.
+    const entityTypes = (entityTypesRaw || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    if (!query && entityTypes.length === 0) {
+      return { items: [] };
+    }
 
     const context = this.buildContext(req);
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
 
-      // Pull a generous candidate pool from the cross-type search so every entity
-      // type that has any kind of match is represented. The per-type SQL searches
-      // each cap at fetchLimit, so even with CANDIDATE_POOL=200 we get at most
-      // ~200 items across all types — well below DB cost concerns. Empty queries
-      // hit a different shortcut (all items match via ILIKE '%%'), so we just
-      // pull the most-recent items of each type.
       const result = await this.entities.searchAll(ctx, {
-        query: query || ' ', // single-space sentinel — ILIKE '% %' isn't perfect but
-                              // matches anything containing whitespace, which is most
-                              // labels. For empty-query "show recent" we'd rather use
-                              // the searchAll path than hand-roll a separate listing.
+        query,
         limit: CANDIDATE_POOL,
+        ...(entityTypes.length > 0 ? { entity_types: entityTypes as any } : {}),
       });
 
-      // Re-rank purely on item content, then sort tier desc + recency desc.
+      // Re-rank purely on item content (ignoring the per-type SQL CASE scores
+      // which aren't comparable across types). Sort by tier desc + recency desc.
       const ranked = (result.items as any[])
         .map((item) => ({
           item,

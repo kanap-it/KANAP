@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { aiSearchApi, EntitySearchResult } from '../aiApi';
-import { isLinkableEntityType } from '../utils/entityUrls';
+import { isLinkableEntityType, parseAtMentionQuery } from '../utils/entityUrls';
 
 export type MentionSelection = EntitySearchResult;
 
@@ -56,7 +56,10 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
 
     // Debounced search.
     useEffect(() => {
-      if (query.length < 1) {
+      const { entityType, searchTerm } = parseAtMentionQuery(query);
+      // Skip if the user hasn't typed anything AND no prefix was recognised.
+      // (A recognised prefix is enough on its own: `@APP` → recent applications.)
+      if (!entityType && searchTerm.length < 1) {
         setResults([]);
         setLoading(false);
         return;
@@ -65,12 +68,15 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
       setLoading(true);
       const handle = window.setTimeout(async () => {
         try {
-          // No prefix-narrowing here — the backend re-ranks the candidate pool
-          // by content tier (ref exact match → label contains → other), so
-          // `@T-5` naturally surfaces T-5 at the top regardless of which other
-          // types also matched. Trust the ranking; no filter.
-          const items = await aiSearchApi.searchEntities(query, {
+          // Two distinct search modes:
+          //  - Type-token prefix recognised (`@APP`, `@T-5`, `@DOC-conf`): narrow
+          //    to that entity_type. Strip the prefix; the backend can apply the
+          //    item_number boost on the bare number when the type has refs.
+          //  - No prefix (`@backup`, `@server`): no narrow, cross-type text search
+          //    with tier-based ranking.
+          const items = await aiSearchApi.searchEntities(searchTerm, {
             signal: controller.signal,
+            entityTypes: entityType ? [entityType] : undefined,
           });
           // Drop entity types that don't have a frontend workspace route — no point
           // mentioning something the user can't navigate to from the chip.

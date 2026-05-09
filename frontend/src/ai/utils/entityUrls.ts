@@ -39,42 +39,65 @@ export function isLinkableEntityType(entityType: string): boolean {
 }
 
 /**
- * Map between KANAP entity ref prefixes (case-insensitive) and the canonical
- * entity_type. Mirrors backend buildRef() in ai-entity.service.ts which currently
- * supports refs for tasks, documents, projects and requests only — other entity
- * types (applications, assets, …) don't have refs in the data model so any
- * `@APP-`-style prefix won't match anything searchable.
+ * Map between KANAP type prefixes (case-insensitive) and the canonical entity_type.
+ *
+ * Two flavours of prefixes coexist here:
+ *   1. "Native ref prefixes" (T, DOC, PRJ, REQ) that the backend's buildRef() turns
+ *      into a real entity ref like "T-5" or "DOC-152". These let us also surface
+ *      a tier-1 boost on item_number when the user types `@T-5`.
+ *   2. "Type tokens" for entities the data model doesn't number (APP, AST, CONN, …).
+ *      These are conventional shorthand — applications are stored as plain "Blouway"
+ *      / "Factiva" names but users say "@APP" to mean "filter to applications".
+ *
+ * Both classes are treated identically at the picker level: matching the prefix
+ * narrows the search to that single entity_type. The native-ref class additionally
+ * benefits from the backend's parseNumericRef() boost when the suffix is a number.
  */
-const REF_PREFIX_TO_ENTITY_TYPE: Record<string, string> = {
+const TYPE_PREFIX_TO_ENTITY_TYPE: Record<string, string> = {
+  // Native ref prefixes (item_number → ref via buildRef)
   T: 'tasks',
   DOC: 'documents',
   PRJ: 'projects',
   REQ: 'requests',
+  // Type tokens for entities without a built-in ref
+  APP: 'applications',
+  AST: 'assets',
+  CONN: 'connections',
+  INT: 'interfaces',
+  LOC: 'locations',
+  CTR: 'contracts',
+  CPX: 'capex_items',
+  COMP: 'companies',
+  CONT: 'contacts',
+  DEPT: 'departments',
+  SUP: 'suppliers',
+  BP: 'business_processes',
 };
 
 /**
  * Parse an @-mention query into an optional narrowed entity_type and the actual
  * search term to send to the backend.
  *
- * The backend `parseNumericRef` accepts a bare number (`5`) just as well as a
- * prefixed ref (`T-5`), so once we've recognised the prefix we strip it from
- * the query — that way the backend never has to ILIKE on the literal `T-` /
- * `DOC-` text (which would over-filter, since only documents that happen to
- * contain "DOC-" in their snippet would match).
- *
- *   "T-"        → { entityType: 'tasks',     searchTerm: ''       }  // recent tasks
- *   "T-5"       → { entityType: 'tasks',     searchTerm: '5'      }  // T-5 + tasks containing "5"
- *   "DOC-conf"  → { entityType: 'documents', searchTerm: 'conf'   }
- *   "doc"       → { entityType: null,        searchTerm: 'doc'    }  // multi-type text search
- *   "@T"        → { entityType: null,        searchTerm: 'T'      }  // ambiguous, no narrow yet
+ * Recognised patterns (case-insensitive):
+ *   "T"          → { entityType: 'tasks',        searchTerm: '' }     // bare prefix → recent tasks
+ *   "T-"         → { entityType: 'tasks',        searchTerm: '' }     // dash alone, same as bare
+ *   "T-5"        → { entityType: 'tasks',        searchTerm: '5' }    // T-5 + tasks containing "5"
+ *   "PRJ"        → { entityType: 'projects',     searchTerm: '' }
+ *   "APP"        → { entityType: 'applications', searchTerm: '' }
+ *   "DOC-conf"   → { entityType: 'documents',    searchTerm: 'conf' }
+ *   "backup"     → { entityType: null,           searchTerm: 'backup' }  // not a prefix → text search
+ *   "TASK"       → { entityType: null,           searchTerm: 'TASK' }    // unrecognised prefix → text search
  */
 export function parseAtMentionQuery(query: string): { entityType: string | null; searchTerm: string } {
-  const match = query.match(/^([A-Za-z]+)-(.*)$/);
-  if (!match) return { entityType: null, searchTerm: query };
+  const trimmed = query.trim();
+  if (!trimmed) return { entityType: null, searchTerm: '' };
+  // Match alphabetic prefix optionally followed by `-<suffix>`.
+  const match = trimmed.match(/^([A-Za-z]+)(?:-(.*))?$/);
+  if (!match) return { entityType: null, searchTerm: trimmed };
   const prefix = match[1].toUpperCase();
-  const entityType = REF_PREFIX_TO_ENTITY_TYPE[prefix] ?? null;
-  if (!entityType) return { entityType: null, searchTerm: query };
-  return { entityType, searchTerm: match[2] };
+  const entityType = TYPE_PREFIX_TO_ENTITY_TYPE[prefix];
+  if (!entityType) return { entityType: null, searchTerm: trimmed };
+  return { entityType, searchTerm: match[2] || '' };
 }
 
 /** @deprecated kept for backwards compatibility — prefer parseAtMentionQuery. */
