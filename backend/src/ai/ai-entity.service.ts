@@ -1832,52 +1832,7 @@ export class AiEntityService {
     // and the autocomplete is debounced 150ms client-side anyway.
     const results: RankedSearchResult[] = [];
     for (const type of allowed) {
-      const r = await (async (): Promise<RankedSearchResult> => {
-        if (type === 'accounts') return safeRun(type, () => this.searchAccounts(context, input.query, fetchLimit));
-        if (type === 'analytics_categories') return safeRun(type, () => this.searchAnalyticsCategories(context, input.query, fetchLimit));
-        if (type === 'applications') return safeRun(type, () => this.searchApplications(context, input.query, fetchLimit));
-        if (type === 'assets') return safeRun(type, () => this.searchAssets(context, input.query, fetchLimit));
-        if (type === 'business_processes') return safeRun(type, () => this.searchBusinessProcesses(context, input.query, fetchLimit));
-        if (type === 'capex_items') return safeRun(type, () => this.searchCapexItems(context, input.query, fetchLimit));
-        if (type === 'chart_of_accounts') return safeRun(type, () => this.searchChartOfAccounts(context, input.query, fetchLimit));
-        if (type === 'companies') return safeRun(type, () => this.searchCompanies(context, input.query, fetchLimit));
-        if (type === 'connections') return safeRun(type, () => this.searchConnections(context, input.query, fetchLimit));
-        if (type === 'contacts') return safeRun(type, () => this.searchContacts(context, input.query, fetchLimit));
-        if (type === 'contracts') return safeRun(type, () => this.searchContracts(context, input.query, fetchLimit));
-        if (type === 'departments') return safeRun(type, () => this.searchDepartments(context, input.query, fetchLimit));
-        if (type === 'interfaces') return safeRun(type, () => this.searchInterfaces(context, input.query, fetchLimit));
-        if (type === 'locations') return safeRun(type, () => this.searchLocations(context, input.query, fetchLimit));
-        if (type === 'projects') return safeRun(type, () => this.searchProjects(context, input.query, fetchLimit));
-        if (type === 'requests') return safeRun(type, () => this.searchRequests(context, input.query, fetchLimit));
-        if (type === 'spend_items') return safeRun(type, () => this.searchSpendItems(context, input.query, fetchLimit));
-        if (type === 'suppliers') return safeRun(type, () => this.searchSuppliers(context, input.query, fetchLimit));
-        if (type === 'tasks') return safeRun(type, () => this.searchTasks(context, input.query, fetchLimit));
-        if (type === 'users') return safeRun(type, () => this.searchUsers(context, input.query, fetchLimit));
-        if (type !== 'documents') {
-          throw new BadRequestException('Unsupported entity type.');
-        }
-
-        return safeRun(type, async () => {
-          const search = await this.knowledge.search(
-            { q: input.query, limit: fetchLimit, offset: 0 },
-            { manager: context.manager, userId: context.userId },
-          );
-          return {
-            items: (search.items || []).map((item: any, index: number) => ({
-              ...toSummary('documents', {
-                id: item.id,
-                item_number: item.item_number,
-                label: item.title,
-                summary: item.summary ?? null,
-                status: item.status,
-                updated_at: item.updated_at,
-              }, item.snippet ?? item.summary ?? null),
-              _score: fetchLimit - index,
-            })),
-            total: search.total ?? 0,
-          } satisfies RankedSearchResult;
-        });
-      })();
+      const r = await safeRun(type, () => this.runEntityTypeSearch(context, type, input.query, fetchLimit));
       results.push(r);
     }
 
@@ -1905,6 +1860,119 @@ export class AiEntityService {
       complete: false,
       entity_types: allowed,
     };
+  }
+
+  /**
+   * Run a single entity_type's search, dispatched to the right per-type helper.
+   * Extracted from searchAll so callers (such as the @-mention picker) can run
+   * per-type searches with their own limits without going through searchAll's
+   * cross-type ranking — that ranking compares incomparable score scales (knowledge
+   * search uses fetchLimit-index, while SQL searches use a 1..4 CASE) and lets
+   * one type swallow all the result slots.
+   */
+  private async runEntityTypeSearch(
+    context: AiExecutionContextWithManager,
+    type: AiSearchEntityType | AiContextEntityType,
+    query: string,
+    fetchLimit: number,
+  ): Promise<RankedSearchResult> {
+    if (type === 'accounts') return this.searchAccounts(context, query, fetchLimit);
+    if (type === 'analytics_categories') return this.searchAnalyticsCategories(context, query, fetchLimit);
+    if (type === 'applications') return this.searchApplications(context, query, fetchLimit);
+    if (type === 'assets') return this.searchAssets(context, query, fetchLimit);
+    if (type === 'business_processes') return this.searchBusinessProcesses(context, query, fetchLimit);
+    if (type === 'capex_items') return this.searchCapexItems(context, query, fetchLimit);
+    if (type === 'chart_of_accounts') return this.searchChartOfAccounts(context, query, fetchLimit);
+    if (type === 'companies') return this.searchCompanies(context, query, fetchLimit);
+    if (type === 'connections') return this.searchConnections(context, query, fetchLimit);
+    if (type === 'contacts') return this.searchContacts(context, query, fetchLimit);
+    if (type === 'contracts') return this.searchContracts(context, query, fetchLimit);
+    if (type === 'departments') return this.searchDepartments(context, query, fetchLimit);
+    if (type === 'interfaces') return this.searchInterfaces(context, query, fetchLimit);
+    if (type === 'locations') return this.searchLocations(context, query, fetchLimit);
+    if (type === 'projects') return this.searchProjects(context, query, fetchLimit);
+    if (type === 'requests') return this.searchRequests(context, query, fetchLimit);
+    if (type === 'spend_items') return this.searchSpendItems(context, query, fetchLimit);
+    if (type === 'suppliers') return this.searchSuppliers(context, query, fetchLimit);
+    if (type === 'tasks') return this.searchTasks(context, query, fetchLimit);
+    if (type === 'users') return this.searchUsers(context, query, fetchLimit);
+    if (type !== 'documents') {
+      throw new BadRequestException('Unsupported entity type.');
+    }
+    const search = await this.knowledge.search(
+      { q: query, limit: fetchLimit, offset: 0 },
+      { manager: context.manager, userId: context.userId },
+    );
+    return {
+      items: (search.items || []).map((item: any, index: number) => ({
+        ...toSummary('documents', {
+          id: item.id,
+          item_number: item.item_number,
+          label: item.title,
+          summary: item.summary ?? null,
+          status: item.status,
+          updated_at: item.updated_at,
+        }, item.snippet ?? item.summary ?? null),
+        _score: fetchLimit - index,
+      })),
+      total: search.total ?? 0,
+    } satisfies RankedSearchResult;
+  }
+
+  /**
+   * Per-type search for callers that want diversity rather than cross-type ranking.
+   * Returns a flat list ordered by entity_type, each type contributing at most
+   * `limitPerType` items. Ideal for the @-mention picker, which groups results by
+   * type visually anyway. Each per-type call is wrapped in a SAVEPOINT so a single
+   * broken query doesn't take down the rest.
+   */
+  async searchByEntityTypes(
+    context: AiExecutionContextWithManager,
+    input: {
+      query: string;
+      entity_types?: AiSearchEntityType[];
+      limitPerType: number;
+    },
+  ): Promise<{
+    groups: Array<{ entity_type: string; items: AiEntitySummaryDto[] }>;
+  }> {
+    const requested = input.entity_types && input.entity_types.length > 0
+      ? input.entity_types
+      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+    const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
+    if (allowed.length === 0) return { groups: [] };
+
+    const limitPerType = Math.min(Math.max(Number(input.limitPerType) || 3, 1), 20);
+    const groups: Array<{ entity_type: string; items: AiEntitySummaryDto[] }> = [];
+
+    for (const type of allowed) {
+      const sp = `pick_${type}`;
+      try {
+        await context.manager.query(`SAVEPOINT ${sp}`);
+      } catch {
+        continue;
+      }
+      try {
+        const result = await this.runEntityTypeSearch(context, type, input.query, limitPerType);
+        await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        const items = result.items.map(({ _score, ...rest }: any) => rest);
+        if (items.length > 0) {
+          groups.push({ entity_type: type, items: items.slice(0, limitPerType) });
+        }
+      } catch (err) {
+        try {
+          await context.manager.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        } catch {
+          // ignore
+        }
+        this.logger.warn(
+          `searchByEntityTypes: ${type} failed for query "${input.query}": ${(err as Error).message}`,
+        );
+      }
+    }
+
+    return { groups };
   }
 
   private async getKnowledgeContext(

@@ -9,13 +9,10 @@ import { AiExecutionContext } from './ai.types';
 const DEFAULT_LIMIT = 8;
 const MAX_LIMIT = 20;
 /** Max results per entity_type in the picker. Prevents a single type (typically the
- * most recently-updated one) from monopolizing all the slots when the user types
+ * most recently-updated one) from monopolising all the slots when the user types
  * a generic query like a single letter. The popover groups results by type, so a
  * cap yields a more useful round-up of recent matches across the workspace. */
 const PER_TYPE_CAP = 3;
-/** Pull a generous candidate pool from searchAll so the per-type cap has something
- * to choose from. searchAll's own per-type internal limits are bounded too. */
-const CANDIDATE_POOL = 30;
 
 /**
  * Lightweight entity search endpoint backing the @-mention autocomplete in the Plaid
@@ -75,38 +72,34 @@ export class AiSearchController {
     const context = this.buildContext(req);
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
-      const result = await this.entities.searchAll(ctx, {
-        // Empty query is fine here: each searchXxx wraps the value in `%${q}%`,
-        // so `q=''` becomes `'%%'` which matches every row. Combined with the
-        // existing ORDER BY score/updated_at, that gives us a "recent items in
-        // this type" list for the narrow-only case.
+      // Use the per-type search instead of the cross-type searchAll. searchAll's
+      // ranking compares incomparable score scales (knowledge search uses the
+      // index-based fetchLimit-index, SQL searches use a 1..4 CASE), so
+      // documents always end up monopolising every visible slot. The per-type
+      // path returns at most PER_TYPE_CAP matches from each entity type and
+      // lets the popover present a real cross-section of the workspace.
+      const grouped = await this.entities.searchByEntityTypes(ctx, {
         query,
-        limit: CANDIDATE_POOL,
+        limitPerType: PER_TYPE_CAP,
         ...(entityTypes.length > 0 ? { entity_types: entityTypes as any } : {}),
       });
 
-      // Cap each entity_type at PER_TYPE_CAP to keep the picker diverse. Order
-      // among per-type matches is preserved (searchAll already ranks by score
-      // then recency), so the cap effectively keeps the top-N strongest matches
-      // per type and discards the long tail.
-      const counts = new Map<string, number>();
-      const balanced: Array<{ entity_type: string; id: string; ref: string | null; label: string | null }> = [];
-      for (const item of result.items as any[]) {
-        const type = String(item.type || '');
-        const id = String(item.id || '');
-        if (!type || !id) continue;
-        const c = counts.get(type) || 0;
-        if (c >= PER_TYPE_CAP) continue;
-        counts.set(type, c + 1);
-        balanced.push({
-          entity_type: type,
-          id,
-          ref: item.ref ? String(item.ref) : null,
-          label: item.label ? String(item.label) : null,
-        });
-        if (balanced.length >= limit) break;
+      const items: Array<{ entity_type: string; id: string; ref: string | null; label: string | null }> = [];
+      for (const group of grouped.groups) {
+        for (const item of group.items) {
+          if (items.length >= limit) break;
+          const id = String((item as any).id || '');
+          if (!id) continue;
+          items.push({
+            entity_type: group.entity_type,
+            id,
+            ref: item.ref ? String(item.ref) : null,
+            label: item.label ? String(item.label) : null,
+          });
+        }
+        if (items.length >= limit) break;
       }
-      return { items: balanced };
+      return { items };
     });
   }
 }
