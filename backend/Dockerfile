@@ -6,10 +6,11 @@ RUN apk add --no-cache pandoc typst fontconfig font-noto ttf-dejavu \
     && fc-cache -f
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+RUN npm ci
 COPY tsconfig*.json ./
 COPY src ./src
 COPY scripts ./scripts
 RUN npm run build
 EXPOSE 8080
+USER node
 CMD ["sh","-lc","node ./scripts/migrate-and-start.js"]

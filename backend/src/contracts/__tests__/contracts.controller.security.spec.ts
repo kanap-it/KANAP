@@ -1,0 +1,14 @@
+import 'reflect-metadata';
+import * as assert from 'node:assert/strict';
+import { REQUIRE_LEVEL_KEY, RequireLevelMeta } from '../../auth/require-level.decorator';
+import { ContractsController } from '../contracts.controller';
+
+function run() {
+  const listMeta = Reflect.getMetadata(REQUIRE_LEVEL_KEY, ContractsController.prototype.listAttachments) as RequireLevelMeta;
+  const uploadMeta = Reflect.getMetadata(REQUIRE_LEVEL_KEY, ContractsController.prototype.uploadAttachment) as RequireLevelMeta;
+
+  assert.deepEqual(listMeta, { resource: 'contracts', level: 'reader' });
+  assert.deepEqual(uploadMeta, { resource: 'contracts', level: 'member' });
+}
+
+run();

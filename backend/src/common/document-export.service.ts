@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import * as AdmZip from 'adm-zip';
 import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ExportFormat } from './dto/export.dto';
+import { isProductionEnv, parseBoolean } from './env';
 
 const execFileAsync = promisify(execFile);
 
@@ -705,11 +706,19 @@ export class DocumentExportService {
       }
     }
 
-    for (const host of LOOPBACK_HOSTS) {
-      patterns.add(host);
+    if (this.allowLoopbackImageHosts()) {
+      for (const host of LOOPBACK_HOSTS) {
+        patterns.add(host);
+      }
     }
 
     return [...patterns];
+  }
+
+  private allowLoopbackImageHosts(): boolean {
+    const raw = process.env.EXPORT_ALLOW_LOOPBACK_IMAGE_HOSTS;
+    if (raw !== undefined) return parseBoolean(raw);
+    return !isProductionEnv();
   }
 
   private normalizeHostPattern(pattern: string): string {

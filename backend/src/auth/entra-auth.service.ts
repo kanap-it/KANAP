@@ -362,7 +362,7 @@ export class EntraAuthService {
       throw new BadRequestException('Invalid Entra token');
     }
 
-    if (nonce && claims.nonce && claims.nonce !== nonce) {
+    if (!nonce || !claims.nonce || claims.nonce !== nonce) {
       throw new BadRequestException('Entra token nonce mismatch');
     }
     if (!claims?.sub) throw new BadRequestException('Entra token subject missing');

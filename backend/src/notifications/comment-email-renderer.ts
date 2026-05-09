@@ -1,29 +1,4 @@
-const DANGEROUS_TAGS = [
-  'script',
-  'style',
-  'iframe',
-  'object',
-  'embed',
-  'meta',
-  'link',
-  'base',
-  'form',
-  'input',
-  'button',
-  'textarea',
-  'select',
-  'option',
-];
-
-const DANGEROUS_BLOCK_TAGS_PATTERN = new RegExp(
-  `<\\s*(${DANGEROUS_TAGS.join('|')})\\b[^>]*>[\\s\\S]*?<\\s*\\/\\s*\\1\\s*>`,
-  'gi',
-);
-
-const DANGEROUS_SELF_CLOSING_TAGS_PATTERN = new RegExp(
-  `<\\s*(${DANGEROUS_TAGS.join('|')})\\b[^>]*\\/?>`,
-  'gi',
-);
+import { sanitizeRichHtmlForEmail } from '../common/html-sanitizer';
 
 const ENTITY_MAP: Record<string, string> = {
   amp: '&',
@@ -61,24 +36,9 @@ export function renderCommentForEmail(params: RenderCommentForEmailParams): Rend
 }
 
 function sanitizeCommentHtml(rawHtml: string): string {
-  let html = String(rawHtml || '').trim();
+  const cleaned = sanitizeRichHtmlForEmail(rawHtml);
+  let html = String(cleaned || '').trim();
   if (!html) return '';
-
-  html = html.replace(/<!--[\s\S]*?-->/g, '');
-  html = html.replace(DANGEROUS_BLOCK_TAGS_PATTERN, '');
-  html = html.replace(DANGEROUS_SELF_CLOSING_TAGS_PATTERN, '');
-
-  // Remove inline JS event handlers like onclick="..." / onload='...' / onerror=...
-  html = html
-    .replace(/\son[a-z0-9_-]+\s*=\s*"[^"]*"/gi, '')
-    .replace(/\son[a-z0-9_-]+\s*=\s*'[^']*'/gi, '')
-    .replace(/\son[a-z0-9_-]+\s*=\s*[^\s>]+/gi, '');
-
-  // Remove unsafe javascript/vbscript/data:text/html URL attributes.
-  html = html
-    .replace(/\s(href|src)\s*=\s*"\s*(javascript:|vbscript:|data:text\/html)[^"]*"/gi, '')
-    .replace(/\s(href|src)\s*=\s*'\s*(javascript:|vbscript:|data:text\/html)[^']*'/gi, '')
-    .replace(/\s(href|src)\s*=\s*(javascript:|vbscript:|data:text\/html)[^\s>]+/gi, '');
 
   return html;
 }

@@ -13,7 +13,7 @@ import { Features } from '../config/features';
 import { throwFeatureDisabled } from '../common/feature-gates';
 import { isPlatformAdmin } from './platform-admin.util';
 import { FxIngestionService } from '../currency/fx-ingestion.service';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { withTenant } from '../common/tenant-runner';
 import { requireJwtSecret } from '../common/env';
 import { TenantsService } from '../tenants/tenants.service';
@@ -78,18 +78,33 @@ export class AuthController {
     private readonly tenants: TenantsService,
   ) {}
 
+  private async runInRequestTenant<T>(
+    req: any,
+    fn: (manager?: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    const tenantId = req?.tenant?.id;
+    if (tenantId) {
+      return withTenant(this.dataSource, tenantId, fn);
+    }
+
+    const runner = req?.queryRunner;
+    const manager = runner && !runner.isReleased ? runner.manager : undefined;
+    return fn(manager);
+  }
+
   @Post('login')
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.authLogin })
   async login(@Body() body: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     if (!body?.email || !body?.password) throw new BadRequestException({ code: 'MISSING_CREDENTIALS', message: 'email and password are required' });
-    const manager = req?.queryRunner?.manager;
-    const user = await this.auth.validateUser(body.email, body.password, manager);
-    void this.fxIngestion.maybeRefreshOnLogin((user as any)?.tenant_id);
-    const tokens = await this.auth.signTokens(
-      { id: user.id, email: user.email, role: user.role, tenant_id: (user as any)?.tenant_id },
-      manager,
-    );
+    const tokens = await this.runInRequestTenant(req, async (manager) => {
+      const user = await this.auth.validateUser(body.email, body.password, manager);
+      void this.fxIngestion.maybeRefreshOnLogin((user as any)?.tenant_id);
+      return this.auth.signTokens(
+        { id: user.id, email: user.email, role: user.role, tenant_id: (user as any)?.tenant_id },
+        manager,
+      );
+    });
     setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, req.secure);
     return tokens;
   }
@@ -182,6 +197,8 @@ export class AuthController {
   }
 
   @Post('exchange-provisioning-token')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.authProvisioningExchange })
   async exchangeProvisioningToken(@Body() body: { token?: string }) {
     const t = body?.token;
     if (!t) throw new BadRequestException({ code: 'TOKEN_REQUIRED', message: 'token is required' });
@@ -209,10 +226,10 @@ export class AuthController {
   async requestPasswordReset(@Body() body: PasswordResetRequestDto, @Req() req: any) {
     if (!Features.EMAIL_ENABLED) throwFeatureDisabled('email');
     const email = body.email.trim().toLowerCase();
-    const user = await this.users.findByEmail(email, { manager: req?.queryRunner?.manager });
+    const user = await this.runInRequestTenant(req, (manager) => this.users.findByEmail(email, { manager }));
     if (!user) return { ok: true };
 
-    const token = this.auth.createPasswordResetToken(user);
+    const token = await this.runInRequestTenant(req, (manager) => this.auth.createPasswordResetToken(user, manager));
     const baseUrl = resolveAppBaseUrl(req);
     const resetUrl = `${baseUrl.replace(/\/$/, '')}/reset-password#token=${encodeURIComponent(token)}`;
     await this.emails.sendPasswordResetEmail({
@@ -228,17 +245,17 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @Throttle({ default: RATE_LIMITS.authPasswordResetComplete })
   async completePasswordReset(@Body() body: CompletePasswordResetDto, @Req() req: any) {
-    const manager = req?.queryRunner?.manager;
-    await this.auth.resetPasswordWithToken(body.token, body.password, { manager });
+    await this.runInRequestTenant(req, (manager) => this.auth.resetPasswordWithToken(body.token, body.password, { manager }));
     return { ok: true };
   }
 
   @Post('refresh')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.authRefresh })
   async refreshToken(@Body() body: RefreshTokenDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const refreshToken = this.resolveRefreshToken(req, body);
     if (!refreshToken) throw new BadRequestException('refresh_token is required');
-    const manager = req?.queryRunner?.manager;
-    const refreshed = await this.auth.refreshAccessToken(refreshToken, req?.tenant?.id, manager);
+    const refreshed = await this.runInRequestTenant(req, (manager) => this.auth.refreshAccessToken(refreshToken, req?.tenant?.id, manager));
     setRefreshTokenCookie(res, refreshToken, refreshed.refresh_expires_in, req.secure);
     return refreshed;
   }
@@ -247,9 +264,8 @@ export class AuthController {
   async logout(@Body() body: LogoutDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const refreshToken = this.resolveRefreshToken(req, body);
     clearRefreshTokenCookie(res);
-    const manager = req?.queryRunner?.manager;
     if (refreshToken) {
-      await this.auth.revokeToken(refreshToken, req?.tenant?.id, manager);
+      await this.runInRequestTenant(req, (manager) => this.auth.revokeToken(refreshToken, req?.tenant?.id, manager));
     }
     return { ok: true };
   }
