@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
@@ -347,6 +347,8 @@ function toIntegratedDocumentSummary(row: any): AiEntitySummaryDto {
 
 @Injectable()
 export class AiEntityService {
+  private readonly logger = new Logger(AiEntityService.name);
+
   constructor(
     private readonly knowledge: KnowledgeService,
     private readonly policy: AiPolicyService,
@@ -1277,7 +1279,7 @@ export class AiEntityService {
               coa.code AS coa_code,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN a.account_number ILIKE $1 OR a.account_name ILIKE $1 THEN 3
+                WHEN a.account_number::text ILIKE $1 OR a.account_name ILIKE $1 THEN 3
                 WHEN COALESCE(coa.code, '') ILIKE $1 THEN 2
                 ELSE 1
               END AS score
@@ -1285,7 +1287,7 @@ export class AiEntityService {
        LEFT JOIN chart_of_accounts coa ON coa.id = a.coa_id AND coa.tenant_id = a.tenant_id
        WHERE a.tenant_id = $2
          AND (
-           a.account_number ILIKE $1
+           a.account_number::text ILIKE $1
            OR a.account_name ILIKE $1
            OR COALESCE(a.native_name, '') ILIKE $1
            OR COALESCE(a.description, '') ILIKE $1
@@ -1779,50 +1781,72 @@ export class AiEntityService {
     const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
     const offset = Math.min(Math.max(Number(input.offset) || 0, 0), 5000);
     const fetchLimit = Math.min(limit + offset, 5000);
+    // Wrap each per-entity-type search in a try/catch so a single broken query
+    // (e.g. a SQL operator-mismatch in one of the searchXxx helpers) doesn't kill
+    // the whole multi-entity result. The failing type just returns empty + we log
+    // a warning so the underlying issue stays visible without breaking the
+    // search_all tool or the @-mention autocomplete that's powered by it.
+    const empty: RankedSearchResult = { items: [], total: 0 };
+    const safeRun = async (
+      type: string,
+      run: () => Promise<RankedSearchResult>,
+    ): Promise<RankedSearchResult> => {
+      try {
+        return await run();
+      } catch (err) {
+        this.logger.warn(
+          `searchAll: ${type} failed for query "${input.query}": ${(err as Error).message}`,
+        );
+        return empty;
+      }
+    };
+
     const results = await Promise.all(
       allowed.map(async (type) => {
-        if (type === 'accounts') return this.searchAccounts(context, input.query, fetchLimit);
-        if (type === 'analytics_categories') return this.searchAnalyticsCategories(context, input.query, fetchLimit);
-        if (type === 'applications') return this.searchApplications(context, input.query, fetchLimit);
-        if (type === 'assets') return this.searchAssets(context, input.query, fetchLimit);
-        if (type === 'business_processes') return this.searchBusinessProcesses(context, input.query, fetchLimit);
-        if (type === 'capex_items') return this.searchCapexItems(context, input.query, fetchLimit);
-        if (type === 'chart_of_accounts') return this.searchChartOfAccounts(context, input.query, fetchLimit);
-        if (type === 'companies') return this.searchCompanies(context, input.query, fetchLimit);
-        if (type === 'connections') return this.searchConnections(context, input.query, fetchLimit);
-        if (type === 'contacts') return this.searchContacts(context, input.query, fetchLimit);
-        if (type === 'contracts') return this.searchContracts(context, input.query, fetchLimit);
-        if (type === 'departments') return this.searchDepartments(context, input.query, fetchLimit);
-        if (type === 'interfaces') return this.searchInterfaces(context, input.query, fetchLimit);
-        if (type === 'locations') return this.searchLocations(context, input.query, fetchLimit);
-        if (type === 'projects') return this.searchProjects(context, input.query, fetchLimit);
-        if (type === 'requests') return this.searchRequests(context, input.query, fetchLimit);
-        if (type === 'spend_items') return this.searchSpendItems(context, input.query, fetchLimit);
-        if (type === 'suppliers') return this.searchSuppliers(context, input.query, fetchLimit);
-        if (type === 'tasks') return this.searchTasks(context, input.query, fetchLimit);
-        if (type === 'users') return this.searchUsers(context, input.query, fetchLimit);
+        if (type === 'accounts') return safeRun(type, () => this.searchAccounts(context, input.query, fetchLimit));
+        if (type === 'analytics_categories') return safeRun(type, () => this.searchAnalyticsCategories(context, input.query, fetchLimit));
+        if (type === 'applications') return safeRun(type, () => this.searchApplications(context, input.query, fetchLimit));
+        if (type === 'assets') return safeRun(type, () => this.searchAssets(context, input.query, fetchLimit));
+        if (type === 'business_processes') return safeRun(type, () => this.searchBusinessProcesses(context, input.query, fetchLimit));
+        if (type === 'capex_items') return safeRun(type, () => this.searchCapexItems(context, input.query, fetchLimit));
+        if (type === 'chart_of_accounts') return safeRun(type, () => this.searchChartOfAccounts(context, input.query, fetchLimit));
+        if (type === 'companies') return safeRun(type, () => this.searchCompanies(context, input.query, fetchLimit));
+        if (type === 'connections') return safeRun(type, () => this.searchConnections(context, input.query, fetchLimit));
+        if (type === 'contacts') return safeRun(type, () => this.searchContacts(context, input.query, fetchLimit));
+        if (type === 'contracts') return safeRun(type, () => this.searchContracts(context, input.query, fetchLimit));
+        if (type === 'departments') return safeRun(type, () => this.searchDepartments(context, input.query, fetchLimit));
+        if (type === 'interfaces') return safeRun(type, () => this.searchInterfaces(context, input.query, fetchLimit));
+        if (type === 'locations') return safeRun(type, () => this.searchLocations(context, input.query, fetchLimit));
+        if (type === 'projects') return safeRun(type, () => this.searchProjects(context, input.query, fetchLimit));
+        if (type === 'requests') return safeRun(type, () => this.searchRequests(context, input.query, fetchLimit));
+        if (type === 'spend_items') return safeRun(type, () => this.searchSpendItems(context, input.query, fetchLimit));
+        if (type === 'suppliers') return safeRun(type, () => this.searchSuppliers(context, input.query, fetchLimit));
+        if (type === 'tasks') return safeRun(type, () => this.searchTasks(context, input.query, fetchLimit));
+        if (type === 'users') return safeRun(type, () => this.searchUsers(context, input.query, fetchLimit));
         if (type !== 'documents') {
           throw new BadRequestException('Unsupported entity type.');
         }
 
-        const search = await this.knowledge.search(
-          { q: input.query, limit: fetchLimit, offset: 0 },
-          { manager: context.manager, userId: context.userId },
-        );
-        return {
-          items: (search.items || []).map((item: any, index: number) => ({
-            ...toSummary('documents', {
-              id: item.id,
-              item_number: item.item_number,
-              label: item.title,
-              summary: item.summary ?? null,
-              status: item.status,
-              updated_at: item.updated_at,
-            }, item.snippet ?? item.summary ?? null),
-            _score: fetchLimit - index,
-          })),
-          total: search.total ?? 0,
-        } satisfies RankedSearchResult;
+        return safeRun(type, async () => {
+          const search = await this.knowledge.search(
+            { q: input.query, limit: fetchLimit, offset: 0 },
+            { manager: context.manager, userId: context.userId },
+          );
+          return {
+            items: (search.items || []).map((item: any, index: number) => ({
+              ...toSummary('documents', {
+                id: item.id,
+                item_number: item.item_number,
+                label: item.title,
+                summary: item.summary ?? null,
+                status: item.status,
+                updated_at: item.updated_at,
+              }, item.snippet ?? item.summary ?? null),
+              _score: fetchLimit - index,
+            })),
+            total: search.total ?? 0,
+          } satisfies RankedSearchResult;
+        });
       }),
     );
 
