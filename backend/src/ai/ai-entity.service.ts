@@ -478,7 +478,7 @@ export class AiEntityService {
            OR COALESCE(a.category, '') ILIKE $1
            OR COALESCE(a.lifecycle, '') ILIKE $1
            OR COALESCE(a.criticality, '') ILIKE $1
-           OR COALESCE(a.status, '') ILIKE $1
+           OR COALESCE(a.status::text, '') ILIKE $1
            OR COALESCE(a.data_class, '') ILIKE $1
            OR COALESCE(a.hosting_model, '') ILIKE $1
            OR COALESCE(s.name, '') ILIKE $1
@@ -545,7 +545,7 @@ export class AiEntityService {
            OR COALESCE(a.environment, '') ILIKE $1
            OR COALESCE(a.region, '') ILIKE $1
            OR COALESCE(a.zone, '') ILIKE $1
-           OR COALESCE(a.status, '') ILIKE $1
+           OR COALESCE(a.status::text, '') ILIKE $1
            OR EXISTS (SELECT 1 FROM unnest(a.aliases) AS alias WHERE alias ILIKE $1)
          )
        ORDER BY score DESC, a.updated_at DESC, a.name ASC
@@ -810,7 +810,7 @@ export class AiEntityService {
            d.name ILIKE $1
            OR COALESCE(d.description, '') ILIKE $1
            OR COALESCE(comp.name, '') ILIKE $1
-           OR COALESCE(d.status, '') ILIKE $1
+           OR COALESCE(d.status::text, '') ILIKE $1
          )
        ORDER BY score DESC, d.updated_at DESC, d.name ASC
        LIMIT $3`,
@@ -924,7 +924,7 @@ export class AiEntityService {
            ($1::int IS NOT NULL AND p.item_number = $1)
            OR p.name ILIKE $2
            OR COALESCE(p.origin, '') ILIKE $2
-           OR COALESCE(p.status, '') ILIKE $2
+           OR COALESCE(p.status::text, '') ILIKE $2
            OR COALESCE(p.override_justification, '') ILIKE $2
            OR COALESCE(pc.name, '') ILIKE $2
            OR COALESCE(ps.name, '') ILIKE $2
@@ -1006,7 +1006,7 @@ export class AiEntityService {
            OR r.name ILIKE $2
            OR COALESCE(r.current_situation, '') ILIKE $2
            OR COALESCE(r.expected_benefits, '') ILIKE $2
-           OR COALESCE(r.status, '') ILIKE $2
+           OR COALESCE(r.status::text, '') ILIKE $2
            OR COALESCE(r.override_justification, '') ILIKE $2
            OR COALESCE(pc.name, '') ILIKE $2
            OR COALESCE(ps.name, '') ILIKE $2
@@ -1086,7 +1086,7 @@ export class AiEntityService {
            ($1::int IS NOT NULL AND t.item_number = $1)
            OR COALESCE(t.title, '') ILIKE $2
            OR COALESCE(t.description, '') ILIKE $2
-           OR COALESCE(t.status, '') ILIKE $2
+           OR COALESCE(t.status::text, '') ILIKE $2
            OR COALESCE(t.priority_level, '') ILIKE $2
            OR COALESCE(t.related_object_type, '') ILIKE $2
            OR ${buildUserNameSql('u_assign')} ILIKE $2
@@ -1372,7 +1372,7 @@ export class AiEntityService {
          AND (
            ac.name ILIKE $1
            OR COALESCE(ac.description, '') ILIKE $1
-           OR COALESCE(ac.status, '') ILIKE $1
+           OR COALESCE(ac.status::text, '') ILIKE $1
          )
        ORDER BY score DESC, ac.updated_at DESC, ac.name ASC
        LIMIT $3`,
@@ -1419,7 +1419,7 @@ export class AiEntityService {
            bp.name ILIKE $1
            OR COALESCE(bp.description, '') ILIKE $1
            OR COALESCE(bp.notes, '') ILIKE $1
-           OR COALESCE(bp.status, '') ILIKE $1
+           OR COALESCE(bp.status::text, '') ILIKE $1
            OR COALESCE(bpc.name, '') ILIKE $1
          )
        ORDER BY score DESC, bp.updated_at DESC, bp.name ASC
@@ -1781,19 +1781,41 @@ export class AiEntityService {
     const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
     const offset = Math.min(Math.max(Number(input.offset) || 0, 0), 5000);
     const fetchLimit = Math.min(limit + offset, 5000);
-    // Wrap each per-entity-type search in a try/catch so a single broken query
-    // (e.g. a SQL operator-mismatch in one of the searchXxx helpers) doesn't kill
-    // the whole multi-entity result. The failing type just returns empty + we log
-    // a warning so the underlying issue stays visible without breaking the
-    // search_all tool or the @-mention autocomplete that's powered by it.
+    // Isolate each per-entity-type search in its own PostgreSQL SAVEPOINT so a
+    // single broken query (e.g. a SQL operator-mismatch in one of the searchXxx
+    // helpers) doesn't poison the surrounding transaction and cascade-fail every
+    // sibling search with "current transaction is aborted, commands ignored".
+    // SAVEPOINT is the only way to recover from a query error inside an open tx
+    // — try/catch on its own catches the JS exception but the tx stays poisoned.
     const empty: RankedSearchResult = { items: [], total: 0 };
+    let savepointCounter = 0;
     const safeRun = async (
       type: string,
       run: () => Promise<RankedSearchResult>,
     ): Promise<RankedSearchResult> => {
+      // Unique name per savepoint — Promise.all dispatches all of these and PG
+      // serializes them on a single connection, but using distinct names is cheap
+      // and removes any ambiguity if savepoints ever interleave.
+      const sp = `search_${type}_${++savepointCounter}`;
       try {
-        return await run();
+        await context.manager.query(`SAVEPOINT ${sp}`);
       } catch (err) {
+        this.logger.warn(`searchAll: ${type} could not start savepoint: ${(err as Error).message}`);
+        return empty;
+      }
+      try {
+        const result = await run();
+        await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        return result;
+      } catch (err) {
+        // Roll back to the savepoint so the outer tx stays usable for the
+        // remaining sibling searches.
+        try {
+          await context.manager.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        } catch {
+          // ignore — best-effort cleanup
+        }
         this.logger.warn(
           `searchAll: ${type} failed for query "${input.query}": ${(err as Error).message}`,
         );
@@ -1801,8 +1823,16 @@ export class AiEntityService {
       }
     };
 
-    const results = await Promise.all(
-      allowed.map(async (type) => {
+    // SAVEPOINTs only isolate failures correctly when the surrounding queries are
+    // serialized — Promise.all interleaves SAVEPOINT/RELEASE/ROLLBACK statements
+    // and PG ends up rejecting many of them ("savepoint does not exist", "current
+    // transaction is aborted"). Run sequentially so each savepoint completes its
+    // SAVEPOINT → query → RELEASE/ROLLBACK cycle before the next one starts.
+    // The per-search latency hit is small (each is a single LIMIT-bounded query)
+    // and the autocomplete is debounced 150ms client-side anyway.
+    const results: RankedSearchResult[] = [];
+    for (const type of allowed) {
+      const r = await (async (): Promise<RankedSearchResult> => {
         if (type === 'accounts') return safeRun(type, () => this.searchAccounts(context, input.query, fetchLimit));
         if (type === 'analytics_categories') return safeRun(type, () => this.searchAnalyticsCategories(context, input.query, fetchLimit));
         if (type === 'applications') return safeRun(type, () => this.searchApplications(context, input.query, fetchLimit));
@@ -1847,8 +1877,9 @@ export class AiEntityService {
             total: search.total ?? 0,
           } satisfies RankedSearchResult;
         });
-      }),
-    );
+      })();
+      results.push(r);
+    }
 
     const total = results.reduce((sum, result) => sum + (result.total || 0), 0);
     const items = results
