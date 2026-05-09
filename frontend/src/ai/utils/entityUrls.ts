@@ -37,3 +37,30 @@ export function buildEntityUrl(entityType: string, id: string): string | null {
 export function isLinkableEntityType(entityType: string): boolean {
   return entityType in ENTITY_URL_BUILDERS;
 }
+
+/**
+ * Map between KANAP entity ref prefixes (case-insensitive) and the canonical
+ * entity_type. Mirrors backend buildRef() in ai-entity.service.ts which currently
+ * supports refs for tasks, documents, projects and requests only — other entity
+ * types (applications, assets, …) don't have refs in the data model so any
+ * `@APP-`-style prefix won't match anything searchable.
+ */
+const REF_PREFIX_TO_ENTITY_TYPE: Record<string, string> = {
+  T: 'tasks',
+  DOC: 'documents',
+  PRJ: 'projects',
+  REQ: 'requests',
+};
+
+/**
+ * If the @-mention query starts with a recognized ref prefix followed by `-`
+ * (e.g. `T-`, `DOC-12`), return the corresponding entity_type so the picker can
+ * narrow its search. Returns null when the query is too short or the prefix
+ * doesn't match anything we can resolve to a workspace.
+ */
+export function detectEntityTypeFromQuery(query: string): string | null {
+  const match = query.match(/^([A-Za-z]+)-/);
+  if (!match) return null;
+  const prefix = match[1].toUpperCase();
+  return REF_PREFIX_TO_ENTITY_TYPE[prefix] ?? null;
+}

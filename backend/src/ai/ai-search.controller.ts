@@ -42,15 +42,29 @@ export class AiSearchController {
     @Req() req: any,
     @Query('q') q?: string,
     @Query('limit') limitRaw?: string,
+    @Query('entity_types') entityTypesRaw?: string,
   ) {
     const query = (q || '').trim();
     if (!query) return { items: [] };
     const limit = Math.min(Math.max(Number.parseInt(limitRaw || '', 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
+    // Comma-separated entity_types narrow the search down to a specific subset.
+    // Used by the @-mention picker when the query has a recognized ref prefix
+    // (e.g. `@T-` → tasks only) so the user gets focused results instead of a
+    // generic blend across the whole workspace.
+    const entityTypes = (entityTypesRaw || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
     const context = this.buildContext(req);
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
-      const result = await this.entities.searchAll(ctx, { query, limit });
+      const result = await this.entities.searchAll(ctx, {
+        query,
+        limit,
+        ...(entityTypes.length > 0 ? { entity_types: entityTypes as any } : {}),
+      });
       // Strip the verbose payload down to what the autocomplete actually consumes.
       return {
         items: result.items.map((item: any) => ({

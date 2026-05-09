@@ -299,10 +299,17 @@ export type EntitySearchResult = {
 };
 
 export const aiSearchApi = {
-  async searchEntities(q: string, signal?: AbortSignal): Promise<EntitySearchResult[]> {
+  async searchEntities(
+    q: string,
+    opts?: { entityTypes?: string[]; signal?: AbortSignal },
+  ): Promise<EntitySearchResult[]> {
     const trimmed = q.trim();
     if (!trimmed) return [];
-    const res = await api.get('/ai/search/entities', { params: { q: trimmed }, signal });
+    const params: Record<string, string> = { q: trimmed };
+    if (opts?.entityTypes && opts.entityTypes.length > 0) {
+      params.entity_types = opts.entityTypes.join(',');
+    }
+    const res = await api.get('/ai/search/entities', { params, signal: opts?.signal });
     return Array.isArray(res.data?.items) ? res.data.items : [];
   },
 };
