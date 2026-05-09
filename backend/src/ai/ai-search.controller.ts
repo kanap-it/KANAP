@@ -6,13 +6,12 @@ import { AiPolicyService } from './ai-policy.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiExecutionContext } from './ai.types';
 
-const DEFAULT_LIMIT = 8;
-const MAX_LIMIT = 20;
-/** Max results per entity_type in the picker. Prevents a single type (typically the
- * most recently-updated one) from monopolising all the slots when the user types
- * a generic query like a single letter. The popover groups results by type, so a
- * cap yields a more useful round-up of recent matches across the workspace. */
-const PER_TYPE_CAP = 3;
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 50;
+/** Internal pool size requested from the entity service. The picker re-ranks the
+ * pool by content tier and trims to the user's limit, so we want enough candidates
+ * to make sure tier-1 (ref) and tier-2 (label) matches surface from every type. */
+const CANDIDATE_POOL = 200;
 
 /**
  * Lightweight entity search endpoint backing the @-mention autocomplete in the Plaid
@@ -42,63 +41,86 @@ export class AiSearchController {
     };
   }
 
+  /**
+   * Tier-based re-ranking helper. The per-type searches inside AiEntityService each
+   * compute a SQL-side CASE score on a 1..4 scale (or, for the document index, an
+   * index-based fetchLimit-index), and these scales aren't comparable across types.
+   * Once we have a flat candidate pool we ignore those scores and rank purely on
+   * what's visible in the result row:
+   *
+   *   100 — ref exact match (case-insensitive). Either the query is the full ref
+   *         (e.g. "T-5" matches T-5) or the query is the bare item number (e.g.
+   *         "5" matches T-5, PRJ-5, …).
+   *    50 — label contains the query as a substring (case-insensitive).
+   *    10 — matched by something else (description, snippet, related entity name).
+   *
+   * Empty query degrades everything to 10, which collapses the sort to "recent
+   * items first" — the natural behaviour for the bare `@` trigger.
+   */
+  private computeTier(item: { ref?: string | null; label?: string | null }, query: string): number {
+    const trimmed = query.trim();
+    if (!trimmed) return 10;
+    const queryLower = trimmed.toLowerCase();
+    const ref = (item.ref || '').toLowerCase();
+    if (ref) {
+      if (ref === queryLower) return 100;
+      // Bare number match: query "5" → matches refs ending in "-5" (T-5, PRJ-5…).
+      const refNumberMatch = ref.match(/-(\d+)$/);
+      if (refNumberMatch && /^\d+$/.test(trimmed) && refNumberMatch[1] === trimmed) {
+        return 100;
+      }
+    }
+    const label = (item.label || '').toLowerCase();
+    if (label && label.includes(queryLower)) return 50;
+    return 10;
+  }
+
   @Get('entities')
   async searchEntities(
     @Req() req: any,
     @Query('q') q?: string,
     @Query('limit') limitRaw?: string,
-    @Query('entity_types') entityTypesRaw?: string,
   ) {
     const query = (q || '').trim();
     const limit = Math.min(Math.max(Number.parseInt(limitRaw || '', 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
-    // Comma-separated entity_types narrow the search down to a specific subset.
-    // Used by the @-mention picker when the query has a recognized ref prefix
-    // (e.g. `@T-` → tasks only) so the user gets focused results instead of a
-    // generic blend across the whole workspace.
-    const entityTypes = (entityTypesRaw || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    // Empty query is allowed only when the caller has narrowed to specific
-    // entity_types — that's the "show me recent items of this type" pattern
-    // (e.g. user typed `@T-` → list recent tasks). Without a narrow, we don't
-    // want to fetch the entire workspace.
-    if (!query && entityTypes.length === 0) {
-      return { items: [] };
-    }
-
     const context = this.buildContext(req);
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
-      // Use the per-type search instead of the cross-type searchAll. searchAll's
-      // ranking compares incomparable score scales (knowledge search uses the
-      // index-based fetchLimit-index, SQL searches use a 1..4 CASE), so
-      // documents always end up monopolising every visible slot. The per-type
-      // path returns at most PER_TYPE_CAP matches from each entity type and
-      // lets the popover present a real cross-section of the workspace.
-      const grouped = await this.entities.searchByEntityTypes(ctx, {
-        query,
-        limitPerType: PER_TYPE_CAP,
-        ...(entityTypes.length > 0 ? { entity_types: entityTypes as any } : {}),
+
+      // Pull a generous candidate pool from the cross-type search so every entity
+      // type that has any kind of match is represented. The per-type SQL searches
+      // each cap at fetchLimit, so even with CANDIDATE_POOL=200 we get at most
+      // ~200 items across all types — well below DB cost concerns. Empty queries
+      // hit a different shortcut (all items match via ILIKE '%%'), so we just
+      // pull the most-recent items of each type.
+      const result = await this.entities.searchAll(ctx, {
+        query: query || ' ', // single-space sentinel — ILIKE '% %' isn't perfect but
+                              // matches anything containing whitespace, which is most
+                              // labels. For empty-query "show recent" we'd rather use
+                              // the searchAll path than hand-roll a separate listing.
+        limit: CANDIDATE_POOL,
       });
 
-      const items: Array<{ entity_type: string; id: string; ref: string | null; label: string | null }> = [];
-      for (const group of grouped.groups) {
-        for (const item of group.items) {
-          if (items.length >= limit) break;
-          const id = String((item as any).id || '');
-          if (!id) continue;
-          items.push({
-            entity_type: group.entity_type,
-            id,
-            ref: item.ref ? String(item.ref) : null,
-            label: item.label ? String(item.label) : null,
-          });
-        }
-        if (items.length >= limit) break;
-      }
+      // Re-rank purely on item content, then sort tier desc + recency desc.
+      const ranked = (result.items as any[])
+        .map((item) => ({
+          item,
+          tier: this.computeTier(item, query),
+          updated: new Date(item.updated_at || 0).getTime(),
+        }))
+        .sort((a, b) => {
+          if (a.tier !== b.tier) return b.tier - a.tier;
+          return b.updated - a.updated;
+        });
+
+      const items = ranked.slice(0, limit).map(({ item }) => ({
+        entity_type: String(item.type || ''),
+        id: String(item.id || ''),
+        ref: item.ref ? String(item.ref) : null,
+        label: item.label ? String(item.label) : null,
+      })).filter((entry) => entry.entity_type && entry.id);
+
       return { items };
     });
   }

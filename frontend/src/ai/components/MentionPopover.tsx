@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { aiSearchApi, EntitySearchResult } from '../aiApi';
-import { isLinkableEntityType, parseAtMentionQuery } from '../utils/entityUrls';
+import { isLinkableEntityType } from '../utils/entityUrls';
 
 export type MentionSelection = EntitySearchResult;
 
@@ -56,10 +56,7 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
 
     // Debounced search.
     useEffect(() => {
-      const { entityType, searchTerm } = parseAtMentionQuery(query);
-      // Skip if user hasn't typed anything AND no narrow detected — empty query
-      // without a narrow would be a workspace-wide dump we don't want.
-      if (!entityType && searchTerm.length < 1) {
+      if (query.length < 1) {
         setResults([]);
         setLoading(false);
         return;
@@ -68,14 +65,12 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
       setLoading(true);
       const handle = window.setTimeout(async () => {
         try {
-          // When parseAtMentionQuery recognises a prefix (e.g. `@T-…`), it strips
-          // it and narrows entityTypes to that single type. So `@T-5` becomes
-          // {searchTerm: '5', entityType: 'tasks'} — the backend's parseNumericRef
-          // still picks up the bare number for the item_number boost, and we
-          // don't accidentally ILIKE on the literal "T-" text.
-          const items = await aiSearchApi.searchEntities(searchTerm, {
+          // No prefix-narrowing here — the backend re-ranks the candidate pool
+          // by content tier (ref exact match → label contains → other), so
+          // `@T-5` naturally surfaces T-5 at the top regardless of which other
+          // types also matched. Trust the ranking; no filter.
+          const items = await aiSearchApi.searchEntities(query, {
             signal: controller.signal,
-            entityTypes: entityType ? [entityType] : undefined,
           });
           // Drop entity types that don't have a frontend workspace route — no point
           // mentioning something the user can't navigate to from the chip.
