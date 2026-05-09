@@ -10,6 +10,8 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { AiMutationPreview, ChatMessage } from '../aiTypes';
@@ -28,7 +30,19 @@ type ChatMessageListProps = {
   onOpenArtifact?: (previewId: string) => void;
   /** Used to highlight the chip whose artifact is currently visible in the panel. */
   selectedArtifactId?: string | null;
+  /** Called when the user clicks the Edit pencil on one of their own messages. */
+  onEdit?: (messageId: string) => void;
+  /** Called when the user clicks the Regenerate icon on an assistant reply. */
+  onRegenerate?: (messageId: string) => void;
+  /** When this id matches a user message, render it with an "editing" border. */
+  editingMessageId?: string | null;
 };
+
+// A message id is editable/regenerable only once we have its DB id (not a local-* placeholder).
+// The post-stream refresh in useChat swaps local ids for real UUIDs.
+function isPersistedMessage(id: string): boolean {
+  return !id.startsWith('local-');
+}
 
 function isMutationPreview(value: unknown): value is AiMutationPreview {
   if (!value || typeof value !== 'object') {
@@ -42,28 +56,73 @@ function isMutationPreview(value: unknown): value is AiMutationPreview {
     && candidate.changes != null;
 }
 
-function MessageActions({
-  text,
-  ariaLabel,
-  copiedLabel,
+function ActionIconButton({
+  icon,
+  label,
+  onClick,
+  disabled,
+  iconColor,
 }: {
-  text: string;
-  ariaLabel: string;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  iconColor?: string;
+}) {
+  return (
+    <Tooltip title={label} placement="bottom">
+      <span>
+        <IconButton
+          size="small"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+          sx={{
+            color: iconColor || 'kanap.text.tertiary',
+            '&:hover': { color: 'kanap.text.secondary', bgcolor: 'kanap.bg.hover' },
+            width: 24,
+            height: 24,
+          }}
+        >
+          {icon}
+        </IconButton>
+      </span>
+    </Tooltip>
+  );
+}
+
+function MessageActions({
+  copyText,
+  copyLabel,
+  copiedLabel,
+  onEdit,
+  editLabel,
+  onRegenerate,
+  regenerateLabel,
+}: {
+  copyText?: string;
+  copyLabel: string;
   copiedLabel: string;
+  onEdit?: () => void;
+  editLabel?: string;
+  onRegenerate?: () => void;
+  regenerateLabel?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
+    if (!copyText) return;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(copyText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
       // ignore — clipboard may be unavailable in non-secure contexts
     }
-  }, [text]);
+  }, [copyText]);
 
-  if (!text) return null;
+  const hasAnyAction = !!copyText || !!onEdit || !!onRegenerate;
+  if (!hasAnyAction) return null;
 
   return (
     <Stack
@@ -79,23 +138,29 @@ function MessageActions({
         },
       }}
     >
-      <Tooltip title={copied ? copiedLabel : ariaLabel} placement="bottom">
-        <IconButton
-          size="small"
-          onClick={handleCopy}
-          aria-label={ariaLabel}
-          sx={{
-            color: 'kanap.text.tertiary',
-            '&:hover': { color: 'kanap.text.secondary', bgcolor: 'kanap.bg.hover' },
-            width: 24,
-            height: 24,
-          }}
-        >
-          {copied
+      {copyText && (
+        <ActionIconButton
+          icon={copied
             ? <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />
             : <ContentCopyIcon sx={{ fontSize: 14 }} />}
-        </IconButton>
-      </Tooltip>
+          label={copied ? copiedLabel : copyLabel}
+          onClick={handleCopy}
+        />
+      )}
+      {onEdit && editLabel && (
+        <ActionIconButton
+          icon={<EditOutlinedIcon sx={{ fontSize: 14 }} />}
+          label={editLabel}
+          onClick={onEdit}
+        />
+      )}
+      {onRegenerate && regenerateLabel && (
+        <ActionIconButton
+          icon={<RefreshOutlinedIcon sx={{ fontSize: 14 }} />}
+          label={regenerateLabel}
+          onClick={onRegenerate}
+        />
+      )}
     </Stack>
   );
 }
@@ -148,24 +213,45 @@ function MessageRow({
   role,
   children,
   copyText,
+  onEdit,
+  onRegenerate,
+  isEditing,
 }: {
   role: 'user' | 'assistant';
   children: React.ReactNode;
   copyText?: string;
+  onEdit?: () => void;
+  onRegenerate?: () => void;
+  isEditing?: boolean;
 }) {
   const { t } = useTranslation(['ai']);
 
   return (
-    <Box className="kanap-chat-message-row">
+    <Box
+      className="kanap-chat-message-row"
+      sx={(theme) => ({
+        // When the user has just clicked Edit on this message, frame it with a teal
+        // outline so they know which one is staged in the composer.
+        ...(isEditing
+          ? {
+              outline: `2px solid ${theme.palette.primary.main}`,
+              outlineOffset: 2,
+              borderRadius: '12px',
+            }
+          : {}),
+      })}
+    >
       <RoleHeader role={role} />
       <Box>{children}</Box>
-      {copyText && (
-        <MessageActions
-          text={copyText}
-          ariaLabel={t('messageList.copy')}
-          copiedLabel={t('messageList.copied')}
-        />
-      )}
+      <MessageActions
+        copyText={copyText}
+        copyLabel={t('messageList.copy')}
+        copiedLabel={t('messageList.copied')}
+        onEdit={onEdit}
+        editLabel={onEdit ? t('messageList.edit') : undefined}
+        onRegenerate={onRegenerate}
+        regenerateLabel={onRegenerate ? t('messageList.regenerate') : undefined}
+      />
     </Box>
   );
 }
@@ -190,9 +276,17 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
   );
 }
 
-function UserMessage({ message }: { message: ChatMessage }) {
+function UserMessage({
+  message,
+  onEdit,
+  isEditing,
+}: {
+  message: ChatMessage;
+  onEdit?: () => void;
+  isEditing?: boolean;
+}) {
   return (
-    <MessageRow role="user" copyText={message.content}>
+    <MessageRow role="user" copyText={message.content} onEdit={onEdit} isEditing={isEditing}>
       <Box
         sx={(theme) => ({
           bgcolor: theme.palette.mode === 'dark'
@@ -222,6 +316,7 @@ function AssistantMessage({
   onSend,
   onOpenArtifact,
   selectedArtifactId,
+  onRegenerate,
 }: {
   message: ChatMessage;
   previews: AiMutationPreview[];
@@ -229,6 +324,7 @@ function AssistantMessage({
   onSend: (text: string) => void;
   onOpenArtifact?: (previewId: string) => void;
   selectedArtifactId?: string | null;
+  onRegenerate?: () => void;
 }) {
   const toolCalls = message.toolCalls || [];
   const toolResults = message.toolResults || [];
@@ -260,7 +356,7 @@ function AssistantMessage({
     && visibleToolCalls.length === 0;
 
   return (
-    <MessageRow role="assistant" copyText={message.content}>
+    <MessageRow role="assistant" copyText={message.content} onRegenerate={onRegenerate}>
       <Stack spacing={0.5}>
         {visibleToolCalls.length > 0 && (
           <Stack spacing={0}>
@@ -331,6 +427,9 @@ export default function ChatMessageList({
   onSend,
   onOpenArtifact,
   selectedArtifactId,
+  onEdit,
+  onRegenerate,
+  editingMessageId,
 }: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -344,7 +443,14 @@ export default function ChatMessageList({
     <Stack spacing={3} sx={{ py: 3, pb: 4 }}>
       {messages.map((msg) =>
         msg.hidden ? null : msg.role === 'user' ? (
-          <UserMessage key={msg.id} message={msg} />
+          <UserMessage
+            key={msg.id}
+            message={msg}
+            onEdit={onEdit && isPersistedMessage(msg.id) && !disabled
+              ? () => onEdit(msg.id)
+              : undefined}
+            isEditing={editingMessageId === msg.id}
+          />
         ) : msg.role === 'assistant' ? (
           <AssistantMessage
             key={msg.id}
@@ -354,6 +460,9 @@ export default function ChatMessageList({
             onSend={onSend}
             onOpenArtifact={onOpenArtifact}
             selectedArtifactId={selectedArtifactId}
+            onRegenerate={onRegenerate && isPersistedMessage(msg.id) && !disabled && !msg.isStreaming
+              ? () => onRegenerate(msg.id)
+              : undefined}
           />
         ) : null,
       )}

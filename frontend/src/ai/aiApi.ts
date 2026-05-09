@@ -133,6 +133,7 @@ export async function* streamChat(params: {
   message: string;
   conversation_id?: string;
   attachment_ids?: string[];
+  truncate_from_message_id?: string | null;
   signal?: AbortSignal;
 }): AsyncGenerator<ChatStreamEvent> {
   const { signal, ...body } = params;

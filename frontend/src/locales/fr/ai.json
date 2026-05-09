@@ -34,6 +34,7 @@
     "assistantRole": "Plaid",
     "copied": "Copié",
     "copy": "Copier le message",
+    "edit": "Modifier le message",
     "regenerate": "Régénérer",
     "toolCallLabel": "a utilisé {{name}}",
     "toolCallNoResult": "aucun résultat",

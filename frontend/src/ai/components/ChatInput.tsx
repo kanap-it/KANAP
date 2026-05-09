@@ -30,6 +30,7 @@ type ChatInputProps = {
 
 export type ChatInputHandle = {
   focus: () => void;
+  setText: (value: string) => void;
 };
 
 function isAcceptableImage(file: File): boolean {
@@ -119,6 +120,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
 
     useImperativeHandle(ref, () => ({
       focus: () => inputRef.current?.focus(),
+      setText: (next: string) => {
+        setValue(next);
+        // Defer focus + caret-to-end so React commits the new value first.
+        setTimeout(() => {
+          const el = inputRef.current as unknown as HTMLTextAreaElement | null;
+          if (!el) return;
+          el.focus();
+          try { el.setSelectionRange(next.length, next.length); } catch { /* ignore */ }
+        }, 0);
+      },
     }));
 
     const hasPending = !!(pendingAttachments && pendingAttachments.length > 0);

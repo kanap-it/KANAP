@@ -144,6 +144,19 @@ export default function AiWorkspacePage() {
     [chat.conversationId, chat.newConversation, queryClient],
   );
 
+  const handleEditMessage = useCallback((messageId: string) => {
+    const content = chat.startEdit(messageId);
+    if (content !== null) {
+      // Defer setText so React commits the editingMessageId state before the composer
+      // re-renders (avoids a flicker where the old composer value briefly shows).
+      setTimeout(() => inputRef.current?.setText(content), 0);
+    }
+  }, [chat.startEdit]);
+
+  const handleRegenerateMessage = useCallback((messageId: string) => {
+    void chat.regenerate(messageId);
+  }, [chat.regenerate]);
+
   if (!config.features.aiChat) {
     return (
       <>
@@ -267,6 +280,9 @@ export default function AiWorkspacePage() {
                   onSend={handleSend}
                   onOpenArtifact={openArtifactPanel}
                   selectedArtifactId={artifactPanelOpen ? selectedArtifactId : null}
+                  onEdit={handleEditMessage}
+                  onRegenerate={handleRegenerateMessage}
+                  editingMessageId={chat.editingMessageId}
                 />
               </Box>
             </Box>

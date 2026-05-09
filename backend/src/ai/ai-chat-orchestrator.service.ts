@@ -73,6 +73,18 @@ type ChatStreamParams = {
   userMessage: string;
   /** Attachment ids that have already been uploaded for the current user message (multimodal). */
   attachmentIds?: string[] | null;
+  /**
+   * Edit/regenerate support: when set, the orchestrator deletes this message and every
+   * message persisted after it in the same conversation BEFORE running the new turn.
+   * - Edit  flow: client passes the user message id + a non-empty userMessage. The old
+   *   user msg + all following are wiped, then the new userMessage is persisted as the
+   *   replacement, then we stream a fresh assistant reply.
+   * - Regen flow: client passes the assistant message id + an empty userMessage. The
+   *   old assistant (and anything after) is wiped; no new user msg is persisted (the
+   *   prior user msg already sits at the tail of the history); the LLM re-runs against
+   *   that history.
+   */
+  truncateFromMessageId?: string | null;
   signal?: AbortSignal | null;
 };
 
@@ -97,6 +109,7 @@ type PreparedChatRequest = {
   inputConversationId?: string | null;
   userMessage: string;
   attachmentIds?: string[] | null;
+  truncateFromMessageId?: string | null;
   approvalAction: ApprovalAction | null;
   providerSource: 'builtin' | 'custom';
   provider: AiProviderAdapter;
@@ -378,6 +391,7 @@ export class AiChatOrchestratorService {
           inputConversationId: params.conversationId ?? null,
           userMessage: params.userMessage,
           attachmentIds: params.attachmentIds ?? null,
+          truncateFromMessageId: params.truncateFromMessageId ?? null,
           approvalAction,
           providerSource,
           provider: adapter,
@@ -531,6 +545,17 @@ export class AiChatOrchestratorService {
           convId = conv.id;
         }
 
+        // Edit/regen: wipe the conversation tail before we persist anything new, so the
+        // history replay below sees only the pre-edit prefix.
+        if (prepared.truncateFromMessageId && convId) {
+          await this.conversations.deleteMessagesFromInclusive(
+            convId,
+            ctx.tenantId,
+            prepared.truncateFromMessageId,
+            { manager: ctx.manager },
+          );
+        }
+
         // Validate attachment ownership BEFORE persisting (fail fast)
         const requestedAttachmentIds = Array.isArray(prepared.attachmentIds) ? prepared.attachmentIds : [];
         if (requestedAttachmentIds.length > 0) {
@@ -541,21 +566,26 @@ export class AiChatOrchestratorService {
           );
         }
 
-        // Persist user message
-        const persistedUserMessage = await this.conversations.appendMessage(
-          {
-            conversationId: convId!,
-            tenantId: ctx.tenantId,
-            conversationUserId: ctx.userId,
-            userId: ctx.userId,
-            role: 'user',
-            content: userMessage,
-          },
-          { manager: ctx.manager },
-        );
+        // Persist user message — skipped on regenerate (empty userMessage). In that case
+        // the conversation already ends with the user msg the regen targets and we just
+        // re-stream against the existing history.
+        let persistedUserMessage: { id: string } | null = null;
+        if (userMessage.trim().length > 0) {
+          persistedUserMessage = await this.conversations.appendMessage(
+            {
+              conversationId: convId!,
+              tenantId: ctx.tenantId,
+              conversationUserId: ctx.userId,
+              userId: ctx.userId,
+              role: 'user',
+              content: userMessage,
+            },
+            { manager: ctx.manager },
+          );
+        }
 
         // Link attachments to the persisted user message (idempotent — safe to retry).
-        if (requestedAttachmentIds.length > 0) {
+        if (requestedAttachmentIds.length > 0 && persistedUserMessage) {
           await this.attachments.linkAttachmentsToMessage(
             requestedAttachmentIds,
             persistedUserMessage.id,

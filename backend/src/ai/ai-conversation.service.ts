@@ -61,6 +61,37 @@ export class AiConversationService {
   }
 
   /**
+   * Delete the message with the given id and every message that came after it in the
+   * same conversation. Used by edit/regenerate flows: the orchestrator wipes the tail
+   * of the conversation before streaming a fresh turn so the LLM doesn't see the old
+   * (now-stale) replies in its replay history.
+   *
+   * Returns the number of rows deleted. Tenant + conversation FK are explicit on the
+   * delete query so a stray id from another conversation can't cascade-wipe data.
+   */
+  async deleteMessagesFromInclusive(
+    conversationId: string,
+    tenantId: string,
+    messageId: string,
+    opts?: { manager?: EntityManager },
+  ): Promise<number> {
+    const repo = this.getMessageRepo(opts?.manager);
+    const target = await repo.findOne({
+      where: { id: messageId, tenant_id: tenantId, conversation_id: conversationId },
+    });
+    if (!target) return 0;
+    const result = await repo
+      .createQueryBuilder()
+      .delete()
+      .from(AiMessage)
+      .where('tenant_id = :tenantId', { tenantId })
+      .andWhere('conversation_id = :conversationId', { conversationId })
+      .andWhere('created_at >= :anchor', { anchor: target.created_at })
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  /**
    * Set conversation.title if it is currently null/empty. Used to auto-title a
    * conversation that was first created empty (via POST /ai/conversations) and gets
    * its first user message later. No-op if a title is already set, so the user can
