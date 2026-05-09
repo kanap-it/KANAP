@@ -1,10 +1,20 @@
-import { Box } from '@mui/material';
+import React, { useCallback, useState } from 'react';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined';
+import CheckIcon from '@mui/icons-material/Check';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypeHighlight from 'rehype-highlight';
+// Highlight.js languages outside the lowlight "common" preset that are useful for an
+// IT governance platform but not bundled by default.
+import dockerfile from 'highlight.js/lib/languages/dockerfile';
+import hcl from 'highlight.js/lib/languages/hcl';
+import nginx from 'highlight.js/lib/languages/nginx';
+import powershell from 'highlight.js/lib/languages/powershell';
+import properties from 'highlight.js/lib/languages/properties';
 import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
 
 interface MarkdownContentProps {
@@ -30,6 +40,82 @@ const sanitizeSchema = {
     span: [...(defaultSchema.attributes?.span || []), 'className'],
   },
 };
+
+/**
+ * Replacement for the default <pre> renderer that adds a hover-revealed Copy button.
+ * Extracts the raw code text from the children's text nodes (works whether the inner
+ * <code> has had rehype-highlight class spans applied or not).
+ */
+function extractTextFromNode(node: React.ReactNode): string {
+  if (typeof node === 'string') return node;
+  if (typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(extractTextFromNode).join('');
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode };
+    return extractTextFromNode(props.children);
+  }
+  return '';
+}
+
+function CodeBlock({ children, ...rest }: { children?: React.ReactNode } & React.HTMLAttributes<HTMLPreElement>) {
+  const [copied, setCopied] = useState(false);
+  const text = extractTextFromNode(children);
+
+  const handleCopy = useCallback(async () => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore — clipboard may be unavailable in non-secure contexts
+    }
+  }, [text]);
+
+  return (
+    <Box
+      className="kanap-code-block"
+      sx={{
+        position: 'relative',
+        '&:hover .kanap-code-copy, &:focus-within .kanap-code-copy': { opacity: 1 },
+      }}
+    >
+      <Box component="pre" {...rest}>
+        {children}
+      </Box>
+      {text && (
+        <Tooltip title={copied ? 'Copied' : 'Copy code'} placement="left">
+          <IconButton
+            className="kanap-code-copy"
+            size="small"
+            onClick={handleCopy}
+            aria-label={copied ? 'Copied' : 'Copy code'}
+            sx={(theme) => ({
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              width: 24,
+              height: 24,
+              opacity: 0,
+              transition: 'opacity 120ms ease, color 120ms ease, background-color 120ms ease',
+              color: theme.palette.kanap.text.tertiary,
+              bgcolor: theme.palette.kanap.bg.composer,
+              border: `1px solid ${theme.palette.kanap.border.default}`,
+              '&:hover': {
+                color: theme.palette.kanap.text.primary,
+                bgcolor: theme.palette.kanap.bg.composer,
+              },
+            })}
+          >
+            {copied
+              ? <CheckIcon sx={{ fontSize: 14, color: 'success.main' }} />
+              : <ContentCopyIcon sx={{ fontSize: 14 }} />}
+          </IconButton>
+        </Tooltip>
+      )}
+    </Box>
+  );
+}
 
 function sanitizeUrl(url: string, key?: string): string {
   const value = String(url || '').trim();
@@ -176,12 +262,19 @@ export function MarkdownContent({ content, variant = 'default' }: MarkdownConten
         rehypePlugins={[
           rehypeRaw,
           [rehypeSanitize, sanitizeSchema as any],
-          [rehypeHighlight, { detect: true, ignoreMissing: true }],
+          [rehypeHighlight, {
+            detect: true,
+            ignoreMissing: true,
+            languages: { powershell, dockerfile, nginx, hcl, properties },
+          }],
         ]}
         urlTransform={sanitizeUrl}
         components={{
           a: ({ node: _node, ...props }: any) => (
             <a {...props} target="_blank" rel="noopener noreferrer" />
+          ),
+          pre: ({ children, ...props }: any) => (
+            <CodeBlock {...props}>{children}</CodeBlock>
           ),
         }}
       >

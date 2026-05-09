@@ -145,13 +145,21 @@ export default function AiWorkspacePage() {
   );
 
   const handleEditMessage = useCallback((messageId: string) => {
-    const content = chat.startEdit(messageId);
-    if (content !== null) {
-      // Defer setText so React commits the editingMessageId state before the composer
-      // re-renders (avoids a flicker where the old composer value briefly shows).
-      setTimeout(() => inputRef.current?.setText(content), 0);
-    }
+    // Inline edit: just flip the message into edit mode. The bubble renders an inline
+    // editor; we do NOT prefill the composer below (that flow surprised users in early
+    // testing because the highlighted message looked editable even though it wasn't).
+    chat.startEdit(messageId);
   }, [chat.startEdit]);
+
+  const handleSubmitEdit = useCallback((_messageId: string, newText: string) => {
+    // sendMessage reads chat.editingMessageId set by startEdit and forwards it to the
+    // backend as truncate_from_message_id, so this single call covers the whole edit.
+    void chat.sendMessage(newText);
+  }, [chat.sendMessage]);
+
+  const handleCancelEdit = useCallback(() => {
+    chat.cancelEdit();
+  }, [chat.cancelEdit]);
 
   const handleRegenerateMessage = useCallback((messageId: string) => {
     void chat.regenerate(messageId);
@@ -281,6 +289,8 @@ export default function AiWorkspacePage() {
                   onOpenArtifact={openArtifactPanel}
                   selectedArtifactId={artifactPanelOpen ? selectedArtifactId : null}
                   onEdit={handleEditMessage}
+                  onSubmitEdit={handleSubmitEdit}
+                  onCancelEdit={handleCancelEdit}
                   onRegenerate={handleRegenerateMessage}
                   editingMessageId={chat.editingMessageId}
                 />

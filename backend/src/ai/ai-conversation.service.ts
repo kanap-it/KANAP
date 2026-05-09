@@ -79,7 +79,14 @@ export class AiConversationService {
     const target = await repo.findOne({
       where: { id: messageId, tenant_id: tenantId, conversation_id: conversationId },
     });
-    if (!target) return 0;
+    if (!target) {
+      // Surface this loudly: the orchestrator was asked to truncate from a message
+      // that doesn't exist in this (tenant, conversation). Failing silently here lets
+      // a subtle bug (eg. the frontend sending a stale local- id) cascade into Plaid
+      // replying as if the conversation hadn't been edited at all, or the LLM
+      // receiving an assistant-message tail that triggers prefill errors.
+      throw new NotFoundException('Cannot truncate: target message not found in this conversation.');
+    }
     const result = await repo
       .createQueryBuilder()
       .delete()

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
+  Button,
   CircularProgress,
   IconButton,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -32,9 +34,13 @@ type ChatMessageListProps = {
   selectedArtifactId?: string | null;
   /** Called when the user clicks the Edit pencil on one of their own messages. */
   onEdit?: (messageId: string) => void;
+  /** Submit the new text for the user message currently being edited. */
+  onSubmitEdit?: (messageId: string, newText: string) => void;
+  /** Called when the user clicks Cancel on an in-progress inline edit. */
+  onCancelEdit?: () => void;
   /** Called when the user clicks the Regenerate icon on an assistant reply. */
   onRegenerate?: (messageId: string) => void;
-  /** When this id matches a user message, render it with an "editing" border. */
+  /** When this id matches a user message, render it inline as an editor. */
   editingMessageId?: string | null;
 };
 
@@ -215,32 +221,17 @@ function MessageRow({
   copyText,
   onEdit,
   onRegenerate,
-  isEditing,
 }: {
   role: 'user' | 'assistant';
   children: React.ReactNode;
   copyText?: string;
   onEdit?: () => void;
   onRegenerate?: () => void;
-  isEditing?: boolean;
 }) {
   const { t } = useTranslation(['ai']);
 
   return (
-    <Box
-      className="kanap-chat-message-row"
-      sx={(theme) => ({
-        // When the user has just clicked Edit on this message, frame it with a teal
-        // outline so they know which one is staged in the composer.
-        ...(isEditing
-          ? {
-              outline: `2px solid ${theme.palette.primary.main}`,
-              outlineOffset: 2,
-              borderRadius: '12px',
-            }
-          : {}),
-      })}
-    >
+    <Box className="kanap-chat-message-row">
       <RoleHeader role={role} />
       <Box>{children}</Box>
       <MessageActions
@@ -276,17 +267,108 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
   );
 }
 
+function InlineEditor({
+  initialValue,
+  onSubmit,
+  onCancel,
+  saveLabel,
+  cancelLabel,
+}: {
+  initialValue: string;
+  onSubmit: (value: string) => void;
+  onCancel: () => void;
+  saveLabel: string;
+  cancelLabel: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    // Auto-focus + caret to end on mount.
+    const el = taRef.current;
+    if (!el) return;
+    el.focus();
+    try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* ignore */ }
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      onSubmit(value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
+  const canSave = value.trim().length > 0;
+
+  return (
+    <Stack spacing={1} sx={{ width: '100%' }}>
+      <TextField
+        fullWidth
+        multiline
+        minRows={2}
+        maxRows={20}
+        variant="standard"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        inputRef={taRef}
+        InputProps={{ disableUnderline: true }}
+        sx={(theme) => ({
+          '& .MuiInputBase-root': {
+            fontSize: 14,
+            lineHeight: 1.6,
+            color: theme.palette.kanap.text.primary,
+            padding: 0,
+          },
+        })}
+      />
+      <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <Button
+          size="small"
+          variant="outlined"
+          color="inherit"
+          onClick={onCancel}
+          sx={{ textTransform: 'none', fontSize: 12 }}
+        >
+          {cancelLabel}
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => onSubmit(value)}
+          disabled={!canSave}
+          sx={{ textTransform: 'none', fontSize: 12 }}
+        >
+          {saveLabel}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
 function UserMessage({
   message,
   onEdit,
   isEditing,
+  onSubmitEdit,
+  onCancelEdit,
 }: {
   message: ChatMessage;
   onEdit?: () => void;
   isEditing?: boolean;
+  onSubmitEdit?: (newText: string) => void;
+  onCancelEdit?: () => void;
 }) {
+  const { t } = useTranslation(['ai']);
   return (
-    <MessageRow role="user" copyText={message.content} onEdit={onEdit} isEditing={isEditing}>
+    <MessageRow
+      role="user"
+      copyText={isEditing ? undefined : message.content}
+      onEdit={isEditing ? undefined : onEdit}
+    >
       <Box
         sx={(theme) => ({
           bgcolor: theme.palette.mode === 'dark'
@@ -298,12 +380,32 @@ function UserMessage({
           fontSize: 14,
           lineHeight: 1.6,
           color: theme.palette.kanap.text.primary,
+          ...(isEditing
+            ? {
+                outline: (theme as any).palette.primary.main
+                  ? `1px solid ${(theme as any).palette.primary.main}`
+                  : undefined,
+                outlineOffset: 0,
+              }
+            : {}),
           '& p:first-of-type': { mt: 0 },
           '& p:last-of-type': { mb: 0 },
         })}
       >
-        {message.content && <MarkdownContent content={message.content} />}
-        <MessageAttachments message={message} />
+        {isEditing ? (
+          <InlineEditor
+            initialValue={message.content}
+            onSubmit={(value) => onSubmitEdit?.(value)}
+            onCancel={() => onCancelEdit?.()}
+            saveLabel={t('messageList.save')}
+            cancelLabel={t('messageList.cancel')}
+          />
+        ) : (
+          <>
+            {message.content && <MarkdownContent content={message.content} />}
+            <MessageAttachments message={message} />
+          </>
+        )}
       </Box>
     </MessageRow>
   );
@@ -428,6 +530,8 @@ export default function ChatMessageList({
   onOpenArtifact,
   selectedArtifactId,
   onEdit,
+  onSubmitEdit,
+  onCancelEdit,
   onRegenerate,
   editingMessageId,
 }: ChatMessageListProps) {
@@ -450,6 +554,8 @@ export default function ChatMessageList({
               ? () => onEdit(msg.id)
               : undefined}
             isEditing={editingMessageId === msg.id}
+            onSubmitEdit={onSubmitEdit ? (text) => onSubmitEdit(msg.id, text) : undefined}
+            onCancelEdit={onCancelEdit}
           />
         ) : msg.role === 'assistant' ? (
           <AssistantMessage
