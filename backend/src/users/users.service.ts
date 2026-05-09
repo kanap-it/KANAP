@@ -27,6 +27,7 @@ import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetEx
 import { PasswordResetToken } from '../auth/password-reset-token.entity';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
+import { neutralizeCsvFormulaValue } from '../common/csv/csv-export.service';
 
 const SUPPORTED_USER_LOCALES = ['en', 'fr', 'de', 'es'] as const;
 const SELF_SERVICE_FIELDS = ['first_name', 'last_name', 'job_title', 'business_phone', 'mobile_phone', 'locale'] as const;
@@ -564,13 +565,13 @@ export class UsersService {
       const items = await repo.find({ order: { created_at: 'DESC' as any }, relations: ['role', 'company', 'department'] });
       for (const u of items) {
         rows.push({
-          email: u.email ?? '',
-          first_name: u.first_name ?? '',
-          last_name: u.last_name ?? '',
-          role: u.role?.role_name ?? '',
-          company_name: u.company?.name ?? '',
-          department_name: u.department?.name ?? '',
-          status: u.status ?? 'enabled',
+          email: neutralizeCsvFormulaValue(u.email ?? ''),
+          first_name: neutralizeCsvFormulaValue(u.first_name ?? ''),
+          last_name: neutralizeCsvFormulaValue(u.last_name ?? ''),
+          role: neutralizeCsvFormulaValue(u.role?.role_name ?? ''),
+          company_name: neutralizeCsvFormulaValue(u.company?.name ?? ''),
+          department_name: neutralizeCsvFormulaValue(u.department?.name ?? ''),
+          status: neutralizeCsvFormulaValue(u.status ?? 'enabled'),
         });
       }
     }
