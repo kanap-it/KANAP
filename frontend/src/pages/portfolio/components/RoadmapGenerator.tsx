@@ -46,13 +46,13 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import ImageIcon from '@mui/icons-material/Image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import api from '../../../api';
 import LightModeIsland from '../../../components/LightModeIsland';
 import { useLocale } from '../../../i18n/useLocale';
 import { PortfolioGantt } from './PortfolioGantt';
 import { computeInactiveSegments } from './roadmap-inactive-segments';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
+import { downloadXlsxWorkbook } from '../../../lib/simpleXlsx';
 
 type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
 type OccupationView = 'contributor' | 'team';
@@ -932,13 +932,10 @@ const exportOccupationAsExcel = (data: OccupationExportData): void => {
   teamAvgRow.push(allTeamNonNull.length > 0 ? Math.round(allTeamNonNull.reduce((a, b) => a + b, 0) / allTeamNonNull.length) : null);
   teamSheetRows.push(teamAvgRow);
 
-  const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.aoa_to_sheet(contributorSheetRows);
-  XLSX.utils.book_append_sheet(wb, ws1, 'Contributors');
-  const ws2 = XLSX.utils.aoa_to_sheet(teamSheetRows);
-  XLSX.utils.book_append_sheet(wb, ws2, 'Teams');
-
-  XLSX.writeFile(wb, `roadmap-occupation-${getTodayYmd()}.xlsx`);
+  downloadXlsxWorkbook(`roadmap-occupation-${getTodayYmd()}.xlsx`, [
+    { name: 'Contributors', rows: contributorSheetRows },
+    { name: 'Teams', rows: teamSheetRows },
+  ]);
 };
 
 const exportOccupationAsPng = async (

@@ -142,6 +142,7 @@ export const TENANT_SCOPED_TABLES = [
   'portfolio_task_types',
   'portfolio_team_member_configs',
   'portfolio_teams',
+  'password_reset_tokens',
   'refresh_tokens',
   'role_permissions',
   'roles',

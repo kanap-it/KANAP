@@ -22,6 +22,10 @@ const buildFileFilter = (scope: UploadValidationScope): NonNullable<MulterOption
       cb(new BadRequestException('Unsupported file type. Allowed: DOCX'), false);
       return;
     }
+    if (scope === 'csv-import') {
+      cb(new BadRequestException('Unsupported file type. Allowed: CSV'), false);
+      return;
+    }
 
     cb(new BadRequestException('Unsupported file type'), false);
   };
@@ -44,6 +48,7 @@ export const documentImportMulterOptions: MulterOptions = {
 
 export const csvImportMulterOptions: MulterOptions = {
   limits: { fileSize: CSV_IMPORT_MAX_BYTES },
+  fileFilter: buildFileFilter('csv-import'),
 };
 
 /** Re-decode multer's latin1-mangled filename back to UTF-8 */

@@ -14,7 +14,7 @@ import { PortfolioRequestsService } from './portfolio-requests.service';
 import { PortfolioRequestsCsvService } from './portfolio-requests-csv.service';
 import { PortfolioProjectsService } from './services';
 import { StorageService } from '../common/storage/storage.service';
-import { attachmentMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, csvImportMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { createRequestReleaseConnection } from '../common/import-connection';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
@@ -139,7 +139,7 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'admin')
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', csvImportMulterOptions))
   async importCsv(
     @UploadedFile() file: Express.Multer.File,
     @Query('dryRun') dryRun: string = 'true',

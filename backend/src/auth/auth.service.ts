@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, IsNull } from 'typeorm';
 import { UsersService } from '../users/users.service';
 import * as argon2 from 'argon2';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
 import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes, getPasswordResetSecret } from './password-reset.util';
 import { RefreshToken } from './refresh-token.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
 import { requireJwtSecret } from '../common/env';
 
 // Default token TTLs
@@ -54,6 +55,8 @@ export class AuthService {
     private readonly users: UsersService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokenRepo: Repository<PasswordResetToken>,
   ) {}
 
   async validateUser(email: string, password: string, manager?: import('typeorm').EntityManager) {
@@ -231,8 +234,23 @@ export class AuthService {
     return result.affected || 0;
   }
 
-  createPasswordResetToken(user: { id: string; email: string; tenant_id?: string }) {
-    return buildPasswordResetToken(user);
+  async createPasswordResetToken(
+    user: { id: string; email: string; tenant_id?: string },
+    manager?: import('typeorm').EntityManager,
+  ) {
+    const jti = crypto.randomBytes(16).toString('hex');
+    const token = buildPasswordResetToken(user, jti);
+    const decoded = jwt.decode(token) as { exp?: number } | null;
+    const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 60 * 60 * 1000);
+    const repo = manager ? manager.getRepository(PasswordResetToken) : this.passwordResetTokenRepo;
+    await repo.save(repo.create({
+      tenant_id: bindTenantId(user.tenant_id),
+      user_id: user.id,
+      token_hash: hashToken(token),
+      expires_at: expiresAt,
+      used_at: null,
+    }));
+    return token;
   }
 
   async resetPasswordWithToken(token: string, nextPassword: string, opts?: { manager?: import('typeorm').EntityManager }) {
@@ -243,8 +261,27 @@ export class AuthService {
     } catch {
       throw new BadRequestException('invalid or expired token');
     }
-    if (!payload || payload.purpose !== 'password-reset' || !payload.sub) {
+    if (!payload || payload.purpose !== 'password-reset' || !payload.sub || !payload.jti) {
       throw new BadRequestException('invalid token payload');
+    }
+    const resetRepo = opts?.manager ? opts.manager.getRepository(PasswordResetToken) : this.passwordResetTokenRepo;
+    const tokenHash = hashToken(token);
+    const resetToken = await resetRepo.findOne({
+      where: {
+        token_hash: tokenHash,
+        tenant_id: bindTenantId(payload.tenant_id),
+        used_at: IsNull(),
+      },
+    });
+    if (!resetToken || resetToken.expires_at < new Date()) {
+      throw new BadRequestException('invalid or expired token');
+    }
+    const consumed = await resetRepo.update(
+      { id: resetToken.id, used_at: IsNull() },
+      { used_at: new Date() },
+    );
+    if (!consumed.affected) {
+      throw new BadRequestException('invalid or expired token');
     }
     const user = await this.users.findById(payload.sub, { manager: opts?.manager });
     if (!user) {
@@ -260,6 +297,7 @@ export class AuthService {
     if (user.status !== 'enabled') {
       await this.users.enableUser(user.id, null, { manager: opts?.manager });
     }
+    await this.revokeAllTokens(user.id, opts?.manager);
   }
 
   getPasswordResetExpirationMinutes() {

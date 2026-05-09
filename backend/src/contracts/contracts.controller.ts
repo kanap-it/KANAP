@@ -185,9 +185,13 @@ export class ContractsController {
 
   // Attachments
   @Get(':id/attachments')
+  @UseGuards(PermissionGuard)
+  @RequireLevel('contracts', 'reader')
   listAttachments(@Param('id') id: string, @Req() req: any) { return this.svc.listAttachments(id, { manager: req?.queryRunner?.manager }); }
 
   @Post(':id/attachments')
+  @UseGuards(PermissionGuard)
+  @RequireLevel('contracts', 'member')
   @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
   uploadAttachment(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Req() req: any) {
     return this.svc.uploadAttachment(id, file, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });

@@ -169,6 +169,7 @@ export const TENANT_PURGE_TABLES = [
   'user_dashboard_config',
   'user_notification_preferences',
   'refresh_tokens',
+  'password_reset_tokens',
   'users',
   'roles',
   // Contacts must be purged before suppliers (supplier_contacts has FKs to both)

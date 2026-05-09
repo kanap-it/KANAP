@@ -14,7 +14,7 @@ import { PortfolioProjectsService } from './services';
 import { PortfolioProjectsCsvService } from './portfolio-projects-csv.service';
 import { StorageService } from '../common/storage/storage.service';
 import { resolveToUuid } from '../common/resolve-item-id';
-import { attachmentMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, csvImportMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { createRequestReleaseConnection } from '../common/import-connection';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
@@ -107,7 +107,7 @@ export class PortfolioProjectsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'admin')
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', csvImportMulterOptions))
   async importCsv(
     @UploadedFile() file: Express.Multer.File,
     @Query('dryRun') dryRun: string = 'true',

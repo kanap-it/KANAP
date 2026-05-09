@@ -64,7 +64,7 @@ async function testRejectsMismatchedHostAndTokenTenant() {
   );
 }
 
-async function testAllowsPlatformHostTenantMismatch() {
+async function testRejectsPlatformHostTenantMismatch() {
   process.env.JWT_SECRET = 'jwt-auth-guard-spec-secret';
   const guard = new JwtAuthGuard({
     getAllAndOverride: () => false,
@@ -77,16 +77,19 @@ async function testAllowsPlatformHostTenantMismatch() {
     isPlatformHost: true,
   };
 
-  const allowed = guard.canActivate(createContext(req));
-
-  assert.equal(allowed, true);
-  assert.equal(req.user.tenant_id, 'tenant-1');
+  assert.throws(
+    () => guard.canActivate(createContext(req)),
+    (error: unknown) => {
+      assert.ok(error instanceof UnauthorizedException);
+      return true;
+    },
+  );
 }
 
 async function run() {
   await testAllowsSameTenantRequests();
   await testRejectsMismatchedHostAndTokenTenant();
-  await testAllowsPlatformHostTenantMismatch();
+  await testRejectsPlatformHostTenantMismatch();
 }
 
 void run();

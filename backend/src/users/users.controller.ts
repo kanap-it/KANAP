@@ -65,7 +65,7 @@ export class UsersController {
 
   @Post()
   @UseGuards(PermissionGuard)
-  @RequireLevel('users', 'member')
+  @RequireLevel('users', 'admin')
   create(@Body() body: any, @Req() req: any) { return this.svc.createUser(body, { manager: req?.queryRunner?.manager }); }
 
   @Patch('me')

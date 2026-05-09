@@ -133,6 +133,7 @@ async function testHandleLoginCallbackSignsTokensWithTenantBoundManager() {
   assert.equal(state.tenantQueries[0]?.params?.[0], 'tenant-1');
   assert.equal(cookieCalls[0]?.name, 'refresh_token');
   assert.match(redirectTarget, /^http:\/\/alpha\.lvh\.me\/login\/callback#/);
+  assert.equal(redirectTarget.includes('refreshToken='), false);
 }
 
 async function run() {

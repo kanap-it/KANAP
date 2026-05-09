@@ -7,7 +7,7 @@ import { RequireLevel } from '../auth/require-level.decorator';
 import { AssetsService } from './services';
 import { AssetsDeleteService } from './assets-delete.service';
 import { AssetsCsvService } from './assets-csv.service';
-import { attachmentMulterOptions } from '../common/upload';
+import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
@@ -88,7 +88,7 @@ export class AssetsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('infrastructure', 'admin')
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', csvImportMulterOptions))
   async importCsv(
     @UploadedFile() file: Express.Multer.File,
     @Query('dryRun') dryRun: string = 'true',

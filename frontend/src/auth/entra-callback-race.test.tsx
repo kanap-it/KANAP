@@ -94,23 +94,7 @@ describe('Entra callback auth bootstrap race', () => {
   });
 
   it('skips bootstrap refresh on the callback route and preserves callback auth state', async () => {
-    vi.mocked(api.post).mockImplementation((url: string, body?: any) => {
-      if (url !== '/auth/refresh') {
-        throw new Error(`Unexpected POST ${url}`);
-      }
-
-      if (body?.refresh_token) {
-        return Promise.resolve({
-          data: {
-            access_token: 'callback-access-token',
-            expires_in: 900,
-            refresh_expires_in: 14400,
-          },
-        });
-      }
-
-      throw new Error('Bootstrap refresh should not run on the login callback route');
-    });
+    vi.mocked(api.post).mockRejectedValue(new Error('Refresh should not run on the login callback route'));
 
     vi.mocked(api.get).mockResolvedValue({
       data: {
@@ -136,7 +120,7 @@ describe('Entra callback auth bootstrap race', () => {
         initialEntries={[
           {
             pathname: '/login/callback',
-            hash: '#token=callback-token-from-fragment&refreshToken=fresh-refresh-token&expiresIn=900&refreshExpiresIn=14400&redirectTo=%2F',
+            hash: '#token=callback-token-from-fragment&expiresIn=900&refreshExpiresIn=14400&redirectTo=%2F',
           },
         ]}
       >
@@ -149,7 +133,7 @@ describe('Entra callback auth bootstrap race', () => {
     );
 
     await waitFor(() => {
-      expect(getAccessToken()).toBe('callback-access-token');
+      expect(getAccessToken()).toBe('callback-token-from-fragment');
     });
 
     expect(api.get).toHaveBeenCalledWith('/auth/me');
@@ -158,8 +142,7 @@ describe('Entra callback auth bootstrap race', () => {
       expect(screen.getByText('Home Page')).toBeInTheDocument();
     });
 
-    expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.post).toHaveBeenCalledWith('/auth/refresh', { refresh_token: 'fresh-refresh-token' });
-    expect(getAccessToken()).toBe('callback-access-token');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe('callback-token-from-fragment');
   });
 });
