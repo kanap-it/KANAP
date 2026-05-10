@@ -53,8 +53,7 @@ export default function LoginPage() {
     setSessionExpiredMessage(null);
     try {
       const res = await api.post('/auth/login', { email: username, password });
-      // New response format: { access_token, refresh_token, expires_in }
-      login(res.data as { access_token: string; refresh_token: string; expires_in: number });
+      login(res.data as { access_token: string; expires_in: number; refresh_expires_in?: number });
       navigate('/');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed');

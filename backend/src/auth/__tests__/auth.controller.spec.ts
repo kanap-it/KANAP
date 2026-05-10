@@ -104,7 +104,7 @@ async function testRefreshPassesTenantIdToAuthService() {
       tenant: { id: 'tenant-1' },
       queryRunner: { manager: { id: 'request-manager-1' } },
       secure: false,
-      headers: {},
+      headers: { 'x-forwarded-proto': 'https' },
     },
     response,
   );
@@ -114,6 +114,7 @@ async function testRefreshPassesTenantIdToAuthService() {
   assert.equal(result.access_token, 'new-access-token');
   assert.equal(calls[0]?.name, REFRESH_TOKEN_COOKIE_NAME);
   assert.equal(calls[0]?.value, 'refresh-token-1');
+  assert.equal(calls[0]?.options?.secure, true);
 }
 
 async function testLogoutPassesTenantIdToAuthService() {
@@ -131,7 +132,7 @@ async function testLogoutPassesTenantIdToAuthService() {
     {
       tenant: { id: 'tenant-1' },
       queryRunner: { manager: { id: 'request-manager-1' } },
-      headers: {},
+      headers: { 'x-forwarded-proto': 'https' },
     },
     response,
   );
@@ -141,6 +142,7 @@ async function testLogoutPassesTenantIdToAuthService() {
   assert.deepEqual(result, { ok: true });
   assert.equal(calls[0]?.name, REFRESH_TOKEN_COOKIE_NAME);
   assert.equal(calls[0]?.options?.maxAge, 0);
+  assert.equal(calls[0]?.options?.secure, true);
 }
 
 async function testLoginUsesTenantRunnerEvenWhenRequestRunnerIsReleased() {
@@ -175,6 +177,7 @@ async function testLoginUsesTenantRunnerEvenWhenRequestRunnerIsReleased() {
       tenant: { id: 'tenant-1' },
       queryRunner: { isReleased: true, manager: { id: 'released-manager' } },
       secure: false,
+      headers: { 'x-forwarded-proto': 'https' },
     },
     response,
   );
@@ -182,8 +185,13 @@ async function testLoginUsesTenantRunnerEvenWhenRequestRunnerIsReleased() {
   assert.equal(validateManager, tenantDb.manager);
   assert.equal(signManager, tenantDb.manager);
   assert.deepEqual(tenantDb.queries[0]?.params, ['tenant-1']);
-  assert.equal(result.refresh_token, 'refresh-token');
+  assert.equal((result as any).refresh_token, undefined);
+  assert.equal(result.access_token, 'access-token');
+  assert.equal(result.expires_in, 900);
+  assert.equal(result.refresh_expires_in, 14_400);
   assert.equal(calls[0]?.name, REFRESH_TOKEN_COOKIE_NAME);
+  assert.equal(calls[0]?.value, 'refresh-token');
+  assert.equal(calls[0]?.options?.secure, true);
 }
 
 async function run() {
