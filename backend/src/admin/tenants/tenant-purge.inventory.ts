@@ -66,6 +66,7 @@ export const TENANT_PURGE_TABLES = [
   // AI
   'ai_builtin_usage',
   'ai_mutation_previews',
+  'ai_message_attachments',
   'ai_messages',
   'ai_conversations',
   'ai_api_keys',
@@ -197,6 +198,7 @@ export const TENANT_PURGE_ATTACHMENT_TABLES = [
   'interface_attachments',
   'document_attachments',
   'asset_attachments',
+  'ai_message_attachments',
 ] as const;
 
 export function validateTenantPurgeConfiguration(): string[] {

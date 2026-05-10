@@ -432,6 +432,7 @@ async function testConversationsControllerReturnsMessagesWithConversationUsage()
         tool_calls: null,
         usage_json: { input_tokens: 3, output_tokens: 5 },
         created_at: '2026-03-24T10:00:00.000Z',
+        attachments: [],
       },
     ],
     conversation_usage: {
