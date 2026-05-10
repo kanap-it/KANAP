@@ -149,9 +149,7 @@ plugins:
             Configuration: Configuration
             Operations: Opérations
             Microsoft Entra SSO: Microsoft Entra SSO
-            AI: IA
-            "AI Assistant": "Assistant IA"
-            "AI Settings": "Paramètres de l'IA"
+            "Plaid Settings": "Paramètres Plaid"
             Integrations: Intégrations
             "Scheduled Tasks": "Tâches planifiées"
         - locale: de
@@ -217,9 +215,7 @@ plugins:
             Configuration: Konfiguration
             Operations: Betrieb
             Microsoft Entra SSO: Microsoft Entra SSO
-            AI: KI
-            "AI Assistant": "KI-Assistent"
-            "AI Settings": "KI-Einstellungen"
+            "Plaid Settings": "Plaid-Einstellungen"
             Integrations: Integrationen
             "Scheduled Tasks": "Geplante Aufgaben"
         - locale: es
@@ -285,9 +281,7 @@ plugins:
             Configuration: Configuración
             Operations: Operaciones
             Microsoft Entra SSO: Microsoft Entra SSO
-            AI: IA
-            "AI Assistant": "Asistente de IA"
-            "AI Settings": "Configuración de IA"
+            "Plaid Settings": "Configuración de Plaid"
             Integrations: Integraciones
             "Scheduled Tasks": "Tareas programadas"
   - search
@@ -348,13 +342,13 @@ nav:
       - Business Processes: business-processes.md
       - Analytics Dimensions: analytics.md
 
-  - AI:
-    - AI Assistant: ai-assistant.md
+  - Plaid:
+    - Plaid: ai-assistant.md
 
   - Administration:
     - Admin & Users: admin.md
     - Branding: branding.md
-    - AI Settings: ai-settings.md
+    - Plaid Settings: ai-settings.md
     - Integrations: integrations.md
     - Scheduled Tasks: scheduled-tasks.md
     - Master Data Administration: master-data-operations.md
