@@ -1,26 +1,29 @@
 # Branding
 
-Verwenden Sie die Branding-Seite, um Ihre Unternehmensidentität in KANAP anzuwenden.
+Verwenden Sie die Branding-Seite, um Ihre Unternehmensidentität in KANAP anzuwenden. Sie legen hier das Logo und die Primärfarben fest, und die Änderung ist für jeden Benutzer auf Ihrem Mandanten beim nächsten Neuladen der Seite sichtbar.
 
-Route: `/admin/branding`
+## Wo Sie es finden
 
-## Zugriff & Geltungsbereich
-
-- Erforderliche Berechtigung: `users:admin`
+- Arbeitsbereich: **Administration**-Menü → **Branding**
+- Route: `/admin/branding`
+- Berechtigung: `users:admin`
 - Nur auf Mandanten-Hosts verfügbar (nicht auf dem Plattform-Admin-Host)
-- Änderungen gelten nur für Ihren aktuellen Mandanten
+
+Änderungen gelten nur für Ihren aktuellen Mandanten.
 
 ## Was Sie anpassen können
 
+Die Seite hat zwei Karten: **Logo** und **Primärfarben**. Beide sind optional. Ohne Festlegung zeigt KANAP seine Standard-Text-und-Symbol-Kopfzeile und die Standard-Themenfarben.
+
 - **Logo**
   - Erscheint in der oberen App-Leiste (wenn angemeldet)
-  - Erscheint im Header der Anmeldeseite
+  - Erscheint in der Kopfzeile der Anmeldeseite
 - **Primärfarben**
-  - Eine Primärfarbe für den **Hellmodus**
-  - Eine Primärfarbe für den **Dunkelmodus**
-  - Werden für App-Leisten, primäre Schaltflächen und Links verwendet
+  - Eine Primärfarbe für den **Light-Modus**
+  - Eine Primärfarbe für den **Dark-Modus**
+  - Wird von der App-Leiste, primären Schaltflächen und Links verwendet
 
-## Logo einrichten
+## Logo-Einrichtung
 
 ### Unterstützte Dateien
 
@@ -29,54 +32,56 @@ Route: `/admin/branding`
 
 ### Empfohlenes Logo-Format
 
-- Verwenden Sie ein breites, horizontales Logo (transparenter Hintergrund bevorzugt)
-- Halten Sie wichtige Inhalte zentriert (der Header-Bereich ist kompakt)
-- Für scharfe Darstellung verwenden Sie mindestens ~2x Anzeigegröße (z. B. `280x72` oder höher)
+- Verwenden Sie ein breites, horizontales Logo (transparenter Hintergrund bevorzugt).
+- Halten Sie wichtige Inhalte zentriert – der Kopfzeilenbereich ist kompakt.
+- Für eine scharfe Darstellung verwenden Sie mindestens etwa die 2-fache Anzeigegröße (z. B. `280x72` oder höher).
 
-### Aktionen
+### So legen Sie es fest
 
-1. Klicken Sie auf **Logo hochladen** und wählen Sie Ihre Datei.
-2. Verwenden Sie die integrierten Vorschauen für hellen und dunklen Header zur Überprüfung.
-3. Aktivieren Sie bei Bedarf **Logo im Dunkelmodus anzeigen**.
-4. Klicken Sie auf **Änderungen speichern** zum Veröffentlichen.
+1. Klicken Sie auf **Logo hochladen** und wählen Sie Ihre Datei aus.
+2. Verwenden Sie die integrierten **Light**- und **Dark**-Kopfzeilenvorschauen, um das Erscheinungsbild zu validieren.
+3. Schalten Sie **Logo im Dark-Modus anzeigen** um, wenn Sie im dunklen Theme auf das Standard-Text-Branding zurückgreifen möchten.
+4. Klicken Sie auf **Änderungen speichern**, um zu veröffentlichen.
 
-Um das Logo zu entfernen, klicken Sie auf **Logo entfernen**.
+Um das aktuelle Logo zu entfernen, klicken Sie auf **Logo entfernen**.
 
-Wenn kein Logo gesetzt ist (oder die Dunkelmodus-Logo-Anzeige deaktiviert ist), verwendet KANAP das Standard-Text/Icon-Branding.
+Wenn kein Logo festgelegt ist oder wenn **Logo im Dark-Modus anzeigen** deaktiviert ist, greift KANAP im jeweiligen Theme auf sein Standard-Text-Branding zurück.
 
-## Primärfarben einrichten
+## Einrichtung der Primärfarbe
 
-### Wie Sie Farben auswählen
+Sie können Farben für **Primär Light-Modus** und **Primär Dark-Modus** unabhängig festlegen. Jede Farbauswahl bietet vier Möglichkeiten, einen Wert einzugeben:
 
-Sie können Farben festlegen mit:
 - Hex-Eingabe (`#RRGGBB`)
-- Farbauswahl-Schaltfläche
-- Voreingestellte Farbpaletten-Chips
-- **Löschen**-Schaltfläche (benutzerdefinierten Wert entfernen)
+- Ein Farbauswahldialog (Palettensymbol)
+- Voreingestellte Paletten-Chips (eine kuratierte Reihe pro Modus)
+- Eine Aktion **Löschen**, um den benutzerdefinierten Wert zu entfernen
 
-### Hell/Dunkel-Verhalten
+### Light/Dark-Verhalten
 
-- **Hellmodus-Primärfarbe** wird im Hellmodus verwendet.
-- **Dunkelmodus-Primärfarbe** wird im Dunkelmodus verwendet.
-- Wenn nur eine Farbe gesetzt ist, verwendet KANAP diese in beiden Modi.
-- Wenn beide leer sind, verwendet KANAP die Standardfarben.
+- **Primär Light-Modus** wird im Light-Modus verwendet.
+- **Primär Dark-Modus** wird im Dark-Modus verwendet.
+- Wenn nur ein Modus eine Farbe hat, verwendet KANAP diese Farbe im anderen Modus als Fallback.
+- Wenn beide Felder leer sind, verwendet KANAP seine Standard-Themenfarben.
 
 ### Kontrastwarnung
 
-Die Seite zeigt eine Warnung an, wenn der Kontrast niedrig ist.
-Diese Warnung ist beratend (Sie können trotzdem speichern), aber ein niedriger Kontrast kann die Lesbarkeit beeinträchtigen.
+Nachdem Sie Farben ausgewählt haben, bewertet die Seite, wie lesbar Text vor dem gewählten Hintergrund ist. Wenn der Kontrast für einen der Modi unter den lesbaren Schwellenwert fällt, erscheint eine beratende Warnung mit dem Kontrastverhältnis.
 
-## Speichern, Verwerfen und Zurücksetzen
+Die Warnung ist informativ – Sie können trotzdem speichern – aber niedriger Kontrast bedeutet normalerweise weißen Text auf einer hellen Farbe oder dunklen Text auf einer gesättigten Farbe, was beides in echten Oberflächen ermüdend zu lesen wird.
 
-- **Änderungen speichern**: Wendet das hochgeladene Logo + Farbeinstellungen an
-- **Verwerfen**: Setzt nicht gespeicherte Änderungen auf der Seite zurück
-- **Auf Standard zurücksetzen**: Entfernt das Logo und löscht alle benutzerdefinierten Farben
+## Speichern und Zurücksetzen
 
-Das Zurücksetzen erfordert eine Bestätigung.
+Drei Aktionen am unteren Rand der Seite steuern die Persistenz:
 
-## Tipps für professionelle Ergebnisse
+- **Änderungen speichern**: Speichert den ausgewählten Logo-Upload und die Farbwerte. Deaktiviert, wenn keine ausstehenden Änderungen vorliegen oder eine Hex-Eingabe ungültig ist.
+- **Verwerfen**: Setzt nicht gespeicherte Bearbeitungen auf der Seite zurück (betrifft nicht das, was bereits gespeichert ist).
+- **Auf Standard zurücksetzen**: Entfernt das gespeicherte Logo und löscht alle benutzerdefinierten Farben. Fragt vor der Ausführung um Bestätigung.
 
-- Testen Sie in beiden Designmodi (Hell und Dunkel), bevor Sie speichern.
-- Halten Sie Markenfarben sowohl vor weißen als auch vor dunklen Hintergründen gut lesbar.
-- Bevorzugen Sie schlichte Logos mit transparentem Hintergrund für die sauberste Header-Darstellung.
-- Verwenden Sie die Zurücksetzen-Funktion, um schnell die Standardwerte wiederherzustellen, wenn ein Teststil nicht zufriedenstellend ist.
+Eine kleine Beschriftung unter den Aktionen zeigt den Zähler **Logo-Version** an, der bei jedem Hochladen des Logos erhöht wird. Dies ist hauptsächlich ein Hinweis darauf, dass Browser-Caches aktualisiert werden.
+
+## Tipps
+
+- **In beiden Themes testen**: Wechseln Sie vor dem Speichern zwischen Light- und Dark-Theme – die gleiche Markenfarbe funktioniert selten in beiden Modi.
+- **Transparenten Hintergrund bevorzugen**: Einfache Logos mit transparentem Hintergrund ergeben die sauberste Kopfzeilen-Darstellung, besonders im Dark-Modus.
+- **Verwenden Sie Zurücksetzen bewusst**: Es entfernt sowohl das Logo als auch alle benutzerdefinierten Farben in einem Schritt. Verwenden Sie es, wenn Sie neu beginnen, nicht als „Rückgängig" für eine einzelne Änderung – dafür ist **Verwerfen**.
+- **Markenfarben sind für Akzente**: KANAP verwendet die Primärfarbe in App-Leisten, primären Schaltflächen und Links. Wählen Sie etwas, das in Schaltflächengröße sauber lesbar ist, nicht nur auf einer Marketing-Website.

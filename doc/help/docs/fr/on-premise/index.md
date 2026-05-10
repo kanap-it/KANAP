@@ -4,31 +4,31 @@ KANAP peut être déployé on-premise en **mode single-tenant**. Vous fournissez
 
 ## Guides
 
-- **[Installation](installation.md) :** Cloner, compiler, configurer et démarrer
-- **[Exemple d'installation](installation-example.md) :** Tutoriel pas à pas sur Ubuntu 24.04 avec PostgreSQL, MinIO et nginx
-- **[Installation assistée par IA](installation-ai.md) :** Installation en un seul prompt avec un agent IA de programmation
+- **[Installation](installation.md) :** Cloner, construire, configurer et démarrer
+- **[Exemple d'installation](installation-example.md) :** Guide pas à pas sur Ubuntu 24.04 avec PostgreSQL, MinIO et nginx
+- **[Installation assistée par IA](installation-ai.md) :** Installation en un seul prompt à l'aide d'un agent IA de codage
 - **[Configuration](configuration.md) :** Référence des variables d'environnement
-- **[Opérations](operations.md) :** Mises à jour, sauvegardes, supervision, dépannage
+- **[Exploitation](operations.md) :** Mises à niveau, sauvegardes, supervision, dépannage
 - **[SSO Microsoft Entra](sso-entra.md) :** Authentification unique optionnelle avec Microsoft Entra ID
 
 ## Ce qui est inclus
 
-- Fonctionnalités complètes de l'application (budgets, contrats, portefeuille, cartographie SI, reporting)
-- Migrations de base de données automatiques au démarrage
-- Provisionnement au premier démarrage (tenant, utilisateur admin, abonnement)
-- Authentification locale par nom d'utilisateur/mot de passe (aucune dépendance externe)
-- Email optionnel via l'API Resend ou SMTP géré par le client
+- Fonctionnalités complètes de l'application (budgets, contrats, portefeuille, opérations IT, reporting)
+- Migrations automatiques de la base de données au démarrage
+- Provisionnement au premier démarrage (tenant, utilisateur administrateur, abonnement)
+- Authentification locale par identifiant/mot de passe (sans dépendances externes)
+- E-mail optionnel via l'API Resend ou SMTP géré par le client
 - SSO Microsoft Entra optionnel
 
 ## Ce qui est désactivé
 
 - **Facturation / Stripe :** Désactivé automatiquement (pas de gestion d'abonnement nécessaire)
-- **Administration plateforme :** Single-tenant uniquement, pas d'interfaces de gestion multi-tenant
-- **Endpoints essai / facture support :** Non applicable au déploiement on-premise
+- **Administration de la plateforme :** Single-tenant uniquement, pas de surfaces de gestion multi-tenant
+- **Endpoints d'essai / facture de support :** Non applicables à l'on-premise
 
 ## Notes rapides
 
-- `DEPLOYMENT_MODE=single-tenant` est le seul commutateur qui active le mode on-premise.
-- `APP_BASE_URL` doit correspondre à votre URL publique pour les liens email et les exports.
-- Pour l'email sortant, choisissez soit **Resend** soit **SMTP**. SMTP est destiné uniquement aux déploiements single-tenant/on-premise.
-- Le backend retourne des réponses structurées `FEATURE_DISABLED` pour les fonctionnalités désactivées — l'interface les masque automatiquement.
+- `DEPLOYMENT_MODE=single-tenant` est le seul interrupteur qui active le mode on-premise.
+- `APP_BASE_URL` doit correspondre à votre URL publique pour les liens d'e-mails et les exports.
+- Pour l'e-mail sortant, choisissez soit **Resend** soit **SMTP**. SMTP est destiné aux déploiements single-tenant/on-prem uniquement.
+- Le backend retourne des réponses structurées `FEATURE_DISABLED` pour les fonctionnalités désactivées -- l'interface les masque automatiquement.

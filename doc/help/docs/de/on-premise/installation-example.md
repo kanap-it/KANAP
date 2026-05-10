@@ -1,18 +1,18 @@
 # Installationsbeispiel: Ubuntu 24.04
 
-Dieser Leitfaden führt durch eine vollständige On-Premise-Installation auf einem einzelnen Ubuntu 24.04-Server mit PostgreSQL auf dem Host, MinIO als S3-kompatibler Speicher und nginx als TLS-Reverse-Proxy. Er basiert auf einer realen, funktionierenden Bereitstellung.
+Dieser Leitfaden führt durch eine vollständige On-Premise-Installation auf einem einzelnen Ubuntu 24.04-Server, mit PostgreSQL auf dem Host, MinIO als S3-kompatibler Speicher und nginx als TLS-Reverse-Proxy. Er basiert auf einer realen, funktionierenden Bereitstellung.
 
-Passen Sie ihn an Ihre Umgebung an -- die Kernleitfäden [Installation](installation.md) und [Konfiguration](configuration.md) bleiben die Referenz.
+Passen Sie ihn an Ihre Umgebung an — die Kernleitfäden [Installation](installation.md) und [Konfiguration](configuration.md) bleiben die Referenz.
 
-!!! tip "Lieber automatisiert?"
-    Ein KI-gestützter Programmieragent kann diese gesamte Installation mit einem einzigen Prompt für Sie durchführen. Siehe [KI-gestützte Installation](installation-ai.md).
+!!! tip "Bevorzugen Sie Automatisierung?"
+    Ein Coding-AI-Agent kann diese gesamte Installation für Sie in einem einzigen Prompt ausführen. Siehe [AI-gestützte Installation](installation-ai.md).
 
 ## Architektur
 
 ```
 Browser → nginx (:443, TLS) → Docker-Container (api :8080, web :8081)
-                             → PostgreSQL (:5432, auf dem Host)
-                             → MinIO (:9000, auf dem Host)
+                             → PostgreSQL (:5432, auf Host)
+                             → MinIO (:9000, auf Host)
 ```
 
 Alle Dienste laufen auf einem einzelnen Server. Container erreichen Host-Dienste über `host.docker.internal`.
@@ -21,7 +21,7 @@ Alle Dienste laufen auf einem einzelnen Server. Container erreichen Host-Dienste
 
 ## 1. Docker Engine
 
-Docker aus dem offiziellen Repository installieren:
+Installieren Sie Docker aus dem offiziellen Repository:
 
 ```bash
 sudo apt-get update
@@ -41,7 +41,7 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
   docker-buildx-plugin docker-compose-plugin
 ```
 
-Fügen Sie Ihren Benutzer zur `docker`-Gruppe hinzu (ab- und wieder anmelden, damit es wirksam wird):
+Fügen Sie Ihren Benutzer zur `docker`-Gruppe hinzu (melden Sie sich ab und wieder an, damit es wirksam wird):
 
 ```bash
 sudo usermod -aG docker $USER
@@ -55,12 +55,12 @@ sudo usermod -aG docker $USER
 sudo apt-get install -y postgresql-16
 ```
 
-Datenbank, Benutzer und erforderliche Erweiterungen erstellen:
+Erstellen Sie die Datenbank, den Benutzer und die erforderlichen Erweiterungen:
 
 ```bash
 sudo -u postgres psql <<'SQL'
 CREATE DATABASE kanap;
-CREATE USER kanap WITH PASSWORD 'ihr-sicheres-passwort' NOSUPERUSER NOBYPASSRLS;
+CREATE USER kanap WITH PASSWORD 'your-secure-password' NOSUPERUSER NOBYPASSRLS;
 GRANT ALL PRIVILEGES ON DATABASE kanap TO kanap;
 SQL
 
@@ -72,34 +72,34 @@ GRANT ALL ON SCHEMA public TO kanap;
 SQL
 ```
 
-### Verbindungen von Docker-Containern erlauben
+### Verbindungen von Docker-Containern zulassen
 
-`/etc/postgresql/16/main/postgresql.conf` bearbeiten:
+Bearbeiten Sie `/etc/postgresql/16/main/postgresql.conf`:
 
 ```
 listen_addresses = '*'
 ```
 
-`/etc/postgresql/16/main/pg_hba.conf` bearbeiten -- vor den Standard-Host-Regeln hinzufügen:
+Bearbeiten Sie `/etc/postgresql/16/main/pg_hba.conf` — fügen Sie vor den Standard-Host-Regeln hinzu:
 
 ```
 host    kanap    kanap    172.16.0.0/12    scram-sha-256
 ```
 
-Dies erlaubt Verbindungen vom Docker-Bridge-Netzwerk. Für strengere Sicherheit verwenden Sie das exakte Docker-Subnetz (`docker network inspect bridge` zum Finden).
+Dies erlaubt Verbindungen vom Docker-Bridge-Netzwerk. Verwenden Sie für höhere Sicherheit das exakte Docker-Subnetz (`docker network inspect bridge`, um es zu finden).
 
-PostgreSQL neustarten und überprüfen:
+Starten Sie PostgreSQL neu und überprüfen Sie:
 
 ```bash
 sudo systemctl restart postgresql
-PGPASSWORD='ihr-sicheres-passwort' psql -h 127.0.0.1 -U kanap -d kanap -c "SELECT 1;"
+PGPASSWORD='your-secure-password' psql -h 127.0.0.1 -U kanap -d kanap -c "SELECT 1;"
 ```
 
 ---
 
 ## 3. MinIO (S3-kompatibler Speicher)
 
-MinIO-Server und -Client herunterladen:
+Laden Sie den MinIO-Server und -Client herunter:
 
 ```bash
 wget -q https://dl.min.io/server/minio/release/linux-amd64/minio -O /tmp/minio
@@ -111,7 +111,7 @@ sudo mv /tmp/mc /usr/local/bin/mc
 sudo chmod +x /usr/local/bin/mc
 ```
 
-Systembenutzer und Datenverzeichnis erstellen:
+Erstellen Sie einen Systembenutzer und ein Datenverzeichnis:
 
 ```bash
 sudo useradd -r -s /sbin/nologin minio-user
@@ -119,16 +119,16 @@ sudo mkdir -p /opt/minio/data
 sudo chown -R minio-user:minio-user /opt/minio
 ```
 
-MinIO konfigurieren -- `/etc/default/minio` erstellen:
+Konfigurieren Sie MinIO — erstellen Sie `/etc/default/minio`:
 
 ```
 MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=ihr-minio-admin-passwort
+MINIO_ROOT_PASSWORD=your-minio-admin-password
 MINIO_VOLUMES="/opt/minio/data"
 MINIO_OPTS="--address :9000 --console-address :9001"
 ```
 
-systemd-Dienst erstellen -- `/etc/systemd/system/minio.service`:
+Erstellen Sie den systemd-Dienst — `/etc/systemd/system/minio.service`:
 
 ```ini
 [Unit]
@@ -149,18 +149,18 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-MinIO aktivieren und starten, dann Bucket und Service-Account erstellen:
+Aktivieren und starten Sie MinIO, dann erstellen Sie den Bucket und ein Servicekonto:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable minio
 sudo systemctl start minio
 
-mc alias set localminio http://127.0.0.1:9000 minioadmin ihr-minio-admin-passwort
+mc alias set localminio http://127.0.0.1:9000 minioadmin your-minio-admin-password
 mc mb localminio/kanap-files
 mc admin user svcacct add localminio minioadmin \
-  --access-key ihr-s3-access-key \
-  --secret-key ihr-s3-secret-key
+  --access-key your-s3-access-key \
+  --secret-key your-s3-secret-key
 ```
 
 ---
@@ -174,62 +174,62 @@ cd kanap
 cp infra/.env.onprem.example .env
 ```
 
-`.env` mit Ihren Werten bearbeiten. Hier ein funktionierendes Beispiel für dieses Setup:
+Bearbeiten Sie `.env` mit Ihren Werten. Hier ist ein funktionierendes Beispiel für dieses Setup:
 
 ```env
-# DEPLOYMENT-MODUS
+# DEPLOYMENT MODE
 DEPLOYMENT_MODE=single-tenant
 
-# MANDANT
+# TENANT
 DEFAULT_TENANT_SLUG=default
-DEFAULT_TENANT_NAME=Meine Organisation
+DEFAULT_TENANT_NAME=My Organization
 
-# ADMIN-ZUGANGSDATEN
-ADMIN_EMAIL=admin@firma.de
-ADMIN_PASSWORD=AendernSieNachErsterAnmeldung!
+# ADMIN CREDENTIALS
+ADMIN_EMAIL=admin@company.com
+ADMIN_PASSWORD=ChangeThisAfterFirstLogin!
 
-# SICHERHEIT
-JWT_SECRET=<Ausgabe von: openssl rand -hex 32>
+# SECURITY
+JWT_SECRET=<output of: openssl rand -hex 32>
 
-# ANWENDUNGS-URL
-APP_BASE_URL=https://kanap.firma.de
+# APPLICATION URL
+APP_BASE_URL=https://kanap.company.com
 
 # CORS
-CORS_ORIGINS=https://kanap.firma.de
+CORS_ORIGINS=https://kanap.company.com
 
-# DATENBANK — host.docker.internal erreicht den Host von Docker aus
-DATABASE_URL=postgres://kanap:ihr-sicheres-passwort@host.docker.internal:5432/kanap?sslmode=disable
+# DATABASE — host.docker.internal reaches the host from inside Docker
+DATABASE_URL=postgres://kanap:your-secure-password@host.docker.internal:5432/kanap?sslmode=disable
 
-# SPEICHER — MinIO auf dem Host
+# STORAGE — MinIO on the host
 S3_ENDPOINT=http://host.docker.internal:9000
 S3_BUCKET=kanap-files
 S3_REGION=us-east-1
-AWS_ACCESS_KEY_ID=ihr-s3-access-key
-AWS_SECRET_ACCESS_KEY=ihr-s3-secret-key
+AWS_ACCESS_KEY_ID=your-s3-access-key
+AWS_SECRET_ACCESS_KEY=your-s3-secret-key
 S3_FORCE_PATH_STYLE=true
 
-# E-MAIL (optional — wählen Sie einen Transport, um Einladungen, Passwortzurücksetzung, Benachrichtigungen zu aktivieren)
+# EMAIL (optional — choose one transport to enable invitations, password reset, notifications)
 # RESEND_API_KEY=re_xxxxx
-# RESEND_FROM_EMAIL=KANAP <noreply@ihredomain.de>
+# RESEND_FROM_EMAIL=KANAP <noreply@yourdomain.com>
 
-# SMTP (nur Single-Tenant / On-Premise)
-# SMTP_HOST=smtp.firma.de
+# SMTP (single-tenant / on-prem only)
+# SMTP_HOST=smtp.company.com
 # SMTP_PORT=587
 # SMTP_SECURE=false
-# SMTP_USER=noreply@firma.de
-# SMTP_PASSWORD=ihr-smtp-passwort
-# SMTP_FROM=KANAP <noreply@firma.de>
+# SMTP_USER=noreply@company.com
+# SMTP_PASSWORD=your-smtp-password
+# SMTP_FROM=KANAP <noreply@company.com>
 ```
 
-**Wichtig:** Generieren Sie ein echtes JWT-Secret (`openssl rand -hex 32`) -- verwenden Sie keine Beispielwerte.
+**Wichtig:** Generieren Sie ein echtes JWT-Secret (`openssl rand -hex 32`) — verwenden Sie keine Beispielwerte.
 
-Wenn Sie per IP-Adresse statt Domain auf KANAP zugreifen, setzen Sie `APP_BASE_URL` und `CORS_ORIGINS` auf `https://IHRE_IP`.
+Wenn Sie auf KANAP über die IP-Adresse anstelle einer Domäne zugreifen, setzen Sie `APP_BASE_URL` und `CORS_ORIGINS` auf `https://YOUR_IP`.
 
-Wenn Sie SMTP statt Resend verwenden, stellen Sie sicher, dass der SMTP-Server E-Mail von der `SMTP_FROM`-Adresse akzeptiert und dass SPF-, DKIM- und DMARC-Einstellungen Ihrer Domain bereits vorhanden sind, falls Nachrichten Ihr internes Netzwerk verlassen.
+Wenn Sie SMTP anstelle von Resend verwenden, stellen Sie sicher, dass der SMTP-Server E-Mails von der `SMTP_FROM`-Adresse akzeptiert und dass die SPF-, DKIM- und DMARC-Einstellungen Ihrer Domäne bereits eingerichtet sind, falls Nachrichten Ihr internes Netzwerk verlassen.
 
 ---
 
-## 5. Bauen und Starten
+## 5. Bauen und starten
 
 ```bash
 cd /opt/kanap
@@ -238,17 +238,17 @@ docker build -t kanap-web:latest ./frontend
 docker compose -f infra/compose.onprem.yml up -d
 ```
 
-Logs prüfen -- auf die „Application started"-Meldung warten:
+Überprüfen Sie die Logs — warten Sie auf die Meldung „Application started":
 
 ```bash
 docker compose -f infra/compose.onprem.yml logs -f api
 ```
 
-Beim ersten Start führt KANAP Migrationen durch und erstellt automatisch Mandant, Admin-Benutzer und Abonnement.
+Beim ersten Start führt KANAP Migrationen aus und erstellt automatisch den Mandanten, den Admin-Benutzer und das Abonnement.
 
 ---
 
-## 6. Nginx Reverse Proxy mit TLS
+## 6. Nginx-Reverse-Proxy mit TLS
 
 ```bash
 sudo apt-get install -y nginx
@@ -256,7 +256,7 @@ sudo apt-get install -y nginx
 
 ### TLS-Zertifikat
 
-Wenn Sie eine Domain mit einem ordnungsgemäßen Zertifikat haben, verwenden Sie dieses. Andernfalls generieren Sie ein selbstsigniertes Zertifikat:
+Wenn Sie eine Domäne mit einem gültigen Zertifikat haben, verwenden Sie diese. Andernfalls generieren Sie ein selbstsigniertes Zertifikat:
 
 ```bash
 sudo mkdir -p /etc/ssl/kanap
@@ -264,11 +264,11 @@ sudo openssl req -x509 -nodes -days 365 \
   -newkey rsa:2048 \
   -keyout /etc/ssl/kanap/server.key \
   -out /etc/ssl/kanap/server.crt \
-  -subj "/CN=kanap.firma.de" \
-  -addext "subjectAltName=DNS:kanap.firma.de"
+  -subj "/CN=kanap.company.com" \
+  -addext "subjectAltName=DNS:kanap.company.com"
 ```
 
-Für IP-basierten Zugang (keine Domain) ersetzen Sie die `-subj` und `-addext` Werte:
+Für IP-basierten Zugriff (keine Domäne) ersetzen Sie die Werte für `-subj` und `-addext`:
 
 ```bash
   -subj "/CN=192.168.1.83" \
@@ -277,13 +277,13 @@ Für IP-basierten Zugang (keine Domain) ersetzen Sie die `-subj` und `-addext` W
 
 ### Site-Konfiguration
 
-`/etc/nginx/sites-available/kanap` erstellen:
+Erstellen Sie `/etc/nginx/sites-available/kanap`:
 
 ```nginx
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name kanap.firma.de;
+    server_name kanap.company.com;
 
     ssl_certificate     /etc/ssl/kanap/server.crt;
     ssl_certificate_key /etc/ssl/kanap/server.key;
@@ -293,10 +293,10 @@ server {
 
     client_max_body_size 20m;
 
-    # /api → /api/ kanonisieren
+    # Canonicalize /api → /api/
     location = /api { return 301 /api/; }
 
-    # API: /api-Präfix vor dem Proxying entfernen
+    # API: strip /api prefix before proxying
     location ^~ /api/ {
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host              $host;
@@ -314,7 +314,7 @@ server {
         proxy_redirect off;
     }
 
-    # Alles andere → SPA
+    # Everything else → SPA
     location / {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host              $host;
@@ -332,12 +332,12 @@ server {
 server {
     listen 80;
     listen [::]:80;
-    server_name kanap.firma.de;
+    server_name kanap.company.com;
     return 301 https://$host$request_uri;
 }
 ```
 
-Site aktivieren und nginx neustarten:
+Aktivieren Sie die Site und starten Sie nginx neu:
 
 ```bash
 sudo ln -sf /etc/nginx/sites-available/kanap /etc/nginx/sites-enabled/kanap
@@ -348,15 +348,15 @@ sudo systemctl restart nginx
 
 ---
 
-## 7. Überprüfen
+## 7. Verifizieren
 
 ```bash
-# API-Healthcheck
-curl -sk https://kanap.firma.de/api/health
+# API-Health-Check
+curl -sk https://kanap.company.com/api/health
 # Erwartet: {"status":"ok"}
 
 # Frontend
-curl -sk -o /dev/null -w "%{http_code}" https://kanap.firma.de/
+curl -sk -o /dev/null -w "%{http_code}" https://kanap.company.com/
 # Erwartet: 200
 ```
 
@@ -364,24 +364,24 @@ curl -sk -o /dev/null -w "%{http_code}" https://kanap.firma.de/
 
 ## 8. Erste Anmeldung
 
-1. Öffnen Sie Ihre KANAP-URL im Browser (akzeptieren Sie die Zertifikatswarnung bei selbstsigniertem TLS)
+1. Öffnen Sie Ihre KANAP-URL in einem Browser (akzeptieren Sie die Zertifikatswarnung, wenn Sie selbstsigniertes TLS verwenden)
 2. Melden Sie sich mit `ADMIN_EMAIL` / `ADMIN_PASSWORD` aus `.env` an
 3. **Ändern Sie sofort das Admin-Passwort** über das Benutzerprofil
-4. Konfigurieren Sie den Organisationsnamen in den Admin-Einstellungen
-5. Laden Sie weitere Benutzer ein (wenn E-Mail konfiguriert ist)
+4. Konfigurieren Sie Ihren Organisationsnamen in den Admin-Einstellungen
+5. Laden Sie zusätzliche Benutzer ein (wenn E-Mail konfiguriert ist)
 
 ---
 
 ## Dienste-Übersicht
 
-| Dienst     | Verwaltet durch | Konfigurationsort                        |
-|------------|-----------------|------------------------------------------|
-| Docker     | systemd         | --                                       |
-| PostgreSQL | systemd         | `/etc/postgresql/16/main/postgresql.conf` |
-| MinIO      | systemd         | `/etc/default/minio`                     |
-| KANAP API  | Docker Compose  | `.env` + `infra/compose.onprem.yml`      |
-| KANAP Web  | Docker Compose  | `.env` + `infra/compose.onprem.yml`      |
-| nginx      | systemd         | `/etc/nginx/sites-available/kanap`       |
+| Dienst    | Verwaltet von  | Konfigurations-Standort                  |
+|------------|----------------|------------------------------------------|
+| Docker     | systemd        | —                                        |
+| PostgreSQL | systemd        | `/etc/postgresql/16/main/postgresql.conf` |
+| MinIO      | systemd        | `/etc/default/minio`                     |
+| KANAP API  | Docker Compose | `.env` + `infra/compose.onprem.yml`      |
+| KANAP Web  | Docker Compose | `.env` + `infra/compose.onprem.yml`      |
+| nginx      | systemd        | `/etc/nginx/sites-available/kanap`       |
 
 ## Nützliche Befehle
 
@@ -389,13 +389,13 @@ curl -sk -o /dev/null -w "%{http_code}" https://kanap.firma.de/
 # Logs anzeigen
 docker compose -f infra/compose.onprem.yml logs -f
 
-# KANAP neustarten
+# KANAP neu starten
 docker compose -f infra/compose.onprem.yml restart
 
 # KANAP stoppen
 docker compose -f infra/compose.onprem.yml down
 
-# Nach Update neu bauen
+# Nach einem Update neu bauen
 git pull origin main
 docker build -t kanap-api:latest ./backend
 docker build -t kanap-web:latest ./frontend

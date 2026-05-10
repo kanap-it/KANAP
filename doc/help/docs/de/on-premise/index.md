@@ -4,31 +4,31 @@ KANAP kann On-Premise im **Single-Tenant-Modus** bereitgestellt werden. Sie stel
 
 ## Leitfäden
 
-- **[Installation](installation.md):** Klonen, Bauen, Konfigurieren und Starten
+- **[Installation](installation.md):** Klonen, bauen, konfigurieren und starten
 - **[Installationsbeispiel](installation-example.md):** Schritt-für-Schritt-Anleitung auf Ubuntu 24.04 mit PostgreSQL, MinIO und nginx
-- **[KI-gestützte Installation](installation-ai.md):** Installation mit einem einzigen Prompt über einen KI-Programmieragenten
-- **[Konfiguration](configuration.md):** Umgebungsvariablen-Referenz
+- **[AI-gestützte Installation](installation-ai.md):** Installation mit einem einzigen Prompt unter Verwendung eines Coding-AI-Agenten
+- **[Konfiguration](configuration.md):** Referenz für Umgebungsvariablen
 - **[Betrieb](operations.md):** Upgrades, Backups, Monitoring, Fehlerbehebung
 - **[Microsoft Entra SSO](sso-entra.md):** Optionales Single Sign-On mit Microsoft Entra ID
 
 ## Was enthalten ist
 
-- Volle Anwendungsfunktionalität (Budgets, Verträge, Portfolio, IT-Betrieb, Berichte)
+- Vollständige Anwendungsfunktionalität (Budgets, Verträge, Portfolio, IT-Betrieb, Berichterstellung)
 - Automatische Datenbankmigrationen beim Start
-- Erststart-Bereitstellung (Mandant, Admin-Benutzer, Abonnement)
+- Bereitstellung beim ersten Start (Mandant, Admin-Benutzer, Abonnement)
 - Lokale Benutzername/Passwort-Authentifizierung (keine externen Abhängigkeiten)
-- Optionaler E-Mail-Versand über Resend API oder kundeneigenen SMTP
+- Optionale E-Mail über Resend API oder kundenverwaltetes SMTP
 - Optionales Microsoft Entra SSO
 
 ## Was deaktiviert ist
 
-- **Abrechnung / Stripe:** Automatisch deaktiviert (keine Abonnementverwaltung nötig)
+- **Abrechnung / Stripe:** Automatisch deaktiviert (keine Abonnementverwaltung erforderlich)
 - **Plattform-Admin:** Nur Single-Tenant, keine Multi-Tenant-Verwaltungsoberflächen
-- **Test- / Support-Rechnungsendpunkte:** Nicht zutreffend für On-Premise
+- **Trial- / Support-Rechnungs-Endpunkte:** Nicht für On-Premise zutreffend
 
-## Kurzhinweise
+## Schnelle Hinweise
 
-- `DEPLOYMENT_MODE=single-tenant` ist der einzige Schalter, der den On-Premise-Modus aktiviert.
-- `APP_BASE_URL` muss Ihrer öffentlichen URL für E-Mail-Links und Exporte entsprechen.
-- Für ausgehende E-Mail wählen Sie entweder **Resend** oder **SMTP**. SMTP ist nur für Single-Tenant/On-Premise-Bereitstellungen vorgesehen.
-- Das Backend gibt strukturierte `FEATURE_DISABLED`-Antworten für deaktivierte Funktionen zurück -- die Benutzeroberfläche blendet sie automatisch aus.
+- `DEPLOYMENT_MODE=single-tenant` ist der einzelne Schalter, der den On-Premise-Modus aktiviert.
+- `APP_BASE_URL` muss mit Ihrer öffentlichen URL für E-Mail-Links und Exporte übereinstimmen.
+- Wählen Sie für ausgehende E-Mails entweder **Resend** oder **SMTP**. SMTP ist nur für Single-Tenant-/On-Prem-Bereitstellungen vorgesehen.
+- Das Backend gibt strukturierte `FEATURE_DISABLED`-Antworten für deaktivierte Funktionen zurück — die UI blendet sie automatisch aus.

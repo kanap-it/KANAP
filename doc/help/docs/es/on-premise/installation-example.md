@@ -2,20 +2,20 @@
 
 Esta guía describe una instalación local completa en un único servidor Ubuntu 24.04, usando PostgreSQL en el host, MinIO para almacenamiento compatible con S3 y nginx como proxy inverso TLS. Se basa en un despliegue real y funcional.
 
-Adáptela a su entorno — las guías principales de [Instalación](installation.md) y [Configuración](configuration.md) siguen siendo la referencia.
+Adáptela a su entorno — las guías centrales de [Instalación](installation.md) y [Configuración](configuration.md) siguen siendo la referencia.
 
-!!! tip "¿Prefiere automatizar?"
+!!! tip "¿Prefiere automatización?"
     Un agente de programación con IA puede ejecutar toda esta instalación por usted con un solo prompt. Consulte [Instalación asistida por IA](installation-ai.md).
 
 ## Arquitectura
 
 ```
 Navegador → nginx (:443, TLS) → Contenedores Docker (api :8080, web :8081)
-                               → PostgreSQL (:5432, en el host)
-                               → MinIO (:9000, en el host)
+                              → PostgreSQL (:5432, en el host)
+                              → MinIO (:9000, en el host)
 ```
 
-Todos los servicios se ejecutan en un único servidor. Los contenedores acceden a los servicios del host a través de `host.docker.internal`.
+Todos los servicios se ejecutan en un único servidor. Los contenedores acceden a los servicios del host vía `host.docker.internal`.
 
 ---
 
@@ -41,7 +41,7 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
   docker-buildx-plugin docker-compose-plugin
 ```
 
-Añada su usuario al grupo `docker` (cierre sesión y vuelva a iniciarla para que surta efecto):
+Añada su usuario al grupo `docker` (cierre la sesión y vuelva a entrar para que surta efecto):
 
 ```bash
 sudo usermod -aG docker $USER
@@ -60,7 +60,7 @@ Cree la base de datos, el usuario y las extensiones requeridas:
 ```bash
 sudo -u postgres psql <<'SQL'
 CREATE DATABASE kanap;
-CREATE USER kanap WITH PASSWORD 'su-contraseña-segura' NOSUPERUSER NOBYPASSRLS;
+CREATE USER kanap WITH PASSWORD 'your-secure-password' NOSUPERUSER NOBYPASSRLS;
 GRANT ALL PRIVILEGES ON DATABASE kanap TO kanap;
 SQL
 
@@ -86,20 +86,20 @@ Edite `/etc/postgresql/16/main/pg_hba.conf` — añada antes de las reglas de ho
 host    kanap    kanap    172.16.0.0/12    scram-sha-256
 ```
 
-Esto permite conexiones desde la red bridge de Docker. Para mayor seguridad, use la subred Docker exacta (`docker network inspect bridge` para encontrarla).
+Esto permite conexiones desde la red puente de Docker. Para mayor seguridad, use la subred Docker exacta (`docker network inspect bridge` para encontrarla).
 
 Reinicie PostgreSQL y verifique:
 
 ```bash
 sudo systemctl restart postgresql
-PGPASSWORD='su-contraseña-segura' psql -h 127.0.0.1 -U kanap -d kanap -c "SELECT 1;"
+PGPASSWORD='your-secure-password' psql -h 127.0.0.1 -U kanap -d kanap -c "SELECT 1;"
 ```
 
 ---
 
 ## 3. MinIO (almacenamiento compatible con S3)
 
-Descargue el servidor y cliente MinIO:
+Descargue el servidor y el cliente de MinIO:
 
 ```bash
 wget -q https://dl.min.io/server/minio/release/linux-amd64/minio -O /tmp/minio
@@ -111,7 +111,7 @@ sudo mv /tmp/mc /usr/local/bin/mc
 sudo chmod +x /usr/local/bin/mc
 ```
 
-Cree un usuario del sistema y directorio de datos:
+Cree un usuario del sistema y un directorio de datos:
 
 ```bash
 sudo useradd -r -s /sbin/nologin minio-user
@@ -123,7 +123,7 @@ Configure MinIO — cree `/etc/default/minio`:
 
 ```
 MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=su-contraseña-admin-minio
+MINIO_ROOT_PASSWORD=your-minio-admin-password
 MINIO_VOLUMES="/opt/minio/data"
 MINIO_OPTS="--address :9000 --console-address :9001"
 ```
@@ -149,18 +149,18 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-Habilite e inicie MinIO, luego cree el bucket y una cuenta de servicio:
+Active e inicie MinIO, luego cree el bucket y una cuenta de servicio:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable minio
 sudo systemctl start minio
 
-mc alias set localminio http://127.0.0.1:9000 minioadmin su-contraseña-admin-minio
+mc alias set localminio http://127.0.0.1:9000 minioadmin your-minio-admin-password
 mc mb localminio/kanap-files
 mc admin user svcacct add localminio minioadmin \
-  --access-key su-clave-acceso-s3 \
-  --secret-key su-clave-secreta-s3
+  --access-key your-s3-access-key \
+  --secret-key your-s3-secret-key
 ```
 
 ---
@@ -174,62 +174,62 @@ cd kanap
 cp infra/.env.onprem.example .env
 ```
 
-Edite `.env` con sus valores. Aquí tiene un ejemplo funcional para esta configuración:
+Edite `.env` con sus valores. Aquí hay un ejemplo funcional para esta configuración:
 
 ```env
-# MODO DE DESPLIEGUE
+# DEPLOYMENT MODE
 DEPLOYMENT_MODE=single-tenant
 
-# ESPACIO DE TRABAJO
+# TENANT
 DEFAULT_TENANT_SLUG=default
-DEFAULT_TENANT_NAME=Mi Organización
+DEFAULT_TENANT_NAME=My Organization
 
-# CREDENCIALES DE ADMINISTRADOR
-ADMIN_EMAIL=admin@empresa.com
-ADMIN_PASSWORD=CambieEstoDespuesDelPrimerInicio!
+# ADMIN CREDENTIALS
+ADMIN_EMAIL=admin@company.com
+ADMIN_PASSWORD=ChangeThisAfterFirstLogin!
 
-# SEGURIDAD
-JWT_SECRET=<resultado de: openssl rand -hex 32>
+# SECURITY
+JWT_SECRET=<output of: openssl rand -hex 32>
 
-# URL DE LA APLICACIÓN
-APP_BASE_URL=https://kanap.empresa.com
+# APPLICATION URL
+APP_BASE_URL=https://kanap.company.com
 
 # CORS
-CORS_ORIGINS=https://kanap.empresa.com
+CORS_ORIGINS=https://kanap.company.com
 
-# BASE DE DATOS — host.docker.internal accede al host desde dentro de Docker
-DATABASE_URL=postgres://kanap:su-contraseña-segura@host.docker.internal:5432/kanap?sslmode=disable
+# DATABASE — host.docker.internal reaches the host from inside Docker
+DATABASE_URL=postgres://kanap:your-secure-password@host.docker.internal:5432/kanap?sslmode=disable
 
-# ALMACENAMIENTO — MinIO en el host
+# STORAGE — MinIO on the host
 S3_ENDPOINT=http://host.docker.internal:9000
 S3_BUCKET=kanap-files
 S3_REGION=us-east-1
-AWS_ACCESS_KEY_ID=su-clave-acceso-s3
-AWS_SECRET_ACCESS_KEY=su-clave-secreta-s3
+AWS_ACCESS_KEY_ID=your-s3-access-key
+AWS_SECRET_ACCESS_KEY=your-s3-secret-key
 S3_FORCE_PATH_STYLE=true
 
-# CORREO (opcional — elija un transporte para habilitar invitaciones, restablecimiento de contraseña, notificaciones)
+# EMAIL (optional — choose one transport to enable invitations, password reset, notifications)
 # RESEND_API_KEY=re_xxxxx
-# RESEND_FROM_EMAIL=KANAP <noreply@sudominio.com>
+# RESEND_FROM_EMAIL=KANAP <noreply@yourdomain.com>
 
-# SMTP (solo inquilino único / local)
-# SMTP_HOST=smtp.empresa.com
+# SMTP (single-tenant / on-prem only)
+# SMTP_HOST=smtp.company.com
 # SMTP_PORT=587
 # SMTP_SECURE=false
-# SMTP_USER=noreply@empresa.com
-# SMTP_PASSWORD=su-contraseña-smtp
-# SMTP_FROM=KANAP <noreply@empresa.com>
+# SMTP_USER=noreply@company.com
+# SMTP_PASSWORD=your-smtp-password
+# SMTP_FROM=KANAP <noreply@company.com>
 ```
 
-**Importante:** Genere un secreto JWT real (`openssl rand -hex 32`) — no reutilice valores de ejemplo.
+**Importante:** Genere un secreto JWT real (`openssl rand -hex 32`) — no reutilice los valores de ejemplo.
 
-Si accede a KANAP por dirección IP en lugar de dominio, establezca `APP_BASE_URL` y `CORS_ORIGINS` a `https://SU_IP`.
+Si accede a KANAP por dirección IP en lugar de un dominio, establezca `APP_BASE_URL` y `CORS_ORIGINS` en `https://YOUR_IP`.
 
-Si usa SMTP en lugar de Resend, asegúrese de que el servidor SMTP acepte correo desde la dirección `SMTP_FROM` y que la configuración SPF, DKIM y DMARC de su dominio ya esté en su lugar si los mensajes salen de su red interna.
+Si usa SMTP en lugar de Resend, asegúrese de que el servidor SMTP acepte correo desde la dirección `SMTP_FROM` y de que la configuración SPF, DKIM y DMARC de su dominio esté ya en su lugar si los mensajes salen de su red interna.
 
 ---
 
-## 5. Construir e iniciar
+## 5. Compilar e iniciar
 
 ```bash
 cd /opt/kanap
@@ -238,13 +238,13 @@ docker build -t kanap-web:latest ./frontend
 docker compose -f infra/compose.onprem.yml up -d
 ```
 
-Revise los registros — espere el mensaje "Application started":
+Compruebe los registros — espere el mensaje "Application started":
 
 ```bash
 docker compose -f infra/compose.onprem.yml logs -f api
 ```
 
-En el primer arranque, KANAP ejecuta las migraciones y crea el espacio de trabajo, usuario administrador y suscripción automáticamente.
+En el primer arranque, KANAP ejecuta las migraciones y crea automáticamente el espacio de trabajo, el usuario administrador y la suscripción.
 
 ---
 
@@ -264,8 +264,8 @@ sudo openssl req -x509 -nodes -days 365 \
   -newkey rsa:2048 \
   -keyout /etc/ssl/kanap/server.key \
   -out /etc/ssl/kanap/server.crt \
-  -subj "/CN=kanap.empresa.com" \
-  -addext "subjectAltName=DNS:kanap.empresa.com"
+  -subj "/CN=kanap.company.com" \
+  -addext "subjectAltName=DNS:kanap.company.com"
 ```
 
 Para acceso basado en IP (sin dominio), reemplace los valores de `-subj` y `-addext`:
@@ -283,7 +283,7 @@ Cree `/etc/nginx/sites-available/kanap`:
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name kanap.empresa.com;
+    server_name kanap.company.com;
 
     ssl_certificate     /etc/ssl/kanap/server.crt;
     ssl_certificate_key /etc/ssl/kanap/server.key;
@@ -293,10 +293,10 @@ server {
 
     client_max_body_size 20m;
 
-    # Canonicalizar /api → /api/
+    # Canonicalize /api → /api/
     location = /api { return 301 /api/; }
 
-    # API: quitar prefijo /api antes de hacer proxy
+    # API: strip /api prefix before proxying
     location ^~ /api/ {
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host              $host;
@@ -314,7 +314,7 @@ server {
         proxy_redirect off;
     }
 
-    # Todo lo demás → SPA
+    # Everything else → SPA
     location / {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host              $host;
@@ -332,12 +332,12 @@ server {
 server {
     listen 80;
     listen [::]:80;
-    server_name kanap.empresa.com;
+    server_name kanap.company.com;
     return 301 https://$host$request_uri;
 }
 ```
 
-Habilite el sitio y reinicie nginx:
+Active el sitio y reinicie nginx:
 
 ```bash
 sudo ln -sf /etc/nginx/sites-available/kanap /etc/nginx/sites-enabled/kanap
@@ -352,11 +352,11 @@ sudo systemctl restart nginx
 
 ```bash
 # Verificación de salud de la API
-curl -sk https://kanap.empresa.com/api/health
+curl -sk https://kanap.company.com/api/health
 # Esperado: {"status":"ok"}
 
 # Frontend
-curl -sk -o /dev/null -w "%{http_code}" https://kanap.empresa.com/
+curl -sk -o /dev/null -w "%{http_code}" https://kanap.company.com/
 # Esperado: 200
 ```
 
@@ -364,24 +364,24 @@ curl -sk -o /dev/null -w "%{http_code}" https://kanap.empresa.com/
 
 ## 8. Primer inicio de sesión
 
-1. Abra su URL de KANAP en un navegador (acepte la advertencia de certificado si usa TLS autofirmado)
-2. Inicie sesión con `ADMIN_EMAIL` / `ADMIN_PASSWORD` de `.env`
-3. **Cambie la contraseña del administrador inmediatamente** mediante el perfil de usuario
-4. Configure el nombre de su organización en los ajustes de Administración
-5. Invite a usuarios adicionales (si el correo está configurado)
+1. Abra su URL de KANAP en un navegador (acepte la advertencia del certificado si usa TLS autofirmado)
+2. Inicie sesión con el `ADMIN_EMAIL` / `ADMIN_PASSWORD` de `.env`
+3. **Cambie inmediatamente la contraseña del administrador** mediante el perfil de usuario
+4. Configure el nombre de su organización en la configuración de Administración
+5. Invite a usuarios adicionales (si el correo electrónico está configurado)
 
 ---
 
 ## Resumen de servicios
 
-| Servicio   | Gestionado por | Ubicación de configuración                |
-|------------|----------------|-------------------------------------------|
-| Docker     | systemd        | —                                         |
-| PostgreSQL | systemd        | `/etc/postgresql/16/main/postgresql.conf`  |
-| MinIO      | systemd        | `/etc/default/minio`                      |
-| KANAP API  | Docker Compose | `.env` + `infra/compose.onprem.yml`       |
-| KANAP Web  | Docker Compose | `.env` + `infra/compose.onprem.yml`       |
-| nginx      | systemd        | `/etc/nginx/sites-available/kanap`        |
+| Servicio   | Gestionado por | Ubicación de la configuración            |
+|------------|----------------|------------------------------------------|
+| Docker     | systemd        | —                                        |
+| PostgreSQL | systemd        | `/etc/postgresql/16/main/postgresql.conf` |
+| MinIO      | systemd        | `/etc/default/minio`                     |
+| KANAP API  | Docker Compose | `.env` + `infra/compose.onprem.yml`      |
+| KANAP Web  | Docker Compose | `.env` + `infra/compose.onprem.yml`      |
+| nginx      | systemd        | `/etc/nginx/sites-available/kanap`       |
 
 ## Comandos útiles
 
@@ -395,13 +395,13 @@ docker compose -f infra/compose.onprem.yml restart
 # Detener KANAP
 docker compose -f infra/compose.onprem.yml down
 
-# Reconstruir después de actualizar
+# Recompilar tras una actualización
 git pull origin main
 docker build -t kanap-api:latest ./backend
 docker build -t kanap-web:latest ./frontend
 docker compose -f infra/compose.onprem.yml up -d
 
-# Verificar todos los servicios
+# Comprobar todos los servicios
 sudo systemctl status postgresql nginx minio
 docker compose -f infra/compose.onprem.yml ps
 ```

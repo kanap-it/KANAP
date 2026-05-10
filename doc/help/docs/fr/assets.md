@@ -1,71 +1,79 @@
 # Actifs
 
-Les actifs documentent votre inventaire d'infrastructure -- serveurs physiques, machines virtuelles, conteneurs, instances cloud et équipements réseau. Liez les actifs aux applications, sites, connexions et enregistrements financiers pour construire une image complète de votre infrastructure IT.
+Les Actifs documentent votre inventaire d'infrastructure -- serveurs physiques, machines virtuelles, conteneurs, instances cloud et équipements réseau. Liez les actifs aux sites, applications, connexions, contrats, projets et tâches pour construire une image complète de votre infrastructure IT.
 
 ## Premiers pas
 
 Rendez-vous dans **Cartographie SI > Actifs** pour voir votre inventaire d'actifs. Cliquez sur **Ajouter un actif** pour créer votre première entrée.
 
 **Champs obligatoires** :
-- **Nom** : Un nom d'actif ou un hostname unique
-- **Type d'actif** : Serveur web, base de données, serveur d'application, équipement réseau, etc.
+- **Nom** : Un nom d'actif ou nom d'hôte unique
+- **Type d'actif** : Serveur web, Machine virtuelle, Serveur physique, Conteneur, etc. (configurable dans **Cartographie SI > Paramètres**)
 - **Site** : Où l'actif est hébergé (détermine le fournisseur, le type d'hébergement et le pays)
 
 **Fortement recommandé** :
 - **Cycle de vie** : Statut actuel (Actif, Obsolète, Retiré, etc.)
-- **Environnement** : À quel environnement cet actif appartient (Prod, Pré-prod, QA, etc.)
+- **Environnement** : À quel environnement cet actif appartient (Prod, Pré-prod, QA, Test, Dev, Sandbox)
 
-**Conseil** : Utilisez des conventions de nommage cohérentes qui incluent l'environnement et le rôle (ex. : `prod-web-01`, `dev-db-master`). Lors de la création d'un nouvel actif, le hostname est automatiquement dérivé du nom que vous saisissez.
+**Conseil** : Utilisez des conventions de nommage cohérentes incluant l'environnement et les informations de rôle (ex. : `prod-web-01`, `dev-db-master`). Lors de la création d'un nouvel actif, le nom d'hôte est automatiquement dérivé du nom que vous saisissez.
+
+**Autorisations** :
+- Consultation : `infrastructure:reader`
+- Création / modification : `infrastructure:member`
+- Import / Export / Suppression : `infrastructure:admin`
 
 ---
 
 ## Travailler avec la liste
 
-La liste des actifs vous donne un aperçu filtrable et triable de chaque actif de votre inventaire.
+La liste des actifs vous donne une vue filtrable et triable de chaque actif de votre inventaire.
 
 **Colonnes par défaut** :
 
 | Colonne | Ce qu'elle affiche |
-|---------|-------------------|
+|---------|--------------------|
+| **#** | Référence de l'actif (ex. : `AST-123`), monospace |
 | **Nom** | Nom de l'actif (cliquez pour ouvrir l'espace de travail) |
-| **Type d'actif** | Le rôle de l'actif (ex. : Machine virtuelle, Serveur physique) |
-| **Cluster** | Appartenance à un cluster, ou un badge « Cluster » si cet actif est un cluster |
-| **Environnement** | Prod, Pré-prod, QA, Test, Dev, Sandbox |
+| **Type d'actif** | Le type de l'actif (ex. : Machine virtuelle, Serveur physique) |
+| **Cluster** | Appartenance à un cluster, ou un badge « Cluster » si cet actif est lui-même un cluster |
+| **Environnement** | Prod, Pré-prod, QA, Test, Dev, Sandbox -- avec un point coloré |
 | **Site** | Où l'actif est hébergé |
 | **Hébergement** | Type d'hébergement (dérivé du site) |
 | **OS** | Système d'exploitation |
 | **Zone réseau** | Segment réseau (dérivé du sous-réseau) |
-| **Cycle de vie** | Statut actuel du cycle de vie |
+| **Cycle de vie** | Statut de cycle de vie actuel |
 | **Assignations** | Nombre d'assignations d'applications |
 | **Créé** | Quand l'enregistrement a été créé |
 
+**Tri par défaut** : **Créé** décroissant (le plus récent en premier).
+
 **Colonnes supplémentaires** (masquées par défaut, disponibles via le sélecteur de colonnes) :
 - **Sous-site** : Zone spécifique au sein du site (bâtiment, salle, baie)
-- **Mise en production** : Date de mise en production de l'actif
-- **Fin de vie** : Date de retrait prévue ou effective
+- **Mise en production** : Date à laquelle l'actif est entré en production
+- **Fin de vie** : Date de retrait planifiée ou effective
 
 **Filtrage** :
 
-La plupart des colonnes supportent des filtres par jeu de cases à cocher pour un filtrage multi-sélection rapide. Les options de filtre se mettent à jour dynamiquement en fonction des autres filtres actifs et de la recherche, vous ne voyez donc que les valeurs existantes dans le jeu de résultats actuel.
+La plupart des colonnes prennent en charge des filtres par jeu de cases à cocher pour un filtrage multi-sélection rapide. Les options de filtre se mettent à jour dynamiquement en fonction des autres filtres actifs et de la requête de recherche, vous ne voyez donc que les valeurs présentes dans le jeu de résultats actuel.
 
 | Colonne | Notes |
 |---------|-------|
-| Type d'actif | Filtrer par un ou plusieurs types d'actifs |
-| Cluster | Inclut « (Pas de cluster) » pour les actifs autonomes |
+| Type d'actif | Filtrer par un ou plusieurs types d'actif |
+| Cluster | Inclut « (Sans cluster) » pour les actifs autonomes |
 | Environnement | Prod, Pré-prod, QA, Test, Dev, Sandbox |
-| Site | Inclut « (Pas de site) » pour les actifs non assignés |
-| Sous-site | Inclut « (Pas de sous-site) » pour les actifs sans sous-site |
+| Site | Inclut « (Sans site) » pour les actifs non assignés |
+| Sous-site | Inclut « (Sans sous-site) » pour les actifs sans sous-site |
 | Hébergement | Filtrer par type d'hébergement |
 | OS | Filtrer par système d'exploitation |
 | Zone réseau | Filtrer par segment réseau |
 | Cycle de vie | Filtrer par statut de cycle de vie |
 
-**Conseil** : Combinez les filtres sur plusieurs colonnes pour affiner les résultats. Par exemple, filtrez par Environnement = « Prod » et Cycle de vie = « Actif » pour ne voir que les actifs de production actifs.
+**Conseil** : Combinez les filtres entre colonnes pour affiner les résultats. Par exemple, filtrez par Environnement = « Prod » et Cycle de vie = « Actif » pour voir uniquement les actifs de production actifs.
 
 **Actions** :
-- **Ajouter un actif** : Créer un nouvel actif (nécessite `infrastructure:member`)
-- **Import CSV** / **Export CSV** : Opérations en masse (nécessite `infrastructure:admin`)
-- **Supprimer la sélection** : Supprimer les actifs sélectionnés (nécessite `infrastructure:admin`)
+- **Ajouter un actif** : Créer un nouvel actif (`infrastructure:member`)
+- **Import CSV** / **Export CSV** : Opérations en masse (`infrastructure:admin`)
+- **Supprimer un actif** (lignes sélectionnées) : Supprimer les actifs sélectionnés (`infrastructure:admin`)
 
 ---
 
@@ -73,72 +81,101 @@ La plupart des colonnes supportent des filtres par jeu de cases à cocher pour u
 
 Les actifs peuvent être organisés en clusters :
 
-- **Actif classique** : Une instance d'infrastructure individuelle
+- **Actif standard** : Une instance d'infrastructure individuelle
 - **Cluster** : Un groupe d'actifs agissant comme une seule unité logique
 
-Lors de la création ou de la modification d'un actif, activez **Ce serveur représente un cluster** pour le marquer comme cluster. Les actifs de type cluster peuvent être des points de terminaison dans les connexions, mais les instances d'application doivent être assignées aux hôtes membres, pas au cluster lui-même.
+Lors de la modification d'un actif, basculez **Cluster** dans l'onglet Technique pour le marquer comme cluster. Les actifs cluster peuvent être des points de terminaison dans les connexions, mais les assignations d'applications doivent être faites sur les hôtes membres, pas sur le cluster lui-même.
 
-Les membres du cluster sont gérés depuis l'onglet **Technique** de l'espace de travail du cluster.
+Les membres du cluster sont gérés depuis l'onglet **Technique** de l'espace de travail du cluster via **Modifier les membres**.
 
 ---
 
-## L'espace de travail des actifs
+## L'espace de travail des Actifs
 
-Cliquez sur n'importe quelle ligne pour ouvrir l'espace de travail. L'en-tête affiche le nom de l'actif, un badge « Cluster » (le cas échéant) et votre position dans la liste (ex. : « 3 sur 47 »). Utilisez les boutons fléchés pour naviguer vers l'actif précédent ou suivant sans revenir à la liste.
+Cliquez sur n'importe quelle ligne pour ouvrir l'espace de travail. L'espace de travail comporte un **en-tête** avec des métadonnées rapides, un **tiroir des propriétés** sur la droite (la carte d'identité de l'actif -- toujours visible) et une **zone de contenu** au centre qui change selon l'onglet.
+
+### En-tête
+
+L'en-tête affiche :
+- **Nom de l'actif** (modifiable sur place)
+- **Référence de l'actif** (ex. : `AST-123`) : identifiant copiable
+- Pastille **Cycle de vie** (également modifiable depuis le tiroir des propriétés)
+- **Envoyer le lien** : copier un lien partageable vers cet espace de travail
+- **Supprimer** (`infrastructure:admin`)
+- **Précédent / Suivant** (ex. : « 3 sur 47 ») : naviguer dans la liste filtrée sans y revenir
+
+### Tiroir des propriétés (panneau de droite)
+
+Le tiroir affiche la carte d'identité de l'actif sur chaque onglet. Les modifications sont enregistrées automatiquement.
+
+**Identification et site** :
+- **Type d'actif** (obligatoire)
+- **Site** (obligatoire)
+- **Sous-site** (lorsque le site a des sous-sites définis)
+- **Type d'hébergement**, **Fournisseur cloud / Société exploitante**, **Pays**, **Ville** -- en lecture seule, dérivés du site
+
+**Statut** :
+- **Environnement** : Prod, Pré-prod, QA, Test, Dev, Sandbox
+- **Cycle de vie** : Actif, Obsolète, Retiré, etc. (configurable dans les Paramètres)
+- **Mise en production** : Quand l'actif est entré en production
+- **Fin de vie** : Date de retrait planifiée ou effective
+
+---
 
 ### Vue d'ensemble
 
-L'onglet Vue d'ensemble capture l'identité et la localisation de l'actif.
+L'onglet Vue d'ensemble est la page d'accueil de l'actif.
 
-**Ce que vous pouvez modifier** :
-- **Nom** : Hostname ou identifiant de l'actif
-- **Type d'actif** : Rôle (Serveur web, Base de données, Serveur d'application, etc.)
-- **Est un cluster** : Basculer pour marquer cet actif comme un cluster
-- **Site** : Lien vers un enregistrement de site (obligatoire). La sélection d'un site remplit automatiquement les champs en lecture seule ci-dessous.
-- **Sous-site** : Lorsque le site sélectionné a des sous-sites définis (bâtiments, salles, baies), ce menu déroulant apparaît pour que vous puissiez spécifier exactement où l'actif se trouve au sein du site.
-- **Cycle de vie** : Statut actuel (Actif, Obsolète, Retiré, etc.)
-- **Date de mise en production** : Quand l'actif est entré en production
-- **Date de fin de vie** : Date de retrait prévue ou effective
-- **Notes** : Notes libres sur l'actif
+**Description** : Une description en texte enrichi de l'actif. Sauvegarde automatiquement au fur et à mesure que vous éditez.
 
-**Champs en lecture seule** (dérivés du site sélectionné) :
-- **Type d'hébergement** : Sur site, colocation, cloud, etc.
-- **Fournisseur cloud / Société d'exploitation** : Pour les sites cloud, affiche le fournisseur cloud ; pour les sites sur site, affiche la société d'exploitation
-- **Pays** : Pays du site
-- **Ville** : Ville du site
+**Assignations** (non affichées pour les actifs cluster) : Liste les applications s'exécutant sur cet actif. Chaque ligne affiche :
+
+| Colonne | Ce qu'elle affiche |
+|---------|--------------------|
+| **Application** | Nom de l'application (cliquable -- saute aux Déploiements de l'application) |
+| **Environnement** | L'environnement de déploiement auquel l'assignation appartient |
+| **Rôle** | Rôle serveur (Web, Base de données, Application, etc.) |
+| **Depuis** | Date à laquelle le serveur a été assigné |
+| **Notes** | Notes en texte libre |
+
+Cliquez sur **Ajouter une assignation** pour rattacher cet actif à un déploiement d'application. Choisissez l'application, puis l'environnement (l'application doit déjà avoir un déploiement dans cet environnement), puis le rôle et la date / les notes optionnelles. Utilisez les icônes de ligne pour modifier ou supprimer.
+
+Si cet actif est un cluster, une notification en ligne remplace le tableau d'assignations et vous demande d'assigner les hôtes membres à la place.
+
+**Connexions** : Une vue en lecture seule de toutes les connexions impliquant cet actif. Chaque ligne affiche l'ID et le nom de la connexion (cliquable -- ouvre l'espace de travail de la Connexion), la topologie (Serveur à serveur ou Multi-serveur), les protocoles, les libellés des points de terminaison source et destination, et le statut de cycle de vie. Pour créer ou modifier une connexion, rendez-vous dans **Cartographie SI > Connexions**.
+
+**Connaissances** : Articles de connaissances liés pour cet actif. Avec `knowledge:member`, vous pouvez créer de nouveaux articles directement depuis cette section.
 
 ---
 
 ### Technique
 
-L'onglet Technique organise l'identité réseau et la configuration en sections logiques.
+L'onglet Technique organise le cluster, l'identité réseau et la configuration IP.
 
-**Environnement** :
-- **Environnement** : Prod, Pré-prod, QA, Test, Dev ou Sandbox
-
-**Sections cluster** :
-- Si cet actif **est un cluster** : Affiche le tableau **Membres** listant tous les actifs membres (Nom, Environnement, Statut, Système d'exploitation). Cliquez sur **Modifier les membres** pour ajouter ou retirer des membres via une boîte de dialogue de recherche.
-- Si cet actif **n'est pas un cluster** : Affiche l'**Appartenance au cluster** -- à quels clusters cet actif appartient, le cas échéant.
+**Gestion du cluster** :
+- Bascule **Cluster** : marquer cet actif comme cluster.
+- Si l'actif **est un cluster** : une section **Membres** liste les actifs membres (Nom, Environnement, Statut, Système d'exploitation). Cliquez sur **Modifier les membres** pour ajouter ou supprimer des membres via une boîte de dialogue de recherche.
+- Si l'actif **n'est pas un cluster** : une section **Appartenance à un cluster** affiche les clusters auxquels cet actif appartient (le cas échéant).
 
 **Identité** :
-- **Hostname** : Le hostname réseau de l'actif. Automatiquement pré-rempli à partir du nom de l'actif lors de la création ; vous pouvez le remplacer à tout moment. Obligatoire lorsqu'un domaine est sélectionné.
-- **Domaine** : Le domaine Active Directory ou DNS auquel l'actif appartient. Choisissez parmi les domaines configurés dans **Paramètres > Cartographie SI**. Les options système incluent « Workgroup » (autonome) et « N/A » (non applicable).
-- **FQDN** : Nom de domaine complet, calculé automatiquement à partir du hostname et du suffixe DNS du domaine. Lecture seule.
-- **Alias** : Noms DNS supplémentaires ou alias pour cet actif. Tapez et appuyez sur Entrée pour ajouter.
-- **Système d'exploitation** : Type et version de l'OS (ex. : Windows Server 2022, Ubuntu 24.04 LTS). Désactivé pour les clusters -- l'OS est défini par membre. Une fois sélectionné, affiche les dates de fin de support standard et étendu.
+- **Nom d'hôte** : Le nom d'hôte réseau de l'actif. Pré-rempli automatiquement à partir du nom de l'actif lors de la création ; vous pouvez le remplacer à tout moment. Obligatoire lorsqu'un domaine est sélectionné.
+- **Domaine** : Le domaine Active Directory ou DNS auquel l'actif appartient. Choisissez parmi les domaines configurés dans **Cartographie SI > Paramètres**. Les options système incluent « Workgroup » (autonome) et « N/A » (non applicable).
+- **FQDN** : Fully Qualified Domain Name, calculé automatiquement à partir du nom d'hôte et du suffixe DNS du domaine. Lecture seule.
+- **Alias** : Noms DNS ou alias supplémentaires pour cet actif. Tapez et appuyez sur Entrée pour ajouter.
+- **Système d'exploitation** : Type et version d'OS (ex. : Windows Server 2022, Ubuntu 24.04 LTS). Désactivé pour les clusters -- l'OS est défini par membre. Lorsqu'il est sélectionné, affiche les dates de fin de support standard et étendu en dessous.
 
 **Adresses IP** :
 
-Les actifs supportent plusieurs adresses IP, chacune avec sa propre configuration réseau :
+Les actifs prennent en charge plusieurs adresses IP, chacune avec sa propre configuration réseau :
 
-- Cliquez sur **Ajouter une adresse IP** pour ajouter une nouvelle entrée
-- **Type** : L'objectif de l'adresse IP (Host, IPMI, Management, iSCSI, ou types personnalisés depuis les Paramètres)
+- Cliquez sur **Ajouter une adresse IP** pour ajouter une nouvelle entrée.
+- **Type** : L'objectif de l'adresse IP (Hôte, IPMI, Management, iSCSI, ou types personnalisés depuis les Paramètres)
 - **Adresse IP** : L'adresse elle-même
-- **Sous-réseau** : Sous-réseau de la liste configurée (filtré par le site de l'actif)
-- **Zone réseau** : Automatiquement dérivée du sous-réseau sélectionné (lecture seule)
-- **VLAN** : Automatiquement dérivé du sous-réseau sélectionné (lecture seule)
+- **Sous-réseau** : Sous-réseau depuis la liste configurée (filtré au site de l'actif)
+- **Zone réseau** : Dérivée automatiquement du sous-réseau sélectionné (lecture seule)
+- **VLAN** : Dérivé automatiquement du sous-réseau sélectionné (lecture seule)
 
-Cela vous permet de documenter plusieurs interfaces réseau par actif -- par exemple, un serveur physique avec à la fois une IP host et une adresse de gestion IPMI sur des sous-réseaux différents.
+Cela vous permet de documenter plusieurs interfaces réseau par actif -- par exemple, un serveur physique avec à la fois une IP hôte et une adresse de management IPMI sur des sous-réseaux différents.
 
 ---
 
@@ -146,12 +183,13 @@ Cela vous permet de documenter plusieurs interfaces réseau par actif -- par exe
 
 *Visible uniquement pour les types d'actifs physiques.*
 
-Suit les détails du matériel physique :
+Suit les détails du matériel physique. Sauvegarde automatique au fur et à mesure que vous tapez.
+
 - **Numéro de série**
 - **Fabricant**
 - **Modèle**
 - **Date d'achat**
-- **Emplacement baie** (ex. : Rangée A, Baie 12)
+- **Emplacement en baie** (ex. : Rangée A, Baie 12)
 - **Unité de baie** (ex. : U1-U4)
 - **Notes**
 
@@ -161,77 +199,38 @@ Suit les détails du matériel physique :
 
 *Visible uniquement pour les types d'actifs physiques.*
 
-Suit les informations de support et de contact fournisseur :
-- **Fournisseur** : Sélectionner depuis le répertoire des fournisseurs
+Suit les informations de support et de contact fournisseur.
+
+- **Fournisseur** : Sélectionner depuis l'annuaire des fournisseurs
 - **Contrat de support** : Lien vers un enregistrement de contrat
-- **Niveau de support** : Texte libre (ex. : Gold, Silver, 24x7)
+- **Niveau de support** : Texte libre (ex. : Or, Argent, 24x7)
 - **Expiration du support** : Date d'expiration
 - **Notes**
 
-**Contacts de support** : Un tableau où vous pouvez ajouter des contacts depuis le répertoire des contacts, chacun avec un libellé de rôle. Le tableau affiche automatiquement l'e-mail, le téléphone et le mobile de chaque contact.
+**Contacts de support** : Un tableau où vous pouvez ajouter des contacts depuis l'annuaire de contacts, chacun avec un libellé de rôle en texte libre. Le tableau affiche automatiquement l'e-mail, le téléphone et le mobile de chaque contact.
 
 ---
 
 ### Relations
 
-L'onglet Relations vous permet de définir comment cet actif se connecte à d'autres enregistrements dans KANAP.
+L'onglet Relations connecte cet actif à d'autres enregistrements dans KANAP. Le badge de l'onglet compte tous les éléments liés. La plupart des champs sont enregistrés automatiquement.
 
 **Relations entre actifs** :
 - **Dépend de** : Autres actifs dont celui-ci dépend (ex. : un serveur de base de données)
 - **Contient** : Actifs contenus dans celui-ci (ex. : serveurs dans une baie)
-- **Contenu par** / **Requis par** : Vues inverses en lecture seule montrant quels autres actifs référencent celui-ci
+- **Contenu par** / **Dépendu par** : Vues inverses en lecture seule, affichées uniquement lorsque d'autres actifs référencent celui-ci
 
-**Finances** :
+**Finance et projets** :
 - **Postes OPEX** : Lien vers des postes de dépenses opérationnelles
 - **Postes CAPEX** : Lien vers des postes de dépenses d'investissement
 - **Contrats** : Lien vers des enregistrements de contrats
+- **Projets** : Lien vers des projets du portefeuille liés à cet actif
 
-**Projets** : Lien vers des projets du portefeuille liés à cet actif.
+**Tâches** : Tâches liées à cet actif. En lecture seule ici -- les tâches gagnent ou perdent ce lien lorsque vous définissez le champ **Actif** sur une tâche dans la page Tâches.
 
-**Sites web pertinents** : Ajoutez des URL avec des descriptions optionnelles -- utile pour les portails fournisseurs, les tableaux de bord de supervision ou les liens de documentation.
+**Sites web pertinents** : Ajoutez des URL avec des noms optionnels -- utile pour les portails fournisseurs, tableaux de bord de monitoring ou liens de documentation. **Ajouter une URL** ouvre une boîte de dialogue ; les entrées existantes peuvent être modifiées ou supprimées.
 
-**Pièces jointes** : Glissez-déposez des fichiers ou cliquez sur **Sélectionner des fichiers** pour téléverser. Cliquez sur une pastille de pièce jointe pour la télécharger.
-
----
-
-### Base de connaissances
-
-Attachez des articles de la base de connaissances à cet actif. Si vous avez l'autorisation `knowledge:member`, vous pouvez créer de nouveaux articles directement depuis cet onglet.
-
----
-
-### Assignations
-
-Consultez et gérez quelles applications fonctionnent sur cet actif. Chaque assignation lie l'actif à une instance d'application (un environnement spécifique d'une application).
-
-**Pour ajouter une assignation** :
-1. Cliquez sur **Ajouter une assignation**
-2. Sélectionnez une **Application**
-3. Choisissez un **Environnement** (instance)
-4. Sélectionnez un **Rôle** (depuis la liste des rôles de serveur dans les Paramètres)
-5. Optionnellement, définissez une **Date de début** et des **Notes**
-
-Les actifs de type cluster ne peuvent pas héberger d'assignations d'applications -- assignez les hôtes membres à la place.
-
-Chaque ligne d'assignation affiche le nom de l'application (cliquable pour y naviguer), l'environnement, le rôle, la date de début et les notes. Vous pouvez modifier ou supprimer les assignations depuis la colonne d'actions.
-
----
-
-### Connexions
-
-Une vue en lecture seule de toutes les connexions impliquant cet actif. Chaque ligne affiche :
-
-| Colonne | Ce qu'elle affiche |
-|---------|-------------------|
-| **ID de connexion** | Lien cliquable vers l'espace de travail de la connexion |
-| **Nom** | Nom de la connexion |
-| **Topologie** | Serveur à serveur ou Multi-serveur |
-| **Protocoles** | Pastilles de protocoles |
-| **Source** | Libellé du point de terminaison source |
-| **Destination** | Libellé du point de terminaison destination |
-| **Cycle de vie** | Statut du cycle de vie de la connexion |
-
-Pour gérer les connexions, rendez-vous dans **Cartographie SI > Connexions**.
+**Pièces jointes** : Glissez-déposez des fichiers ou cliquez sur **Sélectionner des fichiers** pour téléverser. Cliquez sur la pastille d'une pièce jointe pour la télécharger. La suppression est disponible pour les managers.
 
 ---
 
@@ -251,7 +250,7 @@ Depuis la liste des Actifs :
 
 | Option | Description |
 |--------|-------------|
-| **Export complet** | Tous les champs exportables -- à utiliser pour le reporting et l'extraction complète de données |
+| **Export complet** | Tous les champs exportables -- à utiliser pour le reporting et l'extraction complète des données |
 | **Enrichissement de données** | Tous les champs importables -- correspond au format du modèle d'import, idéal pour l'édition aller-retour (export, modification, ré-import) |
 | **Sélection personnalisée** | Choisir les champs spécifiques à inclure dans votre export |
 
@@ -283,22 +282,22 @@ Depuis la liste des Actifs :
 | `id` | UUID de l'actif | Non | Pour les mises à jour ; laisser vide pour les nouveaux actifs |
 | `name` | Nom de l'actif | Oui | Utilisé comme identifiant unique pour la correspondance |
 | `location_code` | Code du site | Oui | Doit correspondre à un code de site existant |
-| `kind` | Type d'actif | Oui | Accepte code ou libellé (ex. : `vm` ou `Virtual Machine`) |
+| `kind` | Type d'actif | Oui | Accepte un code ou un libellé (ex. : `vm` ou `Virtual Machine`) |
 | `environment` | Environnement | Oui | `prod`, `pre_prod`, `qa`, `test`, `dev`, `sandbox` |
-| `status` | Statut du cycle de vie | Non | Accepte code ou libellé (ex. : `active` ou `Active`) |
+| `status` | Statut de cycle de vie | Non | Accepte un code ou un libellé (ex. : `active` ou `Active`) |
 | `is_cluster` | Est-ce un cluster | Non | `true` ou `false` |
-| `hostname` | Hostname réseau | Non | |
-| `domain` | Domaine DNS | Non | Accepte code ou libellé depuis les Paramètres |
-| `aliases` | Alias DNS | Non | Liste séparée par des virgules |
-| `operating_system` | Type d'OS | Non | Accepte code ou libellé depuis les Paramètres |
-| `cluster` | Appartenance au cluster | Non | Nom du cluster parent |
-| `notes` | Notes libres | Non | |
+| `hostname` | Nom d'hôte réseau | Non | |
+| `domain` | Domaine DNS | Non | Accepte un code ou un libellé depuis les Paramètres |
+| `aliases` | Alias DNS | Non | Liste séparée par virgules |
+| `operating_system` | Type d'OS | Non | Accepte un code ou un libellé depuis les Paramètres |
+| `cluster` | Appartenance à un cluster | Non | Nom du cluster parent |
+| `notes` | Notes en texte libre | Non | |
 
-**Champs d'adresse IP** (jusqu'à 4 adresses par actif) :
+**Champs Adresse IP** (jusqu'à 4 adresses par actif) :
 
 | Colonne CSV | Description | Notes |
 |-------------|-------------|-------|
-| `ip_1_type` | Type d'adresse IP | Accepte code ou libellé (ex. : `host` ou `Host IP`) |
+| `ip_1_type` | Type d'adresse IP | Accepte un code ou un libellé (ex. : `host` ou `Host IP`) |
 | `ip_1_address` | Adresse IP | |
 | `ip_1_subnet_cidr` | Sous-réseau en notation CIDR | |
 | `ip_2_type` à `ip_4_type` | Types IP supplémentaires | Même schéma pour les emplacements 2-4 |
@@ -307,10 +306,10 @@ Depuis la liste des Actifs :
 
 ### Acceptation des libellés et codes
 
-Pour les champs configurés dans **Paramètres > Cartographie SI**, vous pouvez utiliser soit le code interne soit le libellé d'affichage :
+Pour les champs configurés dans **Cartographie SI > Paramètres**, vous pouvez utiliser soit le code interne, soit le libellé d'affichage :
 
 | Champ | Exemples de codes | Exemples de libellés |
-|-------|-------------------|---------------------|
+|-------|-------------------|----------------------|
 | Type d'actif (`kind`) | `vm`, `physical`, `container` | `Virtual Machine`, `Physical Server`, `Container` |
 | Cycle de vie (`status`) | `active`, `inactive`, `decommissioned` | `Active`, `Inactive`, `Decommissioned` |
 | Système d'exploitation | `windows_2022`, `ubuntu_24` | `Windows Server 2022`, `Ubuntu 24.04 LTS` |
@@ -330,15 +329,15 @@ Si vous incluez la colonne `id` avec un UUID valide, la correspondance utilise d
 ### Champs dérivés
 
 Certains champs sont calculés et ne peuvent pas être importés :
-- **Fournisseur** : Automatiquement dérivé du site de l'actif
-- **FQDN** : Calculé à partir du hostname + domaine
+- **Fournisseur** : Dérivé automatiquement du site de l'actif
+- **FQDN** : Calculé à partir du nom d'hôte + domaine
 
 ### Limitations
 
-- **Maximum 4 adresses IP** : Les actifs supportent jusqu'à 4 entrées d'adresse IP via CSV
+- **Maximum 4 adresses IP** : Les actifs prennent en charge jusqu'à 4 entrées d'adresse IP via CSV
 - **Assignation de cluster par nom** : Utilisez le nom du cluster, pas l'ID, dans la colonne `cluster`
 - **Site obligatoire** : Chaque actif doit avoir un code de site valide
-- **Relations non incluses** : Les assignations d'applications, connexions, liens financiers et pièces jointes doivent être gérés dans l'espace de travail
+- **Relations non incluses** : Les assignations d'applications, connexions, liens financiers, projets, tâches et pièces jointes doivent être gérés dans l'espace de travail
 
 ### Résolution de problèmes
 
@@ -361,9 +360,10 @@ PROD-DB-01;NYC-DC1;vm;prod;active;proddb01;corp;host;10.0.1.20
 ## Conseils
 
 - **Nommez de manière cohérente** : Incluez l'environnement, le rôle et la séquence dans les noms d'actifs pour une identification facile.
-- **Utilisez les clusters** : Regroupez les actifs apparentés (ex. : cluster web, cluster base de données) pour simplifier la gestion.
-- **Suivez le cycle de vie** : Marquez les actifs obsolètes et retirés pour maintenir des comptages d'inventaire précis.
-- **Liez aux sites** : Assignez les actifs à des sites pour le reporting géographique et la planification de reprise d'activité.
-- **Assignez aux applications** : Liez les actifs aux instances d'applications pour comprendre ce qui fonctionne où.
+- **Utilisez les clusters** : Regroupez les actifs liés (ex. : cluster web, cluster base de données) pour simplifier la gestion. Assignez les applications aux hôtes membres, pas au cluster lui-même.
+- **Suivez le cycle de vie** : Marquez les actifs obsolètes et retirés pour garder les comptes d'inventaire précis.
+- **Liez aux sites** : Assignez les actifs aux sites pour que le type d'hébergement, le pays et la ville soient renseignés automatiquement.
+- **Assignez aux applications** : Utilisez l'onglet Vue d'ensemble pour lier les actifs aux déploiements d'applications. Les mêmes assignations apparaissent sous l'onglet Déploiements de l'application.
 - **Utilisez l'onglet Relations** : Connectez les actifs aux postes OPEX/CAPEX, contrats et projets pour la visibilité financière.
-- **Joignez la documentation** : Téléversez les fichiers de configuration, schémas d'architecture ou documents fournisseur directement sur l'actif.
+- **Les tâches viennent de la page Tâches** : Pour rattacher une tâche à un actif, définissez le champ Actif sur la tâche elle-même ; elle apparaîtra alors sous Relations > Tâches.
+- **Attachez la documentation** : Téléversez les fichiers de configuration, diagrammes d'architecture ou documents fournisseurs directement dans l'onglet Relations.

@@ -1,6 +1,6 @@
 # Aplicaciones
 
-Aplicaciones es su registro central para documentar el panorama de aplicaciones IT. Cubre aplicaciones de negocio, herramientas de productividad, servicios de infraestructura y todo lo intermedio. Utilícelo para hacer seguimiento de la propiedad, entornos, integraciones e información de conformidad en todo su portafolio.
+Aplicaciones es su registro central para documentar el panorama de aplicaciones IT. Cubre aplicaciones de negocio, herramientas de productividad, servicios de infraestructura y todo lo intermedio. Utilícelo para hacer seguimiento de la propiedad, despliegues, integraciones, relaciones financieras e información de conformidad en todo su portafolio.
 
 ## Categorías de aplicaciones
 
@@ -39,26 +39,33 @@ Diferentes equipos pueden usar categorías para centrarse en su área de respons
 Navegue a **Panorama IT > Aplicaciones** para ver su lista. Haga clic en **Nueva App / Servicio** para crear su primera entrada.
 
 **Campos obligatorios**:
-  - **Nombre**: Un nombre reconocible para la aplicación o servicio
-  - **Categoría**: El propósito principal de esta aplicación (ver categorías arriba)
+- **Nombre**: Un nombre reconocible para la aplicación o servicio
+- **Categoría**: El propósito principal de esta aplicación (ver categorías arriba)
+- **Criticidad**: Importancia para su negocio (Crítica para el negocio, Alta, Media, Baja)
+- **Ciclo de vida**: Estado actual (Activo, Propuesto, Obsoleto, Retirado, o cualquier código personalizado definido en Configuración)
 
 **Muy recomendados**:
-  - **Proveedor**: El proveedor que proporciona el software (vinculado a sus datos maestros de Proveedores)
-  - **Criticidad**: Importancia para su negocio (Crítica para el negocio, Alta, Media, Baja)
-  - **Ciclo de vida**: Estado actual (Activo, Propuesto, Obsoleto, Retirado)
-  - **Categoría**: El propósito principal de la aplicación (Línea de negocio, Productividad, Seguridad, etc.)
+- **Proveedor**: El proveedor que proporciona el software (vinculado a sus datos maestros de Proveedores)
+- **Editor**: El editor del software (p. ej., Microsoft, SAP, Oracle)
+- **Descripción**: Qué hace esta aplicación
 
 **Opcionales pero útiles**:
-  - **Editor**: El editor del software (p. ej., Microsoft, SAP, Oracle)
-  - **Descripción**: Qué hace esta aplicación
-  - **Versión**: Número de versión actual (p. ej., "4.2.1", "2023", "T1 2024")
-  - **Fecha de puesta en marcha** / **Fin de soporte** / **Fecha de retiro**: Fechas del ciclo de vida de la versión
-  - **Licencia**: Términos y notas de licencia
-  - **Notas**: Notas internas de texto libre
+- **Versión**: Identificador de versión actual (texto libre, p. ej., "4.2.1", "2023", "T1 2024")
+- **Fecha de puesta en marcha**: Cuándo esta versión entró o entrará en producción
+- **Fin de soporte**: Cuándo finaliza el soporte del proveedor para esta versión
+- **Fecha de retiro**: Cuándo esta versión fue efectivamente decomisionada
+- **Licencia**: Términos y notas de licencia
+- **Notas**: Notas internas de texto libre
+- **Puede tener apps hijas**: Active esto para usar esta aplicación como una "suite" que agrupa otras aplicaciones
 
 Una vez que guarde, el espacio de trabajo desbloquea todas las pestañas para documentación detallada.
 
-**Consejo**: Comience documentando sus aplicaciones más críticas. Utilice la pestaña **Instancias** para capturar qué entornos existen (Prod, QA, Dev), luego vincule activos e interfaces a medida que avance.
+**Consejo**: Comience documentando sus aplicaciones más críticas. Utilice la pestaña **Despliegues** para capturar qué entornos existen (Prod, QA, Dev) y qué servidores los ejecutan, luego vincule interfaces, contratos y partidas presupuestarias a medida que avance.
+
+**Permisos**:
+- Ver: `applications:reader`
+- Crear / editar: `applications:manager` (también llamado `member`)
+- Importar / Exportar / Eliminar: `applications:admin`
 
 ---
 
@@ -66,204 +73,160 @@ Una vez que guarde, el espacio de trabajo desbloquea todas las pestañas para do
 
 La cuadrícula de Aplicaciones proporciona una vista completa de su portafolio de aplicaciones.
 
-**Filtro de alcance superior**:
-  - **Mis apps** (predeterminado): muestra apps donde usted está listado en **Propiedad y audiencia** como **Responsable de negocio** o **Responsable IT**. Se admiten entradas con múltiples responsables.
-  - **Apps de mi equipo**: muestra apps donde cualquier miembro de su equipo de Portafolio está listado como Responsable de negocio o Responsable IT. Su propia propiedad también se incluye en este alcance.
-  - **Todas las apps**: muestra la cuadrícula completa de Aplicaciones (con el comportamiento predeterminado de filtro de ciclo de vida).
-  - Si no está asignado a un equipo de Portafolio, **Apps de mi equipo** está deshabilitado
-  - Su selección se recuerda entre sesiones -- al volver a la página se restaura su última elección
+**Filtro de alcance superior (Mostrar)**:
+- **Mis apps** (predeterminado): muestra apps donde usted está listado en el panel de propiedades como **Responsable de negocio** o **Responsable IT**. Se admiten entradas con múltiples responsables.
+- **Apps de mi equipo**: muestra apps donde cualquier miembro de su equipo de Portafolio está listado como Responsable de negocio o Responsable IT. Su propia propiedad también se incluye en este alcance. Deshabilitado si no está asignado a un equipo de Portafolio.
+- **Todas las apps**: muestra la cuadrícula completa de Aplicaciones con el comportamiento predeterminado del filtro de ciclo de vida.
+- Su selección se recuerda entre sesiones -- al volver a la página se restaura su última elección.
 
 **Columnas predeterminadas**:
-  - **Nombre**: Nombre de la aplicación con insignia de categoría y pertenencia a suite
-  - **Categoría**: Propósito principal de la aplicación (Línea de negocio, Productividad, etc.)
-  - **Entornos**: Chips que muestran entornos activos (Prod, Pre-prod, QA, Test, Dev, Sandbox)
-  - **Ciclo de vida**: Estado actual
-  - **Criticidad**: Nivel de importancia para el negocio
-  - **Editor**: Editor del software
-  - **Usuarios derivados (Y)**: Conteo calculado de usuarios para el año actual
-  - **Creado**: Cuándo se creó el registro
+- **Nombre**: Nombre de la aplicación con la categoría como subtítulo y una insignia "Incluido en: {suite}" para los componentes de una suite
+- **Categoría**: El propósito principal de la aplicación
+- **Entornos**: Chips de colores que muestran entornos activos (Prod, Pre-prod, QA, Test, Dev, Sandbox). Pase el ratón para ver la URL base y el ciclo de vida.
+- **Ciclo de vida**: Estado actual
+- **Criticidad**: Nivel de importancia para el negocio
+- **Editor**: Editor del software
+- **Usuarios derivados (A)**: Conteo calculado de usuarios para el año actual (basado en la audiencia establecida en el panel de propiedades)
+- **Creado**: Cuándo se creó el registro
 
-**Ordenación predeterminada**:
-  - **Nombre** ascendente (A a Z)
+**Ordenación predeterminada**: **Nombre** ascendente (A a Z).
 
 **Columnas adicionales** (mediante el selector de columnas):
-  - **Suites**: Suites padre a las que pertenece esta aplicación
-  - **Proveedor**: Nombre del proveedor vinculado
-  - **Responsables de negocio** / **Responsables IT**: Responsables asignados
-  - **Alojamiento**: Derivado de las ubicaciones de servidores asignados a las instancias de la app
-  - **Acceso externo**: Si la app es accesible desde internet
-  - **SSO habilitado** / **MFA habilitado**: Características de autenticación
-  - **Integración de datos / ETL**: Si la app participa en integraciones de datos
-  - **Partidas OPEX** / **Partidas CAPEX** / **Contratos**: Gasto y contratos vinculados
-  - **Componentes**: Aplicaciones hijas (si es una suite)
-  - **Clase de datos** / **Contiene PII** / **Residencia de datos**: Información de conformidad
+- **Suites**: Suites padre a las que pertenece esta aplicación
+- **Proveedor**: Nombre del proveedor vinculado
+- **Responsables de negocio** / **Responsables IT**: Responsables asignados (truncado, pase el ratón o haga clic para verlos todos)
+- **Alojamiento**: Derivado de las ubicaciones de servidores asignados a los despliegues de la app
+- **Acceso externo**: Si la app es accesible desde internet
+- **SSO habilitado** / **MFA habilitado**: Características de autenticación
+- **Integración de datos / ETL**: Si la app participa en integraciones de datos
+- **Partidas OPEX** / **Partidas CAPEX** / **Contratos**: Gasto y contratos vinculados
+- **Componentes**: Aplicaciones hijas (si es una suite)
+- **Clase de datos** / **Contiene PII** / **Residencia de datos**: Información de conformidad
 
 **Filtrado**:
-  - Categoría, Entornos, Ciclo de vida, Criticidad, Alojamiento, Acceso externo, SSO habilitado, MFA habilitado, Clase de datos y Contiene PII usan filtros de conjunto de casillas
-  - El filtro flotante muestra `Todos`, `Ninguno` o `N seleccionados` con una **x** para limpiar
-  - Las aplicaciones retiradas están ocultas por defecto; use el filtro de Ciclo de vida para incluir Retiradas
+- Búsqueda rápida: coincide con el nombre y editor
+- La mayoría de columnas usan filtros de conjunto de casillas que solo muestran los valores presentes en el conjunto de resultados actual; el filtro flotante muestra `Todos`, `Ninguno` o `N seleccionados` con una **x** para limpiar.
+- Las aplicaciones retiradas están ocultas por defecto; use el filtro de **Ciclo de vida** para incluir Retiradas.
 
 **Acciones**:
-  - **Nueva App / Servicio**: Crear una nueva entrada (requiere permiso de gestor)
-  - **Importar CSV**: Importación masiva desde archivo CSV (requiere permiso de administrador)
-  - **Exportar CSV**: Exportar la lista a CSV (requiere permiso de administrador)
-  - **Copiar elemento**: Duplicar una aplicación seleccionada con todas sus relaciones (requiere permiso de gestor)
-  - **Eliminar seleccionadas**: Eliminar aplicaciones seleccionadas (requiere permiso de administrador)
+- **Nueva App / Servicio**: Crear una nueva entrada (`applications:manager`)
+- **Importar CSV**: Importación masiva desde archivo CSV (`applications:admin`)
+- **Exportar CSV**: Exportar la lista a CSV (`applications:admin`)
+- **Copiar elemento**: Duplicar una aplicación seleccionada con todas sus relaciones principales (`applications:manager`). Consulte [Copiar aplicaciones](#copiar-aplicaciones) para saber qué se copia y qué no.
+- **Eliminar seleccionadas**: Eliminar aplicaciones seleccionadas (`applications:admin`)
 
 ---
 
 ## El espacio de trabajo de Aplicaciones
 
-Haga clic en cualquier fila de la lista para abrir el espacio de trabajo. Tiene nueve pestañas:
+Haga clic en cualquier fila para abrir el espacio de trabajo. El espacio de trabajo tiene un **encabezado** con metadatos rápidos, un **panel de propiedades** a la derecha (la tarjeta de identidad de la aplicación -- siempre visible) y un **área de contenido** en el centro que cambia con cada pestaña.
+
+### Encabezado
+
+El encabezado muestra:
+- **Nombre de la aplicación** (editable en línea)
+- **Referencia**: identificador corto que puede copiar
+- Chip de **Ciclo de vida**: haga clic para cambiar
+- Chip de **Criticidad**: haga clic para cambiar
+- Chip de **Versión** (si hay versión definida): haga clic para copiar
+- Fecha de **Puesta en marcha**
+- **Enviar enlace**: copiar un enlace compartible a este espacio de trabajo
+- **Crear nueva versión**: lanzar el asistente de migración de versión (consulte [Gestión de versiones](#gestion-de-versiones))
+- **Eliminar** (`applications:admin`)
+- **Anterior / Siguiente**: recorrer la lista filtrada sin volver a la cuadrícula
+
+### Panel de propiedades (panel derecho)
+
+El panel es la tarjeta de identidad de la aplicación. Se muestra en cada pestaña y se edita en línea -- los cambios se guardan automáticamente.
+
+**Identidad**:
+- **Categoría**, **Proveedor**, **Editor**
+
+**Fechas del ciclo de vida**:
+- **Puesta en marcha**, **Fin de soporte**, **Fecha de retiro**
+
+**Responsables**:
+- **Responsables de negocio**: partes interesadas del negocio responsables de esta aplicación (selección múltiple)
+- **Responsables IT**: miembros del equipo IT responsables del soporte técnico (selección múltiple)
+
+**Audiencia**:
+- Añada filas de **Empresa / Departamentos** para registrar quién usa esta aplicación. Elija una empresa y opcionalmente restrinja a departamentos específicos.
+- Se muestra un conteo de **Usuarios** en vivo.
+- **Método de cálculo**: **Derivado** (calculado automáticamente a partir de la audiencia basándose en las métricas de Usuarios IT / Plantilla de los datos maestros) o **Manual** (un único número de sustitución que usted introduce).
+
+---
 
 ### Visión general
 
-La pestaña Visión general captura la identidad principal de su aplicación.
+La pestaña Visión general es la narrativa de la aplicación. Contiene:
 
-**Qué puede editar**:
-  - **Nombre**: El nombre visible de la aplicación
-  - **Descripción**: Qué hace esta aplicación
-  - **Categoría**: El propósito principal de la aplicación (configurable en Configuración del Panorama IT)
-  - **Proveedor**: Vínculo a un proveedor de sus datos maestros
-  - **Editor**: El editor del software
-  - **Criticidad**: Crítica para el negocio, Alta, Media o Baja
-  - **Ciclo de vida**: Estado actual (configurable en Configuración del Panorama IT)
-  - **Puede tener apps hijas**: Active esto para usar esta aplicación como una "suite" que agrupa otras aplicaciones
-  - **Licencia**: Términos y notas de licencia
-  - **Notas**: Notas de texto libre
+**Descripción**: Una descripción enriquecida de la aplicación. El editor guarda automáticamente mientras escribe.
 
-**Información de versión** (se muestra en una sección separada):
-  - **Versión**: Identificador de versión actual (texto libre, p. ej., "4.2.1", "2023")
-  - **Fecha de puesta en marcha**: Cuándo esta versión entró o entrará en producción
-  - **Fin de soporte**: Cuándo finaliza el soporte del proveedor para esta versión
-  - **Fecha de retiro**: Cuándo esta versión fue efectivamente decomisionada
+**Conexiones**: Un resumen de solo lectura construido a partir de las interfaces de la aplicación. Para apps no middleware muestra dos filas: **Recibe de** y **Envía a**. Para apps ETL/middleware muestra una única fila **Conectado a**. Cada entrada es una píldora clicable que abre la aplicación relacionada; "+ N más en Interfaces" salta a la pestaña Interfaces.
 
-**Historial de versiones**: Si esta aplicación fue creada desde otra versión (usando la función **Crear nueva versión**), aparece una línea de tiempo de versiones en la parte superior de la pestaña Visión general. Haga clic en cualquier chip de versión para navegar a esa versión.
-
-**Pertenencia a suite**: Si una aplicación pertenece a una suite, verá la insignia de suite en la lista. El conmutador "Puede tener apps hijas" se desactiva cuando una aplicación pertenece a una suite padre -- elimine la relación de suite primero para reactivarlo.
+**Conocimiento**: Artículos de conocimiento vinculados. Si tiene `knowledge:member`, puede crear nuevos artículos directamente desde esta sección.
 
 ---
 
-### Instancias
+### Despliegues
 
-La pestaña Instancias documenta dónde se ejecuta su aplicación en diferentes entornos.
+La pestaña Despliegues documenta dónde se ejecuta realmente la aplicación -- un bloque por entorno, con los servidores asignados a cada uno.
 
-**Entornos** (en orden): Producción, Pre-producción, QA, Test, Desarrollo, Sandbox
+**Entornos**: Producción, Pre-producción, QA, Test, Desarrollo, Sandbox.
 
-**Para cada instancia puede capturar**:
-  - **URL base**: La URL de acceso para este entorno
-  - **Región** / **Zona**: Información de despliegue geográfico
-  - **Ciclo de vida**: Estado específico de la instancia (Activo, Obsoleto, etc.)
-  - **SSO habilitado** / **MFA soportado**: Capacidades de autenticación
-  - **Estado**: Habilitado o Deshabilitado
-  - **Notas**: Notas específicas del entorno
+**Para cada despliegue puede capturar**:
+- **Ciclo de vida**: estado por entorno (Activo, Propuesto, Obsoleto, Retirado, etc.)
+- **URL base**: la URL de acceso para este entorno
+- **SSO habilitado** / **MFA soportado**
+- **Notas**
 
-**Acciones masivas**:
-  - **Copiar desde Prod**: Crear rápidamente instancias para otros entornos basándose en su configuración de Producción
-  - **Aplicar en lote**: Aplicar cambios a múltiples entornos a la vez
+**Añadir despliegue** abre un diálogo donde define entorno, ciclo de vida, URL base, indicadores SSO/MFA y notas. Cada entorno solo puede añadirse una vez. El chip de ciclo de vida en el encabezado de un despliegue también puede cambiarse en línea desde un menú emergente.
 
-**Consejo**: Los cambios en instancias se guardan inmediatamente -- no es necesario hacer clic en el botón principal de Guardar.
+**Servidores por despliegue**: Cada bloque de despliegue muestra una tabla de servidores asignados:
 
----
+| Columna | Qué muestra |
+|---------|-------------|
+| **Servidor** | Nombre del activo (clicable) |
+| **Rol** | p. ej., Web, Base de datos, Aplicación (de la lista de roles de servidor en Configuración) |
+| **Alojamiento** | Derivado de la ubicación del activo |
+| **Desde** | Fecha en que se asignó el servidor a este despliegue |
 
-### Servidores
+Haga clic en **Añadir servidor** en el encabezado del despliegue para vincular un activo. Los activos de tipo clúster están excluidos -- asigne en su lugar los hosts miembros del clúster.
 
-La pestaña Servidores muestra qué activos de infraestructura soportan cada instancia de la aplicación.
-
-**Cómo funciona**:
-  - Seleccione un entorno para ver sus asignaciones de activos
-  - Añada activos usando el botón **Añadir servidor**
-  - Cada asignación captura el **Activo**, **Rol** (p. ej., Web, Base de datos, Aplicación) y **Notas** opcionales
-  - Haga clic en el nombre de un activo para navegar al espacio de trabajo del Activo
-
-**Consejo**: Asegúrese de que sus activos estén documentados en la página de Activos primero, luego vincúlelos aquí.
+**Consejo**: Documente primero los servidores en **Panorama IT > Activos**, luego vincúlelos aquí. La pestaña Visión general del activo mostrará las mismas asignaciones de forma inversa.
 
 ---
 
 ### Interfaces
 
-La pestaña Interfaces muestra todas las integraciones donde esta aplicación participa -- ya sea como origen, destino o middleware.
+La pestaña Interfaces muestra todas las integraciones en las que participa esta aplicación -- como origen, destino o middleware. La insignia de la pestaña muestra el conteo total.
 
-**Qué verá**:
-  - Interfaces agrupadas por entorno (Prod, Pre-prod, QA, etc.)
-  - Para cada interfaz: **Nombre**, **Aplicación de origen**, **Aplicación de destino** e indicador de **Vía middleware**
-  - Haga clic en cualquier nombre de interfaz o aplicación para navegar a su espacio de trabajo
+Las interfaces se **agrupan por entorno** (PROD, PRE_PROD, QA, ...). Dentro de cada entorno se dividen en:
 
-**Consejo**: Las interfaces se gestionan desde la página de Interfaces. Esta pestaña proporciona una vista de solo lectura conveniente de todas las integraciones que involucran esta aplicación.
+- **Entrantes** -- esta aplicación recibe datos
+- **Salientes** -- esta aplicación envía datos
+- **Enrutadas** -- esta aplicación es el middleware/ETL para un flujo entre otras dos apps
 
----
+Cada fila muestra el nombre de la interfaz, la aplicación contraparte y un indicador **Vía middleware**. Haga clic en la fila para abrir el espacio de trabajo de la interfaz; haga clic en la contraparte para abrir la otra aplicación.
 
-### Propiedad y audiencia
-
-La pestaña Propiedad y audiencia documenta quién es responsable y quién usa esta aplicación.
-
-**Responsables de negocio**: Las partes interesadas del negocio responsables de esta aplicación
-  - Añada múltiples responsables; cada uno muestra su puesto de trabajo
-
-**Responsables IT**: Los miembros del equipo IT responsables del soporte técnico
-  - Añada múltiples responsables; cada uno muestra su puesto de trabajo
-
-**Audiencia**: Qué partes de su organización usan esta aplicación
-  - Seleccione una **Empresa** y opcionalmente un **Departamento**
-  - El sistema calcula el número de usuarios basándose en las métricas de sus datos maestros (Usuarios IT o Plantilla)
-  - Añada múltiples filas para capturar todas las audiencias
-
-**Número de usuarios**: Elija entre:
-  - **Derivado**: Calculado automáticamente a partir de las selecciones de Audiencia
-  - **Manual**: Sobrescriba con un número específico
+**Consejo**: Las interfaces se gestionan desde la página de Interfaces. Esta pestaña es una vista de solo lectura por conveniencia, pero es la forma más rápida de navegar entre aplicaciones conectadas.
 
 ---
 
-### Técnico y soporte
+### Operaciones
 
-La pestaña Técnico y soporte captura detalles técnicos y contactos de soporte.
+La pestaña Operaciones captura cómo acceden los usuarios a la aplicación y quién la soporta.
 
-**Información técnica**:
-  - **Suites**: Suites padre a las que pertenece esta aplicación
-  - **Métodos de acceso**: Cómo acceden los usuarios a esta aplicación (selección múltiple). Las opciones son configurables en [Configuración del Panorama IT](it-ops-settings.md#metodos-de-acceso). Las opciones predeterminadas incluyen:
-    - Web
-    - Aplicación instalada localmente
-    - Aplicación móvil
-    - HMI propietario (interfaz industrial)
-    - Terminal / CLI
-    - VDI / Escritorio remoto
-    - Kiosk
-  - **Acceso externo**: Si la aplicación es accesible desde internet
-  - **Integración de datos / ETL**: Si la aplicación participa en pipelines de integración de datos
+**Técnico**:
+- **Métodos de acceso** (selección múltiple): cómo acceden los usuarios a esta aplicación. Las opciones son configurables en [Configuración del Panorama IT](it-ops-settings.md). Los valores predeterminados incluyen Web, Aplicación instalada localmente, Aplicación móvil, HMI propietario (interfaz industrial), Terminal / CLI, VDI / Escritorio remoto, Kiosk.
+- **Acceso externo**: si la aplicación es accesible desde internet
+- **Integración de datos / ETL**: si la aplicación participa en pipelines de integración de datos (también activa el modo "middleware" para esta app en las vistas de Interfaces y Conexiones)
+- **Puede tener apps hijas**: convertir esta aplicación en una Suite que agrupa otras aplicaciones
 
-**Información de soporte**:
-  - Añada contactos de soporte con su **Rol** (p. ej., Gestor de cuenta, Soporte técnico)
-  - Los contactos se vinculan desde sus datos maestros de Contactos
-  - Cada contacto muestra su **Correo**, **Teléfono** y **Móvil**
-  - **Notas de soporte**: Notas de texto libre sobre los acuerdos de soporte
-
----
-
-### Relaciones
-
-La pestaña Relaciones vincula esta aplicación a sus datos financieros, de contratos y de proyectos.
-
-**Vínculos disponibles**:
-  - **Partidas OPEX**: Costes recurrentes asociados a esta aplicación
-  - **Partidas CAPEX**: Proyectos de gasto de capital
-  - **Contratos**: Contratos con proveedores
-  - **Proyectos**: Proyectos del portafolio vinculados a esta aplicación
-  - **Sitios web relevantes**: Enlaces externos y documentación
-  - **Adjuntos**: Suba archivos arrastrando y soltando o con el selector de archivos. Se descargan haciendo clic en el chip del archivo.
-
-**Si es una Suite**:
-  - También verá una sección de **Componentes** listando las aplicaciones hijas
-  - Gestione las aplicaciones hijas habilitando "Puede tener apps hijas" en la pestaña Visión general
-
----
-
-### Base de conocimiento
-
-La pestaña Base de conocimiento conecta esta aplicación con la base de conocimiento de su organización. Puede vincular documentos de conocimiento existentes o crear nuevos directamente desde el espacio de trabajo.
-
-Esto es útil para adjuntar runbooks, decisiones de arquitectura, procedimientos operativos o cualquier documentación interna relacionada con la aplicación.
-
-**Consejo**: Los documentos de conocimiento se comparten en toda la organización. Vincular uno aquí no restringe su visibilidad -- simplemente crea una referencia cruzada conveniente.
+**Soporte**:
+- Una tabla de contactos de soporte extraída de sus datos maestros de Contactos. Cada fila muestra el nombre del contacto, correo, teléfono y un rol de texto libre (p. ej., Gestor de cuenta, Soporte N1).
+- **Añadir contacto** abre un diálogo para elegir un contacto y definir un rol.
+- **Notas de soporte**: texto libre para los acuerdos de soporte (SLA, vías de escalado, información de guardias).
 
 ---
 
@@ -272,12 +235,31 @@ Esto es útil para adjuntar runbooks, decisiones de arquitectura, procedimientos
 La pestaña Conformidad captura información de protección de datos y normativa.
 
 **Qué puede editar**:
-  - **Clase de datos**: Nivel de sensibilidad (Público, Interno, Confidencial, Restringido)
-  - **Última prueba DR**: Fecha de la prueba de recuperación ante desastres más reciente
-  - **Contiene PII**: Si la aplicación almacena información de identificación personal
-  - **Residencia de datos**: Países donde se almacenan los datos (selección múltiple)
+- **Clase de datos** (obligatorio): nivel de sensibilidad (Público, Interno, Confidencial, Restringido, o cualquier código personalizado definido en Configuración)
+- **Última prueba DR**: fecha de la prueba de recuperación ante desastres más reciente
+- **Contiene PII**: si la aplicación almacena información de identificación personal
+- **Residencia de datos**: países donde se almacenan los datos (selección múltiple, códigos ISO + nombres)
 
 **Consejo**: Las clases de datos son configurables en **Panorama IT > Configuración**. Personalícelas para que coincidan con la política de clasificación de datos de su organización.
+
+---
+
+### Relaciones
+
+La pestaña Relaciones vincula esta aplicación a sus registros financieros, de contratos, de proyectos y de tareas. La insignia de la pestaña cuenta todos los elementos vinculados. Los cambios se guardan automáticamente.
+
+**Componentes** (solo cuando está activado "Puede tener apps hijas"): una tabla que lista las aplicaciones hijas de esta Suite, con su ciclo de vida y criticidad. Haga clic en una fila para abrir el espacio de trabajo del hijo.
+
+**Relaciones**:
+- **Partidas OPEX**: costes recurrentes asociados a esta aplicación
+- **Partidas CAPEX**: proyectos de gasto de capital
+- **Contratos**: contratos con proveedores
+- **Proyectos**: proyectos del portafolio vinculados a esta aplicación
+- **Tareas**: tareas vinculadas a esta aplicación. Esta lista es de solo lectura aquí -- las tareas ganan o pierden este vínculo cuando establece el campo **App / Servicio** en una tarea desde la página de Tareas.
+
+**Sitios web relevantes**: añada URLs con nombres opcionales -- útil para portales de proveedores, paneles de monitoreo o enlaces a documentación. **Añadir URL** abre un diálogo; las entradas existentes pueden editarse o eliminarse.
+
+**Adjuntos**: Arrastre y suelte archivos o haga clic en **Seleccionar archivos** para subirlos. Haga clic en un chip de adjunto para descargarlo. La eliminación está disponible para los gestores.
 
 ---
 
@@ -287,16 +269,12 @@ KANAP ofrece **dos formas de gestionar versiones de aplicaciones**, dependiendo 
 
 | Enfoque | Ideal para | Qué sucede |
 |---------|------------|------------|
-| **Simple** | La mayoría de aplicaciones | Actualice los campos de versión en su lugar -- mismo registro, nuevo número de versión |
-| **Sofisticado** | Migraciones mayores | Cree un nuevo registro de aplicación con seguimiento de linaje -- ejecute versiones antigua y nueva en paralelo |
+| **Simple** | La mayoría de aplicaciones | Actualice los campos de versión en el panel de propiedades o en el formulario de creación -- mismo registro, nuevo número de versión |
+| **Sofisticado** | Migraciones mayores | Use **Crear nueva versión** para crear un nuevo registro de aplicación con seguimiento de linaje -- ejecute las versiones antigua y nueva en paralelo |
 
 ### Seguimiento simple de versiones (actualizaciones in situ)
 
-Para la mayoría de aplicaciones -- donde actualiza y la versión anterior simplemente desaparece -- solo actualice los campos de versión en la pestaña **Visión general**:
-  - **Versión**: Introduzca la versión actual (p. ej., "4.2.1", "2023", "T1 2024")
-  - **Fecha de puesta en marcha**: Cuándo esta versión entró o entrará en producción
-  - **Fin de soporte**: Cuándo finaliza el soporte del proveedor
-  - **Fecha de retiro**: Cuándo decomisionó realmente esta versión
+Para la mayoría de aplicaciones -- donde actualiza y la versión anterior simplemente desaparece -- actualice los campos **Versión**, **Puesta en marcha**, **Fin de soporte** y **Fecha de retiro** en el formulario de creación o en el panel de propiedades. El chip de versión del encabezado y los metadatos de **Puesta en marcha** reflejan lo que defina.
 
 Este enfoque mantiene todo en un solo registro. Cuando actualiza, modifique los campos de versión y listo. El historial se rastrea en el registro de auditoría.
 
@@ -304,66 +282,44 @@ Este enfoque mantiene todo en un solo registro. Cuando actualiza, modifique los 
 
 ### Crear una nueva versión (migraciones en paralelo)
 
-Para actualizaciones mayores de aplicaciones donde necesita ejecutar versiones antigua y nueva en paralelo en diferentes entornos (p. ej., SAP S/4HANA 1909 en Prod mientras 2023 está en QA), use la función **Crear nueva versión**:
+Para actualizaciones mayores de aplicaciones donde necesita ejecutar las versiones antigua y nueva en paralelo en diferentes entornos (p. ej., SAP S/4HANA 1909 en Prod mientras 2023 está en QA), utilice **Crear nueva versión** en el encabezado del espacio de trabajo.
 
-1. Abra la aplicación que desea actualizar
-2. Guarde cualquier cambio pendiente (el botón está deshabilitado si tiene ediciones sin guardar)
-3. Haga clic en **Crear nueva versión** en el encabezado
-4. Complete el asistente de tres pasos:
-   - **Paso 1 - Detalles de la versión**: Introduzca el nuevo nombre de la aplicación, versión y fechas
-   - **Paso 2 - Opciones de copia**: Elija qué copiar del origen (responsables, empresas, departamentos, etc.)
-   - **Paso 3 - Interfaces**: Seleccione qué interfaces migrar a la nueva versión
-5. Haga clic en **Crear versión**
+El asistente tiene tres pasos:
+
+1. **Detalles de la versión** -- nuevo nombre de la aplicación, etiqueta de versión, fechas de **Puesta en marcha** y **Fin de soporte**.
+2. **Opciones de copia** -- elija qué copiar del origen. Los valores predeterminados se muestran a continuación.
+3. **Interfaces** -- seleccione qué interfaces migrar a la nueva versión.
 
 La nueva versión se crea como una aplicación separada con:
-  - Un ciclo de vida **Propuesto** (listo para configurar antes de la puesta en marcha)
-  - Un enlace al predecesor (mostrado en la línea de tiempo de versiones)
-  - Datos copiados según sus selecciones
-  - Interfaces duplicadas apuntando a la nueva versión
-
-### Línea de tiempo de versiones
-
-Cuando una aplicación tiene linaje de versiones (predecesor o sucesores), aparece una línea de tiempo de versiones en la parte superior de la pestaña **Visión general**:
-
-  - Cada versión se muestra como un chip con su número de versión
-  - La versión actual está resaltada
-  - Las versiones retiradas aparecen con estilo tachado
-  - Haga clic en cualquier chip para navegar a esa versión
+- Un ciclo de vida **Propuesto** (listo para configurar antes de la puesta en marcha)
+- Un enlace a su predecesor (usado por la línea de tiempo de versiones)
+- Datos copiados según sus selecciones
+- Interfaces duplicadas apuntando a la nueva versión
 
 ### Qué se copia
 
-Al crear una nueva versión, puede elegir copiar:
-  - **Responsables** (Negocio e IT)
-  - **Empresas** (Audiencia)
-  - **Departamentos**
-  - **Residencia de datos**
-  - **Enlaces** (Documentación)
-  - **Contactos de soporte**
-  - **Partidas OPEX/CAPEX** - habilitado por defecto
-  - **Contratos** - habilitado por defecto
-  - **Instancias** (Entornos) - opcional, deshabilitado por defecto
-  - **Enlaces de instancia** (conexiones de entorno) - opcional, solo disponible cuando Instancias está seleccionado
+| Opción | Predeterminado |
+|--------|----------------|
+| Responsables (negocio e IT) | Activado |
+| Empresas (audiencia) | Activado |
+| Departamentos | Activado |
+| Residencia de datos | Activado |
+| Enlaces | Activado |
+| Contactos de soporte | Activado |
+| Partidas presupuestarias (OPEX + CAPEX, emparejadas) | Activado |
+| Contratos | Activado |
+| Despliegues | Desactivado |
+| Enlaces de despliegue | Desactivado (solo disponible cuando se selecciona Despliegues) |
 
-**No se copia** (debe configurarse de nuevo):
-  - Pertenencia a suite
-  - Adjuntos
-  - Asignaciones de activos
+**No se copia** (debe configurarse de nuevo): pertenencia a suite, adjuntos, asignaciones de servidores.
 
 ### Migración de interfaces
 
-Durante la creación de versiones, puede seleccionar interfaces específicas para migrar:
-  - El asistente muestra todas las interfaces donde esta aplicación es el origen o destino
-  - Las interfaces seleccionadas se duplican con referencias actualizadas a la nueva versión
-  - Las interfaces originales permanecen vinculadas a la versión anterior
-  - Cada interfaz migrada incluye todas sus relaciones: rutas, responsables, empresas, identificadores clave, enlaces y residencia de datos
-  - La nueva interfaz comienza con un ciclo de vida "Propuesto"
+Durante la creación de versiones, el asistente muestra todas las interfaces donde esta aplicación es origen, destino o middleware (cuando ETL está habilitado). Las interfaces seleccionadas se duplican con sus referencias actualizadas a la nueva versión. Cada interfaz migrada incluye sus tramos, responsables, empresas, identificadores clave, enlaces y residencia de datos. Las interfaces migradas comienzan con un ciclo de vida **Propuesto**. Las interfaces originales permanecen vinculadas a la versión anterior.
 
-**Copiar enlaces**: Si selecciona tanto "Instancias" como "Enlaces de instancia" en el Paso 2, los enlaces de interfaz también se copian:
-  - Los enlaces se mapean a las instancias de la nueva aplicación (mismos entornos)
-  - Los detalles específicos del entorno (endpoints, autenticación, nombres de trabajo) se borran para configuración nueva
-  - El estado del enlace se restablece a "Propuesto"
+**Copiar enlaces**: Si selecciona tanto **Despliegues** como **Enlaces de despliegue**, los enlaces de interfaz también se copian. Los enlaces se mapean a los despliegues de la nueva aplicación (emparejados por entorno); los detalles específicos del entorno (endpoints, autenticación, nombres de trabajo) se borran y el estado del enlace se restablece a **Propuesto**.
 
-**Aplicaciones ETL/Middleware**: Si la aplicación tiene "Integración de datos / ETL" habilitada, el asistente también muestra interfaces que *fluyen a través de* esta aplicación como middleware. Estas son interfaces donde otro origen envía datos a otro destino a través de su ETL. Copiar estas crea nuevas definiciones de interfaz para el ETL actualizado, con referencias de middleware debidamente actualizadas.
+**Aplicaciones ETL/Middleware**: Si la aplicación tiene **Integración de datos / ETL** habilitado, el asistente también muestra interfaces que *fluyen a través de* esta aplicación como middleware. Estas son interfaces donde otro origen envía datos a otro destino a través de su ETL. Copiarlas crea nuevas definiciones de interfaz para el ETL actualizado, con las referencias de middleware debidamente actualizadas.
 
 **Consejo**: Use esto al actualizar su ERP o ETL: migre las interfaces críticas y opcionalmente copie los enlaces para obtener una ventaja en la configuración del entorno.
 
@@ -384,19 +340,19 @@ Utilice esto cuando desee crear un duplicado independiente de una aplicación --
 
 **Qué se copia**: Todos los campos principales (excepto fecha de última prueba DR), responsables, empresas, departamentos, suites, partidas OPEX/CAPEX, contratos, enlaces, residencia de datos y contactos de soporte.
 
-**Qué NO se copia**: Instancias, interfaces, asignaciones de activos, adjuntos, campos de versión (versión, fecha de puesta en marcha, fin de soporte).
+**Qué NO se copia**: Despliegues, interfaces, asignaciones de servidores, adjuntos, campos de versión (versión, fecha de puesta en marcha, fin de soporte).
 
 ### Comparación: Copiar elemento vs Crear nueva versión
 
 | Aspecto | Copiar elemento | Crear nueva versión |
 |---------|-----------------|---------------------|
-| **Propósito** | Crear duplicado independiente | Crear versión con linaje |
-| **Opciones del usuario** | Ninguna (automático) | Asistente paso a paso |
-| **Linaje** | Sin enlace a predecesor | Establece predecessor_id |
+| **Propósito** | Duplicado independiente | Sucesor versionado con linaje |
+| **Opciones del usuario** | Ninguna (automático) | Asistente de 3 pasos |
+| **Linaje** | Sin enlace al predecesor | Establece predecesor |
 | **Ciclo de vida** | Preservado | Restablecido a Propuesto |
-| **Nombre** | Sufijo " (copia)" | Especificado por el usuario |
+| **Nombre** | Sufijo "(copia)" | Especificado por el usuario |
 
-**Qué se copia - Relaciones**:
+**Relaciones**:
 
 | Relación | Copiar elemento | Crear nueva versión |
 |----------|-----------------|---------------------|
@@ -404,19 +360,19 @@ Utilice esto cuando desee crear un duplicado independiente de una aplicación --
 | Empresas (audiencia) | Sí | Opcional (predeterminado: sí) |
 | Departamentos | Sí | Opcional (predeterminado: sí) |
 | Residencia de datos | Sí | Opcional (predeterminado: sí) |
-| Enlaces (documentación) | Sí | Opcional (predeterminado: sí) |
+| Enlaces | Sí | Opcional (predeterminado: sí) |
 | Contactos de soporte | Sí | Opcional (predeterminado: sí) |
 | Suites (pertenencia) | Sí | No |
 | Partidas OPEX | Sí | Opcional (predeterminado: sí) |
 | Partidas CAPEX | Sí | Opcional (predeterminado: sí) |
 | Contratos | Sí | Opcional (predeterminado: sí) |
-| Instancias | No | Opcional (predeterminado: no) |
-| Enlaces de instancia | No | Opcional (predeterminado: no) |
+| Despliegues | No | Opcional (predeterminado: no) |
+| Enlaces | No | Opcional (predeterminado: no) |
 | Interfaces | No | Seleccionadas por el usuario |
-| Asignaciones de activos | No | No |
+| Asignaciones de servidores | No | No |
 | Adjuntos | No | No |
 
-**Qué se copia - Campos principales**:
+**Campos principales**:
 
 | Campo | Copiar elemento | Crear nueva versión |
 |-------|-----------------|---------------------|
@@ -437,15 +393,15 @@ Mantenga su inventario de aplicaciones a escala usando la importación y exporta
 ### Acceder a las funciones CSV
 
 Desde la lista de Aplicaciones:
-  - **Exportar CSV**: Descargar aplicaciones a un archivo CSV
-  - **Importar CSV**: Subir un archivo CSV para crear o actualizar aplicaciones
-  - **Descargar plantilla**: Obtener un CSV en blanco con los encabezados correctos
+- **Exportar CSV**: Descargar aplicaciones a un archivo CSV
+- **Importar CSV**: Subir un archivo CSV para crear o actualizar aplicaciones
+- **Descargar plantilla** (desde dentro del diálogo de importación): Obtener un CSV en blanco con los encabezados correctos
 
 **Permisos requeridos**: `applications:admin` para operaciones de importación/exportación.
 
 ### Opciones de exportación
 
-**Presets** (selecciones de campos preconfiguradas):
+**Presets**:
 
 | Preset | Descripción |
 |--------|-------------|
@@ -552,27 +508,27 @@ El sistema normaliza automáticamente los valores durante la importación, por l
 ### Coincidencia y actualizaciones
 
 Las aplicaciones se emparejan por **nombre** (sin distinguir mayúsculas). Cuando se encuentra una coincidencia:
-  - Con modo `Enriquecer`: Solo los valores CSV no vacíos actualizan la aplicación
-  - Con modo `Reemplazar`: Todos los campos se actualizan, los valores vacíos borran datos existentes
+- Con modo `Enriquecer`: Solo los valores CSV no vacíos actualizan la aplicación
+- Con modo `Reemplazar`: Todos los campos se actualizan, los valores vacíos borran datos existentes
 
 Si incluye la columna `id` con un UUID válido, la coincidencia usa primero el ID, luego el nombre como respaldo.
 
 ### Limitaciones
 
-  - **Instancias no incluidas**: Las instancias de entorno (Prod, QA, Dev) requieren configuración en el espacio de trabajo
-  - **Asignaciones de activos excluidas**: Los enlaces a servidores deben configurarse en la pestaña Servidores
-  - **Interfaces excluidas**: Las definiciones de integración no son parte de la importación/exportación CSV
-  - **Máximo 4 responsables por tipo**: Se pueden importar/exportar hasta 4 responsables de negocio y 4 responsables IT
-  - **Métricas de usuarios solo de exportación**: Los campos de audiencia y conteo de usuarios (`users_mode`, `users_year`, `users_override`) se gestionan en el espacio de trabajo
-  - **Residencia de datos solo de exportación**: Las selecciones de países deben gestionarse en la pestaña Conformidad
+- **Despliegues no incluidos**: Los despliegues por entorno (Prod, QA, Dev) requieren configuración en el espacio de trabajo
+- **Asignaciones de servidores excluidas**: Los enlaces a servidores deben configurarse en la pestaña Despliegues
+- **Interfaces excluidas**: Las definiciones de integración no son parte de la importación/exportación CSV
+- **Máximo 4 responsables por tipo**: Se pueden importar/exportar hasta 4 responsables de negocio y 4 responsables IT
+- **Métricas de usuarios solo de exportación**: Los campos de audiencia y conteo de usuarios (`users_mode`, `users_year`, `users_override`) se gestionan en el espacio de trabajo
+- **Residencia de datos solo de exportación**: Las selecciones de países deben gestionarse en la pestaña Conformidad
 
 ### Solución de problemas
 
 **Error "El archivo no tiene el formato correcto"**: Esto generalmente indica un problema de codificación. Asegúrese de que su CSV esté guardado como **UTF-8**:
 
-  - **En LibreOffice**: Al abrir un CSV, seleccione `UTF-8` en el desplegable de Juego de caracteres (no "Japanese (Macintosh)" u otras codificaciones). Al guardar, marque "Editar configuración de filtro" y elija UTF-8.
-  - **En Excel**: Guardar como > CSV UTF-8 (delimitado por comas), luego abra en un editor de texto para cambiar comas por puntos y coma.
-  - **Consejo general**: Si ve caracteres ilegibles (`?¿`, `ï»¿`) al inicio de su archivo, la codificación es incorrecta.
+- **En LibreOffice**: Al abrir un CSV, seleccione `UTF-8` en el desplegable de Juego de caracteres (no "Japanese (Macintosh)" u otras codificaciones). Al guardar, marque "Editar configuración de filtro" y elija UTF-8.
+- **En Excel**: Guardar como > CSV UTF-8 (delimitado por comas), luego abra en un editor de texto para cambiar comas por puntos y coma.
+- **Consejo general**: Si ve caracteres ilegibles (`?¿`, `ï»¿`) al inicio de su archivo, la codificación es incorrecta.
 
 ### Ejemplo CSV
 
@@ -587,9 +543,11 @@ Custom ERP;lob;;medium;Active;2018-03-20;false
 
 ## Consejos
 
-  - **Empiece por las apps críticas**: Documente primero sus aplicaciones críticas para el negocio, luego avance en los niveles de criticidad.
-  - **Use Suites para agrupar**: Marque una aplicación como Suite para agrupar componentes relacionados (p. ej., módulos SAP bajo una Suite SAP).
-  - **Vincule al gasto temprano**: Conecte partidas OPEX y CAPEX en la pestaña Relaciones para ver el panorama completo de costes.
-  - **Mantenga los entornos actualizados**: La pestaña Instancias alimenta los chips de entorno en la lista -- manténgala actualizada para una visibilidad precisa.
-  - **Aproveche el filtrado por categoría**: Utilice el filtro de columna Categoría para centrarse en tipos específicos de aplicaciones (p. ej., mostrar solo apps de Línea de negocio, o excluir herramientas de Productividad).
-  - **Adjunte conocimiento temprano**: Vincule runbooks y documentos de arquitectura en la pestaña Base de conocimiento para que el equipo sepa dónde buscar durante los incidentes.
+- **Empiece por las apps críticas**: Documente primero sus aplicaciones críticas para el negocio, luego avance en los niveles de criticidad.
+- **Use Suites para agrupar**: Active "Puede tener apps hijas" en la pestaña Operaciones para marcar una aplicación como Suite que agrupa componentes relacionados (p. ej., módulos SAP bajo una Suite SAP).
+- **Vincule al gasto temprano**: Conecte partidas OPEX, CAPEX y contratos en la pestaña Relaciones para ver el panorama completo de costes de cada aplicación.
+- **Mantenga los despliegues actualizados**: La pestaña Despliegues alimenta los chips de entorno en la lista -- manténgala actualizada para una visibilidad precisa.
+- **Documente la audiencia**: Defina la audiencia de empresas y departamentos en el panel de propiedades; el conteo de usuarios se deriva entonces automáticamente y se utiliza en los informes.
+- **Aproveche el filtrado por categoría**: Utilice el filtro de columna Categoría para centrarse en tipos específicos de aplicaciones (p. ej., mostrar solo apps de Línea de negocio, o excluir herramientas de Productividad).
+- **Adjunte conocimiento temprano**: Vincule runbooks y documentos de arquitectura desde la pestaña Visión general para que el equipo sepa dónde buscar durante los incidentes.
+- **Las tareas vienen de la página Tareas**: Para adjuntar una tarea a una aplicación, defina el campo App / Servicio en la propia tarea; aparecerá en Relaciones > Tareas.

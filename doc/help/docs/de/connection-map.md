@@ -1,6 +1,6 @@
 # Verbindungskarte
 
-Die Verbindungskarte bietet eine interaktive Visualisierung Ihrer Infrastruktur-Netzwerktopologie. Assets erscheinen als Knoten und Verbindungen als Kanten und zeigen, wie Daten auf Infrastrukturebene fließen. Nutzen Sie sie, um Abhängigkeiten zu erkunden, Verbindungspfade nachzuverfolgen und Diagramme für die Architekturdokumentation zu exportieren.
+Die Verbindungskarte ist eine interaktive Visualisierung Ihrer Infrastruktur-Netzwerktopologie. Server, Cluster und externe Entitäten erscheinen als Knoten; die Verbindungen zwischen ihnen sind Kanten. Verwenden Sie sie, um Abhängigkeiten zu erkunden, Verbindungspfade nachzuverfolgen und Diagramme für die Architekturdokumentation oder Sicherheitsprüfungen zu exportieren.
 
 ## Wo Sie es finden
 
@@ -12,21 +12,22 @@ Navigieren Sie zu **IT-Landschaft > Verbindungskarte**, um die Visualisierung zu
 
 ## Die Visualisierung verstehen
 
-Die Karte verwendet ein kraftgerichtetes Graph-Layout, bei dem:
-- **Knoten** Server, Cluster oder logische Entitäten repräsentieren
-- **Kanten** Verbindungen zwischen Infrastrukturkomponenten repräsentieren
+Die Karte verwendet ein kraftgerichtetes Graph-Layout, in dem:
+
+- **Knoten** Server, Cluster oder externe Entitäten darstellen
+- **Kanten** Verbindungen zwischen Infrastrukturkomponenten darstellen
 - **Farben** den Hosting-Typ (On-Premises, Cloud) oder die Knotenart anzeigen
-- **Rollenbasierte Platzierung** (standardmäßig aktiviert) Knoten in von oben nach unten angeordnete Bänder basierend auf Rollenebenen leitet
+- **Rollenbasierte Platzierung** (standardmäßig aktiviert) das Force-Layout beibehält, aber Knoten in Top-down-Tier-Bänder schiebt
 
 ### Knotentypen
 
 | Typ | Form | Randfarbe | Beschreibung |
-|------|-------|--------------|-------------|
-| **Server** | Abgerundetes Rechteck | Grün (On-prem) oder Blau (Cloud) | Einzelne Infrastrukturinstanzen (VMs, Container usw.) |
-| **Cluster** | Abgerundetes Rechteck, gestrichelter Rand | Cyan | Gruppen von Servern, die als eine logische Einheit agieren |
-| **Entitäten** | Pillen-/Stadionform | Orange | Logische Endpunkte (externe Systeme, SaaS-Dienste) |
+|------|-------|---------------|-------------|
+| **Server** | Abgerundetes Rechteck | Grün (On-Prem) oder blau (Cloud) | Einzelne Infrastruktur-Instanzen (VMs, Container usw.) |
+| **Cluster** | Abgerundetes Rechteck, gestrichelter Rand | Cyan | Gruppen von Servern, die als eine einzige logische Einheit fungieren |
+| **Entitäten** | Pillen- / Stadionform | Orange | Logische Endpunkte (externe Systeme, SaaS-Dienste) |
 
-Cluster-Mitglieder erscheinen als separate Knoten mit gestrichelten Linien, die sie mit ihrem übergeordneten Cluster-Knoten verbinden.
+Cluster-Mitglieder erscheinen als separate Server-Knoten mit gestrichelten Indikatorlinien, die sie mit ihrem übergeordneten Cluster-Knoten verbinden.
 
 ---
 
@@ -34,32 +35,37 @@ Cluster-Mitglieder erscheinen als separate Knoten mit gestrichelten Linien, die 
 
 ### Lebenszyklus
 
-Mehrfachauswahl-Filter für den Verbindungs-Lebenszyklus-Status. Wählen Sie, welche Status in der Visualisierung enthalten sein sollen (z. B. Aktiv, Geplant, Veraltet). Standard ist nur **Aktiv**.
+Mehrfachauswahl-Filter für den Verbindungs-Lebenszyklus-Status (Aktiv, Geplant, Veraltet usw.). Standardmäßig auf **Aktiv** eingestellt.
 
-### Anwendungen
+### Anwendungen und App-Umgebung
 
-Server über die darauf laufenden Anwendungen finden:
+Finden Sie Server über die Anwendungen, die auf ihnen laufen:
+
 1. Wählen Sie eine oder mehrere Anwendungen aus dem Dropdown **Anwendungen**
-2. Wählen Sie Umgebungen im Dropdown **App-Umg.** (zeigt nur Umgebungen, in denen ausgewählte Apps zugewiesene Server haben)
-3. Die passenden Server werden automatisch zum **Server**-Filter hinzugefügt
+2. Wählen Sie Umgebungen im Dropdown **App-Umgebung** (es erscheinen nur Umgebungen, in denen die ausgewählten Apps zugewiesene Server haben)
+3. Die übereinstimmenden Server werden automatisch zum Filter **Server** hinzugefügt
 
-Dies ist nützlich, wenn Sie die Infrastrukturverbindungen für eine bestimmte Anwendung sehen möchten, ohne zu wissen, auf welchen Servern sie läuft.
+Dies ist nützlich, wenn Sie die Infrastrukturverbindungen für eine Anwendung sehen möchten, ohne zu wissen, auf welchen Servern sie läuft.
 
 ### Server
 
-Server, Cluster oder Entitäten direkt auswählen, um den Fokus zu setzen:
+Wählen Sie direkt Server, Cluster oder Entitäten aus, auf die Sie sich konzentrieren möchten:
+
 1. Klicken Sie auf das Dropdown **Server**
-2. Wählen Sie Elemente (gruppiert nach Typ: Entitäten, Cluster, Server)
-3. Verwenden Sie den **Tiefe**-Filter, um zu steuern, wie viele Sprünge angezeigt werden
+2. Wählen Sie Elemente aus (gruppiert nach **Entitäten**, **Cluster**, **Server**)
+3. Verwenden Sie den Filter **Tiefe**, um zu steuern, wie viele Hops angezeigt werden sollen
+
+Wenn viele Elemente ausgewählt sind, wird nur der erste Chip zusammen mit einem Chip **+N weitere** angezeigt. Klicken Sie auf **+N weitere**, um ein Popover zu öffnen, das jedes ausgewählte Element mit einem Entfernen-Symbol daneben auflistet.
 
 ### Tiefe
 
-Begrenzen Sie, wie viele „Sprünge" von ausgewählten Servern angezeigt werden:
-- **Alle**: Alle Verbindungen anzeigen (keine Tiefenfilterung)
-- **0**: Nur ausgewählte Server, ihre übergeordneten Cluster und direkt benachbarte Entitäten anzeigen
-- **1--5**: Server innerhalb von N Sprüngen von ausgewählten Servern anzeigen
+Begrenzen Sie, wie viele Hops von den ausgewählten Elementen angezeigt werden sollen:
 
-Die Tiefe wird automatisch auf **0** gesetzt, wenn Sie Server über die Anwendungs- oder Server-Filter auswählen.
+- **Alle**: Jede Verbindung anzeigen (keine Tiefenfilterung)
+- **0**: Nur die ausgewählten Elemente, ihre übergeordneten Cluster und direkt benachbarten Entitäten anzeigen
+- **1-5**: Elemente innerhalb von N Hops der ausgewählten Wurzeln anzeigen
+
+Die Tiefe wechselt automatisch zu **0**, wenn Sie Wurzeln über die Filter Anwendungen oder Server auswählen.
 
 ---
 
@@ -67,43 +73,41 @@ Die Tiefe wird automatisch auf **0** gesetzt, wenn Sie Server über die Anwendun
 
 ### Multi-Server-Verbindungen anzeigen
 
-Sichtbarkeit von Multi-Server-Verbindungen umschalten (Verbindungen mit mehr als zwei Servern in einer Mesh-Topologie). Standardmäßig aktiviert.
+Schalten Sie die Sichtbarkeit von Multi-Server-Verbindungen um (Verbindungen, die mehr als zwei Server in einer Mesh-Topologie umfassen). Standardmäßig aktiviert.
 
 ### Verbindungsschichten anzeigen
 
-Wenn aktiviert (Standard), werden einzelne Verbindungsabschnitte als separate Kanten angezeigt. Dies zeigt, wie eine Verbindung mit mehreren Abschnitten durch Zwischenpunkte geroutet wird. Wenn deaktiviert, werden Verbindungen als einfache Quelle-zu-Ziel-Kanten angezeigt.
+Wenn aktiviert (Standard), wird jeder Leg einer mehrteiligen Verbindung als eigene Kante gerendert, sodass Sie sehen können, wie er durch Zwischenpunkte geleitet wird. Wenn deaktiviert, werden Verbindungen als einfache Quell-zu-Ziel-Kanten gerendert.
 
 ### Rollenbasierte Platzierung
 
-Wenn aktiviert (Standard), behält die Karte ihr kraftgerichtetes Layout bei, fügt aber eine vertikale Ebenenführung hinzu:
+Wenn aktiviert (Standard), behält die Karte ihr Force-Layout, fügt aber vertikale Tier-Führung hinzu:
 
-- **Oben / Oberer / Mitte / Unterer / Unten**-Bänder
+- Bänder **Oben / Höher / Mitte / Unten / Ganz unten**
 - **Server** verwenden die in den IT-Landschaft-Einstellungen konfigurierten Rollenzuweisungen
-- **Entitäten** verwenden ihre konfigurierte Graph-Ebene (Standard ist Oben)
+- **Entitäten** verwenden ihre konfigurierte **Graph-Tier** (Standard Oben)
 - **Nicht zugewiesene Server** fallen auf Mitte zurück
-- **Cluster** erben die Ebene mit höchster Priorität von ihren Mitgliedern
+- **Cluster** erben das Tier mit der höchsten Priorität von ihren Mitgliedern
 
-Verwenden Sie diesen Schalter, wenn Sie eine Topologieansicht wünschen, die sich wie Architekturebenen liest (Edge-Komponenten oben, Datenspeicher unten).
-
-Dieser Schalter ist nur für die Sitzung gültig und wird beim Neuladen der Seite zurückgesetzt.
+Verwenden Sie diesen Schalter, wenn Sie eine Topologieansicht wünschen, die wie Architektur-Tiers gelesen wird (Edge-Komponenten oben, Datenspeicher unten). Die Einstellung gilt nur für die Sitzung und wird beim Neuladen der Seite zurückgesetzt.
 
 ---
 
-## Graph-Steuerungen
+## Graph-Steuerelemente
 
-Das Bedienfeld auf der linken Seite der Karte bietet diese Werkzeuge:
+Das Steuerpanel auf der linken Seite der Karte bietet diese Werkzeuge:
 
-| Steuerung | Aktion | Beschreibung |
+| Steuerelement | Aktion | Beschreibung |
 |---------|--------|-------------|
-| Pause / Play | **Einfrieren / Freigeben** | Die Kraftsimulation anhalten, um Knoten manuell zu positionieren |
-| Fadenkreuz | **Auto-Zentrieren** | Automatisches Zentrieren beim Auswählen von Knoten umschalten (blau = aktiviert) |
-| Zoom + | **Hineinzoomen** | Zoomstufe erhöhen |
-| Zoom - | **Herauszoomen** | Zoomstufe verringern |
-| Raster | **Am Raster ausrichten** | Alle Knoten an einem Raster für sauberere Layouts ausrichten |
+| Pause / Wiedergabe | **Einfrieren / Auftauen** | Force-Simulation pausieren, um Knoten manuell zu positionieren |
+| Fadenkreuz | **Auto-Zentrieren** | Automatisches Zentrieren beim Auswählen von Knoten umschalten (hervorgehoben, wenn aktiviert) |
+| Zoom + | **Vergrößern** | Zoom-Stufe erhöhen |
+| Zoom - | **Verkleinern** | Zoom-Stufe verringern |
+| Raster | **Am Raster ausrichten** | Alle Knoten an einem Raster ausrichten für sauberere Layouts |
 | SVG | **SVG exportieren** | Aktuelle Ansicht als Vektorbild herunterladen |
 | PNG | **PNG exportieren** | Aktuelle Ansicht als Rasterbild herunterladen |
 
-Sie können auch mit dem Mausrad zoomen und durch Klicken und Ziehen des Hintergrunds schwenken.
+Sie können auch mit dem Mausrad zoomen und durch Klicken und Ziehen des Hintergrunds verschieben.
 
 ---
 
@@ -111,32 +115,24 @@ Sie können auch mit dem Mausrad zoomen und durch Klicken und Ziehen des Hinterg
 
 ### Knoten auswählen
 
-Klicken Sie auf einen Server- oder Cluster-Knoten, um:
-- Seine Verbindungen hervorzuheben
-- Ein Detailpanel mit folgenden Informationen zu öffnen:
-  - **Servertyp**: Art des Servers (Web, Datenbank, Anwendung usw.)
-  - **Server-Standort**: Physischer oder Cloud-Standortcode
-  - **Betriebssystem**: BS-Details
-  - **Netzwerksegment**: Netzwerkzone
-  - **IP-Adresse**: Netzwerkadresse
-  - **Zugewiesene Anwendungen**: Apps, die auf diesem Server laufen, gruppiert nach Umgebung (klickbar)
+Klicken Sie auf einen Server- oder Cluster-Knoten, um seine Verbindungen hervorzuheben und ein Detail-Panel zu öffnen, das Folgendes zeigt:
+
+- **Server-Typ**, **Server-Standort**, **Betriebssystem**, **Netzwerksegment**, **IP-Adresse**
+- **Zugewiesene Anwendungen**: Apps, die auf diesem Server laufen, gruppiert nach Umgebung. Klicken Sie auf einen App-Namen, um sie zu öffnen.
 - Schaltfläche **Server bearbeiten** oder **Cluster anzeigen**, um den Arbeitsbereich zu öffnen
 
 Klicken Sie auf einen Entitätsknoten, um seinen Typ und seine Umgebung zu sehen.
 
 ### Kanten auswählen
 
-Klicken Sie auf eine Verbindungskante, um:
-- Verbindungsdetails zu sehen:
-  - **Zweck**: Wofür die Verbindung verwendet wird
-  - **Protokolle**: Verwendete Netzwerkprotokolle
-  - **Typische Ports**: Erwartete Portnummern
-  - **Kritikalität**: Geschäftliche Bedeutung
-  - **Topologie**: Server-zu-Server oder Multi-Server
+Klicken Sie auf eine Verbindungskante, um Folgendes zu sehen:
+
+- **Zweck**, **Protokolle**, **Typische Ports**, **Kritikalität**
+- **Topologie**: Server zu Server oder Multi-Server
 - Schaltfläche **Verbindung bearbeiten**, um den Verbindungs-Arbeitsbereich zu öffnen
-- Abschnitt **Verknüpfte Schnittstellen**, der zeigt, welche Anwendungsschnittstellen diese Verbindung nutzen
-  - Klicken Sie auf **Schnittstelle öffnen**, um die Schnittstelle anzuzeigen
-  - Klicken Sie auf **In Schnittstellenkarte anzeigen**, um die Schnittstelle im Kontext zu sehen
+- Bereich **Verknüpfte Schnittstellen**, der zeigt, welche Anwendungsschnittstellen diese Verbindung verwenden. Jede verknüpfte Schnittstellen-Karte zeigt den Leg-Typ, die Umgebung, das Muster sowie Quell-/Zielendpunkte. Von dort aus können Sie:
+  - Auf **Schnittstelle öffnen** klicken, um die Schnittstelle anzuzeigen
+  - Auf **In Schnittstellenkarte anzeigen** klicken, um zur Schnittstelle im Kontext zu springen
 
 ### Knoten ziehen
 
@@ -146,14 +142,14 @@ Ziehen Sie einen beliebigen Knoten, um ihn neu zu positionieren. Während die Si
 
 ## Deep Linking
 
-Die Karte unterstützt URL-Parameter zum Teilen bestimmter Ansichten:
+Die Karte unterstützt URL-Parameter für die gemeinsame Nutzung bestimmter Ansichten:
 
 | Parameter | Beschreibung | Beispiel |
 |-----------|-------------|---------|
-| `lifecycles` | Lebenszyklus-Filter vorauswählen (kommagetrennt) | `active,planned` |
+| `lifecycles` | Lebenszyklus-Filter vorab auswählen (komma-getrennt) | `active,planned` |
 | `focusConnectionId` | Eine bestimmte Verbindung hervorheben | UUID |
-| `rootIds` | Server zum Fokussieren vorauswählen (kommagetrennt) | UUIDs |
-| `depth` | Tiefenlimit festlegen | `0`, `1`, `all` |
+| `rootIds` | Server/Cluster/Entitäten zur Fokussierung vorab auswählen (komma-getrennt) | UUIDs |
+| `depth` | Das Tiefenlimit festlegen | `0`, `1`, `all` |
 
 **Beispiel**: `/it/connection-map?lifecycles=active&rootIds=abc123&depth=1`
 
@@ -161,31 +157,31 @@ Die Karte unterstützt URL-Parameter zum Teilen bestimmter Ansichten:
 
 ## Cluster-Visualisierung
 
-Cluster werden als eigenständige Knoten mit einem gestrichelten cyanfarbenen Rand angezeigt:
-- Cluster-Mitglieder erscheinen als separate Knoten, verbunden mit ihrem übergeordneten Cluster durch gestrichelte Indikatorlinien
-- Bei Filterung nach Tiefe=0 werden sowohl die ausgewählten Mitgliedsserver als auch ihre übergeordneten Cluster angezeigt
-- Mitgliedsserver erben die Verbindungen des Clusters und behalten gleichzeitig ihre individuellen Server-zu-Server-Verbindungen bei
+Cluster erscheinen als unterscheidbare Knoten mit einem gestrichelten cyanfarbenen Rand:
+
+- Cluster-Mitglieder erscheinen als separate Knoten, die mit ihrem übergeordneten Cluster durch gestrichelte Indikatorlinien verbunden sind
+- Bei der Filterung mit Tiefe=0 werden sowohl die ausgewählten Member-Server als auch ihre übergeordneten Cluster angezeigt
+- Member-Server behalten ihre individuellen Server-zu-Server-Verbindungen zusätzlich zu den eigenen Verbindungen des Clusters
 
 ---
 
-## Graph-Ebenen konfigurieren
+## Graph-Tiers konfigurieren
 
-Sie können steuern, wo Knoten vertikal tendieren, indem Sie Ebenen in **IT-Landschaft > Einstellungen** bearbeiten:
+Sie können steuern, wo Knoten vertikal erscheinen, indem Sie Tiers in **IT-Landschaft > Einstellungen** bearbeiten:
 
-- **Serverrollen**-Liste: Graph-Ebene für jede Rolle festlegen (z. B. Web = Oben, DB = Unten)
-- **Entitäten**-Liste: Graph-Ebene für jeden Entitätstyp festlegen (Entitäten standardmäßig Oben)
+- Liste **Server-Rollen**: Graph-Tier für jede Rolle festlegen (z. B. Web = Oben, DB = Unten)
+- Liste **Entitäten**: Graph-Tier für jeden Entitätstyp festlegen (Entitäten standardmäßig auf Oben)
 
-Ebenenänderungen werden wirksam, wenn die Kartendaten das nächste Mal geladen werden.
+Tier-Änderungen werden beim nächsten Laden der Kartendaten wirksam.
 
 ---
 
 ## Tipps
 
-- **Von Anwendungen aus starten**: Verwenden Sie den Anwendungsfilter, um Server für eine bestimmte Anwendung zu finden, dann erkunden Sie deren Verbindungen mit Tiefe=1.
-- **Tiefe=0 für fokussierte Ansichten verwenden**: Wenn Sie nur Verbindungen zwischen bestimmten Servern sehen möchten, wählen Sie diese aus und setzen Sie die Tiefe auf 0.
-- **Für Architekturdokumente exportieren**: Verwenden Sie den SVG-Export, um Netzwerkdiagramme für Dokumentation oder Sicherheitsprüfungen zu erstellen. Der PNG-Export erzeugt ein hochauflösendes Rasterbild.
-- **Schichten für Fehlerbehebung aktivieren**: Schalten Sie „Verbindungsschichten anzeigen" ein, um genau zu sehen, wie Verbindungen mit mehreren Abschnitten durch Ihre Infrastruktur geroutet werden.
-- **Rollenebenen für Architekturansichten verwenden**: Lassen Sie „Rollenbasierte Platzierung" aktiviert, wenn Sie geschichtete Architekturdiagramme präsentieren.
-- **Mit Schnittstellenkarte abgleichen**: Verwenden Sie die Schaltfläche „In Schnittstellenkarte anzeigen" im Verbindungspanel, um zu sehen, welche Geschäftsschnittstellen von jeder Infrastrukturverbindung abhängen.
-- **Für Klarheit ausrichten**: Nach dem Positionieren von Knoten verwenden Sie „Am Raster ausrichten" für sauberere, ausgerichtete Layouts.
-- **Vor dem Export einfrieren**: Frieren Sie das Layout ein und positionieren Sie Knoten manuell, bevor Sie exportieren, für die sauberste Ausgabe.
+- **Beginnen Sie mit Anwendungen**: Verwenden Sie die Filter Anwendungen + App-Umgebung, um Server für eine bestimmte Anwendung zu finden, ohne die Servernamen zu kennen.
+- **Verwenden Sie Tiefe=0 für fokussierte Ansichten**: Wenn Sie nur die Verbindungen sehen möchten, die direkt mit bestimmten Servern verbunden sind, wählen Sie diese aus und setzen Sie die Tiefe auf 0.
+- **Für Architekturdokumente exportieren**: SVG erzeugt vektorisierte Netzwerkdiagramme, die für die Dokumentation geeignet sind; PNG erzeugt ein hochauflösendes Rasterbild.
+- **Schichten zur Fehlerbehebung aktivieren**: Schalten Sie **Verbindungsschichten anzeigen** ein, um genau zu sehen, wie mehrteilige Verbindungen durch Ihre Infrastruktur geleitet werden.
+- **Verwenden Sie Rollen-Tiers für Architekturansichten**: Lassen Sie **Rollenbasierte Platzierung** eingeschaltet, wenn Sie geschichtete Architekturdiagramme präsentieren.
+- **Querverweis mit der Schnittstellenkarte**: Verwenden Sie **In Schnittstellenkarte anzeigen** im Bereich verknüpfte Schnittstellen, um zu sehen, welche Geschäftsschnittstellen von einer bestimmten Infrastrukturverbindung abhängen.
+- **Vor dem Export ausrichten und einfrieren**: Frieren Sie nach dem Positionieren der Knoten das Layout ein und verwenden Sie **Am Raster ausrichten**, um die sauberste Ausgabe zu erzielen.
