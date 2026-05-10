@@ -11,7 +11,7 @@ import { withTenant } from '../common/tenant-runner';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { resolveTenantAppBaseUrl } from '../common/url';
-import { parseCookieValue, setRefreshTokenCookie } from './auth-cookie.util';
+import { isSecureRequest, parseCookieValue, setRefreshTokenCookie } from './auth-cookie.util';
 
 @Controller('auth/entra')
 export class EntraController {
@@ -310,7 +310,7 @@ export class EntraController {
     });
 
     // Keep refresh tokens out of JavaScript by issuing only an httpOnly cookie.
-    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, req.secure);
+    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, isSecureRequest(req));
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);
     const normalized = baseUrl.replace(/\/$/, '');
     const redirectPath = redirectTo && typeof redirectTo === 'string' && redirectTo.trim().length > 0 ? redirectTo : '/';

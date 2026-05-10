@@ -24,6 +24,7 @@ import { Response } from 'express';
 import {
   REFRESH_TOKEN_COOKIE_NAME,
   clearRefreshTokenCookie,
+  isSecureRequest,
   parseCookieValue,
   setRefreshTokenCookie,
 } from './auth-cookie.util';
@@ -62,6 +63,12 @@ class LogoutDto {
   @IsString()
   refresh_token?: string;
 }
+
+type TokenResponse = {
+  access_token: string;
+  expires_in: number;
+  refresh_expires_in?: number;
+};
 
 @Controller('auth')
 export class AuthController {
@@ -105,8 +112,8 @@ export class AuthController {
         manager,
       );
     });
-    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, req.secure);
-    return tokens;
+    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, isSecureRequest(req));
+    return this.toTokenResponse(tokens);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -256,14 +263,14 @@ export class AuthController {
     const refreshToken = this.resolveRefreshToken(req, body);
     if (!refreshToken) throw new BadRequestException('refresh_token is required');
     const refreshed = await this.runInRequestTenant(req, (manager) => this.auth.refreshAccessToken(refreshToken, req?.tenant?.id, manager));
-    setRefreshTokenCookie(res, refreshToken, refreshed.refresh_expires_in, req.secure);
+    setRefreshTokenCookie(res, refreshToken, refreshed.refresh_expires_in, isSecureRequest(req));
     return refreshed;
   }
 
   @Post('logout')
   async logout(@Body() body: LogoutDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const refreshToken = this.resolveRefreshToken(req, body);
-    clearRefreshTokenCookie(res);
+    clearRefreshTokenCookie(res, isSecureRequest(req));
     if (refreshToken) {
       await this.runInRequestTenant(req, (manager) => this.auth.revokeToken(refreshToken, req?.tenant?.id, manager));
     }
@@ -276,6 +283,14 @@ export class AuthController {
     if (cookieToken && cookieToken.trim() !== '') return cookieToken;
     if (bodyToken && bodyToken !== '') return bodyToken;
     return undefined;
+  }
+
+  private toTokenResponse(tokens: TokenResponse & { refresh_token?: string }): TokenResponse {
+    return {
+      access_token: tokens.access_token,
+      expires_in: tokens.expires_in,
+      refresh_expires_in: tokens.refresh_expires_in,
+    };
   }
 
 }

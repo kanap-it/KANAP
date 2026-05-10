@@ -3,6 +3,28 @@ import { isProductionEnv } from '../common/env';
 
 export const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
 
+function headerValue(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
+export function isSecureRequest(req: any): boolean {
+  if (isProductionEnv()) return true;
+  if (req?.secure === true) return true;
+  if (String(req?.protocol ?? '').toLowerCase() === 'https') return true;
+
+  const forwardedProto = headerValue(req?.headers?.['x-forwarded-proto'])
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  if (forwardedProto === 'https') return true;
+
+  const forwardedSsl = headerValue(req?.headers?.['x-forwarded-ssl']).trim().toLowerCase();
+  if (forwardedSsl === 'on' || forwardedSsl === '1' || forwardedSsl === 'true') return true;
+
+  const frontendHttps = headerValue(req?.headers?.['front-end-https']).trim().toLowerCase();
+  return frontendHttps === 'on' || frontendHttps === '1' || frontendHttps === 'true';
+}
+
 export function parseCookieValue(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
   const parts = header.split(';');
@@ -51,10 +73,10 @@ export function setRefreshTokenCookie(
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, token, options);
 }
 
-export function clearRefreshTokenCookie(res: Response): void {
+export function clearRefreshTokenCookie(res: Response, requestSecure?: boolean): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, '', {
     httpOnly: true,
-    secure: isProductionEnv(),
+    secure: isProductionEnv() ? true : !!requestSecure,
     sameSite: 'lax',
     path: '/',
     maxAge: 0,
