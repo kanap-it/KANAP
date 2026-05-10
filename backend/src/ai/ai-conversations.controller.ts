@@ -6,6 +6,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -181,6 +182,33 @@ export class AiConversationsController {
         manager: ctx.manager,
       });
       return { success: true };
+    });
+  }
+
+  @Patch(':id')
+  async rename(
+    @Param('id') id: string,
+    @Body() body: { title?: string },
+    @Req() req: any,
+  ) {
+    const context = this.buildContext(req);
+    return this.tenantExecutor.runWithContext(context, async (ctx) => {
+      await this.policy.assertSurfaceAccess(ctx, ctx.manager);
+      const conv = await this.conversations.renameConversation(
+        id,
+        ctx.tenantId,
+        ctx.userId,
+        body?.title ?? '',
+        { manager: ctx.manager },
+      );
+      return {
+        id: conv.id,
+        title: conv.title,
+        provider: conv.provider,
+        model: conv.model,
+        created_at: conv.created_at?.toISOString(),
+        updated_at: conv.updated_at?.toISOString(),
+      };
     });
   }
 

@@ -88,7 +88,7 @@ const TYPE_PREFIX_TO_ENTITY_TYPE: Record<string, string> = {
  *   "backup"     → { entityType: null,           searchTerm: 'backup' }  // not a prefix → text search
  *   "TASK"       → { entityType: null,           searchTerm: 'TASK' }    // unrecognised prefix → text search
  */
-export function parseAtMentionQuery(query: string): { entityType: string | null; searchTerm: string } {
+export function parseAtMentionQuery(query: string): { entityType: string | null; entityTypes?: string[]; searchTerm: string } {
   const trimmed = query.trim();
   if (!trimmed) return { entityType: null, searchTerm: '' };
   // Match alphabetic prefix optionally followed by `-<suffix>`.
@@ -96,8 +96,24 @@ export function parseAtMentionQuery(query: string): { entityType: string | null;
   if (!match) return { entityType: null, searchTerm: trimmed };
   const prefix = match[1].toUpperCase();
   const entityType = TYPE_PREFIX_TO_ENTITY_TYPE[prefix];
-  if (!entityType) return { entityType: null, searchTerm: trimmed };
-  return { entityType, searchTerm: match[2] || '' };
+  if (entityType) return { entityType, entityTypes: [entityType], searchTerm: match[2] || '' };
+
+  // While the user is still typing a known token (`@D`, `@DO`, `@AS`, `@CO`, ...),
+  // narrow to matching entity families instead of firing a noisy cross-type text search.
+  const matchingEntityTypes = Array.from(new Set(
+    Object.entries(TYPE_PREFIX_TO_ENTITY_TYPE)
+      .filter(([candidate]) => candidate.startsWith(prefix))
+      .map(([, type]) => type),
+  ));
+  if (matchingEntityTypes.length > 0) {
+    return {
+      entityType: matchingEntityTypes.length === 1 ? matchingEntityTypes[0] : null,
+      entityTypes: matchingEntityTypes,
+      searchTerm: match[2] || '',
+    };
+  }
+
+  return { entityType: null, searchTerm: trimmed };
 }
 
 /** @deprecated kept for backwards compatibility — prefer parseAtMentionQuery. */

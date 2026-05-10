@@ -123,55 +123,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mentionPopoverRef = useRef<MentionPopoverHandle>(null);
     // Track entity type + id for every @-mention the user inserted via the picker.
-    // We only put the human ref (e.g. `@DOC-152`) in the textarea so the composer
-    // stays clean, then expand each mention into a markdown link at send time.
-    // Map is keyed by ref string — refs are unique across entity types in KANAP
-    // (DOC- vs T- vs PRJ- vs REQ-) so a single key suffices.
-    const mentionLookupRef = useRef<Map<string, { entity_type: string; id: string }>>(new Map());
-
-    useImperativeHandle(ref, () => ({
-      focus: () => inputRef.current?.focus(),
-      setText: (next: string) => {
-        setValue(next);
-        // Defer focus + caret-to-end so React commits the new value first.
-        setTimeout(() => {
-          const el = inputRef.current as unknown as HTMLTextAreaElement | null;
-          if (!el) return;
-          el.focus();
-          try { el.setSelectionRange(next.length, next.length); } catch { /* ignore */ }
-        }, 0);
-      },
-    }));
-
-    const hasPending = !!(pendingAttachments && pendingAttachments.length > 0);
-    const attachmentsEnabled = !!onAddFiles;
-    const attachmentSlotsRemaining = attachmentLimit
-      ? attachmentLimit - (pendingAttachments?.length ?? 0)
-      : Infinity;
-
-    const expandMentions = useCallback((raw: string): string => {
-      const lookup = mentionLookupRef.current;
-      if (lookup.size === 0) return raw;
-      // Match `@<REF>` where REF is the same shape we insert (alphabetic prefix +
-      // dash + digits). Skip refs already inside `[ ]( )` brackets so we don't
-      // double-wrap if the user pasted an existing markdown link.
-      return raw.replace(/(?<![\[\w-])@([A-Z]+-\d+)\b/g, (match, ref: string) => {
-        const meta = lookup.get(ref);
-        if (!meta) return match;
-        const url = buildEntityUrl(meta.entity_type, meta.id);
-        if (!url) return match;
-        return `[${ref}](${url})`;
-      });
-    }, []);
-
-    const handleSend = () => {
-      const text = value.trim();
-      if ((!text && !hasPending) || disabled) return;
-      onSend(expandMentions(text));
-      setValue('');
-      setMentionState(null);
-      mentionLookupRef.current.clear();
-    };
+    // The textarea stays readable (`@DOC-152`, `@SAP S/4HANA`, ...); each selected
+    // mention is expanded into a markdown link only when the user sends the message.
+    const mentionLookupRef = useRef<Map<string, { entity_type: string; id: string; label: string }>>(new Map());
 
     const updateMentionFromCaret = useCallback((nextValue: string, caret: number) => {
       // Look back from the caret for the most recent `@`. If we find one with no
@@ -197,6 +151,51 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       setMentionState({ start: atIdx, query: between });
     }, []);
 
+    useImperativeHandle(ref, () => ({
+      focus: () => inputRef.current?.focus(),
+      setText: (next: string) => {
+        setValue(next);
+        updateMentionFromCaret(next, next.length);
+        // Defer focus + caret-to-end so React commits the new value first.
+        setTimeout(() => {
+          const el = inputRef.current as unknown as HTMLTextAreaElement | null;
+          if (!el) return;
+          el.focus();
+          try { el.setSelectionRange(next.length, next.length); } catch { /* ignore */ }
+        }, 0);
+      },
+    }));
+
+    const hasPending = !!(pendingAttachments && pendingAttachments.length > 0);
+    const attachmentsEnabled = !!onAddFiles;
+    const attachmentSlotsRemaining = attachmentLimit
+      ? attachmentLimit - (pendingAttachments?.length ?? 0)
+      : Infinity;
+
+    const expandMentions = useCallback((raw: string): string => {
+      const lookup = mentionLookupRef.current;
+      if (lookup.size === 0) return raw;
+      let expanded = raw;
+      const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const entries = Array.from(lookup.entries()).sort((a, b) => b[0].length - a[0].length);
+      for (const [visible, meta] of entries) {
+        const url = buildEntityUrl(meta.entity_type, meta.id);
+        if (!url) continue;
+        const pattern = new RegExp(`(?<![\\[\\w-])@${escapeRegExp(visible)}(?=$|\\s|[.,;:!?)]|\\n)`, 'g');
+        expanded = expanded.replace(pattern, `[${meta.label}](${url})`);
+      }
+      return expanded;
+    }, []);
+
+    const handleSend = () => {
+      const text = value.trim();
+      if ((!text && !hasPending) || disabled) return;
+      onSend(expandMentions(text));
+      setValue('');
+      setMentionState(null);
+      mentionLookupRef.current.clear();
+    };
+
     const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const next = e.target.value;
       setValue(next);
@@ -218,21 +217,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         setMentionState(null);
         return;
       }
-      // Insert just `@<REF> ` as visible text — keeps the composer readable
-      // (no inline `[REF](/very/long/uuid/url)` ugly markdown). The mapping
-      // is stashed in mentionLookupRef and expanded into a real markdown link
-      // at send time via expandMentions().
-      // For entities without a ref (most non-task/doc/prj/req types), fall back
-      // to inserting the markdown link directly since there's nothing else to
-      // anchor the late-binding regex on.
-      let insertion: string;
-      if (item.ref) {
-        insertion = `@${item.ref} `;
-        mentionLookupRef.current.set(item.ref, { entity_type: item.entity_type, id: item.id });
-      } else {
-        const visible = item.label || item.id;
-        insertion = `[${visible}](${url}) `;
-      }
+      const visible = (item.ref || item.label || item.id).replace(/\s+/g, ' ').trim();
+      const label = (item.ref || item.label || item.id).replace(/\s+/g, ' ').trim();
+      const insertion = `@${visible} `;
+      mentionLookupRef.current.set(visible, { entity_type: item.entity_type, id: item.id, label });
       const before = value.slice(0, mentionState.start);
       const after = value.slice(mentionState.start + 1 + mentionState.query.length);
       const next = before + insertion + after;

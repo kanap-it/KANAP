@@ -10,6 +10,7 @@
     "empty": "No conversations yet",
     "newChat": "New conversation",
     "noMatch": "No conversation matches",
+    "rename": "Rename",
     "search": "Search conversations...",
     "untitled": "Untitled"
   },
@@ -102,7 +103,7 @@
       "disabled": "AI chat is disabled for this workspace."
     },
     "suggestions": {
-      "applicationsCount": "How many applications do I have?",
+      "applicationMention": "Summarize @APP-",
       "knowledgeSearch": "Find documents about backups",
       "myProjects": "Which projects am I working on?",
       "overdueTasks": "Show me my overdue tasks"

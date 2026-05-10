@@ -48,7 +48,7 @@ function createMockDataSource(repo: any) {
   };
 }
 
-async function testHandleLoginCallbackSignsTokensWithTenantBoundManager() {
+async function testHandleLoginCallbackRedirectsToTenantSessionHandoff() {
   const existingUser = {
     id: 'user-1',
     email: 'user@example.com',
@@ -70,25 +70,20 @@ async function testHandleLoginCallbackSignsTokensWithTenantBoundManager() {
     }),
   };
 
-  const { dataSource, manager, state } = createMockDataSource(repo);
-  const signTokenCalls: any[][] = [];
+  const { dataSource, state } = createMockDataSource(repo);
+  const handoffCalls: any[] = [];
   let redirectTarget = '';
   const cookieCalls: Array<{ name: string; value: string; options: Record<string, any> }> = [];
 
   const controller = new EntraController(
-    {} as any,
-    {} as any,
     {
-      signTokens: async (...args: any[]) => {
-        signTokenCalls.push(args);
-        return {
-          access_token: 'access-token',
-          refresh_token: 'refresh-token',
-          expires_in: 900,
-          refresh_expires_in: 14_400,
-        };
+      signLoginHandoff: (payload: any) => {
+        handoffCalls.push(payload);
+        return 'handoff-token';
       },
     } as any,
+    {} as any,
+    {} as any,
     {} as any,
     dataSource as any,
   );
@@ -118,6 +113,91 @@ async function testHandleLoginCallbackSignsTokensWithTenantBoundManager() {
     } as any,
   );
 
+  assert.deepEqual(handoffCalls[0], {
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    redirectTo: '/dashboard',
+  });
+  assert.equal(state.started, 1);
+  assert.equal(state.committed, 1);
+  assert.equal(state.rolledBack, 0);
+  assert.equal(state.released, 1);
+  assert.equal(state.tenantQueries[0]?.params?.[0], 'tenant-1');
+  assert.equal(cookieCalls.length, 0);
+  assert.equal(redirectTarget, 'http://alpha.lvh.me/login/callback#handoff=handoff-token');
+}
+
+async function testCompleteLoginSessionSignsTokensOnTenantHost() {
+  const existingUser = {
+    id: 'user-1',
+    email: 'user@example.com',
+    role: { role_name: 'Contact' },
+    status: 'enabled',
+  };
+
+  const repo = {
+    findOne: async () => existingUser,
+  };
+
+  const { dataSource, manager, state } = createMockDataSource(repo);
+  const signTokenCalls: any[][] = [];
+  let redirectTarget = '';
+  const cookieCalls: Array<{ name: string; value: string; options: Record<string, any> }> = [];
+
+  const controller = new EntraController(
+    {
+      verifyLoginHandoff: (token: string) => {
+        assert.equal(token, 'handoff-token');
+        return {
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          redirectTo: '/dashboard',
+        };
+      },
+    } as any,
+    {
+      findById: async () => ({
+        id: 'tenant-1',
+        slug: 'alpha',
+        sso_provider: 'entra',
+        entra_tenant_id: 'entra-tenant-1',
+      }),
+    } as any,
+    {
+      signTokens: async (...args: any[]) => {
+        signTokenCalls.push(args);
+        return {
+          access_token: 'access-token',
+          refresh_token: 'refresh-token',
+          expires_in: 900,
+          refresh_expires_in: 14_400,
+        };
+      },
+    } as any,
+    {} as any,
+    dataSource as any,
+  );
+
+  const result = await controller.completeLoginSession(
+    {
+      handoff: 'handoff-token',
+    },
+    {
+      tenant: {
+        id: 'tenant-1',
+      },
+      headers: {
+        host: 'alpha.lvh.me',
+      },
+      protocol: 'http',
+    },
+    {
+      cookie: (name: string, value: string, options: Record<string, any>) => {
+        cookieCalls.push({ name, value, options });
+      },
+    } as any,
+  );
+
   assert.equal(signTokenCalls.length, 1);
   assert.deepEqual(signTokenCalls[0]?.[0], {
     id: 'user-1',
@@ -132,12 +212,114 @@ async function testHandleLoginCallbackSignsTokensWithTenantBoundManager() {
   assert.equal(state.released, 1);
   assert.equal(state.tenantQueries[0]?.params?.[0], 'tenant-1');
   assert.equal(cookieCalls[0]?.name, 'refresh_token');
-  assert.match(redirectTarget, /^http:\/\/alpha\.lvh\.me\/login\/callback#/);
-  assert.equal(redirectTarget.includes('refreshToken='), false);
+  assert.equal(cookieCalls[0]?.value, 'refresh-token');
+  assert.equal(cookieCalls[0]?.options?.path, '/');
+  assert.equal(redirectTarget, '');
+  assert.deepEqual(result, {
+    access_token: 'access-token',
+    expires_in: 900,
+    refresh_expires_in: 14_400,
+    redirectTo: '/dashboard',
+  });
+}
+
+async function testStartSetupDoesNotSetNonceCookie() {
+  const cookieCalls: Array<{ name: string; value: string; options: Record<string, any> }> = [];
+  const buildCalls: any[] = [];
+  const controller = new EntraController(
+    {
+      buildAuthorizationUrl: async (params: any) => {
+        buildCalls.push(params);
+        return {
+          url: 'https://login.microsoftonline.com/authorize',
+          nonce: 'nonce-from-service',
+          state: 'signed-state',
+        };
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const result = await controller.startSetup(
+    {
+      tenant: {
+        id: 'tenant-1',
+      },
+    } as any,
+  );
+
+  assert.deepEqual(buildCalls[0], {
+    mode: 'setup',
+    tenantId: 'tenant-1',
+    redirectTo: '/admin/auth',
+  });
+  assert.deepEqual(result, { url: 'https://login.microsoftonline.com/authorize' });
+  assert.equal(cookieCalls.length, 0);
+}
+
+async function testStartLoginDoesNotSetNonceCookie() {
+  const cookieCalls: Array<{ name: string; value: string; options: Record<string, any> }> = [];
+  const buildCalls: any[] = [];
+  let redirectTarget = '';
+  const controller = new EntraController(
+    {
+      buildAuthorizationUrl: async (params: any) => {
+        buildCalls.push(params);
+        return {
+          url: 'https://login.microsoftonline.com/authorize',
+          nonce: 'nonce-from-service',
+          state: 'signed-state',
+        };
+      },
+    } as any,
+    {
+      findById: async () => ({
+        id: 'tenant-1',
+        sso_provider: 'entra',
+        entra_tenant_id: 'entra-tenant-1',
+      }),
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  await controller.startLogin(
+    {
+      tenant: {
+        id: 'tenant-1',
+      },
+      query: {
+        redirectTo: '/admin/auth',
+      },
+    },
+    {
+      cookie: (name: string, value: string, options: Record<string, any>) => {
+        cookieCalls.push({ name, value, options });
+      },
+      redirect: (value: string) => {
+        redirectTarget = value;
+      },
+    } as any,
+  );
+
+  assert.deepEqual(buildCalls[0], {
+    mode: 'login',
+    tenantId: 'tenant-1',
+    redirectTo: '/admin/auth',
+  });
+  assert.equal(redirectTarget, 'https://login.microsoftonline.com/authorize');
+  assert.equal(cookieCalls.length, 0);
 }
 
 async function run() {
-  await testHandleLoginCallbackSignsTokensWithTenantBoundManager();
+  await testHandleLoginCallbackRedirectsToTenantSessionHandoff();
+  await testCompleteLoginSessionSignsTokensOnTenantHost();
+  await testStartSetupDoesNotSetNonceCookie();
+  await testStartLoginDoesNotSetNonceCookie();
 }
 
 void run();

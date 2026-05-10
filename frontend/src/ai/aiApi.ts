@@ -240,6 +240,10 @@ export const aiConversationsApi = {
     const res = await api.delete(`/ai/conversations/${id}`);
     return res.data;
   },
+  async rename(id: string, title: string): Promise<ChatConversation> {
+    const res = await api.patch(`/ai/conversations/${id}`, { title });
+    return res.data;
+  },
   async uploadInlineAttachment(conversationId: string, file: File): Promise<{
     id: string;
     conversation_id: string;
@@ -304,10 +308,12 @@ export const aiSearchApi = {
     opts?: { entityTypes?: string[]; signal?: AbortSignal },
   ): Promise<EntitySearchResult[]> {
     const trimmed = q.trim();
-    if (!trimmed) return [];
+    const entityTypes = opts?.entityTypes ?? [];
+    const hasEntityTypeNarrow = entityTypes.length > 0;
+    if (!trimmed && !hasEntityTypeNarrow) return [];
     const params: Record<string, string> = { q: trimmed };
-    if (opts?.entityTypes && opts.entityTypes.length > 0) {
-      params.entity_types = opts.entityTypes.join(',');
+    if (hasEntityTypeNarrow) {
+      params.entity_types = entityTypes.join(',');
     }
     const res = await api.get('/ai/search/entities', { params, signal: opts?.signal });
     return Array.isArray(res.data?.items) ? res.data.items : [];

@@ -1105,10 +1105,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#applications" class="md-nav__link">
+  <a href="#applications-and-app-env" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Applications
+        Applications and App Env
       
     </span>
   </a>
@@ -2335,7 +2335,7 @@
   <span class="md-ellipsis">
     
   
-    Administration
+    Plaid
   
 
     
@@ -2348,6 +2348,95 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Plaid
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plaid
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2400,6 +2489,90 @@
     
   
     Branding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plaid Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scheduled-tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scheduled Tasks
   
 
     
@@ -2498,10 +2671,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="">
             
   
   
@@ -2519,8 +2692,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2822,10 +2995,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#applications" class="md-nav__link">
+  <a href="#applications-and-app-env" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Applications
+        Applications and App Env
       
     </span>
   </a>
@@ -3035,24 +3208,26 @@
 
 
 <h1 id="connection-map">Connection Map<a class="headerlink" href="#connection-map" title="Permanent link">&para;</a></h1>
-<p>The Connection Map provides an interactive visualization of your infrastructure network topology. Assets appear as nodes and connections as edges, showing how data flows at the infrastructure level. Use it to explore dependencies, trace connection paths, and export diagrams for architecture documentation.</p>
+<p>The Connection Map is an interactive visualization of your infrastructure network topology. Servers, clusters and external entities appear as nodes; the connections between them are edges. Use it to explore dependencies, trace connection paths, and export diagrams for architecture documentation or security reviews.</p>
 <h2 id="where-to-find-it">Where to find it<a class="headerlink" href="#where-to-find-it" title="Permanent link">&para;</a></h2>
 <p>Navigate to <strong>IT Landscape &gt; Connection Map</strong> to open the visualization.</p>
 <p><strong>Permissions</strong>: You need at least <code>applications:reader</code> to view the map.</p>
 <hr />
 <h2 id="understanding-the-visualization">Understanding the visualization<a class="headerlink" href="#understanding-the-visualization" title="Permanent link">&para;</a></h2>
-<p>The map uses a force-directed graph layout where:
-- <strong>Nodes</strong> represent servers, clusters, or logical entities
-- <strong>Edges</strong> represent connections between infrastructure components
-- <strong>Colors</strong> indicate hosting type (on-premises, cloud) or node kind
-- <strong>Role-based placement</strong> (enabled by default) guides nodes into top-to-bottom bands based on role tiers</p>
+<p>The map uses a force-directed graph layout where:</p>
+<ul>
+<li><strong>Nodes</strong> represent servers, clusters, or external entities</li>
+<li><strong>Edges</strong> represent connections between infrastructure components</li>
+<li><strong>Colours</strong> indicate hosting type (on-premises, cloud) or node kind</li>
+<li><strong>Role-based placement</strong> (enabled by default) keeps the force layout but pushes nodes into top-to-bottom tier bands</li>
+</ul>
 <h3 id="node-types">Node types<a class="headerlink" href="#node-types" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Type</th>
 <th>Shape</th>
-<th>Border color</th>
+<th>Border colour</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -3077,46 +3252,51 @@
 </tr>
 </tbody>
 </table>
-<p>Cluster members appear as separate nodes with dashed lines connecting them to their parent cluster node.</p>
+<p>Cluster members appear as separate server nodes with dashed indicator lines connecting them to their parent cluster node.</p>
 <hr />
 <h2 id="filters">Filters<a class="headerlink" href="#filters" title="Permanent link">&para;</a></h2>
 <h3 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h3>
-<p>Multi-select filter for connection lifecycle status. Choose which statuses to include in the visualization (e.g., Active, Planned, Deprecated). Defaults to <strong>Active</strong> only.</p>
-<h3 id="applications">Applications<a class="headerlink" href="#applications" title="Permanent link">&para;</a></h3>
-<p>Find servers by the applications that run on them:
-1. Select one or more applications from the <strong>Applications</strong> dropdown
-2. Select environments in the <strong>App Env</strong> dropdown (shows only environments where selected apps have assigned servers)
-3. The matching servers are automatically added to the <strong>Servers</strong> filter</p>
-<p>This is useful when you want to see the infrastructure connections for a specific application without knowing which servers it runs on.</p>
+<p>Multi-select filter for connection lifecycle status (Active, Planned, Deprecated, etc.). Defaults to <strong>Active</strong>.</p>
+<h3 id="applications-and-app-env">Applications and App Env<a class="headerlink" href="#applications-and-app-env" title="Permanent link">&para;</a></h3>
+<p>Find servers via the applications that run on them:</p>
+<ol>
+<li>Select one or more applications from the <strong>Applications</strong> dropdown</li>
+<li>Pick environments in the <strong>App Env</strong> dropdown (only environments where the selected apps have assigned servers appear)</li>
+<li>The matching servers are automatically added to the <strong>Servers</strong> filter</li>
+</ol>
+<p>This is useful when you want to see the infrastructure connections for an application without knowing which servers it runs on.</p>
 <h3 id="servers">Servers<a class="headerlink" href="#servers" title="Permanent link">&para;</a></h3>
-<p>Directly select servers, clusters, or entities to focus on:
-1. Click the <strong>Servers</strong> dropdown
-2. Select items (grouped by type: Entities, Clusters, Servers)
-3. Use the <strong>Depth</strong> filter to control how many hops to show</p>
-<p>When you select items here, a "+N more" chip appears if many are selected. Click it to see and manage the full list.</p>
+<p>Directly pick servers, clusters, or entities to focus on:</p>
+<ol>
+<li>Click the <strong>Servers</strong> dropdown</li>
+<li>Pick items (grouped by <strong>Entities</strong>, <strong>Clusters</strong>, <strong>Servers</strong>)</li>
+<li>Use the <strong>Depth</strong> filter to control how many hops to show</li>
+</ol>
+<p>When many items are selected, only the first chip is shown along with a <strong>+N more</strong> chip. Click <strong>+N more</strong> to open a popover that lists every selected item, with a remove icon next to each.</p>
 <h3 id="depth">Depth<a class="headerlink" href="#depth" title="Permanent link">&para;</a></h3>
-<p>Limit how many "hops" from selected servers to display:
-- <strong>All</strong>: Show all connections (no depth filtering)
-- <strong>0</strong>: Show only selected servers, their parent clusters, and directly adjacent entities
-- <strong>1--5</strong>: Show servers within N hops of selected servers</p>
-<p>Depth is automatically set to <strong>0</strong> when you select servers via the Applications or Servers filters.</p>
+<p>Limit how many hops from the selected items to display:</p>
+<ul>
+<li><strong>All</strong>: Show every connection (no depth filtering)</li>
+<li><strong>0</strong>: Show only the selected items, their parent clusters, and directly adjacent entities</li>
+<li><strong>1-5</strong>: Show items within N hops of the selected roots</li>
+</ul>
+<p>Depth automatically switches to <strong>0</strong> when you select roots through the Applications or Servers filters.</p>
 <hr />
 <h2 id="display-options">Display options<a class="headerlink" href="#display-options" title="Permanent link">&para;</a></h2>
 <h3 id="show-multi-server-connections">Show multi-server connections<a class="headerlink" href="#show-multi-server-connections" title="Permanent link">&para;</a></h3>
-<p>Toggle visibility of multi-server connections (connections involving more than two servers in a mesh topology). Enabled by default.</p>
+<p>Toggle visibility of multi-server connections (connections that involve more than two servers in a mesh topology). Enabled by default.</p>
 <h3 id="show-connection-layers">Show connection layers<a class="headerlink" href="#show-connection-layers" title="Permanent link">&para;</a></h3>
-<p>When enabled (default), displays individual connection legs as separate edges. This shows how a multi-leg connection routes through intermediate points. When disabled, connections are shown as simple source-to-destination edges.</p>
+<p>When enabled (default), each leg of a multi-leg connection is rendered as its own edge so you can see how it routes through intermediate points. When disabled, connections are rendered as simple source-to-destination edges.</p>
 <h3 id="role-based-placement">Role-based placement<a class="headerlink" href="#role-based-placement" title="Permanent link">&para;</a></h3>
 <p>When enabled (default), the map keeps its force layout but adds vertical tier guidance:</p>
 <ul>
 <li><strong>Top / Upper / Center / Lower / Bottom</strong> bands</li>
 <li><strong>Servers</strong> use the role assignments configured in IT Landscape settings</li>
-<li><strong>Entities</strong> use their configured Graph Tier (default is Top)</li>
+<li><strong>Entities</strong> use their configured <strong>Graph Tier</strong> (default Top)</li>
 <li><strong>Unassigned servers</strong> fall back to Center</li>
 <li><strong>Clusters</strong> inherit the highest-priority tier from their members</li>
 </ul>
-<p>Use this toggle when you want a topology view that reads like architecture tiers (edge-facing components at top, data stores lower).</p>
-<p>This toggle is session-only and resets when you reload the page.</p>
+<p>Use this toggle when you want a topology view that reads like architecture tiers (edge-facing components at the top, data stores at the bottom). The setting is session-only and resets when you reload the page.</p>
 <hr />
 <h2 id="graph-controls">Graph controls<a class="headerlink" href="#graph-controls" title="Permanent link">&para;</a></h2>
 <p>The control panel on the left side of the map provides these tools:</p>
@@ -3137,7 +3317,7 @@
 <tr>
 <td>Crosshair</td>
 <td><strong>Auto-center</strong></td>
-<td>Toggle automatic centering when selecting nodes (blue = enabled)</td>
+<td>Toggle automatic centering when selecting nodes (highlighted when enabled)</td>
 </tr>
 <tr>
 <td>Zoom +</td>
@@ -3170,31 +3350,25 @@
 <hr />
 <h2 id="interacting-with-the-map">Interacting with the map<a class="headerlink" href="#interacting-with-the-map" title="Permanent link">&para;</a></h2>
 <h3 id="selecting-nodes">Selecting nodes<a class="headerlink" href="#selecting-nodes" title="Permanent link">&para;</a></h3>
-<p>Click a server or cluster node to:
-- Highlight its connections
-- Open a detail panel with:
-  - <strong>Server type</strong>: Kind of server (Web, Database, Application, etc.)
-  - <strong>Server location</strong>: Physical or cloud location code
-  - <strong>Operating system</strong>: OS details
-  - <strong>Network segment</strong>: Network zone
-  - <strong>IP address</strong>: Network address
-  - <strong>Assigned applications</strong>: Apps running on this server, grouped by environment (clickable)
-- <strong>Edit server</strong> or <strong>View cluster</strong> button to open the workspace</p>
+<p>Click a server or cluster node to highlight its connections and open a detail panel showing:</p>
+<ul>
+<li><strong>Server type</strong>, <strong>Server location</strong>, <strong>Operating system</strong>, <strong>Network segment</strong>, <strong>IP address</strong></li>
+<li><strong>Assigned applications</strong>: Apps running on this server, grouped by environment. Click an app name to open it.</li>
+<li><strong>Edit server</strong> or <strong>View cluster</strong> button to open the workspace</li>
+</ul>
 <p>Click an entity node to see its type and environment.</p>
 <h3 id="selecting-edges">Selecting edges<a class="headerlink" href="#selecting-edges" title="Permanent link">&para;</a></h3>
-<p>Click a connection edge to:
-- See connection details:
-  - <strong>Purpose</strong>: What the connection is used for
-  - <strong>Protocols</strong>: Network protocols used
-  - <strong>Typical ports</strong>: Expected port numbers
-  - <strong>Criticality</strong>: Business importance
-  - <strong>Topology</strong>: Server-to-server or multi-server
-- <strong>Edit connection</strong> button to open the connection workspace
-- <strong>Linked interfaces</strong> section showing which application interfaces use this connection
-  - Click <strong>Open interface</strong> to view the interface
-  - Click <strong>View in Interface Map</strong> to see the interface in context</p>
+<p>Click a connection edge to see:</p>
+<ul>
+<li><strong>Purpose</strong>, <strong>Protocols</strong>, <strong>Typical ports</strong>, <strong>Criticality</strong></li>
+<li><strong>Topology</strong>: Server to server or Multi-server</li>
+<li><strong>Edit connection</strong> button to open the connection workspace</li>
+<li><strong>Linked interfaces</strong> section showing which application interfaces use this connection. Each linked interface card shows the leg type, environment, pattern, and source/target endpoints. From there you can:</li>
+<li>Click <strong>Open interface</strong> to view the interface</li>
+<li>Click <strong>View in Interface Map</strong> to jump to the interface in context</li>
+</ul>
 <h3 id="dragging-nodes">Dragging nodes<a class="headerlink" href="#dragging-nodes" title="Permanent link">&para;</a></h3>
-<p>Drag any node to reposition it. While the simulation is running, the layout will adjust around the moved node. When the simulation is frozen, dragging moves the node freely without affecting others.</p>
+<p>Drag any node to reposition it. While the simulation is running, the layout adjusts around the moved node. When the simulation is frozen, dragging moves the node freely without affecting others.</p>
 <hr />
 <h2 id="deep-linking">Deep linking<a class="headerlink" href="#deep-linking" title="Permanent link">&para;</a></h2>
 <p>The map supports URL parameters for sharing specific views:</p>
@@ -3219,7 +3393,7 @@
 </tr>
 <tr>
 <td><code>rootIds</code></td>
-<td>Pre-select servers to focus on (comma-separated)</td>
+<td>Pre-select servers/clusters/entities to focus on (comma-separated)</td>
 <td>UUIDs</td>
 </tr>
 <tr>
@@ -3232,10 +3406,12 @@
 <p><strong>Example</strong>: <code>/it/connection-map?lifecycles=active&amp;rootIds=abc123&amp;depth=1</code></p>
 <hr />
 <h2 id="cluster-visualization">Cluster visualization<a class="headerlink" href="#cluster-visualization" title="Permanent link">&para;</a></h2>
-<p>Clusters are shown as distinct nodes with a dashed cyan border:
-- Cluster members appear as separate nodes, connected to their parent cluster by dashed indicator lines
-- When filtering by depth=0, both the selected member servers and their parent clusters are shown
-- Member servers inherit the cluster's connections while maintaining their individual server-to-server connections</p>
+<p>Clusters appear as distinct nodes with a dashed cyan border:</p>
+<ul>
+<li>Cluster members appear as separate nodes connected to their parent cluster by dashed indicator lines</li>
+<li>When filtering with depth=0, both the selected member servers and their parent clusters are shown</li>
+<li>Member servers keep their individual server-to-server connections in addition to the cluster's own connections</li>
+</ul>
 <hr />
 <h2 id="configure-graph-tiers">Configure graph tiers<a class="headerlink" href="#configure-graph-tiers" title="Permanent link">&para;</a></h2>
 <p>You can control where nodes tend to appear vertically by editing tiers in <strong>IT Landscape &gt; Settings</strong>:</p>
@@ -3247,14 +3423,13 @@
 <hr />
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Start from applications</strong>: Use the Applications filter to find servers for a specific application, then explore their connections with depth=1.</li>
-<li><strong>Use depth=0 for focused views</strong>: When you only want to see connections between specific servers, select them and set depth to 0.</li>
-<li><strong>Export for architecture docs</strong>: Use the SVG export to create network diagrams for documentation or security reviews. PNG export produces a high-DPI raster image.</li>
-<li><strong>Enable layers for troubleshooting</strong>: Turn on "Show connection layers" to see exactly how multi-leg connections route through your infrastructure.</li>
-<li><strong>Use role tiers for architecture views</strong>: Keep "Role-based placement" on when presenting layered architecture diagrams.</li>
-<li><strong>Cross-reference with Interface Map</strong>: Use the "View in Interface Map" button in the connection panel to see which business interfaces depend on each infrastructure connection.</li>
-<li><strong>Snap for clarity</strong>: After positioning nodes, use Snap to Grid for cleaner, more aligned layouts.</li>
-<li><strong>Freeze before exporting</strong>: Freeze the layout and position nodes manually before exporting for the cleanest output.</li>
+<li><strong>Start from applications</strong>: Use the Applications + App Env filters to find servers for a specific application without knowing the server names.</li>
+<li><strong>Use depth=0 for focused views</strong>: When you only want to see the connections directly attached to specific servers, select them and set depth to 0.</li>
+<li><strong>Export for architecture docs</strong>: SVG produces vector network diagrams suitable for documentation; PNG produces a high-DPI raster image.</li>
+<li><strong>Enable layers for troubleshooting</strong>: Turn on <strong>Show connection layers</strong> to see exactly how multi-leg connections route through your infrastructure.</li>
+<li><strong>Use role tiers for architecture views</strong>: Keep <strong>Role-based placement</strong> on when presenting layered architecture diagrams.</li>
+<li><strong>Cross-reference with Interface Map</strong>: Use <strong>View in Interface Map</strong> in the linked-interfaces panel to see which business interfaces depend on a given infrastructure connection.</li>
+<li><strong>Snap and freeze before exporting</strong>: After positioning nodes, freeze the layout and use <strong>Snap to grid</strong> to produce the cleanest output.</li>
 </ul>
 
 

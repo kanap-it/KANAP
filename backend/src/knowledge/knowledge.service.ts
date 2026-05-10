@@ -1151,6 +1151,15 @@ export class KnowledgeService {
     return Number.isFinite(itemNumber) && itemNumber > 0 ? itemNumber : null;
   }
 
+  private parseItemNumberPrefixQuery(input: string): string | null {
+    const value = String(input || '').trim();
+    if (!value) return null;
+    const match = value.match(/^(?:DOC-?)?(\d+)$/i);
+    if (!match) return null;
+    const digits = match[1];
+    return digits && Number.isSafeInteger(Number(digits)) && Number(digits) > 0 ? digits : null;
+  }
+
   hasPermissionLevel(current: string | undefined, required: 'reader' | 'member' | 'admin'): boolean {
     return (RBAC_LEVEL_RANK[current || ''] ?? 0) >= (RBAC_LEVEL_RANK[required] ?? Number.MAX_SAFE_INTEGER);
   }
@@ -4995,6 +5004,103 @@ export class KnowledgeService {
       offset,
       limit,
       truncated: offset + rows.length < total,
+    };
+  }
+
+  async searchMentionOptions(query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
+    const manager = this.getManager(opts);
+    const rawSearch = String(query?.q || '').trim();
+    const itemNumber = rawSearch ? this.parseItemNumberQuery(rawSearch) : null;
+    const itemNumberPrefix = rawSearch ? this.parseItemNumberPrefixQuery(rawSearch) : null;
+    const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 200);
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return { items: [], total: 0, limit };
+    }
+
+    const whereClauses = ['d.tenant_id = app_current_tenant()'];
+    const params: Array<string | number | string[]> = [];
+    if (accessibleLibraries) {
+      params.push(accessibleLibraries);
+      whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
+    }
+
+    let exactIndex: number | null = null;
+    let prefixIndex: number | null = null;
+    let likeIndex: number | null = null;
+    if (rawSearch) {
+      const searchClauses: string[] = [];
+      if (itemNumber != null) {
+        params.push(itemNumber);
+        exactIndex = params.length;
+        searchClauses.push(`d.item_number = $${exactIndex}`);
+      }
+      if (itemNumberPrefix) {
+        params.push(itemNumberPrefix);
+        prefixIndex = params.length;
+        searchClauses.push(`d.item_number::text LIKE $${prefixIndex} || '%'`);
+      }
+      params.push(`%${rawSearch}%`);
+      likeIndex = params.length;
+      searchClauses.push(
+        `d.title ILIKE $${likeIndex}`,
+        `('DOC-' || d.item_number::text) ILIKE $${likeIndex}`,
+        `COALESCE(d.summary, '') ILIKE $${likeIndex}`,
+        `COALESCE(d.content_plain, '') ILIKE $${likeIndex}`,
+        `COALESCE(d.content_markdown, '') ILIKE $${likeIndex}`,
+      );
+      whereClauses.push(`(${searchClauses.join(' OR ')})`);
+    }
+
+    const exactScoreSql = exactIndex ? `WHEN d.item_number = $${exactIndex} THEN 4` : '';
+    const prefixScoreSql = prefixIndex ? `WHEN d.item_number::text LIKE $${prefixIndex} || '%' THEN 3.5` : '';
+    const titleScoreSql = likeIndex ? `WHEN d.title ILIKE $${likeIndex} THEN 3` : '';
+    const scoreCases = [exactScoreSql, prefixScoreSql, titleScoreSql].filter(Boolean).join('\n                ');
+    const scoreSql = scoreCases
+      ? `CASE
+                ${scoreCases}
+                ELSE 1
+              END`
+      : '1';
+    const prefixSortSql = prefixIndex
+      ? `CASE WHEN d.item_number::text LIKE $${prefixIndex} || '%' THEN d.item_number ELSE NULL END ASC NULLS LAST,`
+      : '';
+
+    params.push(limit);
+    const limitIndex = params.length;
+    const rows = await manager.query(
+      `SELECT d.id,
+              d.item_number,
+              'DOC-' || d.item_number::text AS item_ref,
+              d.title,
+              d.summary,
+              d.status,
+              d.updated_at,
+              COUNT(*) OVER()::int AS total_count,
+              ${scoreSql} AS score
+       FROM documents d
+       WHERE ${whereClauses.join(' AND ')}
+       ORDER BY score DESC,
+                ${prefixSortSql}
+                d.updated_at DESC,
+                d.item_number DESC
+       LIMIT $${limitIndex}`,
+      params,
+    );
+    const total = rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0;
+
+    return {
+      items: rows.map((row: any) => ({
+        id: row.id,
+        item_number: Number(row.item_number),
+        item_ref: row.item_ref || `DOC-${row.item_number}`,
+        title: row.title,
+        summary: row.summary ?? null,
+        status: row.status,
+        updated_at: row.updated_at,
+      })),
+      total,
+      limit,
     };
   }
 

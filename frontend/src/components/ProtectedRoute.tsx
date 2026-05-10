@@ -7,7 +7,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
 
 export default function ProtectedRoute() {
-  const { token, isAuthenticating, claims, hasLevel, subscription } = useAuth();
+  const { token, isAuthenticating, profile, claims, hasLevel, subscription } = useAuth();
   const location = useLocation();
   const { isPlatformHost } = useTenant();
   const { config } = useFeatures();
@@ -32,8 +32,8 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // If authenticated but claims not yet loaded, show spinner briefly
-  if (token && !claims) {
+  // If authenticated but the identity payload is not yet loaded, show spinner briefly
+  if (token && (!claims || !profile)) {
     return (
       <Box
         display="flex"
@@ -47,7 +47,7 @@ export default function ProtectedRoute() {
   }
 
   // Minimal per-route gating based on path prefix and resource name
-  if (token && claims) {
+  if (token && claims && profile) {
     const path = location.pathname;
     const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
     const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');

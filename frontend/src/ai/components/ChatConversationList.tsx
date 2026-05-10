@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import { useTranslation } from 'react-i18next';
 import { aiConversationsApi } from '../aiApi';
@@ -50,16 +51,42 @@ function ConversationItem({
   active,
   onSelect,
   onArchive,
+  onRename,
   archiveLabel,
+  renameLabel,
   untitledLabel,
 }: {
   conversation: ChatConversation;
   active: boolean;
   onSelect: (id: string) => void;
   onArchive: (id: string) => void;
+  onRename: (id: string, title: string) => void;
   archiveLabel: string;
+  renameLabel: string;
   untitledLabel: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(conversation.title || '');
+
+  const startRename = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setDraftTitle(conversation.title || '');
+    setEditing(true);
+  };
+
+  const commitRename = () => {
+    const trimmed = draftTitle.replace(/\s+/g, ' ').trim();
+    setEditing(false);
+    if (trimmed && trimmed !== (conversation.title || '')) {
+      onRename(conversation.id, trimmed);
+    }
+  };
+
+  const cancelRename = () => {
+    setDraftTitle(conversation.title || '');
+    setEditing(false);
+  };
+
   return (
     <Box
       role="button"
@@ -95,41 +122,119 @@ function ConversationItem({
         },
       })}
     >
-      <Typography
-        component="span"
-        sx={{
-          fontSize: 13,
-          flex: 1,
-          minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          color: 'inherit',
-          fontWeight: 'inherit',
-        }}
-      >
-        {conversation.title || untitledLabel}
-      </Typography>
-      <IconButton
-        size="small"
-        aria-label={archiveLabel}
-        title={archiveLabel}
-        onClick={(e) => { e.stopPropagation(); onArchive(conversation.id); }}
-        sx={{
-          ml: 0.5,
-          width: 22,
-          height: 22,
-          opacity: 0,
-          transition: 'opacity 120ms ease',
-          color: 'kanap.text.tertiary',
-          '&:hover': { color: 'kanap.danger', bgcolor: 'transparent' },
-          '.kanap-chat-conv-item:hover &, .kanap-chat-conv-item:focus-visible &': {
-            opacity: 1,
-          },
-        }}
-      >
-        <DeleteOutlineIcon sx={{ fontSize: 15 }} />
-      </IconButton>
+      {editing ? (
+        <TextField
+          autoFocus
+          fullWidth
+          size="small"
+          variant="standard"
+          value={draftTitle}
+          onChange={(e) => setDraftTitle(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitRename();
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              cancelRename();
+            }
+          }}
+          onBlur={commitRename}
+          inputProps={{ maxLength: 160 }}
+          InputProps={{ disableUnderline: true }}
+          sx={(theme) => ({
+            flex: 1,
+            minWidth: 0,
+            '& .MuiInputBase-root': {
+              height: 24,
+              fontSize: 13,
+              color: theme.palette.kanap.text.primary,
+              bgcolor: theme.palette.kanap.bg.composer,
+              borderRadius: '4px',
+              px: 0.5,
+              '&:before, &:after': { display: 'none' },
+            },
+            '& input': { py: 0 },
+          })}
+        />
+      ) : (
+        <>
+          <Typography
+            component="span"
+            className="kanap-chat-conv-title"
+            onDoubleClick={startRename}
+            sx={{
+              fontSize: 13,
+              width: '100%',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'inherit',
+              fontWeight: 'inherit',
+              transition: 'mask-image 120ms ease, -webkit-mask-image 120ms ease',
+              '.kanap-chat-conv-item:hover &, .kanap-chat-conv-item:focus-visible &': {
+                WebkitMaskImage: 'linear-gradient(to right, #000 calc(100% - 80px), transparent calc(100% - 12px))',
+                maskImage: 'linear-gradient(to right, #000 calc(100% - 80px), transparent calc(100% - 12px))',
+              },
+            }}
+          >
+            {conversation.title || untitledLabel}
+          </Typography>
+          <Box
+            sx={(theme) => ({
+              position: 'absolute',
+              top: '50%',
+              right: 4,
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.25,
+              borderRadius: '5px',
+              opacity: 0,
+              pointerEvents: 'none',
+              transition: 'opacity 120ms ease',
+              '.kanap-chat-conv-item:hover &, .kanap-chat-conv-item:focus-visible &': {
+                opacity: 1,
+                pointerEvents: 'auto',
+              },
+            })}
+          >
+            <IconButton
+              size="small"
+              aria-label={renameLabel}
+              title={renameLabel}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={startRename}
+              sx={{
+                width: 22,
+                height: 22,
+                color: 'kanap.text.tertiary',
+                '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
+              }}
+            >
+              <EditOutlinedIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+            <IconButton
+              size="small"
+              aria-label={archiveLabel}
+              title={archiveLabel}
+              onClick={(e) => { e.stopPropagation(); onArchive(conversation.id); }}
+              sx={{
+                width: 22,
+                height: 22,
+                color: 'kanap.text.tertiary',
+                '&:hover': { color: 'kanap.danger', bgcolor: 'transparent' },
+              }}
+            >
+              <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }
@@ -141,11 +246,39 @@ export default function ChatConversationList({
   onArchive,
 }: ChatConversationListProps) {
   const { t } = useTranslation(['ai']);
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const { data: conversations } = useQuery<ChatConversation[]>({
     queryKey: ['ai-conversations'],
     queryFn: () => aiConversationsApi.list({ limit: 100 }),
     staleTime: 10_000,
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) => aiConversationsApi.rename(id, title),
+    onMutate: async ({ id, title }) => {
+      await queryClient.cancelQueries({ queryKey: ['ai-conversations'] });
+      const previous = queryClient.getQueryData<ChatConversation[]>(['ai-conversations']);
+      queryClient.setQueryData<ChatConversation[]>(
+        ['ai-conversations'],
+        (old) => old?.map((c) => (
+          c.id === id ? { ...c, title, updated_at: new Date().toISOString() } : c
+        )),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['ai-conversations'], context.previous);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<ChatConversation[]>(
+        ['ai-conversations'],
+        (old) => old?.map((c) => (c.id === updated.id ? updated : c)),
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-conversations'] });
+    },
   });
 
   const list = conversations || [];
@@ -167,6 +300,7 @@ export default function ChatConversationList({
   }, [filtered]);
 
   const archiveLabel = t('conversationList.archive');
+  const renameLabel = t('conversationList.rename');
   const untitledLabel = t('conversationList.untitled');
 
   return (
@@ -288,7 +422,9 @@ export default function ChatConversationList({
                   active={conv.id === activeId}
                   onSelect={onSelect}
                   onArchive={onArchive}
+                  onRename={(id, title) => renameMutation.mutate({ id, title })}
                   archiveLabel={archiveLabel}
+                  renameLabel={renameLabel}
                   untitledLabel={untitledLabel}
                 />
               ))}

@@ -11,7 +11,7 @@ type ChatEmptyStateProps = {
 const SUGGESTION_KEYS = [
   'overdueTasks',
   'myProjects',
-  'applicationsCount',
+  'applicationMention',
   'knowledgeSearch',
 ] as const;
 

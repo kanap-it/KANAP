@@ -10,6 +10,7 @@
     "empty": "Aucune conversation",
     "newChat": "Nouvelle conversation",
     "noMatch": "Aucune conversation ne correspond",
+    "rename": "Renommer",
     "search": "Rechercher une conversation...",
     "untitled": "Sans titre"
   },
@@ -102,7 +103,7 @@
       "disabled": "Le chat IA est désactivé pour cet espace de travail."
     },
     "suggestions": {
-      "applicationsCount": "Combien d'applications ai-je ?",
+      "applicationMention": "Résume @APP-",
       "knowledgeSearch": "Trouve des documents sur les sauvegardes",
       "myProjects": "Quels projets me sont assignés ?",
       "overdueTasks": "Liste mes tâches en retard"

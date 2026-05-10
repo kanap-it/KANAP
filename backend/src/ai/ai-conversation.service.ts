@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
 import { AiConversation } from './ai-conversation.entity';
@@ -252,6 +252,39 @@ export class AiConversationService {
       throw new NotFoundException('AI conversation not found.');
     }
     conversation.archived_at = new Date();
+    return repo.save(conversation);
+  }
+
+  async renameConversation(
+    id: string,
+    tenantId: string,
+    userId: string,
+    title: string,
+    opts?: { manager?: EntityManager },
+  ) {
+    const trimmed = String(title || '').replace(/\s+/g, ' ').trim();
+    if (!trimmed) {
+      throw new BadRequestException('Conversation title is required.');
+    }
+    if (trimmed.length > 160) {
+      throw new BadRequestException('Conversation title must be 160 characters or fewer.');
+    }
+
+    const repo = this.getConversationRepo(opts?.manager);
+    const conversation = await repo.findOne({
+      where: {
+        id,
+        tenant_id: tenantId,
+        user_id: userId,
+        archived_at: IsNull(),
+      },
+    });
+    if (!conversation) {
+      throw new NotFoundException('AI conversation not found.');
+    }
+
+    conversation.title = trimmed;
+    conversation.updated_at = new Date();
     return repo.save(conversation);
   }
 

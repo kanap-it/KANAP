@@ -53,43 +53,62 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
     const [loading, setLoading] = useState(false);
     const [activeIdx, setActiveIdx] = useState(0);
     const itemRefs = useRef<Array<HTMLElement | null>>([]);
+    const panelRef = useRef<HTMLDivElement | null>(null);
+    const requestSeqRef = useRef(0);
+    const keyboardScrollRef = useRef(false);
 
     // Debounced search.
     useEffect(() => {
-      const { entityType, searchTerm } = parseAtMentionQuery(query);
+      const { entityType, entityTypes, searchTerm } = parseAtMentionQuery(query);
+      const narrowedEntityTypes = entityTypes ?? (entityType ? [entityType] : undefined);
+      const requestSeq = ++requestSeqRef.current;
+      itemRefs.current = [];
+      keyboardScrollRef.current = false;
+      setActiveIdx(0);
+      panelRef.current?.scrollTo({ top: 0 });
+
       // Skip if the user hasn't typed anything AND no prefix was recognised.
       // (A recognised prefix is enough on its own: `@APP` → recent applications.)
-      if (!entityType && searchTerm.length < 1) {
+      if (!narrowedEntityTypes?.length && searchTerm.length < 1) {
         setResults([]);
         setLoading(false);
         return;
       }
       const controller = new AbortController();
+      setResults([]);
       setLoading(true);
       const handle = window.setTimeout(async () => {
         try {
           // Two distinct search modes:
-          //  - Type-token prefix recognised (`@APP`, `@T-5`, `@DOC-conf`): narrow
-          //    to that entity_type. Strip the prefix; the backend can apply the
-          //    item_number boost on the bare number when the type has refs.
+          //  - Type-token prefix recognised or partially typed (`@APP`, `@DO`,
+          //    `@T-5`): narrow to the matching entity_type(s). Strip the prefix;
+          //    the backend can apply the item_number boost on the bare number.
           //  - No prefix (`@backup`, `@server`): no narrow, cross-type text search
           //    with tier-based ranking.
           const items = await aiSearchApi.searchEntities(searchTerm, {
             signal: controller.signal,
-            entityTypes: entityType ? [entityType] : undefined,
+            entityTypes: narrowedEntityTypes,
           });
+          if (requestSeq !== requestSeqRef.current) return;
           // Drop entity types that don't have a frontend workspace route — no point
           // mentioning something the user can't navigate to from the chip.
           const linkable = items.filter((item) => isLinkableEntityType(item.entity_type));
+          itemRefs.current = [];
           setResults(linkable);
           setActiveIdx(0);
+          window.requestAnimationFrame(() => {
+            if (requestSeq === requestSeqRef.current) {
+              panelRef.current?.scrollTo({ top: 0 });
+            }
+          });
         } catch (err: any) {
+          if (requestSeq !== requestSeqRef.current) return;
           if (err?.name !== 'CanceledError' && err?.name !== 'AbortError') {
             // Soft-fail: empty list, no toast — typeahead errors shouldn't disrupt typing.
             setResults([]);
           }
         } finally {
-          setLoading(false);
+          if (requestSeq === requestSeqRef.current) setLoading(false);
         }
       }, SEARCH_DEBOUNCE_MS);
       return () => {
@@ -105,6 +124,8 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
 
     // Scroll the active row into view on keyboard navigation.
     useEffect(() => {
+      if (!keyboardScrollRef.current) return;
+      keyboardScrollRef.current = false;
       const node = itemRefs.current[activeIdx];
       if (node && typeof node.scrollIntoView === 'function') {
         node.scrollIntoView({ block: 'nearest' });
@@ -112,6 +133,7 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
     }, [activeIdx]);
 
     const moveSelection = useCallback((delta: 1 | -1) => {
+      keyboardScrollRef.current = true;
       setActiveIdx((prev) => {
         if (results.length === 0) return 0;
         const next = (prev + delta + results.length) % results.length;
@@ -145,6 +167,7 @@ const MentionPopover = React.forwardRef<MentionPopoverHandle, MentionPopoverProp
 
     return (
       <Box
+        ref={panelRef}
         // Stop pointer events from bubbling to the textarea (don't lose focus on click).
         onMouseDown={(e) => e.preventDefault()}
         sx={(theme) => ({

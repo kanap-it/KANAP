@@ -20,6 +20,8 @@ import { AiPolicyService } from './ai-policy.service';
 type SearchRow = {
   id: string;
   item_number?: number | null;
+  ref?: string | null;
+  item_ref?: string | null;
   label: string;
   summary: string | null;
   status: string | null;
@@ -161,10 +163,11 @@ function toSummary(
   row: SearchRow,
   matchContext?: string | null,
 ): AiEntitySummaryDto {
+  const explicitRef = row.ref ?? row.item_ref ?? null;
   return {
     type,
     id: row.id,
-    ref: buildRef(type, row.item_number ?? null),
+    ref: explicitRef ? String(explicitRef) : buildRef(type, row.item_number ?? null),
     label: row.label,
     status: row.status ?? null,
     summary: row.summary ?? null,
@@ -355,11 +358,20 @@ export class AiEntityService {
   ) {}
 
   private parseNumericRef(query: string): number | null {
-    const match = String(query || '').trim().match(/^(?:PRJ|REQ|T|DOC)-?(\d+)$/i)
-      ?? String(query || '').trim().match(/^(\d+)$/);
+    const numericPrefix = this.parseNumericPrefix(query);
+    if (!numericPrefix) return null;
+    const value = Number(numericPrefix);
+    return Number.isSafeInteger(value) ? value : null;
+  }
+
+  private parseNumericPrefix(query: string): string | null {
+    const trimmed = String(query || '').trim();
+    if (!trimmed) return null;
+    const match = trimmed.match(/^(?:PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|COMP|CONT|DEPT|SUP|BP)-?(\d+)$/i)
+      ?? trimmed.match(/^(\d+)$/);
     if (!match) return null;
-    const value = Number(match[1]);
-    return Number.isFinite(value) ? value : null;
+    const digits = match[1];
+    return digits && Number.isSafeInteger(Number(digits)) ? digits : null;
   }
 
   private async listRecentActivity(
@@ -441,10 +453,12 @@ export class AiEntityService {
     limit: number,
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
+    const numericPrefix = this.parseNumericPrefix(query);
     const businessOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'business');
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
+              a.sequential_id AS item_ref,
               a.name AS label,
               a.description AS summary,
               a.status,
@@ -460,34 +474,48 @@ export class AiEntityService {
               ${itOwnerNamesSql} AS it_owner_names,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN a.name ILIKE $1 THEN 3
-                WHEN COALESCE(a.description, '') ILIKE $1 THEN 2
+                WHEN $1::text IS NOT NULL AND UPPER(COALESCE(a.sequential_id, '')) = 'APP-' || $1 THEN 4
+                WHEN $1::text IS NOT NULL AND COALESCE(a.sequential_id, '') ILIKE 'APP-' || $1 || '%' THEN 3.5
+                WHEN a.name ILIKE $2 THEN 3
+                WHEN COALESCE(a.description, '') ILIKE $2 THEN 2
                 ELSE 1
               END AS score
        FROM applications a
-       LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = $2
-       WHERE a.tenant_id = $2
+       LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = $3
+       WHERE a.tenant_id = $3
          AND (
-           a.name ILIKE $1
-           OR COALESCE(a.description, '') ILIKE $1
-           OR COALESCE(a.editor, '') ILIKE $1
-           OR COALESCE(a.notes, '') ILIKE $1
-           OR COALESCE(a.support_notes, '') ILIKE $1
-           OR COALESCE(a.licensing, '') ILIKE $1
-           OR COALESCE(a.version, '') ILIKE $1
-           OR COALESCE(a.category, '') ILIKE $1
-           OR COALESCE(a.lifecycle, '') ILIKE $1
-           OR COALESCE(a.criticality, '') ILIKE $1
-           OR COALESCE(a.status::text, '') ILIKE $1
-           OR COALESCE(a.data_class, '') ILIKE $1
-           OR COALESCE(a.hosting_model, '') ILIKE $1
-           OR COALESCE(s.name, '') ILIKE $1
-           OR ${businessOwnerNamesSql} ILIKE $1
-           OR ${itOwnerNamesSql} ILIKE $1
+           ($1::text IS NOT NULL AND UPPER(COALESCE(a.sequential_id, '')) = 'APP-' || $1)
+           OR ($1::text IS NOT NULL AND COALESCE(a.sequential_id, '') ILIKE 'APP-' || $1 || '%')
+           OR COALESCE(a.sequential_id, '') ILIKE $2
+           OR a.name ILIKE $2
+           OR COALESCE(a.description, '') ILIKE $2
+           OR COALESCE(a.editor, '') ILIKE $2
+           OR COALESCE(a.notes, '') ILIKE $2
+           OR COALESCE(a.support_notes, '') ILIKE $2
+           OR COALESCE(a.licensing, '') ILIKE $2
+           OR COALESCE(a.version, '') ILIKE $2
+           OR COALESCE(a.category, '') ILIKE $2
+           OR COALESCE(a.lifecycle, '') ILIKE $2
+           OR COALESCE(a.criticality, '') ILIKE $2
+           OR COALESCE(a.status::text, '') ILIKE $2
+           OR COALESCE(a.data_class, '') ILIKE $2
+           OR COALESCE(a.hosting_model, '') ILIKE $2
+           OR COALESCE(s.name, '') ILIKE $2
+           OR ${businessOwnerNamesSql} ILIKE $2
+           OR ${itOwnerNamesSql} ILIKE $2
          )
-       ORDER BY score DESC, a.updated_at DESC, a.name ASC
-       LIMIT $3`,
-      [like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE
+                  WHEN $1::text IS NOT NULL
+                    AND COALESCE(a.sequential_id, '') ILIKE 'APP-' || $1 || '%'
+                    AND COALESCE(a.sequential_id, '') ~ '^APP-[0-9]+$'
+                  THEN NULLIF(regexp_replace(a.sequential_id, '^APP-', ''), '')::int
+                  ELSE NULL
+                END ASC NULLS LAST,
+                a.updated_at DESC,
+                a.name ASC
+       LIMIT $4`,
+      [numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -518,39 +546,55 @@ export class AiEntityService {
     limit: number,
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
+    const numericPrefix = this.parseNumericPrefix(query);
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
+              a.asset_reference AS item_ref,
               a.name AS label,
               COALESCE(a.fqdn, a.hostname, a.notes) AS summary,
               a.status,
               a.updated_at,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN a.name ILIKE $1 THEN 3
-                WHEN COALESCE(a.fqdn, '') ILIKE $1 OR COALESCE(a.hostname, '') ILIKE $1 THEN 2
+                WHEN $1::text IS NOT NULL AND UPPER(COALESCE(a.asset_reference, '')) = 'AST-' || $1 THEN 4
+                WHEN $1::text IS NOT NULL AND COALESCE(a.asset_reference, '') ILIKE 'AST-' || $1 || '%' THEN 3.5
+                WHEN a.name ILIKE $2 THEN 3
+                WHEN COALESCE(a.fqdn, '') ILIKE $2 OR COALESCE(a.hostname, '') ILIKE $2 THEN 2
                 ELSE 1
               END AS score
        FROM assets a
-       WHERE a.tenant_id = $2
+       WHERE a.tenant_id = $3
          AND (
-           a.name ILIKE $1
-           OR COALESCE(a.fqdn, '') ILIKE $1
-           OR COALESCE(a.hostname, '') ILIKE $1
-           OR COALESCE(a.notes, '') ILIKE $1
-           OR COALESCE(a.domain, '') ILIKE $1
-           OR COALESCE(a.cluster, '') ILIKE $1
-           OR COALESCE(a.operating_system, '') ILIKE $1
-           OR COALESCE(a.kind, '') ILIKE $1
-           OR COALESCE(a.provider, '') ILIKE $1
-           OR COALESCE(a.environment, '') ILIKE $1
-           OR COALESCE(a.region, '') ILIKE $1
-           OR COALESCE(a.zone, '') ILIKE $1
-           OR COALESCE(a.status::text, '') ILIKE $1
-           OR EXISTS (SELECT 1 FROM unnest(a.aliases) AS alias WHERE alias ILIKE $1)
+           ($1::text IS NOT NULL AND UPPER(COALESCE(a.asset_reference, '')) = 'AST-' || $1)
+           OR ($1::text IS NOT NULL AND COALESCE(a.asset_reference, '') ILIKE 'AST-' || $1 || '%')
+           OR COALESCE(a.asset_reference, '') ILIKE $2
+           OR a.name ILIKE $2
+           OR COALESCE(a.fqdn, '') ILIKE $2
+           OR COALESCE(a.hostname, '') ILIKE $2
+           OR COALESCE(a.notes, '') ILIKE $2
+           OR COALESCE(a.domain, '') ILIKE $2
+           OR COALESCE(a.cluster, '') ILIKE $2
+           OR COALESCE(a.operating_system, '') ILIKE $2
+           OR COALESCE(a.kind, '') ILIKE $2
+           OR COALESCE(a.provider, '') ILIKE $2
+           OR COALESCE(a.environment, '') ILIKE $2
+           OR COALESCE(a.region, '') ILIKE $2
+           OR COALESCE(a.zone, '') ILIKE $2
+           OR COALESCE(a.status::text, '') ILIKE $2
+           OR EXISTS (SELECT 1 FROM unnest(a.aliases) AS alias WHERE alias ILIKE $2)
          )
-       ORDER BY score DESC, a.updated_at DESC, a.name ASC
-       LIMIT $3`,
-      [like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE
+                  WHEN $1::text IS NOT NULL
+                    AND COALESCE(a.asset_reference, '') ILIKE 'AST-' || $1 || '%'
+                    AND COALESCE(a.asset_reference, '') ~ '^AST-[0-9]+$'
+                  THEN NULLIF(regexp_replace(a.asset_reference, '^AST-', ''), '')::int
+                  ELSE NULL
+                END ASC NULLS LAST,
+                a.updated_at DESC,
+                a.name ASC
+       LIMIT $4`,
+      [numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -892,6 +936,7 @@ export class AiEntityService {
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
     const summarySql = buildProjectSummarySql('p');
     const contributorNamesSql = buildContributorNamesSql('p', 'portfolio_project_team', 'pt', 'project_id');
     const rows = await context.manager.query<SearchRow[]>(
@@ -907,45 +952,50 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND p.item_number = $1 THEN 4
-                WHEN p.name ILIKE $2 THEN 3
+                WHEN $2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN p.name ILIKE $3 THEN 3
                 ELSE 1
               END AS score
        FROM portfolio_projects p
-       LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = $3
-       LEFT JOIN portfolio_streams ps ON ps.id = p.stream_id AND ps.tenant_id = $3
-       LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = $3
-       LEFT JOIN departments dep ON dep.id = p.department_id AND dep.tenant_id = $3
+       LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = $4
+       LEFT JOIN portfolio_streams ps ON ps.id = p.stream_id AND ps.tenant_id = $4
+       LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = $4
+       LEFT JOIN departments dep ON dep.id = p.department_id AND dep.tenant_id = $4
        LEFT JOIN users u_bs ON u_bs.id = p.business_sponsor_id AND u_bs.tenant_id = p.tenant_id
        LEFT JOIN users u_bl ON u_bl.id = p.business_lead_id AND u_bl.tenant_id = p.tenant_id
        LEFT JOIN users u_is ON u_is.id = p.it_sponsor_id AND u_is.tenant_id = p.tenant_id
        LEFT JOIN users u_il ON u_il.id = p.it_lead_id AND u_il.tenant_id = p.tenant_id
-       WHERE p.tenant_id = $3
+       WHERE p.tenant_id = $4
          AND (
            ($1::int IS NOT NULL AND p.item_number = $1)
-           OR p.name ILIKE $2
-           OR COALESCE(p.origin, '') ILIKE $2
-           OR COALESCE(p.status::text, '') ILIKE $2
-           OR COALESCE(p.override_justification, '') ILIKE $2
-           OR COALESCE(pc.name, '') ILIKE $2
-           OR COALESCE(ps.name, '') ILIKE $2
-           OR COALESCE(co.name, '') ILIKE $2
-           OR COALESCE(dep.name, '') ILIKE $2
-           OR ${buildUserNameSql('u_bs')} ILIKE $2
-           OR ${buildUserNameSql('u_bl')} ILIKE $2
-           OR ${buildUserNameSql('u_is')} ILIKE $2
-           OR ${buildUserNameSql('u_il')} ILIKE $2
+           OR ($2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%')
+           OR p.name ILIKE $3
+           OR COALESCE(p.origin, '') ILIKE $3
+           OR COALESCE(p.status::text, '') ILIKE $3
+           OR COALESCE(p.override_justification, '') ILIKE $3
+           OR COALESCE(pc.name, '') ILIKE $3
+           OR COALESCE(ps.name, '') ILIKE $3
+           OR COALESCE(co.name, '') ILIKE $3
+           OR COALESCE(dep.name, '') ILIKE $3
+           OR ${buildUserNameSql('u_bs')} ILIKE $3
+           OR ${buildUserNameSql('u_bl')} ILIKE $3
+           OR ${buildUserNameSql('u_is')} ILIKE $3
+           OR ${buildUserNameSql('u_il')} ILIKE $3
            OR EXISTS (
              SELECT 1
              FROM portfolio_project_team pt
              JOIN users u_tm ON u_tm.id = pt.user_id AND u_tm.tenant_id = p.tenant_id
              WHERE pt.project_id = p.id
                AND pt.tenant_id = p.tenant_id
-               AND ${buildUserNameSql('u_tm')} ILIKE $2
+               AND ${buildUserNameSql('u_tm')} ILIKE $3
            )
          )
-       ORDER BY score DESC, p.updated_at DESC, p.name ASC
-       LIMIT $4`,
-      [ref, like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%' THEN p.item_number ELSE NULL END ASC NULLS LAST,
+                p.updated_at DESC,
+                p.name ASC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -971,6 +1021,7 @@ export class AiEntityService {
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
     const summarySql = buildRequestSummarySql('r');
     const contributorNamesSql = buildContributorNamesSql('r', 'portfolio_request_team', 'rt', 'request_id');
     const rows = await context.manager.query<SearchRow[]>(
@@ -987,48 +1038,53 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND r.item_number = $1 THEN 4
-                WHEN r.name ILIKE $2 THEN 3
+                WHEN $2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN r.name ILIKE $3 THEN 3
                 ELSE 1
               END AS score
        FROM portfolio_requests r
-       LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = $3
-       LEFT JOIN portfolio_streams ps ON ps.id = r.stream_id AND ps.tenant_id = $3
-       LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = $3
-       LEFT JOIN departments dep ON dep.id = r.department_id AND dep.tenant_id = $3
+       LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = $4
+       LEFT JOIN portfolio_streams ps ON ps.id = r.stream_id AND ps.tenant_id = $4
+       LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = $4
+       LEFT JOIN departments dep ON dep.id = r.department_id AND dep.tenant_id = $4
        LEFT JOIN users u_req ON u_req.id = r.requestor_id AND u_req.tenant_id = r.tenant_id
        LEFT JOIN users u_bs ON u_bs.id = r.business_sponsor_id AND u_bs.tenant_id = r.tenant_id
        LEFT JOIN users u_bl ON u_bl.id = r.business_lead_id AND u_bl.tenant_id = r.tenant_id
        LEFT JOIN users u_is ON u_is.id = r.it_sponsor_id AND u_is.tenant_id = r.tenant_id
        LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id
-       WHERE r.tenant_id = $3
+       WHERE r.tenant_id = $4
          AND (
            ($1::int IS NOT NULL AND r.item_number = $1)
-           OR r.name ILIKE $2
-           OR COALESCE(r.current_situation, '') ILIKE $2
-           OR COALESCE(r.expected_benefits, '') ILIKE $2
-           OR COALESCE(r.status::text, '') ILIKE $2
-           OR COALESCE(r.override_justification, '') ILIKE $2
-           OR COALESCE(pc.name, '') ILIKE $2
-           OR COALESCE(ps.name, '') ILIKE $2
-           OR COALESCE(co.name, '') ILIKE $2
-           OR COALESCE(dep.name, '') ILIKE $2
-           OR ${buildUserNameSql('u_req')} ILIKE $2
-           OR ${buildUserNameSql('u_bs')} ILIKE $2
-           OR ${buildUserNameSql('u_bl')} ILIKE $2
-           OR ${buildUserNameSql('u_is')} ILIKE $2
-           OR ${buildUserNameSql('u_il')} ILIKE $2
+           OR ($2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%')
+           OR r.name ILIKE $3
+           OR COALESCE(r.current_situation, '') ILIKE $3
+           OR COALESCE(r.expected_benefits, '') ILIKE $3
+           OR COALESCE(r.status::text, '') ILIKE $3
+           OR COALESCE(r.override_justification, '') ILIKE $3
+           OR COALESCE(pc.name, '') ILIKE $3
+           OR COALESCE(ps.name, '') ILIKE $3
+           OR COALESCE(co.name, '') ILIKE $3
+           OR COALESCE(dep.name, '') ILIKE $3
+           OR ${buildUserNameSql('u_req')} ILIKE $3
+           OR ${buildUserNameSql('u_bs')} ILIKE $3
+           OR ${buildUserNameSql('u_bl')} ILIKE $3
+           OR ${buildUserNameSql('u_is')} ILIKE $3
+           OR ${buildUserNameSql('u_il')} ILIKE $3
            OR EXISTS (
              SELECT 1
              FROM portfolio_request_team rt
              JOIN users u_tm ON u_tm.id = rt.user_id AND u_tm.tenant_id = r.tenant_id
              WHERE rt.request_id = r.id
                AND rt.tenant_id = r.tenant_id
-               AND ${buildUserNameSql('u_tm')} ILIKE $2
+               AND ${buildUserNameSql('u_tm')} ILIKE $3
            )
          )
-       ORDER BY score DESC, r.updated_at DESC, r.name ASC
-       LIMIT $4`,
-      [ref, like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%' THEN r.item_number ELSE NULL END ASC NULLS LAST,
+                r.updated_at DESC,
+                r.name ASC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -1055,6 +1111,7 @@ export class AiEntityService {
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT t.id,
               t.item_number,
@@ -1067,43 +1124,48 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND t.item_number = $1 THEN 4
-                WHEN COALESCE(t.title, '') ILIKE $2 THEN 3
+                WHEN $2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN COALESCE(t.title, '') ILIKE $3 THEN 3
                 ELSE 1
               END AS score
        FROM tasks t
        LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
        LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.tenant_id = t.tenant_id
-       LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $3
-       LEFT JOIN companies co ON co.id = t.company_id AND co.tenant_id = $3
-       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = $3
-       LEFT JOIN portfolio_streams ps ON ps.id = t.stream_id AND ps.tenant_id = $3
-       LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $3
-       LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $3
-       LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $3
-       LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $3
-       WHERE t.tenant_id = $3
+       LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $4
+       LEFT JOIN companies co ON co.id = t.company_id AND co.tenant_id = $4
+       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = $4
+       LEFT JOIN portfolio_streams ps ON ps.id = t.stream_id AND ps.tenant_id = $4
+       LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $4
+       LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $4
+       LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $4
+       LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $4
+       WHERE t.tenant_id = $4
          AND (
            ($1::int IS NOT NULL AND t.item_number = $1)
-           OR COALESCE(t.title, '') ILIKE $2
-           OR COALESCE(t.description, '') ILIKE $2
-           OR COALESCE(t.status::text, '') ILIKE $2
-           OR COALESCE(t.priority_level, '') ILIKE $2
-           OR COALESCE(t.related_object_type, '') ILIKE $2
-           OR ${buildUserNameSql('u_assign')} ILIKE $2
-           OR ${buildUserNameSql('u_creator')} ILIKE $2
-           OR COALESCE(tt.name, '') ILIKE $2
-           OR COALESCE(co.name, '') ILIKE $2
-           OR COALESCE(pc.name, '') ILIKE $2
-           OR COALESCE(ps.name, '') ILIKE $2
-           OR COALESCE(rel_proj.name, '') ILIKE $2
-           OR COALESCE(rel_si.product_name, '') ILIKE $2
-           OR COALESCE(rel_ct.name, '') ILIKE $2
-           OR COALESCE(rel_cx.description, '') ILIKE $2
-           OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(t.labels) AS lbl WHERE lbl ILIKE $2)
+           OR ($2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%')
+           OR COALESCE(t.title, '') ILIKE $3
+           OR COALESCE(t.description, '') ILIKE $3
+           OR COALESCE(t.status::text, '') ILIKE $3
+           OR COALESCE(t.priority_level, '') ILIKE $3
+           OR COALESCE(t.related_object_type, '') ILIKE $3
+           OR ${buildUserNameSql('u_assign')} ILIKE $3
+           OR ${buildUserNameSql('u_creator')} ILIKE $3
+           OR COALESCE(tt.name, '') ILIKE $3
+           OR COALESCE(co.name, '') ILIKE $3
+           OR COALESCE(pc.name, '') ILIKE $3
+           OR COALESCE(ps.name, '') ILIKE $3
+           OR COALESCE(rel_proj.name, '') ILIKE $3
+           OR COALESCE(rel_si.product_name, '') ILIKE $3
+           OR COALESCE(rel_ct.name, '') ILIKE $3
+           OR COALESCE(rel_cx.description, '') ILIKE $3
+           OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(t.labels) AS lbl WHERE lbl ILIKE $3)
          )
-       ORDER BY score DESC, t.updated_at DESC, t.created_at DESC
-       LIMIT $4`,
-      [ref, like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%' THEN t.item_number ELSE NULL END ASC NULLS LAST,
+                t.updated_at DESC,
+                t.created_at DESC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -1622,7 +1684,7 @@ export class AiEntityService {
   private async listApplications(context: AiExecutionContextWithManager) {
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<any[]>(
-      `SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
+      `SELECT a.id, a.sequential_id AS item_ref, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
               a.lifecycle, a.criticality, a.category, a.hosting_model, a.data_class, a.version,
               s.name AS supplier_name,
               ${itOwnerNamesSql} AS it_owner_names
@@ -1649,7 +1711,7 @@ export class AiEntityService {
 
   private async listAssets(context: AiExecutionContextWithManager) {
     const rows = await context.manager.query<any[]>(
-      `SELECT a.id, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at,
+      `SELECT a.id, a.asset_reference AS item_ref, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at,
               a.kind, a.provider, a.environment, a.operating_system
        FROM assets a
        WHERE a.tenant_id = $1
@@ -1857,6 +1919,105 @@ export class AiEntityService {
       limit,
       returned: items.length,
       truncated: offset + items.length < total,
+      complete: false,
+      entity_types: allowed,
+    };
+  }
+
+  private async searchDocumentsForMentions(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const search = await this.knowledge.searchMentionOptions(
+      { q: query, limit },
+      { manager: context.manager, userId: context.userId },
+    );
+    return {
+      items: (search.items || []).map((item: any) => ({
+        ...toSummary('documents', {
+          id: item.id,
+          item_number: item.item_number,
+          item_ref: item.item_ref,
+          label: item.title,
+          summary: item.summary ?? null,
+          status: item.status,
+          updated_at: item.updated_at,
+        }, item.summary ?? null),
+        _score: 1,
+      })),
+      total: search.total ?? 0,
+    };
+  }
+
+  async searchMentionCandidates(
+    context: AiExecutionContextWithManager,
+    input: {
+      query: string;
+      entity_types?: AiSearchEntityType[];
+      limit?: number;
+    },
+  ) {
+    const requested = input.entity_types && input.entity_types.length > 0
+      ? input.entity_types
+      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+    const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
+    if (allowed.length === 0) {
+      return { items: [], total: 0, returned: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
+    }
+
+    const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 200);
+    const empty: RankedSearchResult = { items: [], total: 0 };
+    let savepointCounter = 0;
+    const safeRun = async (
+      type: AiSearchEntityType,
+      run: () => Promise<RankedSearchResult>,
+    ): Promise<RankedSearchResult> => {
+      const sp = `mention_${type}_${++savepointCounter}`;
+      try {
+        await context.manager.query(`SAVEPOINT ${sp}`);
+      } catch (err) {
+        this.logger.warn(`searchMentionCandidates: ${type} could not start savepoint: ${(err as Error).message}`);
+        return empty;
+      }
+      try {
+        const result = await run();
+        await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        return result;
+      } catch (err) {
+        try {
+          await context.manager.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        } catch {
+          // ignore
+        }
+        this.logger.warn(
+          `searchMentionCandidates: ${type} failed for query "${input.query}": ${(err as Error).message}`,
+        );
+        return empty;
+      }
+    };
+
+    const results: RankedSearchResult[] = [];
+    for (const type of allowed) {
+      const result = await safeRun(type, () => (
+        type === 'documents'
+          ? this.searchDocumentsForMentions(context, input.query, limit)
+          : this.runEntityTypeSearch(context, type, input.query, limit)
+      ));
+      results.push(result);
+    }
+
+    const total = results.reduce((sum, result) => sum + (result.total || 0), 0);
+    const items = results
+      .flatMap((result) => result.items)
+      .map(({ _score, ...item }: any) => item);
+
+    return {
+      items,
+      total,
+      limit,
+      returned: items.length,
       complete: false,
       entity_types: allowed,
     };

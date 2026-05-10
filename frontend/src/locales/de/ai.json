@@ -10,6 +10,7 @@
     "empty": "Noch keine Konversationen",
     "newChat": "Neue Konversation",
     "noMatch": "Keine Konversation passt",
+    "rename": "Umbenennen",
     "search": "Konversationen durchsuchen...",
     "untitled": "Ohne Titel"
   },
@@ -102,7 +103,7 @@
       "disabled": "Der KI-Chat ist für diesen Arbeitsbereich deaktiviert."
     },
     "suggestions": {
-      "applicationsCount": "Wie viele Anwendungen habe ich?",
+      "applicationMention": "Zusammenfassung für @APP-",
       "knowledgeSearch": "Finde Dokumente zu Backups",
       "myProjects": "An welchen Projekten arbeite ich?",
       "overdueTasks": "Zeige mir meine überfälligen Aufgaben"

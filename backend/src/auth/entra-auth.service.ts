@@ -12,6 +12,14 @@ type EntraState = {
   mode: EntraMode;
   tenantId: string;
   redirectTo?: string;
+  nonce: string;
+};
+
+type EntraLoginHandoff = {
+  type: 'entra_login_handoff';
+  tenantId: string;
+  userId: string;
+  redirectTo?: string;
 };
 
 type OpenIdConfiguration = {
@@ -242,13 +250,49 @@ export class EntraAuthService {
   private verifyState(token: string): EntraState {
     try {
       const decoded = jwt.verify(token, this.stateSecret) as EntraState;
-      if (!decoded || !decoded.mode || !decoded.tenantId) {
+      if (!decoded || !decoded.mode || !decoded.tenantId || !decoded.nonce) {
         throw new Error('invalid payload');
       }
       return decoded;
     } catch (err: any) {
       this.logger.warn(`Invalid Entra state: ${err?.message || String(err)}`);
       throw new BadRequestException('Invalid Entra state');
+    }
+  }
+
+  signLoginHandoff(payload: { tenantId: string; userId: string; redirectTo?: string }): string {
+    try {
+      return jwt.sign(
+        {
+          type: 'entra_login_handoff',
+          tenantId: payload.tenantId,
+          userId: payload.userId,
+          redirectTo: payload.redirectTo ?? '/',
+        } satisfies EntraLoginHandoff,
+        this.stateSecret,
+        { algorithm: 'HS256', expiresIn: '2m' },
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to sign Entra login handoff: ${err?.message || String(err)}`);
+      throw new BadRequestException('Unable to complete Entra authentication');
+    }
+  }
+
+  verifyLoginHandoff(token: string): EntraLoginHandoff {
+    try {
+      const decoded = jwt.verify(token, this.stateSecret) as EntraLoginHandoff;
+      if (
+        !decoded
+        || decoded.type !== 'entra_login_handoff'
+        || !decoded.tenantId
+        || !decoded.userId
+      ) {
+        throw new Error('invalid payload');
+      }
+      return decoded;
+    } catch (err: any) {
+      this.logger.warn(`Invalid Entra login handoff: ${err?.message || String(err)}`);
+      throw new BadRequestException('Invalid Entra login session');
     }
   }
 
@@ -263,6 +307,7 @@ export class EntraAuthService {
       mode: params.mode,
       tenantId: params.tenantId,
       redirectTo: params.redirectTo ?? '/',
+      nonce,
     });
 
     const urlObj = new URL(metadata.authorization_endpoint);
@@ -285,10 +330,9 @@ export class EntraAuthService {
     return { url: urlObj.toString(), nonce, state };
   }
 
-  async handleCallback(input: { code?: string | string[]; state?: string | string[]; nonce?: string | null }) {
+  async handleCallback(input: { code?: string | string[]; state?: string | string[] }) {
     const code = Array.isArray(input.code) ? input.code[0] : input.code;
     const stateRaw = Array.isArray(input.state) ? input.state[0] : input.state;
-    const nonce = input.nonce ?? undefined;
 
     if (!code || !stateRaw) {
       throw new BadRequestException('Missing code or state');
@@ -362,7 +406,7 @@ export class EntraAuthService {
       throw new BadRequestException('Invalid Entra token');
     }
 
-    if (!nonce || !claims.nonce || claims.nonce !== nonce) {
+    if (!claims.nonce || claims.nonce !== parsedState.nonce) {
       throw new BadRequestException('Entra token nonce mismatch');
     }
     if (!claims?.sub) throw new BadRequestException('Entra token subject missing');

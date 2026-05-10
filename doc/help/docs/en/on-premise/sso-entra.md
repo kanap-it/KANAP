@@ -88,7 +88,7 @@ After updating `.env`, restart your containers so the API picks up the new confi
 
 - **SSO_NOT_CONFIGURED**: Entra env vars are missing or tenant is not connected.
 - **ENTRA_TENANT_MISMATCH**: You connected one tenant but are trying to sign in from another.
-- **Invalid Entra state / nonce**: Cookie blocked or HTTPS misconfigured.
+- **Invalid Entra state / nonce**: The sign-in state expired or the Entra redirect did not return to the configured callback URL. Retry sign-in and verify `ENTRA_REDIRECT_URI` exactly matches the Entra app registration.
 - **Bad redirect after login**: Check `APP_BASE_URL` and reverse proxy headers (`Host`, `X-Forwarded-Proto`).
 
 ## Security Notes

@@ -126,6 +126,17 @@ export default function AiWorkspacePage() {
     [chat.sendMessage, queryClient],
   );
 
+  const handleSuggestion = useCallback(
+    (text: string) => {
+      if (text.includes('@')) {
+        inputRef.current?.setText(text);
+        return;
+      }
+      void handleSend(text);
+    },
+    [handleSend],
+  );
+
   const handleArchive = useCallback(
     async (id: string) => {
       if (id === chat.conversationId) {
@@ -255,7 +266,7 @@ export default function AiWorkspacePage() {
             <Box sx={{ width: '100%', maxWidth: CONTENT_MAX_WIDTH }}>
               <Stack spacing={4}>
                 <ChatEmptyState
-                  onSuggestion={handleSend}
+                  onSuggestion={handleSuggestion}
                   disabled={chat.isStreaming || builtinLimitReached}
                 />
                 <Stack spacing={1}>

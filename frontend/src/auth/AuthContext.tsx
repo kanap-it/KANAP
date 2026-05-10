@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import api, { requestTokenRefresh } from '../api';
 import { clearSessionActivity, isIdleExpired, setRefreshTtlMs, touchLastActivity } from './sessionStorage';
 import { getAccessToken, getAccessTokenExpiresAt, setAccessToken, subscribeAccessToken } from './accessTokenStore';
@@ -112,6 +113,7 @@ function isLoginCallbackPath(pathname: string): boolean {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(() => getAccessToken());
   const [tokenExpiresAt, setTokenExpiresAt] = useState<number | null>(() => getAccessTokenExpiresAt());
   const [isAuthenticating, setIsAuthenticating] = useState(true);
@@ -121,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tenantAuth, setTenantAuth] = useState<TenantAuth | null>(null);
 
   const clearAuthState = useCallback((opts?: { clearActivity?: boolean }) => {
+    queryClient.removeQueries({ queryKey: ['ai-capabilities'] });
     clearLegacyTokenStorage();
     if (opts?.clearActivity) {
       clearSessionActivity();
@@ -132,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setClaims(null);
     setSubscription(null);
     setTenantAuth(null);
-  }, []);
+  }, [queryClient]);
 
   const applyAccessToken = useCallback((accessToken: string, expiresIn: number, refreshExpiresIn?: number) => {
     const expiresAt = Date.now() + expiresIn * 1000;
@@ -197,10 +200,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearAuthState({ clearActivity: true });
       return;
     }
+    queryClient.removeQueries({ queryKey: ['ai-capabilities'] });
+    setProfile(null);
+    setClaims(null);
+    setSubscription(null);
+    setTenantAuth(null);
     touchLastActivity();
     applyAccessToken(response.access_token, response.expires_in, response.refresh_expires_in);
     // refreshMe will be called by useEffect when token changes
-  }, [applyAccessToken, clearAuthState]);
+  }, [applyAccessToken, clearAuthState, queryClient]);
 
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     return refreshAccessTokenInternal();

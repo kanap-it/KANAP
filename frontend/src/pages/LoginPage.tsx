@@ -113,6 +113,7 @@ export default function LoginPage() {
                 autoComplete="username"
                 autoFocus
                 InputLabelProps={{ shrink: true }}
+                sx={{ '& .MuiInputBase-input': { paddingLeft: '8px !important', paddingRight: '8px !important' } }}
               />
               <TextField
                 label={t('auth:login.passwordLabel')}
@@ -122,6 +123,7 @@ export default function LoginPage() {
                 fullWidth
                 autoComplete="current-password"
                 InputLabelProps={{ shrink: true }}
+                sx={{ '& .MuiInputBase-input': { paddingLeft: '8px !important', paddingRight: '8px !important' } }}
               />
             </Stack>
 

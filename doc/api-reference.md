@@ -63,17 +63,21 @@ Rate limiting (default enabled):
 ### Microsoft Entra SSO
 - POST `/auth/entra/setup/start` → `{ url }`
   - Requires tenant context + `users:admin` (the user must be an Administrator in the current tenant).
-  - Reads `req.tenant` (blocked on the platform-admin host) and signs a short-lived `state` + `nonce` cookie before returning an Entra consent URL. The SPA immediately navigates to the returned URL.
-  - Cookie attributes: `HttpOnly`, `SameSite=Lax`, `Secure=true` in production. Dev must use HTTPS to satisfy Microsoft’s cookie rules.
+  - Reads `req.tenant` (blocked on the platform-admin host) and signs a short-lived `state` containing the OIDC `nonce` before returning an Entra consent URL. The SPA immediately navigates to the returned URL.
+  - The nonce is validated from signed `state`, not from a browser cookie, so callbacks work across tenant subdomains and custom/on-prem domains.
 - GET `/auth/entra/login?redirectTo=/path`
   - Public endpoint, but only available on tenant hosts that previously completed setup (`sso_provider='entra'`).
-  - Validates `redirectTo` (defaults to `/`), signs new `state`/`nonce`, and 302s to the Microsoft authorization endpoint. Errors return JSON (e.g., `{ message: 'SSO_NOT_CONFIGURED' }`).
+  - Validates `redirectTo` (defaults to `/`), signs new `state` containing the nonce, sends the same nonce to Microsoft, and 302s to the Microsoft authorization endpoint. Errors return JSON (e.g., `{ message: 'SSO_NOT_CONFIGURED' }`).
 - GET `/auth/entra/callback`
   - Shared callback for both setup & login.
-  - Mode is embedded in the signed `state` payload (`mode='setup' | 'login'`). The endpoint exchanges the auth code for tokens using the shared app registration, validates the ID token (issuer, audience, nonce, `tid`, `oid`, email), and then:
+  - Mode and nonce are embedded in the signed `state` payload (`mode='setup' | 'login'`). The endpoint exchanges the auth code for tokens using the shared app registration, validates the ID token (issuer, audience, nonce, `tid`, `oid`, email), and then:
     - `mode=setup`: stores `sso_provider='entra'`, `entra_tenant_id=tid`, and metadata on the tenant, then redirects to `/admin/auth?setup=success` on the tenant host.
-    - `mode=login`: links or provisions a tenant user (by external subject first, then email), issues tokens via `AuthService.signTokens`, and redirects to `/login/callback#token=...&refreshToken=...&expiresIn=...&refreshExpiresIn=...&redirectTo=...` on the tenant host.
-      - Security: callback tokens are passed in the URL fragment (not query string). The SPA reads the fragment and clears it via `history.replaceState`.
+    - `mode=login`: links or provisions a tenant user (by external subject first, then email), signs a short-lived handoff, and redirects to `/login/callback#handoff=...` on the tenant host.
+      - Security: the handoff is passed in the URL fragment, then the SPA redeems it with the tenant host via `POST /auth/entra/session`.
+- POST `/auth/entra/session`
+  - Public tenant-host endpoint used only by the Entra callback page.
+  - Body: `{ handoff: string }`.
+  - Validates that the handoff tenant matches `req.tenant`, issues app tokens, sets the `HttpOnly` `refresh_token` cookie on the tenant host, and returns `{ access_token, expires_in, refresh_expires_in, redirectTo }`.
 
 - GET `/admin/auth/settings`
   - Requires `users:admin` and a tenant host.

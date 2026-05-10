@@ -4,7 +4,7 @@ import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorat
 import { AiEntityService } from './ai-entity.service';
 import { AiPolicyService } from './ai-policy.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
-import { AiExecutionContext } from './ai.types';
+import { AiExecutionContext, AiSearchEntityType } from './ai.types';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 50;
@@ -12,12 +12,29 @@ const MAX_LIMIT = 50;
  * pool by content tier and trims to the user's limit, so we want enough candidates
  * to make sure tier-1 (ref) and tier-2 (label) matches surface from every type. */
 const CANDIDATE_POOL = 200;
+const PICKER_ENTITY_TYPES: AiSearchEntityType[] = [
+  'applications',
+  'assets',
+  'business_processes',
+  'capex_items',
+  'companies',
+  'connections',
+  'contacts',
+  'contracts',
+  'departments',
+  'documents',
+  'interfaces',
+  'locations',
+  'projects',
+  'requests',
+  'suppliers',
+  'tasks',
+];
 
 /**
  * Lightweight entity search endpoint backing the @-mention autocomplete in the Plaid
- * composer. Reuses AiEntityService.searchAll so all permission filtering, tenant
- * scoping, and ranking logic stays in one place — this controller is just a public
- * surface tuned for short, high-frequency typeahead requests.
+ * composer. Uses a picker-specific entity search so each readable type contributes
+ * candidates before the controller applies mention ranking and trims to the UI limit.
  */
 @Controller('ai/search')
 @UseGuards(JwtAuthGuard)
@@ -57,22 +74,27 @@ export class AiSearchController {
    * Empty query degrades everything to 10, which collapses the sort to "recent
    * items first" — the natural behaviour for the bare `@` trigger.
    */
-  private computeTier(item: { ref?: string | null; label?: string | null }, query: string): number {
+  private computeTier(item: { ref?: string | null; label?: string | null }, query: string): { tier: number; sortKey: number } {
     const trimmed = query.trim();
-    if (!trimmed) return 10;
+    if (!trimmed) return { tier: 10, sortKey: 0 };
     const queryLower = trimmed.toLowerCase();
     const ref = (item.ref || '').toLowerCase();
+    const queryNumMatch = trimmed.match(/-(\d+)$|^(\d+)$/);
+    const queryNum = queryNumMatch ? (queryNumMatch[1] || queryNumMatch[2]) : null;
     if (ref) {
-      if (ref === queryLower) return 100;
+      if (ref === queryLower) return { tier: 100, sortKey: 0 };
       // Bare number match: query "5" → matches refs ending in "-5" (T-5, PRJ-5…).
       const refNumberMatch = ref.match(/-(\d+)$/);
       if (refNumberMatch && /^\d+$/.test(trimmed) && refNumberMatch[1] === trimmed) {
-        return 100;
+        return { tier: 100, sortKey: 0 };
+      }
+      if (queryNum && refNumberMatch && refNumberMatch[1].startsWith(queryNum) && refNumberMatch[1] !== queryNum) {
+        return { tier: 75, sortKey: Number.parseInt(refNumberMatch[1], 10) || 0 };
       }
     }
     const label = (item.label || '').toLowerCase();
-    if (label && label.includes(queryLower)) return 50;
-    return 10;
+    if (label && label.includes(queryLower)) return { tier: 50, sortKey: 0 };
+    return { tier: 10, sortKey: 0 };
   }
 
   @Get('entities')
@@ -90,12 +112,15 @@ export class AiSearchController {
     // (`@APP`, `@PRJ`, `@T-5`, …). With a narrow active, an empty query is
     // legitimate ("show recent items of this type"). Without a narrow, an empty
     // query is rejected so we don't dump the whole workspace.
-    const entityTypes = (entityTypesRaw || '')
+    const rawEntityTypes = (entityTypesRaw || '')
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
+    const entityTypes = rawEntityTypes.length > 0
+      ? rawEntityTypes
+      : PICKER_ENTITY_TYPES;
 
-    if (!query && entityTypes.length === 0) {
+    if (!query && rawEntityTypes.length === 0) {
       return { items: [] };
     }
 
@@ -103,10 +128,10 @@ export class AiSearchController {
     return this.tenantExecutor.runWithContext(context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
 
-      const result = await this.entities.searchAll(ctx, {
+      const result = await this.entities.searchMentionCandidates(ctx, {
         query,
         limit: CANDIDATE_POOL,
-        ...(entityTypes.length > 0 ? { entity_types: entityTypes as any } : {}),
+        entity_types: entityTypes as AiSearchEntityType[],
       });
 
       // Re-rank purely on item content (ignoring the per-type SQL CASE scores
@@ -114,11 +139,12 @@ export class AiSearchController {
       const ranked = (result.items as any[])
         .map((item) => ({
           item,
-          tier: this.computeTier(item, query),
+          ...this.computeTier(item, query),
           updated: new Date(item.updated_at || 0).getTime(),
         }))
         .sort((a, b) => {
           if (a.tier !== b.tier) return b.tier - a.tier;
+          if (a.tier === 75 && a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
           return b.updated - a.updated;
         });
 

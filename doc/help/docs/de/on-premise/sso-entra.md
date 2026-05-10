@@ -88,7 +88,7 @@ Nach der Aktualisierung von `.env` starten Sie Ihre Container neu, damit die API
 
 - **SSO_NOT_CONFIGURED**: Entra-Umgebungsvariablen fehlen oder Mandant ist nicht verbunden.
 - **ENTRA_TENANT_MISMATCH**: Sie haben einen Mandanten verbunden, versuchen sich aber von einem anderen anzumelden.
-- **Invalid Entra state / nonce**: Cookie blockiert oder HTTPS falsch konfiguriert.
+- **Invalid Entra state / nonce**: Der Anmeldestatus ist abgelaufen oder die Entra-Weiterleitung ist nicht zur konfigurierten Callback-URL zurückgekehrt. Versuchen Sie die Anmeldung erneut und prüfen Sie, dass `ENTRA_REDIRECT_URI` exakt mit der Entra-App-Registrierung übereinstimmt.
 - **Fehlerhafte Umleitung nach Anmeldung**: Prüfen Sie `APP_BASE_URL` und Reverse-Proxy-Header (`Host`, `X-Forwarded-Proto`).
 
 ## Sicherheitshinweise

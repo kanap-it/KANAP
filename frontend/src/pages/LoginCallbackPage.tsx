@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import api from '../api';
 
 export default function LoginCallbackPage() {
   const { login } = useAuth();
@@ -12,10 +13,38 @@ export default function LoginCallbackPage() {
     let cancelled = false;
     const completeLogin = async () => {
       const hashParams = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : location.hash);
+      const handoff = hashParams.get('handoff');
       const token = hashParams.get('token');
       const expiresInStr = hashParams.get('expiresIn');
       const refreshExpiresInStr = hashParams.get('refreshExpiresIn');
-      const redirectTo = hashParams.get('redirectTo') || '/';
+      let redirectTo = hashParams.get('redirectTo') || '/';
+
+      if (handoff) {
+        try {
+          const res = await api.post('/auth/entra/session', { handoff });
+          const data = res.data || {};
+          if (!data.access_token || !Number.isFinite(Number(data.expires_in))) {
+            throw new Error('Invalid Entra session response');
+          }
+          redirectTo = typeof data.redirectTo === 'string' && data.redirectTo ? data.redirectTo : '/';
+          if (location.hash || location.search) {
+            window.history.replaceState(null, '', location.pathname);
+          }
+          if (cancelled) return;
+          login({
+            access_token: data.access_token,
+            expires_in: Number(data.expires_in),
+            refresh_expires_in: Number.isFinite(Number(data.refresh_expires_in)) ? Number(data.refresh_expires_in) : undefined,
+          });
+          navigate(redirectTo || '/', { replace: true });
+          return;
+        } catch {
+          if (!cancelled) {
+            navigate('/login', { replace: true, state: { ssoError: 'Sign-in failed. Please try again.' } });
+          }
+          return;
+        }
+      }
 
       if (!token || !expiresInStr || !Number.isFinite(parseInt(expiresInStr, 10))) {
         if (!cancelled) {
