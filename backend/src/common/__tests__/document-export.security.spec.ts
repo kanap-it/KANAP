@@ -22,6 +22,20 @@ function withEnv(values: Record<string, string | undefined>, fn: () => void) {
 
 function run() {
   withEnv({
+    APP_ENV: undefined,
+    NODE_ENV: undefined,
+    EXPORT_ALLOWED_IMAGE_HOSTS: 'cdn.example.com',
+    EXPORT_ALLOW_LOOPBACK_IMAGE_HOSTS: undefined,
+  }, () => {
+    const service = new DocumentExportService();
+    assert.throws(
+      () => (service as any).assertAllowedImageHost('127.0.0.1'),
+      (error: unknown) => error instanceof BadRequestException,
+    );
+    assert.doesNotThrow(() => (service as any).assertAllowedImageHost('cdn.example.com'));
+  });
+
+  withEnv({
     APP_ENV: 'production',
     NODE_ENV: 'production',
     EXPORT_ALLOWED_IMAGE_HOSTS: 'cdn.example.com',

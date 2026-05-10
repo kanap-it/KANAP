@@ -11,6 +11,15 @@ import {
 } from './csv-field.types';
 import { CsvResolverService } from './csv-resolver.service';
 
+export function neutralizeCsvFormulaValue(value: string): string {
+  const text = String(value ?? '');
+  if (!text) return '';
+  if (/^[=+\-@\t\r\n]/.test(text) || /^\s+[=+\-@]/.test(text)) {
+    return `'${text}`;
+  }
+  return text;
+}
+
 /**
  * Export options
  */
@@ -411,12 +420,7 @@ export class CsvExportService {
   }
 
   private neutralizeFormulaValue(value: string): string {
-    const text = String(value ?? '');
-    if (!text) return '';
-    if (/^[=+\-@\t\r\n]/.test(text) || /^\s+[=+\-@]/.test(text)) {
-      return `'${text}`;
-    }
-    return text;
+    return neutralizeCsvFormulaValue(value);
   }
 
   /**
