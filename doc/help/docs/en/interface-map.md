@@ -1,10 +1,10 @@
 # Interface Map
 
-The Interface Map provides an interactive visualization of your application integration landscape. Applications appear as nodes and interfaces as connecting edges, giving you a bird's-eye view of how data flows across your systems.
+The Interface Map is an interactive visualization of your application integration landscape. Applications appear as nodes and interfaces as connecting edges, giving you a bird's-eye view of how data flows across your systems for a given environment.
 
 ## Where to find it
 
-Navigate to **IT Landscape → Interface Map** to open the visualization.
+Navigate to **IT Landscape > Interface Map** to open the visualization.
 
 **Permissions**: You need at least `applications:reader` to view the map.
 
@@ -16,30 +16,32 @@ The map uses a force-directed graph layout where:
 
 - **Nodes** represent applications
 - **Edges** represent interfaces between applications
-- **Node size** reflects the number of connected interfaces
-- **Edge labels** display the interface identifier along each connection
+- **Edge labels** display the interface identifier on each connection
+- **Node size** reflects how many interfaces touch the application
 
 ### Business vs Technical view
 
-**Business View** (default):
+Toggle between the two view modes with the **Show middleware** switch in the toolbar.
+
+**Business view** (default, switch off):
 
 - Hides middleware applications
 - Shows direct source-to-target relationships
 - Best for understanding business data flows
 
-**Technical View**:
+**Technical view** (switch on):
 
-- Shows middleware platforms as intermediate nodes (displayed as diamond shapes)
-- Displays the actual data path (Source → Middleware → Target)
-- Best for understanding technical architecture
+- Shows middleware platforms as intermediate nodes (rendered as diamonds)
+- Expands each interface into its actual data path (Source -> Middleware -> Target)
+- Best for understanding the technical architecture
 
-Toggle between views using the **Show middleware** switch in the toolbar.
+A short caption under the page header reminds you which view is active.
 
 ---
 
 ## Filters
 
-All filters are located in the toolbar above the map.
+All filters are in the toolbar above the map.
 
 ### Environment
 
@@ -47,32 +49,32 @@ Filter interfaces by deployment environment:
 
 - Production, Pre-Prod, QA, Test, Development, Sandbox
 
-The default is **Production**.
+The default is **Production**. Bindings shown in the side panel and the linked infrastructure connections always reflect the selected environment.
 
 ### Lifecycle
 
-Multi-select filter for interface lifecycle status. Choose which statuses to include in the visualization (e.g., Active, Planned, Deprecated). The default selection is **Active**.
+Multi-select filter for interface lifecycle status (Active, Planned, Deprecated, etc.). Defaults to **Active**.
 
 ### Applications
 
 Focus the map on specific applications or services:
 
 1. Click the **Applications** dropdown
-2. Select one or more applications (grouped by type: Applications vs Infrastructure services)
+2. Pick one or more options (grouped under **Applications** and **Infrastructure services**)
 3. The map filters to show only interfaces connected to your selection
 
-When you select applications here, the **Depth** filter automatically switches from "All" to "1" so you see only the immediate neighborhood.
+When you pick at least one application here, the **Depth** filter automatically switches from **All** to **1** so you see only the immediate neighborhood.
 
 ### Depth
 
-Limit how many hops from selected applications to display:
+Limit how many hops from the selected applications to display:
 
-- **All**: Show all connected nodes (no limit)
-- **1–5**: Show only nodes within N hops of the selected applications
+- **All**: Show every connected node (no limit)
+- **1-5**: Show only nodes within N hops of the selected applications
 
 Middleware nodes do not count as a hop -- the depth counter only increments when traversing through a primary application node.
 
-This filter is automatically enabled when you select applications in the Applications filter.
+This filter only takes effect when you have at least one application selected; with no selection the value is locked to **All**.
 
 ---
 
@@ -83,14 +85,14 @@ The control panel on the left side of the map provides these tools:
 | Icon | Action | Description |
 |------|--------|-------------|
 | Pause / Play | **Freeze / Unfreeze** | Pause the force simulation so you can manually position nodes |
-| Center | **Auto-center** | Toggle automatic centering when selecting nodes (highlighted when enabled) |
+| Crosshair | **Auto-center** | Toggle automatic centering when selecting nodes (highlighted when enabled) |
 | Zoom + | **Zoom in** | Increase zoom level |
-| Zoom − | **Zoom out** | Decrease zoom level |
+| Zoom - | **Zoom out** | Decrease zoom level |
 | Grid | **Snap to grid** | Align all nodes to a grid for cleaner layouts |
 | SVG | **Export SVG** | Download the current view as a vector image |
 | PNG | **Export PNG** | Download the current view as a raster image |
 
-The freeze and auto-center buttons change color when active, so you can tell at a glance whether they are on or off.
+The freeze and auto-center buttons change colour when active so you can tell at a glance whether they are on or off. You can also zoom with the mouse wheel and pan by clicking and dragging the background.
 
 ---
 
@@ -102,7 +104,7 @@ Click an application node to highlight its connections and open a detail panel o
 
 ### Selecting edges
 
-Click an interface edge to see interface details in the side panel. Edges have a wider invisible hit area, so you do not need to click the line precisely.
+Click an interface edge to see interface details in the side panel. Edges have a wider invisible hit area, so you don't need to click the line precisely.
 
 ### Dragging nodes
 
@@ -110,7 +112,7 @@ Drag any node to reposition it manually. While the simulation is running, the la
 
 ### Clearing the selection
 
-Click the empty background area of the map to dismiss the detail panel and clear any selection.
+Click the empty background of the map (or **Close** in the side panel) to dismiss the detail panel.
 
 ### Deep linking
 
@@ -136,23 +138,21 @@ When you select a node or edge, a side panel opens on the right with details.
 
 - **Description**: What the application does
 - **Publisher**: Software publisher
-- **Criticality**: Business importance (Business critical, High, Medium, Low)
+- **Criticality**: Business critical, High, Medium, or Low
 - **Servers**: Servers hosting this app, grouped by environment. Click a server name to open its workspace.
-- **Business owners**: Responsible business contacts
-- **IT owners**: Responsible technical contacts
+- **Business owners** and **IT owners**: Responsible contacts
 - **Support information**: Support contacts with their roles. Click a contact name to navigate to the application's Technical tab.
 - **Edit application**: Opens the application workspace
 
 ### Interface panel
 
-- **Criticality**: Business importance level
-- **Route**: Integration route type
-- **Bindings**: Number of environment bindings
-- **Via middleware**: Whether the interface routes through middleware
-- **Endpoints**: For the selected environment, shows source and target applications, job names, and endpoint URLs
-- **Infra connections**: Infrastructure connections linked to this interface for the current environment. Each connection card shows source, destination, and protocols. From here you can:
+For the selected interface and the current environment:
+
+- **Criticality**, **Route**, **Bindings count**, **Via middleware** (yes/no)
+- **Endpoints**: For each binding in the active environment, shows source app -> target app, leg type, job name, source endpoint, and target endpoint
+- **Infra connections**: Infrastructure connections linked to this interface for the current environment. Each card shows source, destination, protocols, and the binding's environment / leg type. From the card you can:
   - Click **Edit** to open the connection workspace
-  - Click **View in Connection Map** to see the infrastructure topology
+  - Click **View in Connection Map** to jump to the infrastructure topology, pre-focused on the connection
 - **Edit interface**: Opens the interface workspace
 
 ---
@@ -160,8 +160,9 @@ When you select a node or edge, a side panel opens on the right with details.
 ## Tips
 
 - **Start with Production**: Select the Prod environment to see your most critical integrations first.
-- **Focus on specific apps**: Use the Applications filter with depth 2 to see just one application's neighborhood without the full landscape.
-- **Export for documentation**: Use the SVG export to create architecture diagrams for documentation or presentations. Use PNG when you need a raster image.
-- **Snap for clarity**: After dragging nodes into position, use Snap to Grid to create cleaner, more aligned layouts.
+- **Focus on specific apps**: Pick a few apps in the Applications filter and use depth 1 or 2 to explore one application's neighbourhood without the full landscape.
+- **Switch to Technical view**: When troubleshooting, enable **Show middleware** to see the actual data path through integration platforms.
+- **Export for documentation**: Use SVG to create vector architecture diagrams, or PNG when you need a raster image.
+- **Snap for clarity**: After dragging nodes into position, use **Snap to grid** to create cleaner, more aligned layouts.
 - **Deep link for sharing**: Copy the URL after setting filters to share specific views with colleagues.
-- **Switch to Technical view**: When troubleshooting, enable middleware visibility to see the actual data path through integration platforms.
+- **Cross-reference with Connection Map**: Use **View in Connection Map** in the Infra connections section to see the underlying network topology for a chosen binding.

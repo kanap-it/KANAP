@@ -1,6 +1,6 @@
 # Connection Map
 
-The Connection Map provides an interactive visualization of your infrastructure network topology. Assets appear as nodes and connections as edges, showing how data flows at the infrastructure level. Use it to explore dependencies, trace connection paths, and export diagrams for architecture documentation.
+The Connection Map is an interactive visualization of your infrastructure network topology. Servers, clusters and external entities appear as nodes; the connections between them are edges. Use it to explore dependencies, trace connection paths, and export diagrams for architecture documentation or security reviews.
 
 ## Where to find it
 
@@ -13,20 +13,21 @@ Navigate to **IT Landscape > Connection Map** to open the visualization.
 ## Understanding the visualization
 
 The map uses a force-directed graph layout where:
-- **Nodes** represent servers, clusters, or logical entities
+
+- **Nodes** represent servers, clusters, or external entities
 - **Edges** represent connections between infrastructure components
-- **Colors** indicate hosting type (on-premises, cloud) or node kind
-- **Role-based placement** (enabled by default) guides nodes into top-to-bottom bands based on role tiers
+- **Colours** indicate hosting type (on-premises, cloud) or node kind
+- **Role-based placement** (enabled by default) keeps the force layout but pushes nodes into top-to-bottom tier bands
 
 ### Node types
 
-| Type | Shape | Border color | Description |
-|------|-------|--------------|-------------|
+| Type | Shape | Border colour | Description |
+|------|-------|---------------|-------------|
 | **Servers** | Rounded rectangle | Green (on-prem) or blue (cloud) | Individual infrastructure instances (VMs, containers, etc.) |
 | **Clusters** | Rounded rectangle, dashed border | Cyan | Groups of servers acting as a single logical unit |
 | **Entities** | Pill / stadium shape | Orange | Logical endpoints (external systems, SaaS services) |
 
-Cluster members appear as separate nodes with dashed lines connecting them to their parent cluster node.
+Cluster members appear as separate server nodes with dashed indicator lines connecting them to their parent cluster node.
 
 ---
 
@@ -34,34 +35,37 @@ Cluster members appear as separate nodes with dashed lines connecting them to th
 
 ### Lifecycle
 
-Multi-select filter for connection lifecycle status. Choose which statuses to include in the visualization (e.g., Active, Planned, Deprecated). Defaults to **Active** only.
+Multi-select filter for connection lifecycle status (Active, Planned, Deprecated, etc.). Defaults to **Active**.
 
-### Applications
+### Applications and App Env
 
-Find servers by the applications that run on them:
+Find servers via the applications that run on them:
+
 1. Select one or more applications from the **Applications** dropdown
-2. Select environments in the **App Env** dropdown (shows only environments where selected apps have assigned servers)
+2. Pick environments in the **App Env** dropdown (only environments where the selected apps have assigned servers appear)
 3. The matching servers are automatically added to the **Servers** filter
 
-This is useful when you want to see the infrastructure connections for a specific application without knowing which servers it runs on.
+This is useful when you want to see the infrastructure connections for an application without knowing which servers it runs on.
 
 ### Servers
 
-Directly select servers, clusters, or entities to focus on:
+Directly pick servers, clusters, or entities to focus on:
+
 1. Click the **Servers** dropdown
-2. Select items (grouped by type: Entities, Clusters, Servers)
+2. Pick items (grouped by **Entities**, **Clusters**, **Servers**)
 3. Use the **Depth** filter to control how many hops to show
 
-When you select items here, a "+N more" chip appears if many are selected. Click it to see and manage the full list.
+When many items are selected, only the first chip is shown along with a **+N more** chip. Click **+N more** to open a popover that lists every selected item, with a remove icon next to each.
 
 ### Depth
 
-Limit how many "hops" from selected servers to display:
-- **All**: Show all connections (no depth filtering)
-- **0**: Show only selected servers, their parent clusters, and directly adjacent entities
-- **1--5**: Show servers within N hops of selected servers
+Limit how many hops from the selected items to display:
 
-Depth is automatically set to **0** when you select servers via the Applications or Servers filters.
+- **All**: Show every connection (no depth filtering)
+- **0**: Show only the selected items, their parent clusters, and directly adjacent entities
+- **1-5**: Show items within N hops of the selected roots
+
+Depth automatically switches to **0** when you select roots through the Applications or Servers filters.
 
 ---
 
@@ -69,11 +73,11 @@ Depth is automatically set to **0** when you select servers via the Applications
 
 ### Show multi-server connections
 
-Toggle visibility of multi-server connections (connections involving more than two servers in a mesh topology). Enabled by default.
+Toggle visibility of multi-server connections (connections that involve more than two servers in a mesh topology). Enabled by default.
 
 ### Show connection layers
 
-When enabled (default), displays individual connection legs as separate edges. This shows how a multi-leg connection routes through intermediate points. When disabled, connections are shown as simple source-to-destination edges.
+When enabled (default), each leg of a multi-leg connection is rendered as its own edge so you can see how it routes through intermediate points. When disabled, connections are rendered as simple source-to-destination edges.
 
 ### Role-based placement
 
@@ -81,13 +85,11 @@ When enabled (default), the map keeps its force layout but adds vertical tier gu
 
 - **Top / Upper / Center / Lower / Bottom** bands
 - **Servers** use the role assignments configured in IT Landscape settings
-- **Entities** use their configured Graph Tier (default is Top)
+- **Entities** use their configured **Graph Tier** (default Top)
 - **Unassigned servers** fall back to Center
 - **Clusters** inherit the highest-priority tier from their members
 
-Use this toggle when you want a topology view that reads like architecture tiers (edge-facing components at top, data stores lower).
-
-This toggle is session-only and resets when you reload the page.
+Use this toggle when you want a topology view that reads like architecture tiers (edge-facing components at the top, data stores at the bottom). The setting is session-only and resets when you reload the page.
 
 ---
 
@@ -98,7 +100,7 @@ The control panel on the left side of the map provides these tools:
 | Control | Action | Description |
 |---------|--------|-------------|
 | Pause / Play | **Freeze / Unfreeze** | Pause the force simulation to manually position nodes |
-| Crosshair | **Auto-center** | Toggle automatic centering when selecting nodes (blue = enabled) |
+| Crosshair | **Auto-center** | Toggle automatic centering when selecting nodes (highlighted when enabled) |
 | Zoom + | **Zoom in** | Increase zoom level |
 | Zoom - | **Zoom out** | Decrease zoom level |
 | Grid | **Snap to grid** | Align all nodes to a grid for cleaner layouts |
@@ -113,36 +115,28 @@ You can also zoom with the mouse wheel and pan by clicking and dragging the back
 
 ### Selecting nodes
 
-Click a server or cluster node to:
-- Highlight its connections
-- Open a detail panel with:
-  - **Server type**: Kind of server (Web, Database, Application, etc.)
-  - **Server location**: Physical or cloud location code
-  - **Operating system**: OS details
-  - **Network segment**: Network zone
-  - **IP address**: Network address
-  - **Assigned applications**: Apps running on this server, grouped by environment (clickable)
+Click a server or cluster node to highlight its connections and open a detail panel showing:
+
+- **Server type**, **Server location**, **Operating system**, **Network segment**, **IP address**
+- **Assigned applications**: Apps running on this server, grouped by environment. Click an app name to open it.
 - **Edit server** or **View cluster** button to open the workspace
 
 Click an entity node to see its type and environment.
 
 ### Selecting edges
 
-Click a connection edge to:
-- See connection details:
-  - **Purpose**: What the connection is used for
-  - **Protocols**: Network protocols used
-  - **Typical ports**: Expected port numbers
-  - **Criticality**: Business importance
-  - **Topology**: Server-to-server or multi-server
+Click a connection edge to see:
+
+- **Purpose**, **Protocols**, **Typical ports**, **Criticality**
+- **Topology**: Server to server or Multi-server
 - **Edit connection** button to open the connection workspace
-- **Linked interfaces** section showing which application interfaces use this connection
+- **Linked interfaces** section showing which application interfaces use this connection. Each linked interface card shows the leg type, environment, pattern, and source/target endpoints. From there you can:
   - Click **Open interface** to view the interface
-  - Click **View in Interface Map** to see the interface in context
+  - Click **View in Interface Map** to jump to the interface in context
 
 ### Dragging nodes
 
-Drag any node to reposition it. While the simulation is running, the layout will adjust around the moved node. When the simulation is frozen, dragging moves the node freely without affecting others.
+Drag any node to reposition it. While the simulation is running, the layout adjusts around the moved node. When the simulation is frozen, dragging moves the node freely without affecting others.
 
 ---
 
@@ -154,7 +148,7 @@ The map supports URL parameters for sharing specific views:
 |-----------|-------------|---------|
 | `lifecycles` | Pre-select lifecycle filters (comma-separated) | `active,planned` |
 | `focusConnectionId` | Highlight a specific connection | UUID |
-| `rootIds` | Pre-select servers to focus on (comma-separated) | UUIDs |
+| `rootIds` | Pre-select servers/clusters/entities to focus on (comma-separated) | UUIDs |
 | `depth` | Set the depth limit | `0`, `1`, `all` |
 
 **Example**: `/it/connection-map?lifecycles=active&rootIds=abc123&depth=1`
@@ -163,10 +157,11 @@ The map supports URL parameters for sharing specific views:
 
 ## Cluster visualization
 
-Clusters are shown as distinct nodes with a dashed cyan border:
-- Cluster members appear as separate nodes, connected to their parent cluster by dashed indicator lines
-- When filtering by depth=0, both the selected member servers and their parent clusters are shown
-- Member servers inherit the cluster's connections while maintaining their individual server-to-server connections
+Clusters appear as distinct nodes with a dashed cyan border:
+
+- Cluster members appear as separate nodes connected to their parent cluster by dashed indicator lines
+- When filtering with depth=0, both the selected member servers and their parent clusters are shown
+- Member servers keep their individual server-to-server connections in addition to the cluster's own connections
 
 ---
 
@@ -183,11 +178,10 @@ Tier changes take effect the next time the map data is loaded.
 
 ## Tips
 
-- **Start from applications**: Use the Applications filter to find servers for a specific application, then explore their connections with depth=1.
-- **Use depth=0 for focused views**: When you only want to see connections between specific servers, select them and set depth to 0.
-- **Export for architecture docs**: Use the SVG export to create network diagrams for documentation or security reviews. PNG export produces a high-DPI raster image.
-- **Enable layers for troubleshooting**: Turn on "Show connection layers" to see exactly how multi-leg connections route through your infrastructure.
-- **Use role tiers for architecture views**: Keep "Role-based placement" on when presenting layered architecture diagrams.
-- **Cross-reference with Interface Map**: Use the "View in Interface Map" button in the connection panel to see which business interfaces depend on each infrastructure connection.
-- **Snap for clarity**: After positioning nodes, use Snap to Grid for cleaner, more aligned layouts.
-- **Freeze before exporting**: Freeze the layout and position nodes manually before exporting for the cleanest output.
+- **Start from applications**: Use the Applications + App Env filters to find servers for a specific application without knowing the server names.
+- **Use depth=0 for focused views**: When you only want to see the connections directly attached to specific servers, select them and set depth to 0.
+- **Export for architecture docs**: SVG produces vector network diagrams suitable for documentation; PNG produces a high-DPI raster image.
+- **Enable layers for troubleshooting**: Turn on **Show connection layers** to see exactly how multi-leg connections route through your infrastructure.
+- **Use role tiers for architecture views**: Keep **Role-based placement** on when presenting layered architecture diagrams.
+- **Cross-reference with Interface Map**: Use **View in Interface Map** in the linked-interfaces panel to see which business interfaces depend on a given infrastructure connection.
+- **Snap and freeze before exporting**: After positioning nodes, freeze the layout and use **Snap to grid** to produce the cleanest output.

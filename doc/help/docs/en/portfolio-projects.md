@@ -30,9 +30,31 @@ The project list is designed to answer two questions quickly: "what should I car
 
 - **My projects** shows projects where you are explicitly involved as sponsor, lead, or contributor
 - **My team's projects** expands that view to projects involving members of your portfolio team
-- **All projects** removes that involvement filter
+- **All projects** removes the involvement filter
 - If you are not assigned to a portfolio team, the team scope is unavailable
 - Your scope preference is remembered, so the list comes back the way you left it
+
+**Default columns**
+
+| Column | What it shows |
+|--------|---------------|
+| **#** | Reference number (e.g., PRJ-42). Click to open the workspace |
+| **Project Name** | The project name |
+| **Priority** | Calculated priority score |
+| **Status** | Current execution state with a colored dot |
+| **Origin** | Request, Fast-track, or Legacy |
+| **Progress** | Execution progress as a bar |
+| **Source** | Portfolio source classification |
+| **Category** | Portfolio category |
+| **Stream** | Portfolio stream |
+| **Company** | Company classification |
+| **Start** | Planned start date |
+| **End** | Planned end date |
+| **Created** | Creation date |
+
+**Additional columns** (hidden by default):
+
+- **Last changed**: When the project was last updated
 
 **Default behavior**
 
@@ -41,21 +63,12 @@ The project list is designed to answer two questions quickly: "what should I car
 - Search works across text content
 - Status, origin, source, category, stream, and company filters are available directly in the grid
 
-**What the grid emphasizes**
-
-- Reference number (`PRJ-...`) and name for quick identification
-- Priority and status for execution posture
-- Origin so you can distinguish request-based work from fast-track or legacy work
-- Progress for delivery visibility
-- Classification fields for reporting and slicing the portfolio
-- Planned dates and creation date for scheduling context
-
-Opening a project from the list preserves the current list context. That matters because the project workspace uses the same context for **Previous** and **Next** navigation, so you can review a filtered set without losing your place.
-
 **Bulk administration**
 
 - **New Project** is available to managers
 - **Import CSV** and **Export CSV** are available to administrators
+
+Opening a project from the list preserves the current list context. The project workspace uses the same context for **Previous** and **Next** navigation, so you can review a filtered set without losing your place.
 
 ## Creating a project
 
@@ -72,45 +85,26 @@ Use **Fast-track** for work that is genuinely being introduced directly into del
 
 The project workspace has two layers:
 
-- The **main content area** for operational tabs: **Summary**, **Activity**, **Timeline**, **Progress**, **Tasks**, **Scoring**, and **Knowledge**
-- A persistent **Project Properties** sidebar for core properties, team assignment, and relations
+- The **main content area** for the operational tabs: **Summary**, **Tasks**, **Timeline**, **Progress**, **Scoring**, **Relations**, and **Knowledge**
+- A persistent **Properties** drawer on the right edge for core properties, team assignment, and source requests
 
-This is the most important behavior change from the older documentation: **Team** and **Relations** are no longer standalone tabs. They now live in the sidebar and stay available while you work anywhere else.
+Open or close the Properties drawer using the vertical tab on the right edge.
 
-For existing projects, the sidebar behaves like a live property panel: changes there are saved immediately. The main tab content follows the usual **Save** and **Reset** workflow when that tab contains draft changes. If you switch tabs or move to the previous or next project with unsaved workspace changes, KANAP asks whether to save first.
+For existing projects, the Properties drawer behaves like a live property panel: changes there are saved immediately. The main tab content follows the usual **Save** / **Reset** workflow when that tab contains draft changes. If you switch tabs or move to the previous or next project with unsaved workspace changes, KANAP asks whether to save first.
 
-## Header and navigation
+## Header and metadata
 
-The workspace header is not just decoration; it is the project's control strip.
+The workspace header is a control strip, not decoration.
 
-- The `PRJ-...` chip is the stable human-readable reference and can be copied directly
-- The status chip shows the current execution state
-- The origin chip shows how the project entered the portfolio
-- Request-origin projects expose a direct path back to the source request
-- The progress bar in the header shows current execution progress without leaving the page
-- **Previous** and **Next** move through the current list result set, not through all projects in the system
+- A copyable **PRJ-...** reference chip
+- The project title (click to edit when you have manage rights)
+- A compact metadata row: **Status**, **Score**, **Progress**, **IT Lead**, **Planned End**, and **Origin** (or the source request reference for request-origin projects)
+- **Previous** and **Next** move through the current list result set, not through every project in the system
 - **Send link** emails the current project URL with an optional message
 
-Sending a link does not grant access. It only shares the location. Permissions remain exactly as they were before the email was sent, which is how it should be.
+Sending a link does not grant access. It only shares the location. Permissions remain exactly as they were before the email was sent.
 
-## Project Properties sidebar
-
-Treat the sidebar as the project's persistent identity card.
-
-### Core Properties
-
-The core section holds the project fields that define how the project appears elsewhere in KANAP:
-
-- project name
-- status
-- origin during initial creation only
-- source, category, and stream
-- company and department
-- planned start and planned end
-
-These fields drive reporting, planning, filtering, and default portfolio context. Classification choices are especially important because they affect where the project appears in cross-portfolio analysis.
-
-Changing status from the sidebar is more than a label update. KANAP opens a status-change dialog so the transition can be recorded properly. That is where you can log the change as a formal decision, capture context, and store the rationale with the transition instead of letting it disappear into hallway memory.
+Changing the status from the metadata strip opens a status-change dialog so the transition can be recorded properly. That is where you can log the change as a formal decision, capture context, and store the rationale with the transition instead of letting it disappear into hallway memory.
 
 The workflow is intentionally controlled:
 
@@ -121,13 +115,28 @@ The workflow is intentionally controlled:
 - **On Hold** can return to **Waiting List**, **Planned**, or **In Progress**, or be **Cancelled**
 - **Done** and **Cancelled** are terminal states
 
+## Properties drawer
+
+Treat the Properties drawer as the project's persistent identity card. It is grouped into three sections.
+
+### Core properties
+
+- Project name
+- Status
+- Origin (during initial creation only; locked afterward)
+- Source, Category, Stream
+- Company, Department
+- Planned start, Planned end
+
+These fields drive reporting, planning, filtering, and default portfolio context. Classification choices are especially important because they affect where the project appears in cross-portfolio analysis.
+
 ### Team
 
-Team assignment is part of the sidebar so it stays available while you work on schedule, effort, or tasks.
+Team assignment lives in the drawer so it stays available while you work on schedule, effort, or tasks.
 
-- Business Sponsor / IT Sponsor capture executive accountability
-- Business Lead / IT Lead identify day-to-day leadership
-- Business Contributors / IT Contributors define the wider working team
+- **Business Sponsor** / **IT Sponsor** capture executive accountability
+- **Business Lead** / **IT Lead** identify day-to-day leadership
+- **Business Contributors** / **IT Contributors** define the wider working team
 
 These assignments do more than fill boxes:
 
@@ -137,37 +146,22 @@ These assignments do more than fill boxes:
 
 If leads and contributors are wrong, your effort planning will also be wrong.
 
-### Relations
+### Source Requests
 
-The relations section brings together the links that explain how the project fits into the rest of the portfolio.
+A read-only list of the request records that produced the project. Click an entry to navigate to the source request workspace.
 
-- **Dependencies** track delivery dependencies on other requests or projects
-- **Source Requests** show the request record that produced the project
-- additional relations capture connected business and technical context
-
-Dependencies are operational, not cosmetic. They shape how delays and sequencing should be interpreted. Source request links preserve the chain from intake to execution, which is essential when someone later asks, "why are we doing this project at all?"
+For dependencies, related projects, and related business/technical objects, see the **Relations** tab.
 
 ## Summary
 
-The **Summary** tab is the project cockpit. It is meant to answer the current state of the project in a single pass, not to duplicate every field in the sidebar.
-
-The summary cards cover:
-
-- current status and priority
-- delivery window and schedule variance
-- effort consumption and task posture
-- team and relation coverage
-- knowledge footprint
-- latest activity
-
-This tab is where a manager can understand whether the project is merely alive in the database or actually under control.
+The **Summary** tab is the project cockpit. It is meant to answer the current state of the project in a single pass, not to duplicate every field in the drawer.
 
 ### Purpose
 
-The **Purpose** section on Summary is a managed project document, not a disposable note field.
+The **Purpose** section is a managed project document, not a disposable note field.
 
 - use it for the narrative brief of the project: intent, expected outcome, scope boundaries, and any framing that should travel with the project
-- purpose changes follow the workspace **Save** and **Reset** flow
+- purpose changes follow the workspace **Save** / **Reset** flow
 - contributors can update the Purpose even when they cannot manage the rest of the project
 
 This split is deliberate. It allows narrative ownership to be broader than structural project administration.
@@ -184,18 +178,31 @@ The managed Purpose document is different from the **Knowledge** tab:
 - **Purpose** is the embedded, project-owned brief
 - **Knowledge** is for standalone documents that may need their own lifecycle, reuse, or relationships
 
-## Activity
+### Activity
 
-The **Activity** tab separates conversation from audit evidence:
+Below Purpose, the Summary tab includes the project activity stream:
 
 - **Comments** for discussion, contextual notes, and formal decisions
 - **History** for the audit trail of field and status changes
 
 Managers can add and edit project comments. Comments can also be recorded as formal decisions, with an outcome and an optional status change. Use that when the discussion itself changes the project's course.
 
-Images can be included in activity comments when visual evidence is useful. That is handy for architecture sketches, screenshots, or review evidence.
+Images can be included in activity comments when visual evidence is useful — architecture sketches, screenshots, or review evidence.
 
 Use **History** when you need to know what changed. Use **Comments** when you need to know why.
+
+## Tasks
+
+The **Tasks** tab is the project's execution queue. The tab badge shows the number of project tasks.
+
+- tasks created here are linked to the project automatically
+- tasks can also be created from a timeline phase, which links them to both the project and the selected phase
+- the tab supports status filtering and phase filtering
+- the default task view focuses on active work by hiding done and cancelled items
+
+This tab is for managing project-linked tasks in context, not for replacing the full task workspace. Opening a task takes you to its own workspace, where task-specific detail and time logging continue.
+
+From a project perspective, the important consequence is this: task status and task time are not isolated. They feed back into Summary and Progress, so neglected tasks make the whole project picture less trustworthy.
 
 ## Timeline
 
@@ -203,46 +210,43 @@ The **Timeline** tab is where the delivery structure becomes explicit.
 
 ### Project dates
 
-Timeline shows both planned and actual dates.
+The bottom of the tab shows three lines:
 
-- planned dates describe the intended delivery window
-- actual dates are captured by execution events and are read-only in the workspace
-
-Once the project enters execution, KANAP also captures baseline dates so later schedule drift can be measured instead of guessed.
+- **Actual**: dates captured by execution events (when the project moved to In Progress and when it reached Done). Read-only in the workspace.
+- **Planned**: the intended delivery window. Edit these in the Properties drawer.
+- **Baseline**: a snapshot of planned dates captured when the project moved to **In Progress**. Variance against the baseline is displayed as `Nd late` or `Nd early`.
 
 ### Phases
 
 Projects can start with a phase template or a fully custom phase plan.
 
-- if no phases exist yet, apply a template to create the initial structure
-- once phases exist, they can be reordered, renamed, dated, and status-managed
-- phases can be marked as milestones
-- each phase includes a shortcut to create a task already linked to that phase and project
-- **Replace with Template** rebuilds the phase structure, so use it only when you really mean "start the phase model over"
+- if no phases exist yet, pick a template and click **Apply Template** to create the initial structure
+- once phases exist, they can be reordered (drag the handle), renamed, dated, and status-managed
+- each phase row includes a milestone checkbox; ticking it creates a phase-completion milestone for that phase
+- each phase has a shortcut to create a task already linked to that phase and project
+- **Add Phase** appends a new empty phase
+- **Replace with Template** rebuilds the phase structure from a template — use it only when you really mean "start the phase model over"
 
 The phase model affects more than the timeline:
 
-- the active phase appears back in **Summary**
+- the active phase appears back in Summary and the metadata bar
 - phase-linked tasks inherit delivery context immediately
 - phase milestones provide completion markers without creating a separate tracking scheme
 
 ### Milestones
 
-Milestones can be created in two ways:
+Standalone milestones live in their own section below phases. Use **+ Add milestone** to create them. Each milestone has a name, target date, status, and (when triggered from a phase) a link to the phase it represents.
 
-- by enabling milestone tracking on a phase
-- by adding standalone milestones manually
-
-Phase-linked milestones follow the phase they are attached to. Standalone milestones are for checkpoints that should exist outside the phase structure.
+Phase-completion milestones follow the phase they are attached to. Standalone milestones are for checkpoints that should exist outside the phase structure.
 
 ### Table and Gantt views
 
-The timeline can be managed as a table or as a Gantt view.
+Above the phase list, switch between **Table** and **Gantt** views:
 
-- use the table when you are shaping the structure
-- use the Gantt when you need to see overlap, sequencing, and date spread
+- use the **Table** view when you are shaping the structure
+- use the **Gantt** view when you need to see overlap, sequencing, and date spread
 
-Only phases with usable start and end dates appear meaningfully on the Gantt. If the dates are vague, the chart will be equally vague.
+Only phases with usable start and end dates appear meaningfully on the Gantt. If the dates are vague, the chart will be equally vague. In Gantt view, you can drag phase bars to adjust start/end dates (with manage permission).
 
 ## Progress
 
@@ -262,14 +266,14 @@ Progress separates estimated effort into:
 - **IT effort**
 - **Business effort**
 
-Each side can be allocated across the relevant lead and contributors. Those allocations depend on the team configured in the sidebar, so team changes have planning consequences here as well.
+Each side can be allocated across the relevant lead and contributors. Allocations depend on the team configured in the Properties drawer, so team changes have planning consequences here as well.
 
 ### Actual effort and time log
 
 Actual effort is calculated from two sources:
 
-- **Project Overhead** time logged directly on the project
-- **Task Time** logged from the project's tasks
+- **Project Overhead**: time logged directly on the project
+- **Task Time**: time logged from the project's tasks
 
 The time log merges both into one view and identifies the source for each entry. This is intentional: project effort should be understood as the whole delivery footprint, not as a fight between "project work" and "task work."
 
@@ -284,19 +288,6 @@ Important consequences:
 ### Baseline effort
 
 When the project moves to **In Progress**, KANAP captures baseline effort values. Later changes are shown as variance against that baseline, which is useful for distinguishing normal delivery updates from quiet scope creep.
-
-## Tasks
-
-The **Tasks** tab is the project's execution queue.
-
-- tasks created here are automatically linked to the project
-- tasks can also be created directly from a timeline phase, which links them to both the project and the selected phase
-- the tab supports status filtering and phase filtering
-- the default task view focuses on active work by hiding done and cancelled items
-
-This tab is for managing project-linked tasks in context, not for replacing the full task workspace. Opening a task takes you to its own workspace, where task-specific detail and time logging continue.
-
-From a project perspective, the important consequence is this: task status and task time are not isolated. They feed back into **Summary** and **Progress**, so neglected tasks make the whole project picture less trustworthy.
 
 ## Scoring
 
@@ -314,9 +305,23 @@ The resulting priority score matters outside this tab:
 
 If scoring drifts away from delivery reality, portfolio discussions become harder than they need to be.
 
+## Relations
+
+The **Relations** tab brings together the links that explain how the project fits into the rest of the portfolio. The tab badge shows the count of related items.
+
+### Dependencies
+
+Track delivery dependencies on other requests or projects. Use the search field to find and add a related item; remove links you no longer want with the chip's delete icon.
+
+Dependencies are operational, not cosmetic. They shape how delays and sequencing should be interpreted.
+
+### Other relations
+
+Below dependencies, the Relations tab also lets you maintain links to related business and technical context (for example, related applications, business processes, or other portfolio items). Each relation is autosaved.
+
 ## Knowledge
 
-The **Knowledge** tab connects the project to standalone Knowledge documents.
+The **Knowledge** tab connects the project to standalone Knowledge documents. The tab badge shows the count of related knowledge documents.
 
 It distinguishes between:
 
@@ -337,8 +342,6 @@ Depending on your Knowledge permissions, you can:
 - open any linked or related document in Knowledge
 
 If you can open the project but do not have Knowledge viewing rights, KANAP will tell you that knowledge exists without exposing the document content. That is expected behavior, not a broken tab.
-
-Knowledge also surfaces back into **Summary**, where the project shows how much standalone documentation is linked and when that documentation was last updated.
 
 ## CSV import and export
 
@@ -376,8 +379,8 @@ Again, sending a link does not grant access. It only saves people from hunting f
 
 ## Practical guidance
 
-- Use the sidebar for structural data that should stay visible while you work.
-- Use **Summary** for the project narrative and high-level operating picture.
+- Use the Properties drawer for structural data that should stay visible while you work.
+- Use **Summary** for the project narrative, latest activity, and high-level operating picture.
 - Use **Timeline** to define delivery structure before task volume grows.
 - Use **Progress** regularly, otherwise effort variance arrives as a surprise even though the data was already warning you.
 - Use **Knowledge** for reusable or governed documentation, not as a second copy of the Purpose brief.
