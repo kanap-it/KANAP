@@ -243,6 +243,22 @@ async function testBOMIsPresent() {
   assert.equal(result.content.charCodeAt(0), 0xFEFF);
 }
 
+async function testFormulaLikeValuesAreNeutralized() {
+  const resolver = new CsvResolverService();
+  const service = new CsvExportService(resolver);
+  const config = createTestConfig();
+
+  const result = await service.export(config, [
+    { id: '1', title: '=HYPERLINK("https://evil.example")', description: ' +SUM(1,1)' },
+  ], {
+    manager: createMockManager({}),
+    tenantId: 't1',
+  });
+
+  assert.ok(result.content.includes('\'=HYPERLINK'));
+  assert.ok(result.content.includes('\' +SUM'));
+}
+
 // ===== Run tests =====
 
 (async () => {
@@ -255,6 +271,7 @@ async function testBOMIsPresent() {
   await testFieldSelection();
   await testNullValuesExportAsEmpty();
   await testBOMIsPresent();
+  await testFormulaLikeValuesAreNeutralized();
 
   console.log('CSV export service tests passed.');
 })().catch((err) => {

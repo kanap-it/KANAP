@@ -16,6 +16,7 @@ import { EntraAuthModule } from './entra-auth.module';
 import { EntraController } from './entra.controller';
 import { AdminAuthController } from './admin-auth.controller';
 import { RefreshToken } from './refresh-token.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { RateLimitGuard } from '../common/rate-limit.guard';
 
@@ -23,7 +24,7 @@ import { RateLimitGuard } from '../common/rate-limit.guard';
   imports: [
     ConfigModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([RefreshToken, PasswordResetToken]),
     UsersModule,
     PermissionsModule,
     BillingModule,

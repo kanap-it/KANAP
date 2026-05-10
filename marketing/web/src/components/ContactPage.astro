@@ -77,6 +77,11 @@ const c = getContactContent(locale);
           ></textarea>
         </div>
 
+        <div class="mk-tf__field" data-turnstile-field hidden>
+          <span class="mk-tf__label-spacer">{c.form.captchaLabel}</span>
+          <div data-turnstile-container data-turnstile-action="contact"></div>
+        </div>
+
         <div class="mk-tf__status" role="status" aria-live="polite" data-contact-status></div>
 
         <div class="mk-contact__actions">
@@ -99,6 +104,57 @@ const c = getContactContent(locale);
   const form = document.querySelector('[data-contact-form]');
   const btn = document.querySelector('[data-contact-submit]');
   const statusEl = document.querySelector('[data-contact-status]');
+  const captcha = { enabled: false, required: false, token: '' };
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-turnstile-script]');
+      if (existing) {
+        if (window.turnstile) resolve();
+        else existing.addEventListener('load', resolve, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.defer = true;
+      script.dataset.turnstileScript = 'true';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function setupCaptcha() {
+    const field = document.querySelector('[data-turnstile-field]');
+    const container = document.querySelector('[data-turnstile-container]');
+    if (!field || !container) return;
+    try {
+      const res = await fetch('/api/public/captcha-config', { headers: { accept: 'application/json' } });
+      if (!res.ok) return;
+      const config = await res.json();
+      if (!config || !config.enabled || !config.siteKey) return;
+      captcha.enabled = true;
+      captcha.required = config.required === true;
+      field.hidden = false;
+      await loadScript('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit');
+      if (!window.turnstile) throw new Error('turnstile unavailable');
+      window.turnstile.render(container, {
+        sitekey: config.siteKey,
+        action: container.dataset.turnstileAction || 'contact',
+        callback: function (token) { captcha.token = token || ''; },
+        'expired-callback': function () { captcha.token = ''; },
+        'error-callback': function () { captcha.token = ''; },
+      });
+    } catch (err) {
+      if (captcha.required) {
+        statusEl.textContent = errorGeneric;
+        statusEl.className = 'mk-tf__status mk-tf__status--error';
+      }
+    }
+  }
+
+  setupCaptcha();
 
   if (form && btn) {
     form.addEventListener('submit', async (e) => {
@@ -109,7 +165,13 @@ const c = getContactContent(locale);
         email: String(fd.get('email') ?? '').trim(),
         company: String(fd.get('company') ?? '').trim(),
         message: String(fd.get('message') ?? '').trim(),
+        captchaToken: captcha.enabled ? captcha.token : undefined,
       };
+      if (captcha.required && !payload.captchaToken) {
+        statusEl.textContent = errorGeneric;
+        statusEl.className = 'mk-tf__status mk-tf__status--error';
+        return;
+      }
       btn.disabled = true;
       btn.textContent = submitting;
       try {
@@ -119,7 +181,7 @@ const c = getContactContent(locale);
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('bad status');
-        statusEl.innerHTML = '<strong>' + successTitle + '</strong> ' + successBody;
+        statusEl.textContent = successTitle + ' ' + successBody;
         statusEl.className = 'mk-tf__status mk-tf__status--success';
         form.reset();
         btn.disabled = false;

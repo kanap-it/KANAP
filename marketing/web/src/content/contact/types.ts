@@ -5,12 +5,16 @@ export interface ContactContent {
     title: string;
     lead: string;
   };
+  responsePromise: string;
+  highlightsLabel: string;
   highlights: string[];
   form: {
     nameLabel: string;
     emailLabel: string;
     companyLabel: string;
     messageLabel: string;
+    messagePlaceholder: string;
+    captchaLabel: string;
     submitLabel: string;
     submitting: string;
     successTitle: string;

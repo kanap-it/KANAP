@@ -309,15 +309,14 @@ export class EntraController {
       );
     });
 
-    // Keep refresh tokens out of JS storage by issuing an httpOnly cookie on callback.
-    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in);
+    // Keep refresh tokens out of JavaScript by issuing only an httpOnly cookie.
+    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, req.secure);
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);
     const normalized = baseUrl.replace(/\/$/, '');
     const redirectPath = redirectTo && typeof redirectTo === 'string' && redirectTo.trim().length > 0 ? redirectTo : '/';
-    // Pass tokens in URL fragment to avoid sending them in server logs/referrers.
+    // Pass only the short-lived access token in the URL fragment.
     const fragment = new URLSearchParams({
       token: tokens.access_token,
-      refreshToken: tokens.refresh_token,
       expiresIn: String(tokens.expires_in),
       refreshExpiresIn: String(tokens.refresh_expires_in),
       redirectTo: redirectPath,

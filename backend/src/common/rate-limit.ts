@@ -16,6 +16,8 @@ export function shouldTrustProxyForRateLimit(): boolean {
 // TTL values are in milliseconds.
 export const RATE_LIMITS = {
   authLogin: { limit: 5, ttl: 60_000 },
+  authRefresh: { limit: 20, ttl: 60_000 },
+  authProvisioningExchange: { limit: 5, ttl: 10 * 60_000 },
   authPasswordResetRequest: { limit: 3, ttl: 15 * 60_000 },
   authPasswordResetComplete: { limit: 5, ttl: 10 * 60_000 },
   publicStartTrial: { limit: 5, ttl: 10 * 60_000 },

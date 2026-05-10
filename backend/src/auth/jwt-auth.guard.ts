@@ -33,7 +33,7 @@ export class JwtAuthGuard implements CanActivate {
       const requestTenantId = typeof req?.tenant?.id === 'string' ? req.tenant.id : undefined;
       const payloadTenantId = typeof payload.tenant_id === 'string' ? payload.tenant_id : undefined;
 
-      if (!req?.isPlatformHost && requestTenantId && payloadTenantId !== requestTenantId) {
+      if (requestTenantId && payloadTenantId !== requestTenantId) {
         throw new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid token' });
       }
 

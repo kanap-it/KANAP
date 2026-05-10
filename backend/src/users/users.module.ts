@@ -13,9 +13,10 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { BillingModule } from '../billing/billing.module';
 import { EmailModule } from '../email/email.module';
 import { Role } from '../roles/role.entity';
+import { PasswordResetToken } from '../auth/password-reset-token.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, UserRole, Company, Department, Role]), AuditModule, RolesModule, forwardRef(() => BillingModule), forwardRef(() => PermissionsModule), EmailModule],
+  imports: [TypeOrmModule.forFeature([User, UserRole, Company, Department, Role, PasswordResetToken]), AuditModule, RolesModule, forwardRef(() => BillingModule), forwardRef(() => PermissionsModule), EmailModule],
   providers: [UsersService, UsersDeleteService],
   controllers: [UsersController],
   exports: [UsersService, TypeOrmModule],

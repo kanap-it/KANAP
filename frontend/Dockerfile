@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN apk add --no-cache libc6-compat && npm ci || npm install
+RUN apk add --no-cache libc6-compat && npm ci
 COPY tsconfig*.json vite.config.ts ./
 COPY index.html ./
 COPY public ./public

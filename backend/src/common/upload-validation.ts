@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import * as path from 'path';
 import AdmZip = require('adm-zip');
 
-export type UploadValidationScope = 'attachment' | 'inline-image' | 'document-import';
+export type UploadValidationScope = 'attachment' | 'inline-image' | 'document-import' | 'csv-import';
 
 export type ValidateUploadOptions = {
   scope?: UploadValidationScope;
@@ -75,6 +75,8 @@ const DOCUMENT_IMPORT_ALLOWED_EXTENSIONS = new Set(['.docx']);
 const DOCUMENT_IMPORT_ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
+const CSV_IMPORT_ALLOWED_EXTENSIONS = new Set(['.csv']);
+const CSV_IMPORT_ALLOWED_MIME_TYPES = new Set(['text/csv']);
 
 const ZIP_BASED_EXTENSION_MIME: Record<string, string> = {
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -130,6 +132,12 @@ function getScopeAllowedSets(scope: UploadValidationScope): {
     return {
       allowedExtensions: INLINE_IMAGE_ALLOWED_EXTENSIONS,
       allowedMimeTypes: INLINE_IMAGE_ALLOWED_MIME_TYPES,
+    };
+  }
+  if (scope === 'csv-import') {
+    return {
+      allowedExtensions: CSV_IMPORT_ALLOWED_EXTENSIONS,
+      allowedMimeTypes: CSV_IMPORT_ALLOWED_MIME_TYPES,
     };
   }
 
@@ -223,6 +231,14 @@ function assertSvgShape(buffer: Buffer): void {
   if (!content.includes('<svg')) {
     throw new BadRequestException('Invalid SVG file');
   }
+  if (
+    /<\s*script\b/.test(content) ||
+    /\son[a-z0-9_-]+\s*=/.test(content) ||
+    /\b(?:href|src)\s*=\s*["']?\s*(?:javascript:|data:text\/html|vbscript:)/.test(content) ||
+    /<\s*foreignobject\b/.test(content)
+  ) {
+    throw new BadRequestException('Unsafe SVG file');
+  }
 }
 
 function detectMimeFromBuffer(buffer: Buffer, extension: string): string | null {
@@ -263,6 +279,9 @@ function unsupportedTypeMessage(scope: UploadValidationScope): string {
   }
   if (scope === 'inline-image') {
     return 'Unsupported image type. Allowed: PNG, JPG, JPEG, GIF, WEBP';
+  }
+  if (scope === 'csv-import') {
+    return 'Unsupported file type. Allowed: CSV';
   }
   return 'Unsupported file type';
 }

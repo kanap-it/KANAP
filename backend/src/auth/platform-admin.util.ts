@@ -19,12 +19,8 @@ export function isPlatformAdmin(candidate: PlatformAdminCandidate | undefined | 
   if (!candidate?.email) return false;
   const allowlist = parseAllowlist();
   const email = candidate.email.toLowerCase();
-  if (allowlist.size > 0) {
-    if (allowlist.has('*')) return true;
-    if (allowlist.has(email)) return true;
-    return false;
-  }
-  const roleName = candidate.role?.role_name?.toLowerCase() ?? '';
-  return roleName === 'administrator';
+  if (allowlist.size === 0) return false;
+  if (allowlist.has('*')) return process.env.NODE_ENV !== 'production' && process.env.APP_ENV !== 'production';
+  return allowlist.has(email);
 }
 

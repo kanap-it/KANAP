@@ -11,6 +11,15 @@ import {
 } from './csv-field.types';
 import { CsvResolverService } from './csv-resolver.service';
 
+export function neutralizeCsvFormulaValue(value: string): string {
+  const text = String(value ?? '');
+  if (!text) return '';
+  if (/^[=+\-@\t\r\n]/.test(text) || /^\s+[=+\-@]/.test(text)) {
+    return `'${text}`;
+  }
+  return text;
+}
+
 /**
  * Export options
  */
@@ -280,7 +289,7 @@ export class CsvExportService {
 
       // Get field value
       const value = this.getFieldValue(entity, field, reverseLookups, relationData, context);
-      row[field.csvColumn] = value;
+      row[field.csvColumn] = this.neutralizeFormulaValue(value);
     }
 
     return row;
@@ -324,9 +333,9 @@ export class CsvExportService {
         // Resolve FK if needed
         if (field.fkEntity && reverseLookups.has(field.fkEntity)) {
           const lookup = reverseLookups.get(field.fkEntity)!;
-          row[`${baseName}_${i}`] = lookup.get(itemValue) ?? '';
+          row[`${baseName}_${i}`] = this.neutralizeFormulaValue(lookup.get(itemValue) ?? '');
         } else {
-          row[`${baseName}_${i}`] = String(itemValue ?? '');
+          row[`${baseName}_${i}`] = this.neutralizeFormulaValue(String(itemValue ?? ''));
         }
       } else {
         row[`${baseName}_${i}`] = '';
@@ -408,6 +417,10 @@ export class CsvExportService {
 
     // Default: string conversion
     return String(rawValue);
+  }
+
+  private neutralizeFormulaValue(value: string): string {
+    return neutralizeCsvFormulaValue(value);
   }
 
   /**

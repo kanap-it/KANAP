@@ -9,6 +9,7 @@ export type PasswordResetTokenPayload = {
   sub: string;
   email: string;
   tenant_id?: string | null;
+  jti: string;
 };
 
 export function getPasswordResetSecret() {
@@ -46,13 +47,14 @@ export function getPasswordResetExpirationMinutes() {
   return 60;
 }
 
-export function createPasswordResetToken(user: { id: string; email: string; tenant_id?: string | null }) {
+export function createPasswordResetToken(user: { id: string; email: string; tenant_id?: string | null }, jti: string) {
   const secret = getPasswordResetSecret();
   const payload: PasswordResetTokenPayload = {
     purpose: 'password-reset',
     sub: user.id,
     email: user.email,
     tenant_id: user.tenant_id ?? null,
+    jti,
   };
   const expiresIn = getPasswordResetTtl();
   return jwt.sign(payload, secret, { expiresIn });

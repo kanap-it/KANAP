@@ -6,6 +6,8 @@ services:
     env_file: ../backend/.env.prod
     environment:
       INTEGRATED_DOCS_AUTO_ROLLOUT: ${INTEGRATED_DOCS_AUTO_ROLLOUT:-if-needed}
+      CAPTCHA_MODE: ${CAPTCHA_MODE:-enforce}
+      RATE_LIMIT_TRUST_PROXY: ${RATE_LIMIT_TRUST_PROXY:-true}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

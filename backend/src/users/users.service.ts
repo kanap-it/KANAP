@@ -24,6 +24,10 @@ import * as fs from 'fs';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { EmailService } from '../email/email.service';
 import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes } from '../auth/password-reset.util';
+import { PasswordResetToken } from '../auth/password-reset-token.entity';
+import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
+import { neutralizeCsvFormulaValue } from '../common/csv/csv-export.service';
 
 const SUPPORTED_USER_LOCALES = ['en', 'fr', 'de', 'es'] as const;
 const SELF_SERVICE_FIELDS = ['first_name', 'last_name', 'job_title', 'business_phone', 'mobile_phone', 'locale'] as const;
@@ -69,6 +73,8 @@ export class UsersService {
     // private readonly permsService: PermissionsService,
     private readonly emailService: EmailService,
     private readonly audit?: AuditService,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokens?: Repository<PasswordResetToken>,
   ) {}
 
   private getRepo(manager?: EntityManager) {
@@ -559,13 +565,13 @@ export class UsersService {
       const items = await repo.find({ order: { created_at: 'DESC' as any }, relations: ['role', 'company', 'department'] });
       for (const u of items) {
         rows.push({
-          email: u.email ?? '',
-          first_name: u.first_name ?? '',
-          last_name: u.last_name ?? '',
-          role: u.role?.role_name ?? '',
-          company_name: u.company?.name ?? '',
-          department_name: u.department?.name ?? '',
-          status: u.status ?? 'enabled',
+          email: neutralizeCsvFormulaValue(u.email ?? ''),
+          first_name: neutralizeCsvFormulaValue(u.first_name ?? ''),
+          last_name: neutralizeCsvFormulaValue(u.last_name ?? ''),
+          role: neutralizeCsvFormulaValue(u.role?.role_name ?? ''),
+          company_name: neutralizeCsvFormulaValue(u.company?.name ?? ''),
+          department_name: neutralizeCsvFormulaValue(u.department?.name ?? ''),
+          status: neutralizeCsvFormulaValue(u.status ?? 'enabled'),
         });
       }
     }
@@ -838,7 +844,11 @@ export class UsersService {
     }
     const normalizedBase = resolvedBaseUrl.replace(/\/$/, '');
 
-    const token = buildPasswordResetToken({ id: user.id, email: user.email, tenant_id: user.tenant_id });
+    const token = buildPasswordResetToken(
+      { id: user.id, email: user.email, tenant_id: user.tenant_id },
+      crypto.randomBytes(16).toString('hex'),
+    );
+    await this.storePasswordResetToken(token, user, opts);
     const expires = getPasswordResetExpirationMinutes();
     const inviteUrl = `${normalizedBase}/accept-invite#token=${encodeURIComponent(token)}`;
 
@@ -864,6 +874,23 @@ export class UsersService {
       );
     }
     return { ...saved, password_hash: undefined } as any;
+  }
+
+  private async storePasswordResetToken(token: string, user: User, opts?: { manager?: EntityManager }) {
+    const decoded = jwt.decode(token) as { exp?: number } | null;
+    const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 60 * 60 * 1000);
+    const manager = opts?.manager ?? this.passwordResetTokens?.manager;
+    if (!manager) {
+      throw new BadRequestException('password reset token storage is not configured');
+    }
+    const repo = manager.getRepository(PasswordResetToken);
+    await repo.save(repo.create({
+      tenant_id: user.tenant_id,
+      user_id: user.id,
+      token_hash: crypto.createHash('sha256').update(token).digest('hex'),
+      expires_at: expiresAt,
+      used_at: null,
+    }));
   }
 
   // Per-user permission editing removed in RBAC model

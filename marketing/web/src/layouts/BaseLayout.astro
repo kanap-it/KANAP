@@ -90,13 +90,6 @@ const alternates = LOCALES.map((l) => ({
     <meta name="twitter:description" content={finalDescription} />
     <meta name="twitter:image" content={new URL('/og-image.png', Astro.site ?? 'https://kanap.net').href} />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
-    />
-
     <!-- No-flash theme init: must run before first paint -->
     <script is:inline>
       (function () {
