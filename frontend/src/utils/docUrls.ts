@@ -88,6 +88,13 @@ const routeToDocSlug: [RegExp, string][] = [
   [/^\/admin\/billing/, 'admin'],
   [/^\/admin\/auth/, 'admin'],
   [/^\/admin\/branding/, 'branding'],
+  [/^\/admin\/ai/, 'ai-settings'],
+  [/^\/admin\/integrations/, 'integrations'],
+  [/^\/admin\/scheduled-tasks/, 'scheduled-tasks'],
+
+  // AI Assistant
+  [/^\/ai/, 'ai-assistant'],
+
   [/^\/settings/, 'fast-track/getting-started'],
 ];
 

@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-03-28_
+_Generated: 2026-05-10_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -13,12 +13,12 @@ This document tracks documentation coverage for the KANAP user manual.
 | IT Landscape | 8 | 8 | 0 |
 | Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
-| Admin & Settings | 12 | 9 | 3 |
+| Admin & Settings | 13 | 9 | 4 |
 | Reports | 10 | 10 | 0 |
 | Portfolio | 10 | 10 | 0 |
-| **TOTAL** | **59** | **56** | **3** |
+| **TOTAL** | **60** | **56** | **4** |
 
-_Note: Supplemental Fast Track guides are excluded from these route-based counts. 3 new pages need documentation._
+_Note: Supplemental Fast Track guides are excluded from these route-based counts. 4 tenant-facing pages currently lack a manual._
 
 ---
 

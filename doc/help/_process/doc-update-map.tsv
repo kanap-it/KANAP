@@ -65,3 +65,8 @@ portfolio-team-members.md	frontend/src/pages/portfolio/TeamMemberWorkspacePage.t
 knowledge.md	frontend/src/pages/knowledge/KnowledgePage.tsx
 knowledge.md	frontend/src/pages/knowledge/KnowledgeWorkspacePage.tsx
 reports.md	frontend/src/pages/reports/**/*.tsx
+ai-assistant.md	frontend/src/pages/ai/AiWorkspacePage.tsx
+ai-assistant.md	frontend/src/ai/**/*.tsx
+ai-settings.md	frontend/src/pages/admin/AdminAiPage.tsx
+integrations.md	frontend/src/pages/admin/AdminIntegrationsPage.tsx
+scheduled-tasks.md	frontend/src/pages/admin/ScheduledTasksPage.tsx
