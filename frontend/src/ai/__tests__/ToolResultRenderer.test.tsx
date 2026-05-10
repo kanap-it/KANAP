@@ -1,14 +1,13 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import ToolResultRenderer from '../components/ToolResultRenderer';
+import { ToolResultBody } from '../components/ToolResultRenderer';
 
-describe('ToolResultRenderer', () => {
+describe('ToolResultBody', () => {
   it('renders search payloads', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="search_all"
-        arguments={{ query: 'crm' }}
         result={{
           items: [
             {
@@ -23,8 +22,6 @@ describe('ToolResultRenderer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('search all'));
-
     expect(screen.getByText('APP-1')).toBeInTheDocument();
     expect(screen.getByText('CRM')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
@@ -32,7 +29,7 @@ describe('ToolResultRenderer', () => {
 
   it('renders document payloads', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="get_document"
         result={{
           ref: 'DOC-7',
@@ -42,15 +39,13 @@ describe('ToolResultRenderer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('get document'));
-
     expect(screen.getByText('DOC-7: Runbook')).toBeInTheDocument();
     expect(screen.getByText('Keep it updated.')).toBeInTheDocument();
   });
 
   it('renders entity comments payloads', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="get_entity_comments"
         result={{
           entity: {
@@ -71,8 +66,6 @@ describe('ToolResultRenderer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('get entity comments'));
-
     expect(screen.getByText('PRJ-7')).toBeInTheDocument();
     expect(screen.getByText('Migration')).toBeInTheDocument();
     expect(screen.getByText('Alex Operator')).toBeInTheDocument();
@@ -81,7 +74,7 @@ describe('ToolResultRenderer', () => {
 
   it('falls back to generic JSON rendering for unknown payloads', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="custom_tool"
         result={{
           ok: true,
@@ -90,15 +83,13 @@ describe('ToolResultRenderer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('custom tool'));
-
     expect(screen.getByText(/"ok": true/)).toBeInTheDocument();
     expect(screen.getByText(/"count": 2/)).toBeInTheDocument();
   });
 
   it('shows a warning when a tool result contains ignored filter fields', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="query_entities"
         result={{
           items: [],
@@ -109,14 +100,12 @@ describe('ToolResultRenderer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('query entities'));
-
     expect(screen.getByText('Ignored fields: assignee')).toBeInTheDocument();
   });
 
   it('renders structured query metadata and repair suggestions', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="query_entities"
         result={{
           status: 'invalid_filter',
@@ -137,15 +126,13 @@ describe('ToolResultRenderer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('query entities'));
-
     expect(screen.getByText('status: invalid_filter')).toBeInTheDocument();
     expect(screen.getByText(/assignee: Use supported AI field/)).toBeInTheDocument();
   });
 
   it('renders filter descriptions', () => {
     render(
-      <ToolResultRenderer
+      <ToolResultBody
         name="describe_entity_filters"
         result={{
           entity_type: 'tasks',
@@ -164,8 +151,6 @@ describe('ToolResultRenderer', () => {
         }}
       />,
     );
-
-    fireEvent.click(screen.getByText('describe entity filters'));
 
     expect(screen.getByText('assignee')).toBeInTheDocument();
     expect(screen.getByText('user display name')).toBeInTheDocument();

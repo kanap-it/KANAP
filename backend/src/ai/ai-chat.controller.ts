@@ -38,16 +38,29 @@ export class AiChatController {
 
   @Post('stream')
   async stream(
-    @Body() body: { message: string; conversation_id?: string },
+    @Body() body: {
+      message: string;
+      conversation_id?: string;
+      attachment_ids?: string[];
+      truncate_from_message_id?: string | null;
+    },
     @Req() req: any,
     @Res() res: Response,
   ) {
     const context = this.buildContext(req);
     const abortController = new AbortController();
+    const attachmentIds = Array.isArray(body.attachment_ids)
+      ? body.attachment_ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      : null;
+    const truncateFromMessageId = typeof body.truncate_from_message_id === 'string' && body.truncate_from_message_id.length > 0
+      ? body.truncate_from_message_id
+      : null;
     const prepared = await this.orchestrator.prepareRequest({
       context,
       conversationId: body.conversation_id,
       userMessage: body.message,
+      attachmentIds,
+      truncateFromMessageId,
       signal: abortController.signal,
     });
 

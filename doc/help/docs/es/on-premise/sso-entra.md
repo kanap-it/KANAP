@@ -88,7 +88,7 @@ Después de actualizar `.env`, reinicie sus contenedores para que la API recoja 
 
 - **SSO_NOT_CONFIGURED**: Faltan las variables de entorno de Entra o el inquilino no está conectado.
 - **ENTRA_TENANT_MISMATCH**: Conectó un inquilino pero está intentando iniciar sesión desde otro.
-- **Invalid Entra state / nonce**: Cookie bloqueada o HTTPS mal configurado.
+- **Invalid Entra state / nonce**: El estado de inicio de sesión expiró o la redirección de Entra no volvió a la URL de callback configurada. Vuelva a intentar iniciar sesión y verifique que `ENTRA_REDIRECT_URI` coincida exactamente con el registro de aplicación de Entra.
 - **Mala redirección después del inicio de sesión**: Verificar `APP_BASE_URL` y cabeceras del proxy inverso (`Host`, `X-Forwarded-Proto`).
 
 ## Notas de seguridad

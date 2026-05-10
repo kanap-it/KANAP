@@ -2313,7 +2313,7 @@
   <span class="md-ellipsis">
     
   
-    Administration
+    Plaid
   
 
     
@@ -2326,6 +2326,95 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Plaid
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plaid
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2378,6 +2467,90 @@
     
   
     Branding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plaid Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scheduled-tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scheduled Tasks
   
 
     
@@ -2476,10 +2649,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="">
             
   
   
@@ -2497,8 +2670,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2991,9 +3164,9 @@
 
 
 <h1 id="interface-map">Interface Map<a class="headerlink" href="#interface-map" title="Permanent link">&para;</a></h1>
-<p>The Interface Map provides an interactive visualization of your application integration landscape. Applications appear as nodes and interfaces as connecting edges, giving you a bird's-eye view of how data flows across your systems.</p>
+<p>The Interface Map is an interactive visualization of your application integration landscape. Applications appear as nodes and interfaces as connecting edges, giving you a bird's-eye view of how data flows across your systems for a given environment.</p>
 <h2 id="where-to-find-it">Where to find it<a class="headerlink" href="#where-to-find-it" title="Permanent link">&para;</a></h2>
-<p>Navigate to <strong>IT Landscape → Interface Map</strong> to open the visualization.</p>
+<p>Navigate to <strong>IT Landscape &gt; Interface Map</strong> to open the visualization.</p>
 <p><strong>Permissions</strong>: You need at least <code>applications:reader</code> to view the map.</p>
 <hr />
 <h2 id="understanding-the-visualization">Understanding the visualization<a class="headerlink" href="#understanding-the-visualization" title="Permanent link">&para;</a></h2>
@@ -3001,50 +3174,51 @@
 <ul>
 <li><strong>Nodes</strong> represent applications</li>
 <li><strong>Edges</strong> represent interfaces between applications</li>
-<li><strong>Node size</strong> reflects the number of connected interfaces</li>
-<li><strong>Edge labels</strong> display the interface identifier along each connection</li>
+<li><strong>Edge labels</strong> display the interface identifier on each connection</li>
+<li><strong>Node size</strong> reflects how many interfaces touch the application</li>
 </ul>
 <h3 id="business-vs-technical-view">Business vs Technical view<a class="headerlink" href="#business-vs-technical-view" title="Permanent link">&para;</a></h3>
-<p><strong>Business View</strong> (default):</p>
+<p>Toggle between the two view modes with the <strong>Show middleware</strong> switch in the toolbar.</p>
+<p><strong>Business view</strong> (default, switch off):</p>
 <ul>
 <li>Hides middleware applications</li>
 <li>Shows direct source-to-target relationships</li>
 <li>Best for understanding business data flows</li>
 </ul>
-<p><strong>Technical View</strong>:</p>
+<p><strong>Technical view</strong> (switch on):</p>
 <ul>
-<li>Shows middleware platforms as intermediate nodes (displayed as diamond shapes)</li>
-<li>Displays the actual data path (Source → Middleware → Target)</li>
-<li>Best for understanding technical architecture</li>
+<li>Shows middleware platforms as intermediate nodes (rendered as diamonds)</li>
+<li>Expands each interface into its actual data path (Source -&gt; Middleware -&gt; Target)</li>
+<li>Best for understanding the technical architecture</li>
 </ul>
-<p>Toggle between views using the <strong>Show middleware</strong> switch in the toolbar.</p>
+<p>A short caption under the page header reminds you which view is active.</p>
 <hr />
 <h2 id="filters">Filters<a class="headerlink" href="#filters" title="Permanent link">&para;</a></h2>
-<p>All filters are located in the toolbar above the map.</p>
+<p>All filters are in the toolbar above the map.</p>
 <h3 id="environment">Environment<a class="headerlink" href="#environment" title="Permanent link">&para;</a></h3>
 <p>Filter interfaces by deployment environment:</p>
 <ul>
 <li>Production, Pre-Prod, QA, Test, Development, Sandbox</li>
 </ul>
-<p>The default is <strong>Production</strong>.</p>
+<p>The default is <strong>Production</strong>. Bindings shown in the side panel and the linked infrastructure connections always reflect the selected environment.</p>
 <h3 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h3>
-<p>Multi-select filter for interface lifecycle status. Choose which statuses to include in the visualization (e.g., Active, Planned, Deprecated). The default selection is <strong>Active</strong>.</p>
+<p>Multi-select filter for interface lifecycle status (Active, Planned, Deprecated, etc.). Defaults to <strong>Active</strong>.</p>
 <h3 id="applications">Applications<a class="headerlink" href="#applications" title="Permanent link">&para;</a></h3>
 <p>Focus the map on specific applications or services:</p>
 <ol>
 <li>Click the <strong>Applications</strong> dropdown</li>
-<li>Select one or more applications (grouped by type: Applications vs Infrastructure services)</li>
+<li>Pick one or more options (grouped under <strong>Applications</strong> and <strong>Infrastructure services</strong>)</li>
 <li>The map filters to show only interfaces connected to your selection</li>
 </ol>
-<p>When you select applications here, the <strong>Depth</strong> filter automatically switches from "All" to "1" so you see only the immediate neighborhood.</p>
+<p>When you pick at least one application here, the <strong>Depth</strong> filter automatically switches from <strong>All</strong> to <strong>1</strong> so you see only the immediate neighborhood.</p>
 <h3 id="depth">Depth<a class="headerlink" href="#depth" title="Permanent link">&para;</a></h3>
-<p>Limit how many hops from selected applications to display:</p>
+<p>Limit how many hops from the selected applications to display:</p>
 <ul>
-<li><strong>All</strong>: Show all connected nodes (no limit)</li>
-<li><strong>1–5</strong>: Show only nodes within N hops of the selected applications</li>
+<li><strong>All</strong>: Show every connected node (no limit)</li>
+<li><strong>1-5</strong>: Show only nodes within N hops of the selected applications</li>
 </ul>
 <p>Middleware nodes do not count as a hop -- the depth counter only increments when traversing through a primary application node.</p>
-<p>This filter is automatically enabled when you select applications in the Applications filter.</p>
+<p>This filter only takes effect when you have at least one application selected; with no selection the value is locked to <strong>All</strong>.</p>
 <hr />
 <h2 id="graph-controls">Graph controls<a class="headerlink" href="#graph-controls" title="Permanent link">&para;</a></h2>
 <p>The control panel on the left side of the map provides these tools:</p>
@@ -3063,7 +3237,7 @@
 <td>Pause the force simulation so you can manually position nodes</td>
 </tr>
 <tr>
-<td>Center</td>
+<td>Crosshair</td>
 <td><strong>Auto-center</strong></td>
 <td>Toggle automatic centering when selecting nodes (highlighted when enabled)</td>
 </tr>
@@ -3073,7 +3247,7 @@
 <td>Increase zoom level</td>
 </tr>
 <tr>
-<td>Zoom −</td>
+<td>Zoom -</td>
 <td><strong>Zoom out</strong></td>
 <td>Decrease zoom level</td>
 </tr>
@@ -3094,17 +3268,17 @@
 </tr>
 </tbody>
 </table>
-<p>The freeze and auto-center buttons change color when active, so you can tell at a glance whether they are on or off.</p>
+<p>The freeze and auto-center buttons change colour when active so you can tell at a glance whether they are on or off. You can also zoom with the mouse wheel and pan by clicking and dragging the background.</p>
 <hr />
 <h2 id="interacting-with-the-map">Interacting with the map<a class="headerlink" href="#interacting-with-the-map" title="Permanent link">&para;</a></h2>
 <h3 id="selecting-nodes">Selecting nodes<a class="headerlink" href="#selecting-nodes" title="Permanent link">&para;</a></h3>
 <p>Click an application node to highlight its connections and open a detail panel on the right.</p>
 <h3 id="selecting-edges">Selecting edges<a class="headerlink" href="#selecting-edges" title="Permanent link">&para;</a></h3>
-<p>Click an interface edge to see interface details in the side panel. Edges have a wider invisible hit area, so you do not need to click the line precisely.</p>
+<p>Click an interface edge to see interface details in the side panel. Edges have a wider invisible hit area, so you don't need to click the line precisely.</p>
 <h3 id="dragging-nodes">Dragging nodes<a class="headerlink" href="#dragging-nodes" title="Permanent link">&para;</a></h3>
 <p>Drag any node to reposition it manually. While the simulation is running, the layout continues to adjust around the moved node. When the simulation is frozen, the node stays exactly where you place it.</p>
 <h3 id="clearing-the-selection">Clearing the selection<a class="headerlink" href="#clearing-the-selection" title="Permanent link">&para;</a></h3>
-<p>Click the empty background area of the map to dismiss the detail panel and clear any selection.</p>
+<p>Click the empty background of the map (or <strong>Close</strong> in the side panel) to dismiss the detail panel.</p>
 <h3 id="deep-linking">Deep linking<a class="headerlink" href="#deep-linking" title="Permanent link">&para;</a></h3>
 <p>The map supports URL parameters for sharing specific views:</p>
 <table>
@@ -3151,34 +3325,32 @@
 <ul>
 <li><strong>Description</strong>: What the application does</li>
 <li><strong>Publisher</strong>: Software publisher</li>
-<li><strong>Criticality</strong>: Business importance (Business critical, High, Medium, Low)</li>
+<li><strong>Criticality</strong>: Business critical, High, Medium, or Low</li>
 <li><strong>Servers</strong>: Servers hosting this app, grouped by environment. Click a server name to open its workspace.</li>
-<li><strong>Business owners</strong>: Responsible business contacts</li>
-<li><strong>IT owners</strong>: Responsible technical contacts</li>
+<li><strong>Business owners</strong> and <strong>IT owners</strong>: Responsible contacts</li>
 <li><strong>Support information</strong>: Support contacts with their roles. Click a contact name to navigate to the application's Technical tab.</li>
 <li><strong>Edit application</strong>: Opens the application workspace</li>
 </ul>
 <h3 id="interface-panel">Interface panel<a class="headerlink" href="#interface-panel" title="Permanent link">&para;</a></h3>
+<p>For the selected interface and the current environment:</p>
 <ul>
-<li><strong>Criticality</strong>: Business importance level</li>
-<li><strong>Route</strong>: Integration route type</li>
-<li><strong>Bindings</strong>: Number of environment bindings</li>
-<li><strong>Via middleware</strong>: Whether the interface routes through middleware</li>
-<li><strong>Endpoints</strong>: For the selected environment, shows source and target applications, job names, and endpoint URLs</li>
-<li><strong>Infra connections</strong>: Infrastructure connections linked to this interface for the current environment. Each connection card shows source, destination, and protocols. From here you can:</li>
+<li><strong>Criticality</strong>, <strong>Route</strong>, <strong>Bindings count</strong>, <strong>Via middleware</strong> (yes/no)</li>
+<li><strong>Endpoints</strong>: For each binding in the active environment, shows source app -&gt; target app, leg type, job name, source endpoint, and target endpoint</li>
+<li><strong>Infra connections</strong>: Infrastructure connections linked to this interface for the current environment. Each card shows source, destination, protocols, and the binding's environment / leg type. From the card you can:</li>
 <li>Click <strong>Edit</strong> to open the connection workspace</li>
-<li>Click <strong>View in Connection Map</strong> to see the infrastructure topology</li>
+<li>Click <strong>View in Connection Map</strong> to jump to the infrastructure topology, pre-focused on the connection</li>
 <li><strong>Edit interface</strong>: Opens the interface workspace</li>
 </ul>
 <hr />
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Start with Production</strong>: Select the Prod environment to see your most critical integrations first.</li>
-<li><strong>Focus on specific apps</strong>: Use the Applications filter with depth 2 to see just one application's neighborhood without the full landscape.</li>
-<li><strong>Export for documentation</strong>: Use the SVG export to create architecture diagrams for documentation or presentations. Use PNG when you need a raster image.</li>
-<li><strong>Snap for clarity</strong>: After dragging nodes into position, use Snap to Grid to create cleaner, more aligned layouts.</li>
+<li><strong>Focus on specific apps</strong>: Pick a few apps in the Applications filter and use depth 1 or 2 to explore one application's neighbourhood without the full landscape.</li>
+<li><strong>Switch to Technical view</strong>: When troubleshooting, enable <strong>Show middleware</strong> to see the actual data path through integration platforms.</li>
+<li><strong>Export for documentation</strong>: Use SVG to create vector architecture diagrams, or PNG when you need a raster image.</li>
+<li><strong>Snap for clarity</strong>: After dragging nodes into position, use <strong>Snap to grid</strong> to create cleaner, more aligned layouts.</li>
 <li><strong>Deep link for sharing</strong>: Copy the URL after setting filters to share specific views with colleagues.</li>
-<li><strong>Switch to Technical view</strong>: When troubleshooting, enable middleware visibility to see the actual data path through integration platforms.</li>
+<li><strong>Cross-reference with Connection Map</strong>: Use <strong>View in Connection Map</strong> in the Infra connections section to see the underlying network topology for a chosen binding.</li>
 </ul>
 
 

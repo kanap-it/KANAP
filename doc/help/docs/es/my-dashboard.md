@@ -1,37 +1,56 @@
-# Panel de control
+# Mi panel de control
 
-El Panel de control es su página de inicio personal en KANAP. Le ofrece una visión rápida de sus tareas, proyectos, tiempo registrado y actividad reciente, todo en un solo lugar. Puede personalizar qué mosaicos aparecen y cómo se comportan.
+El Panel de control es su página de inicio personal en KANAP. Le ofrece una visión rápida de sus tareas, proyectos, tiempo registrado y actividad reciente, todo en un solo lugar. Puede personalizar qué mosaicos aparecen, y el panel oculta cualquier mosaico para el que no tenga permiso.
 
 ## Dónde encontrarlo
 
 - Haga clic en el logotipo de **KANAP** o navegue a `/`
 - Esta es la página predeterminada después de iniciar sesión para usuarios no administradores.
-- No se requieren permisos especiales para ver el panel de control en sí, pero los mosaicos individuales dependen de sus derechos de acceso.
+- No se requieren permisos especiales para ver el propio panel, pero los mosaicos individuales dependen de sus derechos de acceso.
 
 ## Acciones rápidas
 
-En la parte superior del panel de control encontrará botones de acceso directo para acciones comunes:
+La franja del encabezado en la parte superior del panel proporciona botones de atajo para el trabajo cotidiano común. Cada botón solo se muestra si tiene el permiso correspondiente.
 
-- **Crear tarea** — abre el flujo de creación de tareas. Requiere `tasks:member` o superior.
-- **Registrar tiempo** — abre un diálogo rápido para registrar horas en un proyecto. Elija un proyecto, introduzca las horas, seleccione una categoría (**IT** o **Negocio**) y, opcionalmente, añada notas. Requiere `portfolio_projects:member` o superior.
-- **Nuevo documento** — abre el flujo de creación de la Base de conocimiento para iniciar un documento en blanco o crear uno a partir de una plantilla publicada. Requiere `knowledge:member` o superior.
-- **Configuración** (icono de engranaje) — abre la configuración del panel de control para elegir qué mosaicos mostrar.
+- **Crear tarea** — abre el flujo de creación de tarea independiente. Requiere `tasks:member` o superior.
+- **Registrar tiempo** — abre el diálogo **Registro rápido de tiempo** (vea más abajo). Requiere `portfolio_projects:member` o `tasks:member`.
+- **Nueva solicitud** — abre el flujo de creación de solicitud. Requiere `portfolio_requests:member` o superior.
+- **Nueva aplicación** — abre el flujo de creación de aplicación. Requiere `applications:member` o superior.
+- **Nuevo activo** — abre el flujo de creación de activo. Requiere `infrastructure:member` o superior.
+- **Nuevo documento** (botón dividido) — crea un documento de Base de conocimiento en blanco, o abre el selector de plantillas para empezar desde una plantilla publicada. Requiere `knowledge:member` o superior.
+- **Configuración** (icono de engranaje) — abre el diálogo de configuración del panel para elegir qué mosaicos mostrar.
 
-## Mosaicos del panel de control
+### Registro rápido de tiempo
 
-El panel de control muestra una cuadrícula de mosaicos, cada uno mostrando un aspecto diferente de su trabajo. Los mosaicos se distribuyen en una cuadrícula adaptable (tres columnas en pantallas grandes, dos en medianas, una en pequeñas).
+La acción **Registrar tiempo** abre un diálogo enfocado para que pueda registrar horas sin salir del panel.
+
+- Elija el destino — **Proyecto** o **Tarea**.
+  - Las entradas de proyecto registran tiempo directamente contra un proyecto del portafolio.
+  - Las entradas de tarea registran tiempo contra una de sus tareas activas (tareas de proyecto o tareas independientes). Las tareas OPEX, CAPEX y de contrato están intencionalmente excluidas del selector.
+- Elija el proyecto o tarea del desplegable.
+- Introduzca las **Horas** (en incrementos de 0,25).
+- Elija una **Categoría**: **IT** o **Negocio**.
+- Añada **Notas** si desea contexto sobre en qué trabajó.
+
+Después de guardar, el mosaico de resumen de tiempo del panel se actualiza automáticamente.
+
+## Mosaicos del panel
+
+El panel muestra una cuadrícula de mosaicos, cada uno mostrando un aspecto diferente de su trabajo. Los mosaicos se distribuyen en una cuadrícula adaptable (tres columnas en pantallas grandes, dos en medianas, una en pequeñas). Los mosaicos para los que no tiene permiso de visualización no se cargan en absoluto.
 
 ### Mis tareas
 
-Muestra sus tareas asignadas agrupadas por urgencia:
+Muestra sus tareas activas agrupadas por urgencia:
 
-- **Vencidas** — tareas pasadas de su fecha límite (resaltadas en rojo)
-- **Vencen esta semana** — tareas con vencimiento en los próximos 7 días
+- **Vencidas** — tareas pasadas su fecha de vencimiento (resaltadas en rojo)
+- **Vencen esta semana** — tareas que vencen en los próximos 7 días
 - **Más adelante** — todo lo demás
 
-Cada tarea muestra su título, proyecto vinculado (si lo hay), fecha límite e indicador de prioridad cuando la prioridad es superior a normal. Haga clic en una tarea para abrir su espacio de trabajo.
+Cada tarea muestra su título, el proyecto vinculado (si lo hay), la fecha de vencimiento y una insignia de prioridad cuando la prioridad está por encima de lo normal. Haga clic en una tarea para abrir su espacio de trabajo.
 
-Muestra hasta 5 elementos en total entre los tres grupos.
+Muestra hasta 5 elementos en total, distribuidos entre los tres grupos.
+
+**Configuración**: máximo de elementos, ocultar la sección de vencidos.
 
 **Requiere**: `tasks:reader`
 
@@ -39,11 +58,13 @@ Muestra hasta 5 elementos en total entre los tres grupos.
 
 ### Proyectos que lidero
 
-Lista los proyectos donde usted tiene un rol de liderazgo (responsable IT, responsable de negocio, patrocinador IT o patrocinador de negocio). Cada proyecto muestra:
+Lista los proyectos donde ocupa un rol de liderazgo (Responsable IT, Responsable de negocio, Patrocinador IT o Patrocinador de negocio). Cada proyecto muestra:
 
 - Su rol
-- Estado actual del proyecto (codificado por color)
+- Estado actual del proyecto (píldora con código de color)
 - Próximo hito y su fecha objetivo, si está definido
+
+Hacer clic en un proyecto abre el espacio de trabajo del proyecto.
 
 Muestra hasta 5 elementos.
 
@@ -53,11 +74,13 @@ Muestra hasta 5 elementos.
 
 ### Proyectos en los que contribuyo
 
-Lista los proyectos donde usted es miembro del equipo. Cada proyecto muestra:
+Lista los proyectos donde es miembro del equipo. Cada proyecto muestra:
 
 - Su equipo (Equipo IT o Equipo de negocio)
 - Estado actual del proyecto
 - Número de tareas asignadas a usted en ese proyecto
+
+Hacer clic en un proyecto abre el espacio de trabajo del proyecto.
 
 Muestra hasta 5 elementos.
 
@@ -67,35 +90,39 @@ Muestra hasta 5 elementos.
 
 ### Vistos recientemente
 
-Muestra elementos que ha abierto recientemente en la aplicación: proyectos, solicitudes, aplicaciones, activos, interfaces, conexiones, contratos, tareas, partidas OPEX y CAPEX. Cada entrada muestra el nombre del elemento, su tipo y cuándo lo vio por última vez.
+Muestra elementos que ha abierto recientemente en toda la aplicación — proyectos, solicitudes, aplicaciones, activos, interfaces, conexiones, contratos, tareas, partidas OPEX y CAPEX, y documentos de la Base de conocimiento. Cada entrada muestra el nombre del elemento, su tipo y cuándo lo vio por última vez.
 
-Los elementos vistos recientemente se almacenan localmente en su navegador y son específicos de su usuario y espacio de trabajo. Haga clic en **Borrar** para restablecer la lista.
+Los elementos vistos recientemente se almacenan localmente en su navegador y están limitados al espacio de trabajo y usuario actual. Haga clic en **Limpiar** para restablecer la lista. Los elementos a los que ya no tiene permiso de acceso se filtran automáticamente.
 
 Muestra hasta 5 elementos.
 
-**Requiere**: No se requieren permisos especiales (los elementos a los que no puede acceder se ocultan automáticamente).
+**Requiere**: Sin permisos especiales.
 
 ---
 
-### Mi tiempo la última semana
+### Mi tiempo de la semana pasada
 
-Muestra un resumen del tiempo que ha registrado durante un período reciente:
+Muestra un resumen del tiempo que ha registrado durante un periodo reciente:
 
 - **Total de horas** registradas (mostrado de forma destacada)
-- **Desglose por categoría** — IT, Negocio y Otras tareas
-- **Principales proyectos** — un gráfico de barras de los proyectos en los que más tiempo invirtió
+- **Desglose por categoría** — IT, Negocio y Otras tareas (no de proyecto)
+- **Principales proyectos** — un pequeño gráfico de barras de los proyectos en los que pasó más tiempo
 
-**Configuración**: Período en días (7–30).
+**Configuración**: periodo de tiempo en días (7-30).
 
-**Requiere**: `portfolio_projects:reader` y `tasks:reader`
+**Requiere**: `portfolio_projects:reader`
 
 ---
 
 ### Nuevas solicitudes
 
-Muestra solicitudes de portafolio creadas dentro de un período reciente. Cada solicitud muestra el nombre, el solicitante, la fecha de creación y un indicador de prioridad si la puntuación de prioridad es superior a 80.
+Muestra las solicitudes del portafolio creadas dentro de un periodo reciente. Cada solicitud muestra el nombre, el solicitante, la fecha de creación y una insignia **Alta** cuando la puntuación de prioridad está por encima de 80.
+
+Hacer clic en una solicitud abre el espacio de trabajo de la solicitud.
 
 Muestra hasta 5 elementos.
+
+**Configuración**: máximo de elementos, días hacia atrás.
 
 **Requiere**: `portfolio_requests:reader`
 
@@ -103,10 +130,12 @@ Muestra hasta 5 elementos.
 
 ### Base de conocimiento
 
-Muestra dos secciones centradas en la Base de conocimiento:
+Muestra dos secciones centradas en Base de conocimiento en el mismo mosaico:
 
-- **Por revisar** — documentos donde usted es el revisor o aprobador activo
-- **Últimos 5 accedidos** — los últimos cinco documentos de la Base de conocimiento que abrió en este navegador para el usuario y espacio de trabajo actual
+- **Por revisar** — documentos donde es el revisor o aprobador activo, incluyendo hace cuánto tiempo se solicitó la revisión y por quién. El color de la insignia indica si está en la etapa de revisión o de aprobación.
+- **Últimos 5 accedidos** — los últimos cinco documentos de Base de conocimiento que abrió en este navegador para el espacio de trabajo actual.
+
+Las bibliotecas restringidas respetan sus reglas de acceso: solo ve elementos de revisión y documentos recientes de las bibliotecas que puede leer. Si ha perdido el acceso a un documento previamente visto, deja de aparecer aquí.
 
 **Requiere**: `knowledge:reader`
 
@@ -114,7 +143,9 @@ Muestra dos secciones centradas en la Base de conocimiento:
 
 ### Actividad del equipo
 
-Muestra la actividad reciente en proyectos donde usted está involucrado.
+Muestra la actividad reciente de proyectos en los proyectos donde está involucrado (cambios, comentarios, decisiones). Cada fila indica el proyecto, el tipo de actividad, el autor y un breve resumen. Haga clic en un elemento para saltar a la pestaña de actividad del proyecto.
+
+**Configuración**: máximo de elementos.
 
 **Requiere**: `portfolio_projects:reader`
 
@@ -122,33 +153,38 @@ Muestra la actividad reciente en proyectos donde usted está involucrado.
 
 ### Cambios de estado de proyectos
 
-Muestra los últimos cambios de estado de proyectos de los últimos días.
+Muestra las transiciones de estado recientes de proyectos (de → a) en proyectos, para que pueda ver qué iniciativas avanzaron, se pausaron o se cerraron en los últimos días.
+
+**Configuración**: días hacia atrás (1-14).
 
 **Requiere**: `portfolio_projects:reader`
 
 ---
 
-### Tareas inactivas
+### Tareas obsoletas
 
-Muestra tareas que no se han actualizado durante mucho tiempo, con soporte para alcance personal, de equipo o global.
+Muestra tareas que no se han actualizado durante mucho tiempo. Cada elemento muestra la píldora de días sin actualizar (advertencia, luego error tras pasar el doble del umbral) y el objeto vinculado, si lo hay.
+
+**Configuración**: alcance (`mías`, `equipo`, `todas`) y umbral en días (30-365).
 
 **Requiere**: `tasks:reader`
 
-## Personalización de su panel de control
+## Personalizar su panel
 
-Haga clic en el icono de **Configuración** (engranaje) en la zona superior derecha del panel de control para abrir el diálogo de configuración.
+Haga clic en el icono de **Configuración** (engranaje) en el encabezado del panel para abrir el diálogo de configuración del panel.
 
 Desde aquí puede:
 
-- **Activar o desactivar mosaicos** — marque o desmarque cada mosaico para controlar qué aparece en su panel de control
-- **Restablecer valores predeterminados** — restaurar la selección original de mosaicos
+- **Activar o desactivar mosaicos** — marque o desmarque cada mosaico para controlar qué aparece en su panel.
+- **Restablecer a valores predeterminados** — restaurar la selección original de mosaicos.
 
-Solo los mosaicos que tiene permiso para ver aparecen en la lista de configuración. Los cambios se guardan en su cuenta y persisten entre sesiones y dispositivos.
+Solo aparecen en la lista de configuración los mosaicos para los que tiene permiso de visualización. Los cambios se guardan en su cuenta y persisten entre sesiones y dispositivos.
 
-Si todos los mosaicos están desactivados, el panel de control muestra un mensaje invitándole a activar mosaicos en la configuración.
+Si todos los mosaicos están desactivados, el panel muestra un mensaje invitándole a activar algunos.
 
 ## Consejos
 
-- **Comience con los valores predeterminados**: El panel de control viene con un conjunto útil de mosaicos ya activados. Pruébelo durante unos días antes de personalizar.
-- **Use las acciones rápidas**: Crear una tarea o registrar tiempo desde el panel de control le ahorra navegar fuera de su vista general.
-- **Revise las tareas vencidas diariamente**: El mosaico Mis tareas resalta los elementos vencidos en rojo para que nada se pase por alto.
+- **Empiece con los valores predeterminados**: el panel viene con un conjunto útil de mosaicos ya activados. Pruébelo durante unos días antes de personalizarlo.
+- **Use las acciones rápidas**: crear una tarea, solicitud o documento — o registrar tiempo — directamente desde el panel le ahorra tener que navegar.
+- **Revise las tareas vencidas a diario**: el mosaico Mis tareas resalta los elementos vencidos en rojo para que nada se le escape.
+- **Use Tareas obsoletas con alcance de equipo**: con `tasks:admin`, cambie el mosaico Tareas obsoletas a alcance `equipo` o `todas` para encontrar trabajo que nadie está actualizando en toda la organización.

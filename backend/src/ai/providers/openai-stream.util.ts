@@ -163,7 +163,23 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
 
   for (const msg of params.messages) {
     if (msg.role === 'user') {
-      messages.push({ role: 'user', content: msg.content });
+      const hasImages = Array.isArray(msg.images) && msg.images.length > 0;
+      if (hasImages) {
+        // OpenAI-compatible vision format: content array with image_url + text parts.
+        // Most OpenAI-compatible servers (Qwen-VL, llama.cpp, vLLM, etc.) accept this.
+        const parts: OpenAI.ChatCompletionContentPart[] = msg.images!.map((img) => ({
+          type: 'image_url' as const,
+          image_url: {
+            url: `data:${img.mime_type || 'image/png'};base64,${img.base64_data}`,
+          },
+        }));
+        if (msg.content) {
+          parts.push({ type: 'text', text: msg.content });
+        }
+        messages.push({ role: 'user', content: parts });
+      } else {
+        messages.push({ role: 'user', content: msg.content });
+      }
     } else if (msg.role === 'assistant') {
       const assistantMsg: OpenAI.ChatCompletionAssistantMessageParam = {
         role: 'assistant',

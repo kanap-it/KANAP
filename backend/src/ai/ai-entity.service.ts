@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
@@ -20,6 +20,8 @@ import { AiPolicyService } from './ai-policy.service';
 type SearchRow = {
   id: string;
   item_number?: number | null;
+  ref?: string | null;
+  item_ref?: string | null;
   label: string;
   summary: string | null;
   status: string | null;
@@ -161,10 +163,11 @@ function toSummary(
   row: SearchRow,
   matchContext?: string | null,
 ): AiEntitySummaryDto {
+  const explicitRef = row.ref ?? row.item_ref ?? null;
   return {
     type,
     id: row.id,
-    ref: buildRef(type, row.item_number ?? null),
+    ref: explicitRef ? String(explicitRef) : buildRef(type, row.item_number ?? null),
     label: row.label,
     status: row.status ?? null,
     summary: row.summary ?? null,
@@ -347,17 +350,28 @@ function toIntegratedDocumentSummary(row: any): AiEntitySummaryDto {
 
 @Injectable()
 export class AiEntityService {
+  private readonly logger = new Logger(AiEntityService.name);
+
   constructor(
     private readonly knowledge: KnowledgeService,
     private readonly policy: AiPolicyService,
   ) {}
 
   private parseNumericRef(query: string): number | null {
-    const match = String(query || '').trim().match(/^(?:PRJ|REQ|T|DOC)-?(\d+)$/i)
-      ?? String(query || '').trim().match(/^(\d+)$/);
+    const numericPrefix = this.parseNumericPrefix(query);
+    if (!numericPrefix) return null;
+    const value = Number(numericPrefix);
+    return Number.isSafeInteger(value) ? value : null;
+  }
+
+  private parseNumericPrefix(query: string): string | null {
+    const trimmed = String(query || '').trim();
+    if (!trimmed) return null;
+    const match = trimmed.match(/^(?:PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|COMP|CONT|DEPT|SUP|BP)-?(\d+)$/i)
+      ?? trimmed.match(/^(\d+)$/);
     if (!match) return null;
-    const value = Number(match[1]);
-    return Number.isFinite(value) ? value : null;
+    const digits = match[1];
+    return digits && Number.isSafeInteger(Number(digits)) ? digits : null;
   }
 
   private async listRecentActivity(
@@ -439,10 +453,12 @@ export class AiEntityService {
     limit: number,
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
+    const numericPrefix = this.parseNumericPrefix(query);
     const businessOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'business');
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
+              a.sequential_id AS item_ref,
               a.name AS label,
               a.description AS summary,
               a.status,
@@ -458,34 +474,48 @@ export class AiEntityService {
               ${itOwnerNamesSql} AS it_owner_names,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN a.name ILIKE $1 THEN 3
-                WHEN COALESCE(a.description, '') ILIKE $1 THEN 2
+                WHEN $1::text IS NOT NULL AND UPPER(COALESCE(a.sequential_id, '')) = 'APP-' || $1 THEN 4
+                WHEN $1::text IS NOT NULL AND COALESCE(a.sequential_id, '') ILIKE 'APP-' || $1 || '%' THEN 3.5
+                WHEN a.name ILIKE $2 THEN 3
+                WHEN COALESCE(a.description, '') ILIKE $2 THEN 2
                 ELSE 1
               END AS score
        FROM applications a
-       LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = $2
-       WHERE a.tenant_id = $2
+       LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = $3
+       WHERE a.tenant_id = $3
          AND (
-           a.name ILIKE $1
-           OR COALESCE(a.description, '') ILIKE $1
-           OR COALESCE(a.editor, '') ILIKE $1
-           OR COALESCE(a.notes, '') ILIKE $1
-           OR COALESCE(a.support_notes, '') ILIKE $1
-           OR COALESCE(a.licensing, '') ILIKE $1
-           OR COALESCE(a.version, '') ILIKE $1
-           OR COALESCE(a.category, '') ILIKE $1
-           OR COALESCE(a.lifecycle, '') ILIKE $1
-           OR COALESCE(a.criticality, '') ILIKE $1
-           OR COALESCE(a.status, '') ILIKE $1
-           OR COALESCE(a.data_class, '') ILIKE $1
-           OR COALESCE(a.hosting_model, '') ILIKE $1
-           OR COALESCE(s.name, '') ILIKE $1
-           OR ${businessOwnerNamesSql} ILIKE $1
-           OR ${itOwnerNamesSql} ILIKE $1
+           ($1::text IS NOT NULL AND UPPER(COALESCE(a.sequential_id, '')) = 'APP-' || $1)
+           OR ($1::text IS NOT NULL AND COALESCE(a.sequential_id, '') ILIKE 'APP-' || $1 || '%')
+           OR COALESCE(a.sequential_id, '') ILIKE $2
+           OR a.name ILIKE $2
+           OR COALESCE(a.description, '') ILIKE $2
+           OR COALESCE(a.editor, '') ILIKE $2
+           OR COALESCE(a.notes, '') ILIKE $2
+           OR COALESCE(a.support_notes, '') ILIKE $2
+           OR COALESCE(a.licensing, '') ILIKE $2
+           OR COALESCE(a.version, '') ILIKE $2
+           OR COALESCE(a.category, '') ILIKE $2
+           OR COALESCE(a.lifecycle, '') ILIKE $2
+           OR COALESCE(a.criticality, '') ILIKE $2
+           OR COALESCE(a.status::text, '') ILIKE $2
+           OR COALESCE(a.data_class, '') ILIKE $2
+           OR COALESCE(a.hosting_model, '') ILIKE $2
+           OR COALESCE(s.name, '') ILIKE $2
+           OR ${businessOwnerNamesSql} ILIKE $2
+           OR ${itOwnerNamesSql} ILIKE $2
          )
-       ORDER BY score DESC, a.updated_at DESC, a.name ASC
-       LIMIT $3`,
-      [like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE
+                  WHEN $1::text IS NOT NULL
+                    AND COALESCE(a.sequential_id, '') ILIKE 'APP-' || $1 || '%'
+                    AND COALESCE(a.sequential_id, '') ~ '^APP-[0-9]+$'
+                  THEN NULLIF(regexp_replace(a.sequential_id, '^APP-', ''), '')::int
+                  ELSE NULL
+                END ASC NULLS LAST,
+                a.updated_at DESC,
+                a.name ASC
+       LIMIT $4`,
+      [numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -516,39 +546,55 @@ export class AiEntityService {
     limit: number,
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
+    const numericPrefix = this.parseNumericPrefix(query);
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
+              a.asset_reference AS item_ref,
               a.name AS label,
               COALESCE(a.fqdn, a.hostname, a.notes) AS summary,
               a.status,
               a.updated_at,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN a.name ILIKE $1 THEN 3
-                WHEN COALESCE(a.fqdn, '') ILIKE $1 OR COALESCE(a.hostname, '') ILIKE $1 THEN 2
+                WHEN $1::text IS NOT NULL AND UPPER(COALESCE(a.asset_reference, '')) = 'AST-' || $1 THEN 4
+                WHEN $1::text IS NOT NULL AND COALESCE(a.asset_reference, '') ILIKE 'AST-' || $1 || '%' THEN 3.5
+                WHEN a.name ILIKE $2 THEN 3
+                WHEN COALESCE(a.fqdn, '') ILIKE $2 OR COALESCE(a.hostname, '') ILIKE $2 THEN 2
                 ELSE 1
               END AS score
        FROM assets a
-       WHERE a.tenant_id = $2
+       WHERE a.tenant_id = $3
          AND (
-           a.name ILIKE $1
-           OR COALESCE(a.fqdn, '') ILIKE $1
-           OR COALESCE(a.hostname, '') ILIKE $1
-           OR COALESCE(a.notes, '') ILIKE $1
-           OR COALESCE(a.domain, '') ILIKE $1
-           OR COALESCE(a.cluster, '') ILIKE $1
-           OR COALESCE(a.operating_system, '') ILIKE $1
-           OR COALESCE(a.kind, '') ILIKE $1
-           OR COALESCE(a.provider, '') ILIKE $1
-           OR COALESCE(a.environment, '') ILIKE $1
-           OR COALESCE(a.region, '') ILIKE $1
-           OR COALESCE(a.zone, '') ILIKE $1
-           OR COALESCE(a.status, '') ILIKE $1
-           OR EXISTS (SELECT 1 FROM unnest(a.aliases) AS alias WHERE alias ILIKE $1)
+           ($1::text IS NOT NULL AND UPPER(COALESCE(a.asset_reference, '')) = 'AST-' || $1)
+           OR ($1::text IS NOT NULL AND COALESCE(a.asset_reference, '') ILIKE 'AST-' || $1 || '%')
+           OR COALESCE(a.asset_reference, '') ILIKE $2
+           OR a.name ILIKE $2
+           OR COALESCE(a.fqdn, '') ILIKE $2
+           OR COALESCE(a.hostname, '') ILIKE $2
+           OR COALESCE(a.notes, '') ILIKE $2
+           OR COALESCE(a.domain, '') ILIKE $2
+           OR COALESCE(a.cluster, '') ILIKE $2
+           OR COALESCE(a.operating_system, '') ILIKE $2
+           OR COALESCE(a.kind, '') ILIKE $2
+           OR COALESCE(a.provider, '') ILIKE $2
+           OR COALESCE(a.environment, '') ILIKE $2
+           OR COALESCE(a.region, '') ILIKE $2
+           OR COALESCE(a.zone, '') ILIKE $2
+           OR COALESCE(a.status::text, '') ILIKE $2
+           OR EXISTS (SELECT 1 FROM unnest(a.aliases) AS alias WHERE alias ILIKE $2)
          )
-       ORDER BY score DESC, a.updated_at DESC, a.name ASC
-       LIMIT $3`,
-      [like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE
+                  WHEN $1::text IS NOT NULL
+                    AND COALESCE(a.asset_reference, '') ILIKE 'AST-' || $1 || '%'
+                    AND COALESCE(a.asset_reference, '') ~ '^AST-[0-9]+$'
+                  THEN NULLIF(regexp_replace(a.asset_reference, '^AST-', ''), '')::int
+                  ELSE NULL
+                END ASC NULLS LAST,
+                a.updated_at DESC,
+                a.name ASC
+       LIMIT $4`,
+      [numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -808,7 +854,7 @@ export class AiEntityService {
            d.name ILIKE $1
            OR COALESCE(d.description, '') ILIKE $1
            OR COALESCE(comp.name, '') ILIKE $1
-           OR COALESCE(d.status, '') ILIKE $1
+           OR COALESCE(d.status::text, '') ILIKE $1
          )
        ORDER BY score DESC, d.updated_at DESC, d.name ASC
        LIMIT $3`,
@@ -890,6 +936,7 @@ export class AiEntityService {
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
     const summarySql = buildProjectSummarySql('p');
     const contributorNamesSql = buildContributorNamesSql('p', 'portfolio_project_team', 'pt', 'project_id');
     const rows = await context.manager.query<SearchRow[]>(
@@ -905,45 +952,50 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND p.item_number = $1 THEN 4
-                WHEN p.name ILIKE $2 THEN 3
+                WHEN $2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN p.name ILIKE $3 THEN 3
                 ELSE 1
               END AS score
        FROM portfolio_projects p
-       LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = $3
-       LEFT JOIN portfolio_streams ps ON ps.id = p.stream_id AND ps.tenant_id = $3
-       LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = $3
-       LEFT JOIN departments dep ON dep.id = p.department_id AND dep.tenant_id = $3
+       LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = $4
+       LEFT JOIN portfolio_streams ps ON ps.id = p.stream_id AND ps.tenant_id = $4
+       LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = $4
+       LEFT JOIN departments dep ON dep.id = p.department_id AND dep.tenant_id = $4
        LEFT JOIN users u_bs ON u_bs.id = p.business_sponsor_id AND u_bs.tenant_id = p.tenant_id
        LEFT JOIN users u_bl ON u_bl.id = p.business_lead_id AND u_bl.tenant_id = p.tenant_id
        LEFT JOIN users u_is ON u_is.id = p.it_sponsor_id AND u_is.tenant_id = p.tenant_id
        LEFT JOIN users u_il ON u_il.id = p.it_lead_id AND u_il.tenant_id = p.tenant_id
-       WHERE p.tenant_id = $3
+       WHERE p.tenant_id = $4
          AND (
            ($1::int IS NOT NULL AND p.item_number = $1)
-           OR p.name ILIKE $2
-           OR COALESCE(p.origin, '') ILIKE $2
-           OR COALESCE(p.status, '') ILIKE $2
-           OR COALESCE(p.override_justification, '') ILIKE $2
-           OR COALESCE(pc.name, '') ILIKE $2
-           OR COALESCE(ps.name, '') ILIKE $2
-           OR COALESCE(co.name, '') ILIKE $2
-           OR COALESCE(dep.name, '') ILIKE $2
-           OR ${buildUserNameSql('u_bs')} ILIKE $2
-           OR ${buildUserNameSql('u_bl')} ILIKE $2
-           OR ${buildUserNameSql('u_is')} ILIKE $2
-           OR ${buildUserNameSql('u_il')} ILIKE $2
+           OR ($2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%')
+           OR p.name ILIKE $3
+           OR COALESCE(p.origin, '') ILIKE $3
+           OR COALESCE(p.status::text, '') ILIKE $3
+           OR COALESCE(p.override_justification, '') ILIKE $3
+           OR COALESCE(pc.name, '') ILIKE $3
+           OR COALESCE(ps.name, '') ILIKE $3
+           OR COALESCE(co.name, '') ILIKE $3
+           OR COALESCE(dep.name, '') ILIKE $3
+           OR ${buildUserNameSql('u_bs')} ILIKE $3
+           OR ${buildUserNameSql('u_bl')} ILIKE $3
+           OR ${buildUserNameSql('u_is')} ILIKE $3
+           OR ${buildUserNameSql('u_il')} ILIKE $3
            OR EXISTS (
              SELECT 1
              FROM portfolio_project_team pt
              JOIN users u_tm ON u_tm.id = pt.user_id AND u_tm.tenant_id = p.tenant_id
              WHERE pt.project_id = p.id
                AND pt.tenant_id = p.tenant_id
-               AND ${buildUserNameSql('u_tm')} ILIKE $2
+               AND ${buildUserNameSql('u_tm')} ILIKE $3
            )
          )
-       ORDER BY score DESC, p.updated_at DESC, p.name ASC
-       LIMIT $4`,
-      [ref, like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%' THEN p.item_number ELSE NULL END ASC NULLS LAST,
+                p.updated_at DESC,
+                p.name ASC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -969,6 +1021,7 @@ export class AiEntityService {
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
     const summarySql = buildRequestSummarySql('r');
     const contributorNamesSql = buildContributorNamesSql('r', 'portfolio_request_team', 'rt', 'request_id');
     const rows = await context.manager.query<SearchRow[]>(
@@ -985,48 +1038,53 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND r.item_number = $1 THEN 4
-                WHEN r.name ILIKE $2 THEN 3
+                WHEN $2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN r.name ILIKE $3 THEN 3
                 ELSE 1
               END AS score
        FROM portfolio_requests r
-       LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = $3
-       LEFT JOIN portfolio_streams ps ON ps.id = r.stream_id AND ps.tenant_id = $3
-       LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = $3
-       LEFT JOIN departments dep ON dep.id = r.department_id AND dep.tenant_id = $3
+       LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = $4
+       LEFT JOIN portfolio_streams ps ON ps.id = r.stream_id AND ps.tenant_id = $4
+       LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = $4
+       LEFT JOIN departments dep ON dep.id = r.department_id AND dep.tenant_id = $4
        LEFT JOIN users u_req ON u_req.id = r.requestor_id AND u_req.tenant_id = r.tenant_id
        LEFT JOIN users u_bs ON u_bs.id = r.business_sponsor_id AND u_bs.tenant_id = r.tenant_id
        LEFT JOIN users u_bl ON u_bl.id = r.business_lead_id AND u_bl.tenant_id = r.tenant_id
        LEFT JOIN users u_is ON u_is.id = r.it_sponsor_id AND u_is.tenant_id = r.tenant_id
        LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id
-       WHERE r.tenant_id = $3
+       WHERE r.tenant_id = $4
          AND (
            ($1::int IS NOT NULL AND r.item_number = $1)
-           OR r.name ILIKE $2
-           OR COALESCE(r.current_situation, '') ILIKE $2
-           OR COALESCE(r.expected_benefits, '') ILIKE $2
-           OR COALESCE(r.status, '') ILIKE $2
-           OR COALESCE(r.override_justification, '') ILIKE $2
-           OR COALESCE(pc.name, '') ILIKE $2
-           OR COALESCE(ps.name, '') ILIKE $2
-           OR COALESCE(co.name, '') ILIKE $2
-           OR COALESCE(dep.name, '') ILIKE $2
-           OR ${buildUserNameSql('u_req')} ILIKE $2
-           OR ${buildUserNameSql('u_bs')} ILIKE $2
-           OR ${buildUserNameSql('u_bl')} ILIKE $2
-           OR ${buildUserNameSql('u_is')} ILIKE $2
-           OR ${buildUserNameSql('u_il')} ILIKE $2
+           OR ($2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%')
+           OR r.name ILIKE $3
+           OR COALESCE(r.current_situation, '') ILIKE $3
+           OR COALESCE(r.expected_benefits, '') ILIKE $3
+           OR COALESCE(r.status::text, '') ILIKE $3
+           OR COALESCE(r.override_justification, '') ILIKE $3
+           OR COALESCE(pc.name, '') ILIKE $3
+           OR COALESCE(ps.name, '') ILIKE $3
+           OR COALESCE(co.name, '') ILIKE $3
+           OR COALESCE(dep.name, '') ILIKE $3
+           OR ${buildUserNameSql('u_req')} ILIKE $3
+           OR ${buildUserNameSql('u_bs')} ILIKE $3
+           OR ${buildUserNameSql('u_bl')} ILIKE $3
+           OR ${buildUserNameSql('u_is')} ILIKE $3
+           OR ${buildUserNameSql('u_il')} ILIKE $3
            OR EXISTS (
              SELECT 1
              FROM portfolio_request_team rt
              JOIN users u_tm ON u_tm.id = rt.user_id AND u_tm.tenant_id = r.tenant_id
              WHERE rt.request_id = r.id
                AND rt.tenant_id = r.tenant_id
-               AND ${buildUserNameSql('u_tm')} ILIKE $2
+               AND ${buildUserNameSql('u_tm')} ILIKE $3
            )
          )
-       ORDER BY score DESC, r.updated_at DESC, r.name ASC
-       LIMIT $4`,
-      [ref, like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%' THEN r.item_number ELSE NULL END ASC NULLS LAST,
+                r.updated_at DESC,
+                r.name ASC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -1053,6 +1111,7 @@ export class AiEntityService {
   ): Promise<RankedSearchResult> {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT t.id,
               t.item_number,
@@ -1065,43 +1124,48 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count,
               CASE
                 WHEN $1::int IS NOT NULL AND t.item_number = $1 THEN 4
-                WHEN COALESCE(t.title, '') ILIKE $2 THEN 3
+                WHEN $2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN COALESCE(t.title, '') ILIKE $3 THEN 3
                 ELSE 1
               END AS score
        FROM tasks t
        LEFT JOIN users u_assign ON u_assign.id = t.assignee_user_id AND u_assign.tenant_id = t.tenant_id
        LEFT JOIN users u_creator ON u_creator.id = t.creator_id AND u_creator.tenant_id = t.tenant_id
-       LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $3
-       LEFT JOIN companies co ON co.id = t.company_id AND co.tenant_id = $3
-       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = $3
-       LEFT JOIN portfolio_streams ps ON ps.id = t.stream_id AND ps.tenant_id = $3
-       LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $3
-       LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $3
-       LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $3
-       LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $3
-       WHERE t.tenant_id = $3
+       LEFT JOIN portfolio_task_types tt ON tt.id = t.task_type_id AND tt.tenant_id = $4
+       LEFT JOIN companies co ON co.id = t.company_id AND co.tenant_id = $4
+       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = $4
+       LEFT JOIN portfolio_streams ps ON ps.id = t.stream_id AND ps.tenant_id = $4
+       LEFT JOIN portfolio_projects rel_proj ON rel_proj.id = t.related_object_id AND t.related_object_type = 'project' AND rel_proj.tenant_id = $4
+       LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $4
+       LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $4
+       LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $4
+       WHERE t.tenant_id = $4
          AND (
            ($1::int IS NOT NULL AND t.item_number = $1)
-           OR COALESCE(t.title, '') ILIKE $2
-           OR COALESCE(t.description, '') ILIKE $2
-           OR COALESCE(t.status, '') ILIKE $2
-           OR COALESCE(t.priority_level, '') ILIKE $2
-           OR COALESCE(t.related_object_type, '') ILIKE $2
-           OR ${buildUserNameSql('u_assign')} ILIKE $2
-           OR ${buildUserNameSql('u_creator')} ILIKE $2
-           OR COALESCE(tt.name, '') ILIKE $2
-           OR COALESCE(co.name, '') ILIKE $2
-           OR COALESCE(pc.name, '') ILIKE $2
-           OR COALESCE(ps.name, '') ILIKE $2
-           OR COALESCE(rel_proj.name, '') ILIKE $2
-           OR COALESCE(rel_si.product_name, '') ILIKE $2
-           OR COALESCE(rel_ct.name, '') ILIKE $2
-           OR COALESCE(rel_cx.description, '') ILIKE $2
-           OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(t.labels) AS lbl WHERE lbl ILIKE $2)
+           OR ($2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%')
+           OR COALESCE(t.title, '') ILIKE $3
+           OR COALESCE(t.description, '') ILIKE $3
+           OR COALESCE(t.status::text, '') ILIKE $3
+           OR COALESCE(t.priority_level, '') ILIKE $3
+           OR COALESCE(t.related_object_type, '') ILIKE $3
+           OR ${buildUserNameSql('u_assign')} ILIKE $3
+           OR ${buildUserNameSql('u_creator')} ILIKE $3
+           OR COALESCE(tt.name, '') ILIKE $3
+           OR COALESCE(co.name, '') ILIKE $3
+           OR COALESCE(pc.name, '') ILIKE $3
+           OR COALESCE(ps.name, '') ILIKE $3
+           OR COALESCE(rel_proj.name, '') ILIKE $3
+           OR COALESCE(rel_si.product_name, '') ILIKE $3
+           OR COALESCE(rel_ct.name, '') ILIKE $3
+           OR COALESCE(rel_cx.description, '') ILIKE $3
+           OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(t.labels) AS lbl WHERE lbl ILIKE $3)
          )
-       ORDER BY score DESC, t.updated_at DESC, t.created_at DESC
-       LIMIT $4`,
-      [ref, like, context.tenantId, limit],
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%' THEN t.item_number ELSE NULL END ASC NULLS LAST,
+                t.updated_at DESC,
+                t.created_at DESC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
     );
 
     return {
@@ -1277,7 +1341,7 @@ export class AiEntityService {
               coa.code AS coa_code,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN a.account_number ILIKE $1 OR a.account_name ILIKE $1 THEN 3
+                WHEN a.account_number::text ILIKE $1 OR a.account_name ILIKE $1 THEN 3
                 WHEN COALESCE(coa.code, '') ILIKE $1 THEN 2
                 ELSE 1
               END AS score
@@ -1285,7 +1349,7 @@ export class AiEntityService {
        LEFT JOIN chart_of_accounts coa ON coa.id = a.coa_id AND coa.tenant_id = a.tenant_id
        WHERE a.tenant_id = $2
          AND (
-           a.account_number ILIKE $1
+           a.account_number::text ILIKE $1
            OR a.account_name ILIKE $1
            OR COALESCE(a.native_name, '') ILIKE $1
            OR COALESCE(a.description, '') ILIKE $1
@@ -1370,7 +1434,7 @@ export class AiEntityService {
          AND (
            ac.name ILIKE $1
            OR COALESCE(ac.description, '') ILIKE $1
-           OR COALESCE(ac.status, '') ILIKE $1
+           OR COALESCE(ac.status::text, '') ILIKE $1
          )
        ORDER BY score DESC, ac.updated_at DESC, ac.name ASC
        LIMIT $3`,
@@ -1417,7 +1481,7 @@ export class AiEntityService {
            bp.name ILIKE $1
            OR COALESCE(bp.description, '') ILIKE $1
            OR COALESCE(bp.notes, '') ILIKE $1
-           OR COALESCE(bp.status, '') ILIKE $1
+           OR COALESCE(bp.status::text, '') ILIKE $1
            OR COALESCE(bpc.name, '') ILIKE $1
          )
        ORDER BY score DESC, bp.updated_at DESC, bp.name ASC
@@ -1620,7 +1684,7 @@ export class AiEntityService {
   private async listApplications(context: AiExecutionContextWithManager) {
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
     const rows = await context.manager.query<any[]>(
-      `SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
+      `SELECT a.id, a.sequential_id AS item_ref, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
               a.lifecycle, a.criticality, a.category, a.hosting_model, a.data_class, a.version,
               s.name AS supplier_name,
               ${itOwnerNamesSql} AS it_owner_names
@@ -1647,7 +1711,7 @@ export class AiEntityService {
 
   private async listAssets(context: AiExecutionContextWithManager) {
     const rows = await context.manager.query<any[]>(
-      `SELECT a.id, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at,
+      `SELECT a.id, a.asset_reference AS item_ref, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at,
               a.kind, a.provider, a.environment, a.operating_system
        FROM assets a
        WHERE a.tenant_id = $1
@@ -1779,52 +1843,60 @@ export class AiEntityService {
     const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
     const offset = Math.min(Math.max(Number(input.offset) || 0, 0), 5000);
     const fetchLimit = Math.min(limit + offset, 5000);
-    const results = await Promise.all(
-      allowed.map(async (type) => {
-        if (type === 'accounts') return this.searchAccounts(context, input.query, fetchLimit);
-        if (type === 'analytics_categories') return this.searchAnalyticsCategories(context, input.query, fetchLimit);
-        if (type === 'applications') return this.searchApplications(context, input.query, fetchLimit);
-        if (type === 'assets') return this.searchAssets(context, input.query, fetchLimit);
-        if (type === 'business_processes') return this.searchBusinessProcesses(context, input.query, fetchLimit);
-        if (type === 'capex_items') return this.searchCapexItems(context, input.query, fetchLimit);
-        if (type === 'chart_of_accounts') return this.searchChartOfAccounts(context, input.query, fetchLimit);
-        if (type === 'companies') return this.searchCompanies(context, input.query, fetchLimit);
-        if (type === 'connections') return this.searchConnections(context, input.query, fetchLimit);
-        if (type === 'contacts') return this.searchContacts(context, input.query, fetchLimit);
-        if (type === 'contracts') return this.searchContracts(context, input.query, fetchLimit);
-        if (type === 'departments') return this.searchDepartments(context, input.query, fetchLimit);
-        if (type === 'interfaces') return this.searchInterfaces(context, input.query, fetchLimit);
-        if (type === 'locations') return this.searchLocations(context, input.query, fetchLimit);
-        if (type === 'projects') return this.searchProjects(context, input.query, fetchLimit);
-        if (type === 'requests') return this.searchRequests(context, input.query, fetchLimit);
-        if (type === 'spend_items') return this.searchSpendItems(context, input.query, fetchLimit);
-        if (type === 'suppliers') return this.searchSuppliers(context, input.query, fetchLimit);
-        if (type === 'tasks') return this.searchTasks(context, input.query, fetchLimit);
-        if (type === 'users') return this.searchUsers(context, input.query, fetchLimit);
-        if (type !== 'documents') {
-          throw new BadRequestException('Unsupported entity type.');
+    // Isolate each per-entity-type search in its own PostgreSQL SAVEPOINT so a
+    // single broken query (e.g. a SQL operator-mismatch in one of the searchXxx
+    // helpers) doesn't poison the surrounding transaction and cascade-fail every
+    // sibling search with "current transaction is aborted, commands ignored".
+    // SAVEPOINT is the only way to recover from a query error inside an open tx
+    // — try/catch on its own catches the JS exception but the tx stays poisoned.
+    const empty: RankedSearchResult = { items: [], total: 0 };
+    let savepointCounter = 0;
+    const safeRun = async (
+      type: string,
+      run: () => Promise<RankedSearchResult>,
+    ): Promise<RankedSearchResult> => {
+      // Unique name per savepoint — Promise.all dispatches all of these and PG
+      // serializes them on a single connection, but using distinct names is cheap
+      // and removes any ambiguity if savepoints ever interleave.
+      const sp = `search_${type}_${++savepointCounter}`;
+      try {
+        await context.manager.query(`SAVEPOINT ${sp}`);
+      } catch (err) {
+        this.logger.warn(`searchAll: ${type} could not start savepoint: ${(err as Error).message}`);
+        return empty;
+      }
+      try {
+        const result = await run();
+        await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        return result;
+      } catch (err) {
+        // Roll back to the savepoint so the outer tx stays usable for the
+        // remaining sibling searches.
+        try {
+          await context.manager.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        } catch {
+          // ignore — best-effort cleanup
         }
-
-        const search = await this.knowledge.search(
-          { q: input.query, limit: fetchLimit, offset: 0 },
-          { manager: context.manager, userId: context.userId },
+        this.logger.warn(
+          `searchAll: ${type} failed for query "${input.query}": ${(err as Error).message}`,
         );
-        return {
-          items: (search.items || []).map((item: any, index: number) => ({
-            ...toSummary('documents', {
-              id: item.id,
-              item_number: item.item_number,
-              label: item.title,
-              summary: item.summary ?? null,
-              status: item.status,
-              updated_at: item.updated_at,
-            }, item.snippet ?? item.summary ?? null),
-            _score: fetchLimit - index,
-          })),
-          total: search.total ?? 0,
-        } satisfies RankedSearchResult;
-      }),
-    );
+        return empty;
+      }
+    };
+
+    // SAVEPOINTs only isolate failures correctly when the surrounding queries are
+    // serialized — Promise.all interleaves SAVEPOINT/RELEASE/ROLLBACK statements
+    // and PG ends up rejecting many of them ("savepoint does not exist", "current
+    // transaction is aborted"). Run sequentially so each savepoint completes its
+    // SAVEPOINT → query → RELEASE/ROLLBACK cycle before the next one starts.
+    // The per-search latency hit is small (each is a single LIMIT-bounded query)
+    // and the autocomplete is debounced 150ms client-side anyway.
+    const results: RankedSearchResult[] = [];
+    for (const type of allowed) {
+      const r = await safeRun(type, () => this.runEntityTypeSearch(context, type, input.query, fetchLimit));
+      results.push(r);
+    }
 
     const total = results.reduce((sum, result) => sum + (result.total || 0), 0);
     const items = results
@@ -1850,6 +1922,218 @@ export class AiEntityService {
       complete: false,
       entity_types: allowed,
     };
+  }
+
+  private async searchDocumentsForMentions(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const search = await this.knowledge.searchMentionOptions(
+      { q: query, limit },
+      { manager: context.manager, userId: context.userId },
+    );
+    return {
+      items: (search.items || []).map((item: any) => ({
+        ...toSummary('documents', {
+          id: item.id,
+          item_number: item.item_number,
+          item_ref: item.item_ref,
+          label: item.title,
+          summary: item.summary ?? null,
+          status: item.status,
+          updated_at: item.updated_at,
+        }, item.summary ?? null),
+        _score: 1,
+      })),
+      total: search.total ?? 0,
+    };
+  }
+
+  async searchMentionCandidates(
+    context: AiExecutionContextWithManager,
+    input: {
+      query: string;
+      entity_types?: AiSearchEntityType[];
+      limit?: number;
+    },
+  ) {
+    const requested = input.entity_types && input.entity_types.length > 0
+      ? input.entity_types
+      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+    const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
+    if (allowed.length === 0) {
+      return { items: [], total: 0, returned: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
+    }
+
+    const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 200);
+    const empty: RankedSearchResult = { items: [], total: 0 };
+    let savepointCounter = 0;
+    const safeRun = async (
+      type: AiSearchEntityType,
+      run: () => Promise<RankedSearchResult>,
+    ): Promise<RankedSearchResult> => {
+      const sp = `mention_${type}_${++savepointCounter}`;
+      try {
+        await context.manager.query(`SAVEPOINT ${sp}`);
+      } catch (err) {
+        this.logger.warn(`searchMentionCandidates: ${type} could not start savepoint: ${(err as Error).message}`);
+        return empty;
+      }
+      try {
+        const result = await run();
+        await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        return result;
+      } catch (err) {
+        try {
+          await context.manager.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        } catch {
+          // ignore
+        }
+        this.logger.warn(
+          `searchMentionCandidates: ${type} failed for query "${input.query}": ${(err as Error).message}`,
+        );
+        return empty;
+      }
+    };
+
+    const results: RankedSearchResult[] = [];
+    for (const type of allowed) {
+      const result = await safeRun(type, () => (
+        type === 'documents'
+          ? this.searchDocumentsForMentions(context, input.query, limit)
+          : this.runEntityTypeSearch(context, type, input.query, limit)
+      ));
+      results.push(result);
+    }
+
+    const total = results.reduce((sum, result) => sum + (result.total || 0), 0);
+    const items = results
+      .flatMap((result) => result.items)
+      .map(({ _score, ...item }: any) => item);
+
+    return {
+      items,
+      total,
+      limit,
+      returned: items.length,
+      complete: false,
+      entity_types: allowed,
+    };
+  }
+
+  /**
+   * Run a single entity_type's search, dispatched to the right per-type helper.
+   * Extracted from searchAll so callers (such as the @-mention picker) can run
+   * per-type searches with their own limits without going through searchAll's
+   * cross-type ranking — that ranking compares incomparable score scales (knowledge
+   * search uses fetchLimit-index, while SQL searches use a 1..4 CASE) and lets
+   * one type swallow all the result slots.
+   */
+  private async runEntityTypeSearch(
+    context: AiExecutionContextWithManager,
+    type: AiSearchEntityType | AiContextEntityType,
+    query: string,
+    fetchLimit: number,
+  ): Promise<RankedSearchResult> {
+    if (type === 'accounts') return this.searchAccounts(context, query, fetchLimit);
+    if (type === 'analytics_categories') return this.searchAnalyticsCategories(context, query, fetchLimit);
+    if (type === 'applications') return this.searchApplications(context, query, fetchLimit);
+    if (type === 'assets') return this.searchAssets(context, query, fetchLimit);
+    if (type === 'business_processes') return this.searchBusinessProcesses(context, query, fetchLimit);
+    if (type === 'capex_items') return this.searchCapexItems(context, query, fetchLimit);
+    if (type === 'chart_of_accounts') return this.searchChartOfAccounts(context, query, fetchLimit);
+    if (type === 'companies') return this.searchCompanies(context, query, fetchLimit);
+    if (type === 'connections') return this.searchConnections(context, query, fetchLimit);
+    if (type === 'contacts') return this.searchContacts(context, query, fetchLimit);
+    if (type === 'contracts') return this.searchContracts(context, query, fetchLimit);
+    if (type === 'departments') return this.searchDepartments(context, query, fetchLimit);
+    if (type === 'interfaces') return this.searchInterfaces(context, query, fetchLimit);
+    if (type === 'locations') return this.searchLocations(context, query, fetchLimit);
+    if (type === 'projects') return this.searchProjects(context, query, fetchLimit);
+    if (type === 'requests') return this.searchRequests(context, query, fetchLimit);
+    if (type === 'spend_items') return this.searchSpendItems(context, query, fetchLimit);
+    if (type === 'suppliers') return this.searchSuppliers(context, query, fetchLimit);
+    if (type === 'tasks') return this.searchTasks(context, query, fetchLimit);
+    if (type === 'users') return this.searchUsers(context, query, fetchLimit);
+    if (type !== 'documents') {
+      throw new BadRequestException('Unsupported entity type.');
+    }
+    const search = await this.knowledge.search(
+      { q: query, limit: fetchLimit, offset: 0 },
+      { manager: context.manager, userId: context.userId },
+    );
+    return {
+      items: (search.items || []).map((item: any, index: number) => ({
+        ...toSummary('documents', {
+          id: item.id,
+          item_number: item.item_number,
+          label: item.title,
+          summary: item.summary ?? null,
+          status: item.status,
+          updated_at: item.updated_at,
+        }, item.snippet ?? item.summary ?? null),
+        _score: fetchLimit - index,
+      })),
+      total: search.total ?? 0,
+    } satisfies RankedSearchResult;
+  }
+
+  /**
+   * Per-type search for callers that want diversity rather than cross-type ranking.
+   * Returns a flat list ordered by entity_type, each type contributing at most
+   * `limitPerType` items. Ideal for the @-mention picker, which groups results by
+   * type visually anyway. Each per-type call is wrapped in a SAVEPOINT so a single
+   * broken query doesn't take down the rest.
+   */
+  async searchByEntityTypes(
+    context: AiExecutionContextWithManager,
+    input: {
+      query: string;
+      entity_types?: AiSearchEntityType[];
+      limitPerType: number;
+    },
+  ): Promise<{
+    groups: Array<{ entity_type: string; items: AiEntitySummaryDto[] }>;
+  }> {
+    const requested = input.entity_types && input.entity_types.length > 0
+      ? input.entity_types
+      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+    const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
+    if (allowed.length === 0) return { groups: [] };
+
+    const limitPerType = Math.min(Math.max(Number(input.limitPerType) || 3, 1), 20);
+    const groups: Array<{ entity_type: string; items: AiEntitySummaryDto[] }> = [];
+
+    for (const type of allowed) {
+      const sp = `pick_${type}`;
+      try {
+        await context.manager.query(`SAVEPOINT ${sp}`);
+      } catch {
+        continue;
+      }
+      try {
+        const result = await this.runEntityTypeSearch(context, type, input.query, limitPerType);
+        await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        const items = result.items.map(({ _score, ...rest }: any) => rest);
+        if (items.length > 0) {
+          groups.push({ entity_type: type, items: items.slice(0, limitPerType) });
+        }
+      } catch (err) {
+        try {
+          await context.manager.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          await context.manager.query(`RELEASE SAVEPOINT ${sp}`);
+        } catch {
+          // ignore
+        }
+        this.logger.warn(
+          `searchByEntityTypes: ${type} failed for query "${input.query}": ${(err as Error).message}`,
+        );
+      }
+    }
+
+    return { groups };
   }
 
   private async getKnowledgeContext(

@@ -1,32 +1,33 @@
 # Carte des connexions
 
-La carte des connexions fournit une visualisation interactive de la topologie de votre réseau d'infrastructure. Les actifs apparaissent comme des nœuds et les connexions comme des arêtes, montrant comment les données circulent au niveau de l'infrastructure. Utilisez-la pour explorer les dépendances, tracer les chemins de connexion et exporter des diagrammes pour la documentation d'architecture.
+La Carte des connexions est une visualisation interactive de la topologie de votre réseau d'infrastructure. Les serveurs, clusters et entités externes apparaissent comme des nœuds ; les connexions entre eux sont les arêtes. Utilisez-la pour explorer les dépendances, tracer les chemins de connexion et exporter des diagrammes pour la documentation d'architecture ou les revues de sécurité.
 
 ## Où la trouver
 
-Naviguez vers **Cartographie SI > Carte des connexions** pour ouvrir la visualisation.
+Rendez-vous dans **Cartographie SI > Carte des connexions** pour ouvrir la visualisation.
 
-**Autorisations** : Vous avez besoin au minimum de `applications:reader` pour voir la carte.
+**Autorisations** : Vous avez besoin d'au moins `applications:reader` pour consulter la carte.
 
 ---
 
 ## Comprendre la visualisation
 
-La carte utilise un graphe à disposition en force où :
-- Les **nœuds** représentent des serveurs, clusters ou entités logiques
-- Les **arêtes** représentent des connexions entre les composants d'infrastructure
-- Les **couleurs** indiquent le type d'hébergement (on-premise, cloud) ou le type de nœud
-- Le **placement par rôle** (activé par défaut) guide les nœuds en bandes de haut en bas selon les niveaux de rôle
+La carte utilise une disposition de graphe à forces dirigées où :
+
+- **Les nœuds** représentent les serveurs, clusters ou entités externes
+- **Les arêtes** représentent les connexions entre composants d'infrastructure
+- **Les couleurs** indiquent le type d'hébergement (sur site, cloud) ou le type de nœud
+- **Le placement basé sur les rôles** (activé par défaut) conserve la disposition à forces mais pousse les nœuds dans des bandes hiérarchiques de haut en bas
 
 ### Types de nœuds
 
 | Type | Forme | Couleur de bordure | Description |
-|------|-------|-------------------|-------------|
-| **Serveurs** | Rectangle arrondi | Vert (on-prem) ou bleu (cloud) | Instances d'infrastructure individuelles (VMs, conteneurs, etc.) |
-| **Clusters** | Rectangle arrondi, bordure en pointillés | Cyan | Groupes de serveurs agissant comme une unité logique unique |
-| **Entités** | Forme pilule / stade | Orange | Points de terminaison logiques (systèmes externes, services SaaS) |
+|------|-------|--------------------|-------------|
+| **Serveurs** | Rectangle arrondi | Vert (sur site) ou bleu (cloud) | Instances d'infrastructure individuelles (VM, conteneurs, etc.) |
+| **Clusters** | Rectangle arrondi, bordure pointillée | Cyan | Groupes de serveurs agissant comme une seule unité logique |
+| **Entités** | Pastille / forme stade | Orange | Points de terminaison logiques (systèmes externes, services SaaS) |
 
-Les membres d'un cluster apparaissent comme des nœuds séparés avec des lignes pointillées les reliant à leur nœud cluster parent.
+Les membres de cluster apparaissent comme des nœuds serveur séparés, avec des lignes indicatrices pointillées les reliant à leur nœud cluster parent.
 
 ---
 
@@ -34,34 +35,37 @@ Les membres d'un cluster apparaissent comme des nœuds séparés avec des lignes
 
 ### Cycle de vie
 
-Filtre multi-sélection pour le statut de cycle de vie des connexions. Choisissez quels statuts inclure dans la visualisation (par ex., Actif, Planifié, Obsolète). Par défaut : **Actif** uniquement.
+Filtre multi-sélection pour le statut de cycle de vie de la connexion (Actif, Planifié, Obsolète, etc.). Par défaut sur **Actif**.
 
-### Applications
+### Applications et environnement d'app
 
-Trouvez des serveurs par les applications qui les utilisent :
-1. Sélectionnez une ou plusieurs applications dans la liste déroulante **Applications**
-2. Sélectionnez des environnements dans la liste déroulante **Env App** (affiche uniquement les environnements où les applications sélectionnées ont des serveurs assignés)
+Trouvez des serveurs via les applications qui s'y exécutent :
+
+1. Sélectionnez une ou plusieurs applications dans le menu déroulant **Applications**
+2. Choisissez les environnements dans le menu déroulant **Env. d'app** (seuls les environnements où les apps sélectionnées ont des serveurs assignés apparaissent)
 3. Les serveurs correspondants sont automatiquement ajoutés au filtre **Serveurs**
 
-Cela est utile lorsque vous souhaitez voir les connexions d'infrastructure pour une application spécifique sans connaître les serveurs sur lesquels elle fonctionne.
+C'est utile lorsque vous voulez voir les connexions d'infrastructure pour une application sans savoir sur quels serveurs elle s'exécute.
 
 ### Serveurs
 
-Sélectionnez directement des serveurs, clusters ou entités à cibler :
-1. Cliquez sur la liste déroulante **Serveurs**
-2. Sélectionnez des éléments (groupés par type : Entités, Clusters, Serveurs)
-3. Utilisez le filtre **Profondeur** pour contrôler le nombre de sauts à afficher
+Choisissez directement les serveurs, clusters ou entités à mettre en avant :
 
-Lorsque vous sélectionnez des éléments ici, une pastille « +N de plus » apparaît si beaucoup sont sélectionnés. Cliquez dessus pour voir et gérer la liste complète.
+1. Cliquez sur le menu déroulant **Serveurs**
+2. Choisissez des éléments (regroupés par **Entités**, **Clusters**, **Serveurs**)
+3. Utilisez le filtre **Profondeur** pour contrôler combien de sauts afficher
+
+Lorsque de nombreux éléments sont sélectionnés, seule la première pastille est affichée avec une pastille **+N de plus**. Cliquez sur **+N de plus** pour ouvrir une popover qui liste tous les éléments sélectionnés, avec une icône de suppression à côté de chacun.
 
 ### Profondeur
 
-Limitez le nombre de « sauts » depuis les serveurs sélectionnés à afficher :
-- **Tous** : Afficher toutes les connexions (pas de filtrage par profondeur)
-- **0** : Afficher uniquement les serveurs sélectionnés, leurs clusters parents et les entités directement adjacentes
-- **1–5** : Afficher les serveurs à N sauts des serveurs sélectionnés
+Limite le nombre de sauts à partir des éléments sélectionnés à afficher :
 
-La profondeur est automatiquement définie à **0** lorsque vous sélectionnez des serveurs via les filtres Applications ou Serveurs.
+- **Tout** : Afficher toutes les connexions (pas de filtrage par profondeur)
+- **0** : Afficher uniquement les éléments sélectionnés, leurs clusters parents et les entités directement adjacentes
+- **1-5** : Afficher les éléments dans un rayon de N sauts des racines sélectionnées
+
+La profondeur bascule automatiquement à **0** lorsque vous sélectionnez des racines via les filtres Applications ou Serveurs.
 
 ---
 
@@ -69,25 +73,23 @@ La profondeur est automatiquement définie à **0** lorsque vous sélectionnez d
 
 ### Afficher les connexions multi-serveurs
 
-Basculer la visibilité des connexions multi-serveurs (connexions impliquant plus de deux serveurs dans une topologie maillée). Activé par défaut.
+Bascule la visibilité des connexions multi-serveurs (connexions impliquant plus de deux serveurs dans une topologie maillée). Activé par défaut.
 
 ### Afficher les couches de connexion
 
-Lorsque activé (par défaut), affiche les segments de connexion individuels comme des arêtes séparées. Cela montre comment une connexion multi-segments route à travers des points intermédiaires. Lorsque désactivé, les connexions sont affichées comme de simples arêtes source-destination.
+Lorsque activé (par défaut), chaque leg d'une connexion multi-leg est rendu comme sa propre arête, vous permettant de voir comment elle est routée à travers les points intermédiaires. Lorsque désactivé, les connexions sont rendues comme de simples arêtes source-vers-destination.
 
-### Placement par rôle
+### Placement basé sur les rôles
 
-Lorsque activé (par défaut), la carte conserve sa disposition en force mais ajoute un guidage vertical par niveaux :
+Lorsque activé (par défaut), la carte conserve sa disposition à forces mais ajoute un guidage hiérarchique vertical :
 
 - Bandes **Haut / Supérieur / Centre / Inférieur / Bas**
-- Les **serveurs** utilisent les affectations de rôle configurées dans les paramètres de la Cartographie SI
-- Les **entités** utilisent leur niveau de graphe configuré (par défaut Haut)
-- Les **serveurs non assignés** tombent par défaut au Centre
-- Les **clusters** héritent du niveau de priorité la plus haute de leurs membres
+- **Les serveurs** utilisent les assignations de rôles configurées dans les paramètres Cartographie SI
+- **Les entités** utilisent leur **Niveau du graphe** configuré (par défaut Haut)
+- **Les serveurs non assignés** retombent au Centre
+- **Les clusters** héritent du niveau de plus haute priorité de leurs membres
 
-Utilisez cette option lorsque vous souhaitez une vue de topologie qui se lit comme des niveaux d'architecture (composants en bordure en haut, stockage de données en bas).
-
-Cette option est valable pour la session uniquement et se réinitialise lorsque vous rechargez la page.
+Utilisez cette bascule lorsque vous voulez une vue de topologie qui se lit comme des niveaux d'architecture (composants en façade en haut, magasins de données en bas). Le paramètre est uniquement par session et se réinitialise au rechargement de la page.
 
 ---
 
@@ -97,64 +99,56 @@ Le panneau de contrôle sur le côté gauche de la carte fournit ces outils :
 
 | Contrôle | Action | Description |
 |----------|--------|-------------|
-| Pause / Lecture | **Geler / Dégeler** | Mettre en pause la simulation de force pour positionner manuellement les nœuds |
-| Réticule | **Auto-centrage** | Activer/désactiver le centrage automatique lors de la sélection de nœuds (bleu = activé) |
+| Pause / Lecture | **Geler / Dégeler** | Mettre en pause la simulation à forces pour positionner manuellement les nœuds |
+| Réticule | **Centrage automatique** | Basculer le centrage automatique lors de la sélection de nœuds (mis en évidence lorsque activé) |
 | Zoom + | **Zoom avant** | Augmenter le niveau de zoom |
 | Zoom - | **Zoom arrière** | Diminuer le niveau de zoom |
 | Grille | **Aligner sur la grille** | Aligner tous les nœuds sur une grille pour des dispositions plus propres |
-| SVG | **Exporter SVG** | Télécharger la vue actuelle comme image vectorielle |
-| PNG | **Exporter PNG** | Télécharger la vue actuelle comme image raster |
+| SVG | **Exporter en SVG** | Télécharger la vue actuelle comme image vectorielle |
+| PNG | **Exporter en PNG** | Télécharger la vue actuelle comme image matricielle |
 
-Vous pouvez également zoomer avec la molette de la souris et faire défiler en cliquant et en faisant glisser le fond.
+Vous pouvez également zoomer avec la molette de la souris et faire un panoramique en cliquant et faisant glisser l'arrière-plan.
 
 ---
 
 ## Interagir avec la carte
 
-### Sélection de nœuds
+### Sélectionner des nœuds
 
-Cliquez sur un nœud serveur ou cluster pour :
-- Mettre en surbrillance ses connexions
-- Ouvrir un panneau de détail avec :
-  - **Type de serveur** : Type de serveur (Web, Base de données, Application, etc.)
-  - **Emplacement du serveur** : Code du site physique ou cloud
-  - **Système d'exploitation** : Détails de l'OS
-  - **Segment réseau** : Zone réseau
-  - **Adresse IP** : Adresse réseau
-  - **Applications assignées** : Applications fonctionnant sur ce serveur, groupées par environnement (cliquable)
+Cliquez sur un nœud serveur ou cluster pour mettre en évidence ses connexions et ouvrir un panneau de détails affichant :
+
+- **Type de serveur**, **Site du serveur**, **Système d'exploitation**, **Segment réseau**, **Adresse IP**
+- **Applications assignées** : Apps s'exécutant sur ce serveur, regroupées par environnement. Cliquez sur un nom d'app pour l'ouvrir.
 - Bouton **Modifier le serveur** ou **Voir le cluster** pour ouvrir l'espace de travail
 
-Cliquez sur un nœud entité pour voir son type et environnement.
+Cliquez sur un nœud entité pour voir son type et son environnement.
 
-### Sélection d'arêtes
+### Sélectionner des arêtes
 
-Cliquez sur une arête de connexion pour :
-- Voir les détails de la connexion :
-  - **Objectif** : À quoi sert la connexion
-  - **Protocoles** : Protocoles réseau utilisés
-  - **Ports typiques** : Numéros de ports attendus
-  - **Criticité** : Importance métier
-  - **Topologie** : Serveur à serveur ou multi-serveurs
+Cliquez sur une arête de connexion pour voir :
+
+- **Objectif**, **Protocoles**, **Ports typiques**, **Criticité**
+- **Topologie** : Serveur à serveur ou Multi-serveur
 - Bouton **Modifier la connexion** pour ouvrir l'espace de travail de la connexion
-- Section **Interfaces liées** montrant quelles interfaces applicatives utilisent cette connexion
-  - Cliquez sur **Ouvrir l'interface** pour voir l'interface
-  - Cliquez sur **Voir dans la carte des interfaces** pour voir l'interface en contexte
+- Section **Interfaces liées** affichant quelles interfaces applicatives utilisent cette connexion. Chaque carte d'interface liée affiche le type de leg, l'environnement, le pattern et les points de terminaison source/cible. Depuis là, vous pouvez :
+  - Cliquer sur **Ouvrir l'interface** pour consulter l'interface
+  - Cliquer sur **Voir dans la Carte des interfaces** pour sauter à l'interface dans son contexte
 
-### Déplacement de nœuds
+### Faire glisser des nœuds
 
-Faites glisser n'importe quel nœud pour le repositionner. Pendant que la simulation est en cours, la disposition s'ajustera autour du nœud déplacé. Lorsque la simulation est gelée, le déplacement déplace le nœud librement sans affecter les autres.
+Faites glisser n'importe quel nœud pour le repositionner. Pendant que la simulation tourne, la disposition s'ajuste autour du nœud déplacé. Lorsque la simulation est gelée, faire glisser déplace le nœud librement sans affecter les autres.
 
 ---
 
-## Liens profonds
+## Liens directs
 
-La carte supporte les paramètres d'URL pour partager des vues spécifiques :
+La carte prend en charge les paramètres URL pour partager des vues spécifiques :
 
 | Paramètre | Description | Exemple |
 |-----------|-------------|---------|
-| `lifecycles` | Pré-sélectionner les filtres de cycle de vie (séparés par des virgules) | `active,planned` |
-| `focusConnectionId` | Mettre en surbrillance une connexion spécifique | UUID |
-| `rootIds` | Pré-sélectionner des serveurs à cibler (séparés par des virgules) | UUIDs |
+| `lifecycles` | Pré-sélectionner les filtres de cycle de vie (séparés par virgules) | `active,planned` |
+| `focusConnectionId` | Mettre en évidence une connexion spécifique | UUID |
+| `rootIds` | Pré-sélectionner serveurs/clusters/entités à mettre en avant (séparés par virgules) | UUIDs |
 | `depth` | Définir la limite de profondeur | `0`, `1`, `all` |
 
 **Exemple** : `/it/connection-map?lifecycles=active&rootIds=abc123&depth=1`
@@ -163,31 +157,31 @@ La carte supporte les paramètres d'URL pour partager des vues spécifiques :
 
 ## Visualisation des clusters
 
-Les clusters sont affichés comme des nœuds distincts avec une bordure cyan en pointillés :
-- Les membres du cluster apparaissent comme des nœuds séparés, connectés à leur cluster parent par des lignes indicatrices en pointillés
-- Lorsque vous filtrez par profondeur=0, les serveurs membres sélectionnés et leurs clusters parents sont affichés
-- Les serveurs membres héritent des connexions du cluster tout en maintenant leurs connexions serveur à serveur individuelles
+Les clusters apparaissent comme des nœuds distincts avec une bordure cyan pointillée :
+
+- Les membres du cluster apparaissent comme des nœuds séparés connectés à leur cluster parent par des lignes indicatrices pointillées
+- Lors du filtrage avec depth=0, à la fois les serveurs membres sélectionnés et leurs clusters parents sont affichés
+- Les serveurs membres conservent leurs propres connexions serveur-à-serveur en plus des connexions du cluster
 
 ---
 
 ## Configurer les niveaux du graphe
 
-Vous pouvez contrôler où les nœuds tendent à apparaître verticalement en éditant les niveaux dans **Cartographie SI > Paramètres** :
+Vous pouvez contrôler où les nœuds tendent à apparaître verticalement en modifiant les niveaux dans **Cartographie SI > Paramètres** :
 
-- Liste des **rôles de serveur** : définir le niveau de graphe pour chaque rôle (par ex., Web = Haut, DB = Bas)
-- Liste des **entités** : définir le niveau de graphe pour chaque type d'entité (les entités sont par défaut en Haut)
+- Liste **Rôles serveur** : définir le Niveau du graphe pour chaque rôle (ex. : Web = Haut, BD = Bas)
+- Liste **Entités** : définir le Niveau du graphe pour chaque type d'entité (les entités sont par défaut au niveau Haut)
 
-Les modifications de niveau prennent effet au prochain chargement des données de la carte.
+Les changements de niveau prennent effet au prochain chargement des données de la carte.
 
 ---
 
 ## Conseils
 
-- **Commencez par les applications** : Utilisez le filtre Applications pour trouver les serveurs d'une application spécifique, puis explorez leurs connexions avec profondeur=1.
-- **Utilisez profondeur=0 pour des vues ciblées** : Lorsque vous ne voulez voir que les connexions entre des serveurs spécifiques, sélectionnez-les et définissez la profondeur à 0.
-- **Exportez pour la documentation d'architecture** : Utilisez l'export SVG pour créer des diagrammes réseau pour la documentation ou les revues de sécurité. L'export PNG produit une image raster haute résolution.
-- **Activez les couches pour le dépannage** : Activez « Afficher les couches de connexion » pour voir exactement comment les connexions multi-segments transitent par votre infrastructure.
-- **Utilisez les niveaux de rôle pour les vues d'architecture** : Gardez le « Placement par rôle » activé lors de la présentation de diagrammes d'architecture en couches.
-- **Recoupez avec la carte des interfaces** : Utilisez le bouton « Voir dans la carte des interfaces » dans le panneau de connexion pour voir quelles interfaces métier dépendent de chaque connexion d'infrastructure.
-- **Alignez pour plus de clarté** : Après avoir positionné les nœuds, utilisez l'alignement sur la grille pour des dispositions plus propres et alignées.
-- **Gelez avant d'exporter** : Gelez la disposition et positionnez manuellement les nœuds avant d'exporter pour le résultat le plus propre.
+- **Partez des applications** : Utilisez les filtres Applications + Env. d'app pour trouver les serveurs d'une application spécifique sans connaître les noms des serveurs.
+- **Utilisez depth=0 pour des vues focalisées** : Lorsque vous ne voulez voir que les connexions directement attachées à des serveurs spécifiques, sélectionnez-les et définissez la profondeur à 0.
+- **Exportez pour la documentation d'architecture** : SVG produit des diagrammes réseau vectoriels adaptés à la documentation ; PNG produit une image matricielle haute résolution.
+- **Activez les couches pour le dépannage** : Activez **Afficher les couches de connexion** pour voir exactement comment les connexions multi-leg sont routées dans votre infrastructure.
+- **Utilisez les niveaux de rôles pour les vues d'architecture** : Gardez **Placement basé sur les rôles** activé lors de la présentation de diagrammes d'architecture en couches.
+- **Recoupez avec la Carte des interfaces** : Utilisez **Voir dans la Carte des interfaces** dans le panneau des interfaces liées pour voir quelles interfaces métier dépendent d'une connexion d'infrastructure donnée.
+- **Alignez et gelez avant d'exporter** : Après avoir positionné les nœuds, gelez la disposition et utilisez **Aligner sur la grille** pour produire la sortie la plus propre.

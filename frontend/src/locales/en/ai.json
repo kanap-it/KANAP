@@ -1,7 +1,17 @@
 {
   "conversationList": {
     "archive": "Archive",
-    "newChat": "New Chat",
+    "dateGroups": {
+      "lastWeek": "Last 7 days",
+      "older": "Older",
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
+    "empty": "No conversations yet",
+    "newChat": "New conversation",
+    "noMatch": "No conversation matches",
+    "rename": "Rename",
+    "search": "Search conversations...",
     "untitled": "Untitled"
   },
   "errors": {
@@ -12,13 +22,43 @@
     "streamRequestFailed": "Stream request failed."
   },
   "input": {
-    "placeholder": "Send a message...",
-    "send": "Send"
+    "attach": "Attach image",
+    "dropHint": "Drop image to attach",
+    "hintEnter": "Enter to send",
+    "hintShiftEnter": "Shift+Enter for new line",
+    "placeholder": "Ask Plaid about your KANAP data...",
+    "removeAttachment": "Remove attachment",
+    "send": "Send",
+    "stop": "Stop generating"
   },
   "messageList": {
+    "assistantRole": "Plaid",
+    "copied": "Copied",
+    "copy": "Copy message",
+    "cancel": "Cancel",
+    "edit": "Edit message",
+    "regenerate": "Regenerate",
+    "save": "Save & resend",
+    "toolCallLabel": "used {{name}}",
+    "toolCallNoResult": "no result",
+    "toolCallResults_one": "{{count}} result",
+    "toolCallResults_other": "{{count}} results",
+    "toolCallStreaming": "calling {{name}}…",
     "toolUseCount_one": "{{count}} tool used",
     "toolUseCount_other": "{{count}} tools used",
-    "toolUseProgress": "Using tools..."
+    "toolUseProgress": "Using tools...",
+    "userRole": "You"
+  },
+  "artifactPanel": {
+    "chipLabel": "Open in panel",
+    "close": "Close panel",
+    "resize": "Resize panel",
+    "tab": "Artifacts",
+    "title": "Artifacts"
+  },
+  "mention": {
+    "noResults": "No matches",
+    "searching": "Searching..."
   },
   "previewCard": {
     "after": "After",
@@ -55,12 +95,19 @@
   },
   "workspace": {
     "empty": {
-      "subtitle": "Ask a question to begin.",
-      "title": "Start a new conversation"
+      "subtitle": "Ask anything about your tasks, projects, assets or documents.",
+      "suggestionsTitle": "Try asking",
+      "title": "Plaid is ready"
     },
     "messages": {
       "disabled": "AI chat is disabled for this workspace."
     },
-    "title": "AI"
+    "suggestions": {
+      "applicationMention": "Summarize @APP-",
+      "knowledgeSearch": "Find documents about backups",
+      "myProjects": "Which projects am I working on?",
+      "overdueTasks": "Show me my overdue tasks"
+    },
+    "title": "Plaid"
   }
 }

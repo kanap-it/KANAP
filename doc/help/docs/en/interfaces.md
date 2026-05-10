@@ -1,26 +1,22 @@
 # Interfaces
 
-Interfaces document the logical data flows between your applications. Unlike direct code connections, an Interface represents a business integration -- the "why" and "what" of data exchange -- independent of the technical implementation. Each Interface can have multiple environment-specific bindings that define the actual endpoints and configurations.
+Interfaces document the logical data flows between your applications. Each interface represents a business integration -- the "why" and "what" of data exchange -- independent of how it is technically implemented. The workspace lets you describe the interface, define the legs that move data through your landscape, configure environment-specific bindings, capture the field-level mapping rules, and link related interfaces, documents, and attachments.
 
 ## Getting started
 
-Navigate to **IT Landscape > Interfaces** to see your integration registry. Click **Add Interface** to create your first entry.
+Navigate to **IT Landscape > Interfaces** to see your integration registry. Click **Add interface** to create a new entry, or open an existing one to edit it.
 
-**Required fields**:
+To create an interface you need:
 
-- **Interface ID**: A unique identifier (e.g., `INT-CRM-ERP-001`)
+- **Interface ID**: A unique short code (e.g., `INT-CRM-ERP-001`)
 - **Name**: A descriptive name for the integration
-- **Business Purpose**: Why this integration exists
-- **Source Application**: Where data originates
-- **Target Application**: Where data flows to
-- **Data Category**: The type of data being transferred
+- **Business purpose**: A short summary of why this integration exists
+- **Source application** and **Target application**
+- **Data category**: The type of data being transferred
 
-**Strongly recommended**:
+Once these are set you can save the interface; the rest of the workspace (Technical, Environments, Mapping, Relations) becomes available afterwards.
 
-- **Business Process**: Which business process this interface supports
-- **Lifecycle**: Current status (Active, Deprecated, etc.)
-
-**Tip**: Start by documenting your production interfaces. Use the Bindings & Connections tab to add environment-specific bindings once the logical interface is defined.
+**Tip**: Set the **Integration route type** (Direct or Via middleware) early. It controls which legs are generated automatically and what shows up on the Technical tab and the Environments matrix.
 
 ---
 
@@ -30,176 +26,192 @@ The Interfaces grid shows your integration registry at a glance.
 
 **Default columns**:
 
-- **Interface ID**: The unique identifier (click to open workspace)
-- **Name**: Interface name (click to open workspace)
-- **Environments**: Colored chips showing which environments have bindings configured (e.g., PROD, QA, DEV)
-- **Source App**: The source application
-- **Target App**: The target application
+- **Interface ID**: The unique identifier (click to open the workspace)
+- **Name**: Interface name
+- **Environments**: Coloured dots showing which environments already have bindings configured (e.g., PROD, QA, DEV)
+- **Source App** and **Target App**: The connected applications
 - **Lifecycle**: Current status
 - **Criticality**: Business importance
 - **Created**: When the record was created
 
 **Additional columns** (via column chooser):
 
-- **Business Process**: Linked business process
-- **Data Category**: Type of data being transferred
+- **Business process**: Linked business process
+- **Data category**: Type of data being transferred
 - **Contains PII**: Whether the interface handles personal data
-- **Env Coverage**: Number of environments with bindings
+- **Env coverage**: Number of environments with at least one binding
 - **Bindings**: Total number of environment bindings
 
 **Filtering**:
 
-- Quick search: Searches across all text columns
-- Column filters: Filter by lifecycle, criticality, data category, business process, contains PII, and more
+- Quick search across all text columns
+- Column filters on lifecycle, criticality, data category, business process, contains PII, integration route, and data classification
 
 **Actions**:
 
-- **Add Interface**: Create a new interface (requires `applications:manager`)
-- **Duplicate Interface**: Create a copy of a selected interface (requires `applications:manager`). Select exactly one row to enable this action. A dialog lets you choose whether to copy environment bindings -- see [Copying interfaces](#copying-interfaces) below.
-- **Delete Selected**: Remove selected interfaces (requires `applications:admin`). A checkbox option lets you also delete related bindings; if unchecked, interfaces with bindings will not be deleted.
+- **Add interface**: Create a new interface (requires `applications:manager`)
+- **Duplicate interface**: Create a copy of a selected interface (requires `applications:manager`). Select exactly one row to enable this action. A dialog lets you choose whether to copy environment bindings -- see [Copying interfaces](#copying-interfaces) below.
+- **Delete selected**: Remove selected interfaces (requires `applications:admin`). A checkbox option lets you also delete related bindings; if unchecked, interfaces with bindings will not be deleted.
 
 ---
 
 ## The Interfaces workspace
 
-Click any row to open the workspace. It has six tabs.
+Click any row to open the workspace. The workspace has a side panel with the interface properties on the left, and five tabs on the right.
 
-### Overview
+### Interface properties (side panel)
 
-The Overview tab captures the interface's identity and business context.
+The side panel stays visible across every tab and groups the most-edited fields into three collapsible sections:
 
-**What you can edit**:
+**Core properties**:
 
-- **Interface ID**: Unique identifier
-- **Name**: Display name
-- **Business Process**: Link to a business process from master data
-- **Business Purpose**: Free-text description of why this integration exists
-- **Source Application** / **Target Application**: The connected apps
-- **Data Category**: The type of data being transferred
-- **Integration Route Type**: Direct or Via Middleware
-- **Middleware Applications**: If the route type is Via Middleware, select the middleware platforms involved (only applications flagged as ETL/middleware appear here)
-- **Lifecycle**: Current status
-- **Overview Notes**: Additional context or summary
+- **Interface ID**, **Name**, **Business purpose** (required)
+- **Business process**: Link to a business process from master data
+- **Lifecycle** and **Criticality**
+- **Source application** and **Target application** (required)
+- **Integration route type**: Direct or Via middleware
+- **Middleware applications**: Only shown when route type is Via middleware. The list is restricted to applications flagged as ETL/middleware.
 
-**Tip**: Data Category and Integration Route Type shape what's available on later tabs. Set them early.
+**Team**:
 
----
+- **Business owners**: Business stakeholders accountable for the integration
+- **IT owners**: Technical team members responsible for maintenance
 
-### Ownership & Criticality
+**Data & Compliance**:
 
-This tab documents who's responsible for the interface and how important it is.
+- **Data category**: The kind of data being transferred
+- **Data classification**: Sensitivity level (Public, Internal, Confidential, Restricted)
+- **Contains PII**: When checked, a **PII description** field appears so you can detail what PII is included
+- **Data residency**: Countries where the data flows (ISO 2-letter codes)
 
-**Business Owners**: Business stakeholders accountable for the integration. Each row shows the user, their last name, first name, and job title (read-only, pulled from the user record). Add or remove rows as needed.
-
-**IT Owners**: Technical team members responsible for maintenance. Same layout as business owners.
-
-**Criticality & Impact**:
-
-- **Criticality**: Business critical, High, Medium, or Low
-- **Impact of Failure**: Free-text description of what happens if this interface goes down
-
-**Impacted Companies**: Which companies or legal entities are affected by this interface. Select from your master data.
+Field changes in the side panel are saved automatically when you leave the field, so you can update properties from any tab without switching context.
 
 ---
 
-### Functional Definition
+### Specification
 
-The Functional Definition tab captures the business logic of the integration.
+The Specification tab is a managed rich-text document where you describe the interface end to end -- business context, scope, contract, examples. It is the primary narrative document for the interface.
 
-**What you can document**:
-
-- **Business Objects**: What data entities are transferred (free text)
-- **Main Use Cases**: Primary scenarios this interface supports
-- **Functional Rules**: High-level business rules governing the data flow
-- **Key Identifiers**: Source and destination identifier mappings. Each row maps a source identifier to a destination identifier, with optional notes. Use this to document cross-system ID relationships (e.g., SAP Material Number maps to CRM Product ID).
-- **Dependencies**: Upstream and downstream interfaces that this flow depends on. Select other interfaces from your registry.
-- **Functional Documentation Links**: Add URLs to external documentation (Confluence, SharePoint, etc.)
-- **Functional Attachments**: Upload specification documents directly
+**Tip**: Use this tab as your single source of truth for prose. Mapping rules and technical legs live in the dedicated tabs below; keep this document focused on intent, scope, and the human-readable summary.
 
 ---
 
-### Technical Definition
+### Technical
 
-The Technical Definition tab defines how the integration works at a technical level.
+The Technical tab defines the shared **legs** that make up the interface. Legs are templates: they describe what each step does in general (the same definition applies across every environment).
 
-**Legs template**: A table defining the data flow legs (Extract, Transform, Load, or Direct). Each leg specifies:
+For each leg you can edit:
 
-- **Leg type**: EXTRACT, TRANSFORM, LOAD, or DIRECT
-- **From / To**: Which role handles each step (Source app, Target app, or Middleware)
-- **Trigger Type**: What initiates this leg (e.g., scheduled, event-driven, manual)
+- **Leg type**: EXTRACT, TRANSFORM, LOAD, or DIRECT (set automatically based on the integration route)
+- **From -> To**: Which role handles each step (Source app, Target app, or Middleware)
+- **Trigger type**: What initiates this leg (e.g., scheduled, event-driven, manual)
 - **Pattern**: The integration pattern (e.g., batch, real-time, pub/sub)
 - **Format**: The data format (e.g., JSON, XML, CSV, flat file)
-- **Job Name**: An optional job or process name
+- **Job name**: An optional default job or process name
 
-Legs are templates shared across all environments. The actual endpoints and credentials go in the Bindings & Connections tab.
-
-**Additional fields**:
-
-- **Core Transformations (summary)**: How data is transformed between source and target
-- **Error Handling (summary)**: How errors are managed and escalated
-
-**Documentation**:
-
-- **Technical Documentation Links**: Add URLs to technical specs
-- **Technical Attachments**: Upload technical documents
-
-**Tip**: If no legs appear, make sure you've selected source and target applications and an integration route type on the Overview tab. Legs are generated automatically from the route type.
+If no legs appear yet, save the interface first. Legs are generated from the **Source application**, **Target application**, and **Integration route type** in the side panel.
 
 ---
 
-### Bindings & Connections
+### Environments
 
-This tab manages environment-specific bindings. It presents a matrix of environments and legs, letting you configure each combination independently.
+The Environments tab manages the per-environment bindings that turn the leg templates into actual configurations. It presents a matrix of environments and legs, letting you configure each combination independently.
 
 **How it works**:
 
 - Each environment (Prod, Pre-prod, QA, Test, Dev, Sandbox, or custom) can have bindings for each leg
-- Environments are discovered automatically from your application instances, or you can add custom environments
+- Environments are discovered automatically from your application instances; you can also add custom environments
 - Click an empty cell to create a binding, or click an existing one to edit it
 
 **Binding fields**:
 
-- **Source Instance** / **Target Instance**: Which application instances to use in this environment
+- **Source instance** and **Target instance**: Which application instances to use in this environment
 - **Status**: Enabled, Disabled, or Testing
-- **Source Endpoint** / **Target Endpoint**: Technical endpoints (URLs, paths, queue names, etc.)
-- **Trigger Details**: Environment-specific trigger configuration
-- **Env Job Name**: Override the template job name for this environment
-- **Authentication Mode**: How the binding authenticates
+- **Source endpoint** and **Target endpoint**: Technical endpoints (URLs, paths, queue names, etc.)
+- **Trigger details**: Environment-specific trigger configuration
+- **Env job name**: Override the leg template's job name for this environment
+- **Authentication mode**: How the binding authenticates
 - **Monitoring URL**: Link to monitoring or observability for this binding
-- **Integration Tool Application**: If applicable, the integration tool used
-- **Env Notes**: Environment-specific notes
+- **Integration tool application**: If applicable, the integration tool used
+- **Env notes**: Environment-specific notes
 
-**Connection linking**: Each binding can be linked to infrastructure connections from your connection registry. This lets you trace the full path from logical interface to physical network connections.
+**Connection linking**: Each binding can be linked to infrastructure connections from your connection registry. This lets you trace the full path from logical interface down to the physical network connection.
 
 ---
 
-### Data & Compliance
+### Mapping
 
-The Data & Compliance tab captures data protection and security information.
+The Mapping tab is where you describe how source fields turn into target fields. It is organised around two concepts:
 
-**What you can edit**:
+- **Mapping rules** describe a single mapping decision -- one or more source fields, one or more target fields, an operation (direct copy, transform, lookup, split, merge, filter, default value, or a custom operation), and optional condition / business / middleware notes.
+- **Mapping groups** are folders that organise the rules into themed sections (for example "Header", "Customer block", "Line items", "Footer"). Rules can be assigned to a group or left ungrouped. Two baseline groups, **Head** and **Item**, are always present; you can add more.
 
-- **Data Classification**: Sensitivity level (Public, Internal, Confidential, Restricted)
-- **Contains PII**: Whether personal data is transferred. When checked, a **PII Description** field appears for you to detail what PII is included.
-- **Typical Data**: Description of a typical data payload
-- **Audit & Logging**: How the interface is audited
-- **Security Controls (summary)**: Security measures in place
-- **Data Residency**: Comma-separated ISO 2-letter country codes where data flows (e.g., FR, DE, US)
+The tab works on the interface's **default mapping set**. The header bar shows the set name, the current revision number, the rule and group counts.
+
+**Filtering rules**:
+
+Use the **Group view** dropdown above the rules table to focus on:
+
+- **All rules** (default)
+- **Ungrouped** rules (with the count)
+- A specific group (showing the order, title, and rule count)
+
+**Managing groups**:
+
+Click **Manage groups** to open the group manager. From there you can:
+
+- Add a new group (title, optional description, order)
+- Edit an existing group
+- Delete a non-baseline group (rules assigned to it move to Ungrouped)
+
+The **Head** and **Item** baseline groups can be selected but not edited or deleted.
+
+**Adding or editing a rule**:
+
+Click **Add rule** or click any rule row to open the rule drawer on the right. Rule fields:
+
+- **Rule title** (required) and optional **Rule key** (a stable technical identifier for exports or downstream systems)
+- **Group**: Assign to a group or leave Ungrouped
+- **Source field(s)**: One row per source binding. Each row has a **path** (e.g., `origin.customerId`) and an optional **type** (string, number, date, etc., or any free-text descriptor). Use multiple rows to model 1:N or N:1 mappings.
+- **Target field(s)**: Same structure, one row per destination binding
+- **Operation**: Direct copy, Transform, Lookup, Split, Merge, Filter, Default value, or **Other** (with a free-text label)
+- **Applies to leg**: Restrict the rule to a specific leg (e.g., only the EXTRACT leg) or leave as **All legs**
+- **Order**: Display order within the group
+- **Condition**: When the rule applies
+- **Business rule**: Plain-language explanation of the business logic
+- **Middleware / transformation note**: Implementation notes for the middleware or ETL team
+- **Remarks**: Anything else worth noting
+
+The mapping table summarises each rule by listing the source bindings, an arrow, and the target bindings, plus the operation, the group it belongs to, and the leg scope. Click a row to edit it, or use the row's icons to edit or delete.
+
+**Tip**: Keep one rule per logical decision rather than one rule per field. A rule that takes three source fields and produces one concatenated target field is clearer than three near-identical rows -- and the operation field makes the intent explicit.
+
+---
+
+### Relations
+
+The Relations tab gathers the links from this interface to other things.
+
+- **Interface dependencies**: Upstream and downstream interfaces. Use these to document orderings such as "Order Sync must run before Invoice Sync".
+- **External URLs**: Links to documentation in Confluence, SharePoint, etc. Add a description and a URL; the open-in-new-tab icon takes you straight to the link.
+- **Attachments**: Drag and drop files into the upload area or use **Select files** to attach specification documents directly to the interface. Click an attachment chip to download it; click the trash icon to delete it (requires manager rights).
+
+A Knowledge section is reserved for future cross-entity knowledge linking; it currently shows an informational placeholder.
 
 ---
 
 ## Copying interfaces
 
-There are two ways to copy interfaces in KANAP:
+There are two ways to copy interfaces in KANAP.
 
-### Duplicate Interface (from Interfaces page)
+### Duplicate Interface (from the Interfaces grid)
 
-Use this when you want to create an independent copy of an interface -- typically to create a similar interface between the same or different applications.
+Use this when you want an independent copy of an interface -- typically to create a similar integration between the same or different applications.
 
 1. Select an interface in the grid
-2. Click **Duplicate Interface**
+2. Click **Duplicate interface**
 3. Choose whether to copy environment bindings:
-   - **Without bindings**: Creates a clean copy -- just the interface definition, legs, owners, and metadata
+   - **Without bindings**: A clean copy -- just the interface definition, legs, owners, and metadata
    - **With bindings**: Also copies environment bindings, but clears environment-specific details (endpoints, authentication, job names) so you can configure them fresh
 
 **What gets copied**:
@@ -207,18 +219,19 @@ Use this when you want to create an independent copy of an interface -- typicall
 | Data | Copied |
 |------|--------|
 | Interface definition (name, apps, route type) | Yes |
-| Legs (extract/transform/load/direct) | Yes |
+| Legs (extract / transform / load / direct) | Yes |
 | Middleware applications | Yes |
-| Owners (business & IT) | Yes |
+| Owners (business and IT) | Yes |
 | Impacted companies | Yes |
 | Dependencies | Yes |
 | Key identifiers | Yes |
-| Links (documentation) | Yes |
+| External URL links | Yes |
 | Data residency | Yes |
 | Bindings | Optional |
+| Mapping groups and rules | No |
 | Attachments | No |
 
-**Naming**: The copy gets " - copy" appended to both name and Interface ID.
+**Naming**: The copy gets " - copy" appended to both the name and the Interface ID.
 
 ### Version Migration (from Application versioning)
 
@@ -231,20 +244,19 @@ Use this when upgrading an application to a new version and you need to migrate 
 | Purpose | Create independent copy | Migrate to new app version |
 | App references | Unchanged | Updated to new version |
 | Middleware references | Unchanged | Updated if app is middleware |
-| Dependencies* | Copied | Not copied |
+| Dependencies | Copied | Not copied |
 | Bindings | Optional (instances unchanged) | Optional (instances mapped to new app) |
 | Lifecycle | Preserved | Reset to Proposed |
 | Name suffix | " - copy" | " (new version)" |
-
-*Dependencies are upstream/downstream interface relationships (e.g., "Order Sync must run before Invoice Sync").
 
 ---
 
 ## Tips
 
-- **Document the "why" first**: Focus on business purpose before technical details. Technical specs can come later.
-- **Use environment bindings**: Don't create separate interfaces for each environment -- use one interface with multiple bindings.
-- **Link to business processes**: Connecting interfaces to business processes helps with impact analysis.
-- **Keep middleware explicit**: If data flows through middleware, model it explicitly with the Via Middleware route type to see the true data path.
-- **Use duplicate for similar interfaces**: When creating a new interface that's similar to an existing one, use **Duplicate Interface** to copy all settings, then modify what's different. Optionally include bindings to get a head start on environment configuration.
-- **Track cross-system IDs**: Use Key Identifiers on the Functional Definition tab to map how records are identified across source and target systems.
+- **Document the "why" first**: Use the Specification tab and the side-panel **Business purpose** field to capture intent before diving into legs and bindings.
+- **Use the side panel from any tab**: Owners, criticality, route type, PII flag and the rest persist immediately, so you can update them while reviewing rules or bindings.
+- **One interface, many environments**: Don't create separate interfaces for each environment -- use one interface and configure each environment in the Environments tab.
+- **Group your mapping rules**: For interfaces with more than a handful of fields, organise rules into mapping groups (Header, Item lines, Footer, etc.). It makes review and impact analysis far easier.
+- **Keep middleware explicit**: If data flows through middleware, set route type to **Via middleware** and pick the middleware applications. The Interface Map will then render the real data path.
+- **Duplicate for similar interfaces**: When creating a new interface that's similar to an existing one, use **Duplicate interface** to copy all settings, then modify what's different. Optionally include bindings to get a head start on environment configuration.
+- **Link bindings to infra connections**: On the Environments tab, link each binding to its underlying infrastructure connection so you can trace the full path from business interface down to network connection.

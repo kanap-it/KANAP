@@ -36,19 +36,23 @@ Your scope choice is remembered. If you open a request from the list and come ba
 
 The standard grid highlights the fields that matter during intake and review:
 
-- **#**
-- **Request Name**
-- **Priority**
-- **Status**
-- **Source**
-- **Category**
-- **Stream**
-- **Company**
-- **Requestor**
-- **Target Date**
-- **Created**
+| Column | What it shows |
+|--------|---------------|
+| **#** | Reference number (e.g., REQ-42). Click to open the workspace |
+| **Request Name** | The request name |
+| **Priority** | Calculated priority score |
+| **Status** | Current intake state |
+| **Source** | Portfolio source classification |
+| **Category** | Portfolio category |
+| **Stream** | Portfolio stream |
+| **Company** | Company classification |
+| **Requestor** | Person who raised the request |
+| **Target Date** | Requested target delivery date |
+| **Created** | When the request was created |
 
-Additional columns, such as **Last changed**, can be surfaced through grid preferences when needed.
+**Additional columns** (hidden by default):
+
+- **Last changed**: When the request was last updated
 
 ### Filtering behavior
 
@@ -63,14 +67,14 @@ Additional columns, such as **Last changed**, can be surfaced through grid prefe
 
 ## The Request workspace
 
-The current workspace uses a split model:
+The workspace uses a split model:
 
-- The main area is for narrative, analysis, scoring, activity, and knowledge.
-- The right-hand property sidebar is for stable request metadata, team assignment, and relations.
+- The main area holds the operational tabs: **Summary**, **Analysis**, **Scoring**, **Relations**, and **Knowledge**.
+- A persistent **Properties** drawer on the right edge holds stable request metadata, team assignment, and resulting projects. Open or close it using the vertical tab on the right edge.
 
 This matters because not everything is saved the same way:
 
-- Changes in the **property sidebar** are applied directly to the request.
+- Changes in the **Properties drawer** are applied immediately.
 - Changes in **Summary**, **Analysis**, and **Scoring** are workspace edits and use **Save** / **Reset**.
 - The managed documents **Purpose** and **Risks & Mitigations** also use the workspace save flow.
 
@@ -79,24 +83,23 @@ If you create a new request, KANAP starts on **Summary**. The other tabs become 
 The workspace header gives you operational context without leaving the page:
 
 - a copyable request reference such as `REQ-42`
-- the current status
-- the origin task when the request was created from task work
+- a metadata strip with **Status**, **Score**, **Requestor**, **IT owner**, **Target Delivery Date**, and (when applicable) the **Source Task** the request was created from
 - **Send link** for sharing
+- **Convert to Project** when the request is **Approved** or **Converted**
+- **Delete** for administrators (when the request is not yet converted)
 - previous/next navigation based on the exact list context you came from
 
-### Property sidebar mental model
+### Properties drawer
 
-Treat the sidebar as the request's structural backbone.
+Treat the drawer as the request's structural backbone. It contains three groups.
 
-#### Core Properties
-
-This section holds the identity and classification of the request:
+#### Core properties
 
 - Request Name
 - Status
-- Source, Category, and Stream
+- Source, Category, Stream
 - Requestor
-- Company and Department
+- Company, Department
 - Target Delivery Date
 
 These fields shape how the request is routed, filtered, and reviewed elsewhere in the workspace. For example:
@@ -107,41 +110,28 @@ These fields shape how the request is routed, filtered, and reviewed elsewhere i
 
 #### Team
 
-The Team section assigns responsibility rather than just keeping a contact list:
+Team assignment names accountability rather than just keeping a contact list:
 
-- Business Sponsor
-- Business Lead
-- IT Sponsor
-- IT Lead
-- Business Contributors
-- IT Contributors
+- **Business Sponsor**
+- **Business Lead**
+- **IT Sponsor**
+- **IT Lead**
+- **Business Contributors**
+- **IT Contributors**
 
 These assignments drive shared visibility and make it clear who is expected to sponsor, shape, and deliver the request. Summary uses this data to show whether the request has enough named ownership to move forward sensibly.
 
-#### Relations
+#### Resulting Projects
 
-Relations explain how the request fits into the wider portfolio:
+A read-only list of the projects produced from this request after conversion. Click an entry to navigate to the project workspace.
 
-- **Dependencies** identify work that must exist, finish, or remain aligned before this request can succeed.
-- **Resulting Projects** show what was created from the request after conversion.
+For dependencies and other relation types, see the **Relations** tab.
 
-This section is important for impact analysis. A request with weak relation data may look harmless until it collides with existing work.
-
-Older bookmarks may still point to `overview`, `team`, or `relations`. In the current workspace, that content lives in **Summary** and the property sidebar.
+Older bookmarks may still point to `overview`, `team`, or `relations`. The current workspace places this content under **Summary**, the Properties drawer, and the **Relations** tab.
 
 ## Summary
 
 **Summary** is the request cockpit. It is not a simple overview tab; it is where KANAP compresses the state of the request into an operational snapshot.
-
-Summary includes:
-
-- **Status Snapshot**, including current status, current priority, linked business processes, and latest activity
-- **Analysis Snapshot**, including the strongest feasibility signal and the latest analysis recommendation
-- **Team and Knowledge**, including role coverage, contributor count, origin task, and linked knowledge counts
-- the managed **Purpose** document
-- a **Recent Activity** feed
-
-Use Summary when you need to understand whether the request is merely recorded or actually ready to be discussed, scored, and converted.
 
 ### Purpose as a managed document
 
@@ -150,18 +140,20 @@ The **Purpose** section is a managed markdown document embedded directly in the 
 - it gives reviewers a stable statement of intent
 - it is available during request-to-project conversion
 - it can be edited by users with `portfolio_requests:member`, even if they do not manage the rest of the request
-- it supports **DOCX import** so you can bring in existing Word documents directly, and **export** to download the current content
+- it supports **DOCX import** so you can bring in existing Word documents directly, and **export** to download the current content as PDF, DOCX, or ODT
 
 That split is deliberate. It allows subject-matter contributors to improve the request narrative without opening full control over status, scoring, and portfolio structure.
 
-## Activity
+### Activity
 
-**Activity** separates discussion from audit trail:
+Below Purpose, the Summary tab includes the request activity stream:
 
-- **Comments** is the collaboration stream
-- **History** is the change log
+- **Comments** for discussion, contextual notes, and formal decisions
+- **History** for the audit trail of field and status changes
 
-### Comments
+This places the latest activity directly in front of reviewers without requiring them to navigate to a separate tab.
+
+#### Comments
 
 Comments support normal discussion, but they also support **formal decisions**. A formal decision can capture:
 
@@ -170,11 +162,11 @@ Comments support normal discussion, but they also support **formal decisions**. 
 - the rationale
 - an optional status change in the same action
 
-That combination is important. It keeps governance traceable: the record of *why* something changed stays attached to the change instead of being reconstructed later from memory and optimism.
+That combination keeps governance traceable: the record of *why* something changed stays attached to the change instead of being reconstructed later from memory and optimism.
 
 Comments support markdown and inline images, which is useful for design notes, evidence, screenshots, and review material.
 
-### History
+#### History
 
 History is the audit view. Use it when you need to answer questions such as:
 
@@ -201,7 +193,17 @@ Link the business processes touched by the request. This changes the meaning of 
 
 ### Feasibility Review
 
-The feasibility review is a structured assessment across seven dimensions. Each dimension can be assessed with a concern level and supporting notes.
+The feasibility review is a structured assessment across seven dimensions:
+
+- Technical Feasibility
+- Integration Compatibility
+- Infrastructure Needs
+- Security & Compliance
+- Resource Skills
+- Delivery Constraints
+- Change Management
+
+Each dimension can be assessed with a concern level (**Not Assessed**, **No Concerns**, **Minor Concerns**, **Major Concerns**, **Blocker**) and supporting notes.
 
 Use this section to expose delivery friction early:
 
@@ -212,7 +214,7 @@ The Summary tab surfaces the strongest concern level from this review so major i
 
 ### Risks & Mitigations
 
-**Risks & Mitigations** is another managed markdown document. Use it to document residual risk, mitigation actions, and ownership. Like Purpose, it can be edited by users with `portfolio_requests:member` and supports **DOCX import** for bringing in existing Word documents as well as **export**.
+**Risks & Mitigations** is another managed markdown document. Use it to document residual risk, mitigation actions, and ownership. Like Purpose, it can be edited by users with `portfolio_requests:member` and supports **DOCX import** for bringing in existing Word documents as well as export.
 
 This is useful when the people best placed to describe the risks are not the same people who should be changing request status or portfolio structure.
 
@@ -225,6 +227,7 @@ That means Analysis is not an isolated note-taking area. It is part of the gover
 - reviewers can see the latest recommendation directly in Analysis
 - the same recommendation appears in Activity as a decision record
 - optional status changes stay tied to the recommendation that justified them
+- a **View in Activity** shortcut jumps directly to the recommendation in the Summary activity feed
 
 Older requests may also show a **Previous Analysis (Legacy)** section. That content is retained for continuity, but the current request model relies on feasibility review, managed risks, and formal recommendations.
 
@@ -244,9 +247,25 @@ Where enabled by portfolio settings, mandatory bypass rules can force top priori
 
 Once a request is **Converted**, scoring becomes read-only. At that point the request has already done its job as an intake and prioritization record.
 
+## Relations
+
+The **Relations** tab brings together the links that explain how the request connects to the rest of the portfolio. The tab badge shows the count of related items.
+
+### Dependencies
+
+Dependencies identify work that must exist, finish, or remain aligned before this request can succeed. Use the search field to find and add a related item; remove links you no longer want with the chip's delete icon.
+
+A request with weak dependency data may look harmless until it collides with existing work.
+
+### Other relations
+
+Below dependencies, the Relations tab also lets you maintain other portfolio links — for example, related requests, related projects, or other connected business and technical objects. Each relation is autosaved.
+
+For the projects produced from this request after conversion, see the **Resulting Projects** group in the Properties drawer.
+
 ## Knowledge
 
-The **Knowledge** tab connects the request to standalone knowledge documents. It is not just an attachments shelf with better posture.
+The **Knowledge** tab connects the request to standalone knowledge documents. The tab badge shows the count of related knowledge documents.
 
 The tab distinguishes between two kinds of knowledge:
 
@@ -278,7 +297,7 @@ Use managed documents for core request narrative that should always travel with 
 
 ## Converting a request to a project
 
-Once a request reaches **Approved**, the workspace offers **Convert to Project**.
+Once a request reaches **Approved**, the workspace offers **Convert to Project** in the header.
 
 The conversion flow lets you:
 
@@ -290,7 +309,7 @@ The conversion flow lets you:
 After conversion:
 
 - the request becomes a durable intake and decision record
-- the resulting project appears in the request's Relations section
+- the resulting project appears in the request's **Resulting Projects** group
 - scoring is frozen on the request
 - the request can still be opened for audit, context, and knowledge tracing
 
@@ -308,3 +327,4 @@ Use export when you need portfolio reporting or offline enrichment. Use import w
 - **Scope filters stick**: KANAP remembers your last scope choice, so you do not need to re-select it every session.
 - **Converted requests are hidden by default**: If you are looking for a request that was already converted to a project, add **Converted** to the Status filter on the list.
 - **Member permission for contributors**: Give subject-matter experts `portfolio_requests:member` so they can edit Purpose and Risks & Mitigations without being able to change status, scoring, or portfolio structure.
+- **From task to request**: When a task reveals a larger initiative, use **Convert to Request** from the task workspace. The new request inherits the task's title, description (as Purpose), classification, and attachments, and shows the **Source Task** in its header.

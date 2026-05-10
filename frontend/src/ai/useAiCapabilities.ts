@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
+import { useFeatures } from '../config/FeaturesContext';
+import { useTenant } from '../tenant/TenantContext';
 
 export type AiSurfaceCapability = {
   feature_enabled: boolean;
@@ -33,15 +35,29 @@ export type AiCapabilities = {
 };
 
 export function useAiCapabilities() {
-  const { token, isAuthenticating } = useAuth();
+  const { token, isAuthenticating, profile, claims } = useAuth();
+  const { isPlatformHost } = useTenant();
+  const { config, isLoading: featuresLoading } = useFeatures();
+  const userId = profile?.id ?? null;
+  const aiFeatureEnabled =
+    config.features.aiChat ||
+    config.features.aiMcp ||
+    config.features.aiSettings;
 
   return useQuery<AiCapabilities, any>({
-    queryKey: ['ai-capabilities'],
+    queryKey: ['ai-capabilities', userId],
     queryFn: async () => {
       const res = await api.get('/ai/capabilities');
       return res.data;
     },
-    enabled: !!token && !isAuthenticating,
+    enabled:
+      !!token &&
+      !isAuthenticating &&
+      !!claims &&
+      !!userId &&
+      !featuresLoading &&
+      !isPlatformHost &&
+      aiFeatureEnabled,
     staleTime: 30_000,
     retry: false,
   });

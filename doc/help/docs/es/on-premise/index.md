@@ -4,19 +4,19 @@ KANAP puede desplegarse de forma local en **modo de inquilino único**. Usted pr
 
 ## Guías
 
-- **[Instalación](installation.md):** Clonar, construir, configurar e iniciar
-- **[Ejemplo de instalación](installation-example.md):** Guía paso a paso en Ubuntu 24.04 con PostgreSQL, MinIO y nginx
-- **[Instalación asistida por IA](installation-ai.md):** Instalación con un solo prompt usando un agente de programación con IA
+- **[Instalación](installation.md):** Clonar, compilar, configurar e iniciar
+- **[Ejemplo de instalación](installation-example.md):** Tutorial paso a paso en Ubuntu 24.04 con PostgreSQL, MinIO y nginx
+- **[Instalación asistida por IA](installation-ai.md):** Instalación con un solo prompt mediante un agente de programación con IA
 - **[Configuración](configuration.md):** Referencia de variables de entorno
-- **[Operaciones](operations.md):** Actualizaciones, copias de seguridad, monitorización, solución de problemas
+- **[Operaciones](operations.md):** Actualizaciones, copias de seguridad, monitorización, resolución de problemas
 - **[SSO con Microsoft Entra](sso-entra.md):** Inicio de sesión único opcional con Microsoft Entra ID
 
-## Qué incluye
+## Qué se incluye
 
 - Funcionalidad completa de la aplicación (presupuestos, contratos, portafolio, operaciones IT, informes)
-- Migraciones de base de datos automáticas al iniciar
+- Migraciones automáticas de la base de datos al iniciar
 - Aprovisionamiento en el primer arranque (espacio de trabajo, usuario administrador, suscripción)
-- Autenticación local con nombre de usuario/contraseña (sin dependencias externas)
+- Autenticación local mediante usuario/contraseña (sin dependencias externas)
 - Correo electrónico opcional vía API de Resend o SMTP gestionado por el cliente
 - SSO opcional con Microsoft Entra
 
@@ -24,11 +24,11 @@ KANAP puede desplegarse de forma local en **modo de inquilino único**. Usted pr
 
 - **Facturación / Stripe:** Deshabilitado automáticamente (no se necesita gestión de suscripciones)
 - **Administración de plataforma:** Solo inquilino único, sin superficies de gestión multi-inquilino
-- **Endpoints de prueba / facturación de soporte:** No aplicables a despliegue local
+- **Endpoints de prueba / facturación de soporte:** No aplicables al despliegue local
 
 ## Notas rápidas
 
-- `DEPLOYMENT_MODE=single-tenant` es el único interruptor que activa el modo local.
-- `APP_BASE_URL` debe coincidir con su URL pública para enlaces de correo y exportaciones.
-- Para correo saliente, elija **Resend** o **SMTP**. SMTP está destinado únicamente a despliegues de inquilino único/locales.
-- El backend retorna respuestas estructuradas `FEATURE_DISABLED` para funcionalidades deshabilitadas — la interfaz las oculta automáticamente.
+- `DEPLOYMENT_MODE=single-tenant` es el único conmutador que activa el modo local.
+- `APP_BASE_URL` debe coincidir con su URL pública para los enlaces de correo y las exportaciones.
+- Para correo saliente, elija **Resend** o **SMTP**. SMTP está pensado solo para despliegues de inquilino único / locales.
+- El backend devuelve respuestas estructuradas `FEATURE_DISABLED` para las funciones deshabilitadas — la interfaz las oculta automáticamente.

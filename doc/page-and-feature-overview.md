@@ -83,7 +83,7 @@ Behavior
 
 ### Public/Auth Pages
 - `/login` (public) surfaces both the email/password form and a **Sign in with Microsoft** CTA on tenant hosts. When redirected back with `?sessionExpired=true`, it shows “Your session has expired. Please sign in again.” once, and clears that state on a new sign-in attempt.
-- `/login/callback` (public) reads auth payload from the URL fragment (`#token=...&refreshToken=...&expiresIn=...`) and calls `AuthContext.login(...)`, then navigates with history replacement so token fragments do not remain in browser history. If the payload is missing or invalid it redirects back to `/login` with error state.
+- `/login/callback` (public) reads either an Entra handoff (`#handoff=...`) or the legacy token payload from the URL fragment. Handoff callbacks are redeemed through `/auth/entra/session` on the tenant host so the backend can set the `HttpOnly` refresh cookie before `AuthContext.login(...)` navigates with history replacement. If the payload is missing or invalid it redirects back to `/login` with error state.
 
 Supporting infrastructure:
 - `frontend/src/components/Layout.tsx` drives the Budget Management/Admin workspace toggle, left navigation, and permission-aware menu (`hasLevel`).

@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Logger, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Logger, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -11,7 +11,7 @@ import { withTenant } from '../common/tenant-runner';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { resolveTenantAppBaseUrl } from '../common/url';
-import { isSecureRequest, parseCookieValue, setRefreshTokenCookie } from './auth-cookie.util';
+import { isSecureRequest, setRefreshTokenCookie } from './auth-cookie.util';
 
 @Controller('auth/entra')
 export class EntraController {
@@ -28,7 +28,7 @@ export class EntraController {
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequireLevel('users', 'admin')
   @Post('setup/start')
-  async startSetup(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+  async startSetup(@Req() req: any) {
     if (req?.isPlatformHost) {
       throw new BadRequestException('Entra setup is not available on the platform admin host');
     }
@@ -37,21 +37,12 @@ export class EntraController {
       throw new BadRequestException('TENANT_REQUIRED');
     }
 
-    const { url, nonce } = await this.entra.buildAuthorizationUrl({
+    const { url } = await this.entra.buildAuthorizationUrl({
       mode: 'setup',
       tenantId: tenantMeta.id,
       redirectTo: '/admin/auth',
     });
 
-    const secureCookie = (process.env.APP_ENV || '').toLowerCase() === 'production'
-      || (process.env.NODE_ENV || '').toLowerCase() === 'production';
-
-    res.cookie('entra_nonce', nonce, {
-      httpOnly: true,
-      secure: secureCookie,
-      sameSite: 'lax',
-      maxAge: 10 * 60 * 1000,
-    });
     return { url };
   }
 
@@ -59,7 +50,7 @@ export class EntraController {
   @RequireLevel('users', 'admin')
   @Get('setup/start')
   async startSetupGet(@Req() req: any, @Res() res: Response) {
-    const result = await this.startSetup(req, res as any);
+    const result = await this.startSetup(req);
     // For direct browser GET, perform a redirect for convenience
     if (result && (result as any).url) {
       res.redirect((result as any).url);
@@ -91,20 +82,10 @@ export class EntraController {
       ? redirectToRaw
       : '/';
 
-    const { url, nonce } = await this.entra.buildAuthorizationUrl({
+    const { url } = await this.entra.buildAuthorizationUrl({
       mode: 'login',
       tenantId: tenant.id,
       redirectTo,
-    });
-
-    const secureCookie = (process.env.APP_ENV || '').toLowerCase() === 'production'
-      || (process.env.NODE_ENV || '').toLowerCase() === 'production';
-
-    res.cookie('entra_nonce', nonce, {
-      httpOnly: true,
-      secure: secureCookie,
-      sameSite: 'lax',
-      maxAge: 10 * 60 * 1000,
     });
 
     res.redirect(url);
@@ -112,22 +93,9 @@ export class EntraController {
 
   @Get('callback')
   async callback(@Req() req: any, @Res() res: Response) {
-    const nonce = parseCookieValue(req.headers?.cookie as string | undefined, 'entra_nonce');
-
     const result = await this.entra.handleCallback({
       code: req.query?.code,
       state: req.query?.state,
-      nonce,
-    });
-
-    const secureCookie = (process.env.APP_ENV || '').toLowerCase() === 'production'
-      || (process.env.NODE_ENV || '').toLowerCase() === 'production';
-
-    res.cookie('entra_nonce', '', {
-      httpOnly: true,
-      secure: secureCookie,
-      sameSite: 'lax',
-      maxAge: 0,
     });
 
     const { mode, tenantId, redirectTo, claims, accessToken } = result;
@@ -173,6 +141,71 @@ export class EntraController {
     }
 
     throw new BadRequestException('Unsupported Entra callback mode');
+  }
+
+  @Post('session')
+  async completeLoginSession(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const session = await this.issueLoginSession(body?.handoff, req, res);
+    return {
+      access_token: session.tokens.access_token,
+      expires_in: session.tokens.expires_in,
+      refresh_expires_in: session.tokens.refresh_expires_in,
+      redirectTo: session.redirectPath,
+    };
+  }
+
+  private async issueLoginSession(
+    handoffToken: string | undefined,
+    req: any,
+    res: Response,
+  ): Promise<{
+    tokens: { access_token: string; refresh_token: string; expires_in: number; refresh_expires_in: number };
+    redirectPath: string;
+  }> {
+    if (req?.isPlatformHost) {
+      throw new BadRequestException('Entra login is not available on the platform admin host');
+    }
+    const tenantMeta = req?.tenant;
+    if (!tenantMeta?.id) {
+      throw new BadRequestException('TENANT_REQUIRED');
+    }
+
+    if (!handoffToken || typeof handoffToken !== 'string') {
+      throw new BadRequestException('Missing Entra login session');
+    }
+
+    const handoff = this.entra.verifyLoginHandoff(handoffToken);
+    if (handoff.tenantId !== tenantMeta.id) {
+      throw new BadRequestException('ENTRA_TENANT_MISMATCH');
+    }
+
+    const tenant = await this.tenants.findById(handoff.tenantId);
+    if (!tenant) {
+      throw new BadRequestException('Tenant not found');
+    }
+    if (tenant.sso_provider !== 'entra' || !tenant.entra_tenant_id) {
+      throw new BadRequestException('SSO_NOT_CONFIGURED');
+    }
+
+    const tokens = await withTenant(this.dataSource, handoff.tenantId, async (manager) => {
+      const user = await manager.getRepository(User).findOne({
+        where: { id: handoff.userId } as any,
+        relations: ['role'],
+      });
+      if (!user || user.status !== 'enabled' || !user.role) {
+        throw new BadRequestException('Entra user is not allowed to sign in');
+      }
+      return this.auth.signTokens(
+        { id: user.id, email: user.email, role: user.role, tenant_id: handoff.tenantId },
+        manager,
+      );
+    });
+
+    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, isSecureRequest(req));
+    const redirectPath = handoff.redirectTo && typeof handoff.redirectTo === 'string' && handoff.redirectTo.startsWith('/')
+      ? handoff.redirectTo
+      : '/';
+    return { tokens, redirectPath };
   }
 
   private async handleSetupCallback(
@@ -239,7 +272,7 @@ export class EntraController {
     const businessPhone = Array.isArray(graphProfile?.businessPhones) ? graphProfile.businessPhones[0] || null : null;
     const mobilePhone = (graphProfile?.mobilePhone as string | undefined) || null;
 
-    const tokens = await withTenant(this.dataSource, tenantId, async (manager) => {
+    const userId = await withTenant(this.dataSource, tenantId, async (manager) => {
       const repo = manager.getRepository(User);
 
       let found = await repo.findOne({
@@ -303,24 +336,14 @@ export class EntraController {
         found = await repo.save(found);
       }
 
-      return this.auth.signTokens(
-        { id: found.id, email: found.email, role: found.role, tenant_id: tenantId },
-        manager,
-      );
+      return found.id;
     });
 
-    // Keep refresh tokens out of JavaScript by issuing only an httpOnly cookie.
-    setRefreshTokenCookie(res, tokens.refresh_token, tokens.refresh_expires_in, isSecureRequest(req));
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);
     const normalized = baseUrl.replace(/\/$/, '');
-    const redirectPath = redirectTo && typeof redirectTo === 'string' && redirectTo.trim().length > 0 ? redirectTo : '/';
-    // Pass only the short-lived access token in the URL fragment.
-    const fragment = new URLSearchParams({
-      token: tokens.access_token,
-      expiresIn: String(tokens.expires_in),
-      refreshExpiresIn: String(tokens.refresh_expires_in),
-      redirectTo: redirectPath,
-    });
+    const redirectPath = redirectTo && typeof redirectTo === 'string' && redirectTo.startsWith('/') ? redirectTo : '/';
+    const handoff = this.entra.signLoginHandoff({ tenantId, userId, redirectTo: redirectPath });
+    const fragment = new URLSearchParams({ handoff });
     const target = `${normalized}/login/callback#${fragment.toString()}`;
     res.redirect(target);
   }

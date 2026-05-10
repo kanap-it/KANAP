@@ -1,6 +1,6 @@
 # Assets
 
-Assets document your infrastructure inventory -- physical servers, virtual machines, containers, cloud instances, and network devices. Link assets to applications, locations, connections, and financial records to build a complete picture of your IT infrastructure.
+Assets document your infrastructure inventory -- physical servers, virtual machines, containers, cloud instances, and network devices. Link assets to locations, applications, connections, contracts, projects, and tasks to build a complete picture of your IT infrastructure.
 
 ## Getting started
 
@@ -8,14 +8,19 @@ Navigate to **IT Landscape > Assets** to see your asset inventory. Click **Add a
 
 **Required fields**:
 - **Name**: A unique asset name or hostname
-- **Asset Type**: Web server, database, application server, network device, etc.
+- **Asset type**: Web server, Virtual machine, Physical server, Container, etc. (configurable in **IT Landscape > Settings**)
 - **Location**: Where the asset is hosted (determines provider, hosting type, and country)
 
 **Strongly recommended**:
 - **Lifecycle**: Current status (Active, Deprecated, Retired, etc.)
-- **Environment**: Which environment this asset belongs to (Prod, Pre-prod, QA, etc.)
+- **Environment**: Which environment this asset belongs to (Prod, Pre-prod, QA, Test, Dev, Sandbox)
 
 **Tip**: Use consistent naming conventions that include environment and role information (e.g., `prod-web-01`, `dev-db-master`). When creating a new asset, the hostname is automatically derived from the name you type.
+
+**Permissions**:
+- View: `infrastructure:reader`
+- Create / edit: `infrastructure:member`
+- Import / Export / Delete: `infrastructure:admin`
 
 ---
 
@@ -27,10 +32,11 @@ The asset list gives you a filterable, sortable overview of every asset in your 
 
 | Column | What it shows |
 |--------|---------------|
+| **#** | Asset reference (e.g., `AST-123`), monospaced |
 | **Name** | Asset name (click to open workspace) |
-| **Asset Type** | The asset's role (e.g., Virtual Machine, Physical Server) |
-| **Cluster** | Cluster membership, or a "Cluster" badge if this asset is a cluster |
-| **Environment** | Prod, Pre-prod, QA, Test, Dev, Sandbox |
+| **Asset Type** | The asset's type (e.g., Virtual Machine, Physical Server) |
+| **Cluster** | Cluster membership, or a "Cluster" badge if this asset is itself a cluster |
+| **Environment** | Prod, Pre-prod, QA, Test, Dev, Sandbox -- with a coloured dot |
 | **Location** | Where the asset is hosted |
 | **Hosting** | Hosting type (derived from location) |
 | **OS** | Operating system |
@@ -38,6 +44,8 @@ The asset list gives you a filterable, sortable overview of every asset in your 
 | **Lifecycle** | Current lifecycle status |
 | **Assignments** | Number of application assignments |
 | **Created** | When the record was created |
+
+**Default sort**: **Created** descending (newest first).
 
 **Additional columns** (hidden by default, available via column chooser):
 - **Sub-location**: Specific area within the location (building, room, rack)
@@ -63,9 +71,9 @@ Most columns support checkbox set filters for quick multi-select filtering. Filt
 **Tip**: Combine filters across columns to narrow results. For example, filter by Environment = "Prod" and Lifecycle = "Active" to see only active production assets.
 
 **Actions**:
-- **Add asset**: Create a new asset (requires `infrastructure:member`)
-- **Import CSV** / **Export CSV**: Bulk operations (requires `infrastructure:admin`)
-- **Delete selected**: Remove selected assets (requires `infrastructure:admin`)
+- **Add asset**: Create a new asset (`infrastructure:member`)
+- **Import CSV** / **Export CSV**: Bulk operations (`infrastructure:admin`)
+- **Delete asset** (selected rows): Remove selected assets (`infrastructure:admin`)
 
 ---
 
@@ -76,66 +84,95 @@ Assets can be organized into clusters:
 - **Regular asset**: An individual infrastructure instance
 - **Cluster**: A group of assets acting as a single logical unit
 
-When creating or editing an asset, toggle **This server represents a cluster** to mark it as a cluster. Cluster assets can be endpoints in connections, but application instances should be assigned to member hosts, not to the cluster itself.
+When editing an asset, toggle **Cluster** in the Technical tab to mark it as a cluster. Cluster assets can be endpoints in connections, but application assignments must be made on the member hosts, not on the cluster itself.
 
-Cluster members are managed from the **Technical** tab of the cluster's workspace.
+Cluster members are managed from the **Technical** tab of the cluster's workspace via **Edit members**.
 
 ---
 
 ## The Assets workspace
 
-Click any row to open the workspace. The header shows the asset name, a "Cluster" badge (when applicable), and your position in the list (e.g., "3 of 47"). Use the arrow buttons to navigate to the previous or next asset without returning to the list.
+Click any row to open the workspace. The workspace has a **header** with quick metadata, a **properties drawer** on the right (the asset's identity card -- always visible), and a **content area** in the centre that switches with each tab.
+
+### Header
+
+The header shows:
+- **Asset name** (editable in place)
+- **Asset reference** (e.g., `AST-123`): copyable identifier
+- **Lifecycle** chip (also editable from the properties drawer)
+- **Send link**: copy a shareable link to this workspace
+- **Delete** (`infrastructure:admin`)
+- **Previous / Next** (e.g., "3 of 47"): navigate the filtered list without returning to it
+
+### Properties drawer (right panel)
+
+The drawer shows the asset's identity card on every tab. Edits save automatically.
+
+**Identification & location**:
+- **Asset type** (required)
+- **Location** (required)
+- **Sub-location** (when the location has sub-locations defined)
+- **Hosting type**, **Cloud provider / Operating company**, **Country**, **City** -- read-only, derived from the location
+
+**Status**:
+- **Environment**: Prod, Pre-prod, QA, Test, Dev, Sandbox
+- **Lifecycle**: Active, Deprecated, Retired, etc. (configurable in Settings)
+- **Go live**: When the asset entered production
+- **End of life**: Planned or actual retirement date
+
+---
 
 ### Overview
 
-The Overview tab captures the asset's identity and location.
+The Overview tab is the asset's home page.
 
-**What you can edit**:
-- **Name**: Asset hostname or identifier
-- **Asset Type**: Role (Web Server, Database, Application Server, etc.)
-- **Is Cluster**: Toggle to mark this asset as a cluster
-- **Location**: Link to a Location record (required). Selecting a location automatically populates the read-only fields below.
-- **Sub-location**: When the selected location has sub-locations defined (buildings, rooms, racks), this dropdown appears so you can specify exactly where the asset sits within the location.
-- **Lifecycle**: Current status (Active, Deprecated, Retired, etc.)
-- **Go-live date**: When the asset entered production
-- **End-of-life date**: Planned or actual retirement date
-- **Notes**: Free-form notes about the asset
+**Description**: A rich-text description of the asset. Autosaves as you edit.
 
-**Read-only fields** (derived from the selected location):
-- **Hosting type**: On-premises, colocation, cloud, etc.
-- **Cloud provider / Operating company**: For cloud locations, shows the cloud provider; for on-premises, shows the operating company
-- **Country**: Country of the location
-- **City**: City of the location
+**Assignments** (not shown for cluster assets): Lists the applications running on this asset. Each row shows:
+
+| Column | What it shows |
+|--------|---------------|
+| **Application** | Application name (clickable -- jumps to the application's Deployments) |
+| **Environment** | The deployment environment the assignment belongs to |
+| **Role** | Server role (Web, Database, Application, etc.) |
+| **Since** | Date the server was assigned |
+| **Notes** | Free-text notes |
+
+Click **Add assignment** to attach this asset to an application deployment. Pick the application, then the environment (the application must already have a deployment in that environment), then the role and optional date / notes. Use the row icons to edit or remove.
+
+If this asset is a cluster, an inline notice replaces the assignments table and asks you to assign member hosts instead.
+
+**Connections**: A read-only view of all connections involving this asset. Each row shows the connection ID and name (clickable -- opens the Connection workspace), topology (Server to Server or Multi-server), protocols, source and destination endpoint labels, and lifecycle status. To create or edit a connection, navigate to **IT Landscape > Connections**.
+
+**Knowledge**: Linked knowledge articles for this asset. With `knowledge:member` you can create new articles directly from this section.
 
 ---
 
 ### Technical
 
-The Technical tab organizes network identity and configuration into logical sections.
+The Technical tab organizes cluster, network identity and IP configuration.
 
-**Environment**:
-- **Environment**: Prod, Pre-prod, QA, Test, Dev, or Sandbox
-
-**Cluster sections**:
-- If this asset **is a cluster**: Shows the **Members** table listing all member assets (Name, Environment, Status, Operating System). Click **Edit members** to add or remove members through a search dialog.
-- If this asset **is not a cluster**: Shows **Cluster membership** -- which clusters this asset belongs to, if any.
+**Cluster management**:
+- **Cluster** toggle: mark this asset as a cluster.
+- If the asset **is a cluster**: a **Members** section lists the member assets (Name, Environment, Status, Operating system). Click **Edit members** to add or remove members through a search dialog.
+- If the asset **is not a cluster**: a **Cluster membership** section shows the clusters this asset belongs to (if any).
 
 **Identity**:
 - **Hostname**: The asset's network hostname. Automatically pre-filled from the asset name on creation; you can override it at any time. Required when a domain is selected.
-- **Domain**: The Active Directory or DNS domain the asset belongs to. Choose from domains configured in **Settings > IT Landscape**. System options include "Workgroup" (standalone) and "N/A" (not applicable).
+- **Domain**: The Active Directory or DNS domain the asset belongs to. Choose from domains configured in **IT Landscape > Settings**. System options include "Workgroup" (standalone) and "N/A" (not applicable).
 - **FQDN**: Fully Qualified Domain Name, automatically computed from hostname and domain DNS suffix. Read-only.
 - **Aliases**: Additional DNS names or aliases for this asset. Type and press Enter to add.
-- **Operating System**: OS type and version (e.g., Windows Server 2022, Ubuntu 24.04 LTS). Disabled for clusters -- OS is defined per member. When selected, shows standard and extended support end dates.
+- **Operating system**: OS type and version (e.g., Windows Server 2022, Ubuntu 24.04 LTS). Disabled for clusters -- OS is defined per member. When selected, shows standard and extended support end dates underneath.
 
-**IP Addresses**:
+**IP addresses**:
 
 Assets support multiple IP addresses, each with its own network configuration:
 
-- Click **Add IP Address** to add a new entry
+- Click **Add IP address** to add a new entry.
 - **Type**: The purpose of the IP address (Host, IPMI, Management, iSCSI, or custom types from Settings)
-- **IP Address**: The address itself
+- **IP address**: The address itself
 - **Subnet**: Network subnet from the configured list (filtered to the asset's location)
-- **Network Zone**: Automatically derived from the selected subnet (read-only)
+- **Network zone**: Automatically derived from the selected subnet (read-only)
 - **VLAN**: Automatically derived from the selected subnet (read-only)
 
 This lets you document multiple network interfaces per asset -- for example, a physical server with both a host IP and an IPMI management address on different subnets.
@@ -146,7 +183,8 @@ This lets you document multiple network interfaces per asset -- for example, a p
 
 *Only visible for physical asset types.*
 
-Tracks physical hardware details:
+Tracks physical hardware details. Saves automatically as you type.
+
 - **Serial number**
 - **Manufacturer**
 - **Model**
@@ -161,77 +199,38 @@ Tracks physical hardware details:
 
 *Only visible for physical asset types.*
 
-Tracks vendor support and contact information:
+Tracks vendor support and contact information.
+
 - **Vendor**: Select from the supplier directory
 - **Support contract**: Link to a contract record
 - **Support tier**: Free text (e.g., Gold, Silver, 24x7)
 - **Support expiry**: Expiration date
 - **Notes**
 
-**Support contacts**: A table where you can add contacts from the contact directory, each with a role label. The table displays each contact's email, phone, and mobile automatically.
+**Support contacts**: A table where you can add contacts from the contact directory, each with a free-text role label. The table displays each contact's email, phone, and mobile automatically.
 
 ---
 
 ### Relations
 
-The Relations tab lets you define how this asset connects to other records across KANAP.
+The Relations tab connects this asset to other records across KANAP. The tab badge counts all linked items. Most fields save automatically.
 
 **Asset relations**:
 - **Depends on**: Other assets this one depends on (e.g., a database server)
 - **Contains**: Assets contained within this one (e.g., servers in a rack)
-- **Contained by** / **Depended on by**: Read-only reverse views showing which other assets reference this one
+- **Contained by** / **Depended on by**: Read-only reverse views, shown only when other assets reference this one
 
-**Financials**:
+**Financials & projects**:
 - **OPEX items**: Link to operational expenditure items
 - **CAPEX items**: Link to capital expenditure items
 - **Contracts**: Link to contract records
+- **Projects**: Link to portfolio projects related to this asset
 
-**Projects**: Link to portfolio projects related to this asset.
+**Tasks**: Tasks linked to this asset. Read-only here -- tasks gain or lose this link when you set the **Asset** field on a task in the Tasks page.
 
-**Relevant websites**: Add URLs with optional descriptions -- useful for vendor portals, monitoring dashboards, or documentation links.
+**Relevant websites**: Add URLs with optional names -- useful for vendor portals, monitoring dashboards, or documentation links. **Add URL** opens a dialog; existing entries can be edited or deleted.
 
-**Attachments**: Drag and drop files or click **Select files** to upload. Click an attachment chip to download it.
-
----
-
-### Knowledge
-
-Attach knowledge articles to this asset. If you have the `knowledge:member` permission, you can create new articles directly from this tab.
-
----
-
-### Assignments
-
-View and manage which applications run on this asset. Each assignment links the asset to an application instance (a specific environment of an application).
-
-**To add an assignment**:
-1. Click **Add assignment**
-2. Select an **Application**
-3. Choose an **Environment** (instance)
-4. Select a **Role** (from the server role list in Settings)
-5. Optionally set a **Since date** and **Notes**
-
-Cluster assets cannot host application assignments -- assign member hosts instead.
-
-Each assignment row shows the application name (clickable to navigate to it), environment, role, since date, and notes. You can edit or remove assignments from the actions column.
-
----
-
-### Connections
-
-A read-only view of all connections involving this asset. Each row shows:
-
-| Column | What it shows |
-|--------|---------------|
-| **Connection ID** | Clickable link to the connection workspace |
-| **Name** | Connection name |
-| **Topology** | Server to Server or Multi-server |
-| **Protocols** | Protocol chips |
-| **Source** | Source endpoint label |
-| **Destination** | Destination endpoint label |
-| **Lifecycle** | Connection lifecycle status |
-
-To manage connections, navigate to **IT Landscape > Connections**.
+**Attachments**: Drag and drop files or click **Select files** to upload. Click an attachment chip to download it. Delete is available to managers.
 
 ---
 
@@ -307,7 +306,7 @@ From the Assets list:
 
 ### Label and code acceptance
 
-For fields configured in **Settings > IT Landscape**, you can use either the internal code or the display label:
+For fields configured in **IT Landscape > Settings**, you can use either the internal code or the display label:
 
 | Field | Example codes | Example labels |
 |-------|---------------|----------------|
@@ -338,7 +337,7 @@ Some fields are computed and cannot be imported:
 - **Maximum 4 IP addresses**: Assets support up to 4 IP address entries via CSV
 - **Cluster assignment by name**: Use the cluster name, not ID, in the `cluster` column
 - **Location required**: Every asset must have a valid location code
-- **Relations not included**: Application assignments, connections, financial links, and attachments must be managed in the workspace
+- **Relations not included**: Application assignments, connections, financial links, projects, tasks, and attachments must be managed in the workspace
 
 ### Troubleshooting
 
@@ -361,9 +360,10 @@ PROD-DB-01;NYC-DC1;vm;prod;active;proddb01;corp;host;10.0.1.20
 ## Tips
 
 - **Name consistently**: Include environment, role, and sequence in asset names for easy identification.
-- **Use clusters**: Group related assets (e.g., web cluster, database cluster) to simplify management.
-- **Track lifecycle**: Mark deprecated and retired assets to maintain accurate inventory counts.
-- **Link to locations**: Assign assets to locations for geographic reporting and DR planning.
-- **Assign to applications**: Link assets to application instances to understand what runs where.
+- **Use clusters**: Group related assets (e.g., web cluster, database cluster) to simplify management. Assign applications to member hosts, not to the cluster itself.
+- **Track lifecycle**: Mark deprecated and retired assets to keep inventory counts accurate.
+- **Link to locations**: Assign assets to locations so hosting type, country and city are populated automatically.
+- **Assign to applications**: Use the Overview tab to link assets to application deployments. The same assignments appear under the application's Deployments tab.
 - **Use the Relations tab**: Connect assets to OPEX/CAPEX items, contracts, and projects for financial visibility.
-- **Attach documentation**: Upload configuration files, architecture diagrams, or vendor docs directly to the asset.
+- **Tasks come from the Tasks page**: To attach a task to an asset, set the Asset field on the task itself; it will then appear under Relations > Tasks.
+- **Attach documentation**: Upload configuration files, architecture diagrams, or vendor docs directly to the Relations tab.

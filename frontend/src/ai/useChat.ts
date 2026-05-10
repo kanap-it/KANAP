@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChatStreamRequestError, streamChat, aiConversationsApi } from './aiApi';
-import { AiMutationPreview, BuiltinUsage, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
+import { AiMutationPreview, BuiltinUsage, ChatAttachment, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
 import i18n from '../i18n';
 
 let msgCounter = 0;
 const CONTROL_MARKER_RE = /^\[(APPROVE|REJECT):[0-9a-f-]{36}\]$/i;
+/** Hard cap on attachments per message — matches multimodal model practical limit. */
+export const MAX_PENDING_ATTACHMENTS = 8;
+
+export type PendingAttachment = {
+  /** Local-only id, used to remove the attachment before send. */
+  localId: string;
+  file: File;
+  previewUrl: string;
+};
 
 function nextId() {
   return `local-${++msgCounter}-${Date.now()}`;
@@ -53,6 +62,94 @@ function findLastUsage(messages: Array<Pick<StoredChatMessage, 'role' | 'usage_j
   return null;
 }
 
+/**
+ * Reconstruct the UI-facing message timeline from the flat StoredChatMessage[] returned
+ * by the backend. Coalesces consecutive assistant+tool message rows into a single
+ * ChatMessage with toolCalls + toolResults populated, so the chat thread renders the
+ * tool ribbon panel as one block per assistant turn (matching the streaming behavior).
+ *
+ * Used by both loadConversation (initial load) and the post-stream refresh that swaps
+ * local-* ids for real DB UUIDs after a turn completes.
+ */
+function rebuildMessagesFromStored(rawMessages: StoredChatMessage[], conversationId: string): ChatMessage[] {
+  const buildAttachments = (msg: StoredChatMessage): ChatAttachment[] | undefined => {
+    if (!msg.attachments || !msg.attachments.length) return undefined;
+    return msg.attachments.map((a) => ({
+      id: a.id,
+      mime_type: a.mime_type,
+      size: a.size,
+      kind: a.kind,
+      preview_url: aiConversationsApi.buildAttachmentUrl(conversationId, a.id),
+    }));
+  };
+
+  const loaded: ChatMessage[] = [];
+  let i = 0;
+  while (i < rawMessages.length) {
+    const msg = rawMessages[i];
+
+    if (msg.role === 'user') {
+      loaded.push({
+        id: msg.id,
+        role: 'user',
+        content: msg.content,
+        hidden: isControlMarker(msg.content),
+        attachments: buildAttachments(msg),
+      });
+      i++;
+    } else if (msg.role === 'assistant' && msg.tool_calls?.length) {
+      const merged: ChatMessage = {
+        id: msg.id,
+        role: 'assistant',
+        content: '',
+        toolCalls: [...msg.tool_calls],
+        toolResults: [],
+        usage: msg.usage_json || undefined,
+      };
+      i++;
+      while (i < rawMessages.length) {
+        const next = rawMessages[i];
+        if (next.role === 'tool') {
+          try {
+            const parsed = JSON.parse(next.content);
+            merged.toolResults!.push({
+              id: parsed.tool_call_id,
+              name: parsed.tool_name,
+              result: parsed.result,
+            });
+          } catch {
+            // skip malformed tool messages
+          }
+          i++;
+        } else if (next.role === 'assistant' && next.tool_calls?.length) {
+          merged.toolCalls!.push(...next.tool_calls);
+          if (next.usage_json) merged.usage = next.usage_json;
+          i++;
+        } else if (next.role === 'assistant' && !next.tool_calls?.length) {
+          merged.content = next.content;
+          if (next.usage_json) merged.usage = next.usage_json;
+          i++;
+          break;
+        } else {
+          break;
+        }
+      }
+      loaded.push(merged);
+    } else if (msg.role === 'assistant') {
+      loaded.push({
+        id: msg.id,
+        role: 'assistant',
+        content: msg.content,
+        usage: msg.usage_json || undefined,
+      });
+      i++;
+    } else {
+      i++;
+    }
+  }
+  return loaded;
+}
+
 function normalizeBuiltinUsage(usage?: BuiltinUsage | null): BuiltinUsage | null {
   if (!usage) {
     return null;
@@ -78,6 +175,11 @@ export function useChat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  // The id of the message currently being edited (a user message). When set, the next
+  // sendMessage call truncates the conversation tail from that message before streaming.
+  // Cleared on send completion or explicit cancel.
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const streamGenerationRef = useRef(0);
@@ -95,6 +197,15 @@ export function useChat() {
     };
   }, [abortActiveStream]);
 
+  // Revoke pending object URLs on unmount to avoid leaks
+  useEffect(() => {
+    return () => {
+      for (const att of pendingAttachments) {
+        try { URL.revokeObjectURL(att.previewUrl); } catch { /* ignore */ }
+      }
+    };
+  }, [pendingAttachments]);
+
   const refreshConversationUsage = useCallback(async (id: string) => {
     try {
       const response = await aiConversationsApi.getMessages(id);
@@ -107,8 +218,58 @@ export function useChat() {
     }
   }, []);
 
-  const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || isStreaming) return;
+  const addPendingFiles = useCallback((files: File[]): { added: number; rejected: number } => {
+    let added = 0;
+    let rejected = 0;
+    setPendingAttachments((prev) => {
+      const remaining = MAX_PENDING_ATTACHMENTS - prev.length;
+      if (remaining <= 0) {
+        rejected = files.length;
+        return prev;
+      }
+      const accepted = files.slice(0, remaining);
+      rejected = files.length - accepted.length;
+      const next = accepted.map((file) => ({
+        localId: nextId(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      added = next.length;
+      return [...prev, ...next];
+    });
+    return { added, rejected };
+  }, []);
+
+  const removePendingAttachment = useCallback((localId: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((p) => p.localId === localId);
+      if (target) {
+        try { URL.revokeObjectURL(target.previewUrl); } catch { /* ignore */ }
+      }
+      return prev.filter((p) => p.localId !== localId);
+    });
+  }, []);
+
+  const clearPendingAttachments = useCallback(() => {
+    setPendingAttachments((prev) => {
+      for (const p of prev) {
+        try { URL.revokeObjectURL(p.previewUrl); } catch { /* ignore */ }
+      }
+      return [];
+    });
+  }, []);
+
+  /**
+   * Internal sender shared by `sendMessage` and `regenerate`. Skipping the persist of a
+   * new user message (regenerate flow) is opted in via `text === ''` + a non-null
+   * truncateFromMessageId. The orchestrator on the backend mirrors that contract.
+   */
+  const runStream = useCallback(async (
+    text: string,
+    opts: { truncateFromMessageId?: string | null; isRegenerate?: boolean } = {},
+  ) => {
+    if (isStreaming) return;
+    if (!opts.isRegenerate && !text.trim()) return;
     setError(null);
     setIsStreaming(true);
 
@@ -116,13 +277,42 @@ export function useChat() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const userMsg: ChatMessage = {
-      id: nextId(),
-      role: 'user',
-      content: text,
-      hidden: isControlMarker(text),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    // Snapshot pending attachments so subsequent UI changes don't mutate the in-flight send.
+    const attachmentsToSend = pendingAttachments;
+
+    let activeConversationId = conversationId;
+    const truncateFromMessageId = opts.truncateFromMessageId ?? null;
+
+    // Local truncation for immediate UI feedback. Backend will mirror via the
+    // truncate_from_message_id param on the stream call.
+    if (truncateFromMessageId) {
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === truncateFromMessageId);
+        return idx >= 0 ? prev.slice(0, idx) : prev;
+      });
+    }
+
+    // Skip the optimistic user message on regenerate — the previous user message is
+    // already in the conversation tail and we're re-streaming against it unchanged.
+    let userMsgId: string | null = null;
+    if (!opts.isRegenerate) {
+      userMsgId = nextId();
+      const optimisticUserAttachments: ChatAttachment[] = attachmentsToSend.map((a) => ({
+        id: a.localId,
+        mime_type: a.file.type || 'image/png',
+        size: a.file.size,
+        kind: 'image',
+        preview_url: a.previewUrl,
+      }));
+      const userMsg: ChatMessage = {
+        id: userMsgId,
+        role: 'user',
+        content: text,
+        hidden: isControlMarker(text),
+        attachments: optimisticUserAttachments.length > 0 ? optimisticUserAttachments : undefined,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+    }
 
     const assistantId = nextId();
     const assistantMsg: ChatMessage = {
@@ -135,12 +325,51 @@ export function useChat() {
     };
     setMessages((prev) => [...prev, assistantMsg]);
 
-    let activeConversationId = conversationId;
-
     try {
+      let attachmentIds: string[] | undefined;
+
+      if (attachmentsToSend.length > 0) {
+        // Need a conversation_id before we can upload (attachments are conv-scoped for tenant safety).
+        if (!activeConversationId) {
+          const conv = await aiConversationsApi.create();
+          activeConversationId = conv.id;
+          conversationIdRef.current = conv.id;
+          setConversationId(conv.id);
+        }
+        const uploaded = await Promise.all(
+          attachmentsToSend.map(async (att) => {
+            const result = await aiConversationsApi.uploadInlineAttachment(activeConversationId!, att.file);
+            return {
+              localId: att.localId,
+              serverId: result.id,
+              mime_type: result.mime_type,
+              size: result.size,
+              kind: result.kind,
+            };
+          }),
+        );
+        attachmentIds = uploaded.map((u) => u.serverId);
+
+        // Upgrade the optimistic user message to use server-side attachment URLs.
+        const serverAttachments: ChatAttachment[] = uploaded.map((u) => ({
+          id: u.serverId,
+          mime_type: u.mime_type,
+          size: u.size,
+          kind: u.kind,
+          preview_url: aiConversationsApi.buildAttachmentUrl(activeConversationId!, u.serverId),
+        }));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === userMsgId ? { ...m, attachments: serverAttachments } : m)),
+        );
+        // Pending attachments have been uploaded; clear them so the composer is reset.
+        clearPendingAttachments();
+      }
+
       const stream = streamChat({
         message: text,
-        conversation_id: conversationId || undefined,
+        conversation_id: activeConversationId || undefined,
+        attachment_ids: attachmentIds,
+        truncate_from_message_id: truncateFromMessageId,
         signal: controller.signal,
       });
 
@@ -282,8 +511,56 @@ export function useChat() {
         abortRef.current = null;
         setIsStreaming(false);
       }
+      // Refresh messages from the server so optimistic local ids (`local-N-…`) get
+      // swapped for real DB UUIDs. That way the next edit/regenerate click can target
+      // the right message via truncate_from_message_id.
+      const finalConvId = conversationIdRef.current;
+      if (finalConvId && generation === streamGenerationRef.current) {
+        try {
+          const refreshed = await aiConversationsApi.getMessages(finalConvId);
+          if (conversationIdRef.current === finalConvId) {
+            const rebuilt = rebuildMessagesFromStored(refreshed.messages, finalConvId);
+            setMessages(rebuilt);
+            setConversationUsage(normalizeConversationUsage(refreshed.conversation_usage));
+            setLastRequestUsage(findLastUsage(refreshed.messages));
+          }
+        } catch {
+          // Refresh failure is non-fatal — local state stays as-is, just edit/regen
+          // on this just-streamed message will be unavailable until next reload.
+        }
+      }
     }
-  }, [conversationId, isStreaming, refreshConversationUsage]);
+  }, [conversationId, isStreaming, pendingAttachments, refreshConversationUsage, clearPendingAttachments]);
+
+  const sendMessage = useCallback(async (text: string) => {
+    const truncateFromMessageId = editingMessageId;
+    if (truncateFromMessageId) setEditingMessageId(null);
+    await runStream(text, { truncateFromMessageId });
+  }, [editingMessageId, runStream]);
+
+  const startEdit = useCallback((messageId: string): string | null => {
+    const target = messages.find((m) => m.id === messageId && m.role === 'user');
+    if (!target) return null;
+    setEditingMessageId(messageId);
+    return target.content;
+  }, [messages]);
+
+  const cancelEdit = useCallback(() => {
+    setEditingMessageId(null);
+  }, []);
+
+  const regenerate = useCallback(async (assistantMessageId: string) => {
+    if (isStreaming) return;
+    const idx = messages.findIndex((m) => m.id === assistantMessageId);
+    if (idx <= 0) return;
+    // Find the most recent user message before this assistant — that's the prompt
+    // the LLM should re-answer. The orchestrator deletes the assistant + everything
+    // after it, then re-streams against the existing history (no new user persist).
+    const previousUser = [...messages].slice(0, idx).reverse().find((m) => m.role === 'user');
+    if (!previousUser) return;
+    setEditingMessageId(null);
+    await runStream('', { truncateFromMessageId: assistantMessageId, isRegenerate: true });
+  }, [isStreaming, messages, runStream]);
 
   const loadConversation = useCallback(async (id: string) => {
     abortActiveStream();
@@ -291,90 +568,18 @@ export function useChat() {
     conversationIdRef.current = id;
     setConversationId(id);
     setIsStreaming(false);
+    clearPendingAttachments();
 
     const [loadedConversation, loadedPreviews] = await Promise.all([
       aiConversationsApi.getMessages(id),
       aiConversationsApi.getPreviews(id),
     ]);
     const { messages: rawMessages, conversation_usage } = loadedConversation;
-    const loaded: ChatMessage[] = [];
-
-    let i = 0;
-    while (i < rawMessages.length) {
-      const msg = rawMessages[i];
-
-      if (msg.role === 'user') {
-        loaded.push({
-          id: msg.id,
-          role: 'user',
-          content: msg.content,
-          hidden: isControlMarker(msg.content),
-        });
-        i++;
-      } else if (msg.role === 'assistant' && msg.tool_calls?.length) {
-        // Start merging: assistant with tool_calls + following tool/assistant messages
-        const merged: ChatMessage = {
-          id: msg.id,
-          role: 'assistant',
-          content: '',
-          toolCalls: [...msg.tool_calls],
-          toolResults: [],
-          usage: msg.usage_json || undefined,
-        };
-        i++;
-
-        // Consume following tool messages and additional assistant+tool_calls iterations
-        while (i < rawMessages.length) {
-          const next = rawMessages[i];
-
-          if (next.role === 'tool') {
-            try {
-              const parsed = JSON.parse(next.content);
-              merged.toolResults!.push({
-                id: parsed.tool_call_id,
-                name: parsed.tool_name,
-                result: parsed.result,
-              });
-            } catch {
-              // skip malformed tool messages
-            }
-            i++;
-          } else if (next.role === 'assistant' && next.tool_calls?.length) {
-            // Another iteration of tool calls — merge them in
-            merged.toolCalls!.push(...next.tool_calls);
-            if (next.usage_json) merged.usage = next.usage_json;
-            i++;
-          } else if (next.role === 'assistant' && !next.tool_calls?.length) {
-            // Final response text
-            merged.content = next.content;
-            if (next.usage_json) merged.usage = next.usage_json;
-            i++;
-            break;
-          } else {
-            break;
-          }
-        }
-
-        loaded.push(merged);
-      } else if (msg.role === 'assistant') {
-        loaded.push({
-          id: msg.id,
-          role: 'assistant',
-          content: msg.content,
-          usage: msg.usage_json || undefined,
-        });
-        i++;
-      } else {
-        // Skip unexpected roles (standalone tool messages without preceding assistant)
-        i++;
-      }
-    }
-
-    setMessages(loaded);
+    setMessages(rebuildMessagesFromStored(rawMessages, id));
     setPreviews(loadedPreviews);
     setConversationUsage(normalizeConversationUsage(conversation_usage));
     setLastRequestUsage(findLastUsage(rawMessages));
-  }, [abortActiveStream]);
+  }, [abortActiveStream, clearPendingAttachments]);
 
   const newConversation = useCallback(() => {
     abortActiveStream();
@@ -386,7 +591,8 @@ export function useChat() {
     setConversationId(null);
     setError(null);
     setIsStreaming(false);
-  }, [abortActiveStream]);
+    clearPendingAttachments();
+  }, [abortActiveStream, clearPendingAttachments]);
 
   const cancelStream = useCallback(() => {
     const activeConversationId = conversationIdRef.current;
@@ -411,10 +617,18 @@ export function useChat() {
     isStreaming,
     error,
     conversationId,
+    pendingAttachments,
+    editingMessageId,
     sendMessage,
     loadConversation,
     newConversation,
     cancelStream,
+    addPendingFiles,
+    removePendingAttachment,
+    clearPendingAttachments,
+    startEdit,
+    cancelEdit,
+    regenerate,
   }), [
     messages,
     previews,
@@ -424,9 +638,17 @@ export function useChat() {
     isStreaming,
     error,
     conversationId,
+    pendingAttachments,
+    editingMessageId,
     sendMessage,
     loadConversation,
     newConversation,
     cancelStream,
+    addPendingFiles,
+    removePendingAttachment,
+    clearPendingAttachments,
+    startEdit,
+    cancelEdit,
+    regenerate,
   ]);
 }

@@ -83,7 +83,7 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const conversations = new AiConversationsController({} as any, {} as any, {} as any, {} as any);
+  const conversations = new AiConversationsController({} as any, {} as any, {} as any, {} as any, {} as any);
   assertBaseContext((conversations as any).buildContext(req), {
     surface: 'chat',
     authMethod: 'jwt',
@@ -414,6 +414,9 @@ async function testConversationsControllerReturnsMessagesWithConversationUsage()
       }),
     } as any,
     {} as any,
+    {
+      listAttachmentsForMessages: async () => [],
+    } as any,
   );
 
   const result = await controller.getMessages('conv-1', createRequest({ isPlatformHost: false }) as any);
@@ -429,6 +432,7 @@ async function testConversationsControllerReturnsMessagesWithConversationUsage()
         tool_calls: null,
         usage_json: { input_tokens: 3, output_tokens: 5 },
         created_at: '2026-03-24T10:00:00.000Z',
+        attachments: [],
       },
     ],
     conversation_usage: {

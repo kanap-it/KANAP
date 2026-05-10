@@ -45,7 +45,26 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
     const messages: Anthropic.MessageParam[] = [];
     for (const msg of params.messages) {
       if (msg.role === 'user') {
-        messages.push({ role: 'user', content: msg.content });
+        const hasImages = Array.isArray(msg.images) && msg.images.length > 0;
+        if (hasImages) {
+          const blocks: Anthropic.ContentBlockParam[] = [];
+          for (const img of msg.images!) {
+            blocks.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: (img.mime_type || 'image/png') as Anthropic.Base64ImageSource['media_type'],
+                data: img.base64_data,
+              },
+            });
+          }
+          if (msg.content) {
+            blocks.push({ type: 'text', text: msg.content });
+          }
+          messages.push({ role: 'user', content: blocks });
+        } else {
+          messages.push({ role: 'user', content: msg.content });
+        }
       } else if (msg.role === 'assistant') {
         const content: Anthropic.ContentBlockParam[] = [];
         if (msg.content) {

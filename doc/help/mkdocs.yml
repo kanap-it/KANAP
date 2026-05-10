@@ -149,6 +149,9 @@ plugins:
             Configuration: Configuration
             Operations: Opérations
             Microsoft Entra SSO: Microsoft Entra SSO
+            "Plaid Settings": "Paramètres Plaid"
+            Integrations: Intégrations
+            "Scheduled Tasks": "Tâches planifiées"
         - locale: de
           name: Deutsch
           build: true
@@ -212,6 +215,9 @@ plugins:
             Configuration: Konfiguration
             Operations: Betrieb
             Microsoft Entra SSO: Microsoft Entra SSO
+            "Plaid Settings": "Plaid-Einstellungen"
+            Integrations: Integrationen
+            "Scheduled Tasks": "Geplante Aufgaben"
         - locale: es
           name: "Español"
           build: true
@@ -275,6 +281,9 @@ plugins:
             Configuration: Configuración
             Operations: Operaciones
             Microsoft Entra SSO: Microsoft Entra SSO
+            "Plaid Settings": "Configuración de Plaid"
+            Integrations: Integraciones
+            "Scheduled Tasks": "Tareas programadas"
   - search
 
 nav:
@@ -333,9 +342,15 @@ nav:
       - Business Processes: business-processes.md
       - Analytics Dimensions: analytics.md
 
+  - Plaid:
+    - Plaid: ai-assistant.md
+
   - Administration:
     - Admin & Users: admin.md
     - Branding: branding.md
+    - Plaid Settings: ai-settings.md
+    - Integrations: integrations.md
+    - Scheduled Tasks: scheduled-tasks.md
     - Master Data Administration: master-data-operations.md
     - Budget Overview: operations-dashboard.md
 

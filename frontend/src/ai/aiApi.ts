@@ -132,6 +132,8 @@ function getBaseURL(): string {
 export async function* streamChat(params: {
   message: string;
   conversation_id?: string;
+  attachment_ids?: string[];
+  truncate_from_message_id?: string | null;
   signal?: AbortSignal;
 }): AsyncGenerator<ChatStreamEvent> {
   const { signal, ...body } = params;
@@ -221,6 +223,10 @@ export const aiConversationsApi = {
     const res = await api.get('/ai/conversations', { params });
     return res.data;
   },
+  async create(): Promise<ChatConversation> {
+    const res = await api.post('/ai/conversations');
+    return res.data;
+  },
   async getMessages(id: string): Promise<ConversationMessagesResponse> {
     const res = await api.get(`/ai/conversations/${id}/messages`);
     const { messages, conversation_usage } = res.data;
@@ -233,6 +239,28 @@ export const aiConversationsApi = {
   async archive(id: string) {
     const res = await api.delete(`/ai/conversations/${id}`);
     return res.data;
+  },
+  async rename(id: string, title: string): Promise<ChatConversation> {
+    const res = await api.patch(`/ai/conversations/${id}`, { title });
+    return res.data;
+  },
+  async uploadInlineAttachment(conversationId: string, file: File): Promise<{
+    id: string;
+    conversation_id: string;
+    mime_type: string;
+    size: number;
+    kind: string;
+    original_filename: string;
+  }> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post(`/ai/conversations/${conversationId}/attachments/inline`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+  buildAttachmentUrl(conversationId: string, attachmentId: string): string {
+    return `/ai/conversations/${conversationId}/attachments/${attachmentId}/inline`;
   },
 };
 
@@ -264,6 +292,31 @@ export const aiAdminApi = {
   async getBuiltinUsage(): Promise<BuiltinUsage> {
     const res = await api.get('/ai/settings/builtin-usage');
     return res.data;
+  },
+};
+
+export type EntitySearchResult = {
+  entity_type: string;
+  id: string;
+  ref: string | null;
+  label: string | null;
+};
+
+export const aiSearchApi = {
+  async searchEntities(
+    q: string,
+    opts?: { entityTypes?: string[]; signal?: AbortSignal },
+  ): Promise<EntitySearchResult[]> {
+    const trimmed = q.trim();
+    const entityTypes = opts?.entityTypes ?? [];
+    const hasEntityTypeNarrow = entityTypes.length > 0;
+    if (!trimmed && !hasEntityTypeNarrow) return [];
+    const params: Record<string, string> = { q: trimmed };
+    if (hasEntityTypeNarrow) {
+      params.entity_types = entityTypes.join(',');
+    }
+    const res = await api.get('/ai/search/entities', { params, signal: opts?.signal });
+    return Array.isArray(res.data?.items) ? res.data.items : [];
   },
 };
 

@@ -1,7 +1,17 @@
 {
   "conversationList": {
     "archive": "Archivar",
+    "dateGroups": {
+      "lastWeek": "Últimos 7 días",
+      "older": "Más antiguo",
+      "today": "Hoy",
+      "yesterday": "Ayer"
+    },
+    "empty": "Aún no hay conversaciones",
     "newChat": "Nueva conversación",
+    "noMatch": "Ninguna conversación coincide",
+    "rename": "Renombrar",
+    "search": "Buscar conversaciones...",
     "untitled": "Sin título"
   },
   "errors": {
@@ -12,13 +22,43 @@
     "streamRequestFailed": "La solicitud de flujo falló."
   },
   "input": {
-    "placeholder": "Enviar un mensaje...",
-    "send": "Enviar"
+    "attach": "Adjuntar imagen",
+    "dropHint": "Suelta la imagen para adjuntar",
+    "hintEnter": "Intro para enviar",
+    "hintShiftEnter": "Mayús+Intro para nueva línea",
+    "placeholder": "Pregunta a Plaid sobre tus datos KANAP...",
+    "removeAttachment": "Quitar adjunto",
+    "send": "Enviar",
+    "stop": "Detener la generación"
   },
   "messageList": {
+    "assistantRole": "Plaid",
+    "copied": "Copiado",
+    "copy": "Copiar mensaje",
+    "cancel": "Cancelar",
+    "edit": "Editar mensaje",
+    "regenerate": "Regenerar",
+    "save": "Guardar y reenviar",
+    "toolCallLabel": "ha usado {{name}}",
+    "toolCallNoResult": "sin resultado",
+    "toolCallResults_one": "{{count}} resultado",
+    "toolCallResults_other": "{{count}} resultados",
+    "toolCallStreaming": "llamando a {{name}}…",
     "toolUseCount_one": "{{count}} herramienta utilizada",
     "toolUseCount_other": "{{count}} herramientas utilizadas",
-    "toolUseProgress": "Usando herramientas..."
+    "toolUseProgress": "Usando herramientas...",
+    "userRole": "Tú"
+  },
+  "artifactPanel": {
+    "chipLabel": "Abrir en el panel",
+    "close": "Cerrar panel",
+    "resize": "Cambiar tamaño",
+    "tab": "Artefactos",
+    "title": "Artefactos"
+  },
+  "mention": {
+    "noResults": "Sin coincidencias",
+    "searching": "Buscando..."
   },
   "previewCard": {
     "after": "Después",
@@ -55,12 +95,19 @@
   },
   "workspace": {
     "empty": {
-      "subtitle": "Haga una pregunta para comenzar.",
-      "title": "Iniciar una nueva conversación"
+      "subtitle": "Pregunta cualquier cosa sobre tus tareas, proyectos, activos o documentos.",
+      "suggestionsTitle": "Para comenzar",
+      "title": "Plaid está listo"
     },
     "messages": {
       "disabled": "El chat de IA está desactivado para este espacio de trabajo."
     },
-    "title": "IA"
+    "suggestions": {
+      "applicationMention": "Resume @APP-",
+      "knowledgeSearch": "Encuentra documentos sobre copias de seguridad",
+      "myProjects": "¿En qué proyectos estoy trabajando?",
+      "overdueTasks": "Muéstrame mis tareas atrasadas"
+    },
+    "title": "Plaid"
   }
 }

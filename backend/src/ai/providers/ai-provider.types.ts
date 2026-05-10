@@ -33,9 +33,21 @@ export type AiProviderTestResult = {
   validation_errors: string[];
 };
 
+export type AiProviderImageAttachment = {
+  mime_type: string;
+  /** Base64-encoded image bytes (no data: prefix). */
+  base64_data: string;
+};
+
 export type AiProviderMessage = {
   role: 'user' | 'assistant' | 'tool';
   content: string;
+  /**
+   * Image attachments for multimodal models. Only honored by providers that advertise
+   * multimodal support (currently Anthropic). Other providers ignore the field and send
+   * text-only messages — this keeps the type flexible without breaking existing adapters.
+   */
+  images?: AiProviderImageAttachment[] | null;
   tool_calls?: AiProviderToolCall[] | null;
   tool_call_id?: string | null;
 };

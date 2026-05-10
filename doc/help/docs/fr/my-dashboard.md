@@ -1,37 +1,56 @@
-# Tableau de bord
+# Mon tableau de bord
 
-Le Tableau de bord est votre page d'accueil personnelle dans KANAP. Il vous offre un aperçu rapide de vos tâches, projets, temps enregistré et activité récente, le tout en un seul endroit. Vous pouvez personnaliser les tuiles affichées et leur comportement.
+Le Tableau de bord est votre page d'accueil personnelle dans KANAP. Il vous donne un aperçu rapide de vos tâches, projets, temps enregistré et activité récente -- le tout en un seul endroit. Vous pouvez personnaliser les tuiles affichées, et le tableau de bord masque toute tuile que vous n'avez pas l'autorisation de voir.
 
 ## Où le trouver
 
-- Cliquez sur le logo **KANAP** ou naviguez vers `/`
-- C'est la page par défaut après connexion pour les utilisateurs non-administrateurs.
-- Aucune autorisation spéciale n'est requise pour voir le tableau de bord lui-même, mais les tuiles individuelles dépendent de vos droits d'accès.
+- Cliquez sur le logo **KANAP** ou rendez-vous sur `/`
+- C'est la page par défaut après connexion pour les utilisateurs non administrateurs.
+- Aucune autorisation spéciale n'est requise pour consulter le tableau de bord lui-même, mais les tuiles individuelles dépendent de vos droits d'accès.
 
 ## Actions rapides
 
-En haut du tableau de bord, vous trouverez des boutons de raccourci pour les actions courantes :
+La bande d'en-tête en haut du tableau de bord fournit des boutons de raccourci pour le travail courant du quotidien. Chaque bouton n'est affiché que si vous avez l'autorisation correspondante.
 
-- **Créer une tâche** — ouvre le formulaire de création de tâche. Nécessite `tasks:member` ou supérieur.
-- **Saisir du temps** — ouvre un dialogue rapide pour enregistrer des heures sur un projet. Choisissez un projet, saisissez les heures, sélectionnez une catégorie (**IT** ou **Métier**), et ajoutez éventuellement des notes. Nécessite `portfolio_projects:member` ou supérieur.
-- **Nouveau document** — ouvre le formulaire de création de la base de connaissances pour créer un document vierge ou à partir d'un modèle publié. Nécessite `knowledge:member` ou supérieur.
-- **Paramètres** (icône engrenage) — ouvre les paramètres du tableau de bord pour choisir les tuiles à afficher.
+- **Créer une tâche** -- ouvre le flux de création de tâche autonome. Nécessite `tasks:member` ou supérieur.
+- **Enregistrer du temps** -- ouvre la boîte de dialogue **Enregistrement rapide du temps** (voir ci-dessous). Nécessite `portfolio_projects:member` ou `tasks:member`.
+- **Nouvelle demande** -- ouvre le flux de création de demande. Nécessite `portfolio_requests:member` ou supérieur.
+- **Nouvelle application** -- ouvre le flux de création d'application. Nécessite `applications:member` ou supérieur.
+- **Nouvel actif** -- ouvre le flux de création d'actif. Nécessite `infrastructure:member` ou supérieur.
+- **Nouveau document** (bouton à options) -- crée un document de connaissances vierge, ou ouvre le sélecteur de modèles pour démarrer à partir d'un modèle publié. Nécessite `knowledge:member` ou supérieur.
+- **Paramètres** (icône engrenage) -- ouvre la boîte de dialogue des paramètres du tableau de bord pour choisir les tuiles à afficher.
+
+### Enregistrement rapide du temps
+
+L'action **Enregistrer du temps** ouvre une boîte de dialogue ciblée pour enregistrer des heures sans quitter le tableau de bord.
+
+- Choisissez la cible -- **Projet** ou **Tâche**.
+  - Les entrées Projet enregistrent du temps directement sur un projet du portefeuille.
+  - Les entrées Tâche enregistrent du temps sur l'une de vos tâches actives (tâches de projet ou tâches autonomes). Les tâches OPEX, CAPEX et contrat sont intentionnellement exclues du sélecteur.
+- Choisissez le projet ou la tâche dans le menu déroulant.
+- Saisissez les **Heures** (par incréments de 0,25).
+- Choisissez une **Catégorie** : **IT** ou **Métier**.
+- Ajoutez des **Notes** si vous voulez du contexte sur ce sur quoi vous avez travaillé.
+
+Après l'enregistrement, la tuile de synthèse du temps du tableau de bord se rafraîchit automatiquement.
 
 ## Tuiles du tableau de bord
 
-Le tableau de bord affiche une grille de tuiles, chacune montrant un aspect différent de votre travail. Les tuiles sont disposées en grille responsive (trois colonnes sur grands écrans, deux sur moyens, une sur petits).
+Le tableau de bord affiche une grille de tuiles, chacune montrant un aspect différent de votre travail. Les tuiles sont disposées dans une grille responsive (trois colonnes sur les grands écrans, deux sur les moyens, une sur les petits). Les tuiles que vous n'avez pas l'autorisation de voir ne sont pas chargées du tout.
 
 ### Mes tâches
 
-Affiche vos tâches assignées groupées par urgence :
+Affiche vos tâches actives regroupées par urgence :
 
-- **En retard** — tâches dépassant leur date d'échéance (surlignées en rouge)
-- **Échéance cette semaine** — tâches dues dans les 7 prochains jours
-- **Plus tard** — tout le reste
+- **En retard** -- tâches dont la date d'échéance est passée (mises en évidence en rouge)
+- **Dues cette semaine** -- tâches dues dans les 7 prochains jours
+- **Plus tard** -- tout le reste
 
-Chaque tâche affiche son titre, le projet lié (le cas échéant), la date d'échéance et un badge de priorité lorsque la priorité est supérieure à normale. Cliquez sur une tâche pour ouvrir son espace de travail.
+Chaque tâche affiche son titre, le projet lié (le cas échéant), la date d'échéance et un badge de priorité lorsque la priorité est au-dessus de la normale. Cliquez sur une tâche pour ouvrir son espace de travail.
 
-Affiche jusqu'à 5 éléments au total entre les trois groupes.
+Affiche jusqu'à 5 éléments au total, répartis entre les trois groupes.
+
+**Paramètres** : nombre maximum d'éléments, masquer la section En retard.
 
 **Nécessite** : `tasks:reader`
 
@@ -39,11 +58,13 @@ Affiche jusqu'à 5 éléments au total entre les trois groupes.
 
 ### Projets que je dirige
 
-Liste les projets où vous avez un rôle de direction (responsable IT, responsable métier, sponsor IT ou sponsor métier). Chaque projet affiche :
+Liste les projets où vous avez un rôle de leadership (Responsable IT, Responsable métier, Sponsor IT ou Sponsor métier). Chaque projet affiche :
 
 - Votre rôle
-- Le statut actuel du projet (avec code couleur)
-- Le prochain jalon et sa date cible, si défini
+- Statut actuel du projet (pastille colorée)
+- Prochain jalon et sa date cible, le cas échéant
+
+Cliquer sur un projet ouvre l'espace de travail du projet.
 
 Affiche jusqu'à 5 éléments.
 
@@ -55,9 +76,11 @@ Affiche jusqu'à 5 éléments.
 
 Liste les projets où vous êtes membre d'équipe. Chaque projet affiche :
 
-- Votre équipe (Équipe IT ou Équipe Métier)
-- Le statut actuel du projet
-- Le nombre de tâches qui vous sont assignées dans ce projet
+- Votre équipe (Équipe IT ou Équipe métier)
+- Statut actuel du projet
+- Nombre de tâches qui vous sont assignées dans ce projet
+
+Cliquer sur un projet ouvre l'espace de travail du projet.
 
 Affiche jusqu'à 5 éléments.
 
@@ -65,15 +88,15 @@ Affiche jusqu'à 5 éléments.
 
 ---
 
-### Consultés récemment
+### Récemment consultés
 
-Affiche les éléments que vous avez récemment ouverts dans l'application — projets, demandes, applications, actifs, interfaces, connexions, contrats, tâches, postes OPEX et postes CAPEX. Chaque entrée montre le nom de l'élément, son type et la date de votre dernière consultation.
+Affiche les éléments que vous avez récemment ouverts dans l'application -- projets, demandes, applications, actifs, interfaces, connexions, contrats, tâches, postes OPEX et CAPEX, et documents de connaissances. Chaque entrée affiche le nom de l'élément, son type, et quand vous l'avez consulté pour la dernière fois.
 
-Les éléments récemment consultés sont stockés localement dans votre navigateur et sont spécifiques à votre utilisateur et tenant. Cliquez sur **Effacer** pour réinitialiser la liste.
+Les éléments récemment consultés sont stockés localement dans votre navigateur et limités au tenant et à l'utilisateur courants. Cliquez sur **Effacer** pour réinitialiser la liste. Les éléments auxquels vous n'avez plus l'autorisation d'accéder sont filtrés automatiquement.
 
 Affiche jusqu'à 5 éléments.
 
-**Nécessite** : Aucune autorisation spéciale (les éléments auxquels vous n'avez pas accès sont automatiquement masqués).
+**Nécessite** : Aucune autorisation spéciale.
 
 ---
 
@@ -81,32 +104,38 @@ Affiche jusqu'à 5 éléments.
 
 Affiche un résumé du temps que vous avez enregistré sur une période récente :
 
-- **Total des heures** enregistrées (affiché en évidence)
-- **Répartition par catégorie** — IT, Métier et Autres tâches
-- **Top projets** — un graphique en barres des projets sur lesquels vous avez passé le plus de temps
+- **Heures totales** enregistrées (affichées de manière proéminente)
+- **Répartition par catégorie** -- IT, Métier et Autres tâches (hors projet)
+- **Top projets** -- un petit graphique en barres des projets sur lesquels vous avez passé le plus de temps
 
-**Paramètres** : Période en jours (7–30).
+**Paramètres** : période en jours (7-30).
 
-**Nécessite** : `portfolio_projects:reader` et `tasks:reader`
+**Nécessite** : `portfolio_projects:reader`
 
 ---
 
 ### Nouvelles demandes
 
-Affiche les demandes de portefeuille créées dans une période récente. Chaque demande montre le nom, le demandeur, la date de création et un badge de priorité si le score de priorité est supérieur à 80.
+Affiche les demandes du portefeuille créées dans une période récente. Chaque demande affiche le nom, le demandeur, la date de création et un badge **Élevée** lorsque le score de priorité est au-dessus de 80.
+
+Cliquer sur une demande ouvre l'espace de travail de la demande.
 
 Affiche jusqu'à 5 éléments.
+
+**Paramètres** : nombre maximum d'éléments, jours à remonter.
 
 **Nécessite** : `portfolio_requests:reader`
 
 ---
 
-### Base de connaissances
+### Connaissances
 
-Affiche deux sections orientées base de connaissances :
+Affiche deux sections axées sur les connaissances dans la même tuile :
 
-- **À réviser** — documents où vous êtes le relecteur ou l'approbateur actif
-- **5 derniers consultés** — les cinq derniers documents de la base de connaissances que vous avez ouverts dans ce navigateur pour le tenant et l'utilisateur courants
+- **À relire** -- documents où vous êtes le relecteur ou approbateur actif, incluant depuis combien de temps la revue a été demandée et par qui. La couleur du badge indique si vous êtes à l'étape de revue ou d'approbation.
+- **5 derniers consultés** -- les cinq derniers documents de connaissances que vous avez ouverts dans ce navigateur pour le tenant courant.
+
+Les bibliothèques restreintes respectent leurs règles d'accès : vous ne voyez que les éléments à relire et les documents récents des bibliothèques que vous pouvez lire. Si vous avez perdu l'accès à un document précédemment consulté, il cesse d'apparaître ici.
 
 **Nécessite** : `knowledge:reader`
 
@@ -114,7 +143,9 @@ Affiche deux sections orientées base de connaissances :
 
 ### Activité de l'équipe
 
-Affiche l'activité récente des projets dans lesquels vous êtes impliqué.
+Affiche l'activité projet récente sur les projets où vous êtes impliqué (modifications, commentaires, décisions). Chaque ligne indique le projet, le type d'activité, l'auteur et un court résumé. Cliquez sur un élément pour sauter à l'onglet d'activité du projet.
+
+**Paramètres** : nombre maximum d'éléments.
 
 **Nécessite** : `portfolio_projects:reader`
 
@@ -122,7 +153,9 @@ Affiche l'activité récente des projets dans lesquels vous êtes impliqué.
 
 ### Changements de statut des projets
 
-Affiche les derniers changements de statut des projets sur les derniers jours.
+Affiche les transitions de statut récentes des projets (de → vers) à travers les projets, afin que vous puissiez voir quelles initiatives ont avancé, ont été mises en pause ou ont été clôturées au cours des derniers jours.
+
+**Paramètres** : jours à remonter (1-14).
 
 **Nécessite** : `portfolio_projects:reader`
 
@@ -130,25 +163,28 @@ Affiche les derniers changements de statut des projets sur les derniers jours.
 
 ### Tâches en attente
 
-Affiche les tâches qui n'ont pas été mises à jour depuis longtemps, avec une portée personnelle, équipe ou globale.
+Affiche les tâches qui n'ont pas été mises à jour depuis longtemps. Chaque élément affiche la pastille jours-en-attente (avertissement, puis erreur passée le double du seuil) et l'objet lié, le cas échéant.
+
+**Paramètres** : périmètre (`mes`, `équipe`, `tous`) et seuil en jours (30-365).
 
 **Nécessite** : `tasks:reader`
 
 ## Personnaliser votre tableau de bord
 
-Cliquez sur l'icône **Paramètres** (engrenage) dans la zone supérieure droite du tableau de bord pour ouvrir le dialogue de paramètres.
+Cliquez sur l'icône **Paramètres** (engrenage) dans l'en-tête du tableau de bord pour ouvrir la boîte de dialogue des paramètres du tableau de bord.
 
-Depuis cet écran, vous pouvez :
+Depuis là, vous pouvez :
 
-- **Activer ou désactiver des tuiles** — cochez ou décochez chaque tuile pour contrôler ce qui apparaît sur votre tableau de bord
-- **Rétablir les valeurs par défaut** — restaurer la sélection de tuiles d'origine
+- **Activer ou désactiver des tuiles** -- cochez ou décochez chaque tuile pour contrôler ce qui apparaît sur votre tableau de bord.
+- **Réinitialiser par défaut** -- restaurer la sélection de tuiles d'origine.
 
-Seules les tuiles que vous avez l'autorisation de voir apparaissent dans la liste des paramètres. Les modifications sont enregistrées sur votre compte et persistent entre les sessions et les appareils.
+Seules les tuiles que vous avez l'autorisation de voir apparaissent dans la liste des paramètres. Les modifications sont enregistrées sur votre compte et persistent entre sessions et appareils.
 
-Si toutes les tuiles sont désactivées, le tableau de bord affiche un message vous invitant à activer des tuiles dans les paramètres.
+Si toutes les tuiles sont désactivées, le tableau de bord affiche un message vous invitant à en activer.
 
 ## Conseils
 
-- **Commencez avec les valeurs par défaut** : Le tableau de bord est livré avec un ensemble utile de tuiles déjà activées. Essayez-le pendant quelques jours avant de personnaliser.
-- **Utilisez les actions rapides** : Créer une tâche ou saisir du temps depuis le tableau de bord vous évite de quitter votre vue d'ensemble.
-- **Vérifiez les tâches en retard quotidiennement** : La tuile Mes tâches surligne les éléments en retard en rouge pour que rien ne passe entre les mailles du filet.
+- **Commencez avec les valeurs par défaut** : le tableau de bord est livré avec un ensemble utile de tuiles déjà activées. Essayez-le pendant quelques jours avant de personnaliser.
+- **Utilisez les actions rapides** : créer une tâche, demande ou document -- ou enregistrer du temps -- directement depuis le tableau de bord vous évite de naviguer.
+- **Vérifiez les tâches en retard quotidiennement** : la tuile Mes tâches met en évidence les éléments en retard en rouge afin que rien ne passe entre les mailles du filet.
+- **Utilisez Tâches en attente au périmètre équipe** : avec `tasks:admin`, basculez la tuile Tâches en attente sur le périmètre `équipe` ou `tous` pour trouver le travail que personne ne met à jour à travers l'organisation.

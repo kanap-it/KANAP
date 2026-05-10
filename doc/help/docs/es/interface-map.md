@@ -1,6 +1,6 @@
 # Mapa de interfaces
 
-El Mapa de interfaces proporciona una visualización interactiva de su panorama de integración de aplicaciones. Las aplicaciones aparecen como nodos y las interfaces como aristas conectoras, ofreciéndole una vista panorámica de cómo fluyen los datos entre sus sistemas.
+El Mapa de interfaces es una visualización interactiva de su panorama de integración de aplicaciones. Las aplicaciones aparecen como nodos y las interfaces como aristas conectoras, ofreciéndole una vista panorámica de cómo fluyen los datos entre sus sistemas para un entorno determinado.
 
 ## Dónde encontrarlo
 
@@ -14,65 +14,67 @@ Navegue a **Panorama IT > Mapa de interfaces** para abrir la visualización.
 
 El mapa utiliza un diseño de grafo dirigido por fuerzas donde:
 
-- Los **nodos** representan aplicaciones
-- Las **aristas** representan interfaces entre aplicaciones
-- El **tamaño del nodo** refleja el número de interfaces conectadas
-- Las **etiquetas de las aristas** muestran el identificador de la interfaz a lo largo de cada conexión
+- **Nodos** representan aplicaciones
+- **Aristas** representan interfaces entre aplicaciones
+- **Etiquetas de aristas** muestran el identificador de la interfaz en cada conexión
+- **El tamaño del nodo** refleja cuántas interfaces tocan la aplicación
 
-### Vista de negocio vs Vista técnica
+### Vista de Negocio vs Técnica
 
-**Vista de negocio** (predeterminada):
+Alterne entre los dos modos de vista con el conmutador **Mostrar middleware** en la barra de herramientas.
+
+**Vista de negocio** (predeterminado, conmutador desactivado):
 
 - Oculta las aplicaciones middleware
 - Muestra relaciones directas origen-destino
-- Ideal para comprender los flujos de datos de negocio
+- Mejor para comprender los flujos de datos de negocio
 
-**Vista técnica**:
+**Vista técnica** (conmutador activado):
 
-- Muestra las plataformas middleware como nodos intermedios (mostrados con forma de diamante)
-- Muestra la ruta real de datos (Origen → Middleware → Destino)
-- Ideal para comprender la arquitectura técnica
+- Muestra las plataformas middleware como nodos intermedios (renderizados como rombos)
+- Expande cada interfaz a su ruta de datos real (Origen -> Middleware -> Destino)
+- Mejor para comprender la arquitectura técnica
 
-Alterne entre vistas usando el conmutador **Mostrar middleware** en la barra de herramientas.
+Una breve leyenda bajo el encabezado de la página le recuerda qué vista está activa.
 
 ---
 
 ## Filtros
 
-Todos los filtros se encuentran en la barra de herramientas encima del mapa.
+Todos los filtros están en la barra de herramientas encima del mapa.
 
 ### Entorno
 
-Filtre interfaces por entorno de despliegue:
+Filtrar interfaces por entorno de despliegue:
 
-- Producción, Pre-producción, QA, Test, Desarrollo, Sandbox
+- Producción, Pre-Prod, QA, Test, Desarrollo, Sandbox
 
-El valor predeterminado es **Producción**.
+El predeterminado es **Producción**. Los enlaces mostrados en el panel lateral y las conexiones de infraestructura vinculadas siempre reflejan el entorno seleccionado.
 
 ### Ciclo de vida
 
-Filtro de selección múltiple para el estado del ciclo de vida de la interfaz. Elija qué estados incluir en la visualización (p. ej., Activo, Planificado, Obsoleto). La selección predeterminada es **Activo**.
+Filtro de selección múltiple para el estado del ciclo de vida de la interfaz (Activa, Planificada, Obsoleta, etc.). Por defecto **Activa**.
 
 ### Aplicaciones
 
-Enfoque el mapa en aplicaciones o servicios específicos:
+Centre el mapa en aplicaciones o servicios específicos:
 
 1. Haga clic en el desplegable **Aplicaciones**
-2. Seleccione una o más aplicaciones (agrupadas por tipo: Aplicaciones vs Servicios de infraestructura)
-3. El mapa se filtra para mostrar solo interfaces conectadas a su selección
+2. Elija una o más opciones (agrupadas en **Aplicaciones** y **Servicios de infraestructura**)
+3. El mapa se filtra para mostrar solo las interfaces conectadas a su selección
 
-Cuando selecciona aplicaciones aquí, el filtro de **Profundidad** cambia automáticamente de "Todos" a "1" para que vea solo el vecindario inmediato.
+Cuando elige al menos una aplicación aquí, el filtro **Profundidad** cambia automáticamente de **Todos** a **1** para que vea solo el vecindario inmediato.
 
 ### Profundidad
 
-Limitar cuántos saltos desde las aplicaciones seleccionadas se muestran:
+Limite cuántos saltos desde las aplicaciones seleccionadas se muestran:
 
-- **Todos**: Mostrar todos los nodos conectados (sin límite)
-- **1--5**: Mostrar solo nodos dentro de N saltos de las aplicaciones seleccionadas
+- **Todos**: Mostrar cada nodo conectado (sin límite)
+- **1-5**: Mostrar solo los nodos dentro de N saltos de las aplicaciones seleccionadas
 
 Los nodos middleware no cuentan como un salto -- el contador de profundidad solo se incrementa al atravesar un nodo de aplicación principal.
 
-Este filtro se habilita automáticamente cuando selecciona aplicaciones en el filtro de Aplicaciones.
+Este filtro solo surte efecto cuando tiene al menos una aplicación seleccionada; sin selección el valor está bloqueado en **Todos**.
 
 ---
 
@@ -83,14 +85,14 @@ El panel de control en el lado izquierdo del mapa proporciona estas herramientas
 | Icono | Acción | Descripción |
 |-------|--------|-------------|
 | Pausa / Reproducir | **Congelar / Descongelar** | Pausar la simulación de fuerzas para posicionar nodos manualmente |
-| Centro | **Auto-centrar** | Alternar el centrado automático al seleccionar nodos (resaltado cuando está habilitado) |
+| Cruz | **Auto-centrar** | Alternar el centrado automático al seleccionar nodos (resaltado cuando está activado) |
 | Zoom + | **Acercar** | Aumentar el nivel de zoom |
 | Zoom - | **Alejar** | Disminuir el nivel de zoom |
-| Cuadrícula | **Ajustar a cuadrícula** | Alinear todos los nodos a una cuadrícula para diseños más limpios |
+| Cuadrícula | **Ajustar a la cuadrícula** | Alinear todos los nodos a una cuadrícula para diseños más limpios |
 | SVG | **Exportar SVG** | Descargar la vista actual como imagen vectorial |
 | PNG | **Exportar PNG** | Descargar la vista actual como imagen rasterizada |
 
-Los botones de congelación y auto-centrar cambian de color cuando están activos, para que pueda saber de un vistazo si están activados o desactivados.
+Los botones de congelar y auto-centrar cambian de color cuando están activos para que pueda ver de un vistazo si están activados o desactivados. También puede hacer zoom con la rueda del ratón y desplazarse haciendo clic y arrastrando el fondo.
 
 ---
 
@@ -102,17 +104,17 @@ Haga clic en un nodo de aplicación para resaltar sus conexiones y abrir un pane
 
 ### Seleccionar aristas
 
-Haga clic en una arista de interfaz para ver los detalles de la interfaz en el panel lateral. Las aristas tienen un área de clic invisible más ancha, por lo que no necesita hacer clic precisamente en la línea.
+Haga clic en una arista de interfaz para ver los detalles de la interfaz en el panel lateral. Las aristas tienen un área de impacto invisible más amplia, por lo que no necesita hacer clic en la línea con precisión.
 
 ### Arrastrar nodos
 
-Arrastre cualquier nodo para reposicionarlo manualmente. Mientras la simulación está en ejecución, el diseño continúa ajustándose alrededor del nodo movido. Cuando la simulación está congelada, el nodo permanece exactamente donde lo coloque.
+Arrastre cualquier nodo para reposicionarlo manualmente. Mientras la simulación está en marcha, el diseño continúa ajustándose alrededor del nodo movido. Cuando la simulación está congelada, el nodo permanece exactamente donde lo coloca.
 
-### Borrar la selección
+### Limpiar la selección
 
-Haga clic en el área de fondo vacía del mapa para cerrar el panel de detalle y borrar cualquier selección.
+Haga clic en el fondo vacío del mapa (o en **Cerrar** en el panel lateral) para descartar el panel de detalle.
 
-### Enlace directo
+### Enlaces profundos
 
 El mapa admite parámetros de URL para compartir vistas específicas:
 
@@ -121,7 +123,7 @@ El mapa admite parámetros de URL para compartir vistas específicas:
 | `environment` | Preseleccionar un entorno | `prod`, `dev` |
 | `lifecycles` | Preseleccionar filtros de ciclo de vida (separados por comas) | `active,planned` |
 | `focusInterfaceId` | Resaltar una interfaz específica | UUID |
-| `rootIds` | Preseleccionar aplicaciones a enfocar (separadas por comas) | UUIDs |
+| `rootIds` | Preseleccionar aplicaciones en las que centrarse (separadas por comas) | UUIDs |
 | `depth` | Establecer el límite de profundidad | `1`, `2`, `all` |
 
 **Ejemplo**: `/it/interface-map?environment=prod&rootIds=abc123&depth=2`
@@ -130,29 +132,27 @@ El mapa admite parámetros de URL para compartir vistas específicas:
 
 ## El panel de detalle
 
-Cuando selecciona un nodo o arista, se abre un panel lateral a la derecha con detalles.
+Cuando selecciona un nodo o una arista, se abre un panel lateral a la derecha con los detalles.
 
 ### Panel de aplicación
 
 - **Descripción**: Qué hace la aplicación
 - **Editor**: Editor del software
-- **Criticidad**: Importancia para el negocio (Crítica para el negocio, Alta, Media, Baja)
+- **Criticidad**: Crítica para el negocio, Alta, Media o Baja
 - **Servidores**: Servidores que alojan esta app, agrupados por entorno. Haga clic en el nombre de un servidor para abrir su espacio de trabajo.
-- **Responsables de negocio**: Contactos de negocio responsables
-- **Responsables IT**: Contactos técnicos responsables
-- **Información de soporte**: Contactos de soporte con sus roles. Haga clic en un nombre de contacto para navegar a la pestaña Técnico de la aplicación.
+- **Responsables de negocio** y **Responsables IT**: Contactos responsables
+- **Información de soporte**: Contactos de soporte con sus roles. Haga clic en el nombre de un contacto para navegar a la pestaña Técnico de la aplicación.
 - **Editar aplicación**: Abre el espacio de trabajo de la aplicación
 
 ### Panel de interfaz
 
-- **Criticidad**: Nivel de importancia para el negocio
-- **Ruta**: Tipo de ruta de integración
-- **Enlaces**: Número de enlaces de entorno
-- **Vía middleware**: Si la interfaz se enruta a través de middleware
-- **Endpoints**: Para el entorno seleccionado, muestra aplicaciones de origen y destino, nombres de trabajo y URLs de endpoints
-- **Conexiones de infraestructura**: Conexiones de infraestructura vinculadas a esta interfaz para el entorno actual. Cada tarjeta de conexión muestra origen, destino y protocolos. Desde aquí puede:
+Para la interfaz seleccionada y el entorno actual:
+
+- **Criticidad**, **Ruta**, **Conteo de enlaces**, **Vía middleware** (sí/no)
+- **Puntos finales**: Para cada enlace en el entorno activo, muestra app de origen -> app de destino, tipo de tramo, nombre de trabajo, punto final de origen y punto final de destino
+- **Conexiones de infra**: Conexiones de infraestructura vinculadas a esta interfaz para el entorno actual. Cada tarjeta muestra origen, destino, protocolos y el entorno / tipo de tramo del enlace. Desde la tarjeta puede:
   - Hacer clic en **Editar** para abrir el espacio de trabajo de la conexión
-  - Hacer clic en **Ver en Mapa de conexiones** para ver la topología de infraestructura
+  - Hacer clic en **Ver en el Mapa de conexiones** para saltar a la topología de infraestructura, prefocalizada en la conexión
 - **Editar interfaz**: Abre el espacio de trabajo de la interfaz
 
 ---
@@ -160,8 +160,9 @@ Cuando selecciona un nodo o arista, se abre un panel lateral a la derecha con de
 ## Consejos
 
 - **Empiece con Producción**: Seleccione el entorno Prod para ver primero sus integraciones más críticas.
-- **Enfóquese en apps específicas**: Utilice el filtro de Aplicaciones con profundidad 2 para ver solo el vecindario de una aplicación sin todo el panorama.
-- **Exporte para documentación**: Utilice la exportación SVG para crear diagramas de arquitectura para documentación o presentaciones. Utilice PNG cuando necesite una imagen rasterizada.
-- **Ajuste para claridad**: Después de arrastrar nodos a posición, utilice Ajustar a cuadrícula para crear diseños más limpios y alineados.
-- **Enlace directo para compartir**: Copie la URL después de configurar filtros para compartir vistas específicas con colegas.
-- **Cambie a Vista técnica**: Al depurar, active la visibilidad de middleware para ver la ruta real de datos a través de las plataformas de integración.
+- **Centre en apps específicas**: Elija algunas apps en el filtro Aplicaciones y use profundidad 1 o 2 para explorar el vecindario de una aplicación sin todo el panorama.
+- **Cambie a la vista Técnica**: Al diagnosticar problemas, active **Mostrar middleware** para ver la ruta de datos real a través de las plataformas de integración.
+- **Exporte para documentación**: Use SVG para crear diagramas de arquitectura vectoriales, o PNG cuando necesite una imagen rasterizada.
+- **Ajuste para mayor claridad**: Después de arrastrar nodos a su posición, use **Ajustar a la cuadrícula** para crear diseños más limpios y alineados.
+- **Enlace profundo para compartir**: Copie la URL después de establecer filtros para compartir vistas específicas con sus colegas.
+- **Cruce con el Mapa de conexiones**: Use **Ver en el Mapa de conexiones** en la sección Conexiones de infra para ver la topología de red subyacente de un enlace elegido.

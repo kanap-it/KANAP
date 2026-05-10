@@ -76,6 +76,54 @@ function renderValue(
   );
 }
 
+function DiffSection({
+  variant,
+  label,
+  children,
+}: {
+  variant: 'before' | 'after';
+  label: string;
+  children: React.ReactNode;
+}) {
+  const isAfter = variant === 'after';
+  return (
+    <Box
+      sx={(theme) => ({
+        position: 'relative',
+        pl: 1.5,
+        // 2px accent stripe on the left edge — borrowed from git/IDE diff conventions.
+        // Before stays neutral (grey tertiary), After takes kanap.orange so the
+        // user's eye lands on the section that requires their attention.
+        borderLeft: `2px solid ${isAfter ? theme.palette.warning.main : theme.palette.kanap.text.tertiary}`,
+        py: 0.25,
+      })}
+    >
+      <Typography
+        component="div"
+        sx={(theme) => ({
+          fontSize: 12,
+          fontWeight: 500,
+          letterSpacing: 0.2,
+          color: isAfter ? theme.palette.warning.main : theme.palette.kanap.text.secondary,
+          mb: 0.5,
+        })}
+      >
+        {label}
+      </Typography>
+      <Box
+        sx={(theme) => ({
+          fontSize: 13,
+          lineHeight: 1.55,
+          // Before reads as faded/historical, After is full-strength so it draws focus.
+          color: isAfter ? theme.palette.kanap.text.primary : theme.palette.kanap.text.secondary,
+        })}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
 function PreviewCard({
   preview,
   disabled,
@@ -90,74 +138,139 @@ function PreviewCard({
 
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         border: 1,
-        borderColor: 'divider',
+        borderColor: theme.palette.kanap.border.default,
         borderRadius: 2,
-        p: 1.5,
-        bgcolor: isPending ? 'background.paper' : 'action.hover',
-      }}
+        p: 1.75,
+        bgcolor: isPending ? theme.palette.kanap.bg.composer : theme.palette.kanap.bg.drawer,
+      })}
     >
-      <Stack spacing={1}>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{t('ai:previewCard.preview')}</Box>
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: '9999px', bgcolor: getPillBg(statusColorKey, mode), color: getDotColor(statusColorKey, mode), fontSize: '12px', fontWeight: 500 }}>{preview.status}</Box>
-          {preview.target.ref && (
-            <Typography variant="body2" fontWeight={600}>
-              {preview.target.ref}
-            </Typography>
-          )}
-          {preview.target.title && (
-            <Typography variant="body2">
-              {preview.target.title}
-            </Typography>
-          )}
+      <Stack spacing={1.5}>
+        {/* Header — entity ref + title get the visual weight; Preview tag and status pill are secondary */}
+        <Stack spacing={0.5}>
+          <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap>
+            {preview.target.ref && (
+              <Typography
+                component="span"
+                sx={(theme) => ({
+                  fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: theme.palette.kanap.text.secondary,
+                })}
+              >
+                {preview.target.ref}
+              </Typography>
+            )}
+            {preview.target.title && (
+              <Typography
+                component="span"
+                sx={(theme) => ({
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: theme.palette.kanap.text.primary,
+                  flex: 1,
+                  minWidth: 0,
+                })}
+              >
+                {preview.target.title}
+              </Typography>
+            )}
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                px: 1,
+                py: 0.25,
+                borderRadius: '9999px',
+                bgcolor: getPillBg(statusColorKey, mode),
+                color: getDotColor(statusColorKey, mode),
+                fontSize: 11,
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
+            >
+              {preview.status}
+            </Box>
+          </Stack>
+          <Typography
+            component="span"
+            sx={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'kanap.text.tertiary',
+              letterSpacing: 0.3,
+              textTransform: 'uppercase',
+            }}
+          >
+            {t('ai:previewCard.preview')}
+          </Typography>
         </Stack>
 
-        <Stack spacing={0.5}>
+        <Stack spacing={1.25}>
           {Object.entries(preview.changes).map(([field, diff]) => (
-            diff.format === 'markdown' ? (
-              <Stack key={field} spacing={0.5}>
-                <Typography variant="caption" color="text.secondary">
-                  {diff.label || field}
-                </Typography>
-                {hasDisplayValue(diff.from) && (
-                  <>
-                    <Typography variant="body2" color="text.secondary">
-                      {t('ai:previewCard.before')}
-                    </Typography>
-                    {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
-                    <Typography variant="body2" color="text.secondary">
-                      {t('ai:previewCard.after')}
-                    </Typography>
-                  </>
-                )}
-                <Box>
-                  {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
-                </Box>
-              </Stack>
-            ) : (
-              <Stack key={field} direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 72 }}>
-                  {diff.label || field}
-                </Typography>
-                {hasDisplayValue(diff.from) && (
-                  <>
-                    {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
-                    <Typography variant="body2" color="text.secondary">
-                      →
-                    </Typography>
-                  </>
-                )}
-                <Box sx={{ fontWeight: 600 }}>
-                  {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
-                </Box>
-              </Stack>
-            )
+            <Stack key={field} spacing={0.75}>
+              <Typography
+                component="div"
+                sx={(theme) => ({
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: theme.palette.kanap.text.secondary,
+                  letterSpacing: 0.1,
+                })}
+              >
+                {diff.label || field}
+              </Typography>
+              {diff.format === 'markdown' ? (
+                <Stack spacing={0.75}>
+                  {hasDisplayValue(diff.from) && (
+                    <DiffSection variant="before" label={t('ai:previewCard.before')}>
+                      {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
+                    </DiffSection>
+                  )}
+                  <DiffSection variant="after" label={t('ai:previewCard.after')}>
+                    {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
+                  </DiffSection>
+                </Stack>
+              ) : (
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="baseline">
+                  {hasDisplayValue(diff.from) && (
+                    <>
+                      <Box
+                        sx={(theme) => ({
+                          fontSize: 13,
+                          color: theme.palette.kanap.text.tertiary,
+                          textDecoration: 'line-through',
+                        })}
+                      >
+                        {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
+                      </Box>
+                      <Box component="span" sx={{ color: 'kanap.text.tertiary', fontSize: 12 }}>→</Box>
+                    </>
+                  )}
+                  <Box
+                    sx={(theme) => ({
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: theme.palette.warning.main,
+                    })}
+                  >
+                    {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
+                  </Box>
+                </Stack>
+              )}
+            </Stack>
           ))}
         </Stack>
 
-        <Typography variant="caption" color={preview.error_message ? 'error.main' : 'text.secondary'}>
+        <Typography
+          variant="caption"
+          sx={{
+            fontSize: 12,
+            color: preview.error_message ? 'error.main' : 'kanap.text.tertiary',
+          }}
+        >
           {preview.error_message || preview.summary}
         </Typography>
 

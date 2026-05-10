@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { AiAttachmentService } from './ai-attachment.service';
 import { AiConversationService } from './ai-conversation.service';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
@@ -9,7 +10,13 @@ import { AiToolRegistry } from './ai-tool.registry';
 import { prepareAiProviderMessages } from './ai-context-budget.helper';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
-import { AiProviderAdapter, AiProviderMessage, AiProviderToolCall, AiStreamEvent } from './providers/ai-provider.types';
+import {
+  AiProviderAdapter,
+  AiProviderImageAttachment,
+  AiProviderMessage,
+  AiProviderToolCall,
+  AiStreamEvent,
+} from './providers/ai-provider.types';
 import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from './providers/streaming.util';
 import { isOpenAiReasoningModel } from './providers/openai-stream.util';
 import {
@@ -26,8 +33,28 @@ import { PlatformAiConfigService } from './platform/platform-ai-config.service';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 
 const MAX_TOOL_ITERATIONS = 20;
-const DEFAULT_MAX_TOKENS = 4096;
-const OPENAI_REASONING_MAX_TOKENS = 8192;
+/**
+ * Per-turn output cap. The previous 4096 was too tight: when a write tool such as
+ * create_document or update_document_content streams its arguments (the document
+ * body lives inside the tool_call JSON), the model would hit finish_reason='length'
+ * mid-arguments and the orchestrator would surface "Model output was truncated
+ * before the tool call completed.". 16K covers ~12k words of markdown, which is
+ * enough for the documents Plaid produces in practice. Modern providers (Anthropic
+ * Claude 3.5+, GPT-4o, qwen3-* with vLLM) all support at least this much output.
+ * Operators can override via env if their model needs more or less.
+ */
+const DEFAULT_MAX_TOKENS = parsePositiveIntEnv(process.env.AI_CHAT_MAX_TOKENS, 16384);
+const OPENAI_REASONING_MAX_TOKENS = parsePositiveIntEnv(
+  process.env.AI_CHAT_REASONING_MAX_TOKENS,
+  Math.max(DEFAULT_MAX_TOKENS, 16384),
+);
+
+function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return fallback;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 const DEFAULT_CHAT_PROVIDER_TIMEOUT_MS = 300_000;
 const APPROVE_MARKER_RE = /^\[APPROVE:([0-9a-f-]{36})\]$/i;
 const REJECT_MARKER_RE = /^\[REJECT:([0-9a-f-]{36})\]$/i;
@@ -44,6 +71,20 @@ type ChatStreamParams = {
   context: AiExecutionContext;
   conversationId?: string | null;
   userMessage: string;
+  /** Attachment ids that have already been uploaded for the current user message (multimodal). */
+  attachmentIds?: string[] | null;
+  /**
+   * Edit/regenerate support: when set, the orchestrator deletes this message and every
+   * message persisted after it in the same conversation BEFORE running the new turn.
+   * - Edit  flow: client passes the user message id + a non-empty userMessage. The old
+   *   user msg + all following are wiped, then the new userMessage is persisted as the
+   *   replacement, then we stream a fresh assistant reply.
+   * - Regen flow: client passes the assistant message id + an empty userMessage. The
+   *   old assistant (and anything after) is wiped; no new user msg is persisted (the
+   *   prior user msg already sits at the tail of the history); the LLM re-runs against
+   *   that history.
+   */
+  truncateFromMessageId?: string | null;
   signal?: AbortSignal | null;
 };
 
@@ -67,6 +108,8 @@ type PreparedChatRequest = {
   context: AiExecutionContext;
   inputConversationId?: string | null;
   userMessage: string;
+  attachmentIds?: string[] | null;
+  truncateFromMessageId?: string | null;
   approvalAction: ApprovalAction | null;
   providerSource: 'builtin' | 'custom';
   provider: AiProviderAdapter;
@@ -95,6 +138,39 @@ function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: stri
     .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
     .join('\u0001');
 }
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Frontend deep-link patterns keyed by the entity_type stored on a mutation preview's
+ * target. When the user approves a mutation, the executed-state summary contains the
+ * entity ref (e.g. "Created DOC-152.") and we rewrite that ref into a markdown link so
+ * the assistant's confirmation is one click away from the artifact.
+ *
+ * Keep this in sync with frontend/src/App.tsx routes. Sub-entities of master-data
+ * such as accounts/chart_of_accounts/analytics_categories don't have workspace pages
+ * yet — leave them out so we don't surface dead links.
+ */
+const ENTITY_URL_BUILDERS: Record<string, (id: string) => string> = {
+  documents: (id) => `/knowledge/${id}`,
+  tasks: (id) => `/portfolio/tasks/${id}`,
+  projects: (id) => `/portfolio/projects/${id}`,
+  requests: (id) => `/portfolio/requests/${id}`,
+  applications: (id) => `/it/applications/${id}`,
+  assets: (id) => `/it/assets/${id}`,
+  connections: (id) => `/it/connections/${id}`,
+  interfaces: (id) => `/it/interfaces/${id}`,
+  locations: (id) => `/it/locations/${id}`,
+  contracts: (id) => `/ops/contracts/${id}`,
+  capex_items: (id) => `/ops/capex/${id}`,
+  companies: (id) => `/master-data/companies/${id}`,
+  contacts: (id) => `/master-data/contacts/${id}`,
+  departments: (id) => `/master-data/departments/${id}`,
+  suppliers: (id) => `/master-data/suppliers/${id}`,
+  business_processes: (id) => `/master-data/business-processes/${id}`,
+};
 
 export function resolveProviderMaxTokens(providerId: string, model: string): number {
   if (providerId === 'openai' && isOpenAiReasoningModel(model)) {
@@ -131,6 +207,7 @@ export class AiChatOrchestratorService {
     private readonly previews: AiMutationPreviewService,
     private readonly toolRegistry: AiToolRegistry,
     private readonly systemPrompt: AiSystemPromptService,
+    private readonly attachments: AiAttachmentService,
   ) {}
 
   private parseApprovalAction(userMessage: string): ApprovalAction | null {
@@ -195,19 +272,26 @@ export class AiChatOrchestratorService {
 
   private linkifyPreviewSummary(preview: AiMutationPreviewDto, summary: string): string {
     const text = String(summary || '').trim();
-    if (!text) {
-      return text;
-    }
+    if (!text) return text;
 
     const targetEntityType = String(preview.target?.entity_type || '').trim().toLowerCase();
     const targetEntityId = String(preview.target?.entity_id || '').trim();
     const targetRef = String(preview.target?.ref || '').trim();
+    if (!targetEntityType || !targetEntityId || !targetRef) return text;
 
-    if (targetEntityType === 'tasks' && targetEntityId && targetRef && text.includes(targetRef)) {
-      return text.replace(targetRef, `[${targetRef}](/portfolio/tasks/${targetEntityId})`);
-    }
+    const builder = ENTITY_URL_BUILDERS[targetEntityType];
+    if (!builder) return text;
 
-    return text;
+    const url = builder(targetEntityId);
+    // Replace every standalone occurrence of the ref with a markdown link, but skip refs
+    // already inside `[ ]( )`. A negative lookbehind for `[`/`-`/word and a negative
+    // lookahead for word/dash prevents partial matches like T-87 inside T-879 or
+    // already-linked refs from being clobbered.
+    const refPattern = new RegExp(
+      `(?<![\\[\\w-])${escapeRegExp(targetRef)}(?![\\w-])`,
+      'g',
+    );
+    return text.replace(refPattern, `[${targetRef}](${url})`);
   }
 
   private sanitizeReplayToolCalls(toolCalls: unknown): AiProviderToolCall[] | null {
@@ -272,6 +356,12 @@ export class AiChatOrchestratorService {
 
   async prepareRequest(params: ChatStreamParams): Promise<PreparedChatRequest> {
     const approvalAction = this.parseApprovalAction(params.userMessage);
+    this.logger.log(
+      `prepareRequest: conversation_id=${params.conversationId || 'NONE'} `
+      + `userMessage_len=${params.userMessage?.length ?? 0} `
+      + `attachment_ids=${(params.attachmentIds || []).length} `
+      + `truncate_from_message_id=${params.truncateFromMessageId || 'NONE'}`,
+    );
     return this.tenantExecutor.runWithContext(params.context, async (ctx) => {
       await this.policy.assertSurfaceAccess(ctx, ctx.manager);
 
@@ -306,6 +396,8 @@ export class AiChatOrchestratorService {
           context: params.context,
           inputConversationId: params.conversationId ?? null,
           userMessage: params.userMessage,
+          attachmentIds: params.attachmentIds ?? null,
+          truncateFromMessageId: params.truncateFromMessageId ?? null,
           approvalAction,
           providerSource,
           provider: adapter,
@@ -329,6 +421,8 @@ export class AiChatOrchestratorService {
         context: params.context,
         inputConversationId: params.conversationId ?? null,
         userMessage: params.userMessage,
+        attachmentIds: params.attachmentIds ?? null,
+        truncateFromMessageId: params.truncateFromMessageId ?? null,
         approvalAction,
         providerSource,
         provider: adapter,
@@ -432,6 +526,16 @@ export class AiChatOrchestratorService {
             { manager: ctx.manager },
           );
           convTitle = conv.title || userMessage.slice(0, 100);
+          // Auto-title pre-created conversations (e.g. created empty for an attachment-first
+          // upload). Approval/rejection markers don't deserve to become titles.
+          if (!conv.title && userMessage.trim() && !approvalAction) {
+            await this.conversations.setTitleIfMissing(
+              convId,
+              ctx.tenantId,
+              userMessage.slice(0, 100),
+              { manager: ctx.manager },
+            );
+          }
         } else {
           convTitle = userMessage.slice(0, 100);
           const conv = await this.conversations.createConversation(
@@ -448,18 +552,55 @@ export class AiChatOrchestratorService {
           convId = conv.id;
         }
 
-        // Persist user message
-        await this.conversations.appendMessage(
-          {
-            conversationId: convId!,
-            tenantId: ctx.tenantId,
-            conversationUserId: ctx.userId,
-            userId: ctx.userId,
-            role: 'user',
-            content: userMessage,
-          },
-          { manager: ctx.manager },
-        );
+        // Edit/regen: wipe the conversation tail before we persist anything new, so the
+        // history replay below sees only the pre-edit prefix.
+        if (prepared.truncateFromMessageId && convId) {
+          await this.conversations.deleteMessagesFromInclusive(
+            convId,
+            ctx.tenantId,
+            prepared.truncateFromMessageId,
+            { manager: ctx.manager },
+          );
+        }
+
+        // Validate attachment ownership BEFORE persisting (fail fast)
+        const requestedAttachmentIds = Array.isArray(prepared.attachmentIds) ? prepared.attachmentIds : [];
+        if (requestedAttachmentIds.length > 0) {
+          await this.attachments.assertAndLoadAttachments(
+            requestedAttachmentIds,
+            { conversationId: convId!, tenantId: ctx.tenantId, userId: ctx.userId },
+            ctx.manager,
+          );
+        }
+
+        // Persist user message — skipped on regenerate (empty userMessage). In that case
+        // the conversation already ends with the user msg the regen targets and we just
+        // re-stream against the existing history.
+        let persistedUserMessage: { id: string } | null = null;
+        if (userMessage.trim().length > 0) {
+          persistedUserMessage = await this.conversations.appendMessage(
+            {
+              conversationId: convId!,
+              tenantId: ctx.tenantId,
+              conversationUserId: ctx.userId,
+              userId: ctx.userId,
+              role: 'user',
+              content: userMessage,
+            },
+            { manager: ctx.manager },
+          );
+        }
+
+        // Link attachments to the persisted user message (idempotent — safe to retry).
+        if (requestedAttachmentIds.length > 0 && persistedUserMessage) {
+          await this.attachments.linkAttachmentsToMessage(
+            requestedAttachmentIds,
+            persistedUserMessage.id,
+            ctx.tenantId,
+            ctx.manager,
+          );
+        }
+
         const streamEvents: ChatStreamEvent[] = [];
 
         if (approvalAction) {
@@ -491,12 +632,50 @@ export class AiChatOrchestratorService {
           { manager: ctx.manager },
         );
 
+        // Pre-load image attachments for user messages so we can inject them into multimodal
+        // content blocks. Only Anthropic currently honors images; other providers ignore them.
+        // Performance: at most ~20MB per image x typically <10 attachments per conversation.
+        const userMessageIds = history
+          .filter((msg) => msg.role === 'user')
+          .map((msg) => msg.id);
+        const attachmentImagesByMessage = new Map<string, AiProviderImageAttachment[]>();
+        if (userMessageIds.length > 0) {
+          const attachmentRows = await this.attachments.listAttachmentsForMessages(
+            userMessageIds,
+            ctx.tenantId,
+            ctx.manager,
+          );
+          await Promise.all(attachmentRows.map(async (row) => {
+            if (!row.message_id) return;
+            try {
+              const { buffer } = await this.attachments.loadAttachmentBuffer(
+                row.id,
+                ctx.tenantId,
+                ctx.manager,
+              );
+              const list = attachmentImagesByMessage.get(row.message_id) || [];
+              list.push({
+                mime_type: row.mime_type,
+                base64_data: buffer.toString('base64'),
+              });
+              attachmentImagesByMessage.set(row.message_id, list);
+            } catch (err) {
+              this.logger.warn(`Failed to load attachment ${row.id} for replay: ${(err as Error).message}`);
+            }
+          }));
+        }
+
         // Build provider messages from history (excluding the just-persisted user msg for reconstruction)
         const msgs: AiProviderMessage[] = [];
         let replayableToolCallIds = new Set<string>();
         for (const msg of history) {
           if (msg.role === 'user') {
-            msgs.push({ role: 'user', content: this.toProviderUserContent(msg.content) });
+            const images = attachmentImagesByMessage.get(msg.id);
+            msgs.push({
+              role: 'user',
+              content: this.toProviderUserContent(msg.content),
+              ...(images && images.length > 0 ? { images } : {}),
+            });
             replayableToolCallIds = new Set<string>();
           } else if (msg.role === 'assistant') {
             const toolCalls = this.sanitizeReplayToolCalls(msg.tool_calls);

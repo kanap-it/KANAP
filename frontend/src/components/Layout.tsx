@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppBar, Box, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Toolbar, Typography, Tooltip, Tabs, Tab, Menu, MenuItem } from '@mui/material';
+import { AppBar, Box, CircularProgress, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Toolbar, Typography, Tooltip, Tabs, Tab, Menu, MenuItem } from '@mui/material';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -247,6 +247,22 @@ export default function Layout() {
       ? <LightModeOutlinedIcon />
       : <BrightnessAutoIcon />;
   const showHeaderLogo = !!logoUrl && (resolvedMode !== 'dark' || useLogoInDark);
+
+  // Block initial render until AI capabilities resolve, so workspace/admin
+  // gating doesn't decide on `undefined` data and hide Plaid tabs. Placed
+  // after all hooks to satisfy Rules of Hooks (early return must not skip
+  // useState/useCallback/useMemo/useEffect calls above).
+  const aiGatingNeeded = config.features.aiChat || config.features.aiSettings;
+  if (
+    aiGatingNeeded &&
+    (aiCapabilities.isLoading || (!aiCapabilities.data && aiCapabilities.isFetching))
+  ) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   // workspace is derived from route; no sync to localStorage required
 

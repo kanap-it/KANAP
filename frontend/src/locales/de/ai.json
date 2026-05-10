@@ -1,7 +1,17 @@
 {
   "conversationList": {
     "archive": "Archivieren",
-    "newChat": "Neuer Chat",
+    "dateGroups": {
+      "lastWeek": "Letzte 7 Tage",
+      "older": "Älter",
+      "today": "Heute",
+      "yesterday": "Gestern"
+    },
+    "empty": "Noch keine Konversationen",
+    "newChat": "Neue Konversation",
+    "noMatch": "Keine Konversation passt",
+    "rename": "Umbenennen",
+    "search": "Konversationen durchsuchen...",
     "untitled": "Ohne Titel"
   },
   "errors": {
@@ -12,13 +22,43 @@
     "streamRequestFailed": "Die Stream-Anfrage ist fehlgeschlagen."
   },
   "input": {
-    "placeholder": "Nachricht senden...",
-    "send": "Senden"
+    "attach": "Bild anhängen",
+    "dropHint": "Bild zum Anhängen ablegen",
+    "hintEnter": "Eingabe zum Senden",
+    "hintShiftEnter": "Umschalt+Eingabe für neue Zeile",
+    "placeholder": "Fragen Sie Plaid zu Ihren KANAP-Daten...",
+    "removeAttachment": "Anhang entfernen",
+    "send": "Senden",
+    "stop": "Generierung stoppen"
   },
   "messageList": {
+    "assistantRole": "Plaid",
+    "copied": "Kopiert",
+    "copy": "Nachricht kopieren",
+    "cancel": "Abbrechen",
+    "edit": "Nachricht bearbeiten",
+    "regenerate": "Neu generieren",
+    "save": "Speichern und senden",
+    "toolCallLabel": "{{name}} verwendet",
+    "toolCallNoResult": "kein Ergebnis",
+    "toolCallResults_one": "{{count}} Ergebnis",
+    "toolCallResults_other": "{{count}} Ergebnisse",
+    "toolCallStreaming": "{{name}} wird aufgerufen…",
     "toolUseCount_one": "{{count}} Tool verwendet",
     "toolUseCount_other": "{{count}} Tools verwendet",
-    "toolUseProgress": "Tools werden verwendet..."
+    "toolUseProgress": "Tools werden verwendet...",
+    "userRole": "Sie"
+  },
+  "artifactPanel": {
+    "chipLabel": "Im Panel öffnen",
+    "close": "Panel schließen",
+    "resize": "Panel-Breite ändern",
+    "tab": "Artefakte",
+    "title": "Artefakte"
+  },
+  "mention": {
+    "noResults": "Keine Treffer",
+    "searching": "Suche..."
   },
   "previewCard": {
     "after": "Nachher",
@@ -55,12 +95,19 @@
   },
   "workspace": {
     "empty": {
-      "subtitle": "Stellen Sie eine Frage, um zu beginnen.",
-      "title": "Neue Konversation starten"
+      "subtitle": "Stellen Sie eine Frage zu Ihren Aufgaben, Projekten, Assets oder Dokumenten.",
+      "suggestionsTitle": "Versuchen Sie",
+      "title": "Plaid ist bereit"
     },
     "messages": {
       "disabled": "Der KI-Chat ist für diesen Arbeitsbereich deaktiviert."
     },
-    "title": "KI"
+    "suggestions": {
+      "applicationMention": "Zusammenfassung für @APP-",
+      "knowledgeSearch": "Finde Dokumente zu Backups",
+      "myProjects": "An welchen Projekten arbeite ich?",
+      "overdueTasks": "Zeige mir meine überfälligen Aufgaben"
+    },
+    "title": "Plaid"
   }
 }

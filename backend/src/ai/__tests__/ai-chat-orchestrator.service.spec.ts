@@ -229,6 +229,12 @@ function createOrchestrator(options?: {
     mockPreviews as any,
     mockToolRegistry as any,
     mockSystemPrompt as any,
+    {
+      assertAndLoadAttachments: async () => [],
+      linkAttachmentsToMessage: async () => undefined,
+      listAttachmentsForMessages: async () => [],
+      loadAttachmentBuffer: async () => ({ attachment: {} as any, buffer: Buffer.alloc(0) }),
+    } as any,
   );
 
   return { orchestrator, persistedMessages, providerCallCount, recordedRequests, toolExecuteCount };
@@ -900,10 +906,10 @@ async function testStructuredToolResultsCarryBlockingValidationMetadataForIgnore
   });
 }
 
-async function testReasoningModelsGetLargerOpenAiTokenBudget() {
-  assert.equal(resolveProviderMaxTokens('openai', 'gpt-5.4'), 8192);
-  assert.equal(resolveProviderMaxTokens('openai', 'gpt-4o'), 4096);
-  assert.equal(resolveProviderMaxTokens('custom', 'gpt-5.4'), 4096);
+async function testProvidersUseLargerDefaultTokenBudget() {
+  assert.equal(resolveProviderMaxTokens('openai', 'gpt-5.4'), 16384);
+  assert.equal(resolveProviderMaxTokens('openai', 'gpt-4o'), 16384);
+  assert.equal(resolveProviderMaxTokens('custom', 'gpt-5.4'), 16384);
 }
 
 async function testChatProviderTimeoutResolver() {
@@ -928,7 +934,7 @@ async function run() {
   await testMalformedToolArgumentsReturnSyntheticToolError();
   await testMalformedPersistedToolCallsAreSkippedDuringReplay();
   await testStructuredToolResultsCarryBlockingValidationMetadataForIgnoredFilters();
-  await testReasoningModelsGetLargerOpenAiTokenBudget();
+  await testProvidersUseLargerDefaultTokenBudget();
   await testChatProviderTimeoutResolver();
 }
 

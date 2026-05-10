@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, beforeEach, expect, it, vi } from 'vitest';
 import { SessionManager } from './SessionManager';
@@ -94,6 +95,12 @@ describe('Entra callback auth bootstrap race', () => {
   });
 
   it('skips bootstrap refresh on the callback route and preserves callback auth state', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
     vi.mocked(api.post).mockRejectedValue(new Error('Refresh should not run on the login callback route'));
 
     vi.mocked(api.get).mockResolvedValue({
@@ -124,11 +131,13 @@ describe('Entra callback auth bootstrap race', () => {
           },
         ]}
       >
-        <AuthProvider>
-          <SessionManager>
-            <AppUnderTest />
-          </SessionManager>
-        </AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SessionManager>
+              <AppUnderTest />
+            </SessionManager>
+          </AuthProvider>
+        </QueryClientProvider>
       </MemoryRouter>,
     );
 
@@ -144,5 +153,72 @@ describe('Entra callback auth bootstrap race', () => {
 
     expect(api.post).not.toHaveBeenCalled();
     expect(getAccessToken()).toBe('callback-token-from-fragment');
+  });
+
+  it('redeems Entra handoff on the callback route before navigating home', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        access_token: 'redeemed-token',
+        expires_in: 900,
+        refresh_expires_in: 14_400,
+        redirectTo: '/',
+      },
+    } as any);
+
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        profile: {
+          id: 'user-1',
+          email: 'user@example.com',
+        },
+        claims: {
+          isGlobalAdmin: true,
+          isBillingAdmin: true,
+          permissions: {},
+        },
+        subscription: null,
+        tenantAuth: {
+          sso_provider: 'entra',
+          sso_enabled: true,
+        },
+      },
+    } as any);
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: '/login/callback',
+            hash: '#handoff=handoff-token',
+          },
+        ]}
+      >
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SessionManager>
+              <AppUnderTest />
+            </SessionManager>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/entra/session', { handoff: 'handoff-token' });
+    });
+
+    await waitFor(() => {
+      expect(getAccessToken()).toBe('redeemed-token');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Home Page')).toBeInTheDocument();
+    });
   });
 });

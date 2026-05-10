@@ -1,82 +1,87 @@
 # Personnalisation
 
-Utilisez la page Personnalisation pour appliquer l'identité de votre entreprise dans KANAP.
+Utilisez la page Personnalisation pour appliquer l'identité de votre entreprise dans KANAP. Vous y définissez le logo et les couleurs principales, et le changement est visible pour chaque utilisateur de votre tenant lors du prochain rechargement de la page.
 
-Route : `/admin/branding`
+## Où la trouver
 
-## Accès & portée
+- Espace de travail : menu **Administration** → **Personnalisation**
+- Route : `/admin/branding`
+- Autorisation : `users:admin`
+- Disponible uniquement sur les hôtes tenant (pas sur l'hôte d'administration de la plateforme)
 
-- Autorisation requise : `users:admin`
-- Disponible uniquement sur les hôtes tenant (pas sur l'hôte platform-admin)
-- Les modifications s'appliquent uniquement à votre tenant actuel
+Les modifications s'appliquent uniquement à votre tenant courant.
 
 ## Ce que vous pouvez personnaliser
+
+La page comporte deux cartes : **Logo** et **Couleurs principales**. Les deux sont optionnelles. Sans rien défini, KANAP affiche son en-tête texte-et-icône par défaut et les couleurs de thème par défaut.
 
 - **Logo**
   - Apparaît dans la barre supérieure de l'application (lorsque connecté)
   - Apparaît dans l'en-tête de la page de connexion
-- **Couleurs primaires**
-  - Une couleur primaire pour le **mode clair**
-  - Une couleur primaire pour le **mode sombre**
-  - Utilisées par les barres d'application, les boutons primaires et les liens
+- **Couleurs principales**
+  - Une couleur principale pour le **mode clair**
+  - Une couleur principale pour le **mode sombre**
+  - Utilisée par la barre d'application, les boutons principaux et les liens
 
 ## Configuration du logo
 
-### Fichiers supportés
+### Fichiers pris en charge
 
 - Formats : `PNG`, `JPG/JPEG`, `GIF`, `WEBP`
-- Taille maximale : `20 Mo`
+- Taille max : `20 Mo`
 
 ### Format de logo recommandé
 
-- Utilisez un logo large et horizontal (fond transparent de préférence)
-- Gardez le contenu important centré (la zone d'en-tête est compacte)
-- Pour un rendu net, utilisez au moins ~2x la taille d'affichage (par exemple `280x72` ou plus)
+- Utilisez un logo large et horizontal (fond transparent de préférence).
+- Gardez le contenu important centré -- la zone d'en-tête est compacte.
+- Pour un rendu net, utilisez au moins environ 2× la taille affichée (par exemple `280x72` ou plus).
 
-### Actions
+### Comment le définir
 
-1. Cliquez sur **Télécharger le logo** et choisissez votre fichier.
-2. Utilisez les aperçus d'en-tête intégrés clair et sombre pour valider l'apparence.
-3. Activez **Afficher le logo en mode sombre** si nécessaire.
+1. Cliquez sur **Téléverser le logo** et choisissez votre fichier.
+2. Utilisez les aperçus d'en-tête **Clair** et **Sombre** intégrés pour valider l'apparence.
+3. Basculez **Afficher le logo en mode sombre** si vous souhaitez revenir à l'identité texte par défaut en thème sombre.
 4. Cliquez sur **Enregistrer les modifications** pour publier.
 
-Pour supprimer le logo, cliquez sur **Supprimer le logo**.
+Pour supprimer le logo actuel, cliquez sur **Supprimer le logo**.
 
-Lorsqu'aucun logo n'est défini (ou que l'affichage du logo en mode sombre est désactivé), KANAP revient à la personnalisation texte/icône par défaut.
+Lorsqu'aucun logo n'est défini, ou lorsque **Afficher le logo en mode sombre** est désactivé, KANAP revient à son identité texte par défaut dans le thème concerné.
 
-## Configuration des couleurs primaires
+## Configuration des couleurs principales
 
-### Comment choisir les couleurs
+Vous pouvez définir les couleurs pour **Couleur principale en mode clair** et **Couleur principale en mode sombre** indépendamment. Chaque sélecteur de couleur propose quatre façons de saisir une valeur :
 
-Vous pouvez définir les couleurs en utilisant :
 - Saisie hexadécimale (`#RRGGBB`)
-- Bouton sélecteur de couleur
-- Pastilles de palette prédéfinies
-- Bouton **Effacer** (supprimer la valeur personnalisée)
+- Une boîte de dialogue de sélecteur de couleur (icône palette)
+- Pastilles de palette prédéfinies (une rangée organisée par mode)
+- Une action **Effacer** pour supprimer la valeur personnalisée
 
 ### Comportement clair/sombre
 
-- La **couleur primaire claire** est utilisée en mode clair.
-- La **couleur primaire sombre** est utilisée en mode sombre.
-- Si une seule couleur est définie, KANAP la réutilise dans les deux modes.
-- Si les deux sont vides, KANAP utilise les couleurs par défaut.
+- **Couleur principale en mode clair** est utilisée en mode clair.
+- **Couleur principale en mode sombre** est utilisée en mode sombre.
+- Si un seul mode a une couleur, KANAP réutilise cette couleur dans l'autre mode comme repli.
+- Si les deux champs sont vides, KANAP utilise ses couleurs de thème par défaut.
 
 ### Avertissement de contraste
 
-La page affiche un avertissement si le contraste est faible.
-Cet avertissement est indicatif (vous pouvez quand même enregistrer), mais un contraste faible peut réduire la lisibilité.
+Après avoir choisi les couleurs, la page évalue la lisibilité du texte sur le fond choisi. Si le contraste descend en dessous du seuil de lisibilité pour l'un des modes, un avertissement consultatif apparaît avec le ratio de contraste.
 
-## Enregistrer, annuler et réinitialiser
+L'avertissement est informatif -- vous pouvez quand même enregistrer -- mais un faible contraste signifie généralement du texte blanc sur une couleur pâle ou du texte sombre sur une couleur saturée, ce qui devient fatigant à lire dans les interfaces réelles.
 
-- **Enregistrer les modifications** : applique le logo téléchargé + les paramètres de couleur
-- **Annuler** : revient aux modifications non enregistrées sur la page
-- **Rétablir les valeurs par défaut** : supprime le logo et efface toutes les couleurs personnalisées
+## Enregistrer et réinitialiser
 
-La réinitialisation nécessite une confirmation.
+Trois actions au bas de la page contrôlent la persistance :
 
-## Conseils pour un résultat professionnel
+- **Enregistrer les modifications** : valide le téléversement du logo sélectionné et les valeurs de couleur. Désactivé tant qu'il n'y a pas de modifications en attente ou qu'une saisie hexadécimale est invalide.
+- **Annuler** : annule toute modification non enregistrée sur la page (n'affecte pas ce qui est déjà enregistré).
+- **Réinitialiser par défaut** : supprime le logo enregistré et efface toutes les couleurs personnalisées. Demande confirmation avant exécution.
 
-- Testez dans les deux modes de thème clair et sombre avant d'enregistrer.
-- Gardez les couleurs de la marque lisibles sur fond blanc et sombre.
-- Préférez les logos simples avec un fond transparent pour le rendu d'en-tête le plus propre.
-- Utilisez la réinitialisation pour retrouver rapidement les valeurs par défaut si un style d'essai n'est pas satisfaisant.
+Une petite légende sous les actions affiche le compteur de **version du logo**, qui s'incrémente à chaque téléversement du logo. C'est principalement une indication que les caches du navigateur seront rafraîchis.
+
+## Conseils
+
+- **Testez dans les deux thèmes** : basculez entre les thèmes clair et sombre avant d'enregistrer -- la même couleur de marque fonctionne rarement dans les deux modes.
+- **Préférez un fond transparent** : les logos simples avec des fonds transparents donnent le rendu d'en-tête le plus propre, en particulier en mode sombre.
+- **Utilisez Réinitialiser délibérément** : cela supprime à la fois le logo et toutes les couleurs personnalisées en une seule étape. Utilisez-le pour repartir à zéro, pas comme « annulation » d'un seul changement -- c'est à cela que sert **Annuler**.
+- **Les couleurs de marque sont pour les accents** : KANAP utilise la couleur principale sur les barres d'application, les boutons principaux et les liens. Choisissez quelque chose qui se lit clairement à la taille d'un bouton, pas seulement sur un site marketing.

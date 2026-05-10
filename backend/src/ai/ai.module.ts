@@ -26,10 +26,12 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { UserRole } from '../users/user-role.entity';
 import { UsersModule } from '../users/users.module';
+import { StorageModule } from '../common/storage/storage.module';
 import { AiProviderSupportModule } from './ai-provider-support.module';
 import { AiApiKey } from './ai-api-key.entity';
 import { AiApiKeysController } from './ai-api-keys.controller';
 import { AiApiKeysService } from './ai-api-keys.service';
+import { AiAttachmentService } from './ai-attachment.service';
 import { AiCapabilitiesController } from './ai-capabilities.controller';
 import { AiChatController } from './ai-chat.controller';
 import { AiChatOrchestratorService } from './ai-chat-orchestrator.service';
@@ -38,7 +40,9 @@ import { AiConversationService } from './ai-conversation.service';
 import { AiConversationsController } from './ai-conversations.controller';
 import { AiEntityService } from './ai-entity.service';
 import { AiMcpController } from './ai-mcp.controller';
+import { AiSearchController } from './ai-search.controller';
 import { AiMessage } from './ai-message.entity';
+import { AiMessageAttachment } from './ai-message-attachment.entity';
 import { AiMutationPreview } from './ai-mutation-preview.entity';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
@@ -90,11 +94,13 @@ import { BraveSearchService } from './web-search/brave-search.service';
       AiApiKey,
       AiConversation,
       AiMessage,
+      AiMessageAttachment,
       AiMutationPreview,
       UserRole,
       Subscription,
       Tenant,
     ]),
+    StorageModule,
     AccountsModule,
     AnalyticsModule,
     ApplicationsModule,
@@ -129,6 +135,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiConversationsController,
     AiApiKeysController,
     AiMcpController,
+    AiSearchController,
   ],
   providers: [
     AiTenantExecutionService,
@@ -136,6 +143,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiSettingsService,
     AiAdminOverviewService,
     AiApiKeysService,
+    AiAttachmentService,
     AiConversationService,
     GlpiService,
     AiDocumentMutationSupportService,
@@ -178,6 +186,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiSettingsService,
     AiAdminOverviewService,
     AiApiKeysService,
+    AiAttachmentService,
     AiConversationService,
     AiMutationPreviewService,
     AiPolicyService,

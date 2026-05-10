@@ -35,6 +35,20 @@ Consequences of the library choice:
 
 Library administration is intentionally stricter than document editing. Creating, renaming, deleting, or reorganizing libraries is an admin responsibility because those changes affect navigation and ownership for everyone.
 
+### Restricted libraries
+
+By default, every library is open to anyone with the `knowledge` permission. A library administrator can switch a library to **Restricted** access from the library settings dialog. Restricted libraries are marked with a small lock icon on the library tab.
+
+In a restricted library:
+
+- Only the library owner, the people listed as **Readers**, and the people listed as **Writers** can see the library and its documents.
+- Readers can open and read articles inside the library but cannot edit them.
+- Writers can read and edit articles. Writers also need the standard `knowledge:member` permission to actually create or modify documents.
+- The owner can always read and manage the library.
+- Switching from **Restricted** back to **Default** clears the reader and writer lists. The dialog asks for confirmation before discarding the membership.
+
+Use restricted libraries for sensitive content (security procedures, HR documents, executive material) where you want fine-grained access control inside Knowledge instead of relying only on global roles.
+
 ### Folders
 
 Folders organize documents inside a library. They are not cosmetic: they shape how users browse the library and how teams maintain a shared structure over time.
@@ -69,7 +83,7 @@ Document types matter because they:
 
 One subtle but important behavior: if a document was created from a template and you later change its document type to a different type, the template link is cleared. That prevents the article from pretending it still follows a template it no longer matches.
 
-When browsing the **Templates** library, administrators can open the **Manage Types** panel to create, rename, or deactivate document types.
+When browsing the **Templates** library, administrators can open the **Manage Types** panel to create, rename, deactivate, or reorder document types.
 
 ### Managed documents
 
@@ -102,7 +116,7 @@ The default grid focuses on document identity and governance:
 - **Folder**
 - **Updated**
 
-**Additional columns** (hidden by default, available via column chooser):
+**Additional columns** (hidden by default, available via the column chooser):
 - **Template**: shows the template the document was created from, if any
 - **Library**: appears automatically when **All libraries** is enabled, and can be shown manually otherwise
 
@@ -130,19 +144,21 @@ Single-library browsing is better for curation. All-library search is better for
 In a single-library view, documents can be dragged into folders. A drag handle appears on each row when dragging is available. This is the fastest way to tidy a library without opening every article.
 
 Cross-library moves are more controlled:
-- they require higher permission
+- they require higher permission (`knowledge:admin`)
 - they are not available for managed documents
 - template documents are intentionally restricted because templates are meant to stay in the template system, not wander off into the wild
+- they will not work into or out of a restricted library if the writer lacks access
 
-Folders can also be dragged between libraries by dropping them on the target library tab.
+Folders can also be dragged between libraries by dropping them on the target library tab. A confirmation dialog opens to let you choose a destination folder before the move runs.
 
-Folder moves follow the same idea. Reorganizing a folder changes the browsing structure for everyone using that library, so treat it as an information architecture change, not just personal housekeeping.
+Folder moves follow the same idea as document moves. Reorganizing a folder changes the browsing structure for everyone using that library, so treat it as an information architecture change, not just personal housekeeping.
 
 ### List actions
 
 - **New** (split button): creates a blank document in the active library, or opens the template picker to create from a published template
 - **Move**: moves selected documents to a different folder or library
 - **Delete**: permanently removes selected documents (admin only; unavailable for managed documents)
+- **Manage Types**: visible only inside the **Templates** library to administrators; opens the document type editor
 
 ## Creating and shaping a document
 
@@ -198,19 +214,22 @@ While you are editing:
 
 The workspace also supports inline image upload inside the markdown content area, so screenshots and diagrams can live with the article rather than in a mysterious folder on somebody's desktop. When you paste or reference an image from an external URL, the image is automatically imported and stored within the document so it remains available even if the original URL goes offline.
 
-## Importing a document
+## Importing a Word document
 
-You can import a Word document (.docx) into an existing Knowledge article. The **Import** button appears in the workspace toolbar once the document has been saved at least once and you are in edit mode.
+You can import a Word document (`.docx`) into an existing Knowledge article. The **Import** button appears in the workspace toolbar once the document has been saved at least once and you are in edit mode.
 
 How it works:
+
 - Click **Import** and select a `.docx` file from your computer.
 - If the article already has content, a confirmation dialog asks whether you want to replace it. Choosing **Continue** overwrites the current markdown with the imported content.
-- The imported Word content is converted to markdown and loaded into the editor. Images embedded in the Word file are extracted and stored as inline attachments.
+- The Word content is converted to markdown and loaded into the editor. Images embedded in the Word file are extracted and stored as inline attachments, so you do not have to re-upload them manually.
 - After import, your changes are unsaved. Use **Save** to persist the imported content.
 
 If the import encounters a lock conflict (someone else acquired the lock) or an expired lock, editing mode ends and an appropriate message is shown. Re-enter edit mode and try again.
 
-Import warnings, such as unsupported formatting that was simplified during conversion, appear briefly as a notification at the bottom of the screen.
+Import warnings — for example, unsupported formatting that was simplified during conversion — appear briefly as a notification at the bottom of the screen.
+
+Use the import feature when migrating existing Word documents into Knowledge. It is faster and safer than copy-paste, and it preserves embedded images automatically.
 
 ## Export formats
 
@@ -226,6 +245,12 @@ Export is available when the article has content. This is useful when:
 - a stable PDF snapshot is needed for sharing or recordkeeping
 
 Export does not replace the live article. The Knowledge version remains the governed source, while exported files are distribution formats.
+
+## Generating documents from chat
+
+If the AI Assistant is enabled in your KANAP, you can ask it to draft a Knowledge article for you from chat. The assistant prepares a preview that you review before anything is saved. Confirming the preview creates a real Knowledge document with the content, type, template lineage, and any relations you specified — exactly as if you had written it yourself.
+
+Generated documents follow the same governance rules as hand-written ones: ownership, status, version history, locks, and review workflow all apply.
 
 ## Contributors and review workflow
 
@@ -252,6 +277,7 @@ Important consequences:
 - you cannot request review while there are unsaved changes
 - you need assigned reviewers or approvers before a review can be requested
 - archived and obsolete documents are not candidates for a new review request
+- managed (integrated) documents do not use the Knowledge review workflow
 - once review starts, normal editing is disabled until the review is approved, changes are requested, or the review is cancelled
 
 This makes review meaningful. If authors could keep editing the content during approval, the approved document would be a moving target, which is a splendid way to create arguments and a poor way to create documentation.
@@ -311,3 +337,4 @@ That distinction matters. Direct links express an intentional relationship. Rela
 - Use review for documents that drive decisions, controls, or repeatable processes.
 - Mark outdated content as archived or obsolete instead of leaving readers to guess.
 - Import Word documents when migrating existing content into Knowledge rather than copying and pasting, so that embedded images are preserved automatically.
+- Reach for restricted libraries when access matters at the library level — do not rely on folder layout to hide sensitive content.

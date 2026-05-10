@@ -88,7 +88,7 @@ Après avoir mis à jour `.env`, redémarrez vos conteneurs pour que l'API prenn
 
 - **SSO_NOT_CONFIGURED** : Les variables d'environnement Entra sont manquantes ou le tenant n'est pas connecté.
 - **ENTRA_TENANT_MISMATCH** : Vous avez connecté un tenant mais vous essayez de vous connecter depuis un autre.
-- **Invalid Entra state / nonce** : Cookie bloqué ou HTTPS mal configuré.
+- **Invalid Entra state / nonce** : L'état de connexion a expiré ou la redirection Entra n'est pas revenue vers l'URL de callback configurée. Réessayez la connexion et vérifiez que `ENTRA_REDIRECT_URI` correspond exactement à l'enregistrement d'application Entra.
 - **Mauvaise redirection après connexion** : Vérifiez `APP_BASE_URL` et les en-têtes du reverse proxy (`Host`, `X-Forwarded-Proto`).
 
 ## Notes de sécurité

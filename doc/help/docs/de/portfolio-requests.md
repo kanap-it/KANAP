@@ -1,6 +1,6 @@
 # Portfolio-Anfragen
 
-Portfolio-Anfragen sind die Erfassungsebene für geplante Arbeiten. Eine Anfrage ermöglicht es Ihnen, den geschäftlichen Bedarf zu erfassen, die Machbarkeit zu bewerten, die Priorität zu bewerten, unterstützendes Wissen zu sammeln und zu entscheiden, ob die Initiative als Projekt weitergeführt werden soll. In der Praxis ist dies der Ort, an dem Ideen zu gesteuerter Arbeit werden, anstatt als Flurfunk zu bleiben.
+Portfolio-Anfragen sind die Erfassungsebene für vorgeschlagene Arbeit. Eine Anfrage ermöglicht es Ihnen, den geschäftlichen Bedarf zu erfassen, die Machbarkeit zu bewerten, die Priorität zu bewerten, unterstützendes Wissen zu sammeln und zu entscheiden, ob die Initiative als Projekt vorangetrieben werden soll. In der Praxis ist dies der Ort, an dem Ideen zu gesteuerter Arbeit werden, anstatt Flurfolklore zu bleiben.
 
 ## Wo Sie es finden
 
@@ -11,247 +11,266 @@ Portfolio-Anfragen sind die Erfassungsebene für geplante Arbeiten. Eine Anfrage
 
 | Berechtigung | Was sie erlaubt |
 | --- | --- |
-| `portfolio_requests:reader` | Die Anfragenliste öffnen und Anfrage-Arbeitsbereiche anzeigen |
-| `portfolio_requests:member` | Die verwalteten Anfragedokumente bearbeiten, die in den Arbeitsbereich eingebettet sind, auch ohne umfassendere Anfragenverwaltungsrechte |
-| `portfolio_requests:manager` | Anfragen erstellen, Anfragedaten aktualisieren, Team und Verknüpfungen pflegen, Kommentare und Entscheidungen hinzufügen, Status ändern, Analyseempfehlungen abgeben und Bewertung bearbeiten |
-| `portfolio_requests:admin` | Anfragen löschen und CSV-Import/Export verwenden |
+| `portfolio_requests:reader` | Die Anfragenliste öffnen und Anfragen-Arbeitsbereiche anzeigen |
+| `portfolio_requests:member` | Die im Arbeitsbereich eingebetteten verwalteten Anfragendokumente bearbeiten, auch ohne breitere Anfragen-Verwaltungsrechte |
+| `portfolio_requests:manager` | Anfragen erstellen, Anfragendaten aktualisieren, Team und Beziehungen pflegen, Kommentare und Entscheidungen hinzufügen, Status ändern, Analyseempfehlungen einreichen und Bewertung bearbeiten |
+| `portfolio_requests:admin` | Anfragen löschen und CSV-Import/-Export verwenden |
 
-Der Reiter **Wissensdatenbank** folgt den Wissensdatenbank-Berechtigungen für Erstellungs- und Verknüpfungsaktionen. Ein Benutzer kann an Anfrageinhalten arbeiten, ohne eigenständige Wissensdatenbank-Dokumente erstellen oder neu verknüpfen zu dürfen.
+Der Reiter **Wissensdatenbank** folgt den Wissens-Berechtigungen für Erstellungs- und Verknüpfungsaktionen. Ein Benutzer kann erlaubt sein, an Anfrageninhalten zu arbeiten, ohne erlaubt zu sein, eigenständige Wissensdokumente zu erstellen oder erneut zu verknüpfen.
 
 ## Arbeiten mit der Liste
 
-Die Liste ist für die Sichtung konzipiert, nicht für die Archivdurchsicht. Standardmäßig sortiert sie Anfragen nach Priorität, damit die dringendste oder strategisch wichtigste Arbeit zuerst erscheint.
+Die Liste ist für Triage und nicht für Archivbrowsing ausgelegt. Standardmäßig sortiert sie Anfragen nach Priorität, sodass die dringendsten oder strategisch wichtigsten Arbeiten zuerst aufsteigen.
 
 ### Bereichsfilter
 
-Verwenden Sie die Bereichsauswahl über dem Raster, um zu steuern, wessen Pipeline Sie betrachten:
+Verwenden Sie die Bereichsauswahl über dem Raster, um zu steuern, wessen Pipeline Sie sich ansehen:
 
-- **Meine Anfragen** zeigt Anfragen, bei denen Sie explizit beteiligt sind, z. B. als Antragsteller, Sponsor, Leiter oder Mitwirkender.
-- **Anfragen meines Teams** erweitert diese Ansicht auf Anfragen, die Mitglieder Ihres Portfolio-Teams betreffen. Diese Option ist nicht verfügbar, wenn Sie keinem Team zugeordnet sind.
-- **Alle Anfragen** entfernt den Beteiligungsfilter und zeigt die gesamte Anfragen-Pipeline.
+- **Meine Anfragen** zeigt Anfragen, in denen Sie ausdrücklich beteiligt sind, wie Anforderer, Sponsor, Leiter oder Mitwirkender.
+- **Anfragen meines Teams** erweitert diese Ansicht auf Anfragen, die Mitglieder Ihres Portfolio-Teams einbeziehen. Diese Option ist nicht verfügbar, wenn Sie keinem Team zugewiesen sind.
+- **Alle Anfragen** entfernt den Beteiligungsfilter und zeigt die vollständige Anfragen-Pipeline an.
 
-Ihre Bereichsauswahl wird gespeichert. Wenn Sie eine Anfrage aus der Liste öffnen und später zurückkehren, behält KANAP den Listenkontext bei, damit Sie Ihren Filterstapel nicht jedes Mal neu aufbauen müssen.
+Ihre Bereichswahl wird gespeichert. Wenn Sie eine Anfrage aus der Liste öffnen und später zurückkommen, behält KANAP den Listenkontext bei, sodass Sie nicht jedes Mal Ihren Filterstapel neu aufbauen müssen.
 
 ### Standardspalten
 
-Das Standardraster hebt die Felder hervor, die während der Erfassung und Prüfung wichtig sind:
+Das Standardraster hebt die Felder hervor, die während der Erfassung und Überprüfung wichtig sind:
 
-- **#**
-- **Anfragename**
-- **Priorität**
-- **Status**
-- **Quelle**
-- **Kategorie**
-- **Stream**
-- **Unternehmen**
-- **Antragsteller**
-- **Zieldatum**
-- **Erstellt**
+| Spalte | Was sie zeigt |
+|--------|---------------|
+| **#** | Referenznummer (z. B. REQ-42). Klicken zum Öffnen des Arbeitsbereichs |
+| **Anfragenname** | Der Anfragenname |
+| **Priorität** | Berechneter Prioritätswert |
+| **Status** | Aktueller Erfassungszustand |
+| **Quelle** | Portfolio-Quellklassifizierung |
+| **Kategorie** | Portfolio-Kategorie |
+| **Stream** | Portfolio-Stream |
+| **Unternehmen** | Unternehmensklassifizierung |
+| **Anforderer** | Person, die die Anfrage gestellt hat |
+| **Zieldatum** | Angefordertes Ziel-Lieferdatum |
+| **Erstellt** | Wann die Anfrage erstellt wurde |
 
-Zusätzliche Spalten wie **Zuletzt geändert** können über die Rastereinstellungen bei Bedarf eingeblendet werden.
+**Zusätzliche Spalten** (standardmäßig ausgeblendet):
+
+- **Zuletzt geändert**: Wann die Anfrage zuletzt aktualisiert wurde
 
 ### Filterverhalten
 
-- Die globale Suche funktioniert über Anfrageinhalte und sichtbare Geschäftsmetadaten.
+- Die globale Suche funktioniert über Anfrageninhalte und sichtbare Geschäftsmetadaten hinweg.
 - Spaltenfilter sind für die wichtigsten Klassifizierungs- und Verantwortlichkeitsfelder verfügbar.
-- Anfragen mit dem Status **Konvertiert** sind standardmäßig ausgeblendet, damit die Liste auf die aktive Erfassung fokussiert bleibt. Wenn Sie historische Erfassungsentscheidungen überprüfen möchten, nehmen Sie **Konvertiert** in den Statusfilter auf.
+- Anfragen mit Status **Konvertiert** sind standardmäßig ausgeblendet, sodass die Liste auf aktive Erfassung fokussiert bleibt. Wenn Sie historische Erfassungsentscheidungen überprüfen müssen, schließen Sie **Konvertiert** in den Status-Filter ein.
 
 ### Listenaktionen
 
 - **Neue Anfrage** ist für Anfragenmanager verfügbar.
 - **CSV importieren** und **CSV exportieren** sind für Anfragenadministratoren verfügbar.
 
-## Der Anfrage-Arbeitsbereich
+## Der Anfragen-Arbeitsbereich
 
-Der aktuelle Arbeitsbereich verwendet ein geteiltes Modell:
+Der Arbeitsbereich verwendet ein Split-Modell:
 
-- Der Hauptbereich ist für Erzählung, Analyse, Bewertung, Aktivität und Wissensdatenbank.
-- Die rechte Eigenschaftsseitenleiste ist für stabile Anfragemetadaten, Teamzuweisung und Verknüpfungen.
+- Der Hauptbereich enthält die operativen Reiter: **Zusammenfassung**, **Analyse**, **Bewertung**, **Verknüpfungen** und **Wissensdatenbank**.
+- Eine persistente **Eigenschaftsleiste** am rechten Rand enthält stabile Anfragen-Metadaten, Teamzuweisung und resultierende Projekte. Öffnen oder schließen Sie sie mit der vertikalen Registerkarte am rechten Rand.
 
-Das ist wichtig, weil nicht alles auf die gleiche Weise gespeichert wird:
+Dies ist wichtig, weil nicht alles auf die gleiche Weise gespeichert wird:
 
-- Änderungen in der **Eigenschaftsseitenleiste** werden direkt auf die Anfrage angewendet.
+- Änderungen in der **Eigenschaftsleiste** werden sofort angewendet.
 - Änderungen in **Zusammenfassung**, **Analyse** und **Bewertung** sind Arbeitsbereich-Bearbeitungen und verwenden **Speichern** / **Zurücksetzen**.
-- Die verwalteten Dokumente **Zweck** und **Risiken & Maßnahmen** verwenden ebenfalls den Arbeitsbereich-Speicherablauf.
+- Die verwalteten Dokumente **Zweck** und **Risiken & Mitigationen** verwenden ebenfalls den Arbeitsbereich-Speicher-Fluss.
 
-Wenn Sie eine neue Anfrage erstellen, startet KANAP bei **Zusammenfassung**. Die anderen Reiter werden nützlich, nachdem die Anfrage als tatsächlicher Datensatz existiert und nicht nur als eine sehr ernsthafte Idee.
+Wenn Sie eine neue Anfrage erstellen, beginnt KANAP mit **Zusammenfassung**. Die anderen Reiter werden nützlich, nachdem die Anfrage als echter Datensatz statt als sehr aufrichtige Idee existiert.
 
-Die Arbeitsbereich-Kopfzeile gibt Ihnen den betrieblichen Kontext, ohne die Seite zu verlassen:
+Die Arbeitsbereichs-Kopfzeile gibt Ihnen operativen Kontext, ohne die Seite zu verlassen:
 
 - eine kopierbare Anfragenreferenz wie `REQ-42`
-- den aktuellen Status
-- die Ursprungsaufgabe, wenn die Anfrage aus einer Aufgabe erstellt wurde
+- eine Metadatenleiste mit **Status**, **Bewertung**, **Anforderer**, **IT-Verantwortlicher**, **Ziel-Lieferdatum** und (falls zutreffend) der **Quell-Aufgabe**, aus der die Anfrage erstellt wurde
 - **Link senden** zum Teilen
-- Zurück/Weiter-Navigation basierend auf dem exakten Listenkontext, aus dem Sie kamen
+- **In Projekt umwandeln**, wenn die Anfrage **Genehmigt** oder **Konvertiert** ist
+- **Löschen** für Administratoren (wenn die Anfrage noch nicht konvertiert ist)
+- Vorherige/Nächste-Navigation basierend auf dem genauen Listenkontext, aus dem Sie kamen
 
-### Eigenschaftsseitenleiste – Konzept
+### Eigenschaftsleiste
 
-Behandeln Sie die Seitenleiste als das strukturelle Rückgrat der Anfrage.
+Behandeln Sie die Leiste als das strukturelle Rückgrat der Anfrage. Sie enthält drei Gruppen.
 
 #### Kerneigenschaften
 
-Dieser Abschnitt enthält die Identität und Klassifizierung der Anfrage:
-
-- Anfragename
+- Anfragenname
 - Status
-- Quelle, Kategorie und Stream
-- Antragsteller
-- Unternehmen und Abteilung
-- Ziellieferdatum
+- Quelle, Kategorie, Stream
+- Anforderer
+- Unternehmen, Abteilung
+- Ziel-Lieferdatum
 
-Diese Felder beeinflussen, wie die Anfrage weitergeleitet, gefiltert und an anderer Stelle im Arbeitsbereich geprüft wird. Zum Beispiel:
+Diese Felder prägen, wie die Anfrage geleitet, gefiltert und an anderer Stelle im Arbeitsbereich überprüft wird. Zum Beispiel:
 
-- eine Änderung des **Status** beeinflusst, welche Entscheidungen folgen können und ob eine Konvertierung verfügbar ist
-- eine Änderung der **Kategorie** oder des **Streams** ändert den analytischen Kontext für Machbarkeit und Bewertung
-- eine Änderung des **Unternehmens** oder des **Antragstellers** ändert die Berichts- und Verantwortlichkeitssichtbarkeit im gesamten Portfolio
+- Das Ändern des **Status** beeinflusst, welche Entscheidungen folgen können und ob die Konvertierung verfügbar ist
+- Das Ändern von **Kategorie** oder **Stream** ändert den analytischen Kontext für Machbarkeit und Bewertung
+- Das Ändern von **Unternehmen** oder **Anforderer** ändert die Berichts- und Verantwortlichkeitssichtbarkeit über das Portfolio hinweg
 
 #### Team
 
-Der Teamabschnitt weist Verantwortlichkeit zu, anstatt nur eine Kontaktliste zu führen:
+Die Teamzuweisung benennt Verantwortlichkeit, anstatt nur eine Kontaktliste zu führen:
 
-- Fachbereichssponsor
-- Fachbereichsleiter
-- IT-Sponsor
-- IT-Leiter
-- Fachbereichs-Mitwirkende
-- IT-Mitwirkende
+- **Fachbereichssponsor**
+- **Fachbereichsleiter**
+- **IT-Sponsor**
+- **IT-Leiter**
+- **Fachbereichs-Mitwirkende**
+- **IT-Mitwirkende**
 
-Diese Zuweisungen steuern die gemeinsame Sichtbarkeit und machen deutlich, wer die Anfrage sponsern, gestalten und umsetzen soll. Die Zusammenfassung verwendet diese Daten, um anzuzeigen, ob die Anfrage ausreichend benannte Verantwortliche hat, um sinnvoll weiterzukommen.
+Diese Zuweisungen treiben die geteilte Sichtbarkeit an und machen klar, wer voraussichtlich die Anfrage sponsert, gestaltet und liefert. Die Zusammenfassung verwendet diese Daten, um zu zeigen, ob die Anfrage genug benannte Verantwortlichkeit hat, um sinnvoll voranzukommen.
 
-#### Verknüpfungen
+#### Resultierende Projekte
 
-Verknüpfungen erklären, wie die Anfrage in das breitere Portfolio passt:
+Eine schreibgeschützte Liste der Projekte, die nach der Konvertierung aus dieser Anfrage erstellt wurden. Klicken Sie auf einen Eintrag, um zum Projekt-Arbeitsbereich zu navigieren.
 
-- **Abhängigkeiten** identifizieren Arbeiten, die existieren, abgeschlossen oder abgestimmt sein müssen, bevor diese Anfrage erfolgreich sein kann.
-- **Resultierende Projekte** zeigen, was aus der Anfrage nach der Konvertierung erstellt wurde.
+Für Abhängigkeiten und andere Beziehungstypen siehe den Reiter **Verknüpfungen**.
 
-Dieser Abschnitt ist wichtig für die Auswirkungsanalyse. Eine Anfrage mit schwachen Verknüpfungsdaten mag harmlos aussehen, bis sie mit bestehender Arbeit kollidiert.
-
-Ältere Lesezeichen verweisen möglicherweise noch auf `overview`, `team` oder `relations`. Im aktuellen Arbeitsbereich befindet sich dieser Inhalt in **Zusammenfassung** und der Eigenschaftsseitenleiste.
+Ältere Lesezeichen können noch auf `overview`, `team` oder `relations` verweisen. Der aktuelle Arbeitsbereich platziert diesen Inhalt unter **Zusammenfassung**, der Eigenschaftsleiste und dem Reiter **Verknüpfungen**.
 
 ## Zusammenfassung
 
-**Zusammenfassung** ist das Cockpit der Anfrage. Es ist kein einfacher Übersichtsreiter; hier komprimiert KANAP den Zustand der Anfrage in einen betrieblichen Überblick.
-
-Die Zusammenfassung umfasst:
-
-- **Status-Überblick**, einschließlich aktuellem Status, aktueller Priorität, verknüpften Geschäftsprozessen und letzter Aktivität
-- **Analyse-Überblick**, einschließlich des stärksten Machbarkeitssignals und der neuesten Analyseempfehlung
-- **Team und Wissen**, einschließlich Rollenabdeckung, Mitwirkendenzahl, Ursprungsaufgabe und verknüpften Wissensartikeln
-- das verwaltete **Zweck**-Dokument
-- einen Feed **Aktuelle Aktivität**
-
-Verwenden Sie die Zusammenfassung, wenn Sie verstehen müssen, ob die Anfrage lediglich erfasst ist oder tatsächlich bereit ist, besprochen, bewertet und konvertiert zu werden.
+**Zusammenfassung** ist das Anfragen-Cockpit. Es ist kein einfacher Übersichtsreiter; es ist der Ort, an dem KANAP den Zustand der Anfrage in einen operativen Snapshot komprimiert.
 
 ### Zweck als verwaltetes Dokument
 
-Der Abschnitt **Zweck** ist ein verwaltetes Markdown-Dokument, das direkt in die Anfrage eingebettet ist. Es ist mehr als ein langes Beschreibungsfeld:
+Der Bereich **Zweck** ist ein verwaltetes Markdown-Dokument, das direkt in die Anfrage eingebettet ist. Es ist mehr als ein langes Beschreibungsfeld:
 
 - es gibt Prüfern eine stabile Absichtserklärung
 - es ist während der Konvertierung von Anfrage zu Projekt verfügbar
 - es kann von Benutzern mit `portfolio_requests:member` bearbeitet werden, auch wenn sie den Rest der Anfrage nicht verwalten
-- es unterstützt **DOCX-Import**, damit Sie vorhandene Word-Dokumente direkt einbringen können, und **Export** zum Herunterladen des aktuellen Inhalts
+- es unterstützt **DOCX-Import**, sodass Sie vorhandene Word-Dokumente direkt einbringen können, und **Export**, um den aktuellen Inhalt als PDF, DOCX oder ODT herunterzuladen
 
-Diese Aufteilung ist beabsichtigt. Sie ermöglicht es Fachexperten, die Anfragenerzählung zu verbessern, ohne die volle Kontrolle über Status, Bewertung und Portfoliostruktur zu erhalten.
+Diese Aufteilung ist absichtlich. Sie erlaubt fachkundigen Mitwirkenden, die Anfragen-Erzählung zu verbessern, ohne die volle Kontrolle über Status, Bewertung und Portfolio-Struktur zu öffnen.
 
-## Aktivität
+### Aktivität
 
-**Aktivität** trennt Diskussion von Audit-Trail:
+Unter Zweck enthält der Reiter Zusammenfassung den Anfragenaktivitäts-Stream:
 
-- **Kommentare** ist der Kollaborationsstream
-- **Verlauf** ist das Änderungsprotokoll
+- **Kommentare** für Diskussion, kontextbezogene Notizen und formale Entscheidungen
+- **Historie** für das Audit-Protokoll von Feld- und Statusänderungen
 
-### Kommentare
+Dies platziert die neueste Aktivität direkt vor Prüfern, ohne dass sie zu einem separaten Reiter navigieren müssen.
+
+#### Kommentare
 
 Kommentare unterstützen normale Diskussionen, aber sie unterstützen auch **formale Entscheidungen**. Eine formale Entscheidung kann erfassen:
 
-- den Besprechungs- oder Entscheidungskontext
+- den Sitzungs- oder Entscheidungskontext
 - das Entscheidungsergebnis
 - die Begründung
 - eine optionale Statusänderung in derselben Aktion
 
-Diese Kombination ist wichtig. Sie hält die Governance nachvollziehbar: Der Nachweis, *warum* sich etwas geändert hat, bleibt an der Änderung haften, anstatt später aus Erinnerung und Optimismus rekonstruiert zu werden.
+Diese Kombination hält Governance nachvollziehbar: Die Aufzeichnung des *Warum* etwas geändert wurde, bleibt mit der Änderung verbunden, anstatt später aus Erinnerung und Optimismus rekonstruiert zu werden.
 
-Kommentare unterstützen Markdown und Inline-Bilder, was für Designnotizen, Nachweise, Screenshots und Prüfungsmaterial nützlich ist.
+Kommentare unterstützen Markdown und Inline-Bilder, was nützlich für Designnotizen, Beweise, Screenshots und Review-Material ist.
 
-### Verlauf
+#### Historie
 
-Der Verlauf ist die Audit-Ansicht. Verwenden Sie ihn, wenn Sie Fragen beantworten müssen wie:
+Die Historie ist die Audit-Ansicht. Verwenden Sie sie, wenn Sie Fragen beantworten müssen wie:
 
-- wer hat den Status geändert
-- wann haben sich die Teamzuweisungen geändert
-- ob eine Bewertungs- oder Analyseänderung vor oder nach einer Entscheidung stattfand
+- wer den Status geändert hat
+- wann sich Teamzuweisungen geändert haben
+- ob eine Bewertungs- oder Analyseänderung vor oder nach einer Entscheidung stattgefunden hat
 
-Wenn Sie Erzählung brauchen, verwenden Sie Kommentare. Wenn Sie Nachweise brauchen, verwenden Sie den Verlauf.
+Wenn Sie Erzählung benötigen, verwenden Sie Kommentare. Wenn Sie Beweise benötigen, verwenden Sie die Historie.
 
 ## Analyse
 
-**Analyse** ist der Bereich, in dem die Anfrage von „klingt vernünftig" zu „gut genug verstanden, um zu entscheiden" übergeht.
+**Analyse** ist der Ort, an dem die Anfrage von „klingt vernünftig" zu „gut genug verstanden, um zu entscheiden" übergeht.
 
 Sie bringt vier verschiedene Elemente zusammen:
 
 - betroffene Geschäftsprozesse
 - strukturierte Machbarkeitsprüfung
-- verwaltete **Risiken & Maßnahmen**
+- verwaltete **Risiken & Mitigationen**
 - die formale **Analyseempfehlung**
 
 ### Betroffene Geschäftsprozesse
 
-Verknüpfen Sie die von der Anfrage berührten Geschäftsprozesse. Dies verändert die Bedeutung der Anfrage im Portfolio-Kontext: Eine Anfrage, die zentrale operative Prozesse betrifft, sollte nicht auf die gleiche Weise bewertet werden wie eine lokale Komfortverbesserung.
+Verknüpfen Sie die von der Anfrage berührten Geschäftsprozesse. Dies ändert die Bedeutung der Anfrage in Portfolio-Begriffen: Eine Anfrage, die zentrale operative Prozesse betrifft, sollte nicht auf die gleiche Weise bewertet werden wie eine lokale Komfortverbesserung.
 
 ### Machbarkeitsprüfung
 
-Die Machbarkeitsprüfung ist eine strukturierte Bewertung über sieben Dimensionen. Jede Dimension kann mit einer Bedenkensstufe und unterstützenden Notizen bewertet werden.
+Die Machbarkeitsprüfung ist eine strukturierte Bewertung über sieben Dimensionen:
 
-Verwenden Sie diesen Abschnitt, um Umsetzungsreibungen frühzeitig aufzudecken:
+- Technische Machbarkeit
+- Integrationskompatibilität
+- Infrastrukturbedarf
+- Sicherheit & Compliance
+- Ressourcen-Skills
+- Lieferbeschränkungen
+- Change-Management
+
+Jede Dimension kann mit einer Bedenkenstufe (**Nicht bewertet**, **Keine Bedenken**, **Geringe Bedenken**, **Schwerwiegende Bedenken**, **Blocker**) und unterstützenden Notizen bewertet werden.
+
+Verwenden Sie diesen Bereich, um Lieferreibung früh aufzudecken:
 
 - nicht jede Anfrage scheitert, weil die Idee schlecht ist
-- viele scheitern, weil Integration, Infrastruktur, Sicherheit, Timing oder Change-Management-Einschränkungen bis zuletzt ignoriert wurden
+- viele scheitern, weil Integrations-, Infrastruktur-, Sicherheits-, Timing- oder Change-Management-Beschränkungen ignoriert wurden, bis es zu spät war
 
-Der Reiter Zusammenfassung zeigt die stärkste Bedenkensstufe aus dieser Prüfung an, sodass größere Probleme sichtbar bleiben, auch wenn niemand die Analyse öffnet.
+Der Reiter Zusammenfassung zeigt die stärkste Bedenkenstufe aus dieser Prüfung an, sodass größere Probleme sichtbar bleiben, auch wenn niemand die Analyse öffnet.
 
-### Risiken & Maßnahmen
+### Risiken & Mitigationen
 
-**Risiken & Maßnahmen** ist ein weiteres verwaltetes Markdown-Dokument. Verwenden Sie es, um Restrisiken, Maßnahmen und Verantwortlichkeiten zu dokumentieren. Wie der Zweck kann es von Benutzern mit `portfolio_requests:member` bearbeitet werden und unterstützt **DOCX-Import** zum Einbringen vorhandener Word-Dokumente sowie **Export**.
+**Risiken & Mitigationen** ist ein weiteres verwaltetes Markdown-Dokument. Verwenden Sie es, um Restrisiko, Mitigationsmaßnahmen und Verantwortlichkeit zu dokumentieren. Wie der Zweck kann es von Benutzern mit `portfolio_requests:member` bearbeitet werden und unterstützt **DOCX-Import** zum Einbringen vorhandener Word-Dokumente sowie Export.
 
-Dies ist nützlich, wenn die Personen, die am besten in der Lage sind, die Risiken zu beschreiben, nicht dieselben Personen sind, die den Anfragestatus oder die Portfoliostruktur ändern sollten.
+Dies ist nützlich, wenn die Personen, die am besten geeignet sind, die Risiken zu beschreiben, nicht dieselben Personen sind, die den Anfragen-Status oder die Portfolio-Struktur ändern sollten.
 
 ### Analyseempfehlung
 
-Der Empfehlungsablauf veröffentlicht eine formale Entscheidung in der Aktivität mit dem festen Kontext **Analyseempfehlung**. Er kann auch gleichzeitig den Anfragestatus ändern.
+Der Empfehlungsfluss veröffentlicht eine formale Entscheidung in der Aktivität mit dem festen Kontext **Analyseempfehlung**. Sie kann gleichzeitig auch den Anfrage-Status ändern.
 
-Das bedeutet, Analyse ist kein isolierter Notizbereich. Sie ist Teil des Governance-Trails:
+Das bedeutet, die Analyse ist kein isolierter Notizen-Bereich. Sie ist Teil der Governance-Spur:
 
 - Prüfer können die neueste Empfehlung direkt in der Analyse sehen
 - dieselbe Empfehlung erscheint in der Aktivität als Entscheidungsdatensatz
-- optionale Statusänderungen bleiben an der Empfehlung gebunden, die sie begründet hat
+- optionale Statusänderungen bleiben mit der Empfehlung verbunden, die sie gerechtfertigt hat
+- eine Verknüpfung **In Aktivität anzeigen** springt direkt zur Empfehlung im Zusammenfassungs-Aktivitäts-Feed
 
-Ältere Anfragen können auch einen Abschnitt **Vorherige Analyse (Legacy)** anzeigen. Dieser Inhalt wird aus Kontinuitätsgründen beibehalten, aber das aktuelle Anfragemodell stützt sich auf Machbarkeitsprüfung, verwaltete Risiken und formale Empfehlungen.
+Ältere Anfragen können auch einen Bereich **Vorherige Analyse (Legacy)** anzeigen. Dieser Inhalt wird zur Kontinuität beibehalten, aber das aktuelle Anfrage-Modell stützt sich auf Machbarkeitsprüfung, verwaltete Risiken und formale Empfehlungen.
 
 ## Bewertung
 
-**Bewertung** evaluiert die Anfrage anhand des Portfolio-Bewertungsmodells, das für Ihren Mandanten konfiguriert ist.
+**Bewertung** evaluiert die Anfrage gegen das für Ihren Mandanten konfigurierte Portfolio-Bewertungsmodell.
 
 In der Praxis:
 
 - jedes aktive Kriterium trägt zur berechneten Priorität bei
-- der resultierende Wert fließt in den Portfoliovergleich und die Listensortierung ein
-- ein Override kann verwendet werden, wenn der berechnete Wert mathematisch korrekt, aber betrieblich falsch ist
+- der resultierende Wert speist den Portfolio-Vergleich und die Listenordnung
+- eine Überschreibung kann verwendet werden, wenn der berechnete Wert mathematisch korrekt, aber operativ falsch ist
 
-Wenn der Prioritäts-Override verwendet wird, sollte er als Ausnahme behandelt werden, nicht als Regelfall.
+Wenn die Prioritäts-Überschreibung verwendet wird, sollte sie als Ausnahme behandelt werden, nicht als Lebensstil.
 
-Wo es durch Portfolio-Einstellungen aktiviert ist, können obligatorische Bypass-Regeln die höchste Priorität für qualifizierende Anfragen erzwingen. Dies wird typischerweise für Arbeit verwendet, die nicht sinnvoll mit diskretionärer Nachfrage konkurrieren kann.
+Wo durch Portfolio-Einstellungen aktiviert, können verbindliche Bypass-Regeln die Top-Priorität für qualifizierende Anfragen erzwingen. Dies wird typischerweise für Arbeit verwendet, die nicht sinnvoll mit der diskretionären Nachfrage konkurrieren kann.
 
-Sobald eine Anfrage **Konvertiert** ist, wird die Bewertung schreibgeschützt. Zu diesem Zeitpunkt hat die Anfrage ihre Aufgabe als Erfassungs- und Priorisierungsdatensatz bereits erfüllt.
+Sobald eine Anfrage **Konvertiert** ist, wird die Bewertung schreibgeschützt. Zu diesem Zeitpunkt hat die Anfrage ihre Aufgabe als Erfassungs- und Priorisierungsdatensatz bereits erledigt.
+
+## Verknüpfungen
+
+Der Reiter **Verknüpfungen** bringt die Verknüpfungen zusammen, die erklären, wie sich die Anfrage mit dem Rest des Portfolios verbindet. Das Reiter-Badge zeigt die Anzahl der verwandten Elemente.
+
+### Abhängigkeiten
+
+Abhängigkeiten identifizieren Arbeit, die existieren, abgeschlossen sein oder ausgerichtet bleiben muss, bevor diese Anfrage erfolgreich sein kann. Verwenden Sie das Suchfeld, um ein verwandtes Element zu finden und hinzuzufügen; entfernen Sie Verknüpfungen, die Sie nicht mehr möchten, mit dem Lösch-Symbol des Chips.
+
+Eine Anfrage mit schwachen Abhängigkeitsdaten kann harmlos aussehen, bis sie mit vorhandener Arbeit kollidiert.
+
+### Andere Beziehungen
+
+Unter Abhängigkeiten ermöglicht der Reiter Verknüpfungen Ihnen auch, andere Portfolio-Verknüpfungen zu pflegen — zum Beispiel verwandte Anfragen, verwandte Projekte oder andere verbundene geschäftliche und technische Objekte. Jede Beziehung wird automatisch gespeichert.
+
+Für die Projekte, die nach der Konvertierung aus dieser Anfrage erstellt wurden, siehe die Gruppe **Resultierende Projekte** in der Eigenschaftsleiste.
 
 ## Wissensdatenbank
 
-Der Reiter **Wissensdatenbank** verbindet die Anfrage mit eigenständigen Wissensdatenbank-Dokumenten. Er ist nicht nur ein Anhängeregal mit besserer Haltung.
+Der Reiter **Wissensdatenbank** verbindet die Anfrage mit eigenständigen Wissensdokumenten. Das Reiter-Badge zeigt die Anzahl der verwandten Wissensdokumente.
 
 Der Reiter unterscheidet zwischen zwei Arten von Wissen:
 
 - **Verknüpfte Dokumente** sind direkt an die Anfrage angehängt.
-- **Verwandte Dokumente** werden über den breiteren Kontext der Anfrage entdeckt, wie Abhängigkeiten, verwandte Anfragen, resultierende Projekte und andere verknüpfte Objekte.
+- **Verwandte Dokumente** werden durch den breiteren Kontext der Anfrage entdeckt, wie Abhängigkeiten, verwandte Anfragen, resultierende Projekte und andere verknüpfte Objekte.
 
 Diese Unterscheidung ist wichtig:
 
@@ -260,51 +279,52 @@ Diese Unterscheidung ist wichtig:
 
 ### Was Sie tun können
 
-Mit ausreichenden Wissensdatenbank-Berechtigungen können Sie:
+Mit ausreichenden Wissens-Berechtigungen können Sie:
 
-- ein neues leeres Wissensdatenbank-Dokument erstellen, das bereits mit der Anfrage verknüpft ist
+- ein neues leeres Wissensdokument erstellen, das bereits mit der Anfrage verknüpft ist
 - ein verknüpftes Dokument aus einer Vorlage erstellen
-- ein bestehendes Wissensdatenbank-Dokument verknüpfen
-- ein direkt verknüpftes Dokument trennen
-- jedes verknüpfte oder verwandte Dokument im Arbeitsbereich Wissensdatenbank öffnen
+- ein vorhandenes Wissensdokument verknüpfen
+- ein direkt verknüpftes Dokument entkoppeln
+- jedes verknüpfte oder verwandte Dokument im Wissens-Arbeitsbereich öffnen
 
 Ohne diese Berechtigungen funktioniert der Reiter weiterhin als Referenzansicht, solange Sie das zugrunde liegende Wissen sehen dürfen.
 
-### Verwaltete Dokumente vs. Wissensdatenbank-Dokumente
+### Verwaltete Dokumente vs. Wissensdokumente
 
-Die verwalteten Dokumente **Zweck** und **Risiken & Maßnahmen** sind Teil der Anfrage selbst. Sie sind nicht dasselbe wie Wissensdatenbank-Dokumente.
+Die verwalteten Dokumente **Zweck** und **Risiken & Mitigationen** sind Teil der Anfrage selbst. Sie sind nicht dasselbe wie Wissensdokumente.
 
-Verwenden Sie verwaltete Dokumente für die zentrale Anfrageerzählung, die immer mit der Anfrage reisen sollte. Verwenden Sie die Wissensdatenbank für eigenständige Dokumente, die möglicherweise einen eigenen Lebenszyklus, Verknüpfungen, Exporte, Vorlagen und Wiederverwendung über eine einzelne Anfrage hinaus benötigen.
+Verwenden Sie verwaltete Dokumente für die zentrale Anfragen-Erzählung, die immer mit der Anfrage reisen sollte. Verwenden Sie Wissensdatenbank für eigenständige Dokumente, die möglicherweise ihren eigenen Lebenszyklus, Beziehungen, Exporte, Vorlagen und Wiederverwendung über eine einzelne Anfrage hinaus benötigen.
 
 ## Eine Anfrage in ein Projekt umwandeln
 
-Sobald eine Anfrage **Genehmigt** erreicht, bietet der Arbeitsbereich **In Projekt umwandeln** an.
+Sobald eine Anfrage **Genehmigt** erreicht, bietet der Arbeitsbereich **In Projekt umwandeln** in der Kopfzeile an.
 
-Der Konvertierungsablauf ermöglicht es Ihnen:
+Der Konvertierungsfluss ermöglicht es Ihnen:
 
 - den Projektnamen zu bestätigen oder anzupassen
 - geplante Start- und Enddaten festzulegen
-- den aktuellen Zwecktext zu überprüfen
-- geschätzten IT- und Business-Aufwand zu übernehmen, der aus den Bewertungseingaben der Anfrage abgeleitet wurde
+- den aktuellen Zweck-Text zu überprüfen
+- den geschätzten IT- und Fachbereichs-Aufwand vorzutragen, der aus den Anfragen-Bewertungseingaben abgeleitet wurde
 
 Nach der Konvertierung:
 
 - wird die Anfrage zu einem dauerhaften Erfassungs- und Entscheidungsdatensatz
-- erscheint das resultierende Projekt im Abschnitt Verknüpfungen der Anfrage
-- wird die Bewertung auf der Anfrage eingefroren
-- kann die Anfrage weiterhin für Audit, Kontext und Wissensverfolgung geöffnet werden
+- erscheint das resultierende Projekt in der Gruppe **Resultierende Projekte** der Anfrage
+- wird die Bewertung an der Anfrage eingefroren
+- kann die Anfrage weiterhin für Audit, Kontext und Wissens-Nachverfolgung geöffnet werden
 
-Mit anderen Worten: Die Konvertierung löscht die Anfrage nicht. Sie befördert sie.
+Mit anderen Worten, die Konvertierung löscht die Anfrage nicht. Sie befördert sie.
 
 ## CSV-Import und -Export
 
-CSV-Import und -Export stehen `portfolio_requests:admin` zur Verfügung.
+CSV-Import und -Export sind für `portfolio_requests:admin` verfügbar.
 
-Verwenden Sie den Export, wenn Sie Portfolio-Berichte oder Offline-Anreicherung benötigen. Verwenden Sie den Import, wenn Sie Anfragen in großen Mengen erstellen oder aktualisieren müssen. Da der Import Erfassungsdatensätze im großen Maßstab verändern kann, ist er absichtlich Administratoren vorbehalten.
+Verwenden Sie den Export, wenn Sie Portfolio-Berichterstattung oder Offline-Anreicherung benötigen. Verwenden Sie den Import, wenn Sie Anfragen in großen Mengen erstellen oder aktualisieren müssen. Da der Import Erfassungsdatensätze in großem Maßstab ändern kann, ist er absichtlich Administratoren vorbehalten.
 
 ## Tipps
 
-- **Verwenden Sie den DOCX-Import für vorhandene Inhalte**: Wenn Sie bereits eine Zweckbeschreibung oder ein Risikoregister in einem Word-Dokument haben, verwenden Sie die Schaltfläche **Import** im Zweck- oder Risiken-&-Maßnahmen-Editor, anstatt zu kopieren und einzufügen. Der Import konvertiert das Dokument in Markdown und warnt Sie, wenn Inhalte nicht übernommen werden konnten.
-- **Bereichsfilter bleiben erhalten**: KANAP merkt sich Ihre letzte Bereichsauswahl, sodass Sie sie nicht jede Sitzung neu auswählen müssen.
-- **Konvertierte Anfragen sind standardmäßig ausgeblendet**: Wenn Sie nach einer Anfrage suchen, die bereits in ein Projekt konvertiert wurde, fügen Sie **Konvertiert** zum Statusfilter in der Liste hinzu.
-- **Member-Berechtigung für Mitwirkende**: Geben Sie Fachexperten `portfolio_requests:member`, damit sie Zweck und Risiken & Maßnahmen bearbeiten können, ohne Status, Bewertung oder Portfoliostruktur ändern zu können.
+- **Verwenden Sie DOCX-Import für vorhandenen Inhalt**: Wenn Sie bereits eine Zweck-Erklärung oder ein Risikoregister in einem Word-Dokument haben, verwenden Sie die Schaltfläche **Importieren** im Editor Zweck oder Risiken & Mitigationen, anstatt zu kopieren und einzufügen. Der Import konvertiert das Dokument in Markdown und warnt Sie, wenn Inhalte nicht übertragen werden konnten.
+- **Bereichsfilter bleiben**: KANAP merkt sich Ihre letzte Bereichswahl, sodass Sie sie nicht in jeder Sitzung neu auswählen müssen.
+- **Konvertierte Anfragen sind standardmäßig ausgeblendet**: Wenn Sie nach einer Anfrage suchen, die bereits in ein Projekt konvertiert wurde, fügen Sie **Konvertiert** zum Status-Filter in der Liste hinzu.
+- **Member-Berechtigung für Mitwirkende**: Geben Sie Fachexperten `portfolio_requests:member`, damit sie Zweck und Risiken & Mitigationen bearbeiten können, ohne Status, Bewertung oder Portfolio-Struktur ändern zu können.
+- **Von Aufgabe zu Anfrage**: Wenn eine Aufgabe eine größere Initiative offenbart, verwenden Sie **In Anfrage umwandeln** aus dem Aufgaben-Arbeitsbereich. Die neue Anfrage erbt den Titel, die Beschreibung (als Zweck), die Klassifizierung und die Anhänge der Aufgabe und zeigt die **Quell-Aufgabe** in ihrer Kopfzeile.

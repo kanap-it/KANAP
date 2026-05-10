@@ -58,6 +58,7 @@ doc/templates/
 doc/cheatsheets/__pycache__/
 # AI tooling
 .claude/
+.playwright-mcp/
 .codex/*
 !.codex/skills/
 .codex/skills/*

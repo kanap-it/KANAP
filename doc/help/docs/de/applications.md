@@ -1,6 +1,6 @@
 # Anwendungen
 
-Anwendungen ist Ihr zentrales Verzeichnis zur Dokumentation der IT-Anwendungslandschaft. Es umfasst Geschäftsanwendungen, Produktivitätswerkzeuge, Infrastrukturdienste und alles dazwischen. Verwenden Sie es, um Verantwortlichkeit, Umgebungen, Integrationen und Compliance-Informationen über Ihr gesamtes Portfolio zu verfolgen.
+Anwendungen ist Ihr zentrales Verzeichnis zur Dokumentation der IT-Anwendungslandschaft. Es umfasst Geschäftsanwendungen, Produktivitätswerkzeuge, Infrastrukturdienste und alles dazwischen. Verwenden Sie es, um Verantwortlichkeit, Bereitstellungen, Integrationen, finanzielle Beziehungen und Compliance-Informationen über Ihr gesamtes Portfolio hinweg zu verfolgen.
 
 ## Anwendungskategorien
 
@@ -39,25 +39,33 @@ Verschiedene Teams können Kategorien verwenden, um sich auf ihren Verantwortung
 Navigieren Sie zu **IT-Landschaft > Anwendungen**, um Ihre Liste zu sehen. Klicken Sie auf **Neue App / Dienst**, um Ihren ersten Eintrag zu erstellen.
 
 **Pflichtfelder**:
-  - **Name**: Ein wiedererkennbarer Name für die Anwendung oder den Dienst
-  - **Kategorie**: Der Hauptzweck dieser Anwendung (siehe Kategorien oben)
+- **Name**: Ein wiedererkennbarer Name für die Anwendung oder den Dienst
+- **Kategorie**: Der Hauptzweck dieser Anwendung (siehe Kategorien oben)
+- **Kritikalität**: Wie wichtig dies für Ihr Unternehmen ist (Geschäftskritisch, Hoch, Mittel, Niedrig)
+- **Lebenszyklus**: Aktueller Status (Aktiv, Vorgeschlagen, Veraltet, Außer Betrieb oder ein in den Einstellungen definierter benutzerdefinierter Code)
 
 **Dringend empfohlen**:
-  - **Lieferant**: Der Lieferant, der die Software bereitstellt (verknüpft mit Ihren Lieferanten-Stammdaten)
-  - **Kritikalität**: Wie wichtig dies für Ihr Unternehmen ist (Geschäftskritisch, Hoch, Mittel, Niedrig)
-  - **Lebenszyklus**: Aktueller Status (Aktiv, Vorgeschlagen, Veraltet, Außer Betrieb)
+- **Lieferant**: Der Lieferant, der die Software bereitstellt (verknüpft mit Ihren Lieferanten-Stammdaten)
+- **Herausgeber**: Der Software-Herausgeber (z. B. Microsoft, SAP, Oracle)
+- **Beschreibung**: Was diese Anwendung tut
 
 **Optional aber nützlich**:
-  - **Herausgeber**: Der Software-Herausgeber (z. B. Microsoft, SAP, Oracle)
-  - **Beschreibung**: Was diese Anwendung tut
-  - **Version**: Aktuelle Versionsnummer (z. B. „4.2.1", „2023", „Q1 2024")
-  - **Go-Live-Datum** / **Support-Ende** / **Außerbetriebnahmedatum**: Versionszyklus-Daten
-  - **Lizenzierung**: Lizenzbedingungen und Hinweise
-  - **Notizen**: Freitext-interne Notizen
+- **Version**: Aktuelle Versionskennung (Freitext, z. B. „4.2.1", „2023", „Q1 2024")
+- **Go-Live**: Wann diese Version live ging oder gehen wird
+- **Support-Ende**: Wann der Herstellersupport für diese Version endet
+- **Außerbetriebnahmedatum**: Wann diese Version tatsächlich außer Betrieb genommen wurde
+- **Lizenzierung**: Lizenzbedingungen und Hinweise
+- **Notizen**: Freitext-interne Notizen
+- **Kann Unteranwendungen haben**: Aktivieren, um diese Anwendung als „Suite" zu verwenden, die andere Anwendungen gruppiert
 
-Nach dem Speichern schaltet der Arbeitsbereich alle Reiter für detaillierte Dokumentation frei.
+Nach dem Speichern schaltet der Arbeitsbereich alle Reiter für die detaillierte Dokumentation frei.
 
-**Tipp**: Beginnen Sie mit der Dokumentation Ihrer kritischsten Anwendungen. Verwenden Sie den Reiter **Instanzen**, um zu erfassen, welche Umgebungen existieren (Prod, QA, Dev), und verknüpfen Sie dann Assets und Schnittstellen nach und nach.
+**Tipp**: Beginnen Sie mit der Dokumentation Ihrer kritischsten Anwendungen. Verwenden Sie den Reiter **Bereitstellungen**, um zu erfassen, welche Umgebungen existieren (Prod, QA, Dev) und welche Server sie betreiben, und verknüpfen Sie dann Schnittstellen, Verträge und Budgetpositionen nach und nach.
+
+**Berechtigungen**:
+- Anzeigen: `applications:reader`
+- Erstellen / Bearbeiten: `applications:manager` (auch `member` genannt)
+- Importieren / Exportieren / Löschen: `applications:admin`
 
 ---
 
@@ -65,169 +73,160 @@ Nach dem Speichern schaltet der Arbeitsbereich alle Reiter für detaillierte Dok
 
 Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 
-**Oberer Bereichsfilter**:
-  - **Meine Apps** (Standard): zeigt Apps, bei denen Sie in **Verantwortung & Zielgruppe** als **Business-Verantwortlicher** oder **IT-Verantwortlicher** gelistet sind. Mehrfach-Verantwortliche werden unterstützt.
-  - **Apps meines Teams**: zeigt Apps, bei denen ein Mitglied Ihres Portfolio-Teams als Business-Verantwortlicher oder IT-Verantwortlicher gelistet ist.
-  - **Alle Apps**: zeigt das vollständige Anwendungsraster.
-  - Wenn Sie keinem Portfolio-Team zugeordnet sind, ist **Apps meines Teams** deaktiviert
-  - Ihre Auswahl wird sitzungsübergreifend gespeichert
+**Oberer Bereichsfilter (Anzeigen)**:
+- **Meine Apps** (Standard): zeigt Apps, bei denen Sie in der Eigenschaftsleiste als **Business-Verantwortlicher** oder **IT-Verantwortlicher** gelistet sind. Mehrfach-Verantwortliche werden unterstützt.
+- **Apps meines Teams**: zeigt Apps, bei denen ein Mitglied Ihres Portfolio-Teams als Business-Verantwortlicher oder IT-Verantwortlicher gelistet ist. Ihre eigene Verantwortlichkeit ist in diesem Bereich ebenfalls enthalten. Deaktiviert, wenn Sie keinem Portfolio-Team zugewiesen sind.
+- **Alle Apps**: zeigt das vollständige Anwendungsraster mit dem standardmäßigen Lebenszyklus-Filterverhalten.
+- Ihre Auswahl wird sitzungsübergreifend gespeichert -- bei Rückkehr zur Seite wird Ihre letzte Wahl wiederhergestellt.
 
 **Standardspalten**:
-  - **Name**: Anwendungsname mit Kategorie-Badge und Suite-Mitgliedschaft
-  - **Kategorie**: Der Hauptzweck der Anwendung
-  - **Umgebungen**: Chips, die aktive Umgebungen zeigen (Prod, Pre-prod, QA, Test, Dev, Sandbox)
-  - **Lebenszyklus**: Aktueller Status
-  - **Kritikalität**: Stufe der geschäftlichen Bedeutung
-  - **Herausgeber**: Software-Herausgeber
-  - **Abgeleitete Benutzer (J)**: Berechnete Benutzeranzahl für das aktuelle Jahr
-  - **Erstellt**: Wann der Datensatz erstellt wurde
+- **Name**: Anwendungsname mit Kategorie-Beschriftung und einem Badge „Enthalten in: {Suite}" für Komponenten einer Suite
+- **Kategorie**: Der Hauptzweck der Anwendung
+- **Umgebungen**: Farbige Chips, die aktive Umgebungen zeigen (Prod, Pre-prod, QA, Test, Dev, Sandbox). Bewegen Sie den Mauszeiger darüber für Basis-URL und Lebenszyklus.
+- **Lebenszyklus**: Aktueller Status
+- **Kritikalität**: Stufe der geschäftlichen Bedeutung
+- **Herausgeber**: Software-Herausgeber
+- **Abgeleitete Benutzer (J)**: Berechnete Benutzeranzahl für das aktuelle Jahr (basierend auf der in der Eigenschaftsleiste festgelegten Zielgruppe)
+- **Erstellt**: Wann der Datensatz erstellt wurde
+
+**Standardsortierung**: **Name** aufsteigend (A bis Z).
+
+**Zusätzliche Spalten** (über die Spaltenauswahl):
+- **Suites**: Übergeordnete Suites, zu denen diese Anwendung gehört
+- **Lieferant**: Verknüpfter Lieferantenname
+- **Business-Verantwortliche** / **IT-Verantwortliche**: Zugewiesene Verantwortliche (gekürzt, Mauszeiger oder Klick zum Anzeigen aller)
+- **Hosting**: Abgeleitet von Server-Standorten, die App-Bereitstellungen zugewiesen sind
+- **Extern erreichbar**: Ob die App aus dem Internet zugänglich ist
+- **SSO aktiviert** / **MFA aktiviert**: Authentifizierungsfunktionen
+- **Datenintegration / ETL**: Ob die App an Datenintegrationen teilnimmt
+- **OPEX-Positionen** / **CAPEX-Positionen** / **Verträge**: Verknüpfte Ausgaben und Verträge
+- **Komponenten**: Unteranwendungen (wenn dies eine Suite ist)
+- **Datenklasse** / **Enthält PII** / **Datenhaltung**: Compliance-Informationen
 
 **Filterung**:
-  - Kategorie, Umgebungen, Lebenszyklus, Kritikalität, Hosting, Extern erreichbar, SSO aktiviert, MFA aktiviert, Datenklasse und Enthält PII verwenden Kontrollkästchen-Set-Filter
-  - Außer Betrieb genommene Anwendungen sind standardmäßig ausgeblendet; verwenden Sie den Lebenszyklus-Filter, um sie einzuschließen
+- Schnellsuche: gleicht Name und Editor/Herausgeber ab
+- Die meisten Spalten verwenden Kontrollkästchen-Set-Filter, die nur Werte anzeigen, die im aktuellen Ergebnissatz vorhanden sind; der schwebende Filter zeigt `Alle`, `Keine` oder `N ausgewählt` mit einem **x** zum Löschen.
+- Außer Betrieb genommene Anwendungen sind standardmäßig ausgeblendet; verwenden Sie den **Lebenszyklus**-Filter, um Außer Betrieb einzuschließen.
 
 **Aktionen**:
-  - **Neue App / Dienst**: Einen neuen Eintrag erstellen (erfordert Manager-Berechtigung)
-  - **CSV importieren**: Massenimport aus CSV-Datei (erfordert Admin-Berechtigung)
-  - **CSV exportieren**: Liste als CSV exportieren (erfordert Admin-Berechtigung)
-  - **Element kopieren**: Eine ausgewählte Anwendung mit allen Verknüpfungen duplizieren (erfordert Manager-Berechtigung)
-  - **Ausgewählte löschen**: Ausgewählte Anwendungen entfernen (erfordert Admin-Berechtigung)
+- **Neue App / Dienst**: Einen neuen Eintrag erstellen (`applications:manager`)
+- **CSV importieren**: Massenimport aus CSV-Datei (`applications:admin`)
+- **CSV exportieren**: Liste als CSV exportieren (`applications:admin`)
+- **Element kopieren**: Eine ausgewählte Anwendung mit allen Kernbeziehungen duplizieren (`applications:manager`). Siehe [Anwendungen kopieren](#anwendungen-kopieren) für Details.
+- **Ausgewählte löschen**: Ausgewählte Anwendungen entfernen (`applications:admin`)
 
 ---
 
 ## Der Anwendungs-Arbeitsbereich
 
-Klicken Sie auf eine Zeile in der Liste, um den Arbeitsbereich zu öffnen. Er hat neun Reiter:
+Klicken Sie auf eine Zeile, um den Arbeitsbereich zu öffnen. Der Arbeitsbereich hat eine **Kopfzeile** mit schnellen Metadaten, eine **Eigenschaftsleiste** auf der rechten Seite (die Identitätskarte der Anwendung -- immer sichtbar) und einen **Inhaltsbereich** in der Mitte, der mit jedem Reiter wechselt.
+
+### Kopfzeile
+
+Die Kopfzeile zeigt:
+- **Anwendungsname** (an Ort und Stelle bearbeitbar)
+- **Referenz**: kurze Kennung, die Sie kopieren können
+- **Lebenszyklus**-Chip: klicken zum Ändern
+- **Kritikalitäts**-Chip: klicken zum Ändern
+- **Versions**-Chip (wenn eine Version festgelegt ist): klicken zum Kopieren
+- **Go-Live**-Datum
+- **Link senden**: Einen teilbaren Link zu diesem Arbeitsbereich kopieren
+- **Neue Version erstellen**: Den Versionsmigrations-Assistenten starten (siehe [Versionsverwaltung](#versionsverwaltung))
+- **Löschen** (`applications:admin`)
+- **Vorherige / Nächste**: Durch die gefilterte Liste navigieren, ohne zum Raster zurückzukehren
+
+### Eigenschaftsleiste (rechtes Panel)
+
+Die Leiste ist die Identitätskarte der Anwendung. Sie wird in jedem Reiter angezeigt und wird inline bearbeitet -- Änderungen werden automatisch gespeichert.
+
+**Identität**:
+- **Kategorie**, **Lieferant**, **Herausgeber**
+
+**Lebenszyklus-Daten**:
+- **Go-Live**, **Support-Ende**, **Außerbetriebnahmedatum**
+
+**Verantwortliche**:
+- **Business-Verantwortliche**: Geschäftliche Stakeholder, die für diese Anwendung rechenschaftspflichtig sind (Mehrfachauswahl)
+- **IT-Verantwortliche**: IT-Teammitglieder, die für den technischen Support verantwortlich sind (Mehrfachauswahl)
+
+**Zielgruppe**:
+- Fügen Sie Zeilen für **Unternehmen / Abteilungen** hinzu, um aufzuzeichnen, wer diese Anwendung nutzt. Wählen Sie ein Unternehmen aus und schränken Sie optional auf bestimmte Abteilungen ein.
+- Eine Live-Zählung der **Benutzer** wird angezeigt.
+- **Berechnungsmethode**: **Abgeleitet** (aus der Zielgruppe basierend auf Stammdaten-Metriken IT-Benutzer / Mitarbeiterzahl berechnet) oder **Manuell** (eine einzelne Überschreibungszahl, die Sie eingeben).
+
+---
 
 ### Übersicht
 
-Der Reiter Übersicht erfasst die Kernidentität Ihrer Anwendung.
+Der Reiter Übersicht ist die Erzählung der Anwendung. Er enthält:
 
-**Was Sie bearbeiten können**:
-  - **Name**: Der Anzeigename der Anwendung
-  - **Beschreibung**: Was diese Anwendung tut
-  - **Kategorie**: Der Hauptzweck der Anwendung (konfigurierbar in den IT-Landschaft-Einstellungen)
-  - **Lieferant**: Verknüpfung zu einem Lieferanten aus Ihren Stammdaten
-  - **Herausgeber**: Der Software-Herausgeber
-  - **Kritikalität**: Geschäftskritisch, Hoch, Mittel oder Niedrig
-  - **Lebenszyklus**: Aktueller Status (konfigurierbar in den IT-Landschaft-Einstellungen)
-  - **Kann Unteranwendungen haben**: Aktivieren, um diese Anwendung als „Suite" zu verwenden, die andere Anwendungen gruppiert
-  - **Lizenzierung**: Lizenzbedingungen und Hinweise
-  - **Notizen**: Freitext-Notizen
+**Beschreibung**: Eine Rich-Text-Beschreibung der Anwendung. Der Editor speichert automatisch beim Tippen.
 
-**Versionsinformationen** (in einem separaten Abschnitt angezeigt):
-  - **Version**: Aktuelle Versionskennung (Freitext, z. B. „4.2.1", „2023")
-  - **Go-Live-Datum**: Wann diese Version live gegangen ist oder gehen wird
-  - **Support-Ende**: Wann der Herstellersupport für diese Version endet
-  - **Außerbetriebnahmedatum**: Wann diese Version tatsächlich außer Betrieb genommen wurde
+**Verbindungen**: Eine schreibgeschützte Zusammenfassung, die aus den Schnittstellen der Anwendung erstellt wird. Bei Nicht-Middleware-Apps zeigt sie zwei Zeilen: **Empfängt von** und **Sendet an**. Bei ETL/Middleware-Apps zeigt sie eine einzelne Zeile **Verbunden mit**. Jeder Eintrag ist eine anklickbare Pille, die die zugehörige Anwendung öffnet; „+ N weitere in Schnittstellen" springt zum Reiter Schnittstellen.
 
-**Versionshistorie**: Wenn diese Anwendung aus einer anderen Version erstellt wurde (über die Funktion **Neue Version erstellen**), erscheint oben im Reiter Übersicht eine Versions-Zeitleiste. Klicken Sie auf einen Versions-Chip, um zu dieser Version zu navigieren.
+**Wissensdatenbank**: Verknüpfte Wissensartikel. Mit `knowledge:member` können Sie neue Artikel direkt aus diesem Bereich erstellen.
 
 ---
 
-### Instanzen
+### Bereitstellungen
 
-Der Reiter Instanzen dokumentiert, wo Ihre Anwendung in verschiedenen Umgebungen läuft.
+Der Reiter Bereitstellungen dokumentiert, wo die Anwendung tatsächlich läuft -- ein Block pro Umgebung, mit den jeweils zugeordneten Servern.
 
-**Umgebungen** (in Reihenfolge): Production, Pre-prod, QA, Test, Dev, Sandbox
+**Umgebungen**: Production, Pre-prod, QA, Test, Dev, Sandbox.
 
-**Für jede Instanz können Sie erfassen**:
-  - **Basis-URL**: Die Zugriffs-URL für diese Umgebung
-  - **Region** / **Zone**: Geografische Bereitstellungsinformationen
-  - **Lebenszyklus**: Instanzspezifischer Status
-  - **SSO aktiviert** / **MFA unterstützt**: Authentifizierungsfähigkeiten
-  - **Status**: Aktiviert oder Deaktiviert
-  - **Notizen**: Umgebungsspezifische Notizen
+**Für jede Bereitstellung können Sie erfassen**:
+- **Lebenszyklus**: pro Umgebung Status (Aktiv, Vorgeschlagen, Veraltet, Außer Betrieb usw.)
+- **Basis-URL**: die Zugriffs-URL für diese Umgebung
+- **SSO aktiviert** / **MFA unterstützt**
+- **Notizen**
 
-**Massenaktionen**:
-  - **Von Prod kopieren**: Schnell Instanzen für andere Umgebungen basierend auf Ihrem Produktions-Setup erstellen
-  - **Massenanwendung**: Änderungen auf mehrere Umgebungen gleichzeitig anwenden
+**Bereitstellung hinzufügen** öffnet einen Dialog, in dem Sie Umgebung, Lebenszyklus, Basis-URL, SSO/MFA-Flags und Notizen festlegen. Jede Umgebung kann nur einmal hinzugefügt werden. Der Lebenszyklus-Chip auf einer Bereitstellungs-Kopfzeile kann auch inline aus einem Popup-Menü geändert werden.
 
-**Tipp**: Instanzänderungen werden sofort gespeichert -- kein Klick auf die Hauptspeichern-Schaltfläche erforderlich.
+**Server pro Bereitstellung**: Jeder Bereitstellungsblock zeigt eine Tabelle der zugewiesenen Server:
 
----
+| Spalte | Was sie zeigt |
+|--------|---------------|
+| **Server** | Asset-Name (anklickbar) |
+| **Rolle** | z. B. Web, Datenbank, Anwendung (aus der Server-Rollen-Liste in den Einstellungen) |
+| **Hosting** | Abgeleitet vom Standort des Assets |
+| **Seit** | Datum, an dem der Server dieser Bereitstellung zugewiesen wurde |
 
-### Server
+Klicken Sie in der Bereitstellungs-Kopfzeile auf **Server hinzufügen**, um ein Asset anzuhängen. Cluster-Assets sind ausgeschlossen -- weisen Sie stattdessen Cluster-Member-Hosts zu.
 
-Der Reiter Server zeigt, welche Infrastruktur-Assets jede Anwendungsinstanz unterstützen.
-
-**So funktioniert es**:
-  - Wählen Sie eine Umgebung, um ihre Asset-Zuweisungen zu sehen
-  - Assets mit der Schaltfläche **Server hinzufügen** hinzufügen
-  - Jede Zuweisung erfasst das **Asset**, die **Rolle** (z. B. Web, Datenbank, Anwendung) und optionale **Notizen**
-  - Klicken Sie auf einen Asset-Namen, um zum Asset-Arbeitsbereich zu navigieren
+**Tipp**: Dokumentieren Sie Server zuerst in **IT-Landschaft > Assets** und verknüpfen Sie sie dann hier. Der Reiter Übersicht des Assets zeigt dieselben Zuordnungen umgekehrt an.
 
 ---
 
 ### Schnittstellen
 
-Der Reiter Schnittstellen zeigt alle Integrationen, an denen diese Anwendung beteiligt ist -- als Quelle, Ziel oder Middleware.
+Der Reiter Schnittstellen zeigt alle Integrationen, an denen diese Anwendung beteiligt ist -- als Quelle, Ziel oder Middleware. Das Reiter-Badge zeigt die Gesamtzahl an.
 
-**Was Sie sehen werden**:
-  - Schnittstellen gruppiert nach Umgebung (Prod, Pre-prod, QA usw.)
-  - Für jede Schnittstelle: **Name**, **Quellanwendung**, **Zielanwendung** und **Via Middleware**-Indikator
-  - Klicken Sie auf einen Schnittstellen- oder Anwendungsnamen, um zu seinem Arbeitsbereich zu navigieren
+Schnittstellen werden **nach Umgebung gruppiert** (PROD, PRE_PROD, QA, ...). Innerhalb jeder Umgebung werden sie aufgeteilt in:
 
-**Tipp**: Schnittstellen werden über die Schnittstellen-Seite verwaltet. Dieser Reiter bietet eine bequeme schreibgeschützte Ansicht aller Integrationen, die diese Anwendung betreffen.
+- **Eingehend** -- diese Anwendung empfängt Daten
+- **Ausgehend** -- diese Anwendung sendet Daten
+- **Geleitet** -- diese Anwendung ist die Middleware/ETL für einen Fluss zwischen zwei anderen Apps
 
----
+Jede Zeile zeigt den Schnittstellennamen, die Gegenanwendung und einen Indikator **Via Middleware**. Klicken Sie auf die Zeile, um den Schnittstellen-Arbeitsbereich zu öffnen; klicken Sie auf die Gegenanwendung, um die andere Anwendung zu öffnen.
 
-### Verantwortung & Zielgruppe
-
-Der Reiter Verantwortung & Zielgruppe dokumentiert, wer verantwortlich ist und wer diese Anwendung nutzt.
-
-**Business-Verantwortliche**: Die geschäftlichen Stakeholder, die für diese Anwendung rechenschaftspflichtig sind -- mehrere Verantwortliche hinzufügen; jeweils mit Berufsbezeichnung.
-
-**IT-Verantwortliche**: Die IT-Teammitglieder, die für den technischen Support verantwortlich sind -- mehrere Verantwortliche hinzufügen; jeweils mit Berufsbezeichnung.
-
-**Zielgruppe**: Welche Teile Ihrer Organisation diese Anwendung nutzen
-  - Wählen Sie ein **Unternehmen** und optional eine **Abteilung**
-  - Das System berechnet die Benutzeranzahl basierend auf Ihren Stammdaten-Metriken (IT-Benutzer oder Mitarbeiterzahl)
-
-**Benutzeranzahl**: Wählen Sie zwischen:
-  - **Abgeleitet**: Automatisch aus den Zielgruppenauswahlen berechnet
-  - **Manuell**: Mit einer bestimmten Zahl überschreiben
+**Tipp**: Schnittstellen werden über die Schnittstellen-Seite verwaltet. Dieser Reiter ist eine bequeme schreibgeschützte Ansicht, aber er ist der schnellste Weg, um zwischen verbundenen Anwendungen zu navigieren.
 
 ---
 
-### Technik & Support
+### Betrieb
 
-Der Reiter Technik & Support erfasst technische Details und Supportkontakte.
+Der Reiter Betrieb erfasst, wie Benutzer auf die Anwendung zugreifen und wer sie unterstützt.
 
-**Technische Informationen**:
-  - **Suites**: Übergeordnete Suites, zu denen diese Anwendung gehört
-  - **Zugriffsmethoden**: Wie Benutzer auf diese Anwendung zugreifen (Mehrfachauswahl). Optionen sind in den [IT-Landschaft-Einstellungen](it-ops-settings.md#zugriffsmethoden) konfigurierbar.
-  - **Extern erreichbar**: Ob die Anwendung aus dem Internet zugänglich ist
-  - **Datenintegration / ETL**: Ob die Anwendung an Datenintegrations-Pipelines teilnimmt
+**Technisch**:
+- **Zugriffsmethoden** (Mehrfachauswahl): Wie Benutzer auf diese Anwendung zugreifen. Optionen sind in den [IT-Landschaft-Einstellungen](it-ops-settings.md) konfigurierbar. Standards umfassen Web, Lokal installierte Anwendung, Mobile Anwendung, Proprietäre HMI (industrielle Schnittstelle), Terminal / CLI, VDI / Remote Desktop, Kiosk.
+- **Extern erreichbar**: Ob die Anwendung aus dem Internet zugänglich ist
+- **Datenintegration / ETL**: Ob die Anwendung an Datenintegrations-Pipelines teilnimmt (versetzt diese App auch in den „Middleware"-Modus für die Schnittstellen- und Verbindungsansichten)
+- **Kann Unteranwendungen haben**: Diese Anwendung in eine Suite verwandeln, die andere Anwendungen gruppiert
 
-**Supportinformationen**:
-  - Supportkontakte mit ihrer **Rolle** hinzufügen (z. B. Account-Manager, Technischer Support)
-  - Kontakte werden aus Ihren Kontakte-Stammdaten verknüpft
-  - Jeder Kontakt zeigt **E-Mail**, **Telefon** und **Mobil**
-  - **Support-Notizen**: Freitext-Notizen zu Supportvereinbarungen
-
----
-
-### Verknüpfungen
-
-Der Reiter Verknüpfungen verbindet diese Anwendung mit Ihren Finanz-, Vertrags- und Projektdaten.
-
-**Verfügbare Verknüpfungen**:
-  - **OPEX-Positionen**: Laufende Kosten, die mit dieser Anwendung verbunden sind
-  - **CAPEX-Positionen**: Investitionsausgabenprojekte
-  - **Verträge**: Lieferantenverträge
-  - **Projekte**: Portfolio-Projekte, die mit dieser Anwendung verknüpft sind
-  - **Relevante Websites**: Externe Links und Dokumentation
-  - **Anhänge**: Dateien per Drag-and-Drop oder Dateiauswahl hochladen
-
-**Wenn dies eine Suite ist**:
-  - Sie sehen auch einen Abschnitt **Komponenten** mit Unteranwendungen
-
----
-
-### Wissensdatenbank
-
-Der Reiter Wissensdatenbank verbindet diese Anwendung mit der Wissensdatenbank Ihrer Organisation. Sie können bestehende Wissensdatenbank-Dokumente verknüpfen oder neue direkt aus dem Arbeitsbereich erstellen.
+**Support**:
+- Eine Tabelle mit Supportkontakten, die aus Ihren Kontakte-Stammdaten gezogen werden. Jede Zeile zeigt den Kontaktnamen, die E-Mail, das Telefon und eine Freitext-Rolle (z. B. Account-Manager, L1-Support).
+- **Kontakt hinzufügen** öffnet einen Dialog zur Auswahl eines Kontakts und zur Festlegung einer Rolle.
+- **Support-Notizen**: Freitext für Supportvereinbarungen (SLA, Eskalationspfade, Bereitschaftsinformationen).
 
 ---
 
@@ -236,10 +235,31 @@ Der Reiter Wissensdatenbank verbindet diese Anwendung mit der Wissensdatenbank I
 Der Reiter Compliance erfasst Datenschutz- und regulatorische Informationen.
 
 **Was Sie bearbeiten können**:
-  - **Datenklasse**: Sensibilitätsstufe (Öffentlich, Intern, Vertraulich, Eingeschränkt)
-  - **Letzter DR-Test**: Datum des letzten Disaster-Recovery-Tests
-  - **Enthält PII**: Ob die Anwendung personenbezogene Daten speichert
-  - **Datenhaltung**: Länder, in denen Daten gespeichert werden (Mehrfachauswahl)
+- **Datenklasse** (erforderlich): Sensibilitätsstufe (Öffentlich, Intern, Vertraulich, Eingeschränkt oder ein in den Einstellungen definierter benutzerdefinierter Code)
+- **Letzter DR-Test**: Datum des letzten Disaster-Recovery-Tests
+- **Enthält PII**: Ob die Anwendung personenbezogene Daten speichert
+- **Datenhaltung**: Länder, in denen Daten gespeichert werden (Mehrfachauswahl, ISO-Codes + Namen)
+
+**Tipp**: Datenklassen sind in **IT-Landschaft > Einstellungen** konfigurierbar. Passen Sie sie an die Datenklassifizierungsrichtlinie Ihrer Organisation an.
+
+---
+
+### Verknüpfungen
+
+Der Reiter Verknüpfungen verbindet diese Anwendung mit Ihren Finanz-, Vertrags-, Projekt- und Aufgabendatensätzen. Das Reiter-Badge zählt alle verknüpften Elemente. Änderungen werden automatisch gespeichert.
+
+**Komponenten** (nur wenn „Kann Unteranwendungen haben" aktiviert ist): eine Tabelle, die die Unteranwendungen dieser Suite mit ihrem Lebenszyklus und ihrer Kritikalität auflistet. Klicken Sie auf eine Zeile, um den Arbeitsbereich der Unteranwendung zu öffnen.
+
+**Verknüpfungen**:
+- **OPEX-Positionen**: Laufende Kosten, die mit dieser Anwendung verbunden sind
+- **CAPEX-Positionen**: Investitionsausgabenprojekte
+- **Verträge**: Lieferantenverträge
+- **Projekte**: Portfolio-Projekte, die mit dieser Anwendung verknüpft sind
+- **Aufgaben**: Aufgaben, die mit dieser Anwendung verknüpft sind. Diese Liste ist hier schreibgeschützt -- Aufgaben gewinnen oder verlieren diese Verknüpfung, wenn Sie das Feld **App / Dienst** auf einer Aufgabe in der Aufgabenseite festlegen.
+
+**Relevante Websites**: URLs mit optionalen Namen hinzufügen -- nützlich für Lieferantenportale, Monitoring-Dashboards oder Dokumentationslinks. **URL hinzufügen** öffnet einen Dialog; vorhandene Einträge können bearbeitet oder gelöscht werden.
+
+**Anhänge**: Dateien per Drag-and-Drop ziehen oder auf **Dateien auswählen** klicken, um sie hochzuladen. Klicken Sie auf einen Anhang-Chip, um ihn herunterzuladen. Löschen ist für Manager verfügbar.
 
 ---
 
@@ -249,80 +269,285 @@ KANAP bietet **zwei Wege zur Verwaltung von Anwendungsversionen**, je nachdem, w
 
 | Ansatz | Am besten für | Was passiert |
 |----------|----------|--------------|
-| **Einfach** | Die meisten Anwendungen | Versionsfelder direkt aktualisieren -- gleicher Datensatz, neue Versionsnummer |
-| **Erweitert** | Große Migrationen | Einen neuen Anwendungsdatensatz mit Versionsnachverfolgung erstellen -- alte und neue Versionen parallel betreiben |
+| **Einfach** | Die meisten Anwendungen | Versionsfelder in der Eigenschaftsleiste oder im Erstellungsformular aktualisieren -- gleicher Datensatz, neue Versionsnummer |
+| **Erweitert** | Große Migrationen | **Neue Version erstellen** verwenden, um einen neuen Anwendungsdatensatz mit Versionsnachverfolgung zu erstellen -- alte und neue Versionen parallel betreiben |
 
 ### Einfache Versionsverfolgung (In-Place-Updates)
 
-Für die meisten Anwendungen -- bei denen Sie upgraden und die alte Version einfach verschwindet -- aktualisieren Sie einfach die Versionsfelder im Reiter **Übersicht**:
-  - **Version**: Aktuelle Version eingeben
-  - **Go-Live-Datum**: Wann diese Version live gegangen ist oder gehen wird
-  - **Support-Ende**: Wann der Herstellersupport endet
-  - **Außerbetriebnahmedatum**: Wann Sie diese Version tatsächlich außer Betrieb genommen haben
+Für die meisten Anwendungen -- bei denen Sie upgraden und die alte Version einfach verschwindet -- aktualisieren Sie **Version**, **Go-Live**, **Support-Ende** und **Außerbetriebnahmedatum** im Erstellungsformular oder in der Eigenschaftsleiste. Der Versions-Chip in der Kopfzeile und die **Go-Live**-Metadaten spiegeln Ihre Einstellungen wider.
 
-### Neue Version erstellen (Parallelmigration)
+Dieser Ansatz hält alles in einem einzigen Datensatz. Wenn Sie ein Upgrade durchführen, aktualisieren Sie die Versionsfelder und Sie sind fertig. Die Historie wird im Audit-Protokoll verfolgt.
 
-Für größere Anwendungsupgrades, bei denen Sie alte und neue Versionen parallel über verschiedene Umgebungen betreiben müssen, verwenden Sie die Funktion **Neue Version erstellen**:
+**Verwenden Sie dies, wenn**: Upgrades vor Ort ohne Überlappung erfolgen -- eine Version ersetzt eine andere.
 
-1. Öffnen Sie die Anwendung, die Sie upgraden möchten
-2. Speichern Sie ausstehende Änderungen
-3. Klicken Sie auf **Neue Version erstellen** in der Kopfzeile
-4. Durchlaufen Sie den dreistufigen Assistenten:
-   - **Schritt 1 - Versionsdetails**: Neuen Anwendungsnamen, Version und Daten eingeben
-   - **Schritt 2 - Kopieroptionen**: Wählen, was von der Quelle kopiert wird
-   - **Schritt 3 - Schnittstellen**: Welche Schnittstellen zur neuen Version migriert werden sollen
-5. Klicken Sie auf **Version erstellen**
+### Eine neue Version erstellen (Parallelmigrationen)
+
+Für größere Anwendungsupgrades, bei denen Sie alte und neue Versionen parallel über verschiedene Umgebungen betreiben müssen (z. B. SAP S/4HANA 1909 in Prod, während 2023 in QA ist), verwenden Sie **Neue Version erstellen** in der Kopfzeile des Arbeitsbereichs.
+
+Der Assistent hat drei Schritte:
+
+1. **Versionsdetails** -- Neuen Anwendungsnamen, Versionsbezeichnung, **Go-Live**- und **Support-Ende**-Daten.
+2. **Kopieroptionen** -- wählen, was von der Quelle kopiert wird. Standardwerte unten gezeigt.
+3. **Schnittstellen** -- wählen, welche Schnittstellen zur neuen Version migriert werden sollen.
+
+Die neue Version wird als separate Anwendung erstellt mit:
+- Einem **Vorgeschlagen**-Lebenszyklus (bereit zur Konfiguration vor dem Go-Live)
+- Einem Link zu seinem Vorgänger (verwendet von der Versions-Zeitleiste)
+- Kopierten Daten basierend auf Ihren Auswahlen
+- Duplizierten Schnittstellen, die auf die neue Version verweisen
+
+### Was kopiert wird
+
+| Option | Standard |
+|--------|---------|
+| Verantwortliche (Business und IT) | Ein |
+| Unternehmen (Zielgruppe) | Ein |
+| Abteilungen | Ein |
+| Datenhaltung | Ein |
+| Verknüpfungen | Ein |
+| Supportkontakte | Ein |
+| Budgetpositionen (OPEX + CAPEX, gepaart) | Ein |
+| Verträge | Ein |
+| Bereitstellungen | Aus |
+| Bereitstellungs-Bindungen | Aus (nur verfügbar, wenn Bereitstellungen ausgewählt ist) |
+
+**Nicht kopiert** (muss neu eingerichtet werden): Suite-Mitgliedschaft, Anhänge, Server-Zuweisungen.
+
+### Schnittstellenmigration
+
+Während der Versionserstellung zeigt der Assistent alle Schnittstellen an, bei denen diese Anwendung Quelle, Ziel oder Middleware ist (wenn ETL aktiviert ist). Ausgewählte Schnittstellen werden mit auf die neue Version aktualisierten Referenzen dupliziert. Jede migrierte Schnittstelle enthält ihre Legs, Verantwortlichen, Unternehmen, Schlüsselkennungen, Verknüpfungen und Datenhaltung. Migrierte Schnittstellen starten mit einem **Vorgeschlagen**-Lebenszyklus. Die ursprünglichen Schnittstellen bleiben mit der alten Version verknüpft.
+
+**Bindungen kopieren**: Wenn Sie sowohl **Bereitstellungen** als auch **Bereitstellungs-Bindungen** auswählen, werden auch Schnittstellen-Bindungen kopiert. Bindungen werden den Bereitstellungen der neuen Anwendung zugeordnet (nach Umgebung abgeglichen); umgebungsspezifische Details (Endpunkte, Authentifizierung, Job-Namen) werden gelöscht, und der Bindungsstatus wird auf **Vorgeschlagen** zurückgesetzt.
+
+**ETL/Middleware-Anwendungen**: Wenn die Anwendung **Datenintegration / ETL** aktiviert hat, zeigt der Assistent auch Schnittstellen an, die *durch* diese Anwendung als Middleware fließen. Dies sind Schnittstellen, bei denen eine andere Quelle Daten an ein anderes Ziel über Ihren ETL sendet. Das Kopieren erstellt neue Schnittstellendefinitionen für den aufgerüsteten ETL mit ordnungsgemäß aktualisierten Middleware-Referenzen.
+
+**Tipp**: Verwenden Sie dies beim Upgrade Ihres ERP oder ETL: migrieren Sie die kritischen Schnittstellen und kopieren Sie optional Bindungen, um einen Vorsprung bei der Umgebungskonfiguration zu erhalten.
 
 ---
 
 ## Anwendungen kopieren
 
+Es gibt zwei Möglichkeiten, eine Anwendung in KANAP zu kopieren:
+
 ### Element kopieren (aus dem Anwendungsraster)
 
 Verwenden Sie dies, wenn Sie ein unabhängiges Duplikat einer Anwendung erstellen möchten -- typischerweise um einen ähnlichen Anwendungseintrag ohne Versionsverkettung zu erstellen.
 
-1. Wählen Sie eine Anwendung im Raster
+1. Wählen Sie eine Anwendung im Raster aus
 2. Klicken Sie auf **Element kopieren**
 3. Das System erstellt eine Kopie mit „ (Kopie)" angehängt an den Namen
 4. Sie werden zur neuen Anwendung navigiert, um Änderungen vorzunehmen
+
+**Was kopiert wird**: Alle Kernfelder (außer dem Datum des letzten DR-Tests), Verantwortliche, Unternehmen, Abteilungen, Suites, OPEX/CAPEX-Positionen, Verträge, Verknüpfungen, Datenhaltung und Supportkontakte.
+
+**Was NICHT kopiert wird**: Bereitstellungen, Schnittstellen, Server-Zuweisungen, Anhänge, Versionsfelder (Version, Go-Live-Datum, Support-Ende).
+
+### Vergleich: Element kopieren vs. Neue Version erstellen
+
+| Aspekt | Element kopieren | Neue Version erstellen |
+|--------|-----------|-------------------|
+| **Zweck** | Unabhängiges Duplikat | Versionierter Nachfolger mit Verkettung |
+| **Benutzeroptionen** | Keine (automatisch) | 3-Schritt-Assistent |
+| **Verkettung** | Keine Vorgängerverknüpfung | Setzt Vorgänger |
+| **Lebenszyklus** | Erhalten | Auf Vorgeschlagen zurückgesetzt |
+| **Name** | „(Kopie)"-Suffix | Vom Benutzer angegeben |
+
+**Verknüpfungen**:
+
+| Verknüpfung | Element kopieren | Neue Version erstellen |
+|----------|-----------|--------------------|
+| Verantwortliche (Business und IT) | Ja | Optional (Standard: ja) |
+| Unternehmen (Zielgruppe) | Ja | Optional (Standard: ja) |
+| Abteilungen | Ja | Optional (Standard: ja) |
+| Datenhaltung | Ja | Optional (Standard: ja) |
+| Verknüpfungen | Ja | Optional (Standard: ja) |
+| Supportkontakte | Ja | Optional (Standard: ja) |
+| Suites (Mitgliedschaft) | Ja | Nein |
+| OPEX-Positionen | Ja | Optional (Standard: ja) |
+| CAPEX-Positionen | Ja | Optional (Standard: ja) |
+| Verträge | Ja | Optional (Standard: ja) |
+| Bereitstellungen | Nein | Optional (Standard: nein) |
+| Bindungen | Nein | Optional (Standard: nein) |
+| Schnittstellen | Nein | Vom Benutzer ausgewählt |
+| Server-Zuweisungen | Nein | Nein |
+| Anhänge | Nein | Nein |
+
+**Kernfelder**:
+
+| Feld | Element kopieren | Neue Version erstellen |
+|-------|-----------|--------------------|
+| Beschreibung | Ja | Ja |
+| ETL aktiviert | Ja | Ja |
+| Support-Notizen | Ja | Ja |
+| Letzter DR-Test | Nein | Nein |
+| Versionsfelder | Nein | Vom Benutzer angegeben |
+| Benutzer-Überschreibung | Ja | Auf null zurückgesetzt |
+| Benutzerjahr | Ja | Auf aktuelles Jahr zurückgesetzt |
 
 ---
 
 ## CSV-Import/Export
 
-Pflegen Sie Ihr Anwendungsinventar im großen Maßstab mit CSV-Import und -Export.
+Pflegen Sie Ihr Anwendungsinventar im großen Maßstab mit CSV-Import und -Export. Diese Funktion unterstützt Massenoperationen für das initiale Datenladen, periodische Updates aus externen Systemen und Datenextraktion für Berichte.
 
 ### Zugriff auf CSV-Funktionen
 
 Aus der Anwendungsliste:
-  - **CSV exportieren**: Anwendungen in eine CSV-Datei herunterladen
-  - **CSV importieren**: Eine CSV-Datei hochladen, um Anwendungen zu erstellen oder zu aktualisieren
-  - **Vorlage herunterladen**: Eine leere CSV mit korrekten Spaltenköpfen erhalten
+- **CSV exportieren**: Anwendungen in eine CSV-Datei herunterladen
+- **CSV importieren**: Eine CSV-Datei hochladen, um Anwendungen zu erstellen oder zu aktualisieren
+- **Vorlage herunterladen** (im Import-Dialog): Eine leere CSV mit korrekten Spaltenköpfen erhalten
 
 **Erforderliche Berechtigungen**: `applications:admin` für Import-/Export-Operationen.
 
+### Exportoptionen
+
+**Voreinstellungen**:
+
+| Voreinstellung | Beschreibung |
+|--------|-------------|
+| **Vollständiger Export** | Alle exportierbaren Felder einschließlich berechneter/schreibgeschützter Daten (Zeitstempel, Datenhaltung, Benutzermetriken) |
+| **Datenanreicherung** | Nur importierbare Felder -- ideal für Round-Trip-Bearbeitungs-Workflows |
+
+**Vorlagen-Export**: Lädt nur Spaltenköpfe herunter -- nützlich für die Vorbereitung von Importdateien mit der korrekten Struktur. Die Vorlage enthält alle importierbaren Felder.
+
+**Benutzerdefinierte Auswahl**: Wählen Sie bestimmte Felder, die in Ihren Export aufgenommen werden sollen.
+
 ### Import-Workflow
 
-1. **Datei vorbereiten**: Verwenden Sie UTF-8-Kodierung mit Semikolon (`;`) als Trennzeichen.
-2. **Importeinstellungen wählen**: Modus (Anreichern/Ersetzen) und Operation (Upsert/Nur aktualisieren/Nur einfügen)
-3. **Zuerst validieren**: Klicken Sie auf **Preflight** zur Validierung
-4. **Änderungen anwenden**: Klicken Sie auf **Importieren**
+1. **Datei vorbereiten**: Verwenden Sie UTF-8-Kodierung mit Semikolon (`;`) als Trennzeichen. Laden Sie eine Vorlage herunter, um korrekte Spaltenköpfe sicherzustellen.
 
-### Abgleich und Aktualisierungen
+2. **Importeinstellungen wählen**:
+   - **Modus**:
+     - `Anreichern` (Standard): Leere Zellen erhalten vorhandene Werte -- nur aktualisieren, was Sie angeben
+     - `Ersetzen`: Leere Zellen löschen vorhandene Werte -- vollständiger Ersatz aller Felder
+   - **Operation**:
+     - `Upsert` (Standard): Neue Anwendungen erstellen oder vorhandene aktualisieren
+     - `Nur aktualisieren`: Nur vorhandene Anwendungen ändern, neue überspringen
+     - `Nur einfügen`: Nur neue Anwendungen erstellen, vorhandene überspringen
 
-Anwendungen werden nach **Name** (Groß-/Kleinschreibung ignorierend) abgeglichen.
+3. **Zuerst validieren**: Klicken Sie auf **Preflight**, um Ihre Datei ohne Änderungen zu validieren. Überprüfen Sie Fehler und Warnungen.
+
+4. **Änderungen anwenden**: Wenn die Validierung erfolgreich ist, klicken Sie auf **Importieren**, um Änderungen zu übernehmen.
+
+### Feldreferenz
+
+**Übersichtsfelder**:
+
+| CSV-Spalte | Beschreibung | Erforderlich | Hinweise |
+|------------|-------------|----------|-------|
+| `id` | Anwendungs-UUID | Nein | Für Updates; bei neuen Anwendungen leer lassen |
+| `name` | Anwendungsname | Ja | Wird als eindeutige Kennung für den Abgleich verwendet |
+| `description` | Was die Anwendung tut | Nein | |
+| `category` | Hauptzweck | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
+| `supplier_name` | Lieferantenname | Nein | Muss mit vorhandenem Lieferanten übereinstimmen |
+| `editor` | Software-Herausgeber | Nein | Freitext (z. B. Microsoft, SAP) |
+| `criticality` | Geschäftliche Bedeutung | Nein | `business_critical`, `high`, `medium`, `low` |
+| `lifecycle` | Aktueller Status | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
+| `is_suite` | Kann Unteranwendungen haben | Nein | `true` oder `false` |
+| `status` | Aktiviert/deaktiviert | Nein | `enabled` oder `disabled` |
+
+**Versionsfelder**:
+
+| CSV-Spalte | Beschreibung | Hinweise |
+|------------|-------------|-------|
+| `version` | Aktuelle Version | Freitext |
+| `go_live_date` | Wann die Version live ging | Datumsformat: YYYY-MM-DD |
+| `end_of_support_date` | Datum des Herstellersupportendes | Datumsformat: YYYY-MM-DD |
+| `retired_date` | Außerbetriebnahmedatum | Datumsformat: YYYY-MM-DD |
+
+**Technische Felder**:
+
+| CSV-Spalte | Beschreibung | Hinweise |
+|------------|-------------|-------|
+| `access_methods` | Wie Benutzer zugreifen | Komma-getrennte Codes oder Bezeichnungen aus den Einstellungen (z. B. `web,mobile,vdi`) |
+| `external_facing` | Aus dem Internet zugänglich | `true` oder `false` |
+| `etl_enabled` | Datenintegration | `true` oder `false` |
+| `support_notes` | Support-Informationen | Freitext |
+| `licensing` | Lizenzbedingungen | Freitext |
+| `notes` | Interne Notizen | Freitext |
+
+**Compliance-Felder**:
+
+| CSV-Spalte | Beschreibung | Hinweise |
+|------------|-------------|-------|
+| `data_class` | Datenklassifizierung | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
+| `last_dr_test` | Datum des letzten DR-Tests | Datumsformat: YYYY-MM-DD |
+| `contains_pii` | Speichert personenbezogene Daten | `true` oder `false` |
+| `data_residency` | Datenspeicherländer | Nur Export (ISO-Codes) |
+
+**Verantwortlichen-Felder**:
+
+| CSV-Spalte | Beschreibung | Hinweise |
+|------------|-------------|-------|
+| `business_owner_email_1` bis `_4` | E-Mails der Business-Verantwortlichen | Müssen mit vorhandenen Benutzern per E-Mail übereinstimmen |
+| `it_owner_email_1` bis `_4` | E-Mails der IT-Verantwortlichen | Müssen mit vorhandenen Benutzern per E-Mail übereinstimmen |
+
+**Nur-Export-Felder** (im Vollständigen Export enthalten, aber nicht importierbar):
+
+| CSV-Spalte | Beschreibung |
+|------------|-------------|
+| `data_residency` | Datenspeicherländer (ISO-Codes, komma-getrennt) |
+| `users_mode` | Benutzeranzahl-Methode (`manual`, `it_users`, `headcount`) |
+| `users_year` | Referenzjahr für Benutzerberechnungen |
+| `users_override` | Manuelle Benutzeranzahl-Überschreibung |
+| `created_at` | Zeitstempel der Datensatzerstellung |
+| `updated_at` | Zeitstempel der letzten Änderung |
+
+### Akzeptanz von Bezeichnungen und Codes
+
+Für Felder, die in **IT-Landschaft > Einstellungen** konfiguriert sind, können Sie entweder den internen Code oder die Anzeigebezeichnung verwenden:
+
+| Feld | Beispiel-Codes | Beispiel-Bezeichnungen |
+|-------|---------------|----------------|
+| Kategorie | `lob`, `productivity`, `security` | `Line-of-business`, `Productivity`, `Security` |
+| Lebenszyklus | `active`, `proposed`, `deprecated` | `Active`, `Proposed`, `Deprecated` |
+| Datenklasse | `public`, `internal`, `confidential` | `Public`, `Internal`, `Confidential` |
+
+Das System normalisiert Werte automatisch beim Import, sodass `Line-of-business`, `line-of-business` und `lob` alle zur gleichen Kategorie aufgelöst werden.
+
+### Abgleich und Updates
+
+Anwendungen werden nach **Name** (Groß-/Kleinschreibung ignorierend) abgeglichen. Wenn ein Treffer gefunden wird:
+- Mit `Anreichern`-Modus: Nur nicht-leere CSV-Werte aktualisieren die Anwendung
+- Mit `Ersetzen`-Modus: Alle Felder werden aktualisiert, leere Werte löschen vorhandene Daten
+
+Wenn Sie die Spalte `id` mit einer gültigen UUID einschließen, verwendet der Abgleich zuerst die ID und greift dann auf den Namen zurück.
+
+### Einschränkungen
+
+- **Bereitstellungen nicht enthalten**: Umgebungsbereitstellungen (Prod, QA, Dev) erfordern Arbeitsbereich-Konfiguration
+- **Server-Zuweisungen ausgeschlossen**: Server-Bindungen müssen im Reiter Bereitstellungen eingerichtet werden
+- **Schnittstellen ausgeschlossen**: Integrationsdefinitionen sind nicht Teil des CSV-Imports/-Exports
+- **Maximal 4 Verantwortliche pro Typ**: Bis zu 4 Business-Verantwortliche und 4 IT-Verantwortliche können importiert/exportiert werden
+- **Benutzermetriken nur Export**: Zielgruppen- und Benutzeranzahlfelder (`users_mode`, `users_year`, `users_override`) werden im Arbeitsbereich verwaltet
+- **Datenhaltung nur Export**: Länderauswahlen müssen im Reiter Compliance verwaltet werden
 
 ### Fehlerbehebung
 
-**Fehler „Datei ist nicht richtig formatiert"**: Stellen Sie sicher, dass Ihre CSV als **UTF-8** gespeichert ist.
+**Fehler „Datei ist nicht richtig formatiert"**: Dies weist normalerweise auf ein Kodierungsproblem hin. Stellen Sie sicher, dass Ihre CSV als **UTF-8** gespeichert ist:
+
+- **In LibreOffice**: Wählen Sie beim Öffnen einer CSV `UTF-8` im Zeichensatz-Dropdown (nicht „Japanese (Macintosh)" oder andere Kodierungen). Beim Speichern aktivieren Sie „Filtereinstellungen bearbeiten" und wählen Sie UTF-8.
+- **In Excel**: Speichern unter > CSV UTF-8 (Komma-getrennt), dann in einem Texteditor öffnen, um Kommas in Semikolons zu ändern.
+- **Allgemeiner Tipp**: Wenn Sie verstümmelte Zeichen (`?¿`, `ï»¿`) am Anfang Ihrer Datei sehen, ist die Kodierung falsch.
+
+### Beispiel-CSV
+
+```csv
+name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
+Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
+Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
+Custom ERP;lob;;medium;Active;2018-03-20;false
+```
 
 ---
 
 ## Tipps
 
-  - **Beginnen Sie mit kritischen Apps**: Dokumentieren Sie zuerst Ihre geschäftskritischen Anwendungen, dann arbeiten Sie die Kritikalitätsstufen ab.
-  - **Suites zum Gruppieren verwenden**: Markieren Sie eine Anwendung als Suite, um verwandte Komponenten zu gruppieren.
-  - **Frühzeitig mit Ausgaben verknüpfen**: Verbinden Sie OPEX- und CAPEX-Positionen im Reiter Verknüpfungen, um das vollständige Kostenbild zu sehen.
-  - **Umgebungen aktuell halten**: Der Reiter Instanzen steuert die Umgebungs-Chips in der Liste -- halten Sie ihn für genaue Sichtbarkeit aktuell.
-  - **Kategorie-Filterung nutzen**: Verwenden Sie den Kategorie-Spaltenfilter, um sich auf bestimmte Anwendungstypen zu konzentrieren.
-  - **Wissensdatenbank frühzeitig anhängen**: Verknüpfen Sie Runbooks und Architekturdokumente im Reiter Wissensdatenbank, damit das Team weiß, wo es bei Vorfällen nachschlagen muss.
+- **Beginnen Sie mit kritischen Apps**: Dokumentieren Sie zuerst Ihre geschäftskritischen Anwendungen, dann arbeiten Sie die Kritikalitätsstufen ab.
+- **Suites zum Gruppieren verwenden**: Aktivieren Sie „Kann Unteranwendungen haben" im Reiter Betrieb, um eine Anwendung als Suite zu markieren, die verwandte Komponenten gruppiert (z. B. SAP-Module unter einer SAP-Suite).
+- **Frühzeitig mit Ausgaben verknüpfen**: Verbinden Sie OPEX, CAPEX und Verträge im Reiter Verknüpfungen, um das vollständige Kostenbild für jede Anwendung zu sehen.
+- **Bereitstellungen aktuell halten**: Der Reiter Bereitstellungen steuert die Umgebungs-Chips in der Liste -- halten Sie ihn für genaue Sichtbarkeit aktuell.
+- **Dokumentieren Sie die Zielgruppe**: Legen Sie Unternehmens- und Abteilungs-Zielgruppen in der Eigenschaftsleiste fest; die Benutzeranzahl wird dann automatisch abgeleitet und in Berichten verwendet.
+- **Kategorie-Filterung nutzen**: Verwenden Sie den Kategorie-Spaltenfilter, um sich auf bestimmte Anwendungstypen zu konzentrieren (z. B. nur Line-of-business-Apps anzeigen oder Produktivitätswerkzeuge ausschließen).
+- **Wissensdatenbank frühzeitig anhängen**: Verknüpfen Sie Runbooks und Architekturdokumente im Reiter Übersicht, damit das Team weiß, wo es bei Vorfällen nachschlagen muss.
+- **Aufgaben kommen von der Aufgabenseite**: Um eine Aufgabe an eine Anwendung anzuhängen, setzen Sie das Feld App / Dienst auf der Aufgabe selbst; sie erscheint dann unter Verknüpfungen > Aufgaben.
