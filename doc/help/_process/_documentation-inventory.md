@@ -13,12 +13,13 @@ This document tracks documentation coverage for the KANAP user manual.
 | IT Landscape | 8 | 8 | 0 |
 | Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
-| Admin & Settings | 13 | 9 | 4 |
+| Admin & Settings | 13 | 13 | 0 |
+| Plaid | 1 | 1 | 0 |
 | Reports | 10 | 10 | 0 |
 | Portfolio | 10 | 10 | 0 |
-| **TOTAL** | **60** | **56** | **4** |
+| **TOTAL** | **61** | **61** | **0** |
 
-_Note: Supplemental Fast Track guides are excluded from these route-based counts. 4 tenant-facing pages currently lack a manual._
+_Note: Supplemental Fast Track guides are excluded from these route-based counts. All tenant-facing routes have a manual after the 2026-05-10 sweep, in en/fr/de/es._
 
 ---
 
@@ -26,6 +27,7 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-05-10 | _15 pages_ | Stale-doc sweep + 4 new pages. Refreshed: tasks, portfolio-projects, portfolio-requests (properties drawer + new tab layouts, task ↔ application/asset linking), applications/assets (new tab layouts, linked-tasks under Relations), interfaces (mapping-group/mapping-rule model, 5-tab workspace), connection-map / interface-map (current filters and side panels), knowledge (restricted libraries, docx import, AI document generation), branding (two-card form), my-dashboard (current tiles + quick actions). New: ai-assistant.md (Plaid), ai-settings.md (Plaid Settings), integrations.md (GLPI), scheduled-tasks.md. fr/de/es synced for all updates. |
 | 2026-03-29 | `assets.md` | Refreshed: added sub-location column (list), sub-location field (Overview tab), sub-location filter |
 | 2026-03-29 | `locations.md` | Refreshed: added sub-locations panel, fixed permissions (member not admin), added Additional Info for both hosting types, added Permissions table, sub-location column in Relations |
 | 2026-03-27 | IT Landscape batch | Renamed "IT Operations" → "IT Landscape" across applications, assets, connections, connection-map, interfaces, interface-map, locations, it-ops-settings docs |
@@ -191,13 +193,19 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/admin/billing` | BillingCenter | **DOCUMENTED** | `admin.md` |
 | `/admin/auth` | AdminAuthPage | **DOCUMENTED** | `admin.md` |
 | `/admin/branding` | AdminBrandingPage | **DOCUMENTED** | `branding.md` |
+| `/admin/ai` | AdminAiPage | **DOCUMENTED** | `ai-settings.md` |
+| `/admin/integrations` | AdminIntegrationsPage | **DOCUMENTED** | `integrations.md` |
+| `/admin/scheduled-tasks` | ScheduledTasksPage | **DOCUMENTED** | `scheduled-tasks.md` |
 | `/settings` | SettingsPage | **DOCUMENTED** | mapped to `fast-track/getting-started.md` in `docUrls.ts` (personal settings are covered in the Getting Started guide) |
 | `/master-data/operations` | MasterDataOperationsPage | **DOCUMENTED** | `master-data-operations.md` |
 | `/master-data/operations/freeze` | MasterDataFreezePage | **DOCUMENTED** | (in master-data-operations) |
 | `/master-data/operations/copy` | MasterDataCopyPage | **DOCUMENTED** | (in master-data-operations) |
-| `/admin/ai` | AdminAiPage | **MISSING** | — |
-| `/admin/scheduled-tasks` | ScheduledTasksPage | **MISSING** | — |
-| `/ai` | AiWorkspacePage | **MISSING** | — |
+
+### Plaid
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
+| `/ai` | AiWorkspacePage | **DOCUMENTED** | `ai-assistant.md` |
 
 ### Reports
 
@@ -236,6 +244,8 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/admin/tenants` | Platform admin only (not tenant-facing) |
 | `/admin/coa-templates` | Platform admin only |
 | `/admin/standard-accounts` | Platform admin only |
+| `/admin/platform-ai` | Platform admin only (multi-tenant deployments) |
+| `/admin/ops-dashboard` | Platform admin only (multi-tenant deployments) |
 | `/ops/projects` | Placeholder (removed from routes) |
 | `/ops/tasks` | Legacy route, redirects to `/portfolio/tasks` |
 
@@ -245,16 +255,10 @@ On-premise docs (`on-premise/*.md`) are deployment guides, not route manuals —
 
 ## Remaining Gaps
 
-3 route-manual gaps:
+No route-manual gaps remain after the 2026-05-10 sweep.
 
-| Route | Component | Notes |
-|-------|-----------|-------|
-| `/ai` | AiWorkspacePage | AI assistant chat workspace (new feature) |
-| `/admin/ai` | AdminAiPage | AI configuration (admin) |
-| `/admin/scheduled-tasks` | ScheduledTasksPage | Background task management (admin) |
-
-Staleness candidates:
-- `portfolio-planning.md` — Missing drag-to-pin-start in Roadmap Generator (LOW)
+Known minor staleness:
+- `portfolio-planning.md` — Roadmap Generator's drag-to-pin-start interaction is in code but not yet covered in the doc (LOW)
 
 ---
 
