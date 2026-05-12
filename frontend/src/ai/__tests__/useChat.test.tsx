@@ -43,7 +43,7 @@ vi.mock('../aiApi', () => ({
 describe('useChat', () => {
   beforeEach(() => {
     capturedSignal = null;
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('aborts an in-flight stream when loading another conversation', async () => {

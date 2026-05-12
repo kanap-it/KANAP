@@ -1,25 +1,6 @@
 import { z } from 'zod';
 
 /**
- * Valid application categories.
- */
-export const ApplicationCategories = [
-  'line_of_business',
-  'productivity',
-  'collaboration',
-  'security',
-  'infrastructure',
-  'data_analytics',
-  'development',
-  'erp',
-  'crm',
-  'hr',
-  'finance',
-  'marketing',
-  'other',
-] as const;
-
-/**
  * Valid application lifecycles.
  */
 export const ApplicationLifecycles = [
@@ -67,8 +48,8 @@ export const CreateApplicationSchema = z.object({
   /** Supplier ID (optional) */
   supplier_id: z.string().uuid().nullable().optional(),
 
-  /** Application category */
-  category: z.enum(ApplicationCategories).optional().default('line_of_business'),
+  /** Application category code or label. Tenant settings validate allowed values. */
+  category: z.string().trim().min(1).optional(),
 
   /** Description (optional) */
   description: z.string().nullable().optional(),

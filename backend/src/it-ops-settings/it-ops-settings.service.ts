@@ -424,6 +424,29 @@ export class ItOpsSettingsService {
     return fallbackCode.toUpperCase();
   }
 
+  private normalizeLookupKey(value: unknown): string {
+    return String(value ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ');
+  }
+
+  private formatApplicationCategoryOptions(options: ItOpsEnumOption[]): string {
+    return options
+      .map((option) => {
+        const label = String(option.label || '').trim();
+        return label && label !== option.code ? `${option.code} (${label})` : option.code;
+      })
+      .join(', ');
+  }
+
+  private effectiveApplicationCategories(settings: ItOpsSettings): ItOpsEnumOption[] {
+    return settings.applicationCategories.length > 0
+      ? settings.applicationCategories
+      : this.defaultApplicationCategories;
+  }
+
   private parseDate(value: unknown, fieldName: string): string | undefined {
     if (value === undefined || value === null || String(value).trim() === '') return undefined;
     const raw = String(value).trim();
@@ -876,6 +899,65 @@ export class ItOpsSettingsService {
       throw new Error(`Tenant ${tenantId} not found`);
     }
     return this.getMetadataSettings(tenant, { manager: opts?.manager });
+  }
+
+  async getApplicationCategoryOptions(
+    tenantId: string,
+    opts?: { manager?: EntityManager },
+  ): Promise<ItOpsEnumOption[]> {
+    return this.effectiveApplicationCategories(await this.getSettings(tenantId, opts));
+  }
+
+  async getDefaultApplicationCategoryCode(
+    tenantId: string,
+    opts?: { manager?: EntityManager },
+  ): Promise<string> {
+    const options = await this.getApplicationCategoryOptions(tenantId, opts);
+    const defaultCode = this.defaultApplicationCategories[0]?.code;
+    if (defaultCode && options.some((option) => option.code === defaultCode)) {
+      return defaultCode;
+    }
+    const fallbackCode = options[0]?.code ?? defaultCode;
+    if (!fallbackCode) {
+      throw new BadRequestException('No application categories are configured');
+    }
+    return fallbackCode;
+  }
+
+  async resolveApplicationCategoryOption(
+    tenantId: string,
+    value: unknown,
+    opts?: { manager?: EntityManager; useDefaultForEmpty?: boolean },
+  ): Promise<ItOpsEnumOption> {
+    const options = await this.getApplicationCategoryOptions(tenantId, { manager: opts?.manager });
+    const text = String(value ?? '').trim();
+    if (!text) {
+      if (opts?.useDefaultForEmpty) {
+        const fallbackCode = await this.getDefaultApplicationCategoryCode(tenantId, { manager: opts?.manager });
+        const fallback = options.find((option) => option.code === fallbackCode);
+        if (fallback) return fallback;
+      }
+      throw new BadRequestException('Application category is required');
+    }
+
+    const codeKey = this.normalizeLookupKey(text);
+    const byCode = options.find((option) => this.normalizeLookupKey(option.code) === codeKey);
+    if (byCode) return byCode;
+
+    const byLabel = options.find((option) => this.normalizeLookupKey(option.label) === codeKey);
+    if (byLabel) return byLabel;
+
+    throw new BadRequestException(
+      `Invalid application category "${text}". Valid application categories for this tenant: ${this.formatApplicationCategoryOptions(options)}.`,
+    );
+  }
+
+  async resolveApplicationCategoryCode(
+    tenantId: string,
+    value: unknown,
+    opts?: { manager?: EntityManager; useDefaultForEmpty?: boolean },
+  ): Promise<string> {
+    return (await this.resolveApplicationCategoryOption(tenantId, value, opts)).code;
   }
 
   async updateSettings(

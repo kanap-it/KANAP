@@ -1,10 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChatStreamRequestError, streamChat, aiConversationsApi } from './aiApi';
-import { AiMutationPreview, BuiltinUsage, ChatAttachment, ChatMessage, StoredChatMessage, TokenUsage } from './aiTypes';
+import {
+  AiMutationPreview,
+  BuiltinUsage,
+  ChatActivityEntry,
+  ChatAttachment,
+  ChatContextItem,
+  ChatContextSummary,
+  ChatMessage,
+  StoredChatMessage,
+  TokenUsage,
+} from './aiTypes';
 import i18n from '../i18n';
 
 let msgCounter = 0;
 const CONTROL_MARKER_RE = /^\[(APPROVE|REJECT):[0-9a-f-]{36}\]$/i;
+const ENTITY_TYPE_FROM_URL_PREFIX: Array<{ prefix: string; entityType: string }> = [
+  { prefix: '/knowledge/', entityType: 'documents' },
+  { prefix: '/portfolio/tasks/', entityType: 'tasks' },
+  { prefix: '/portfolio/projects/', entityType: 'projects' },
+  { prefix: '/portfolio/requests/', entityType: 'requests' },
+  { prefix: '/it/applications/', entityType: 'applications' },
+  { prefix: '/it/assets/', entityType: 'assets' },
+  { prefix: '/it/connections/', entityType: 'connections' },
+  { prefix: '/it/interfaces/', entityType: 'interfaces' },
+  { prefix: '/it/locations/', entityType: 'locations' },
+  { prefix: '/ops/contracts/', entityType: 'contracts' },
+  { prefix: '/ops/capex/', entityType: 'capex_items' },
+  { prefix: '/master-data/companies/', entityType: 'companies' },
+  { prefix: '/master-data/contacts/', entityType: 'contacts' },
+  { prefix: '/master-data/departments/', entityType: 'departments' },
+  { prefix: '/master-data/suppliers/', entityType: 'suppliers' },
+  { prefix: '/master-data/business-processes/', entityType: 'business_processes' },
+];
 /** Hard cap on attachments per message — matches multimodal model practical limit. */
 export const MAX_PENDING_ATTACHMENTS = 8;
 
@@ -21,6 +49,161 @@ function nextId() {
 
 function isControlMarker(text: string): boolean {
   return CONTROL_MARKER_RE.test(String(text || '').trim());
+}
+
+function inferEntityTypeFromUrl(url: string): string | null {
+  return ENTITY_TYPE_FROM_URL_PREFIX.find((entry) => url.startsWith(entry.prefix))?.entityType ?? null;
+}
+
+function contextItemKey(item: ChatContextItem): string {
+  return [
+    item.kind,
+    item.entity_type || '',
+    item.ref || '',
+    item.label || '',
+    item.detail || '',
+    item.status || '',
+  ].join('\u0000');
+}
+
+function mergeContextItems(
+  current: ChatContextItem[] | undefined,
+  incoming: ChatContextItem[] | undefined,
+): ChatContextItem[] | undefined {
+  if (!incoming || incoming.length === 0) {
+    return current;
+  }
+  const items = [...(current || [])];
+  const seen = new Set(items.map(contextItemKey));
+  for (const item of incoming) {
+    if (!item?.label) {
+      continue;
+    }
+    const key = contextItemKey(item);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    items.push(item);
+  }
+  return items;
+}
+
+function mergeChatContext(
+  current: ChatContextSummary | undefined,
+  incoming: ChatContextSummary | undefined,
+): ChatContextSummary | undefined {
+  if (!incoming) {
+    return current;
+  }
+  return {
+    ...current,
+    ...incoming,
+    mentions: mergeContextItems(current?.mentions, incoming.mentions),
+    attachments: mergeContextItems(current?.attachments, incoming.attachments),
+    injected: mergeContextItems(current?.injected, incoming.injected),
+    previews: mergeContextItems(current?.previews, incoming.previews),
+    artifacts: mergeContextItems(current?.artifacts, incoming.artifacts),
+    history: incoming.history ?? current?.history,
+    tools: incoming.tools ?? current?.tools,
+    budget: incoming.budget === undefined ? current?.budget : incoming.budget,
+    timings: incoming.timings === undefined ? current?.timings : incoming.timings,
+  };
+}
+
+function appendActivity(
+  current: ChatActivityEntry[] | undefined,
+  incoming: Omit<ChatActivityEntry, 'created_at'>,
+): ChatActivityEntry[] {
+  const nextEntry: ChatActivityEntry = {
+    ...incoming,
+    created_at: new Date().toISOString(),
+  };
+  const previous = current || [];
+  const last = previous[previous.length - 1];
+  if (
+    last
+    && last.phase === nextEntry.phase
+    && last.status === nextEntry.status
+    && last.tool_name === nextEntry.tool_name
+  ) {
+    return previous;
+  }
+  return [...previous, nextEntry].slice(-24);
+}
+
+function extractMentionContextItems(text: string): ChatContextItem[] {
+  const items: ChatContextItem[] = [];
+  const seen = new Set<string>();
+  const linkRe = /\[([^\]]{1,160})\]\((\/[^)\s]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = linkRe.exec(text)) != null) {
+    const label = String(match[1] || '').replace(/\s+/g, ' ').trim();
+    const url = String(match[2] || '');
+    const entityType = inferEntityTypeFromUrl(url);
+    if (!label || !entityType) continue;
+    const key = `${entityType}:${label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      kind: 'mention',
+      label,
+      entity_type: entityType,
+      ref: /^[A-Z]+-\d+$/.test(label) ? label : null,
+    });
+  }
+  return items;
+}
+
+function formatBytes(size: number): string {
+  if (!Number.isFinite(size) || size <= 0) return '';
+  if (size >= 1024 * 1024) return `${Math.round((size / (1024 * 1024)) * 10) / 10} MB`;
+  if (size >= 1024) return `${Math.round(size / 1024)} KB`;
+  return `${size} B`;
+}
+
+function attachmentContextItems(attachments: ChatAttachment[]): ChatContextItem[] {
+  return attachments.map((attachment, index) => ({
+    kind: 'attachment',
+    label: attachment.kind === 'image' ? `Image ${index + 1}` : attachment.kind || `Attachment ${index + 1}`,
+    detail: formatBytes(attachment.size) || attachment.mime_type,
+  }));
+}
+
+function buildInitialContext(text: string, attachments: ChatAttachment[]): ChatContextSummary | undefined {
+  const mentions = extractMentionContextItems(text);
+  const attachmentItems = attachmentContextItems(attachments);
+  if (!mentions.length && !attachmentItems.length) {
+    return undefined;
+  }
+  return {
+    ...(mentions.length ? { mentions } : {}),
+    ...(attachmentItems.length ? { attachments: attachmentItems } : {}),
+  };
+}
+
+function carryAssistantTransient(previous: ChatMessage[], rebuilt: ChatMessage[]): ChatMessage[] {
+  const previousAssistant = previous.filter((message) => message.role === 'assistant');
+  if (!previousAssistant.some((message) => message.activity?.length || message.context)) {
+    return rebuilt;
+  }
+
+  let assistantIndex = 0;
+  return rebuilt.map((message) => {
+    if (message.role !== 'assistant') {
+      return message;
+    }
+    const transient = previousAssistant[assistantIndex];
+    assistantIndex += 1;
+    if (!transient) {
+      return message;
+    }
+    return {
+      ...message,
+      activity: transient.activity,
+      context: mergeChatContext(message.context, transient.context),
+    };
+  });
 }
 
 function upsertPreview(prev: AiMutationPreview[], next: AiMutationPreview): AiMutationPreview[] {
@@ -322,6 +505,17 @@ export function useChat() {
       toolCalls: [],
       toolResults: [],
       isStreaming: true,
+      activity: [{ phase: 'analyzing', status: 'running', created_at: new Date().toISOString() }],
+      context: buildInitialContext(
+        text,
+        attachmentsToSend.map((a) => ({
+          id: a.localId,
+          mime_type: a.file.type || 'image/png',
+          size: a.file.size,
+          kind: 'image',
+          preview_url: a.previewUrl,
+        })),
+      ),
     };
     setMessages((prev) => [...prev, assistantMsg]);
 
@@ -385,6 +579,33 @@ export function useChat() {
             setConversationId(event.id);
             break;
 
+          case 'activity':
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      activity: appendActivity(m.activity, {
+                        phase: event.phase,
+                        status: event.status,
+                        tool_name: event.tool_name,
+                      }),
+                    }
+                  : m,
+              ),
+            );
+            break;
+
+          case 'context':
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, context: mergeChatContext(m.context, event.context) }
+                  : m,
+              ),
+            );
+            break;
+
           case 'text_delta':
             setMessages((prev) =>
               prev.map((m) =>
@@ -430,6 +651,25 @@ export function useChat() {
           case 'preview':
           case 'preview_result':
             setPreviews((prev) => upsertPreview(prev, event));
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      context: mergeChatContext(m.context, {
+                        previews: [{
+                          kind: 'preview',
+                          label: event.target?.ref || event.target?.title || event.summary || event.tool_name,
+                          detail: event.tool_name.replace(/_/g, ' '),
+                          entity_type: event.target?.entity_type ?? null,
+                          ref: event.target?.ref ?? null,
+                          status: event.status,
+                        }],
+                      }),
+                    }
+                  : m,
+              ),
+            );
             break;
 
           case 'done':
@@ -445,7 +685,12 @@ export function useChat() {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? { ...m, isStreaming: false, usage: event.usage }
+                  ? {
+                      ...m,
+                      isStreaming: false,
+                      usage: event.usage,
+                      activity: appendActivity(m.activity, { phase: 'finalizing', status: 'completed' }),
+                    }
                   : m,
               ),
             );
@@ -467,7 +712,12 @@ export function useChat() {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? { ...m, isStreaming: false, content: m.content || i18n.t('ai:errors.generic') }
+                  ? {
+                      ...m,
+                      isStreaming: false,
+                      content: m.content || i18n.t('ai:errors.generic'),
+                      activity: appendActivity(m.activity, { phase: 'finalizing', status: 'failed' }),
+                    }
                   : m,
               ),
             );
@@ -486,7 +736,13 @@ export function useChat() {
         // Navigation away or manual cancel — mark assistant as done, no error
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantId ? { ...m, isStreaming: false } : m,
+            m.id === assistantId
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  activity: appendActivity(m.activity, { phase: 'finalizing', status: 'completed' }),
+                }
+              : m,
           ),
         );
         if (activeConversationId) {
@@ -499,7 +755,13 @@ export function useChat() {
         }
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantId ? { ...m, isStreaming: false } : m,
+            m.id === assistantId
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  activity: appendActivity(m.activity, { phase: 'finalizing', status: 'failed' }),
+                }
+              : m,
           ),
         );
         if (activeConversationId) {
@@ -520,7 +782,7 @@ export function useChat() {
           const refreshed = await aiConversationsApi.getMessages(finalConvId);
           if (conversationIdRef.current === finalConvId) {
             const rebuilt = rebuildMessagesFromStored(refreshed.messages, finalConvId);
-            setMessages(rebuilt);
+            setMessages((current) => carryAssistantTransient(current, rebuilt));
             setConversationUsage(normalizeConversationUsage(refreshed.conversation_usage));
             setLastRequestUsage(findLastUsage(refreshed.messages));
           }
@@ -599,7 +861,13 @@ export function useChat() {
     abortActiveStream();
     setMessages((prev) =>
       prev.map((m) =>
-        m.isStreaming ? { ...m, isStreaming: false } : m,
+        m.isStreaming
+          ? {
+              ...m,
+              isStreaming: false,
+              activity: appendActivity(m.activity, { phase: 'finalizing', status: 'completed' }),
+            }
+          : m,
       ),
     );
     setIsStreaming(false);

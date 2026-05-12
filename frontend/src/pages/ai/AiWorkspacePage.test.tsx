@@ -1,10 +1,12 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AiWorkspacePage from './AiWorkspacePage';
 import { aiConversationsApi } from '../../ai/aiApi';
-import { ChatConversation } from '../../ai/aiTypes';
+import type { AiMutationPreview, ChatConversation } from '../../ai/aiTypes';
+import { createAppTheme } from '../../config/ThemeContext';
 
 let featuresState = {
   config: {
@@ -39,6 +41,7 @@ vi.mock('../../config/FeaturesContext', () => ({
 }));
 
 vi.mock('../../ai/useChat', () => ({
+  MAX_PENDING_ATTACHMENTS: 5,
   useChat: () => chatState,
 }));
 
@@ -48,6 +51,18 @@ vi.mock('../../components/PageHeader', () => ({
 
 vi.mock('../../ai/components/ChatMessageList', () => ({
   default: () => <div data-testid="chat-message-list" />,
+}));
+
+vi.mock('../../ai/components/ArtifactPanel', () => ({
+  default: ({ previews, open }: { previews: AiMutationPreview[]; open: boolean }) => (
+    previews.length > 0 ? (
+      <div data-testid="artifact-panel" data-open={String(open)}>
+        {previews.map((preview) => (
+          <span key={preview.preview_id}>{preview.preview_id}</span>
+        ))}
+      </div>
+    ) : null
+  ),
 }));
 
 vi.mock('../../ai/components/ChatConversationList', () => ({
@@ -82,12 +97,72 @@ vi.mock('../../ai/aiApi', () => ({
   },
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: {
+      language: 'en',
+      resolvedLanguage: 'en',
+    },
+    ready: true,
+  }),
+}));
+
 function renderPage(client: QueryClient) {
+  const theme = createAppTheme('light');
   return render(
-    <QueryClientProvider client={client}>
-      <AiWorkspacePage />
-    </QueryClientProvider>,
+    <ThemeProvider theme={theme}>
+      <QueryClientProvider client={client}>
+        <AiWorkspacePage />
+      </QueryClientProvider>
+    </ThemeProvider>,
   );
+}
+
+function createLocalStorageMock(): Storage {
+  const store = new Map<string, string>();
+  return {
+    get length() {
+      return store.size;
+    },
+    clear: vi.fn(() => store.clear()),
+    getItem: vi.fn((key: string) => store.get(key) ?? null),
+    key: vi.fn((index: number) => Array.from(store.keys())[index] ?? null),
+    removeItem: vi.fn((key: string) => { store.delete(key); }),
+    setItem: vi.fn((key: string, value: string) => { store.set(key, String(value)); }),
+  };
+}
+
+function makeMarkdownPreview(previewId: string, body: string): AiMutationPreview {
+  return {
+    preview_id: previewId,
+    tool_name: 'create_document',
+    status: 'pending',
+    target: {
+      entity_type: 'document',
+      entity_id: null,
+      ref: 'DOC-1',
+      title: 'Document',
+    },
+    changes: {
+      content: {
+        label: 'Content',
+        from: null,
+        to: body,
+        format: 'markdown',
+      },
+    },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: 'Create document',
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-23T10:00:00.000Z',
+    expires_at: null,
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  };
 }
 
 describe('AiWorkspacePage', () => {
@@ -118,6 +193,13 @@ describe('AiWorkspacePage', () => {
       newConversation: vi.fn(),
       cancelStream: vi.fn(),
     };
+    const localStorageMock = createLocalStorageMock();
+    vi.stubGlobal('localStorage', localStorageMock);
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
     vi.clearAllMocks();
   });
 
@@ -198,6 +280,45 @@ describe('AiWorkspacePage', () => {
     renderPage(client);
 
     expect(screen.queryByTestId('token-usage-bar')).not.toBeInTheDocument();
+  });
+
+  it('keeps short mutation previews out of the artifact panel', () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    chatState.messages = [{ id: 'msg-1', role: 'assistant', content: 'Preview ready' }];
+    chatState.previews = [makeMarkdownPreview('short-preview', 'Short content update')];
+
+    renderPage(client);
+
+    expect(screen.queryByTestId('artifact-panel')).not.toBeInTheDocument();
+  });
+
+  it('auto-opens the artifact panel for long mutation previews only', async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    chatState.messages = [{ id: 'msg-1', role: 'assistant', content: 'Preview ready' }];
+    chatState.previews = [
+      makeMarkdownPreview('short-preview', 'Short content update'),
+      makeMarkdownPreview('long-preview', 'Long content '.repeat(80)),
+    ];
+
+    renderPage(client);
+
+    expect(screen.getByTestId('artifact-panel')).toHaveTextContent('long-preview');
+    expect(screen.queryByText('short-preview')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('artifact-panel')).toHaveAttribute('data-open', 'true');
+    });
   });
 
   it('optimistically archives the active conversation and clears it from the query cache', async () => {

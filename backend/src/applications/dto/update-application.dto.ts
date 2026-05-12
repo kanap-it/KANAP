@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  ApplicationCategories,
   CriticalityLevels,
   DataClassifications,
   EnvironmentTypes,
@@ -19,8 +18,8 @@ export const UpdateApplicationSchema = z.object({
   /** Supplier ID */
   supplier_id: z.string().uuid().nullable().optional(),
 
-  /** Application category */
-  category: z.enum(ApplicationCategories).optional(),
+  /** Application category code or label. Tenant settings validate allowed values. */
+  category: z.string().trim().min(1).optional(),
 
   /** Description */
   description: z.string().nullable().optional(),

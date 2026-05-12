@@ -5,6 +5,7 @@ import {
   resolveChatProviderTimeoutMs,
   resolveProviderMaxTokens,
 } from '../ai-chat-orchestrator.service';
+import { estimateTokenCount } from '../ai-context-budget.helper';
 import { AiSystemPromptService } from '../ai-system-prompt.service';
 import { ChatStreamEvent } from '../ai.types';
 
@@ -19,6 +20,7 @@ function createOrchestrator(options?: {
   model?: string;
   previewResult?: any;
   conversationUsage?: { input_tokens: number; output_tokens: number };
+  availableTools?: any[];
 }) {
   const persistedMessages: any[] = [];
   let conversationCreated = false;
@@ -146,7 +148,12 @@ function createOrchestrator(options?: {
     getToolJsonSchemas: async () => [
       { name: 'search_all', description: 'Search', parameters: { type: 'object' } },
     ],
-    listAvailableTools: async () => [
+    toToolJsonSchemas: (tools: Array<{ name: string }>) => tools.map((tool) => ({
+      name: tool.name,
+      description: tool.name === 'search_all' ? 'Search' : `${tool.name} description`,
+      parameters: { type: 'object' },
+    })),
+    listAvailableTools: async () => options?.availableTools ?? [
       { name: 'search_all', category: 'discovery', description: 'Search', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
     ],
     execute: async (_ctx: any, toolName: string, _input: any) => {
@@ -157,6 +164,7 @@ function createOrchestrator(options?: {
   };
 
   const mockPreviews = {
+    listConversationPreviews: async () => [],
     executePreview: async () => options?.previewResult ?? {
       preview_id: 'preview-1',
       tool_name: 'update_task_status',
@@ -195,6 +203,10 @@ function createOrchestrator(options?: {
 
   const mockSystemPrompt = {
     build: () => 'You are Plaid.',
+    buildWithMetadata: () => ({
+      text: 'You are Plaid.',
+      sections: [{ key: 'identity', label: 'Assistant identity', size: 'You are Plaid.'.length }],
+    }),
   };
 
   const mockPlatformAiConfig = {
@@ -286,10 +298,36 @@ async function testSimpleTextResponse() {
   assert.equal(persistedMessages[0].content, 'Hello');
   assert.equal(recordedRequests[0].systemPrompt, 'You are Plaid.');
   assert.deepEqual(recordedRequests[0].messages.map((message: any) => message.content), ['Hello']);
+  assert.deepEqual(recordedRequests[0].tools, [], 'Minimal greeting profile should not send tools to the provider.');
+
+  const contextEvent = events.find((e) => e.type === 'context' && (e as any).context.tools) as any;
+  assert.equal(contextEvent.context.tools.available_count, 1);
+  assert.equal(contextEvent.context.tools.selected_count, 0);
+  assert.equal(contextEvent.context.tools.context_profile, 'minimal');
+
+  const budgetEvent = events.find((e) => e.type === 'context' && (e as any).context.budget) as any;
+  assert.ok(budgetEvent, 'Expected a budget context event.');
+  assert.equal(budgetEvent.context.budget.breakdown.unit, 'estimated_tokens');
+  assert.equal(budgetEvent.context.budget.breakdown.system_prompt, estimateTokenCount('You are Plaid.'));
+  assert.equal(
+    budgetEvent.context.budget.breakdown.message_roles.user,
+    estimateTokenCount('user') + estimateTokenCount('Hello') + 4,
+  );
+  assert.equal(
+    budgetEvent.context.budget.breakdown.total,
+    budgetEvent.context.budget.estimated_request_size,
+  );
+  assert.equal(budgetEvent.context.budget.breakdown.tool_schemas.total, 0);
+
+  const finalTimingEvent = [...events].reverse().find((e) =>
+    e.type === 'context' && typeof (e as any).context.timings?.total_ms === 'number',
+  ) as any;
+  assert.ok(finalTimingEvent, 'Expected final timing context event.');
+  assert.equal(finalTimingEvent.context.timings.iterations, 1);
 }
 
 async function testToolCallFlow() {
-  const { orchestrator, providerCallCount, toolExecuteCount } = createOrchestrator({
+  const { orchestrator, providerCallCount, toolExecuteCount, recordedRequests } = createOrchestrator({
     providerEvents: [
       { type: 'text_delta', text: 'Let me search.' },
       { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
@@ -321,6 +359,16 @@ async function testToolCallFlow() {
   assert.ok(events.some((e) => e.type === 'tool_call'));
   assert.ok(events.some((e) => e.type === 'tool_result'));
   assert.equal(providerCallCount.value, 2, 'Provider should be called twice (initial + after tool result)');
+  assert.deepEqual(
+    recordedRequests[0].tools.map((tool: any) => tool.name),
+    ['search_all'],
+    'Read/search profile should keep the selected discovery tool.',
+  );
+
+  const contextEvent = events.find((e) => e.type === 'context' && (e as any).context.tools) as any;
+  assert.equal(contextEvent.context.tools.available_count, 1);
+  assert.equal(contextEvent.context.tools.selected_count, 1);
+  assert.equal(contextEvent.context.tools.context_profile, 'read_query');
 
   const toolCall = events.find((e) => e.type === 'tool_call') as any;
   assert.equal(toolCall.name, 'search_all');
@@ -333,6 +381,93 @@ async function testToolCallFlow() {
   const done = events.find((e) => e.type === 'done') as any;
   assert.deepEqual(done.last_usage, { input_tokens: 200, output_tokens: 100 });
   assert.deepEqual(done.conversation_usage, { input_tokens: 300, output_tokens: 150 });
+}
+
+async function testTaskMentionWriteKeepsTaskMutationTools() {
+  const prompt = 'tu peux passer la [T-49](/portfolio/tasks/task-49) en "en cours" ?';
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    historyMessages: [{ role: 'user', content: prompt }],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'get_entity_detail', category: 'inspection', description: 'Get entity detail', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'update_task_status', category: 'mutation', description: 'Update task status', input_summary: {}, read_only: false, surfaces: ['chat', 'mcp'], write_preview: { entity_type: 'tasks', fields: ['status'], reversible: true, prompt_hint: 'Update task status.' } },
+      { name: 'update_business_record', category: 'mutation', description: 'Update business record', input_summary: {}, read_only: false, surfaces: ['chat', 'mcp'], write_preview: { entity_type: 'applications', fields: ['status'], reversible: true, prompt_hint: 'Update business record.' } },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: prompt,
+    }),
+  );
+
+  const sentToolNames = recordedRequests[0].tools.map((tool: any) => tool.name);
+  assert.ok(sentToolNames.includes('update_task_status'), 'Task status writes must keep the task mutation tool.');
+  assert.ok(sentToolNames.includes('update_business_record'), 'Non-web KANAP tools stay available for quality and fallback.');
+  assert.ok(
+    sentToolNames.indexOf('update_task_status') < sentToolNames.indexOf('update_business_record'),
+    'Profile-relevant tools should be ordered before fallback write tools.',
+  );
+
+  const contextEvent = events.find((e) => e.type === 'context' && (e as any).context.tools) as any;
+  assert.equal(contextEvent.context.tools.context_profile, 'write_task');
+}
+
+async function testTaskCommentContinuationKeepsTaskMutationTools() {
+  const currentMessage = '"Jalopeno for the win"';
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'tu peux ajouter un commentaire à la [T-49](/portfolio/tasks/task-49) ?',
+      },
+      {
+        role: 'assistant',
+        content: 'Je peux ajouter un commentaire à la tâche T-49. Quel contenu souhaitez-vous y inscrire ?',
+      },
+      {
+        role: 'user',
+        content: currentMessage,
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'get_entity_detail', category: 'inspection', description: 'Get entity detail', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'add_task_comment', category: 'mutation', description: 'Add task comment', input_summary: {}, read_only: false, surfaces: ['chat', 'mcp'], write_preview: { entity_type: 'tasks', fields: ['comments'], reversible: false, prompt_hint: 'Add task comment.' } },
+      { name: 'update_business_record', category: 'mutation', description: 'Update business record', input_summary: {}, read_only: false, surfaces: ['chat', 'mcp'], write_preview: { entity_type: 'applications', fields: ['status'], reversible: true, prompt_hint: 'Update business record.' } },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: currentMessage,
+    }),
+  );
+
+  const sentToolNames = recordedRequests[0].tools.map((tool: any) => tool.name);
+  assert.ok(sentToolNames.includes('add_task_comment'), 'Continuation after a task-comment prompt must keep task comment tooling.');
+  assert.ok(sentToolNames.includes('update_business_record'), 'Non-web KANAP tools stay available for quality and fallback.');
+  assert.ok(
+    sentToolNames.indexOf('add_task_comment') < sentToolNames.indexOf('update_business_record'),
+    'Continuation should prioritize the inherited task write tool before fallback write tools.',
+  );
+
+  const contextEvent = events.find((e) => e.type === 'context' && (e as any).context.tools) as any;
+  assert.equal(contextEvent.context.tools.context_profile, 'write_task');
 }
 
 async function testParallelToolCallsAreReplayedAsSequentialTurns() {
@@ -922,6 +1057,8 @@ async function testChatProviderTimeoutResolver() {
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
+  await testTaskMentionWriteKeepsTaskMutationTools();
+  await testTaskCommentContinuationKeepsTaskMutationTools();
   await testParallelToolCallsAreReplayedAsSequentialTurns();
   await testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip();
   await testProviderReceivesAbortSignal();

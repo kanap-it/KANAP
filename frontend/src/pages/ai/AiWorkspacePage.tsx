@@ -35,12 +35,8 @@ export default function AiWorkspacePage() {
 
   const isEmpty = chat.messages.length === 0;
 
-  // The panel surfaces every preview attached to the conversation, regardless of length
-  // or status — that way users can always recover an artifact view even when the inline
-  // chip rendering fails (e.g. on a partial conversation reload after navigating away
-  // mid-stream). Long-vs-short is only a hint for *inline* rendering inside the chat
-  // thread (chip vs PreviewCard), not for what the panel shows.
   const allPreviews = chat.previews;
+  const artifactPreviews = useMemo(() => allPreviews.filter(isLongPreview), [allPreviews]);
 
   const [artifactPanelOpen, setArtifactPanelOpen] = useState<boolean>(() => {
     try {
@@ -52,25 +48,18 @@ export default function AiWorkspacePage() {
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
   const seenArtifactIdsRef = useRef<Set<string>>(new Set());
 
-  // Auto-open behavior:
-  //   - On a freshly arriving preview during a stream → pop the panel only if the
-  //     preview is long (an inline PreviewCard handles short ones in the message flow).
-  //   - On any pending preview the user hasn't acknowledged → always pop the panel,
-  //     because the user MUST act on it (approve/reject) and we shouldn't bury it.
+  // Auto-open only for previews that are long enough to be routed out of the chat.
+  // Short previews stay inline so the same approval card is never duplicated.
   useEffect(() => {
-    if (allPreviews.length === 0) return;
-    const newOnes = allPreviews.filter((p) => !seenArtifactIdsRef.current.has(p.preview_id));
+    if (artifactPreviews.length === 0) return;
+    const newOnes = artifactPreviews.filter((p) => !seenArtifactIdsRef.current.has(p.preview_id));
     if (newOnes.length === 0) return;
     for (const p of newOnes) seenArtifactIdsRef.current.add(p.preview_id);
 
-    // Prefer a pending preview as the auto-selected artifact (most actionable).
-    const pending = newOnes.find((p) => p.status === 'pending');
-    const trigger = pending || newOnes.find((p) => isLongPreview(p)) || null;
-    if (!trigger) return;
-
+    const trigger = newOnes.find((p) => p.status === 'pending') || newOnes[0];
     setSelectedArtifactId(trigger.preview_id);
     setArtifactPanelOpen(true);
-  }, [allPreviews]);
+  }, [artifactPreviews]);
 
   useEffect(() => {
     try {
@@ -342,7 +331,7 @@ export default function AiWorkspacePage() {
       </Stack>
 
       <ArtifactPanel
-        previews={allPreviews}
+        previews={artifactPreviews}
         selectedId={selectedArtifactId}
         open={artifactPanelOpen}
         disabled={chat.isStreaming || builtinLimitReached}

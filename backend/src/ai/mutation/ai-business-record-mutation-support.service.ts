@@ -8,6 +8,7 @@ import { CapexItemsService } from '../../capex/capex-items.service';
 import { ConnectionsService } from '../../connections/services/connections.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { InterfacesService } from '../../interfaces/services/interfaces.service';
+import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
@@ -65,6 +66,7 @@ type FieldKind =
   | 'enum'
   | 'integer'
   | 'json'
+  | 'application_category'
   | 'non_negative_decimal'
   | 'percent'
   | 'relation'
@@ -105,7 +107,6 @@ type NormalizedFields = {
 const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
 const STATUS_STATES = ['enabled', 'disabled'] as const;
 const APPLICATION_LIFECYCLES = ['active', 'planned', 'in_development', 'retired'] as const;
-const APPLICATION_CATEGORIES = ['line_of_business', 'collaboration', 'infrastructure', 'security', 'analytics', 'other'] as const;
 const CRITICALITIES = ['business_critical', 'high', 'medium', 'low'] as const;
 const USERS_MODES = ['manual', 'it_users', 'headcount'] as const;
 const PROJECT_STATUSES = ['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold', 'done', 'cancelled'] as const;
@@ -146,7 +147,7 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
     fields: {
       name: { label: 'Name', kind: 'text', requiredOnCreate: true },
       supplier_id: { label: 'Supplier', kind: 'relation', nullable: true, relationTarget: 'suppliers', aliases: ['supplier'] },
-      category: { label: 'Category', kind: 'enum', enumValues: APPLICATION_CATEGORIES },
+      category: { label: 'Category', kind: 'application_category' },
       description: { label: 'Description', kind: 'text', nullable: true },
       editor: { label: 'Editor', kind: 'text', nullable: true },
       retired_date: { label: 'Retired Date', kind: 'date', nullable: true },
@@ -448,6 +449,7 @@ export class AiBusinessRecordMutationSupportService {
     private readonly connections: ConnectionsService,
     private readonly contracts: ContractsService,
     private readonly interfaces: InterfacesService,
+    private readonly itOpsSettings: ItOpsSettingsService,
     private readonly portfolioProjects: PortfolioProjectsService,
     private readonly portfolioRequests: PortfolioRequestsService,
     private readonly spendItems: SpendItemsService,
@@ -555,6 +557,12 @@ export class AiBusinessRecordMutationSupportService {
         throw new BadRequestException(`${field.label} must be one of ${(field.enumValues || []).join(', ')}.`);
       }
       return { value: normalized, displayValue: normalized };
+    }
+    if (field.kind === 'application_category') {
+      const option = await this.itOpsSettings.resolveApplicationCategoryOption(context.tenantId, rawValue, {
+        manager: context.manager,
+      });
+      return { value: option.code, displayValue: option.label || option.code };
     }
     if (field.kind === 'array_text') {
       const values = Array.isArray(rawValue)

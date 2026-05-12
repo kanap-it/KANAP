@@ -49,6 +49,67 @@
     "toolUseProgress": "Utilisation des outils...",
     "userRole": "Vous"
   },
+  "activity": {
+    "phases": {
+      "analyzing": "Analyse de la demande",
+      "preparing_context": "Préparation du contexte",
+      "searching_entities": "Recherche dans les entités",
+      "reading_context": "Lecture du contexte métier",
+      "searching_knowledge": "Recherche documentaire",
+      "reading_document": "Lecture d'un document",
+      "searching_web": "Recherche web",
+      "preparing_change": "Préparation d'une modification",
+      "using_tool": "Utilisation d'un outil",
+      "generating_response": "Génération de la réponse",
+      "finalizing": "Réponse prête"
+    },
+    "sections": {
+      "attachments": "Pièces jointes",
+      "injected": "Documents et entités",
+      "mentions": "Mentions résolues",
+      "previews": "Previews et artefacts",
+      "runtime": "Exécution",
+      "steps": "Activité"
+    },
+    "summaryWithContext_one": "{{count}} élément de contexte",
+    "summaryWithContext_other": "{{count}} éléments de contexte",
+    "summaryWithSteps_one": "{{count}} étape",
+    "summaryWithSteps_other": "{{count}} étapes",
+    "summaryWithTools_one": "{{count}} outil",
+    "summaryWithTools_other": "{{count}} outils",
+    "metrics": {
+      "assistantMessages": "Messages assistant",
+      "breakdown": "Détail du contexte (tokens estimés)",
+      "budget": "Contexte",
+      "budgetValue": "{{size}} / {{budget}} tokens estimés",
+      "history": "Historique",
+      "historyValue": "{{messages}} messages, {{attachments}} pièces jointes",
+      "messages": "Messages de conversation",
+      "noBudget": "sans limite",
+      "noProfile": "auto",
+      "protocolOverhead": "Surcharge de requête",
+      "systemPrompt": "Prompt système",
+      "systemPromptSections": "Détail du prompt système",
+      "toolCallMetadata": "Métadonnées d'outils",
+      "toolMessages": "Résultats d'outils",
+      "toolSchemaDetail": "Détail des schémas d'outils",
+      "toolSchemas": "Schémas d'outils",
+      "timing": "Temps",
+      "timingFirstToken": "premier token {{duration}}",
+      "timingTools": "outils {{duration}}",
+      "timingTotal": "total {{duration}}",
+      "tools": "Outils",
+      "toolsSelectedValue": "{{selected}} envoyés, {{tools}} disponibles, {{writable}} previews d'écriture, {{types}} familles lisibles · {{profile}}",
+      "toolsValue": "{{tools}} disponibles, {{writable}} previews d'écriture, {{types}} familles lisibles",
+      "userMessages": "Messages utilisateur"
+    },
+    "toolTrace": {
+      "failed": "échec",
+      "filters_one": "{{count}} filtre",
+      "filters_other": "{{count}} filtres",
+      "running": "en cours"
+    }
+  },
   "artifactPanel": {
     "chipLabel": "Ouvrir dans le panneau",
     "close": "Fermer le panneau",
@@ -74,10 +135,17 @@
     "noDocuments": "Aucun document trouvé.",
     "noResults": "Aucun résultat.",
     "toolNames": {
+      "aggregate_entities": "Agréger les entités",
+      "describe_entity_filters": "Décrire les filtres",
       "get_document": "Obtenir le document",
+      "get_entity_comments": "Obtenir les commentaires",
       "get_entity_context": "Obtenir le contexte de l'entité",
+      "get_entity_detail": "Obtenir le détail de l'entité",
+      "get_filter_values": "Obtenir les valeurs de filtre",
+      "query_entities": "Interroger les entités",
       "search_all": "Rechercher tout",
-      "search_knowledge": "Rechercher dans la base de connaissances"
+      "search_knowledge": "Rechercher dans la base de connaissances",
+      "web_search": "Recherche web"
     }
   },
   "tokenUsage": {

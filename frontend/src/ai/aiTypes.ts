@@ -56,8 +56,110 @@ export type BuiltinUsage = {
   reset_date: string;
 };
 
+export type ChatActivityPhase =
+  | 'analyzing'
+  | 'preparing_context'
+  | 'searching_entities'
+  | 'reading_context'
+  | 'searching_knowledge'
+  | 'reading_document'
+  | 'searching_web'
+  | 'preparing_change'
+  | 'using_tool'
+  | 'generating_response'
+  | 'finalizing';
+
+export type ChatActivityStatus = 'running' | 'completed' | 'failed';
+
+export type ChatActivityEntry = {
+  phase: ChatActivityPhase;
+  status: ChatActivityStatus;
+  tool_name?: string | null;
+  created_at?: string;
+};
+
+export type ChatContextItem = {
+  kind: 'mention' | 'attachment' | 'entity' | 'document' | 'preview' | 'artifact' | 'tool';
+  label: string;
+  detail?: string | null;
+  entity_type?: string | null;
+  ref?: string | null;
+  status?: string | null;
+  count?: number | null;
+};
+
+export type ChatContextBudget = {
+  estimated_request_size: number;
+  budget: number | null;
+  compacted: boolean;
+  over_budget_after_compaction: boolean;
+  breakdown?: {
+    unit?: 'estimated_tokens';
+    total: number;
+    system_prompt: number;
+    system_prompt_sections?: Array<{
+      key: string;
+      label: string;
+      size: number;
+    }>;
+    messages: number;
+    message_roles: {
+      user: number;
+      assistant: number;
+      tool: number;
+      other: number;
+    };
+    tool_call_metadata: number;
+    protocol_overhead: number;
+    tool_schemas?: {
+      total: number;
+      count: number;
+      tools: Array<{
+        name: string;
+        size: number;
+      }>;
+    };
+    total_with_tools?: number;
+  } | null;
+};
+
+export type ChatTimings = {
+  started_at?: string;
+  completed_at?: string;
+  preparation_ms?: number;
+  first_token_ms?: number;
+  total_ms?: number;
+  provider_stream_ms?: number;
+  tool_execution_ms?: number;
+  iterations?: number;
+};
+
+export type ChatContextSummary = {
+  mentions?: ChatContextItem[];
+  attachments?: ChatContextItem[];
+  injected?: ChatContextItem[];
+  previews?: ChatContextItem[];
+  artifacts?: ChatContextItem[];
+  history?: {
+    message_count: number;
+    attachment_count: number;
+    tool_result_count: number;
+  };
+  tools?: {
+    available_count: number;
+    selected_count?: number;
+    writable_count: number;
+    readable_entity_types: string[];
+    context_profile?: string | null;
+  };
+  budget?: ChatContextBudget | null;
+  timings?: ChatTimings | null;
+};
+
 export type ChatStreamEvent =
   | { type: 'conversation'; id: string; title: string }
+  | { type: 'activity'; phase: ChatActivityPhase; status: ChatActivityStatus; tool_name?: string | null }
+  | { type: 'context'; context: ChatContextSummary }
   | { type: 'text_delta'; text: string }
   | { type: 'tool_call'; id: string; name: string; arguments: Record<string, unknown> }
   | { type: 'tool_result'; id: string; name: string; result: unknown }
@@ -100,6 +202,8 @@ export type ChatMessage = {
   isStreaming?: boolean;
   hidden?: boolean;
   attachments?: ChatAttachment[];
+  activity?: ChatActivityEntry[];
+  context?: ChatContextSummary;
 };
 
 export type ChatConversation = {

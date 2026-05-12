@@ -268,6 +268,15 @@ function ApplicationProperties({
 }) {
   const { byField } = useItOpsEnumOptions();
   const categoryOptions = byField.applicationCategory || [];
+  const categorySelectOptions = React.useMemo(() => {
+    if (!app.category || categoryOptions.some((option) => option.code === app.category)) {
+      return categoryOptions;
+    }
+    return [
+      { code: app.category, label: `${app.category} (legacy)`, deprecated: true },
+      ...categoryOptions,
+    ];
+  }, [app.category, categoryOptions]);
   const [savingOwners, setSavingOwners] = React.useState(false);
   const [savingAudience, setSavingAudience] = React.useState(false);
   const [audienceRows, setAudienceRows] = React.useState<Array<{ key: string; company_id: string | null; department_ids: string[] }>>([]);
@@ -364,15 +373,20 @@ function ApplicationProperties({
       <PropertyGroup>
         <PropertyRow label="Category">
           <Select
-            value={app.category || 'line_of_business'}
+            value={app.category || ''}
             onChange={(event) => onPatch({ category: event.target.value })}
             variant="standard"
             disableUnderline
             disabled={!canManage}
             sx={drawerSelectSx}
           >
-            {categoryOptions.map((option) => (
-              <MenuItem key={option.code} value={option.code} sx={drawerMenuItemSx}>
+            {categorySelectOptions.map((option) => (
+              <MenuItem
+                key={option.code}
+                value={option.code}
+                disabled={option.code === app.category && !categoryOptions.some((known) => known.code === option.code)}
+                sx={drawerMenuItemSx}
+              >
                 {option.label}
               </MenuItem>
             ))}

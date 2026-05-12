@@ -27,7 +27,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
   const [name, setName] = React.useState('');
   const [supplierId, setSupplierId] = React.useState<string | null>(null);
   const [description, setDescription] = React.useState('');
-  const [category, setCategory] = React.useState<string>('line_of_business');
+  const [category, setCategory] = React.useState<string>('');
   const [editor, setEditor] = React.useState('');
   const [retiredDate, setRetiredDate] = React.useState('');
   const [lifecycle, setLifecycle] = React.useState<string>('active');
@@ -39,6 +39,13 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
   const [goLiveDate, setGoLiveDate] = React.useState('');
   const [endOfSupportDate, setEndOfSupportDate] = React.useState('');
   const { byField } = useItOpsEnumOptions();
+  const categoryOptions = React.useMemo(
+    () => byField.applicationCategory
+      .filter((option) => !option.deprecated)
+      .map((option) => ({ label: option.label, value: option.code })),
+    [byField.applicationCategory],
+  );
+  const defaultCategory = categoryOptions[0]?.value || '';
   const lifecycleOptions = React.useMemo(() => {
     const list = byField.lifecycleStatus || [];
     const options = list.map((item) => ({
@@ -52,6 +59,12 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     return options.filter((opt) => !opt.deprecated || opt.value === lifecycle);
   }, [byField.lifecycleStatus, lifecycle]);
 
+  React.useEffect(() => {
+    if (!category && defaultCategory) {
+      setCategory(defaultCategory);
+    }
+  }, [category, defaultCategory]);
+
   React.useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
   const markDirty = React.useCallback(() => setDirty(true), []);
@@ -60,7 +73,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     setName('');
     setSupplierId(null);
     setDescription('');
-    setCategory('line_of_business');
+    setCategory(defaultCategory);
     setEditor('');
     setRetiredDate('');
     setLifecycle('active');
@@ -73,7 +86,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     setEndOfSupportDate('');
     setServerError(null);
     setDirty(false);
-  }, []);
+  }, [defaultCategory]);
 
   const save = React.useCallback(async () => {
     if (saving) return null;
@@ -86,7 +99,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
       const payload = {
         name: name.trim(),
         supplier_id: supplierId,
-        category,
+        category: category || undefined,
         description: description || null,
         editor: editor || null,
         retired_date: retiredDate || null,
@@ -137,7 +150,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
           label="Category"
           value={category}
           onChange={(v) => { setCategory(v); markDirty(); }}
-          options={byField.applicationCategory.filter((o) => !o.deprecated).map((o) => ({ label: o.label, value: o.code }))}
+          options={categoryOptions}
           required
           hideLabel
           textFieldSx={drawerFieldValueSx}

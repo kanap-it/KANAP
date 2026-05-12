@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ListQuerySchema, ListQuery } from '../../common/dto/list-query.dto';
-import { ApplicationCategories, ApplicationLifecycles, CriticalityLevels } from './create-application.dto';
+import { ApplicationLifecycles, CriticalityLevels } from './create-application.dto';
 
 /**
  * Extended query schema for listing applications.
@@ -8,7 +8,7 @@ import { ApplicationCategories, ApplicationLifecycles, CriticalityLevels } from 
  */
 export const ListApplicationsQuerySchema = ListQuerySchema.extend({
   /** Filter by category */
-  category: z.enum(ApplicationCategories).optional(),
+  category: z.string().trim().min(1).optional(),
 
   /** Filter by lifecycle (comma-separated for multiple) */
   lifecycle: z
@@ -106,7 +106,7 @@ export class ListApplicationsQueryDto implements ListApplicationsQuery {
   include!: string[];
   q?: string;
   status?: 'enabled' | 'disabled';
-  category?: (typeof ApplicationCategories)[number];
+  category?: string;
   lifecycle?: string[];
   criticality?: (typeof CriticalityLevels)[number];
   supplier_id?: string;

@@ -49,6 +49,67 @@
     "toolUseProgress": "Tools werden verwendet...",
     "userRole": "Sie"
   },
+  "activity": {
+    "phases": {
+      "analyzing": "Anfrage analysieren",
+      "preparing_context": "Kontext vorbereiten",
+      "searching_entities": "Entitäten durchsuchen",
+      "reading_context": "Fachkontext lesen",
+      "searching_knowledge": "Wissen durchsuchen",
+      "reading_document": "Dokument lesen",
+      "searching_web": "Web durchsuchen",
+      "preparing_change": "Änderung vorbereiten",
+      "using_tool": "Tool verwenden",
+      "generating_response": "Antwort generieren",
+      "finalizing": "Antwort bereit"
+    },
+    "sections": {
+      "attachments": "Anhänge",
+      "injected": "Dokumente und Entitäten",
+      "mentions": "Aufgelöste Erwähnungen",
+      "previews": "Vorschauen und Artefakte",
+      "runtime": "Ausführung",
+      "steps": "Aktivität"
+    },
+    "summaryWithContext_one": "{{count}} Kontextelement",
+    "summaryWithContext_other": "{{count}} Kontextelemente",
+    "summaryWithSteps_one": "{{count}} Schritt",
+    "summaryWithSteps_other": "{{count}} Schritte",
+    "summaryWithTools_one": "{{count}} Tool",
+    "summaryWithTools_other": "{{count}} Tools",
+    "metrics": {
+      "assistantMessages": "Assistentennachrichten",
+      "breakdown": "Kontextaufschlüsselung (geschätzte Tokens)",
+      "budget": "Kontext",
+      "budgetValue": "{{size}} / {{budget}} geschätzte Tokens",
+      "history": "Verlauf",
+      "historyValue": "{{messages}} Nachrichten, {{attachments}} Anhänge",
+      "messages": "Konversationsnachrichten",
+      "noBudget": "kein Limit",
+      "noProfile": "auto",
+      "protocolOverhead": "Anfrage-Overhead",
+      "systemPrompt": "Systemprompt",
+      "systemPromptSections": "Systemprompt-Details",
+      "toolCallMetadata": "Tool-Aufrufmetadaten",
+      "toolMessages": "Tool-Ergebnisse",
+      "toolSchemaDetail": "Tool-Schema-Details",
+      "toolSchemas": "Tool-Schemas",
+      "timing": "Zeit",
+      "timingFirstToken": "erstes Token {{duration}}",
+      "timingTools": "Tools {{duration}}",
+      "timingTotal": "gesamt {{duration}}",
+      "tools": "Tools",
+      "toolsSelectedValue": "{{selected}} gesendet, {{tools}} verfügbar, {{writable}} Schreibvorschauen, {{types}} lesbare Familien · {{profile}}",
+      "toolsValue": "{{tools}} verfügbar, {{writable}} Schreibvorschauen, {{types}} lesbare Familien",
+      "userMessages": "Benutzernachrichten"
+    },
+    "toolTrace": {
+      "failed": "fehlgeschlagen",
+      "filters_one": "{{count}} Filter",
+      "filters_other": "{{count}} Filter",
+      "running": "läuft"
+    }
+  },
   "artifactPanel": {
     "chipLabel": "Im Panel öffnen",
     "close": "Panel schließen",
@@ -74,10 +135,17 @@
     "noDocuments": "Keine Dokumente gefunden.",
     "noResults": "Keine Ergebnisse.",
     "toolNames": {
+      "aggregate_entities": "Entitäten aggregieren",
+      "describe_entity_filters": "Filter beschreiben",
       "get_document": "Dokument abrufen",
+      "get_entity_comments": "Kommentare abrufen",
       "get_entity_context": "Entitätskontext abrufen",
+      "get_entity_detail": "Entitätsdetails abrufen",
+      "get_filter_values": "Filterwerte abrufen",
+      "query_entities": "Entitäten abfragen",
       "search_all": "Alles durchsuchen",
-      "search_knowledge": "Wissensdatenbank durchsuchen"
+      "search_knowledge": "Wissensdatenbank durchsuchen",
+      "web_search": "Web durchsuchen"
     }
   },
   "tokenUsage": {
