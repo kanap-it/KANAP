@@ -1,0 +1,181 @@
+import * as assert from 'node:assert/strict';
+import { BadRequestException } from '@nestjs/common';
+import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { Tenant } from '../../tenants/tenant.entity';
+import { Location } from '../../locations/location.entity';
+import { AiExecutionContextWithManager } from '../ai.types';
+import { AiBusinessRecordMutationSupportService } from '../mutation/ai-business-record-mutation-support.service';
+
+const TENANT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const APP_ID = '11111111-1111-4111-8111-111111111111';
+
+const applicationCategories = [
+  { code: 'line_of_business', label: 'Business Applications' },
+  { code: 'development', label: 'Development' },
+  { code: 'infrastructure', label: 'Infrastructure' },
+  { code: 'integration', label: 'Integration' },
+  { code: 'productivity', label: 'Productivity' },
+  { code: 'security', label: 'Security' },
+];
+
+function createHarness() {
+  const calls = {
+    managerQueries: [] as string[],
+  };
+  const tenantRepo = {
+    findOne: async ({ where }: any) => {
+      if (where?.id !== TENANT_ID) return null;
+      return {
+        id: TENANT_ID,
+        metadata: {
+          it_ops: {
+            application_categories: applicationCategories,
+          },
+        },
+      };
+    },
+  };
+  const locationRepo = {
+    find: async () => [],
+  };
+  const manager = {
+    getRepository: (entity: any) => {
+      if (entity === Location) return locationRepo;
+      if (entity === Tenant) return tenantRepo;
+      return tenantRepo;
+    },
+    query: async (sql: string, params: unknown[]) => {
+      calls.managerQueries.push(sql);
+      if (sql.includes('FROM applications') && String(params[1]).toLowerCase() === 'payroll') {
+        return [{
+          id: APP_ID,
+          tenant_id: TENANT_ID,
+          sequential_id: 'APP-1',
+          name: 'Payroll',
+          category: 'productivity',
+          status: 'enabled',
+        }];
+      }
+      return [];
+    },
+  };
+  const itOpsSettings = new ItOpsSettingsService(tenantRepo as any, locationRepo as any);
+  const service = new AiBusinessRecordMutationSupportService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    itOpsSettings,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const context: AiExecutionContextWithManager = {
+    tenantId: TENANT_ID,
+    userId: USER_ID,
+    isPlatformHost: false,
+    surface: 'chat',
+    authMethod: 'jwt',
+    conversationId: 'conv-1',
+    manager: manager as any,
+  };
+  return { service, context, calls };
+}
+
+async function testCreateAcceptsConfiguredCategoryCode() {
+  const { service, context } = createHarness();
+  const prepared = await service.prepareCreatePreview(context, {
+    entity_type: 'applications',
+    fields: {
+      name: 'Office Suite',
+      category: 'productivity',
+    },
+  });
+
+  assert.equal((prepared.mutationInput.fields as Record<string, unknown>).category, 'productivity');
+  assert.equal((prepared.mutationInput.display_values as Record<string, unknown>).category, 'Productivity');
+}
+
+async function testCreateResolvesConfiguredCategoryLabel() {
+  const { service, context } = createHarness();
+  const prepared = await service.prepareCreatePreview(context, {
+    entity_type: 'applications',
+    fields: {
+      name: 'Office Suite',
+      category: 'Productivity',
+    },
+  });
+
+  assert.equal((prepared.mutationInput.fields as Record<string, unknown>).category, 'productivity');
+}
+
+async function testUpdateResolvesConfiguredBusinessApplicationsLabel() {
+  const { service, context } = createHarness();
+  const prepared = await service.prepareUpdatePreview(context, {
+    entity_type: 'applications',
+    ref: 'Payroll',
+    fields: {
+      category: 'Business Applications',
+    },
+  });
+
+  assert.equal(prepared.targetEntityId, APP_ID);
+  assert.equal((prepared.mutationInput.fields as Record<string, unknown>).category, 'line_of_business');
+  assert.deepEqual(prepared.currentValues.values, {
+    category: 'productivity',
+  });
+}
+
+async function testCreateRejectsCategoryOutsideTenantSettings() {
+  const { service, context } = createHarness();
+  await assert.rejects(
+    () => service.prepareCreatePreview(context, {
+      entity_type: 'applications',
+      fields: {
+        name: 'Legacy Collaboration',
+        category: 'other',
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof BadRequestException);
+      assert.match(String((error as Error).message), /Invalid application category "other"/);
+      assert.match(String((error as Error).message), /line_of_business \(Business Applications\)/);
+      assert.match(String((error as Error).message), /productivity \(Productivity\)/);
+      return true;
+    },
+  );
+}
+
+async function testCreateDoesNotUseObservedApplicationValuesAsAllowedValues() {
+  const { service, context, calls } = createHarness();
+  await assert.rejects(
+    () => service.prepareCreatePreview(context, {
+      entity_type: 'applications',
+      fields: {
+        name: 'Observed Legacy App',
+        category: 'other',
+      },
+    }),
+    BadRequestException,
+  );
+
+  assert.equal(calls.managerQueries.length, 0);
+}
+
+async function main() {
+  await testCreateAcceptsConfiguredCategoryCode();
+  await testCreateResolvesConfiguredCategoryLabel();
+  await testUpdateResolvesConfiguredBusinessApplicationsLabel();
+  await testCreateRejectsCategoryOutsideTenantSettings();
+  await testCreateDoesNotUseObservedApplicationValuesAsAllowedValues();
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

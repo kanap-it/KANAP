@@ -663,7 +663,11 @@ export class AiToolRegistry {
 
   async getToolJsonSchemas(context: AiExecutionContextWithManager): Promise<AiProviderToolDef[]> {
     const available = await this.listAvailableTools(context);
-    return available.map((item) => {
+    return this.toToolJsonSchemas(available);
+  }
+
+  toToolJsonSchemas(tools: Array<Pick<AiToolListItemDto, 'name'>>): AiProviderToolDef[] {
+    return tools.map((item) => {
       const definition = this.definitions.get(item.name)!;
       const jsonSchema = normalizeJsonSchemaForProviders(
         zodToJsonSchema(definition.inputSchema as any, { target: 'openApi3' }),

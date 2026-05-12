@@ -165,7 +165,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     const tenantId = await this.getCurrentTenantId(mg);
     const nowYear = new Date().getFullYear();
     const lifecycle = await this.normalizeLifecycle(body.lifecycle, tenantId, mg, 'active');
-    const category = this.normalizeCategory((body as any).category, 'line_of_business');
+    const category = await this.normalizeCategory((body as any).category, tenantId, mg, { useDefaultForEmpty: true });
     const entity = repo.create({
       name: (body.name || '').toString().trim(),
       supplier_id: body.supplier_id ?? null,
@@ -222,7 +222,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
       patch.lifecycle = await this.normalizeLifecycle(patch.lifecycle, existing.tenant_id, mg, existing.lifecycle);
     }
     if (patch.category !== undefined) {
-      patch.category = this.normalizeCategory(patch.category, existing.category);
+      patch.category = await this.normalizeCategory(patch.category, existing.tenant_id, mg);
     }
     Object.assign(existing, patch);
     const saved = (await repo.save(existing as any)) as Application;
@@ -483,7 +483,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
       const supplier_name = (r['supplier_name'] ?? '').toString().trim() || undefined;
       const supplier_id_raw = (r['supplier_id'] ?? '').toString().trim() || undefined;
       const supplier_id_input = supplier_id_raw && sById.has(supplier_id_raw) ? supplier_id_raw : undefined;
-      const category = (r['category'] ?? 'line_of_business').toString().trim().toLowerCase();
+      const category = (r['category'] ?? '').toString().trim();
       const editor = (r['editor'] ?? '').toString().trim() || null;
       const lifecycle = (r['lifecycle'] ?? 'active').toString().trim() as any;
       const criticality = (r['criticality'] ?? 'medium').toString().trim() as any;
@@ -518,6 +518,12 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
         const message = e?.message || 'Invalid lifecycle value';
         errors.push({ row: entry.__row, message });
       }
+      try {
+        (entry as any).category = await this.normalizeCategory((entry as any).category, tenantId, mg, { useDefaultForEmpty: true }) as any;
+      } catch (e: any) {
+        const message = e?.message || 'Invalid application category';
+        errors.push({ row: entry.__row, message });
+      }
     }
     if (errors.length > 0) return { ok: false, dryRun, total: rows.length, inserted: 0, updated: 0, errors };
 
@@ -538,7 +544,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
         if (!existing) {
           const nowYear = new Date().getFullYear();
           const entity = repo.create({
-            name: p.name!, supplier_id, category: (p as any).category ?? 'line_of_business', editor: p.editor ?? null, lifecycle: (p.lifecycle as any) ?? 'active', criticality: (p.criticality as any) ?? 'medium',
+            name: p.name!, supplier_id, category: (p as any).category, editor: p.editor ?? null, lifecycle: (p.lifecycle as any) ?? 'active', criticality: (p.criticality as any) ?? 'medium',
             data_class: (p.data_class as any) ?? null, hosting_model: (p.hosting_model as any) ?? null, external_facing: !!p.external_facing,
             last_dr_test: (p.last_dr_test as any) ?? null, sso_enabled: !!p.sso_enabled, mfa_supported: !!p.mfa_supported, contains_pii: !!p.contains_pii,
             licensing: p.licensing ?? null, notes: p.notes ?? null,
@@ -628,10 +634,16 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     return allowed[0] || 'active';
   }
 
-  normalizeCategory(value: unknown, fallback: string = 'line_of_business'): string {
-    const normalized = String(value ?? '').trim().toLowerCase();
-    if (!normalized) return fallback;
-    return normalized;
+  async normalizeCategory(
+    value: unknown,
+    tenantId: string,
+    manager?: any,
+    opts?: { useDefaultForEmpty?: boolean },
+  ): Promise<string> {
+    return this.itOpsSettings.resolveApplicationCategoryCode(tenantId, value, {
+      manager,
+      useDefaultForEmpty: opts?.useDefaultForEmpty,
+    });
   }
 
   // Derived users

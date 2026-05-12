@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { ThemeProvider } from '@mui/material/styles';
 import { describe, expect, it, vi } from 'vitest';
 import ChatMessageList from '../components/ChatMessageList';
+import { createAppTheme } from '../../config/ThemeContext';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -15,6 +17,13 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('ChatMessageList', () => {
+  const theme = createAppTheme('light');
+  const renderWithTheme = (ui: React.ReactElement) => render(
+    <ThemeProvider theme={theme}>
+      {ui}
+    </ThemeProvider>,
+  );
+
   it('renders the assistant text before the preview card controls', () => {
     const preview = {
       preview_id: 'preview-1',
@@ -46,7 +55,7 @@ describe('ChatMessageList', () => {
       executed_at: null,
     };
 
-    const { container } = render(
+    const { container } = renderWithTheme(
       <ChatMessageList
         messages={[
           {
@@ -109,7 +118,7 @@ describe('ChatMessageList', () => {
       executed_at: null,
     };
 
-    render(
+    renderWithTheme(
       <ChatMessageList
         messages={[
           {
@@ -135,7 +144,7 @@ describe('ChatMessageList', () => {
   });
 
   it('renders assistant markdown links to internal task pages', () => {
-    render(
+    renderWithTheme(
       <ChatMessageList
         messages={[
           {
@@ -151,6 +160,72 @@ describe('ChatMessageList', () => {
 
     const link = screen.getByRole('link', { name: 'T-115' });
     expect(link.getAttribute('href')).toBe('/portfolio/tasks/task-115');
+  });
+
+  it('always renders a status row for assistant messages', () => {
+    const { container } = renderWithTheme(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Hello.',
+          },
+        ]}
+        previews={[]}
+        onSend={() => undefined}
+      />,
+    );
+
+    const text = container.textContent || '';
+    expect(text).toContain('activity.phases.finalizing');
+    expect(text).toContain('activity.summaryWithTools');
+  });
+
+  it('keeps tool calls inside the expanded activity panel', () => {
+    const { container } = renderWithTheme(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Here are the tasks.',
+            toolCalls: [
+              {
+                id: 'tool-1',
+                name: 'query_entities',
+                arguments: { entity_type: 'tasks', filters: { status: ['in_progress'] } },
+              },
+            ],
+            toolResults: [
+              {
+                id: 'tool-1',
+                name: 'query_entities',
+                result: {
+                  items: [{ id: 'task-1', type: 'tasks', ref: 'T-1', label: 'Task' }],
+                  total: 1,
+                },
+              },
+            ],
+            activity: [
+              { phase: 'analyzing', status: 'running' },
+              { phase: 'searching_entities', status: 'running', tool_name: 'query_entities' },
+              { phase: 'searching_entities', status: 'completed', tool_name: 'query_entities' },
+              { phase: 'finalizing', status: 'completed' },
+            ],
+          },
+        ]}
+        previews={[]}
+        onSend={() => undefined}
+      />,
+    );
+
+    expect(container.textContent || '').not.toContain('toolResults.toolNames.query_entities');
+
+    fireEvent.click(screen.getByText('activity.phases.finalizing'));
+
+    expect(container.textContent || '').toContain('toolResults.toolNames.query_entities');
+    expect(container.textContent || '').toContain('messageList.toolCallResults');
   });
 
   it('replaces pending GLPI preview images with a placeholder message', () => {
@@ -184,7 +259,7 @@ describe('ChatMessageList', () => {
       executed_at: null,
     };
 
-    const { container } = render(
+    const { container } = renderWithTheme(
       <ChatMessageList
         messages={[
           {

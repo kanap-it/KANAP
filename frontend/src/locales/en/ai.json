@@ -49,6 +49,67 @@
     "toolUseProgress": "Using tools...",
     "userRole": "You"
   },
+  "activity": {
+    "phases": {
+      "analyzing": "Analyzing the request",
+      "preparing_context": "Preparing context",
+      "searching_entities": "Searching entities",
+      "reading_context": "Reading business context",
+      "searching_knowledge": "Searching knowledge",
+      "reading_document": "Reading a document",
+      "searching_web": "Searching the web",
+      "preparing_change": "Preparing a change",
+      "using_tool": "Using a tool",
+      "generating_response": "Generating the response",
+      "finalizing": "Response ready"
+    },
+    "sections": {
+      "attachments": "Attachments",
+      "injected": "Documents and entities",
+      "mentions": "Resolved mentions",
+      "previews": "Previews and artifacts",
+      "runtime": "Runtime",
+      "steps": "Activity"
+    },
+    "summaryWithContext_one": "{{count}} context item",
+    "summaryWithContext_other": "{{count}} context items",
+    "summaryWithSteps_one": "{{count}} step",
+    "summaryWithSteps_other": "{{count}} steps",
+    "summaryWithTools_one": "{{count}} tool",
+    "summaryWithTools_other": "{{count}} tools",
+    "metrics": {
+      "assistantMessages": "Assistant messages",
+      "breakdown": "Context breakdown (est. tokens)",
+      "budget": "Context",
+      "budgetValue": "{{size}} / {{budget}} est. tokens",
+      "history": "History",
+      "historyValue": "{{messages}} messages, {{attachments}} attachments",
+      "messages": "Conversation messages",
+      "noBudget": "no limit",
+      "noProfile": "auto",
+      "protocolOverhead": "Request overhead",
+      "systemPrompt": "System prompt",
+      "systemPromptSections": "System prompt detail",
+      "toolCallMetadata": "Tool-call metadata",
+      "toolMessages": "Tool results",
+      "toolSchemaDetail": "Tool schema detail",
+      "toolSchemas": "Tool schemas",
+      "timing": "Timing",
+      "timingFirstToken": "first token {{duration}}",
+      "timingTools": "tools {{duration}}",
+      "timingTotal": "total {{duration}}",
+      "tools": "Tools",
+      "toolsSelectedValue": "{{selected}} sent, {{tools}} available, {{writable}} write previews, {{types}} readable families · {{profile}}",
+      "toolsValue": "{{tools}} available, {{writable}} write previews, {{types}} readable families",
+      "userMessages": "User messages"
+    },
+    "toolTrace": {
+      "failed": "failed",
+      "filters_one": "{{count}} filter",
+      "filters_other": "{{count}} filters",
+      "running": "running"
+    }
+  },
   "artifactPanel": {
     "chipLabel": "Open in panel",
     "close": "Close panel",
@@ -74,10 +135,17 @@
     "noDocuments": "No documents found.",
     "noResults": "No results.",
     "toolNames": {
+      "aggregate_entities": "Aggregate entities",
+      "describe_entity_filters": "Describe filters",
       "get_document": "Get document",
+      "get_entity_comments": "Get comments",
       "get_entity_context": "Get entity context",
+      "get_entity_detail": "Get entity detail",
+      "get_filter_values": "Get filter values",
+      "query_entities": "Query entities",
       "search_all": "Search all",
-      "search_knowledge": "Search knowledge"
+      "search_knowledge": "Search knowledge",
+      "web_search": "Search the web"
     }
   },
   "tokenUsage": {

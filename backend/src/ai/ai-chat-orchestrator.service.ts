@@ -7,13 +7,23 @@ import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { AiSettingsService } from './ai-settings.service';
 import { AiSystemPromptService } from './ai-system-prompt.service';
 import { AiToolRegistry } from './ai-tool.registry';
-import { prepareAiProviderMessages } from './ai-context-budget.helper';
+import {
+  AiContextBudgetSectionBreakdown,
+  estimateToolSchemaBreakdown,
+  prepareAiProviderMessages,
+  withToolSchemaBreakdown,
+} from './ai-context-budget.helper';
+import {
+  filterToolListForProfile,
+  selectAiContextProfileForTurn,
+} from './ai-context-profile';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 import {
   AiProviderAdapter,
   AiProviderImageAttachment,
   AiProviderMessage,
+  AiProviderToolDef,
   AiProviderToolCall,
   AiStreamEvent,
 } from './providers/ai-provider.types';
@@ -21,6 +31,9 @@ import { addUsage, cloneUsage, isAbortError, tryParseToolCallArguments } from '.
 import { isOpenAiReasoningModel } from './providers/openai-stream.util';
 import {
   AI_QUERY_ENTITY_TYPES,
+  AiChatActivityPhase,
+  AiChatContextItemDto,
+  AiChatContextSummaryDto,
   AiBuiltinUsageDto,
   AiExecutionContext,
   AiExecutionContextWithManager,
@@ -127,10 +140,12 @@ type StreamPreparationResult = {
   conversationId: string;
   title: string;
   providerMessages: AiProviderMessage[];
-  tools: any[];
+  tools: AiProviderToolDef[];
   systemPromptText: string;
+  systemPromptSections: AiContextBudgetSectionBreakdown[];
   preStreamEvents: ChatStreamEvent[];
   approvalAssistantText: string | null;
+  contextSummary: AiChatContextSummaryDto;
 };
 
 function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: string }>): string {
@@ -171,6 +186,210 @@ const ENTITY_URL_BUILDERS: Record<string, (id: string) => string> = {
   suppliers: (id) => `/master-data/suppliers/${id}`,
   business_processes: (id) => `/master-data/business-processes/${id}`,
 };
+
+const ENTITY_TYPE_FROM_URL_PREFIX: Array<{ prefix: string; entityType: string }> = [
+  { prefix: '/knowledge/', entityType: 'documents' },
+  { prefix: '/portfolio/tasks/', entityType: 'tasks' },
+  { prefix: '/portfolio/projects/', entityType: 'projects' },
+  { prefix: '/portfolio/requests/', entityType: 'requests' },
+  { prefix: '/it/applications/', entityType: 'applications' },
+  { prefix: '/it/assets/', entityType: 'assets' },
+  { prefix: '/it/connections/', entityType: 'connections' },
+  { prefix: '/it/interfaces/', entityType: 'interfaces' },
+  { prefix: '/it/locations/', entityType: 'locations' },
+  { prefix: '/ops/contracts/', entityType: 'contracts' },
+  { prefix: '/ops/capex/', entityType: 'capex_items' },
+  { prefix: '/master-data/companies/', entityType: 'companies' },
+  { prefix: '/master-data/contacts/', entityType: 'contacts' },
+  { prefix: '/master-data/departments/', entityType: 'departments' },
+  { prefix: '/master-data/suppliers/', entityType: 'suppliers' },
+  { prefix: '/master-data/business-processes/', entityType: 'business_processes' },
+];
+
+function normalizeContextLabel(value: unknown, fallback = 'Item'): string {
+  const normalized = String(value ?? '')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized.slice(0, 120) || fallback;
+}
+
+function inferEntityTypeFromUrl(url: string): string | null {
+  const match = ENTITY_TYPE_FROM_URL_PREFIX.find((entry) => url.startsWith(entry.prefix));
+  return match?.entityType ?? null;
+}
+
+function extractMentionContextItems(text: string): AiChatContextItemDto[] {
+  const items: AiChatContextItemDto[] = [];
+  const seen = new Set<string>();
+  const markdownLinkRe = /\[([^\]]{1,160})\]\((\/[^)\s]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = markdownLinkRe.exec(text)) != null) {
+    const [, rawLabel, rawUrl] = match;
+    const entityType = inferEntityTypeFromUrl(rawUrl);
+    if (!entityType) {
+      continue;
+    }
+    const label = normalizeContextLabel(rawLabel);
+    const key = `${entityType}:${label}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    items.push({
+      kind: 'mention',
+      label,
+      entity_type: entityType,
+      ref: label.match(/^[A-Z]+-\d+$/) ? label : null,
+    });
+  }
+  return items.slice(0, 12);
+}
+
+function formatAttachmentDetail(attachment: {
+  kind?: string | null;
+  mime_type?: string | null;
+  size?: number | null;
+}): string {
+  const kind = normalizeContextLabel(attachment.kind || attachment.mime_type || 'attachment', 'attachment');
+  const size = Number(attachment.size ?? 0);
+  if (!Number.isFinite(size) || size <= 0) {
+    return kind;
+  }
+  if (size >= 1024 * 1024) {
+    return `${kind}, ${Math.round((size / (1024 * 1024)) * 10) / 10} MB`;
+  }
+  if (size >= 1024) {
+    return `${kind}, ${Math.round(size / 1024)} KB`;
+  }
+  return `${kind}, ${size} B`;
+}
+
+function attachmentContextItems(attachments: Array<{
+  original_filename?: string | null;
+  kind?: string | null;
+  mime_type?: string | null;
+  size?: number | null;
+}>): AiChatContextItemDto[] {
+  return attachments.slice(0, 8).map((attachment) => ({
+    kind: 'attachment',
+    label: normalizeContextLabel(attachment.original_filename, 'Image'),
+    detail: formatAttachmentDetail(attachment),
+  }));
+}
+
+function previewContextItems(previews: AiMutationPreviewDto[]): AiChatContextItemDto[] {
+  return previews.slice(-8).map((preview) => {
+    const label = normalizeContextLabel(
+      preview.target?.ref || preview.target?.title || preview.summary || preview.tool_name,
+      preview.tool_name,
+    );
+    return {
+      kind: 'preview',
+      label,
+      detail: normalizeContextLabel(preview.tool_name.replace(/_/g, ' '), 'preview'),
+      entity_type: preview.target?.entity_type ?? null,
+      ref: preview.target?.ref ?? null,
+      status: preview.status,
+    };
+  });
+}
+
+function toolActivityPhase(toolName: string): AiChatActivityPhase {
+  if ([
+    'search_all',
+    'query_entities',
+    'aggregate_entities',
+    'describe_entity_filters',
+    'get_filter_values',
+  ].includes(toolName)) {
+    return 'searching_entities';
+  }
+  if (['get_entity_detail', 'get_entity_context', 'get_entity_comments'].includes(toolName)) {
+    return 'reading_context';
+  }
+  if (toolName === 'search_knowledge') {
+    return 'searching_knowledge';
+  }
+  if (toolName === 'get_document') {
+    return 'reading_document';
+  }
+  if (toolName === 'web_search') {
+    return 'searching_web';
+  }
+  if (toolName === 'undo_preview' || toolName.startsWith('create_') || toolName.startsWith('update_') || toolName.startsWith('add_') || toolName.startsWith('import_') || toolName.startsWith('write_')) {
+    return 'preparing_change';
+  }
+  return 'using_tool';
+}
+
+function resultEntityItem(item: any, fallbackKind: AiChatContextItemDto['kind']): AiChatContextItemDto | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+  const entityType = typeof item.type === 'string'
+    ? item.type
+    : typeof item.entity_type === 'string'
+      ? item.entity_type
+      : null;
+  const label = normalizeContextLabel(item.ref || item.title || item.label || item.name || item.id, 'Item');
+  const rawDetail = item.title || item.label || item.summary || entityType || fallbackKind;
+  return {
+    kind: entityType === 'documents' ? 'document' : fallbackKind,
+    label,
+    detail: rawDetail ? normalizeContextLabel(rawDetail) : null,
+    entity_type: entityType,
+    ref: typeof item.ref === 'string' ? item.ref : null,
+    status: typeof item.status === 'string' ? item.status : null,
+  };
+}
+
+function toolResultContextItems(toolName: string, result: unknown): AiChatContextItemDto[] {
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+  const data = result as Record<string, unknown>;
+
+  if (toolName === 'get_document') {
+    const label = normalizeContextLabel((data.ref as string) || (data.title as string), 'Document');
+    return [{
+      kind: 'document',
+      label,
+      detail: typeof data.title === 'string' ? normalizeContextLabel(data.title) : null,
+      entity_type: 'documents',
+      ref: typeof data.ref === 'string' ? data.ref : null,
+      status: typeof data.status === 'string' ? data.status : null,
+    }];
+  }
+
+  const leadingItems = data.entity && typeof data.entity === 'object' ? [data.entity] : [];
+  const rawItems = Array.isArray(data.items)
+    ? data.items
+    : Array.isArray(data.groups)
+      ? []
+      : Array.isArray(data.related)
+        ? (data.related as any[]).flatMap((group) => Array.isArray(group?.items) ? group.items : [])
+        : [];
+
+  const kind: AiChatContextItemDto['kind'] = toolName === 'search_knowledge' ? 'document' : 'entity';
+  const items = [...leadingItems, ...rawItems]
+    .map((item) => resultEntityItem(item, kind))
+    .filter((item): item is AiChatContextItemDto => item != null)
+    .slice(0, 8);
+
+  const total = typeof data.total === 'number'
+    ? data.total
+    : rawItems.length;
+  if (items.length > 0 && total > items.length) {
+    items.push({
+      kind,
+      label: `${total - items.length} more`,
+      count: total - items.length,
+    });
+  }
+
+  return items;
+}
 
 export function resolveProviderMaxTokens(providerId: string, model: string): number {
   if (providerId === 'openai' && isOpenAiReasoningModel(model)) {
@@ -496,16 +715,37 @@ export class AiChatOrchestratorService {
   }
 
   async *stream(params: ChatStreamParams): AsyncGenerator<ChatStreamEvent> {
+    const requestStartedAt = Date.now();
     const prepared = await this.prepareRequest(params);
-    yield* this.streamPrepared(prepared, { signal: params.signal ?? null });
+    yield* this.streamPrepared(prepared, { signal: params.signal ?? null, requestStartedAt });
   }
 
   async *streamPrepared(
     prepared: PreparedChatRequest,
-    opts?: { signal?: AbortSignal | null },
+    opts?: { signal?: AbortSignal | null; requestStartedAt?: number },
   ): AsyncGenerator<ChatStreamEvent> {
     const { context, userMessage, provider, model, apiKey, endpointUrl, tenantName, providerSource } = prepared;
     const abortSignal = opts?.signal ?? null;
+    const requestStartedAt = opts?.requestStartedAt ?? Date.now();
+    const requestStartedIso = new Date(requestStartedAt).toISOString();
+    let preparationMs: number | undefined;
+    let firstTokenMs: number | undefined;
+    let providerStreamMs = 0;
+    let toolExecutionMs = 0;
+    let completedIterations = 0;
+    const buildTimings = (completed = false) => {
+      const now = Date.now();
+      return {
+        started_at: requestStartedIso,
+        ...(completed ? { completed_at: new Date(now).toISOString() } : {}),
+        preparation_ms: preparationMs ?? Math.max(0, now - requestStartedAt),
+        ...(firstTokenMs != null ? { first_token_ms: firstTokenMs } : {}),
+        ...(completed ? { total_ms: Math.max(0, now - requestStartedAt) } : {}),
+        provider_stream_ms: providerStreamMs,
+        tool_execution_ms: toolExecutionMs,
+        iterations: completedIterations,
+      };
+    };
 
     if (abortSignal?.aborted) {
       return;
@@ -513,7 +753,7 @@ export class AiChatOrchestratorService {
 
     // Step 2: Load/create conversation, persist user message, build system prompt
     const approvalAction = prepared.approvalAction;
-    const { conversationId, title, providerMessages, tools, systemPromptText, preStreamEvents, approvalAssistantText } =
+    const { conversationId, title, providerMessages, tools, systemPromptText, systemPromptSections, preStreamEvents, approvalAssistantText, contextSummary } =
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
         let convId = prepared.inputConversationId;
         let convTitle: string;
@@ -565,8 +805,14 @@ export class AiChatOrchestratorService {
 
         // Validate attachment ownership BEFORE persisting (fail fast)
         const requestedAttachmentIds = Array.isArray(prepared.attachmentIds) ? prepared.attachmentIds : [];
+        let requestedAttachments: Array<{
+          original_filename?: string | null;
+          kind?: string | null;
+          mime_type?: string | null;
+          size?: number | null;
+        }> = [];
         if (requestedAttachmentIds.length > 0) {
-          await this.attachments.assertAndLoadAttachments(
+          requestedAttachments = await this.attachments.assertAndLoadAttachments(
             requestedAttachmentIds,
             { conversationId: convId!, tenantId: ctx.tenantId, userId: ctx.userId },
             ctx.manager,
@@ -619,8 +865,18 @@ export class AiChatOrchestratorService {
             providerMessages: [],
             tools: [],
             systemPromptText: '',
+            systemPromptSections: [],
             preStreamEvents: streamEvents,
             approvalAssistantText: this.buildPreviewResultAssistantText(previewResult),
+            contextSummary: {
+              previews: previewContextItems([previewResult]),
+              artifacts: previewContextItems([previewResult]),
+              history: {
+                message_count: 1,
+                attachment_count: 0,
+                tool_result_count: 0,
+              },
+            },
           } satisfies StreamPreparationResult;
         }
 
@@ -706,21 +962,36 @@ export class AiChatOrchestratorService {
           ...ctx,
           conversationId: convId!,
         };
-        const toolSchemas = await this.toolRegistry.getToolJsonSchemas(toolContext);
-        const availableTools = await this.toolRegistry.listAvailableTools(toolContext);
-        const readableTypes = await this.policy.listReadableEntityTypes(
-          ctx,
-          [...AI_QUERY_ENTITY_TYPES],
-          ctx.manager,
+        const existingPreviews = await this.previews.listConversationPreviews(ctx, convId!);
+        const latestUserMessage = [...history].reverse().find((msg) => msg.role === 'user')?.content ?? userMessage;
+        const contextProfile = selectAiContextProfileForTurn(
+          history
+            .filter((msg) => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
+            .map((msg) => ({
+              role: msg.role as 'user' | 'assistant' | 'tool',
+              content: msg.content,
+            })),
         );
+        const allAvailableTools = await this.toolRegistry.listAvailableTools(toolContext);
+        const availableTools = filterToolListForProfile(allAvailableTools, contextProfile);
+        const toolSchemas = this.toolRegistry.toToolJsonSchemas(availableTools);
+        const readableTypes = contextProfile.includeReadableEntityTypes
+          ? await this.policy.listReadableEntityTypes(
+            ctx,
+            [...AI_QUERY_ENTITY_TYPES],
+            ctx.manager,
+          )
+          : [];
         const currentUser = await this.loadCurrentUserPromptContext(ctx);
 
-        const sysPrompt = this.systemPrompt.build({
+        const builtSystemPrompt = this.systemPrompt.buildWithMetadata({
           tenantName,
           availableTools,
           readableEntityTypes: readableTypes,
           currentUser,
+          contextProfile,
         });
+        const sysPrompt = builtSystemPrompt.text;
 
         return {
           conversationId: convId!,
@@ -728,13 +999,44 @@ export class AiChatOrchestratorService {
           providerMessages: msgs,
           tools: toolSchemas,
           systemPromptText: sysPrompt,
+          systemPromptSections: builtSystemPrompt.sections,
           preStreamEvents: streamEvents,
           approvalAssistantText: null,
+          contextSummary: {
+            mentions: extractMentionContextItems(latestUserMessage),
+            attachments: attachmentContextItems(requestedAttachments.length > 0
+              ? requestedAttachments
+              : Array.from(attachmentImagesByMessage.values()).flatMap((images) =>
+                images.map((image) => ({
+                  original_filename: 'Image',
+                  kind: 'image',
+                  mime_type: image.mime_type,
+                  size: null,
+                })),
+              )),
+            previews: previewContextItems(existingPreviews),
+            artifacts: previewContextItems(existingPreviews.filter((preview) => preview.status === 'pending')),
+            history: {
+              message_count: history.length,
+              attachment_count: Array.from(attachmentImagesByMessage.values()).reduce((count, images) => count + images.length, 0),
+              tool_result_count: history.filter((msg) => msg.role === 'tool').length,
+            },
+            tools: {
+              available_count: allAvailableTools.length,
+              selected_count: availableTools.length,
+              writable_count: availableTools.filter((tool) => tool.write_preview != null).length,
+              readable_entity_types: readableTypes,
+              context_profile: contextProfile.name,
+            },
+          },
         } satisfies StreamPreparationResult;
       });
 
     // Emit conversation event
+    preparationMs = Math.max(0, Date.now() - requestStartedAt);
     yield { type: 'conversation', id: conversationId, title };
+    yield { type: 'activity', phase: 'preparing_context', status: 'completed' };
+    yield { type: 'context', context: { ...contextSummary, timings: buildTimings(false) } };
     for (const event of preStreamEvents) {
       yield event;
     }
@@ -759,6 +1061,8 @@ export class AiChatOrchestratorService {
       });
 
       yield { type: 'text_delta', text: approvalAssistantText };
+      yield { type: 'activity', phase: 'finalizing', status: 'completed' };
+      yield { type: 'context', context: { timings: buildTimings(true) } };
       yield {
         type: 'done',
         usage: undefined,
@@ -770,10 +1074,12 @@ export class AiChatOrchestratorService {
     }
 
     // Step 3: Provider streaming loop (NO DB transaction open)
+    yield { type: 'activity', phase: 'analyzing', status: 'running' };
     let messages = [...providerMessages];
     let totalUsage: StreamUsage | undefined;
     let lastUsage: StreamUsage | undefined;
     let previousToolCallSignature: string | null = null;
+    const toolSchemaBudget = estimateToolSchemaBreakdown(tools);
     const loadConversationUsage = async (): Promise<AiTokenUsage> => {
       return this.tenantExecutor.runWithContext(context, async (ctx) => {
         return this.conversations.getConversationUsage(conversationId, ctx.tenantId, {
@@ -786,21 +1092,37 @@ export class AiChatOrchestratorService {
       if (abortSignal?.aborted) {
         return;
       }
+      completedIterations = iteration + 1;
 
       const requestMaxTokens = resolveProviderMaxTokens(provider.descriptor.id, model);
 
       const budgetedMessages = prepareAiProviderMessages({
         systemPrompt: systemPromptText,
+        systemPromptSections,
         messages,
         contextWindow: provider.descriptor.capabilities.contextWindow ?? null,
       });
       messages = budgetedMessages.messages;
+      const requestBreakdown = withToolSchemaBreakdown(budgetedMessages.breakdown, toolSchemaBudget);
+      const estimatedRequestSize = requestBreakdown.total_with_tools ?? budgetedMessages.estimatedRequestSize;
+      yield {
+        type: 'context',
+        context: {
+          budget: {
+            estimated_request_size: estimatedRequestSize,
+            budget: budgetedMessages.budget,
+            compacted: budgetedMessages.compacted,
+            over_budget_after_compaction: budgetedMessages.overBudgetAfterCompaction,
+            breakdown: requestBreakdown,
+          },
+        },
+      };
 
       this.logger.log(
         [
           `provider=${provider.descriptor.id}`,
           `model=${model}`,
-          `estimated_request_size=${budgetedMessages.estimatedRequestSize}`,
+          `estimated_request_size=${estimatedRequestSize}`,
           `max_tokens=${requestMaxTokens}`,
           `budget=${budgetedMessages.budget ?? 'none'}`,
           `compacted=${budgetedMessages.compacted}`,
@@ -813,7 +1135,9 @@ export class AiChatOrchestratorService {
       let accumulatedText = '';
       const pendingToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
       let iterationUsage: StreamUsage | undefined;
+      let responseActivityEmitted = false;
 
+      const providerCallStartedAt = Date.now();
       const providerStream = provider.createStream({
         model,
         apiKey,
@@ -830,6 +1154,14 @@ export class AiChatOrchestratorService {
         for await (const event of providerStream) {
           switch (event.type) {
             case 'text_delta':
+              if (firstTokenMs == null) {
+                firstTokenMs = Math.max(0, Date.now() - requestStartedAt);
+                yield { type: 'context', context: { timings: buildTimings(false) } };
+              }
+              if (!responseActivityEmitted) {
+                yield { type: 'activity', phase: 'generating_response', status: 'running' };
+                responseActivityEmitted = true;
+              }
               accumulatedText += event.text;
               yield { type: 'text_delta', text: event.text };
               break;
@@ -854,7 +1186,10 @@ export class AiChatOrchestratorService {
               break;
 
             case 'error': {
+              providerStreamMs += Math.max(0, Date.now() - providerCallStartedAt);
               const conversationUsage = await loadConversationUsage();
+              yield { type: 'activity', phase: 'finalizing', status: 'failed' };
+              yield { type: 'context', context: { timings: buildTimings(true) } };
               yield {
                 type: 'error',
                 message: event.message,
@@ -866,11 +1201,15 @@ export class AiChatOrchestratorService {
             }
           }
         }
+        providerStreamMs += Math.max(0, Date.now() - providerCallStartedAt);
       } catch (error) {
+        providerStreamMs += Math.max(0, Date.now() - providerCallStartedAt);
         if (abortSignal?.aborted || isAbortError(error)) {
           return;
         }
         const conversationUsage = await loadConversationUsage();
+        yield { type: 'activity', phase: 'finalizing', status: 'failed' };
+        yield { type: 'context', context: { timings: buildTimings(true) } };
         yield {
           type: 'error',
           message: error instanceof Error && error.message.trim() ? error.message : 'Stream failed.',
@@ -900,6 +1239,8 @@ export class AiChatOrchestratorService {
 
         if (previousToolCallSignature === toolCallSignature) {
           const conversationUsage = await loadConversationUsage();
+          yield { type: 'activity', phase: 'finalizing', status: 'failed' };
+          yield { type: 'context', context: { timings: buildTimings(true) } };
           yield {
             type: 'error',
             message: 'Maximum tool call iterations reached without progress.',
@@ -919,7 +1260,14 @@ export class AiChatOrchestratorService {
           const parsedArgsResult = tryParseToolCallArguments(tc.arguments || '{}');
           const parseErrorMessage = 'message' in parsedArgsResult ? parsedArgsResult.message : null;
           const parsedArgs = 'value' in parsedArgsResult ? parsedArgsResult.value : {};
+          const activityPhase = toolActivityPhase(tc.name);
 
+          yield {
+            type: 'activity',
+            phase: activityPhase,
+            status: 'running',
+            tool_name: tc.name,
+          };
           yield {
             type: 'tool_call',
             id: tc.id,
@@ -1002,12 +1350,15 @@ export class AiChatOrchestratorService {
               );
             });
 
+            const toolStartedAt = Date.now();
             try {
               result = await this.tenantExecutor.runWithContext({ ...context, conversationId }, async (ctx) => {
                 return this.toolRegistry.execute(ctx, tc.name, parsedArgs);
               });
             } catch (err: any) {
               result = { error: err.message || 'Tool execution failed.' };
+            } finally {
+              toolExecutionMs += Math.max(0, Date.now() - toolStartedAt);
             }
 
             yield {
@@ -1016,6 +1367,21 @@ export class AiChatOrchestratorService {
               name: tc.name,
               result,
             };
+            yield {
+              type: 'activity',
+              phase: activityPhase,
+              status: 'completed',
+              tool_name: tc.name,
+            };
+            const injectedContext = toolResultContextItems(tc.name, result);
+            if (injectedContext.length > 0) {
+              yield {
+                type: 'context',
+                context: {
+                  injected: injectedContext,
+                },
+              };
+            }
 
             if (this.isMutationPreviewDto(result)) {
               yield {
@@ -1060,6 +1426,12 @@ export class AiChatOrchestratorService {
             name: tc.name,
             result,
           };
+          yield {
+            type: 'activity',
+            phase: activityPhase,
+            status: 'completed',
+            tool_name: tc.name,
+          };
         }
 
         // Continue loop for next iteration
@@ -1085,6 +1457,8 @@ export class AiChatOrchestratorService {
         });
       });
 
+      yield { type: 'activity', phase: 'finalizing', status: 'completed' };
+      yield { type: 'context', context: { timings: buildTimings(true) } };
       yield {
         type: 'done',
         usage: totalUsage,
@@ -1097,6 +1471,8 @@ export class AiChatOrchestratorService {
 
     // Max iterations reached
     const conversationUsage = await loadConversationUsage();
+    yield { type: 'activity', phase: 'finalizing', status: 'failed' };
+    yield { type: 'context', context: { timings: buildTimings(true) } };
     yield {
       type: 'error',
       message: 'Maximum tool call iterations reached.',

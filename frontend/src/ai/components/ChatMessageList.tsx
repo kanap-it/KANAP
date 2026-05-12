@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   Button,
-  CircularProgress,
   IconButton,
   Stack,
   TextField,
@@ -21,7 +20,7 @@ import { isLongPreview } from '../utils/previewClassification';
 import ArtifactPreviewChip from './ArtifactPreviewChip';
 import AttachmentImage from './AttachmentImage';
 import PreviewCard from './PreviewCard';
-import ChatToolRibbon from './ChatToolRibbon';
+import PlaidActivity from './PlaidActivity';
 
 type ChatMessageListProps = {
   messages: ChatMessage[];
@@ -413,6 +412,7 @@ function UserMessage({
 
 function AssistantMessage({
   message,
+  previousUserMessage,
   previews,
   disabled,
   onSend,
@@ -421,6 +421,7 @@ function AssistantMessage({
   onRegenerate,
 }: {
   message: ChatMessage;
+  previousUserMessage?: ChatMessage | null;
   previews: AiMutationPreview[];
   disabled?: boolean;
   onSend: (text: string) => void;
@@ -447,35 +448,14 @@ function AssistantMessage({
     onSend(`[REJECT:${previewId}]`);
   }, [onSend]);
 
-  // Filter out tool calls that are mutation previews (those render as PreviewCard)
-  const visibleToolCalls = toolCalls.filter((toolCall) => {
-    const result = toolResults.find((item) => item.id === toolCall.id);
-    return !isMutationPreview(result?.result);
-  });
-
-  const showInitialSpinner = message.isStreaming
-    && !message.content
-    && visibleToolCalls.length === 0;
-
   return (
     <MessageRow role="assistant" copyText={message.content} onRegenerate={onRegenerate}>
       <Stack spacing={0.5}>
-        {visibleToolCalls.length > 0 && (
-          <Stack spacing={0}>
-            {visibleToolCalls.map((toolCall) => {
-              const matchingResult = toolResults.find((item) => item.id === toolCall.id);
-              return (
-                <ChatToolRibbon
-                  key={toolCall.id || toolCall.name}
-                  toolName={toolCall.name}
-                  toolArgs={toolCall.arguments}
-                  result={matchingResult ? matchingResult.result : undefined}
-                  isStreaming={message.isStreaming}
-                />
-              );
-            })}
-          </Stack>
-        )}
+        <PlaidActivity
+          message={message}
+          previousUserMessage={previousUserMessage}
+          previews={previewResults}
+        />
 
         {message.content && (
           <Box
@@ -483,7 +463,6 @@ function AssistantMessage({
               fontSize: 14,
               lineHeight: 1.6,
               color: 'kanap.text.primary',
-              mt: visibleToolCalls.length > 0 ? 0.5 : 0,
             }}
           >
             <MarkdownContent content={message.content} />
@@ -511,12 +490,6 @@ function AssistantMessage({
             />
           );
         })}
-
-        {showInitialSpinner && (
-          <Box sx={{ py: 0.5 }}>
-            <CircularProgress size={14} thickness={5} sx={{ color: 'kanap.text.tertiary' }} />
-          </Box>
-        )}
       </Stack>
     </MessageRow>
   );
@@ -543,35 +516,51 @@ export default function ChatMessageList({
 
   if (!messages.length) return null;
 
+  const rows: React.ReactNode[] = [];
+  let previousUserMessage: ChatMessage | null = null;
+  for (const msg of messages) {
+    if (msg.hidden) {
+      if (msg.role === 'user') previousUserMessage = msg;
+      continue;
+    }
+    if (msg.role === 'user') {
+      rows.push(
+        <UserMessage
+          key={msg.id}
+          message={msg}
+          onEdit={onEdit && isPersistedMessage(msg.id) && !disabled
+            ? () => onEdit(msg.id)
+            : undefined}
+          isEditing={editingMessageId === msg.id}
+          onSubmitEdit={onSubmitEdit ? (text) => onSubmitEdit(msg.id, text) : undefined}
+          onCancelEdit={onCancelEdit}
+        />,
+      );
+      previousUserMessage = msg;
+      continue;
+    }
+    if (msg.role === 'assistant') {
+      rows.push(
+        <AssistantMessage
+          key={msg.id}
+          message={msg}
+          previousUserMessage={previousUserMessage}
+          previews={previews}
+          disabled={disabled}
+          onSend={onSend}
+          onOpenArtifact={onOpenArtifact}
+          selectedArtifactId={selectedArtifactId}
+          onRegenerate={onRegenerate && isPersistedMessage(msg.id) && !disabled && !msg.isStreaming
+            ? () => onRegenerate(msg.id)
+            : undefined}
+        />,
+      );
+    }
+  }
+
   return (
     <Stack spacing={3} sx={{ py: 3, pb: 4 }}>
-      {messages.map((msg) =>
-        msg.hidden ? null : msg.role === 'user' ? (
-          <UserMessage
-            key={msg.id}
-            message={msg}
-            onEdit={onEdit && isPersistedMessage(msg.id) && !disabled
-              ? () => onEdit(msg.id)
-              : undefined}
-            isEditing={editingMessageId === msg.id}
-            onSubmitEdit={onSubmitEdit ? (text) => onSubmitEdit(msg.id, text) : undefined}
-            onCancelEdit={onCancelEdit}
-          />
-        ) : msg.role === 'assistant' ? (
-          <AssistantMessage
-            key={msg.id}
-            message={msg}
-            previews={previews}
-            disabled={disabled}
-            onSend={onSend}
-            onOpenArtifact={onOpenArtifact}
-            selectedArtifactId={selectedArtifactId}
-            onRegenerate={onRegenerate && isPersistedMessage(msg.id) && !disabled && !msg.isStreaming
-              ? () => onRegenerate(msg.id)
-              : undefined}
-          />
-        ) : null,
-      )}
+      {rows}
       <div ref={bottomRef} />
     </Stack>
   );

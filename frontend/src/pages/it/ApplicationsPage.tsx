@@ -803,7 +803,7 @@ export default function ApplicationsPage() {
       const payload: any = {
         name: `${a.name || ''} (copy)`,
         supplier_id: a.supplier_id ?? null,
-        category: a.category || 'line_of_business',
+        category: a.category || undefined,
         description: a.description ?? null,
         editor: a.editor ?? null,
         retired_date: a.retired_date || null,

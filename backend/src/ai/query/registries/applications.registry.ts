@@ -85,7 +85,7 @@ export const applicationsRegistry: AiEntityFilterRegistry = {
       ai: 'category',
       grid: 'category',
       type: 'set',
-      description: 'Application category.',
+      description: 'Application category values observed on existing application records. Use tenant IT ops settings, not this observed list, as the create/update catalog.',
       dynamic: true,
       discoverable: true,
       sortable: true,

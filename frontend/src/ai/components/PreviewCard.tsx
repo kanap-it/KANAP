@@ -229,9 +229,21 @@ function PreviewCard({
                       {renderValue(preview, diff, diff.from, t('ai:previewCard.none'), pendingImagePlaceholder)}
                     </DiffSection>
                   )}
-                  <DiffSection variant="after" label={t('ai:previewCard.after')}>
-                    {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
-                  </DiffSection>
+                  {hasDisplayValue(diff.from) ? (
+                    <DiffSection variant="after" label={t('ai:previewCard.after')}>
+                      {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
+                    </DiffSection>
+                  ) : (
+                    <Box
+                      sx={{
+                        fontSize: 13,
+                        lineHeight: 1.55,
+                        color: 'kanap.text.primary',
+                      }}
+                    >
+                      {renderValue(preview, diff, diff.to, t('ai:previewCard.none'), pendingImagePlaceholder)}
+                    </Box>
+                  )}
                 </Stack>
               ) : (
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="baseline">
