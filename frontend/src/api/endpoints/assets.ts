@@ -42,7 +42,7 @@ export interface IpAddressEntry {
  */
 export interface AssetSummary extends Asset {
   location_name?: string | null;
-  location_code?: string | null;
+  location_reference?: string | null;
   sub_location_name?: string | null;
   assignments_count?: number;
   cluster_name?: string | null;
@@ -94,7 +94,7 @@ export interface ClusterSummary {
  */
 export interface ServerConnection {
   id: string;
-  connection_id: string;
+  connection_reference: string;
   name: string;
   topology: 'server_to_server' | 'multi_server';
   lifecycle: string;

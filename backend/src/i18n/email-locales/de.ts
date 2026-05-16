@@ -16,6 +16,8 @@ export const de: EmailStrings = {
       opex: { label: 'OPEX-Posten', lower: 'OPEX-Posten', view: 'OPEX-Posten anzeigen' },
       asset: { label: 'Asset', lower: 'Asset', view: 'Asset anzeigen' },
       application: { label: 'Anwendung', lower: 'Anwendung', view: 'Anwendung anzeigen' },
+      location: { label: 'Standort', lower: 'Standort', view: 'Standort anzeigen' },
+      connection: { label: 'Verbindung', lower: 'Verbindung', view: 'Verbindung anzeigen' },
     },
     labels: {
       openDocument: 'Dokument öffnen',

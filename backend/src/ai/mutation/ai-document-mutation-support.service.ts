@@ -110,6 +110,16 @@ const RELATION_QUERY_CONFIG: Record<RelationEntityType, AiRelationQueryConfig> =
     itemPrefix: 'T',
     subject: 'task',
   },
+  locations: {
+    table: 'locations',
+    nameColumn: 'name',
+    subject: 'location',
+  },
+  connections: {
+    table: 'connections',
+    nameColumn: 'name',
+    subject: 'connection',
+  },
 };
 
 function toDateOnly(value: unknown): string | null {
@@ -133,7 +143,9 @@ export class AiDocumentMutationSupportService {
       assets: [],
       projects: [],
       requests: [],
+      connections: [],
       tasks: [],
+      locations: [],
     };
   }
 

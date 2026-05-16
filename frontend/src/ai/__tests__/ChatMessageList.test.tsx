@@ -143,6 +143,132 @@ describe('ChatMessageList', () => {
     expect(screen.queryByText('ai:previewCard.after')).toBeNull();
   });
 
+  it('groups multiple previews and sends an explicit batch approval marker', () => {
+    const previews = Array.from({ length: 2 }, (_, index) => ({
+      preview_id: `${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}-${index + 1}${index + 1}${index + 1}${index + 1}-4${index + 1}${index + 1}${index + 1}-8${index + 1}${index + 1}${index + 1}-${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}`,
+      tool_name: 'update_task_assignee' as const,
+      status: 'pending' as const,
+      target: {
+        entity_type: 'tasks',
+        entity_id: `task-${index + 1}`,
+        ref: `T-${index + 1}`,
+        title: `Task ${index + 1}`,
+      },
+      changes: {
+        assignee: {
+          label: 'Assignee',
+          from: 'Paul',
+          to: 'Marie',
+          format: 'text' as const,
+        },
+      },
+      requires_confirmation: true,
+      actions: ['approve', 'reject'] as Array<'approve' | 'reject'>,
+      summary: `Reassign T-${index + 1}.`,
+      error_message: null,
+      conversation_id: 'conversation-1',
+      created_at: '2026-03-28T17:00:00.000Z',
+      expires_at: '2026-03-28T17:10:00.000Z',
+      approved_at: null,
+      rejected_at: null,
+      executed_at: null,
+    }));
+    const onSend = vi.fn();
+
+    renderWithTheme(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'I prepared the reassignment previews.',
+            toolResults: [{
+              id: 'tool-1',
+              name: 'update_task_assignees',
+              result: {
+                previews,
+                errors: [],
+                total: previews.length,
+                created: previews.length,
+                failed: 0,
+                complete: true,
+              },
+            }],
+          },
+        ]}
+        previews={previews}
+        onSend={onSend}
+      />,
+    );
+
+    expect(screen.getByText('previewBatch.title')).toBeInTheDocument();
+    expect(screen.getByText('previewBatch.approveAll')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('previewBatch.approveAll'));
+    fireEvent.click(screen.getAllByText('previewBatch.approveAll')[1]);
+
+    expect(onSend).toHaveBeenCalledWith(`[APPROVE_SELECTED:${previews.map((preview) => preview.preview_id).join(',')}]`);
+  });
+
+  it('groups previews referenced by assistant previewIds without requiring inline tool results', () => {
+    const previews = Array.from({ length: 2 }, (_, index) => ({
+      preview_id: `${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}-${index + 1}${index + 1}${index + 1}${index + 1}-4${index + 1}${index + 1}${index + 1}-8${index + 1}${index + 1}${index + 1}-${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}`,
+      tool_name: 'create_task' as const,
+      status: 'pending' as const,
+      target: {
+        entity_type: 'tasks',
+        entity_id: null,
+        ref: null,
+        title: `Task ${index + 1}`,
+      },
+      changes: {
+        title: {
+          label: 'Title',
+          from: null,
+          to: `Task ${index + 1}`,
+          format: 'text' as const,
+        },
+      },
+      requires_confirmation: true,
+      actions: ['approve', 'reject'] as Array<'approve' | 'reject'>,
+      summary: `Create task ${index + 1}.`,
+      error_message: null,
+      conversation_id: 'conversation-1',
+      created_at: '2026-03-28T17:00:00.000Z',
+      expires_at: '2026-03-28T17:10:00.000Z',
+      approved_at: null,
+      rejected_at: null,
+      executed_at: null,
+    }));
+    const onOpenArtifact = vi.fn();
+
+    renderWithTheme(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'I prepared the task previews.',
+            previewIds: previews.map((preview) => preview.preview_id),
+          },
+        ]}
+        previews={previews}
+        onSend={() => undefined}
+        onOpenArtifact={onOpenArtifact}
+      />,
+    );
+
+    expect(screen.getByText('previewBatch.title')).toBeInTheDocument();
+    expect(screen.getByText('artifactPanel.chipLabel')).toBeInTheDocument();
+    expect(screen.queryByText('previewBatch.approveAll')).toBeNull();
+
+    const chip = screen.getByText('artifactPanel.chipLabel').closest('[role="button"]');
+    expect(chip).not.toBeNull();
+    fireEvent.click(chip!);
+
+    expect(onOpenArtifact).toHaveBeenCalledWith(previews[0].preview_id);
+  });
+
   it('renders assistant markdown links to internal task pages', () => {
     renderWithTheme(
       <ChatMessageList
@@ -226,6 +352,44 @@ describe('ChatMessageList', () => {
 
     expect(container.textContent || '').toContain('toolResults.toolNames.query_entities');
     expect(container.textContent || '').toContain('messageList.toolCallResults');
+  });
+
+  it('renders dev debug trace latency inside the expanded activity panel', () => {
+    const { container } = renderWithTheme(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Here are the tasks.',
+            activity: [
+              { phase: 'analyzing', status: 'running' },
+              { phase: 'finalizing', status: 'completed' },
+            ],
+            debugTrace: [
+              { name: 'context_prepared', elapsed_ms: 90 },
+              { name: 'provider_request_started', elapsed_ms: 100, iteration: 1 },
+              { name: 'provider_first_tool_delta', elapsed_ms: 180, iteration: 1, tool_name: 'query_entities' },
+              { name: 'provider_tool_call_completed', elapsed_ms: 250, iteration: 1, tool_name: 'query_entities' },
+              { name: 'tool_execution_started', elapsed_ms: 260, iteration: 1, tool_name: 'query_entities' },
+              { name: 'tool_execution_completed', elapsed_ms: 320, iteration: 1, tool_name: 'query_entities' },
+              { name: 'assistant_text_started', elapsed_ms: 520, iteration: 2 },
+            ],
+          },
+        ]}
+        previews={[]}
+        onSend={() => undefined}
+      />,
+    );
+
+    expect(container.textContent || '').not.toContain('activity.sections.debugTrace');
+
+    fireEvent.click(screen.getByText('activity.phases.finalizing'));
+
+    expect(container.textContent || '').toContain('activity.sections.debugTrace');
+    expect(container.textContent || '').toContain('activity.debugTrace.segments.modelWait');
+    expect(container.textContent || '').toContain('activity.debugTrace.segments.firstVisibleAnswer');
+    expect(container.textContent || '').toContain('activity.debugTrace.names.provider_first_tool_delta');
   });
 
   it('replaces pending GLPI preview images with a placeholder message', () => {

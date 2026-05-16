@@ -7,6 +7,7 @@ export const AI_DOCUMENT_RELATION_ENTITY_TYPES = [
   'projects',
   'requests',
   'tasks',
+  'locations',
 ] as const satisfies readonly RelationEntityType[];
 
 type RelationFieldConfig = {
@@ -52,6 +53,18 @@ const RELATION_FIELD_CONFIG: Record<RelationEntityType, RelationFieldConfig> = {
     inputHint: 'Task reference such as T-42 or an exact task title. Use an array to link multiple tasks.',
     removalHint: 'Task reference such as T-42 or an exact task title. Use an array to remove multiple linked tasks.',
   },
+  locations: {
+    singular: 'location',
+    label: 'Linked Locations',
+    inputHint: 'Location reference such as LOC-7 or an exact location name. Use an array to link multiple locations.',
+    removalHint: 'Location reference such as LOC-7 or an exact location name. Use an array to remove multiple linked locations.',
+  },
+  connections: {
+    singular: 'connection',
+    label: 'Linked Connections',
+    inputHint: 'Connection reference such as CONN-3 or an exact connection name. Use an array to link multiple connections.',
+    removalHint: 'Connection reference such as CONN-3 or an exact connection name. Use an array to remove multiple linked connections.',
+  },
 };
 
 export type AiDocumentRelationInput = Partial<Record<RelationEntityType, string[]>>;
@@ -67,6 +80,10 @@ export const AI_DOCUMENT_RELATION_INPUT_SHAPE = {
   request: RELATION_VALUE_SCHEMA.optional().describe(`Alias for requests. ${RELATION_FIELD_CONFIG.requests.inputHint}`),
   tasks: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.tasks.inputHint),
   task: RELATION_VALUE_SCHEMA.optional().describe(`Alias for tasks. ${RELATION_FIELD_CONFIG.tasks.inputHint}`),
+  locations: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.locations.inputHint),
+  location: RELATION_VALUE_SCHEMA.optional().describe(`Alias for locations. ${RELATION_FIELD_CONFIG.locations.inputHint}`),
+  connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.inputHint),
+  connection: RELATION_VALUE_SCHEMA.optional().describe(`Alias for connections. ${RELATION_FIELD_CONFIG.connections.inputHint}`),
 };
 
 const AI_DOCUMENT_RELATION_GROUP_INPUT_FIELDS = {
@@ -75,6 +92,8 @@ const AI_DOCUMENT_RELATION_GROUP_INPUT_FIELDS = {
   projects: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.projects.inputHint),
   requests: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.requests.inputHint),
   tasks: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.tasks.inputHint),
+  locations: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.locations.inputHint),
+  connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.inputHint),
 };
 
 export const AI_DOCUMENT_RELATION_REMOVE_INPUT_SHAPE = {
@@ -88,6 +107,10 @@ export const AI_DOCUMENT_RELATION_REMOVE_INPUT_SHAPE = {
   remove_request: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_requests. ${RELATION_FIELD_CONFIG.requests.removalHint}`),
   remove_tasks: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.tasks.removalHint),
   remove_task: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_tasks. ${RELATION_FIELD_CONFIG.tasks.removalHint}`),
+  remove_locations: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.locations.removalHint),
+  remove_location: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_locations. ${RELATION_FIELD_CONFIG.locations.removalHint}`),
+  remove_connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.removalHint),
+  remove_connection: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_connections. ${RELATION_FIELD_CONFIG.connections.removalHint}`),
 };
 
 const AI_DOCUMENT_RELATION_GROUP_REMOVE_INPUT_FIELDS = {
@@ -96,6 +119,7 @@ const AI_DOCUMENT_RELATION_GROUP_REMOVE_INPUT_FIELDS = {
   projects: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.projects.removalHint),
   requests: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.requests.removalHint),
   tasks: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.tasks.removalHint),
+  locations: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.locations.removalHint),
 };
 
 export const AI_DOCUMENT_RELATION_MUTATION_INPUT_SHAPE = {

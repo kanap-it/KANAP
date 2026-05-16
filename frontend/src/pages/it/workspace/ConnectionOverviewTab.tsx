@@ -1,0 +1,563 @@
+import React from 'react';
+import {
+  Autocomplete,
+  Box,
+  Chip,
+  IconButton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import LinkIcon from '@mui/icons-material/Link';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import api from '../../../api';
+import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
+import MarkdownEditor from '../../../components/MarkdownEditor';
+import ConnectionEndpointPicker from './ConnectionEndpointPicker';
+import ConnectionLinkInterfacesDialog from './ConnectionLinkInterfacesDialog';
+import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+
+const NOTES_DEBOUNCE_MS = 900;
+
+const CRITICALITIES = [
+  { code: 'low', label: 'Low' },
+  { code: 'medium', label: 'Medium' },
+  { code: 'high', label: 'High' },
+  { code: 'business_critical', label: 'Business critical' },
+];
+
+type AssetSummary = {
+  id: string;
+  name: string;
+  asset_reference?: string | null;
+};
+
+type ConnectionTypeOption = { code: string; label: string };
+
+type LinkedInterfaceRow = {
+  id: string;
+  binding_id: string;
+  interface_id: string;
+  interface_code: string;
+  interface_name: string;
+  environment: string;
+  leg_type: string;
+  source_endpoint: string | null;
+  target_endpoint: string | null;
+  pattern: string;
+  binding_status: string;
+  interface_criticality?: string;
+  interface_data_class?: string;
+  interface_contains_pii?: boolean;
+};
+
+type Props = {
+  connectionId: string;
+  topology: 'server_to_server' | 'multi_server';
+  initialDescription: string;
+  canManage: boolean;
+  source: { asset_id: string | null; entity_code: string | null };
+  destination: { asset_id: string | null; entity_code: string | null };
+  multiServerIds: string[];
+  assetMap: Record<string, AssetSummary>;
+  protocolCodes: string[];
+  riskMode: 'manual' | 'derived';
+  linkedInterfaces: LinkedInterfaceRow[];
+  linkedInterfacesLoading: boolean;
+  linkedInterfacesError: string | null;
+  derivedInterfaceCount: number;
+  onDescriptionSaved?: (next: string) => void;
+  onEndpointChange: (
+    side: 'source' | 'destination',
+    next: { asset_id: string | null; entity_code: string | null },
+  ) => void;
+  onMultiServerChange: (nextIds: string[]) => void;
+  onProtocolCodesChange: (next: string[]) => void;
+  onLinkedInterfacesChanged: () => void;
+};
+
+function SectionHeader({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
+      <Typography
+        component="h2"
+        sx={(theme) => ({
+          m: 0,
+          fontSize: 14,
+          fontWeight: 500,
+          lineHeight: 1.4,
+          color: theme.palette.kanap.text.primary,
+        })}
+      >
+        {children}
+      </Typography>
+      {action}
+    </Stack>
+  );
+}
+
+export default function ConnectionOverviewTab({
+  connectionId,
+  topology,
+  initialDescription,
+  canManage,
+  source,
+  destination,
+  multiServerIds,
+  assetMap,
+  protocolCodes,
+  riskMode,
+  linkedInterfaces,
+  linkedInterfacesLoading,
+  linkedInterfacesError,
+  derivedInterfaceCount,
+  onDescriptionSaved,
+  onEndpointChange,
+  onMultiServerChange,
+  onProtocolCodesChange,
+  onLinkedInterfacesChanged,
+}: Props) {
+  const { t } = useTranslation(['it', 'common']);
+  const navigate = useNavigate();
+  const { settings, labelFor } = useItOpsEnumOptions();
+  const connectionTypes: ConnectionTypeOption[] = (settings?.connectionTypes || []).map((ct: any) => ({
+    code: ct.code,
+    label: ct.label || ct.code,
+  }));
+
+  const [description, setDescription] = React.useState(initialDescription);
+  const [status, setStatus] = React.useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [error, setError] = React.useState<string | null>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baselineRef = React.useRef(initialDescription);
+
+  const [multiSearch, setMultiSearch] = React.useState('');
+  const [multiOptions, setMultiOptions] = React.useState<AssetSummary[]>([]);
+  const [multiLoading, setMultiLoading] = React.useState(false);
+
+  const [linkDialogOpen, setLinkDialogOpen] = React.useState(false);
+  const [unlinkingLinkId, setUnlinkingLinkId] = React.useState<string | null>(null);
+  const [unlinkError, setUnlinkError] = React.useState<string | null>(null);
+
+  const handleUnlink = React.useCallback(
+    async (row: LinkedInterfaceRow) => {
+      if (!canManage) return;
+      setUnlinkingLinkId(row.id);
+      setUnlinkError(null);
+      try {
+        await api.delete(`/interface-bindings/${row.binding_id}/connection-links/${row.id}`);
+        onLinkedInterfacesChanged();
+      } catch (e: any) {
+        setUnlinkError(getApiErrorMessage(e, t, 'Failed to unlink interface binding'));
+      } finally {
+        setUnlinkingLinkId(null);
+      }
+    },
+    [canManage, onLinkedInterfacesChanged, t],
+  );
+
+  React.useEffect(() => {
+    setDescription(initialDescription);
+    baselineRef.current = initialDescription;
+  }, [initialDescription, connectionId]);
+
+  React.useEffect(() => {
+    if (topology !== 'multi_server') return;
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      setMultiLoading(true);
+      try {
+        const res = await api.get<{ items: AssetSummary[] }>('/assets', {
+          params: { q: multiSearch || undefined, limit: 50, sort: 'name:ASC' },
+        });
+        if (!cancelled) setMultiOptions(res.data.items || []);
+      } catch {
+        if (!cancelled) setMultiOptions([]);
+      } finally {
+        if (!cancelled) setMultiLoading(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [multiSearch, topology]);
+
+  const persistDescription = React.useCallback(
+    async (next: string) => {
+      if (next === baselineRef.current) return;
+      setStatus('saving');
+      setError(null);
+      try {
+        await api.patch(`/connections/${connectionId}`, {
+          description: next.trim().length > 0 ? next : null,
+        });
+        baselineRef.current = next;
+        setStatus('saved');
+        onDescriptionSaved?.(next);
+        setTimeout(() => {
+          setStatus((current) => (current === 'saved' ? 'idle' : current));
+        }, 1500);
+      } catch (e: any) {
+        setStatus('error');
+        setError(getApiErrorMessage(e, t, t('messages.saveConnectionFailed') || 'Failed to save connection'));
+      }
+    },
+    [connectionId, onDescriptionSaved, t],
+  );
+
+  const handleDescriptionChange = (value: string) => {
+    setDescription(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void persistDescription(value);
+    }, NOTES_DEBOUNCE_MS);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const selectedMultiOptions = React.useMemo(() => {
+    return multiServerIds.map((id) => {
+      const fromOptions = multiOptions.find((o) => o.id === id);
+      if (fromOptions) return fromOptions;
+      const fromMap = assetMap[id];
+      if (fromMap) return { id, name: fromMap.name, asset_reference: fromMap.asset_reference || null };
+      return { id, name: id.slice(0, 8), asset_reference: null };
+    });
+  }, [multiServerIds, multiOptions, assetMap]);
+
+  const selectedProtocols = React.useMemo(
+    () => protocolCodes.map((code) => connectionTypes.find((ct) => ct.code === code) || { code, label: code }),
+    [protocolCodes, connectionTypes],
+  );
+
+  const derivationRows = riskMode === 'derived' ? linkedInterfaces : [];
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <Box>
+        <SectionHeader
+          action={
+            status === 'saving' ? (
+              <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>Saving…</Typography>
+            ) : status === 'saved' ? (
+              <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>Saved</Typography>
+            ) : status === 'error' && error ? (
+              <Typography sx={{ fontSize: 11, color: 'error.main' }}>{error}</Typography>
+            ) : null
+          }
+        >
+          Description
+        </SectionHeader>
+        <React.Suspense
+          fallback={
+            <Box
+              sx={(theme) => ({
+                minHeight: 154,
+                maxWidth: 900,
+                border: `1px solid ${theme.palette.kanap.border.default}`,
+                borderRadius: '8px',
+                bgcolor: theme.palette.kanap.bg.composer,
+              })}
+            />
+          }
+        >
+          <MarkdownEditor
+            value={description}
+            onChange={handleDescriptionChange}
+            placeholder="What this connection does, why it exists, special considerations..."
+            minRows={4}
+            maxRows={14}
+            disabled={!canManage}
+            hideToolbarUntilFocus
+            surface
+          />
+        </React.Suspense>
+      </Box>
+
+      <Box>
+        <SectionHeader>Endpoints</SectionHeader>
+        {topology === 'server_to_server' ? (
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 2.5, maxWidth: 760 }}>
+            <ConnectionEndpointPicker
+              label="Source"
+              value={source}
+              disabled={!canManage}
+              initialAssetName={source.asset_id ? assetMap[source.asset_id]?.name || null : null}
+              initialAssetReference={source.asset_id ? assetMap[source.asset_id]?.asset_reference || null : null}
+              onChange={(next) => onEndpointChange('source', next)}
+            />
+            <ConnectionEndpointPicker
+              label="Destination"
+              value={destination}
+              disabled={!canManage}
+              initialAssetName={destination.asset_id ? assetMap[destination.asset_id]?.name || null : null}
+              initialAssetReference={destination.asset_id ? assetMap[destination.asset_id]?.asset_reference || null : null}
+              onChange={(next) => onEndpointChange('destination', next)}
+            />
+          </Box>
+        ) : (
+          <Box sx={{ maxWidth: 760 }}>
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.25 }}>Servers (min 2)</Typography>
+            <Autocomplete
+              size="small"
+              multiple
+              disabled={!canManage}
+              options={multiOptions}
+              loading={multiLoading}
+              getOptionLabel={(opt) => `${opt.asset_reference ? `${opt.asset_reference} · ` : ''}${opt.name}`}
+              isOptionEqualToValue={(opt, val) => opt.id === val.id}
+              value={selectedMultiOptions}
+              onChange={(_, val) => onMultiServerChange(val.map((v) => v.id))}
+              onInputChange={(_, val, reason) => {
+                if (reason !== 'reset') setMultiSearch(val);
+              }}
+              renderTags={(value, getTagProps) =>
+                value.map((opt, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={opt.id}
+                    label={`${opt.asset_reference ? `${opt.asset_reference} · ` : ''}${opt.name}`}
+                    size="small"
+                  />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  variant="standard"
+                  placeholder="Add a server"
+                  InputProps={{ ...params.InputProps, disableUnderline: true }}
+                  sx={{ '& input': { fontSize: 13, padding: '4px 0 !important' } }}
+                />
+              )}
+            />
+            {multiServerIds.length < 2 && (
+              <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>
+                A multi-server connection needs at least two servers.
+              </Typography>
+            )}
+          </Box>
+        )}
+      </Box>
+
+      <Box>
+        <SectionHeader>Protocols</SectionHeader>
+        <Box sx={{ maxWidth: 760 }}>
+          <Autocomplete
+            size="small"
+            multiple
+            disabled={!canManage}
+            options={connectionTypes}
+            getOptionLabel={(opt) => opt.label}
+            isOptionEqualToValue={(opt, val) => opt.code === val.code}
+            value={selectedProtocols}
+            onChange={(_, val) => {
+              const next = val.map((v) => v.code);
+              if (next.length === 0) return;
+              onProtocolCodesChange(next);
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((opt, index) => (
+                <Chip {...getTagProps({ index })} key={opt.code} label={opt.label} size="small" />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="standard"
+                placeholder="Add a protocol"
+                InputProps={{ ...params.InputProps, disableUnderline: true }}
+                sx={{ '& input': { fontSize: 13, padding: '4px 0 !important' } }}
+              />
+            )}
+          />
+        </Box>
+      </Box>
+
+      {riskMode === 'derived' && derivationRows.length > 0 && (
+        <Box>
+          <SectionHeader>
+            Risk derivation ({derivedInterfaceCount} interfaces)
+          </SectionHeader>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Interface</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Criticality</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Data class</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>PII</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {derivationRows.map((row) => (
+                <TableRow key={row.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/it/interfaces/${row.interface_id}/specification`)}>
+                  <TableCell sx={{ fontSize: 13 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography component="span" sx={{ fontSize: 12, fontFamily: "'JetBrains Mono Variable', monospace", color: 'kanap.text.secondary' }}>
+                        {row.interface_code}
+                      </Typography>
+                      <Typography component="span" sx={{ fontSize: 13 }}>{row.interface_name}</Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>
+                    {CRITICALITIES.find((c) => c.code === row.interface_criticality)?.label || row.interface_criticality || '—'}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>
+                    {labelFor('dataClass', row.interface_data_class || '') || row.interface_data_class || '—'}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>{row.interface_contains_pii ? 'Yes' : 'No'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+
+      <Box>
+        <SectionHeader
+          action={
+            canManage ? (
+              <Typography
+                component="button"
+                onClick={() => setLinkDialogOpen(true)}
+                sx={{
+                  fontSize: 12,
+                  color: 'kanap.teal',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 0,
+                }}
+              >
+                <LinkIcon sx={{ fontSize: 14 }} />
+                Link existing
+              </Typography>
+            ) : null
+          }
+        >
+          Linked interfaces ({linkedInterfaces.length})
+        </SectionHeader>
+        {linkedInterfacesLoading && (
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.tertiary' }}>Loading…</Typography>
+        )}
+        {linkedInterfacesError && (
+          <Typography sx={{ fontSize: 13, color: 'error.main' }}>{linkedInterfacesError}</Typography>
+        )}
+        {!linkedInterfacesLoading && !linkedInterfacesError && linkedInterfaces.length === 0 && (
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.tertiary' }}>
+            No interface bindings link to this connection yet.{' '}
+            {canManage && (
+              <Typography
+                component="span"
+                onClick={() => setLinkDialogOpen(true)}
+                sx={{
+                  fontSize: 13,
+                  color: 'kanap.teal',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Link an interface binding
+              </Typography>
+            )}
+          </Typography>
+        )}
+        {unlinkError && (
+          <Typography sx={{ fontSize: 12, color: 'error.main', mb: 0.5 }}>{unlinkError}</Typography>
+        )}
+        {!linkedInterfacesLoading && linkedInterfaces.length > 0 && (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Interface</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Env</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Leg</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Pattern</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Source</TableCell>
+                <TableCell sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' }}>Target</TableCell>
+                <TableCell align="right" sx={{ width: 36, p: 0 }} />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {linkedInterfaces.map((row) => (
+                <TableRow
+                  key={row.id}
+                  hover
+                  sx={{
+                    cursor: 'pointer',
+                    '& .row-unlink': { opacity: 0, transition: 'opacity 120ms ease' },
+                    '&:hover .row-unlink': { opacity: 1 },
+                  }}
+                  onClick={() => navigate(`/it/interfaces/${row.interface_id}/specification`)}
+                >
+                  <TableCell sx={{ fontSize: 13 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography component="span" sx={{ fontSize: 12, fontFamily: "'JetBrains Mono Variable', monospace", color: 'kanap.text.secondary' }}>
+                        {row.interface_code}
+                      </Typography>
+                      <Typography component="span" sx={{ fontSize: 13 }}>{row.interface_name}</Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>{row.environment.toUpperCase()}</TableCell>
+                  <TableCell sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>{row.leg_type.toUpperCase()}</TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>{row.pattern || '—'}</TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>{row.source_endpoint || '—'}</TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>{row.target_endpoint || '—'}</TableCell>
+                  <TableCell align="right" sx={{ p: 0, width: 36 }}>
+                    {canManage && (
+                      <IconButton
+                        className="row-unlink"
+                        size="small"
+                        aria-label="Unlink interface binding"
+                        title="Unlink"
+                        disabled={unlinkingLinkId === row.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleUnlink(row);
+                        }}
+                        sx={{
+                          color: 'kanap.text.tertiary',
+                          '&:hover': { color: 'kanap.danger', bgcolor: 'transparent' },
+                        }}
+                      >
+                        <LinkOffIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Box>
+
+      <Box>
+        <EntityKnowledgePanel entityType="connections" entityId={connectionId} canCreate={canManage} />
+      </Box>
+
+      <ConnectionLinkInterfacesDialog
+        open={linkDialogOpen}
+        connectionId={connectionId}
+        onClose={() => setLinkDialogOpen(false)}
+        onLinked={() => onLinkedInterfacesChanged()}
+      />
+    </Box>
+  );
+}

@@ -4,49 +4,54 @@ import {
   Alert,
   Box,
   Button,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-  LinearProgress,
+  MenuItem,
   Stack,
-  Tab,
-  Tabs,
+  TextField,
   Typography,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-import LocationOverviewEditor, { LocationFormState } from './editors/LocationOverviewEditor';
-import LocationContactsPanel, { LocationContactsPanelHandle } from './editors/LocationContactsPanel';
-import LocationSubItemsPanel, { LocationSubItemsPanelHandle } from './editors/LocationSubItemsPanel';
-import LocationRelationsPanel from './editors/LocationRelationsPanel';
-
-import { useTranslation } from 'react-i18next';
+import PortfolioDetailWorkspaceShell, {
+  type PortfolioDetailWorkspaceTab,
+} from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
+import KanapDialog from '../../components/design/KanapDialog';
+import { PropertyRow } from '../../components/design/PropertyRow';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
+import LocationPropertiesDrawer from './workspace/LocationPropertiesDrawer';
+import LocationMetadataBar from './workspace/LocationMetadataBar';
+import LocationOverviewTab from './workspace/LocationOverviewTab';
+import LocationContactsTab from './workspace/LocationContactsTab';
+import LocationRelationsTab from './workspace/LocationRelationsTab';
+import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
+import { useLocationItemNav } from '../../hooks/useModuleItemNav';
+import {
+  drawerSelectSx,
+  drawerMenuItemSx,
+  drawerFieldValueSx,
+  dialogBorderedFieldSx,
+} from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+
 type TabKey = 'overview' | 'contacts' | 'relations';
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'contacts', label: 'Contacts & Support' },
-  { key: 'relations', label: 'Relations' },
-];
-
-const DEFAULT_LOCATION: LocationFormState = {
-  code: '',
-  name: '',
-  hosting_type: '',
-  operating_company_id: null,
-  country_iso: '',
-  city: '',
-  datacenter: '',
-  provider: '',
-  region: '',
-  additional_info: '',
+type LocationRecord = {
+  id: string;
+  location_reference: string;
+  name: string;
+  hosting_type: string;
+  operating_company_id: string | null;
+  country_iso: string | null;
+  city: string | null;
+  provider: string | null;
+  region: string | null;
+  additional_info: string | null;
 };
+
+type HostingCategory = 'on_prem' | 'cloud';
+
+const TAB_KEYS: TabKey[] = ['overview', 'contacts', 'relations'];
 
 export default function LocationWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
@@ -54,198 +59,129 @@ export default function LocationWorkspacePage() {
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const idParam = String(params.id || '');
-  const tab = (params.tab as TabKey) || 'overview';
-  const isCreate = idParam === 'new';
-  const locationId = idParam;
-
-  const [overviewData, setOverviewData] = React.useState<LocationFormState>({ ...DEFAULT_LOCATION });
-  const [baselineData, setBaselineData] = React.useState<LocationFormState>({ ...DEFAULT_LOCATION });
-  const [loading, setLoading] = React.useState(!isCreate);
-  const [saving, setSaving] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
-  const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [saveError, setSaveError] = React.useState<string | null>(null);
-  const [deleteError, setDeleteError] = React.useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [contactsDirty, setContactsDirty] = React.useState(false);
-  const [subItemsDirty, setSubItemsDirty] = React.useState(false);
-  const contactsRef = React.useRef<LocationContactsPanelHandle>(null);
-  const subItemsRef = React.useRef<LocationSubItemsPanelHandle>(null);
+  const routeId = String(params.id || '');
+  const isCreate = routeId === 'new';
+  const isLocationReferenceRoute = /^LOC-\d+(?:-.+)?$/i.test(routeId);
+  const rawTab = (params.tab as TabKey) || 'overview';
+  const validTab: TabKey = TAB_KEYS.includes(rawTab) ? rawTab : 'overview';
 
   const canManage = hasLevel('locations', 'member');
   const canDelete = hasLevel('locations', 'member');
 
-  const normalize = React.useCallback((form: LocationFormState) => {
-    return {
-      code: form.code || '',
-      name: form.name || '',
-      hosting_type: form.hosting_type || '',
-      operating_company_id: form.operating_company_id || null,
-      country_iso: (form.country_iso || '').toUpperCase(),
-      city: form.city || '',
-      datacenter: form.datacenter || '',
-      provider: form.provider || '',
-      region: form.region || '',
-      additional_info: form.additional_info || '',
-    };
-  }, []);
+  const { settings, byField } = useItOpsEnumOptions();
+  const hostingOptions = byField.hostingType || [];
 
-  const overviewDirty = React.useMemo(() => {
-    return JSON.stringify(normalize(overviewData)) !== JSON.stringify(normalize(baselineData));
-  }, [normalize, overviewData, baselineData]);
+  const [data, setData] = React.useState<LocationRecord | null>(null);
+  const [loading, setLoading] = React.useState(!isCreate);
+  const [error, setError] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [operatingCompanyName, setOperatingCompanyName] = React.useState<string | null>(null);
+  const [subLocationsCount, setSubLocationsCount] = React.useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [pendingHostingType, setPendingHostingType] = React.useState<string | null>(null);
 
-  const dirty = overviewDirty || contactsDirty || subItemsDirty;
+  // Create state
+  const [createName, setCreateName] = React.useState('');
+  const [createHostingType, setCreateHostingType] = React.useState<string>('');
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [createError, setCreateError] = React.useState<string | null>(null);
+
+  const subItemsAnchorRef = React.useRef<HTMLDivElement>(null);
+  const locationId = React.useMemo(() => {
+    if (isCreate) return '';
+    if (data?.id) return data.id;
+    return isLocationReferenceRoute ? '' : routeId;
+  }, [data?.id, isCreate, isLocationReferenceRoute, routeId]);
+  const workspaceRouteId = data?.location_reference || (isCreate ? 'new' : routeId);
+  const routeMatchesLoadedLocation = React.useMemo(() => {
+    if (isCreate || !data) return false;
+    if (routeId === data.id) return true;
+    const routeKey = routeId.toUpperCase();
+    const reference = data.location_reference?.toUpperCase();
+    return !!reference && (routeKey === reference || routeKey.startsWith(`${reference}-`));
+  }, [data, isCreate, routeId]);
+
+  const getHostingCategory = React.useCallback(
+    (hostingType: string | null | undefined): HostingCategory => {
+      if (!hostingType) return 'cloud';
+      const opt = settings?.hostingTypes?.find((item) => item.code === hostingType);
+      return opt?.category === 'on_prem' ? 'on_prem' : 'cloud';
+    },
+    [settings?.hostingTypes],
+  );
+
+  React.useEffect(() => {
+    if (isCreate && !createHostingType && hostingOptions.length > 0) {
+      setCreateHostingType(hostingOptions[0].code);
+    }
+  }, [isCreate, createHostingType, hostingOptions]);
 
   const load = React.useCallback(async () => {
-    if (isCreate) {
-      setOverviewData({ ...DEFAULT_LOCATION });
-      setBaselineData({ ...DEFAULT_LOCATION });
-      setLoading(false);
-      setLoadError(null);
-      return;
-    }
+    if (isCreate || !routeId) return;
     setLoading(true);
-    setLoadError(null);
+    setError(null);
     try {
-      const res = await api.get(`/locations/${locationId}`);
-      const payload = res.data as any;
-      const mapped: LocationFormState = {
-        code: payload.code || '',
-        name: payload.name || '',
-        hosting_type: payload.hosting_type || '',
-        operating_company_id: payload.operating_company_id || null,
-        country_iso: (payload.country_iso || '').toString().toUpperCase(),
-        city: payload.city || '',
-        datacenter: payload.datacenter || '',
-        provider: payload.provider || '',
-        region: payload.region || '',
-        additional_info: payload.additional_info || '',
-      };
-      setOverviewData(mapped);
-      setBaselineData(mapped);
+      const res = await api.get(`/locations/${routeId}`);
+      const payload = res.data as LocationRecord;
+      setData(payload);
+      if (payload.operating_company_id) {
+        try {
+          const companyRes = await api.get(`/companies/${payload.operating_company_id}`);
+          setOperatingCompanyName((companyRes.data as any)?.name || null);
+        } catch {
+          setOperatingCompanyName(null);
+        }
+      } else {
+        setOperatingCompanyName(null);
+      }
     } catch (e: any) {
-      const msg = getApiErrorMessage(e, t, t('messages.loadLocationFailed'));
-      setLoadError(msg);
+      setError(getApiErrorMessage(e, t, t('messages.loadLocationFailed')));
     } finally {
       setLoading(false);
     }
-  }, [isCreate, locationId]);
+  }, [isCreate, routeId, t]);
 
   React.useEffect(() => { void load(); }, [load]);
 
-  const toPayload = React.useCallback((form: LocationFormState) => {
-    const trimText = (value: string) => {
-      const v = value ?? '';
-      return v.trim();
-    };
-    return {
-      code: trimText(form.code),
-      name: trimText(form.name),
-      hosting_type: form.hosting_type,
-      operating_company_id: form.operating_company_id || null,
-      country_iso: trimText(form.country_iso).toUpperCase() || null,
-      city: trimText(form.city) || null,
-      datacenter: trimText(form.datacenter) || null,
-      provider: trimText(form.provider) || null,
-      region: trimText(form.region) || null,
-      additional_info: trimText(form.additional_info) || null,
-    };
-  }, []);
+  React.useEffect(() => {
+    if (isCreate || !data?.location_reference) return;
+    if (!routeMatchesLoadedLocation) return;
+    if (routeId.toUpperCase() === data.location_reference.toUpperCase()) return;
+    const qs = searchParams.toString();
+    navigate(`/it/locations/${data.location_reference}/${validTab}${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [data?.location_reference, isCreate, navigate, routeId, routeMatchesLoadedLocation, searchParams, validTab]);
 
-  const handleSaveOverview = async () => {
-    const payload = toPayload(overviewData);
-    if (!payload.code) {
-      setSaveError('Code is required.');
-      return;
+  React.useEffect(() => {
+    let cancelled = false;
+    if (locationId) {
+      api.get(`/locations/${locationId}/sub-items`).then((res) => {
+        if (!cancelled) setSubLocationsCount(((res.data || []) as unknown[]).length);
+      }).catch(() => {
+        if (!cancelled) setSubLocationsCount(0);
+      });
     }
-    if (!payload.name) {
-      setSaveError('Name is required.');
-      return;
-    }
-    if (!payload.hosting_type) {
-      setSaveError('Hosting type is required.');
-      return;
-    }
-    setSaving(true);
-    setSaveError(null);
-    setDeleteError(null);
-    try {
-      if (isCreate) {
-        const res = await api.post('/locations', payload);
-        const saved = res.data as any;
-        const mapped: LocationFormState = {
-          code: saved.code || '',
-          name: saved.name || '',
-          hosting_type: saved.hosting_type || '',
-          operating_company_id: saved.operating_company_id || null,
-          country_iso: (saved.country_iso || '').toString().toUpperCase(),
-          city: saved.city || '',
-          datacenter: saved.datacenter || '',
-          provider: saved.provider || '',
-          region: saved.region || '',
-          additional_info: saved.additional_info || '',
-        };
-        const sp = new URLSearchParams(searchParams);
-        navigate(`/it/locations/${saved.id}/overview${sp.toString() ? `?${sp.toString()}` : ''}`, { replace: true });
-        setOverviewData(mapped);
-        setBaselineData(mapped);
-      } else {
-        const res = await api.patch(`/locations/${locationId}`, payload);
-        const saved = res.data as any;
-        const mapped: LocationFormState = {
-          code: saved.code || '',
-          name: saved.name || '',
-          hosting_type: saved.hosting_type || '',
-          operating_company_id: saved.operating_company_id || null,
-          country_iso: (saved.country_iso || '').toString().toUpperCase(),
-          city: saved.city || '',
-          datacenter: saved.datacenter || '',
-          provider: saved.provider || '',
-          region: saved.region || '',
-          additional_info: saved.additional_info || '',
-        };
-        setOverviewData(mapped);
-        setBaselineData(mapped);
-      }
-    } catch (e: any) {
-      const msg = getApiErrorMessage(e, t, t('messages.saveLocationFailed'));
-      setSaveError(msg);
-      throw e;
-    } finally {
-      setSaving(false);
-    }
-  };
+    return () => { cancelled = true; };
+  }, [locationId]);
 
-  const handleSave = async () => {
-    if (!canManage) return;
-    if (tab === 'overview') {
-      await handleSaveOverview();
-      if (!isCreate) {
-        try {
-          await subItemsRef.current?.save();
-        } catch {
-          // error handled inside panel
-        }
-      }
-    } else if (tab === 'contacts' && !isCreate) {
+  const patchLocation = React.useCallback(
+    async (patch: Partial<LocationRecord>) => {
+      if (!locationId) return;
+      setSaving(true);
+      setData((prev) => (prev ? { ...prev, ...patch } as LocationRecord : prev));
       try {
-        await contactsRef.current?.save();
-      } catch {
-        // error handled inside panel
+        const res = await api.patch(`/locations/${locationId}`, patch);
+        setData(res.data as LocationRecord);
+        setError(null);
+      } catch (e: any) {
+        setError(getApiErrorMessage(e, t, t('messages.saveLocationFailed')));
+        await load();
+      } finally {
+        setSaving(false);
       }
-    }
-  };
-
-  const handleReset = () => {
-    if (tab === 'overview') {
-      setOverviewData(baselineData);
-      setSaveError(null);
-      subItemsRef.current?.reset();
-    } else if (tab === 'contacts') {
-      contactsRef.current?.reset();
-    }
-  };
+    },
+    [load, locationId, t],
+  );
 
   const listContextParams = React.useMemo(() => {
     const sp = new URLSearchParams();
@@ -258,159 +194,400 @@ export default function LocationWorkspacePage() {
     return sp;
   }, [searchParams]);
 
-  const navigateWithTab = (nextTab: TabKey) => {
-    const qs = searchParams.toString();
-    navigate(`/it/locations/${locationId}/${nextTab}${qs ? `?${qs}` : ''}`);
-  };
-
-  const handleTabChange = (_: React.SyntheticEvent, nextTab: TabKey) => {
-    if (tab === nextTab) return;
-    if (dirty) {
-      const confirmLeave = window.confirm(t('confirmations.unsavedContinue'));
-      if (!confirmLeave) {
-        return;
-      }
-    }
-    navigateWithTab(nextTab);
-  };
-
-  const closeToList = () => {
+  const handleClose = React.useCallback(() => {
     const qs = listContextParams.toString();
     navigate(`/it/locations${qs ? `?${qs}` : ''}`);
-  };
+  }, [listContextParams, navigate]);
 
-  const handleOpenDeleteDialog = () => {
-    if (isCreate || !canDelete || deleting) return;
-    setDeleteError(null);
-    setDeleteDialogOpen(true);
-  };
+  const handleTabChange = React.useCallback(
+    (nextTab: string) => {
+      if (nextTab === validTab) return;
+      const qs = searchParams.toString();
+      const targetId = workspaceRouteId;
+      navigate(`/it/locations/${targetId}/${nextTab}${qs ? `?${qs}` : ''}`);
+    },
+    [navigate, searchParams, validTab, workspaceRouteId],
+  );
 
-  const handleCloseDeleteDialog = () => {
-    if (deleting) return;
-    setDeleteDialogOpen(false);
-  };
+  const handleTitleSave = React.useCallback(
+    (next: string) => {
+      const trimmed = next.trim();
+      if (!trimmed || !data || trimmed === data.name) return;
+      void patchLocation({ name: trimmed });
+    },
+    [data, patchLocation],
+  );
 
-  const handleDeleteLocation = async () => {
-    if (isCreate || !canDelete) return;
-    setDeleting(true);
-    setDeleteError(null);
+  const handleHostingTypeChange = React.useCallback(
+    (next: string) => {
+      if (!data || next === data.hosting_type) return;
+      const prevCategory = getHostingCategory(data.hosting_type);
+      const nextCategory = getHostingCategory(next);
+      if (prevCategory !== nextCategory) {
+        setPendingHostingType(next);
+        return;
+      }
+      void patchLocation({ hosting_type: next });
+    },
+    [data, getHostingCategory, patchLocation],
+  );
+
+  const handleConfirmHostingBascule = React.useCallback(async () => {
+    if (!pendingHostingType) return;
+    const next = pendingHostingType;
+    setPendingHostingType(null);
+    await patchLocation({ hosting_type: next });
+  }, [patchLocation, pendingHostingType]);
+
+  const handleOperatingCompanyChange = React.useCallback(
+    async (companyId: string | null) => {
+      if (!data) return;
+      if (companyId === data.operating_company_id) return;
+      void patchLocation({ operating_company_id: companyId });
+      if (companyId) {
+        try {
+          const res = await api.get(`/companies/${companyId}`);
+          setOperatingCompanyName((res.data as any)?.name || null);
+        } catch {
+          setOperatingCompanyName(null);
+        }
+      } else {
+        setOperatingCompanyName(null);
+      }
+    },
+    [data, patchLocation],
+  );
+
+  const handleProviderChange = React.useCallback(
+    (next: string) => {
+      if (!data) return;
+      const cleaned = (next || '').trim() || null;
+      if (cleaned === data.provider) return;
+      void patchLocation({ provider: cleaned });
+    },
+    [data, patchLocation],
+  );
+
+  const handleRegionChange = React.useCallback(
+    (next: string) => {
+      if (!data) return;
+      const cleaned = (next || '').trim() || null;
+      if (cleaned === data.region) return;
+      void patchLocation({ region: cleaned });
+    },
+    [data, patchLocation],
+  );
+
+  const handleCountryChange = React.useCallback(
+    (iso: string) => {
+      if (!data) return;
+      const cleaned = (iso || '').toUpperCase() || null;
+      if (cleaned === data.country_iso) return;
+      void patchLocation({ country_iso: cleaned });
+    },
+    [data, patchLocation],
+  );
+
+  const handleCityChange = React.useCallback(
+    (next: string) => {
+      if (!data) return;
+      const cleaned = (next || '').trim() || null;
+      if (cleaned === data.city) return;
+      void patchLocation({ city: cleaned });
+    },
+    [data, patchLocation],
+  );
+
+  const handleCreate = async () => {
+    if (!canManage) return;
+    const name = createName.trim();
+    if (!name) {
+      setCreateError('Name is required.');
+      return;
+    }
+    if (!createHostingType) {
+      setCreateError('Hosting type is required.');
+      return;
+    }
+    setCreateSubmitting(true);
+    setCreateError(null);
     try {
-      await api.delete(`/locations/${locationId}`);
-      setDeleteDialogOpen(false);
-      closeToList();
+      const res = await api.post('/locations', {
+        name,
+        hosting_type: createHostingType,
+      });
+      const saved = res.data as LocationRecord;
+      navigate(`/it/locations/${saved.location_reference || saved.id}/overview`, { replace: true });
     } catch (e: any) {
-      const msg = getApiErrorMessage(e, t, t('messages.deleteLocationFailed'));
-      setDeleteError(msg);
+      setCreateError(getApiErrorMessage(e, t, t('messages.saveLocationFailed')));
     } finally {
-      setDeleting(false);
+      setCreateSubmitting(false);
     }
   };
 
-  const saveDisabled = !dirty || !canManage || saving || deleting;
+  const handleDelete = async () => {
+    if (!locationId || !canDelete) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/locations/${locationId}`);
+      handleClose();
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.deleteLocationFailed')));
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const navSort = searchParams.get('sort') || '';
+  const navQ = searchParams.get('q') || '';
+  const navFilters = searchParams.get('filters') || '';
+  const navState = useLocationItemNav({
+    id: locationId,
+    sort: navSort,
+    q: navQ,
+    filters: navFilters,
+  });
+  const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate || !locationId
+    ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as string | null, nextId: null as string | null }
+    : navState;
+
+  const goToLocation = React.useCallback(
+    (targetId: string | null) => {
+      if (!targetId) return;
+      const qs = searchParams.toString();
+      navigate(`/it/locations/${targetId}/${validTab}${qs ? `?${qs}` : ''}`);
+    },
+    [navigate, searchParams, validTab],
+  );
+
+  const handleScrollToSubLocations = () => {
+    if (validTab !== 'overview') {
+      handleTabChange('overview');
+      setTimeout(() => {
+        subItemsAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return;
+    }
+    subItemsAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const workspaceTabs: PortfolioDetailWorkspaceTab[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'contacts', label: 'Contacts', disabled: isCreate },
+    { key: 'relations', label: 'Relations', disabled: isCreate },
+  ];
+
+  const title = isCreate
+    ? createName
+    : data?.name || '';
+
+  const category: HostingCategory = data ? getHostingCategory(data.hosting_type) : 'cloud';
+
+  const drawerProperties = data ? (
+    <LocationPropertiesDrawer
+      data={{
+        hosting_type: data.hosting_type,
+        operating_company_id: data.operating_company_id,
+        provider: data.provider,
+        region: data.region,
+        country_iso: data.country_iso,
+        city: data.city,
+      }}
+      category={category}
+      disabled={!canManage || saving}
+      onHostingTypeChange={handleHostingTypeChange}
+      onOperatingCompanyChange={handleOperatingCompanyChange}
+      onProviderChange={handleProviderChange}
+      onRegionChange={handleRegionChange}
+      onCountryChange={handleCountryChange}
+      onCityChange={handleCityChange}
+    />
+  ) : (
+    <Box />
+  );
+
+  const metadata = !isCreate && data ? (
+    <LocationMetadataBar
+      hostingType={data.hosting_type}
+      category={category}
+      operatingCompanyId={data.operating_company_id}
+      operatingCompanyName={operatingCompanyName}
+      provider={data.provider}
+      region={data.region}
+      countryIso={data.country_iso}
+      city={data.city}
+      subLocationsCount={subLocationsCount}
+      disabled={!canManage || saving}
+      onHostingTypeChange={handleHostingTypeChange}
+      onOperatingCompanyChange={handleOperatingCompanyChange}
+      onProviderChange={handleProviderChange}
+      onRegionChange={handleRegionChange}
+      onCountryChange={handleCountryChange}
+      onCityChange={handleCityChange}
+      onSubLocationsClick={handleScrollToSubLocations}
+    />
+  ) : undefined;
+
+  const actions = (
+    <>
+      {isCreate && (
+        <Button
+          variant="contained"
+          onClick={() => void handleCreate()}
+          disabled={createSubmitting || !canManage}
+          size="small"
+        >
+          Create
+        </Button>
+      )}
+      {!isCreate && data && (
+        <SendLinkButton
+          itemType="location"
+          itemId={data.id}
+          itemRef={data.location_reference || null}
+          itemName={data.name || 'Untitled location'}
+        />
+      )}
+      {!isCreate && canDelete && (
+        <Button
+          variant="action-danger"
+          startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />}
+          size="small"
+          onClick={() => setDeleteDialogOpen(true)}
+          disabled={deleting}
+        >
+          Delete
+        </Button>
+      )}
+    </>
+  );
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Stack>
-          <Typography variant="h6">{isCreate ? 'New Location' : overviewData.name || 'Location'}</Typography>
-        </Stack>
-        <Stack direction="row" spacing={1} alignItems="center">
-          {canDelete && !isCreate && (
-            <Button color="error" onClick={handleOpenDeleteDialog} disabled={saving || deleting}>
-              Delete
-            </Button>
-          )}
-          <Button onClick={handleReset} disabled={!dirty || deleting}>{t('common:buttons.reset')}</Button>
-          <Button variant="contained" onClick={() => void handleSave()} disabled={saveDisabled}>
-            Save
-          </Button>
-          <IconButton onClick={closeToList}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </Stack>
-      {(loading || saving || deleting) && <LinearProgress />}
-      {loadError && <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>}
-      {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
-      {deleteError && <Alert severity="error" sx={{ mb: 2 }}>{deleteError}</Alert>}
-      <Divider sx={{ mb: 2 }} />
-      <Box sx={{ display: 'flex', minHeight: 400 }}>
-        <Tabs
-          orientation="vertical"
-          value={tab}
-          onChange={handleTabChange}
-          sx={{ borderRight: 1, borderColor: 'divider', minWidth: 160 }}
-        >
-          {tabs.map((t) => (
-            <Tab
-              key={t.key}
-              value={t.key}
-              label={t.label}
-              disabled={(isCreate && t.key !== 'overview') || (t.key === 'contacts' && isCreate)}
-            />
-          ))}
-        </Tabs>
-        <Box sx={{ flex: 1, pl: 3 }}>
-          {tab === 'overview' && (
-            <>
-              <LocationOverviewEditor
-                data={overviewData}
-                onChange={(patch) => {
-                  setOverviewData((prev) => ({ ...prev, ...patch }));
-                }}
-                readOnly={!canManage}
-                disabled={loading}
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {error && <Alert severity="error" sx={{ mx: 2, mt: 1 }} onClose={() => setError(null)}>{error}</Alert>}
+      <PortfolioDetailWorkspaceShell
+        activeTab={validTab}
+        tabs={workspaceTabs}
+        onTabChange={handleTabChange}
+        drawerStorageKey="kanap.locations.drawerOpen"
+        backLabel="Locations"
+        onBack={handleClose}
+        itemReference={!isCreate ? data?.location_reference || null : null}
+        onCopyReference={
+          !isCreate && data?.location_reference
+            ? () => { void navigator.clipboard?.writeText(data.location_reference); }
+            : undefined
+        }
+        title={title}
+        titleFallback={isCreate ? 'New location' : 'Untitled location'}
+        canEditTitle={canManage && !isCreate}
+        onTitleSave={handleTitleSave}
+        isCreate={isCreate}
+        nav={!isCreate && total > 0 ? {
+          currentIndex: index + 1,
+          totalCount: total,
+          hasPrev,
+          hasNext,
+          onPrev: () => goToLocation(prevId),
+          onNext: () => goToLocation(nextId),
+          previousLabel: 'Previous location',
+          nextLabel: 'Next location',
+        } : undefined}
+        metadata={metadata}
+        actions={actions}
+        properties={drawerProperties}
+      >
+        {isCreate ? (
+          <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
+            <PropertyRow label="Name" required valueSx={{ maxWidth: 520 }}>
+              <TextField
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="e.g., Operations Center Paris"
+                required
+                size="small"
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
               />
-              <Box sx={{ mt: 3 }}>
-                {isCreate ? (
-                  <Alert severity="info">Sub-locations are available after you create the location.</Alert>
-                ) : (
-                  <LocationSubItemsPanel
-                    id={locationId}
-                    ref={subItemsRef}
-                    onDirtyChange={(d) => setSubItemsDirty(d)}
-                  />
-                )}
-              </Box>
-            </>
-          )}
-          {tab === 'contacts' && !isCreate && (
-            <LocationContactsPanel
-              id={locationId}
-              ref={contactsRef}
-              onDirtyChange={(d) => setContactsDirty(d)}
-            />
-          )}
-          {tab === 'contacts' && isCreate && (
-            <Alert severity="info">Contacts are available after you create the location.</Alert>
-          )}
-          {tab === 'relations' && !isCreate && <LocationRelationsPanel id={locationId} />}
-          {tab === 'relations' && isCreate && (
-            <Alert severity="info">Relations are available after you create the location.</Alert>
-          )}
-        </Box>
-      </Box>
-      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Delete location?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
+            </PropertyRow>
+            <PropertyRow label="Hosting type" required valueSx={{ maxWidth: 520 }}>
+              <TextField
+                select
+                value={createHostingType}
+                onChange={(e) => setCreateHostingType(e.target.value)}
+                size="small"
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              >
+                {hostingOptions.map((opt) => (
+                  <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>
+                    {opt.deprecated ? `${opt.label} (deprecated)` : opt.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </PropertyRow>
+            {createError && <Alert severity="error">{createError}</Alert>}
+          </Stack>
+        ) : !data ? null : (
+          <>
+            {validTab === 'overview' && (
+              <LocationOverviewTab
+                locationId={data.id}
+                initialNotes={data.additional_info || ''}
+                canManage={canManage}
+                onSubLocationsCountChange={setSubLocationsCount}
+                subItemsAnchorRef={subItemsAnchorRef}
+              />
+            )}
+            {validTab === 'contacts' && (
+              <LocationContactsTab locationId={data.id} canManage={canManage} />
+            )}
+            {validTab === 'relations' && (
+              <LocationRelationsTab locationId={data.id} />
+            )}
+          </>
+        )}
+      </PortfolioDetailWorkspaceShell>
+
+      <KanapDialog
+        open={deleteDialogOpen}
+        title="Delete location?"
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+        onSave={handleDelete}
+        saveLabel="Delete"
+        saveDisabled={deleting}
+        saveLoading={deleting}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
             This will permanently delete this location and automatically unassign all linked assets.
-          </DialogContentText>
-          {dirty && (
-            <DialogContentText sx={{ mt: 1 }}>
-              You also have unsaved changes in this workspace. Those changes will be lost.
-            </DialogContentText>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button color="error" variant="contained" onClick={() => void handleDeleteLocation()} disabled={deleting}>
-            {t('common:buttons.delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </Box>
+        </Stack>
+      </KanapDialog>
+
+      <KanapDialog
+        open={!!pendingHostingType}
+        title="Change hosting category?"
+        onClose={() => setPendingHostingType(null)}
+        onSave={handleConfirmHostingBascule}
+        saveLabel="Continue"
+        saveDisabled={saving}
+        saveLoading={saving}
+      >
+        <Stack spacing={1}>
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
+            {pendingHostingType && data && getHostingCategory(pendingHostingType) === 'on_prem'
+              ? 'Switching to an on-prem hosting type will clear the cloud provider and region.'
+              : 'Switching to a cloud hosting type will clear the operating company.'}
+          </Typography>
+          <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+            This change saves automatically once confirmed.
+          </Typography>
+        </Stack>
+      </KanapDialog>
     </Box>
   );
 }

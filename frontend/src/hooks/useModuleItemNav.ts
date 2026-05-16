@@ -306,3 +306,25 @@ export function useApplicationItemNav(params: ModuleItemNavParams): ModuleItemNa
     defaultSort: 'name:ASC',
   });
 }
+
+/**
+ * Location item navigation
+ */
+export function useLocationItemNav(params: ModuleItemNavParams): ModuleItemNavResult {
+  return useModuleItemNav(params, {
+    endpoint: '/locations/ids',
+    queryKey: 'locations-ids',
+    defaultSort: 'location_reference:ASC',
+  });
+}
+
+/**
+ * Connection item navigation
+ */
+export function useConnectionItemNav(params: ModuleItemNavParams): ModuleItemNavResult {
+  return useModuleItemNav(params, {
+    endpoint: '/connections/ids',
+    queryKey: 'connections-ids',
+    defaultSort: 'connection_reference:ASC',
+  });
+}

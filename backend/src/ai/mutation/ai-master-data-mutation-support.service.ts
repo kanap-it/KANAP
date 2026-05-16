@@ -296,7 +296,6 @@ const ENTITY_CONFIG: Record<AiMasterDataEntityType, EntityConfig> = {
     labelPlural: 'locations',
     businessResource: 'locations',
     fields: {
-      code: { label: 'Code', kind: 'text', requiredOnCreate: true },
       name: { label: 'Name', kind: 'text', requiredOnCreate: true },
       hosting_type: { label: 'Hosting Type', kind: 'text', requiredOnCreate: true },
       operating_company_id: {
@@ -308,7 +307,6 @@ const ENTITY_CONFIG: Record<AiMasterDataEntityType, EntityConfig> = {
       },
       country_iso: { label: 'Country', kind: 'upper2', nullable: true, aliases: ['country'] },
       city: { label: 'City', kind: 'text', nullable: true },
-      datacenter: { label: 'Datacenter', kind: 'text', nullable: true },
       provider: { label: 'Provider', kind: 'text', nullable: true },
       region: { label: 'Region', kind: 'text', nullable: true },
       additional_info: { label: 'Additional Info', kind: 'text', nullable: true },
@@ -883,8 +881,8 @@ export class AiMasterDataMutationSupportService {
           SELECT *
           FROM locations
           WHERE tenant_id = $1
-            AND (LOWER(code) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(CONCAT(code, ' - ', name)) = LOWER($2::text))
-          ORDER BY code
+            AND (LOWER(location_reference) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(CONCAT(location_reference, ' - ', name)) = LOWER($2::text))
+          ORDER BY location_reference
           LIMIT 6
           `,
           [tenantId, ref],

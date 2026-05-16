@@ -144,6 +144,8 @@ function createService(options?: {
   queryRunner?: any;
 }) {
   const previews = [...(options?.previews || [createStatusPreview()])];
+  const plans: any[] = [];
+  const planSteps: any[] = [];
   const saved: any[] = [];
   const taskCreates: any[] = [];
   const taskUpdates: any[] = [];
@@ -174,10 +176,30 @@ function createService(options?: {
     create: (payload: any) => ({ id: `preview-${previews.length + 1}`, ...payload }),
     find: async (opts: any) => {
       const createdAtOrder = opts?.order?.created_at;
+      const expectedStatuses = Array.isArray(opts.where.status?.value)
+        ? opts.where.status.value
+        : Array.isArray(opts.where.status?._value)
+          ? opts.where.status._value
+          : Array.isArray(opts.where.status)
+            ? opts.where.status
+            : opts.where.status
+              ? [opts.where.status]
+              : null;
+      const expectedToolNames = Array.isArray(opts.where.tool_name?.value)
+        ? opts.where.tool_name.value
+        : Array.isArray(opts.where.tool_name?._value)
+          ? opts.where.tool_name._value
+          : Array.isArray(opts.where.tool_name)
+            ? opts.where.tool_name
+            : opts.where.tool_name
+              ? [opts.where.tool_name]
+              : null;
       const rows = previews.filter((preview) =>
         preview.tenant_id === opts.where.tenant_id
         && preview.conversation_id === opts.where.conversation_id
-        && preview.user_id === opts.where.user_id,
+        && preview.user_id === opts.where.user_id
+        && (!expectedStatuses || expectedStatuses.includes(preview.status))
+        && (!expectedToolNames || expectedToolNames.includes(preview.tool_name)),
       );
       rows.sort((left, right) => {
         const diff = left.created_at.getTime() - right.created_at.getTime();
@@ -232,9 +254,91 @@ function createService(options?: {
     },
   };
 
+  const planRepo = {
+    findOne: async ({ where }: any) =>
+      plans.find((plan) =>
+        (!where.id || plan.id === where.id)
+        && plan.tenant_id === where.tenant_id
+        && (!where.user_id || plan.user_id === where.user_id),
+      ) ?? null,
+    find: async ({ where, order }: any) => {
+      const rows = plans.filter((plan) =>
+        plan.tenant_id === where.tenant_id
+        && (!where.conversation_id || plan.conversation_id === where.conversation_id)
+        && (!where.status || plan.status === where.status),
+      );
+      if (order?.created_at) {
+        rows.sort((left, right) => {
+          const diff = left.created_at.getTime() - right.created_at.getTime();
+          return order.created_at === 'DESC' ? -diff : diff;
+        });
+      }
+      return rows;
+    },
+    save: async (record: any) => {
+      const savedRecord = {
+        id: record.id ?? `plan-${plans.length + 1}`,
+        ...record,
+      };
+      const index = plans.findIndex((plan) => plan.id === savedRecord.id);
+      if (index >= 0) {
+        plans[index] = savedRecord;
+      } else {
+        plans.push(savedRecord);
+      }
+      return savedRecord;
+    },
+    create: (payload: any) => payload,
+  };
+
+  const planStepRepo = {
+    findOne: async ({ where }: any) =>
+      planSteps.find((step) =>
+        (!where.id || step.id === where.id)
+        && step.tenant_id === where.tenant_id
+        && (!where.preview_id || step.preview_id === where.preview_id)
+        && (!where.user_id || step.user_id === where.user_id),
+      ) ?? null,
+    find: async ({ where, order }: any) => {
+      const rows = planSteps.filter((step) =>
+        step.tenant_id === where.tenant_id
+        && (!where.plan_id || step.plan_id === where.plan_id)
+        && (!where.preview_id || step.preview_id === where.preview_id)
+        && (!where.user_id || step.user_id === where.user_id)
+        && (!where.status || step.status === where.status),
+      );
+      if (order?.created_at) {
+        rows.sort((left, right) => {
+          const diff = left.created_at.getTime() - right.created_at.getTime();
+          return order.created_at === 'DESC' ? -diff : diff;
+        });
+      }
+      return rows;
+    },
+    save: async (record: any) => {
+      const savedRecord = {
+        id: record.id ?? `plan-step-${planSteps.length + 1}`,
+        ...record,
+      };
+      const index = planSteps.findIndex((step) => step.id === savedRecord.id);
+      if (index >= 0) {
+        planSteps[index] = savedRecord;
+      } else {
+        planSteps.push(savedRecord);
+      }
+      return savedRecord;
+    },
+    create: (payload: any) => payload,
+  };
+
   const manager = {
     queryRunner: options?.queryRunner,
-    getRepository: (entity?: any) => (entity?.name === 'Task' ? taskRepo : previewRepo),
+    getRepository: (entity?: any) => {
+      if (entity?.name === 'Task') return taskRepo;
+      if (entity?.name === 'AiMutationPlan') return planRepo;
+      if (entity?.name === 'AiMutationPlanStep') return planStepRepo;
+      return previewRepo;
+    },
     query: async (sql: string, params?: any[]) => {
       for (const response of options?.sqlResponses || []) {
         if (!sql.includes(response.pattern)) {
@@ -515,6 +619,8 @@ function createService(options?: {
 
   const service = new AiMutationPreviewService(
     { manager } as any,
+    { manager } as any,
+    { manager } as any,
     policy as any,
     operations,
   );
@@ -530,6 +636,8 @@ function createService(options?: {
     documentLocksAcquired,
     documentLocksReleased,
     businessPermissionChecks,
+    plans,
+    planSteps,
     context: {
       tenantId: 'tenant-1',
       userId: options?.contextUserId ?? 'user-1',
@@ -569,6 +677,372 @@ async function testCreatePreviewPersistsCorrectData() {
   assert.equal(saved[0].mutation_input.status, 'done');
   assert.equal(saved[0].current_values.status, 'open');
   assert.equal(saved[0].conversation_id, 'conv-1');
+}
+
+async function testCreatePreviewAllowsMultiplePendingPreviewsInConversation() {
+  const { service, context } = createService({
+    previews: [],
+    taskRow: {
+      id: 'task-1',
+      item_number: 42,
+      title: 'Fix login bug',
+      status: 'open',
+      assignee_user_id: null,
+      assignee_label: null,
+    },
+  });
+
+  const first = await service.createPreview(context, 'update_task_status', {
+    ref: 'T-42',
+    status: 'in_progress',
+  });
+  const second = await service.createPreview(context, 'update_task_status', {
+    ref: 'T-42',
+    status: 'done',
+  });
+
+  assert.equal(first.status, 'pending');
+  assert.equal(second.status, 'pending');
+  assert.notEqual(first.preview_id, second.preview_id);
+}
+
+async function testCreatePreviewReusesEquivalentPendingPreviewInConversation() {
+  const { service, context, saved } = createService({
+    previews: [],
+    taskRow: {
+      id: 'task-1',
+      item_number: 42,
+      title: 'Fix login bug',
+      status: 'open',
+      assignee_user_id: null,
+      assignee_label: null,
+    },
+  });
+
+  const first = await service.createPreview(context, 'update_task_status', {
+    ref: 'T-42',
+    status: 'done',
+  });
+  const second = await service.createPreview(context, 'update_task_status', {
+    ref: 'T-42',
+    status: 'done',
+  });
+
+  assert.equal(first.status, 'pending');
+  assert.equal(second.status, 'pending');
+  assert.equal(first.preview_id, second.preview_id);
+  assert.equal(saved.length, 1);
+}
+
+async function testMutationPlanCreatesDependentPreviewAfterApproval() {
+  const { service, context, planSteps } = createService({
+    previews: [],
+    taskRow: {
+      id: '11111111-1111-4111-8111-111111111111',
+      item_number: 1,
+      title: 'Example task',
+      status: 'open',
+      assignee_user_id: null,
+      assignee_label: null,
+    },
+    liveTask: {
+      id: '11111111-1111-4111-8111-111111111111',
+      tenant_id: 'tenant-1',
+      status: 'open',
+      assignee_user_id: null,
+    },
+    assigneeRow: {
+      id: 'user-2',
+      email: 'new@example.com',
+      label: 'New User',
+    },
+  });
+
+  const plan = await service.createMutationPlan(context, {
+    summary: 'Update status, then assign the same task.',
+    operations: [
+      {
+        operation_id: 'status_step',
+        tool_name: 'update_task_status',
+        input: { ref: 'T-1', status: 'done' },
+      },
+      {
+        operation_id: 'assignee_step',
+        tool_name: 'update_task_assignee',
+        input: { ref: '{{status_step.ref}}', assignee_email: 'new@example.com' },
+        depends_on: ['status_step'],
+      },
+    ],
+  });
+
+  assert.equal(plan.total, 2);
+  assert.equal(plan.created, 1);
+  assert.equal(plan.deferred_count, 1);
+  assert.equal(plan.previews[0].tool_name, 'update_task_status');
+
+  const execution = await service.executePreviewsWithFollowUps(context, [plan.previews[0].preview_id]);
+  assert.equal(execution.results[0].status, 'executed');
+  assert.equal(execution.followUpPreviews.length, 1);
+  assert.equal(execution.followUpPreviews[0].tool_name, 'update_task_assignee');
+  assert.equal(execution.followUpPreviews[0].target.ref, 'T-1');
+
+  const statusStep = planSteps.find((step) => step.step_key === 'status_step');
+  const assigneeStep = planSteps.find((step) => step.step_key === 'assignee_step');
+  assert.equal(statusStep?.status, 'executed');
+  assert.equal(assigneeStep?.status, 'preview_ready');
+  assert.equal(assigneeStep?.preview_id, execution.followUpPreviews[0].preview_id);
+}
+
+async function testMutationPlanDeduplicatesEquivalentOperationsAndRemapsDependents() {
+  const { service, context, planSteps } = createService({
+    previews: [],
+    taskRow: {
+      id: '11111111-1111-4111-8111-111111111111',
+      item_number: 1,
+      title: 'Example task',
+      status: 'open',
+      assignee_user_id: null,
+      assignee_label: null,
+    },
+    liveTask: {
+      id: '11111111-1111-4111-8111-111111111111',
+      tenant_id: 'tenant-1',
+      status: 'open',
+      assignee_user_id: null,
+    },
+    assigneeRow: {
+      id: 'user-2',
+      email: 'new@example.com',
+      label: 'New User',
+    },
+  });
+
+  const plan = await service.createMutationPlan(context, {
+    summary: 'Duplicate status step should collapse to one dependency.',
+    operations: [
+      {
+        operation_id: 'status_step',
+        tool_name: 'update_task_status',
+        input: { ref: 'T-1', status: 'done' },
+      },
+      {
+        operation_id: 'duplicate_status_step',
+        tool_name: 'update_task_status',
+        input: { ref: 'T-1', status: 'done' },
+      },
+      {
+        operation_id: 'assignee_step',
+        tool_name: 'update_task_assignee',
+        input: { ref: '{{status_step.ref}}', assignee_email: 'new@example.com' },
+        depends_on: ['duplicate_status_step'],
+      },
+    ],
+  });
+
+  assert.equal(plan.total, 2);
+  assert.equal(plan.created, 1);
+  assert.equal(plan.deferred_count, 1);
+  assert.deepEqual(planSteps.map((step) => [step.step_key, step.depends_on]), [
+    ['status_step', []],
+    ['assignee_step', ['status_step']],
+  ]);
+
+  const execution = await service.executePreviewsWithFollowUps(context, [plan.previews[0].preview_id]);
+  assert.equal(execution.results[0].status, 'executed');
+  assert.equal(execution.followUpPreviews.length, 1);
+  assert.equal(execution.followUpPreviews[0].tool_name, 'update_task_assignee');
+}
+
+async function testMutationPlanAdvancesDependentsWhenRootPreviewAlreadyExecuted() {
+  const { service, context, planSteps } = createService({
+    previews: [
+      createStatusPreview({
+        status: 'executed',
+        approved_at: new Date('2026-03-24T10:01:00.000Z'),
+        executed_at: new Date('2026-03-24T10:01:00.000Z'),
+      }),
+    ],
+    taskRow: {
+      id: '11111111-1111-4111-8111-111111111111',
+      item_number: 1,
+      title: 'Example task',
+      status: 'open',
+      assignee_user_id: null,
+      assignee_label: null,
+    },
+    liveTask: {
+      id: '11111111-1111-4111-8111-111111111111',
+      tenant_id: 'tenant-1',
+      status: 'done',
+      assignee_user_id: null,
+    },
+    assigneeRow: {
+      id: 'user-2',
+      email: 'new@example.com',
+      label: 'New User',
+    },
+  });
+
+  const plan = await service.createMutationPlan(context, {
+    summary: 'Reuse already executed root step, then prepare its dependent step.',
+    operations: [
+      {
+        operation_id: 'status_step',
+        tool_name: 'update_task_status',
+        input: { ref: 'T-1', status: 'done' },
+      },
+      {
+        operation_id: 'assignee_step',
+        tool_name: 'update_task_assignee',
+        input: { ref: '{{status_step.ref}}', assignee_email: 'new@example.com' },
+        depends_on: ['status_step'],
+      },
+    ],
+  });
+
+  assert.equal(plan.total, 2);
+  assert.equal(plan.created, 1);
+  assert.equal(plan.deferred_count, 0);
+  assert.equal(plan.previews.length, 1);
+  assert.equal(plan.previews[0].tool_name, 'update_task_assignee');
+
+  const statusStep = planSteps.find((step) => step.step_key === 'status_step');
+  const assigneeStep = planSteps.find((step) => step.step_key === 'assignee_step');
+  assert.equal(statusStep?.status, 'executed');
+  assert.equal(assigneeStep?.status, 'preview_ready');
+  assert.equal(assigneeStep?.preview_id, plan.previews[0].preview_id);
+}
+
+async function testMutationPlanBlocksDependentsWhenDependencyPreparationFails() {
+  const { service, context, planSteps } = createService({ previews: [] });
+
+  const plan = await service.createMutationPlan(context, {
+    summary: 'Unsupported first step blocks its dependent step.',
+    operations: [
+      {
+        operation_id: 'bad_step',
+        tool_name: 'unsupported_tool',
+        input: {},
+      },
+      {
+        operation_id: 'dependent_step',
+        tool_name: 'update_task_status',
+        input: { ref: '{{bad_step.ref}}', status: 'done' },
+        depends_on: ['bad_step'],
+      },
+    ],
+  });
+
+  assert.equal(plan.created, 0);
+  assert.equal(plan.failed, 2);
+  assert.equal(plan.complete, false);
+  assert.deepEqual(planSteps.map((step) => [step.step_key, step.status]), [
+    ['bad_step', 'failed'],
+    ['dependent_step', 'blocked'],
+  ]);
+  assert.ok(plan.errors.some((error) =>
+    error.step_key === 'dependent_step' && /Dependency bad_step/i.test(error.message),
+  ));
+}
+
+async function testMutationPlanReportsMissingExpectedTargetRefs() {
+  const { service, context } = createService({
+    previews: [],
+    sqlResponses: [{
+      pattern: 'FROM tasks',
+      rows: (_sql: string, params?: any[]) => {
+        const itemNumber = Number(params?.[1] ?? 1);
+        return [{
+          id: `11111111-1111-4111-8111-${String(itemNumber).padStart(12, '0')}`,
+          item_number: itemNumber,
+          title: `Task ${itemNumber}`,
+          status: 'open',
+          assignee_user_id: null,
+          assignee_label: null,
+        }];
+      },
+    }],
+  });
+
+  const plan = await service.createMutationPlan(context, {
+    summary: 'Add comments to overdue tasks.',
+    target_set_label: 'active overdue tasks',
+    expected_target_refs: ['T-1', 'T-2', 'T-3', 'T-4'],
+    expected_target_count: 4,
+    operations: [
+      {
+        operation_id: 'comment_t_1',
+        tool_name: 'add_task_comment',
+        input: { ref: 'T-1', content: 'allo ?' },
+      },
+      {
+        operation_id: 'comment_t_2',
+        tool_name: 'add_task_comment',
+        input: { ref: 'T-2', content: 'allo ?' },
+      },
+      {
+        operation_id: 'comment_t_3',
+        tool_name: 'add_task_comment',
+        input: { ref: 'T-3', content: 'allo ?' },
+      },
+    ],
+  });
+
+  assert.equal(plan.created, 3);
+  assert.equal(plan.expected_count, 4);
+  assert.deepEqual(plan.covered_refs, ['T-1', 'T-2', 'T-3']);
+  assert.deepEqual(plan.missing_refs, ['T-4']);
+  assert.equal(plan.complete, false);
+}
+
+async function testMutationPlanAcceptsExplicitTargetExclusion() {
+  const { service, context } = createService({
+    previews: [],
+    sqlResponses: [{
+      pattern: 'FROM tasks',
+      rows: (_sql: string, params?: any[]) => {
+        const itemNumber = Number(params?.[1] ?? 1);
+        return [{
+          id: `11111111-1111-4111-8111-${String(itemNumber).padStart(12, '0')}`,
+          item_number: itemNumber,
+          title: `Task ${itemNumber}`,
+          status: 'open',
+          assignee_user_id: null,
+          assignee_label: null,
+        }];
+      },
+    }],
+  });
+
+  const plan = await service.createMutationPlan(context, {
+    summary: 'Add comments to active overdue tasks.',
+    target_set_label: 'active overdue tasks',
+    expected_target_refs: ['T-1', 'T-2', 'T-3', 'T-4'],
+    expected_target_count: 4,
+    explicit_exclusions: [{ ref: 'T-4', reason: 'Task is not active under the stated assumption.' }],
+    operations: [
+      {
+        operation_id: 'comment_t_1',
+        tool_name: 'add_task_comment',
+        input: { ref: 'T-1', content: 'allo ?' },
+      },
+      {
+        operation_id: 'comment_t_2',
+        tool_name: 'add_task_comment',
+        input: { ref: 'T-2', content: 'allo ?' },
+      },
+      {
+        operation_id: 'comment_t_3',
+        tool_name: 'add_task_comment',
+        input: { ref: 'T-3', content: 'allo ?' },
+      },
+    ],
+  });
+
+  assert.equal(plan.created, 3);
+  assert.deepEqual(plan.missing_refs, []);
+  assert.deepEqual(plan.excluded, [{ ref: 'T-4', reason: 'Task is not active under the stated assumption.' }]);
+  assert.equal(plan.complete, true);
 }
 
 async function testCreateCommentPreviewPersistsMarkdownPayload() {
@@ -2356,7 +2830,7 @@ async function testUndoRejectsNonReversibleCommentPreview() {
 }
 
 async function testListConversationPreviewsReturnsLatestWindowInChronologicalOrder() {
-  const previews = Array.from({ length: 25 }, (_, index) =>
+  const previews = Array.from({ length: 55 }, (_, index) =>
     createStatusPreview({
       id: `preview-${index + 1}`,
       created_at: new Date(Date.UTC(2026, 2, 24, 10, index, 0)),
@@ -2366,36 +2840,23 @@ async function testListConversationPreviewsReturnsLatestWindowInChronologicalOrd
 
   const result = await service.listConversationPreviews(context, 'conv-1');
 
-  assert.equal(result.length, 20);
+  assert.equal(result.length, 50);
   assert.deepEqual(
     result.map((preview) => preview.preview_id),
-    [
-      'preview-6',
-      'preview-7',
-      'preview-8',
-      'preview-9',
-      'preview-10',
-      'preview-11',
-      'preview-12',
-      'preview-13',
-      'preview-14',
-      'preview-15',
-      'preview-16',
-      'preview-17',
-      'preview-18',
-      'preview-19',
-      'preview-20',
-      'preview-21',
-      'preview-22',
-      'preview-23',
-      'preview-24',
-      'preview-25',
-    ],
+    Array.from({ length: 50 }, (_, index) => `preview-${index + 6}`),
   );
 }
 
 async function main() {
   await testCreatePreviewPersistsCorrectData();
+  await testCreatePreviewAllowsMultiplePendingPreviewsInConversation();
+  await testCreatePreviewReusesEquivalentPendingPreviewInConversation();
+  await testMutationPlanCreatesDependentPreviewAfterApproval();
+  await testMutationPlanDeduplicatesEquivalentOperationsAndRemapsDependents();
+  await testMutationPlanAdvancesDependentsWhenRootPreviewAlreadyExecuted();
+  await testMutationPlanBlocksDependentsWhenDependencyPreparationFails();
+  await testMutationPlanReportsMissingExpectedTargetRefs();
+  await testMutationPlanAcceptsExplicitTargetExclusion();
   await testCreateCommentPreviewPersistsMarkdownPayload();
   await testCreateTaskPreviewPersistsResolvedStandaloneFields();
   await testCreateTaskPreviewPersistsResolvedProjectFields();

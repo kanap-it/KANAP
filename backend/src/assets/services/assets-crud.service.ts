@@ -318,12 +318,12 @@ export class AssetsCrudService extends AssetsBaseService {
       provider: string;
       location_id: string | null;
       location_name: string | null;
-      location_code: string | null;
+      location_reference: string | null;
       operating_system: string | null;
     }> = await mg.query(
       `SELECT acm.asset_id, a.name, a.environment, a.status, a.location_id,
               a.kind, a.provider, a.operating_system,
-              l.name AS location_name, l.code AS location_code
+              l.name AS location_name, l.location_reference AS location_reference
        FROM asset_cluster_members acm
        JOIN assets a ON a.id = acm.asset_id
        LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = $2
@@ -340,7 +340,9 @@ export class AssetsCrudService extends AssetsBaseService {
       kind: row.kind,
       provider: row.provider,
       location_id: row.location_id,
-      location: row.location_name || row.location_code || null,
+      location: row.location_reference && row.location_name
+        ? `${row.location_reference} · ${row.location_name}`
+        : row.location_name || row.location_reference || null,
       operating_system: row.operating_system || null,
     }));
     return { items };

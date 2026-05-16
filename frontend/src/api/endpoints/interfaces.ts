@@ -68,7 +68,7 @@ export interface BindingSummary extends InterfaceBinding {
  */
 export interface Connection {
   id: string;
-  connection_id: string; // Human-readable ID like CONN-001
+  connection_reference: string; // Auto-assigned reference like CONN-1
   name: string;
   description?: string | null;
   topology: 'server_to_server' | 'multi_server';

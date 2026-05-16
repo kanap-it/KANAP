@@ -863,12 +863,12 @@ export class AiQueryExecutor {
   private mapConnection(row: any): AiEntitySummaryDto {
     return toEntitySummary('connections', {
       id: row.id,
-      label: [row.connection_id, row.name].filter(Boolean).join(' - ') || 'Untitled connection',
+      label: [row.connection_reference, row.name].filter(Boolean).join(' - ') || 'Untitled connection',
       status: row.lifecycle ?? null,
-      summary: row.purpose ?? row.notes ?? null,
+      summary: row.description ?? null,
       updated_at: row.updated_at ?? null,
       metadata: {
-        connection_id: scalar(row.connection_id),
+        connection_reference: scalar(row.connection_reference),
         topology: scalar(row.topology),
         source: scalar(row.source_label ?? row.source_asset_name ?? row.source_entity_code),
         destination: scalar(row.destination_label ?? row.destination_asset_name ?? row.destination_entity_code),

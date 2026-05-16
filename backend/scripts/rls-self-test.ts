@@ -22,7 +22,7 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'document_libraries', 'document_folders', 'document_types', 'documents', 'document_versions',
   'document_edit_locks', 'document_attachments', 'document_activities', 'document_contributors',
   'document_classifications', 'document_references', 'document_applications', 'document_assets',
-  'document_projects', 'document_requests', 'document_tasks',
+  'document_connections', 'document_locations', 'document_projects', 'document_requests', 'document_tasks',
   'integrated_document_bindings', 'integrated_document_slot_settings',
   'roles', 'role_permissions', 'subscriptions',
   'audit_log', 'company_metrics', 'department_metrics', 'user_page_roles',
@@ -32,7 +32,8 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'portfolio_request_projects', 'portfolio_request_dependencies', 'portfolio_project_dependencies',
   'application_projects', 'asset_projects',
   'portfolio_request_applications', 'portfolio_request_assets',
-  'ai_settings', 'ai_api_keys', 'ai_conversations', 'ai_message_attachments', 'ai_messages', 'ai_mutation_previews',
+  'ai_settings', 'ai_api_keys', 'ai_conversations', 'ai_message_attachments', 'ai_messages',
+  'ai_mutation_plan_steps', 'ai_mutation_plans', 'ai_mutation_previews',
 ]));
 
 const TABLES_TO_CHECK_POLICY = new Set([
@@ -56,6 +57,8 @@ const TABLES_TO_CHECK_POLICY = new Set([
   'ai_conversations',
   'ai_message_attachments',
   'ai_messages',
+  'ai_mutation_plan_steps',
+  'ai_mutation_plans',
   'ai_mutation_previews',
 ]);
 

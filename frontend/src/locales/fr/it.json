@@ -83,7 +83,7 @@
       "addConnection": "Ajouter une connexion",
       "deleteConnection": "Supprimer la connexion",
       "columns": {
-        "connectionId": "ID de connexion",
+        "connectionReference": "Référence",
         "name": "Nom",
         "topology": "Topologie",
         "source": "Source",
@@ -357,7 +357,7 @@
       "connections": {
         "loadingConnections": "Chargement des connexions\u2026",
         "noConnections": "Aucune connexion trouvée.",
-        "connectionId": "ID de connexion",
+        "connectionReference": "Référence",
         "name": "Nom",
         "topology": "Topologie",
         "protocols": "Protocoles",
@@ -383,7 +383,7 @@
       },
       "createFromBinding": "Création depuis le contexte de liaison d'interface",
       "overview": {
-        "connectionId": "ID de connexion",
+        "connectionReference": "Référence",
         "name": "Nom",
         "purpose": "Objectif",
         "connectionType": "Type de connexion",
@@ -629,6 +629,10 @@
     "addAssignmentFailed": "Échec de l'ajout de l'affectation",
     "loadConnectionFailed": "Échec du chargement de la connexion",
     "saveConnectionFailed": "Échec de l'enregistrement de la connexion",
+    "deleteConnectionFailed": "Échec de la suppression de la connexion",
+    "saveLayerFailed": "Échec de l'enregistrement de la couche",
+    "addLayerFailed": "Échec de l'ajout de la couche",
+    "removeLayerFailed": "Échec de la suppression de la couche",
     "loadInterfaceFailed": "Échec du chargement de l'interface",
     "saveInterfaceFailed": "Échec de l'enregistrement de l'interface",
     "loadLocationFailed": "Échec du chargement du site",
@@ -687,7 +691,7 @@
   },
   "validation": {
     "missingFormData": "Données de formulaire manquantes",
-    "connectionIdRequired": "L'ID de connexion est requis",
+    "connectionReferenceRequired": "La référence de connexion est requise",
     "nameRequired": "Le nom est requis",
     "selectProtocol": "Sélectionnez au moins un protocole",
     "sourceChooseOne": "Source : choisissez un serveur ou une entité, pas les deux",

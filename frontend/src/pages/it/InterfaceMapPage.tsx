@@ -101,7 +101,7 @@ type InterfaceConnectionLinkSummary = {
   binding_status: string;
   connection: {
     id: string;
-    connection_id: string;
+    connection_reference: string;
     name: string;
     topology: 'server_to_server' | 'multi_server';
     lifecycle: string;
@@ -1061,7 +1061,10 @@ export default function InterfaceMapPage() {
                                 return (
                                   <Stack spacing={0.35}>
                                     <Typography variant="body2" fontWeight={600}>
-                                      {link.connection.name || link.connection.connection_id}
+                                      <Typography component="span" sx={{ fontFamily: "'JetBrains Mono Variable', monospace", fontSize: '0.75rem', color: 'text.secondary', mr: 0.5 }}>
+                                        {link.connection.connection_reference}
+                                      </Typography>
+                                      · {link.connection.name}
                                     </Typography>
                                     <Typography variant="body2">Source: {source}</Typography>
                                     <Typography variant="body2">Destination: {destination}</Typography>
@@ -1079,7 +1082,7 @@ export default function InterfaceMapPage() {
                                   size="small"
                                   variant="text"
                                   onClick={() => {
-                                    navigate(`/it/connections/${link.connection.id}/overview`);
+                                    navigate(`/it/connections/${link.connection.connection_reference || link.connection.id}/overview`);
                                   }}
                                 >
                                   Edit

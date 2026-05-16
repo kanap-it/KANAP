@@ -7,6 +7,7 @@ import {
   ChatAttachment,
   ChatContextItem,
   ChatContextSummary,
+  ChatDebugTraceEntry,
   ChatMessage,
   StoredChatMessage,
   TokenUsage,
@@ -14,7 +15,7 @@ import {
 import i18n from '../i18n';
 
 let msgCounter = 0;
-const CONTROL_MARKER_RE = /^\[(APPROVE|REJECT):[0-9a-f-]{36}\]$/i;
+const CONTROL_MARKER_RE = /^\[(APPROVE|REJECT):[0-9a-f-]{36}\]$|^\[(APPROVE_SELECTED|REJECT_SELECTED):[0-9a-f,\s-]+\]$/i;
 const ENTITY_TYPE_FROM_URL_PREFIX: Array<{ prefix: string; entityType: string }> = [
   { prefix: '/knowledge/', entityType: 'documents' },
   { prefix: '/portfolio/tasks/', entityType: 'tasks' },
@@ -132,6 +133,19 @@ function appendActivity(
   return [...previous, nextEntry].slice(-24);
 }
 
+function appendDebugTrace(
+  current: ChatDebugTraceEntry[] | undefined,
+  incoming: Omit<ChatDebugTraceEntry, 'created_at'>,
+): ChatDebugTraceEntry[] {
+  return [
+    ...(current || []),
+    {
+      ...incoming,
+      created_at: new Date().toISOString(),
+    },
+  ].slice(-120);
+}
+
 function extractMentionContextItems(text: string): ChatContextItem[] {
   const items: ChatContextItem[] = [];
   const seen = new Set<string>();
@@ -200,8 +214,10 @@ function carryAssistantTransient(previous: ChatMessage[], rebuilt: ChatMessage[]
     }
     return {
       ...message,
+      previewIds: message.previewIds ?? transient.previewIds,
       activity: transient.activity,
       context: mergeChatContext(message.context, transient.context),
+      debugTrace: transient.debugTrace,
     };
   });
 }
@@ -214,6 +230,59 @@ function upsertPreview(prev: AiMutationPreview[], next: AiMutationPreview): AiMu
   const copy = [...prev];
   copy[index] = next;
   return copy;
+}
+
+function isMutationPreview(value: unknown): value is AiMutationPreview {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.preview_id === 'string'
+    && typeof candidate.status === 'string'
+    && typeof candidate.tool_name === 'string'
+    && candidate.target != null
+    && candidate.changes != null;
+}
+
+function extractMutationPreviews(value: unknown): AiMutationPreview[] {
+  if (isMutationPreview(value)) {
+    return [value];
+  }
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  const previews = (value as Record<string, unknown>).previews;
+  return Array.isArray(previews)
+    ? previews.filter(isMutationPreview)
+    : [];
+}
+
+function appendPreviewId(current: string[] | undefined, previewId: string): string[] {
+  const values = current || [];
+  return values.includes(previewId) ? values : [...values, previewId];
+}
+
+function previewIdsFromToolResults(toolResults: NonNullable<ChatMessage['toolResults']>): string[] {
+  const ids: string[] = [];
+  for (const toolResult of toolResults) {
+    for (const preview of extractMutationPreviews(toolResult.result)) {
+      if (!ids.includes(preview.preview_id)) {
+        ids.push(preview.preview_id);
+      }
+    }
+  }
+  return ids;
+}
+
+function appendAssistantContent(current: string, incoming: string): string {
+  const next = String(incoming || '');
+  if (!next.trim()) {
+    return current;
+  }
+  if (!String(current || '').trim()) {
+    return next;
+  }
+  return `${current}\n\n${next}`;
 }
 
 function normalizeConversationUsage(usage?: TokenUsage | null): TokenUsage | null {
@@ -284,7 +353,7 @@ function rebuildMessagesFromStored(rawMessages: StoredChatMessage[], conversatio
       const merged: ChatMessage = {
         id: msg.id,
         role: 'assistant',
-        content: '',
+        content: msg.content || '',
         toolCalls: [...msg.tool_calls],
         toolResults: [],
         usage: msg.usage_json || undefined,
@@ -305,17 +374,24 @@ function rebuildMessagesFromStored(rawMessages: StoredChatMessage[], conversatio
           }
           i++;
         } else if (next.role === 'assistant' && next.tool_calls?.length) {
+          if (String(next.content || '').trim()) {
+            break;
+          }
           merged.toolCalls!.push(...next.tool_calls);
           if (next.usage_json) merged.usage = next.usage_json;
           i++;
         } else if (next.role === 'assistant' && !next.tool_calls?.length) {
-          merged.content = next.content;
+          merged.content = appendAssistantContent(merged.content, next.content);
           if (next.usage_json) merged.usage = next.usage_json;
           i++;
           break;
         } else {
           break;
         }
+      }
+      const previewIds = previewIdsFromToolResults(merged.toolResults || []);
+      if (previewIds.length > 0) {
+        merged.previewIds = previewIds;
       }
       loaded.push(merged);
     } else if (msg.role === 'assistant') {
@@ -606,6 +682,27 @@ export function useChat() {
             );
             break;
 
+          case 'debug_trace':
+            if (!import.meta.env.DEV) {
+              break;
+            }
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      debugTrace: appendDebugTrace(m.debugTrace, {
+                        name: event.name,
+                        elapsed_ms: event.elapsed_ms,
+                        iteration: event.iteration ?? null,
+                        tool_name: event.tool_name ?? null,
+                      }),
+                    }
+                  : m,
+              ),
+            );
+            break;
+
           case 'text_delta':
             setMessages((prev) =>
               prev.map((m) =>
@@ -649,6 +746,29 @@ export function useChat() {
             break;
 
           case 'preview':
+            setPreviews((prev) => upsertPreview(prev, event));
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      previewIds: appendPreviewId(m.previewIds, event.preview_id),
+                      context: mergeChatContext(m.context, {
+                        previews: [{
+                          kind: 'artifact',
+                          label: event.target?.ref || event.target?.title || event.summary || event.tool_name,
+                          detail: event.tool_name.replace(/_/g, ' '),
+                          entity_type: event.target?.entity_type ?? null,
+                          ref: event.target?.ref ?? null,
+                          status: event.status,
+                        }],
+                      }),
+                    }
+                  : m,
+              ),
+            );
+            break;
+
           case 'preview_result':
             setPreviews((prev) => upsertPreview(prev, event));
             setMessages((prev) =>
@@ -658,7 +778,7 @@ export function useChat() {
                       ...m,
                       context: mergeChatContext(m.context, {
                         previews: [{
-                          kind: 'preview',
+                          kind: 'artifact',
                           label: event.target?.ref || event.target?.title || event.summary || event.tool_name,
                           detail: event.tool_name.replace(/_/g, ' '),
                           entity_type: event.target?.entity_type ?? null,

@@ -1,4 +1,4 @@
-const PREFIXES = { task: 'T', project: 'PRJ', request: 'REQ', document: 'DOC', asset: 'AST', application: 'APP' } as const;
+const PREFIXES = { task: 'T', project: 'PRJ', request: 'REQ', document: 'DOC', asset: 'AST', application: 'APP', location: 'LOC', connection: 'CONN' } as const;
 type ItemType = keyof typeof PREFIXES;
 
 export function formatItemRef(type: ItemType, itemNumber: number): string {
@@ -13,6 +13,8 @@ export function buildItemPath(type: ItemType, idOrRef: string): string {
     document: '/knowledge',
     asset: '/it/assets',
     application: '/it/applications',
+    location: '/it/locations',
+    connection: '/it/connections',
   };
   return `${paths[type]}/${idOrRef}`;
 }

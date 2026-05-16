@@ -144,6 +144,22 @@ function createRegistry(overrides?: {
         rejected_at: null,
         executed_at: null,
       }),
+      createMutationPlan: async (_context: any, input: any) => ({
+        plan: {
+          plan_id: 'plan-1',
+          summary: input.summary ?? null,
+          status: 'active',
+          steps: [],
+        },
+        previews: [],
+        errors: [],
+        deferred: [],
+        total: Array.isArray(input.operations) ? input.operations.length : 0,
+        created: 0,
+        failed: 0,
+        deferred_count: 0,
+        complete: true,
+      }),
       hasExecutedUndoablePreviewInConversation: async () => false,
       ...(overrides?.previews || {}),
     } as any,
@@ -466,6 +482,8 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'get_entity_comments',
       'search_knowledge',
       'get_document',
+      'prepare_mutation_plan',
+      'update_task_assignees',
       'undo_preview',
       'web_search',
       'import_glpi_ticket',
@@ -513,6 +531,8 @@ async function testRegisteredToolCategoriesMatchExpectedAssignments() {
   assert.equal(categories.get('search_knowledge'), 'discovery');
   assert.equal(categories.get('get_document'), 'inspection');
   assert.equal(categories.get('web_search'), 'discovery');
+  assert.equal(categories.get('prepare_mutation_plan'), 'mutation');
+  assert.equal(categories.get('update_task_assignees'), 'mutation');
   assert.equal(categories.get('undo_preview'), 'mutation');
   assert.equal(categories.get('import_glpi_ticket'), 'mutation');
   assert.equal(categories.get('create_task'), 'mutation');
@@ -566,6 +586,8 @@ async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
   assert.ok(tools.some((tool) => tool.name === 'update_document_relations'));
   assert.ok(tools.some((tool) => tool.name === 'update_task_status'));
   assert.ok(tools.some((tool) => tool.name === 'update_task_assignee'));
+  assert.ok(tools.some((tool) => tool.name === 'prepare_mutation_plan'));
+  assert.ok(tools.some((tool) => tool.name === 'update_task_assignees'));
   assert.ok(tools.some((tool) => tool.name === 'add_task_comment'));
   assert.ok(tools.some((tool) => tool.name === 'undo_preview'));
 }
@@ -582,8 +604,121 @@ async function testWritePreviewToolsStayHiddenWithoutWriteAccess() {
   assert.ok(!tools.some((tool) => tool.name === 'update_document_relations'));
   assert.ok(!tools.some((tool) => tool.name === 'update_task_status'));
   assert.ok(!tools.some((tool) => tool.name === 'update_task_assignee'));
+  assert.ok(!tools.some((tool) => tool.name === 'prepare_mutation_plan'));
+  assert.ok(!tools.some((tool) => tool.name === 'update_task_assignees'));
   assert.ok(!tools.some((tool) => tool.name === 'add_task_comment'));
   assert.ok(!tools.some((tool) => tool.name === 'undo_preview'));
+}
+
+async function testUpdateTaskAssigneesCreatesOnePreviewPerTaskAndReturnsPartialErrors() {
+  const calls: Array<{ toolName: string; input: any }> = [];
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    previews: {
+      createPreview: async (_context: any, toolName: string, input: any) => {
+        calls.push({ toolName, input });
+        if (input.ref === 'T-2') {
+          throw new Error('Task no longer exists.');
+        }
+        return {
+          preview_id: `preview-${input.ref}`,
+          tool_name: 'update_task_assignee',
+          status: 'pending',
+          target: { entity_type: 'tasks', entity_id: `task-${input.ref}`, ref: input.ref, title: input.ref },
+          changes: { assignee: { from: 'Paul', to: 'Marie' } },
+          requires_confirmation: true,
+          actions: ['approve', 'reject'],
+          summary: `${input.ref} assignee update preview.`,
+          error_message: null,
+          conversation_id: 'conv-1',
+          created_at: '2026-03-24T10:00:00.000Z',
+          expires_at: '2026-03-24T10:10:00.000Z',
+          approved_at: null,
+          rejected_at: null,
+          executed_at: null,
+        };
+      },
+    },
+  });
+
+  const result = await registry.execute(createChatContext(), 'update_task_assignees', {
+    refs: ['T-1', 'T-2', 'T-3'],
+    assignee_email: 'marie@example.com',
+  }) as any;
+
+  assert.deepEqual(calls.map((call) => call.toolName), [
+    'update_task_assignee',
+    'update_task_assignee',
+    'update_task_assignee',
+  ]);
+  assert.deepEqual(calls.map((call) => call.input), [
+    { ref: 'T-1', assignee_email: 'marie@example.com' },
+    { ref: 'T-2', assignee_email: 'marie@example.com' },
+    { ref: 'T-3', assignee_email: 'marie@example.com' },
+  ]);
+  assert.equal(result.total, 3);
+  assert.equal(result.created, 2);
+  assert.equal(result.failed, 1);
+  assert.equal(result.complete, false);
+  assert.deepEqual(result.previews.map((preview: any) => preview.target.ref), ['T-1', 'T-3']);
+  assert.deepEqual(result.errors, [{ ref: 'T-2', message: 'Task no longer exists.' }]);
+}
+
+async function testPrepareMutationPlanDelegatesToPreviewService() {
+  let receivedInput: any = null;
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['projects', 'tasks'],
+    },
+    previews: {
+      createMutationPlan: async (_context: any, input: any) => {
+        receivedInput = input;
+        return {
+          plan: {
+            plan_id: 'plan-1',
+            summary: input.summary,
+            status: 'active',
+            steps: [],
+          },
+          previews: [],
+          errors: [],
+          deferred: [],
+          total: input.operations.length,
+          created: 0,
+          failed: 0,
+          deferred_count: input.operations.length,
+          complete: false,
+        };
+      },
+    },
+  });
+
+  const result = await registry.execute(createChatContext(), 'prepare_mutation_plan', {
+    summary: 'Create a project and tasks.',
+    operations: [
+      {
+        operation_id: 'create_project',
+        tool_name: 'create_business_record',
+        input: { entity_type: 'projects', fields: { name: 'Project A' } },
+      },
+      {
+        operation_id: 'task_1',
+        tool_name: 'create_task',
+        input: { title: 'Task 1', relation_type: 'project', relation_ref: '{{create_project.ref}}' },
+        depends_on: ['create_project'],
+      },
+    ],
+  }) as any;
+
+  assert.equal(result.total, 2);
+  assert.deepEqual(receivedInput.operations.map((operation: any) => operation.operation_id), [
+    'create_project',
+    'task_1',
+  ]);
 }
 
 async function testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist() {
@@ -1537,6 +1672,8 @@ async function run() {
   await testSearchAllAppliesGenerousDefaultLimit();
   await testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed();
   await testWritePreviewToolsStayHiddenWithoutWriteAccess();
+  await testUpdateTaskAssigneesCreatesOnePreviewPerTaskAndReturnsPartialErrors();
+  await testPrepareMutationPlanDelegatesToPreviewService();
   await testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist();
   await testGlpiImportToolAppearsWhenSettingsAreConfigured();
   await testCreateDocumentToolSchemaExposesBodyFields();

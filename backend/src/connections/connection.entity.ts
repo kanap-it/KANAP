@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('connections')
-@Index(['tenant_id', 'connection_id'], { unique: true })
+@Index(['tenant_id', 'connection_reference'], { unique: true })
 @Index(['tenant_id', 'topology'])
 export class Connection {
   @PrimaryGeneratedColumn('uuid')
@@ -11,13 +11,13 @@ export class Connection {
   tenant_id!: string;
 
   @Column('text')
-  connection_id!: string;
+  connection_reference!: string;
 
   @Column('text')
   name!: string;
 
   @Column('text', { nullable: true })
-  purpose!: string | null;
+  description!: string | null;
 
   @Column('text')
   topology!: 'server_to_server' | 'multi_server';
@@ -48,9 +48,6 @@ export class Connection {
 
   @Column('text', { default: 'manual' })
   risk_mode!: 'manual' | 'derived';
-
-  @Column('text', { nullable: true })
-  notes!: string | null;
 
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;

@@ -4,8 +4,9 @@ import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 
-type LocationOption = { id: string; code: string; name: string };
+type LocationOption = { id: string; location_reference: string; name: string };
 
 type Props = {
   label?: string;
@@ -38,7 +39,7 @@ export default function LocationSelect({
     queryKey: ['locations', 'options'],
     queryFn: async () => {
       const res = await api.get<{ items: LocationOption[] }>('/locations', {
-        params: { limit: 200, sort: 'code:ASC' },
+        params: { limit: 200, sort: 'location_reference:ASC' },
       });
       return (res.data?.items || []) as LocationOption[];
     },
@@ -46,7 +47,11 @@ export default function LocationSelect({
 
   const sorted = React.useMemo(() => {
     const list = locations ? [...locations] : [];
-    return list.sort((a, b) => a.code.localeCompare(b.code, undefined, { sensitivity: 'base' }));
+    return list.sort((a, b) => a.location_reference.localeCompare(
+      b.location_reference,
+      undefined,
+      { sensitivity: 'base', numeric: true },
+    ));
   }, [locations]);
 
   const needSelectedFetch = !!value && !sorted.some((loc) => loc.id === value);
@@ -57,7 +62,7 @@ export default function LocationSelect({
       if (!value) return null;
       const res = await api.get(`/locations/${value}`);
       const loc = res.data as any;
-      return { id: loc.id, code: loc.code, name: loc.name } as LocationOption;
+      return { id: loc.id, location_reference: loc.location_reference, name: loc.name } as LocationOption;
     },
   });
 
@@ -77,16 +82,23 @@ export default function LocationSelect({
         options={options}
         value={selectedOption}
         onChange={(_, option) => onChange(option?.id ?? null)}
-        getOptionLabel={(opt) => opt?.code || ''}
+        getOptionLabel={(opt) =>
+          opt ? `${opt.location_reference}${opt.name ? ` · ${opt.name}` : ''}` : ''
+        }
         renderOption={(props, option) => (
           <li {...props} key={option.id}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2">{option.code}</Typography>
-              {option.name && (
-                <Typography variant="caption" color="text.secondary">
-                  {option.name}
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ fontFamily: MONO_FONT_FAMILY, color: 'kanap.text.secondary' }}
+                >
+                  {option.location_reference}
                 </Typography>
-              )}
+                {option.name && (
+                  <Typography variant="body2">{option.name}</Typography>
+                )}
+              </Box>
             </Box>
           </li>
         )}
@@ -97,7 +109,7 @@ export default function LocationSelect({
           const s = inputValue.toLowerCase();
           return opts.filter(
             (opt) =>
-              opt.code.toLowerCase().includes(s) ||
+              opt.location_reference.toLowerCase().includes(s) ||
               opt.name.toLowerCase().includes(s),
           );
         }}

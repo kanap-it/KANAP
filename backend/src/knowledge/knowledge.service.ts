@@ -57,7 +57,7 @@ import { DocumentType } from './document-type.entity';
 import { DocumentVersion } from './document-version.entity';
 import { Document } from './document.entity';
 
-export type RelationEntityType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
+export type RelationEntityType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'locations' | 'connections';
 export type EntityDocumentListAccess = 'granted' | 'restricted';
 export type EntityDocumentListItem = {
   id: string;
@@ -524,6 +524,18 @@ const RELATION_TABLE_MAP: Record<
     idColumn: 'task_id',
     targetTable: 'tasks',
     label: 'tasks',
+  },
+  locations: {
+    table: 'document_locations',
+    idColumn: 'location_id',
+    targetTable: 'locations',
+    label: 'locations',
+  },
+  connections: {
+    table: 'document_connections',
+    idColumn: 'connection_id',
+    targetTable: 'connections',
+    label: 'connections',
   },
 };
 
@@ -6087,17 +6099,42 @@ export class KnowledgeService {
   }
 
   private async getDirectKnowledgeContextGroupDefinitions(
-    entityType: 'tasks',
+    entityType: 'tasks' | 'locations' | 'connections',
     entityId: string,
     manager: EntityManager,
   ): Promise<EntityKnowledgeContextGroupDefinition[]> {
-    const sourceRows = await manager.query<KnowledgeContextSourceRow[]>(
-      `SELECT t.id AS entity_id, t.item_number, t.title AS name, t.status
-       FROM tasks t
-       WHERE t.id = $1
-       LIMIT 1`,
-      [entityId],
-    );
+    const sourceRows =
+      entityType === 'locations'
+        ? await manager.query<KnowledgeContextSourceRow[]>(
+            `SELECT l.id AS entity_id,
+                    NULL::int AS item_number,
+                    l.location_reference AS item_ref,
+                    l.name,
+                    NULL::text AS status
+             FROM locations l
+             WHERE l.id = $1
+             LIMIT 1`,
+            [entityId],
+          )
+        : entityType === 'connections'
+          ? await manager.query<KnowledgeContextSourceRow[]>(
+              `SELECT c.id AS entity_id,
+                      NULL::int AS item_number,
+                      c.connection_reference AS item_ref,
+                      c.name,
+                      c.lifecycle AS status
+               FROM connections c
+               WHERE c.id = $1
+               LIMIT 1`,
+              [entityId],
+            )
+          : await manager.query<KnowledgeContextSourceRow[]>(
+              `SELECT t.id AS entity_id, t.item_number, t.title AS name, t.status
+               FROM tasks t
+               WHERE t.id = $1
+               LIMIT 1`,
+              [entityId],
+            );
 
     return [
       {

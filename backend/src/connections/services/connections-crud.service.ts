@@ -33,18 +33,19 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
   async get(id: string, tenantId: string, opts?: ServiceOpts & { includeLegs?: boolean }) {
     const tenant = this.ensureTenantId(tenantId);
     const repo = this.getRepo(opts?.manager);
-    const conn = await repo.findOne({ where: { id } });
+    const resolvedId = await this.resolveConnectionIdentifier(id, tenant, opts?.manager);
+    const conn = await repo.findOne({ where: { id: resolvedId, tenant_id: tenant } as any });
     if (!conn) throw new NotFoundException('Connection not found');
 
     const mg = opts?.manager ?? repo.manager;
     const includeLegs = !!opts?.includeLegs;
     const protocols: Array<{ connection_type_code: string }> = await this.getConnProtocolRepo(mg).find({
-      where: { connection_id: id },
+      where: { connection_id: resolvedId },
     });
-    const servers = await this.getConnServerRepo(mg).find({ where: { connection_id: id } });
+    const servers = await this.getConnServerRepo(mg).find({ where: { connection_id: resolvedId } });
     const legs = includeLegs
       ? await this.getLegRepo(mg).find({
-          where: { connection_id: id, tenant_id: tenant } as any,
+          where: { connection_id: resolvedId, tenant_id: tenant } as any,
           order: { order_index: 'ASC', created_at: 'ASC' },
         })
       : [];
@@ -54,8 +55,7 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     if (conn.destination_asset_id) assetIds.push(conn.destination_asset_id);
     for (const s of servers) assetIds.push(s.asset_id);
     for (const leg of legs) {
-      if (leg.source_asset_id) assetIds.push(leg.source_asset_id);
-      if (leg.destination_asset_id) assetIds.push(leg.destination_asset_id);
+      if (leg.equipment_asset_id) assetIds.push(leg.equipment_asset_id);
     }
     const uniqueAssetIds = Array.from(new Set(assetIds));
     let assetMap = new Map<string, any>();
@@ -145,10 +145,8 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     const mg = opts?.manager ?? this.connRepo.manager;
     if (!body || typeof body !== 'object') throw new BadRequestException('Body is required');
 
-    const connection_id = this.normalizeRequiredText(body.connection_id, 'connection_id');
     const name = this.normalizeRequiredText(body.name, 'name');
-    const purpose = this.normalizeNullable(body.purpose);
-    const notes = this.normalizeNullable(body.notes);
+    const description = this.normalizeNullable(body.description);
     const topology = body.topology ? this.normalizeTopology(body.topology) : 'server_to_server';
     const lifecycle = await this.normalizeLifecycle(body.lifecycle, tenant, mg, 'active');
     const protocolCodes = await this.normalizeProtocolCodes(body.protocol_codes ?? body.protocols, tenant, mg);
@@ -212,9 +210,8 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     const repo = this.getRepo(mg);
     const entity = repo.create({
       tenant_id: tenant,
-      connection_id,
       name,
-      purpose,
+      description,
       topology,
       source_asset_id,
       source_entity_code,
@@ -225,7 +222,6 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
       data_class,
       contains_pii,
       risk_mode,
-      notes,
     });
     const saved = await repo.save(entity);
 
@@ -273,10 +269,8 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     const before = { ...existing };
 
     const topology = body.topology ? this.normalizeTopology(body.topology) : (existing.topology as Topology);
-    const connection_id = body.connection_id ? this.normalizeRequiredText(body.connection_id, 'connection_id') : existing.connection_id;
     const name = body.name ? this.normalizeRequiredText(body.name, 'name') : existing.name;
-    const purpose = body.hasOwnProperty('purpose') ? this.normalizeNullable(body.purpose) : existing.purpose;
-    const notes = body.hasOwnProperty('notes') ? this.normalizeNullable(body.notes) : existing.notes;
+    const description = body.hasOwnProperty('description') ? this.normalizeNullable(body.description) : existing.description;
     const lifecycle = await this.normalizeLifecycle(
       body.hasOwnProperty('lifecycle') ? body.lifecycle : existing.lifecycle,
       tenant,
@@ -399,16 +393,14 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
       destination_entity_code = null;
     }
 
-    existing.connection_id = connection_id;
     existing.name = name;
-    existing.purpose = purpose;
+    existing.description = description;
     existing.topology = topology;
     existing.source_asset_id = source_asset_id;
     existing.source_entity_code = source_entity_code;
     existing.destination_asset_id = destination_asset_id;
     existing.destination_entity_code = destination_entity_code;
     existing.lifecycle = lifecycle;
-    existing.notes = notes;
     existing.criticality = criticality;
     existing.data_class = data_class;
     existing.contains_pii = contains_pii;
@@ -450,7 +442,9 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
       { manager: mg },
     );
 
-    return saved;
+    // Return the enriched response so the frontend keeps protocol_codes, source_server,
+    // effective_*, etc. without an extra round-trip.
+    return this.get(id, tenant, { manager: mg });
   }
 
   /**

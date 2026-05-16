@@ -12,13 +12,17 @@ import { ChatStreamEvent } from '../ai.types';
 function createOrchestrator(options?: {
   providerEvents?: any[];
   providerToolEvents?: any[];
+  providerEventBatches?: any[][];
   toolResult?: any;
+  toolResultsByName?: Record<string, any>;
   toolError?: string;
   providerContextWindow?: number | null;
   historyMessages?: any[];
   providerId?: string;
   model?: string;
   previewResult?: any;
+  previewResults?: any[];
+  followUpPreviews?: any[];
   conversationUsage?: { input_tokens: number; output_tokens: number };
   availableTools?: any[];
 }) {
@@ -26,6 +30,7 @@ function createOrchestrator(options?: {
   let conversationCreated = false;
   let messageIndex = 0;
   const recordedRequests: any[] = [];
+  const executedToolCalls: Array<{ toolName: string; input: any }> = [];
   const toolExecuteCount = { value: 0 };
 
   const mockTenantExecutor = {
@@ -103,6 +108,13 @@ function createOrchestrator(options?: {
       createStream: async function* (params: any) {
         recordedRequests.push(params);
         providerCallCount.value++;
+        const batch = options?.providerEventBatches?.[providerCallCount.value - 1];
+        if (batch) {
+          for (const event of batch) {
+            yield event;
+          }
+          return;
+        }
         // First call might return tool calls
         if (providerCallCount.value === 1 && options?.providerEvents) {
           for (const event of options.providerEvents) {
@@ -158,14 +170,16 @@ function createOrchestrator(options?: {
     ],
     execute: async (_ctx: any, toolName: string, _input: any) => {
       toolExecuteCount.value++;
+      executedToolCalls.push({ toolName, input: _input });
       if (options?.toolError) throw new Error(options.toolError);
+      if (options?.toolResultsByName && Object.prototype.hasOwnProperty.call(options.toolResultsByName, toolName)) {
+        return options.toolResultsByName[toolName];
+      }
       return options?.toolResult ?? { items: [], total: 0 };
     },
   };
 
-  const mockPreviews = {
-    listConversationPreviews: async () => [],
-    executePreview: async () => options?.previewResult ?? {
+  const defaultExecutedPreview = () => options?.previewResult ?? {
       preview_id: 'preview-1',
       tool_name: 'update_task_status',
       status: 'executed',
@@ -181,8 +195,8 @@ function createOrchestrator(options?: {
       approved_at: '2026-03-24T10:01:00.000Z',
       rejected_at: null,
       executed_at: '2026-03-24T10:01:00.000Z',
-    },
-    rejectPreview: async () => options?.previewResult ?? {
+    };
+  const defaultRejectedPreview = () => options?.previewResult ?? {
       preview_id: 'preview-1',
       tool_name: 'update_task_status',
       status: 'rejected',
@@ -198,7 +212,18 @@ function createOrchestrator(options?: {
       approved_at: null,
       rejected_at: '2026-03-24T10:01:00.000Z',
       executed_at: null,
-    },
+    };
+
+  const mockPreviews = {
+    listConversationPreviews: async () => [],
+    executePreview: async () => defaultExecutedPreview(),
+    executePreviews: async () => options?.previewResults ?? [defaultExecutedPreview()],
+    executePreviewsWithFollowUps: async () => ({
+      results: options?.previewResults ?? [defaultExecutedPreview()],
+      followUpPreviews: options?.followUpPreviews ?? [],
+    }),
+    rejectPreview: async () => defaultRejectedPreview(),
+    rejectPreviews: async () => options?.previewResults ?? [defaultRejectedPreview()],
   };
 
   const mockSystemPrompt = {
@@ -249,7 +274,7 @@ function createOrchestrator(options?: {
     } as any,
   );
 
-  return { orchestrator, persistedMessages, providerCallCount, recordedRequests, toolExecuteCount };
+  return { orchestrator, persistedMessages, providerCallCount, recordedRequests, toolExecuteCount, executedToolCalls };
 }
 
 async function collectEvents(gen: AsyncGenerator<ChatStreamEvent>): Promise<ChatStreamEvent[]> {
@@ -381,6 +406,253 @@ async function testToolCallFlow() {
   const done = events.find((e) => e.type === 'done') as any;
   assert.deepEqual(done.last_usage, { input_tokens: 200, output_tokens: 100 });
   assert.deepEqual(done.conversation_usage, { input_tokens: 300, output_tokens: 150 });
+}
+
+async function testBatchPreviewToolResultEmitsEveryPreview() {
+  const previews = [1, 2].map((index) => ({
+    preview_id: `preview-${index}`,
+    tool_name: 'update_task_assignee',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${index}`, ref: `T-${index}`, title: `Task ${index}` },
+    changes: { assignee: { from: 'Paul', to: 'Marie' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Update T-${index} assignee from Paul to Marie.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator } = createOrchestrator({
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'update_task_assignees',
+        category: 'mutation',
+        description: 'Create assignee previews.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['assignee'],
+          reversible: true,
+          prompt_hint: 'For bulk task reassignment, prefer `update_task_assignees`.',
+        },
+      },
+    ],
+    providerEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'update_task_assignees' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"refs":["T-1","T-2"],"assignee_email":"marie@example.com"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'I prepared both previews.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+    toolResult: {
+      previews,
+      errors: [],
+      total: 2,
+      created: 2,
+      failed: 0,
+      complete: true,
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Réassigne T-1 et T-2 à Marie.',
+    }),
+  );
+
+  const previewEvents = events.filter((event) => event.type === 'preview') as any[];
+  assert.equal(previewEvents.length, 2);
+  assert.deepEqual(previewEvents.map((event) => event.preview_id), ['preview-1', 'preview-2']);
+  const injectedPreviewContext = events.find((event) =>
+    event.type === 'context' && Array.isArray((event as any).context.injected)
+      && (event as any).context.injected.some((item: any) => item.kind === 'preview'),
+  ) as any;
+  assert.deepEqual(injectedPreviewContext.context.injected.map((item: any) => item.ref), ['T-1', 'T-2']);
+}
+
+async function testUnsafeWriteConfirmationWithoutPreviewIsRetriedAsToolCall() {
+  const preview = {
+    preview_id: 'preview-1',
+    tool_name: 'update_task_assignee',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Task 1' },
+    changes: { assignee: { from: 'Paul', to: 'Marie' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: 'Update T-1 assignee from Paul to Marie.',
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  };
+  const { orchestrator, recordedRequests, toolExecuteCount } = createOrchestrator({
+    historyMessages: [{ role: 'user', content: 'Réassigne T-1 à Marie.' }],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'update_task_assignees',
+        category: 'mutation',
+        description: 'Create assignee previews.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['assignee'],
+          reversible: true,
+          prompt_hint: 'For bulk task reassignment, prefer `update_task_assignees`.',
+        },
+      },
+    ],
+    providerEvents: [
+      { type: 'text_delta', text: "Souhaitez-vous que j'execute cette reassignment ?" },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'update_task_assignees' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"refs":["T-1"],"assignee_email":"marie@example.com"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+    toolResult: {
+      previews: [preview],
+      errors: [],
+      total: 1,
+      created: 1,
+      failed: 0,
+      complete: true,
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Réassigne T-1 à Marie.',
+    }),
+  );
+
+  const text = (events.filter((event) => event.type === 'text_delta') as any[])
+    .map((event) => event.text)
+    .join('');
+  assert.doesNotMatch(text, /Souhaitez-vous que j'execute/);
+  assert.equal(toolExecuteCount.value, 1);
+  assert.equal((events.filter((event) => event.type === 'preview') as any[]).length, 1);
+  assert.equal(recordedRequests.length, 3);
+  const repairMessage = [...recordedRequests[1].messages].reverse().find((message: any) => message.role === 'user') as any;
+  assert.match(repairMessage.content, /previous assistant response was blocked/i);
+  assert.match(repairMessage.content, /update_task_assignees/);
+}
+
+async function testRawPseudoToolCallTextIsRetriedAsRealToolCall() {
+  const preview = {
+    preview_id: 'preview-1',
+    tool_name: 'update_task_assignee',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Task 1' },
+    changes: { assignee: { from: 'Paul', to: 'Marie' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: 'Update T-1 assignee from Paul to Marie.',
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  };
+  const { orchestrator, recordedRequests, toolExecuteCount } = createOrchestrator({
+    historyMessages: [
+      { role: 'user', content: 'Réassigne T-1 à Marie.' },
+      { role: 'assistant', content: "Souhaitez-vous que j'execute cette reassignment ?" },
+      { role: 'user', content: 'oui' },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'update_task_assignees',
+        category: 'mutation',
+        description: 'Create assignee previews.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['assignee'],
+          reversible: true,
+          prompt_hint: 'For bulk task reassignment, prefer `update_task_assignees`.',
+        },
+      },
+    ],
+    providerEvents: [
+      { type: 'text_delta', text: '<tool_call> <function=update_entity> <parameter=id> task-1 </tool_call>' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'update_task_assignees' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"refs":["T-1"],"assignee_email":"marie@example.com"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+    toolResult: {
+      previews: [preview],
+      errors: [],
+      total: 1,
+      created: 1,
+      failed: 0,
+      complete: true,
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'oui',
+    }),
+  );
+
+  const text = (events.filter((event) => event.type === 'text_delta') as any[])
+    .map((event) => event.text)
+    .join('');
+  assert.doesNotMatch(text, /<tool_call>/);
+  assert.equal(toolExecuteCount.value, 1);
+  assert.equal((events.filter((event) => event.type === 'preview') as any[]).length, 1);
+  assert.equal(recordedRequests.length, 3);
+  const repairMessage = [...recordedRequests[1].messages].reverse().find((message: any) => message.role === 'user') as any;
+  assert.match(repairMessage.content, /raw <tool_call> text/i);
 }
 
 async function testTaskMentionWriteKeepsTaskMutationTools() {
@@ -553,6 +825,1103 @@ async function testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip() {
   assert.equal(persistedMessages[1].content, '[T-1](/portfolio/tasks/task-1) status updated to done.');
   assert.equal(providerCallCount.value, 0);
   assert.equal(recordedRequests.length, 0);
+}
+
+async function testBatchApprovalMarkerExecutesSelectedPreviewsWithoutProviderRoundTrip() {
+  const { orchestrator, providerCallCount } = createOrchestrator({
+    previewResults: [
+      {
+        preview_id: '11111111-1111-4111-8111-111111111111',
+        tool_name: 'update_task_status',
+        status: 'executed',
+        target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'First task' },
+        changes: { status: { from: 'open', to: 'done' } },
+        requires_confirmation: false,
+        actions: [],
+        summary: 'T-1 status updated to done.',
+        error_message: null,
+        conversation_id: 'conv-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: '2026-03-24T10:01:00.000Z',
+        rejected_at: null,
+        executed_at: '2026-03-24T10:01:00.000Z',
+      },
+      {
+        preview_id: '22222222-2222-4222-8222-222222222222',
+        tool_name: 'update_task_status',
+        status: 'failed',
+        target: { entity_type: 'tasks', entity_id: 'task-2', ref: 'T-2', title: 'Second task' },
+        changes: { status: { from: 'open', to: 'done' } },
+        requires_confirmation: false,
+        actions: [],
+        summary: 'Status update for T-2 failed.',
+        error_message: 'Task status changed after the preview was created.',
+        conversation_id: 'conv-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: '2026-03-24T10:01:00.000Z',
+        rejected_at: null,
+        executed_at: null,
+      },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: '[APPROVE_SELECTED:11111111-1111-4111-8111-111111111111,22222222-2222-4222-8222-222222222222]',
+    }),
+  );
+
+  const previewResults = events.filter((event) => event.type === 'preview_result') as any[];
+  assert.equal(previewResults.length, 2);
+  assert.deepEqual(previewResults.map((event) => event.status), ['executed', 'failed']);
+  const textDeltas = events.filter((event) => event.type === 'text_delta') as any[];
+  const assistantText = textDeltas.map((event) => event.text).join('');
+  assert.match(assistantText, /1 applied, 1 failed/);
+  assert.match(assistantText, /T-2: Task status changed after the preview was created/);
+  assert.equal(providerCallCount.value, 0);
+}
+
+async function testApprovalMarkerStreamsDependentFollowUpPreviews() {
+  const followUpPreviews = [1, 2].map((index) => ({
+    preview_id: `task-preview-${index}`,
+    tool_name: 'create_task',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: null, ref: null, title: `Task ${index}` },
+    changes: { title: { from: null, to: `Task ${index}` } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Create task ${index}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, providerCallCount } = createOrchestrator({
+    previewResults: [
+      {
+        preview_id: '11111111-1111-4111-8111-111111111111',
+        tool_name: 'create_business_record',
+        status: 'executed',
+        target: { entity_type: 'projects', entity_id: 'project-1', ref: 'PRJ-1', title: 'Project A' },
+        changes: { name: { from: null, to: 'Project A' } },
+        requires_confirmation: false,
+        actions: [],
+        summary: 'Created project "Project A".',
+        error_message: null,
+        conversation_id: 'conv-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: '2026-03-24T10:01:00.000Z',
+        rejected_at: null,
+        executed_at: '2026-03-24T10:01:00.000Z',
+      },
+    ],
+    followUpPreviews,
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: '[APPROVE:11111111-1111-4111-8111-111111111111]',
+    }),
+  );
+
+  assert.equal((events.filter((event) => event.type === 'preview_result') as any[]).length, 1);
+  const followUpPreviewEvents = events.filter((event) => event.type === 'preview') as any[];
+  assert.deepEqual(followUpPreviewEvents.map((event) => event.preview_id), ['task-preview-1', 'task-preview-2']);
+  const syntheticToolResult = events.find((event) =>
+    event.type === 'tool_result' && (event as any).name === 'prepare_mutation_plan'
+  ) as any;
+  assert.deepEqual(syntheticToolResult.result.previews.map((preview: any) => preview.preview_id), [
+    'task-preview-1',
+    'task-preview-2',
+  ]);
+  const assistantText = (events.filter((event) => event.type === 'text_delta') as any[])
+    .map((event) => event.text)
+    .join('');
+  assert.match(assistantText, /2 dependent previews are now prepared/i);
+  assert.equal(providerCallCount.value, 0);
+}
+
+async function testApprovalMarkerContinuesOpenMultiStepWorkflowWithoutDurablePlan() {
+  const taskPreviews = [1, 2, 3].map((index) => ({
+    preview_id: `task-preview-${index}`,
+    tool_name: 'create_task',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: null, ref: null, title: `Task ${index}` },
+    changes: { title: { from: null, to: `Task ${index}` } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Create task ${index}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, providerCallCount, recordedRequests, toolExecuteCount } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Crée le projet A et trois tâches associées.',
+      },
+      {
+        role: 'assistant',
+        content: 'Étape 1 : créer le projet. Étapes 2-4 : créer les tâches associées dépendant du projet.',
+      },
+      {
+        role: 'user',
+        content: '[APPROVE:99999999-9999-4999-8999-999999999999]',
+      },
+      {
+        role: 'assistant',
+        content: 'Le premier preview a échoué. Le plan a été recréé avec les champs manquants. Une fois ce projet approuvé et créé, les 3 tâches suivantes seront automatiquement créées et liées au projet.',
+      },
+      {
+        role: 'user',
+        content: '[APPROVE:11111111-1111-4111-8111-111111111111]',
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'prepare_mutation_plan',
+        category: 'mutation',
+        description: 'Prepare mutation plan.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'mutation_plan',
+          fields: ['operations'],
+          reversible: false,
+          prompt_hint: 'For dependent changes, use `prepare_mutation_plan`.',
+        },
+      },
+      {
+        name: 'create_task',
+        category: 'mutation',
+        description: 'Create task preview.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['title'],
+          reversible: false,
+          prompt_hint: 'For task creation, use `create_task`.',
+        },
+      },
+    ],
+    previewResults: [
+      {
+        preview_id: '11111111-1111-4111-8111-111111111111',
+        tool_name: 'create_business_record',
+        status: 'executed',
+        target: { entity_type: 'projects', entity_id: 'project-1', ref: 'PRJ-1', title: 'Project A' },
+        changes: { name: { from: null, to: 'Project A' } },
+        requires_confirmation: false,
+        actions: [],
+        summary: 'Created project "Project A".',
+        error_message: null,
+        conversation_id: 'conv-1',
+        created_at: '2026-03-24T10:00:00.000Z',
+        expires_at: '2026-03-24T10:10:00.000Z',
+        approved_at: '2026-03-24T10:01:00.000Z',
+        rejected_at: null,
+        executed_at: '2026-03-24T10:01:00.000Z',
+      },
+    ],
+    providerEvents: [
+      { type: 'tool_call_start', id: 'tc-1', name: 'prepare_mutation_plan' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"summary":"Create remaining tasks","operations":[]}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'I prepared the remaining task previews.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+    toolResult: {
+      previews: taskPreviews,
+      errors: [],
+      total: 3,
+      created: 3,
+      failed: 0,
+      complete: true,
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: '[APPROVE:11111111-1111-4111-8111-111111111111]',
+    }),
+  );
+
+  assert.equal(providerCallCount.value, 2);
+  assert.equal(toolExecuteCount.value, 1);
+  assert.ok(
+    recordedRequests[0].messages.some((message: any) =>
+      message.role === 'user' && /Continue from this exact state/i.test(String(message.content || '')),
+    ),
+  );
+  assert.equal((events.filter((event) => event.type === 'preview_result') as any[]).length, 1);
+  const taskPreviewEvents = events.filter((event) => event.type === 'preview') as any[];
+  assert.deepEqual(taskPreviewEvents.map((event) => event.preview_id), [
+    'task-preview-1',
+    'task-preview-2',
+    'task-preview-3',
+  ]);
+}
+
+async function testEmptyWriteResponseAfterToolIsRepairedIntoPreviews() {
+  const taskPreviews = [65, 66, 67].map((number, index) => ({
+    preview_id: `task-assignee-preview-${index + 1}`,
+    tool_name: 'update_task_assignees',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${number}`, ref: `T-${number}`, title: `Task ${number}` },
+    changes: { assignee: { from: null, to: 'Nicolas Bertrand' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Assign T-${number} to Nicolas Bertrand.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, providerCallCount, recordedRequests, toolExecuteCount } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Crée le projet Omelette et trois tâches associées.',
+      },
+      {
+        role: 'assistant',
+        content: 'Created project "PRJ-16 - Omelette". 3 dependent previews are now prepared and waiting for explicit approval.\n\n- T-65\n- T-66\n- T-67',
+      },
+      {
+        role: 'user',
+        content: 'Parfait. Tu peux assigner toutes les tâches à Nicolas Bertrand ?',
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'update_task_assignees',
+        category: 'mutation',
+        description: 'Bulk task reassignment preview.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['assignee'],
+          reversible: false,
+          prompt_hint: 'For bulk task reassignment, use `update_task_assignees`.',
+        },
+      },
+    ],
+    providerEventBatches: [
+      [
+        { type: 'tool_call_start', id: 'tc-query-user', name: 'query_entities' },
+        { type: 'tool_call_delta', id: 'tc-query-user', arguments: '{"entity_type":"users","filters":{"query":"Nicolas Bertrand"}}' },
+        { type: 'tool_call_end', id: 'tc-query-user' },
+        { type: 'done', usage: { input_tokens: 100, output_tokens: 30 } },
+      ],
+      [
+        { type: 'done', usage: { input_tokens: 120, output_tokens: 0 } },
+      ],
+      [
+        { type: 'tool_call_start', id: 'tc-preview', name: 'update_task_assignees' },
+        { type: 'tool_call_delta', id: 'tc-preview', arguments: '{"task_refs":["T-65","T-66","T-67"],"assignee_email":"nicolas.bertrand@example.com"}' },
+        { type: 'tool_call_end', id: 'tc-preview' },
+        { type: 'done', usage: { input_tokens: 140, output_tokens: 40 } },
+      ],
+      [
+        { type: 'text_delta', text: 'I prepared the reassignment previews.' },
+        { type: 'done', usage: { input_tokens: 160, output_tokens: 20 } },
+      ],
+    ],
+    toolResultsByName: {
+      query_entities: {
+        items: [{ id: 'user-2', type: 'users', label: 'Nicolas Bertrand', email: 'nicolas.bertrand@example.com' }],
+        total: 1,
+      },
+      update_task_assignees: {
+        previews: taskPreviews,
+        errors: [],
+        total: 3,
+        created: 3,
+        failed: 0,
+        complete: true,
+      },
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'Parfait. Tu peux assigner toutes les tâches à Nicolas Bertrand ?',
+    }),
+  );
+
+  assert.equal(providerCallCount.value, 4);
+  assert.equal(toolExecuteCount.value, 2);
+  assert.ok(
+    recordedRequests[2].messages.some((message: any) =>
+      message.role === 'user' && /ended with no visible answer/i.test(String(message.content || '')),
+    ),
+  );
+  const previewEvents = events.filter((event) => event.type === 'preview') as any[];
+  assert.deepEqual(previewEvents.map((event) => event.preview_id), [
+    'task-assignee-preview-1',
+    'task-assignee-preview-2',
+    'task-assignee-preview-3',
+  ]);
+}
+
+async function testEmptyWriteCorrectionResponseIsRepairedIntoPreviews() {
+  const taskPreviews = ['T-48', 'T-31'].map((ref, index) => ({
+    preview_id: `task-comment-correction-preview-${index + 1}`,
+    tool_name: 'add_task_comment',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${index + 1}`, ref, title: `Task ${index + 1}` },
+    changes: { comment: { from: null, to: 'Tant va la cruche a l eau qu a la fin elle se casse.' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Add comment to ${ref}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, providerCallCount, recordedRequests, toolExecuteCount } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Ajoute le commentaire "Tant va la cruche a l eau qu a la fin elle se casse." à toutes les tâches en retard',
+      },
+      {
+        role: 'assistant',
+        content: 'Les 27 previews sont prêtes. Voulez-vous les approuver toutes pour exécution ?',
+      },
+      {
+        role: 'user',
+        content: "c'est une relance ! je ne veux mettre ce message qu'aux tâches qui sont encore en cours.",
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'prepare_mutation_plan',
+        category: 'mutation',
+        description: 'Prepare mutation plan.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'mutation_plan',
+          fields: ['operations'],
+          reversible: false,
+          prompt_hint: 'Use prepare_mutation_plan for bulk target tracking.',
+        },
+      },
+      {
+        name: 'add_task_comment',
+        category: 'mutation',
+        description: 'Add task comment.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['comments'],
+          reversible: false,
+          prompt_hint: 'Use add_task_comment with a canonical task ref.',
+        },
+      },
+    ],
+    providerEventBatches: [
+      [
+        { type: 'done', usage: { input_tokens: 100, output_tokens: 0 } },
+      ],
+      [
+        { type: 'text_delta', text: 'Je corrige la sélection et ne cible que les tâches encore en cours.' },
+        { type: 'tool_call_start', id: 'tc-plan', name: 'prepare_mutation_plan' },
+        {
+          type: 'tool_call_delta',
+          id: 'tc-plan',
+          arguments: '{"summary":"Add comments to active overdue tasks","operations":[{"operation_id":"t48","tool_name":"add_task_comment","input":{"ref":"T-48","content":"Tant va la cruche a l eau qu a la fin elle se casse."}},{"operation_id":"t31","tool_name":"add_task_comment","input":{"ref":"T-31","content":"Tant va la cruche a l eau qu a la fin elle se casse."}}],"expected_target_refs":["T-48","T-31"],"expected_target_count":2}',
+        },
+        { type: 'tool_call_end', id: 'tc-plan' },
+        { type: 'done', usage: { input_tokens: 120, output_tokens: 60 } },
+      ],
+      [
+        { type: 'text_delta', text: 'Les previews corrigées sont prêtes.' },
+        { type: 'done', usage: { input_tokens: 140, output_tokens: 20 } },
+      ],
+    ],
+    toolResultsByName: {
+      prepare_mutation_plan: {
+        previews: taskPreviews,
+        errors: [],
+        total: 2,
+        created: 2,
+        failed: 0,
+        expected_count: 2,
+        expected_refs: ['T-48', 'T-31'],
+        covered_refs: ['T-48', 'T-31'],
+        missing_refs: [],
+        excluded: [],
+        complete: true,
+      },
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: "c'est une relance ! je ne veux mettre ce message qu'aux tâches qui sont encore en cours.",
+    }),
+  );
+
+  assert.equal(providerCallCount.value, 3);
+  assert.equal(toolExecuteCount.value, 1);
+  assert.ok(
+    recordedRequests[1].messages.some((message: any) =>
+      message.role === 'user' && /no visible assistant text/i.test(String(message.content || '')),
+    ),
+  );
+  const previewEvents = events.filter((event) => event.type === 'preview') as any[];
+  assert.deepEqual(previewEvents.map((event) => event.preview_id), [
+    'task-comment-correction-preview-1',
+    'task-comment-correction-preview-2',
+  ]);
+  assert.ok(!events.some((event) => event.type === 'error'));
+}
+
+async function testIncompleteBulkPreviewCoverageTriggersRepairInstruction() {
+  const taskPreviews = [1, 2, 3].map((number) => ({
+    preview_id: `task-comment-preview-${number}`,
+    tool_name: 'add_task_comment',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${number}`, ref: `T-${number}`, title: `Task ${number}` },
+    changes: { comment: { from: null, to: 'allo ?' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Add comment to T-${number}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, providerCallCount, recordedRequests } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Ajoute le commentaire "allo ?" à toutes les tâches en retard',
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'prepare_mutation_plan',
+        category: 'mutation',
+        description: 'Prepare mutation plan.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'mutation_plan',
+          fields: ['operations'],
+          reversible: false,
+          prompt_hint: 'Use prepare_mutation_plan for bulk target tracking.',
+        },
+      },
+      {
+        name: 'add_task_comment',
+        category: 'mutation',
+        description: 'Add task comment.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['comments'],
+          reversible: false,
+          prompt_hint: 'Use add_task_comment with a canonical task ref.',
+        },
+      },
+    ],
+    providerEventBatches: [
+      [
+        { type: 'tool_call_start', id: 'tc-query', name: 'query_entities' },
+        { type: 'tool_call_delta', id: 'tc-query', arguments: '{"entity_type":"tasks","filters":{"due":"overdue"},"limit":50}' },
+        { type: 'tool_call_end', id: 'tc-query' },
+        { type: 'done', usage: { input_tokens: 100, output_tokens: 30 } },
+      ],
+      [
+        { type: 'tool_call_start', id: 'tc-plan', name: 'prepare_mutation_plan' },
+        { type: 'tool_call_delta', id: 'tc-plan', arguments: '{"summary":"Add comments","operations":[{"operation_id":"t1","tool_name":"add_task_comment","input":{"ref":"T-1","content":"allo ?"}},{"operation_id":"t2","tool_name":"add_task_comment","input":{"ref":"T-2","content":"allo ?"}},{"operation_id":"t3","tool_name":"add_task_comment","input":{"ref":"T-3","content":"allo ?"}}]}' },
+        { type: 'tool_call_end', id: 'tc-plan' },
+        { type: 'done', usage: { input_tokens: 120, output_tokens: 40 } },
+      ],
+      [
+        { type: 'text_delta', text: 'J ai prepare les previews.' },
+        { type: 'done', usage: { input_tokens: 140, output_tokens: 20 } },
+      ],
+      [
+        { type: 'text_delta', text: 'Hypothese : T-4 est exclue du perimetre actif. Les autres previews restent en attente d approbation.' },
+        { type: 'done', usage: { input_tokens: 160, output_tokens: 24 } },
+      ],
+    ],
+    toolResultsByName: {
+      query_entities: {
+        items: [1, 2, 3, 4].map((number) => ({
+          id: `task-${number}`,
+          type: 'tasks',
+          ref: `T-${number}`,
+          label: `Task ${number}`,
+        })),
+        total: 4,
+        returned: 4,
+        truncated: false,
+        complete: true,
+      },
+      prepare_mutation_plan: {
+        previews: taskPreviews,
+        errors: [],
+        total: 3,
+        created: 3,
+        failed: 0,
+        complete: true,
+      },
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'Ajoute le commentaire "allo ?" à toutes les tâches en retard',
+    }),
+  );
+
+  assert.equal(providerCallCount.value, 4);
+  assert.ok(
+    recordedRequests[3].messages.some((message: any) =>
+      message.role === 'user'
+      && /did not cover the complete resolved bulk target set/i.test(String(message.content || ''))
+      && /T-4/.test(String(message.content || '')),
+    ),
+  );
+  assert.equal(
+    (events.filter((event) => event.type === 'text_delta') as any[]).map((event) => event.text).join(''),
+    'Hypothese : T-4 est exclue du perimetre actif. Les autres previews restent en attente d approbation.',
+  );
+}
+
+async function testSingleRefBulkRepairIsAutoplannedForMissingRefs() {
+  const taskPreviews = [1, 2, 3, 4].map((number) => ({
+    preview_id: `task-comment-preview-${number}`,
+    tool_name: 'add_task_comment',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${number}`, ref: `T-${number}`, title: `Task ${number}` },
+    changes: { comment: { from: null, to: 'allo ?' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Add comment to T-${number}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, executedToolCalls, providerCallCount } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Ajoute le commentaire "allo ?" à toutes les tâches en retard',
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'prepare_mutation_plan',
+        category: 'mutation',
+        description: 'Prepare mutation plan.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'mutation_plan',
+          fields: ['operations'],
+          reversible: false,
+          prompt_hint: 'Use prepare_mutation_plan for bulk target tracking.',
+        },
+      },
+      {
+        name: 'add_task_comment',
+        category: 'mutation',
+        description: 'Add task comment.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['comments'],
+          reversible: false,
+          prompt_hint: 'Use add_task_comment with a canonical task ref.',
+        },
+      },
+    ],
+    providerEventBatches: [
+      [
+        { type: 'tool_call_start', id: 'tc-query', name: 'query_entities' },
+        { type: 'tool_call_delta', id: 'tc-query', arguments: '{"entity_type":"tasks","filters":{"due":"overdue"},"limit":50}' },
+        { type: 'tool_call_end', id: 'tc-query' },
+        { type: 'done', usage: { input_tokens: 100, output_tokens: 30 } },
+      ],
+      [
+        { type: 'tool_call_start', id: 'tc-comment', name: 'add_task_comment' },
+        { type: 'tool_call_delta', id: 'tc-comment', arguments: '{"ref":"T-1","content":"allo ?"}' },
+        { type: 'tool_call_end', id: 'tc-comment' },
+        { type: 'done', usage: { input_tokens: 120, output_tokens: 40 } },
+      ],
+      [
+        { type: 'text_delta', text: 'Les previews sont pretes.' },
+        { type: 'done', usage: { input_tokens: 140, output_tokens: 20 } },
+      ],
+    ],
+    toolResultsByName: {
+      query_entities: {
+        items: [1, 2, 3, 4].map((number) => ({
+          id: `task-${number}`,
+          type: 'tasks',
+          ref: `T-${number}`,
+          label: `Task ${number}`,
+        })),
+        total: 4,
+        returned: 4,
+        truncated: false,
+        complete: true,
+      },
+      prepare_mutation_plan: {
+        previews: taskPreviews,
+        errors: [],
+        total: 4,
+        created: 4,
+        failed: 0,
+        expected_count: 4,
+        expected_refs: ['T-1', 'T-2', 'T-3', 'T-4'],
+        covered_refs: ['T-1', 'T-2', 'T-3', 'T-4'],
+        missing_refs: [],
+        excluded: [],
+        complete: true,
+      },
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'Ajoute le commentaire "allo ?" à toutes les tâches en retard',
+    }),
+  );
+
+  assert.equal(providerCallCount.value, 3);
+  assert.deepEqual(executedToolCalls.map((call) => call.toolName), ['query_entities', 'prepare_mutation_plan']);
+  assert.deepEqual(
+    executedToolCalls[1].input.operations.map((operation: any) => operation.input.ref),
+    ['T-1', 'T-2', 'T-3', 'T-4'],
+  );
+  assert.equal((events.filter((event) => event.type === 'preview') as any[]).length, 4);
+  assert.ok(!events.some((event) => event.type === 'error'));
+}
+
+async function testSingleRefBulkContinuationUsesTextualTargetSet() {
+  const taskPreviews = [1, 2, 3].map((number) => ({
+    preview_id: `task-comment-preview-${number}`,
+    tool_name: 'add_task_comment',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${number}`, ref: `T-${number}`, title: `Task ${number}` },
+    changes: { comment: { from: null, to: 'allo ?' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Add comment to T-${number}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, executedToolCalls } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Ajoute le commentaire "allo ?" à toutes les tâches en retard',
+      },
+      {
+        role: 'assistant',
+        content: [
+          'Plan de mutation mis à jour',
+          '3 tâches actives restantes : T-1, T-2, T-3',
+          'Tâches exclues : T-4 (done)',
+        ].join('\n'),
+      },
+      {
+        role: 'user',
+        content: "mais... là il n'y en avait qu'une !",
+      },
+    ],
+    availableTools: [
+      {
+        name: 'prepare_mutation_plan',
+        category: 'mutation',
+        description: 'Prepare mutation plan.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'mutation_plan',
+          fields: ['operations'],
+          reversible: false,
+          prompt_hint: 'Use prepare_mutation_plan for bulk target tracking.',
+        },
+      },
+      {
+        name: 'add_task_comment',
+        category: 'mutation',
+        description: 'Add task comment.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['comments'],
+          reversible: false,
+          prompt_hint: 'Use add_task_comment with a canonical task ref.',
+        },
+      },
+    ],
+    providerEventBatches: [
+      [
+        { type: 'text_delta', text: 'Je vais générer les previews pour les 3 tâches actives restantes.' },
+        { type: 'tool_call_start', id: 'tc-comment', name: 'add_task_comment' },
+        { type: 'tool_call_delta', id: 'tc-comment', arguments: '{"ref":"T-1","content":"allo ?"}' },
+        { type: 'tool_call_end', id: 'tc-comment' },
+        { type: 'done', usage: { input_tokens: 100, output_tokens: 40 } },
+      ],
+      [
+        { type: 'text_delta', text: 'Les previews sont prêtes.' },
+        { type: 'done', usage: { input_tokens: 120, output_tokens: 20 } },
+      ],
+    ],
+    toolResultsByName: {
+      prepare_mutation_plan: {
+        previews: taskPreviews,
+        errors: [],
+        total: 3,
+        created: 3,
+        failed: 0,
+        expected_count: 3,
+        expected_refs: ['T-1', 'T-2', 'T-3'],
+        covered_refs: ['T-1', 'T-2', 'T-3'],
+        missing_refs: [],
+        excluded: [],
+        complete: true,
+      },
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: "mais... là il n'y en avait qu'une !",
+    }),
+  );
+
+  assert.deepEqual(executedToolCalls.map((call) => call.toolName), ['prepare_mutation_plan']);
+  assert.deepEqual(
+    executedToolCalls[0].input.operations.map((operation: any) => operation.input.ref),
+    ['T-1', 'T-2', 'T-3'],
+  );
+  assert.equal((events.filter((event) => event.type === 'preview') as any[]).length, 3);
+}
+
+async function testPartialMutationPlanUsesCurrentTextualTargetSet() {
+  const refs = ['T-48', 'T-31', 'T-30', 'T-29', 'T-28', 'T-27', 'T-25'];
+  const taskPreviews = refs.map((ref, index) => ({
+    preview_id: `task-comment-preview-${index + 1}`,
+    tool_name: 'add_task_comment',
+    status: 'pending',
+    target: { entity_type: 'tasks', entity_id: `task-${index + 1}`, ref, title: `Task ${index + 1}` },
+    changes: { comment: { from: null, to: 'allo ?' } },
+    requires_confirmation: true,
+    actions: ['approve', 'reject'],
+    summary: `Add comment to ${ref}.`,
+    error_message: null,
+    conversation_id: 'conv-1',
+    created_at: '2026-03-24T10:00:00.000Z',
+    expires_at: '2026-03-24T10:10:00.000Z',
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+  }));
+  const { orchestrator, executedToolCalls } = createOrchestrator({
+    historyMessages: [
+      {
+        role: 'user',
+        content: 'Ajoute le commentaire "allo ?" à toutes les tâches en retard',
+      },
+      {
+        role: 'assistant',
+        content: 'J ai trouvé 27 tâches en retard.',
+      },
+      {
+        role: 'user',
+        content: 'Exclus les tâches déjà fermées.',
+      },
+    ],
+    availableTools: [
+      {
+        name: 'prepare_mutation_plan',
+        category: 'mutation',
+        description: 'Prepare mutation plan.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'mutation_plan',
+          fields: ['operations'],
+          reversible: false,
+          prompt_hint: 'Use prepare_mutation_plan for bulk target tracking.',
+        },
+      },
+      {
+        name: 'add_task_comment',
+        category: 'mutation',
+        description: 'Add task comment.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['comments'],
+          reversible: false,
+          prompt_hint: 'Use add_task_comment with a canonical task ref.',
+        },
+      },
+    ],
+    providerEventBatches: [
+      [
+        {
+          type: 'text_delta',
+          text: [
+            'Vous avez raison. Je cible les 7 tâches en retard avec un statut actif.',
+            '',
+            'Tâches ciblées (7):',
+            'T-48 test héritage',
+            'T-31 Résilier ASAP',
+            'T-30 Résilier ASAP',
+            'T-29 Résiliser ASAP',
+            'T-28 Résilier ASAP',
+            'T-27 Résilier ASAP',
+            'T-25 Résiliation ASAP',
+            '',
+            'Tâches exclues (déjà terminées): T-26, T-19, T-17',
+          ].join('\n'),
+        },
+        { type: 'tool_call_start', id: 'tc-plan', name: 'prepare_mutation_plan' },
+        {
+          type: 'tool_call_delta',
+          id: 'tc-plan',
+          arguments: '{"summary":"Add comments","operations":[{"operation_id":"t48","tool_name":"add_task_comment","input":{"ref":"T-48","content":"allo ?"}},{"operation_id":"t31","tool_name":"add_task_comment","input":{"ref":"T-31","content":"allo ?"}}]}',
+        },
+        { type: 'tool_call_end', id: 'tc-plan' },
+        { type: 'done', usage: { input_tokens: 100, output_tokens: 40 } },
+      ],
+      [
+        { type: 'text_delta', text: 'Les previews sont prêtes.' },
+        { type: 'done', usage: { input_tokens: 120, output_tokens: 20 } },
+      ],
+    ],
+    toolResultsByName: {
+      prepare_mutation_plan: {
+        previews: taskPreviews,
+        errors: [],
+        total: refs.length,
+        created: refs.length,
+        failed: 0,
+        expected_count: refs.length,
+        expected_refs: refs,
+        covered_refs: refs,
+        missing_refs: [],
+        excluded: [],
+        complete: true,
+      },
+    },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'Exclus les tâches déjà fermées.',
+    }),
+  );
+
+  assert.deepEqual(executedToolCalls.map((call) => call.toolName), ['prepare_mutation_plan']);
+  assert.deepEqual(
+    executedToolCalls[0].input.operations.map((operation: any) => operation.input.ref),
+    refs,
+  );
+  assert.equal((events.filter((event) => event.type === 'preview') as any[]).length, refs.length);
+}
+
+async function testTextualWriteConfirmationWithoutPreviewIsRewrittenToCreatePreviews() {
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    historyMessages: [
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: 'Réassigne les 3 tâches de Friedrich EVA à Nicolas Bertrand.',
+      },
+      {
+        id: 'msg-2',
+        role: 'assistant',
+        content: 'Voici les modifications proposées. Souhaitez-vous que je procède à cette réassignation ?',
+      },
+      {
+        id: 'msg-3',
+        role: 'user',
+        content: 'oui',
+      },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat'] },
+      {
+        name: 'update_task_assignee',
+        category: 'mutation',
+        description: 'Create assignee preview.',
+        input_summary: {},
+        read_only: false,
+        surfaces: ['chat'],
+        write_preview: {
+          entity_type: 'tasks',
+          fields: ['assignee'],
+          reversible: true,
+          prompt_hint: 'For assignee changes, use `update_task_assignee` with the assignee email.',
+        },
+      },
+    ],
+    providerEvents: [{ type: 'text_delta', text: 'I will create the previews.' }, { type: 'done' }],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'oui',
+    }),
+  );
+
+  assert.equal(recordedRequests.length, 1);
+  const messages = recordedRequests[0].messages as any[];
+  const latestUser = [...messages].reverse().find((message) => message.role === 'user');
+  assert.match(latestUser.content, /No pending backend mutation preview exists/);
+  assert.match(latestUser.content, /Create the required backend mutation previews now/);
+  assert.match(latestUser.content, /update_task_assignee/);
+  assert.match(latestUser.content, /Do not execute changes/);
 }
 
 async function testProviderReceivesAbortSignal() {
@@ -1057,10 +2426,23 @@ async function testChatProviderTimeoutResolver() {
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
+  await testBatchPreviewToolResultEmitsEveryPreview();
+  await testUnsafeWriteConfirmationWithoutPreviewIsRetriedAsToolCall();
+  await testRawPseudoToolCallTextIsRetriedAsRealToolCall();
   await testTaskMentionWriteKeepsTaskMutationTools();
   await testTaskCommentContinuationKeepsTaskMutationTools();
   await testParallelToolCallsAreReplayedAsSequentialTurns();
   await testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip();
+  await testBatchApprovalMarkerExecutesSelectedPreviewsWithoutProviderRoundTrip();
+  await testApprovalMarkerStreamsDependentFollowUpPreviews();
+  await testApprovalMarkerContinuesOpenMultiStepWorkflowWithoutDurablePlan();
+  await testEmptyWriteResponseAfterToolIsRepairedIntoPreviews();
+  await testEmptyWriteCorrectionResponseIsRepairedIntoPreviews();
+  await testIncompleteBulkPreviewCoverageTriggersRepairInstruction();
+  await testSingleRefBulkRepairIsAutoplannedForMissingRefs();
+  await testSingleRefBulkContinuationUsesTextualTargetSet();
+  await testPartialMutationPlanUsesCurrentTextualTargetSet();
+  await testTextualWriteConfirmationWithoutPreviewIsRewrittenToCreatePreviews();
   await testProviderReceivesAbortSignal();
   await testProviderRequestUsesChatTimeout();
   await testRepeatedToolCallsStopWithoutFurtherProgress();

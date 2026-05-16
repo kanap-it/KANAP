@@ -5,7 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AiWorkspacePage from './AiWorkspacePage';
 import { aiConversationsApi } from '../../ai/aiApi';
-import type { AiMutationPreview, ChatConversation } from '../../ai/aiTypes';
+import type { AiMutationPreview, ChatConversation, ChatMessage } from '../../ai/aiTypes';
 import { createAppTheme } from '../../config/ThemeContext';
 
 let featuresState = {
@@ -23,7 +23,7 @@ let featuresState = {
 };
 
 let chatState = {
-  messages: [] as Array<{ id: string; role: 'user' | 'assistant' | 'tool'; content: string }>,
+  messages: [] as ChatMessage[],
   previews: [] as any[],
   conversationUsage: null as { input_tokens: number; output_tokens: number } | null,
   lastRequestUsage: null as { input_tokens: number; output_tokens: number } | null,
@@ -298,7 +298,7 @@ describe('AiWorkspacePage', () => {
     expect(screen.queryByTestId('artifact-panel')).not.toBeInTheDocument();
   });
 
-  it('auto-opens the artifact panel for long mutation previews only', async () => {
+  it('auto-opens the artifact panel for referenced preview groups', async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -306,7 +306,12 @@ describe('AiWorkspacePage', () => {
       },
     });
 
-    chatState.messages = [{ id: 'msg-1', role: 'assistant', content: 'Preview ready' }];
+    chatState.messages = [{
+      id: 'msg-1',
+      role: 'assistant',
+      content: 'Preview ready',
+      previewIds: ['long-preview'],
+    }];
     chatState.previews = [
       makeMarkdownPreview('short-preview', 'Short content update'),
       makeMarkdownPreview('long-preview', 'Long content '.repeat(80)),
@@ -318,6 +323,66 @@ describe('AiWorkspacePage', () => {
     expect(screen.queryByText('short-preview')).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId('artifact-panel')).toHaveAttribute('data-open', 'true');
+    });
+  });
+
+  it('switches the artifact panel to the latest preview group from tool results', async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const previewOne = makeMarkdownPreview('preview-1', 'Task 1 comment');
+    const previewTwo = makeMarkdownPreview('preview-2', 'Task 2 comment');
+    const stalePreview = makeMarkdownPreview('preview-stale', 'Done task comment');
+
+    chatState.messages = [{
+      id: 'msg-1',
+      role: 'assistant',
+      content: 'Initial selection',
+      previewIds: ['preview-1', 'preview-2', 'preview-stale'],
+    }];
+    chatState.previews = [previewOne, previewTwo, stalePreview];
+
+    const view = renderPage(client);
+
+    expect(screen.getByTestId('artifact-panel')).toHaveTextContent('preview-stale');
+
+    chatState.messages = [
+      chatState.messages[0],
+      { id: 'msg-user-2', role: 'user', content: 'Exclude completed tasks' },
+      {
+        id: 'msg-2',
+        role: 'assistant',
+        content: 'Updated selection',
+        toolResults: [{
+          id: 'tool-1',
+          name: 'prepare_mutation_plan',
+          result: {
+            previews: [previewOne, previewTwo],
+            total: 2,
+            created: 2,
+            failed: 0,
+            complete: true,
+          },
+        }],
+      },
+    ];
+
+    view.rerender(
+      <ThemeProvider theme={createAppTheme('light')}>
+        <QueryClientProvider client={client}>
+          <AiWorkspacePage />
+        </QueryClientProvider>
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('artifact-panel')).toHaveTextContent('preview-1');
+      expect(screen.getByTestId('artifact-panel')).toHaveTextContent('preview-2');
+      expect(screen.getByTestId('artifact-panel')).not.toHaveTextContent('preview-stale');
     });
   });
 

@@ -97,7 +97,7 @@ type ApplicationInstance = {
 
 type LocationDetails = {
   id: string;
-  code: string;
+  location_reference: string;
   name: string;
   hosting_type: string;
   operating_company_id: string | null;
@@ -118,7 +118,7 @@ type ClusterMember = {
   operating_system?: string | null;
 };
 
-type LocationOption = { id: string; code: string; name: string };
+type LocationOption = { id: string; location_reference: string; name: string };
 
 type ClusterSummary = {
   id: string;
@@ -129,7 +129,7 @@ type ClusterSummary = {
 
 type ServerConnectionRow = {
   id: string;
-  connection_id: string;
+  connection_reference: string;
   name: string;
   topology: 'server_to_server' | 'multi_server';
   lifecycle: string;
@@ -288,6 +288,14 @@ export default function AssetWorkspacePage() {
   const [assetTypeAnchorEl, setAssetTypeAnchorEl] = React.useState<HTMLElement | null>(null);
   const [locationAnchorEl, setLocationAnchorEl] = React.useState<HTMLElement | null>(null);
   const [locationOptions, setLocationOptions] = React.useState<LocationOption[]>([]);
+  const workspaceRouteId = data?.asset_reference || (isCreate ? 'new' : routeId);
+  const routeMatchesLoadedAsset = React.useMemo(() => {
+    if (isCreate || !data) return false;
+    if (routeId === data.id) return true;
+    const routeKey = routeId.toUpperCase();
+    const reference = data.asset_reference?.toUpperCase();
+    return !!reference && (routeKey === reference || routeKey.startsWith(`${reference}-`));
+  }, [data, isCreate, routeId]);
   const { byField, labelFor, settings } = useItOpsEnumOptions();
   const topologyLabel = React.useCallback((v?: string) => {
     if (v === 'server_to_server') return t('enums.topology.serverToServer');
@@ -309,11 +317,7 @@ export default function AssetWorkspacePage() {
     try {
       const res = await api.get<AssetRecord>(assetReferenceRoute ? `/assets/by-ref/${routeId}` : `/assets/${routeId}`);
       setData(res.data as any);
-      if (assetReferenceRoute) {
-        setCanonicalAssetId(res.data.id);
-      } else {
-        setCanonicalAssetId(null);
-      }
+      setCanonicalAssetId(res.data.id);
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.loadAssetFailed')));
     }
@@ -322,15 +326,23 @@ export default function AssetWorkspacePage() {
   React.useEffect(() => { void load(); }, [load]);
 
   React.useEffect(() => {
+    if (isCreate || !data?.asset_reference) return;
+    if (!routeMatchesLoadedAsset) return;
+    if (routeId.toUpperCase() === data.asset_reference.toUpperCase()) return;
+    const qs = searchParams.toString();
+    navigate(`/it/assets/${data.asset_reference}/${tab}${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [data?.asset_reference, isCreate, navigate, routeId, routeMatchesLoadedAsset, searchParams, tab]);
+
+  React.useEffect(() => {
     let cancelled = false;
     const loadLocations = async () => {
       try {
         const res = await api.get<{ items: LocationOption[] }>('/locations', {
-          params: { limit: 500, sort: 'code:ASC' },
+          params: { limit: 500, sort: 'location_reference:ASC' },
         });
         if (cancelled) return;
         const items = [...(res.data?.items || [])].sort((a, b) => (
-          a.code.localeCompare(b.code, undefined, { sensitivity: 'base' })
+          a.location_reference.localeCompare(b.location_reference, undefined, { sensitivity: 'base', numeric: true })
         ));
         setLocationOptions(items);
       } catch {
@@ -495,12 +507,13 @@ export default function AssetWorkspacePage() {
   React.useEffect(() => {
     if (isCreate) return;
     if (!data) return; // Wait for data to load
+    if (!routeMatchesLoadedAsset) return;
     if (!settings) return; // Wait for asset type metadata before deciding physical-only tabs
     const physicalOnlyTabs = ['hardware', 'support'];
     if (physicalOnlyTabs.includes(tab) && !isPhysicalAsset) {
-      navigate(`/it/assets/${id}/overview`, { replace: true });
+      navigate(`/it/assets/${workspaceRouteId}/overview`, { replace: true });
     }
-  }, [tab, isPhysicalAsset, id, isCreate, data, navigate, settings]);
+  }, [tab, isPhysicalAsset, isCreate, data, navigate, routeMatchesLoadedAsset, settings, workspaceRouteId]);
 
   // Compute valid tab value for Tabs component (prevents MUI warning)
   const validTab = React.useMemo(() => {
@@ -688,7 +701,7 @@ export default function AssetWorkspacePage() {
         const payload = res.data as any;
         const details: LocationDetails = {
           id: payload.id,
-          code: payload.code,
+          location_reference: payload.location_reference,
           name: payload.name,
           hosting_type: payload.hosting_type,
           operating_company_id: payload.operating_company_id || null,
@@ -800,7 +813,7 @@ export default function AssetWorkspacePage() {
     };
       if (isCreate) {
       const res = await api.post('/assets', payload);
-      const newId = res.data?.id as string;
+      const newId = (res.data?.asset_reference || res.data?.id) as string;
       setDirty(false);
       navigate(`/it/assets/${newId}/overview`);
     } else {
@@ -1015,9 +1028,10 @@ export default function AssetWorkspacePage() {
 
   React.useEffect(() => {
     if (!rawTab || VALID_ASSET_TABS.has(rawTab as TabKey)) return;
+    if (!isCreate && data && !routeMatchesLoadedAsset) return;
     const qs = listContextParams.toString();
-    navigate(`/it/assets/${id}/overview${qs ? `?${qs}` : ''}`, { replace: true });
-  }, [id, listContextParams, navigate, rawTab]);
+    navigate(`/it/assets/${workspaceRouteId}/overview${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [data, isCreate, listContextParams, navigate, rawTab, routeMatchesLoadedAsset, workspaceRouteId]);
 
   const handleReset = () => {
     setName(data?.name || '');
@@ -1105,7 +1119,8 @@ export default function AssetWorkspacePage() {
 
   const canonicalPathFor = (targetId: string, nextTab: TabKey = validTab) => {
     const qs = listContextParams.toString();
-    return `/it/assets/${targetId}/${nextTab}${qs ? `?${qs}` : ''}`;
+    const targetRouteId = targetId === id || targetId === data?.id ? workspaceRouteId : targetId;
+    return `/it/assets/${targetRouteId}/${nextTab}${qs ? `?${qs}` : ''}`;
   };
 
   const handleTabChange = (nextTab: string) => {
@@ -1167,7 +1182,9 @@ export default function AssetWorkspacePage() {
   }));
 
   const assetTypeLabel = labelFor('serverKind', kind) || kind || 'Not set';
-  const locationLabel = locationDetails?.code || (locationId ? 'Loading...' : 'Not set');
+  const locationLabel = locationDetails
+    ? `${locationDetails.location_reference} · ${locationDetails.name}`
+    : (locationId ? 'Loading...' : 'Not set');
 
   const actions = (
     <>
@@ -1450,7 +1467,10 @@ export default function AssetWorkspacePage() {
                   }}
                   sx={drawerMenuItemSx}
                 >
-                  {option.code}
+                  <Box component="span" sx={{ fontFamily: MONO_FONT_FAMILY, color: 'kanap.text.secondary', mr: 0.75 }}>
+                    {option.location_reference}
+                  </Box>
+                  {option.name}
                 </MenuItem>
               ))}
             </Menu>
@@ -1696,12 +1716,12 @@ export default function AssetWorkspacePage() {
                             {connections.map((conn) => (
                               <TableRow key={conn.id} hover>
                                 <TableCell>
-                                  <Button size="small" onClick={() => navigate(`/it/connections/${conn.id}/overview`)}>
-                                    {conn.connection_id}
+                                  <Button size="small" onClick={() => navigate(`/it/connections/${conn.connection_reference || conn.id}/overview`)} sx={{ fontFamily: "'JetBrains Mono Variable', monospace", textTransform: 'none' }}>
+                                    {conn.connection_reference}
                                   </Button>
                                 </TableCell>
                                 <TableCell>
-                                  <Button size="small" onClick={() => navigate(`/it/connections/${conn.id}/overview`)}>
+                                  <Button size="small" onClick={() => navigate(`/it/connections/${conn.connection_reference || conn.id}/overview`)}>
                                     {conn.name}
                                   </Button>
                                 </TableCell>

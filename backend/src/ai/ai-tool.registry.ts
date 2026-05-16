@@ -23,6 +23,7 @@ import {
   AiEntitySummaryDto,
   AiExecutionContextWithManager,
   AiKnowledgeSearchResultDto,
+  AiMutationPreviewDto,
   AiToolCategory,
   AiQueryEntityTypeSchema,
   AiQueryScopeSchema,
@@ -125,8 +126,70 @@ const UndoPreviewInputSchema = z.object({
   preview_id: z.string().trim().uuid(),
 });
 
+const UpdateTaskAssigneesInputSchema = z.object({
+  refs: z.array(z.string().trim().min(1)).min(1).max(50),
+  assignee_email: z.string().trim().email(),
+});
+
+const PrepareMutationPlanOperationSchema = z.object({
+  operation_id: z.string().trim().regex(/^[A-Za-z0-9_-]+$/).optional()
+    .describe('Stable step key used by dependencies and placeholders, for example create_project or task_1.'),
+  label: z.string().trim().optional()
+    .describe('Human-readable step label.'),
+  tool_name: z.string().trim().min(1)
+    .describe('Exact write-preview tool name to prepare for this step, such as create_business_record or create_task.'),
+  input: z.record(z.string(), z.unknown())
+    .describe('Input object for the selected write-preview tool. Dependent steps may use placeholders like {{create_project.ref}}.'),
+  depends_on: z.array(z.string().trim().min(1)).optional()
+    .describe('Step keys that must execute before this step can prepare its preview.'),
+});
+
+const BulkExplicitExclusionSchema = z.object({
+  ref: z.string().trim().min(1)
+    .describe('Canonical target reference explicitly excluded from this bulk mutation, such as T-42.'),
+  reason: z.string().trim().min(1)
+    .describe('Short user-visible reason why this target is outside the resolved target set.'),
+});
+
+const PrepareMutationPlanInputSchema = z.object({
+  summary: z.string().trim().optional()
+    .describe('Short description of the overall requested mutation plan.'),
+  target_set_label: z.string().trim().optional()
+    .describe('Short label for the resolved bulk target set, including assumptions when relevant, such as "active overdue tasks".'),
+  expected_target_refs: z.array(z.string().trim().min(1)).max(50).optional()
+    .describe('Canonical references for every resolved target expected to receive a preview, after explicit assumptions are applied.'),
+  expected_target_count: z.number().int().min(0).max(50).optional()
+    .describe('Expected number of targets in the resolved target set when exact refs are known or counted.'),
+  explicit_exclusions: z.array(BulkExplicitExclusionSchema).max(50).optional()
+    .describe('Targets found during discovery but explicitly excluded because of a stated assumption or validation reason.'),
+  operations: z.array(PrepareMutationPlanOperationSchema).min(1).max(50)
+    .describe('Ordered write-preview operations. Independent operations create previews immediately; dependent operations wait for their prerequisites.'),
+});
+
 const QUERY_ENTITY_TYPE_SUMMARY = AI_QUERY_ENTITY_TYPES.join(', ');
 const CONTEXT_ENTITY_TYPE_SUMMARY = AI_CONTEXT_ENTITY_TYPES.join(', ');
+
+function normalizeBulkTargetRef(value: unknown): string | null {
+  const normalized = String(value ?? '').trim();
+  return normalized ? normalized.toUpperCase() : null;
+}
+
+function normalizeBulkTargetRefs(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const refs: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const ref = normalizeBulkTargetRef(value);
+    if (!ref || seen.has(ref)) {
+      continue;
+    }
+    seen.add(ref);
+    refs.push(ref);
+  }
+  return refs;
+}
 
 function normalizeJsonSchemaForProviders(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -449,6 +512,94 @@ export class AiToolRegistry {
         },
       ],
       [
+        'prepare_mutation_plan',
+        {
+          name: 'prepare_mutation_plan',
+          category: 'mutation',
+          description: 'Prepare a durable group of write-preview steps, including dependent steps that can only be previewed after earlier previews execute. Requires explicit user approval for every created preview before execution.',
+          inputSchema: PrepareMutationPlanInputSchema,
+          inputSummary: {
+            summary: 'Short description of the overall mutation plan.',
+            target_set_label: 'Optional label for the resolved target set and assumptions.',
+            expected_target_refs: 'Optional canonical refs for every resolved target expected to receive a preview.',
+            expected_target_count: 'Optional expected number of targets in the resolved target set.',
+            explicit_exclusions: 'Optional targets found but deliberately excluded, each with a reason.',
+            operations: 'Ordered write-preview steps. Use operation_id for dependency keys, depends_on for prerequisites, and placeholders such as {{create_project.ref}} in dependent inputs.',
+          },
+          surfaces: ['chat'],
+          readOnly: false,
+          writePreview: {
+            entity_type: 'mutation_plan',
+            fields: ['operations'],
+            reversible: false,
+            prompt_hint: 'For multiple related changes, mixed object changes, dependencies, or bulk target-set tracking, prefer `prepare_mutation_plan`. Give each step a stable `operation_id`; use `depends_on` and placeholders like `{{create_project.ref}}`, `{{create_project.id}}`, or `{{create_project.title}}` in dependent step inputs. When a bulk target set is known, include expected_target_refs/expected_target_count and explicit_exclusions for any intentionally excluded targets.',
+          },
+          execute: (context, input) => this.previews.createMutationPlan(context, input),
+        },
+      ],
+      [
+        'update_task_assignees',
+        {
+          name: 'update_task_assignees',
+          category: 'mutation',
+          description: 'Create assignee-change previews for several tasks in one call. Requires explicit user approval before execution.',
+          inputSchema: UpdateTaskAssigneesInputSchema,
+          inputSummary: {
+            refs: 'Task references such as T-41, T-38, and T-37. Include every resolved target task.',
+            assignee_email: 'The assignee email address in the current tenant.',
+          },
+          surfaces: ['chat'],
+          readOnly: false,
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['assignee'],
+            reversible: true,
+            prompt_hint: 'For bulk task reassignment, prefer `update_task_assignees` with all target task refs and the assignee email; it returns one backend preview per task.',
+          },
+          execute: async (context, input) => {
+            const previews: AiMutationPreviewDto[] = [];
+            const errors: Array<{ ref: string; message: string }> = [];
+            const expectedRefs = normalizeBulkTargetRefs(input.refs);
+
+            for (const ref of input.refs) {
+              try {
+                const preview = await this.previews.createPreview(context, 'update_task_assignee', {
+                  ref,
+                  assignee_email: input.assignee_email,
+                });
+                previews.push(preview);
+              } catch (err: any) {
+                errors.push({
+                  ref,
+                  message: err?.message || 'Preview creation failed.',
+                });
+              }
+            }
+
+            const coveredRefs = normalizeBulkTargetRefs(previews.map((preview) => preview.target.ref));
+            const coveredRefSet = new Set(coveredRefs);
+            const failedRefSet = new Set(normalizeBulkTargetRefs(errors.map((error) => error.ref)));
+            const missingRefs = expectedRefs.filter((ref) =>
+              !coveredRefSet.has(ref)
+              && !failedRefSet.has(ref),
+            );
+            return {
+              previews,
+              errors,
+              total: input.refs.length,
+              created: previews.length,
+              failed: errors.length,
+              expected_count: expectedRefs.length,
+              expected_refs: expectedRefs,
+              covered_refs: coveredRefs,
+              missing_refs: missingRefs,
+              excluded: [],
+              complete: errors.length === 0 && missingRefs.length === 0,
+            };
+          },
+        },
+      ],
+      [
         'undo_preview',
         {
           name: 'undo_preview',
@@ -570,6 +721,10 @@ export class AiToolRegistry {
       case 'search_knowledge':
       case 'get_document':
         return avail.canReadKnowledge;
+      case 'prepare_mutation_plan':
+        return avail.writableMutationToolNames.size > 0;
+      case 'update_task_assignees':
+        return avail.writableMutationToolNames.has('update_task_assignee');
       case 'undo_preview':
         return avail.writableMutationToolNames.size > 0 && avail.canUndoPreview;
       case 'web_search':

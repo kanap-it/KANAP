@@ -65,6 +65,7 @@
     },
     "sections": {
       "attachments": "Anhänge",
+      "debugTrace": "Debug-Trace",
       "injected": "Dokumente und Entitäten",
       "mentions": "Aufgelöste Erwähnungen",
       "previews": "Vorschauen und Artefakte",
@@ -108,6 +109,30 @@
       "filters_one": "{{count}} Filter",
       "filters_other": "{{count}} Filter",
       "running": "läuft"
+    },
+    "debugTrace": {
+      "iteration": "Iteration {{count}}",
+      "names": {
+        "assistant_text_started": "Erster sichtbarer Text",
+        "context_prepared": "Kontext vorbereitet",
+        "provider_first_raw_chunk": "Erster Provider-Chunk",
+        "provider_first_text_delta": "Erstes Text-Delta",
+        "provider_first_tool_delta": "Erstes Tool-Delta",
+        "provider_request_started": "Provider-Anfrage gestartet",
+        "provider_stream_opened": "Provider-Stream geöffnet",
+        "provider_tool_call_completed": "Tool-Aufrufgenerierung abgeschlossen",
+        "tool_call_ready": "Tool-Aufruf bereit",
+        "tool_execution_completed": "Tool-Ausführung abgeschlossen",
+        "tool_execution_started": "Tool-Ausführung gestartet",
+        "turn_completed": "Turn abgeschlossen"
+      },
+      "segments": {
+        "contextPreparation": "Kontextvorbereitung",
+        "firstVisibleAnswer": "Erste sichtbare Antwort",
+        "modelWait": "Provider-/Modellwartezeit vor erster Aktion",
+        "toolExecution": "Backend-Tool-Ausführung",
+        "toolGeneration": "Tool-Aufrufgenerierung"
+      }
     }
   },
   "artifactPanel": {
@@ -130,6 +155,25 @@
     "preview": "Vorschau",
     "reject": "Ablehnen"
   },
+  "previewStatuses": {
+    "applied": "Angewendet",
+    "approved": "Genehmigt",
+    "expired": "Abgelaufen",
+    "failed": "Fehlgeschlagen",
+    "pending": "Ausstehend",
+    "rejected": "Abgelehnt"
+  },
+  "previewBatch": {
+    "approveAll": "Alle genehmigen",
+    "confirmBody_one": "KANAP wendet die genehmigte Vorschau separat an. Teilfehler bleiben im Vorschau-Status sichtbar.",
+    "confirmBody_other": "KANAP wendet jede genehmigte Vorschau separat an. Teilfehler bleiben in den Vorschau-Status sichtbar.",
+    "confirmTitle_one": "{{count}} Vorschau genehmigen?",
+    "confirmTitle_other": "{{count}} Vorschauen genehmigen?",
+    "more_one": "{{count}} weitere Vorschau",
+    "more_other": "{{count}} weitere Vorschauen",
+    "title_one": "{{count}} Vorschau",
+    "title_other": "{{count}} Vorschauen"
+  },
   "toolResults": {
     "ignoredFields": "Ignorierte Felder: {{fields}}",
     "noDocuments": "Keine Dokumente gefunden.",
@@ -142,6 +186,7 @@
       "get_entity_context": "Entitätskontext abrufen",
       "get_entity_detail": "Entitätsdetails abrufen",
       "get_filter_values": "Filterwerte abrufen",
+      "prepare_mutation_plan": "Änderungsplan vorbereiten",
       "query_entities": "Entitäten abfragen",
       "search_all": "Alles durchsuchen",
       "search_knowledge": "Wissensdatenbank durchsuchen",

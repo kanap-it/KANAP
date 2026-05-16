@@ -47,7 +47,7 @@ export class UpdateMasterDataRecordAiMutationOperation implements AiMutationOper
       'chart_of_accounts: code, name, country_iso, scope, is_default',
       'analytics_categories: name, description, status, disabled_at',
       'business_processes: name, description, notes, owner_user_id, it_owner_user_id, status, disabled_at',
-      'locations: code, name, hosting_type, operating_company_id, country_iso, city, datacenter, provider, region, additional_info',
+      'locations: name, hosting_type, operating_company_id, country_iso, city, provider, region, additional_info',
     ],
     reversible: true,
     prompt_hint: 'For Tier 1 master data updates, use `update_master_data_record`. Set `entity_type`, identify one record with `ref`, then put only changed fields in `fields`. For company metric updates, include `metrics_year` plus changed metric fields (`headcount`, `it_users`, `turnover`); for department metric updates, include `metrics_year` plus `headcount`; reversible metric updates require an existing metric row for that year. If a human name/code/email is ambiguous, ask the user to choose after querying. This only creates a preview and still requires explicit approval. Executed update previews can be undone through `undo_preview`.',

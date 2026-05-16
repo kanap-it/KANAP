@@ -9,7 +9,8 @@ import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { AiMutationPreview } from '../aiTypes';
 import { MarkdownContent } from '../../components/MarkdownContent';
-import { getDotColor, getPillBg } from '../../utils/statusColors';
+import { getDotColor } from '../../utils/statusColors';
+import { getPreviewStatusColorKey, getPreviewStatusDisplay } from '../utils/previewStatus';
 
 const LINKED_MARKDOWN_IMAGE_RE = /\[\s*!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)\s*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
 const MARKDOWN_IMAGE_RE = /!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
@@ -21,19 +22,6 @@ type PreviewCardProps = {
   onApprove: (previewId: string) => void;
   onReject: (previewId: string) => void;
 };
-
-function getStatusColorKey(status: AiMutationPreview['status']): string {
-  switch (status) {
-    case 'executed':
-      return 'success';
-    case 'failed':
-      return 'error';
-    case 'expired':
-      return 'warning';
-    default:
-      return 'default';
-  }
-}
 
 function hasDisplayValue(value: string | null | undefined): boolean {
   return typeof value === 'string' ? value.trim().length > 0 : value != null;
@@ -134,7 +122,9 @@ function PreviewCard({
   const mode = useTheme().palette.mode;
   const isPending = preview.status === 'pending';
   const pendingImagePlaceholder = t('ai:previewCard.pendingInlineImage');
-  const statusColorKey = getStatusColorKey(preview.status);
+  const statusDisplay = getPreviewStatusDisplay(preview);
+  const statusColorKey = getPreviewStatusColorKey(statusDisplay);
+  const statusLabel = t(`ai:previewStatuses.${statusDisplay}`);
 
   return (
     <Box
@@ -147,7 +137,7 @@ function PreviewCard({
       })}
     >
       <Stack spacing={1.5}>
-        {/* Header — entity ref + title get the visual weight; Preview tag and status pill are secondary */}
+        {/* Header — entity ref + title get the visual weight; preview tag and status are secondary. */}
         <Stack spacing={0.5}>
           <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap>
             {preview.target.ref && (
@@ -177,22 +167,35 @@ function PreviewCard({
                 {preview.target.title}
               </Typography>
             )}
-            <Box
+            <Stack
+              component="span"
+              direction="row"
+              spacing={0.75}
+              alignItems="center"
               sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                px: 1,
-                py: 0.25,
-                borderRadius: '9999px',
-                bgcolor: getPillBg(statusColorKey, mode),
-                color: getDotColor(statusColorKey, mode),
-                fontSize: 11,
-                fontWeight: 500,
                 flexShrink: 0,
               }}
             >
-              {preview.status}
-            </Box>
+              <Box
+                component="span"
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  bgcolor: getDotColor(statusColorKey, mode),
+                }}
+              />
+              <Typography
+                component="span"
+                sx={{
+                  color: getDotColor(statusColorKey, mode),
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                {statusLabel}
+              </Typography>
+            </Stack>
           </Stack>
           <Typography
             component="span"
@@ -200,8 +203,6 @@ function PreviewCard({
               fontSize: 11,
               fontWeight: 500,
               color: 'kanap.text.tertiary',
-              letterSpacing: 0.3,
-              textTransform: 'uppercase',
             }}
           >
             {t('ai:previewCard.preview')}

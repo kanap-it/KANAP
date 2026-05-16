@@ -265,6 +265,16 @@ async function testPromptBuildsWriteGuidanceFromToolMetadata() {
   assert.match(prompt, /tasks\.comments/);
   assert.match(prompt, /add_task_comment/);
   assert.match(prompt, /undo_preview/);
+  assert.match(prompt, /same assistant turn before asking for approval/i);
+  assert.match(prompt, /Do not stop after the first bulk preview/i);
+  assert.match(prompt, /prepare_mutation_plan/i);
+  assert.match(prompt, /\{\{create_project\.ref\}\}/i);
+  assert.match(prompt, /continue calling write-preview tools until every selected target has a preview/i);
+  assert.match(prompt, /A user saying "yes", "oui", or "go ahead" to a natural-language write proposal is not backend approval/i);
+  assert.match(prompt, /There is no generic `update_entity` tool/i);
+  assert.match(prompt, /bulk task reassignment, prefer `update_task_assignees`/i);
+  assert.match(prompt, /partial `errors`.*never hide partial failures/i);
+  assert.match(prompt, /Never write raw tool syntax such as `<tool_call>`/i);
 }
 
 async function testPromptIncludesDocumentRelationPivotGuidanceFromToolMetadata() {

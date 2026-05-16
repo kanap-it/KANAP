@@ -65,6 +65,7 @@
     },
     "sections": {
       "attachments": "Adjuntos",
+      "debugTrace": "Traza de depuración",
       "injected": "Documentos y entidades",
       "mentions": "Menciones resueltas",
       "previews": "Vistas previas y artefactos",
@@ -108,6 +109,30 @@
       "filters_one": "{{count}} filtro",
       "filters_other": "{{count}} filtros",
       "running": "en curso"
+    },
+    "debugTrace": {
+      "iteration": "iteración {{count}}",
+      "names": {
+        "assistant_text_started": "Primer texto visible",
+        "context_prepared": "Contexto preparado",
+        "provider_first_raw_chunk": "Primer fragmento del proveedor",
+        "provider_first_text_delta": "Primer delta de texto",
+        "provider_first_tool_delta": "Primer delta de herramienta",
+        "provider_request_started": "Solicitud al proveedor iniciada",
+        "provider_stream_opened": "Flujo del proveedor abierto",
+        "provider_tool_call_completed": "Generación de llamada a herramienta completada",
+        "tool_call_ready": "Llamada a herramienta lista",
+        "tool_execution_completed": "Ejecución de herramienta completada",
+        "tool_execution_started": "Ejecución de herramienta iniciada",
+        "turn_completed": "Turno completado"
+      },
+      "segments": {
+        "contextPreparation": "Preparación de contexto",
+        "firstVisibleAnswer": "Primera respuesta visible",
+        "modelWait": "Espera proveedor/modelo antes de la primera acción",
+        "toolExecution": "Ejecución de herramienta backend",
+        "toolGeneration": "Generación de llamada a herramienta"
+      }
     }
   },
   "artifactPanel": {
@@ -130,6 +155,25 @@
     "preview": "Vista previa",
     "reject": "Rechazar"
   },
+  "previewStatuses": {
+    "applied": "Aplicada",
+    "approved": "Aprobada",
+    "expired": "Caducada",
+    "failed": "Fallida",
+    "pending": "Pendiente",
+    "rejected": "Rechazada"
+  },
+  "previewBatch": {
+    "approveAll": "Aprobar todas",
+    "confirmBody_one": "KANAP aplicará la vista previa aprobada por separado. Los fallos parciales seguirán visibles en el estado de la vista previa.",
+    "confirmBody_other": "KANAP aplicará cada vista previa aprobada por separado. Los fallos parciales seguirán visibles en los estados de las vistas previas.",
+    "confirmTitle_one": "¿Aprobar {{count}} vista previa?",
+    "confirmTitle_other": "¿Aprobar {{count}} vistas previas?",
+    "more_one": "{{count}} vista previa más",
+    "more_other": "{{count}} vistas previas más",
+    "title_one": "{{count}} vista previa",
+    "title_other": "{{count}} vistas previas"
+  },
   "toolResults": {
     "ignoredFields": "Campos ignorados: {{fields}}",
     "noDocuments": "No se encontraron documentos.",
@@ -142,6 +186,7 @@
       "get_entity_context": "Obtener contexto de entidad",
       "get_entity_detail": "Obtener detalle de entidad",
       "get_filter_values": "Obtener valores de filtro",
+      "prepare_mutation_plan": "Preparar plan de cambios",
       "query_entities": "Consultar entidades",
       "search_all": "Buscar todo",
       "search_knowledge": "Buscar en la base de conocimiento",

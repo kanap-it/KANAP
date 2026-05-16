@@ -709,7 +709,7 @@ export class AiRelationMutationSupportService {
       case 'contacts': return { table: 'contacts', labelSql: `COALESCE(NULLIF(TRIM(CONCAT(COALESCE(t.first_name, ''), ' ', COALESCE(t.last_name, ''))), ''), t.email, t.id::text)` };
       case 'contracts': return { table: 'contracts', labelSql: 'COALESCE(t.name, t.id::text)' };
       case 'departments': return { table: 'departments', labelSql: 'COALESCE(t.name, t.id::text)' };
-      case 'projects': return { table: 'portfolio_projects', labelSql: `COALESCE(CONCAT('P-', t.item_number::text, ' - ', t.name), t.name, t.id::text)` };
+      case 'projects': return { table: 'portfolio_projects', labelSql: `COALESCE(CONCAT('PRJ-', t.item_number::text, ' - ', t.name), t.name, t.id::text)` };
       case 'requests': return { table: 'portfolio_requests', labelSql: `COALESCE(CONCAT('REQ-', t.item_number::text, ' - ', t.name), t.name, t.id::text)` };
       case 'spend_items': return { table: 'spend_items', labelSql: 'COALESCE(t.product_name, t.id::text)' };
       case 'users': return { table: 'users', labelSql: `COALESCE(NULLIF(TRIM(CONCAT(COALESCE(t.first_name, ''), ' ', COALESCE(t.last_name, ''))), ''), t.email, t.id::text)` };
@@ -1203,7 +1203,7 @@ export class AiRelationMutationSupportService {
       case 'users':
         return manager.query(`SELECT id, email, first_name, last_name FROM users WHERE tenant_id = $1 AND status = 'enabled' AND (${uuid ? 'id = $2 OR ' : ''}LOWER(email) = LOWER($2::text) OR LOWER(NULLIF(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))), '')) = LOWER($2::text)) ORDER BY email LIMIT 6`, [tenantId, ref]);
       case 'locations':
-        return manager.query(`SELECT * FROM locations WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(code) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(CONCAT(code, ' - ', name)) = LOWER($2::text)) ORDER BY code LIMIT 6`, [tenantId, ref]);
+        return manager.query(`SELECT * FROM locations WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(location_reference) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(CONCAT(location_reference, ' - ', name)) = LOWER($2::text)) ORDER BY location_reference LIMIT 6`, [tenantId, ref]);
     }
   }
 
@@ -1211,11 +1211,11 @@ export class AiRelationMutationSupportService {
     switch (entityType) {
       case 'applications': return textOrNull(row.sequential_id);
       case 'assets': return textOrNull(row.asset_reference) || textOrNull(row.hostname);
-      case 'projects': return row.item_number == null ? null : `P-${row.item_number}`;
+      case 'projects': return row.item_number == null ? null : `PRJ-${row.item_number}`;
       case 'requests': return row.item_number == null ? null : `REQ-${row.item_number}`;
       case 'spend_items': return textOrNull(row.product_name);
       case 'capex_items': return textOrNull(row.description);
-      case 'locations': return textOrNull(row.code);
+      case 'locations': return textOrNull(row.location_reference);
       case 'users': return textOrNull(row.email);
       default: return null;
     }
@@ -1230,10 +1230,10 @@ export class AiRelationMutationSupportService {
         const name = [row.first_name, row.last_name].map(textOrNull).filter(Boolean).join(' ');
         return name || textOrNull(row.email) || 'Untitled contact';
       }
-      case 'projects': return [row.item_number == null ? null : `P-${row.item_number}`, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled project';
+      case 'projects': return [row.item_number == null ? null : `PRJ-${row.item_number}`, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled project';
       case 'requests': return [row.item_number == null ? null : `REQ-${row.item_number}`, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled request';
       case 'spend_items': return textOrNull(row.product_name) || 'Untitled spend item';
-      case 'locations': return [row.code, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled location';
+      case 'locations': return [row.location_reference, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled location';
       case 'users': {
         const name = [row.first_name, row.last_name].map(textOrNull).filter(Boolean).join(' ');
         return name || textOrNull(row.email) || 'Unknown user';

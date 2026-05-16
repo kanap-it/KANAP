@@ -33,7 +33,7 @@ import { KanapDialog, PropertyRow } from './design';
 import KnowledgeLinkPickerDialog, { type KnowledgeLinkOption } from './knowledge/KnowledgeLinkPickerDialog';
 import { drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
 
-export type EntityKnowledgeType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
+export type EntityKnowledgeType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'locations' | 'connections';
 
 type EntityKnowledgePanelProps = {
   entityType: EntityKnowledgeType;
@@ -127,6 +127,8 @@ const ENTITY_ENDPOINTS: Record<EntityKnowledgeType, string> = {
   projects: '/portfolio/projects',
   requests: '/portfolio/requests',
   tasks: '/tasks',
+  locations: '/locations',
+  connections: '/connections',
 };
 
 const ENTITY_REF_PREFIXES: Partial<Record<EntityKnowledgeType, string>> = {
@@ -135,6 +137,8 @@ const ENTITY_REF_PREFIXES: Partial<Record<EntityKnowledgeType, string>> = {
   projects: 'PRJ',
   requests: 'REQ',
   tasks: 'T',
+  locations: 'LOC',
+  connections: 'CONN',
 };
 
 const RELATION_KEYS: Record<EntityKnowledgeType, string> = {
@@ -143,6 +147,8 @@ const RELATION_KEYS: Record<EntityKnowledgeType, string> = {
   projects: 'projects',
   requests: 'requests',
   tasks: 'tasks',
+  locations: 'locations',
+  connections: 'connections',
 };
 
 const RELATION_BODY_KEYS: Record<EntityKnowledgeType, string> = {
@@ -151,6 +157,8 @@ const RELATION_BODY_KEYS: Record<EntityKnowledgeType, string> = {
   projects: 'project_ids',
   requests: 'request_ids',
   tasks: 'task_ids',
+  locations: 'location_ids',
+  connections: 'connection_ids',
 };
 
 const TEMPLATE_LIBRARY_SLUG = 'templates';
@@ -219,6 +227,8 @@ function sourceHref(source: KnowledgeContextSource): string {
   if (source.entity_type === 'assets') return `/it/assets/${routeId}/overview`;
   if (source.entity_type === 'projects') return `/portfolio/projects/${routeId}/summary`;
   if (source.entity_type === 'requests') return `/portfolio/requests/${routeId}/summary`;
+  if (source.entity_type === 'locations') return `/it/locations/${routeId}/overview`;
+  if (source.entity_type === 'connections') return `/it/connections/${routeId}/overview`;
   return `/portfolio/tasks/${routeId}/overview`;
 }
 

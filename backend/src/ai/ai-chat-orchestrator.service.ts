@@ -34,6 +34,7 @@ import {
   AiChatActivityPhase,
   AiChatContextItemDto,
   AiChatContextSummaryDto,
+  AiChatDebugTraceName,
   AiBuiltinUsageDto,
   AiExecutionContext,
   AiExecutionContextWithManager,
@@ -69,8 +70,13 @@ function parsePositiveIntEnv(value: string | undefined, fallback: number): numbe
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 const DEFAULT_CHAT_PROVIDER_TIMEOUT_MS = 300_000;
+const AI_CHAT_DEBUG_TRACE_ENABLED = isAiChatDebugTraceEnabled();
+const MAX_UNSAFE_WRITE_RESPONSE_RETRIES = 2;
 const APPROVE_MARKER_RE = /^\[APPROVE:([0-9a-f-]{36})\]$/i;
 const REJECT_MARKER_RE = /^\[REJECT:([0-9a-f-]{36})\]$/i;
+const APPROVE_SELECTED_MARKER_RE = /^\[APPROVE_SELECTED:([0-9a-f,\s-]+)\]$/i;
+const REJECT_SELECTED_MARKER_RE = /^\[REJECT_SELECTED:([0-9a-f,\s-]+)\]$/i;
+const TEXTUAL_CONFIRMATION_RE = /^(oui|yes|ok|okay|d'accord|daccord|vas-y|go ahead|procede|procède|confirm|confirme|approuve|approve)[\s!.?]*$/i;
 /** Strip base64 data-URI images from text to avoid blowing up the LLM context. */
 function stripBase64Images(text: string): string {
   // Markdown: ![alt](data:image/...;base64,...)
@@ -78,6 +84,49 @@ function stripBase64Images(text: string): string {
   // HTML: <img ... src="data:image/...;base64,..." ...>
   text = text.replace(/<img\b[^>]*\bsrc=(['"])data:image\/[^;]*;base64,[^'"]*\1[^>]*>/gi, '[image removed]');
   return text;
+}
+
+function normalizePlainText(value: string): string {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function isAssistantContinuationPromptText(content: string): boolean {
+  const text = normalizePlainText(content);
+  return content.includes('?') || /\b(souhaitez|souhaites|voulez|veux|procede|confirm|confirme|approve|approuver|approval|go ahead)\b/.test(text);
+}
+
+function containsRawToolMarkup(content: string): boolean {
+  return /<\s*tool_call\b|<\s*\/\s*tool_call\s*>|<\s*function\s*=|<\s*parameter\s*=/i.test(content);
+}
+
+function asksForWriteExecutionWithoutPreview(content: string): boolean {
+  const text = normalizePlainText(content);
+  const asksForConfirmation = /[?]/.test(content)
+    || /\b(souhaitez|souhaites|voulez|veux|do you want|would you like|shall i|should i|confirm|confirme|approve|approuver)\b/.test(text);
+  const mentionsWriteExecution = /\b(execute|executer|execution|procede|proceder|applique|appliquer|apply|modification|modifications|changement|changements|reassign|assign|assigne|assignee|tache|taches|task|tasks)\b/.test(text);
+  return asksForConfirmation && mentionsWriteExecution;
+}
+
+function hasMultiStepWriteSignals(content: string): boolean {
+  const text = normalizePlainText(content);
+  return /\b(etape|step|plan|depend|dependent|dependance|associe|associee|associees|associated|lie|lies|liees|linked|plusieurs|multiple|batch|groupe|group|ensuite|puis|apres|after)\b/.test(text)
+    || /\b(projet|project)\b[\s\S]{0,160}\b(tache|taches|task|tasks)\b/.test(text)
+    || /\b(tache|taches|task|tasks)\b[\s\S]{0,160}\b(projet|project)\b/.test(text)
+    || /\b\d+\s+(tache|taches|task|tasks|modification|modifications|changes)\b/.test(text);
+}
+
+function isAiChatDebugTraceEnabled(): boolean {
+  if (process.env.AI_CHAT_DEBUG_TRACE === '1') {
+    return true;
+  }
+  if (process.env.AI_CHAT_DEBUG_TRACE === '0') {
+    return false;
+  }
+  const nodeEnv = String(process.env.NODE_ENV || '').trim().toLowerCase();
+  return nodeEnv !== 'production' && nodeEnv !== 'test';
 }
 
 type ChatStreamParams = {
@@ -114,8 +163,8 @@ type StreamUsage = {
 };
 
 type ApprovalAction =
-  | { action: 'approve'; previewId: string }
-  | { action: 'reject'; previewId: string };
+  | { action: 'approve'; previewIds: string[] }
+  | { action: 'reject'; previewIds: string[] };
 
 type PreparedChatRequest = {
   context: AiExecutionContext;
@@ -146,6 +195,8 @@ type StreamPreparationResult = {
   preStreamEvents: ChatStreamEvent[];
   approvalAssistantText: string | null;
   contextSummary: AiChatContextSummaryDto;
+  requiresWritePreviewGuard: boolean;
+  writePreviewToolNames: string[];
 };
 
 function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: string }>): string {
@@ -295,6 +346,483 @@ function previewContextItems(previews: AiMutationPreviewDto[]): AiChatContextIte
   });
 }
 
+function isMutationPreviewDto(value: unknown): value is AiMutationPreviewDto {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.preview_id === 'string'
+    && typeof candidate.tool_name === 'string'
+    && typeof candidate.status === 'string'
+    && candidate.target != null
+    && candidate.changes != null;
+}
+
+function mutationPreviewDtosFromResult(result: unknown): AiMutationPreviewDto[] {
+  if (isMutationPreviewDto(result)) {
+    return [result];
+  }
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+  const previews = (result as Record<string, unknown>).previews;
+  return Array.isArray(previews)
+    ? previews.filter(isMutationPreviewDto)
+    : [];
+}
+
+type BulkTargetSet = {
+  source: string;
+  label: string | null;
+  entityType: string | null;
+  refs: string[];
+  expectedCount: number | null;
+  explicit: boolean;
+};
+
+type BulkCoverageIssue = {
+  source: string;
+  label: string | null;
+  entityType: string | null;
+  expectedCount: number | null;
+  expectedRefs: string[];
+  coveredRefs: string[];
+  failedRefs: string[];
+  excludedRefs: string[];
+  missingRefs: string[];
+};
+
+function normalizeBulkRef(value: unknown): string | null {
+  const normalized = String(value ?? '').trim();
+  return normalized ? normalized.toUpperCase() : null;
+}
+
+function normalizeBulkRefs(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const refs: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const ref = normalizeBulkRef(value);
+    if (!ref || seen.has(ref)) {
+      continue;
+    }
+    seen.add(ref);
+    refs.push(ref);
+  }
+  return refs;
+}
+
+function numberOrNull(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
+}
+
+function stableJson(value: unknown): string {
+  if (value == null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJson(entry)).join(',')}]`;
+  }
+  const object = value as Record<string, unknown>;
+  return `{${Object.keys(object).sort().map((key) =>
+    `${JSON.stringify(key)}:${stableJson(object[key])}`,
+  ).join(',')}}`;
+}
+
+function extractBulkExcludedRefs(result: unknown): string[] {
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+  const excluded = (result as Record<string, unknown>).excluded;
+  if (!Array.isArray(excluded)) {
+    return [];
+  }
+  return normalizeBulkRefs(excluded.map((item) =>
+    item && typeof item === 'object' ? (item as Record<string, unknown>).ref : null,
+  ));
+}
+
+function extractBulkFailedRefs(result: unknown): string[] {
+  if (!result || typeof result !== 'object') {
+    return [];
+  }
+  const errors = (result as Record<string, unknown>).errors;
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+  return normalizeBulkRefs(errors.map((item) => {
+    if (!item || typeof item !== 'object') {
+      return null;
+    }
+    const candidate = item as Record<string, unknown>;
+    return candidate.ref ?? candidate.target_ref;
+  }));
+}
+
+function extractExplicitBulkTargetSet(toolName: string, result: unknown): BulkTargetSet | null {
+  if (!result || typeof result !== 'object') {
+    return null;
+  }
+  const data = result as Record<string, unknown>;
+  const refs = normalizeBulkRefs(data.expected_refs);
+  const expectedCount = numberOrNull(data.expected_count);
+  if (refs.length === 0 && (expectedCount == null || expectedCount <= 1)) {
+    return null;
+  }
+  const previews = mutationPreviewDtosFromResult(result);
+  const entityTypes = Array.from(new Set(previews
+    .map((preview) => preview.target?.entity_type)
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)));
+  return {
+    source: toolName,
+    label: typeof data.target_set_label === 'string' && data.target_set_label.trim()
+      ? data.target_set_label.trim()
+      : null,
+    entityType: entityTypes.length === 1 ? entityTypes[0] : null,
+    refs,
+    expectedCount,
+    explicit: true,
+  };
+}
+
+function extractQueryBulkTargetSet(toolName: string, args: Record<string, unknown>, result: unknown): BulkTargetSet | null {
+  if (toolName !== 'query_entities' || !result || typeof result !== 'object') {
+    return null;
+  }
+  const data = result as Record<string, unknown>;
+  if (data.complete !== true || data.truncated === true) {
+    return null;
+  }
+  const refs = normalizeBulkRefs(Array.isArray(data.items)
+    ? data.items.map((item) => item && typeof item === 'object' ? (item as Record<string, unknown>).ref : null)
+    : []);
+  if (refs.length <= 1) {
+    return null;
+  }
+  const expectedCount = numberOrNull(data.total) ?? refs.length;
+  const entityType = typeof args.entity_type === 'string' && args.entity_type.trim()
+    ? args.entity_type.trim()
+    : null;
+  return {
+    source: 'query_entities',
+    label: entityType ? `${entityType} query result` : 'query result',
+    entityType,
+    refs,
+    expectedCount: Math.max(expectedCount, refs.length),
+    explicit: false,
+  };
+}
+
+function addRefs(target: Set<string>, refs: string[]): void {
+  for (const ref of refs) {
+    target.add(ref);
+  }
+}
+
+function findBulkCoverageIssue(params: {
+  targetSets: BulkTargetSet[];
+  coveredRefs: Set<string>;
+  coveredRefsByEntityType: Map<string, Set<string>>;
+  failedRefs: Set<string>;
+  excludedRefs: Set<string>;
+  requireExistingCoverage?: boolean;
+}): BulkCoverageIssue | null {
+  for (const targetSet of [...params.targetSets].reverse()) {
+    if (targetSet.refs.length === 0 && (targetSet.expectedCount == null || targetSet.expectedCount <= 1)) {
+      continue;
+    }
+    const coverageSet = targetSet.entityType
+      ? params.coveredRefsByEntityType.get(targetSet.entityType) ?? new Set<string>()
+      : params.coveredRefs;
+    const coveredRefs = targetSet.refs.filter((ref) => coverageSet.has(ref) || params.coveredRefs.has(ref));
+    const failedRefs = targetSet.refs.filter((ref) => params.failedRefs.has(ref));
+    const excludedRefs = targetSet.refs.filter((ref) => params.excludedRefs.has(ref));
+    if (!targetSet.explicit && params.requireExistingCoverage !== false && coveredRefs.length === 0) {
+      continue;
+    }
+
+    const missingRefs = targetSet.refs.filter((ref) =>
+      !coverageSet.has(ref)
+      && !params.coveredRefs.has(ref)
+      && !params.failedRefs.has(ref)
+      && !params.excludedRefs.has(ref),
+    );
+    const handledCount = coveredRefs.length + failedRefs.length + excludedRefs.length;
+    const countIncomplete = targetSet.expectedCount != null && handledCount < targetSet.expectedCount;
+    if (missingRefs.length === 0 && !countIncomplete) {
+      continue;
+    }
+
+    return {
+      source: targetSet.source,
+      label: targetSet.label,
+      entityType: targetSet.entityType,
+      expectedCount: targetSet.expectedCount,
+      expectedRefs: targetSet.refs,
+      coveredRefs,
+      failedRefs,
+      excludedRefs,
+      missingRefs,
+    };
+  }
+  return null;
+}
+
+function isRefBasedSingleMutationTool(toolName: string, writePreviewToolNames: string[]): boolean {
+  return writePreviewToolNames.includes(toolName)
+    && toolName !== 'prepare_mutation_plan'
+    && toolName !== 'update_task_assignees'
+    && toolName !== 'undo_preview';
+}
+
+function buildBulkAutoplanInput(params: {
+  issue: BulkCoverageIssue;
+  toolName: string;
+  input: Record<string, unknown>;
+}): Record<string, unknown> | null {
+  if (params.issue.missingRefs.length <= 1) {
+    return null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(params.input, 'ref')) {
+    return null;
+  }
+  const requestedRef = normalizeBulkRef(params.input.ref);
+  if (
+    requestedRef
+    && params.issue.expectedRefs.length > 0
+    && !params.issue.expectedRefs.includes(requestedRef)
+  ) {
+    return null;
+  }
+  const baseInput = { ...params.input };
+  const targetLabel = params.issue.label || params.issue.entityType || 'bulk target set';
+  return {
+    summary: `Prepare missing ${params.toolName} previews for ${targetLabel}.`,
+    target_set_label: targetLabel,
+    expected_target_refs: params.issue.missingRefs,
+    expected_target_count: params.issue.missingRefs.length,
+    operations: params.issue.missingRefs.map((ref, index) => ({
+      operation_id: `${params.toolName}_${ref.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}_${index + 1}`.slice(0, 80),
+      tool_name: params.toolName,
+      input: {
+        ...baseInput,
+        ref,
+      },
+    })),
+  };
+}
+
+function buildAugmentedBulkMutationPlanInput(params: {
+  issue: BulkCoverageIssue;
+  input: Record<string, unknown>;
+}): Record<string, unknown> | null {
+  const operations = Array.isArray(params.input.operations)
+    ? params.input.operations as Array<Record<string, unknown>>
+    : [];
+  if (params.issue.missingRefs.length <= operations.length || operations.length === 0) {
+    return null;
+  }
+
+  const normalizedOperations = operations.map((operation) => {
+    const toolName = typeof operation.tool_name === 'string' ? operation.tool_name.trim() : '';
+    const input = operation.input && typeof operation.input === 'object' && !Array.isArray(operation.input)
+      ? operation.input as Record<string, unknown>
+      : null;
+    const ref = input ? normalizeBulkRef(input.ref) : null;
+    const dependsOn = Array.isArray(operation.depends_on) ? operation.depends_on : [];
+    return { toolName, input, ref, dependsOn };
+  });
+
+  if (
+    normalizedOperations.some((operation) =>
+      !operation.toolName
+      || !operation.input
+      || !operation.ref
+      || operation.dependsOn.length > 0
+      || !params.issue.expectedRefs.includes(operation.ref),
+    )
+  ) {
+    return null;
+  }
+
+  const [first] = normalizedOperations;
+  const inputShape = stableJson({ ...first.input, ref: '__REF__' });
+  if (normalizedOperations.some((operation) =>
+    operation.toolName !== first.toolName
+    || stableJson({ ...operation.input!, ref: '__REF__' }) !== inputShape,
+  )) {
+    return null;
+  }
+
+  const targetLabel = params.issue.label || params.issue.entityType || 'bulk target set';
+  return {
+    ...params.input,
+    summary: params.input.summary || `Prepare missing ${first.toolName} previews for ${targetLabel}.`,
+    target_set_label: params.input.target_set_label || targetLabel,
+    expected_target_refs: params.issue.missingRefs,
+    expected_target_count: params.issue.missingRefs.length,
+    operations: params.issue.missingRefs.map((ref, index) => ({
+      operation_id: `${first.toolName}_${ref.toLowerCase().replace(/[^a-z0-9_-]+/g, '_')}_${index + 1}`.slice(0, 80),
+      tool_name: first.toolName,
+      input: {
+        ...first.input!,
+        ref,
+      },
+    })),
+  };
+}
+
+const ENTITY_REF_MENTION_RE = /\b[A-Z]{1,8}-\d+\b/gi;
+
+function extractEntityRefsFromText(text: string): string[] {
+  return normalizeBulkRefs(Array.from(String(text || '').matchAll(ENTITY_REF_MENTION_RE), (match) => match[0]));
+}
+
+function inferEntityTypeFromRefs(refs: string[]): string | null {
+  const prefixes = Array.from(new Set(refs.map((ref) => ref.split('-')[0])));
+  if (prefixes.length !== 1) {
+    return null;
+  }
+  switch (prefixes[0]) {
+    case 'T':
+      return 'tasks';
+    case 'PRJ':
+      return 'projects';
+    case 'REQ':
+      return 'requests';
+    case 'APP':
+      return 'applications';
+    case 'AST':
+      return 'assets';
+    case 'DOC':
+      return 'documents';
+    default:
+      return null;
+  }
+}
+
+function lineLooksExplicitlyExcluded(line: string): boolean {
+  const text = normalizePlainText(line);
+  return /\b(exclu|exclus|exclues|excluded|ignore|ignored|hors scope|rejeter|rejet|done|termine|terminee|terminees|completed|cancelled|canceled|annule|annulee|annulees)\b/.test(text);
+}
+
+function lineLooksIncludedTargetHeading(line: string): boolean {
+  const text = normalizePlainText(line);
+  return /\b(actif|active|actives|restant|restants|restantes|relancer|inclu|inclus|included|cibles?|ciblee|ciblees|targets?)\b/.test(text)
+    && !lineLooksExplicitlyExcluded(line);
+}
+
+function extractExpectedBulkCounts(text: string): number[] {
+  const normalized = normalizePlainText(text);
+  const counts: number[] = [];
+  const pattern = /\b(\d{1,3})\s+(?:previews?|taches?|tasks?|modifications?|changements?|cibles?|targets?)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(normalized)) != null) {
+    const count = Number(match[1]);
+    if (Number.isFinite(count) && count > 1 && !counts.includes(count)) {
+      counts.push(count);
+    }
+  }
+  return counts;
+}
+
+function hasBulkContinuationSignal(text: string): boolean {
+  const normalized = normalizePlainText(text);
+  return hasMultiStepWriteSignals(text)
+    || /\b(restant|restants|restante|restantes|reste|restent|manquant|manquants|manquantes|missing|remaining|continue|continuer|suite|toutes|tous|all|chaque|each|lot|batch|groupe|group|une seule|only one|just one|pas toutes|pas tous)\b/.test(normalized)
+    || /\bqu['’ ]?une\b/.test(normalized);
+}
+
+function extractTextualBulkTargetSet(content: string): BulkTargetSet | null {
+  const refs: string[] = [];
+  let inExcludedSection = false;
+  for (const line of String(content || '').split(/\r?\n/)) {
+    if (lineLooksIncludedTargetHeading(line)) {
+      inExcludedSection = false;
+    } else if (lineLooksExplicitlyExcluded(line)) {
+      inExcludedSection = true;
+    }
+    const lineRefs = extractEntityRefsFromText(line);
+    if (lineRefs.length === 0 || inExcludedSection || lineLooksExplicitlyExcluded(line)) {
+      continue;
+    }
+    for (const ref of lineRefs) {
+      if (!refs.includes(ref)) {
+        refs.push(ref);
+      }
+    }
+  }
+  if (refs.length <= 1) {
+    return null;
+  }
+  return {
+    source: 'assistant_text',
+    label: 'assistant stated target set',
+    entityType: inferEntityTypeFromRefs(refs),
+    refs,
+    expectedCount: refs.length,
+    explicit: true,
+  };
+}
+
+function latestUserText(messages: AiProviderMessage[]): string {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role === 'user') {
+      return message.content;
+    }
+  }
+  return '';
+}
+
+function selectTextualBulkTargetSet(params: {
+  messages: AiProviderMessage[];
+  currentAssistantText: string;
+  requestedRef: unknown;
+}): BulkTargetSet | null {
+  const userText = latestUserText(params.messages);
+  if (!hasBulkContinuationSignal(params.currentAssistantText) && !hasBulkContinuationSignal(userText)) {
+    return null;
+  }
+
+  const requestedRef = normalizeBulkRef(params.requestedRef);
+  const expectedCounts = [
+    ...extractExpectedBulkCounts(params.currentAssistantText),
+    ...extractExpectedBulkCounts(userText),
+  ];
+  const currentTargetSet = extractTextualBulkTargetSet(params.currentAssistantText);
+  const candidates = [
+    ...params.messages
+    .filter((message) => message.role === 'assistant' && String(message.content || '').trim())
+    .map((message) => extractTextualBulkTargetSet(message.content))
+    .filter((targetSet): targetSet is BulkTargetSet => targetSet != null),
+    ...(currentTargetSet ? [currentTargetSet] : []),
+  ].filter((targetSet) => !requestedRef || targetSet.refs.includes(requestedRef));
+
+  if (candidates.length === 0) {
+    return null;
+  }
+  for (const expectedCount of expectedCounts) {
+    const matching = [...candidates].reverse().find((targetSet) => targetSet.refs.length === expectedCount);
+    if (matching) {
+      return matching;
+    }
+  }
+  return candidates[candidates.length - 1];
+}
+
+function textExplicitlyAddressesMissingRefs(text: string, refs: string[]): boolean {
+  const normalized = normalizePlainText(text);
+  if (!/\b(assumption|assume|hypothese|suppose|exclu|exclus|excluded|ignore|ignored|hors scope|not included|pas inclus|non inclus)\b/.test(normalized)) {
+    return false;
+  }
+  const upperText = String(text || '').toUpperCase();
+  return refs.every((ref) => upperText.includes(ref.toUpperCase()));
+}
+
 function toolActivityPhase(toolName: string): AiChatActivityPhase {
   if ([
     'search_all',
@@ -317,7 +845,7 @@ function toolActivityPhase(toolName: string): AiChatActivityPhase {
   if (toolName === 'web_search') {
     return 'searching_web';
   }
-  if (toolName === 'undo_preview' || toolName.startsWith('create_') || toolName.startsWith('update_') || toolName.startsWith('add_') || toolName.startsWith('import_') || toolName.startsWith('write_')) {
+  if (toolName === 'undo_preview' || toolName === 'prepare_mutation_plan' || toolName.startsWith('create_') || toolName.startsWith('update_') || toolName.startsWith('add_') || toolName.startsWith('import_') || toolName.startsWith('write_')) {
     return 'preparing_change';
   }
   return 'using_tool';
@@ -349,6 +877,10 @@ function toolResultContextItems(toolName: string, result: unknown): AiChatContex
     return [];
   }
   const data = result as Record<string, unknown>;
+  const previews = mutationPreviewDtosFromResult(result);
+  if (previews.length > 0) {
+    return previewContextItems(previews);
+  }
 
   if (toolName === 'get_document') {
     const label = normalizeContextLabel((data.ref as string) || (data.title as string), 'Document');
@@ -433,13 +965,32 @@ export class AiChatOrchestratorService {
     const normalized = String(userMessage || '').trim();
     const approveMatch = normalized.match(APPROVE_MARKER_RE);
     if (approveMatch) {
-      return { action: 'approve', previewId: approveMatch[1] };
+      return { action: 'approve', previewIds: [approveMatch[1]] };
     }
     const rejectMatch = normalized.match(REJECT_MARKER_RE);
     if (rejectMatch) {
-      return { action: 'reject', previewId: rejectMatch[1] };
+      return { action: 'reject', previewIds: [rejectMatch[1]] };
+    }
+    const approveSelectedMatch = normalized.match(APPROVE_SELECTED_MARKER_RE);
+    if (approveSelectedMatch) {
+      const previewIds = this.parsePreviewIdList(approveSelectedMatch[1]);
+      return previewIds.length > 0 ? { action: 'approve', previewIds } : null;
+    }
+    const rejectSelectedMatch = normalized.match(REJECT_SELECTED_MARKER_RE);
+    if (rejectSelectedMatch) {
+      const previewIds = this.parsePreviewIdList(rejectSelectedMatch[1]);
+      return previewIds.length > 0 ? { action: 'reject', previewIds } : null;
     }
     return null;
+  }
+
+  private parsePreviewIdList(rawValue: string): string[] {
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const ids = String(rawValue || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => uuidRe.test(value));
+    return Array.from(new Set(ids));
   }
 
   private toProviderUserContent(userMessage: string): string {
@@ -448,21 +999,270 @@ export class AiChatOrchestratorService {
       return stripBase64Images(userMessage);
     }
     if (approvalAction.action === 'approve') {
-      return 'The user explicitly approved the pending AI preview.';
+      return approvalAction.previewIds.length === 1
+        ? 'The user explicitly approved the pending AI preview.'
+        : 'The user explicitly approved multiple pending AI previews.';
     }
-    return 'The user explicitly rejected the pending AI preview.';
+    return approvalAction.previewIds.length === 1
+      ? 'The user explicitly rejected the pending AI preview.'
+      : 'The user explicitly rejected multiple pending AI previews.';
   }
 
-  private isMutationPreviewDto(value: unknown): value is AiMutationPreviewDto {
-    if (!value || typeof value !== 'object') {
+  private isTextualConfirmationMessage(userMessage: string): boolean {
+    return TEXTUAL_CONFIRMATION_RE.test(String(userMessage || '').trim());
+  }
+
+  private shouldRewriteTextualWriteConfirmation(params: {
+    history: Array<{ role: string; content: string }>;
+    existingPreviews: AiMutationPreviewDto[];
+  }): boolean {
+    if (params.existingPreviews.some((preview) => preview.status === 'pending')) {
       return false;
     }
-    const candidate = value as Record<string, unknown>;
-    return typeof candidate.preview_id === 'string'
-      && typeof candidate.tool_name === 'string'
-      && typeof candidate.status === 'string'
-      && candidate.target != null
-      && candidate.changes != null;
+
+    const latestUserIndex = [...params.history].reverse().findIndex((message) => message.role === 'user');
+    if (latestUserIndex < 0) {
+      return false;
+    }
+    const latestIndex = params.history.length - 1 - latestUserIndex;
+    const latestUser = params.history[latestIndex];
+    if (!this.isTextualConfirmationMessage(latestUser.content)) {
+      return false;
+    }
+
+    const contextProfile = selectAiContextProfileForTurn(
+      params.history
+        .filter((message) => message.role === 'user' || message.role === 'assistant' || message.role === 'tool')
+        .map((message) => ({
+          role: message.role as 'user' | 'assistant' | 'tool',
+          content: message.content,
+        })),
+    );
+    if (contextProfile.promptMode !== 'write') {
+      return false;
+    }
+
+    for (let index = latestIndex - 1; index >= 0; index--) {
+      const message = params.history[index];
+      if (message.role === 'user') {
+        return false;
+      }
+      if (message.role === 'assistant' && message.content.trim()) {
+        return isAssistantContinuationPromptText(message.content);
+      }
+    }
+
+    return false;
+  }
+
+  private buildTextualWriteConfirmationInstruction(userMessage: string): string {
+    return [
+      `The user replied "${String(userMessage || '').trim()}" to your previous write proposal.`,
+      'No pending backend mutation preview exists in this conversation, so this is not executable approval.',
+      'Create the required backend mutation previews now using the available write-preview tools.',
+      'For multiple related changes, mixed object changes, or dependencies between changes, prefer prepare_mutation_plan when available.',
+      'For dependent steps, use stable operation_id values, depends_on, and placeholders such as {{create_project.ref}}, {{create_project.id}}, or {{create_project.title}}.',
+      'For bulk task assignee changes, prefer update_task_assignees with all task references and the assignee email when available; otherwise use update_task_assignee once per task.',
+      'If you only have the assignee name, resolve the user email first with query_entities on users.',
+      'Do not execute changes, do not claim success, and do not write raw pseudo tool-call markup such as <tool_call> in assistant text.',
+    ].join(' ');
+  }
+
+  private isUnsafeWritePreviewAssistantText(content: string): boolean {
+    const normalized = String(content || '').trim();
+    if (!normalized) {
+      return false;
+    }
+    return containsRawToolMarkup(normalized) || asksForWriteExecutionWithoutPreview(normalized);
+  }
+
+  private buildUnsafeWritePreviewResponseRepairInstruction(params: {
+    assistantText: string;
+    writePreviewToolNames: string[];
+  }): string {
+    const toolList = params.writePreviewToolNames.length > 0
+      ? params.writePreviewToolNames.join(', ')
+      : 'the available write-preview tools';
+    const hasBulkAssigneeTool = params.writePreviewToolNames.includes('update_task_assignees');
+    const hasMutationPlanTool = params.writePreviewToolNames.includes('prepare_mutation_plan');
+    return [
+      'Your previous assistant response was blocked because it proposed or simulated a write without backend mutation previews.',
+      containsRawToolMarkup(params.assistantText)
+        ? 'It also contained raw pseudo tool-call markup; never write raw <tool_call> text.'
+        : 'Do not ask the user for textual confirmation before backend preview cards exist.',
+      `Use the provider tool-calling API now with one of: ${toolList}.`,
+      hasMutationPlanTool
+        ? 'For multiple related changes, mixed object changes, or dependencies between changes, call prepare_mutation_plan with stable operation_id values, depends_on, and placeholders such as {{create_project.ref}}.'
+        : null,
+      hasBulkAssigneeTool
+        ? 'For bulk task reassignment, call update_task_assignees once with every resolved task ref and the assignee email.'
+        : 'For bulk task reassignment, call update_task_assignee once per task ref with the assignee email.',
+      'If you only have the assignee name, resolve the user email first with query_entities on users.',
+      'Do not execute changes and do not claim success; create backend previews only.',
+    ].filter(Boolean).join(' ');
+  }
+
+  private shouldContinueAfterPreviewAction(params: {
+    history: Array<{ role: string; content: string }>;
+    existingPreviews: AiMutationPreviewDto[];
+    previewResults: AiMutationPreviewDto[];
+    followUpPreviews: AiMutationPreviewDto[];
+  }): boolean {
+    if (params.followUpPreviews.length > 0) {
+      return false;
+    }
+    if (params.existingPreviews.some((preview) => preview.status === 'pending')) {
+      return false;
+    }
+    if (params.previewResults.length === 0) {
+      return false;
+    }
+
+    const contextualHistory = params.history.filter((message) => (
+      message.role !== 'user' || !this.parseApprovalAction(message.content)
+    ));
+    const contextProfile = selectAiContextProfileForTurn(
+      contextualHistory
+        .filter((message) => message.role === 'user' || message.role === 'assistant' || message.role === 'tool')
+        .map((message) => ({
+          role: message.role as 'user' | 'assistant' | 'tool',
+          content: message.content,
+        })),
+    );
+    if (contextProfile.promptMode !== 'write') {
+      return false;
+    }
+
+    const recentText = contextualHistory
+      .filter((message) => message.role === 'user' || message.role === 'assistant')
+      .slice(-8)
+      .map((message) => message.content)
+      .join('\n\n');
+    return hasMultiStepWriteSignals(recentText);
+  }
+
+  private buildPostApprovalContinuationInstruction(params: {
+    action: ApprovalAction['action'];
+    previewResults: AiMutationPreviewDto[];
+    history: Array<{ role: string; content: string }>;
+  }): string {
+    const resultLines = params.previewResults.map((preview) => {
+      const label = this.previewResultLabel(preview);
+      const summary = String(preview.summary || '').trim();
+      const error = String(preview.error_message || '').trim();
+      return `- ${label}: status=${preview.status}${summary ? `; summary=${summary}` : ''}${error ? `; error=${error}` : ''}`;
+    });
+    const recentContext = params.history
+      .filter((message) => message.role === 'user' || message.role === 'assistant')
+      .slice(-6)
+      .map((message) => `${message.role}: ${message.content}`)
+      .join('\n');
+    return [
+      `The user just explicitly ${params.action === 'approve' ? 'approved' : 'rejected'} backend mutation preview(s) in an ongoing write workflow.`,
+      'Execution results:',
+      ...resultLines,
+      '',
+      'Recent workflow context:',
+      recentContext || '(none)',
+      '',
+      'Continue from this exact state. If the original user request or the previous assistant plan implies remaining changes, prepare the remaining backend previews now without asking the user to type continue.',
+      'For multiple remaining related changes, mixed object changes, or dependency chains, use prepare_mutation_plan. If there are no remaining changes, answer concisely with the final state.',
+      'Do not re-create previews for changes already executed or rejected. Do not claim execution for any remaining change until its backend preview is explicitly approved and executed.',
+    ].join('\n');
+  }
+
+  private shouldRepairUnstructuredPlanPreview(params: {
+    assistantText: string;
+    mutationPreviewCountThisTurn: number;
+    usedMutationPlanToolThisTurn: boolean;
+    repairAttempts: number;
+  }): boolean {
+    if (params.repairAttempts > 0) {
+      return false;
+    }
+    if (params.usedMutationPlanToolThisTurn) {
+      return false;
+    }
+    if (params.mutationPreviewCountThisTurn !== 1) {
+      return false;
+    }
+    return hasMultiStepWriteSignals(params.assistantText);
+  }
+
+  private buildUnstructuredPlanRepairInstruction(params: {
+    assistantText: string;
+    writePreviewToolNames: string[];
+  }): string {
+    const toolList = params.writePreviewToolNames.length > 0
+      ? params.writePreviewToolNames.join(', ')
+      : 'the available write-preview tools';
+    return [
+      'Your previous assistant response described a multi-step or multi-record write workflow, but only one backend preview was created and no durable mutation plan was prepared.',
+      `Use the provider tool-calling API now with one of: ${toolList}.`,
+      'If remaining changes are clear, create backend previews for every remaining target now. For dependencies or mixed object types, use prepare_mutation_plan with stable operation_id values, depends_on, and placeholders such as {{create_project.ref}}.',
+      'Do not ask the user to type continue between previews. Do not claim execution; create backend previews only.',
+      'Previous assistant text for reference:',
+      params.assistantText,
+    ].join('\n');
+  }
+
+  private buildBulkCompletenessRepairInstruction(params: {
+    issue: BulkCoverageIssue;
+    writePreviewToolNames: string[];
+  }): string {
+    const toolList = params.writePreviewToolNames.length > 0
+      ? params.writePreviewToolNames.join(', ')
+      : 'the available write-preview tools';
+    const missingRefs = params.issue.missingRefs.length > 0
+      ? params.issue.missingRefs.join(', ')
+      : '(unknown refs; expected count was not fully covered)';
+    return [
+      'Your previous tool calls did not cover the complete resolved bulk target set.',
+      `Target set: ${params.issue.label || params.issue.entityType || params.issue.source}.`,
+      params.issue.expectedCount != null ? `Expected targets: ${params.issue.expectedCount}.` : null,
+      params.issue.expectedRefs.length > 0 ? `Expected refs: ${params.issue.expectedRefs.join(', ')}.` : null,
+      params.issue.coveredRefs.length > 0 ? `Refs with created previews: ${params.issue.coveredRefs.join(', ')}.` : 'No matching refs have created previews yet.',
+      params.issue.failedRefs.length > 0 ? `Refs with preview errors: ${params.issue.failedRefs.join(', ')}.` : null,
+      params.issue.excludedRefs.length > 0 ? `Refs explicitly excluded: ${params.issue.excludedRefs.join(', ')}.` : null,
+      `Missing refs: ${missingRefs}.`,
+      `Use the provider tool-calling API now with one of: ${toolList}.`,
+      'Create backend previews for every missing in-scope target now. If you intentionally narrowed an ambiguous user request, state the assumption clearly and explicitly name every excluded ref with a reason.',
+      'For bulk target-set tracking, prefer prepare_mutation_plan with expected_target_refs/expected_target_count and explicit_exclusions when available.',
+      'Do not execute changes and do not claim success; create backend previews only or explain the explicit exclusions.',
+    ].filter(Boolean).join('\n');
+  }
+
+  private buildEmptyWriteAfterToolRepairInstruction(params: {
+    writePreviewToolNames: string[];
+  }): string {
+    const toolList = params.writePreviewToolNames.length > 0
+      ? params.writePreviewToolNames.join(', ')
+      : 'the available write-preview tools';
+    return [
+      'Your previous iteration used tools in a write workflow, but then ended with no visible answer and no backend mutation preview.',
+      'Continue now from the current conversation context and the latest tool results.',
+      `If the requested targets are resolved, create the required backend previews now using one of: ${toolList}.`,
+      'If the user refers to entities from the current conversation, use the visible refs and previews already in context; query missing details only when needed.',
+      'For task assignee changes, resolve the assignee email if needed, then create task assignee previews. For multiple tasks, prefer the available bulk reassignment tool.',
+      'If the request is genuinely ambiguous, ask one concise clarification. Do not produce an empty response.',
+      'Do not execute changes and do not claim success; create backend previews only.',
+    ].join(' ');
+  }
+
+  private buildEmptyWriteResponseRepairInstruction(params: {
+    writePreviewToolNames: string[];
+  }): string {
+    const toolList = params.writePreviewToolNames.length > 0
+      ? params.writePreviewToolNames.join(', ')
+      : 'the available write-preview tools';
+    return [
+      'Your previous iteration ended with no visible assistant text and no tool call in a write workflow.',
+      'Continue now from the current conversation context.',
+      `Use the provider tool-calling API with one of: ${toolList}.`,
+      'If the user corrected an existing bulk preview target set, create replacement backend previews for the corrected in-scope targets.',
+      'Do not approve, execute, or claim success for existing pending previews.',
+      'If the corrected target set is still ambiguous, ask one concise clarification. Do not produce an empty response.',
+    ].join(' ');
   }
 
   private buildPreviewResultAssistantText(preview: AiMutationPreviewDto): string {
@@ -487,6 +1287,74 @@ export class AiChatOrchestratorService {
         }
         return summary || 'The backend processed the preview action.';
     }
+  }
+
+  private previewResultLabel(preview: AiMutationPreviewDto): string {
+    return String(preview.target?.ref || preview.target?.title || preview.summary || preview.preview_id).trim();
+  }
+
+  private buildFollowUpPreviewAssistantText(previews: AiMutationPreviewDto[]): string {
+    if (previews.length === 0) {
+      return '';
+    }
+    const labels = previews
+      .slice(0, 6)
+      .map((preview) => this.previewResultLabel(preview));
+    const lines = [
+      `${previews.length} dependent preview${previews.length > 1 ? 's are' : ' is'} now prepared and waiting for explicit approval.`,
+      ...labels.map((label) => `- ${label}`),
+    ];
+    if (previews.length > labels.length) {
+      lines.push(`- ${previews.length - labels.length} more.`);
+    }
+    return lines.join('\n');
+  }
+
+  private buildPreviewResultsAssistantText(
+    previews: AiMutationPreviewDto[],
+    followUpPreviews: AiMutationPreviewDto[] = [],
+  ): string {
+    const followUpText = this.buildFollowUpPreviewAssistantText(followUpPreviews);
+    if (previews.length === 1) {
+      const base = this.buildPreviewResultAssistantText(previews[0]);
+      return followUpText ? `${base}\n\n${followUpText}` : base;
+    }
+
+    const applied = previews.filter((preview) => preview.status === 'executed').length;
+    const rejected = previews.filter((preview) => preview.status === 'rejected').length;
+    const failed = previews.filter((preview) => preview.status === 'failed').length;
+    const expired = previews.filter((preview) => preview.status === 'expired').length;
+    const unchanged = previews.length - applied - rejected - failed - expired;
+
+    const parts: string[] = [];
+    if (applied > 0) parts.push(`${applied} applied`);
+    if (rejected > 0) parts.push(`${rejected} rejected`);
+    if (failed > 0) parts.push(`${failed} failed`);
+    if (expired > 0) parts.push(`${expired} expired`);
+    if (unchanged > 0) parts.push(`${unchanged} unchanged`);
+
+    const lines = [
+      parts.length > 0
+        ? `Preview batch completed: ${parts.join(', ')}.`
+        : 'Preview batch completed.',
+    ];
+
+    const failedPreviews = previews.filter((preview) => preview.status === 'failed' || preview.status === 'expired');
+    if (failedPreviews.length > 0) {
+      lines.push('');
+      lines.push('Failures:');
+      for (const preview of failedPreviews.slice(0, 10)) {
+        const label = this.previewResultLabel(preview);
+        const message = String(preview.error_message || preview.summary || 'No error detail was returned.').trim();
+        lines.push(`- ${label}: ${message}`);
+      }
+      if (failedPreviews.length > 10) {
+        lines.push(`- ${failedPreviews.length - 10} more failed previews.`);
+      }
+    }
+
+    const base = lines.join('\n');
+    return followUpText ? `${base}\n\n${followUpText}` : base;
   }
 
   private linkifyPreviewSummary(preview: AiMutationPreviewDto, summary: string): string {
@@ -746,6 +1614,21 @@ export class AiChatOrchestratorService {
         iterations: completedIterations,
       };
     };
+    const buildDebugTrace = (
+      name: AiChatDebugTraceName,
+      opts: { iteration?: number | null; toolName?: string | null } = {},
+    ): ChatStreamEvent | null => {
+      if (!AI_CHAT_DEBUG_TRACE_ENABLED) {
+        return null;
+      }
+      return {
+        type: 'debug_trace',
+        name,
+        elapsed_ms: Math.max(0, Date.now() - requestStartedAt),
+        ...(opts.iteration != null ? { iteration: opts.iteration } : {}),
+        ...(opts.toolName != null ? { tool_name: opts.toolName } : {}),
+      };
+    };
 
     if (abortSignal?.aborted) {
       return;
@@ -753,7 +1636,19 @@ export class AiChatOrchestratorService {
 
     // Step 2: Load/create conversation, persist user message, build system prompt
     const approvalAction = prepared.approvalAction;
-    const { conversationId, title, providerMessages, tools, systemPromptText, systemPromptSections, preStreamEvents, approvalAssistantText, contextSummary } =
+    const {
+      conversationId,
+      title,
+      providerMessages,
+      tools,
+      systemPromptText,
+      systemPromptSections,
+      preStreamEvents,
+      approvalAssistantText,
+      contextSummary,
+      requiresWritePreviewGuard,
+      writePreviewToolNames,
+    } =
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
         let convId = prepared.inputConversationId;
         let convTitle: string;
@@ -850,14 +1745,168 @@ export class AiChatOrchestratorService {
         const streamEvents: ChatStreamEvent[] = [];
 
         if (approvalAction) {
-          const previewResult = approvalAction.action === 'approve'
-            ? await this.previews.executePreview({ ...ctx, conversationId: convId! }, approvalAction.previewId)
-            : await this.previews.rejectPreview({ ...ctx, conversationId: convId! }, approvalAction.previewId);
+          let previewResults: AiMutationPreviewDto[] = [];
+          let followUpPreviews: AiMutationPreviewDto[] = [];
+          if (approvalAction.action === 'approve') {
+            const execution = await this.previews.executePreviewsWithFollowUps(
+              { ...ctx, conversationId: convId! },
+              approvalAction.previewIds,
+            );
+            previewResults = execution.results;
+            followUpPreviews = execution.followUpPreviews;
+          } else {
+            previewResults = await this.previews.rejectPreviews(
+              { ...ctx, conversationId: convId! },
+              approvalAction.previewIds,
+            );
+          }
 
-          streamEvents.push({
+          for (const previewResult of previewResults) streamEvents.push({
             type: 'preview_result',
             ...previewResult,
           });
+          if (followUpPreviews.length > 0) {
+            streamEvents.push({
+              type: 'tool_result',
+              id: `mutation-plan-followups-${Date.now()}`,
+              name: 'prepare_mutation_plan',
+              result: {
+                previews: followUpPreviews,
+                total: followUpPreviews.length,
+                created: followUpPreviews.length,
+                failed: 0,
+                complete: false,
+              },
+            });
+            for (const preview of followUpPreviews) streamEvents.push({
+              type: 'preview',
+              ...preview,
+            });
+          }
+          const allPreviewResults = [...previewResults, ...followUpPreviews];
+
+          const historyAfterApproval = await this.conversations.listMessagesForUser(
+            convId!,
+            ctx.tenantId,
+            ctx.userId,
+            { manager: ctx.manager },
+          );
+          const existingPreviewsAfterApproval = await this.previews.listConversationPreviews(ctx, convId!);
+          if (this.shouldContinueAfterPreviewAction({
+            history: historyAfterApproval.map((msg) => ({ role: msg.role, content: msg.content })),
+            existingPreviews: existingPreviewsAfterApproval,
+            previewResults,
+            followUpPreviews,
+          })) {
+            const msgs: AiProviderMessage[] = [];
+            let replayableToolCallIds = new Set<string>();
+            for (const msg of historyAfterApproval) {
+              if (msg.role === 'user') {
+                msgs.push({
+                  role: 'user',
+                  content: this.toProviderUserContent(msg.content),
+                });
+                replayableToolCallIds = new Set<string>();
+              } else if (msg.role === 'assistant') {
+                const toolCalls = this.sanitizeReplayToolCalls(msg.tool_calls);
+                msgs.push({
+                  role: 'assistant',
+                  content: stripBase64Images(msg.content),
+                  ...(toolCalls ? { tool_calls: toolCalls } : {}),
+                });
+                replayableToolCallIds = new Set((toolCalls ?? []).map((toolCall) => toolCall.id));
+              } else if (msg.role === 'tool') {
+                const toolCallId = this.parsePersistedToolMessageId(msg.content);
+                if (!toolCallId || !replayableToolCallIds.has(toolCallId)) {
+                  this.logger.warn(
+                    `Skipping persisted tool message during approval continuation replay because its assistant tool call is unavailable: id=${toolCallId || 'missing'}.`,
+                  );
+                  continue;
+                }
+                msgs.push({
+                  role: 'tool',
+                  content: msg.content,
+                  tool_call_id: toolCallId,
+                });
+                replayableToolCallIds.delete(toolCallId);
+              }
+            }
+            msgs.push({
+              role: 'user',
+              content: this.buildPostApprovalContinuationInstruction({
+                action: approvalAction.action,
+                previewResults,
+                history: historyAfterApproval.map((msg) => ({ role: msg.role, content: msg.content })),
+              }),
+            });
+
+            const toolContext: AiExecutionContextWithManager = {
+              ...ctx,
+              conversationId: convId!,
+            };
+            const contextProfile = selectAiContextProfileForTurn(
+              historyAfterApproval
+                .filter((msg) => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
+                .map((msg) => ({
+                  role: msg.role as 'user' | 'assistant' | 'tool',
+                  content: msg.content,
+                })),
+            );
+            const allAvailableTools = await this.toolRegistry.listAvailableTools(toolContext);
+            const availableTools = filterToolListForProfile(allAvailableTools, contextProfile);
+            const writePreviewToolNames = availableTools
+              .filter((tool) => tool.write_preview != null)
+              .map((tool) => tool.name);
+            const toolSchemas = this.toolRegistry.toToolJsonSchemas(availableTools);
+            const readableTypes = contextProfile.includeReadableEntityTypes
+              ? await this.policy.listReadableEntityTypes(
+                ctx,
+                [...AI_QUERY_ENTITY_TYPES],
+                ctx.manager,
+              )
+              : [];
+            const currentUser = await this.loadCurrentUserPromptContext(ctx);
+            const builtSystemPrompt = this.systemPrompt.buildWithMetadata({
+              tenantName,
+              availableTools,
+              readableEntityTypes: readableTypes,
+              currentUser,
+              contextProfile,
+            });
+            const latestUserMessageRow = [...historyAfterApproval]
+              .reverse()
+              .find((msg) => msg.role === 'user' && !this.parseApprovalAction(msg.content)) ?? null;
+
+            return {
+              conversationId: convId!,
+              title: convTitle,
+              providerMessages: msgs,
+              tools: toolSchemas,
+              systemPromptText: builtSystemPrompt.text,
+              systemPromptSections: builtSystemPrompt.sections,
+              preStreamEvents: streamEvents,
+              approvalAssistantText: null,
+              contextSummary: {
+                mentions: extractMentionContextItems(latestUserMessageRow?.content ?? ''),
+                previews: previewContextItems([...existingPreviewsAfterApproval, ...allPreviewResults]),
+                artifacts: previewContextItems(allPreviewResults),
+                history: {
+                  message_count: historyAfterApproval.length,
+                  attachment_count: 0,
+                  tool_result_count: historyAfterApproval.filter((msg) => msg.role === 'tool').length,
+                },
+                tools: {
+                  available_count: allAvailableTools.length,
+                  selected_count: availableTools.length,
+                  writable_count: availableTools.filter((tool) => tool.write_preview != null).length,
+                  readable_entity_types: readableTypes,
+                  context_profile: contextProfile.name,
+                },
+              },
+              requiresWritePreviewGuard: contextProfile.promptMode === 'write' && writePreviewToolNames.length > 0,
+              writePreviewToolNames,
+            } satisfies StreamPreparationResult;
+          }
 
           return {
             conversationId: convId!,
@@ -867,16 +1916,18 @@ export class AiChatOrchestratorService {
             systemPromptText: '',
             systemPromptSections: [],
             preStreamEvents: streamEvents,
-            approvalAssistantText: this.buildPreviewResultAssistantText(previewResult),
+            approvalAssistantText: this.buildPreviewResultsAssistantText(previewResults, followUpPreviews),
             contextSummary: {
-              previews: previewContextItems([previewResult]),
-              artifacts: previewContextItems([previewResult]),
+              previews: previewContextItems(allPreviewResults),
+              artifacts: previewContextItems(allPreviewResults),
               history: {
                 message_count: 1,
                 attachment_count: 0,
                 tool_result_count: 0,
               },
             },
+            requiresWritePreviewGuard: false,
+            writePreviewToolNames: [],
           } satisfies StreamPreparationResult;
         }
 
@@ -887,6 +1938,12 @@ export class AiChatOrchestratorService {
           ctx.userId,
           { manager: ctx.manager },
         );
+        const existingPreviews = await this.previews.listConversationPreviews(ctx, convId!);
+        const latestUserMessageRow = [...history].reverse().find((msg) => msg.role === 'user') ?? null;
+        const rewriteLatestTextualWriteConfirmation = this.shouldRewriteTextualWriteConfirmation({
+          history: history.map((msg) => ({ role: msg.role, content: msg.content })),
+          existingPreviews,
+        });
 
         // Pre-load image attachments for user messages so we can inject them into multimodal
         // content blocks. Only Anthropic currently honors images; other providers ignore them.
@@ -927,9 +1984,12 @@ export class AiChatOrchestratorService {
         for (const msg of history) {
           if (msg.role === 'user') {
             const images = attachmentImagesByMessage.get(msg.id);
+            const content = rewriteLatestTextualWriteConfirmation && latestUserMessageRow === msg
+              ? this.buildTextualWriteConfirmationInstruction(msg.content)
+              : this.toProviderUserContent(msg.content);
             msgs.push({
               role: 'user',
-              content: this.toProviderUserContent(msg.content),
+              content,
               ...(images && images.length > 0 ? { images } : {}),
             });
             replayableToolCallIds = new Set<string>();
@@ -962,8 +2022,7 @@ export class AiChatOrchestratorService {
           ...ctx,
           conversationId: convId!,
         };
-        const existingPreviews = await this.previews.listConversationPreviews(ctx, convId!);
-        const latestUserMessage = [...history].reverse().find((msg) => msg.role === 'user')?.content ?? userMessage;
+        const latestUserMessage = latestUserMessageRow?.content ?? userMessage;
         const contextProfile = selectAiContextProfileForTurn(
           history
             .filter((msg) => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
@@ -974,6 +2033,9 @@ export class AiChatOrchestratorService {
         );
         const allAvailableTools = await this.toolRegistry.listAvailableTools(toolContext);
         const availableTools = filterToolListForProfile(allAvailableTools, contextProfile);
+        const writePreviewToolNames = availableTools
+          .filter((tool) => tool.write_preview != null)
+          .map((tool) => tool.name);
         const toolSchemas = this.toolRegistry.toToolJsonSchemas(availableTools);
         const readableTypes = contextProfile.includeReadableEntityTypes
           ? await this.policy.listReadableEntityTypes(
@@ -1029,6 +2091,8 @@ export class AiChatOrchestratorService {
               context_profile: contextProfile.name,
             },
           },
+          requiresWritePreviewGuard: contextProfile.promptMode === 'write' && writePreviewToolNames.length > 0,
+          writePreviewToolNames,
         } satisfies StreamPreparationResult;
       });
 
@@ -1036,6 +2100,10 @@ export class AiChatOrchestratorService {
     preparationMs = Math.max(0, Date.now() - requestStartedAt);
     yield { type: 'conversation', id: conversationId, title };
     yield { type: 'activity', phase: 'preparing_context', status: 'completed' };
+    {
+      const trace = buildDebugTrace('context_prepared');
+      if (trace) yield trace;
+    }
     yield { type: 'context', context: { ...contextSummary, timings: buildTimings(false) } };
     for (const event of preStreamEvents) {
       yield event;
@@ -1063,6 +2131,10 @@ export class AiChatOrchestratorService {
       yield { type: 'text_delta', text: approvalAssistantText };
       yield { type: 'activity', phase: 'finalizing', status: 'completed' };
       yield { type: 'context', context: { timings: buildTimings(true) } };
+      {
+        const trace = buildDebugTrace('turn_completed');
+        if (trace) yield trace;
+      }
       yield {
         type: 'done',
         usage: undefined,
@@ -1079,6 +2151,19 @@ export class AiChatOrchestratorService {
     let totalUsage: StreamUsage | undefined;
     let lastUsage: StreamUsage | undefined;
     let previousToolCallSignature: string | null = null;
+    let unsafeWriteResponseRetries = 0;
+    let unstructuredPlanRepairRetries = 0;
+    let emptyWriteResponseRetries = 0;
+    let emptyWriteAfterToolRepairRetries = 0;
+    let bulkCompletenessRepairRetries = 0;
+    let mutationPreviewCountThisTurn = 0;
+    let toolCallCountThisTurn = 0;
+    let usedMutationPlanToolThisTurn = false;
+    const bulkTargetSetsThisTurn: BulkTargetSet[] = [];
+    const coveredBulkRefsThisTurn = new Set<string>();
+    const failedBulkRefsThisTurn = new Set<string>();
+    const excludedBulkRefsThisTurn = new Set<string>();
+    const coveredBulkRefsByEntityTypeThisTurn = new Map<string, Set<string>>();
     const toolSchemaBudget = estimateToolSchemaBreakdown(tools);
     const loadConversationUsage = async (): Promise<AiTokenUsage> => {
       return this.tenantExecutor.runWithContext(context, async (ctx) => {
@@ -1138,6 +2223,10 @@ export class AiChatOrchestratorService {
       let responseActivityEmitted = false;
 
       const providerCallStartedAt = Date.now();
+      {
+        const trace = buildDebugTrace('provider_request_started', { iteration: iteration + 1 });
+        if (trace) yield trace;
+      }
       const providerStream = provider.createStream({
         model,
         apiKey,
@@ -1148,14 +2237,28 @@ export class AiChatOrchestratorService {
         maxTokens: requestMaxTokens,
         signal: abortSignal,
         timeoutMs: resolveChatProviderTimeoutMs(),
+        debugTrace: AI_CHAT_DEBUG_TRACE_ENABLED,
       });
 
       try {
         for await (const event of providerStream) {
           switch (event.type) {
+            case 'debug_trace': {
+              const trace = buildDebugTrace(event.name, {
+                iteration: iteration + 1,
+                toolName: event.tool_name ?? null,
+              });
+              if (trace) yield trace;
+              break;
+            }
+
             case 'text_delta':
               if (firstTokenMs == null) {
                 firstTokenMs = Math.max(0, Date.now() - requestStartedAt);
+                {
+                  const trace = buildDebugTrace('assistant_text_started', { iteration: iteration + 1 });
+                  if (trace) yield trace;
+                }
                 yield { type: 'context', context: { timings: buildTimings(false) } };
               }
               if (!responseActivityEmitted) {
@@ -1163,7 +2266,9 @@ export class AiChatOrchestratorService {
                 responseActivityEmitted = true;
               }
               accumulatedText += event.text;
-              yield { type: 'text_delta', text: event.text };
+              if (!requiresWritePreviewGuard) {
+                yield { type: 'text_delta', text: event.text };
+              }
               break;
 
             case 'tool_call_start':
@@ -1252,15 +2357,30 @@ export class AiChatOrchestratorService {
         }
         previousToolCallSignature = toolCallSignature;
 
+        const assistantTextForToolTurn = requiresWritePreviewGuard && containsRawToolMarkup(accumulatedText)
+          ? ''
+          : accumulatedText;
+
+        if (requiresWritePreviewGuard && assistantTextForToolTurn.length > 0) {
+          yield { type: 'text_delta', text: assistantTextForToolTurn };
+        }
+
         // Execute each tool call
         for (let toolCallIndex = 0; toolCallIndex < assistantToolCalls.length; toolCallIndex++) {
           const tc = assistantToolCalls[toolCallIndex];
-          const assistantContent = toolCallIndex === 0 ? accumulatedText : '';
+          const assistantContent = toolCallIndex === 0 ? assistantTextForToolTurn : '';
           const assistantUsage = toolCallIndex === 0 ? (iterationUsage ?? null) : null;
           const parsedArgsResult = tryParseToolCallArguments(tc.arguments || '{}');
           const parseErrorMessage = 'message' in parsedArgsResult ? parsedArgsResult.message : null;
           const parsedArgs = 'value' in parsedArgsResult ? parsedArgsResult.value : {};
           const activityPhase = toolActivityPhase(tc.name);
+          {
+            const trace = buildDebugTrace('tool_call_ready', {
+              iteration: iteration + 1,
+              toolName: tc.name || null,
+            });
+            if (trace) yield trace;
+          }
 
           yield {
             type: 'activity',
@@ -1350,16 +2470,91 @@ export class AiChatOrchestratorService {
               );
             });
 
+            let executionToolName = tc.name;
+            let executionArgs: Record<string, unknown> = parsedArgs;
+            let bulkAutoplan: { originalToolName: string; missingRefs: string[] } | null = null;
+            if (
+              requiresWritePreviewGuard
+              && writePreviewToolNames.includes('prepare_mutation_plan')
+              && parsedArgs
+              && typeof parsedArgs === 'object'
+              && !Array.isArray(parsedArgs)
+            ) {
+              const textualTargetSet = (
+                tc.name === 'prepare_mutation_plan'
+                || isRefBasedSingleMutationTool(tc.name, writePreviewToolNames)
+              )
+                ? selectTextualBulkTargetSet({
+                  messages,
+                  currentAssistantText: assistantTextForToolTurn,
+                  requestedRef: parsedArgs.ref,
+                })
+                : null;
+              const currentBulkIssue = findBulkCoverageIssue({
+                targetSets: textualTargetSet
+                  ? [...bulkTargetSetsThisTurn, textualTargetSet]
+                  : bulkTargetSetsThisTurn,
+                coveredRefs: coveredBulkRefsThisTurn,
+                coveredRefsByEntityType: coveredBulkRefsByEntityTypeThisTurn,
+                failedRefs: failedBulkRefsThisTurn,
+                excludedRefs: excludedBulkRefsThisTurn,
+                requireExistingCoverage: false,
+              });
+              const autoplanInput = currentBulkIssue && tc.name === 'prepare_mutation_plan'
+                ? buildAugmentedBulkMutationPlanInput({
+                  issue: currentBulkIssue,
+                  input: parsedArgs,
+                })
+                : currentBulkIssue && isRefBasedSingleMutationTool(tc.name, writePreviewToolNames)
+                  ? buildBulkAutoplanInput({
+                    issue: currentBulkIssue,
+                    toolName: tc.name,
+                    input: parsedArgs,
+                  })
+                  : null;
+              if (autoplanInput) {
+                executionToolName = 'prepare_mutation_plan';
+                executionArgs = autoplanInput;
+                bulkAutoplan = {
+                  originalToolName: tc.name,
+                  missingRefs: currentBulkIssue!.missingRefs,
+                };
+              }
+            }
+
             const toolStartedAt = Date.now();
+            {
+              const trace = buildDebugTrace('tool_execution_started', {
+                iteration: iteration + 1,
+                toolName: executionToolName,
+              });
+              if (trace) yield trace;
+            }
             try {
               result = await this.tenantExecutor.runWithContext({ ...context, conversationId }, async (ctx) => {
-                return this.toolRegistry.execute(ctx, tc.name, parsedArgs);
+                return this.toolRegistry.execute(ctx, executionToolName, executionArgs);
               });
+              if (bulkAutoplan && result && typeof result === 'object') {
+                result = {
+                  ...(result as Record<string, unknown>),
+                  bulk_autoplan: {
+                    from_tool_name: bulkAutoplan.originalToolName,
+                    executed_tool_name: executionToolName,
+                    missing_refs: bulkAutoplan.missingRefs,
+                  },
+                };
+              }
             } catch (err: any) {
               result = { error: err.message || 'Tool execution failed.' };
             } finally {
               toolExecutionMs += Math.max(0, Date.now() - toolStartedAt);
+              const trace = buildDebugTrace('tool_execution_completed', {
+                iteration: iteration + 1,
+                toolName: executionToolName,
+              });
+              if (trace) yield trace;
             }
+            toolCallCountThisTurn++;
 
             yield {
               type: 'tool_result',
@@ -1383,10 +2578,35 @@ export class AiChatOrchestratorService {
               };
             }
 
-            if (this.isMutationPreviewDto(result)) {
+            const mutationPreviews = mutationPreviewDtosFromResult(result);
+            mutationPreviewCountThisTurn += mutationPreviews.length;
+            const queryTargetSet = extractQueryBulkTargetSet(tc.name, parsedArgs, result);
+            if (queryTargetSet) {
+              bulkTargetSetsThisTurn.push(queryTargetSet);
+            }
+            const explicitTargetSet = extractExplicitBulkTargetSet(tc.name, result);
+            if (explicitTargetSet) {
+              bulkTargetSetsThisTurn.push(explicitTargetSet);
+            }
+            addRefs(failedBulkRefsThisTurn, extractBulkFailedRefs(result));
+            addRefs(excludedBulkRefsThisTurn, extractBulkExcludedRefs(result));
+            if (tc.name === 'prepare_mutation_plan' || bulkAutoplan) {
+              usedMutationPlanToolThisTurn = true;
+            }
+            for (const mutationPreview of mutationPreviews) {
+              const ref = normalizeBulkRef(mutationPreview.target?.ref);
+              if (ref) {
+                coveredBulkRefsThisTurn.add(ref);
+                const entityType = mutationPreview.target?.entity_type;
+                if (entityType) {
+                  const refsForEntity = coveredBulkRefsByEntityTypeThisTurn.get(entityType) ?? new Set<string>();
+                  refsForEntity.add(ref);
+                  coveredBulkRefsByEntityTypeThisTurn.set(entityType, refsForEntity);
+                }
+              }
               yield {
                 type: 'preview',
-                ...result,
+                ...mutationPreview,
               };
             }
 
@@ -1439,6 +2659,129 @@ export class AiChatOrchestratorService {
       }
 
       // No tool calls - this is the final assistant response
+      const bulkCoverageIssue = requiresWritePreviewGuard
+        ? findBulkCoverageIssue({
+          targetSets: bulkTargetSetsThisTurn,
+          coveredRefs: coveredBulkRefsThisTurn,
+          coveredRefsByEntityType: coveredBulkRefsByEntityTypeThisTurn,
+          failedRefs: failedBulkRefsThisTurn,
+          excludedRefs: excludedBulkRefsThisTurn,
+        })
+        : null;
+      if (
+        bulkCoverageIssue
+        && !textExplicitlyAddressesMissingRefs(accumulatedText, bulkCoverageIssue.missingRefs)
+      ) {
+        if (bulkCompletenessRepairRetries < MAX_UNSAFE_WRITE_RESPONSE_RETRIES) {
+          bulkCompletenessRepairRetries++;
+          if (accumulatedText.trim()) {
+            messages.push({
+              role: 'assistant',
+              content: stripBase64Images(accumulatedText),
+            });
+          }
+          messages.push({
+            role: 'user',
+            content: this.buildBulkCompletenessRepairInstruction({
+              issue: bulkCoverageIssue,
+              writePreviewToolNames,
+            }),
+          });
+          previousToolCallSignature = null;
+          continue;
+        }
+        accumulatedText = `Je n'ai pas pu verifier la completude des previews de masse. Aucune modification n'a ete executee. Cibles manquantes: ${bulkCoverageIssue.missingRefs.join(', ') || 'inconnues'}.`;
+      }
+
+      if (
+        requiresWritePreviewGuard
+        && mutationPreviewCountThisTurn === 0
+        && toolCallCountThisTurn === 0
+        && accumulatedText.trim().length === 0
+        && emptyWriteResponseRetries < MAX_UNSAFE_WRITE_RESPONSE_RETRIES
+      ) {
+        emptyWriteResponseRetries++;
+        messages.push({
+          role: 'user',
+          content: this.buildEmptyWriteResponseRepairInstruction({
+            writePreviewToolNames,
+          }),
+        });
+        previousToolCallSignature = null;
+        continue;
+      }
+
+      if (
+        requiresWritePreviewGuard
+        && mutationPreviewCountThisTurn === 0
+        && toolCallCountThisTurn > 0
+        && accumulatedText.trim().length === 0
+        && emptyWriteAfterToolRepairRetries < MAX_UNSAFE_WRITE_RESPONSE_RETRIES
+      ) {
+        emptyWriteAfterToolRepairRetries++;
+        messages.push({
+          role: 'user',
+          content: this.buildEmptyWriteAfterToolRepairInstruction({
+            writePreviewToolNames,
+          }),
+        });
+        previousToolCallSignature = null;
+        continue;
+      }
+
+      if (
+        requiresWritePreviewGuard
+        && this.shouldRepairUnstructuredPlanPreview({
+          assistantText: accumulatedText,
+          mutationPreviewCountThisTurn,
+          usedMutationPlanToolThisTurn,
+          repairAttempts: unstructuredPlanRepairRetries,
+        })
+      ) {
+        unstructuredPlanRepairRetries++;
+        messages.push({
+          role: 'assistant',
+          content: stripBase64Images(accumulatedText),
+        });
+        messages.push({
+          role: 'user',
+          content: this.buildUnstructuredPlanRepairInstruction({
+            assistantText: accumulatedText,
+            writePreviewToolNames,
+          }),
+        });
+        previousToolCallSignature = null;
+        continue;
+      }
+
+      if (
+        requiresWritePreviewGuard
+        && mutationPreviewCountThisTurn === 0
+        && this.isUnsafeWritePreviewAssistantText(accumulatedText)
+      ) {
+        if (unsafeWriteResponseRetries < MAX_UNSAFE_WRITE_RESPONSE_RETRIES) {
+          unsafeWriteResponseRetries++;
+          messages.push({
+            role: 'assistant',
+            content: stripBase64Images(accumulatedText),
+          });
+          messages.push({
+            role: 'user',
+            content: this.buildUnsafeWritePreviewResponseRepairInstruction({
+              assistantText: accumulatedText,
+              writePreviewToolNames,
+            }),
+          });
+          previousToolCallSignature = null;
+          continue;
+        }
+        accumulatedText = "Je n'ai pas pu creer les previews backend necessaires. Aucune modification n'a ete executee.";
+      }
+
+      if (requiresWritePreviewGuard && accumulatedText.length > 0) {
+        yield { type: 'text_delta', text: accumulatedText };
+      }
+
       const conversationUsage = await this.tenantExecutor.runWithContext(context, async (ctx) => {
         await this.conversations.appendMessage(
           {
@@ -1459,6 +2802,10 @@ export class AiChatOrchestratorService {
 
       yield { type: 'activity', phase: 'finalizing', status: 'completed' };
       yield { type: 'context', context: { timings: buildTimings(true) } };
+      {
+        const trace = buildDebugTrace('turn_completed');
+        if (trace) yield trace;
+      }
       yield {
         type: 'done',
         usage: totalUsage,

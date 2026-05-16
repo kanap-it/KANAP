@@ -15,6 +15,8 @@ import { Company } from '../companies/company.entity';
 import { User } from '../users/user.entity';
 import { ExternalContact } from '../contacts/external-contact.entity';
 import { UsersModule } from '../users/users.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { UsersModule } from '../users/users.module';
     PermissionsModule,
     ItOpsSettingsModule,
     forwardRef(() => UsersModule),
+    KnowledgeModule,
+    NotificationsModule,
   ],
   providers: [LocationsService],
   controllers: [LocationsController],

@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Box, Button, Stack } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
@@ -9,11 +9,11 @@ import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
-
 import { useTranslation } from 'react-i18next';
+
 type ConnectionRow = {
   id: string;
-  connection_id: string;
+  connection_reference: string;
   name: string;
   topology: 'server_to_server' | 'multi_server';
   lifecycle: string;
@@ -25,6 +25,7 @@ type ConnectionRow = {
   effective_data_class?: string;
   effective_contains_pii?: boolean;
   derived_interface_count?: number;
+  linked_interface_count?: number;
   source_label?: string | null;
   destination_label?: string | null;
   protocol_labels?: string[];
@@ -32,11 +33,44 @@ type ConnectionRow = {
   created_at: string;
 };
 
-const topologyLabel = (v?: string) => {
-  if (v === 'server_to_server') return 'Server to Server';
+const MONO_STYLE = {
+  fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+  fontSize: '12px',
+  color: 'var(--kanap-text-secondary)',
+  fontVariantNumeric: 'tabular-nums' as const,
+};
+
+const TABULAR_STYLE = {
+  fontVariantNumeric: 'tabular-nums' as const,
+  color: 'var(--kanap-text-secondary)',
+};
+
+const DOT_COLORS: Record<string, string> = {
+  active: '#10B981',
+  planned: '#9CA3AF',
+  deprecated: '#E8920F',
+  retired: '#9CA3AF',
+};
+
+const CRIT_DOT_COLORS: Record<string, string> = {
+  business_critical: '#E8920F',
+  high: '#F0A830',
+  medium: '#9CA3AF',
+  low: '#6B7280',
+};
+
+const CRIT_LABELS: Record<string, string> = {
+  business_critical: 'Business critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+
+function topologyLabel(v: string): string {
+  if (v === 'server_to_server') return 'Server to server';
   if (v === 'multi_server') return 'Multi-server';
   return v || '';
-};
+}
 
 export default function ConnectionsPage() {
   const { t } = useTranslation(['it', 'common']);
@@ -46,9 +80,24 @@ export default function ConnectionsPage() {
   const gridApiRef = useRef<any>(null);
   const [selectedRows, setSelectedRows] = useState<ConnectionRow[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [filterParams, setFilterParams] = useState<Record<string, any>>({});
 
-  const getConnectionHref = (row: ConnectionRow) => `/it/connections/${row.id}/overview`;
+  const lastQueryRef = useRef<{ sort: string; q: string; filters: any } | null>(null);
+  const buildWorkspaceSearch = useCallback(() => {
+    const sp = new URLSearchParams();
+    const state = lastQueryRef.current;
+    if (state?.sort) sp.set('sort', state.sort);
+    if (state?.q) sp.set('q', state.q);
+    if (state?.filters && Object.keys(state.filters || {}).length > 0) {
+      sp.set('filters', JSON.stringify(state.filters));
+    }
+    return sp;
+  }, []);
+
+  const getConnectionHref = useCallback((row: ConnectionRow) => {
+    const sp = buildWorkspaceSearch();
+    const qs = sp.toString();
+    return `/it/connections/${row.connection_reference || row.id}/overview${qs ? `?${qs}` : ''}`;
+  }, [buildWorkspaceSearch]);
 
   const ClickToWorkspace = useMemo(() => {
     const Cell: React.FC<ICellRendererParams<ConnectionRow, any>> = (params) => (
@@ -60,23 +109,19 @@ export default function ConnectionsPage() {
       />
     );
     return Cell;
-  }, [navigate]);
+  }, [getConnectionHref, navigate]);
 
-  const ProtocolPills = useMemo(() => {
-    const Cell: React.FC<ICellRendererParams<ConnectionRow, any>> = (params) => {
-      const list = params.data?.protocol_labels || [];
-      if (!list.length) return null;
+  const DotCellRenderer = useMemo(() => {
+    const Cell: React.FC<ICellRendererParams<ConnectionRow, any> & { colorMap: Record<string, string>; labelFn: (v: string) => string }> = (
+      params: any,
+    ) => {
+      const value = String(params.value || '');
+      const color = params.colorMap[value] || '#9CA3AF';
       return (
-        <Stack direction="row" spacing={0.5} flexWrap="wrap">
-          {list.slice(0, 4).map((label) => (
-            <Box key={label} component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>{label}</Box>
-          ))}
-          {list.length > 4 && (
-            <Typography variant="body2" color="text.secondary">
-              +{list.length - 4}
-            </Typography>
-          )}
-        </Stack>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
+          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+          <Box component="span" sx={{ fontSize: 13 }}>{params.labelFn(value)}</Box>
+        </Box>
       );
     };
     return Cell;
@@ -87,72 +132,105 @@ export default function ConnectionsPage() {
   }
 
   const columns: EnhancedColDef<ConnectionRow>[] = [
-    { headerName: t('pages.connections.columns.connectionId'), field: 'connection_id', width: 160, cellRenderer: ClickToWorkspace, cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' } },
-    { headerName: t('common.name'), field: 'name', minWidth: 200, cellRenderer: ClickToWorkspace },
     {
-      headerName: t('pages.connections.columns.topology'),
+      headerName: 'Reference',
+      field: 'connection_reference',
+      width: 110,
+      cellRenderer: ClickToWorkspace,
+      cellStyle: MONO_STYLE,
+    },
+    {
+      headerName: 'Name',
+      field: 'name',
+      minWidth: 220,
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Topology',
       field: 'topology',
-      width: 150,
-      valueFormatter: (p) => topologyLabel(p.value),
+      width: 140,
+      valueFormatter: (p) => topologyLabel(String(p.value || '')),
       cellRenderer: ClickToWorkspace,
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: t('pages.connections.columns.source'),
+      headerName: 'Endpoints',
       field: 'source_label',
-      minWidth: 180,
-      cellRenderer: ClickToWorkspace,
+      minWidth: 240,
       sortable: false,
       filter: false,
-    },
-    {
-      headerName: t('pages.connections.columns.destination'),
-      field: 'destination_label',
-      minWidth: 180,
-      cellRenderer: ClickToWorkspace,
-      sortable: false,
-      filter: false,
-    },
-    {
-      headerName: t('pages.connections.columns.servers'),
-      field: 'multi_server_count',
-      width: 110,
-      valueFormatter: (p) => p.value ?? 0,
-      cellRenderer: ClickToWorkspace,
-      sortable: false,
-      filter: false,
-      defaultHidden: true,
-    },
-    {
-      headerName: t('pages.connections.columns.protocols'),
-      field: 'protocol_labels',
-      minWidth: 220,
-      cellRenderer: ProtocolPills,
-      sortable: false,
-      filter: false,
-    },
-    {
-      headerName: t('pages.connections.columns.criticality'),
-      field: 'criticality',
-      width: 150,
-      valueFormatter: (p) => {
-        const row = p.data as ConnectionRow | undefined;
-        const value = row?.effective_criticality || p.value;
-        switch (String(value || '')) {
-          case 'business_critical': return t('enums.criticality.businessCritical');
-          case 'high': return t('enums.criticality.high');
-          case 'medium': return t('enums.criticality.medium');
-          case 'low': return t('enums.criticality.low');
-          default: return value || '';
+      cellRenderer: (params: ICellRendererParams<ConnectionRow>) => {
+        const row = params.data;
+        if (!row) return null;
+        if (row.topology === 'server_to_server') {
+          const src = row.source_label || '?';
+          const dst = row.destination_label || '?';
+          return (
+            <LinkCellRenderer
+              {...(params as any)}
+              value={`${src} → ${dst}`}
+              linkType="internal"
+              getHref={getConnectionHref}
+              onNavigate={(href: string) => navigate(href)}
+            />
+          );
         }
+        const count = row.multi_server_count || 0;
+        return (
+          <LinkCellRenderer
+            {...(params as any)}
+            value={`${count} servers`}
+            linkType="internal"
+            getHref={getConnectionHref}
+            onNavigate={(href: string) => navigate(href)}
+          />
+        );
+      },
+    },
+    {
+      headerName: 'Protocols',
+      field: 'protocol_labels',
+      minWidth: 200,
+      sortable: false,
+      filter: false,
+      valueFormatter: (p) => {
+        const list = (p.value || []) as string[];
+        if (list.length === 0) return '';
+        if (list.length <= 3) return list.join(', ');
+        return `${list.slice(0, 2).join(', ')} +${list.length - 2}`;
       },
       cellRenderer: ClickToWorkspace,
+      cellStyle: { color: 'var(--kanap-text-secondary)' },
+    },
+    {
+      headerName: 'Criticality',
+      field: 'criticality',
+      width: 150,
+      cellRenderer: (params: ICellRendererParams<ConnectionRow>) => {
+        const row = params.data;
+        const value = String(row?.effective_criticality || row?.criticality || '');
+        const isDerived = row?.risk_mode === 'derived';
+        const color = CRIT_DOT_COLORS[value] || '#9CA3AF';
+        return (
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+            <Box component="span" sx={{ fontSize: 13 }}>
+              {CRIT_LABELS[value] || value}
+              {isDerived && (
+                <Box component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', ml: 0.5 }}>
+                  (derived)
+                </Box>
+              )}
+            </Box>
+          </Box>
+        );
+      },
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: t('pages.connections.columns.dataClass'),
+      headerName: 'Data class',
       field: 'data_class',
-      width: 140,
+      width: 130,
       valueFormatter: (p) => {
         const row = p.data as ConnectionRow | undefined;
         const value = row?.effective_data_class || p.value;
@@ -162,42 +240,50 @@ export default function ConnectionsPage() {
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: t('pages.connections.columns.pii'),
+      headerName: 'PII',
       field: 'contains_pii',
-      width: 110,
+      width: 80,
       valueFormatter: (p) => {
         const row = p.data as ConnectionRow | undefined;
         const value = typeof row?.effective_contains_pii === 'boolean' ? row.effective_contains_pii : p.value;
-        return value ? t('enums.yesNo.yes') : t('enums.yesNo.no');
+        return value ? 'Yes' : 'No';
       },
       cellRenderer: ClickToWorkspace,
       filter: 'agSetColumnFilter',
     },
     {
-      headerName: t('pages.connections.columns.risk'),
-      field: 'risk_mode',
-      width: 180,
-      valueFormatter: (p) => {
-        const row = p.data as ConnectionRow | undefined;
-        if (!row) return p.value || '';
-        if (row.risk_mode === 'derived') {
-          const n = row.derived_interface_count || 0;
-          return n > 0 ? `Derived from ${n} interfaces` : 'Derived (no interfaces linked)';
-        }
-        return 'Manual';
-      },
-      cellRenderer: ClickToWorkspace,
-      filter: 'agSetColumnFilter',
-    },
-    {
-      headerName: t('common.lifecycle'),
+      headerName: 'Lifecycle',
       field: 'lifecycle',
-      width: 140,
-      valueFormatter: (p) => labelFor('lifecycleStatus', p.value) || (p.value || ''),
-      cellRenderer: ClickToWorkspace,
+      width: 130,
+      cellRenderer: (params: ICellRendererParams<ConnectionRow>) => {
+        const value = String(params.value || '');
+        const color = DOT_COLORS[value] || '#9CA3AF';
+        const label = labelFor('lifecycleStatus', value) || value;
+        return (
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+            <Box component="span" sx={{ fontSize: 13 }}>{label}</Box>
+          </Box>
+        );
+      },
       filter: 'agSetColumnFilter',
     },
-    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickToWorkspace },
+    {
+      headerName: 'Linked interfaces',
+      field: 'linked_interface_count',
+      width: 130,
+      sortable: false,
+      filter: false,
+      cellStyle: { ...TABULAR_STYLE, textAlign: 'right' as const },
+      valueFormatter: (p) => String(p.value ?? 0),
+      cellRenderer: ClickToWorkspace,
+    },
+    {
+      headerName: 'Created',
+      field: 'created_at',
+      width: 130,
+      cellRenderer: ClickToWorkspace,
+    },
   ];
 
   const actions = (
@@ -229,43 +315,18 @@ export default function ConnectionsPage() {
         endpoint="/connections"
         showRowCount
         queryKey="connections"
-        extraParams={filterParams}
         enableSearch
         enableColumnChooser
-        defaultSort={{ field: 'created_at', direction: 'DESC' }}
+        defaultSort={{ field: 'connection_reference', direction: 'ASC' }}
         columnPreferencesKey="it-connections"
         refreshKey={refreshKey}
         enableRowSelection={hasLevel('infrastructure', 'admin')}
         onSelectionChanged={setSelectedRows}
+        onQueryStateChange={(state) => {
+          lastQueryRef.current = { sort: state.sort, q: state.q || '', filters: state.filterModel || {} };
+        }}
         onGridApiReady={(api) => {
           gridApiRef.current = api;
-        }}
-        onQueryStateChange={(state) => {
-          const fm = state.filterModel || {};
-          const extractSetValue = (model: any): string | null => {
-            if (!model) return null;
-            if (Array.isArray(model.values) && model.values.length > 0) return String(model.values[0]);
-            if (Array.isArray(model.conditions) && model.conditions.length > 0) {
-              return extractSetValue(model.conditions[0]);
-            }
-            if (model.value != null) return String(model.value);
-            return null;
-          };
-          const next: Record<string, any> = {};
-          const topo = extractSetValue(fm.topology);
-          if (topo) next.topology = topo;
-          const lifecycle = extractSetValue(fm.lifecycle);
-          if (lifecycle) next.lifecycle = lifecycle;
-          const criticality = extractSetValue(fm.criticality);
-          if (criticality) next.criticality = criticality;
-          const dataClass = extractSetValue(fm.data_class);
-          if (dataClass) next.data_class = dataClass;
-          if (fm.contains_pii && Array.isArray(fm.contains_pii.values) && fm.contains_pii.values.length > 0) {
-            next.contains_pii = fm.contains_pii.values[0];
-          }
-          if (JSON.stringify(next) !== JSON.stringify(filterParams)) {
-            setFilterParams(next);
-          }
         }}
       />
     </>

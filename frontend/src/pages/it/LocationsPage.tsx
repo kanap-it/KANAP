@@ -13,7 +13,7 @@ import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import { useTranslation } from 'react-i18next';
 type LocationRow = {
   id: string;
-  code: string;
+  location_reference: string;
   name: string;
   hosting_type: string;
   provider: string | null;
@@ -21,6 +21,7 @@ type LocationRow = {
   country_iso: string | null;
   city: string | null;
   servers_count?: number;
+  sub_locations?: string[];
   created_at: string;
 };
 
@@ -61,7 +62,7 @@ export default function LocationsPage() {
   const getLocationHref = useCallback((row: LocationRow) => {
     const sp = buildWorkspaceSearch();
     const qs = sp.toString();
-    return `/it/locations/${row.id}/overview${qs ? `?${qs}` : ''}`;
+    return `/it/locations/${row.location_reference || row.id}/overview${qs ? `?${qs}` : ''}`;
   }, [buildWorkspaceSearch]);
 
   const ClickableCell = useMemo(() => {
@@ -77,8 +78,20 @@ export default function LocationsPage() {
   }, [getLocationHref, navigate]);
 
   const columns: EnhancedColDef<LocationRow>[] = [
-    { headerName: t('pages.locations.columns.code'), field: 'code', minWidth: 140, filter: 'agTextColumnFilter', cellRenderer: ClickableCell, cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' } },
-    { headerName: t('common.name'), field: 'name', minWidth: 200, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
+    {
+      headerName: t('pages.locations.columns.code'),
+      field: 'location_reference',
+      minWidth: 110,
+      filter: 'agTextColumnFilter',
+      cellRenderer: ClickableCell,
+      cellStyle: {
+        fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+        fontSize: '12px',
+        color: 'var(--kanap-text-secondary)',
+        fontVariantNumeric: 'tabular-nums',
+      },
+    },
+    { headerName: t('common.name'), field: 'name', minWidth: 220, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
     {
       headerName: t('pages.locations.columns.hostingType'),
       field: 'hosting_type',
@@ -119,14 +132,32 @@ export default function LocationsPage() {
     },
     { headerName: t('pages.locations.columns.city'), field: 'city', width: 160, filter: 'agTextColumnFilter', cellRenderer: ClickableCell },
     {
+      headerName: 'Sub-locations',
+      field: 'sub_locations',
+      width: 130,
+      filter: false,
+      sortable: false,
+      valueGetter: (params) => (params.data?.sub_locations || []).length,
+      valueFormatter: (p) => (p.value == null ? '0' : String(p.value)),
+      cellRenderer: ClickableCell,
+      cellStyle: {
+        color: 'var(--kanap-text-secondary)',
+        fontVariantNumeric: 'tabular-nums',
+      },
+    },
+    {
       headerName: t('pages.locations.columns.assets'),
       field: 'servers_count',
-      width: 120,
+      width: 110,
       filter: false,
       valueFormatter: (p) => (p.value == null ? '0' : String(p.value)),
       cellRenderer: ClickableCell,
+      cellStyle: {
+        color: 'var(--kanap-text-secondary)',
+        fontVariantNumeric: 'tabular-nums',
+      },
     },
-    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 180, cellRenderer: ClickableCell },
+    { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 160, cellRenderer: ClickableCell },
   ];
 
   const actions = (

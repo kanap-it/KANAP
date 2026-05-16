@@ -12,7 +12,7 @@ export class Location {
   tenant_id!: string;
 
   @Column('text')
-  code!: string;
+  location_reference!: string;
 
   @Column('text')
   name!: string;
@@ -30,9 +30,6 @@ export class Location {
   city!: string | null;
 
   @Column('text', { nullable: true })
-  datacenter!: string | null;
-
-  @Column('text', { nullable: true })
   provider!: string | null;
 
   @Column('text', { nullable: true })
@@ -47,4 +44,3 @@ export class Location {
   @Column('timestamptz', { default: () => 'now()' })
   updated_at!: Date;
 }
-

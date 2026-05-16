@@ -56,7 +56,7 @@ export const connectionsRegistry: AiEntityFilterRegistry = {
   },
   sortFields: {
     label: 'name',
-    connection_id: 'connection_id',
+    connection_reference: 'connection_reference',
     name: 'name',
     topology: 'topology',
     lifecycle: 'lifecycle',

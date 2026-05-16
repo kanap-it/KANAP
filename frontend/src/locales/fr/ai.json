@@ -65,6 +65,7 @@
     },
     "sections": {
       "attachments": "Pièces jointes",
+      "debugTrace": "Trace de debug",
       "injected": "Documents et entités",
       "mentions": "Mentions résolues",
       "previews": "Previews et artefacts",
@@ -108,6 +109,30 @@
       "filters_one": "{{count}} filtre",
       "filters_other": "{{count}} filtres",
       "running": "en cours"
+    },
+    "debugTrace": {
+      "iteration": "itération {{count}}",
+      "names": {
+        "assistant_text_started": "Premier texte visible",
+        "context_prepared": "Contexte préparé",
+        "provider_first_raw_chunk": "Premier fragment fournisseur",
+        "provider_first_text_delta": "Premier delta texte",
+        "provider_first_tool_delta": "Premier delta outil",
+        "provider_request_started": "Requête fournisseur lancée",
+        "provider_stream_opened": "Flux fournisseur ouvert",
+        "provider_tool_call_completed": "Génération d'appel outil terminée",
+        "tool_call_ready": "Appel outil prêt",
+        "tool_execution_completed": "Exécution outil terminée",
+        "tool_execution_started": "Exécution outil lancée",
+        "turn_completed": "Tour terminé"
+      },
+      "segments": {
+        "contextPreparation": "Préparation du contexte",
+        "firstVisibleAnswer": "Première réponse visible",
+        "modelWait": "Attente fournisseur/modèle avant première action",
+        "toolExecution": "Exécution outil backend",
+        "toolGeneration": "Génération d'appel outil"
+      }
     }
   },
   "artifactPanel": {
@@ -130,6 +155,25 @@
     "preview": "Aperçu",
     "reject": "Rejeter"
   },
+  "previewStatuses": {
+    "applied": "Appliqué",
+    "approved": "Approuvé",
+    "expired": "Expiré",
+    "failed": "Échec",
+    "pending": "En attente",
+    "rejected": "Rejeté"
+  },
+  "previewBatch": {
+    "approveAll": "Tout approuver",
+    "confirmBody_one": "KANAP appliquera la preview approuvée séparément. Les échecs partiels resteront visibles dans le statut de preview.",
+    "confirmBody_other": "KANAP appliquera chaque preview approuvée séparément. Les échecs partiels resteront visibles dans les statuts de preview.",
+    "confirmTitle_one": "Approuver {{count}} preview ?",
+    "confirmTitle_other": "Approuver {{count}} previews ?",
+    "more_one": "{{count}} preview supplémentaire",
+    "more_other": "{{count}} previews supplémentaires",
+    "title_one": "{{count}} preview",
+    "title_other": "{{count}} previews"
+  },
   "toolResults": {
     "ignoredFields": "Champs ignorés : {{fields}}",
     "noDocuments": "Aucun document trouvé.",
@@ -142,6 +186,7 @@
       "get_entity_context": "Obtenir le contexte de l'entité",
       "get_entity_detail": "Obtenir le détail de l'entité",
       "get_filter_values": "Obtenir les valeurs de filtre",
+      "prepare_mutation_plan": "Préparer le plan de modifications",
       "query_entities": "Interroger les entités",
       "search_all": "Rechercher tout",
       "search_knowledge": "Rechercher dans la base de connaissances",

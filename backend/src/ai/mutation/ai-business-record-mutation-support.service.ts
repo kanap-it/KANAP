@@ -306,9 +306,9 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
     businessResource: 'infrastructure',
     tableName: 'connections',
     fields: {
-      connection_id: { label: 'Connection ID', kind: 'text', requiredOnCreate: true, aliases: ['reference'] },
+      connection_reference: { label: 'Connection reference', kind: 'text', requiredOnCreate: false, aliases: ['reference', 'connection_id'] },
       name: { label: 'Name', kind: 'text', requiredOnCreate: true },
-      purpose: { label: 'Purpose', kind: 'text', nullable: true },
+      description: { label: 'Description', kind: 'text', nullable: true, aliases: ['purpose', 'notes'] },
       topology: { label: 'Topology', kind: 'enum', enumValues: CONNECTION_TOPOLOGIES },
       source_asset_id: { label: 'Source Asset', kind: 'relation', nullable: true, relationTarget: 'assets', aliases: ['source_asset', 'source_server_id', 'source_server'] },
       source_entity_code: { label: 'Source Entity Code', kind: 'text', nullable: true },
@@ -321,7 +321,6 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       data_class: { label: 'Data Class', kind: 'text' },
       contains_pii: { label: 'Contains PII', kind: 'boolean' },
       risk_mode: { label: 'Risk Mode', kind: 'enum', enumValues: RISK_MODES },
-      notes: { label: 'Notes', kind: 'text', nullable: true },
     },
   },
   spend_items: {
@@ -799,7 +798,7 @@ export class AiBusinessRecordMutationSupportService {
         );
       case 'connections':
         return manager.query(
-          `SELECT * FROM connections WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(connection_id) = LOWER($2::text) OR LOWER(name) = LOWER($2::text)) ORDER BY connection_id LIMIT 6`,
+          `SELECT * FROM connections WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(connection_reference) = LOWER($2::text) OR LOWER(name) = LOWER($2::text)) ORDER BY connection_reference LIMIT 6`,
           [tenantId, ref],
         );
       case 'spend_items':
@@ -831,7 +830,7 @@ export class AiBusinessRecordMutationSupportService {
       case 'portfolio_streams':
         return manager.query(`SELECT * FROM portfolio_streams WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(name) = LOWER($2::text)) ORDER BY name LIMIT 6`, [tenantId, ref]);
       case 'locations':
-        return manager.query(`SELECT * FROM locations WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(code) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(CONCAT(code, ' - ', name)) = LOWER($2::text)) ORDER BY code LIMIT 6`, [tenantId, ref]);
+        return manager.query(`SELECT * FROM locations WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(location_reference) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(CONCAT(location_reference, ' - ', name)) = LOWER($2::text)) ORDER BY location_reference LIMIT 6`, [tenantId, ref]);
       default:
         throw new BadRequestException(`Unsupported relation target ${entityType}.`);
     }
@@ -862,8 +861,8 @@ export class AiBusinessRecordMutationSupportService {
       case 'applications': return textOrNull(row.sequential_id);
       case 'assets': return textOrNull(row.asset_reference) || textOrNull(row.hostname);
       case 'interfaces': return textOrNull(row.interface_id);
-      case 'connections': return textOrNull(row.connection_id);
-      case 'projects': return row.item_number == null ? null : `P-${row.item_number}`;
+      case 'connections': return textOrNull(row.connection_reference);
+      case 'projects': return row.item_number == null ? null : `PRJ-${row.item_number}`;
       case 'requests': return row.item_number == null ? null : `REQ-${row.item_number}`;
       case 'spend_items': return textOrNull(row.product_name);
       case 'capex_items': return textOrNull(row.description);
@@ -881,9 +880,9 @@ export class AiBusinessRecordMutationSupportService {
       case 'interfaces':
         return [row.interface_id, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled interface';
       case 'connections':
-        return [row.connection_id, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled connection';
+        return [row.connection_reference, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled connection';
       case 'projects':
-        return [row.item_number == null ? null : `P-${row.item_number}`, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled project';
+        return [row.item_number == null ? null : `PRJ-${row.item_number}`, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled project';
       case 'requests':
         return [row.item_number == null ? null : `REQ-${row.item_number}`, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled request';
       case 'spend_items':
