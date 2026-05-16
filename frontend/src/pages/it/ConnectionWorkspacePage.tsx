@@ -1,690 +1,680 @@
 import React from 'react';
-import { Alert } from '@mui/material';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import api from '../../api';
-import { ServerOption } from '../../components/fields/ServerSelect';
-import { WorkspaceLayout, WorkspaceActions } from '../../components/workspace/WorkspaceLayout';
-import {
-  OverviewTab,
-  LayersTab,
-  ComplianceTab,
-  InterfacesTab,
-  ConnectionDetail,
-  ConnectionLeg,
-  LinkedInterfaceBinding,
-  TabKey,
-} from './components/connection-workspace';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import { useTranslation } from 'react-i18next';
+import api from '../../api';
+import { useAuth } from '../../auth/AuthContext';
+import PortfolioDetailWorkspaceShell, {
+  type PortfolioDetailWorkspaceTab,
+} from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
+import KanapDialog from '../../components/design/KanapDialog';
+import { PropertyRow } from '../../components/design/PropertyRow';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
+import ConnectionMetadataBar from './workspace/ConnectionMetadataBar';
+import ConnectionPropertiesDrawer from './workspace/ConnectionPropertiesDrawer';
+import ConnectionOverviewTab from './workspace/ConnectionOverviewTab';
+import ConnectionPathTab from './workspace/ConnectionPathTab';
+import { useConnectionItemNav } from '../../hooks/useModuleItemNav';
+import {
+  drawerSelectSx,
+  drawerMenuItemSx,
+  drawerFieldValueSx,
+  dialogBorderedFieldSx,
+} from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import type { ConnectionPathHop } from './workspace/ConnectionPathSection';
+
+type TabKey = 'overview' | 'path';
+const TAB_KEYS: TabKey[] = ['overview', 'path'];
+
+type LinkedInterfaceRow = {
+  id: string;
+  binding_id: string;
+  interface_id: string;
+  interface_code: string;
+  interface_name: string;
+  environment: string;
+  leg_type: string;
+  source_endpoint: string | null;
+  target_endpoint: string | null;
+  pattern: string;
+  binding_status: string;
+  interface_criticality?: string;
+  interface_data_class?: string;
+  interface_contains_pii?: boolean;
+};
+
+type AssetSummary = { id: string; name: string; asset_reference?: string | null };
+
+type ConnectionDetail = {
+  id: string;
+  connection_reference: string;
+  name: string;
+  description: string | null;
+  topology: 'server_to_server' | 'multi_server';
+  source_asset_id: string | null;
+  source_entity_code: string | null;
+  destination_asset_id: string | null;
+  destination_entity_code: string | null;
+  source_server: AssetSummary | null;
+  destination_server: AssetSummary | null;
+  servers: AssetSummary[];
+  protocol_codes: string[];
+  lifecycle: string;
+  criticality: string;
+  data_class: string;
+  contains_pii: boolean;
+  risk_mode: 'manual' | 'derived';
+  effective_criticality: string;
+  effective_data_class: string;
+  effective_contains_pii: boolean;
+  derived_interface_count: number;
+  legs?: ConnectionPathHop[];
+  created_at: string;
+  updated_at: string;
+};
 
 export default function ConnectionWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
-  const { id: idParam, tab: tabParam } = useParams();
+  const { hasLevel } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const tab: TabKey = (tabParam as TabKey) || 'overview';
-  const isCreate = (idParam || '') === 'new';
-  const id = idParam || 'new';
+  const params = useParams();
+  const [searchParams] = useSearchParams();
+  const routeId = String(params.id || '');
+  const isCreate = routeId === 'new';
+  const isConnectionReferenceRoute = /^CONN-\d+(?:-.+)?$/i.test(routeId);
+  const rawTab = (params.tab as TabKey) || 'overview';
+  const validTab: TabKey = TAB_KEYS.includes(rawTab) ? rawTab : 'overview';
+
+  const canManage = hasLevel('infrastructure', 'member');
+  const canDelete = hasLevel('infrastructure', 'member');
 
   const [data, setData] = React.useState<ConnectionDetail | null>(null);
-  const [createForm, setCreateForm] = React.useState<ConnectionDetail>({
-    id: 'new',
-    connection_id: '',
-    name: '',
-    purpose: '',
-    topology: 'server_to_server',
-    source_server_id: null,
-    source_entity_code: null,
-    destination_server_id: null,
-    destination_entity_code: null,
-    lifecycle: 'active',
-    notes: '',
-    protocol_codes: [],
-    servers: [],
-    criticality: 'medium',
-    data_class: 'internal',
-    contains_pii: false,
-    risk_mode: 'manual',
-  });
-  const [dirty, setDirty] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
+  const [legs, setLegs] = React.useState<ConnectionPathHop[]>([]);
+  const [linkedInterfaces, setLinkedInterfaces] = React.useState<LinkedInterfaceRow[]>([]);
+  const [linkedInterfacesLoading, setLinkedInterfacesLoading] = React.useState(false);
+  const [linkedInterfacesError, setLinkedInterfacesError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(!isCreate);
   const [error, setError] = React.useState<string | null>(null);
-  const [legsDraft, setLegsDraft] = React.useState<ConnectionLeg[]>([]);
-  const [legsDirty, setLegsDirty] = React.useState(false);
-  const [legsSaving, setLegsSaving] = React.useState(false);
-  const [legsError, setLegsError] = React.useState<string | null>(null);
-  const [linkedBindings, setLinkedBindings] = React.useState<LinkedInterfaceBinding[]>([]);
-  const [linkedBindingsLoading, setLinkedBindingsLoading] = React.useState(false);
-  const [linkedBindingsError, setLinkedBindingsError] = React.useState<string | null>(null);
-  const [multiServerOptions, setMultiServerOptions] = React.useState<ServerOption[]>([]);
-  const [multiServerSearch, setMultiServerSearch] = React.useState('');
-  const [multiServerLoading, setMultiServerLoading] = React.useState(false);
-  const [sourceServerOptions, setSourceServerOptions] = React.useState<ServerOption[]>([]);
-  const [destinationServerOptions, setDestinationServerOptions] = React.useState<ServerOption[]>([]);
-  const [legServerOptions, setLegServerOptions] = React.useState<ServerOption[]>([]);
-  const [sourceServerSearch, setSourceServerSearch] = React.useState('');
-  const [destinationServerSearch, setDestinationServerSearch] = React.useState('');
-  const [sourceServerLoading, setSourceServerLoading] = React.useState(false);
-  const [destinationServerLoading, setDestinationServerLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [pendingTopology, setPendingTopology] = React.useState<'server_to_server' | 'multi_server' | null>(null);
 
-  const createContext = React.useMemo(() => {
-    if (!isCreate) return null;
-    const params = new URLSearchParams(location.search || '');
-    return {
-      interfaceId: params.get('interfaceId'),
-      bindingId: params.get('bindingId'),
-      environment: params.get('environment'),
-      legType: params.get('legType'),
-    };
-  }, [isCreate, location.search]);
-
-  const linkBindingId = React.useMemo(() => {
-    if (isCreate) return null;
-    const params = new URLSearchParams(location.search || '');
-    return params.get('linkBindingId');
-  }, [isCreate, location.search]);
-
-  const attemptedAutoLinksRef = React.useRef(new Set<string>());
-
-  React.useEffect(() => {
-    if (!isCreate || !createContext) return;
-    if (createContext.environment) {
-      setCreateForm((prev) => ({
-        ...prev,
-        name: prev.name || `Connection ${createContext.environment?.toUpperCase()}`,
-        connection_id: prev.connection_id || `CONN-${createContext.environment?.toUpperCase()}`,
-      }));
-    }
-  }, [createContext, isCreate]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const prefillFromBinding = async () => {
-      if (!isCreate || !createContext?.interfaceId || !createContext.bindingId) return;
-      try {
-        const bindingsRes = await api.get<{ items: any[] }>(`/interfaces/${createContext.interfaceId}/bindings`);
-        if (cancelled) return;
-        const binding = (bindingsRes.data.items || []).find((b: any) => b.id === createContext.bindingId);
-        if (!binding) return;
-
-        const fetchAssignments = async (instanceId: string) => {
-          try {
-            const res = await api.get<{ items: Array<{ server: ServerOption }> }>(`/app-instances/${instanceId}/servers`);
-            const first = res.data.items?.[0]?.server;
-            return first || null;
-          } catch {
-            return null;
-          }
-        };
-
-        const [sourceAssignment, targetAssignment] = await Promise.all([
-          fetchAssignments(binding.source_instance_id),
-          fetchAssignments(binding.target_instance_id),
-        ]);
-        if (cancelled) return;
-
-        if (sourceAssignment) {
-          setSourceServerOptions((prev) => (prev.some((s) => s.id === sourceAssignment.id) ? prev : [...prev, sourceAssignment]));
-        }
-        if (targetAssignment) {
-          setDestinationServerOptions((prev) =>
-            prev.some((s) => s.id === targetAssignment.id) ? prev : [...prev, targetAssignment],
-          );
-        }
-
-        setCreateForm((prev) => ({
-          ...prev,
-          topology: prev.topology || 'server_to_server',
-          source_server_id: prev.source_server_id || sourceAssignment?.id || null,
-          destination_server_id: prev.destination_server_id || targetAssignment?.id || null,
-        }));
-      } catch {
-        // Best effort; ignore errors
-      }
-    };
-    void prefillFromBinding();
-    return () => {
-      cancelled = true;
-    };
-  }, [createContext, isCreate]);
-
-  // Server search effects
-  React.useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setMultiServerLoading(true);
-      try {
-        const res = await api.get<{ items: ServerOption[] }>('/assets', {
-          params: { q: multiServerSearch || undefined, limit: 50, sort: 'name:ASC' },
-        });
-        if (!cancelled) setMultiServerOptions(res.data.items || []);
-      } catch {
-        if (!cancelled) setMultiServerOptions([]);
-      } finally {
-        if (!cancelled) setMultiServerLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [multiServerSearch]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setSourceServerLoading(true);
-      try {
-        const res = await api.get<{ items: ServerOption[] }>('/assets', {
-          params: { q: sourceServerSearch || undefined, limit: 50, sort: 'name:ASC' },
-        });
-        if (!cancelled) setSourceServerOptions(res.data.items || []);
-      } catch {
-        if (!cancelled) setSourceServerOptions([]);
-      } finally {
-        if (!cancelled) setSourceServerLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [sourceServerSearch]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setDestinationServerLoading(true);
-      try {
-        const res = await api.get<{ items: ServerOption[] }>('/assets', {
-          params: { q: destinationServerSearch || undefined, limit: 50, sort: 'name:ASC' },
-        });
-        if (!cancelled) setDestinationServerOptions(res.data.items || []);
-      } catch {
-        if (!cancelled) setDestinationServerOptions([]);
-      } finally {
-        if (!cancelled) setDestinationServerLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [destinationServerSearch]);
-
-  const current = (isCreate ? createForm : data) as ConnectionDetail | null;
-
-  const addServerOption = React.useCallback((list: ServerOption[], toAdd?: ServerOption | null) => {
-    if (!toAdd) return list;
-    if (list.some((s) => s.id === toAdd.id)) return list;
-    return [...list, toAdd];
-  }, []);
-
-  React.useEffect(() => {
-    if (!current) return;
-    setSourceServerOptions((prev) => addServerOption(prev, current.source_server));
-    setDestinationServerOptions((prev) => addServerOption(prev, current.destination_server));
-  }, [addServerOption, current]);
-
-  React.useEffect(() => {
-    const bindingId = linkBindingId;
-    if (!bindingId || isCreate || !id || id === 'new') return;
-    const key = `${id}:${bindingId}`;
-    if (attemptedAutoLinksRef.current.has(key)) return;
-    attemptedAutoLinksRef.current.add(key);
-    let cancelled = false;
-    const link = async () => {
-      try {
-        await api.post(`/interface-bindings/${bindingId}/connection-links`, { connection_id: id });
-      } catch {
-        // best effort; ignore errors
-      } finally {
-        if (!cancelled && linkBindingId) {
-          const params = new URLSearchParams(location.search);
-          params.delete('linkBindingId');
-          navigate(`/it/connections/${id}/${tab}${params.toString() ? `?${params.toString()}` : ''}`, { replace: true });
-        }
-      }
-    };
-    void link();
-    return () => { cancelled = true; };
-  }, [attemptedAutoLinksRef, id, isCreate, linkBindingId, location.search, navigate, tab]);
-
-  const sortLegs = React.useCallback(
-    (list: ConnectionLeg[]) =>
-      [...list].sort((a, b) => a.order_index - b.order_index || (a.id || '').localeCompare(b.id || '')),
-    [],
-  );
-
-  const sortedLegs = React.useMemo(() => sortLegs(legsDraft), [legsDraft, sortLegs]);
-
-  React.useEffect(() => {
-    if (sortedLegs.length === 0) return;
-    const existingIds = new Set(
-      [...sourceServerOptions, ...destinationServerOptions, ...legServerOptions].map((s) => s.id),
-    );
-    const missing = Array.from(
-      new Set(
-        sortedLegs
-          .flatMap((leg) => [leg.source_server_id, leg.destination_server_id])
-          .filter((v): v is string => !!v && !existingIds.has(v)),
-      ),
-    );
-    if (missing.length === 0) return;
-    let cancelled = false;
-    const fetchMissing = async () => {
-      const fetched: ServerOption[] = [];
-      for (const idVal of missing) {
-        try {
-          const res = await api.get<ServerOption>(`/assets/${idVal}`);
-          if (!cancelled && res.data) {
-            fetched.push(res.data as any);
-          }
-        } catch {
-          // ignore missing
-        }
-      }
-      if (cancelled || fetched.length === 0) return;
-      setSourceServerOptions((prev) => {
-        let next = prev;
-        fetched.forEach((s) => { next = addServerOption(next, s); });
-        return next;
-      });
-      setDestinationServerOptions((prev) => {
-        let next = prev;
-        fetched.forEach((s) => { next = addServerOption(next, s); });
-        return next;
-      });
-      setLegServerOptions((prev) => {
-        let next = prev;
-        fetched.forEach((s) => { next = addServerOption(next, s); });
-        return next;
-      });
-    };
-    void fetchMissing();
-    return () => { cancelled = true; };
-  }, [addServerOption, destinationServerOptions, legServerOptions, sortedLegs, sourceServerOptions]);
+  const [createName, setCreateName] = React.useState('');
+  const [createTopology, setCreateTopology] = React.useState<'server_to_server' | 'multi_server'>('server_to_server');
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [createError, setCreateError] = React.useState<string | null>(null);
+  const connectionId = React.useMemo(() => {
+    if (isCreate) return '';
+    if (data?.id) return data.id;
+    return isConnectionReferenceRoute ? '' : routeId;
+  }, [data?.id, isConnectionReferenceRoute, isCreate, routeId]);
+  const workspaceRouteId = data?.connection_reference || (isCreate ? 'new' : routeId);
+  const routeMatchesLoadedConnection = React.useMemo(() => {
+    if (isCreate || !data) return false;
+    if (routeId === data.id) return true;
+    const routeKey = routeId.toUpperCase();
+    const reference = data.connection_reference?.toUpperCase();
+    return !!reference && (routeKey === reference || routeKey.startsWith(`${reference}-`));
+  }, [data, isCreate, routeId]);
 
   const load = React.useCallback(async () => {
-    if (isCreate) return;
+    if (isCreate || !routeId) return;
     setLoading(true);
     setError(null);
-    setLinkedBindingsLoading(true);
-    setLinkedBindingsError(null);
     try {
-      const res = await api.get<ConnectionDetail>(`/connections/${id}`, { params: { include: 'legs' } });
+      const res = await api.get<ConnectionDetail>(`/connections/${routeId}`, { params: { include: 'legs' } });
       setData(res.data);
-      setLegsDraft(sortLegs(res.data.legs || []));
-      setLegsDirty(false);
-      setLegsError(null);
-      setDirty(false);
-      try {
-        const linksRes = await api.get<{ items: LinkedInterfaceBinding[] }>(`/connections/${id}/interface-links`);
-        setLinkedBindings(linksRes.data.items || []);
-      } catch (e: any) {
-        setLinkedBindingsError(getApiErrorMessage(e, t, t('messages.loadLinkedInterfacesFailed')));
-      }
+      setLegs(res.data.legs || []);
     } catch (e: any) {
-      setError(getApiErrorMessage(e, t, t('messages.loadConnectionFailed')));
-      setData(null);
-      setLegsDraft([]);
-      setLegsDirty(false);
-      setLinkedBindings([]);
+      setError(getApiErrorMessage(e, t, t('messages.loadConnectionFailed') || 'Failed to load connection'));
     } finally {
       setLoading(false);
-      setLinkedBindingsLoading(false);
     }
-  }, [id, isCreate, sortLegs]);
+  }, [isCreate, routeId, t]);
+
+  React.useEffect(() => { void load(); }, [load]);
 
   React.useEffect(() => {
-    if (!isCreate) {
-      void load();
-    }
-  }, [isCreate, load]);
+    if (isCreate || !data?.connection_reference) return;
+    if (!routeMatchesLoadedConnection) return;
+    if (routeId.toUpperCase() === data.connection_reference.toUpperCase()) return;
+    const qs = searchParams.toString();
+    navigate(`/it/connections/${data.connection_reference}/${validTab}${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [data?.connection_reference, isCreate, navigate, routeId, routeMatchesLoadedConnection, searchParams, validTab]);
 
-  const update = React.useCallback(
-    (patch: Partial<ConnectionDetail>) => {
-      setDirty(true);
-      if (isCreate) {
-        setCreateForm((prev) => ({ ...prev, ...patch }));
-      } else {
-        setData((prev) => ({ ...(prev || ({} as any)), ...patch }) as ConnectionDetail);
-      }
-    },
-    [isCreate],
-  );
-
-  const resetCreateForm = React.useCallback(() => {
-    setCreateForm({
-      id: 'new',
-      connection_id: '',
-      name: '',
-      purpose: '',
-      topology: 'server_to_server',
-      source_server_id: null,
-      source_entity_code: null,
-      destination_server_id: null,
-      destination_entity_code: null,
-      lifecycle: 'active',
-      notes: '',
-      protocol_codes: [],
-      servers: [],
-      criticality: 'medium',
-      data_class: 'internal',
-      contains_pii: false,
-      risk_mode: 'manual',
-    });
-    setDirty(false);
-  }, []);
-
-  React.useEffect(() => {
-    if (isCreate) {
-      resetCreateForm();
-      setLinkedBindings([]);
-      setLinkedBindingsError(null);
-      setLinkedBindingsLoading(false);
-      setLegsDraft([]);
-      setLegsDirty(false);
-      setLegsError(null);
-    }
-  }, [isCreate, resetCreateForm]);
-
-  const validate = (): string | null => {
-    const record = current;
-    if (!record) return 'Missing form data';
-    if (!record.connection_id.trim()) return 'Connection ID is required';
-    if (!record.name.trim()) return 'Name is required';
-    if (!record.protocol_codes || record.protocol_codes.length === 0) return 'Select at least one protocol';
-    if (record.topology === 'server_to_server') {
-      const hasSourceServer = !!record.source_server_id;
-      const hasSourceEntity = !!record.source_entity_code;
-      const hasDestServer = !!record.destination_server_id;
-      const hasDestEntity = !!record.destination_entity_code;
-      if (hasSourceServer && hasSourceEntity) return 'Source: choose a server or an entity, not both';
-      if (!hasSourceServer && !hasSourceEntity) return 'Source server or entity is required';
-      if (hasDestServer && hasDestEntity) return 'Destination: choose a server or an entity, not both';
-      if (!hasDestServer && !hasDestEntity) return 'Destination server or entity is required';
-    } else {
-      const servers = record.servers || [];
-      if (servers.length < 2) return 'Select at least two servers for a multi-server connection';
-    }
-    return null;
-  };
-
-  const validateLegs = (legs: ConnectionLeg[]): string | null => {
-    if (!legs || legs.length === 0) return null;
-    if (legs.length > 3) return 'Up to 3 layers are supported';
-    const orders = new Set<number>();
-    for (const leg of legs) {
-      const order = Number(leg.order_index);
-      if (!Number.isInteger(order) || order < 1 || order > 3) return 'Layer order must be between 1 and 3';
-      if (orders.has(order)) return 'Layer order_index must be unique';
-      orders.add(order);
-      if (!String(leg.layer_type || '').trim()) return 'Layer type is required';
-      if (!leg.protocol_codes || leg.protocol_codes.length === 0) return 'Select at least one protocol for each layer';
-      const srcServer = !!leg.source_server_id;
-      const srcEntity = !!leg.source_entity_code;
-      const dstServer = !!leg.destination_server_id;
-      const dstEntity = !!leg.destination_entity_code;
-      if (srcServer && srcEntity) return 'Layer source: choose a server or an entity, not both';
-      if (!srcServer && !srcEntity) return 'Layer source is required';
-      if (dstServer && dstEntity) return 'Layer destination: choose a server or an entity, not both';
-      if (!dstServer && !dstEntity) return 'Layer destination is required';
-    }
-    return null;
-  };
-
-  const handleSave = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const payload = {
-      connection_id: current?.connection_id.trim(),
-      name: current?.name.trim(),
-      purpose: current?.purpose || null,
-      topology: current?.topology,
-      source_server_id: current?.topology === 'server_to_server' ? current?.source_server_id : null,
-      source_entity_code: current?.topology === 'server_to_server' ? current?.source_entity_code : null,
-      destination_server_id: current?.topology === 'server_to_server' ? current?.destination_server_id : null,
-      destination_entity_code: current?.topology === 'server_to_server' ? current?.destination_entity_code : null,
-      servers: current?.topology === 'multi_server' ? (current?.servers || []).map((s) => s.id) : undefined,
-      protocol_codes: current?.protocol_codes || [],
-      lifecycle: current?.lifecycle || 'active',
-      notes: current?.notes || null,
-      criticality: current?.criticality || 'medium',
-      data_class: current?.data_class || 'internal',
-      contains_pii: !!current?.contains_pii,
-      risk_mode: current?.risk_mode || 'manual',
-    };
+  const reloadLinkedInterfaces = React.useCallback(async () => {
+    if (!connectionId) return;
+    setLinkedInterfacesLoading(true);
+    setLinkedInterfacesError(null);
     try {
-      if (isCreate) {
-        const res = await api.post('/connections', payload);
-        const newId = (res.data as any)?.id as string;
-        setDirty(false);
-        if (newId) {
-          const linkParam = createContext?.bindingId ? `?linkBindingId=${encodeURIComponent(createContext.bindingId)}` : '';
-          navigate(`/it/connections/${newId}/overview${linkParam}`);
-        }
-      } else {
-        await api.patch(`/connections/${id}`, payload);
-        setDirty(false);
+      const res = await api.get<{ items: LinkedInterfaceRow[] }>(`/connections/${connectionId}/interface-links`);
+      setLinkedInterfaces(res.data.items || []);
+    } catch (e: any) {
+      setLinkedInterfacesError(
+        getApiErrorMessage(e, t, t('messages.loadLinkedInterfacesFailed') || 'Failed to load linked interfaces'),
+      );
+      setLinkedInterfaces([]);
+    } finally {
+      setLinkedInterfacesLoading(false);
+    }
+  }, [connectionId, t]);
+
+  React.useEffect(() => {
+    if (!connectionId) return;
+    void reloadLinkedInterfaces();
+  }, [connectionId, reloadLinkedInterfaces]);
+
+  const handleLinkedInterfacesChanged = React.useCallback(async () => {
+    await reloadLinkedInterfaces();
+    // Reload connection too, since effective_criticality/data_class/contains_pii may change
+    // when bindings are linked/unlinked under derived risk mode.
+    await load();
+  }, [reloadLinkedInterfaces, load]);
+
+  const patchConnection = React.useCallback(
+    async (patch: Partial<ConnectionDetail> | Record<string, any>) => {
+      if (!connectionId) return;
+      setSaving(true);
+      setData((prev) => (prev ? { ...prev, ...(patch as any) } as ConnectionDetail : prev));
+      try {
+        const res = await api.patch<ConnectionDetail>(`/connections/${connectionId}`, patch);
+        setData((prev) => (prev ? { ...prev, ...res.data } : res.data));
+        setError(null);
+      } catch (e: any) {
+        setError(getApiErrorMessage(e, t, t('messages.saveConnectionFailed') || 'Failed to save connection'));
         await load();
+      } finally {
+        setSaving(false);
       }
-    } catch (e: any) {
-      setError(getApiErrorMessage(e, t, t('messages.saveConnectionFailed')));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const makeEmptyLeg = React.useCallback(
-    (orderIndex: number): ConnectionLeg => ({
-      order_index: orderIndex,
-      layer_type: '',
-      source_server_id: null,
-      source_entity_code: null,
-      destination_server_id: null,
-      destination_entity_code: null,
-      protocol_codes: (current?.protocol_codes && current.protocol_codes.length > 0) ? [...current.protocol_codes] : [],
-      port_override: null,
-      notes: null,
-    }),
-    [current?.protocol_codes],
+    },
+    [connectionId, load, t],
   );
 
-  const handleAddLeg = () => {
-    if (sortedLegs.length >= 3) return;
-    const used = new Set(sortedLegs.map((l) => l.order_index));
-    let nextOrder = 1;
-    while (used.has(nextOrder) && nextOrder < 3) {
-      nextOrder += 1;
-    }
-    const newLeg = makeEmptyLeg(nextOrder);
-    setLegsDraft((prev) => sortLegs([...prev, newLeg]));
-    setLegsDirty(true);
-  };
+  const listContextParams = React.useMemo(() => {
+    const sp = new URLSearchParams();
+    const sort = searchParams.get('sort');
+    const q = searchParams.get('q');
+    const filters = searchParams.get('filters');
+    if (sort) sp.set('sort', sort);
+    if (q) sp.set('q', q);
+    if (filters) sp.set('filters', filters);
+    return sp;
+  }, [searchParams]);
 
-  const handleLegChange = (leg: ConnectionLeg, patch: Partial<ConnectionLeg>) => {
-    setLegsDraft((prev) => sortLegs(prev.map((item) => (item === leg ? { ...item, ...patch } : item))));
-    setLegsDirty(true);
-  };
+  const handleClose = React.useCallback(() => {
+    const qs = listContextParams.toString();
+    navigate(`/it/connections${qs ? `?${qs}` : ''}`);
+  }, [listContextParams, navigate]);
 
-  const handleRemoveLeg = (leg: ConnectionLeg) => {
-    setLegsDraft((prev) => prev.filter((item) => item !== leg));
-    setLegsDirty(true);
-  };
+  const handleTabChange = React.useCallback(
+    (nextTab: string) => {
+      if (nextTab === validTab) return;
+      const qs = searchParams.toString();
+      const targetId = workspaceRouteId;
+      navigate(`/it/connections/${targetId}/${nextTab}${qs ? `?${qs}` : ''}`);
+    },
+    [navigate, searchParams, validTab, workspaceRouteId],
+  );
 
-  const handleSaveLegs = async () => {
-    if (isCreate) {
-      setLegsError('Save the connection first, then add layers.');
-      return;
-    }
-    const validationError = validateLegs(sortedLegs);
-    if (validationError) {
-      setLegsError(validationError);
-      return;
-    }
-    setLegsSaving(true);
-    setLegsError(null);
-    try {
-      const payload = sortedLegs.map((leg) => ({
-        order_index: Number(leg.order_index),
-        layer_type: String(leg.layer_type || '').trim().toLowerCase(),
-        source_server_id: leg.source_server_id || null,
-        source_entity_code: leg.source_entity_code ? String(leg.source_entity_code).trim() : null,
-        destination_server_id: leg.destination_server_id || null,
-        destination_entity_code: leg.destination_entity_code ? String(leg.destination_entity_code).trim() : null,
-        protocol_codes: (leg.protocol_codes || []).map((p) => String(p || '').trim().toLowerCase()).filter((p) => p.length > 0),
-        port_override: leg.port_override ? String(leg.port_override).trim() : null,
-        notes: leg.notes ? String(leg.notes).trim() : null,
-      }));
-      const res = await api.put<ConnectionLeg[]>(`/connections/${id}/legs`, payload);
-      const nextLegs = sortLegs(res.data || []);
-      setLegsDraft(nextLegs);
-      setLegsDirty(false);
-      setData((prev) => (prev ? { ...prev, legs: nextLegs } as ConnectionDetail : prev));
-    } catch (e: any) {
-      setLegsError(getApiErrorMessage(e, t, t('messages.saveLayersFailed')));
-    } finally {
-      setLegsSaving(false);
-    }
-  };
+  const handleTitleSave = React.useCallback(
+    (next: string) => {
+      const trimmed = next.trim();
+      if (!trimmed || !data || trimmed === data.name) return;
+      void patchConnection({ name: trimmed });
+    },
+    [data, patchConnection],
+  );
 
-  const handleResetLegs = () => {
-    setLegsDraft(sortLegs((data?.legs as ConnectionLeg[] | undefined) || []));
-    setLegsDirty(false);
-    setLegsError(null);
-  };
+  const handleTopologyChange = React.useCallback(
+    (next: 'server_to_server' | 'multi_server') => {
+      if (!data || next === data.topology) return;
+      const hasContent =
+        legs.length > 0 ||
+        !!data.source_asset_id || !!data.source_entity_code ||
+        !!data.destination_asset_id || !!data.destination_entity_code ||
+        (data.servers || []).length > 0;
+      if (hasContent) {
+        setPendingTopology(next);
+        return;
+      }
+      void patchConnection({ topology: next });
+    },
+    [data, legs.length, patchConnection],
+  );
 
-  const handleReset = () => {
-    if (isCreate) {
-      resetCreateForm();
-      setLegsDraft([]);
-      setLegsDirty(false);
-      setLegsError(null);
+  const handleConfirmTopology = React.useCallback(() => {
+    if (!pendingTopology) return;
+    const next = pendingTopology;
+    setPendingTopology(null);
+    if (next === 'multi_server') {
+      void patchConnection({
+        topology: next,
+        source_asset_id: null, source_entity_code: null,
+        destination_asset_id: null, destination_entity_code: null,
+        servers: (data?.servers ?? []).map((s) => s.id),
+      });
     } else {
-      void load();
+      void patchConnection({ topology: next });
     }
-  };
+  }, [data, patchConnection, pendingTopology]);
 
-  const handleClose = async () => {
-    if (dirty || legsDirty) {
-      const confirm = window.confirm(t('confirmations.unsavedLeave'));
-      if (!confirm) return;
-    }
-    navigate('/it/connections');
-  };
-
-  const handleTabChange = (newTab: string) => {
-    if (dirty || legsDirty) {
-      const confirmLeave = window.confirm(t('confirmations.unsavedLeaveTab'));
-      if (!confirmLeave) return;
-    }
-    navigate(`/it/connections/${id}/${newTab}`);
-  };
-
-  const actions = (
-    <WorkspaceActions
-      onClose={handleClose}
-      onReset={handleReset}
-      onSave={() => void handleSave()}
-      dirty={dirty}
-      loading={loading || saving}
-      showReset={dirty || legsDirty}
-    />
+  const handleEndpointChange = React.useCallback(
+    (side: 'source' | 'destination', next: { asset_id: string | null; entity_code: string | null }) => {
+      if (side === 'source') {
+        void patchConnection({
+          source_asset_id: next.asset_id,
+          source_entity_code: next.entity_code,
+        });
+      } else {
+        void patchConnection({
+          destination_asset_id: next.asset_id,
+          destination_entity_code: next.entity_code,
+        });
+      }
+    },
+    [patchConnection],
   );
 
-  const tabs = [
-    {
-      id: 'overview',
-      label: 'Overview',
-      content: (
-        <OverviewTab
-          data={current}
-          update={update}
-          isCreate={isCreate}
-          loading={loading}
-          sourceServerOptions={sourceServerOptions}
-          destinationServerOptions={destinationServerOptions}
-          multiServerOptions={multiServerOptions}
-          sourceServerLoading={sourceServerLoading}
-          destinationServerLoading={destinationServerLoading}
-          multiServerLoading={multiServerLoading}
-          setSourceServerSearch={setSourceServerSearch}
-          setDestinationServerSearch={setDestinationServerSearch}
-          setMultiServerSearch={setMultiServerSearch}
-          multiServerSearch={multiServerSearch}
-        />
-      ),
+  const handleMultiServerChange = React.useCallback(
+    (nextIds: string[]) => {
+      void patchConnection({ servers: nextIds });
     },
-    {
-      id: 'layers',
-      label: 'Layers',
-      content: (
-        <LayersTab
-          data={current}
-          isCreate={isCreate}
-          loading={loading}
-          legsDraft={legsDraft}
-          legsDirty={legsDirty}
-          legsError={legsError}
-          legsSaving={legsSaving}
-          sourceServerOptions={sourceServerOptions}
-          destinationServerOptions={destinationServerOptions}
-          multiServerOptions={multiServerOptions}
-          legServerOptions={legServerOptions}
-          onAddLeg={handleAddLeg}
-          onLegChange={handleLegChange}
-          onRemoveLeg={handleRemoveLeg}
-          onSaveLegs={() => void handleSaveLegs()}
-          onResetLegs={handleResetLegs}
-        />
-      ),
+    [patchConnection],
+  );
+
+  const handleProtocolsChange = React.useCallback(
+    (next: string[]) => {
+      if (next.length === 0) return;
+      void patchConnection({ protocol_codes: next });
     },
-    {
-      id: 'compliance',
-      label: 'Criticality & Compliance',
-      content: (
-        <ComplianceTab
-          data={current}
-          update={update}
-          isCreate={isCreate}
-          loading={loading}
-        />
-      ),
+    [patchConnection],
+  );
+
+  const handleLifecycleChange = React.useCallback(
+    (next: string) => {
+      if (!data || next === data.lifecycle) return;
+      void patchConnection({ lifecycle: next });
     },
-    {
-      id: 'interfaces',
-      label: 'Related Interfaces',
-      disabled: isCreate,
-      content: !isCreate ? (
-        <InterfacesTab
-          linkedBindings={linkedBindings}
-          linkedBindingsLoading={linkedBindingsLoading}
-          linkedBindingsError={linkedBindingsError}
-        />
-      ) : null,
+    [data, patchConnection],
+  );
+
+  const handleCriticalityChange = React.useCallback(
+    (next: string) => {
+      if (!data || next === data.criticality) return;
+      void patchConnection({ criticality: next });
     },
+    [data, patchConnection],
+  );
+
+  const handleDataClassChange = React.useCallback(
+    (next: string) => {
+      if (!data || next === data.data_class) return;
+      void patchConnection({ data_class: next });
+    },
+    [data, patchConnection],
+  );
+
+  const handleContainsPiiChange = React.useCallback(
+    (next: boolean) => {
+      if (!data || next === data.contains_pii) return;
+      void patchConnection({ contains_pii: next });
+    },
+    [data, patchConnection],
+  );
+
+  const handleRiskModeChange = React.useCallback(
+    (next: 'manual' | 'derived') => {
+      if (!data || next === data.risk_mode) return;
+      void patchConnection({ risk_mode: next });
+    },
+    [data, patchConnection],
+  );
+
+  const handleCreate = async () => {
+    if (!canManage) return;
+    const name = createName.trim();
+    if (!name) {
+      setCreateError('Name is required.');
+      return;
+    }
+    setCreateSubmitting(true);
+    setCreateError(null);
+    try {
+      const res = await api.post('/connections', {
+        name,
+        topology: createTopology,
+        protocol_codes: ['https'],
+      });
+      const saved = res.data as ConnectionDetail;
+      navigate(`/it/connections/${saved.connection_reference || saved.id}/overview`, { replace: true });
+    } catch (e: any) {
+      setCreateError(getApiErrorMessage(e, t, t('messages.saveConnectionFailed') || 'Failed to create connection'));
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!connectionId || !canDelete) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/connections/${connectionId}`);
+      handleClose();
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('messages.deleteConnectionFailed') || 'Failed to delete connection'));
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const navSort = searchParams.get('sort') || '';
+  const navQ = searchParams.get('q') || '';
+  const navFilters = searchParams.get('filters') || '';
+  const navState = useConnectionItemNav({
+    id: connectionId,
+    sort: navSort,
+    q: navQ,
+    filters: navFilters,
+  });
+  const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate || !connectionId
+    ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as string | null, nextId: null as string | null }
+    : navState;
+
+  const goToConnection = React.useCallback(
+    (targetId: string | null) => {
+      if (!targetId) return;
+      const qs = searchParams.toString();
+      navigate(`/it/connections/${targetId}/${validTab}${qs ? `?${qs}` : ''}`);
+    },
+    [navigate, searchParams, validTab],
+  );
+
+  const workspaceTabs: PortfolioDetailWorkspaceTab[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'path', label: 'Path', badge: legs.length || undefined },
   ];
 
-  const sidebar = isCreate && createContext && (createContext.bindingId || createContext.interfaceId) ? (
-    <Alert severity="info">
-      Creating from interface binding context
-      {createContext.environment ? ` - Env ${createContext.environment.toUpperCase()}` : ''}
-      {createContext.legType ? ` - Leg ${createContext.legType.toUpperCase()}` : ''}
-    </Alert>
+  const title = isCreate ? createName : data?.name || '';
+
+  const assetMap = React.useMemo(() => {
+    const map: Record<string, AssetSummary> = {};
+    if (!data) return map;
+    if (data.source_server) map[data.source_server.id] = data.source_server;
+    if (data.destination_server) map[data.destination_server.id] = data.destination_server;
+    (data.servers || []).forEach((s) => { if (s) map[s.id] = s; });
+    return map;
+  }, [data]);
+
+  const endpointsLabel = (() => {
+    if (!data) return 'Endpoints missing';
+    if (data.topology === 'server_to_server') {
+      const fmt = (assetId: string | null, entityCode: string | null, asset: AssetSummary | null) => {
+        if (assetId && asset) return asset.asset_reference || asset.name;
+        if (assetId) return 'Server';
+        if (entityCode) return `entity:${entityCode}`;
+        return '?';
+      };
+      const src = fmt(data.source_asset_id, data.source_entity_code, data.source_server);
+      const dst = fmt(data.destination_asset_id, data.destination_entity_code, data.destination_server);
+      return `${src} → ${dst}`;
+    }
+    const count = (data.servers || []).length;
+    return count > 0 ? `${count} servers` : 'No servers';
+  })();
+
+  const drawerProperties = data ? (
+    <ConnectionPropertiesDrawer
+      lifecycle={data.lifecycle}
+      topology={data.topology}
+      topologyDisabled={legs.length > 0}
+      riskMode={data.risk_mode}
+      criticality={data.criticality}
+      dataClass={data.data_class}
+      containsPii={data.contains_pii}
+      effectiveCriticality={data.effective_criticality}
+      effectiveDataClass={data.effective_data_class}
+      effectiveContainsPii={data.effective_contains_pii}
+      derivedInterfaceCount={data.derived_interface_count || 0}
+      derivedAvailable={linkedInterfaces.length > 0}
+      createdAt={data.created_at}
+      updatedAt={data.updated_at}
+      disabled={!canManage || saving}
+      onLifecycleChange={handleLifecycleChange}
+      onTopologyChange={handleTopologyChange}
+      onRiskModeChange={handleRiskModeChange}
+      onCriticalityChange={handleCriticalityChange}
+      onDataClassChange={handleDataClassChange}
+      onContainsPiiChange={handleContainsPiiChange}
+    />
+  ) : (
+    <Box />
+  );
+
+  const metadata = !isCreate && data ? (
+    <ConnectionMetadataBar
+      lifecycle={data.lifecycle}
+      topology={data.topology}
+      topologyDisabled={legs.length > 0}
+      criticality={data.criticality}
+      effectiveCriticality={data.effective_criticality}
+      riskMode={data.risk_mode}
+      derivedInterfaceCount={data.derived_interface_count || 0}
+      protocolCodes={data.protocol_codes}
+      protocolLabels={data.protocol_codes}
+      endpointsLabel={endpointsLabel}
+      disabled={!canManage || saving}
+      onLifecycleChange={handleLifecycleChange}
+      onTopologyChange={handleTopologyChange}
+      onCriticalityChange={handleCriticalityChange}
+      onProtocolCodesChange={handleProtocolsChange}
+    />
   ) : undefined;
 
+  const actions = (
+    <>
+      {isCreate && (
+        <Button
+          variant="contained"
+          onClick={() => void handleCreate()}
+          disabled={createSubmitting || !canManage}
+          size="small"
+        >
+          Create
+        </Button>
+      )}
+      {!isCreate && data && (
+        <>
+          <Button
+            variant="action"
+            startIcon={<HubOutlinedIcon sx={{ fontSize: '14px !important' }} />}
+            size="small"
+            onClick={() => navigate(`/it/connection-map?focusConnectionId=${data.id}`)}
+          >
+            View in map
+          </Button>
+          <SendLinkButton
+            itemType={'connection' as any}
+            itemId={data.id}
+            itemRef={data.connection_reference || null}
+            itemName={data.name || 'Untitled connection'}
+          />
+        </>
+      )}
+      {!isCreate && canDelete && (
+        <Button
+          variant="action-danger"
+          startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />}
+          size="small"
+          onClick={() => setDeleteDialogOpen(true)}
+          disabled={deleting}
+        >
+          Delete
+        </Button>
+      )}
+    </>
+  );
+
   return (
-    <WorkspaceLayout
-      title={isCreate ? t('workspace.connection.newTitle') : current?.name || t('workspace.connection.title')}
-      tabs={tabs}
-      currentTab={tab}
-      onTabChange={handleTabChange}
-      actions={actions}
-      sidebar={sidebar}
-      error={error}
-      onErrorClose={() => setError(null)}
-      loading={loading}
-    />
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {error && <Alert severity="error" sx={{ mx: 2, mt: 1 }} onClose={() => setError(null)}>{error}</Alert>}
+      <PortfolioDetailWorkspaceShell
+        activeTab={validTab}
+        tabs={workspaceTabs}
+        onTabChange={handleTabChange}
+        drawerStorageKey="kanap.connections.drawerOpen"
+        backLabel="Connections"
+        onBack={handleClose}
+        itemReference={!isCreate ? data?.connection_reference || null : null}
+        onCopyReference={
+          !isCreate && data?.connection_reference
+            ? () => { void navigator.clipboard?.writeText(data.connection_reference); }
+            : undefined
+        }
+        title={title}
+        titleFallback={isCreate ? 'New connection' : 'Untitled connection'}
+        canEditTitle={canManage && !isCreate}
+        onTitleSave={handleTitleSave}
+        isCreate={isCreate}
+        nav={!isCreate && total > 0 ? {
+          currentIndex: index + 1,
+          totalCount: total,
+          hasPrev,
+          hasNext,
+          onPrev: () => goToConnection(prevId),
+          onNext: () => goToConnection(nextId),
+          previousLabel: 'Previous connection',
+          nextLabel: 'Next connection',
+        } : undefined}
+        metadata={metadata}
+        actions={actions}
+        properties={drawerProperties}
+      >
+        {isCreate ? (
+          <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
+            <PropertyRow label="Name" required valueSx={{ maxWidth: 520 }}>
+              <TextField
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="e.g., App tier to DB tier"
+                required
+                size="small"
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              />
+            </PropertyRow>
+            <PropertyRow label="Topology" required valueSx={{ maxWidth: 520 }}>
+              <TextField
+                select
+                value={createTopology}
+                onChange={(e) => setCreateTopology(e.target.value as 'server_to_server' | 'multi_server')}
+                size="small"
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              >
+                <MenuItem value="server_to_server" sx={drawerMenuItemSx}>Server to server</MenuItem>
+                <MenuItem value="multi_server" sx={drawerMenuItemSx}>Multi-server</MenuItem>
+              </TextField>
+            </PropertyRow>
+            {createError && <Alert severity="error">{createError}</Alert>}
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+              Endpoints, protocols and network path can be configured after creating the connection.
+            </Typography>
+          </Stack>
+        ) : !data ? null : validTab === 'path' ? (
+          <ConnectionPathTab
+            connectionId={data.id}
+            hops={legs}
+            canManage={canManage}
+            defaultProtocolCodes={data.protocol_codes || []}
+            assetMap={Object.fromEntries(
+              Object.entries(assetMap).map(([id, a]) => [id, { name: a.name, reference: a.asset_reference || null }]),
+            )}
+            sourceLabel={(() => {
+              if (data.source_asset_id && data.source_server) return data.source_server.asset_reference ? `${data.source_server.asset_reference} · ${data.source_server.name}` : data.source_server.name;
+              if (data.source_entity_code) return `entity:${data.source_entity_code}`;
+              if (data.topology === 'multi_server') return `${(data.servers || []).length} servers (multi-server)`;
+              return 'Source missing';
+            })()}
+            destinationLabel={(() => {
+              if (data.destination_asset_id && data.destination_server) return data.destination_server.asset_reference ? `${data.destination_server.asset_reference} · ${data.destination_server.name}` : data.destination_server.name;
+              if (data.destination_entity_code) return `entity:${data.destination_entity_code}`;
+              if (data.topology === 'multi_server') return `${(data.servers || []).length} servers (multi-server)`;
+              return 'Destination missing';
+            })()}
+            onChange={setLegs}
+          />
+        ) : (
+          <ConnectionOverviewTab
+            connectionId={data.id}
+            topology={data.topology}
+            initialDescription={data.description || ''}
+            canManage={canManage}
+            source={{ asset_id: data.source_asset_id, entity_code: data.source_entity_code }}
+            destination={{ asset_id: data.destination_asset_id, entity_code: data.destination_entity_code }}
+            multiServerIds={(data.servers || []).map((s) => s.id)}
+            assetMap={assetMap}
+            protocolCodes={data.protocol_codes || []}
+            riskMode={data.risk_mode}
+            linkedInterfaces={linkedInterfaces}
+            linkedInterfacesLoading={linkedInterfacesLoading}
+            linkedInterfacesError={linkedInterfacesError}
+            derivedInterfaceCount={data.derived_interface_count || 0}
+            onDescriptionSaved={(next) => setData((prev) => prev ? { ...prev, description: next } : prev)}
+            onEndpointChange={handleEndpointChange}
+            onMultiServerChange={handleMultiServerChange}
+            onProtocolCodesChange={handleProtocolsChange}
+            onLinkedInterfacesChanged={handleLinkedInterfacesChanged}
+          />
+        )}
+      </PortfolioDetailWorkspaceShell>
+
+      <KanapDialog
+        open={deleteDialogOpen}
+        title="Delete connection?"
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+        onSave={handleDelete}
+        saveLabel="Delete"
+        saveDisabled={deleting}
+        saveLoading={deleting}
+      >
+        <Stack spacing={1}>
+          <Box sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
+            {linkedInterfaces.length > 0
+              ? `This will permanently delete this connection and unlink it from ${linkedInterfaces.length} interface ${linkedInterfaces.length === 1 ? 'binding' : 'bindings'}. The interfaces themselves are not deleted.`
+              : 'This will permanently delete this connection.'}
+          </Box>
+        </Stack>
+      </KanapDialog>
+
+      <KanapDialog
+        open={!!pendingTopology}
+        title="Change topology?"
+        onClose={() => setPendingTopology(null)}
+        onSave={handleConfirmTopology}
+        saveLabel="Continue"
+        saveDisabled={saving}
+        saveLoading={saving}
+      >
+        <Stack spacing={1}>
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
+            {pendingTopology === 'multi_server'
+              ? 'Switching to multi-server will clear the source and destination endpoints.'
+              : 'Switching to server-to-server will clear the multi-server list.'}
+          </Typography>
+          {legs.length > 0 && (
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+              Existing layers ({legs.length}) are kept; review their endpoints after the change.
+            </Typography>
+          )}
+        </Stack>
+      </KanapDialog>
+    </Box>
   );
 }

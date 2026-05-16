@@ -13,6 +13,8 @@ import { Company } from '../companies/company.entity';
 import { Asset } from '../assets/asset.entity';
 import { User } from '../users/user.entity';
 import { ExternalContact } from '../contacts/external-contact.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 
 type HostingCategory = 'on_prem' | 'cloud';
 
@@ -22,6 +24,7 @@ export class LocationsService {
     @InjectRepository(Location) private readonly repo: Repository<Location>,
     private readonly audit: AuditService,
     private readonly itOpsSettings: ItOpsSettingsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private getRepo(manager?: EntityManager) {
@@ -50,6 +53,36 @@ export class LocationsService {
     return text;
   }
 
+  private async resolveLocationIdentifier(
+    identifier: string,
+    opts?: { manager?: EntityManager; tenantId?: string },
+  ): Promise<string> {
+    const normalized = String(identifier || '').trim();
+    if (!normalized) throw new NotFoundException('Location not found');
+
+    const uuidMatch = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized);
+    const referenceMatch = normalized.match(/^(LOC-\d+)(?:-.+)?$/i);
+    if (!uuidMatch && !referenceMatch) {
+      throw new NotFoundException('Location not found');
+    }
+
+    const mg = opts?.manager ?? this.repo.manager;
+    const tenantId = String(opts?.tenantId || '').trim();
+    const whereTenant = tenantId ? 'tenant_id = $2' : 'tenant_id = app_current_tenant()';
+    const lookupValue = uuidMatch ? normalized : referenceMatch?.[1] || normalized;
+    const rows: Array<{ id: string }> = await mg.query(
+      `SELECT id::text AS id
+       FROM locations
+       WHERE ${uuidMatch ? 'id = $1' : 'upper(location_reference) = upper($1)'}
+         AND ${whereTenant}
+       LIMIT 1`,
+      tenantId ? [lookupValue, tenantId] : [lookupValue],
+    );
+    const id = rows[0]?.id;
+    if (!id) throw new NotFoundException('Location not found');
+    return id;
+  }
+
   private normalizeCountryIso(value: unknown): string | null {
     const normalized = this.normalizeNullable(value);
     if (!normalized) return null;
@@ -59,22 +92,19 @@ export class LocationsService {
     return normalized.toUpperCase();
   }
 
-  private async ensureUnique(
-    field: 'code' | 'name',
+  private async ensureUniqueName(
     value: string,
     tenantId: string,
     excludeId: string | null,
     manager?: EntityManager,
   ) {
     const mg = manager ?? this.repo.manager;
-    const column = field === 'code' ? 'code' : 'name';
     const rows = await mg.query(
-      `SELECT id FROM locations WHERE tenant_id = $3 AND lower(${column}) = lower($1) AND ($2::uuid IS NULL OR id <> $2) LIMIT 1`,
+      `SELECT id FROM locations WHERE tenant_id = $3 AND lower(name) = lower($1) AND ($2::uuid IS NULL OR id <> $2) LIMIT 1`,
       [value, excludeId, tenantId],
     );
     if (rows && rows.length > 0) {
-      const label = field === 'code' ? 'Codename' : 'Name';
-      throw new BadRequestException(`${label} already exists`);
+      throw new BadRequestException(`Name already exists`);
     }
   }
 
@@ -153,7 +183,7 @@ export class LocationsService {
       field: 'created_at',
       direction: 'DESC',
     });
-    const allowedFilters = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city'];
+    const allowedFilters = ['location_reference', 'name', 'hosting_type', 'provider', 'country_iso', 'city'];
     const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
     // Explicit tenant_id filtering (defense-in-depth alongside RLS)
     if (opts?.tenantId) {
@@ -163,13 +193,13 @@ export class LocationsService {
     if (q) {
       const like = ILike(`%${q}%`);
       whereArr = [
-        { ...where, code: like },
+        { ...where, location_reference: like },
         { ...where, name: like },
         { ...where, city: like },
         { ...where, region: like },
       ];
     }
-    const allowedSortFields = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city', 'created_at'];
+    const allowedSortFields = ['location_reference', 'name', 'hosting_type', 'provider', 'country_iso', 'city', 'created_at'];
     const sortField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
     const [rows, total] = await repo.findAndCount({
       where: whereArr ?? where,
@@ -225,7 +255,7 @@ export class LocationsService {
       field: 'created_at',
       direction: 'DESC',
     });
-    const allowedFilters = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city'];
+    const allowedFilters = ['location_reference', 'name', 'hosting_type', 'provider', 'country_iso', 'city'];
     const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
     if (opts?.tenantId) {
       where.tenant_id = opts.tenantId;
@@ -235,14 +265,14 @@ export class LocationsService {
     if (q) {
       const like = ILike(`%${q}%`);
       whereArr = [
-        { ...where, code: like },
+        { ...where, location_reference: like },
         { ...where, name: like },
         { ...where, city: like },
         { ...where, region: like },
       ];
     }
 
-    const allowedSortFields = ['code', 'name', 'hosting_type', 'provider', 'country_iso', 'city', 'created_at'];
+    const allowedSortFields = ['location_reference', 'name', 'hosting_type', 'provider', 'country_iso', 'city', 'created_at'];
     const sortField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
     const [rows, total] = await repo.findAndCount({
@@ -282,22 +312,27 @@ export class LocationsService {
     return results;
   }
 
-  async get(id: string, opts?: { manager?: EntityManager; include?: string[] }) {
+  async get(id: string, opts?: { manager?: EntityManager; include?: string[]; tenantId?: string }) {
+    const resolvedId = await this.resolveLocationIdentifier(id, opts);
     const repo = this.getRepo(opts?.manager);
-    const location = await repo.findOne({ where: { id } });
+    const where: Record<string, any> = { id: resolvedId };
+    if (opts?.tenantId) {
+      where.tenant_id = opts.tenantId;
+    }
+    const location = await repo.findOne({ where: where as any });
     if (!location) throw new NotFoundException('Location not found');
     const includeSet = new Set(
       (opts?.include ?? []).map((v) => String(v || '').trim()).filter((v) => !!v),
     );
     const result: any = { ...location };
     if (includeSet.has('internal_contacts')) {
-      result.internal_contacts = await this.fetchInternalContacts(id, opts?.manager);
+      result.internal_contacts = await this.fetchInternalContacts(resolvedId, opts?.manager);
     }
     if (includeSet.has('external_contacts')) {
-      result.external_contacts = await this.fetchExternalContacts(id, opts?.manager);
+      result.external_contacts = await this.fetchExternalContacts(resolvedId, opts?.manager);
     }
     if (includeSet.has('links')) {
-      result.links = await this.listLinks(id, { manager: opts?.manager });
+      result.links = await this.listLinks(resolvedId, { manager: opts?.manager });
     }
     return result;
   }
@@ -307,10 +342,8 @@ export class LocationsService {
     const repo = this.getRepo(opts?.manager);
     const mg = opts?.manager ?? repo.manager;
     if (!body || typeof body !== 'object') throw new BadRequestException('Body is required');
-    const code = this.normalizeRequired(body.code, 'code');
     const name = this.normalizeRequired(body.name, 'name');
-    await this.ensureUnique('code', code, tenant, null, mg);
-    await this.ensureUnique('name', name, tenant, null, mg);
+    await this.ensureUniqueName(name, tenant, null, mg);
     const settings = await this.itOpsSettings.getSettings(tenant, { manager: mg });
     const hostingType = await this.resolveHostingType(body.hosting_type, tenant, { manager: mg, settings });
     const category = await this.getHostingCategory(hostingType, tenant, { manager: mg, settings });
@@ -323,16 +356,13 @@ export class LocationsService {
     }
     const provider = category === 'cloud' ? await this.resolveProvider(body.provider, tenant, { manager: mg, settings }) : null;
     const region = category === 'cloud' ? this.normalizeNullable(body.region) : null;
-    const datacenter = category === 'on_prem' ? this.normalizeNullable(body.datacenter) : null;
     const additionalInfo = this.normalizeNullable(body.additional_info);
     const entity = repo.create({
-      code,
       name,
       hosting_type: hostingType,
       operating_company_id: operatingCompany?.id ?? null,
       country_iso: countryIso,
       city,
-      datacenter,
       provider,
       region,
       additional_info: additionalInfo,
@@ -369,14 +399,9 @@ export class LocationsService {
     if (!existing) throw new NotFoundException('Location not found');
     const before = { ...existing };
     const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
-    if (has('code')) {
-      const code = this.normalizeRequired(body.code, 'code');
-      await this.ensureUnique('code', code, tenant, existing.id, mg);
-      existing.code = code;
-    }
     if (has('name')) {
       const name = this.normalizeRequired(body.name, 'name');
-      await this.ensureUnique('name', name, tenant, existing.id, mg);
+      await this.ensureUniqueName(name, tenant, existing.id, mg);
       existing.name = name;
     }
     const settings = await this.itOpsSettings.getSettings(tenant, { manager: mg });
@@ -392,7 +417,6 @@ export class LocationsService {
             existing.region = null;
           } else {
             existing.operating_company_id = null;
-            existing.datacenter = null;
           }
         }
         category = nextCategory;
@@ -412,12 +436,8 @@ export class LocationsService {
           }
         }
       }
-      if (has('datacenter')) {
-        existing.datacenter = this.normalizeNullable(body.datacenter);
-      }
     } else {
       existing.operating_company_id = null;
-      existing.datacenter = null;
     }
 
     if (category === 'cloud') {
@@ -459,6 +479,54 @@ export class LocationsService {
       { manager: mg },
     );
     return saved;
+  }
+
+  async shareLocation(
+    locationId: string,
+    dto: ShareItemDto,
+    tenantId: string,
+    userId: string,
+    opts?: { manager?: EntityManager },
+  ) {
+    const tenant = this.requireTenantId(tenantId);
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+    const mg = opts?.manager ?? this.repo.manager;
+    const location = await this.loadLocationOrThrow(locationId, opts?.manager);
+    const senderRows = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name || ''} ${senderRows[0].last_name || ''}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await mg.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'location',
+        itemId: location.id,
+        itemName: location.name,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId: tenant,
+        manager: mg,
+      });
+    }
+
+    return { ok: true };
   }
 
   async delete(id: string, userId: string | null, opts?: { manager?: EntityManager }) {
@@ -848,12 +916,29 @@ export class LocationsService {
   async listSubItems(locationId: string, opts?: { manager?: EntityManager }) {
     await this.loadLocationOrThrow(locationId, opts?.manager);
     const mg = opts?.manager ?? this.repo.manager;
-    return mg
-      .getRepository(LocationSubItem)
-      .find({
-        where: { location_id: locationId } as any,
-        order: { name: 'ASC' as any },
-      });
+    const rows: Array<{
+      id: string;
+      tenant_id: string;
+      location_id: string;
+      name: string;
+      description: string | null;
+      display_order: number;
+      created_at: Date;
+      updated_at: Date;
+      usage_count: string | number;
+    }> = await mg.query(
+      `SELECT sl.id, sl.tenant_id, sl.location_id, sl.name, sl.description,
+              sl.display_order, sl.created_at, sl.updated_at,
+              (SELECT COUNT(*)::int FROM assets a WHERE a.sub_location_id = sl.id) AS usage_count
+       FROM location_sub_items sl
+       WHERE sl.location_id = $1
+       ORDER BY sl.name ASC`,
+      [locationId],
+    );
+    return rows.map((row) => ({
+      ...row,
+      usage_count: Number(row.usage_count) || 0,
+    }));
   }
 
   async createSubItem(

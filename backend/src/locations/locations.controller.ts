@@ -15,11 +15,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { LocationsService } from './locations.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('locations')
 export class LocationsController {
-  constructor(private readonly svc: LocationsService) {}
+  constructor(
+    private readonly svc: LocationsService,
+    private readonly knowledge: KnowledgeService,
+  ) {}
 
   private requireTenantId(req: any): string {
     const tenantId: string | undefined = req?.tenant?.id;
@@ -49,9 +54,30 @@ export class LocationsController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('locations', 'reader')
+  @Get('ids')
+  listIds(@Query() query: any, @Req() req: any) {
+    return this.svc.listIds(query, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'reader')
   @Get(':id')
   get(@Param('id') id: string, @Query('include') include: string | string[], @Req() req: any) {
-    return this.svc.get(id, { manager: req?.queryRunner?.manager, include: this.parseInclude(include) });
+    return this.svc.get(id, {
+      manager: req?.queryRunner?.manager,
+      tenantId: req?.tenant?.id,
+      include: this.parseInclude(include),
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'reader')
+  @Post(':id/share')
+  share(@Param('id') id: string, @Body() body: ShareItemDto, @Req() req: any) {
+    const tenantId = this.requireTenantId(req);
+    return this.svc.shareLocation(id, body, tenantId, req?.user?.sub ?? '', {
+      manager: req?.queryRunner?.manager,
+    });
   }
 
   @UseGuards(PermissionGuard)
@@ -253,5 +279,25 @@ export class LocationsController {
   @Get(':id/applications')
   listApplications(@Param('id') id: string, @Req() req: any) {
     return this.svc.listApplications(id, { manager: req?.queryRunner?.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'reader')
+  @Get(':id/knowledge-context')
+  getKnowledgeContext(@Param('id') id: string, @Req() req: any) {
+    return this.knowledge.getKnowledgeContextForEntity('locations', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('locations', 'reader')
+  @Get(':id/knowledge-documents')
+  listKnowledgeDocuments(@Param('id') id: string, @Req() req: any) {
+    return this.knowledge.listDocumentsForEntity('locations', id, {
+      manager: req?.queryRunner?.manager,
+      userId: req?.user?.sub ?? null,
+    });
   }
 }

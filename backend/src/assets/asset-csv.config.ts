@@ -45,11 +45,11 @@ export const assetCsvConfig: CsvEntityConfig = {
       group: 'Overview',
     },
     {
-      csvColumn: 'location_code',
+      csvColumn: 'location_reference',
       entityProperty: 'location_id',
       type: CsvFieldType.FK_BY_CODE,
       fkEntity: 'locations',
-      fkLookupColumn: 'code',
+      fkLookupColumn: 'location_reference',
       fkRequired: true,
       required: true,
       defaultExport: true,
@@ -300,7 +300,7 @@ export const assetCsvConfig: CsvEntityConfig = {
       name: 'enrichment',
       label: 'Data Enrichment',
       fields: [
-        'id', 'name', 'location_code', 'kind', 'is_cluster', 'status',
+        'id', 'name', 'location_reference', 'kind', 'is_cluster', 'status',
         'go_live_date', 'end_of_life_date', 'notes',
         'environment', 'hostname', 'domain', 'aliases',
         'operating_system', 'cluster',

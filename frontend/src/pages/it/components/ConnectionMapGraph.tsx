@@ -21,7 +21,7 @@ export type ConnectionMapNode = {
 export type ConnectionMapLink = {
   id: string;
   connectionDbId?: string;
-  connectionId: string;
+  connectionReference: string;
   name: string;
   purpose?: string | null;
   typicalPorts?: string;
@@ -567,7 +567,7 @@ export default function ConnectionMapGraph({
       .data(linksData)
       .enter()
       .append('text')
-      .text((d: any) => d.typicalPorts || d.connectionId || d.name || '')
+      .text((d: any) => d.typicalPorts || d.connectionReference || d.name || '')
       .attr('font-size', '10px')
       .attr('fill', '#0F172A')
       .attr('text-anchor', 'middle')

@@ -3,11 +3,11 @@ import { AiEntityFilterRegistry } from '../ai-filter.types';
 export const locationsRegistry: AiEntityFilterRegistry = {
   entityType: 'locations',
   fields: {
-    code: {
-      ai: 'code',
-      grid: 'code',
+    location_reference: {
+      ai: 'location_reference',
+      grid: 'location_reference',
       type: 'text',
-      description: 'Location code.',
+      description: 'System-generated location reference (e.g. LOC-7).',
       discoverable: true,
       sortable: true,
     },
@@ -70,7 +70,7 @@ export const locationsRegistry: AiEntityFilterRegistry = {
     },
   },
   sortFields: {
-    code: 'code',
+    location_reference: 'location_reference',
     name: 'name',
     hosting_type: 'hosting_type',
     provider: 'provider',

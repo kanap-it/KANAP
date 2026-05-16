@@ -41,7 +41,7 @@ import {
 } from '../../services/itOpsSettings';
 import { useTranslation } from 'react-i18next';
 
-type LocationOption = { id: string; code: string; name: string };
+type LocationOption = { id: string; location_reference: string; name: string };
 
 // ============================================================================
 // Utility Functions
@@ -530,7 +530,11 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
                 <TableCell>
                   <TextField select value={item.location_id || ''} onChange={(e) => handleUpdate(item.localId, { location_id: e.target.value })} size="small" fullWidth SelectProps={{ native: true }}>
                     <option value="">Select...</option>
-                    {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.code}</option>)}
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.location_reference}{loc.name ? ` · ${loc.name}` : ''}
+                      </option>
+                    ))}
                   </TextField>
                 </TableCell>
                 <TableCell><TextField value={item.cidr || ''} onChange={(e) => handleUpdate(item.localId, { cidr: e.target.value })} size="small" fullWidth placeholder="e.g., 192.168.1.0/24" /></TableCell>
@@ -826,7 +830,7 @@ export default function ItOperationsSettingsPage() {
   const { data: locations } = useQuery({
     queryKey: ['locations', 'options'],
     queryFn: async () => {
-      const res = await api.get<{ items: LocationOption[] }>('/locations', { params: { limit: 500, sort: 'code:ASC' } });
+      const res = await api.get<{ items: LocationOption[] }>('/locations', { params: { limit: 500, sort: 'location_reference:ASC' } });
       return (res.data?.items || []) as LocationOption[];
     },
   });

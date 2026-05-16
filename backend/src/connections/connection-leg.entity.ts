@@ -16,20 +16,14 @@ export class ConnectionLeg {
   @Column('integer')
   order_index!: number;
 
-  @Column('text')
-  layer_type!: string;
+  @Column('text', { nullable: true })
+  function_code!: string | null;
 
   @Column('uuid', { nullable: true })
-  source_asset_id!: string | null;
+  equipment_asset_id!: string | null;
 
   @Column('text', { nullable: true })
-  source_entity_code!: string | null;
-
-  @Column('uuid', { nullable: true })
-  destination_asset_id!: string | null;
-
-  @Column('text', { nullable: true })
-  destination_entity_code!: string | null;
+  equipment_entity_code!: string | null;
 
   @Column('text', { array: true })
   protocol_codes!: string[];

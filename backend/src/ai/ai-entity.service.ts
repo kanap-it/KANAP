@@ -891,13 +891,13 @@ export class AiEntityService {
               COUNT(*) OVER()::int AS total_count
        FROM (
          SELECT DISTINCT ON (l.id) l.id,
-                l.code || ' — ' || l.name AS label,
+                l.location_reference || ' — ' || l.name AS label,
                 COALESCE(NULLIF(l.city, ''), l.country_iso) AS summary,
                 NULL::text AS status,
                 l.updated_at,
                 CASE
                   WHEN l.name ILIKE $1 THEN 3
-                  WHEN l.code ILIKE $1 THEN 3
+                  WHEN l.location_reference ILIKE $1 THEN 3
                   WHEN COALESCE(l.city, '') ILIKE $1 THEN 2
                   WHEN sl.name IS NOT NULL THEN 2
                   ELSE 1
@@ -908,7 +908,7 @@ export class AiEntityService {
            AND (sl.name ILIKE $1 OR COALESCE(sl.description, '') ILIKE $1)
          WHERE l.tenant_id = $2
            AND (
-             l.code ILIKE $1
+             l.location_reference ILIKE $1
              OR l.name ILIKE $1
              OR COALESCE(l.city, '') ILIKE $1
              OR COALESCE(l.country_iso, '') ILIKE $1
@@ -1626,15 +1626,15 @@ export class AiEntityService {
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT cn.id,
               NULL::int AS item_number,
-              NULLIF(TRIM(CONCAT_WS(' - ', cn.connection_id, cn.name)), '') AS label,
-              COALESCE(NULLIF(cn.purpose, ''), NULLIF(CONCAT_WS(' | ', src.name, dst.name), ''), cn.notes) AS summary,
+              NULLIF(TRIM(CONCAT_WS(' - ', cn.connection_reference, cn.name)), '') AS label,
+              COALESCE(NULLIF(cn.description, ''), NULLIF(CONCAT_WS(' | ', src.name, dst.name), '')) AS summary,
               cn.lifecycle AS status,
               cn.updated_at,
               src.name AS source_asset_name,
               dst.name AS destination_asset_name,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN cn.connection_id ILIKE $1 OR cn.name ILIKE $1 THEN 3
+                WHEN cn.connection_reference ILIKE $1 OR cn.name ILIKE $1 THEN 3
                 WHEN COALESCE(src.name, '') ILIKE $1 OR COALESCE(dst.name, '') ILIKE $1 THEN 2
                 ELSE 1
               END AS score
@@ -1643,10 +1643,9 @@ export class AiEntityService {
        LEFT JOIN assets dst ON dst.id = cn.destination_asset_id AND dst.tenant_id = cn.tenant_id
        WHERE cn.tenant_id = $2
          AND (
-           cn.connection_id ILIKE $1
+           cn.connection_reference ILIKE $1
            OR cn.name ILIKE $1
-           OR COALESCE(cn.purpose, '') ILIKE $1
-           OR COALESCE(cn.notes, '') ILIKE $1
+           OR COALESCE(cn.description, '') ILIKE $1
            OR COALESCE(cn.topology, '') ILIKE $1
            OR COALESCE(cn.lifecycle, '') ILIKE $1
            OR COALESCE(cn.criticality, '') ILIKE $1

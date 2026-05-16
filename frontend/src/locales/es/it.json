@@ -83,7 +83,7 @@
       "addConnection": "Agregar conexión",
       "deleteConnection": "Eliminar conexión",
       "columns": {
-        "connectionId": "ID de conexión",
+        "connectionReference": "Referencia",
         "name": "Nombre",
         "topology": "Topología",
         "source": "Origen",
@@ -357,7 +357,7 @@
       "connections": {
         "loadingConnections": "Cargando conexiones\u2026",
         "noConnections": "No se encontraron conexiones.",
-        "connectionId": "ID de conexión",
+        "connectionReference": "Referencia",
         "name": "Nombre",
         "topology": "Topología",
         "protocols": "Protocolos",
@@ -383,7 +383,7 @@
       },
       "createFromBinding": "Creación desde el contexto de enlace de interfaz",
       "overview": {
-        "connectionId": "ID de conexión",
+        "connectionReference": "Referencia",
         "name": "Nombre",
         "purpose": "Propósito",
         "connectionType": "Tipo de conexión",
@@ -629,6 +629,10 @@
     "addAssignmentFailed": "Error al agregar la asignación",
     "loadConnectionFailed": "Error al cargar la conexión",
     "saveConnectionFailed": "Error al guardar la conexión",
+    "deleteConnectionFailed": "Error al eliminar la conexión",
+    "saveLayerFailed": "Error al guardar la capa",
+    "addLayerFailed": "Error al añadir la capa",
+    "removeLayerFailed": "Error al eliminar la capa",
     "loadInterfaceFailed": "Error al cargar la interfaz",
     "saveInterfaceFailed": "Error al guardar la interfaz",
     "loadLocationFailed": "Error al cargar la ubicación",
@@ -687,7 +691,7 @@
   },
   "validation": {
     "missingFormData": "Datos de formulario incompletos",
-    "connectionIdRequired": "El ID de conexión es obligatorio",
+    "connectionReferenceRequired": "La referencia de conexión es obligatoria",
     "nameRequired": "El nombre es obligatorio",
     "selectProtocol": "Seleccione al menos un protocolo",
     "sourceChooseOne": "Origen: elija un servidor o una entidad, no ambos",

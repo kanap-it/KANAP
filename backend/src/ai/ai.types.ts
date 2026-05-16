@@ -34,6 +34,8 @@ export type AiToolName =
   | 'get_document'
   | 'web_search'
   | AiMutationWriteToolName
+  | 'update_task_assignees'
+  | 'prepare_mutation_plan'
   | 'undo_preview';
 
 export const AI_QUERY_ENTITY_TYPES = [
@@ -283,6 +285,7 @@ export type AiToolListItemDto = {
 
 export type AiMutationPreviewStatus =
   | 'pending'
+  | 'approved'
   | 'rejected'
   | 'executed'
   | 'expired'
@@ -316,6 +319,53 @@ export type AiMutationPreviewDto = {
   approved_at: string | null;
   rejected_at: string | null;
   executed_at: string | null;
+};
+
+export type AiMutationPlanStepDto = {
+  id: string;
+  step_key: string;
+  label: string | null;
+  tool_name: AiMutationWriteToolName;
+  status: 'waiting_dependency' | 'preview_ready' | 'executed' | 'failed' | 'blocked';
+  preview_id: string | null;
+  depends_on: string[];
+  error_message: string | null;
+};
+
+export type AiMutationPlanDto = {
+  plan_id: string;
+  summary: string | null;
+  status: 'active' | 'completed' | 'failed';
+  steps: AiMutationPlanStepDto[];
+};
+
+export type AiBulkMutationExclusionDto = {
+  ref: string;
+  reason: string;
+};
+
+export type AiMutationPlanPrepareResultDto = {
+  plan: AiMutationPlanDto;
+  previews: AiMutationPreviewDto[];
+  errors: Array<{
+    index: number;
+    step_key: string;
+    label: string | null;
+    tool_name: string;
+    message: string;
+  }>;
+  deferred: AiMutationPlanStepDto[];
+  total: number;
+  created: number;
+  failed: number;
+  deferred_count: number;
+  target_set_label?: string | null;
+  expected_count?: number | null;
+  expected_refs?: string[];
+  covered_refs?: string[];
+  missing_refs?: string[];
+  excluded?: AiBulkMutationExclusionDto[];
+  complete: boolean;
 };
 
 export type AiTokenUsage = {
@@ -401,6 +451,27 @@ export type AiChatTimingDto = {
   iterations?: number;
 };
 
+export type AiChatDebugTraceName =
+  | 'context_prepared'
+  | 'provider_request_started'
+  | 'provider_stream_opened'
+  | 'provider_first_raw_chunk'
+  | 'provider_first_text_delta'
+  | 'provider_first_tool_delta'
+  | 'provider_tool_call_completed'
+  | 'assistant_text_started'
+  | 'tool_call_ready'
+  | 'tool_execution_started'
+  | 'tool_execution_completed'
+  | 'turn_completed';
+
+export type AiChatDebugTraceDto = {
+  name: AiChatDebugTraceName;
+  elapsed_ms: number;
+  iteration?: number | null;
+  tool_name?: string | null;
+};
+
 export type AiChatContextSummaryDto = {
   mentions?: AiChatContextItemDto[];
   attachments?: AiChatContextItemDto[];
@@ -427,6 +498,7 @@ export type ChatStreamEvent =
   | { type: 'conversation'; id: string; title: string }
   | { type: 'activity'; phase: AiChatActivityPhase; status: AiChatActivityStatus; tool_name?: string | null }
   | { type: 'context'; context: AiChatContextSummaryDto }
+  | ({ type: 'debug_trace' } & AiChatDebugTraceDto)
   | { type: 'text_delta'; text: string }
   | { type: 'tool_call'; id: string; name: string; arguments: Record<string, unknown> }
   | { type: 'tool_result'; id: string; name: string; result: unknown }

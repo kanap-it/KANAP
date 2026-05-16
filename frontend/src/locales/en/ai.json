@@ -65,6 +65,7 @@
     },
     "sections": {
       "attachments": "Attachments",
+      "debugTrace": "Debug trace",
       "injected": "Documents and entities",
       "mentions": "Resolved mentions",
       "previews": "Previews and artifacts",
@@ -108,6 +109,30 @@
       "filters_one": "{{count}} filter",
       "filters_other": "{{count}} filters",
       "running": "running"
+    },
+    "debugTrace": {
+      "iteration": "iteration {{count}}",
+      "names": {
+        "assistant_text_started": "First visible text",
+        "context_prepared": "Context prepared",
+        "provider_first_raw_chunk": "First provider chunk",
+        "provider_first_text_delta": "First text delta",
+        "provider_first_tool_delta": "First tool delta",
+        "provider_request_started": "Provider request started",
+        "provider_stream_opened": "Provider stream opened",
+        "provider_tool_call_completed": "Tool-call generation completed",
+        "tool_call_ready": "Tool call ready",
+        "tool_execution_completed": "Tool execution completed",
+        "tool_execution_started": "Tool execution started",
+        "turn_completed": "Turn completed"
+      },
+      "segments": {
+        "contextPreparation": "Context preparation",
+        "firstVisibleAnswer": "First visible answer",
+        "modelWait": "Provider/model wait before first action",
+        "toolExecution": "Backend tool execution",
+        "toolGeneration": "Tool-call generation"
+      }
     }
   },
   "artifactPanel": {
@@ -130,6 +155,25 @@
     "preview": "Preview",
     "reject": "Reject"
   },
+  "previewStatuses": {
+    "applied": "Applied",
+    "approved": "Approved",
+    "expired": "Expired",
+    "failed": "Failed",
+    "pending": "Pending",
+    "rejected": "Rejected"
+  },
+  "previewBatch": {
+    "approveAll": "Approve all",
+    "confirmBody_one": "KANAP will apply the approved preview separately. Partial failures will remain visible in the preview status.",
+    "confirmBody_other": "KANAP will apply each approved preview separately. Partial failures will remain visible in the preview statuses.",
+    "confirmTitle_one": "Approve {{count}} preview?",
+    "confirmTitle_other": "Approve {{count}} previews?",
+    "more_one": "{{count}} more preview",
+    "more_other": "{{count}} more previews",
+    "title_one": "{{count}} preview",
+    "title_other": "{{count}} previews"
+  },
   "toolResults": {
     "ignoredFields": "Ignored fields: {{fields}}",
     "noDocuments": "No documents found.",
@@ -142,6 +186,7 @@
       "get_entity_context": "Get entity context",
       "get_entity_detail": "Get entity detail",
       "get_filter_values": "Get filter values",
+      "prepare_mutation_plan": "Prepare change plan",
       "query_entities": "Query entities",
       "search_all": "Search all",
       "search_knowledge": "Search knowledge",

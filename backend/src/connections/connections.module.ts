@@ -12,8 +12,9 @@ import { Asset } from '../assets/asset.entity';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 import { InterfaceConnectionLink } from '../interface-connection-links/interface-connection-link.entity';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
-// Decomposed services
 import {
   ConnectionsService,
   ConnectionsListService,
@@ -36,14 +37,14 @@ import {
     AssetsModule,
     PermissionsModule,
     UsersModule,
+    KnowledgeModule,
+    NotificationsModule,
   ],
   controllers: [ConnectionsController],
   providers: [
-    // Decomposed services (order matters for DI)
     ConnectionsListService,
     ConnectionsCrudService,
     ConnectionsLegsService,
-    // Main facade service
     ConnectionsService,
   ],
   exports: [ConnectionsService],

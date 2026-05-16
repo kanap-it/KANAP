@@ -1,17 +1,31 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, IconButton, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  Typography,
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import CloseIcon from '@mui/icons-material/CloseRounded';
 import { useTranslation } from 'react-i18next';
 import { AiMutationPreview } from '../aiTypes';
 import { getPreviewLabel } from '../utils/previewClassification';
+import { getPreviewStatusColorKey, getPreviewStatusDisplay } from '../utils/previewStatus';
+import { getDotColor } from '../../utils/statusColors';
 import PreviewCard from './PreviewCard';
 
 const DEFAULT_PANEL_WIDTH = 480;
 const MIN_PANEL_WIDTH = 320;
 const TAB_WIDTH = 28;
 const TAB_HEIGHT = 132;
+const BULK_APPROVAL_MIN = 2;
 const WIDTH_STORAGE_KEY = 'kanap.ai.artifactPanelWidth';
 
 function readStoredWidth(): number {
@@ -41,6 +55,7 @@ type ArtifactPanelProps = {
   onSelect: (previewId: string) => void;
   onApprove: (previewId: string) => void;
   onReject: (previewId: string) => void;
+  onApproveMany: (previewIds: string[]) => void;
 };
 
 function ArtifactTab({ open, onToggle, label }: { open: boolean; onToggle: () => void; label: string }) {
@@ -173,6 +188,7 @@ function ArtifactTabBar({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const mode = useTheme().palette.mode;
   if (previews.length <= 1) return null;
   return (
     <Stack
@@ -186,6 +202,8 @@ function ArtifactTabBar({
     >
       {previews.map((preview) => {
         const active = preview.preview_id === selectedId;
+        const statusDisplay = getPreviewStatusDisplay(preview);
+        const colorKey = getPreviewStatusColorKey(statusDisplay);
         return (
           <Box
             key={preview.preview_id}
@@ -215,7 +233,21 @@ function ArtifactTabBar({
               },
             })}
           >
-            {getPreviewLabel(preview)}
+            <Stack direction="row" spacing={0.75} alignItems="center" component="span" sx={{ minWidth: 0 }}>
+              <Box
+                component="span"
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  bgcolor: getDotColor(colorKey, mode),
+                  flexShrink: 0,
+                }}
+              />
+              <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {getPreviewLabel(preview)}
+              </Box>
+            </Stack>
           </Box>
         );
       })}
@@ -232,9 +264,11 @@ export default function ArtifactPanel({
   onSelect,
   onApprove,
   onReject,
+  onApproveMany,
 }: ArtifactPanelProps) {
   const { t } = useTranslation(['ai']);
   const [width, setWidth] = useState<number>(() => clampWidth(readStoredWidth()));
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
 
   // Persist resize value (debounced via the natural drag granularity is good enough).
   useEffect(() => {
@@ -251,6 +285,16 @@ export default function ArtifactPanel({
   const handleResize = useCallback((delta: number) => {
     setWidth((current) => clampWidth(current + delta));
   }, []);
+
+  const pendingPreviews = previews.filter((preview) => preview.status === 'pending');
+  const showBulkApproval = pendingPreviews.length >= BULK_APPROVAL_MIN;
+  const visibleConfirmPreviews = pendingPreviews.slice(0, 6);
+  const remainingConfirmCount = Math.max(0, pendingPreviews.length - visibleConfirmPreviews.length);
+
+  const handleApproveAll = useCallback(() => {
+    setConfirmBulkOpen(false);
+    onApproveMany(pendingPreviews.map((preview) => preview.preview_id));
+  }, [onApproveMany, pendingPreviews]);
 
   if (previews.length === 0) return null;
 
@@ -299,6 +343,18 @@ export default function ArtifactPanel({
             >
               {t('artifactPanel.title')}
             </Typography>
+            <Typography
+              component="span"
+              sx={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'kanap.text.tertiary',
+                whiteSpace: 'nowrap',
+                mr: 1,
+              }}
+            >
+              {t('previewBatch.title', { count: previews.length })}
+            </Typography>
             <IconButton
               size="small"
               aria-label={t('artifactPanel.close')}
@@ -319,6 +375,20 @@ export default function ArtifactPanel({
               minHeight: 0,
             }}
           >
+            {showBulkApproval && (
+              <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="inherit"
+                  disabled={disabled}
+                  onClick={() => setConfirmBulkOpen(true)}
+                  sx={{ textTransform: 'none', fontSize: 12 }}
+                >
+                  {t('previewBatch.approveAll')}
+                </Button>
+              </Stack>
+            )}
             <PreviewCard
               preview={selected}
               disabled={disabled}
@@ -326,6 +396,65 @@ export default function ArtifactPanel({
               onReject={onReject}
             />
           </Box>
+
+          <Dialog
+            open={confirmBulkOpen}
+            onClose={() => setConfirmBulkOpen(false)}
+            maxWidth="xs"
+            fullWidth
+          >
+            <DialogTitle sx={{ fontSize: 14, fontWeight: 500, color: 'kanap.text.primary' }}>
+              {t('previewBatch.confirmTitle', { count: pendingPreviews.length })}
+            </DialogTitle>
+            <DialogContent>
+              <Stack spacing={1}>
+                <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary', lineHeight: 1.5 }}>
+                  {t('previewBatch.confirmBody', { count: pendingPreviews.length })}
+                </Typography>
+                <Stack spacing={0.5}>
+                  {visibleConfirmPreviews.map((preview) => (
+                    <Typography
+                      key={preview.preview_id}
+                      sx={{
+                        fontSize: 12,
+                        color: 'kanap.text.secondary',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {getPreviewLabel(preview)}
+                    </Typography>
+                  ))}
+                  {remainingConfirmCount > 0 && (
+                    <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+                      {t('previewBatch.more', { count: remainingConfirmCount })}
+                    </Typography>
+                  )}
+                </Stack>
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                color="inherit"
+                onClick={() => setConfirmBulkOpen(false)}
+                sx={{ textTransform: 'none', fontSize: 12 }}
+              >
+                {t('messageList.cancel')}
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={handleApproveAll}
+                disabled={disabled || pendingPreviews.length === 0}
+                sx={{ textTransform: 'none', fontSize: 12 }}
+              >
+                {t('previewBatch.approveAll')}
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       )}
     </Box>

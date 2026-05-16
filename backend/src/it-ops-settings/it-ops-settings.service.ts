@@ -73,6 +73,7 @@ export type ItOpsSettings = {
   domains: DomainOption[];
   ipAddressTypes: ItOpsEnumOption[];
   accessMethods: ItOpsEnumOption[];
+  pathHopFunctions: ItOpsEnumOption[];
 };
 
 type ItOpsMetadataShape = {
@@ -97,6 +98,7 @@ type ItOpsMetadataShape = {
   domains?: DomainOption[];
   ip_address_types?: ItOpsEnumOption[];
   access_methods?: ItOpsEnumOption[];
+  path_hop_functions?: ItOpsEnumOption[];
 };
 
 @Injectable()
@@ -377,6 +379,25 @@ export class ItOpsSettingsService {
     { code: 'terminal', label: 'Terminal / CLI' },
     { code: 'vdi', label: 'VDI / Remote Desktop' },
     { code: 'kiosk', label: 'Kiosk' },
+  ];
+
+  /**
+   * Default network-path hop functions (intermediaries documenting how a flow
+   * is routed between source and destination). Tenants can edit this list.
+   */
+  private readonly defaultPathHopFunctions: ItOpsEnumOption[] = [
+    { code: 'nat', label: 'NAT' },
+    { code: 'vip', label: 'Virtual IP' },
+    { code: 'firewall', label: 'Firewall' },
+    { code: 'reverse_proxy', label: 'Reverse proxy' },
+    { code: 'waf', label: 'WAF' },
+    { code: 'load_balancer', label: 'Load balancer' },
+    { code: 'ids_ips', label: 'IDS / IPS' },
+    { code: 'api_gateway', label: 'API gateway' },
+    { code: 'vpn_endpoint', label: 'VPN endpoint' },
+    { code: 'bastion', label: 'Bastion / jump host' },
+    { code: 'cdn_edge', label: 'CDN edge' },
+    { code: 'service_mesh', label: 'Service mesh proxy' },
   ];
 
   private readonly lockedDomainCodes = new Set(['workgroup', 'n-a']);
@@ -864,6 +885,10 @@ export class ItOpsSettingsService {
     const domains = this.normalizeDomains(raw.domains, this.defaultDomains);
     const ipAddressTypes = this.normalizeList(raw.ip_address_types, this.defaultIpAddressTypes);
     const accessMethods = this.normalizeList(raw.access_methods, this.defaultAccessMethods);
+    const pathHopFunctions = this.normalizeList(
+      (raw as any).path_hop_functions,
+      this.defaultPathHopFunctions,
+    );
     return {
       applicationCategories,
       dataClasses,
@@ -886,6 +911,7 @@ export class ItOpsSettingsService {
       domains,
       ipAddressTypes,
       accessMethods,
+      pathHopFunctions,
     };
   }
 
@@ -1093,6 +1119,9 @@ export class ItOpsSettingsService {
     if (patch.accessMethods) {
       next.accessMethods = this.normalizeList(patch.accessMethods, this.defaultAccessMethods);
     }
+    if (patch.pathHopFunctions) {
+      next.pathHopFunctions = this.normalizeList(patch.pathHopFunctions, this.defaultPathHopFunctions);
+    }
 
     const meta: any = tenant.metadata || {};
     const itOps: any = {
@@ -1117,6 +1146,7 @@ export class ItOpsSettingsService {
       domains: next.domains,
       ip_address_types: next.ipAddressTypes,
       access_methods: next.accessMethods,
+      path_hop_functions: next.pathHopFunctions,
     };
     meta.it_ops = itOps;
     tenant.metadata = meta;

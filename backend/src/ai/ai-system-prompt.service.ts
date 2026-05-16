@@ -97,7 +97,7 @@ function compactDomainVocabulary(mode: AiContextProfile['promptMode']): string {
 function toolUsageGuidelines(mode: AiContextProfile['promptMode']): string {
   const core = [
     'Tool usage guidelines:',
-    '- Use at most one tool call in a single assistant turn. Wait for its result before deciding whether another call is needed.',
+    '- Use one tool call at a time and wait for its result before deciding whether another call is needed. Exception: bulk write-preview requests may use an available bulk preview or mutation-plan tool, or continue with sequential write-preview tool calls until every clear target has a preview.',
     '- For exact list/count/filter/breakdown questions, use query_entities or aggregate_entities. Do not use search_all for exact counts.',
     '- `q` on query_entities and aggregate_entities is literal text quick-search only; put real filters in filters/scope.',
     '- Use describe_entity_filters/get_filter_values only when filter names or exact allowed values are uncertain.',
@@ -132,6 +132,13 @@ function toolUsageGuidelines(mode: AiContextProfile['promptMode']): string {
     return [
       ...core,
       '- Before preparing a write preview, resolve ambiguous targets with query/detail tools.',
+      '- When a bulk target phrase is ambiguous, choose the most natural user-facing assumption, state that assumption, and make the resolved target set match it. Do not silently drop discovered targets.',
+      '- Apply obvious lifecycle assumptions in the query itself. For example, "overdue tasks" normally means active, non-completed tasks unless the user explicitly asks to include completed or cancelled tasks; state the assumption and record explicit exclusions if excluded refs were already discovered.',
+      '- A user saying "yes", "oui", or "go ahead" to a natural-language write proposal is not backend approval. If no preview card exists yet, create the required backend previews; do not output pseudo tool-call markup.',
+      '- Use only the available write-preview tools by their exact names. There is no generic `update_entity` tool. For multiple related changes, mixed object changes, or dependencies between changes, prefer `prepare_mutation_plan` when available.',
+      '- In `prepare_mutation_plan`, give every step a stable `operation_id`; use `depends_on` and placeholders such as `{{create_project.ref}}`, `{{create_project.id}}`, or `{{create_project.title}}` in dependent step inputs. For bulk plans, include expected_target_refs/expected_target_count and explicit_exclusions when available.',
+      '- For task assignee changes, use `update_task_assignee` with the task ref and assignee email. For bulk task reassignment, prefer `update_task_assignees` when available.',
+      '- If a bulk preview tool returns partial `errors`, report which previews were created and which targets failed; never hide partial failures.',
       '- Do not retry the same failing write-preview arguments. Read the validation error, fix the missing/invalid field, then retry once.',
       '- For document creation from an entity, first fetch the source entity detail/context, then call create_document with complete content_markdown.',
     ].join('\n');
@@ -250,7 +257,10 @@ export class AiSystemPromptService {
         'Write-preview capability rules',
         'You can read data and prepare limited write previews. ' +
         'You cannot execute writes directly. ' +
-        'When a user asks for a supported write action, call the appropriate write-preview tool, explain the proposed change, and wait for explicit approval via the approval card. ' +
+        'For a single-record supported write action, call the appropriate write-preview tool, explain the proposed change, and wait for explicit approval via the approval card. ' +
+        'For bulk requests affecting several records, first resolve the complete target set, then create one backend preview per target record in the same assistant turn before asking for approval. ' +
+        'Do not stop after the first bulk preview and do not ask the user to type "continue" between previews. ' +
+        'Do not compress unrelated record edits into one preview; the user must be able to approve or reject each preview independently. ' +
         'Do not claim a write succeeded until you receive the execution result from the backend.',
       );
       if (profile.includeWritableFields) {
@@ -330,7 +340,17 @@ export class AiSystemPromptService {
           .map((tool) => `- ${tool.write_preview.prompt_hint}`)
           .join('\n') +
         '\n' +
-        '- A write-preview tool returns a backend-created preview object. Describe the proposed change clearly and wait for explicit approval.\n' +
+        '- A write-preview tool returns a backend-created preview object. For one target, describe the proposed change clearly and wait for explicit approval.\n' +
+        '- For bulk changes, use `prepare_mutation_plan` when changes are related, span multiple object types, or include dependencies. Otherwise continue calling write-preview tools until every selected target has a preview before writing assistant text that asks for approval.\n' +
+        '- In `prepare_mutation_plan`, give every step a stable `operation_id`; use `depends_on` and placeholders such as `{{create_project.ref}}`, `{{create_project.id}}`, or `{{create_project.title}}` in dependent step inputs. For bulk target sets, include expected_target_refs/expected_target_count and explicit_exclusions for targets intentionally excluded by your assumption.\n' +
+        '- Multiple write-preview tool calls may be used in the same turn for bulk changes, but every returned preview still requires explicit user approval before execution.\n' +
+        '- When you resolve an ambiguous bulk phrase by assumption, state the assumption in your assistant text and keep the query, previews, and exclusions consistent with it.\n' +
+        '- Apply obvious lifecycle assumptions in the query itself. For example, "overdue tasks" normally means active, non-completed tasks unless the user explicitly asks to include completed or cancelled tasks; state the assumption and record explicit exclusions if excluded refs were already discovered.\n' +
+        '- If the target set is too large or ambiguous, ask the user to narrow or confirm the target set before creating previews; once the set is clear, create the previews without a per-preview confirmation loop.\n' +
+        '- A user saying "yes", "oui", or "go ahead" to a natural-language write proposal is not backend approval. If no preview card exists yet, create the required backend previews.\n' +
+        '- Use only the available write-preview tools by their exact names. There is no generic `update_entity` tool. For task assignee changes, use `update_task_assignee` with the task ref and assignee email. For bulk task reassignment, prefer `update_task_assignees` when available.\n' +
+        '- If a bulk preview tool returns partial `errors`, report which previews were created and which targets failed; never hide partial failures.\n' +
+        '- Never write raw tool syntax such as `<tool_call>` in assistant text. Tool calls must be emitted only through the provider tool-calling API.\n' +
         '- Explicit approval is handled outside the model. Never attempt to simulate approval, never claim approval happened implicitly, and never claim execution succeeded without seeing the execution result.',
       );
     }

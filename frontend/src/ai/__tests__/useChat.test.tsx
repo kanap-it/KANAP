@@ -174,6 +174,174 @@ describe('useChat', () => {
     ]);
   });
 
+  it('preserves assistant text stored on tool-call messages after loading history', async () => {
+    vi.mocked(aiConversationsApi.getMessages).mockResolvedValue({
+      messages: [
+        { id: 'user-1', role: 'user', content: 'Ajoute un commentaire aux tâches en retard' },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'Je continue avec les tâches restantes :',
+          tool_calls: [
+            {
+              id: 'tool-call-1',
+              name: 'query_entities',
+              arguments: { entity_type: 'tasks' },
+            },
+          ],
+          usage_json: { input_tokens: 10, output_tokens: 4 },
+        },
+        {
+          id: 'tool-1',
+          role: 'tool',
+          content: JSON.stringify({
+            tool_call_id: 'tool-call-1',
+            tool_name: 'query_entities',
+            result: { items: [{ ref: 'T-1', label: 'Task 1' }], total: 1, complete: true },
+          }),
+        },
+        {
+          id: 'assistant-2',
+          role: 'assistant',
+          content: 'Je prépare maintenant la preview.',
+          usage_json: { input_tokens: 12, output_tokens: 18 },
+        },
+      ],
+      conversation_usage: { input_tokens: 22, output_tokens: 22 },
+    });
+    vi.mocked(aiConversationsApi.getPreviews).mockResolvedValue([]);
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.loadConversation('conversation-1');
+    });
+
+    expect(result.current.messages).toEqual([
+      expect.objectContaining({ id: 'user-1', role: 'user' }),
+      expect.objectContaining({
+        id: 'assistant-1',
+        role: 'assistant',
+        content: 'Je continue avec les tâches restantes :\n\nJe prépare maintenant la preview.',
+        toolCalls: [
+          {
+            id: 'tool-call-1',
+            name: 'query_entities',
+            arguments: { entity_type: 'tasks' },
+          },
+        ],
+        toolResults: [
+          {
+            id: 'tool-call-1',
+            name: 'query_entities',
+            result: { items: [{ ref: 'T-1', label: 'Task 1' }], total: 1, complete: true },
+          },
+        ],
+      }),
+    ]);
+  });
+
+  it('keeps consecutive assistant tool-call messages with visible text as separate blocks', async () => {
+    const previewOne = {
+      preview_id: 'preview-1',
+      tool_name: 'add_task_comment' as const,
+      status: 'pending' as const,
+      target: { entity_type: 'tasks', entity_id: 'task-1', ref: 'T-1', title: 'Task 1' },
+      changes: { comment: { from: null, to: 'allo ?' } },
+      requires_confirmation: true,
+      actions: ['approve', 'reject'] as Array<'approve' | 'reject'>,
+      summary: 'Add comment to T-1.',
+      error_message: null,
+      conversation_id: 'conversation-1',
+      created_at: '2026-03-24T10:00:00.000Z',
+      expires_at: '2026-03-24T10:10:00.000Z',
+      approved_at: null,
+      rejected_at: null,
+      executed_at: null,
+    };
+    const previewTwo = {
+      ...previewOne,
+      preview_id: 'preview-2',
+      target: { entity_type: 'tasks', entity_id: 'task-2', ref: 'T-2', title: 'Task 2' },
+      summary: 'Add comment to T-2.',
+    };
+
+    vi.mocked(aiConversationsApi.getMessages).mockResolvedValue({
+      messages: [
+        { id: 'user-1', role: 'user', content: 'Ajoute le commentaire à toutes les tâches en retard' },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'Je continue avec les tâches restantes :',
+          tool_calls: [
+            {
+              id: 'tool-call-1',
+              name: 'add_task_comment',
+              arguments: { ref: 'T-1', comment: 'allo ?' },
+            },
+          ],
+        },
+        {
+          id: 'tool-1',
+          role: 'tool',
+          content: JSON.stringify({
+            tool_call_id: 'tool-call-1',
+            tool_name: 'add_task_comment',
+            result: previewOne,
+          }),
+        },
+        {
+          id: 'assistant-2',
+          role: 'assistant',
+          content: 'Je vais regrouper les tâches restantes dans un plan de mutation.',
+          tool_calls: [
+            {
+              id: 'tool-call-2',
+              name: 'prepare_mutation_plan',
+              arguments: { operations: [{ tool_name: 'add_task_comment', input: { ref: 'T-2', comment: 'allo ?' } }] },
+            },
+          ],
+        },
+        {
+          id: 'tool-2',
+          role: 'tool',
+          content: JSON.stringify({
+            tool_call_id: 'tool-call-2',
+            tool_name: 'prepare_mutation_plan',
+            result: { previews: [previewTwo], total: 1, created: 1, failed: 0, complete: true },
+          }),
+        },
+        {
+          id: 'assistant-3',
+          role: 'assistant',
+          content: 'Les previews restantes sont prêtes.',
+        },
+      ],
+      conversation_usage: { input_tokens: 40, output_tokens: 20 },
+    });
+    vi.mocked(aiConversationsApi.getPreviews).mockResolvedValue([]);
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.loadConversation('conversation-1');
+    });
+
+    expect(result.current.messages.map((message) => message.content)).toEqual([
+      'Ajoute le commentaire à toutes les tâches en retard',
+      'Je continue avec les tâches restantes :',
+      'Je vais regrouper les tâches restantes dans un plan de mutation.\n\nLes previews restantes sont prêtes.',
+    ]);
+    expect(result.current.messages[1]).toEqual(expect.objectContaining({
+      previewIds: ['preview-1'],
+      toolResults: [expect.objectContaining({ id: 'tool-call-1', name: 'add_task_comment' })],
+    }));
+    expect(result.current.messages[2]).toEqual(expect.objectContaining({
+      previewIds: ['preview-2'],
+      toolResults: [expect.objectContaining({ id: 'tool-call-2', name: 'prepare_mutation_plan' })],
+    }));
+  });
+
   it('surfaces streamed error events on the assistant message', async () => {
     vi.mocked(streamChat).mockImplementation(async function* () {
       yield { type: 'conversation', id: 'conversation-1', title: 'Broken stream' };

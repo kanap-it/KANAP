@@ -54,11 +54,9 @@ type ApiConnectionMapNode = {
 type ApiConnectionMapLeg = {
   id: string;
   order_index: number;
-  layer_type: string;
-  source_server_id: string | null;
-  source_entity_code: string | null;
-  destination_server_id: string | null;
-  destination_entity_code: string | null;
+  function_code: string | null;
+  equipment_asset_id: string | null;
+  equipment_entity_code: string | null;
   protocol_codes: string[];
   protocol_labels?: string[];
   port_override: string | null;
@@ -67,7 +65,7 @@ type ApiConnectionMapLeg = {
 
 type ApiConnectionMapConnection = {
   id: string;
-  connection_id: string;
+  connection_reference: string;
   name: string;
   purpose: string | null;
   topology: 'server_to_server' | 'multi_server';
@@ -77,10 +75,13 @@ type ApiConnectionMapConnection = {
   contains_pii: boolean;
   protocol_codes: string[];
   protocol_labels: string[];
-  source_server_id: string | null;
+  source_asset_id: string | null;
   source_entity_code: string | null;
-  destination_server_id: string | null;
+  destination_asset_id: string | null;
   destination_entity_code: string | null;
+  // Legacy aliases still emitted by some endpoints for backwards compat:
+  source_server_id?: string | null;
+  destination_server_id?: string | null;
   server_ids: string[];
   legs?: ApiConnectionMapLeg[];
 };
@@ -151,7 +152,8 @@ type ServerMapSummary = {
   operating_system: string | null;
   network_segment: string | null;
   ip: string | null;
-  location_code: string | null;
+  location_reference: string | null;
+  location_name: string | null;
   assigned_applications: Array<{ id: string; name: string; environment: string }>;
   is_cluster?: boolean;
 };
@@ -203,7 +205,7 @@ function buildLinks(
 
     const base = {
       connectionDbId: conn.id,
-      connectionId: conn.connection_id,
+      connectionReference: conn.connection_reference,
       name: conn.name,
       purpose: conn.purpose,
       typicalPorts: computeTypicalPorts(conn.protocol_codes),
@@ -219,31 +221,60 @@ function buildLinks(
 
     const legs = Array.isArray(conn.legs) ? conn.legs : [];
     if (showLayers && legs.length > 0) {
-      legs.forEach((leg, idx) => {
-        const source = leg.source_server_id || (leg.source_entity_code ? `entity:${leg.source_entity_code}` : null);
-        const target =
-          leg.destination_server_id || (leg.destination_entity_code ? `entity:${leg.destination_entity_code}` : null);
-        if (!source || !target) return;
-        const labels = (leg.protocol_labels && leg.protocol_labels.length > 0
-          ? leg.protocol_labels
-          : leg.protocol_codes) || [];
-        const legPorts = computeTypicalPorts(leg.protocol_codes || conn.protocol_codes, leg.port_override);
-        const legId = leg.id || `${conn.id}-leg-${leg.order_index || idx + 1}`;
+      // New hop-chain model: source → hop[0].equipment → hop[1].equipment → ... → destination.
+      // Build the full ordered list of points along the path, then create one link per segment.
+      const sortedHops = [...legs].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      const pathStart =
+        conn.source_asset_id || (conn.source_entity_code ? `entity:${conn.source_entity_code}` : null);
+      const pathEnd =
+        conn.destination_asset_id || (conn.destination_entity_code ? `entity:${conn.destination_entity_code}` : null);
+
+      // Sequence: [start, hop[0].equipment, hop[1].equipment, ..., end]
+      const points: Array<{ id: string | null; hopRef?: ApiConnectionMapLeg }> = [];
+      points.push({ id: pathStart });
+      for (const hop of sortedHops) {
+        const hopPointId =
+          hop.equipment_asset_id ||
+          (hop.equipment_entity_code ? `entity:${hop.equipment_entity_code}` : null);
+        points.push({ id: hopPointId, hopRef: hop });
+      }
+      points.push({ id: pathEnd });
+
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const from = points[i].id;
+        const to = points[i + 1].id;
+        if (!from || !to) continue;
+        // The link's protocol/port label reflects what's flowing into the next point,
+        // i.e., the protocol of the upstream hop (or the connection's default for the
+        // very first segment).
+        const upstream = points[i].hopRef;
+        const segmentCodes = upstream?.protocol_codes && upstream.protocol_codes.length > 0
+          ? upstream.protocol_codes
+          : conn.protocol_codes;
+        const segmentLabels = upstream?.protocol_labels && upstream.protocol_labels.length > 0
+          ? upstream.protocol_labels
+          : segmentCodes;
+        const segmentPorts = computeTypicalPorts(segmentCodes, upstream?.port_override || null);
+        const linkSuffix = upstream ? `hop-${upstream.id}` : 'origin';
         links.push({
           ...base,
-          id: `${conn.id}-leg-${legId}`,
-          source,
-          target,
-          protocolLabels: labels.length > 0 ? labels : base.protocolLabels,
-          typicalPorts: legPorts || base.typicalPorts,
+          id: `${conn.id}-${linkSuffix}-${i}`,
+          source: from,
+          target: to,
+          protocolLabels: segmentLabels && segmentLabels.length > 0 ? segmentLabels : base.protocolLabels,
+          typicalPorts: segmentPorts || base.typicalPorts,
         });
-      });
+      }
       return;
     }
 
     if (conn.topology === 'server_to_server') {
-      const source = conn.source_server_id || (conn.source_entity_code ? `entity:${conn.source_entity_code}` : null);
-      const target = conn.destination_server_id || (conn.destination_entity_code ? `entity:${conn.destination_entity_code}` : null);
+      const source =
+        conn.source_asset_id || conn.source_server_id
+        || (conn.source_entity_code ? `entity:${conn.source_entity_code}` : null);
+      const target =
+        conn.destination_asset_id || conn.destination_server_id
+        || (conn.destination_entity_code ? `entity:${conn.destination_entity_code}` : null);
       if (source && target) {
         links.push({
           ...base,
@@ -1174,7 +1205,10 @@ export default function ConnectionMapPage() {
                         )}
                         <Typography variant="body2"><strong>Server type:</strong> {kindLabel || '—'}</Typography>
                         <Typography variant="body2">
-                          <strong>Server location:</strong> {summary?.data?.location_code || '—'}
+                          <strong>Server location:</strong>{' '}
+                          {summary?.data?.location_reference && summary?.data?.location_name
+                            ? `${summary.data.location_reference} · ${summary.data.location_name}`
+                            : summary?.data?.location_reference || summary?.data?.location_name || '—'}
                         </Typography>
                         <Typography variant="body2">
                           <strong>Operating system:</strong>{' '}
@@ -1264,9 +1298,11 @@ export default function ConnectionMapPage() {
               {selectedLink && (
                 <Stack spacing={1.25}>
                   <Stack spacing={0.25}>
-                    <Typography variant="h6">{selectedLink.name || selectedLink.connectionId}</Typography>
-                    {selectedLink.connectionId && selectedLink.name && (
-                      <Typography variant="body2" color="text.secondary">ID: {selectedLink.connectionId}</Typography>
+                    <Typography variant="h6">{selectedLink.name || selectedLink.connectionReference}</Typography>
+                    {selectedLink.connectionReference && selectedLink.name && (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'JetBrains Mono Variable', monospace" }}>
+                        {selectedLink.connectionReference}
+                      </Typography>
                     )}
                   </Stack>
 
@@ -1284,8 +1320,9 @@ export default function ConnectionMapPage() {
                       variant="contained"
                       size="small"
                       onClick={() => {
-                        const connectionId = selectedLink.connectionDbId || data?.connections.find((c) => c.connection_id === selectedLink.connectionId)?.id;
-                        if (connectionId) navigate(`/it/connections/${connectionId}/overview`);
+                        const connectionId = selectedLink.connectionDbId || data?.connections.find((c) => c.connection_reference === selectedLink.connectionReference)?.id;
+                        const routeId = selectedLink.connectionReference || connectionId;
+                        if (routeId) navigate(`/it/connections/${routeId}/overview`);
                       }}
                     >
                       Edit connection

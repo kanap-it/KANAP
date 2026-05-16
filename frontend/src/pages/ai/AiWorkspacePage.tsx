@@ -8,7 +8,7 @@ import PageHeader from '../../components/PageHeader';
 import { useFeatures } from '../../config/FeaturesContext';
 import { useChat, MAX_PENDING_ATTACHMENTS } from '../../ai/useChat';
 import { aiConversationsApi } from '../../ai/aiApi';
-import { ChatConversation } from '../../ai/aiTypes';
+import { AiMutationPreview, ChatConversation, ChatMessage } from '../../ai/aiTypes';
 import ArtifactPanel from '../../ai/components/ArtifactPanel';
 import BuiltinUsageIndicator from '../../ai/components/BuiltinUsageIndicator';
 import ChatMessageList from '../../ai/components/ChatMessageList';
@@ -16,12 +16,89 @@ import ChatInput, { ChatInputHandle } from '../../ai/components/ChatInput';
 import ChatConversationList from '../../ai/components/ChatConversationList';
 import ChatEmptyState from '../../ai/components/ChatEmptyState';
 import TokenUsageBar from '../../ai/components/TokenUsageBar';
-import { isLongPreview } from '../../ai/utils/previewClassification';
 
 const SIDEBAR_WIDTH = 260;
 const CONTENT_MAX_WIDTH = 760;
 
 const ARTIFACT_OPEN_STORAGE_KEY = 'kanap.ai.artifactPanelOpen';
+
+type PreviewGroup = {
+  messageId: string;
+  previewIds: string[];
+};
+
+function uniquePreviewIds(ids: string[] | undefined): string[] {
+  const result: string[] = [];
+  for (const id of ids || []) {
+    if (id && !result.includes(id)) {
+      result.push(id);
+    }
+  }
+  return result;
+}
+
+function isMutationPreview(value: unknown): value is AiMutationPreview {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.preview_id === 'string'
+    && typeof candidate.status === 'string'
+    && typeof candidate.tool_name === 'string'
+    && candidate.target != null
+    && candidate.changes != null;
+}
+
+function extractMutationPreviews(value: unknown): AiMutationPreview[] {
+  if (isMutationPreview(value)) {
+    return [value];
+  }
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  const previews = (value as Record<string, unknown>).previews;
+  return Array.isArray(previews)
+    ? previews.filter(isMutationPreview)
+    : [];
+}
+
+function previewIdsForMessage(message: ChatMessage): string[] {
+  const ids: string[] = [];
+  const append = (previewId: string | null | undefined) => {
+    if (previewId && !ids.includes(previewId)) {
+      ids.push(previewId);
+    }
+  };
+
+  for (const toolResult of message.toolResults || []) {
+    if (toolResult.name === 'preview_execution_result') {
+      continue;
+    }
+    for (const preview of extractMutationPreviews(toolResult.result)) {
+      append(preview.preview_id);
+    }
+  }
+  for (const previewId of message.previewIds || []) {
+    append(previewId);
+  }
+  return ids;
+}
+
+function buildPreviewGroups(messages: ChatMessage[]): PreviewGroup[] {
+  return messages
+    .filter((message) => message.role === 'assistant')
+    .map((message) => ({
+      messageId: message.id,
+      previewIds: uniquePreviewIds(previewIdsForMessage(message)),
+    }))
+    .filter((group) => group.previewIds.length > 0);
+}
+
+function pickPreviewForGroup(previews: AiMutationPreview[], previewIds: string[]): AiMutationPreview | null {
+  const idSet = new Set(previewIds);
+  const groupPreviews = previews.filter((preview) => idSet.has(preview.preview_id));
+  return groupPreviews.find((preview) => preview.status === 'pending') || groupPreviews[groupPreviews.length - 1] || null;
+}
 
 export default function AiWorkspacePage() {
   const { config } = useFeatures();
@@ -36,7 +113,25 @@ export default function AiWorkspacePage() {
   const isEmpty = chat.messages.length === 0;
 
   const allPreviews = chat.previews;
-  const artifactPreviews = useMemo(() => allPreviews.filter(isLongPreview), [allPreviews]);
+  const previewGroups = useMemo(() => buildPreviewGroups(chat.messages), [chat.messages]);
+  const latestPreviewGroup = previewGroups[previewGroups.length - 1] ?? null;
+  const [activeArtifactPreviewIds, setActiveArtifactPreviewIds] = useState<string[]>([]);
+  const seenArtifactGroupKeyRef = useRef<string>('');
+  const latestPreviewGroupKey = latestPreviewGroup?.previewIds.join('\u0000') ?? '';
+  const hasUnseenLatestPreviewGroup = Boolean(
+    latestPreviewGroup
+      && latestPreviewGroupKey
+      && seenArtifactGroupKeyRef.current !== latestPreviewGroupKey,
+  );
+  const artifactPreviewIds = hasUnseenLatestPreviewGroup && latestPreviewGroup
+    ? latestPreviewGroup.previewIds
+    : (activeArtifactPreviewIds.length > 0
+      ? activeArtifactPreviewIds
+      : latestPreviewGroup?.previewIds ?? []);
+  const artifactPreviews = useMemo(() => {
+    const idSet = new Set(artifactPreviewIds);
+    return allPreviews.filter((preview) => idSet.has(preview.preview_id));
+  }, [allPreviews, artifactPreviewIds]);
 
   const [artifactPanelOpen, setArtifactPanelOpen] = useState<boolean>(() => {
     try {
@@ -46,20 +141,27 @@ export default function AiWorkspacePage() {
     }
   });
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
-  const seenArtifactIdsRef = useRef<Set<string>>(new Set());
 
-  // Auto-open only for previews that are long enough to be routed out of the chat.
-  // Short previews stay inline so the same approval card is never duplicated.
   useEffect(() => {
-    if (artifactPreviews.length === 0) return;
-    const newOnes = artifactPreviews.filter((p) => !seenArtifactIdsRef.current.has(p.preview_id));
-    if (newOnes.length === 0) return;
-    for (const p of newOnes) seenArtifactIdsRef.current.add(p.preview_id);
+    setActiveArtifactPreviewIds([]);
+    setSelectedArtifactId(null);
+    seenArtifactGroupKeyRef.current = '';
+  }, [chat.conversationId]);
 
-    const trigger = newOnes.find((p) => p.status === 'pending') || newOnes[0];
-    setSelectedArtifactId(trigger.preview_id);
+  // Auto-open the latest preview group. The panel shows the active group instead
+  // of accumulating every historical preview tab in the conversation.
+  useEffect(() => {
+    if (!latestPreviewGroup) return;
+    if (!latestPreviewGroupKey || seenArtifactGroupKeyRef.current === latestPreviewGroupKey) return;
+    seenArtifactGroupKeyRef.current = latestPreviewGroupKey;
+
+    const trigger = pickPreviewForGroup(allPreviews, latestPreviewGroup.previewIds);
+    setActiveArtifactPreviewIds(latestPreviewGroup.previewIds);
+    if (trigger) {
+      setSelectedArtifactId(trigger.preview_id);
+    }
     setArtifactPanelOpen(true);
-  }, [artifactPreviews]);
+  }, [allPreviews, latestPreviewGroup, latestPreviewGroupKey]);
 
   useEffect(() => {
     try {
@@ -74,9 +176,11 @@ export default function AiWorkspacePage() {
   }, []);
 
   const openArtifactPanel = useCallback((previewId: string) => {
+    const group = previewGroups.find((item) => item.previewIds.includes(previewId));
+    setActiveArtifactPreviewIds(group?.previewIds ?? [previewId]);
     setSelectedArtifactId(previewId);
     setArtifactPanelOpen(true);
-  }, []);
+  }, [previewGroups]);
 
   const handleArtifactApprove = useCallback((previewId: string) => {
     void chat.sendMessage(`[APPROVE:${previewId}]`);
@@ -84,6 +188,11 @@ export default function AiWorkspacePage() {
 
   const handleArtifactReject = useCallback((previewId: string) => {
     void chat.sendMessage(`[REJECT:${previewId}]`);
+  }, [chat.sendMessage]);
+
+  const handleArtifactApproveMany = useCallback((previewIds: string[]) => {
+    if (previewIds.length === 0) return;
+    void chat.sendMessage(`[APPROVE_SELECTED:${previewIds.join(',')}]`);
   }, [chat.sendMessage]);
 
   // Auto-focus input when AI finishes responding
@@ -339,6 +448,7 @@ export default function AiWorkspacePage() {
         onSelect={openArtifactPanel}
         onApprove={handleArtifactApprove}
         onReject={handleArtifactReject}
+        onApproveMany={handleArtifactApproveMany}
       />
     </Box>
   );

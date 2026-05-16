@@ -430,13 +430,15 @@ export class AssetsListService extends AssetsBaseService {
     const tenantId = this.ensureTenantId(opts?.tenantId);
     const asset = await this.ensureAsset(id, mg, tenantId);
 
-    let location_code: string | null = null;
+    let location_reference: string | null = null;
+    let location_name: string | null = null;
     if (asset.location_id) {
-      const locRows: Array<{ code: string }> = await mg.query(
-        `SELECT code FROM locations WHERE id = $1 LIMIT 1`,
+      const locRows: Array<{ location_reference: string; name: string }> = await mg.query(
+        `SELECT location_reference, name FROM locations WHERE id = $1 LIMIT 1`,
         [asset.location_id],
       );
-      location_code = locRows[0]?.code || null;
+      location_reference = locRows[0]?.location_reference || null;
+      location_name = locRows[0]?.name || null;
     }
 
     const assignedRows: Array<{ app_id: string; app_name: string; environment: string }> = await mg.query(
@@ -463,7 +465,8 @@ export class AssetsListService extends AssetsBaseService {
       environment: asset.environment,
       operating_system: asset.operating_system,
       ip_addresses: asset.ip_addresses,
-      location_code,
+      location_reference,
+      location_name,
       assigned_applications,
       is_cluster: !!asset.is_cluster,
     };

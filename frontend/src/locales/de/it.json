@@ -83,7 +83,7 @@
       "addConnection": "Verbindung hinzufügen",
       "deleteConnection": "Verbindung löschen",
       "columns": {
-        "connectionId": "Verbindungs-ID",
+        "connectionReference": "Referenz",
         "name": "Name",
         "topology": "Topologie",
         "source": "Quelle",
@@ -357,7 +357,7 @@
       "connections": {
         "loadingConnections": "Verbindungen werden geladen\u2026",
         "noConnections": "Keine Verbindungen gefunden.",
-        "connectionId": "Verbindungs-ID",
+        "connectionReference": "Referenz",
         "name": "Name",
         "topology": "Topologie",
         "protocols": "Protokolle",
@@ -383,7 +383,7 @@
       },
       "createFromBinding": "Erstellung aus Schnittstellen-Bindungskontext",
       "overview": {
-        "connectionId": "Verbindungs-ID",
+        "connectionReference": "Referenz",
         "name": "Name",
         "purpose": "Zweck",
         "connectionType": "Verbindungstyp",
@@ -629,6 +629,10 @@
     "addAssignmentFailed": "Fehler beim Hinzufügen der Zuordnung",
     "loadConnectionFailed": "Fehler beim Laden der Verbindung",
     "saveConnectionFailed": "Fehler beim Speichern der Verbindung",
+    "deleteConnectionFailed": "Fehler beim Löschen der Verbindung",
+    "saveLayerFailed": "Fehler beim Speichern der Schicht",
+    "addLayerFailed": "Fehler beim Hinzufügen der Schicht",
+    "removeLayerFailed": "Fehler beim Entfernen der Schicht",
     "loadInterfaceFailed": "Fehler beim Laden der Schnittstelle",
     "saveInterfaceFailed": "Fehler beim Speichern der Schnittstelle",
     "loadLocationFailed": "Fehler beim Laden des Standorts",
@@ -687,7 +691,7 @@
   },
   "validation": {
     "missingFormData": "Fehlende Formulardaten",
-    "connectionIdRequired": "Verbindungs-ID ist erforderlich",
+    "connectionReferenceRequired": "Verbindungsreferenz ist erforderlich",
     "nameRequired": "Name ist erforderlich",
     "selectProtocol": "Wählen Sie mindestens ein Protokoll",
     "sourceChooseOne": "Quelle: Wählen Sie einen Server oder eine Entität, nicht beides",

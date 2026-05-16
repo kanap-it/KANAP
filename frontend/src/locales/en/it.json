@@ -83,7 +83,7 @@
       "addConnection": "Add connection",
       "deleteConnection": "Delete connection",
       "columns": {
-        "connectionId": "Connection ID",
+        "connectionReference": "Reference",
         "name": "Name",
         "topology": "Topology",
         "source": "Source",
@@ -357,7 +357,7 @@
       "connections": {
         "loadingConnections": "Loading connections\u2026",
         "noConnections": "No connections found.",
-        "connectionId": "Connection ID",
+        "connectionReference": "Reference",
         "name": "Name",
         "topology": "Topology",
         "protocols": "Protocols",
@@ -383,7 +383,7 @@
       },
       "createFromBinding": "Creating from interface binding context",
       "overview": {
-        "connectionId": "Connection ID",
+        "connectionReference": "Reference",
         "name": "Name",
         "purpose": "Purpose",
         "connectionType": "Connection type",
@@ -629,6 +629,10 @@
     "addAssignmentFailed": "Failed to add assignment",
     "loadConnectionFailed": "Failed to load connection",
     "saveConnectionFailed": "Failed to save connection",
+    "deleteConnectionFailed": "Failed to delete connection",
+    "saveLayerFailed": "Failed to save layer",
+    "addLayerFailed": "Failed to add layer",
+    "removeLayerFailed": "Failed to remove layer",
     "loadInterfaceFailed": "Failed to load interface",
     "saveInterfaceFailed": "Failed to save interface",
     "loadLocationFailed": "Failed to load location",
@@ -687,7 +691,7 @@
   },
   "validation": {
     "missingFormData": "Missing form data",
-    "connectionIdRequired": "Connection ID is required",
+    "connectionReferenceRequired": "Connection reference is required",
     "nameRequired": "Name is required",
     "selectProtocol": "Select at least one protocol",
     "sourceChooseOne": "Source: choose a server or an entity, not both",

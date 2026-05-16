@@ -19,7 +19,7 @@ import api from '../api';
 import { useTranslation } from 'react-i18next';
 import { formatItemRef } from '../utils/item-ref';
 
-export type ShareItemType = 'task' | 'project' | 'request' | 'asset' | 'application';
+export type ShareItemType = 'task' | 'project' | 'request' | 'asset' | 'application' | 'location' | 'connection';
 
 type User = {
   id: string;
@@ -54,6 +54,10 @@ function buildItemPath(itemType: ShareItemType, itemId: string): string {
       return `/it/assets/${itemId}/overview`;
     case 'application':
       return `/it/applications/${itemId}/overview`;
+    case 'location':
+      return `/it/locations/${itemId}/overview`;
+    case 'connection':
+      return `/it/connections/${itemId}/overview`;
   }
 }
 
@@ -69,6 +73,10 @@ function buildApiEndpoint(itemType: ShareItemType, itemId: string): string {
       return `/assets/${itemId}/share`;
     case 'application':
       return `/applications/${itemId}/share`;
+    case 'location':
+      return `/locations/${itemId}/share`;
+    case 'connection':
+      return `/connections/${itemId}/share`;
   }
 }
 
@@ -190,11 +198,8 @@ export default function ShareDialog({
               const s = inputValue.toLowerCase();
               return options.filter((o) => {
                 if (typeof o === 'string') return o.toLowerCase().includes(s);
-                return (
-                  (o.first_name || '').toLowerCase().includes(s) ||
-                  (o.last_name || '').toLowerCase().includes(s) ||
-                  o.email.toLowerCase().includes(s)
-                );
+                const fullName = `${o.first_name || ''} ${o.last_name || ''}`.trim().toLowerCase();
+                return fullName.includes(s);
               });
             }}
             isOptionEqualToValue={(option, value) => {
@@ -207,10 +212,7 @@ export default function ShareDialog({
               if (typeof option === 'string') return <li {...props}>{option}</li>;
               return (
                 <li {...props} key={option.id}>
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{formatName(option)}</div>
-                    <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>{option.email}</div>
-                  </div>
+                  {formatName(option)}
                 </li>
               );
             }}

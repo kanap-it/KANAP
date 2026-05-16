@@ -79,13 +79,22 @@ export type AiStreamParams = {
   timeoutMs?: number;
   maxRetries?: number;
   parallelToolCalls?: boolean;
+  debugTrace?: boolean;
 };
+
+export type AiProviderDebugTraceName =
+  | 'provider_stream_opened'
+  | 'provider_first_raw_chunk'
+  | 'provider_first_text_delta'
+  | 'provider_first_tool_delta'
+  | 'provider_tool_call_completed';
 
 export type AiStreamEvent =
   | { type: 'text_delta'; text: string }
   | { type: 'tool_call_start'; id: string; name: string }
   | { type: 'tool_call_delta'; id: string; arguments: string }
   | { type: 'tool_call_end'; id: string }
+  | { type: 'debug_trace'; name: AiProviderDebugTraceName; tool_name?: string | null }
   | { type: 'done'; usage?: { input_tokens: number; output_tokens: number } }
   | { type: 'error'; message: string };
 

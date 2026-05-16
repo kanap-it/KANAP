@@ -77,10 +77,12 @@ const TASK_WRITE_TOOLS: AiToolName[] = [
   'get_entity_detail',
   'get_entity_context',
   'get_entity_comments',
+  'prepare_mutation_plan',
   'import_glpi_ticket',
   'create_task',
   'update_task_fields',
   'update_task_status',
+  'update_task_assignees',
   'update_task_assignee',
   'add_task_comment',
   'undo_preview',
@@ -94,6 +96,7 @@ const DOCUMENT_WRITE_TOOLS: AiToolName[] = [
   'get_entity_detail',
   'get_entity_context',
   'get_entity_comments',
+  'prepare_mutation_plan',
   'create_document',
   'update_document_content',
   'update_document_metadata',
@@ -108,6 +111,7 @@ const BUSINESS_WRITE_TOOLS: AiToolName[] = [
   'get_filter_values',
   'get_entity_detail',
   'get_entity_context',
+  'prepare_mutation_plan',
   'create_business_record',
   'update_business_record',
   'update_entity_relations',
@@ -120,6 +124,7 @@ const MASTER_DATA_WRITE_TOOLS: AiToolName[] = [
   'query_entities',
   'get_filter_values',
   'get_entity_detail',
+  'prepare_mutation_plan',
   'create_master_data_record',
   'update_master_data_record',
   'update_entity_relations',
@@ -133,6 +138,7 @@ const FINANCIAL_WRITE_TOOLS: AiToolName[] = [
   'aggregate_entities',
   'get_filter_values',
   'get_entity_detail',
+  'prepare_mutation_plan',
   'write_financial_plan',
   'undo_preview',
 ];
@@ -144,6 +150,7 @@ const RELATION_WRITE_TOOLS: AiToolName[] = [
   'get_filter_values',
   'get_entity_detail',
   'get_entity_context',
+  'prepare_mutation_plan',
   'update_entity_relations',
   'update_document_relations',
   'undo_preview',
@@ -345,7 +352,7 @@ function classifyAiContextProfile(userMessage: string): ClassifiedContextProfile
   }
 
   const isWrite = containsAny(text, [
-    /\b(create|creer|cree|add|ajoute|ajouter|change|changer|update|mettre a jour|modifie|modifier|delete|supprime|assign|assigne|reassign|link|lier|unlink|delier|convert|convertir|import|publish|publier|mark|set|passer|passe)\b/,
+    /\b(create|creer|cree|add|ajoute|ajouter|change|changer|update|mettre a jour|modifie|modifier|delete|supprime|(?:re)?assign(?:e|er|es|ez|ed|ing|s)?|link|lier|unlink|delier|convert|convertir|import|publish|publier|mark|set|passer|passe)\b/,
     /\b(add|ajoute|ajouter)\b.*\b(comment|commentaire)\b/,
   ]);
 
@@ -438,6 +445,18 @@ function isAssistantContinuationPrompt(content: string): boolean {
     /\b(quel|quelle|quels|quelles|what|which)\b.*\b(contenu|content|valeur|value|statut|status|commentaire|comment|texte|text|champ|field)\b/,
     /\b(souhaitez|souhaites|voulez|veux|want|would you like|which one|lequel|laquelle)\b/,
     /\b(precise|precisez|indiquer|indiquez|provide|specify|confirm|confirmez|choisir|choose)\b/,
+    /\b(preview|previews|plan de mutation|mutation plan|approuver|approve|rejeter|reject|rejet|approbation|approval)\b/,
+  ]);
+}
+
+function isWriteTargetCorrectionPrompt(content: string): boolean {
+  const text = normalizeText(content);
+  return containsAny(text, [
+    /\b(exclu|exclus|exclure|exclude|excluded|retire|retirer|enleve|enlever|skip|ignore|ignored|relance|relancer)\b/,
+    /\b(ne veux|ne veut|don't want|do not want|dont want)\b.*\b(tache|taches|task|tasks|cible|cibles|target|targets)\b/,
+    /\b(deja|already)\b.*\b(ferme|fermee|fermees|termine|terminee|terminees|done|completed|closed|cancelled|canceled)\b/,
+    /\b(?:seulement|uniquement|only|que|qu['’][a-z]+)\b.*\b(actif|active|actives|ouvert|ouverte|open|pending|in progress|en cours)\b/,
+    /\b(encore|still)\b.*\b(actif|active|actives|ouvert|ouverte|open|pending|in progress|en cours)\b/,
   ]);
 }
 
@@ -450,10 +469,12 @@ function shouldInheritPreviousWriteProfile(
   if (previous.profile.promptMode !== 'write') {
     return false;
   }
-  if (!isAssistantContinuationPrompt(assistantMessage)) {
+  const isContinuationPrompt = isAssistantContinuationPrompt(assistantMessage);
+  const isTargetCorrectionPrompt = isWriteTargetCorrectionPrompt(latestUserMessage);
+  if (!isContinuationPrompt && !isTargetCorrectionPrompt) {
     return false;
   }
-  if (latest.explicitIntent && latest.profile.promptMode !== 'minimal') {
+  if (latest.explicitIntent && latest.profile.promptMode !== 'minimal' && !isTargetCorrectionPrompt) {
     return false;
   }
   return latestUserMessage.trim().length > 0;

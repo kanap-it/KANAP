@@ -236,9 +236,15 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
       return;
     }
   }
+  if (params.debugTrace) {
+    yield { type: 'debug_trace', name: 'provider_stream_opened' };
+  }
 
   const pendingToolCalls = new Map<number, { id: string; name: string; args: string }>();
   let emittedDone = false;
+  let firstRawChunkSeen = false;
+  let firstTextDeltaSeen = false;
+  let firstToolDeltaSeen = false;
 
   const emitPendingNativeToolCalls = function* (): Generator<AiStreamEvent> {
     const orderedCalls = [...pendingToolCalls.entries()]
@@ -257,6 +263,11 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
 
   try {
     for await (const chunk of stream) {
+      if (params.debugTrace && !firstRawChunkSeen) {
+        firstRawChunkSeen = true;
+        yield { type: 'debug_trace', name: 'provider_first_raw_chunk' };
+      }
+
       const choice = chunk.choices?.[0];
       if (!choice) {
         continue;
@@ -265,10 +276,18 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
       const delta = choice.delta;
 
       if (delta?.content) {
+        if (params.debugTrace && !firstTextDeltaSeen) {
+          firstTextDeltaSeen = true;
+          yield { type: 'debug_trace', name: 'provider_first_text_delta' };
+        }
         yield { type: 'text_delta', text: delta.content };
       }
 
       if (delta?.tool_calls) {
+        if (params.debugTrace && !firstToolDeltaSeen) {
+          firstToolDeltaSeen = true;
+          yield { type: 'debug_trace', name: 'provider_first_tool_delta' };
+        }
         for (const tc of delta.tool_calls) {
           const idx = tc.index;
           if (tc.id) {
@@ -316,6 +335,15 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
       }
 
       if (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'stop' || choice.finish_reason === 'function_call') {
+        if (params.debugTrace && (choice.finish_reason === 'tool_calls' || choice.finish_reason === 'function_call')) {
+          for (const pending of [...pendingToolCalls.values()]) {
+            yield {
+              type: 'debug_trace',
+              name: 'provider_tool_call_completed',
+              tool_name: pending.name || null,
+            };
+          }
+        }
         yield* emitPendingNativeToolCalls();
 
         yield {

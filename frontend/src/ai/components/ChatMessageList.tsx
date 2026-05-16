@@ -2,12 +2,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Stack,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
@@ -16,7 +21,9 @@ import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../components/MarkdownContent';
 import { AiMutationPreview, ChatMessage } from '../aiTypes';
-import { isLongPreview } from '../utils/previewClassification';
+import { getPreviewLabel } from '../utils/previewClassification';
+import { getPreviewStatusColorKey, getPreviewStatusDisplay, PreviewStatusDisplay } from '../utils/previewStatus';
+import { getDotColor } from '../../utils/statusColors';
 import ArtifactPreviewChip from './ArtifactPreviewChip';
 import AttachmentImage from './AttachmentImage';
 import PreviewCard from './PreviewCard';
@@ -27,7 +34,7 @@ type ChatMessageListProps = {
   previews: AiMutationPreview[];
   disabled?: boolean;
   onSend: (text: string) => void;
-  /** When provided, long markdown previews are routed to the artifact panel via this callback. */
+  /** When provided, previews are routed to the artifact panel via this callback. */
   onOpenArtifact?: (previewId: string) => void;
   /** Used to highlight the chip whose artifact is currently visible in the panel. */
   selectedArtifactId?: string | null;
@@ -59,6 +66,19 @@ function isMutationPreview(value: unknown): value is AiMutationPreview {
     && typeof candidate.tool_name === 'string'
     && candidate.target != null
     && candidate.changes != null;
+}
+
+function extractMutationPreviews(value: unknown): AiMutationPreview[] {
+  if (isMutationPreview(value)) {
+    return [value];
+  }
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  const previews = (value as Record<string, unknown>).previews;
+  return Array.isArray(previews)
+    ? previews.filter(isMutationPreview)
+    : [];
 }
 
 function ActionIconButton({
@@ -410,6 +430,283 @@ function UserMessage({
   );
 }
 
+const PREVIEW_BATCH_BULK_MIN = 2;
+const PREVIEW_STATUS_ORDER: PreviewStatusDisplay[] = [
+  'pending',
+  'approved',
+  'rejected',
+  'applied',
+  'failed',
+  'expired',
+];
+
+function PreviewStatusSummary({ previews }: { previews: AiMutationPreview[] }) {
+  const { t } = useTranslation(['ai']);
+  const mode = useTheme().palette.mode;
+  const counts = previews.reduce<Record<PreviewStatusDisplay, number>>((acc, preview) => {
+    const status = getPreviewStatusDisplay(preview);
+    acc[status] += 1;
+    return acc;
+  }, {
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    applied: 0,
+    failed: 0,
+    expired: 0,
+  });
+
+  const visibleStatuses = PREVIEW_STATUS_ORDER.filter((status) => counts[status] > 0);
+  if (visibleStatuses.length === 0) return null;
+
+  return (
+    <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+      {visibleStatuses.map((status) => {
+        const colorKey = getPreviewStatusColorKey(status);
+        return (
+          <Stack key={status} direction="row" spacing={0.5} alignItems="center">
+            <Box
+              component="span"
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: getDotColor(colorKey, mode),
+              }}
+            />
+            <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>
+              {counts[status]} {t(`previewStatuses.${status}`)}
+            </Typography>
+          </Stack>
+        );
+      })}
+    </Stack>
+  );
+}
+
+function PreviewBatch({
+  previews,
+  disabled,
+  onApprove,
+  onReject,
+  onApproveMany,
+  onOpenArtifact,
+  selectedArtifactId,
+}: {
+  previews: AiMutationPreview[];
+  disabled?: boolean;
+  onApprove: (previewId: string) => void;
+  onReject: (previewId: string) => void;
+  onApproveMany: (previewIds: string[]) => void;
+  onOpenArtifact?: (previewId: string) => void;
+  selectedArtifactId?: string | null;
+}) {
+  const { t } = useTranslation(['ai']);
+  const mode = useTheme().palette.mode;
+  const [selectedId, setSelectedId] = useState<string | null>(() => (
+    previews.find((preview) => preview.status === 'pending')?.preview_id
+    || previews[0]?.preview_id
+    || null
+  ));
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!selectedId || !previews.some((preview) => preview.preview_id === selectedId)) {
+      setSelectedId(previews.find((preview) => preview.status === 'pending')?.preview_id || previews[0]?.preview_id || null);
+    }
+  }, [previews, selectedId]);
+
+  const selected = previews.find((preview) => preview.preview_id === selectedId) || previews[0];
+  const pendingPreviews = previews.filter((preview) => preview.status === 'pending');
+  const showBulkAction = pendingPreviews.length >= PREVIEW_BATCH_BULK_MIN && !onOpenArtifact;
+  const visibleConfirmPreviews = pendingPreviews.slice(0, 6);
+  const remainingConfirmCount = Math.max(0, pendingPreviews.length - visibleConfirmPreviews.length);
+
+  const handleApproveAll = useCallback(() => {
+    setConfirmOpen(false);
+    onApproveMany(pendingPreviews.map((preview) => preview.preview_id));
+  }, [onApproveMany, pendingPreviews]);
+
+  if (!selected) return null;
+
+  return (
+    <Box
+      sx={(theme) => ({
+        border: `1px solid ${theme.palette.kanap.border.default}`,
+        borderRadius: 2,
+        bgcolor: theme.palette.kanap.bg.drawer,
+        overflow: 'hidden',
+      })}
+    >
+      <Stack spacing={1.25} sx={{ p: 1.25 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+          <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.secondary' }}>
+              {t('previewBatch.title', { count: previews.length })}
+            </Typography>
+            <PreviewStatusSummary previews={previews} />
+          </Stack>
+          {showBulkAction && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              disabled={disabled}
+              onClick={() => setConfirmOpen(true)}
+              sx={{ textTransform: 'none', fontSize: 12, flexShrink: 0 }}
+            >
+              {t('previewBatch.approveAll')}
+            </Button>
+          )}
+        </Stack>
+
+        <Stack
+          direction="row"
+          spacing={0}
+          sx={(theme) => ({
+            borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+            overflowX: 'auto',
+            mx: -1.25,
+            px: 1.25,
+          })}
+        >
+          {previews.map((preview, index) => {
+            const active = preview.preview_id === selected.preview_id;
+            const statusDisplay = getPreviewStatusDisplay(preview);
+            const colorKey = getPreviewStatusColorKey(statusDisplay);
+            return (
+              <Box
+                key={preview.preview_id}
+                component="button"
+                type="button"
+                onClick={() => setSelectedId(preview.preview_id)}
+                sx={(theme) => ({
+                  border: 'none',
+                  bgcolor: 'transparent',
+                  cursor: 'pointer',
+                  fontFamily: theme.typography.fontFamily,
+                  fontSize: 12,
+                  fontWeight: active ? 500 : 400,
+                  color: active ? theme.palette.kanap.text.primary : theme.palette.kanap.text.secondary,
+                  px: 1,
+                  py: 0.8,
+                  borderBottom: `2px solid ${active ? theme.palette.primary.main : 'transparent'}`,
+                  maxWidth: 180,
+                  minWidth: 80,
+                  transition: 'color 120ms ease, border-color 120ms ease',
+                  '&:hover': { color: theme.palette.kanap.text.primary },
+                  '&:focus-visible': {
+                    outline: 'none',
+                    boxShadow: `inset 0 0 0 2px ${theme.palette.primary.main}`,
+                  },
+                })}
+              >
+                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      bgcolor: getDotColor(colorKey, mode),
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Box
+                    component="span"
+                    sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      minWidth: 0,
+                    }}
+                  >
+                    {getPreviewLabel(preview) || `${index + 1}`}
+                  </Box>
+                </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
+
+        {onOpenArtifact ? (
+          <ArtifactPreviewChip
+            preview={selected}
+            active={selectedArtifactId === selected.preview_id}
+            onOpen={onOpenArtifact}
+          />
+        ) : (
+          <PreviewCard
+            preview={selected}
+            disabled={disabled}
+            onApprove={onApprove}
+            onReject={onReject}
+          />
+        )}
+      </Stack>
+
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontSize: 14, fontWeight: 500, color: 'kanap.text.primary' }}>
+          {t('previewBatch.confirmTitle', { count: pendingPreviews.length })}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1}>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary', lineHeight: 1.5 }}>
+              {t('previewBatch.confirmBody', { count: pendingPreviews.length })}
+            </Typography>
+            <Stack spacing={0.5}>
+              {visibleConfirmPreviews.map((preview) => (
+                <Typography
+                  key={preview.preview_id}
+                  sx={{
+                    fontSize: 12,
+                    color: 'kanap.text.secondary',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {getPreviewLabel(preview)}
+                </Typography>
+              ))}
+              {remainingConfirmCount > 0 && (
+                <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+                  {t('previewBatch.more', { count: remainingConfirmCount })}
+                </Typography>
+              )}
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            onClick={() => setConfirmOpen(false)}
+            sx={{ textTransform: 'none', fontSize: 12 }}
+          >
+            {t('messageList.cancel')}
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleApproveAll}
+            disabled={disabled || pendingPreviews.length === 0}
+            sx={{ textTransform: 'none', fontSize: 12 }}
+          >
+            {t('previewBatch.approveAll')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
 function AssistantMessage({
   message,
   previousUserMessage,
@@ -433,12 +730,16 @@ function AssistantMessage({
   const toolResults = message.toolResults || [];
 
   const previewResults = useMemo(() => (
-    toolResults
+    Array.from(new Map([
+      ...toolResults
       .filter((toolResult) => toolResult.name !== 'preview_execution_result')
-      .map((toolResult) => toolResult.result)
-      .filter(isMutationPreview)
-      .map((preview) => previews.find((item) => item.preview_id === preview.preview_id) || preview)
-  ), [toolResults, previews]);
+      .flatMap((toolResult) => extractMutationPreviews(toolResult.result))
+      .map((preview) => previews.find((item) => item.preview_id === preview.preview_id) || preview),
+      ...(message.previewIds || [])
+        .map((previewId) => previews.find((item) => item.preview_id === previewId))
+        .filter((preview): preview is AiMutationPreview => preview != null),
+    ].map((preview) => [preview.preview_id, preview])).values())
+  ), [message.previewIds, toolResults, previews]);
 
   const handleApprove = useCallback((previewId: string) => {
     onSend(`[APPROVE:${previewId}]`);
@@ -446,6 +747,11 @@ function AssistantMessage({
 
   const handleReject = useCallback((previewId: string) => {
     onSend(`[REJECT:${previewId}]`);
+  }, [onSend]);
+
+  const handleApproveMany = useCallback((previewIds: string[]) => {
+    if (previewIds.length === 0) return;
+    onSend(`[APPROVE_SELECTED:${previewIds.join(',')}]`);
   }, [onSend]);
 
   return (
@@ -469,27 +775,37 @@ function AssistantMessage({
           </Box>
         )}
 
-        {previewResults.map((preview) => {
-          if (onOpenArtifact && isLongPreview(preview)) {
+        {previewResults.length > 1 ? (
+          <PreviewBatch
+            previews={previewResults}
+            disabled={disabled}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onApproveMany={handleApproveMany}
+            onOpenArtifact={onOpenArtifact}
+            selectedArtifactId={selectedArtifactId}
+          />
+        ) : previewResults.map((preview) => {
+            if (onOpenArtifact) {
+              return (
+                <ArtifactPreviewChip
+                  key={preview.preview_id}
+                  preview={preview}
+                  active={selectedArtifactId === preview.preview_id}
+                  onOpen={onOpenArtifact}
+                />
+              );
+            }
             return (
-              <ArtifactPreviewChip
+              <PreviewCard
                 key={preview.preview_id}
                 preview={preview}
-                active={selectedArtifactId === preview.preview_id}
-                onOpen={onOpenArtifact}
+                disabled={disabled}
+                onApprove={handleApprove}
+                onReject={handleReject}
               />
             );
-          }
-          return (
-            <PreviewCard
-              key={preview.preview_id}
-              preview={preview}
-              disabled={disabled}
-              onApprove={handleApprove}
-              onReject={handleReject}
-            />
-          );
-        })}
+          })}
       </Stack>
     </MessageRow>
   );

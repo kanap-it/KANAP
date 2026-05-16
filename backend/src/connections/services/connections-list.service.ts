@@ -26,6 +26,7 @@ type ListItem = Connection & {
   effective_data_class?: string;
   effective_contains_pii?: boolean;
   derived_interface_count?: number;
+  linked_interface_count?: number;
 };
 
 /**
@@ -84,6 +85,17 @@ export class ConnectionsListService extends ConnectionsBaseService {
     );
     const countMap = new Map<string, number>(countRows.map((r) => [r.connection_id, Number(r.c)]));
 
+    // Fetch linked interface counts (distinct interfaces per connection through bindings)
+    const linkedRows: Array<{ connection_id: string; c: string }> = await mg.query(
+      `SELECT l.connection_id, COUNT(DISTINCT b.interface_id)::text AS c
+       FROM interface_connection_links l
+       JOIN interface_bindings b ON b.id = l.interface_binding_id
+       WHERE l.connection_id = ANY($1)
+       GROUP BY l.connection_id`,
+      [ids],
+    );
+    const linkedCountMap = new Map<string, number>(linkedRows.map((r) => [r.connection_id, Number(r.c)]));
+
     // Collect asset IDs to resolve names for source/destination
     const assetIds = Array.from(
       new Set(
@@ -138,6 +150,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
         source_asset_name,
         destination_asset_name,
         multi_server_count: countMap.get(c.id) || 0,
+        linked_interface_count: linkedCountMap.get(c.id) || 0,
         effective_criticality: effective?.effective_criticality ?? c.criticality,
         effective_data_class: effective?.effective_data_class ?? c.data_class,
         effective_contains_pii: effective?.effective_contains_pii ?? c.contains_pii,
@@ -154,7 +167,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
     const repo = this.getRepo(opts?.manager);
     const mg = opts?.manager ?? repo.manager;
     const { page, limit, skip, sort, q, filters } = parsePagination(query);
-    const allowedFilters = ['connection_id', 'name', 'topology', 'lifecycle', 'criticality', 'data_class', 'contains_pii'];
+    const allowedFilters = ['connection_reference', 'name', 'topology', 'lifecycle', 'criticality', 'data_class', 'contains_pii'];
     const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
     if (query.topology) {
       where.topology = this.normalizeTopology(query.topology);
@@ -175,11 +188,11 @@ export class ConnectionsListService extends ConnectionsBaseService {
     let whereArr: any[] | undefined;
     if (q) {
       const like = ILike(`%${q}%`);
-      whereArr = [{ ...where, connection_id: like }, { ...where, name: like }];
+      whereArr = [{ ...where, connection_reference: like }, { ...where, name: like }];
     }
 
     const allowedSortFields = [
-      'connection_id',
+      'connection_reference',
       'name',
       'topology',
       'lifecycle',
@@ -221,7 +234,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
     const repo = this.getRepo(opts?.manager);
     const mg = opts?.manager ?? repo.manager;
     const { sort, q, filters } = parsePagination(query);
-    const allowedFilters = ['connection_id', 'name', 'topology', 'lifecycle', 'criticality', 'data_class', 'contains_pii'];
+    const allowedFilters = ['connection_reference', 'name', 'topology', 'lifecycle', 'criticality', 'data_class', 'contains_pii'];
     const where: Record<string, any> = buildWhereFromAgFilters(filters, allowedFilters);
     where.tenant_id = tenant;
     if (query.topology) {
@@ -243,11 +256,11 @@ export class ConnectionsListService extends ConnectionsBaseService {
     let whereArr: any[] | undefined;
     if (q) {
       const like = ILike(`%${q}%`);
-      whereArr = [{ ...where, connection_id: like }, { ...where, name: like }];
+      whereArr = [{ ...where, connection_reference: like }, { ...where, name: like }];
     }
 
     const allowedSortFields = [
-      'connection_id',
+      'connection_reference',
       'name',
       'topology',
       'lifecycle',
@@ -403,6 +416,129 @@ export class ConnectionsListService extends ConnectionsBaseService {
   }
 
   /**
+   * List interface bindings that are NOT yet linked to this connection (link picker source).
+   */
+  async listInterfaceLinkOptions(
+    connectionId: string,
+    tenantId: string,
+    query: any,
+    opts?: ServiceOpts,
+  ) {
+    this.ensureTenantId(tenantId);
+    const mg = opts?.manager ?? this.connRepo.manager;
+    await this.ensureConnection(connectionId, mg);
+
+    const q = String(query?.q || '').trim();
+    const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 200);
+
+    const params: any[] = [connectionId];
+    let whereExtra = '';
+    if (q) {
+      params.push(`%${q}%`);
+      whereExtra = `AND (
+        i.name ILIKE $${params.length}
+        OR i.interface_id ILIKE $${params.length}
+        OR COALESCE(b.environment, '') ILIKE $${params.length}
+        OR COALESCE(leg.leg_type, '') ILIKE $${params.length}
+        OR COALESCE(b.source_endpoint, '') ILIKE $${params.length}
+        OR COALESCE(b.target_endpoint, '') ILIKE $${params.length}
+      )`;
+    }
+
+    params.push(limit);
+
+    const rows: Array<{
+      binding_id: string;
+      interface_id: string;
+      interface_code: string;
+      interface_name: string;
+      environment: string;
+      leg_type: string;
+      source_endpoint: string | null;
+      target_endpoint: string | null;
+      pattern: string;
+      binding_status: string;
+    }> = await mg.query(
+      `SELECT
+         b.id AS binding_id,
+         i.id AS interface_id,
+         i.interface_id AS interface_code,
+         i.name AS interface_name,
+         b.environment,
+         leg.leg_type,
+         b.source_endpoint,
+         b.target_endpoint,
+         leg.integration_pattern AS pattern,
+         b.status AS binding_status
+       FROM interface_bindings b
+       JOIN interface_legs leg ON leg.id = b.interface_leg_id
+       JOIN interfaces i ON i.id = b.interface_id
+       WHERE NOT EXISTS (
+         SELECT 1 FROM interface_connection_links l
+         WHERE l.interface_binding_id = b.id
+           AND l.connection_id = $1
+       )
+       ${whereExtra}
+       ORDER BY i.name ASC, b.environment ASC, leg.order_index ASC
+       LIMIT $${params.length}`,
+      params,
+    );
+
+    return {
+      items: rows.map((r) => ({
+        binding_id: r.binding_id,
+        interface_id: r.interface_id,
+        interface_code: r.interface_code,
+        interface_name: r.interface_name,
+        environment: r.environment,
+        leg_type: r.leg_type,
+        source_endpoint: r.source_endpoint,
+        target_endpoint: r.target_endpoint,
+        pattern: r.pattern,
+        binding_status: normalizeBindingLifecycle(r.binding_status),
+      })),
+    };
+  }
+
+  /**
+   * Create N interface-binding ↔ connection links in one shot (idempotent: skips already-linked).
+   */
+  async bulkLinkInterfaceBindings(
+    connectionId: string,
+    tenantId: string,
+    bindingIds: string[],
+    userId: string | null,
+    opts?: ServiceOpts,
+  ): Promise<{ linked: number; skipped: number }> {
+    const tenant = this.ensureTenantId(tenantId);
+    const mg = opts?.manager ?? this.connRepo.manager;
+    await this.ensureConnection(connectionId, mg);
+
+    const cleanIds = Array.from(new Set((bindingIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+    if (cleanIds.length === 0) return { linked: 0, skipped: 0 };
+
+    let linked = 0;
+    let skipped = 0;
+    for (const bindingId of cleanIds) {
+      // INSERT ... ON CONFLICT DO NOTHING leverages the unique index
+      // (tenant_id, interface_binding_id, connection_id) on interface_connection_links.
+      const result = await mg.query(
+        `INSERT INTO interface_connection_links (tenant_id, interface_binding_id, connection_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (tenant_id, interface_binding_id, connection_id) DO NOTHING
+         RETURNING id`,
+        [tenant, bindingId, connectionId],
+      );
+      if (result && result.length > 0) linked += 1;
+      else skipped += 1;
+    }
+
+    // Best-effort audit log; ignore failures so the link operation still returns.
+    void userId; // audit reserved for future use
+    return { linked, skipped };
+  }
+
+  /**
    * Get map data for connections visualization.
    */
   async map(tenantId: string, query: any, opts?: ServiceOpts) {
@@ -452,13 +588,11 @@ export class ConnectionsListService extends ConnectionsBaseService {
            OR EXISTS (
              SELECT 1
              FROM connection_legs cl
-             LEFT JOIN assets a3 ON a3.id = cl.source_asset_id
-             LEFT JOIN assets a4 ON a4.id = cl.destination_asset_id
+             LEFT JOIN assets a3 ON a3.id = cl.equipment_asset_id
              WHERE cl.connection_id = c.id
                AND (
                  (a3.environment = $3)
-                 OR (a4.environment = $3)
-                 OR (cl.source_asset_id IS NULL AND cl.destination_asset_id IS NULL)
+                 OR (cl.equipment_asset_id IS NULL AND cl.equipment_entity_code IS NULL)
                )
            )
          )
@@ -522,10 +656,8 @@ export class ConnectionsListService extends ConnectionsBaseService {
       if (row.destination_entity_code) entityCodes.add(String(row.destination_entity_code).trim().toLowerCase());
     }
     for (const leg of legRows) {
-      if (leg.source_asset_id) assetIds.add(leg.source_asset_id);
-      if (leg.destination_asset_id) assetIds.add(leg.destination_asset_id);
-      if (leg.source_entity_code) entityCodes.add(String(leg.source_entity_code).trim().toLowerCase());
-      if (leg.destination_entity_code) entityCodes.add(String(leg.destination_entity_code).trim().toLowerCase());
+      if (leg.equipment_asset_id) assetIds.add(leg.equipment_asset_id);
+      if (leg.equipment_entity_code) entityCodes.add(String(leg.equipment_entity_code).trim().toLowerCase());
     }
 
     const assetRows: Array<{
@@ -672,14 +804,9 @@ export class ConnectionsListService extends ConnectionsBaseService {
         legsByConnection.get(row.id as string)?.map((leg: any) => ({
           id: leg.id,
           order_index: Number(leg.order_index),
-          layer_type: leg.layer_type,
-          source_asset_id: leg.source_asset_id,
-          source_entity_code: leg.source_entity_code,
-          destination_asset_id: leg.destination_asset_id,
-          destination_entity_code: leg.destination_entity_code,
-          // Backwards compatibility aliases
-          source_server_id: leg.source_asset_id,
-          destination_server_id: leg.destination_asset_id,
+          function_code: leg.function_code,
+          equipment_asset_id: leg.equipment_asset_id,
+          equipment_entity_code: leg.equipment_entity_code,
           protocol_codes: Array.isArray(leg.protocol_codes)
             ? (leg.protocol_codes as any[]).map((c) => String(c || '').trim().toLowerCase()).filter(Boolean)
             : [],
@@ -694,14 +821,14 @@ export class ConnectionsListService extends ConnectionsBaseService {
         })) || [];
       return {
         id: row.id,
-        connection_id: row.connection_id,
+        connection_reference: row.connection_reference,
         name: row.name,
         topology: row.topology as Topology,
         lifecycle: row.lifecycle,
         criticality: effective?.effective_criticality ?? row.criticality,
         data_class: effective?.effective_data_class ?? row.data_class,
         contains_pii: effective?.effective_contains_pii ?? !!row.contains_pii,
-        purpose: row.purpose,
+        description: row.description,
         protocol_codes,
         protocol_labels,
         source_asset_id: row.source_asset_id,

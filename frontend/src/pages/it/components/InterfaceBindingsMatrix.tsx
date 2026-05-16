@@ -83,7 +83,7 @@ type BindingConnection = {
   notes: string | null;
   connection: {
     id: string;
-    connection_id: string;
+    connection_reference: string;
     name: string;
     topology: 'server_to_server' | 'multi_server';
     lifecycle: string;
@@ -166,9 +166,9 @@ export default function InterfaceBindingsMatrix({
   const [linksError, setLinksError] = React.useState<string | null>(null);
   const [manageConnections, setManageConnections] = React.useState<ManageConnectionsState>(null);
   const [connectionSearch, setConnectionSearch] = React.useState('');
-  const [connectionOptions, setConnectionOptions] = React.useState<Array<{ id: string; name: string; connection_id: string }>>([]);
+  const [connectionOptions, setConnectionOptions] = React.useState<Array<{ id: string; name: string; connection_reference: string }>>([]);
   const [connectionLoading, setConnectionLoading] = React.useState(false);
-  const [selectedConnection, setSelectedConnection] = React.useState<{ id: string; name: string; connection_id: string } | null>(null);
+  const [selectedConnection, setSelectedConnection] = React.useState<{ id: string; name: string; connection_reference: string } | null>(null);
   const [linkSaving, setLinkSaving] = React.useState(false);
   const [unlinkingLinkId, setUnlinkingLinkId] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -332,7 +332,7 @@ export default function InterfaceBindingsMatrix({
             (res.data?.items || []).map((item: any) => ({
               id: item.id,
               name: item.name,
-              connection_id: item.connection_id,
+              connection_reference: item.connection_reference,
             })) || [];
           setConnectionOptions(items);
         }
@@ -636,7 +636,10 @@ export default function InterfaceBindingsMatrix({
                 <Stack direction="row" spacing={0.5} flexWrap="wrap">
                   {links.map((link) => (
                     <Typography key={link.id} variant="body2" color="text.secondary" sx={{ mr: 0.5, mb: 0.5 }}>
-                      {link.connection.name || link.connection.connection_id}
+                      <Typography component="span" sx={{ fontFamily: "'JetBrains Mono Variable', monospace", fontSize: '0.75rem', mr: 0.5 }}>
+                        {link.connection.connection_reference}
+                      </Typography>
+                      · {link.connection.name}
                     </Typography>
                   ))}
                 </Stack>
@@ -870,10 +873,10 @@ export default function InterfaceBindingsMatrix({
                     >
                       <Box sx={{ pr: 1, flex: 1 }}>
                         <Typography variant="body2" fontWeight={600}>
-                          {link.connection.name || link.connection.connection_id}{' '}
-                          <Typography component="span" variant="caption" color="text.secondary">
-                            ({link.connection.connection_id})
+                          <Typography component="span" sx={{ fontFamily: "'JetBrains Mono Variable', monospace", fontSize: '0.75rem', color: 'text.secondary', mr: 0.5 }}>
+                            {link.connection.connection_reference}
                           </Typography>
+                          · {link.connection.name}
                         </Typography>
                         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
                           <Typography variant="body2" color="text.secondary">
@@ -899,7 +902,7 @@ export default function InterfaceBindingsMatrix({
                         <Button
                           size="small"
                           variant="outlined"
-                          onClick={() => navigate(`/it/connections/${link.connection.id}/overview`)}
+                          onClick={() => navigate(`/it/connections/${link.connection.connection_reference || link.connection.id}/overview`)}
                         >
                           Open connection
                         </Button>
@@ -933,7 +936,7 @@ export default function InterfaceBindingsMatrix({
                     inputValue={connectionSearch}
                     onInputChange={(_, v) => setConnectionSearch(v)}
                     onChange={(_, val) => setSelectedConnection(val)}
-                    getOptionLabel={(opt) => (opt?.name ? `${opt.name} (${opt.connection_id})` : opt?.connection_id || '')}
+                    getOptionLabel={(opt) => (opt?.name ? `${opt.connection_reference} · ${opt.name}` : opt?.connection_reference || '')}
                     isOptionEqualToValue={(opt, val) => opt.id === val.id}
                     renderInput={(params) => (
                       <TextField

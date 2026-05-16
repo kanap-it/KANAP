@@ -94,7 +94,7 @@ export class CsvResolverService {
     },
     locations: {
       tableName: 'locations',
-      lookupColumn: 'code',
+      lookupColumn: 'location_reference',
       idColumn: 'id',
       additionalColumns: ['name'],
     },

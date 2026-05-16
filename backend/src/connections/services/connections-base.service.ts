@@ -24,15 +24,13 @@ export const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox']
 export type EnvironmentValue = (typeof ENVIRONMENTS)[number];
 
 /**
- * Leg input type for connection legs.
+ * Hop input type for connection path hops (network intermediaries).
  */
 export type LegInput = {
   order_index: number;
-  layer_type: string;
-  source_asset_id: string | null;
-  source_entity_code: string | null;
-  destination_asset_id: string | null;
-  destination_entity_code: string | null;
+  function_code: string | null;
+  equipment_asset_id: string | null;
+  equipment_entity_code: string | null;
   protocol_codes: string[];
   port_override: string | null;
   notes: string | null;
@@ -105,6 +103,36 @@ export abstract class ConnectionsBaseService {
     if (value == null) return null;
     const v = String(value).trim();
     return v.length === 0 ? null : v;
+  }
+
+  protected async resolveConnectionIdentifier(
+    identifier: string,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<string> {
+    const tenant = this.ensureTenantId(tenantId);
+    const normalized = String(identifier || '').trim();
+    if (!normalized) throw new NotFoundException('Connection not found');
+
+    const uuidMatch = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized);
+    const referenceMatch = normalized.match(/^(CONN-\d+)(?:-.+)?$/i);
+    if (!uuidMatch && !referenceMatch) {
+      throw new NotFoundException('Connection not found');
+    }
+
+    const mg = manager ?? this.connRepo.manager;
+    const lookupValue = uuidMatch ? normalized : referenceMatch?.[1] || normalized;
+    const rows: Array<{ id: string }> = await mg.query(
+      `SELECT id::text AS id
+       FROM connections
+       WHERE ${uuidMatch ? 'id = $1' : 'upper(connection_reference) = upper($1)'}
+         AND tenant_id = $2
+       LIMIT 1`,
+      [lookupValue, tenant],
+    );
+    const id = rows[0]?.id;
+    if (!id) throw new NotFoundException('Connection not found');
+    return id;
   }
 
   protected async normalizeLifecycle(
@@ -227,10 +255,22 @@ export abstract class ConnectionsBaseService {
     return Array.from(new Set(list));
   }
 
-  protected normalizeLegLayerType(value: unknown): string {
-    const normalized = String(value ?? '').trim().toLowerCase();
-    if (!normalized) {
-      throw new BadRequestException('layer_type is required for each leg');
+  /**
+   * Validate a hop's network function code against the tenant's configured
+   * path-hop functions. Accepts null (unclassified hop).
+   */
+  protected async normalizeHopFunctionCode(
+    value: unknown,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<string | null> {
+    if (value == null) return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) return null;
+    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const allowed = new Set((settings.pathHopFunctions || []).map((o: any) => String(o.code).toLowerCase()));
+    if (!allowed.has(normalized)) {
+      throw new BadRequestException(`Invalid path-hop function "${value}"`);
     }
     return normalized;
   }
@@ -238,7 +278,7 @@ export abstract class ConnectionsBaseService {
   protected normalizeLegOrderIndex(value: unknown): number {
     const n = Number(value);
     if (!Number.isInteger(n)) throw new BadRequestException('order_index must be an integer');
-    if (n < 1 || n > 3) throw new BadRequestException('order_index must be between 1 and 3');
+    if (n < 1) throw new BadRequestException('order_index must be >= 1');
     return n;
   }
 
@@ -260,43 +300,34 @@ export abstract class ConnectionsBaseService {
     return Array.from(new Set(normalized));
   }
 
-  protected async normalizeLegEndpoints(
+  /**
+   * Normalize the equipment for a single hop (asset XOR entity_code, both null OK).
+   * The hop's equipment is the intermediary the flow passes through. Source/destination
+   * of the surrounding flow are implicit from the hop's position in the path.
+   */
+  protected async normalizeHopEquipment(
     payload: Partial<{
-      source_asset_id: unknown;
-      source_entity_code: unknown;
-      destination_asset_id: unknown;
-      destination_entity_code: unknown;
+      equipment_asset_id: unknown;
+      equipment_entity_code: unknown;
     }>,
     tenantId: string,
     manager?: EntityManager,
-  ): Promise<Pick<LegInput, 'source_asset_id' | 'source_entity_code' | 'destination_asset_id' | 'destination_entity_code'>> {
-    const normalizeSide = async (
-      assetId: unknown,
-      entityCode: unknown,
-      label: 'source' | 'destination',
-    ) => {
-      const aid = this.normalizeNullable(assetId);
-      const eidRaw = this.normalizeNullable(entityCode);
-      const eid = eidRaw ? eidRaw.toLowerCase() : null;
-      if (aid && eid) throw new BadRequestException(`${label}: choose either asset or entity, not both`);
-      if (!aid && !eid) throw new BadRequestException(`${label}: select an asset or an entity`);
-      if (aid) {
-        await this.ensureAsset(aid, tenantId, manager);
-        return { asset: aid, entity: null };
-      }
-      await this.validateEntityCode(eid as string, tenantId, manager);
-      return { asset: null, entity: eid };
-    };
-
-    const source = await normalizeSide(payload.source_asset_id, payload.source_entity_code, 'source');
-    const destination = await normalizeSide(payload.destination_asset_id, payload.destination_entity_code, 'destination');
-
-    return {
-      source_asset_id: source.asset,
-      source_entity_code: source.entity,
-      destination_asset_id: destination.asset,
-      destination_entity_code: destination.entity,
-    };
+  ): Promise<Pick<LegInput, 'equipment_asset_id' | 'equipment_entity_code'>> {
+    const aid = this.normalizeNullable(payload.equipment_asset_id);
+    const eidRaw = this.normalizeNullable(payload.equipment_entity_code);
+    const eid = eidRaw ? eidRaw.toLowerCase() : null;
+    if (aid && eid) {
+      throw new BadRequestException('hop equipment: choose either an asset or an entity, not both');
+    }
+    if (!aid && !eid) {
+      return { equipment_asset_id: null, equipment_entity_code: null };
+    }
+    if (aid) {
+      await this.ensureAsset(aid, tenantId, manager);
+      return { equipment_asset_id: aid, equipment_entity_code: null };
+    }
+    await this.validateEntityCode(eid as string, tenantId, manager);
+    return { equipment_asset_id: null, equipment_entity_code: eid };
   }
 
   /**

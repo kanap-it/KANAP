@@ -9,9 +9,9 @@ import {
   ChatContextBudget,
   ChatContextItem,
   ChatContextSummary,
+  ChatDebugTraceEntry,
   ChatMessage,
 } from '../aiTypes';
-import { isLongPreview } from '../utils/previewClassification';
 import { getToolResultSummary } from './ToolResultRenderer';
 
 type PlaidActivityProps = {
@@ -121,7 +121,7 @@ function attachmentItems(message?: ChatMessage | null): ChatContextItem[] {
 
 function previewItems(previews: AiMutationPreview[]): ChatContextItem[] {
   return previews.map((preview) => ({
-    kind: isLongPreview(preview) ? 'artifact' : 'preview',
+    kind: 'artifact',
     label: preview.target?.ref || preview.target?.title || preview.summary || preview.tool_name,
     detail: preview.tool_name.replace(/_/g, ' '),
     entity_type: preview.target?.entity_type ?? null,
@@ -209,6 +209,7 @@ function toolActivityPhase(toolName: string): ChatActivityPhase {
   if (toolName === 'web_search') return 'searching_web';
   if (
     toolName === 'undo_preview'
+    || toolName === 'prepare_mutation_plan'
     || toolName.startsWith('create_')
     || toolName.startsWith('update_')
     || toolName.startsWith('add_')
@@ -480,6 +481,207 @@ function formatDurationMs(value: number | null | undefined): string {
   return `${Math.round(ms / 1000)} s`;
 }
 
+function sortedDebugTrace(entries: ChatDebugTraceEntry[] | undefined): ChatDebugTraceEntry[] {
+  return [...(entries || [])]
+    .filter((entry) => Number.isFinite(Number(entry.elapsed_ms)))
+    .sort((left, right) => Number(left.elapsed_ms) - Number(right.elapsed_ms));
+}
+
+function firstTrace(
+  entries: ChatDebugTraceEntry[],
+  names: ChatDebugTraceEntry['name'][],
+  opts: { iteration?: number | null; afterMs?: number } = {},
+): ChatDebugTraceEntry | null {
+  return entries.find((entry) => (
+    names.includes(entry.name)
+    && (opts.iteration == null || entry.iteration === opts.iteration)
+    && (opts.afterMs == null || Number(entry.elapsed_ms) >= opts.afterMs)
+  )) || null;
+}
+
+function traceDelta(start: ChatDebugTraceEntry | null, end: ChatDebugTraceEntry | null): string | null {
+  if (!start || !end) return null;
+  return formatDurationMs(Math.max(0, Number(end.elapsed_ms) - Number(start.elapsed_ms)));
+}
+
+function traceOffset(entry: ChatDebugTraceEntry | null): string | null {
+  if (!entry) return null;
+  return formatDurationMs(Number(entry.elapsed_ms));
+}
+
+function buildDebugTraceSegments(
+  t: ReturnType<typeof useTranslation>['t'],
+  rawEntries: ChatDebugTraceEntry[] | undefined,
+): Array<{ key: string; label: string; value: string; detail?: string | null }> {
+  const entries = sortedDebugTrace(rawEntries);
+  if (entries.length === 0) return [];
+
+  const segments: Array<{ key: string; label: string; value: string; detail?: string | null }> = [];
+  const contextPrepared = firstTrace(entries, ['context_prepared']);
+  const contextValue = traceOffset(contextPrepared);
+  if (contextValue) {
+    segments.push({
+      key: 'context',
+      label: t('activity.debugTrace.segments.contextPreparation'),
+      value: contextValue,
+    });
+  }
+
+  const iterations = Array.from(new Set(
+    entries
+      .map((entry) => entry.iteration)
+      .filter((iteration): iteration is number => typeof iteration === 'number' && Number.isFinite(iteration)),
+  )).sort((left, right) => left - right);
+
+  for (const iteration of iterations) {
+    const requestStarted = firstTrace(entries, ['provider_request_started'], { iteration });
+    const firstAction = firstTrace(entries, ['provider_first_tool_delta', 'provider_first_text_delta'], { iteration });
+    const waitValue = traceDelta(requestStarted, firstAction);
+    if (waitValue) {
+      segments.push({
+        key: `model-wait-${iteration}`,
+        label: t('activity.debugTrace.segments.modelWait'),
+        value: waitValue,
+        detail: t('activity.debugTrace.iteration', { count: iteration }),
+      });
+    }
+
+    const firstTool = firstTrace(entries, ['provider_first_tool_delta'], { iteration });
+    const toolCompleted = firstTrace(entries, ['provider_tool_call_completed'], {
+      iteration,
+      afterMs: firstTool ? Number(firstTool.elapsed_ms) : undefined,
+    });
+    const toolGenerationValue = traceDelta(firstTool, toolCompleted);
+    if (toolGenerationValue) {
+      segments.push({
+        key: `tool-generation-${iteration}`,
+        label: t('activity.debugTrace.segments.toolGeneration'),
+        value: toolGenerationValue,
+        detail: toolCompleted?.tool_name
+          ? t(`toolResults.toolNames.${toolCompleted.tool_name}`, {
+            defaultValue: toolCompleted.tool_name.replace(/_/g, ' '),
+          })
+          : t('activity.debugTrace.iteration', { count: iteration }),
+      });
+    }
+  }
+
+  entries
+    .filter((entry) => entry.name === 'tool_execution_started')
+    .forEach((started, index) => {
+      const completed = firstTrace(entries, ['tool_execution_completed'], {
+        iteration: started.iteration ?? null,
+        afterMs: Number(started.elapsed_ms),
+      });
+      const value = traceDelta(started, completed);
+      if (!value) return;
+      segments.push({
+        key: `tool-exec-${index}`,
+        label: t('activity.debugTrace.segments.toolExecution'),
+        value,
+        detail: started.tool_name
+          ? t(`toolResults.toolNames.${started.tool_name}`, {
+            defaultValue: started.tool_name.replace(/_/g, ' '),
+          })
+          : null,
+      });
+    });
+
+  const firstVisibleAnswer = firstTrace(entries, ['assistant_text_started']);
+  const firstVisibleAnswerValue = traceOffset(firstVisibleAnswer);
+  if (firstVisibleAnswerValue) {
+    segments.push({
+      key: 'first-visible-answer',
+      label: t('activity.debugTrace.segments.firstVisibleAnswer'),
+      value: firstVisibleAnswerValue,
+    });
+  }
+
+  return segments.slice(0, 16);
+}
+
+function DebugTraceSection({ entries }: { entries?: ChatDebugTraceEntry[] }) {
+  const { t } = useTranslation(['ai']);
+  const sortedEntries = sortedDebugTrace(entries);
+  if (sortedEntries.length === 0) return null;
+
+  const segments = buildDebugTraceSegments(t, sortedEntries);
+  const visibleMilestones = sortedEntries.slice(-18);
+
+  return (
+    <Stack spacing={0.55}>
+      <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', lineHeight: 1.3 }}>
+        {t('activity.sections.debugTrace')}
+      </Typography>
+      {segments.length > 0 && (
+        <Stack spacing={0.25}>
+          {segments.map((segment) => (
+            <Stack key={segment.key} direction="row" spacing={1} alignItems="baseline" sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', flex: 1, minWidth: 0 }}>
+                {segment.label}
+              </Typography>
+              {segment.detail && (
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: 'kanap.text.tertiary',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    maxWidth: '42%',
+                  }}
+                >
+                  {segment.detail}
+                </Typography>
+              )}
+              <Typography sx={{ fontSize: 12, color: 'kanap.text.secondary', flexShrink: 0 }}>
+                {segment.value}
+              </Typography>
+            </Stack>
+          ))}
+        </Stack>
+      )}
+      <Stack spacing={0.2} sx={{ pt: segments.length > 0 ? 0.25 : 0 }}>
+        {visibleMilestones.map((entry, index) => (
+          <Stack
+            key={`${entry.name}-${entry.iteration ?? 'turn'}-${entry.elapsed_ms}-${index}`}
+            direction="row"
+            spacing={1}
+            alignItems="baseline"
+            sx={{ minWidth: 0 }}
+          >
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: 'kanap.text.tertiary',
+                flex: 1,
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {[
+                t(`activity.debugTrace.names.${entry.name}`),
+                entry.iteration ? t('activity.debugTrace.iteration', { count: entry.iteration }) : null,
+                entry.tool_name
+                  ? t(`toolResults.toolNames.${entry.tool_name}`, {
+                    defaultValue: entry.tool_name.replace(/_/g, ' '),
+                  })
+                  : null,
+              ].filter(Boolean).join(' · ')}
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', flexShrink: 0 }}>
+              {formatDurationMs(entry.elapsed_ms)}
+            </Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
 function BudgetBreakdown({ budget }: { budget?: ChatContextBudget | null }) {
   const { t } = useTranslation(['ai']);
   const breakdown = budget?.breakdown;
@@ -701,7 +903,8 @@ export default function PlaidActivity({ message, previousUserMessage, previews }
   const hasVisibleRuntime = !!(context.timings || context.budget);
   const hasDebugRuntime = SHOW_PLAID_DEBUG_DETAILS && !!(context.history || context.tools);
   const hasDebugContext = SHOW_PLAID_DEBUG_DETAILS && contextCount > 0;
-  const hasDetails = steps > 0 || hasVisibleRuntime || hasDebugRuntime || hasDebugContext;
+  const hasDebugTrace = SHOW_PLAID_DEBUG_DETAILS && !!message.debugTrace?.length;
+  const hasDetails = steps > 0 || hasVisibleRuntime || hasDebugRuntime || hasDebugContext || hasDebugTrace;
 
   const phase = currentActivity?.phase || (message.isStreaming ? 'analyzing' : 'finalizing');
   const summary = t('activity.summaryWithTools', { count: toolCount });
@@ -804,6 +1007,7 @@ export default function PlaidActivity({ message, previousUserMessage, previews }
             })}
           >
             <ActivitySteps message={message} />
+            {SHOW_PLAID_DEBUG_DETAILS && <DebugTraceSection entries={message.debugTrace} />}
             {SHOW_PLAID_DEBUG_DETAILS && (
               <>
                 <ContextSection title={t('activity.sections.mentions')} items={context.mentions || []} />

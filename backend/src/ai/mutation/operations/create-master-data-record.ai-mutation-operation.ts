@@ -44,10 +44,10 @@ export class CreateMasterDataRecordAiMutationOperation implements AiMutationOper
       'chart_of_accounts: code, name, country_iso, scope, is_default',
       'analytics_categories: name, description, status, disabled_at',
       'business_processes: name, description, notes, owner_user_id, it_owner_user_id, status, disabled_at',
-      'locations: code, name, hosting_type, operating_company_id, country_iso, city, datacenter, provider, region, additional_info',
+      'locations: name, hosting_type, operating_company_id, country_iso, city, provider, region, additional_info',
     ],
     reversible: false,
-    prompt_hint: 'For Tier 1 master data creation, use `create_master_data_record`. Set `entity_type` first, then put values in `fields`. Required examples: companies need name/country_iso/city; company and department metrics also need metrics_year/headcount when provided; departments need company_id/name; contacts need email; accounts need coa_id/account_number/account_name; chart_of_accounts need code/name and country_iso unless scope is GLOBAL; locations need code/name/hosting_type. Use exact human names/codes/emails for relations when possible. This only creates a preview and still requires explicit approval.',
+    prompt_hint: 'For Tier 1 master data creation, use `create_master_data_record`. Set `entity_type` first, then put values in `fields`. Required examples: companies need name/country_iso/city; company and department metrics also need metrics_year/headcount when provided; departments need company_id/name; contacts need email; accounts need coa_id/account_number/account_name; chart_of_accounts need code/name and country_iso unless scope is GLOBAL; locations need name/hosting_type (location_reference is system-generated). Use exact human names/codes/emails for relations when possible. This only creates a preview and still requires explicit approval.',
   };
 
   constructor(private readonly support: AiMasterDataMutationSupportService) {}

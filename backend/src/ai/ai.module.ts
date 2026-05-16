@@ -44,6 +44,8 @@ import { AiMcpController } from './ai-mcp.controller';
 import { AiSearchController } from './ai-search.controller';
 import { AiMessage } from './ai-message.entity';
 import { AiMessageAttachment } from './ai-message-attachment.entity';
+import { AiMutationPlan } from './ai-mutation-plan.entity';
+import { AiMutationPlanStep } from './ai-mutation-plan-step.entity';
 import { AiMutationPreview } from './ai-mutation-preview.entity';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
@@ -96,6 +98,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
       AiConversation,
       AiMessage,
       AiMessageAttachment,
+      AiMutationPlan,
+      AiMutationPlanStep,
       AiMutationPreview,
       UserRole,
       Subscription,

@@ -14,6 +14,8 @@ export const en = {
       opex: { label: 'OPEX Item', lower: 'OPEX item', view: 'View OPEX Item' },
       asset: { label: 'Asset', lower: 'asset', view: 'View Asset' },
       application: { label: 'Application', lower: 'application', view: 'View Application' },
+      location: { label: 'Location', lower: 'location', view: 'View Location' },
+      connection: { label: 'Connection', lower: 'connection', view: 'View Connection' },
     },
     labels: {
       openDocument: 'Open Document',

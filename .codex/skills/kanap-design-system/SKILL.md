@@ -22,6 +22,23 @@ Use this skill as a mandatory front-end guardrail for KANAP. The source charter 
 5. Verify light and dark mode implications, keyboard/focus behavior, sentence case, and typography weights.
 6. For audits or reviews, report violations by severity and include concrete file references.
 
+## Non-Negotiable Refactor Lessons
+
+These rules come from previous KANAP refactors and must be enforced during implementation and review:
+
+- Never call `window.confirm`. Use `KanapDialog` for confirmations. For destructive confirmations with dependants, set `saveLabel="Delete anyway"` and make the body explicit: include the exact dependant count and explain the effect.
+- Confirm deletions only when the target has dependants. If there are no dependants, delete directly. When a list view needs this decision, include `usage_count` in the list response so the UI does not need a second round-trip.
+- Use MUI `Popover`, not `Menu`, for form content anchored to a metadata chip. `Menu` can jump to the top-left after rerenders when its anchor changes. Set explicit `anchorOrigin` and `transformOrigin`.
+- For finite option pickers, prefetch options with `useQuery` and render each option directly as a flat `MenuItem`. Never nest an `Autocomplete` inside a `Popover` or create a picker that needs two clicks before choosing.
+- Do not add drag and drop unless manual ordering is semantically necessary, such as timelines or priorities. Alphabetical sorting is enough for most KANAP lists.
+- Do not place `LinearProgress` over tab content. During tab changes, prefer an empty state while fetching and render content when ready; avoid noisy loading flashes.
+- Use sentence case everywhere. Never introduce title case or uppercase UI text.
+- Never use teal for table cell text. Row hover is enough to show clickability.
+- Use `MetadataUserPicker` for single-user metadata pickers such as assignee, owner, lead, and requestor. Do not use `UserSelect`, MUI `Autocomplete`, or local picker code for these cases.
+- `ShareDialog` user/workspace lists show names only. Do not add an email subtitle line.
+- Before editing a file, read it in the current session so edits apply against the latest file state. When using session-aware `Read` and `Edit` tools, run `Read` before `Edit`.
+- Group independent tool operations as parallel tool calls by default, especially independent reads, searches, and inspections.
+
 ## Core Visual Direction
 
 KANAP uses a dense, sober, Linear-grade visual grammar for IT governance users. Content dominates; chrome recedes. Use monochrome neutrals by default. Color must signify state or interaction, not decorate.
@@ -86,7 +103,7 @@ For dense workspace sections:
 Use these shared components instead of local picker variants on workspace pages:
 
 - `frontend/src/components/workspace/MetadataUserPicker.tsx` is the standard single-user picker for metadata bars: assignee, requestor, owner, lead, and similar one-person fields. One click on the current value must open the anchored search popover directly. Lists show names only, never email addresses. Search matches names only. The active user appears first with the "me" suffix, followed by a subtle separator before other users. Empty values use field-specific placeholders such as "Assignee missing", not raw translation keys or generic `Not set`.
-- Do not use `UserSelect`, MUI `Autocomplete`, or local menu/popover code for single-user metadata controls unless the shared picker cannot represent the behavior. If extra behavior is needed, extend `MetadataUserPicker` first.
+- Do not use `UserSelect`, MUI `Autocomplete`, or local menu/popover code for single-user metadata controls. If extra behavior is needed, extend `MetadataUserPicker` first.
 - `frontend/src/components/knowledge/KnowledgeLinkPickerDialog.tsx` is the standard "Link existing" document picker for workspace knowledge relations. Prefer using it through `EntityKnowledgePanel`; compact task drawers may use the dialog directly.
 - The link picker must query `/knowledge/link-options` with server-side `q`, `page`, and `limit`. Never implement this by fetching only the first `/knowledge` page and filtering locally. Search must work for title/name and business refs such as `DOC-...`.
 - Searching in the link picker must keep the modal shell stable: redraw only the document list area, keep the search field focused, and show a thin in-list loading indicator when replacing results. Keep pagination through a compact "Load more" action.

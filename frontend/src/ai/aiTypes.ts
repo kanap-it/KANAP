@@ -11,6 +11,7 @@ export type AiMutationWriteToolName =
 
 export type AiMutationPreviewStatus =
   | 'pending'
+  | 'approved'
   | 'rejected'
   | 'executed'
   | 'expired'
@@ -134,6 +135,28 @@ export type ChatTimings = {
   iterations?: number;
 };
 
+export type ChatDebugTraceName =
+  | 'context_prepared'
+  | 'provider_request_started'
+  | 'provider_stream_opened'
+  | 'provider_first_raw_chunk'
+  | 'provider_first_text_delta'
+  | 'provider_first_tool_delta'
+  | 'provider_tool_call_completed'
+  | 'assistant_text_started'
+  | 'tool_call_ready'
+  | 'tool_execution_started'
+  | 'tool_execution_completed'
+  | 'turn_completed';
+
+export type ChatDebugTraceEntry = {
+  name: ChatDebugTraceName;
+  elapsed_ms: number;
+  iteration?: number | null;
+  tool_name?: string | null;
+  created_at?: string;
+};
+
 export type ChatContextSummary = {
   mentions?: ChatContextItem[];
   attachments?: ChatContextItem[];
@@ -160,6 +183,7 @@ export type ChatStreamEvent =
   | { type: 'conversation'; id: string; title: string }
   | { type: 'activity'; phase: ChatActivityPhase; status: ChatActivityStatus; tool_name?: string | null }
   | { type: 'context'; context: ChatContextSummary }
+  | ({ type: 'debug_trace' } & Omit<ChatDebugTraceEntry, 'created_at'>)
   | { type: 'text_delta'; text: string }
   | { type: 'tool_call'; id: string; name: string; arguments: Record<string, unknown> }
   | { type: 'tool_result'; id: string; name: string; result: unknown }
@@ -202,8 +226,10 @@ export type ChatMessage = {
   isStreaming?: boolean;
   hidden?: boolean;
   attachments?: ChatAttachment[];
+  previewIds?: string[];
   activity?: ChatActivityEntry[];
   context?: ChatContextSummary;
+  debugTrace?: ChatDebugTraceEntry[];
 };
 
 export type ChatConversation = {

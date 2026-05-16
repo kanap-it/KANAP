@@ -376,7 +376,7 @@ export class InterfaceBindingsService {
       interface_binding_id: string;
       connection_id: string;
       notes: string | null;
-      technical_connection_id: string;
+      connection_reference: string;
       name: string;
       topology: string;
       lifecycle: string;
@@ -389,7 +389,7 @@ export class InterfaceBindingsService {
          l.interface_binding_id,
          l.connection_id,
          l.notes,
-         c.connection_id AS technical_connection_id,
+         c.connection_reference,
          c.name,
          c.topology,
          c.lifecycle,
@@ -399,7 +399,7 @@ export class InterfaceBindingsService {
        FROM interface_connection_links l
        JOIN connections c ON c.id = l.connection_id
        WHERE l.interface_binding_id = $1
-       ORDER BY c.name ASC, c.connection_id ASC`,
+       ORDER BY c.name ASC, c.connection_reference ASC`,
       [bindingId],
     );
 
@@ -411,7 +411,7 @@ export class InterfaceBindingsService {
         notes: r.notes,
         connection: {
           id: r.connection_id,
-          connection_id: r.technical_connection_id,
+          connection_reference: r.connection_reference,
           name: r.name,
           topology: r.topology,
           lifecycle: r.lifecycle,

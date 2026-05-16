@@ -212,7 +212,7 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
         leg.leg_type,
         leg.order_index,
         c.id AS connection_id,
-        c.connection_id AS connection_code,
+        c.connection_reference AS connection_reference,
         c.name AS connection_name,
         c.topology,
         c.lifecycle,
@@ -245,9 +245,9 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       params.push(environment);
     }
 
-    sql += ' GROUP BY l.id, b.id, b.environment, b.status, leg.leg_type, leg.order_index, c.id, c.connection_id, c.name, c.topology, c.lifecycle, c.criticality, c.data_class, c.contains_pii, c.risk_mode, c.source_asset_id, c.destination_asset_id, c.source_entity_code, c.destination_entity_code, src.name, src.is_cluster, dst.name, dst.is_cluster';
+    sql += ' GROUP BY l.id, b.id, b.environment, b.status, leg.leg_type, leg.order_index, c.id, c.connection_reference, c.name, c.topology, c.lifecycle, c.criticality, c.data_class, c.contains_pii, c.risk_mode, c.source_asset_id, c.destination_asset_id, c.source_entity_code, c.destination_entity_code, src.name, src.is_cluster, dst.name, dst.is_cluster';
 
-    sql += ' ORDER BY c.name ASC, c.connection_id ASC, b.environment ASC, leg.order_index ASC';
+    sql += ' ORDER BY c.name ASC, c.connection_reference ASC, b.environment ASC, leg.order_index ASC';
 
     const rows: Array<{
       link_id: string;
@@ -256,7 +256,7 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       binding_status: string;
       leg_type: string;
       connection_id: string;
-      connection_code: string;
+      connection_reference: string;
       connection_name: string;
       topology: string;
       lifecycle: string;
@@ -283,7 +283,7 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       binding_status: normalizeBindingLifecycle(row.binding_status),
       connection: {
         id: row.connection_id,
-        connection_id: row.connection_code,
+        connection_reference: row.connection_reference,
         name: row.connection_name,
         topology: row.topology,
         lifecycle: row.lifecycle,

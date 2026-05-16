@@ -108,16 +108,37 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
       messages,
       ...(tools.length > 0 ? { tools } : {}),
     }, params.signal ? { signal: params.signal } : undefined);
+    if (params.debugTrace) {
+      yield { type: 'debug_trace', name: 'provider_stream_opened' };
+    }
 
     let currentToolId: string | null = null;
+    let currentToolName: string | null = null;
+    let firstRawChunkSeen = false;
+    let firstTextDeltaSeen = false;
+    let firstToolDeltaSeen = false;
 
     try {
       for await (const event of stream) {
+        if (params.debugTrace && !firstRawChunkSeen) {
+          firstRawChunkSeen = true;
+          yield { type: 'debug_trace', name: 'provider_first_raw_chunk' };
+        }
+
         switch (event.type) {
           case 'content_block_start': {
             const block = event.content_block;
             if (block.type === 'tool_use') {
               currentToolId = block.id;
+              currentToolName = block.name;
+              if (params.debugTrace && !firstToolDeltaSeen) {
+                firstToolDeltaSeen = true;
+                yield {
+                  type: 'debug_trace',
+                  name: 'provider_first_tool_delta',
+                  tool_name: block.name,
+                };
+              }
               yield { type: 'tool_call_start', id: block.id, name: block.name };
             }
             break;
@@ -125,16 +146,36 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
           case 'content_block_delta': {
             const delta = event.delta;
             if (delta.type === 'text_delta') {
+              if (params.debugTrace && !firstTextDeltaSeen) {
+                firstTextDeltaSeen = true;
+                yield { type: 'debug_trace', name: 'provider_first_text_delta' };
+              }
               yield { type: 'text_delta', text: delta.text };
             } else if (delta.type === 'input_json_delta' && currentToolId) {
+              if (params.debugTrace && !firstToolDeltaSeen) {
+                firstToolDeltaSeen = true;
+                yield {
+                  type: 'debug_trace',
+                  name: 'provider_first_tool_delta',
+                  tool_name: currentToolName,
+                };
+              }
               yield { type: 'tool_call_delta', id: currentToolId, arguments: delta.partial_json };
             }
             break;
           }
           case 'content_block_stop': {
             if (currentToolId) {
+              if (params.debugTrace) {
+                yield {
+                  type: 'debug_trace',
+                  name: 'provider_tool_call_completed',
+                  tool_name: currentToolName,
+                };
+              }
               yield { type: 'tool_call_end', id: currentToolId };
               currentToolId = null;
+              currentToolName = null;
             }
             break;
           }
