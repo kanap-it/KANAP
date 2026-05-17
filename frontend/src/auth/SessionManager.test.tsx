@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionManager } from './SessionManager';
@@ -130,5 +130,37 @@ describe('SessionManager', () => {
 
     expect(authState.logout).not.toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the current route when redirecting to login after idle expiration', async () => {
+    vi.useRealTimers();
+    window.localStorage.setItem('last_activity_at', String(Date.now() - 5_000));
+    window.localStorage.setItem('refresh_ttl_ms', '1000');
+
+    render(
+      <MemoryRouter initialEntries={['/portfolio/tasks/42?focus=activity#comments']}>
+        <SessionManager>
+          <div>Child</div>
+        </SessionManager>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(authState.logout).toHaveBeenCalledTimes(1);
+    });
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      '/login?sessionExpired=true&redirectTo=%2Fportfolio%2Ftasks%2F42%3Ffocus%3Dactivity%23comments',
+      {
+        replace: true,
+        state: {
+          from: expect.objectContaining({
+            pathname: '/portfolio/tasks/42',
+            search: '?focus=activity',
+            hash: '#comments',
+          }),
+        },
+      },
+    );
   });
 });

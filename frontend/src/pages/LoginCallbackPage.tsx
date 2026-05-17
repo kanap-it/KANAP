@@ -3,6 +3,7 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import api from '../api';
+import { sanitizeLoginRedirect } from '../auth/loginRedirect';
 
 export default function LoginCallbackPage() {
   const { login } = useAuth();
@@ -17,7 +18,7 @@ export default function LoginCallbackPage() {
       const token = hashParams.get('token');
       const expiresInStr = hashParams.get('expiresIn');
       const refreshExpiresInStr = hashParams.get('refreshExpiresIn');
-      let redirectTo = hashParams.get('redirectTo') || '/';
+      let redirectTo = sanitizeLoginRedirect(hashParams.get('redirectTo'));
 
       if (handoff) {
         try {
@@ -26,7 +27,7 @@ export default function LoginCallbackPage() {
           if (!data.access_token || !Number.isFinite(Number(data.expires_in))) {
             throw new Error('Invalid Entra session response');
           }
-          redirectTo = typeof data.redirectTo === 'string' && data.redirectTo ? data.redirectTo : '/';
+          redirectTo = sanitizeLoginRedirect(data.redirectTo);
           if (location.hash || location.search) {
             window.history.replaceState(null, '', location.pathname);
           }
@@ -36,7 +37,7 @@ export default function LoginCallbackPage() {
             expires_in: Number(data.expires_in),
             refresh_expires_in: Number.isFinite(Number(data.refresh_expires_in)) ? Number(data.refresh_expires_in) : undefined,
           });
-          navigate(redirectTo || '/', { replace: true });
+          navigate(redirectTo, { replace: true });
           return;
         } catch {
           if (!cancelled) {
@@ -67,7 +68,7 @@ export default function LoginCallbackPage() {
         expires_in: expiresIn,
         refresh_expires_in: refreshExpiresIn,
       });
-      navigate(redirectTo || '/', { replace: true });
+      navigate(redirectTo, { replace: true });
     };
 
     void completeLogin();
