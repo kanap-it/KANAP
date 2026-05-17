@@ -14,10 +14,10 @@ const content: OfferContent = {
   },
 
   selfHosted: {
-    eyebrow: 'Autoalojado · la opción principal',
-    title: 'Ejecuta KANAP tú mismo.\nGratis para siempre.',
+    eyebrow: 'Elige tu camino',
+    title: 'El mismo producto.\nTres formas de ejecutarlo.',
     intro:
-      'La plataforma completa bajo AGPL v3. Despliega en tu propia infraestructura, conserva tus datos, actualiza a tu ritmo. Soporte de pago opcional si quieres ayuda prioritaria sin renunciar al control.',
+      'Empieza con la plataforma open source completa, añade soporte prioritario si quieres ayuda, o elige KANAP alojado si quieres que la operemos nosotros.',
     plans: [
       {
         name: 'Autoalojado',

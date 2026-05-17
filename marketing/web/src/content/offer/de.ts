@@ -14,10 +14,10 @@ const content: OfferContent = {
   },
 
   selfHosted: {
-    eyebrow: 'Selbst gehostet · die bevorzugte Option',
-    title: 'Betreiben Sie KANAP selbst.\nFür immer kostenlos.',
+    eyebrow: 'Wählen Sie Ihren Weg',
+    title: 'Dasselbe Produkt.\nDrei Betriebsarten.',
     intro:
-      'Die komplette Plattform unter AGPL v3. Auf Ihrer Infrastruktur ausrollen, Ihre Daten behalten, im eigenen Takt aktualisieren. Optionaler Premium-Support, wenn Sie prioritäre Hilfe ohne Kontrollverlust möchten.',
+      'Starten Sie mit der vollständigen Open-Source-Plattform, ergänzen Sie prioritären Support, wenn Sie Hilfe möchten, oder wählen Sie Hosted KANAP, wenn wir den Betrieb übernehmen sollen.',
     plans: [
       {
         name: 'Self-Hosting',

@@ -17,6 +17,7 @@ import { getOfferContent } from '../content/resolve';
 
 const locale = getLocaleFromUrl(Astro.url);
 const content = getOfferContent(locale);
+const pricingPlans = [...content.selfHosted.plans, ...content.cloud.plans];
 
 // Localize internal CTA hrefs
 function resolveHref(href: string): string {
@@ -32,15 +33,15 @@ function resolveHref(href: string): string {
     lead={content.header.lead}
   />
 
-  {/* ---------- Self-hosted (primary) ---------- */}
+  {/* ---------- Pricing paths ---------- */}
   <Section tone="default">
     <header class="mk-offer-head">
       <span class="mk-eyebrow">{content.selfHosted.eyebrow}</span>
       <h2 class="mk-offer-head__title">{content.selfHosted.title}</h2>
       <p class="mk-lead mk-offer-head__intro">{content.selfHosted.intro}</p>
     </header>
-    <div class="mk-offer-grid mk-offer-grid--2">
-      {content.selfHosted.plans.map((plan) => (
+    <div class="mk-offer-grid mk-offer-grid--3">
+      {pricingPlans.map((plan) => (
         <PricingCard
           name={plan.name}
           badge={plan.badge}
@@ -70,33 +71,6 @@ function resolveHref(href: string): string {
           {content.openSourceBanner.linkLabel}
         </a>
       </p>
-    </div>
-  </Section>
-
-  {/* ---------- Cloud (secondary) ---------- */}
-  <Section tone="default">
-    <header class="mk-offer-head">
-      <span class="mk-eyebrow">{content.cloud.eyebrow}</span>
-      <h2 class="mk-offer-head__title">{content.cloud.title}</h2>
-      <p class="mk-lead mk-offer-head__intro">{content.cloud.intro}</p>
-    </header>
-    <div class="mk-offer-grid mk-offer-grid--3">
-      {content.cloud.plans.map((plan) => (
-        <PricingCard
-          name={plan.name}
-          badge={plan.badge}
-          target={plan.target}
-          price={plan.price}
-          period={plan.period}
-          subPrice={plan.subPrice}
-          features={plan.features}
-          ctaLabel={plan.ctaLabel}
-          ctaHref={resolveHref(plan.ctaHref)}
-          ctaVariant={plan.ctaVariant}
-          note={plan.note}
-          featured={plan.featured}
-        />
-      ))}
     </div>
   </Section>
 
@@ -212,11 +186,6 @@ function resolveHref(href: string): string {
     display: grid;
     gap: 20px;
     align-items: stretch;
-  }
-
-  .mk-offer-grid--2 {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    max-width: 820px;
   }
 
   .mk-offer-grid--3 {
