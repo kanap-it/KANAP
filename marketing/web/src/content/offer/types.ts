@@ -85,6 +85,30 @@ export interface OfferContent {
     rows: ConsultingRow[];
     note: string;
   };
+  supportInvoice: {
+    title: string;
+    eyebrow: string;
+    body: string;
+    companyLabel: string;
+    contactLabel: string;
+    billingEmailLabel: string;
+    countryLabel: string;
+    optionalSummary: string;
+    vatLabel: string;
+    address1Label: string;
+    address2Label: string;
+    cityLabel: string;
+    postalCodeLabel: string;
+    captchaLabel: string;
+    submitLabel: string;
+    submittingLabel: string;
+    successWithLink: string;
+    successLinkLabel: string;
+    successNoLink: string;
+    errorGeneric: string;
+    errorRequired: string;
+    closeLabel: string;
+  };
   faqTeaser: {
     title: string;
     body: string;
