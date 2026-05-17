@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Ready to govern your IT documentation?',
-    body: 'Start free with self-hosting, or try the cloud from €49/mo. All features on every plan.',
+    body: 'Self-host for free, or try hosted cloud. All features on every plan.',
     primary: 'Start free trial',
     secondary: 'Talk to us',
   },

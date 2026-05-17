@@ -4,13 +4,13 @@ const content: OfferContent = {
   meta: {
     title: 'Preise',
     description:
-      'Kostenlos und Open Source. Selbsthosting ohne Limits, oder wir betreiben es ab 49 €/Monat. Alle Funktionen in jedem Plan. AGPL v3.',
+      'Kostenlos und Open Source. Selbsthosting ohne Limits, Support bei Bedarf oder Hosted KANAP. Alle Funktionen in jedem Plan. AGPL v3.',
   },
 
   header: {
     eyebrow: 'Einfache, transparente Preise',
     title: 'Kostenlos und Open Source.\nSelbst hosten oder von uns betreiben lassen.',
-    lead: 'Alle Funktionen in jedem Plan. Keine Feature-Gates, kein Platzaufpreis auf Funktionen, kein Lock-in. Sie zahlen nur für den Betrieb, den Sie nicht selbst führen möchten.',
+    lead: 'Alle Funktionen in jedem Plan. Keine Feature-Gates, keine Sitzplatzsteuer, kein Lock-in. Sie zahlen nur für Betrieb und Support, die Sie nicht selbst übernehmen möchten.',
   },
 
   selfHosted: {
@@ -71,20 +71,21 @@ const content: OfferContent = {
     eyebrow: 'Cloud · wenn wir es für Sie betreiben sollen',
     title: 'Dieselbe Plattform, von uns betrieben.',
     intro:
-      'Jeder Cloud-Plan enthält die komplette Plattform, Hosting, Updates, Backups, prioritären Support und eine kostenlose 60-minütige Aktivierungssitzung. 14 Tage Test, keine Kreditkarte.',
+      'Hosted KANAP ist dieselbe Open-Source-Plattform, von uns betrieben: Hosting, Updates, Backups, prioritärer Support und eine kostenlose 60-minütige Aktivierungssitzung. 14 Tage Test, keine Kreditkarte.',
     plans: [
       {
-        name: 'Starter',
-        badge: 'Schneller Einstieg',
-        target: 'Bis zu 5 Mitwirkende',
-        price: '49 €',
+        name: 'Hosted KANAP',
+        badge: 'Von uns betrieben',
+        target: 'Unbegrenzte Nutzer · unbegrenzte Workspaces',
+        price: '249 €',
         period: '/Mon',
-        subPrice: 'oder 490 €/Jahr (2 Monate gratis)',
+        subPrice: 'oder 2.490 €/Jahr (2 Monate gratis)',
         features: [
           'Alle Funktionen enthalten',
-          'Cloud-Hosting & automatische Updates',
-          'Unbegrenzte Nur-Lese-Nutzer',
-          '500 Plaid-Nachrichten/Mon',
+          'Unbegrenzte Mitwirkende und Nur-Lese-Nutzer',
+          'Cloud-Hosting und automatische Updates',
+          'Verwaltete Backups',
+          '2.500 Plaid-Nachrichten/Mon enthalten',
           'Plaid, eigener Schlüssel',
           'Kostenlose 60-min Aktivierungssitzung',
           'Prioritärer E-Mail-Support',
@@ -92,38 +93,8 @@ const content: OfferContent = {
         ],
         ctaLabel: 'Testversion starten',
         ctaHref: '/trial/start',
-        ctaVariant: 'ghost',
-      },
-      {
-        name: 'Standard',
-        badge: 'Team-übergreifende Governance',
-        target: 'Bis zu 25 Mitwirkende',
-        price: '149 €',
-        period: '/Mon',
-        subPrice: 'oder 1.490 €/Jahr (2 Monate gratis)',
-        features: [
-          'Alles aus Starter',
-          '1.500 Plaid-Nachrichten/Mon',
-        ],
-        ctaLabel: 'Testversion starten',
-        ctaHref: '/trial/start',
         ctaVariant: 'primary',
         featured: true,
-      },
-      {
-        name: 'Max',
-        badge: 'Unternehmensweiter Rollout',
-        target: 'Unbegrenzte Mitwirkende',
-        price: '249 €',
-        period: '/Mon',
-        subPrice: 'oder 2.490 €/Jahr (2 Monate gratis)',
-        features: [
-          'Alles aus Standard',
-          '2.500 Plaid-Nachrichten/Mon',
-        ],
-        ctaLabel: 'Testversion starten',
-        ctaHref: '/trial/start',
-        ctaVariant: 'ghost',
       },
     ],
   },
@@ -142,14 +113,14 @@ const content: OfferContent = {
       },
       {
         title: 'Cloud-Hosting',
-        body: 'Sie wollen den schnellsten Weg zum Ergebnis. Wir betreiben die Infrastruktur, Sie konzentrieren sich auf Ihre IT.',
+        body: 'Sie wollen den schnellsten Weg zum Ergebnis, ohne Infrastruktur zu betreiben. Dasselbe Produkt, von KANAP betrieben.',
       },
     ],
   },
 
   services: {
-    title: 'Support und Beratung',
-    intro: 'Unterschiedliche Bedürfnisse, unterschiedliche Services. Abonnenten erhalten prioritären Support inklusive und 20 % Rabatt auf Beratung.',
+    title: 'Expertenhilfe, wenn Sie sie wollen',
+    intro: 'KANAP ist für selbstständige Einführung gebaut. Wenn Sie schneller vorankommen möchten, enthalten bezahlte Angebote prioritären Support und 20 % Rabatt auf Beratung.',
     support: {
       title: 'Prioritärer Support',
       subtitle: 'In jedem kostenpflichtigen Plan enthalten',
@@ -164,7 +135,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Beratung',
       subtitle: 'Kostenpflichtig · 20 % Rabatt für Abonnenten',
-      body: 'Wir helfen Ihnen, aus KANAP Wert zu ziehen, geplante Calls, tiefergehende Arbeit, Advisory.',
+      body: 'Optionale Hilfe, um mehr Wert aus KANAP zu ziehen: geplante Calls, tiefergehende Arbeit, Advisory.',
       items: [
         'Einrichtung, Konfiguration, Onboarding, Schulung',
         'Workflow-Design und Best Practices',
@@ -175,8 +146,8 @@ const content: OfferContent = {
   },
 
   rates: {
-    title: 'Beratungstarife',
-    intro: 'Transparente Preise. Abonnenten erhalten immer 20 % Rabatt.',
+    title: 'Optionale Beratungstarife',
+    intro: 'Transparente Preise für Teams, die Expertenhilfe möchten. Abonnenten erhalten immer 20 % Rabatt.',
     headings: {
       duration: 'Dauer',
       useCases: 'Anwendungsfälle',
@@ -215,9 +186,9 @@ const content: OfferContent = {
   cta: {
     title: 'Bereit loszulegen?',
     body:
-      'Kostenlos selbst bereitstellen oder von uns betreiben lassen ab 49 €/Mon, inklusive 60-min Aktivierungssitzung.',
-    primary: 'Testversion starten',
-    secondary: 'Von GitHub bereitstellen',
+      'Stellen Sie KANAP kostenlos selbst bereit oder testen Sie die gehostete Version, wenn wir den Betrieb übernehmen sollen.',
+    primary: 'Kostenlos bereitstellen',
+    secondary: 'Hosted Cloud testen',
   },
 };
 

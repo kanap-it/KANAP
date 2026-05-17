@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'IT-Landschaft',
     description:
-      'Dokumentieren Sie Anwendungen, Schnittstellen und Infrastruktur. Interaktive Architekturkarten, Lifecycle-Tracking, 3-Leg-Middleware. Open Source. Self-Hosting kostenlos oder Cloud ab 49 €/Mon.',
+      'Dokumentieren Sie Anwendungen, Schnittstellen und Infrastruktur. Interaktive Architekturkarten, Lifecycle-Tracking, 3-Leg-Middleware. Open Source. Self-Hosting kostenlos oder Hosted Cloud.',
   },
   header: {
     eyebrow: 'IT-Landschaft',
@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Bereit, Ihr Informationssystem zu dokumentieren?',
-    body: 'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon. Alle Funktionen in jedem Plan.',
+    body: 'Hosten Sie kostenlos selbst oder testen Sie Hosted Cloud. Alle Funktionen in jedem Plan.',
     primary: 'Testversion starten',
     secondary: 'Sprechen Sie mit uns',
   },

@@ -54,10 +54,10 @@ const crossItems = content.crossCutting.items.map((i) => ({
     lead={content.hero.lead}
   >
     <Fragment slot="cta">
-      <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--primary">
+      <a href="https://github.com/kanap-it/kanap" class="mk-btn mk-btn--primary">
         {content.hero.primaryCta}
       </a>
-      <a href={localePath(locale, '/features')} class="mk-btn mk-btn--ghost">
+      <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--ghost">
         {content.hero.secondaryCta}
       </a>
     </Fragment>
@@ -106,9 +106,9 @@ const crossItems = content.crossCutting.items.map((i) => ({
     <CTABand
       title={content.cta.title}
       body={content.cta.body}
-      primaryHref={localePath(locale, '/trial/start')}
+      primaryHref="https://github.com/kanap-it/kanap"
       primaryLabel={content.cta.primary}
-      secondaryHref="https://github.com/kanap-it/kanap"
+      secondaryHref={localePath(locale, '/trial/start')}
       secondaryLabel={content.cta.secondary}
     />
   </Section>

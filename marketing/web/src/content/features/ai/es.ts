@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Plaid, Asistente de IA para gobernanza de TI',
     description:
-      'Pregúntale a Plaid sobre tus datos de TI. Crea documentos, actualiza tareas, conecta cualquier herramienta de IA vía MCP. Uso gratuito incluido en planes cloud. Código abierto.',
+      'Pregúntale a Plaid sobre tus datos de TI. Crea documentos, actualiza tareas, conecta cualquier herramienta de IA vía MCP. Uso incluido en nube alojada. Código abierto.',
   },
   header: {
     eyebrow: 'Plaid · asistente de IA',
@@ -78,7 +78,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'La gobernanza de TI con IA empieza aquí.',
-    body: 'Plaid está incluido en cada workspace de KANAP, con un uso gratuito generoso en los planes cloud. Autoalojamiento gratuito, o nube desde 49 €/mes.',
+    body: 'Plaid está incluido en cada workspace de KANAP, con un uso generoso en la nube alojada. Autoalojamiento gratuito, o nube alojada.',
     primary: 'Empezar prueba gratuita',
     secondary: 'Habla con nosotros',
   },

@@ -4,13 +4,13 @@ const content: OfferContent = {
   meta: {
     title: 'Pricing',
     description:
-      'Free and open source. Self-host without limits, or let us run it from €49/mo. All features on every plan. AGPL v3.',
+      'Free and open source. Self-host without limits, add support when you need it, or choose hosted KANAP. All features on every plan. AGPL v3.',
   },
 
   header: {
     eyebrow: 'Simple, transparent pricing',
     title: 'Free and open source.\nSelf-host, or let us run it.',
-    lead: 'All features on every plan. No feature gates, no per-seat surcharge on features, no lock-in. Pay only for the operations you don\'t want to run yourself.',
+    lead: 'All features on every plan. No feature gates, no seat tax, no lock-in. Pay only for the operations and support you don\'t want to run yourself.',
   },
 
   /* -------------------- Self-hosted (primary) -------------------- */
@@ -73,20 +73,21 @@ const content: OfferContent = {
     eyebrow: 'Cloud hosted · if you\'d rather we run it',
     title: 'Same platform, operated by us.',
     intro:
-      'Every cloud plan includes the full platform, hosting, updates, backups, priority support, and a free 60-minute activation session. 14-day trial, no credit card.',
+      'Hosted KANAP is the same open source platform, operated by us: hosting, updates, backups, priority support, and a free 60-minute activation session. 14-day trial, no credit card.',
     plans: [
       {
-        name: 'Starter',
-        badge: 'Get started fast',
-        target: 'Up to 5 contributors',
-        price: '€49',
+        name: 'Hosted KANAP',
+        badge: 'Managed by us',
+        target: 'Unlimited users · unlimited workspaces',
+        price: '€249',
         period: '/mo',
-        subPrice: 'or €490/yr (2 months free)',
+        subPrice: 'or €2,490/yr (2 months free)',
         features: [
           'All features included',
-          'Cloud hosting & automatic updates',
-          'Unlimited read-only users',
-          '500 Plaid messages/mo',
+          'Unlimited contributors and read-only users',
+          'Cloud hosting and automatic updates',
+          'Managed backups',
+          '2,500 Plaid messages/mo included',
           'Plaid, bring your own key',
           'Free 60-min activation session',
           'Priority email support',
@@ -94,38 +95,8 @@ const content: OfferContent = {
         ],
         ctaLabel: 'Start free trial',
         ctaHref: '/trial/start',
-        ctaVariant: 'ghost',
-      },
-      {
-        name: 'Standard',
-        badge: 'Cross-team governance',
-        target: 'Up to 25 contributors',
-        price: '€149',
-        period: '/mo',
-        subPrice: 'or €1,490/yr (2 months free)',
-        features: [
-          'Everything in Starter',
-          '1,500 Plaid messages/mo',
-        ],
-        ctaLabel: 'Start free trial',
-        ctaHref: '/trial/start',
         ctaVariant: 'primary',
         featured: true,
-      },
-      {
-        name: 'Max',
-        badge: 'Org-wide rollout',
-        target: 'Unlimited contributors',
-        price: '€249',
-        period: '/mo',
-        subPrice: 'or €2,490/yr (2 months free)',
-        features: [
-          'Everything in Standard',
-          '2,500 Plaid messages/mo',
-        ],
-        ctaLabel: 'Start free trial',
-        ctaHref: '/trial/start',
-        ctaVariant: 'ghost',
       },
     ],
   },
@@ -144,14 +115,14 @@ const content: OfferContent = {
       },
       {
         title: 'Cloud hosted',
-        body: 'You want the fastest path to value. We run the infrastructure, you focus on your IT department.',
+        body: 'You want the fastest path to value without running infrastructure. Same product, operated by KANAP.',
       },
     ],
   },
 
   services: {
-    title: 'Support and consulting',
-    intro: 'Different needs, different services. Subscribers get priority support included and 20% off consulting.',
+    title: 'Expert help, when you want it',
+    intro: 'KANAP is built for self-service adoption. If you want to go faster, paid plans include priority support and 20% off consulting.',
     support: {
       title: 'Priority support',
       subtitle: 'Included with any paid plan',
@@ -166,7 +137,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Consulting',
       subtitle: 'Paid · subscribers get 20% off',
-      body: 'Help you get value from KANAP, scheduled calls, deeper work, advisory.',
+      body: 'Optional help to get more value from KANAP: scheduled calls, deeper work, advisory.',
       items: [
         'Setup, configuration, onboarding, training',
         'Workflow design and best practices',
@@ -177,8 +148,8 @@ const content: OfferContent = {
   },
 
   rates: {
-    title: 'Consulting rates',
-    intro: 'Transparent pricing. Subscribers always get 20% off.',
+    title: 'Optional consulting rates',
+    intro: 'Transparent pricing for teams that want expert help. Subscribers always get 20% off.',
     headings: {
       duration: 'Duration',
       useCases: 'Use cases',
@@ -217,9 +188,9 @@ const content: OfferContent = {
   cta: {
     title: 'Ready to get started?',
     body:
-      'Deploy yourself for free, or let us run it from €49/mo with a free 60-minute activation session.',
-    primary: 'Start free trial',
-    secondary: 'Deploy from GitHub',
+      'Deploy KANAP yourself for free, or try the hosted version if you want us to operate it.',
+    primary: 'Deploy free',
+    secondary: 'Try hosted cloud',
   },
 };
 

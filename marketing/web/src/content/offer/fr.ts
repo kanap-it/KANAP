@@ -4,13 +4,13 @@ const content: OfferContent = {
   meta: {
     title: 'Tarifs',
     description:
-      'Gratuit et open source. Auto-hébergement sans limite, ou nous la gérons à partir de 49 €/mois. Toutes les fonctionnalités sur tous les plans. AGPL v3.',
+      'Gratuit et open source. Auto-hébergement sans limite, support si vous en avez besoin, ou KANAP hébergé. Toutes les fonctionnalités sur tous les plans. AGPL v3.',
   },
 
   header: {
     eyebrow: 'Tarifs simples et transparents',
     title: 'Gratuit et open source.\nAuto-hébergez, ou laissez-nous la gérer.',
-    lead: 'Toutes les fonctionnalités sur chaque plan. Aucune option verrouillée, aucun supplément par siège, aucun enfermement. Vous payez uniquement ce que vous ne voulez pas opérer vous-même.',
+    lead: 'Toutes les fonctionnalités sur chaque plan. Aucune option verrouillée, aucune taxe par siège, aucun enfermement. Vous payez uniquement l\'exploitation et le support que vous ne voulez pas assurer vous-même.',
   },
 
   selfHosted: {
@@ -71,20 +71,21 @@ const content: OfferContent = {
     eyebrow: 'Hébergement cloud · si vous préférez nous confier l\'exploitation',
     title: 'La même plateforme, opérée par nous.',
     intro:
-      'Chaque plan cloud inclut la plateforme complète, l\'hébergement, les mises à jour, les sauvegardes, le support prioritaire et une session d\'activation de 60 min offerte. Essai 14 jours, sans carte.',
+      'KANAP hébergé, c\'est la même plateforme open source, opérée par nous : hébergement, mises à jour, sauvegardes, support prioritaire et session d\'activation de 60 min offerte. Essai 14 jours, sans carte.',
     plans: [
       {
-        name: 'Starter',
-        badge: 'Démarrage rapide',
-        target: 'Jusqu\'à 5 contributeurs',
-        price: '49 €',
+        name: 'KANAP hébergé',
+        badge: 'Opéré par nous',
+        target: 'Utilisateurs illimités · workspaces illimités',
+        price: '249 €',
         period: '/mois',
-        subPrice: 'ou 490 €/an (2 mois offerts)',
+        subPrice: 'ou 2 490 €/an (2 mois offerts)',
         features: [
           'Toutes les fonctionnalités incluses',
+          'Contributeurs et lecteurs illimités',
           'Hébergement cloud et mises à jour automatiques',
-          'Utilisateurs en lecture seule illimités',
-          '500 messages Plaid/mois',
+          'Sauvegardes gérées',
+          '2 500 messages Plaid/mois inclus',
           'Plaid, clé perso',
           'Session d\'activation 60 min offerte',
           'Support email prioritaire',
@@ -92,38 +93,8 @@ const content: OfferContent = {
         ],
         ctaLabel: 'Essai gratuit',
         ctaHref: '/trial/start',
-        ctaVariant: 'ghost',
-      },
-      {
-        name: 'Standard',
-        badge: 'Gouvernance multi-équipes',
-        target: 'Jusqu\'à 25 contributeurs',
-        price: '149 €',
-        period: '/mois',
-        subPrice: 'ou 1 490 €/an (2 mois offerts)',
-        features: [
-          'Tout ce qui est dans Starter',
-          '1 500 messages Plaid/mois',
-        ],
-        ctaLabel: 'Essai gratuit',
-        ctaHref: '/trial/start',
         ctaVariant: 'primary',
         featured: true,
-      },
-      {
-        name: 'Max',
-        badge: 'Déploiement à l\'échelle',
-        target: 'Contributeurs illimités',
-        price: '249 €',
-        period: '/mois',
-        subPrice: 'ou 2 490 €/an (2 mois offerts)',
-        features: [
-          'Tout ce qui est dans Standard',
-          '2 500 messages Plaid/mois',
-        ],
-        ctaLabel: 'Essai gratuit',
-        ctaHref: '/trial/start',
-        ctaVariant: 'ghost',
       },
     ],
   },
@@ -142,14 +113,14 @@ const content: OfferContent = {
       },
       {
         title: 'Hébergement cloud',
-        body: 'Vous voulez le chemin le plus court vers la valeur. Nous opérons l\'infrastructure, vous vous concentrez sur votre DSI.',
+        body: 'Vous voulez le chemin le plus court vers la valeur sans opérer l\'infrastructure. Même produit, opéré par KANAP.',
       },
     ],
   },
 
   services: {
-    title: 'Support et conseil',
-    intro: 'Besoins différents, services différents. Les abonnés reçoivent le support prioritaire inclus et 20 % de remise sur le conseil.',
+    title: 'Aide experte, quand vous en voulez',
+    intro: 'KANAP est conçu pour une adoption autonome. Si vous voulez aller plus vite, les offres payantes incluent le support prioritaire et 20 % de remise sur le conseil.',
     support: {
       title: 'Support prioritaire',
       subtitle: 'Inclus avec tout plan payant',
@@ -164,7 +135,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Conseil',
       subtitle: 'Payant · 20 % de remise pour les abonnés',
-      body: 'On vous aide à tirer de la valeur de KANAP, appels programmés, travail approfondi, advisory.',
+      body: 'Aide optionnelle pour tirer plus de valeur de KANAP : appels programmés, travail approfondi, advisory.',
       items: [
         'Installation, configuration, onboarding, formation',
         'Conception de workflows et bonnes pratiques',
@@ -175,8 +146,8 @@ const content: OfferContent = {
   },
 
   rates: {
-    title: 'Tarifs conseil',
-    intro: 'Tarification transparente. Les abonnés ont toujours 20 % de remise.',
+    title: 'Tarifs conseil optionnel',
+    intro: 'Tarification transparente pour les équipes qui veulent une aide experte. Les abonnés ont toujours 20 % de remise.',
     headings: {
       duration: 'Durée',
       useCases: 'Cas d\'usage',
@@ -215,9 +186,9 @@ const content: OfferContent = {
   cta: {
     title: 'Prêt à démarrer ?',
     body:
-      'Déployez vous-même gratuitement, ou laissez-nous opérer la plateforme à partir de 49 €/mois avec une session d\'activation de 60 min offerte.',
-    primary: 'Essai gratuit',
-    secondary: 'Déployer depuis GitHub',
+      'Déployez KANAP vous-même gratuitement, ou essayez la version hébergée si vous voulez nous confier l\'exploitation.',
+    primary: 'Déployer gratuitement',
+    secondary: 'Essayer le cloud hébergé',
   },
 };
 

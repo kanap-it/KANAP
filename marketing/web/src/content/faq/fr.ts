@@ -4,7 +4,7 @@ const content: FaqContent = {
   meta: {
     title: 'FAQ',
     description:
-      'Questions fréquentes sur les tarifs, la licence, l\'auto-hébergement, les plans cloud, Plaid, le support et la facturation KANAP.',
+      'Questions fréquentes sur les tarifs, la licence, l\'auto-hébergement, le cloud hébergé, Plaid, le support et la facturation KANAP.',
   },
   header: {
     eyebrow: 'FAQ',
@@ -35,7 +35,7 @@ const content: FaqContent = {
       items: [
         {
           q: 'Comment fonctionne l\'essai gratuit ?',
-          a: 'Chaque plan cloud payant commence par un essai gratuit de 14 jours. Sans carte bancaire. Accès complet à toutes les fonctionnalités, plus une session d\'activation de 60 minutes offerte par entreprise si elle est réservée pendant l\'essai.',
+          a: 'KANAP hébergé commence par un essai gratuit de 14 jours. Sans carte bancaire. Accès complet à toutes les fonctionnalités, plus une session d\'activation de 60 minutes offerte par entreprise si elle est réservée pendant l\'essai.',
         },
         {
           q: 'Que se passe-t-il à la fin de mon essai ?',
@@ -47,7 +47,7 @@ const content: FaqContent = {
         },
         {
           q: 'Quelle est la différence entre cloud et auto-hébergé ?',
-          a: 'L\'hébergement cloud signifie que nous opérons tout pour vous, mises à jour, sauvegardes, infrastructure. L\'auto-hébergement signifie que vous exécutez KANAP sur vos propres serveurs. Les plans cloud payants (Starter, Standard, Max) incluent l\'hébergement cloud ; le plan gratuit est en auto-hébergement uniquement. Vous pouvez acheter le Support auto-hébergé pour vos installations auto-hébergées.',
+          a: 'L\'hébergement cloud signifie que nous opérons tout pour vous : hébergement, mises à jour, sauvegardes, infrastructure et support prioritaire. L\'auto-hébergement signifie que vous exécutez KANAP sur vos propres serveurs. Le produit complet est gratuit à auto-héberger ; vous pouvez acheter le Support auto-hébergé si vous voulez une aide prioritaire tout en gardant le contrôle de votre infrastructure.',
         },
       ],
     },
@@ -69,11 +69,11 @@ const content: FaqContent = {
       items: [
         {
           q: 'Puis-je payer par facture ?',
-          a: 'Le paiement par facture (virement bancaire) est disponible pour les abonnements au-dessus de 1 000 € pour les clients EUR uniquement. Aujourd\'hui cela concerne Standard annuel, Max annuel et Support auto-hébergé. Les abonnements inférieurs ou égaux à 1 000 € sont payés par carte. Les factures sont à NET30.',
+          a: 'Le paiement par facture (virement bancaire) est disponible pour les abonnements annuels au-dessus de 1 000 € pour les clients EUR. Aujourd\'hui cela concerne le Support auto-hébergé et KANAP hébergé en annuel. Les factures sont à NET30.',
         },
         {
-          q: 'Puis-je changer de plan à la hausse ou à la baisse ?',
-          a: 'Oui. Passez entre Starter, Standard et Max à tout moment depuis les paramètres de votre workspace. Si vous montez en cours de cycle, vous êtes facturé de la différence au prorata. La baisse s\'applique à la fin de votre période de facturation.',
+          q: 'Puis-je passer de l\'auto-hébergement au cloud hébergé ?',
+          a: 'Oui. KANAP est le même produit dans les deux modes. Contactez-nous si vous voulez passer de l\'auto-hébergement au cloud hébergé, ou si vous avez besoin d\'un export pour opérer la plateforme vous-même.',
         },
         {
           q: 'Puis-je annuler mon abonnement ?',
@@ -86,7 +86,7 @@ const content: FaqContent = {
       items: [
         {
           q: 'Quelle est la différence entre les messages Plaid inclus et Bring Your Own Key ?',
-          a: 'Chaque plan cloud inclut un nombre généreux de messages Plaid, propulsés par un modèle intermédiaire que nous avons soigneusement sélectionné et testé avec KANAP. Pour des réponses encore plus performantes, l\'option Bring Your Own Key vous permet de connecter les modèles de pointe d\'OpenAI, Anthropic ou de tout fournisseur compatible. BYOK vous donne aussi la maîtrise complète du traitement de vos données, et supprime toute limite de messages.',
+          a: 'KANAP hébergé inclut un nombre généreux de messages Plaid, propulsés par un modèle intermédiaire que nous avons soigneusement sélectionné et testé avec KANAP. Pour des réponses encore plus performantes, l\'option Bring Your Own Key vous permet de connecter les modèles de pointe d\'OpenAI, Anthropic ou de tout fournisseur compatible. BYOK vous donne aussi la maîtrise complète du traitement de vos données, et supprime toute limite de messages.',
         },
         {
           q: 'Comment puis-je contrôler Plaid ?',

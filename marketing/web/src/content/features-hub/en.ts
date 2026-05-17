@@ -80,7 +80,7 @@ const content: FeaturesHubContent = {
   cta: {
     title: 'Ready to see your role on the platform?',
     body:
-      'Start free with self-hosting, or try the cloud from €49/mo.\nAll features on every plan, cloud or self-hosted.',
+      'Start free with self-hosting, or try the hosted cloud.\nAll features on every plan, cloud or self-hosted.',
     primary: 'Start free trial',
     secondary: 'Deploy from GitHub',
   },

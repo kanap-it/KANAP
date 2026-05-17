@@ -4,16 +4,16 @@ const content: HomeContent = {
   meta: {
     title: 'La plateforme de gouvernance IT open source',
     description:
-      'Budget, architecture d\'entreprise, portefeuille et connaissance dans une plateforme dotée d\'une IA. Conçue par un DSI. Open source sous AGPL v3. Auto-hébergement gratuit ou cloud à partir de 49 €/mois.',
+      'Budget, architecture d\'entreprise, portefeuille et connaissance dans une plateforme dotée d\'une IA. Conçue par un DSI. Open source sous AGPL v3. Auto-hébergement gratuit ou KANAP hébergé.',
   },
 
   hero: {
     eyebrow: 'Mettez de la clarté dans votre DSI',
     title: 'La plateforme de gouvernance IT open source.',
-    lead: 'Budget, architecture, portefeuille et connaissance dans une seule plateforme, avec Plaid, l\'assistant IA intégré.\nAuto-hébergez-la, ou laissez-nous la gérer.',
-    primaryCta: 'Essai gratuit',
-    secondaryCta: 'Découvrir les fonctionnalités',
-    trialNote: 'Essai 14 jours · sans carte · session d\'activation offerte.',
+    lead: 'Budget, architecture, portefeuille et connaissance dans une seule plateforme, avec Plaid, l\'assistant IA intégré.\nAuto-hébergez-la gratuitement, ou laissez-nous l\'opérer pour vous.',
+    primaryCta: 'Déployer gratuitement',
+    secondaryCta: 'Essayer le cloud hébergé',
+    trialNote: 'AGPL v3 · code source complet sur GitHub · installation Docker · aucun paywall fonctionnel.',
   },
 
   pillars: {
@@ -22,7 +22,7 @@ const content: HomeContent = {
     items: [
       {
         title: 'Conçue par des praticiens',
-        body: 'Pensée par un vétéran de l\'IT avec une vraie expérience multisectorielle. Elle résout les vrais problèmes des DSI. S\'adapte à tous les secteurs.',
+        body: 'Pensée par un vétéran de l\'IT avec une vraie expérience multisectorielle. Elle résout les vrais problèmes des DSI, pas des problèmes génériques de collaboration.',
       },
       {
         title: 'Simple et puissante',
@@ -30,7 +30,7 @@ const content: HomeContent = {
       },
       {
         title: 'Véritablement open source',
-        body: 'AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement, aucune mauvaise surprise, aucune tarification freemium.',
+        body: 'AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement, aucun paywall fonctionnel, aucun piège freemium.',
       },
     ],
   },
@@ -102,7 +102,7 @@ const content: HomeContent = {
           'Requêtes en langage naturel sur tous les modules',
           'Actions sur documents et tâches avec aperçu',
           'Serveur MCP pour Claude, Cursor, Windsurf…',
-          'Utilisation gratuite incluse sur les plans cloud, ou clé perso',
+          'Utilisation incluse sur le cloud hébergé, ou clé perso',
         ],
         ctaLabel: 'En savoir plus',
       },
@@ -154,11 +154,11 @@ const content: HomeContent = {
   },
 
   cta: {
-    title: 'Prêt à mettre de la clarté dans votre DSI ?',
+    title: 'Prêt à piloter votre DSI depuis un système open source ?',
     body:
-      'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois.\nToutes les fonctionnalités sur chaque plan, cloud comme auto-hébergement.',
-    primary: 'Essai gratuit',
-    secondary: 'Déployer depuis GitHub',
+      'Déployez KANAP vous-même gratuitement, ou essayez la version hébergée si vous voulez nous confier l\'exploitation.\nMême produit. Même fonctionnalités. Votre choix.',
+    primary: 'Déployer gratuitement',
+    secondary: 'Essayer le cloud hébergé',
   },
 };
 

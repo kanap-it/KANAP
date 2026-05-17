@@ -80,7 +80,7 @@ const content: FeaturesHubContent = {
   cta: {
     title: '¿Listo para ver tu rol en la plataforma?',
     body:
-      'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes.\nTodas las funcionalidades en cada plan, en la nube o autoalojado.',
+      'Empieza gratis autoalojando, o prueba la nube alojada.\nTodas las funcionalidades en cada plan, en la nube o autoalojado.',
     primary: 'Empezar prueba gratuita',
     secondary: 'Desplegar desde GitHub',
   },

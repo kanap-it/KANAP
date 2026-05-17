@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Gestión de presupuesto',
     description:
-      'Planificación presupuestaria plurianual, seis métodos de asignación, multidivisa con tasas del Banco Mundial, repercusión ejecutiva. Código abierto. Autoalojamiento gratuito o nube desde 49 €/mes.',
+      'Planificación presupuestaria plurianual, seis métodos de asignación, multidivisa con tasas del Banco Mundial, repercusión ejecutiva. Código abierto. Autoalojamiento gratuito o nube alojada.',
   },
   header: {
     eyebrow: 'Gestión de presupuesto',
@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: '¿Listo para dominar tu presupuesto de TI?',
-    body: 'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes. Todas las funcionalidades en todos los planes.',
+    body: 'Autoaloja gratis o prueba la nube alojada. Todas las funcionalidades en todos los planes.',
     primary: 'Empezar prueba gratuita',
     secondary: 'Habla con nosotros',
   },

@@ -4,16 +4,16 @@ const content: HomeContent = {
   meta: {
     title: 'Die Open-Source-Plattform für IT-Governance',
     description:
-      'Budget, Unternehmensarchitektur, Portfolio und Wissen in einer KI-gestützten Plattform. Entwickelt von einem CIO. Open Source unter AGPL v3. Selbst hosten oder Cloud ab 49 €/Mon.',
+      'Budget, Unternehmensarchitektur, Portfolio und Wissen in einer KI-gestützten Plattform. Entwickelt von einem CIO. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
   },
 
   hero: {
     eyebrow: 'Bringen Sie Klarheit in Ihre IT',
     title: 'Die Open-Source-Plattform für IT-Governance.',
-    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform, mit Plaid, dem integrierten KI-Assistenten.\nSelbst hosten oder von uns betreiben lassen.',
-    primaryCta: 'Testversion starten',
-    secondaryCta: 'Funktionen entdecken',
-    trialNote: '14-Tage-Test · keine Kreditkarte · kostenlose Aktivierungssitzung.',
+    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform, mit Plaid, dem integrierten KI-Assistenten.\nKostenlos selbst hosten oder von uns betreiben lassen.',
+    primaryCta: 'Kostenlos bereitstellen',
+    secondaryCta: 'Hosted Cloud testen',
+    trialNote: 'AGPL v3 · kompletter Quellcode auf GitHub · Docker-Installation · keine Feature-Paywall.',
   },
 
   pillars: {
@@ -102,7 +102,7 @@ const content: HomeContent = {
           'Natürlichsprachliche Abfragen über alle Module',
           'Dokument- und Aufgabenaktionen mit Vorschau',
           'MCP-Server für Claude, Cursor, Windsurf…',
-          'Kostenlose Nutzung auf Cloud-Plänen, oder eigener Schlüssel',
+          'Nutzung in Hosted Cloud enthalten, oder eigener Schlüssel',
         ],
         ctaLabel: 'Mehr erfahren',
       },
@@ -154,11 +154,11 @@ const content: HomeContent = {
   },
 
   cta: {
-    title: 'Bereit, Klarheit in Ihre IT zu bringen?',
+    title: 'Bereit, Ihre IT aus einem Open-Source-System zu steuern?',
     body:
-      'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon.\nAlle Funktionen in jedem Plan, Cloud wie Self-Hosting.',
-    primary: 'Testversion starten',
-    secondary: 'Von GitHub bereitstellen',
+      'Stellen Sie KANAP kostenlos selbst bereit oder testen Sie die gehostete Version, wenn wir den Betrieb übernehmen sollen.\nDasselbe Produkt. Dieselben Funktionen. Ihre Wahl.',
+    primary: 'Kostenlos bereitstellen',
+    secondary: 'Hosted Cloud testen',
   },
 };
 

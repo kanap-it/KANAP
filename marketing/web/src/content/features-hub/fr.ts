@@ -80,7 +80,7 @@ const content: FeaturesHubContent = {
   cta: {
     title: 'Prêt à voir votre rôle sur la plateforme ?',
     body:
-      'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois.\nToutes les fonctionnalités sur chaque plan, cloud comme auto-hébergement.',
+      'Auto-hébergez gratuitement, ou essayez le cloud hébergé.\nToutes les fonctionnalités sur chaque plan, cloud comme auto-hébergement.',
     primary: 'Essai gratuit',
     secondary: 'Déployer depuis GitHub',
   },

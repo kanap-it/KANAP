@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Plaid, AI assistant for IT governance',
     description:
-      'Ask Plaid about your IT data. Create documents, update tasks, connect any AI tool via MCP. Free usage included on cloud plans. Open source.',
+      'Ask Plaid about your IT data. Create documents, update tasks, connect any AI tool via MCP. Usage included on hosted cloud. Open source.',
   },
   header: {
     eyebrow: 'Plaid · AI assistant',
@@ -78,7 +78,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'AI-powered IT governance starts here.',
-    body: 'Plaid is included in every KANAP workspace, with generous free usage on cloud plans. Self-host free, or try the cloud from €49/mo.',
+    body: 'Plaid is included in every KANAP workspace, with generous usage on hosted cloud. Self-host free, or try the hosted cloud.',
     primary: 'Start free trial',
     secondary: 'Talk to us',
   },

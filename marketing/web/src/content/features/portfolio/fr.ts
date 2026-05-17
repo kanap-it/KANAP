@@ -81,7 +81,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Prêt à maîtriser votre pipeline projet ?',
-    body: 'Démarrez gratuitement en auto-hébergement, ou essayez le cloud à partir de 49 €/mois.',
+    body: 'Auto-hébergez gratuitement, ou essayez le cloud hébergé.',
     primary: 'Essai gratuit',
     secondary: 'Nous contacter',
   },
