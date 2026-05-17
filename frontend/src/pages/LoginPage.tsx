@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import AuthFrame from '../components/AuthFrame';
 import { useTenant } from '../tenant/TenantContext';
 import { useFeatures } from '../config/FeaturesContext';
+import { getLoginRedirectPath } from '../auth/loginRedirect';
 
 const marketingUrl = import.meta.env.VITE_MARKETING_URL ?? 'https://kanap.net';
 
@@ -19,6 +20,10 @@ export default function LoginPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('sessionExpired') === 'true';
+  const postLoginRedirectPath = useMemo(
+    () => getLoginRedirectPath(location.state, searchParams),
+    [location.state, searchParams],
+  );
   const [infoMessage, setInfoMessage] = useState<string | null>(() => {
     const state = location.state as any;
     if (state?.passwordResetSuccess) {
@@ -54,7 +59,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email: username, password });
       login(res.data as { access_token: string; expires_in: number; refresh_expires_in?: number });
-      navigate('/');
+      navigate(postLoginRedirectPath, { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed');
     }
@@ -63,7 +68,7 @@ export default function LoginPage() {
   const onMicrosoftSignIn = () => {
     const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
     const base = apiBase.replace(/\/$/, '');
-    const url = `${base}/auth/entra/login?redirectTo=${encodeURIComponent('/')}`;
+    const url = `${base}/auth/entra/login?redirectTo=${encodeURIComponent(postLoginRedirectPath)}`;
     window.location.href = url;
   };
 

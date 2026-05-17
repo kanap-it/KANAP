@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { useSessionTimer } from '../hooks/useSessionTimer';
 import { useSessionActivity } from '../hooks/useSessionActivity';
 import { getLastActivityAt, getRefreshTtlMs, sessionStorageKeys, touchLastActivity } from './sessionStorage';
+import { getCurrentRedirectPath } from './loginRedirect';
 
 interface SessionManagerProps {
   children: React.ReactNode;
@@ -42,11 +43,16 @@ export function SessionManager({ children }: SessionManagerProps) {
     isExpiringRef.current = true;
     try {
       await logout();
-      navigate('/login?sessionExpired=true', { replace: true });
+      const params = new URLSearchParams({ sessionExpired: 'true' });
+      const redirectTo = getCurrentRedirectPath(location);
+      if (redirectTo !== '/') {
+        params.set('redirectTo', redirectTo);
+      }
+      navigate(`/login?${params.toString()}`, { replace: true, state: { from: location } });
     } finally {
       isExpiringRef.current = false;
     }
-  }, [logout, navigate, isPublicPage]);
+  }, [logout, navigate, isPublicPage, location]);
 
   const handleTokenRefresh = useCallback(async () => {
     if (isRefreshingRef.current || !token || !idleStateReady) return;
