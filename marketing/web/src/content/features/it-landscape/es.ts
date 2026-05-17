@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Paisaje de TI',
     description:
-      'Documenta aplicaciones, interfaces e infraestructura. Mapas de arquitectura interactivos, seguimiento del ciclo de vida, middleware de 3 tramos. Código abierto. Autoalojamiento gratuito o nube desde 49 €/mes.',
+      'Documenta aplicaciones, interfaces e infraestructura. Mapas de arquitectura interactivos, seguimiento del ciclo de vida, middleware de 3 tramos. Código abierto. Autoalojamiento gratuito o nube alojada.',
   },
   header: {
     eyebrow: 'Paisaje de TI',
@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: '¿Listo para documentar tu sistema de información?',
-    body: 'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes. Todas las funcionalidades en todos los planes.',
+    body: 'Autoaloja gratis o prueba la nube alojada. Todas las funcionalidades en todos los planes.',
     primary: 'Empezar prueba gratuita',
     secondary: 'Habla con nosotros',
   },

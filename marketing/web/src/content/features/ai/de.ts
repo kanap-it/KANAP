@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Plaid, KI-Assistent für IT-Governance',
     description:
-      'Fragen Sie Plaid zu Ihren IT-Daten. Dokumente erstellen, Aufgaben aktualisieren, beliebiges KI-Tool per MCP anbinden. Kostenlose Nutzung in Cloud-Plänen enthalten. Open Source.',
+      'Fragen Sie Plaid zu Ihren IT-Daten. Dokumente erstellen, Aufgaben aktualisieren, beliebiges KI-Tool per MCP anbinden. Nutzung in Hosted Cloud enthalten enthalten. Open Source.',
   },
   header: {
     eyebrow: 'Plaid · KI-Assistent',
@@ -78,7 +78,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'KI-gestützte IT-Governance beginnt hier.',
-    body: 'Plaid ist in jedem KANAP-Workspace enthalten, mit großzügiger kostenloser Nutzung in Cloud-Plänen. Self-Hosting kostenlos, oder Cloud ab 49 €/Mon.',
+    body: 'Plaid ist in jedem KANAP-Workspace enthalten, mit großzügiger Nutzung in Hosted Cloud. Self-Hosting kostenlos, oder Hosted Cloud.',
     primary: 'Testversion starten',
     secondary: 'Sprechen Sie mit uns',
   },

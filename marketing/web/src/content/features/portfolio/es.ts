@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Gestión de portafolio',
     description:
-      'Puntuación de solicitudes, generación automática de hoja de ruta, planificación consciente de la capacidad, seguimiento del ciclo de vida del proyecto. Código abierto. Autoalojamiento gratuito o nube desde 49 €/mes.',
+      'Puntuación de solicitudes, generación automática de hoja de ruta, planificación consciente de la capacidad, seguimiento del ciclo de vida del proyecto. Código abierto. Autoalojamiento gratuito o nube alojada.',
   },
   header: {
     eyebrow: 'Gestión de portafolio',
@@ -81,7 +81,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: '¿Listo para tomar el control de tu embudo de proyectos?',
-    body: 'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes. Todas las funcionalidades en todos los planes.',
+    body: 'Autoaloja gratis o prueba la nube alojada. Todas las funcionalidades en todos los planes.',
     primary: 'Empezar prueba gratuita',
     secondary: 'Habla con nosotros',
   },

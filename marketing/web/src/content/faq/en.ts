@@ -3,7 +3,7 @@ import type { FaqContent } from './types';
 const content: FaqContent = {
   meta: {
     title: 'FAQ',
-    description: 'Common questions about KANAP pricing, licensing, self-hosting, cloud plans, Plaid, support and billing.',
+    description: 'Common questions about KANAP pricing, licensing, self-hosting, hosted cloud, Plaid, support and billing.',
   },
   header: {
     eyebrow: 'FAQ',
@@ -33,7 +33,7 @@ const content: FaqContent = {
       items: [
         {
           q: 'How does the free trial work?',
-          a: 'Every paid cloud plan starts with a 14-day free trial. No credit card required. Full access to all features, plus one free 60-minute activation session per company if booked during the trial.',
+          a: 'Hosted KANAP starts with a 14-day free trial. No credit card required. Full access to all features, plus one free 60-minute activation session per company if booked during the trial.',
         },
         {
           q: 'What happens after my trial?',
@@ -45,7 +45,7 @@ const content: FaqContent = {
         },
         {
           q: 'What is the difference between cloud and self-hosted?',
-          a: 'Cloud hosting means we run everything for you, updates, backups, infrastructure. Self-hosted means you run KANAP on your own servers. Paid cloud plans (Starter, Standard, Max) include cloud hosting; the free tier is self-hosted only. You can purchase Self-Hosted Support for self-hosted installations.',
+          a: 'Cloud hosting means we run everything for you: hosting, updates, backups, infrastructure and priority support. Self-hosted means you run KANAP on your own servers. The full product is free to self-host; you can purchase Self-Hosted Support if you want priority help while keeping control of your infrastructure.',
         },
       ],
     },
@@ -67,11 +67,11 @@ const content: FaqContent = {
       items: [
         {
           q: 'Can I pay by invoice?',
-          a: 'Invoice payment (bank transfer) is available for subscriptions above €1,000 for EUR customers only. Today that means Standard annual, Max annual, and Self-Hosted Support. Subscriptions at or below €1,000 are paid by card. Invoices are NET30.',
+          a: 'Invoice payment (bank transfer) is available for annual subscriptions above €1,000 for EUR customers. Today that means Self-Hosted Support and Hosted KANAP annual subscriptions. Invoices are NET30.',
         },
         {
-          q: 'Can I upgrade or downgrade?',
-          a: 'Yes. Switch between Starter, Standard and Max anytime from your workspace settings. If you upgrade mid-cycle, you\'re charged the prorated difference. Downgrade at the end of your billing period.',
+          q: 'Can I switch between self-hosted and hosted?',
+          a: 'Yes. KANAP is the same product in both modes. Contact us if you want to move from self-hosted to hosted, or if you need an export to operate the platform yourself.',
         },
         {
           q: 'Can I cancel my subscription?',
@@ -84,7 +84,7 @@ const content: FaqContent = {
       items: [
         {
           q: 'What\'s the difference between included Plaid messages and Bring Your Own Key?',
-          a: 'Every cloud plan includes a generous number of Plaid messages, powered by a mid-range model we\'ve carefully selected and tested with KANAP. For even more capable responses, the Bring Your Own Key option lets you connect state-of-the-art models from OpenAI, Anthropic, or any compatible provider. BYOK also gives you full control over how your data is processed, and removes any message limit.',
+          a: 'Hosted KANAP includes a generous number of Plaid messages, powered by a mid-range model we\'ve carefully selected and tested with KANAP. For even more capable responses, the Bring Your Own Key option lets you connect state-of-the-art models from OpenAI, Anthropic, or any compatible provider. BYOK also gives you full control over how your data is processed, and removes any message limit.',
         },
         {
           q: 'How can I control Plaid?',

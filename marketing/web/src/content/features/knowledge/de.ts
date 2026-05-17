@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Bereit, Ihre IT-Dokumentation zu steuern?',
-    body: 'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon. Alle Funktionen in jedem Plan.',
+    body: 'Hosten Sie kostenlos selbst oder testen Sie Hosted Cloud. Alle Funktionen in jedem Plan.',
     primary: 'Testversion starten',
     secondary: 'Sprechen Sie mit uns',
   },

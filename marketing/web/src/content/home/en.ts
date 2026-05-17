@@ -4,16 +4,16 @@ const content: HomeContent = {
   meta: {
     title: 'The open source IT governance platform',
     description:
-      'Budget, enterprise architecture, portfolio and knowledge in one AI-powered platform. Built by a CIO. Open source under AGPL v3. Self-host free or cloud from €49/mo.',
+      'Budget, enterprise architecture, portfolio and knowledge in one AI-powered platform. Built by a CIO. Open source under AGPL v3. Self-host free or choose hosted KANAP.',
   },
 
   hero: {
     eyebrow: 'Bring clarity to your IT department',
     title: 'The open source IT governance platform.',
-    lead: 'Budget, architecture, portfolio and knowledge in one platform, with Plaid, the built-in AI assistant.\nSelf-host it, or let us run it.',
-    primaryCta: 'Start free trial',
-    secondaryCta: 'Explore features',
-    trialNote: '14-day trial · no credit card · free activation session.',
+    lead: 'Budget, architecture, portfolio and knowledge in one platform, with Plaid, the built-in AI assistant.\nSelf-host it for free, or let us run it for you.',
+    primaryCta: 'Deploy free',
+    secondaryCta: 'Try hosted cloud',
+    trialNote: 'AGPL v3 · full source on GitHub · Docker install · no feature paywall.',
   },
 
   pillars: {
@@ -22,7 +22,7 @@ const content: HomeContent = {
     items: [
       {
         title: 'Practitioner-built',
-        body: 'Designed by a seasoned IT veteran with real experience across industries. It solves actual IT department problems. Fits any sector.',
+        body: 'Designed by a seasoned IT veteran with real experience across industries. It solves actual IT department problems, not generic collaboration problems.',
       },
       {
         title: 'Simple & powerful',
@@ -30,7 +30,7 @@ const content: HomeContent = {
       },
       {
         title: 'Truly open source',
-        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no bait-and-switch, no freemium pricing.',
+        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no feature paywall, no freemium trap.',
       },
     ],
   },
@@ -102,7 +102,7 @@ const content: HomeContent = {
           'Natural-language queries across every module',
           'Document and task actions with preview',
           'MCP server for Claude, Cursor, Windsurf…',
-          'Free usage included on cloud plans, or bring your own key',
+          'Usage included on hosted cloud, or bring your own key',
         ],
         ctaLabel: 'Learn more',
       },
@@ -154,11 +154,11 @@ const content: HomeContent = {
   },
 
   cta: {
-    title: 'Ready to bring clarity to your IT department?',
+    title: 'Ready to run IT from one open source system?',
     body:
-      'Start free with self-hosting, or try the cloud from €49/mo.\nAll features on every plan, cloud or self-hosted.',
-    primary: 'Start free trial',
-    secondary: 'Deploy from GitHub',
+      'Deploy KANAP yourself for free, or try the hosted version if you want us to operate it.\nSame product. Same features. Your choice.',
+    primary: 'Deploy free',
+    secondary: 'Try hosted cloud',
   },
 };
 

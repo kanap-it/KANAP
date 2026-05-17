@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Budget-Management',
     description:
-      'Mehrjährige IT-Budgetplanung, sechs Verteilungsmethoden, Mehrwährung mit Weltbank-Kursen, Chargeback für die Geschäftsführung. Open Source. Self-Hosting kostenlos oder Cloud ab 49 €/Mon.',
+      'Mehrjährige IT-Budgetplanung, sechs Verteilungsmethoden, Mehrwährung mit Weltbank-Kursen, Chargeback für die Geschäftsführung. Open Source. Self-Hosting kostenlos oder Hosted Cloud.',
   },
   header: {
     eyebrow: 'Budget-Management',
@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Bereit, Ihr IT-Budget in den Griff zu bekommen?',
-    body: 'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon. Alle Funktionen in jedem Plan.',
+    body: 'Hosten Sie kostenlos selbst oder testen Sie Hosted Cloud. Alle Funktionen in jedem Plan.',
     primary: 'Testversion starten',
     secondary: 'Sprechen Sie mit uns',
   },

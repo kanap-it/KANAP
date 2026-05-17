@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: '¿Listo para gobernar tu documentación de TI?',
-    body: 'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes. Todas las funcionalidades en todos los planes.',
+    body: 'Autoaloja gratis o prueba la nube alojada. Todas las funcionalidades en todos los planes.',
     primary: 'Empezar prueba gratuita',
     secondary: 'Habla con nosotros',
   },

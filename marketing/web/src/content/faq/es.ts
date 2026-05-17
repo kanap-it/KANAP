@@ -4,7 +4,7 @@ const content: FaqContent = {
   meta: {
     title: 'FAQ',
     description:
-      'Preguntas frecuentes sobre precios, licencia, autoalojamiento, planes cloud, Plaid, soporte y facturación de KANAP.',
+      'Preguntas frecuentes sobre precios, licencia, autoalojamiento, nube alojada, Plaid, soporte y facturación de KANAP.',
   },
   header: {
     eyebrow: 'FAQ',
@@ -35,7 +35,7 @@ const content: FaqContent = {
       items: [
         {
           q: '¿Cómo funciona la prueba gratuita?',
-          a: 'Cada plan cloud de pago comienza con una prueba gratuita de 14 días. Sin tarjeta de crédito. Acceso completo a todas las funcionalidades, más una sesión de activación de 60 minutos gratuita por empresa si se reserva durante la prueba.',
+          a: 'KANAP alojado comienza con una prueba gratuita de 14 días. Sin tarjeta de crédito. Acceso completo a todas las funcionalidades, más una sesión de activación de 60 minutos gratuita por empresa si se reserva durante la prueba.',
         },
         {
           q: '¿Qué pasa cuando termina mi prueba?',
@@ -47,7 +47,7 @@ const content: FaqContent = {
         },
         {
           q: '¿Cuál es la diferencia entre cloud y autoalojado?',
-          a: 'El hosting cloud significa que nosotros gestionamos todo, actualizaciones, copias de seguridad, infraestructura. Autoalojado significa que ejecutas KANAP en tus propios servidores. Los planes cloud de pago (Starter, Standard, Max) incluyen hosting cloud; el plan gratuito es solo autoalojado. Puedes contratar Soporte autoalojado para instalaciones autoalojadas.',
+          a: 'El hosting cloud significa que nosotros gestionamos todo: alojamiento, actualizaciones, copias de seguridad, infraestructura y soporte prioritario. Autoalojado significa que ejecutas KANAP en tus propios servidores. El producto completo es gratuito para autoalojar; puedes contratar Soporte autoalojado si quieres ayuda prioritaria manteniendo el control de tu infraestructura.',
         },
       ],
     },
@@ -69,11 +69,11 @@ const content: FaqContent = {
       items: [
         {
           q: '¿Puedo pagar por factura?',
-          a: 'El pago por factura (transferencia bancaria) está disponible para suscripciones superiores a 1 000 € solo para clientes EUR. Hoy esto significa Standard anual, Max anual y Soporte autoalojado. Las suscripciones iguales o inferiores a 1 000 € se pagan con tarjeta. Las facturas son NET30.',
+          a: 'El pago por factura (transferencia bancaria) está disponible para suscripciones anuales superiores a 1 000 € para clientes EUR. Hoy esto significa Soporte autoalojado y KANAP alojado anual. Las facturas son NET30.',
         },
         {
-          q: '¿Puedo subir o bajar de plan?',
-          a: 'Sí. Cambia entre Starter, Standard y Max en cualquier momento desde los ajustes de tu workspace. Si subes a mitad de ciclo, se te cobra la diferencia prorrateada. La bajada se aplica al final de tu periodo de facturación.',
+          q: '¿Puedo cambiar entre autoalojado y nube alojada?',
+          a: 'Sí. KANAP es el mismo producto en ambos modos. Contáctanos si quieres pasar de autoalojado a nube alojada, o si necesitas una exportación para operar la plataforma tú mismo.',
         },
         {
           q: '¿Puedo cancelar mi suscripción?',
@@ -86,7 +86,7 @@ const content: FaqContent = {
       items: [
         {
           q: '¿Cuál es la diferencia entre los mensajes Plaid incluidos y Bring Your Own Key?',
-          a: 'Cada plan cloud incluye una cantidad generosa de mensajes Plaid, alimentados por un modelo intermedio que hemos seleccionado y probado cuidadosamente con KANAP. Para respuestas aún más capaces, la opción Bring Your Own Key te permite conectar modelos de última generación de OpenAI, Anthropic o cualquier proveedor compatible. BYOK también te da control total sobre cómo se procesan tus datos, y elimina cualquier límite de mensajes.',
+          a: 'KANAP alojado incluye una cantidad generosa de mensajes Plaid, alimentados por un modelo intermedio que hemos seleccionado y probado cuidadosamente con KANAP. Para respuestas aún más capaces, la opción Bring Your Own Key te permite conectar modelos de última generación de OpenAI, Anthropic o cualquier proveedor compatible. BYOK también te da control total sobre cómo se procesan tus datos, y elimina cualquier límite de mensajes.',
         },
         {
           q: '¿Cómo puedo controlar Plaid?',

@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'IT landscape',
     description:
-      'Document applications, interfaces, and infrastructure. Interactive architecture maps, lifecycle tracking, 3-leg middleware. Open source. Self-host free or cloud from €49/mo.',
+      'Document applications, interfaces, and infrastructure. Interactive architecture maps, lifecycle tracking, 3-leg middleware. Open source. Self-host free or choose hosted cloud.',
   },
   header: {
     eyebrow: 'IT landscape',
@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Ready to document your information system?',
-    body: 'Start free with self-hosting, or try the cloud from €49/mo. All features on every plan.',
+    body: 'Self-host for free, or try hosted cloud. All features on every plan.',
     primary: 'Start free trial',
     secondary: 'Talk to us',
   },

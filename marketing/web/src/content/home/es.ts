@@ -4,16 +4,16 @@ const content: HomeContent = {
   meta: {
     title: 'La plataforma de gobernanza de TI de código abierto',
     description:
-      'Presupuesto, arquitectura empresarial, portafolio y conocimiento en una plataforma con IA. Creada por un CIO. Código abierto bajo AGPL v3. Autoalojamiento gratuito o nube desde 49 €/mes.',
+      'Presupuesto, arquitectura empresarial, portafolio y conocimiento en una plataforma con IA. Creada por un CIO. Código abierto bajo AGPL v3. Autoalojamiento gratuito o KANAP alojado.',
   },
 
   hero: {
     eyebrow: 'Aporta claridad a tu departamento de TI',
     title: 'La plataforma de gobernanza de TI de código abierto.',
-    lead: 'Presupuesto, arquitectura, portafolio y conocimiento en una sola plataforma, con Plaid, el asistente de IA integrado.\nAutoaloja o déjanos gestionarla.',
-    primaryCta: 'Empezar prueba gratuita',
-    secondaryCta: 'Explorar funcionalidades',
-    trialNote: 'Prueba de 14 días · sin tarjeta · sesión de activación gratuita.',
+    lead: 'Presupuesto, arquitectura, portafolio y conocimiento en una sola plataforma, con Plaid, el asistente de IA integrado.\nAutoalójala gratis o déjanos operarla por ti.',
+    primaryCta: 'Desplegar gratis',
+    secondaryCta: 'Probar nube alojada',
+    trialNote: 'AGPL v3 · código completo en GitHub · instalación Docker · sin paywall de funcionalidades.',
   },
 
   pillars: {
@@ -102,7 +102,7 @@ const content: HomeContent = {
           'Consultas en lenguaje natural en todos los módulos',
           'Acciones sobre documentos y tareas con vista previa',
           'Servidor MCP para Claude, Cursor, Windsurf…',
-          'Uso gratuito incluido en planes cloud, o usa tu propia clave',
+          'Uso incluido en nube alojada, o usa tu propia clave',
         ],
         ctaLabel: 'Más información',
       },
@@ -154,11 +154,11 @@ const content: HomeContent = {
   },
 
   cta: {
-    title: '¿Listo para aportar claridad a tu departamento de TI?',
+    title: '¿Listo para gestionar TI desde un sistema open source?',
     body:
-      'Empieza gratis autoalojando, o prueba la nube desde 49 €/mes.\nTodas las funcionalidades en cada plan, en la nube o autoalojado.',
-    primary: 'Empezar prueba gratuita',
-    secondary: 'Desplegar desde GitHub',
+      'Despliega KANAP tú mismo gratis, o prueba la versión alojada si quieres que la operemos nosotros.\nMismo producto. Mismas funcionalidades. Tú eliges.',
+    primary: 'Desplegar gratis',
+    secondary: 'Probar nube alojada',
   },
 };
 

@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Portfolio management',
     description:
-      'Request scoring, automatic roadmap generation, capacity-aware scheduling, project lifecycle tracking. Open source. Self-host free or cloud from €49/mo.',
+      'Request scoring, automatic roadmap generation, capacity-aware scheduling, project lifecycle tracking. Open source. Self-host free or choose hosted cloud.',
   },
   header: {
     eyebrow: 'Portfolio management',
@@ -81,7 +81,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Ready to take control of your project funnel?',
-    body: 'Start free with self-hosting, or try the cloud from €49/mo. All features on every plan.',
+    body: 'Self-host for free, or try hosted cloud. All features on every plan.',
     primary: 'Start free trial',
     secondary: 'Talk to us',
   },

@@ -4,7 +4,7 @@ const content: FaqContent = {
   meta: {
     title: 'FAQ',
     description:
-      'Häufige Fragen zu KANAP: Preise, Lizenz, Self-Hosting, Cloud-Pläne, Plaid, Support und Abrechnung.',
+      'Häufige Fragen zu KANAP: Preise, Lizenz, Self-Hosting, Hosted Cloud, Plaid, Support und Abrechnung.',
   },
   header: {
     eyebrow: 'FAQ',
@@ -35,7 +35,7 @@ const content: FaqContent = {
       items: [
         {
           q: 'Wie funktioniert die kostenlose Testversion?',
-          a: 'Jeder kostenpflichtige Cloud-Plan beginnt mit einem 14-tägigen kostenlosen Test. Keine Kreditkarte erforderlich. Voller Zugriff auf alle Funktionen, plus eine kostenlose 60-minütige Aktivierungssitzung pro Unternehmen, wenn sie während der Testphase gebucht wird.',
+          a: 'Hosted KANAP beginnt mit einem 14-tägigen kostenlosen Test. Keine Kreditkarte erforderlich. Voller Zugriff auf alle Funktionen, plus eine kostenlose 60-minütige Aktivierungssitzung pro Unternehmen, wenn sie während der Testphase gebucht wird.',
         },
         {
           q: 'Was passiert nach meiner Testphase?',
@@ -47,7 +47,7 @@ const content: FaqContent = {
         },
         {
           q: 'Was ist der Unterschied zwischen Cloud und Self-Hosting?',
-          a: 'Cloud-Hosting heißt, wir betreiben alles für Sie, Updates, Backups, Infrastruktur. Self-Hosting heißt, Sie betreiben KANAP auf eigenen Servern. Kostenpflichtige Cloud-Pläne (Starter, Standard, Max) enthalten Cloud-Hosting; der kostenlose Tarif ist nur Self-Hosting. Für selbstgehostete Installationen können Sie Self-Hosted Support hinzubuchen.',
+          a: 'Cloud-Hosting heißt, wir betreiben alles für Sie: Hosting, Updates, Backups, Infrastruktur und prioritären Support. Self-Hosting heißt, Sie betreiben KANAP auf eigenen Servern. Das komplette Produkt ist kostenlos selbst hostbar; für prioritäre Hilfe können Sie Self-Hosted Support hinzubuchen.',
         },
       ],
     },
@@ -69,11 +69,11 @@ const content: FaqContent = {
       items: [
         {
           q: 'Kann ich per Rechnung zahlen?',
-          a: 'Rechnungszahlung (Überweisung) ist für Abonnements über 1.000 € verfügbar, nur für EUR-Kunden. Heute heißt das: Standard jährlich, Max jährlich und Self-Hosted Support. Abonnements bis einschließlich 1.000 € werden per Karte bezahlt. Rechnungen sind NET30.',
+          a: 'Rechnungszahlung (Überweisung) ist für jährliche Abonnements über 1.000 € für EUR-Kunden verfügbar. Heute heißt das: Self-Hosted Support und Hosted KANAP im Jahresabo. Rechnungen sind NET30.',
         },
         {
-          q: 'Kann ich upgraden oder downgraden?',
-          a: 'Ja. Wechseln Sie jederzeit zwischen Starter, Standard und Max aus den Workspace-Einstellungen. Bei einem Upgrade mitten im Zyklus wird die anteilige Differenz berechnet. Ein Downgrade greift am Ende Ihrer Abrechnungsperiode.',
+          q: 'Kann ich zwischen Self-Hosting und Hosted Cloud wechseln?',
+          a: 'Ja. KANAP ist in beiden Modi dasselbe Produkt. Kontaktieren Sie uns, wenn Sie von Self-Hosting zu Hosted Cloud wechseln möchten oder einen Export benötigen, um die Plattform selbst zu betreiben.',
         },
         {
           q: 'Kann ich mein Abonnement kündigen?',
@@ -86,7 +86,7 @@ const content: FaqContent = {
       items: [
         {
           q: 'Was ist der Unterschied zwischen den inkludierten Plaid-Nachrichten und Bring Your Own Key?',
-          a: 'Jeder Cloud-Plan enthält eine großzügige Zahl an Plaid-Nachrichten, betrieben mit einem Mid-Range-Modell, das wir sorgfältig ausgewählt und mit KANAP getestet haben. Für noch leistungsfähigere Antworten können Sie über Bring Your Own Key State-of-the-Art-Modelle von OpenAI, Anthropic oder jedem kompatiblen Anbieter anbinden. BYOK gibt Ihnen zudem die volle Kontrolle über die Datenverarbeitung, und entfernt jede Nachrichten-Grenze.',
+          a: 'Hosted KANAP enthält eine großzügige Zahl an Plaid-Nachrichten, betrieben mit einem Mid-Range-Modell, das wir sorgfältig ausgewählt und mit KANAP getestet haben. Für noch leistungsfähigere Antworten können Sie über Bring Your Own Key State-of-the-Art-Modelle von OpenAI, Anthropic oder jedem kompatiblen Anbieter anbinden. BYOK gibt Ihnen zudem die volle Kontrolle über die Datenverarbeitung, und entfernt jede Nachrichten-Grenze.',
         },
         {
           q: 'Wie kann ich Plaid steuern?',

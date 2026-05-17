@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Budget management',
     description:
-      'Multi-year IT budget planning, six allocation methods, multi-currency with World Bank rates, executive chargeback. Open source. Self-host free or cloud from €49/mo.',
+      'Multi-year IT budget planning, six allocation methods, multi-currency with World Bank rates, executive chargeback. Open source. Self-host free or choose hosted cloud.',
   },
   header: {
     eyebrow: 'Budget management',
@@ -80,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Ready to master your IT budget?',
-    body: 'Start free with self-hosting, or try the cloud from €49/mo. All features on every plan.',
+    body: 'Self-host for free, or try hosted cloud. All features on every plan.',
     primary: 'Start free trial',
     secondary: 'Talk to us',
   },

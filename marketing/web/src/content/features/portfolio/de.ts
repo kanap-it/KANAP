@@ -4,7 +4,7 @@ const content: FeatureContent = {
   meta: {
     title: 'Portfolio-Management',
     description:
-      'Anfrage-Scoring, automatische Roadmap-Erstellung, kapazitätsbewusste Planung, Projekt-Lifecycle-Tracking. Open Source. Self-Hosting kostenlos oder Cloud ab 49 €/Mon.',
+      'Anfrage-Scoring, automatische Roadmap-Erstellung, kapazitätsbewusste Planung, Projekt-Lifecycle-Tracking. Open Source. Self-Hosting kostenlos oder Hosted Cloud.',
   },
   header: {
     eyebrow: 'Portfolio-Management',
@@ -81,7 +81,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'Bereit, Ihren Projekt-Funnel in den Griff zu bekommen?',
-    body: 'Starten Sie kostenlos mit Self-Hosting oder testen Sie die Cloud ab 49 €/Mon. Alle Funktionen in jedem Plan.',
+    body: 'Hosten Sie kostenlos selbst oder testen Sie Hosted Cloud. Alle Funktionen in jedem Plan.',
     primary: 'Testversion starten',
     secondary: 'Sprechen Sie mit uns',
   },
