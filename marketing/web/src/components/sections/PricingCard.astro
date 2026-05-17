@@ -35,6 +35,8 @@ const {
   note,
   featured = false,
 } = Astro.props;
+
+const opensSupportInvoice = ctaHref === '#support-invoice';
 ---
 
 <article class:list={['mk-price', { 'mk-price--featured': featured }]}>
@@ -54,6 +56,7 @@ const {
 
   <a
     href={ctaHref}
+    data-open-support-invoice={opensSupportInvoice ? 'true' : undefined}
     class:list={['mk-btn', ctaVariant === 'primary' ? 'mk-btn--primary' : 'mk-btn--ghost', 'mk-price__cta']}
   >
     {ctaLabel}

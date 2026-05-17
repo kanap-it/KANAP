@@ -13,14 +13,16 @@ import {
   Callout,
 } from './sections';
 import { getLocaleFromUrl, localePath } from '../i18n/ui';
-import { getOfferContent } from '../content/resolve';
+import { getOfferContent, getTrialContent } from '../content/resolve';
 
 const locale = getLocaleFromUrl(Astro.url);
 const content = getOfferContent(locale);
+const trial = getTrialContent(locale).start;
 const pricingPlans = [...content.selfHosted.plans, ...content.cloud.plans];
 
 // Localize internal CTA hrefs
 function resolveHref(href: string): string {
+  if (href.startsWith('#')) return href;
   if (href.startsWith('http')) return href;
   return localePath(locale, href);
 }
@@ -163,7 +165,268 @@ function resolveHref(href: string): string {
       secondaryLabel={content.cta.secondary}
     />
   </Section>
+
+  <div class="mk-support-modal" data-support-invoice-modal hidden>
+    <div class="mk-support-modal__backdrop" data-close-support-invoice></div>
+    <section
+      class="mk-support-modal__panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="support-invoice-title"
+    >
+      <button
+        type="button"
+        class="mk-support-modal__close"
+        data-close-support-invoice
+        aria-label={content.supportInvoice.closeLabel}
+      >
+        ×
+      </button>
+
+      <header class="mk-support-modal__head">
+        <span class="mk-eyebrow">{content.supportInvoice.eyebrow}</span>
+        <h2 id="support-invoice-title">{content.supportInvoice.title}</h2>
+        <p class="mk-lead">{content.supportInvoice.body}</p>
+      </header>
+
+      <form class="mk-support-form" data-support-invoice-form novalidate>
+        <div class="mk-support-form__row">
+          <div class="mk-tf__field">
+            <label for="si-company">{content.supportInvoice.companyLabel}</label>
+            <input id="si-company" name="company_name" type="text" required autocomplete="organization" />
+          </div>
+          <div class="mk-tf__field">
+            <label for="si-contact">{content.supportInvoice.contactLabel}</label>
+            <input id="si-contact" name="contact_name" type="text" required autocomplete="name" />
+          </div>
+        </div>
+
+        <div class="mk-support-form__row">
+          <div class="mk-tf__field">
+            <label for="si-email">{content.supportInvoice.billingEmailLabel}</label>
+            <input id="si-email" name="billing_email" type="email" required autocomplete="email" />
+          </div>
+          <div class="mk-tf__field">
+            <label for="si-country">{content.supportInvoice.countryLabel}</label>
+            <select id="si-country" name="country" required>
+              <option value="" disabled selected>—</option>
+              {trial.countryOptions.map((o) => (
+                <option value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <details class="mk-support-form__details">
+          <summary>{content.supportInvoice.optionalSummary}</summary>
+          <div class="mk-support-form__optional">
+            <div class="mk-tf__field">
+              <label for="si-vat">{content.supportInvoice.vatLabel}</label>
+              <input id="si-vat" name="vat_id" type="text" autocomplete="off" />
+            </div>
+            <div class="mk-tf__field">
+              <label for="si-address1">{content.supportInvoice.address1Label}</label>
+              <input id="si-address1" name="address_line1" type="text" autocomplete="address-line1" />
+            </div>
+            <div class="mk-tf__field">
+              <label for="si-address2">{content.supportInvoice.address2Label}</label>
+              <input id="si-address2" name="address_line2" type="text" autocomplete="address-line2" />
+            </div>
+            <div class="mk-support-form__row">
+              <div class="mk-tf__field">
+                <label for="si-city">{content.supportInvoice.cityLabel}</label>
+                <input id="si-city" name="city" type="text" autocomplete="address-level2" />
+              </div>
+              <div class="mk-tf__field">
+                <label for="si-postal">{content.supportInvoice.postalCodeLabel}</label>
+                <input id="si-postal" name="postal_code" type="text" autocomplete="postal-code" />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="mk-tf__field" data-support-turnstile-field hidden>
+          <span class="mk-tf__label-spacer">{content.supportInvoice.captchaLabel}</span>
+          <div data-support-turnstile-container data-turnstile-action="support-invoice"></div>
+        </div>
+
+        <div class="mk-tf__status" role="status" aria-live="polite" data-support-invoice-status></div>
+
+        <button type="submit" class="mk-btn mk-btn--primary mk-tf__submit" data-support-invoice-submit>
+          {content.supportInvoice.submitLabel}
+        </button>
+      </form>
+    </section>
+  </div>
 </BaseLayout>
+
+<script define:vars={{
+  submitLabel: content.supportInvoice.submitLabel,
+  submittingLabel: content.supportInvoice.submittingLabel,
+  successWithLink: content.supportInvoice.successWithLink,
+  successLinkLabel: content.supportInvoice.successLinkLabel,
+  successNoLink: content.supportInvoice.successNoLink,
+  errorGeneric: content.supportInvoice.errorGeneric,
+  errorRequired: content.supportInvoice.errorRequired,
+}}>
+  const modal = document.querySelector('[data-support-invoice-modal]');
+  const form = document.querySelector('[data-support-invoice-form]');
+  const btn = document.querySelector('[data-support-invoice-submit]');
+  const statusEl = document.querySelector('[data-support-invoice-status]');
+  const openers = document.querySelectorAll('[data-open-support-invoice]');
+  const closers = document.querySelectorAll('[data-close-support-invoice]');
+  const captcha = { enabled: false, required: false, token: '', widgetId: null, ready: false };
+
+  function setStatus(text, kind) {
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.className = 'mk-tf__status' + (kind ? ' mk-tf__status--' + kind : '');
+  }
+
+  function setInvoiceLink(url) {
+    if (!statusEl) return;
+    statusEl.textContent = successWithLink + ' ';
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = successLinkLabel;
+    statusEl.appendChild(link);
+    statusEl.className = 'mk-tf__status mk-tf__status--success';
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-turnstile-script]');
+      if (existing) {
+        if (window.turnstile) resolve();
+        else existing.addEventListener('load', resolve, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.defer = true;
+      script.dataset.turnstileScript = 'true';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function setupCaptcha() {
+    if (captcha.ready) return;
+    const field = document.querySelector('[data-support-turnstile-field]');
+    const container = document.querySelector('[data-support-turnstile-container]');
+    if (!field || !container) return;
+    try {
+      const res = await fetch('/api/public/captcha-config', { headers: { accept: 'application/json' } });
+      if (!res.ok) return;
+      const config = await res.json();
+      if (!config || !config.enabled || !config.siteKey) return;
+      captcha.enabled = true;
+      captcha.required = config.required === true;
+      field.hidden = false;
+      await loadScript('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit');
+      if (!window.turnstile) throw new Error('turnstile unavailable');
+      captcha.widgetId = window.turnstile.render(container, {
+        sitekey: config.siteKey,
+        action: container.dataset.turnstileAction || 'support-invoice',
+        callback: function (token) { captcha.token = token || ''; },
+        'expired-callback': function () { captcha.token = ''; },
+        'error-callback': function () { captcha.token = ''; },
+      });
+      captcha.ready = true;
+    } catch (err) {
+      if (captcha.required) setStatus(errorGeneric, 'error');
+    }
+  }
+
+  function openModal() {
+    if (!modal) return;
+    modal.hidden = false;
+    document.documentElement.classList.add('mk-support-modal-open');
+    setStatus('');
+    setupCaptcha();
+    const firstInput = modal.querySelector('input, select, textarea, button');
+    if (firstInput) firstInput.focus();
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.hidden = true;
+    document.documentElement.classList.remove('mk-support-modal-open');
+  }
+
+  openers.forEach((opener) => {
+    opener.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal();
+    });
+  });
+
+  closers.forEach((closer) => closer.addEventListener('click', closeModal));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal && !modal.hidden) closeModal();
+  });
+
+  if (form && btn) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const payload = {
+        company_name: String(fd.get('company_name') ?? '').trim(),
+        contact_name: String(fd.get('contact_name') ?? '').trim(),
+        billing_email: String(fd.get('billing_email') ?? '').trim(),
+        country: String(fd.get('country') ?? ''),
+        vat_id: String(fd.get('vat_id') ?? '').trim() || undefined,
+        address_line1: String(fd.get('address_line1') ?? '').trim() || undefined,
+        address_line2: String(fd.get('address_line2') ?? '').trim() || undefined,
+        city: String(fd.get('city') ?? '').trim() || undefined,
+        postal_code: String(fd.get('postal_code') ?? '').trim() || undefined,
+        captchaToken: captcha.enabled ? captcha.token : undefined,
+      };
+
+      if (!payload.company_name || !payload.contact_name || !payload.billing_email || !payload.country) {
+        setStatus(errorRequired, 'error');
+        return;
+      }
+      if (captcha.required && !payload.captchaToken) {
+        setStatus(errorGeneric, 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = submittingLabel;
+      setStatus('');
+
+      try {
+        const res = await fetch('/api/public/request-support-invoice', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('bad status ' + res.status);
+        const data = await res.json();
+        if (data && data.hosted_invoice_url) {
+          setInvoiceLink(data.hosted_invoice_url);
+        } else {
+          setStatus(successNoLink, 'success');
+        }
+        form.reset();
+        if (captcha.enabled && window.turnstile && captcha.widgetId !== null) {
+          window.turnstile.reset(captcha.widgetId);
+          captcha.token = '';
+        }
+      } catch (err) {
+        setStatus(errorGeneric, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = submitLabel;
+      }
+    });
+  }
+</script>
 
 <style>
   .mk-offer-head {
@@ -392,5 +655,119 @@ function resolveHref(href: string): string {
   .mk-rates__note {
     margin-top: 14px;
     color: var(--kanap-text-tertiary);
+  }
+
+  .mk-support-modal[hidden] {
+    display: none;
+  }
+
+  .mk-support-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+  }
+
+  .mk-support-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 16, 20, 0.48);
+    backdrop-filter: blur(3px);
+  }
+
+  .mk-support-modal__panel {
+    position: relative;
+    z-index: 1;
+    width: min(760px, 100%);
+    max-height: min(90vh, 860px);
+    overflow: auto;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+    padding: 32px;
+  }
+
+  .mk-support-modal__close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: 50%;
+    background: var(--kanap-bg-page);
+    color: var(--kanap-text-secondary);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .mk-support-modal__head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 640px;
+    margin-bottom: 24px;
+  }
+
+  .mk-support-modal__head h2,
+  .mk-support-modal__head p {
+    margin: 0;
+  }
+
+  .mk-support-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .mk-support-form__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .mk-support-form__details {
+    border: 1px solid var(--kanap-border-soft);
+    border-radius: var(--kanap-radius-composer);
+    padding: 14px 16px;
+  }
+
+  .mk-support-form__details summary {
+    color: var(--kanap-text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .mk-support-form__optional {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 16px;
+  }
+
+  .mk-support-modal-open {
+    overflow: hidden;
+  }
+
+  @media (max-width: 680px) {
+    .mk-support-modal {
+      padding: 12px;
+    }
+
+    .mk-support-modal__panel {
+      padding: 26px 18px;
+    }
+
+    .mk-support-form__row {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
