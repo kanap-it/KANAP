@@ -15,10 +15,10 @@ const content: OfferContent = {
 
   /* -------------------- Self-hosted (primary) -------------------- */
   selfHosted: {
-    eyebrow: 'Self-hosted · the first-class citizen',
-    title: 'Run KANAP yourself.\nFree, forever.',
+    eyebrow: 'Choose your path',
+    title: 'Same product.\nThree ways to run it.',
     intro:
-      'The full platform under AGPL v3. Deploy to your own infrastructure, own your data, update on your cadence. Optional paid support if you want priority help without giving up control.',
+      'Start with the full open source platform, add priority support if you want help, or choose hosted KANAP if you want us to operate it.',
     plans: [
       {
         name: 'Self-host',

@@ -14,10 +14,10 @@ const content: OfferContent = {
   },
 
   selfHosted: {
-    eyebrow: 'Auto-hébergement · approche prioritaire',
-    title: 'Hébergez KANAP vous-même.\nGratuit, pour toujours.',
+    eyebrow: 'Choisissez votre chemin',
+    title: 'Même produit.\nTrois façons de l\'exécuter.',
     intro:
-      'La plateforme complète sous AGPL v3. Déployez sur votre infrastructure, gardez vos données, mettez à jour à votre rythme. Support payant optionnel si vous voulez de l\'aide prioritaire sans céder le contrôle.',
+      'Démarrez avec la plateforme open source complète, ajoutez le support prioritaire si vous voulez de l\'aide, ou choisissez KANAP hébergé si vous voulez nous confier l\'exploitation.',
     plans: [
       {
         name: 'Auto-hébergement',
