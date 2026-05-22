@@ -13,7 +13,6 @@ import {
   FormControlLabel,
   IconButton,
   InputAdornment,
-  LinearProgress,
   List,
   ListItem,
   ListItemButton,
@@ -30,6 +29,7 @@ import {
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams, RowClickedEvent } from 'ag-grid-community';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -131,7 +131,6 @@ type RuleEditorState = {
 type MappingRuleGridRow = {
   id: string;
   rule: InterfaceMappingRule;
-  order_index: number;
   title: string;
   mapping_text: string;
   source_text: string;
@@ -147,7 +146,6 @@ type MappingRuleGridRow = {
 
 type MappingRuleColumnKey =
   | 'group_label'
-  | 'order_index'
   | 'mapping'
   | 'lifecycle_label'
   | 'environment_scope_label'
@@ -214,7 +212,6 @@ const MAPPING_RULE_COLUMN_OPTIONS: Array<{
   defaultHidden?: boolean;
 }> = [
   { id: 'group_label', label: 'Group' },
-  { id: 'order_index', label: 'Order' },
   { id: 'mapping', label: 'Mapping', required: true },
   { id: 'lifecycle_label', label: 'Lifecycle' },
   { id: 'environment_scope_label', label: 'Environments' },
@@ -222,6 +219,33 @@ const MAPPING_RULE_COLUMN_OPTIONS: Array<{
   { id: 'leg_label', label: 'Leg scope', defaultHidden: true },
   { id: 'actions', label: 'Actions', required: true },
 ];
+const MAPPING_RULE_COLUMNS_STORAGE_KEY = 'kanap.interfaces.mappingRuleColumns.hidden';
+
+const DEFAULT_HIDDEN_RULE_COLUMNS = MAPPING_RULE_COLUMN_OPTIONS
+  .filter((column) => column.defaultHidden)
+  .map((column) => column.id);
+
+function normalizeHiddenRuleColumns(value: unknown): MappingRuleColumnKey[] {
+  if (!Array.isArray(value)) return DEFAULT_HIDDEN_RULE_COLUMNS;
+  const optionalColumnIds = new Set(
+    MAPPING_RULE_COLUMN_OPTIONS
+      .filter((column) => !column.required)
+      .map((column) => column.id),
+  );
+  return value
+    .map((item) => String(item))
+    .filter((item): item is MappingRuleColumnKey => optionalColumnIds.has(item as MappingRuleColumnKey));
+}
+
+function loadHiddenRuleColumns(): MappingRuleColumnKey[] {
+  if (typeof window === 'undefined') return DEFAULT_HIDDEN_RULE_COLUMNS;
+  try {
+    const stored = window.localStorage.getItem(MAPPING_RULE_COLUMNS_STORAGE_KEY);
+    return stored ? normalizeHiddenRuleColumns(JSON.parse(stored)) : DEFAULT_HIDDEN_RULE_COLUMNS;
+  } catch {
+    return DEFAULT_HIDDEN_RULE_COLUMNS;
+  }
+}
 
 const ruleDrawerPaperSx = {
   top: 48,
@@ -297,6 +321,16 @@ const compactIconButtonSx = {
   width: 28,
   height: 28,
   color: 'kanap.text.secondary',
+} as const;
+
+const mappingGridActionButtonSx = {
+  width: 24,
+  height: 24,
+  p: 0.25,
+  color: 'kanap.text.secondary',
+  '& .MuiSvgIcon-root': {
+    fontSize: 15,
+  },
 } as const;
 
 const mappingComposerFieldSx = {
@@ -392,6 +426,9 @@ const mappingRulesGridSx = {
   '& .ag-cell': {
     display: 'flex',
     alignItems: 'center',
+  },
+  '& .ag-cell.ag-cell-value': {
+    minWidth: 0,
   },
 } as const;
 
@@ -527,10 +564,19 @@ function sortMappingSets(sets: InterfaceMappingSet[]) {
   });
 }
 
+function groupTitlePriority(group: InterfaceMappingGroup | null | undefined) {
+  const key = normalizeGroupTitleKey(group?.title);
+  if (key === 'head') return 0;
+  if (key === 'item') return 1;
+  if (key) return 2;
+  return 3;
+}
+
 function sortGroups(groups: InterfaceMappingGroup[]) {
   return [...groups].sort((a, b) => {
-    if (a.order_index !== b.order_index) return a.order_index - b.order_index;
-    const titleCompare = (a.title || '').localeCompare(b.title || '');
+    const priorityCompare = groupTitlePriority(a) - groupTitlePriority(b);
+    if (priorityCompare !== 0) return priorityCompare;
+    const titleCompare = (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
     if (titleCompare !== 0) return titleCompare;
     return (a.id || '').localeCompare(b.id || '');
   });
@@ -546,13 +592,15 @@ function findGroupByTitle(groups: InterfaceMappingGroup[], title: string) {
 }
 
 function sortRules(rules: InterfaceMappingRule[], groups: InterfaceMappingGroup[]) {
-  const groupOrder = new Map(groups.map((group) => [group.id, group.order_index]));
+  const groupById = new Map(groups.map((group) => [group.id, group]));
   return [...rules].sort((a, b) => {
-    const aGroupOrder = a.group_id ? groupOrder.get(a.group_id) ?? Number.MAX_SAFE_INTEGER - 1 : Number.MAX_SAFE_INTEGER;
-    const bGroupOrder = b.group_id ? groupOrder.get(b.group_id) ?? Number.MAX_SAFE_INTEGER - 1 : Number.MAX_SAFE_INTEGER;
-    if (aGroupOrder !== bGroupOrder) return aGroupOrder - bGroupOrder;
-    if (a.order_index !== b.order_index) return a.order_index - b.order_index;
-    const titleCompare = (a.title || '').localeCompare(b.title || '');
+    const aGroup = a.group_id ? groupById.get(a.group_id) : null;
+    const bGroup = b.group_id ? groupById.get(b.group_id) : null;
+    const priorityCompare = groupTitlePriority(aGroup) - groupTitlePriority(bGroup);
+    if (priorityCompare !== 0) return priorityCompare;
+    const groupTitleCompare = (aGroup?.title || '').localeCompare(bGroup?.title || '', undefined, { sensitivity: 'base' });
+    if (groupTitleCompare !== 0) return groupTitleCompare;
+    const titleCompare = (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
     if (titleCompare !== 0) return titleCompare;
     return (a.id || '').localeCompare(b.id || '');
   });
@@ -864,11 +912,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
   const [selectedGroupId, setSelectedGroupId] = React.useState<GroupFilterKey>(ALL_GROUPS_KEY);
   const [ruleSearch, setRuleSearch] = React.useState('');
   const [columnChooserAnchor, setColumnChooserAnchor] = React.useState<HTMLElement | null>(null);
-  const [hiddenRuleColumns, setHiddenRuleColumns] = React.useState<MappingRuleColumnKey[]>(() => (
-    MAPPING_RULE_COLUMN_OPTIONS
-      .filter((column) => column.defaultHidden)
-      .map((column) => column.id)
-  ));
+  const [hiddenRuleColumns, setHiddenRuleColumns] = React.useState<MappingRuleColumnKey[]>(loadHiddenRuleColumns);
   const [groupManagerOpen, setGroupManagerOpen] = React.useState(false);
   const [groupEditor, setGroupEditor] = React.useState<GroupEditorState>(() => createClosedGroupEditor());
   const [ruleEditor, setRuleEditor] = React.useState<RuleEditorState>(() => createClosedRuleEditor());
@@ -876,6 +920,14 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
   const [pendingDeleteRule, setPendingDeleteRule] = React.useState<InterfaceMappingRule | null>(null);
 
   const legs = React.useMemo(() => (data?.legs || []) as InterfaceLeg[], [data?.legs]);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(MAPPING_RULE_COLUMNS_STORAGE_KEY, JSON.stringify(hiddenRuleColumns));
+    } catch {
+      // Column preferences are optional.
+    }
+  }, [hiddenRuleColumns]);
 
   const getRoleLabel = React.useCallback((role: string) => {
     const normalized = String(role || '').toLowerCase();
@@ -1042,7 +1094,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
       group_id: groupId,
       rule_key: normalizeOptionalText(form.rule_key),
       title,
-      order_index: parsePositiveInteger(form.order_index, 'Rule order', 'rule'),
+      order_index: existing?.order_index || parsePositiveInteger(form.order_index, 'Rule order', 'rule'),
       applies_to_leg_id: normalizeOptionalId(form.applies_to_leg_id),
       operation_kind: operationKind,
       lifecycle: normalizeRuleLifecycle(form.lifecycle),
@@ -1380,7 +1432,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
       return {
         id: rule.id,
         rule,
-        order_index: Number(rule.order_index || 0),
         title: rule.title || 'Untitled mapping',
         mapping_text: `${bindingsSummary(rule.source_bindings)} ${bindingsSummary(rule.target_bindings)}`,
         source_text: bindingsSummary(rule.source_bindings),
@@ -1569,11 +1620,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
   }, []);
 
   const resetRuleColumns = React.useCallback(() => {
-    setHiddenRuleColumns(
-      MAPPING_RULE_COLUMN_OPTIONS
-        .filter((column) => column.defaultHidden)
-        .map((column) => column.id),
-    );
+    setHiddenRuleColumns(DEFAULT_HIDDEN_RULE_COLUMNS);
   }, []);
 
   const mappingRuleColumns = React.useMemo<ColDef<MappingRuleGridRow>[]>(() => {
@@ -1586,22 +1633,11 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
         hide: !isRuleColumnVisible('group_label'),
       },
       {
-        field: 'order_index',
-        headerName: 'Order',
-        width: 68,
-        maxWidth: 76,
-        hide: !isRuleColumnVisible('order_index'),
-        filter: 'agNumberColumnFilter',
-        cellStyle: {
-          color: 'var(--kanap-text-secondary)',
-          fontVariantNumeric: 'tabular-nums',
-        },
-      },
-      {
         colId: 'mapping',
         headerName: 'Mapping',
-        minWidth: 320,
-        flex: 1.8,
+        width: 240,
+        minWidth: 180,
+        maxWidth: 420,
         hide: !isRuleColumnVisible('mapping'),
         valueGetter: (params) => [
           params.data?.title,
@@ -1708,9 +1744,8 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
       {
         colId: 'actions',
         headerName: 'Actions',
-        width: 118,
-        maxWidth: 126,
-        pinned: 'right',
+        width: 88,
+        maxWidth: 96,
         sortable: false,
         filter: false,
         resizable: false,
@@ -1719,7 +1754,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
           const row = params.data;
           if (!row) return null;
           return (
-            <Stack direction="row" spacing={0.25} justifyContent="flex-end" sx={{ width: '100%' }}>
+            <Stack direction="row" spacing={0.15} justifyContent="flex-end" sx={{ width: '100%' }}>
               <IconButton
                 size="small"
                 aria-label={`Copy ${row.title}`}
@@ -1728,8 +1763,9 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   copyRule(row.rule);
                 }}
                 disabled={ruleActionsDisabled}
+                sx={mappingGridActionButtonSx}
               >
-                <ContentCopyIcon fontSize="small" />
+                <ContentCopyIcon />
               </IconButton>
               <IconButton
                 size="small"
@@ -1739,8 +1775,9 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   openEditRule(row.rule);
                 }}
                 disabled={ruleActionsDisabled}
+                sx={mappingGridActionButtonSx}
               >
-                <EditIcon fontSize="small" />
+                <EditIcon />
               </IconButton>
               <IconButton
                 size="small"
@@ -1750,8 +1787,9 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   deleteRule(row.rule);
                 }}
                 disabled={ruleActionsDisabled}
+                sx={mappingGridActionButtonSx}
               >
-                <DeleteIcon fontSize="small" />
+                <DeleteIcon />
               </IconButton>
             </Stack>
           );
@@ -1771,8 +1809,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
   return (
     <Stack spacing={2.5} sx={{ pt: 1 }}>
       {!!error && <Alert severity="error">{error}</Alert>}
-
-      {loading ? <LinearProgress /> : null}
 
       {!mappingSet && !loading ? (
         <Alert severity="warning">
@@ -1812,8 +1848,8 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   </>
                 )}
                 <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
+                  variant="action"
+                  startIcon={<AddIcon sx={{ fontSize: '14px !important' }} />}
                   onClick={openCreateRule}
                   disabled={ruleActionsDisabled || !mappingSet}
                 >
@@ -1865,21 +1901,20 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   <MenuItem value={UNGROUPED_GROUP_KEY}>Ungrouped ({ruleCounts.ungrouped})</MenuItem>
                   {sortGroups(draftGroups).map((group) => (
                     <MenuItem key={group.id} value={group.id}>
-                      {group.order_index}. {group.title} ({ruleCounts.counts.get(group.id) || 0})
+                      {group.title} ({ruleCounts.counts.get(group.id) || 0})
                     </MenuItem>
                   ))}
                 </Select>
                 <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ViewColumnIcon fontSize="small" />}
+                  variant="action"
+                  startIcon={<ViewColumnIcon sx={{ fontSize: '14px !important' }} />}
                   onClick={(event) => setColumnChooserAnchor(event.currentTarget)}
                 >
                   Columns
                 </Button>
                 <Button
-                  size="small"
-                  variant="outlined"
+                  variant="action"
+                  startIcon={<AccountTreeOutlinedIcon sx={{ fontSize: '14px !important' }} />}
                   onClick={() => setGroupManagerOpen(true)}
                   disabled={groupActionsDisabled}
                 >
@@ -1894,12 +1929,14 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
               rowData={mappingRuleRows}
               columnDefs={mappingRuleColumns}
               defaultColDef={mappingRuleDefaultColDef}
+              autoSizeStrategy={{ type: 'fitCellContents', colIds: ['mapping'], skipHeader: true }}
               quickFilterText={ruleSearch}
               headerHeight={38}
               rowHeight={64}
-              animateRows
               suppressCellFocus
               suppressRowClickSelection
+              onFirstDataRendered={(event) => event.api.autoSizeColumns(['mapping'], true)}
+              onRowDataUpdated={(event) => event.api.autoSizeColumns(['mapping'], true)}
               getRowId={(params) => params.data.id}
               onRowClicked={(event: RowClickedEvent<MappingRuleGridRow>) => {
                 if (event.data) {
@@ -2042,7 +2079,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       }}
                     >
                       <ListItemText
-                        primary={`${group.order_index}. ${group.title}`}
+                        primary={group.title}
                         secondary={group.description || `${ruleCounts.counts.get(group.id) || 0} rules`}
                       />
                     </ListItemButton>
@@ -2097,22 +2134,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                 InputProps={{ disableUnderline: true }}
                 multiline
                 minRows={3}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
-                fullWidth
-              />
-            </PropertyRow>
-            <PropertyRow label="Order">
-              <TextField
-                value={groupEditor.form.order_index}
-                onChange={(event) => setGroupEditor((current) => ({
-                  ...current,
-                  error: null,
-                  form: { ...current.form, order_index: event.target.value },
-                }))}
-                type="number"
-                inputProps={{ min: 1, step: 1 }}
-                variant="standard"
-                InputProps={{ disableUnderline: true }}
                 sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
                 fullWidth
               />
@@ -2213,6 +2234,13 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       error: null,
                       form: { ...current.form, group_id: String(event.target.value) },
                     }))}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      const selectedGroupId = String(selected || '');
+                      if (!selectedGroupId) return 'Ungrouped';
+                      const selectedGroup = draftGroups.find((group) => group.id === selectedGroupId);
+                      return selectedGroup?.title || 'Ungrouped';
+                    }}
                     variant="standard"
                     disableUnderline
                     sx={drawerSelectSx}
@@ -2222,7 +2250,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                     <MenuItem value="" sx={drawerMenuItemSx}>Ungrouped</MenuItem>
                     {sortGroups(draftGroups).map((group) => (
                       <MenuItem key={group.id} value={group.id} sx={drawerMenuItemSx}>
-                        {group.order_index}. {group.title}
+                        {group.title}
                       </MenuItem>
                     ))}
                   </Select>
@@ -2270,23 +2298,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                     <MenuItem value={OTHER_OPERATION_KIND} sx={drawerMenuItemSx}>Other</MenuItem>
                   </Select>
                 </PropertyRow>
-                <PropertyRow label="Order">
-                  <TextField
-                    value={ruleEditor.form.order_index}
-                    onChange={(event) => setRuleEditor((current) => ({
-                      ...current,
-                      error: null,
-                      form: { ...current.form, order_index: event.target.value },
-                    }))}
-                    type="number"
-                    inputProps={{ min: 1, step: 1 }}
-                    variant="standard"
-                    InputProps={{ disableUnderline: true }}
-                    sx={editableFieldValueSx}
-                    disabled={!canManage || saving}
-                    fullWidth
-                  />
-                </PropertyRow>
                 <PropertyRow label="Applies to leg">
                   <Select
                     value={ruleEditor.form.applies_to_leg_id}
@@ -2295,6 +2306,13 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       error: null,
                       form: { ...current.form, applies_to_leg_id: String(event.target.value) },
                     }))}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      const selectedLegId = String(selected || '');
+                      if (!selectedLegId) return 'All legs';
+                      const selectedLeg = legs.find((leg) => leg.id === selectedLegId);
+                      return selectedLeg ? legLabel(selectedLeg) : 'All legs';
+                    }}
                     variant="standard"
                     disableUnderline
                     sx={drawerSelectSx}
@@ -2329,7 +2347,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                         return <Box component="span" sx={{ color: 'kanap.text.tertiary' }}>No environments declared</Box>;
                       }
                       if (values.length === 0) {
-                        return <Box component="span" sx={{ color: 'kanap.text.tertiary' }}>All declared environments</Box>;
+                        return 'All declared environments';
                       }
                       return values.map((value) => formatEnvironment(value)).join(', ');
                     }}

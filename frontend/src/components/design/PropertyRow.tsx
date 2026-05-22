@@ -5,6 +5,7 @@ import { drawerFieldValueSx } from '../../theme/formSx';
 
 type PropertyRowProps = {
   children: React.ReactNode;
+  helperText?: React.ReactNode;
   label: React.ReactNode;
   labelSx?: SxProps<Theme>;
   required?: boolean;
@@ -26,6 +27,7 @@ function mergeSx(...items: Array<SxProps<Theme> | undefined>): SxProps<Theme> {
 
 export function PropertyRow({
   children,
+  helperText,
   label,
   labelSx,
   required = false,
@@ -70,6 +72,18 @@ export function PropertyRow({
       >
         {children}
       </Box>
+      {helperText ? (
+        <Box
+          sx={(theme) => ({
+            mt: '1px',
+            fontSize: 12,
+            lineHeight: 1.35,
+            color: theme.palette.kanap.text.tertiary,
+          })}
+        >
+          {helperText}
+        </Box>
+      ) : null}
     </Box>
   );
 }

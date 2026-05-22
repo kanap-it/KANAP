@@ -172,11 +172,6 @@ export default function InterfaceWorkspacePage() {
   const [discardCreateOpen, setDiscardCreateOpen] = React.useState(false);
 
   React.useEffect(() => {
-    setMappingDirty(false);
-    setMappingActivated(rawRouteTab === 'data-mapping' || rawRouteTab === 'mapping');
-  }, [id, rawRouteTab]);
-
-  React.useEffect(() => {
     if (routeTab === 'data-mapping') {
       setMappingActivated(true);
     }
@@ -240,6 +235,12 @@ export default function InterfaceWorkspacePage() {
     return (!!reference && (routeKey === reference || routeKey.startsWith(`${reference}-`)))
       || (!!legacyCode && routeKey === legacyCode);
   }, [data, idParam, isCreate]);
+  const routeEntityKey = routeMatchesLoadedInterface && data?.id ? data.id : idParam;
+
+  React.useEffect(() => {
+    setMappingDirty(false);
+    setMappingActivated(rawRouteTab === 'data-mapping' || rawRouteTab === 'mapping');
+  }, [rawRouteTab, routeEntityKey]);
 
   const load = React.useCallback(async () => {
     if (isCreate) return;
@@ -285,10 +286,9 @@ export default function InterfaceWorkspacePage() {
   }, [isCreate, navigate, params.tab, rawRouteTab, workspaceRouteId]);
 
   React.useEffect(() => {
-    if (!isCreate) {
-      void load();
-    }
-  }, [isCreate, load]);
+    if (isCreate || routeMatchesLoadedInterface) return;
+    void load();
+  }, [isCreate, load, routeMatchesLoadedInterface]);
 
   React.useEffect(() => {
     if (isCreate || !data?.interface_reference) return;
@@ -721,7 +721,7 @@ export default function InterfaceWorkspacePage() {
   return (
     <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {!!error && <Alert severity="error" sx={{ mx: 2, mt: 1 }} onClose={() => setError(null)}>{error}</Alert>}
-      {loading && !isCreate && (
+      {loading && !isCreate && !current && (
         <Typography sx={{ mx: 3, mt: 1, fontSize: 12, color: 'kanap.text.tertiary' }}>
           Loading interface...
         </Typography>
