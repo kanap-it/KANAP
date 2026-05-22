@@ -128,53 +128,8 @@ export default function TeamMemberMultiSelect({
   const isLoading = loadingUsers || loading;
 
   return (
-    <Stack spacing={1}>
+    <Stack spacing={0.75}>
       {!hideLabel && <Typography variant="subtitle2">{label}</Typography>}
-
-      <Autocomplete
-        options={availableUsers}
-        getOptionLabel={(option) => formatUserName(option)}
-        value={null}
-        onChange={(_, v) => {
-          void handleAdd(v);
-        }}
-        renderOption={(props, option) => {
-          const { key, ...other } = props as any;
-          return (
-            <Fragment key={option.id}>
-              <li {...other}>
-                <Typography variant="body2" fontWeight={500}>
-                  {formatUserName(option)}{option.id === myId ? ` ${t('selects.meSuffix')}` : ''}
-                </Typography>
-              </li>
-              {option.id === myId && <Divider />}
-            </Fragment>
-          );
-        }}
-        renderInput={(params) => (
-            <TextField
-              {...params}
-              placeholder={t('selects.addTeamMember')}
-              size="small"
-              variant={hideLabel ? 'standard' : undefined}
-              sx={textFieldSx}
-              InputProps={{
-                ...params.InputProps,
-                ...(hideLabel ? { disableUnderline: true } : {}),
-                endAdornment: (
-                <>
-                  {isLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
-          />
-        )}
-        disabled={disabled || isLoading}
-        loading={isLoading}
-        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
-        size="small"
-      />
 
       {value.length > 0 ? (
         <Stack spacing={0.5}>
@@ -206,11 +161,56 @@ export default function TeamMemberMultiSelect({
             </Stack>
           ))}
         </Stack>
-      ) : (
+      ) : !hideLabel ? (
         <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
           {t('selects.noTeamMembers')}
         </Typography>
-      )}
+      ) : null}
+
+      <Autocomplete
+        options={availableUsers}
+        getOptionLabel={(option) => formatUserName(option)}
+        value={null}
+        onChange={(_, v) => {
+          void handleAdd(v);
+        }}
+        renderOption={(props, option) => {
+          const { key, ...other } = props as any;
+          return (
+            <Fragment key={option.id}>
+              <li {...other}>
+                <Typography variant="body2" fontWeight={500}>
+                  {formatUserName(option)}{option.id === myId ? ` ${t('selects.meSuffix')}` : ''}
+                </Typography>
+              </li>
+              {option.id === myId && <Divider />}
+            </Fragment>
+          );
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            placeholder={t('selects.addTeamMember')}
+            size="small"
+            variant={hideLabel ? 'standard' : undefined}
+            sx={textFieldSx}
+            InputProps={{
+              ...params.InputProps,
+              ...(hideLabel ? { disableUnderline: true } : {}),
+              endAdornment: (
+                <>
+                  {isLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
+        )}
+        disabled={disabled || isLoading}
+        loading={isLoading}
+        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+        size="small"
+      />
     </Stack>
   );
 }

@@ -1855,9 +1855,8 @@ export default function InterfaceBindingsMatrix({
         </Stack>
         <Stack direction="row" spacing={1}>
           <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
+            variant="action"
+            startIcon={<AddIcon sx={{ fontSize: '14px !important' }} />}
             onClick={() => {
               const first = selectableEnvs[0] || '';
               setEnvDraft(first);
