@@ -58,6 +58,7 @@ export async function resolveAiParticipationAccessScope(
   entityType: ScopedAiEntityType,
 ): Promise<ParticipationAccessScope | undefined> {
   if (!isParticipationScopedAiEntityType(entityType)) return undefined;
+  if (typeof context.manager?.query !== 'function') return undefined;
 
   const cacheHost = context as AiExecutionContextWithManager & {
     __aiParticipationAccessScopeCache?: Partial<Record<ParticipationScopedAiEntityType, ParticipationAccessScope | undefined>>;

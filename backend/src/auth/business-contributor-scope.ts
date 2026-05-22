@@ -26,6 +26,10 @@ type ScopeResolutionInput = {
   isAdmin?: boolean;
 };
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function managerFromRequest(req: any): EntityManager | null {
   return req?.queryRunner?.manager ?? null;
 }
@@ -70,6 +74,7 @@ export async function resolveBusinessContributorScopeForUser(
 
   const userId = String(input.userId || '').trim();
   if (!userId) return undefined;
+  if (!isUuid(userId)) return undefined;
 
   const tenantId = input.tenantId ?? null;
   const rows = await input.manager.query(

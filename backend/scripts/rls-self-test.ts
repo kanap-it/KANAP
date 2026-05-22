@@ -22,7 +22,7 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'document_libraries', 'document_folders', 'document_types', 'documents', 'document_versions',
   'document_edit_locks', 'document_attachments', 'document_activities', 'document_contributors',
   'document_classifications', 'document_references', 'document_applications', 'document_assets',
-  'document_connections', 'document_locations', 'document_projects', 'document_requests', 'document_tasks',
+  'document_connections', 'document_interfaces', 'document_locations', 'document_projects', 'document_requests', 'document_tasks',
   'integrated_document_bindings', 'integrated_document_slot_settings',
   'roles', 'role_permissions', 'subscriptions',
   'audit_log', 'company_metrics', 'department_metrics', 'user_page_roles',

@@ -52,6 +52,7 @@ export const TENANT_PURGE_TABLES = [
   'document_tasks',
   'document_classifications',
   'document_connections',
+  'document_interfaces',
   'document_contributors',
   'document_workflow_participants',
   'document_workflows',
