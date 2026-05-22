@@ -4,15 +4,16 @@ import {
   Box,
   Button,
   IconButton,
-  LinearProgress,
-  Stack,
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { KanapDialog } from '../../components/design';
 import { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
 import InterfaceBindingsMatrix from './components/InterfaceBindingsMatrix';
 import type {
   InterfaceCompany,
@@ -23,33 +24,43 @@ import type {
   InterfaceLeg,
   InterfaceLink,
   InterfaceOwner,
-} from './components/interface-workspace';
-import PortfolioWorkspaceShell from '../portfolio/workspace/PortfolioWorkspaceShell';
+} from './components/interface-workspace/types';
+import PortfolioDetailWorkspaceShell, {
+  type PortfolioDetailWorkspaceTab,
+} from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
+import InterfaceFlowTab from './workspace/InterfaceFlowTab';
 import InterfaceMappingTab, { type InterfaceMappingTabHandle } from './workspace/InterfaceMappingTab';
-import InterfacePropertyPanel, { type InterfacePropertyPanelSection } from './workspace/InterfacePropertyPanel';
+import InterfaceMetadataBar from './workspace/InterfaceMetadataBar';
+import InterfaceOverviewTab from './workspace/InterfaceOverviewTab';
+import InterfacePropertyPanel from './workspace/InterfacePropertyPanel';
 import InterfaceRelationsTab from './workspace/InterfaceRelationsTab';
-import InterfaceSpecificationTab from './workspace/InterfaceSpecificationTab';
-import InterfaceTechnicalTab from './workspace/InterfaceTechnicalTab';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
+import { useInterfaceItemNav } from '../../hooks/useModuleItemNav';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
-type WorkspaceTabKey = 'specification' | 'mapping' | 'relations' | 'technical' | 'environments';
-type LegacyTabKey = 'overview' | 'ownership' | 'functional' | 'technical' | 'environments' | 'compliance';
+type WorkspaceTabKey = 'overview' | 'flow' | 'environments' | 'data-mapping' | 'relations';
+type LegacyTabKey = 'specification' | 'mapping' | 'technical' | 'functional' | 'ownership' | 'compliance';
 type RouteTabKey = WorkspaceTabKey | LegacyTabKey;
 
-const WORKSPACE_TABS = new Set<WorkspaceTabKey>(['specification', 'mapping', 'relations', 'technical', 'environments']);
-const FOCUS_SECTIONS = new Set<InterfacePropertyPanelSection>(['core', 'team', 'data-compliance']);
+const WORKSPACE_TABS = new Set<WorkspaceTabKey>([
+  'overview',
+  'flow',
+  'environments',
+  'data-mapping',
+  'relations',
+]);
 
-const LEGACY_ROUTE_MAP: Record<LegacyTabKey, { tab: WorkspaceTabKey; section?: InterfacePropertyPanelSection }> = {
-  overview: { tab: 'specification', section: 'core' },
-  ownership: { tab: 'specification', section: 'team' },
-  functional: { tab: 'specification' },
-  compliance: { tab: 'specification', section: 'data-compliance' },
-  technical: { tab: 'technical' },
-  environments: { tab: 'environments' },
+const LEGACY_ROUTE_MAP: Record<LegacyTabKey, WorkspaceTabKey> = {
+  specification: 'overview',
+  mapping: 'data-mapping',
+  technical: 'flow',
+  functional: 'overview',
+  ownership: 'overview',
+  compliance: 'overview',
 };
+
+const INTERFACE_REFERENCE_ROUTE_RE = /^INT-\d+(?:-.+)?$/i;
 
 function normalizeUrl(raw: string) {
   const trimmed = String(raw || '').trim();
@@ -101,32 +112,36 @@ function createInitialForm(): Partial<InterfaceDetail> {
 
 function buildCreatePayload(current: Partial<InterfaceDetail>) {
   return {
-    interface_id: String(current.interface_id || '').trim(),
+    interface_id: String(current.interface_id || '').trim() || null,
     name: String(current.name || '').trim(),
     specification_markdown: String(current.specification_markdown || '').trim() || null,
     business_process_id: current.business_process_id || null,
-    business_purpose: String(current.business_purpose || '').trim(),
+    business_purpose: String(current.business_purpose || current.name || '').trim(),
     source_application_id: current.source_application_id,
     target_application_id: current.target_application_id,
     data_category: current.data_category,
     integration_route_type: current.integration_route_type || 'direct',
     lifecycle: current.lifecycle || 'active',
+    overview_notes: current.overview_notes ?? null,
     criticality: current.criticality || 'medium',
+    impact_of_failure: current.impact_of_failure ?? null,
+    business_objects: current.business_objects ?? null,
+    main_use_cases: current.main_use_cases ?? null,
+    functional_rules: current.functional_rules ?? null,
+    core_transformations_summary: current.core_transformations_summary ?? null,
+    error_handling_summary: current.error_handling_summary ?? null,
     data_class: current.data_class || 'internal',
     contains_pii: !!current.contains_pii,
     pii_description: current.pii_description ?? null,
+    typical_data: current.typical_data ?? null,
+    audit_logging: current.audit_logging ?? null,
+    security_controls_summary: current.security_controls_summary ?? null,
     middleware_application_ids: (current.middleware_application_ids || []) as string[],
   };
 }
 
-function buildEditorPayload(current: Partial<InterfaceDetail>) {
-  void current;
-  return {};
-}
-
 export default function InterfaceWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
-  const { labelFor } = useItOpsEnumOptions();
   const { hasLevel } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
@@ -137,37 +152,32 @@ export default function InterfaceWorkspacePage() {
   const idParam = String(params.id || '');
   const isCreate = idParam === 'new';
   const id = idParam;
-  const rawRouteTab = (params.tab as RouteTabKey | undefined) || 'specification';
-  const currentSection = searchParams.get('section');
-  const propertyPanelFocusSection = (
-    currentSection && FOCUS_SECTIONS.has(currentSection as InterfacePropertyPanelSection)
-      ? currentSection as InterfacePropertyPanelSection
-      : null
-  );
+  const isInterfaceReferenceRoute = INTERFACE_REFERENCE_ROUTE_RE.test(idParam);
+  const rawRouteTab = (params.tab as RouteTabKey | undefined) || 'overview';
   const routeTab: WorkspaceTabKey = WORKSPACE_TABS.has(rawRouteTab as WorkspaceTabKey)
     ? rawRouteTab as WorkspaceTabKey
-    : LEGACY_ROUTE_MAP[rawRouteTab as LegacyTabKey]?.tab || 'specification';
+    : LEGACY_ROUTE_MAP[rawRouteTab as LegacyTabKey] || 'overview';
 
   const [createForm, setCreateForm] = React.useState<Partial<InterfaceDetail>>(createInitialForm);
   const [data, setData] = React.useState<InterfaceDetail | null>(null);
   const dataRef = React.useRef<InterfaceDetail | null>(null);
   const specificationEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
   const mappingEditorRef = React.useRef<InterfaceMappingTabHandle>(null);
-  const [editorDirty, setEditorDirty] = React.useState(false);
   const [createDirty, setCreateDirty] = React.useState(false);
-  const [managedSpecificationDirty, setManagedSpecificationDirty] = React.useState(false);
   const [mappingDirty, setMappingDirty] = React.useState(false);
-  const [mappingActivated, setMappingActivated] = React.useState(() => rawRouteTab === 'mapping');
+  const [mappingActivated, setMappingActivated] = React.useState(() => rawRouteTab === 'data-mapping' || rawRouteTab === 'mapping');
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [discardCreateOpen, setDiscardCreateOpen] = React.useState(false);
 
   React.useEffect(() => {
     setMappingDirty(false);
-    setMappingActivated(rawRouteTab === 'mapping');
-  }, [id]);
+    setMappingActivated(rawRouteTab === 'data-mapping' || rawRouteTab === 'mapping');
+  }, [id, rawRouteTab]);
 
   React.useEffect(() => {
-    if (routeTab === 'mapping') {
+    if (routeTab === 'data-mapping') {
       setMappingActivated(true);
     }
   }, [routeTab]);
@@ -209,6 +219,28 @@ export default function InterfaceWorkspacePage() {
     (isCreate ? createForm : (dataRef.current || data || {})) as Partial<InterfaceDetail>
   ), [createForm, data, isCreate]);
 
+  const current = (isCreate ? createForm : data) as InterfaceDetail | null;
+  const interfaceApiId = !isCreate ? (current?.id || (!isInterfaceReferenceRoute ? idParam : '')) : '';
+  const workspaceRouteId = current?.interface_reference || (isCreate ? 'new' : idParam);
+  const navSort = searchParams.get('sort') || null;
+  const navQ = searchParams.get('q') || null;
+  const navFilters = searchParams.get('filters') || null;
+  const nav = useInterfaceItemNav({
+    id: interfaceApiId,
+    sort: navSort,
+    q: navQ,
+    filters: navFilters,
+  });
+  const routeMatchesLoadedInterface = React.useMemo(() => {
+    if (isCreate || !data) return false;
+    if (idParam === data.id) return true;
+    const routeKey = idParam.toUpperCase();
+    const reference = data.interface_reference?.toUpperCase();
+    const legacyCode = data.interface_id?.toUpperCase();
+    return (!!reference && (routeKey === reference || routeKey.startsWith(`${reference}-`)))
+      || (!!legacyCode && routeKey === legacyCode);
+  }, [data, idParam, isCreate]);
+
   const load = React.useCallback(async () => {
     if (isCreate) return;
     setLoading(true);
@@ -219,13 +251,10 @@ export default function InterfaceWorkspacePage() {
       });
       setData(response.data);
       dataRef.current = response.data;
-      setEditorDirty(false);
-      setManagedSpecificationDirty(false);
     } catch (loadError: any) {
       setError(getApiErrorMessage(loadError, t, t('messages.loadInterfaceFailed')));
       setData(null);
       dataRef.current = null;
-      setManagedSpecificationDirty(false);
     } finally {
       setLoading(false);
     }
@@ -233,7 +262,7 @@ export default function InterfaceWorkspacePage() {
 
   React.useEffect(() => {
     if (!params.tab) {
-      navigate(`/it/interfaces/${id}/specification`, { replace: true });
+      navigate(`/it/interfaces/${workspaceRouteId}/overview`, { replace: true });
       return;
     }
 
@@ -241,29 +270,19 @@ export default function InterfaceWorkspacePage() {
       ? LEGACY_ROUTE_MAP[rawRouteTab as LegacyTabKey]
       : null;
     if (legacyRoute) {
-      const nextSearch = new URLSearchParams(searchParams);
-      if (legacyRoute.section) {
-        nextSearch.set('section', legacyRoute.section);
-      } else {
-        nextSearch.delete('section');
-      }
-      const nextQuery = nextSearch.toString();
-      navigate(
-        `/it/interfaces/${id}/${legacyRoute.tab}${nextQuery ? `?${nextQuery}` : ''}`,
-        { replace: true },
-      );
+      navigate(`/it/interfaces/${workspaceRouteId}/${legacyRoute}`, { replace: true });
       return;
     }
 
     if (!WORKSPACE_TABS.has(rawRouteTab as WorkspaceTabKey)) {
-      navigate(`/it/interfaces/${id}/specification`, { replace: true });
+      navigate(`/it/interfaces/${workspaceRouteId}/overview`, { replace: true });
       return;
     }
 
-    if (isCreate && rawRouteTab !== 'specification') {
-      navigate(`/it/interfaces/${id}/specification`, { replace: true });
+    if (isCreate && rawRouteTab !== 'overview') {
+      navigate(`/it/interfaces/${workspaceRouteId}/overview`, { replace: true });
     }
-  }, [id, isCreate, navigate, params.tab, rawRouteTab, searchParams]);
+  }, [isCreate, navigate, params.tab, rawRouteTab, workspaceRouteId]);
 
   React.useEffect(() => {
     if (!isCreate) {
@@ -272,12 +291,20 @@ export default function InterfaceWorkspacePage() {
   }, [isCreate, load]);
 
   React.useEffect(() => {
-    if (data?.id && data?.name) {
-      addToRecent('interface', data.id, data.name);
-    }
-  }, [addToRecent, data?.id, data?.name]);
+    if (isCreate || !data?.interface_reference) return;
+    if (!routeMatchesLoadedInterface) return;
+    if (idParam.toUpperCase() === data.interface_reference.toUpperCase()) return;
+    const qs = searchParams.toString();
+    navigate(`/it/interfaces/${data.interface_reference}/${routeTab}${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [data?.interface_reference, idParam, isCreate, navigate, routeMatchesLoadedInterface, routeTab, searchParams]);
 
-  const persistPanelPatch = React.useCallback(async (patch: Partial<InterfaceDetail>) => {
+  React.useEffect(() => {
+    if (data?.id && data?.name) {
+      addToRecent('interface', data.interface_reference || data.id, data.name);
+    }
+  }, [addToRecent, data?.id, data?.interface_reference, data?.name]);
+
+  const persistPatch = React.useCallback(async (patch: Partial<InterfaceDetail>) => {
     if (isCreate) {
       applyLocalPatch(patch, { markCreateDirty: true });
       return;
@@ -285,28 +312,26 @@ export default function InterfaceWorkspacePage() {
     if (!canManage) {
       throw new Error(t('messages.saveInterfaceFailed'));
     }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
 
     const previous = cloneState(getCurrentState());
     applyLocalPatch(patch);
 
     try {
-      await api.patch(`/interfaces/${id}`, patch);
+      await api.patch(`/interfaces/${interfaceApiId}`, patch);
       const needsDetailRefresh = ['integration_route_type', 'source_application_id', 'target_application_id', 'business_process_id']
         .some((key) => Object.prototype.hasOwnProperty.call(patch, key));
       if (needsDetailRefresh) {
-        const response = await api.get<InterfaceDetail>(`/interfaces/${id}`, { params: { include: 'legs' } });
-        applyLocalPatch({
-          source_application_name: response.data.source_application_name ?? null,
-          target_application_name: response.data.target_application_name ?? null,
-          business_process_name: response.data.business_process_name ?? null,
-          legs: response.data.legs || [],
-        });
+        const response = await api.get<InterfaceDetail>(`/interfaces/${interfaceApiId}`, { params: { include: 'relations,legs' } });
+        replaceCurrent(response.data);
       }
     } catch (panelError) {
       replaceCurrent(previous);
       throw panelError;
     }
-  }, [applyLocalPatch, canManage, getCurrentState, id, isCreate, replaceCurrent, t]);
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
 
   const persistOwners = React.useCallback(async (ownerType: 'business' | 'it', userIds: string[]) => {
     const current = getCurrentState();
@@ -323,6 +348,9 @@ export default function InterfaceWorkspacePage() {
     if (!canManage) {
       throw new Error(t('messages.saveInterfaceFailed'));
     }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
 
     const previous = cloneState(current);
     applyLocalPatch({ owners: nextOwners });
@@ -330,12 +358,37 @@ export default function InterfaceWorkspacePage() {
       const payload = nextOwners
         .filter((owner) => owner.user_id)
         .map((owner) => ({ user_id: owner.user_id, owner_type: owner.owner_type }));
-      await api.post(`/interfaces/${id}/owners/bulk-replace`, { owners: payload });
+      await api.post(`/interfaces/${interfaceApiId}/owners/bulk-replace`, { owners: payload });
     } catch (panelError) {
       replaceCurrent(previous);
       throw panelError;
     }
-  }, [applyLocalPatch, canManage, getCurrentState, id, isCreate, replaceCurrent, t]);
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
+
+  const persistCompanies = React.useCallback(async (companyIds: string[]) => {
+    const uniqueIds = Array.from(new Set(companyIds.filter(Boolean)));
+    const nextRows: InterfaceCompany[] = uniqueIds.map((company_id) => ({ company_id }));
+
+    if (isCreate) {
+      applyLocalPatch({ companies: nextRows }, { markCreateDirty: true });
+      return;
+    }
+    if (!canManage) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+
+    const previous = cloneState(getCurrentState());
+    applyLocalPatch({ companies: nextRows });
+    try {
+      await api.post(`/interfaces/${interfaceApiId}/companies/bulk-replace`, { company_ids: uniqueIds });
+    } catch (saveError) {
+      replaceCurrent(previous);
+      throw saveError;
+    }
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
 
   const persistDataResidency = React.useCallback(async (codes: string[]) => {
     const uniqueCodes = Array.from(new Set(
@@ -350,32 +403,113 @@ export default function InterfaceWorkspacePage() {
     if (!canManage) {
       throw new Error(t('messages.saveInterfaceFailed'));
     }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
 
     const previous = cloneState(getCurrentState());
     applyLocalPatch({ data_residency: nextRows });
     try {
-      await api.post(`/interfaces/${id}/data-residency/bulk-replace`, { countries: uniqueCodes });
-    } catch (panelError) {
+      await api.post(`/interfaces/${interfaceApiId}/data-residency/bulk-replace`, { countries: uniqueCodes });
+    } catch (saveError) {
       replaceCurrent(previous);
-      throw panelError;
+      throw saveError;
     }
-  }, [applyLocalPatch, canManage, getCurrentState, id, isCreate, replaceCurrent, t]);
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
 
-  const updateEditor = React.useCallback((patch: Partial<InterfaceDetail>) => {
+  const persistDependencies = React.useCallback(async (rows: InterfaceDependency[]) => {
     if (isCreate) {
-      applyLocalPatch(patch, { markCreateDirty: true });
+      applyLocalPatch({ dependencies: rows }, { markCreateDirty: true });
       return;
     }
-    applyLocalPatch(patch);
-  }, [applyLocalPatch, isCreate]);
+    if (!canManage) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
 
-  const markEditorDirty = React.useCallback(() => {
+    const upstreamIds = rows
+      .filter((item) => item.direction === 'upstream')
+      .map((item) => item.related_interface_id)
+      .filter(Boolean);
+    const downstreamIds = rows
+      .filter((item) => item.direction === 'downstream')
+      .map((item) => item.related_interface_id)
+      .filter(Boolean);
+    const previous = cloneState(getCurrentState());
+    applyLocalPatch({ dependencies: rows });
+    try {
+      await api.post(`/interfaces/${interfaceApiId}/dependencies/bulk-replace`, {
+        upstream_ids: upstreamIds,
+        downstream_ids: downstreamIds,
+      });
+    } catch (saveError) {
+      replaceCurrent(previous);
+      throw saveError;
+    }
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
+
+  const persistLinks = React.useCallback(async (rows: InterfaceLink[]) => {
+    const nextRows = rows
+      .filter((item) => String(item.url || '').trim())
+      .map((item) => ({
+        kind: String(item.kind || 'functional').trim() || 'functional',
+        description: String(item.description || '').trim() || null,
+        url: normalizeUrl(item.url),
+      }));
+
     if (isCreate) {
-      setCreateDirty(true);
+      applyLocalPatch({ links: nextRows as InterfaceLink[] }, { markCreateDirty: true });
       return;
     }
-    setEditorDirty(true);
-  }, [isCreate]);
+    if (!canManage) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+
+    const previous = cloneState(getCurrentState());
+    applyLocalPatch({ links: rows });
+    try {
+      await api.post(`/interfaces/${interfaceApiId}/links/bulk-replace`, { links: nextRows });
+    } catch (saveError) {
+      replaceCurrent(previous);
+      throw saveError;
+    }
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
+
+  const persistLegs = React.useCallback(async (nextLegs: InterfaceLeg[]) => {
+    if (isCreate) {
+      applyLocalPatch({ legs: nextLegs }, { markCreateDirty: true });
+      return;
+    }
+    if (!canManage) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+    if (!interfaceApiId) {
+      throw new Error(t('messages.saveInterfaceFailed'));
+    }
+
+    const previous = cloneState(getCurrentState());
+    applyLocalPatch({ legs: nextLegs });
+    try {
+      const response = await api.patch<{ items: InterfaceLeg[] }>(`/interfaces/${interfaceApiId}/legs`, {
+        items: nextLegs.map((leg) => ({
+          id: leg.id,
+          trigger_type: leg.trigger_type,
+          integration_pattern: leg.integration_pattern,
+          data_format: leg.data_format,
+          job_name: leg.job_name,
+        })),
+      });
+      applyLocalPatch({ legs: response.data.items || nextLegs });
+    } catch (saveError) {
+      replaceCurrent(previous);
+      throw saveError;
+    }
+  }, [applyLocalPatch, canManage, getCurrentState, interfaceApiId, isCreate, replaceCurrent, t]);
 
   const persistAdditionalState = React.useCallback(async (interfaceId: string, current: Partial<InterfaceDetail>) => {
     const companies = Array.from(new Set(
@@ -429,275 +563,232 @@ export default function InterfaceWorkspacePage() {
     ]);
   }, []);
 
-  const handleSave = React.useCallback(async () => {
+  const handleCreate = React.useCallback(async () => {
+    if (!canManage) return;
     setError(null);
-    if (!isCreate && !canManage) {
-      setError(t('messages.saveInterfaceFailed'));
-      return false;
-    }
-
+    setCreateSubmitting(true);
     try {
       const current = getCurrentState();
-
-      if (isCreate) {
-        const payload = buildCreatePayload(current);
-        if (!payload.interface_id || !payload.name || !payload.business_purpose) {
-          setError('Interface ID, Name, and Business purpose are required');
-          return false;
-        }
-        if (!payload.source_application_id || !payload.target_application_id) {
-          setError('Select source and target applications');
-          return false;
-        }
-        if (!payload.data_category) {
-          setError('Select data category');
-          return false;
-        }
-
-        const response = await api.post('/interfaces', payload);
-        const newId = (response.data as any)?.id as string | undefined;
-        if (!newId) {
-          setError('Interface was created but no identifier was returned');
-          return false;
-        }
-
-        await persistAdditionalState(newId, current);
-        setCreateDirty(false);
-        setEditorDirty(false);
-        setManagedSpecificationDirty(false);
-        navigate(`/it/interfaces/${newId}/specification`);
-        return true;
+      const payload = buildCreatePayload(current);
+      if (!payload.name) {
+        setError('Name is required.');
+        return;
+      }
+      if (!payload.source_application_id || !payload.target_application_id) {
+        setError('Select source and target applications.');
+        return;
+      }
+      if (!payload.data_category) {
+        setError('Select data category.');
+        return;
       }
 
-      const editorPayload = buildEditorPayload(current);
-      if (Object.keys(editorPayload).length > 0) {
-        await api.patch(`/interfaces/${id}`, editorPayload);
+      const response = await api.post<InterfaceDetail>('/interfaces', payload);
+      const newId = (response.data as any)?.id as string | undefined;
+      if (!newId) {
+        setError('Interface was created but no identifier was returned.');
+        return;
       }
 
-      const legs = (current.legs || []) as InterfaceLeg[];
-      if (legs.length > 0) {
-        await api.patch(`/interfaces/${id}/legs`, {
-          items: legs.map((leg) => ({
-            id: leg.id,
-            trigger_type: leg.trigger_type,
-            integration_pattern: leg.integration_pattern,
-            data_format: leg.data_format,
-            job_name: leg.job_name,
-          })),
-        });
-      }
-
-      await persistAdditionalState(id, current);
-
-      if (specificationEditorRef.current?.isDirty()) {
-        const ok = await specificationEditorRef.current.save();
-        if (!ok) {
-          return false;
-        }
-      }
-
-      if (mappingEditorRef.current?.isDirty()) {
-        const ok = await mappingEditorRef.current.save();
-        if (!ok) {
-          return false;
-        }
-      }
-
-      setEditorDirty(false);
-      setManagedSpecificationDirty(false);
-      setMappingDirty(false);
-      await load();
-      return true;
+      await persistAdditionalState(newId, current);
+      setCreateDirty(false);
+      navigate(`/it/interfaces/${response.data.interface_reference || newId}/overview`, { replace: true });
     } catch (saveError: any) {
       setError(getApiErrorMessage(saveError, t, t('messages.saveInterfaceFailed')));
-      return false;
+    } finally {
+      setCreateSubmitting(false);
     }
-  }, [canManage, getCurrentState, id, isCreate, load, navigate, persistAdditionalState, t]);
+  }, [canManage, getCurrentState, navigate, persistAdditionalState, t]);
 
-  const handleReset = React.useCallback(async () => {
-    if (isCreate) {
-      replaceCurrent(createInitialForm());
-      setCreateDirty(false);
-      setEditorDirty(false);
-      setManagedSpecificationDirty(false);
+  const listContextParams = React.useMemo(() => {
+    const sp = new URLSearchParams();
+    const sort = searchParams.get('sort');
+    const q = searchParams.get('q');
+    const filters = searchParams.get('filters');
+    if (sort) sp.set('sort', sort);
+    if (q) sp.set('q', q);
+    if (filters) sp.set('filters', filters);
+    return sp;
+  }, [searchParams]);
+
+  const closeWorkspace = React.useCallback(() => {
+    if (isCreate && createDirty) {
+      setDiscardCreateOpen(true);
       return;
     }
+    const qs = listContextParams.toString();
+    navigate(`/it/interfaces${qs ? `?${qs}` : ''}`);
+  }, [createDirty, isCreate, listContextParams, navigate]);
 
-    await specificationEditorRef.current?.reset?.();
-    await mappingEditorRef.current?.reset?.();
-    await load();
-    setEditorDirty(false);
-    setManagedSpecificationDirty(false);
-    setMappingDirty(false);
-  }, [isCreate, load, replaceCurrent]);
+  const discardCreateAndClose = React.useCallback(() => {
+    setDiscardCreateOpen(false);
+    const qs = listContextParams.toString();
+    navigate(`/it/interfaces${qs ? `?${qs}` : ''}`);
+  }, [listContextParams, navigate]);
 
-  const hasUnsavedChanges = editorDirty || managedSpecificationDirty || mappingDirty || (isCreate && createDirty);
+  const handleTabChange = React.useCallback((nextTab: string) => {
+    if (nextTab === routeTab) return;
+    const qs = searchParams.toString();
+    navigate(`/it/interfaces/${workspaceRouteId}/${nextTab}${qs ? `?${qs}` : ''}`);
+  }, [navigate, routeTab, searchParams, workspaceRouteId]);
 
-  const confirmSaveBeforeNavigate = React.useCallback(async () => {
-    if (!hasUnsavedChanges) return true;
-    const shouldSave = window.confirm(t('confirmations.unsavedSave'));
-    if (!shouldSave) return true;
-    return handleSave();
-  }, [handleSave, hasUnsavedChanges, t]);
+  const navigateToInterface = React.useCallback((targetId: string | null) => {
+    if (!targetId) return;
+    const qs = searchParams.toString();
+    navigate(`/it/interfaces/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
+  }, [navigate, routeTab, searchParams]);
 
-  const handleClose = React.useCallback(async () => {
-    const canContinue = await confirmSaveBeforeNavigate();
-    if (!canContinue) return;
-    navigate('/it/interfaces');
-  }, [confirmSaveBeforeNavigate, navigate]);
+  const relationCount = (current?.dependencies?.length || 0) + (current?.links?.length || 0) + (current?.attachments?.length || 0);
 
-  const handleTabChange = React.useCallback(async (nextTab: string) => {
-    const canContinue = await confirmSaveBeforeNavigate();
-    if (!canContinue) return;
-    navigate(`/it/interfaces/${id}/${nextTab}`);
-  }, [confirmSaveBeforeNavigate, id, navigate]);
-
-  const current = (isCreate ? createForm : data) as InterfaceDetail | null;
-
-  const tabs = React.useMemo(() => [
-    { key: 'specification', label: 'Specification', disabled: false },
-    { key: 'technical', label: 'Technical', disabled: isCreate },
+  const tabs: PortfolioDetailWorkspaceTab[] = React.useMemo(() => [
+    { key: 'overview', label: 'Overview' },
+    { key: 'flow', label: 'Flow', disabled: isCreate },
     { key: 'environments', label: 'Environments', disabled: isCreate },
-    { key: 'mapping', label: 'Mapping', disabled: isCreate },
-    { key: 'relations', label: 'Relations', disabled: isCreate },
-  ], [isCreate]);
+    { key: 'data-mapping', label: 'Data mapping', disabled: isCreate },
+    { key: 'relations', label: 'Relations', badge: relationCount || undefined, disabled: isCreate },
+  ], [isCreate, relationCount]);
 
-  const criticalityLabel = React.useCallback((value?: string) => {
-    switch (String(value || '')) {
-      case 'business_critical': return t('enums.criticality.businessCritical');
-      case 'high': return t('enums.criticality.high');
-      case 'medium': return t('enums.criticality.medium');
-      case 'low': return t('enums.criticality.low');
-      default: return String(value || '');
+  const handleTitleSave = React.useCallback((next: string) => {
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    if (isCreate) {
+      applyLocalPatch({ name: trimmed }, { markCreateDirty: true });
+      return;
     }
-  }, [t]);
+    if (trimmed !== dataRef.current?.name) {
+      void persistPatch({ name: trimmed });
+    }
+  }, [applyLocalPatch, isCreate, persistPatch]);
+
+  const actions = (
+    <>
+      {isCreate && (
+        <Button
+          variant="contained"
+          onClick={() => void handleCreate()}
+          disabled={createSubmitting || !canManage}
+          size="small"
+        >
+          Create
+        </Button>
+      )}
+      {!isCreate && current && (
+        <SendLinkButton
+          itemType="interface"
+          itemId={current.id}
+          itemRef={current.interface_reference || null}
+          itemName={current.name || 'Untitled interface'}
+        />
+      )}
+      {!isCreate && current && (
+        <Button
+          variant="action"
+          startIcon={<HubOutlinedIcon sx={{ fontSize: '14px !important' }} />}
+          size="small"
+          onClick={() => navigate(`/it/interface-map?focusInterfaceId=${current.id}`)}
+        >
+          View in map
+        </Button>
+      )}
+      <IconButton
+        aria-label={t('common:buttons.close')}
+        title={t('common:buttons.close')}
+        onClick={closeWorkspace}
+        size="small"
+      >
+        <CloseIcon />
+      </IconButton>
+    </>
+  );
+
+  const metadata = !isCreate && current ? (
+    <InterfaceMetadataBar
+      lifecycle={current.lifecycle || 'active'}
+      criticality={current.criticality || 'medium'}
+      sourceName={current.source_application_name}
+      targetName={current.target_application_name}
+      routeType={current.integration_route_type || 'direct'}
+      dataClass={current.data_class || 'internal'}
+      containsPii={!!current.contains_pii}
+      disabled={!canManage}
+      onLifecycleChange={(value) => { void persistPatch({ lifecycle: value }); }}
+      onCriticalityChange={(value) => { void persistPatch({ criticality: value as InterfaceDetail['criticality'] }); }}
+      onDataClassChange={(value) => { void persistPatch({ data_class: value }); }}
+      onFlowClick={() => handleTabChange('flow')}
+    />
+  ) : undefined;
 
   return (
-    <Box sx={{ p: 2 }}>
-      {!!error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {!!error && <Alert severity="error" sx={{ mx: 2, mt: 1 }} onClose={() => setError(null)}>{error}</Alert>}
+      {loading && !isCreate && (
+        <Typography sx={{ mx: 3, mt: 1, fontSize: 12, color: 'kanap.text.tertiary' }}>
+          Loading interface...
+        </Typography>
+      )}
 
-      <PortfolioWorkspaceShell
+      <PortfolioDetailWorkspaceShell
         activeTab={routeTab}
         tabs={tabs}
         onTabChange={handleTabChange}
-        sidebarCollapsible
-        sidebarStorageKey="interfaceWorkspaceSidebarWidth"
-        sidebarTitle="Interface properties"
-        headerContent={(
-          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              {current?.interface_id ? (
-                <Typography component="span" variant="body2" sx={{ fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace", color: 'text.secondary' }}>
-                  {current.interface_id}
-                </Typography>
-              ) : null}
-              <Typography variant="h6" sx={{ minWidth: 0 }}>
-                {isCreate ? t('workspace.interface.newTitle') : current?.name || t('workspace.interface.title')}
-              </Typography>
-            </Stack>
-            {!isCreate && (
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                {current?.lifecycle ? (
-                  <Typography component="span" variant="body2" color="text.secondary">
-                    {labelFor('lifecycleStatus', current.lifecycle) || current.lifecycle}
-                  </Typography>
-                ) : null}
-                {current?.criticality ? (
-                  <Typography component="span" variant="body2" color="text.secondary">
-                    {criticalityLabel(current.criticality)}
-                  </Typography>
-                ) : null}
-                {current?.source_application_name && current?.target_application_name ? (
-                  <Typography variant="body2" color="text.secondary">
-                    {current.source_application_name} {'->'} {current.target_application_name}
-                  </Typography>
-                ) : null}
-              </Stack>
-            )}
-          </Stack>
-        )}
-        headerActions={(
-          <>
-            {loading && !isCreate ? (
-              <Typography variant="body2" color="text.disabled">Loading</Typography>
-            ) : null}
-            <Button
-              onClick={() => { void handleReset(); }}
-              disabled={loading || (!editorDirty && !managedSpecificationDirty && !mappingDirty && !(isCreate && createDirty))}
-              size="small"
-            >
-              {t('common:buttons.reset')}
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => void handleSave()}
-              disabled={loading || (!isCreate && !editorDirty && !managedSpecificationDirty && !mappingDirty) || !canManage}
-              size="small"
-            >
-              {t('common:buttons.save')}
-            </Button>
-            <IconButton
-              aria-label={t('common:buttons.close')}
-              title={t('common:buttons.close')}
-              onClick={() => void handleClose()}
-              size="small"
-            >
-              <CloseIcon />
-            </IconButton>
-          </>
-        )}
-        sidebar={(
+        drawerStorageKey="kanap.interfaces.drawerOpen"
+        backLabel="Interfaces"
+        onBack={closeWorkspace}
+        itemReference={!isCreate ? current?.interface_reference || null : null}
+        onCopyReference={
+          !isCreate && current?.interface_reference
+            ? () => { void navigator.clipboard?.writeText(current.interface_reference); }
+            : undefined
+        }
+        title={current?.name || ''}
+        titleFallback={isCreate ? 'New interface' : 'Untitled interface'}
+        canEditTitle={canManage}
+        onTitleSave={handleTitleSave}
+        isCreate={isCreate}
+        metadata={metadata}
+        actions={actions}
+        nav={!isCreate && current && nav.total > 0 ? {
+          currentIndex: nav.index + 1,
+          totalCount: nav.total,
+          hasPrev: nav.hasPrev,
+          hasNext: nav.hasNext,
+          onPrev: () => navigateToInterface(nav.prevId),
+          onNext: () => navigateToInterface(nav.nextId),
+          previousLabel: 'Previous interface',
+          nextLabel: 'Next interface',
+        } : undefined}
+        onSaveShortcut={() => {
+          void specificationEditorRef.current?.save();
+          void mappingEditorRef.current?.save();
+        }}
+        properties={(
           <InterfacePropertyPanel
             canManage={canManage}
             data={current}
-            focusSection={propertyPanelFocusSection}
             isCreate={isCreate}
-            onPatch={persistPanelPatch}
+            onPatch={persistPatch}
+            onReplaceCompanies={persistCompanies}
             onReplaceDataResidency={persistDataResidency}
             onReplaceOwners={persistOwners}
           />
         )}
       >
-        {loading && !isCreate ? <LinearProgress sx={{ mb: 2 }} /> : null}
-
-        {routeTab === 'specification' && (
-          <InterfaceSpecificationTab
+        {routeTab === 'overview' && (
+          <InterfaceOverviewTab
             canManage={canManage}
             data={current}
             isCreate={isCreate}
             specificationEditorRef={specificationEditorRef}
-            onManagedDocumentDirtyChange={setManagedSpecificationDirty}
-            update={updateEditor}
-            markDirty={markEditorDirty}
+            onPatch={persistPatch}
           />
         )}
 
-        {!isCreate && mappingActivated && (
-          <Box sx={{ display: routeTab === 'mapping' ? 'block' : 'none' }}>
-            <InterfaceMappingTab
-              ref={mappingEditorRef}
-              canManage={canManage}
-              interfaceId={id}
-              data={current}
-              onDirtyChange={setMappingDirty}
-            />
-          </Box>
-        )}
-
-        {routeTab === 'relations' && !isCreate && (
-          <InterfaceRelationsTab
+        {routeTab === 'flow' && !isCreate && (
+          <InterfaceFlowTab
             canManage={canManage}
             data={current}
-            update={updateEditor}
-            markDirty={markEditorDirty}
-          />
-        )}
-
-        {routeTab === 'technical' && !isCreate && (
-          <InterfaceTechnicalTab
-            data={current}
-            update={updateEditor}
-            markDirty={markEditorDirty}
+            onPatch={persistPatch}
+            onReplaceLegs={persistLegs}
           />
         )}
 
@@ -717,10 +808,50 @@ export default function InterfaceWorkspacePage() {
           ) : !isCreate ? (
             <Alert severity="info">{t('workspace.interface.selectSourceTarget')}</Alert>
           ) : (
-            <Alert severity="info">Save the interface first to manage environment bindings.</Alert>
+            <Alert severity="info">Create the interface first to manage environment bindings.</Alert>
           )
         )}
-      </PortfolioWorkspaceShell>
+
+        {!isCreate && interfaceApiId && mappingActivated && (
+          <Box sx={{ display: routeTab === 'data-mapping' ? 'block' : 'none' }}>
+            <InterfaceMappingTab
+              ref={mappingEditorRef}
+              canManage={canManage}
+              interfaceId={interfaceApiId}
+              data={current}
+              onDirtyChange={setMappingDirty}
+            />
+            {mappingDirty && (
+              <Typography sx={{ mt: 1, fontSize: 11, color: 'kanap.text.tertiary' }}>
+                Unsaved mapping changes can be flushed with Ctrl+S.
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {routeTab === 'relations' && !isCreate && (
+          <InterfaceRelationsTab
+            canManage={canManage}
+            data={current}
+            update={applyLocalPatch}
+            markDirty={() => undefined}
+            onReplaceDependencies={persistDependencies}
+            onReplaceLinks={persistLinks}
+          />
+        )}
+      </PortfolioDetailWorkspaceShell>
+
+      <KanapDialog
+        open={discardCreateOpen}
+        title="Discard interface draft"
+        onClose={() => setDiscardCreateOpen(false)}
+        saveLabel="Discard"
+        onSave={discardCreateAndClose}
+      >
+        <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>
+          This interface has not been created yet. Closing the workspace will discard the draft.
+        </Typography>
+      </KanapDialog>
     </Box>
   );
 }

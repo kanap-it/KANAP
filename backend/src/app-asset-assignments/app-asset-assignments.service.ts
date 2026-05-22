@@ -6,6 +6,10 @@ import { AppInstance } from '../app-instances/app-instance.entity';
 import { Asset } from '../assets/asset.entity';
 import { AuditService } from '../audit/audit.service';
 import { ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
+import {
+  applicationParticipantCondition,
+  ParticipationAccessScope,
+} from '../auth/business-contributor-scope';
 
 @Injectable()
 export class AppAssetAssignmentsService {
@@ -63,6 +67,23 @@ export class AppAssetAssignmentsService {
     return instance;
   }
 
+  private async assertApplicationVisible(
+    applicationId: string,
+    accessScope?: ParticipationAccessScope,
+    manager?: EntityManager,
+  ) {
+    if (!accessScope) return;
+    const rows: Array<{ id: string }> = await (manager ?? this.repo.manager).query(
+      `SELECT a.id
+       FROM applications a
+       WHERE a.id = $1
+         AND ${applicationParticipantCondition('a', '$2')}
+       LIMIT 1`,
+      [applicationId, accessScope.userId],
+    );
+    if (!rows[0]) throw new NotFoundException('Application not found');
+  }
+
   private async ensureAsset(assetId: string, manager?: EntityManager) {
     const repo = this.getAssetRepo(manager);
     const asset = await repo.findOne({ where: { id: assetId } });
@@ -95,9 +116,10 @@ export class AppAssetAssignmentsService {
     return text.length === 0 ? null : text;
   }
 
-  async list(instanceId: string, opts?: { manager?: EntityManager }) {
+  async list(instanceId: string, opts?: { manager?: EntityManager; accessScope?: ParticipationAccessScope }) {
     const instance = await this.ensureInstance(instanceId, opts?.manager);
     const mg = opts?.manager ?? this.repo.manager;
+    await this.assertApplicationVisible(instance.application_id, opts?.accessScope, mg);
     const rows: Array<{
       id: string;
       app_instance_id: string;
@@ -258,9 +280,16 @@ export class AppAssetAssignmentsService {
     return saved;
   }
 
-  async listByAsset(assetId: string, opts?: { manager?: EntityManager }) {
+  async listByAsset(assetId: string, opts?: { manager?: EntityManager; accessScope?: ParticipationAccessScope }) {
     await this.ensureAsset(assetId, opts?.manager);
     const mg = opts?.manager ?? this.repo.manager;
+    const params: unknown[] = [assetId];
+    const accessScopeSql = opts?.accessScope
+      ? (() => {
+        params.push(opts.accessScope.userId);
+        return `AND ${applicationParticipantCondition('a', `$${params.length}`)}`;
+      })()
+      : '';
     const rows: Array<{
       id: string;
       app_instance_id: string;
@@ -279,8 +308,9 @@ export class AppAssetAssignmentsService {
        JOIN app_instances ai ON ai.id = aaa.app_instance_id
        JOIN applications a ON a.id = ai.application_id
        WHERE aaa.asset_id = $1
+        ${accessScopeSql}
        ORDER BY ai.environment ASC, a.name ASC`,
-      [assetId],
+      params,
     );
     return rows.map((row) => ({
       id: row.id,
@@ -324,13 +354,20 @@ export class AppAssetAssignmentsService {
   async listAssetsByApps(
     applicationIds: string[],
     environments: string[],
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; accessScope?: ParticipationAccessScope },
   ) {
     if (!applicationIds || applicationIds.length === 0 || !environments || environments.length === 0) {
       return { items: [] };
     }
 
     const mg = opts?.manager ?? this.repo.manager;
+    const params: unknown[] = [applicationIds, environments];
+    const accessScopeSql = opts?.accessScope
+      ? (() => {
+        params.push(opts.accessScope.userId);
+        return `AND ${applicationParticipantCondition('app_scope', `$${params.length}`)}`;
+      })()
+      : '';
 
     const rows: Array<{
       id: string;
@@ -351,12 +388,14 @@ export class AppAssetAssignmentsService {
       FROM assets a
       INNER JOIN app_asset_assignments aaa ON aaa.asset_id = a.id
       INNER JOIN app_instances ai ON ai.id = aaa.app_instance_id
+      INNER JOIN applications app_scope ON app_scope.id = ai.application_id AND app_scope.tenant_id = ai.tenant_id
       WHERE ai.application_id = ANY($1)
         AND ai.environment = ANY($2)
         AND a.status <> 'retired'
+        ${accessScopeSql}
       ORDER BY a.name ASC
       `,
-      [applicationIds, environments],
+      params,
     );
 
     return { items: rows };

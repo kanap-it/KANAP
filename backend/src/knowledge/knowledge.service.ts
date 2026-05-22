@@ -57,7 +57,15 @@ import { DocumentType } from './document-type.entity';
 import { DocumentVersion } from './document-version.entity';
 import { Document } from './document.entity';
 
-export type RelationEntityType = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'locations' | 'connections';
+export type RelationEntityType =
+  | 'applications'
+  | 'assets'
+  | 'projects'
+  | 'requests'
+  | 'tasks'
+  | 'locations'
+  | 'connections'
+  | 'interfaces';
 export type EntityDocumentListAccess = 'granted' | 'restricted';
 export type EntityDocumentListItem = {
   id: string;
@@ -536,6 +544,12 @@ const RELATION_TABLE_MAP: Record<
     idColumn: 'connection_id',
     targetTable: 'connections',
     label: 'connections',
+  },
+  interfaces: {
+    table: 'document_interfaces',
+    idColumn: 'interface_id',
+    targetTable: 'interfaces',
+    label: 'interfaces',
   },
 };
 
@@ -3061,6 +3075,29 @@ export class KnowledgeService {
           })),
         };
       }
+      case 'interfaces': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          where += ` AND (name ILIKE $${params.length} OR interface_reference ILIKE $${params.length} OR COALESCE(interface_id, '') ILIKE $${params.length})`;
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, interface_reference, interface_id, name
+           FROM interfaces
+           WHERE ${where}
+           ORDER BY lower(name) ASC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return {
+          items: rows.map((row: any) => ({
+            id: row.id,
+            label: [row.interface_reference || row.interface_id, row.name].filter(Boolean).join(' - ') || row.id,
+          })),
+        };
+      }
       default:
         throw new BadRequestException('Unsupported relation entity');
     }
@@ -3214,6 +3251,11 @@ export class KnowledgeService {
           `SELECT dt.task_id, t.title, t.item_number FROM document_tasks dt
            JOIN tasks t ON t.id = dt.task_id AND t.tenant_id = dt.tenant_id
            WHERE dt.document_id = $1 ORDER BY dt.created_at ASC`, [id]),
+        manager.query(
+          `SELECT di.interface_id, i.interface_reference, i.interface_id AS interface_code, i.name
+           FROM document_interfaces di
+           JOIN interfaces i ON i.id = di.interface_id AND i.tenant_id = di.tenant_id
+           WHERE di.document_id = $1 ORDER BY di.created_at ASC`, [id]),
       ]),
       manager.query(
         `SELECT r.id,
@@ -3254,6 +3296,10 @@ export class KnowledgeService {
         projects: relations[2].map((row: any) => ({ id: row.project_id, name: row.item_number ? `PRJ-${row.item_number} - ${row.name}` : row.name })),
         requests: relations[3].map((row: any) => ({ id: row.request_id, name: row.item_number ? `REQ-${row.item_number} - ${row.name}` : row.name })),
         tasks: relations[4].map((row: any) => ({ id: row.task_id, name: row.item_number ? `T-${row.item_number} - ${row.title || 'Untitled task'}` : (row.title || 'Untitled task') })),
+        interfaces: relations[5].map((row: any) => ({
+          id: row.interface_id,
+          name: [row.interface_reference || row.interface_code, row.name].filter(Boolean).join(' - ') || row.name || row.interface_id,
+        })),
       },
       incoming_references: incomingReferences,
       attachments,
@@ -4806,7 +4852,7 @@ export class KnowledgeService {
         `INSERT INTO ${map.table} (tenant_id, document_id, ${map.idColumn})
          SELECT app_current_tenant(), $1, value
          FROM unnest($2::uuid[]) AS value
-         ON CONFLICT (document_id, ${map.idColumn}) DO NOTHING`,
+         ON CONFLICT DO NOTHING`,
         [documentId, values],
       );
     }
@@ -4832,7 +4878,7 @@ export class KnowledgeService {
     await manager.query(
       `INSERT INTO ${map.table} (tenant_id, document_id, ${map.idColumn})
        VALUES (app_current_tenant(), $1, $2)
-       ON CONFLICT (document_id, ${map.idColumn}) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [documentId, normalizedTargetId],
     );
 
@@ -6099,7 +6145,7 @@ export class KnowledgeService {
   }
 
   private async getDirectKnowledgeContextGroupDefinitions(
-    entityType: 'tasks' | 'locations' | 'connections',
+    entityType: 'tasks' | 'locations' | 'connections' | 'interfaces',
     entityId: string,
     manager: EntityManager,
   ): Promise<EntityKnowledgeContextGroupDefinition[]> {
@@ -6114,8 +6160,8 @@ export class KnowledgeService {
              FROM locations l
              WHERE l.id = $1
              LIMIT 1`,
-            [entityId],
-          )
+              [entityId],
+            )
         : entityType === 'connections'
           ? await manager.query<KnowledgeContextSourceRow[]>(
               `SELECT c.id AS entity_id,
@@ -6128,13 +6174,25 @@ export class KnowledgeService {
                LIMIT 1`,
               [entityId],
             )
-          : await manager.query<KnowledgeContextSourceRow[]>(
-              `SELECT t.id AS entity_id, t.item_number, t.title AS name, t.status
-               FROM tasks t
-               WHERE t.id = $1
-               LIMIT 1`,
-              [entityId],
-            );
+          : entityType === 'interfaces'
+            ? await manager.query<KnowledgeContextSourceRow[]>(
+                `SELECT i.id AS entity_id,
+                        NULL::int AS item_number,
+                        COALESCE(NULLIF(i.interface_reference, ''), NULLIF(i.interface_id, '')) AS item_ref,
+                        i.name,
+                        i.lifecycle AS status
+                 FROM interfaces i
+                 WHERE i.id = $1
+                 LIMIT 1`,
+                [entityId],
+              )
+            : await manager.query<KnowledgeContextSourceRow[]>(
+                `SELECT t.id AS entity_id, t.item_number, t.title AS name, t.status
+                 FROM tasks t
+                 WHERE t.id = $1
+                 LIMIT 1`,
+                [entityId],
+              );
 
     return [
       {

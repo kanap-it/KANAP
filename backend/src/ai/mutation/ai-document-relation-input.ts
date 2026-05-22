@@ -8,6 +8,8 @@ export const AI_DOCUMENT_RELATION_ENTITY_TYPES = [
   'requests',
   'tasks',
   'locations',
+  'connections',
+  'interfaces',
 ] as const satisfies readonly RelationEntityType[];
 
 type RelationFieldConfig = {
@@ -65,6 +67,12 @@ const RELATION_FIELD_CONFIG: Record<RelationEntityType, RelationFieldConfig> = {
     inputHint: 'Connection reference such as CONN-3 or an exact connection name. Use an array to link multiple connections.',
     removalHint: 'Connection reference such as CONN-3 or an exact connection name. Use an array to remove multiple linked connections.',
   },
+  interfaces: {
+    singular: 'interface',
+    label: 'Linked Interfaces',
+    inputHint: 'Interface reference or exact interface name. Use an array to link multiple interfaces.',
+    removalHint: 'Interface reference or exact interface name. Use an array to remove multiple linked interfaces.',
+  },
 };
 
 export type AiDocumentRelationInput = Partial<Record<RelationEntityType, string[]>>;
@@ -84,6 +92,8 @@ export const AI_DOCUMENT_RELATION_INPUT_SHAPE = {
   location: RELATION_VALUE_SCHEMA.optional().describe(`Alias for locations. ${RELATION_FIELD_CONFIG.locations.inputHint}`),
   connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.inputHint),
   connection: RELATION_VALUE_SCHEMA.optional().describe(`Alias for connections. ${RELATION_FIELD_CONFIG.connections.inputHint}`),
+  interfaces: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.interfaces.inputHint),
+  interface: RELATION_VALUE_SCHEMA.optional().describe(`Alias for interfaces. ${RELATION_FIELD_CONFIG.interfaces.inputHint}`),
 };
 
 const AI_DOCUMENT_RELATION_GROUP_INPUT_FIELDS = {
@@ -94,6 +104,7 @@ const AI_DOCUMENT_RELATION_GROUP_INPUT_FIELDS = {
   tasks: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.tasks.inputHint),
   locations: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.locations.inputHint),
   connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.inputHint),
+  interfaces: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.interfaces.inputHint),
 };
 
 export const AI_DOCUMENT_RELATION_REMOVE_INPUT_SHAPE = {
@@ -111,6 +122,8 @@ export const AI_DOCUMENT_RELATION_REMOVE_INPUT_SHAPE = {
   remove_location: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_locations. ${RELATION_FIELD_CONFIG.locations.removalHint}`),
   remove_connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.removalHint),
   remove_connection: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_connections. ${RELATION_FIELD_CONFIG.connections.removalHint}`),
+  remove_interfaces: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.interfaces.removalHint),
+  remove_interface: RELATION_VALUE_SCHEMA.optional().describe(`Alias for remove_interfaces. ${RELATION_FIELD_CONFIG.interfaces.removalHint}`),
 };
 
 const AI_DOCUMENT_RELATION_GROUP_REMOVE_INPUT_FIELDS = {
@@ -120,6 +133,8 @@ const AI_DOCUMENT_RELATION_GROUP_REMOVE_INPUT_FIELDS = {
   requests: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.requests.removalHint),
   tasks: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.tasks.removalHint),
   locations: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.locations.removalHint),
+  connections: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.connections.removalHint),
+  interfaces: RELATION_VALUE_SCHEMA.optional().describe(RELATION_FIELD_CONFIG.interfaces.removalHint),
 };
 
 export const AI_DOCUMENT_RELATION_MUTATION_INPUT_SHAPE = {

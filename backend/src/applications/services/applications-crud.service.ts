@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { format } from '@fast-csv/format';
@@ -21,6 +21,7 @@ import { validateUploadedFile } from '../../common/upload-validation';
 import { fixMulterFilename } from '../../common/upload';
 import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { projectParticipantCondition } from '../../auth/business-contributor-scope';
 
 type OwnerQueryRow = ApplicationOwner & {
   email?: string | null;
@@ -50,6 +51,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async get(id: string, opts?: ServiceOpts & { include?: string | string[] }) {
     const mg = this.getManager(opts);
     const appId = await this.resolveApplicationIdentifier(id, mg);
+    await this.assertVisible(appId, opts?.accessScope, mg);
     const includeRaw = Array.isArray(opts?.include) ? opts?.include.join(',') : String(opts?.include ?? '').trim();
     const include = new Set(includeRaw.split(',').map((s) => s.trim()).filter(Boolean));
     const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
@@ -119,6 +121,9 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     }
 
     const mg = this.getManager(opts);
+    if (opts?.accessScope) {
+      throw new ForbiddenException('Business Contributor can only read assigned applications');
+    }
     const appId = await this.resolveApplicationIdentifier(applicationId, mg);
     const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
     if (!app) throw new NotFoundException('Application not found');
@@ -247,6 +252,16 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async relationCounts(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    await this.assertVisible(resolvedAppId, opts?.accessScope, mg);
+    const projectCountSql = opts?.projectAccessScope
+      ? `SELECT COUNT(*)
+         FROM application_projects l
+         JOIN portfolio_projects p ON p.id = l.project_id AND p.tenant_id = l.tenant_id
+         WHERE l.application_id = $1
+           AND l.tenant_id = app_current_tenant()
+           AND ${projectParticipantCondition('p', '$2')}`
+      : `SELECT COUNT(*) FROM application_projects l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()`;
+    const params = opts?.projectAccessScope ? [resolvedAppId, opts.projectAccessScope.userId] : [resolvedAppId];
     const rows: Array<{
       opex_count: string | number;
       capex_count: string | number;
@@ -259,10 +274,10 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
          (SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS opex_count,
          (SELECT COUNT(*) FROM application_capex_items l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS capex_count,
          (SELECT COUNT(*) FROM application_contracts l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS contracts_count,
-         (SELECT COUNT(*) FROM application_projects l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS projects_count,
+         (${projectCountSql}) AS projects_count,
          (SELECT COUNT(*) FROM application_links l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS links_count,
          (SELECT COUNT(*) FROM application_attachments l WHERE l.application_id = $1 AND l.tenant_id = app_current_tenant()) AS attachments_count`,
-      [resolvedAppId],
+      params,
     );
     const row: Partial<{
       opex_count: string | number;
@@ -290,6 +305,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async listLinks(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    await this.assertVisible(resolvedAppId, opts?.accessScope, mg);
     return mg.getRepository(ApplicationLink).find({ where: { application_id: resolvedAppId } as any, order: { created_at: 'DESC' as any } });
   }
 
@@ -333,6 +349,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async listAttachments(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    await this.assertVisible(resolvedAppId, opts?.accessScope, mg);
     return mg.getRepository(ApplicationAttachment).find({ where: { application_id: resolvedAppId } as any, order: { uploaded_at: 'DESC' as any } });
   }
 
@@ -365,6 +382,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     const repo = mg.getRepository(ApplicationAttachment);
     const found = await repo.findOne({ where: { id: attachmentId } });
     if (!found) throw new NotFoundException('Attachment not found');
+    await this.assertVisible(found.application_id, opts?.accessScope, mg);
     return found;
   }
 
@@ -649,6 +667,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   // Derived users
   async computeDerivedUsers(appId: string, year: number, mode: 'manual' | 'it_users' | 'headcount', opts?: ServiceOpts): Promise<number> {
     const mg = this.getManager(opts);
+    await this.assertVisible(appId, opts?.accessScope, mg);
     if (mode === 'manual') {
       const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
       return Math.max(0, Number(app?.users_override || 0));
@@ -691,10 +710,12 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
 
   async getTotalUsers(appId: string, yearOverride?: number, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
+    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    await this.assertVisible(resolvedAppId, opts?.accessScope, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
     if (!app) throw new NotFoundException('Application not found');
     const year = typeof yearOverride === 'number' && !isNaN(yearOverride) ? yearOverride : app.users_year;
-    const total = await this.computeDerivedUsers(appId, year, app.users_mode, { manager: mg });
+    const total = await this.computeDerivedUsers(resolvedAppId, year, app.users_mode, { manager: mg });
     return { total, year };
   }
 

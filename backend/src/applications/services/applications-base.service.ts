@@ -1,6 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { Application } from '../application.entity';
+import {
+  applicationParticipantCondition,
+  notFoundForScopedAccess,
+  ParticipationAccessScope,
+} from '../../auth/business-contributor-scope';
 
 /**
  * Common options for service methods.
@@ -8,6 +13,8 @@ import { Application } from '../application.entity';
 export interface ServiceOpts {
   manager?: EntityManager;
   tenantId?: string;
+  accessScope?: ParticipationAccessScope;
+  projectAccessScope?: ParticipationAccessScope;
 }
 
 /**
@@ -43,12 +50,35 @@ export abstract class ApplicationsBaseService {
     return ['yes', 'true', '1', 'y', 't'].includes(s);
   }
 
-  async ensureApp(id: string, manager?: EntityManager): Promise<Application> {
+  async ensureApp(
+    id: string,
+    manager?: EntityManager,
+    accessScope?: ParticipationAccessScope,
+  ): Promise<Application> {
     const repo = this.getRepo(manager);
     const resolvedId = await this.resolveApplicationIdentifier(id, manager);
     const app = await repo.findOne({ where: { id: resolvedId } });
     if (!app) throw new NotFoundException('Application not found');
+    await this.assertVisible(resolvedId, accessScope, manager);
     return app;
+  }
+
+  async assertVisible(
+    id: string,
+    accessScope?: ParticipationAccessScope,
+    manager?: EntityManager,
+  ): Promise<void> {
+    if (!accessScope) return;
+    const repo = this.getRepo(manager);
+    const visible = await repo
+      .createQueryBuilder('a')
+      .select('a.id', 'id')
+      .where('a.id = :id', { id })
+      .andWhere(applicationParticipantCondition('a', ':accessScopeUserId'), {
+        accessScopeUserId: accessScope.userId,
+      })
+      .getRawOne();
+    if (!visible) throw notFoundForScopedAccess('Application');
   }
 
   async resolveApplicationIdentifier(identifier: string, manager?: EntityManager): Promise<string> {

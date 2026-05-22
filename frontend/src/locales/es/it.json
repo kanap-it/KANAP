@@ -118,6 +118,8 @@
       "duplicate": "Duplicar",
       "columns": {
         "interfaceId": "ID de interfaz",
+        "reference": "Referencia",
+        "interfaceCode": "Código de interfaz",
         "name": "Nombre",
         "environments": "Entornos",
         "sourceApp": "Aplicación origen",
@@ -667,7 +669,7 @@
     "hostingTypeRequired": "El tipo de alojamiento es obligatorio.",
     "saveLayersFirst": "Guarde primero la conexión, luego agregue capas.",
     "roleRequired": "El rol es obligatorio.",
-    "interfaceIdNamePurposeRequired": "El ID de interfaz, el nombre y el propósito de negocio son obligatorios",
+    "interfaceIdNamePurposeRequired": "El nombre y el propósito de negocio son obligatorios",
     "selectSourceAndTarget": "Seleccione las aplicaciones de origen y destino",
     "selectDataCategory": "Seleccione una categoría de datos",
     "loadBindingsFailed": "Error al cargar los enlaces",

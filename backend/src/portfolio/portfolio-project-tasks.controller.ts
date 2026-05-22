@@ -10,6 +10,9 @@ import { TaskActivitiesService, ActivityBodyDto } from '../tasks/task-activities
 import { Task } from '../tasks/task.entity';
 import { TaskTimeEntryCategory } from '../tasks/task-time-entry.entity';
 import { resolveToUuid } from '../common/resolve-item-id';
+import { PortfolioProjectsService } from './services';
+import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
+import { PermissionLevel } from '../permissions/permissions.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/projects/:projectId/tasks')
@@ -18,6 +21,7 @@ export class PortfolioProjectTasksController {
     private readonly tasksSvc: TasksUnifiedService,
     private readonly timeEntriesSvc: TaskTimeEntriesService,
     private readonly activitiesSvc: TaskActivitiesService,
+    private readonly projectsSvc: PortfolioProjectsService,
   ) {}
 
   private resolveProjectId(idOrRef: string, req: any): Promise<string> {
@@ -28,13 +32,45 @@ export class PortfolioProjectTasksController {
     return resolveToUuid(idOrRef, 'task', req?.queryRunner?.manager);
   }
 
+  private projectAccessScope(req: any, level: PermissionLevel = 'reader') {
+    return resolveBusinessContributorScope(req, 'portfolio_projects', level);
+  }
+
+  private async resolveProjectForAccess(idOrRef: string, req: any, level: PermissionLevel = 'reader') {
+    const projectId = await this.resolveProjectId(idOrRef, req);
+    const accessScope = await this.projectAccessScope(req, level);
+    await this.projectsSvc.assertVisible(projectId, accessScope, { manager: req?.queryRunner?.manager });
+    return projectId;
+  }
+
+  private async resolveProjectTaskForAccess(
+    projectId: string,
+    taskIdOrRef: string,
+    req: any,
+  ) {
+    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const rows = await req?.queryRunner?.manager.query(
+      `SELECT 1
+       FROM tasks
+       WHERE id = $1
+         AND related_object_type = 'project'
+         AND related_object_id = $2
+       LIMIT 1`,
+      [taskId, projectId],
+    );
+    if (!rows?.length) {
+      throw new BadRequestException('Task does not belong to this project');
+    }
+    return taskId;
+  }
+
   // ==================== TASKS ====================
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get()
   async listTasks(@Param('projectId') projectIdOrRef: string, @Req() req: any) {
-    const projectId = await this.resolveProjectId(projectIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
     return this.tasksSvc.listForTarget(
       { type: 'project', id: projectId },
       { manager: req?.queryRunner?.manager },
@@ -45,7 +81,7 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'reader')
   @Get('status-summary')
   async getTaskStatusSummary(@Param('projectId') projectIdOrRef: string, @Req() req: any) {
-    const projectId = await this.resolveProjectId(projectIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
     const rows = await req?.queryRunner?.manager.query(
       `SELECT status, COUNT(*)::int AS count
        FROM tasks
@@ -82,7 +118,7 @@ export class PortfolioProjectTasksController {
     @Body() body: Partial<Task>,
     @Req() req: any,
   ) {
-    const projectId = await this.resolveProjectId(projectIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
     return this.tasksSvc.createForTarget(
       { type: 'project', id: projectId, payload: body },
       req.user?.sub ?? null,
@@ -97,7 +133,7 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'reader')
   @Get('time-summary')
   async getProjectTimeSummary(@Param('projectId') projectIdOrRef: string, @Req() req: any) {
-    const projectId = await this.resolveProjectId(projectIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
     const byCategory = await this.timeEntriesSvc.sumForProjectByCategory(projectId, { manager: req?.queryRunner?.manager });
     return {
       it_hours: byCategory.it,
@@ -110,7 +146,7 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'reader')
   @Get('time-entries')
   async getProjectTaskTimeEntries(@Param('projectId') projectIdOrRef: string, @Req() req: any) {
-    const projectId = await this.resolveProjectId(projectIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
     return this.timeEntriesSvc.listForProject(projectId, { manager: req?.queryRunner?.manager });
   }
 
@@ -123,8 +159,8 @@ export class PortfolioProjectTasksController {
     @Body() body: Partial<Task>,
     @Req() req: any,
   ) {
-    const projectId = await this.resolveProjectId(projectIdOrRef, req);
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.tasksSvc.updateById(
       taskId,
@@ -143,8 +179,13 @@ export class PortfolioProjectTasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':taskId/time-entries')
-  async listTimeEntries(@Param('taskId') taskIdOrRef: string, @Req() req: any) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+  async listTimeEntries(
+    @Param('projectId') projectIdOrRef: string,
+    @Param('taskId') taskIdOrRef: string,
+    @Req() req: any,
+  ) {
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     return this.timeEntriesSvc.listForTask(taskId, { manager: req?.queryRunner?.manager });
   }
 
@@ -152,11 +193,13 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':taskId/time-entries')
   async createTimeEntry(
+    @Param('projectId') projectIdOrRef: string,
     @Param('taskId') taskIdOrRef: string,
     @Body() body: { user_id?: string; hours: number; notes?: string; logged_at: string; category?: TaskTimeEntryCategory },
     @Req() req: any,
   ) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.create(
       taskId,
@@ -177,12 +220,14 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Patch(':taskId/time-entries/:entryId')
   async updateTimeEntry(
+    @Param('projectId') projectIdOrRef: string,
     @Param('taskId') taskIdOrRef: string,
     @Param('entryId') entryId: string,
     @Body() body: { user_id?: string; hours?: number; notes?: string; logged_at?: string; category?: TaskTimeEntryCategory },
     @Req() req: any,
   ) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     // Verify entry belongs to task
     const entryTaskId = await this.timeEntriesSvc.getTaskIdForEntry(entryId, { manager: req?.queryRunner?.manager });
     if (entryTaskId !== taskId) {
@@ -209,11 +254,13 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Delete(':taskId/time-entries/:entryId')
   async deleteTimeEntry(
+    @Param('projectId') projectIdOrRef: string,
     @Param('taskId') taskIdOrRef: string,
     @Param('entryId') entryId: string,
     @Req() req: any,
   ) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     // Verify entry belongs to task
     const entryTaskId = await this.timeEntriesSvc.getTaskIdForEntry(entryId, { manager: req?.queryRunner?.manager });
     if (entryTaskId !== taskId) {
@@ -230,8 +277,13 @@ export class PortfolioProjectTasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':taskId/time-entries/sum')
-  async getTimeSum(@Param('taskId') taskIdOrRef: string, @Req() req: any) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+  async getTimeSum(
+    @Param('projectId') projectIdOrRef: string,
+    @Param('taskId') taskIdOrRef: string,
+    @Req() req: any,
+  ) {
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     const total = await this.timeEntriesSvc.sumForTask(taskId, { manager: req?.queryRunner?.manager });
     return { total };
   }
@@ -241,8 +293,13 @@ export class PortfolioProjectTasksController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_projects', 'reader')
   @Get(':taskId/activities')
-  async listActivities(@Param('taskId') taskIdOrRef: string, @Req() req: any) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+  async listActivities(
+    @Param('projectId') projectIdOrRef: string,
+    @Param('taskId') taskIdOrRef: string,
+    @Req() req: any,
+  ) {
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     return this.activitiesSvc.listForTask(taskId, { manager: req?.queryRunner?.manager });
   }
 
@@ -250,11 +307,13 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Post(':taskId/activities')
   async createActivity(
+    @Param('projectId') projectIdOrRef: string,
     @Param('taskId') taskIdOrRef: string,
     @Body() body: ActivityBodyDto,
     @Req() req: any,
   ) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     const tenantId = req?.tenant?.id ?? '';
     if (body.type === 'unified') {
       return this.activitiesSvc.createUnified(taskId, body, tenantId, req.user?.sub ?? null, {
@@ -271,12 +330,14 @@ export class PortfolioProjectTasksController {
   @RequireLevel('portfolio_projects', 'contributor')
   @Patch(':taskId/activities/:activityId')
   async updateActivity(
+    @Param('projectId') projectIdOrRef: string,
     @Param('taskId') taskIdOrRef: string,
     @Param('activityId', ParseUUIDPipe) activityId: string,
     @Body() body: { content: string },
     @Req() req: any,
   ) {
-    const taskId = await this.resolveTaskId(taskIdOrRef, req);
+    const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'contributor');
+    const taskId = await this.resolveProjectTaskForAccess(projectId, taskIdOrRef, req);
     const userId = req.user?.sub;
     if (!userId) {
       throw new BadRequestException('User ID required');

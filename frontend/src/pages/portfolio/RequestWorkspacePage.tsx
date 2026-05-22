@@ -208,6 +208,10 @@ export default function RequestWorkspacePage() {
     },
   });
 
+  const canReadPortfolioEvaluationSettings = hasLevel('portfolio_settings', 'reader')
+    || hasLevel('portfolio_requests', 'reader')
+    || hasLevel('portfolio_projects', 'reader');
+
   // Fetch portfolio settings for mandatory bypass
   const { data: portfolioSettings } = useQuery({
     queryKey: ['portfolio-settings'],
@@ -215,6 +219,7 @@ export default function RequestWorkspacePage() {
       const res = await api.get('/portfolio/settings');
       return res.data as { mandatory_bypass_enabled: boolean };
     },
+    enabled: canReadPortfolioEvaluationSettings,
   });
 
   const sources = classificationData?.sources?.filter((t) => t.is_active) || [];

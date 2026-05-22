@@ -1,4 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  ParticipationAccessScope,
+  applicationParticipantCondition,
+  projectParticipantCondition,
+  requestParticipantCondition,
+  resolveBusinessContributorScopeForUser,
+  taskParticipantCondition,
+} from '../../auth/business-contributor-scope';
 import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 
 export type ScopedAiEntityType =
@@ -29,6 +37,55 @@ export type ResolvedAiScope = {
   resolved: boolean;
   team_name?: string | null;
 };
+
+export type ParticipationScopedAiEntityType = 'applications' | 'projects' | 'requests' | 'tasks';
+
+const PARTICIPATION_SCOPE_RESOURCE: Record<ParticipationScopedAiEntityType, string> = {
+  applications: 'applications',
+  projects: 'portfolio_projects',
+  requests: 'portfolio_requests',
+  tasks: 'tasks',
+};
+
+export function isParticipationScopedAiEntityType(
+  entityType: ScopedAiEntityType,
+): entityType is ParticipationScopedAiEntityType {
+  return entityType === 'applications' || entityType === 'projects' || entityType === 'requests' || entityType === 'tasks';
+}
+
+export async function resolveAiParticipationAccessScope(
+  context: AiExecutionContextWithManager,
+  entityType: ScopedAiEntityType,
+): Promise<ParticipationAccessScope | undefined> {
+  if (!isParticipationScopedAiEntityType(entityType)) return undefined;
+
+  const cacheHost = context as AiExecutionContextWithManager & {
+    __aiParticipationAccessScopeCache?: Partial<Record<ParticipationScopedAiEntityType, ParticipationAccessScope | undefined>>;
+  };
+  cacheHost.__aiParticipationAccessScopeCache ??= {};
+  if (Object.prototype.hasOwnProperty.call(cacheHost.__aiParticipationAccessScopeCache, entityType)) {
+    return cacheHost.__aiParticipationAccessScopeCache[entityType];
+  }
+
+  const scope = await resolveBusinessContributorScopeForUser({
+    manager: context.manager,
+    userId: context.userId,
+    tenantId: context.tenantId,
+  }, PARTICIPATION_SCOPE_RESOURCE[entityType], 'reader');
+  cacheHost.__aiParticipationAccessScopeCache[entityType] = scope;
+  return scope;
+}
+
+export function participantConditionForAiEntity(
+  entityType: ParticipationScopedAiEntityType,
+  alias: string,
+  userRef: string,
+): string {
+  if (entityType === 'applications') return applicationParticipantCondition(alias, userRef);
+  if (entityType === 'projects') return projectParticipantCondition(alias, userRef);
+  if (entityType === 'requests') return requestParticipantCondition(alias, userRef);
+  return taskParticipantCondition(alias, userRef);
+}
 
 export async function resolveCurrentUserTeam(
   context: AiExecutionContextWithManager,

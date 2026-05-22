@@ -22,6 +22,7 @@ import { StatusState, STATUS_STATES, resolveLifecycleState } from '../common/sta
 import { CompanyUpsertDto } from './dto/company.dto';
 
 type CompanyFilterTarget = FilterTargetConfig & { requiresMetrics?: boolean };
+type CompanyLookupItem = { id: string; name: string };
 
 @Injectable()
 export class CompaniesService {
@@ -258,6 +259,47 @@ export class CompaniesService {
       const items = await qb.getMany();
       return { items: items as any, total, page, limit };
     }
+  }
+
+  async lookup(query: any, opts?: { manager?: EntityManager }): Promise<{ items: CompanyLookupItem[]; total: number; page: number; limit: number }> {
+    const repo = this.getRepo(opts?.manager);
+    const page = Math.max(1, Number(query?.page) || 1);
+    const limit = Math.min(Math.max(1, Number(query?.limit) || 100), 1000);
+    const skip = (page - 1) * limit;
+    const q = String(query?.q || '').trim();
+
+    const qbBase = repo.createQueryBuilder('c').select(['c.id', 'c.name']);
+    applyStatusFilter(qbBase, { alias: 'c' });
+    if (q) {
+      qbBase.andWhere('LOWER(c.name) LIKE :q', { q: `%${q.toLowerCase()}%` });
+    }
+
+    const total = await qbBase.getCount();
+    const items = await qbBase
+      .clone()
+      .orderBy('LOWER(c.name)', 'ASC')
+      .addOrderBy('c.name', 'ASC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    return {
+      items: items.map((company) => ({ id: company.id, name: company.name })),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async lookupById(id: string, opts?: { manager?: EntityManager }): Promise<CompanyLookupItem> {
+    const repo = this.getRepo(opts?.manager);
+    const found = await repo
+      .createQueryBuilder('c')
+      .select(['c.id', 'c.name'])
+      .where('c.id = :id', { id })
+      .getOne();
+    if (!found) throw new NotFoundException('Company not found');
+    return { id: found.id, name: found.name };
   }
 
   async listIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {

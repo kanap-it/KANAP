@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { InterfaceEntity } from '../interface.entity';
 import { InterfaceLeg } from '../interface-leg.entity';
@@ -101,6 +101,42 @@ export abstract class InterfacesBaseService {
     if (value == null) return null;
     const text = String(value).trim();
     return text.length === 0 ? null : text;
+  }
+
+  protected async resolveInterfaceIdentifier(identifier: string, manager?: EntityManager): Promise<string> {
+    const normalized = String(identifier || '').trim();
+    if (!normalized) throw new NotFoundException('Interface not found');
+
+    const uuidMatch = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized);
+    const referenceMatch = normalized.match(/^(INT-\d+)(?:-.+)?$/i);
+    const mg = manager ?? this.repo.manager;
+
+    if (uuidMatch) {
+      const rows: Array<{ id: string }> = await mg.query(
+        `SELECT id::text AS id FROM interfaces WHERE id = $1 LIMIT 1`,
+        [normalized],
+      );
+      if (rows[0]?.id) return rows[0].id;
+    }
+
+    if (referenceMatch) {
+      const rows: Array<{ id: string }> = await mg.query(
+        `SELECT id::text AS id FROM interfaces WHERE upper(interface_reference) = upper($1) LIMIT 1`,
+        [referenceMatch[1]],
+      );
+      if (rows[0]?.id) return rows[0].id;
+    }
+
+    const rows: Array<{ id: string }> = await mg.query(
+      `SELECT id::text AS id
+       FROM interfaces
+       WHERE upper(COALESCE(interface_id, '')) = upper($1)
+       LIMIT 1`,
+      [normalized],
+    );
+    const id = rows[0]?.id;
+    if (!id) throw new NotFoundException('Interface not found');
+    return id;
   }
 
   protected normalizeEnvironment(value: unknown): EnvironmentValue {

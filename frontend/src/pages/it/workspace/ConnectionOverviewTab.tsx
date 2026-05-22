@@ -47,7 +47,8 @@ type LinkedInterfaceRow = {
   id: string;
   binding_id: string;
   interface_id: string;
-  interface_code: string;
+  interface_reference?: string | null;
+  interface_code?: string | null;
   interface_name: string;
   environment: string;
   leg_type: string;
@@ -404,11 +405,11 @@ export default function ConnectionOverviewTab({
             </TableHead>
             <TableBody>
               {derivationRows.map((row) => (
-                <TableRow key={row.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/it/interfaces/${row.interface_id}/specification`)}>
+                <TableRow key={row.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/it/interfaces/${row.interface_reference || row.interface_id}/overview`)}>
                   <TableCell sx={{ fontSize: 13 }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography component="span" sx={{ fontSize: 12, fontFamily: "'JetBrains Mono Variable', monospace", color: 'kanap.text.secondary' }}>
-                        {row.interface_code}
+                        {row.interface_reference || row.interface_code}
                       </Typography>
                       <Typography component="span" sx={{ fontSize: 13 }}>{row.interface_name}</Typography>
                     </Stack>
@@ -505,12 +506,12 @@ export default function ConnectionOverviewTab({
                     '& .row-unlink': { opacity: 0, transition: 'opacity 120ms ease' },
                     '&:hover .row-unlink': { opacity: 1 },
                   }}
-                  onClick={() => navigate(`/it/interfaces/${row.interface_id}/specification`)}
+                  onClick={() => navigate(`/it/interfaces/${row.interface_reference || row.interface_id}/overview`)}
                 >
                   <TableCell sx={{ fontSize: 13 }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography component="span" sx={{ fontSize: 12, fontFamily: "'JetBrains Mono Variable', monospace", color: 'kanap.text.secondary' }}>
-                        {row.interface_code}
+                        {row.interface_reference || row.interface_code}
                       </Typography>
                       <Typography component="span" sx={{ fontSize: 13 }}>{row.interface_name}</Typography>
                     </Stack>

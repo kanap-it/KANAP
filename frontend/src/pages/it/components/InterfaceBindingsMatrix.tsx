@@ -11,6 +11,7 @@ import {
   DialogTitle,
   IconButton,
   MenuItem,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -21,17 +22,29 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api';
-import ApplicationSelect from '../../../components/fields/ApplicationSelect';
+import { KanapDialog, PropertyRow } from '../../../components/design';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
+import {
+  dialogBorderedFieldSx,
+  drawerAutocompleteListboxSx,
+  drawerFieldValueSx,
+  drawerMenuItemSx,
+  drawerSelectSx,
+} from '../../../theme/formSx';
+import { getDotColor, LIFECYCLE_COLORS } from '../../../utils/statusColors';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
+// Set to false to restore the previous per-environment tables while evaluating the matrix workflow.
+const USE_RUNTIME_MATRIX_EXPERIMENT = true;
 
 type InterfaceLeg = {
   id: string;
@@ -74,6 +87,25 @@ type AppInstanceOption = {
   id: string;
   application_id: string;
   environment: string;
+  lifecycle?: string | null;
+  status?: string | null;
+  base_url?: string | null;
+  region?: string | null;
+  zone?: string | null;
+};
+
+type IntegrationToolOption = {
+  id: string;
+  label: string;
+};
+
+type ConnectionOption = {
+  id: string;
+  name: string;
+  connection_reference: string;
+  topology?: string | null;
+  lifecycle?: string | null;
+  criticality?: string | null;
 };
 
 type BindingConnection = {
@@ -123,6 +155,25 @@ type BindingDialogState = {
   integration_tool_application_id: string | null;
 };
 
+type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+type BindingAutosavePatch = Partial<
+  Pick<
+    BindingRow,
+    | 'source_instance_id'
+    | 'target_instance_id'
+    | 'status'
+    | 'source_endpoint'
+    | 'target_endpoint'
+    | 'trigger_details'
+    | 'env_job_name'
+    | 'authentication_mode'
+    | 'monitoring_url'
+    | 'env_notes'
+    | 'integration_tool_application_id'
+  >
+>;
+
 type ManageConnectionsState = {
   binding: BindingRow;
 } | null;
@@ -134,6 +185,80 @@ function getRoleLabel(role: string, sourceName?: string | null, targetName?: str
   if (r === 'middleware') return 'Middleware';
   return role || '';
 }
+
+function formatEnvironment(value: string | null | undefined) {
+  return String(value || '').replace(/_/g, '-').toUpperCase();
+}
+
+const DEFAULT_AUTH_OPTIONS = [
+  { code: 'service_account', label: 'Service account' },
+  { code: 'oauth2', label: 'OAuth2' },
+  { code: 'api_key', label: 'API key' },
+  { code: 'certificate', label: 'Certificate' },
+  { code: 'none', label: 'None' },
+];
+
+function formatInstanceOption(
+  instance: AppInstanceOption,
+  role: string,
+  sourceName?: string | null,
+  targetName?: string | null,
+) {
+  const roleLabel = getRoleLabel(role, sourceName, targetName);
+  const details = [instance.base_url, instance.region, instance.zone].filter(Boolean).join(' / ');
+  return [roleLabel, formatEnvironment(instance.environment), details || instance.id.slice(0, 8)]
+    .filter(Boolean)
+    .join(' - ');
+}
+
+function formatConnectionOption(option: ConnectionOption | null | undefined) {
+  if (!option) return '';
+  return [option.connection_reference, option.name].filter(Boolean).join(' · ');
+}
+
+function connectionOptionFromLink(link: BindingConnection): ConnectionOption {
+  return {
+    id: link.connection.id,
+    name: link.connection.name,
+    connection_reference: link.connection.connection_reference,
+    topology: link.connection.topology,
+    lifecycle: link.connection.lifecycle,
+    criticality: link.connection.criticality,
+  };
+}
+
+const dialogGridSx = {
+  display: 'grid',
+  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+  columnGap: 2,
+  rowGap: 0.5,
+} as const;
+
+const dialogFullWidthSx = {
+  gridColumn: { xs: 'auto', sm: '1 / -1' },
+} as const;
+
+const panelFormGridSx = {
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  rowGap: 0.5,
+} as const;
+
+const dialogSelectFieldSx = {
+  '&.MuiInputBase-root': {
+    border: (theme: Theme) => `1px solid ${theme.palette.kanap.border.default}`,
+    borderRadius: '6px',
+    px: '8px',
+    py: '6px',
+    bgcolor: (theme: Theme) => theme.palette.kanap.bg.primary,
+  },
+  '&.Mui-focused': {
+    borderColor: (theme: Theme) => theme.palette.kanap.teal,
+  },
+  '& .MuiSelect-select': {
+    p: '0 !important',
+  },
+} as const;
 
 export default function InterfaceBindingsMatrix({
   interfaceId,
@@ -166,16 +291,27 @@ export default function InterfaceBindingsMatrix({
   const [linksError, setLinksError] = React.useState<string | null>(null);
   const [manageConnections, setManageConnections] = React.useState<ManageConnectionsState>(null);
   const [connectionSearch, setConnectionSearch] = React.useState('');
-  const [connectionOptions, setConnectionOptions] = React.useState<Array<{ id: string; name: string; connection_reference: string }>>([]);
+  const [connectionOptions, setConnectionOptions] = React.useState<ConnectionOption[]>([]);
   const [connectionLoading, setConnectionLoading] = React.useState(false);
-  const [selectedConnection, setSelectedConnection] = React.useState<{ id: string; name: string; connection_reference: string } | null>(null);
+  const [selectedConnection, setSelectedConnection] = React.useState<ConnectionOption | null>(null);
+  const [bindingConnectionSearch, setBindingConnectionSearch] = React.useState('');
+  const [bindingConnectionOptions, setBindingConnectionOptions] = React.useState<ConnectionOption[]>([]);
+  const [bindingConnectionLoading, setBindingConnectionLoading] = React.useState(false);
+  const [selectedBindingConnection, setSelectedBindingConnection] = React.useState<ConnectionOption | null>(null);
+  const [bindingConnectionDirty, setBindingConnectionDirty] = React.useState(false);
   const [linkSaving, setLinkSaving] = React.useState(false);
   const [unlinkingLinkId, setUnlinkingLinkId] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [bindingPanelOpen, setBindingPanelOpen] = React.useState(false);
   const [dialogState, setDialogState] = React.useState<BindingDialogState | null>(null);
+  const [bindingSaving, setBindingSaving] = React.useState(false);
+  const [autosaveStatus, setAutosaveStatus] = React.useState<AutosaveStatus>('idle');
   const [manualEnvs, setManualEnvs] = React.useState<string[]>([]);
   const [envDialogOpen, setEnvDialogOpen] = React.useState(false);
   const [envDraft, setEnvDraft] = React.useState<string>('');
+  const [pendingDeleteBinding, setPendingDeleteBinding] = React.useState<BindingRow | null>(null);
+  const [pendingDeleteEnvironment, setPendingDeleteEnvironment] = React.useState<string | null>(null);
+  const autosaveRequestRef = React.useRef(0);
 
   const appIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -213,20 +349,26 @@ export default function InterfaceBindingsMatrix({
     void load();
   }, [load]);
 
+  const fetchLinksForBinding = React.useCallback(async (bindingId: string) => {
+    const res = await api.get<{ items: BindingConnection[] }>(`/interface-bindings/${bindingId}/connection-links`);
+    const items = res.data.items || [];
+    setLinksByBindingId((prev) => ({ ...prev, [bindingId]: items }));
+    return items;
+  }, []);
+
   const loadLinksForBinding = React.useCallback(
     async (bindingId: string) => {
       setLinksLoadingBindingId(bindingId);
       setLinksError(null);
       try {
-        const res = await api.get<{ items: BindingConnection[] }>(`/interface-bindings/${bindingId}/connection-links`);
-        setLinksByBindingId((prev) => ({ ...prev, [bindingId]: res.data.items || [] }));
+        await fetchLinksForBinding(bindingId);
       } catch (e: any) {
         setLinksError(getApiErrorMessage(e, t, t('messages.loadConnectionsFailed')));
       } finally {
         setLinksLoadingBindingId((prev) => (prev === bindingId ? null : prev));
       }
     },
-    [],
+    [fetchLinksForBinding, t],
   );
 
   const usedEnvs = React.useMemo(() => {
@@ -355,8 +497,9 @@ export default function InterfaceBindingsMatrix({
     }
   }, [manageConnections, linksByBindingId, loadLinksForBinding]);
 
-  // Prefetch connection links for all loaded bindings so chips are visible without opening the dialog
+  // Legacy table mode prefetches links; the matrix loads them only when a cell/panel is opened.
   React.useEffect(() => {
+    if (USE_RUNTIME_MATRIX_EXPERIMENT) return;
     const ids = bindings.map((b) => b.id);
     ids.forEach((id) => {
       if (linksByBindingId[id] === undefined) {
@@ -373,6 +516,52 @@ export default function InterfaceBindingsMatrix({
       setLinksError(null);
     }
   }, [manageConnections]);
+
+  React.useEffect(() => {
+    if (!dialogState) return;
+    let cancelled = false;
+    const loadConnectionOptions = async () => {
+      setBindingConnectionLoading(true);
+      try {
+        const res = await api.get<{ items: any[] }>('/connections', {
+          params: { q: bindingConnectionSearch || undefined, limit: 20 },
+        });
+        if (!cancelled) {
+          const items: ConnectionOption[] = (res.data?.items || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            connection_reference: item.connection_reference,
+            topology: item.topology,
+            lifecycle: item.lifecycle,
+            criticality: item.criticality,
+          }));
+          setBindingConnectionOptions(
+            selectedBindingConnection && !items.some((item) => item.id === selectedBindingConnection.id)
+              ? [selectedBindingConnection, ...items]
+              : items,
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setBindingConnectionOptions(selectedBindingConnection ? [selectedBindingConnection] : []);
+        }
+      } finally {
+        if (!cancelled) setBindingConnectionLoading(false);
+      }
+    };
+    void loadConnectionOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, [bindingConnectionSearch, dialogState?.bindingId, dialogState?.mode, selectedBindingConnection]);
+
+  React.useEffect(() => {
+    if (!dialogState?.bindingId || bindingConnectionDirty) return;
+    const links = linksByBindingId[dialogState.bindingId];
+    if (links === undefined) return;
+    const nextConnection = links[0] ? connectionOptionFromLink(links[0]) : null;
+    setSelectedBindingConnection(nextConnection);
+  }, [bindingConnectionDirty, dialogState?.bindingId, linksByBindingId]);
 
   const instanceOptionsFor = React.useCallback(
     (role: string, environment: string): AppInstanceOption[] => {
@@ -394,6 +583,29 @@ export default function InterfaceBindingsMatrix({
     [instancesByAppId, middlewareApplicationIds, sourceApplicationId, targetApplicationId],
   );
 
+  const integrationToolOptionsFor = React.useCallback((environment: string): IntegrationToolOption[] => {
+    if (integrationRouteType !== 'via_middleware') return [];
+    const options: IntegrationToolOption[] = [];
+    const seen = new Set<string>();
+    for (const appId of middlewareApplicationIds || []) {
+      if (!appId || seen.has(appId)) continue;
+      const instance = (instancesByAppId[appId] || []).find((item) => item.environment === environment);
+      if (!instance) continue;
+      seen.add(appId);
+      options.push({
+        id: appId,
+        label: formatInstanceOption(instance, 'middleware', sourceApplicationName, targetApplicationName),
+      });
+    }
+    return options;
+  }, [
+    instancesByAppId,
+    integrationRouteType,
+    middlewareApplicationIds,
+    sourceApplicationName,
+    targetApplicationName,
+  ]);
+
   const defaultIntegrationToolId = React.useMemo(() => {
     const ids = middlewareApplicationIds || [];
     if (!ids || ids.length === 0) return null;
@@ -403,6 +615,12 @@ export default function InterfaceBindingsMatrix({
   const openCreate = (env: string, leg: InterfaceLeg) => {
     const sourceOptions = instanceOptionsFor(leg.from_role, env);
     const targetOptions = instanceOptionsFor(leg.to_role, env);
+    const integrationToolOptions = integrationToolOptionsFor(env);
+    setSelectedBindingConnection(null);
+    setBindingConnectionDirty(false);
+    setBindingConnectionSearch('');
+    autosaveRequestRef.current += 1;
+    setAutosaveStatus('idle');
     setDialogState({
       mode: 'create',
       environment: env,
@@ -413,17 +631,33 @@ export default function InterfaceBindingsMatrix({
       source_endpoint: '',
       target_endpoint: '',
       trigger_details: '',
-      env_job_name: leg.job_name || '',
+      env_job_name: '',
       authentication_mode: null,
       monitoring_url: '',
       env_notes: '',
-      integration_tool_application_id: defaultIntegrationToolId,
+      integration_tool_application_id: integrationRouteType === 'via_middleware'
+        ? (integrationToolOptions[0]?.id || defaultIntegrationToolId)
+        : null,
     });
-    setDialogOpen(true);
+    if (USE_RUNTIME_MATRIX_EXPERIMENT) {
+      setBindingPanelOpen(true);
+    } else {
+      setDialogOpen(true);
+    }
     setError(null);
   };
 
   const openEdit = (env: string, leg: InterfaceLeg, binding: BindingRow) => {
+    const loadedLinks = linksByBindingId[binding.id];
+    const loadedConnection = loadedLinks?.[0] ? connectionOptionFromLink(loadedLinks[0]) : null;
+    setSelectedBindingConnection(loadedConnection);
+    setBindingConnectionDirty(false);
+    setBindingConnectionSearch('');
+    autosaveRequestRef.current += 1;
+    setAutosaveStatus('idle');
+    if (loadedLinks === undefined) {
+      void loadLinksForBinding(binding.id);
+    }
     setDialogState({
       mode: 'edit',
       environment: env,
@@ -441,13 +675,94 @@ export default function InterfaceBindingsMatrix({
       env_notes: binding.env_notes || '',
       integration_tool_application_id: binding.integration_tool_application_id || null,
     });
-    setDialogOpen(true);
+    if (USE_RUNTIME_MATRIX_EXPERIMENT) {
+      setBindingPanelOpen(true);
+    } else {
+      setDialogOpen(true);
+    }
     setError(null);
   };
 
   const closeDialog = () => {
     setDialogOpen(false);
+    setBindingPanelOpen(false);
     setDialogState(null);
+    setSelectedBindingConnection(null);
+    setBindingConnectionDirty(false);
+    setBindingConnectionSearch('');
+    setBindingConnectionOptions([]);
+    autosaveRequestRef.current += 1;
+    setAutosaveStatus('idle');
+  };
+
+  const autosaveBindingPatch = React.useCallback(async (bindingId: string, patch: BindingAutosavePatch) => {
+    const requestId = autosaveRequestRef.current + 1;
+    autosaveRequestRef.current = requestId;
+    setAutosaveStatus('saving');
+    setError(null);
+    try {
+      await api.patch(`/interface-bindings/${bindingId}`, patch);
+      setBindings((prev) => prev.map((binding) => (
+        binding.id === bindingId
+          ? { ...binding, ...patch, updated_at: new Date().toISOString() }
+          : binding
+      )));
+      if (autosaveRequestRef.current === requestId) {
+        setAutosaveStatus('saved');
+      }
+    } catch (e: any) {
+      if (autosaveRequestRef.current === requestId) {
+        setAutosaveStatus('error');
+      }
+      setError(getApiErrorMessage(e, t, t('messages.saveBindingFailed')));
+    }
+  }, [t]);
+
+  const saveBindingConnectionSelection = async (
+    bindingId: string,
+    selectedConnectionOption: ConnectionOption | null,
+  ) => {
+    const currentLinks = linksByBindingId[bindingId] ?? await fetchLinksForBinding(bindingId);
+    const primaryLink = currentLinks[0] || null;
+    const selectedConnectionId = selectedConnectionOption?.id || null;
+    if ((primaryLink?.connection_id || null) === selectedConnectionId) return;
+
+    if (primaryLink) {
+      await api.delete(`/interface-bindings/${bindingId}/connection-links/${primaryLink.id}`);
+    }
+    if (selectedConnectionId) {
+      await api.post(`/interface-bindings/${bindingId}/connection-links`, {
+        connection_id: selectedConnectionId,
+      });
+    }
+    await fetchLinksForBinding(bindingId);
+  };
+
+  const syncBindingConnection = async (bindingId: string) => {
+    if (!bindingConnectionDirty) return;
+    await saveBindingConnectionSelection(bindingId, selectedBindingConnection);
+  };
+
+  const autosaveBindingConnection = async (
+    bindingId: string,
+    selectedConnectionOption: ConnectionOption | null,
+  ) => {
+    const requestId = autosaveRequestRef.current + 1;
+    autosaveRequestRef.current = requestId;
+    setAutosaveStatus('saving');
+    setError(null);
+    try {
+      await saveBindingConnectionSelection(bindingId, selectedConnectionOption);
+      setBindingConnectionDirty(false);
+      if (autosaveRequestRef.current === requestId) {
+        setAutosaveStatus('saved');
+      }
+    } catch (e: any) {
+      if (autosaveRequestRef.current === requestId) {
+        setAutosaveStatus('error');
+      }
+      setError(getApiErrorMessage(e, t, t('messages.saveBindingFailed')));
+    }
   };
 
   const handleSaveDialog = async () => {
@@ -469,30 +784,73 @@ export default function InterfaceBindingsMatrix({
       status: dialogState.status || 'proposed',
       integration_tool_application_id: dialogState.integration_tool_application_id || null,
     };
+    setBindingSaving(true);
     try {
+      let savedBindingId = dialogState.bindingId || null;
       if (dialogState.mode === 'create') {
-        await api.post(`/interfaces/${interfaceId}/bindings`, {
+        const res = await api.post<BindingRow>(`/interfaces/${interfaceId}/bindings`, {
           interface_leg_id: dialogState.leg.id,
           ...payload,
         });
+        savedBindingId = res.data.id;
       } else if (dialogState.bindingId) {
         await api.patch(`/interface-bindings/${dialogState.bindingId}`, payload);
+      }
+      if (savedBindingId) {
+        await syncBindingConnection(savedBindingId);
       }
       closeDialog();
       await load();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.saveBindingFailed')));
+    } finally {
+      setBindingSaving(false);
     }
   };
 
   const handleDeleteBinding = async (binding: BindingRow) => {
-    if (!window.confirm(t('confirmations.removeBinding'))) return;
+    setPendingDeleteBinding(binding);
+  };
+
+  const confirmDeleteBinding = async () => {
+    if (!pendingDeleteBinding) return;
+    const deletedBindingId = pendingDeleteBinding.id;
+    const deletedEnvironment = pendingDeleteBinding.environment;
+    const hasRemainingBindingInEnv = bindings.some(
+      (binding) => binding.environment === deletedEnvironment && binding.id !== deletedBindingId,
+    );
     setError(null);
     try {
-      await api.delete(`/interface-bindings/${binding.id}`);
+      await api.delete(`/interface-bindings/${deletedBindingId}`);
+      if (deletedEnvironment && !hasRemainingBindingInEnv) {
+        setManualEnvs((prev) => (prev.includes(deletedEnvironment) ? prev : [...prev, deletedEnvironment]));
+      }
+      setPendingDeleteBinding(null);
+      if (dialogState?.bindingId === deletedBindingId) {
+        closeDialog();
+      }
       await load();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('messages.deleteBindingFailed')));
+    }
+  };
+
+  const confirmDeleteEnvironment = async () => {
+    if (!pendingDeleteEnvironment) return;
+    const env = pendingDeleteEnvironment;
+    const envBindings = bindings.filter((b) => b.environment === env);
+    setError(null);
+    try {
+      await Promise.all(
+        envBindings.map((b) => api.delete(`/interface-bindings/${b.id}`)),
+      );
+      setManualEnvs((prev) => prev.filter((e) => e !== env));
+      setPendingDeleteEnvironment(null);
+      await load();
+    } catch (e: any) {
+      setError(
+        getApiErrorMessage(e, t, t('messages.deleteEnvBindingsFailed')),
+      );
     }
   };
 
@@ -529,21 +887,781 @@ export default function InterfaceBindingsMatrix({
     [loadLinksForBinding],
   );
 
-  const authOptions = byField.interfaceAuthMode || [];
+  const authOptions = React.useMemo(() => {
+    const current = dialogState?.authentication_mode || '';
+    const source: Array<{ code: string; label: string; deprecated?: boolean }> = (byField.interfaceAuthMode || []).length > 0
+      ? byField.interfaceAuthMode
+      : DEFAULT_AUTH_OPTIONS;
+    const options = source
+      .filter((item) => !item.deprecated || item.code === current)
+      .map((item) => ({
+        code: item.code,
+        label: item.deprecated ? `${item.label} (deprecated)` : item.label,
+      }));
+    if (current && !options.some((item) => item.code === current)) {
+      options.push({ code: current, label: labelFor('interfaceAuthMode', current) || current });
+    }
+    return options;
+  }, [byField.interfaceAuthMode, dialogState?.authentication_mode, labelFor]);
+
+  const dialogSourceInstanceOptions = React.useMemo(() => (
+    dialogState ? instanceOptionsFor(dialogState.leg.from_role, dialogState.environment) : []
+  ), [dialogState?.environment, dialogState?.leg.from_role, instanceOptionsFor]);
+
+  const dialogTargetInstanceOptions = React.useMemo(() => (
+    dialogState ? instanceOptionsFor(dialogState.leg.to_role, dialogState.environment) : []
+  ), [dialogState?.environment, dialogState?.leg.to_role, instanceOptionsFor]);
+
+  const dialogIntegrationToolOptions = React.useMemo(() => (
+    dialogState ? integrationToolOptionsFor(dialogState.environment) : []
+  ), [dialogState?.environment, integrationToolOptionsFor]);
+
+  const showSourceInstanceSelect = dialogState?.mode === 'create' && dialogSourceInstanceOptions.length > 1;
+  const showTargetInstanceSelect = dialogState?.mode === 'create' && dialogTargetInstanceOptions.length > 1;
+  const showIntegrationToolSelect = (
+    dialogState?.mode === 'create'
+    && integrationRouteType === 'via_middleware'
+    && dialogIntegrationToolOptions.length > 1
+  );
+  const missingBindingInstanceRoles = React.useMemo(() => {
+    if (!dialogState || dialogState.mode !== 'create') return [];
+    const missing: string[] = [];
+    if (dialogSourceInstanceOptions.length === 0) {
+      missing.push(getRoleLabel(dialogState.leg.from_role, sourceApplicationName, targetApplicationName));
+    }
+    if (dialogTargetInstanceOptions.length === 0) {
+      missing.push(getRoleLabel(dialogState.leg.to_role, sourceApplicationName, targetApplicationName));
+    }
+    return missing;
+  }, [
+    dialogSourceInstanceOptions.length,
+    dialogState?.environment,
+    dialogState?.leg.from_role,
+    dialogState?.leg.to_role,
+    dialogState?.mode,
+    dialogTargetInstanceOptions.length,
+    sourceApplicationName,
+    targetApplicationName,
+  ]);
+  const bindingSaveDisabled = bindingSaving || !dialogState?.source_instance_id || !dialogState?.target_instance_id;
+  const autosaveEditEnabled = Boolean(
+    USE_RUNTIME_MATRIX_EXPERIMENT
+    && bindingPanelOpen
+    && dialogState?.mode === 'edit'
+    && dialogState.bindingId,
+  );
+
+  const updateDialogField = <K extends keyof BindingDialogState,>(field: K, value: BindingDialogState[K]) => {
+    setDialogState((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const commitBindingField = (
+    field: keyof BindingAutosavePatch,
+    value: BindingAutosavePatch[keyof BindingAutosavePatch],
+  ) => {
+    if (!autosaveEditEnabled || !dialogState?.bindingId) return;
+    void autosaveBindingPatch(dialogState.bindingId, { [field]: value } as BindingAutosavePatch);
+  };
+
+  const formatInstance = React.useCallback((id: string | null | undefined): string => {
+    if (!id) return '—';
+    const inst = instancesById[id];
+    if (!inst) return id;
+    let appLabel = 'Middleware';
+    if (inst.application_id === sourceApplicationId) appLabel = sourceApplicationName || 'Source';
+    else if (inst.application_id === targetApplicationId) appLabel = targetApplicationName || 'Target';
+    const envLabel = formatEnvironment(inst.environment);
+    return `${appLabel} · ${envLabel}`;
+  }, [
+    instancesById,
+    sourceApplicationId,
+    sourceApplicationName,
+    targetApplicationId,
+    targetApplicationName,
+  ]);
+
+  const openBindingCell = (env: string, leg: InterfaceLeg, binding: BindingRow | undefined) => {
+    if (binding) {
+      openEdit(env, leg, binding);
+      if (linksByBindingId[binding.id] === undefined) {
+        void loadLinksForBinding(binding.id);
+      }
+      return;
+    }
+    openCreate(env, leg);
+  };
+
+  const renderStatusDot = (label: string, muiColor: string = 'default') => (
+    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+      <Box
+        sx={(theme) => ({
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          flex: '0 0 auto',
+          bgcolor: getDotColor(muiColor, theme.palette.mode),
+        })}
+      />
+      <Typography
+        component="span"
+        sx={(theme) => ({
+          minWidth: 0,
+          fontSize: 12,
+          lineHeight: 1.3,
+          fontWeight: 500,
+          color: getDotColor(muiColor, theme.palette.mode),
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        })}
+      >
+        {label}
+      </Typography>
+    </Stack>
+  );
+
+  const renderTechnicalTemplate = (leg: InterfaceLeg) => (
+    <Stack spacing={0.25}>
+      <Typography sx={{ fontSize: 12, lineHeight: 1.35, color: 'kanap.text.secondary' }}>
+        Trigger: {labelFor('interfaceTriggerType', leg.trigger_type) || leg.trigger_type || '—'}
+      </Typography>
+      <Typography sx={{ fontSize: 12, lineHeight: 1.35, color: 'kanap.text.secondary' }}>
+        Pattern: {labelFor('interfacePattern', leg.integration_pattern) || leg.integration_pattern || '—'}
+      </Typography>
+      <Typography sx={{ fontSize: 12, lineHeight: 1.35, color: 'kanap.text.secondary' }}>
+        Format: {labelFor('interfaceFormat', leg.data_format) || leg.data_format || '—'}
+      </Typography>
+      <Typography sx={{ fontSize: 12, lineHeight: 1.35, color: 'kanap.text.secondary' }}>
+        Job name: {leg.job_name || '—'}
+      </Typography>
+    </Stack>
+  );
+
+  const renderBindingFormContent = (surface: 'dialog' | 'panel') => {
+    if (!dialogState) return null;
+    const gridSx = surface === 'panel' ? panelFormGridSx : dialogGridSx;
+    const fullWidthSx = surface === 'panel' ? undefined : dialogFullWidthSx;
+    const selectFieldSx = surface === 'panel' ? drawerSelectSx : [drawerSelectSx, dialogSelectFieldSx];
+    const textFieldSx = surface === 'panel' ? drawerFieldValueSx : [drawerFieldValueSx, dialogBorderedFieldSx];
+    const linkedConnections = dialogState.bindingId ? linksByBindingId[dialogState.bindingId] : undefined;
+    const additionalLinkedConnections = linkedConnections?.slice(1) || [];
+
+    return (
+      <Stack spacing={1.25}>
+        {error && <Alert severity="error">{error}</Alert>}
+        {missingBindingInstanceRoles.length > 0 && (
+          <Alert severity="warning">
+            {`No ${missingBindingInstanceRoles.join(' or ')} instance is available for ${formatEnvironment(dialogState.environment)}. Create the missing deployment before adding this binding.`}
+          </Alert>
+        )}
+        <Box sx={gridSx}>
+          {showSourceInstanceSelect && (
+            <PropertyRow label="Source instance" required>
+              <Select
+                value={dialogState.source_instance_id || ''}
+                onChange={(event) => updateDialogField('source_instance_id', event.target.value || null)}
+                variant="standard"
+                disableUnderline
+                sx={selectFieldSx}
+              >
+                {dialogSourceInstanceOptions.map((inst) => (
+                  <MenuItem key={inst.id} value={inst.id} sx={drawerMenuItemSx}>
+                    {formatInstanceOption(inst, dialogState.leg.from_role, sourceApplicationName, targetApplicationName)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </PropertyRow>
+          )}
+          {showTargetInstanceSelect && (
+            <PropertyRow label="Target instance" required>
+              <Select
+                value={dialogState.target_instance_id || ''}
+                onChange={(event) => updateDialogField('target_instance_id', event.target.value || null)}
+                variant="standard"
+                disableUnderline
+                sx={selectFieldSx}
+              >
+                {dialogTargetInstanceOptions.map((inst) => (
+                  <MenuItem key={inst.id} value={inst.id} sx={drawerMenuItemSx}>
+                    {formatInstanceOption(inst, dialogState.leg.to_role, sourceApplicationName, targetApplicationName)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </PropertyRow>
+          )}
+          {showIntegrationToolSelect && (
+            <PropertyRow label="Integration tool" required sx={fullWidthSx}>
+              <Select
+                value={dialogState.integration_tool_application_id || ''}
+                onChange={(event) => updateDialogField('integration_tool_application_id', event.target.value || null)}
+                variant="standard"
+                disableUnderline
+                sx={selectFieldSx}
+              >
+                {dialogIntegrationToolOptions.map((option) => (
+                  <MenuItem key={option.id} value={option.id} sx={drawerMenuItemSx}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </PropertyRow>
+          )}
+          <PropertyRow label="Status">
+            <Select
+              value={dialogState.status}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                updateDialogField('status', nextValue);
+                commitBindingField('status', nextValue || 'proposed');
+              }}
+              variant="standard"
+              disableUnderline
+              sx={selectFieldSx}
+            >
+              {lifecycleOptions.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </PropertyRow>
+          <PropertyRow label="Authentication mode">
+            <Select
+              value={dialogState.authentication_mode || ''}
+              onChange={(event) => {
+                const nextValue = event.target.value || null;
+                updateDialogField('authentication_mode', nextValue);
+                commitBindingField('authentication_mode', nextValue);
+              }}
+              variant="standard"
+              disableUnderline
+              displayEmpty
+              renderValue={(value) => {
+                const code = String(value || '');
+                if (!code) return 'Not specified';
+                return authOptions.find((option) => option.code === code)?.label || code;
+              }}
+              sx={selectFieldSx}
+            >
+              <MenuItem value="" sx={drawerMenuItemSx}>Not specified</MenuItem>
+              {authOptions.map((opt) => (
+                <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </PropertyRow>
+          <PropertyRow label="Infra connection" sx={fullWidthSx}>
+            <Autocomplete
+              options={bindingConnectionOptions}
+              loading={bindingConnectionLoading || (Boolean(dialogState.bindingId) && linksLoadingBindingId === dialogState.bindingId)}
+              value={selectedBindingConnection}
+              onInputChange={(_, value, reason) => {
+                if (reason === 'input' || reason === 'clear') {
+                  setBindingConnectionSearch(value);
+                }
+              }}
+              onChange={(_, value) => {
+                setSelectedBindingConnection(value);
+                setBindingConnectionDirty(true);
+                setBindingConnectionSearch('');
+                if (autosaveEditEnabled && dialogState.bindingId) {
+                  void autosaveBindingConnection(dialogState.bindingId, value);
+                }
+              }}
+              getOptionLabel={formatConnectionOption}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              clearOnBlur={false}
+              noOptionsText={bindingConnectionSearch ? 'No connections found' : 'No connections'}
+              ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} key={option.id}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography className="kanap-autocomplete-option-primary">
+                      {formatConnectionOption(option)}
+                    </Typography>
+                    {(option.topology || option.lifecycle || option.criticality) && (
+                      <Typography className="kanap-autocomplete-option-secondary">
+                        {[option.topology, option.lifecycle, option.criticality].filter(Boolean).join(' · ')}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  variant="standard"
+                  placeholder="Search connections"
+                  InputProps={{
+                    ...params.InputProps,
+                    disableUnderline: true,
+                    endAdornment: (
+                      <>
+                        {bindingConnectionLoading ? <CircularProgress size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                  sx={textFieldSx}
+                />
+              )}
+            />
+            {additionalLinkedConnections.length > 0 && (
+              <Typography sx={{ mt: 0.5, fontSize: 12, color: 'kanap.text.tertiary' }}>
+                {`${additionalLinkedConnections.length} additional linked connection${additionalLinkedConnections.length > 1 ? 's' : ''} kept unchanged.`}
+              </Typography>
+            )}
+          </PropertyRow>
+        </Box>
+
+        <Box sx={gridSx}>
+          <PropertyRow label="Source endpoint" sx={fullWidthSx}>
+            <TextField
+              value={dialogState.source_endpoint}
+              onChange={(event) => updateDialogField('source_endpoint', event.target.value)}
+              onBlur={(event) => commitBindingField('source_endpoint', event.target.value || null)}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={textFieldSx}
+              placeholder="File path, URL, queue name"
+            />
+          </PropertyRow>
+          <PropertyRow label="Target endpoint" sx={fullWidthSx}>
+            <TextField
+              value={dialogState.target_endpoint}
+              onChange={(event) => updateDialogField('target_endpoint', event.target.value)}
+              onBlur={(event) => commitBindingField('target_endpoint', event.target.value || null)}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={textFieldSx}
+              placeholder="File path, URL, queue name"
+            />
+          </PropertyRow>
+          <PropertyRow label="Trigger details" sx={fullWidthSx}>
+            <TextField
+              value={dialogState.trigger_details}
+              onChange={(event) => updateDialogField('trigger_details', event.target.value)}
+              onBlur={(event) => commitBindingField('trigger_details', event.target.value || null)}
+              variant="standard"
+              fullWidth
+              multiline
+              minRows={surface === 'panel' ? 3 : 2}
+              InputProps={{ disableUnderline: true }}
+              sx={textFieldSx}
+              placeholder="Cron expression, event description, batch window"
+            />
+          </PropertyRow>
+          <PropertyRow label="Job name override">
+            <TextField
+              value={dialogState.env_job_name}
+              onChange={(event) => updateDialogField('env_job_name', event.target.value)}
+              onBlur={(event) => commitBindingField('env_job_name', event.target.value || null)}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={textFieldSx}
+              placeholder={dialogState.leg.job_name ? `Uses ${dialogState.leg.job_name}` : 'Uses Flow job name'}
+            />
+          </PropertyRow>
+          <PropertyRow label="Monitoring URL">
+            <TextField
+              value={dialogState.monitoring_url}
+              onChange={(event) => updateDialogField('monitoring_url', event.target.value)}
+              onBlur={(event) => commitBindingField('monitoring_url', event.target.value || null)}
+              variant="standard"
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={textFieldSx}
+              placeholder="https://..."
+            />
+          </PropertyRow>
+          <PropertyRow label="Notes" sx={fullWidthSx}>
+            <TextField
+              value={dialogState.env_notes}
+              onChange={(event) => updateDialogField('env_notes', event.target.value)}
+              onBlur={(event) => commitBindingField('env_notes', event.target.value || null)}
+              variant="standard"
+              fullWidth
+              multiline
+              minRows={3}
+              InputProps={{ disableUnderline: true }}
+              sx={textFieldSx}
+              placeholder="Environment-specific notes"
+            />
+          </PropertyRow>
+        </Box>
+      </Stack>
+    );
+  };
+
+  const renderEnvironmentSummary = () => (
+    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
+      {allEnvs.map((env) => {
+        const configuredCount = legs.filter((leg) => Boolean(bindingsByLegEnv[leg.id]?.[env])).length;
+        const totalCount = legs.length;
+        const muiColor = configuredCount === 0 ? 'default' : configuredCount === totalCount ? 'success' : 'warning';
+        return (
+          <Box
+            key={env}
+            sx={(theme) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              minHeight: 28,
+              px: 1,
+              borderRadius: '6px',
+              border: `1px solid ${theme.palette.kanap.border.default}`,
+              bgcolor: theme.palette.kanap.bg.primary,
+            })}
+          >
+            {renderStatusDot(formatEnvironment(env), muiColor)}
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.secondary' }}>
+              {`${configuredCount}/${totalCount || 0}`}
+            </Typography>
+          </Box>
+        );
+      })}
+    </Stack>
+  );
+
+  const renderBindingMatrixCell = (env: string, leg: InterfaceLeg) => {
+    const binding = bindingsByLegEnv[leg.id]?.[env];
+    const links = binding ? linksByBindingId[binding.id] : undefined;
+    const isSelected = Boolean(bindingPanelOpen && dialogState?.environment === env && dialogState?.leg.id === leg.id);
+    const hasMissingInfra = Boolean(binding && binding.status === 'active' && links && links.length === 0);
+    const statusLabel = binding
+      ? hasMissingInfra
+        ? 'Missing connection'
+        : labelFor('lifecycleStatus', binding.status) || binding.status || 'Configured'
+      : 'Empty';
+    const statusColor = binding
+      ? hasMissingInfra
+        ? 'warning'
+        : LIFECYCLE_COLORS[binding.status] || 'default'
+      : 'default';
+    const endpointLines: string[] = binding
+      ? [
+        binding.source_endpoint ? `Source: ${binding.source_endpoint}` : null,
+        binding.target_endpoint ? `Target: ${binding.target_endpoint}` : null,
+      ].filter((line): line is string => Boolean(line))
+      : [];
+    const connectionSummary = !binding
+      ? null
+      : links === undefined
+        ? null
+        : links.length > 0
+          ? `${links[0].connection.connection_reference} · ${links[0].connection.name}${links.length > 1 ? ` +${links.length - 1}` : ''}`
+          : 'No infra connection linked';
+    const emptyDetails = binding && endpointLines.length === 0 && !connectionSummary;
+
+    return (
+      <TableCell key={`${env}-${leg.id}`} sx={{ width: 220, minWidth: 220, verticalAlign: 'top' }}>
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={() => openBindingCell(env, leg, binding)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openBindingCell(env, leg, binding);
+            }
+          }}
+          sx={(theme) => ({
+            minHeight: 72,
+            borderRadius: '6px',
+            px: 1,
+            py: 0.875,
+            cursor: 'pointer',
+            border: `1px solid ${isSelected ? theme.palette.kanap.teal : theme.palette.kanap.border.default}`,
+            bgcolor: isSelected ? theme.palette.kanap.bg.composer : theme.palette.kanap.bg.primary,
+            transition: 'background-color 120ms ease, border-color 120ms ease',
+            '&:hover': {
+              bgcolor: theme.palette.kanap.bg.composer,
+            },
+            '&:focus-visible': {
+              outline: `2px solid ${theme.palette.kanap.teal}`,
+              outlineOffset: 2,
+            },
+          })}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ minWidth: 0 }}>
+            {renderStatusDot(statusLabel, statusColor)}
+            {binding && (
+              <Stack direction="row" spacing={0.25} alignItems="center" sx={{ flex: '0 0 auto' }}>
+                <Tooltip title="Edit binding">
+                  <EditIcon
+                    aria-hidden="true"
+                    sx={{ fontSize: 15, color: 'kanap.text.tertiary' }}
+                  />
+                </Tooltip>
+                <Tooltip title="Delete binding">
+                  <IconButton
+                    aria-label="Delete binding"
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleDeleteBinding(binding);
+                    }}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                    sx={(theme) => ({
+                      p: 0.25,
+                      color: theme.palette.kanap.text.tertiary,
+                      '&:hover': {
+                        color: theme.palette.error.main,
+                        bgcolor: 'transparent',
+                      },
+                    })}
+                  >
+                    <DeleteIcon sx={{ fontSize: 15 }} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            )}
+          </Stack>
+          {!binding && (
+            <Typography
+              sx={{
+                mt: 0.625,
+                fontSize: 12,
+                lineHeight: 1.35,
+                color: 'kanap.text.secondary',
+              }}
+            >
+              Click to add
+            </Typography>
+          )}
+          {endpointLines.map((line) => (
+            <Typography
+              key={line}
+              sx={{
+                mt: 0.625,
+                fontSize: 12,
+                lineHeight: 1.35,
+                color: 'kanap.text.primary',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={line}
+            >
+              {line}
+            </Typography>
+          ))}
+          {connectionSummary && (
+            <Typography
+              sx={{
+                mt: 0.25,
+                fontSize: 12,
+                lineHeight: 1.35,
+                color: 'kanap.text.tertiary',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={connectionSummary}
+            >
+              {connectionSummary}
+            </Typography>
+          )}
+          {emptyDetails && (
+            <Typography
+              sx={{
+                mt: 0.625,
+                fontSize: 12,
+                lineHeight: 1.35,
+                color: 'kanap.text.tertiary',
+              }}
+            >
+              Click to edit
+            </Typography>
+          )}
+        </Box>
+      </TableCell>
+    );
+  };
+
+  const renderRuntimeMatrix = () => (
+    <Box
+      sx={(theme) => ({
+        overflowX: 'auto',
+        border: `1px solid ${theme.palette.kanap.border.default}`,
+        borderRadius: '8px',
+        bgcolor: theme.palette.kanap.bg.primary,
+      })}
+    >
+      <Table size="small" sx={{ minWidth: Math.max(520, 260 + allEnvs.length * 220) }}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ width: 260, minWidth: 260 }}>Leg and technical template</TableCell>
+            {allEnvs.map((env) => (
+              <TableCell key={env} sx={{ width: 220, minWidth: 220 }}>
+                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="space-between">
+                  <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary' }}>
+                    {formatEnvironment(env)}
+                  </Typography>
+                  <Tooltip title="Delete environment">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        const envBindings = bindings.filter((binding) => binding.environment === env);
+                        if (envBindings.length > 0) {
+                          setPendingDeleteEnvironment(env);
+                        } else {
+                          setManualEnvs((prev) => prev.filter((item) => item !== env));
+                        }
+                      }}
+                      sx={{ p: 0.25 }}
+                    >
+                      <DeleteIcon sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {legs.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={Math.max(1, allEnvs.length + 1)}>
+                <Typography variant="body2" color="text.secondary">
+                  No legs defined for this interface yet.
+                </Typography>
+              </TableCell>
+            </TableRow>
+          )}
+          {legs.map((leg) => (
+            <TableRow key={leg.id}>
+              <TableCell sx={{ verticalAlign: 'top' }}>
+                <Stack spacing={0.75}>
+                  <Typography sx={{ fontSize: 13, lineHeight: 1.35, fontWeight: 500, color: 'kanap.text.primary' }}>
+                    {String(leg.leg_type || '').toUpperCase()}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, lineHeight: 1.35, color: 'kanap.text.tertiary' }}>
+                    {`${getRoleLabel(leg.from_role, sourceApplicationName, targetApplicationName)} → ${getRoleLabel(leg.to_role, sourceApplicationName, targetApplicationName)}`}
+                  </Typography>
+                  {renderTechnicalTemplate(leg)}
+                </Stack>
+              </TableCell>
+              {allEnvs.map((env) => renderBindingMatrixCell(env, leg))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+
+  const renderBindingSidePanel = () => {
+    if (!bindingPanelOpen || !dialogState) return null;
+    const autosaveStatusText = dialogState.mode === 'edit'
+      ? autosaveStatus === 'saving'
+        ? 'Saving…'
+        : autosaveStatus === 'saved'
+          ? 'Saved'
+          : autosaveStatus === 'error'
+            ? 'Autosave failed'
+            : null
+      : null;
+    return (
+      <Box
+        component="form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (dialogState.mode === 'create' && !bindingSaveDisabled) {
+            void handleSaveDialog();
+          }
+        }}
+        sx={(theme) => ({
+          minWidth: 0,
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: '8px',
+          bgcolor: theme.palette.kanap.bg.drawer,
+          alignSelf: 'start',
+        })}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={(theme) => ({
+            px: 1.5,
+            py: 1.25,
+            borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+          })}
+        >
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 14, lineHeight: 1.35, fontWeight: 500, color: 'kanap.text.primary' }}>
+              {dialogState.mode === 'edit' ? 'Edit binding' : 'Add binding'}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 12,
+                lineHeight: 1.35,
+                color: 'kanap.text.secondary',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {`${formatEnvironment(dialogState.environment)} · ${String(dialogState.leg.leg_type || '').toUpperCase()}`}
+            </Typography>
+            {autosaveStatusText && (
+              <Typography
+                sx={{
+                  mt: 0.25,
+                  fontSize: 12,
+                  lineHeight: 1.35,
+                  color: autosaveStatus === 'error' ? 'error.main' : 'kanap.text.tertiary',
+                }}
+              >
+                {autosaveStatusText}
+              </Typography>
+            )}
+          </Box>
+          <IconButton aria-label="Close binding panel" size="small" onClick={closeDialog}>
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Stack>
+        <Box sx={{ px: 1.5, py: 1.25 }}>
+          {renderBindingFormContent('panel')}
+        </Box>
+        {dialogState.mode === 'create' && (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            justifyContent="flex-end"
+            sx={(theme) => ({
+              px: 1.5,
+              py: 1.25,
+              borderTop: `1px solid ${theme.palette.kanap.border.default}`,
+            })}
+          >
+            <Button size="small" onClick={closeDialog}>
+              Cancel
+            </Button>
+            <Button
+              size="small"
+              type="submit"
+              variant="contained"
+              disabled={bindingSaveDisabled}
+            >
+              {bindingSaving ? 'Saving…' : 'Add binding'}
+            </Button>
+          </Stack>
+        )}
+      </Box>
+    );
+  };
 
   const renderLegRow = (env: string, leg: InterfaceLeg, binding: BindingRow | undefined) => {
     const hasBinding = !!binding;
     const links = binding ? linksByBindingId[binding.id] : undefined;
-    const formatInstance = (id: string | null | undefined): string => {
-      if (!id) return '—';
-      const inst = instancesById[id];
-      if (!inst) return id;
-      let appLabel = 'Middleware';
-      if (inst.application_id === sourceApplicationId) appLabel = sourceApplicationName || 'Source';
-      else if (inst.application_id === targetApplicationId) appLabel = targetApplicationName || 'Target';
-      const envLabel = (inst.environment || '').toUpperCase();
-      return `${appLabel} · ${envLabel}`;
-    };
     return (
       <TableRow key={`env-${env}-${leg.id}`}>
         <TableCell sx={{ fontWeight: 500 }}>
@@ -668,7 +1786,7 @@ export default function InterfaceBindingsMatrix({
                   size="small"
                   onClick={() => {
                     setManageConnections({ binding: binding! });
-                    if (!linksByBindingId[binding!.id]) {
+                    if (linksByBindingId[binding!.id] === undefined) {
                       void loadLinksForBinding(binding!.id);
                     }
                   }}
@@ -767,71 +1885,80 @@ export default function InterfaceBindingsMatrix({
           application instances for each environment in the Applications workspace to create bindings.
         </Alert>
       )}
-      {allEnvs.map((env) => (
-        <Box key={env} sx={{ mb: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="subtitle1">
-              Environment: {env.toUpperCase()}
-            </Typography>
-            <Button
-              size="small"
-              color="error"
-              onClick={async () => {
-                const envBindings = bindings.filter((b) => b.environment === env);
-                if (envBindings.length > 0) {
-                  const ok = window.confirm(
-                    `Delete all bindings for environment ${env.toUpperCase()}? This cannot be undone.`,
-                  );
-                  if (!ok) return;
-                  setError(null);
-                  try {
-                    await Promise.all(
-                      envBindings.map((b) => api.delete(`/interface-bindings/${b.id}`)),
-                    );
-                    setManualEnvs((prev) => prev.filter((e) => e !== env));
-                    await load();
-                  } catch (e: any) {
-                    setError(
-                      getApiErrorMessage(e, t, t('messages.deleteEnvBindingsFailed')),
-                    );
-                  }
-                } else {
-                  setManualEnvs((prev) => prev.filter((e) => e !== env));
-                }
+      {allEnvs.length > 0 && (
+        USE_RUNTIME_MATRIX_EXPERIMENT ? (
+          <>
+            {renderEnvironmentSummary()}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  lg: bindingPanelOpen ? 'minmax(0, 1fr) minmax(340px, 380px)' : 'minmax(0, 1fr)',
+                },
+                gap: 1.5,
+                alignItems: 'start',
               }}
             >
-              Delete environment
-            </Button>
-          </Stack>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Leg</TableCell>
-                <TableCell>Technical template</TableCell>
-                <TableCell>{`Binding in ${env.toUpperCase()}`}</TableCell>
-                <TableCell>Connections</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {legs.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5}>
-                    <Typography variant="body2" color="text.secondary">
-                      No legs defined for this interface yet.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {legs.map((leg) => {
-                const byEnv = bindingsByLegEnv[leg.id] || {};
-                const binding = byEnv[env];
-                return renderLegRow(env, leg, binding);
-              })}
-            </TableBody>
-          </Table>
-        </Box>
-      ))}
+              {renderRuntimeMatrix()}
+              {renderBindingSidePanel()}
+            </Box>
+          </>
+        ) : (
+          <>
+            {allEnvs.map((env) => (
+              <Box key={env} sx={{ mb: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle1">
+                    Environment: {env.toUpperCase()}
+                  </Typography>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => {
+                      const envBindings = bindings.filter((b) => b.environment === env);
+                      if (envBindings.length > 0) {
+                        setPendingDeleteEnvironment(env);
+                      } else {
+                        setManualEnvs((prev) => prev.filter((e) => e !== env));
+                      }
+                    }}
+                  >
+                    Delete environment
+                  </Button>
+                </Stack>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Leg</TableCell>
+                      <TableCell>Technical template</TableCell>
+                      <TableCell>{`Binding in ${env.toUpperCase()}`}</TableCell>
+                      <TableCell>Connections</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {legs.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <Typography variant="body2" color="text.secondary">
+                            No legs defined for this interface yet.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {legs.map((leg) => {
+                      const byEnv = bindingsByLegEnv[leg.id] || {};
+                      const binding = byEnv[env];
+                      return renderLegRow(env, leg, binding);
+                    })}
+                  </TableBody>
+                </Table>
+              </Box>
+            ))}
+          </>
+        )
+      )}
 
       <Dialog open={!!manageConnections} onClose={() => setManageConnections(null)} maxWidth="md" fullWidth>
         <DialogTitle>Manage infra connections</DialogTitle>
@@ -993,202 +2120,76 @@ export default function InterfaceBindingsMatrix({
         </DialogActions>
       </Dialog>
 
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{dialogState?.mode === 'edit' ? 'Edit binding' : 'Add binding'}</DialogTitle>
-        <DialogContent dividers>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          {dialogState && (
-            <Stack spacing={2}>
-              <TextField
-                label="Environment"
-                value={dialogState.environment.toUpperCase()}
-                InputProps={{ readOnly: true }}
-              />
-              <TextField
-                label="Leg"
-                value={`${String(dialogState.leg.leg_type || '').toUpperCase()} — ${
-                  getRoleLabel(dialogState.leg.from_role, sourceApplicationName, targetApplicationName)
-                } → ${
-                  getRoleLabel(dialogState.leg.to_role, sourceApplicationName, targetApplicationName)
-                }`}
-                InputProps={{ readOnly: true }}
-              />
-              <TextField
-                select
-                label="Source instance"
-                value={dialogState.source_instance_id || ''}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, source_instance_id: e.target.value || null } : prev))
-                }
-                required
-              >
-                {instanceOptionsFor(dialogState.leg.from_role, dialogState.environment).map((inst) => (
-                  <MenuItem key={inst.id} value={inst.id}>
-                    {dialogState.environment.toUpperCase()}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Target instance"
-                value={dialogState.target_instance_id || ''}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, target_instance_id: e.target.value || null } : prev))
-                }
-                required
-              >
-                {instanceOptionsFor(dialogState.leg.to_role, dialogState.environment).map((inst) => (
-                  <MenuItem key={inst.id} value={inst.id}>
-                    {dialogState.environment.toUpperCase()}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {integrationRouteType === 'via_middleware' && (
-                <ApplicationSelect
-                  label="Integration tool"
-                  value={dialogState.integration_tool_application_id}
-                  onChange={(v) =>
-                    setDialogState((prev) => (prev ? { ...prev, integration_tool_application_id: v } : prev))
-                  }
-                  onlyEtl
-                />
-              )}
-              <TextField
-                select
-                label="Status"
-                value={dialogState.status}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, status: e.target.value } : prev))
-                }
-              >
-                {lifecycleOptions.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Authentication mode"
-                value={dialogState.authentication_mode || ''}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, authentication_mode: e.target.value || null } : prev))
-                }
-              >
-                <MenuItem value="">
-                  <em>None</em>
-                </MenuItem>
-                {authOptions.map((opt) => (
-                  <MenuItem key={opt.code} value={opt.code}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label="Source endpoint"
-                value={dialogState.source_endpoint}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, source_endpoint: e.target.value } : prev))
-                }
-                helperText="File path, URL, queue name, etc."
-              />
-              <TextField
-                label="Target endpoint"
-                value={dialogState.target_endpoint}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, target_endpoint: e.target.value } : prev))
-                }
-                helperText="File path, URL, queue name, etc."
-              />
-              <TextField
-                label="Trigger details"
-                value={dialogState.trigger_details}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, trigger_details: e.target.value } : prev))
-                }
-                helperText="Cron expression, event description, batch window…"
-                multiline
-                minRows={2}
-              />
-              <TextField
-                label="Job name (env-specific)"
-                value={dialogState.env_job_name}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, env_job_name: e.target.value } : prev))
-                }
-              />
-              <TextField
-                label="Monitoring URL"
-                value={dialogState.monitoring_url}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, monitoring_url: e.target.value } : prev))
-                }
-              />
-              <TextField
-                label="Notes"
-                value={dialogState.env_notes}
-                onChange={(e) =>
-                  setDialogState((prev) => (prev ? { ...prev, env_notes: e.target.value } : prev))
-                }
-                multiline
-                minRows={3}
-              />
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDialog}>{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={() => void handleSaveDialog()}
-            disabled={!dialogState?.source_instance_id || !dialogState?.target_instance_id}
+      <KanapDialog
+        open={dialogOpen}
+        title={dialogState?.mode === 'edit' ? 'Edit binding' : 'Add binding'}
+        onClose={closeDialog}
+        onSave={handleSaveDialog}
+        saveLabel={dialogState?.mode === 'create' ? 'Add binding' : 'Save'}
+        saveDisabled={bindingSaveDisabled}
+        saveLoading={bindingSaving}
+        sx={{ maxWidth: 680 }}
+      >
+        {renderBindingFormContent('dialog')}
+      </KanapDialog>
+      <KanapDialog
+        open={envDialogOpen}
+        title="Add environment"
+        onClose={() => setEnvDialogOpen(false)}
+        onSave={() => {
+          const env = envDraft.trim();
+          if (!env || usedEnvs.has(env)) {
+            setEnvDialogOpen(false);
+            return;
+          }
+          setManualEnvs((prev) => (prev.includes(env) ? prev : [...prev, env]));
+          setEnvDialogOpen(false);
+        }}
+        saveLabel="Add"
+        saveDisabled={!envDraft}
+      >
+        <PropertyRow label="Environment" required>
+          <Select
+            value={envDraft}
+            onChange={(event) => setEnvDraft(event.target.value)}
+            variant="standard"
+            disableUnderline
+            sx={[drawerSelectSx, dialogSelectFieldSx]}
           >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={envDialogOpen} onClose={() => setEnvDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Add environment</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2}>
-            <TextField
-              select
-              label="Environment"
-              value={envDraft}
-              onChange={(e) => setEnvDraft(e.target.value)}
-              fullWidth
-            >
-              {selectableEnvs.map((env) => (
-                <MenuItem key={env} value={env}>
-                  {env.toUpperCase()}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEnvDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              const env = envDraft.trim();
-              if (!env || usedEnvs.has(env)) {
-                setEnvDialogOpen(false);
-                return;
-              }
-              setManualEnvs((prev) => (prev.includes(env) ? prev : [...prev, env]));
-              setEnvDialogOpen(false);
-            }}
-            disabled={!envDraft}
-          >
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+            {selectableEnvs.map((env) => (
+              <MenuItem key={env} value={env} sx={drawerMenuItemSx}>
+                {formatEnvironment(env)}
+              </MenuItem>
+            ))}
+          </Select>
+        </PropertyRow>
+      </KanapDialog>
+
+      <KanapDialog
+        open={!!pendingDeleteBinding}
+        title="Delete binding"
+        onClose={() => setPendingDeleteBinding(null)}
+        saveLabel="Delete"
+        onSave={() => { void confirmDeleteBinding(); }}
+      >
+        <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>
+          Delete this environment binding. Linked infra connections for this binding will also be removed.
+        </Typography>
+      </KanapDialog>
+
+      <KanapDialog
+        open={!!pendingDeleteEnvironment}
+        title="Delete environment"
+        onClose={() => setPendingDeleteEnvironment(null)}
+        saveLabel="Delete"
+        onSave={() => { void confirmDeleteEnvironment(); }}
+      >
+        <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>
+          {pendingDeleteEnvironment
+            ? `Delete all ${bindings.filter((binding) => binding.environment === pendingDeleteEnvironment).length} bindings for ${pendingDeleteEnvironment.toUpperCase()}.`
+            : 'Delete this environment.'}
+        </Typography>
+      </KanapDialog>
     </Box>
   );
 }

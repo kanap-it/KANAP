@@ -115,7 +115,8 @@ type ApplicationDetail = {
 
 type InterfaceMiniRow = {
   id: string;
-  interface_id: string;
+  interface_reference?: string | null;
+  interface_id?: string | null;
   name: string;
   environment: string;
   source_application_id?: string | null;
@@ -768,8 +769,17 @@ function InterfaceRowsTable({
               ? row.target_application_name
               : `${row.source_application_name || '—'} → ${row.target_application_name || '—'}`;
           return (
-            <TableRow key={`${direction}:${row.id}:${row.environment}`} onClick={() => onOpenInterface(row.id)}>
-              <TableCell>{row.name}</TableCell>
+            <TableRow key={`${direction}:${row.id}:${row.environment}`} onClick={() => onOpenInterface(row.interface_reference || row.id)}>
+              <TableCell>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                  {row.interface_reference && (
+                    <Typography component="span" sx={(theme) => ({ fontFamily: MONO_FONT_FAMILY, fontSize: 12, color: theme.palette.kanap.text.secondary })}>
+                      {row.interface_reference}
+                    </Typography>
+                  )}
+                  <Typography component="span" sx={{ fontSize: 13 }} noWrap>{row.name}</Typography>
+                </Stack>
+              </TableCell>
               <TableCell
                 onClick={(event) => {
                   if (!counterpartId || counterpartId === app.id) return;
@@ -1467,7 +1477,7 @@ export default function ApplicationWorkspacePage() {
             app={app}
             rows={interfacesQuery.data || []}
             loading={interfacesQuery.isLoading}
-            onOpenInterface={(id) => navigate(`/it/interfaces/${id}/specification`)}
+            onOpenInterface={(id) => navigate(`/it/interfaces/${id}/overview`)}
             onOpenApplication={(id) => navigate(canonicalPathFor(id, 'overview'))}
           />
         )}

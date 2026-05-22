@@ -23,6 +23,7 @@ export type AppendAiMessageInput = {
   content: string;
   toolCalls?: Record<string, unknown>[] | null;
   usage?: Record<string, unknown> | null;
+  providerMetadata?: Record<string, unknown> | null;
 };
 
 function toUsage(value: unknown): AiTokenUsage {
@@ -311,6 +312,7 @@ export class AiConversationService {
       content: input.content,
       tool_calls: input.toolCalls ?? null,
       usage_json: input.usage ?? null,
+      provider_metadata_json: input.providerMetadata ?? null,
     }));
 
     conversation.updated_at = new Date();

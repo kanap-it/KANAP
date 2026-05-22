@@ -16,6 +16,7 @@ export const en = {
       application: { label: 'Application', lower: 'application', view: 'View Application' },
       location: { label: 'Location', lower: 'location', view: 'View Location' },
       connection: { label: 'Connection', lower: 'connection', view: 'View Connection' },
+      interface: { label: 'Interface', lower: 'interface', view: 'View Interface' },
     },
     labels: {
       openDocument: 'Open Document',

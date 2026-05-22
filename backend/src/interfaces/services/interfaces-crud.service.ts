@@ -18,6 +18,8 @@ import { AuditService } from '../../audit/audit.service';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
 import { IntegratedDocumentsService } from '../../knowledge/integrated-documents.service';
 import { InterfaceMappingsService } from './interface-mappings.service';
+import { ShareItemDto } from '../../notifications/dto/share-item.dto';
+import { NotificationsService } from '../../notifications/notifications.service';
 import {
   InterfacesBaseService,
   ServiceOpts,
@@ -39,6 +41,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
     private readonly audit: AuditService,
     private readonly integratedDocuments: IntegratedDocumentsService,
     private readonly interfaceMappings: InterfaceMappingsService,
+    private readonly notifications: NotificationsService,
   ) {
     super(repo, legs, middlewareApps, apps, bindings, itOpsSettings);
   }
@@ -49,7 +52,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
       tenant_id: entity.tenant_id,
       item_number: null,
       name: entity.name,
-      reference_label: entity.interface_id,
+      reference_label: entity.interface_reference || entity.interface_id || entity.id,
     };
   }
 
@@ -58,6 +61,8 @@ export class InterfacesCrudService extends InterfacesBaseService {
    */
   async get(id: string, query: any, opts?: ServiceOpts) {
     const repo = this.getRepo(opts?.manager);
+    const mg = opts?.manager ?? repo.manager;
+    const interfaceDbId = await this.resolveInterfaceIdentifier(id, mg);
     const include = this.parseInclude(query?.include);
     const qb = repo.createQueryBuilder('i');
     qb.leftJoin('applications', 'sa', 'sa.id = i.source_application_id');
@@ -66,7 +71,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
     qb.addSelect('sa.name', 'source_name');
     qb.addSelect('ta.name', 'target_name');
     qb.addSelect('bp.name', 'business_process_name');
-    qb.where('i.id = :id', { id });
+    qb.where('i.id = :id', { id: interfaceDbId });
     const { raw, entities } = await qb.getRawAndEntities();
     const entity = entities[0];
     if (!entity) throw new NotFoundException('Interface not found');
@@ -76,62 +81,114 @@ export class InterfacesCrudService extends InterfacesBaseService {
     data.target_application_name = r.target_name || null;
     data.business_process_name = r.business_process_name || null;
 
-    const mg = opts?.manager ?? repo.manager;
     const includeRelations = include.has('relations');
 
     if (include.has('legs')) {
       const legRepo = this.getLegRepo(mg);
       data.legs = await legRepo.find({
-        where: { interface_id: id } as any,
+        where: { interface_id: interfaceDbId } as any,
         order: { order_index: 'ASC' as any, created_at: 'ASC' as any },
       });
     }
 
     if (includeRelations || include.has('owners')) {
       const repoOwner = mg.getRepository(InterfaceOwner);
-      data.owners = await repoOwner.find({ where: { interface_id: id } as any });
+      data.owners = await repoOwner.find({ where: { interface_id: interfaceDbId } as any });
     }
     if (includeRelations || include.has('companies')) {
       const repoCompany = mg.getRepository(InterfaceCompany);
-      data.companies = await repoCompany.find({ where: { interface_id: id } as any });
+      data.companies = await repoCompany.find({ where: { interface_id: interfaceDbId } as any });
     }
     if (includeRelations || include.has('dependencies')) {
       const repoDep = mg.getRepository(InterfaceDependency);
-      data.dependencies = await repoDep.find({ where: { interface_id: id } as any });
+      data.dependencies = await repoDep.find({ where: { interface_id: interfaceDbId } as any });
     }
     if (includeRelations || include.has('key_identifiers')) {
       const repoKey = mg.getRepository(InterfaceKeyIdentifier);
       data.key_identifiers = await repoKey.find({
-        where: { interface_id: id } as any,
+        where: { interface_id: interfaceDbId } as any,
         order: { created_at: 'ASC' as any },
       });
     }
     if (includeRelations || include.has('data_residency')) {
       const repoResidency = mg.getRepository(InterfaceDataResidency);
-      data.data_residency = await repoResidency.find({ where: { interface_id: id } as any });
+      data.data_residency = await repoResidency.find({ where: { interface_id: interfaceDbId } as any });
     }
     if (includeRelations || include.has('links')) {
       const repoLink = mg.getRepository(InterfaceLink);
       data.links = await repoLink.find({
-        where: { interface_id: id } as any,
+        where: { interface_id: interfaceDbId } as any,
         order: { created_at: 'DESC' as any },
       });
     }
     if (includeRelations || include.has('attachments')) {
       const repoAttachment = mg.getRepository(InterfaceAttachment);
       data.attachments = await repoAttachment.find({
-        where: { interface_id: id } as any,
+        where: { interface_id: interfaceDbId } as any,
         order: { uploaded_at: 'DESC' as any },
       });
     }
 
     if (includeRelations || include.has('middleware_applications')) {
       const repoMw = this.getMiddlewareRepo(mg);
-      const rows = await repoMw.find({ where: { interface_id: id } as any });
+      const rows = await repoMw.find({ where: { interface_id: interfaceDbId } as any });
       data.middleware_application_ids = rows.map((row) => row.application_id);
     }
 
     return data;
+  }
+
+  async shareInterface(
+    interfaceId: string,
+    dto: ShareItemDto,
+    tenantId: string,
+    userId: string,
+    opts?: ServiceOpts,
+  ) {
+    const tenant = String(tenantId || '').trim();
+    if (!tenant) throw new BadRequestException('Tenant context is required');
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+
+    const mg = opts?.manager ?? this.repo.manager;
+    const id = await this.resolveInterfaceIdentifier(interfaceId, mg);
+    const intf = await mg.getRepository(InterfaceEntity).findOne({ where: { id } });
+    if (!intf) throw new NotFoundException('Interface not found');
+
+    const senderRows = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name || ''} ${senderRows[0].last_name || ''}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await mg.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'interface',
+        itemId: intf.id,
+        itemName: intf.name,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId: tenant,
+        manager: mg,
+      });
+    }
+
+    return { ok: true };
   }
 
   /**
@@ -143,7 +200,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
     if (!tenantId) throw new BadRequestException('Tenant context is required');
 
     const name = this.normalizeRequiredText(body.name, 'name');
-    const interfaceId = this.normalizeRequiredText(body.interface_id, 'interface_id');
+    const interfaceId = this.normalizeNullable(body.interface_id);
     const businessPurpose = this.normalizeRequiredText(body.business_purpose, 'business_purpose');
 
     if (!body.source_application_id) throw new BadRequestException('source_application_id is required');
@@ -221,7 +278,8 @@ export class InterfacesCrudService extends InterfacesBaseService {
   async update(id: string, body: any, tenantId: string, userId: string | null, opts?: ServiceOpts) {
     const repo = this.getRepo(opts?.manager);
     if (!body || typeof body !== 'object') throw new BadRequestException('Body is required');
-    const existing = await repo.findOne({ where: { id } });
+    const interfaceDbId = await this.resolveInterfaceIdentifier(id, opts?.manager);
+    const existing = await repo.findOne({ where: { id: interfaceDbId } });
     if (!existing) throw new NotFoundException('Interface not found');
     const before = { ...existing };
     const has = (key: keyof InterfaceEntity | string) => Object.prototype.hasOwnProperty.call(body, key);
@@ -229,7 +287,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
       existing.name = this.normalizeRequiredText(body.name, 'name');
     }
     if (has('interface_id')) {
-      existing.interface_id = this.normalizeRequiredText(body.interface_id, 'interface_id');
+      existing.interface_id = this.normalizeNullable(body.interface_id);
     }
     if (has('business_process_id')) {
       existing.business_process_id = body.business_process_id ? String(body.business_process_id) : null;
@@ -293,7 +351,9 @@ export class InterfacesCrudService extends InterfacesBaseService {
 
     existing.updated_at = new Date();
     const saved = await repo.save(existing);
-    const titleFieldsChanged = before.name !== saved.name || before.interface_id !== saved.interface_id;
+    const titleFieldsChanged = before.name !== saved.name
+      || before.interface_reference !== saved.interface_reference
+      || before.interface_id !== saved.interface_id;
     if (titleFieldsChanged) {
       await this.integratedDocuments.syncTitles(
         'interfaces',
@@ -317,10 +377,11 @@ export class InterfacesCrudService extends InterfacesBaseService {
     const repo = this.getRepo(mg);
     const bindingRepo = this.getBindingRepo(mg);
     const connectionLinkRepo = mg.getRepository(InterfaceConnectionLink);
-    const existing = await repo.findOne({ where: { id } });
+    const interfaceDbId = await this.resolveInterfaceIdentifier(id, mg);
+    const existing = await repo.findOne({ where: { id: interfaceDbId } });
     if (!existing) throw new NotFoundException('Interface not found');
 
-    const bindings = await bindingRepo.find({ where: { interface_id: id } as any });
+    const bindings = await bindingRepo.find({ where: { interface_id: interfaceDbId } as any });
 
     if (bindings.length > 0) {
       if (!opts?.deleteRelatedBindings) {
@@ -332,13 +393,13 @@ export class InterfacesCrudService extends InterfacesBaseService {
         await connectionLinkRepo.delete({ interface_binding_id: In(bindingIds) } as any);
       }
       // Delete bindings
-      await bindingRepo.delete({ interface_id: id } as any);
+      await bindingRepo.delete({ interface_id: interfaceDbId } as any);
     }
 
-    await this.integratedDocuments.deleteForEntity('interfaces', id, userId, { manager: mg });
-    await repo.delete({ id } as any);
+    await this.integratedDocuments.deleteForEntity('interfaces', interfaceDbId, userId, { manager: mg });
+    await repo.delete({ id: interfaceDbId } as any);
     await this.audit.log(
-      { table: 'interfaces', recordId: id, action: 'delete', before: existing, after: null, userId },
+      { table: 'interfaces', recordId: interfaceDbId, action: 'delete', before: existing, after: null, userId },
       { manager: mg },
     );
     return { deleted: true, bindingsDeleted: bindings.length };
@@ -390,7 +451,8 @@ export class InterfacesCrudService extends InterfacesBaseService {
     const bindingRepo = this.getBindingRepo(mg);
 
     // Fetch the source interface
-    const source = await repo.findOne({ where: { id } });
+    const sourceId = await this.resolveInterfaceIdentifier(id, mg);
+    const source = await repo.findOne({ where: { id: sourceId } });
     if (!source) throw new NotFoundException('Interface not found');
 
     // Fetch all related data
@@ -404,22 +466,24 @@ export class InterfacesCrudService extends InterfacesBaseService {
       dataResidency,
       middlewareApps,
     ] = await Promise.all([
-      legRepo.find({ where: { interface_id: id } as any, order: { order_index: 'ASC' as any } }),
-      mg.getRepository(InterfaceOwner).find({ where: { interface_id: id } as any }),
-      mg.getRepository(InterfaceCompany).find({ where: { interface_id: id } as any }),
-      mg.getRepository(InterfaceDependency).find({ where: { interface_id: id } as any }),
-      mg.getRepository(InterfaceKeyIdentifier).find({ where: { interface_id: id } as any }),
-      mg.getRepository(InterfaceLink).find({ where: { interface_id: id } as any }),
-      mg.getRepository(InterfaceDataResidency).find({ where: { interface_id: id } as any }),
-      this.getMiddlewareRepo(mg).find({ where: { interface_id: id } as any }),
+      legRepo.find({ where: { interface_id: sourceId } as any, order: { order_index: 'ASC' as any } }),
+      mg.getRepository(InterfaceOwner).find({ where: { interface_id: sourceId } as any }),
+      mg.getRepository(InterfaceCompany).find({ where: { interface_id: sourceId } as any }),
+      mg.getRepository(InterfaceDependency).find({ where: { interface_id: sourceId } as any }),
+      mg.getRepository(InterfaceKeyIdentifier).find({ where: { interface_id: sourceId } as any }),
+      mg.getRepository(InterfaceLink).find({ where: { interface_id: sourceId } as any }),
+      mg.getRepository(InterfaceDataResidency).find({ where: { interface_id: sourceId } as any }),
+      this.getMiddlewareRepo(mg).find({ where: { interface_id: sourceId } as any }),
     ]);
 
-    // Generate unique interface_id with -copy suffix
-    let newInterfaceId = `${source.interface_id}-copy`;
-    let suffix = 1;
-    while (await repo.findOne({ where: { tenant_id: tenantId, interface_id: newInterfaceId } as any })) {
-      suffix++;
-      newInterfaceId = `${source.interface_id}-copy-${suffix}`;
+    let newInterfaceId: string | null = null;
+    if (source.interface_id) {
+      newInterfaceId = `${source.interface_id}-copy`;
+      let suffix = 1;
+      while (await repo.findOne({ where: { tenant_id: tenantId, interface_id: newInterfaceId } as any })) {
+        suffix++;
+        newInterfaceId = `${source.interface_id}-copy-${suffix}`;
+      }
     }
 
     // Generate new name
@@ -477,7 +541,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
       }
     }
 
-    await this.interfaceMappings.cloneInterfaceMappings(id, savedInterface.id, tenantId, userId, {
+    await this.interfaceMappings.cloneInterfaceMappings(sourceId, savedInterface.id, tenantId, userId, {
       manager: mg,
       audit: false,
       legMapping,
@@ -576,7 +640,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
 
     // Copy bindings if requested (with cleared environment-specific fields)
     if (opts?.copyBindings && legMapping.size > 0) {
-      const originalBindings = await bindingRepo.find({ where: { interface_id: id } as any });
+      const originalBindings = await bindingRepo.find({ where: { interface_id: sourceId } as any });
       for (const binding of originalBindings) {
         const newLegId = legMapping.get(binding.interface_leg_id);
         if (!newLegId) continue;

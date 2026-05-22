@@ -23,7 +23,7 @@ import { renderMarkdownToHtml } from '../common/markdown-to-html';
 import { EmailBranding, resolveEmailBranding } from '../email/email-branding';
 import { getEmailStrings, resolveEmailLocale } from '../i18n/email-i18n';
 
-type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'asset' | 'application' | 'location' | 'connection';
+type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
 
 interface NotificationRecipient {
@@ -179,6 +179,8 @@ export class NotificationsService {
         return `${base}/it/locations/${id}/overview`;
       case 'connection':
         return `${base}/it/connections/${id}/overview`;
+      case 'interface':
+        return `${base}/it/interfaces/${id}/overview`;
       default:
         return base;
     }
@@ -193,6 +195,7 @@ export class NotificationsService {
       application: { table: 'applications', expression: 'sequential_id' },
       location: { table: 'locations', expression: 'location_reference' },
       connection: { table: 'connections', expression: 'connection_reference' },
+      interface: { table: 'interfaces', expression: 'interface_reference' },
     };
     const config = tableMap[itemType];
     if (!config) return null;
@@ -596,7 +599,7 @@ export class NotificationsService {
    * Notify about status change on an item.
    */
   async notifyStatusChange(params: {
-    itemType: Exclude<ItemType, 'asset' | 'application' | 'location' | 'connection'>;
+    itemType: Exclude<ItemType, 'asset' | 'application' | 'location' | 'connection' | 'interface'>;
     itemId: string;
     itemName: string;
     oldStatus: string;
@@ -1121,7 +1124,7 @@ export class NotificationsService {
    * Notify recipients about a shared item (fire-and-forget, no dedupe).
    */
   async notifyShare(params: {
-    itemType: 'request' | 'project' | 'task' | 'asset' | 'application' | 'location' | 'connection';
+    itemType: 'request' | 'project' | 'task' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
     itemId: string;
     itemName: string;
     senderName: string;

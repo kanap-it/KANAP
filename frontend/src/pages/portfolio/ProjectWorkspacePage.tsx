@@ -211,6 +211,10 @@ export default function ProjectWorkspacePage() {
     },
   });
 
+  const canReadPortfolioEvaluationSettings = hasLevel('portfolio_settings', 'reader')
+    || hasLevel('portfolio_requests', 'reader')
+    || hasLevel('portfolio_projects', 'reader');
+
   // Fetch portfolio settings for mandatory bypass
   const { data: portfolioSettings } = useQuery({
     queryKey: ['portfolio-settings'],
@@ -218,6 +222,7 @@ export default function ProjectWorkspacePage() {
       const res = await api.get('/portfolio/settings');
       return res.data as { mandatory_bypass_enabled: boolean };
     },
+    enabled: canReadPortfolioEvaluationSettings,
   });
 
   // Fetch task time summary for progress breakdown

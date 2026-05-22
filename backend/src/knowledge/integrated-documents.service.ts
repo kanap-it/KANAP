@@ -619,11 +619,13 @@ export class IntegratedDocumentsService {
       const rows = await manager.query<Array<{
         id: string;
         tenant_id: string;
+        interface_reference: string | null;
         interface_id: string | null;
         name: string;
       }>>(
         `SELECT id::text AS id,
                 tenant_id::text AS tenant_id,
+                interface_reference,
                 interface_id,
                 name
          FROM interfaces
@@ -643,7 +645,7 @@ export class IntegratedDocumentsService {
           tenant_id: row.tenant_id,
           item_number: null,
           name: row.name,
-          reference_label: String(row.interface_id || '').trim() || row.id,
+          reference_label: String(row.interface_reference || row.interface_id || '').trim() || row.id,
         },
         ownerUserId: await this.loadPreferredOwnerUserId('interfaces', row.id, manager),
         tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
@@ -821,6 +823,7 @@ export class IntegratedDocumentsService {
     const rows = await manager.query<Array<{
       id: string;
       tenant_id: string;
+      interface_reference: string | null;
       interface_id: string | null;
       name: string;
       business_purpose: string | null;
@@ -837,6 +840,7 @@ export class IntegratedDocumentsService {
     }>>(
       `SELECT id::text AS id,
               tenant_id::text AS tenant_id,
+              interface_reference,
               interface_id,
               name,
               business_purpose,
@@ -866,7 +870,7 @@ export class IntegratedDocumentsService {
       tenant_id: row.tenant_id,
       item_number: null,
       name: row.name,
-      reference_label: String(row.interface_id || '').trim() || row.id,
+      reference_label: String(row.interface_reference || row.interface_id || '').trim() || row.id,
       business_purpose: row.business_purpose,
       overview_notes: row.overview_notes,
       impact_of_failure: row.impact_of_failure,

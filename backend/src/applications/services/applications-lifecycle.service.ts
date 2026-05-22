@@ -24,6 +24,7 @@ import { InterfaceBinding } from '../../interface-bindings/interface-binding.ent
 import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
 import { InterfaceMappingsService } from '../../interfaces/services';
+import { applicationParticipantCondition } from '../../auth/business-contributor-scope';
 
 /**
  * Service for managing application lifecycle transitions and version management.
@@ -162,10 +163,16 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
    */
   async getSuccessors(id: string, opts?: ServiceOpts): Promise<Application[]> {
     const mg = this.getManager(opts);
-    return mg.getRepository(Application).find({
-      where: { predecessor_id: id } as any,
-      order: { created_at: 'ASC' } as any,
-    });
+    const qb = mg.getRepository(Application)
+      .createQueryBuilder('a')
+      .where('a.predecessor_id = :id', { id })
+      .orderBy('a.created_at', 'ASC');
+    if (opts?.accessScope) {
+      qb.andWhere(applicationParticipantCondition('a', ':accessScopeUserId'), {
+        accessScopeUserId: opts.accessScope.userId,
+      });
+    }
+    return qb.getMany();
   }
 
   /**
@@ -174,8 +181,10 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
   async getVersionLineage(id: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
+    const resolvedId = await this.resolveApplicationIdentifier(id, mg);
+    await this.assertVisible(resolvedId, opts?.accessScope, mg);
 
-    const current = await repo.findOne({ where: { id } });
+    const current = await repo.findOne({ where: { id: resolvedId } });
     if (!current) throw new NotFoundException('Application not found');
 
     const predecessors: Application[] = [];
@@ -183,12 +192,17 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
     while (walkId) {
       const pred = await repo.findOne({ where: { id: walkId } });
       if (!pred) break;
+      try {
+        await this.assertVisible(pred.id, opts?.accessScope, mg);
+      } catch {
+        break;
+      }
       predecessors.unshift(pred);
       walkId = pred.predecessor_id;
       if (predecessors.length > 50) break;
     }
 
-    const successors = await this.getSuccessors(id, { manager: mg });
+    const successors = await this.getSuccessors(resolvedId, { manager: mg, accessScope: opts?.accessScope });
 
     return { predecessors, current, successors };
   }
@@ -199,13 +213,16 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
   async getInterfacesForMigration(id: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = await this.resolveTenantId(mg);
+    const resolvedId = await this.resolveApplicationIdentifier(id, mg);
+    await this.assertVisible(resolvedId, opts?.accessScope, mg);
+    if (opts?.accessScope) return [];
 
-    const app = await mg.getRepository(Application).findOne({ where: { id } });
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedId } });
     if (!app) throw new NotFoundException('Application not found');
     const includeMiddleware = !!app.etl_enabled;
 
     const directInterfaces = await mg.query(`
-      SELECT i.id, i.name, i.interface_id, i.lifecycle,
+      SELECT i.id, i.name, i.interface_reference, i.interface_id, i.lifecycle,
              sa.name as source_app_name, ta.name as target_app_name,
              CASE
                WHEN i.source_application_id = $2 AND i.target_application_id = $2 THEN 'both'
@@ -218,14 +235,14 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
       WHERE i.tenant_id = $1
         AND (i.source_application_id = $2 OR i.target_application_id = $2)
       ORDER BY i.name
-    `, [tenantId, id]);
+    `, [tenantId, resolvedId]);
 
     if (!includeMiddleware) {
       return directInterfaces;
     }
 
     const middlewareInterfaces = await mg.query(`
-      SELECT DISTINCT i.id, i.name, i.interface_id, i.lifecycle,
+      SELECT DISTINCT i.id, i.name, i.interface_reference, i.interface_id, i.lifecycle,
              sa.name as source_app_name, ta.name as target_app_name,
              'via_middleware' as app_role
       FROM interfaces i
@@ -249,7 +266,7 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
           )
         )
       ORDER BY i.name
-    `, [tenantId, id]);
+    `, [tenantId, resolvedId]);
 
     const directIds = new Set(directInterfaces.map((i: any) => i.id));
     const combined = [

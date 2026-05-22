@@ -4,6 +4,10 @@ import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Application } from '../application.entity';
 import { parsePagination } from '../../common/pagination';
 import {
+  applicationParticipantCondition,
+  applyApplicationParticipantScope,
+} from '../../auth/business-contributor-scope';
+import {
   buildQuickSearchConditions,
   compileAgFilterCondition,
   createParamNameGenerator,
@@ -452,6 +456,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     if (!includeInactive) {
       qbBase.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
     }
+    applyApplicationParticipantScope(qbBase, opts?.accessScope, 'a');
     applyOwnerScopeCondition(qbBase, ownerScope);
     if (!includeInactive && !lifecycleFilterPresent) qbBase.andWhere(`a.lifecycle <> 'retired'`);
     applyCompiledFilters(qbBase);
@@ -468,6 +473,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     if (!includeInactive) {
       qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
     }
+    applyApplicationParticipantScope(qb, opts?.accessScope, 'a');
     applyOwnerScopeCondition(qb, ownerScope);
     if (!includeInactive && !lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
     applyCompiledFilters(qb);
@@ -669,6 +675,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     if (!includeInactive) {
       qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
     }
+    applyApplicationParticipantScope(qb, opts?.accessScope, 'a');
     applyOwnerScopeCondition(qb, ownerScope);
     if (!includeInactive && !lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
 
@@ -841,6 +848,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       if (!includeInactive) {
         qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
       }
+      applyApplicationParticipantScope(qb, opts?.accessScope, 'a');
       applyOwnerScopeCondition(qb, ownerScope);
       if (!includeInactive && !lifecycleFilterPresent && !skipLifecycleDefault) qb.andWhere(`a.lifecycle <> 'retired'`);
       return qb;
@@ -1225,7 +1233,9 @@ export class ApplicationsListService extends ApplicationsBaseService {
    */
   async mapSummary(id: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const app = await mg.getRepository(Application).findOne({ where: { id } });
+    const resolvedAppId = await this.resolveApplicationIdentifier(id, mg);
+    await this.assertVisible(resolvedAppId, opts?.accessScope, mg);
+    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
     if (!app) throw new NotFoundException('Application not found');
 
     const ownerRows: Array<{ owner_type: string; user_id: string; first_name: string | null; last_name: string | null; email: string | null }> =
@@ -1235,7 +1245,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
          JOIN users u ON u.id = ao.user_id AND u.tenant_id = ao.tenant_id
          WHERE ao.application_id = $1
          ORDER BY ao.owner_type ASC, u.last_name ASC NULLS LAST, u.first_name ASC NULLS LAST`,
-        [id],
+        [resolvedAppId],
       );
 
     const owners = ownerRows.map((row) => ({
@@ -1254,7 +1264,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
        JOIN contacts c ON c.id = sc.contact_id
        WHERE sc.application_id = $1
        ORDER BY sc.created_at ASC, sc.id ASC`,
-      [id],
+      [resolvedAppId],
     );
     const support_contacts = scRows.map((r: any) => ({
       id: r.id,
@@ -1278,7 +1288,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
        WHERE ai.application_id = $1
          AND s.status <> 'retired'
        ORDER BY array_position(ARRAY['prod','pre_prod','qa','test','dev','sandbox'], ai.environment), s.name ASC`,
-      [id],
+      [resolvedAppId],
     );
 
     const assigned_servers = assetRows.map((row) => ({
@@ -1305,6 +1315,13 @@ export class ApplicationsListService extends ApplicationsBaseService {
    */
   async listWithServerAssignments(opts?: ServiceOpts) {
     const mg = this.getManager(opts);
+    const params: unknown[] = [];
+    const accessScopeSql = opts?.accessScope
+      ? (() => {
+        params.push(opts.accessScope.userId);
+        return `AND ${applicationParticipantCondition('a', `$${params.length}`)}`;
+      })()
+      : '';
 
     const rows: Array<{
       id: string;
@@ -1322,8 +1339,9 @@ export class ApplicationsListService extends ApplicationsBaseService {
       INNER JOIN app_asset_assignments asa ON asa.app_instance_id = ai.id
       WHERE (a.disabled_at IS NULL OR a.disabled_at > NOW())
         AND a.lifecycle <> 'retired'
+        ${accessScopeSql}
       ORDER BY a.name ASC, ai.environment ASC
-    `);
+    `, params);
 
     const appMap = new Map<string, { id: string; name: string; lifecycle: string; environments: string[] }>();
     for (const row of rows) {

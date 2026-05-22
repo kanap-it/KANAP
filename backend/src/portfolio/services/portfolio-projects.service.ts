@@ -14,6 +14,7 @@ import { PortfolioMilestonesService } from './portfolio-milestones.service';
 import { PortfolioTimesheetService } from './portfolio-timesheet.service';
 import { PortfolioAttachmentsService } from './portfolio-attachments.service';
 import { PortfolioStatusService } from './portfolio-status.service';
+import { ParticipationAccessScope } from '../../auth/business-contributor-scope';
 
 /**
  * Options for service methods.
@@ -22,6 +23,7 @@ export interface ServiceOpts {
   manager?: EntityManager;
   userId?: string | null;
   tenantId?: string;
+  accessScope?: ParticipationAccessScope;
 }
 
 /**
@@ -62,6 +64,10 @@ export class PortfolioProjectsService {
     opts?: ServiceOpts,
   ) {
     return this.listService.getTimelineData(query, opts);
+  }
+
+  assertVisible(id: string, accessScope: ParticipationAccessScope | undefined, opts?: ServiceOpts) {
+    return this.crudService.assertVisible(id, accessScope, opts);
   }
 
   // =========================================================================

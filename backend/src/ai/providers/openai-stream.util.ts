@@ -105,6 +105,17 @@ function parseXmlStyleToolCallsFromText(text: string): Array<{ id: string; name:
   return calls;
 }
 
+function shouldReplayReasoningContent(endpointUrl: string | null): boolean {
+  if (!endpointUrl) {
+    return false;
+  }
+  try {
+    return new URL(endpointUrl).hostname.toLowerCase() === 'api.deepseek.com';
+  } catch {
+    return false;
+  }
+}
+
 async function* emitXmlStyleToolCallsFromError(
   error: unknown,
   params: AiStreamParams,
@@ -138,6 +149,7 @@ export function getOpenAiSystemPromptRole(model: string): AiSystemPromptRole {
 }
 
 export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGenerator<AiStreamEvent> {
+  const replayReasoningContent = shouldReplayReasoningContent(params.endpointUrl);
   const client = new OpenAI({
     apiKey: params.apiKey || 'unused',
     ...(params.endpointUrl ? { baseURL: params.endpointUrl } : {}),
@@ -181,10 +193,13 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
         messages.push({ role: 'user', content: msg.content });
       }
     } else if (msg.role === 'assistant') {
-      const assistantMsg: OpenAI.ChatCompletionAssistantMessageParam = {
+      const assistantMsg: OpenAI.ChatCompletionAssistantMessageParam & { reasoning_content?: string } = {
         role: 'assistant',
         content: msg.content || null,
       };
+      if (replayReasoningContent && msg.reasoning_content) {
+        assistantMsg.reasoning_content = msg.reasoning_content;
+      }
       if (msg.tool_calls?.length) {
         assistantMsg.tool_calls = msg.tool_calls.map((tc) => ({
           id: tc.id,
@@ -274,6 +289,12 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
       }
 
       const delta = choice.delta;
+      const reasoningContent = typeof (delta as { reasoning_content?: unknown } | undefined)?.reasoning_content === 'string'
+        ? (delta as { reasoning_content: string }).reasoning_content
+        : '';
+      if (reasoningContent) {
+        yield { type: 'reasoning_delta', text: reasoningContent };
+      }
 
       if (delta?.content) {
         if (params.debugTrace && !firstTextDeltaSeen) {

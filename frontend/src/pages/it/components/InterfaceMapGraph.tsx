@@ -24,6 +24,7 @@ export type MapGraphNode = {
 export type MapGraphLink = {
   id: string;
   interfaceDbId: string;
+  interfaceReference?: string | null;
   interfaceId: string;
   source: string | MapGraphNode;
   target: string | MapGraphNode;

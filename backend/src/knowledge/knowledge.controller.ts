@@ -31,7 +31,7 @@ import { RateLimitGuard } from '../common/rate-limit.guard';
 import { resolveTenantAppBaseUrl } from '../common/url';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
-import { KnowledgeService } from './knowledge.service';
+import { KnowledgeService, RelationEntityType } from './knowledge.service';
 import { KnowledgeRelationsService } from './knowledge-relations.service';
 import { KnowledgeWorkflowService } from './knowledge-workflow.service';
 
@@ -334,12 +334,12 @@ export class KnowledgeController {
   bulkReplaceRelationSets(
     @Param('idOrRef') idOrRef: string,
     @Body() body:
-      | Partial<Record<'applications' | 'assets' | 'projects' | 'requests' | 'tasks', string[]>>
-      | { relations?: Partial<Record<'applications' | 'assets' | 'projects' | 'requests' | 'tasks', string[]>> },
+      | Partial<Record<RelationEntityType, string[]>>
+      | { relations?: Partial<Record<RelationEntityType, string[]>> },
     @Tenant() ctx: TenantRequest,
   ) {
     const relationBody = body as any;
-    const relations: Partial<Record<'applications' | 'assets' | 'projects' | 'requests' | 'tasks', string[]>> = (
+    const relations: Partial<Record<RelationEntityType, string[]>> = (
       relationBody
       && typeof relationBody === 'object'
       && !Array.isArray(relationBody)
@@ -428,6 +428,40 @@ export class KnowledgeController {
   ) {
     const ids = Array.isArray(body) ? body : body?.task_ids ?? [];
     return this.relations.bulkReplaceRelations(idOrRef, 'tasks', ids, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+      guardAgainstActiveLock: true,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
+  @Post(':idOrRef/relations/:entity/bulk-replace')
+  bulkReplaceGenericRelations(
+    @Param('idOrRef') idOrRef: string,
+    @Param('entity') entity: RelationEntityType,
+    @Body() body: Record<string, unknown> | string[],
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const bodyKeyByEntity: Record<RelationEntityType, string> = {
+      applications: 'application_ids',
+      assets: 'asset_ids',
+      projects: 'project_ids',
+      requests: 'request_ids',
+      tasks: 'task_ids',
+      locations: 'location_ids',
+      connections: 'connection_ids',
+      interfaces: 'interface_ids',
+    };
+    const bodyKey = bodyKeyByEntity[entity];
+    const ids = Array.isArray(body) ? body : (
+      Array.isArray(body?.[bodyKey])
+        ? body[bodyKey]
+        : Array.isArray(body?.ids)
+          ? body.ids
+          : []
+    );
+    return this.relations.bulkReplaceRelations(idOrRef, entity, ids as string[], {
       manager: ctx.manager,
       userId: ctx.userId || null,
       guardAgainstActiveLock: true,

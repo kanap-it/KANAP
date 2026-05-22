@@ -5,6 +5,7 @@ import { Application } from '../application.entity';
 import { ApplicationSuiteLink } from '../application-suite.entity';
 import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
+import { applicationParticipantCondition } from '../../auth/business-contributor-scope';
 
 /**
  * Service for managing application hierarchy (suites and components).
@@ -21,14 +22,22 @@ export class ApplicationsStructureService extends ApplicationsBaseService {
   // Structure: Suites an app belongs to
   async listSuites(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    const params: unknown[] = [app.id];
+    const relatedScopeSql = opts?.accessScope
+      ? (() => {
+        params.push(opts.accessScope.userId);
+        return `AND ${applicationParticipantCondition('a', `$${params.length}`)}`;
+      })()
+      : '';
     const rows: Array<{ id: string; name: string; lifecycle: string; criticality: string }> = await mg.query(
       `SELECT a.id, a.name, a.lifecycle, a.criticality
        FROM application_suites l
        JOIN applications a ON a.id = l.suite_id
        WHERE l.application_id = $1
+         ${relatedScopeSql}
        ORDER BY a.name ASC`,
-      [resolvedAppId],
+      params,
     );
     return { items: rows };
   }
@@ -75,14 +84,22 @@ export class ApplicationsStructureService extends ApplicationsBaseService {
   // Structure: Components (children) of a suite
   async listComponents(suiteId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedSuiteId = await this.resolveApplicationIdentifier(suiteId, mg);
+    const suite = await this.ensureApp(suiteId, mg, opts?.accessScope);
+    const params: unknown[] = [suite.id];
+    const relatedScopeSql = opts?.accessScope
+      ? (() => {
+        params.push(opts.accessScope.userId);
+        return `AND ${applicationParticipantCondition('a', `$${params.length}`)}`;
+      })()
+      : '';
     const rows: Array<{ id: string; name: string; lifecycle: string; criticality: string }> = await mg.query(
       `SELECT a.id, a.name, a.lifecycle, a.criticality
        FROM application_suites l
        JOIN applications a ON a.id = l.application_id
        WHERE l.suite_id = $1
+         ${relatedScopeSql}
        ORDER BY a.name ASC`,
-      [resolvedSuiteId],
+      params,
     );
     return { items: rows };
   }

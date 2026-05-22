@@ -355,6 +355,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       target_endpoint: string | null;
       integration_pattern: string;
       interface_id: string;
+      interface_reference: string;
       interface_code: string;
       interface_name: string;
       interface_lifecycle: string;
@@ -375,6 +376,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
          leg.integration_pattern,
          leg.order_index,
          i.id AS interface_id,
+         i.interface_reference,
          i.interface_id AS interface_code,
          i.name AS interface_name,
          i.lifecycle AS interface_lifecycle,
@@ -397,6 +399,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
         id: r.link_id,
         binding_id: r.binding_id,
         interface_id: r.interface_id,
+        interface_reference: r.interface_reference,
         interface_code: r.interface_code,
         interface_name: r.interface_name,
         environment: r.environment,
@@ -437,6 +440,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       params.push(`%${q}%`);
       whereExtra = `AND (
         i.name ILIKE $${params.length}
+        OR i.interface_reference ILIKE $${params.length}
         OR i.interface_id ILIKE $${params.length}
         OR COALESCE(b.environment, '') ILIKE $${params.length}
         OR COALESCE(leg.leg_type, '') ILIKE $${params.length}
@@ -450,6 +454,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
     const rows: Array<{
       binding_id: string;
       interface_id: string;
+      interface_reference: string;
       interface_code: string;
       interface_name: string;
       environment: string;
@@ -462,6 +467,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       `SELECT
          b.id AS binding_id,
          i.id AS interface_id,
+         i.interface_reference,
          i.interface_id AS interface_code,
          i.name AS interface_name,
          b.environment,
@@ -488,6 +494,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       items: rows.map((r) => ({
         binding_id: r.binding_id,
         interface_id: r.interface_id,
+        interface_reference: r.interface_reference,
         interface_code: r.interface_code,
         interface_name: r.interface_name,
         environment: r.environment,

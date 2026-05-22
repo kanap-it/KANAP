@@ -2,6 +2,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('interfaces')
 @Index(['tenant_id', 'source_application_id', 'target_application_id'])
+@Index(['tenant_id', 'interface_reference'], { unique: true })
 @Index(['tenant_id', 'interface_id'], { unique: true })
 export class InterfaceEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -11,7 +12,10 @@ export class InterfaceEntity {
   tenant_id!: string;
 
   @Column('text')
-  interface_id!: string;
+  interface_reference!: string;
+
+  @Column('text', { nullable: true })
+  interface_id!: string | null;
 
   @Column('text')
   name!: string;

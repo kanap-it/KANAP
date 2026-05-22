@@ -24,6 +24,8 @@ import { RateLimitGuard } from '../common/rate-limit.guard';
 import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
+import { PermissionLevel } from '../permissions/permissions.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -45,25 +47,38 @@ export class TasksController {
     return resolveToUuid(idOrRef, 'task', req.queryRunner.manager);
   }
 
+  private taskAccessScope(req: any, level: PermissionLevel = 'reader') {
+    return resolveBusinessContributorScope(req, 'tasks', level);
+  }
+
+  private async ensureTaskAccess(id: string, req: any, level: PermissionLevel = 'reader') {
+    const accessScope = await this.taskAccessScope(req, level);
+    await this.svc.assertVisible(id, accessScope, { manager: req?.queryRunner?.manager });
+    return accessScope;
+  }
+
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get()
   async list(@Query() query: any, @Req() req: any) {
-    return this.svc.listAllTasks(query, { manager: req?.queryRunner?.manager });
+    const accessScope = await this.taskAccessScope(req, 'reader');
+    return this.svc.listAllTasks(query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get('ids')
   async listIds(@Query() query: any, @Req() req: any) {
-    return this.svc.listIds(query, { manager: req?.queryRunner?.manager });
+    const accessScope = await this.taskAccessScope(req, 'reader');
+    return this.svc.listIds(query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('tasks', 'reader')
   @Get('filter-values')
   async listFilterValues(@Query() query: any, @Req() req: any) {
-    return this.svc.listFilterValues(query, { manager: req?.queryRunner?.manager });
+    const accessScope = await this.taskAccessScope(req, 'reader');
+    return this.svc.listFilterValues(query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   // ==================== CSV ====================
@@ -163,7 +178,8 @@ export class TasksController {
   @Get(':id')
   async getOne(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
-    const res = await this.svc.getOne(id, { manager: req?.queryRunner?.manager });
+    const accessScope = await this.taskAccessScope(req, 'reader');
+    const res = await this.svc.getOne(id, { manager: req?.queryRunner?.manager, accessScope });
     if (!res) {
       const { NotFoundException } = await import('@nestjs/common');
       throw new NotFoundException('Task not found');
@@ -176,6 +192,7 @@ export class TasksController {
   @Get(':id/knowledge')
   async listDocuments(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     return this.knowledge.listDocumentsForEntity('tasks', id, {
       manager: req?.queryRunner?.manager,
       userId: req?.user?.sub ?? null,
@@ -187,6 +204,7 @@ export class TasksController {
   @Get(':id/knowledge-context')
   async getKnowledgeContext(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     return this.knowledge.getKnowledgeContextForEntity('tasks', id, {
       manager: req?.queryRunner?.manager,
       userId: req?.user?.sub ?? null,
@@ -229,6 +247,7 @@ export class TasksController {
       throw new BadRequestException('related_object_id is required when related_object_type is set');
     }
 
+    await this.ensureTaskAccess(id, req, 'member');
     return this.unified.moveTask(
       { id, next: { type: nextType, id: nextId } },
       req.user?.sub ?? null,
@@ -244,6 +263,7 @@ export class TasksController {
       throw new BadRequestException('Use /portfolio/projects/:projectId/tasks/:taskId to target a project');
     }
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     const tenantId = req?.tenant?.id ?? '';
     return this.unified.updateById(id, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager, tenantId });
   }
@@ -255,6 +275,7 @@ export class TasksController {
   @Post(':id/share')
   async share(@Param('id') idOrRef: string, @Body() body: ShareItemDto, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     const tenantId = req?.tenant?.id ?? '';
     return this.unified.share(id, body, tenantId, req.user?.sub ?? '', {
       manager: req?.queryRunner?.manager,
@@ -268,6 +289,7 @@ export class TasksController {
   @Get(':id/time-entries/sum')
   async getTimeSum(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     const total = await this.timeEntriesSvc.sumForTask(id, { manager: req?.queryRunner?.manager });
     return { total };
   }
@@ -277,6 +299,7 @@ export class TasksController {
   @Get(':id/time-entries')
   async listTimeEntries(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     return this.timeEntriesSvc.listForTask(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -289,6 +312,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.create(
       id,
@@ -309,11 +333,13 @@ export class TasksController {
   @RequireLevel('tasks', 'member')
   @Patch(':id/time-entries/:entryId')
   async updateTimeEntry(
-    @Param('id') _id: string,
+    @Param('id') idOrRef: string,
     @Param('entryId') entryId: string,
     @Body() body: { user_id?: string; hours?: number; notes?: string; logged_at?: string; category?: 'it' | 'business' },
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     const isAdmin = req?.isAdmin === true;
     return this.timeEntriesSvc.update(
       entryId,
@@ -334,10 +360,12 @@ export class TasksController {
   @RequireLevel('tasks', 'member')
   @Delete(':id/time-entries/:entryId')
   async deleteTimeEntry(
-    @Param('id') _id: string,
+    @Param('id') idOrRef: string,
     @Param('entryId') entryId: string,
     @Req() req: any,
   ) {
+    const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     await this.timeEntriesSvc.delete(entryId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
       isAdmin: req?.isAdmin === true,
@@ -352,6 +380,7 @@ export class TasksController {
   @Get(':id/activities')
   async listActivities(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     return this.activitiesSvc.listForTask(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -364,6 +393,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     const tenantId = req?.tenant?.id ?? '';
     if (body.type === 'unified') {
       return this.activitiesSvc.createUnified(id, body, tenantId, req.user?.sub ?? null, {
@@ -386,6 +416,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     const userId = req.user?.sub;
     if (!userId) {
       throw new BadRequestException('User ID required');
@@ -464,6 +495,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const meta = await this.attachmentsSvc.getAttachment(attachmentId, { manager: req?.queryRunner?.manager });
+    await this.ensureTaskAccess(meta.task_id, req, 'reader');
     const obj = await this.storage.getObjectStream(meta.storage_path);
     res.setHeader('Content-Type', obj.contentType || meta.mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', contentDisposition(meta.original_filename));
@@ -478,6 +510,8 @@ export class TasksController {
     @Param('attachmentId') attachmentId: string,
     @Req() req: any,
   ) {
+    const meta = await this.attachmentsSvc.getAttachment(attachmentId, { manager: req?.queryRunner?.manager });
+    await this.ensureTaskAccess(meta.task_id, req, 'member');
     return this.attachmentsSvc.deleteAttachment(attachmentId, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
   }
 
@@ -486,6 +520,7 @@ export class TasksController {
   @Get(':id/attachments')
   async listAttachments(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'reader');
     return this.attachmentsSvc.listAttachments(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -500,6 +535,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     return this.attachmentsSvc.uploadAttachment(id, file, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
       sourceField: body?.source_field || null,
@@ -515,6 +551,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     return this.attachmentsSvc.importInlineAttachmentFromUrl(id, body?.source_url || '', req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
       sourceField: body?.source_field || null,
@@ -533,6 +570,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
+    await this.ensureTaskAccess(id, req, 'member');
     return this.attachmentsSvc.importDocument(id, file, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
       releaseConnection: createRequestReleaseConnection(req, this.dataSource, req?.tenant?.id ?? ''),

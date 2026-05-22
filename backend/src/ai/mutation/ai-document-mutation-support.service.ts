@@ -120,6 +120,11 @@ const RELATION_QUERY_CONFIG: Record<RelationEntityType, AiRelationQueryConfig> =
     nameColumn: 'name',
     subject: 'connection',
   },
+  interfaces: {
+    table: 'interfaces',
+    nameColumn: 'name',
+    subject: 'interface',
+  },
 };
 
 function toDateOnly(value: unknown): string | null {
@@ -146,6 +151,7 @@ export class AiDocumentMutationSupportService {
       connections: [],
       tasks: [],
       locations: [],
+      interfaces: [],
     };
   }
 

@@ -1,76 +1,35 @@
 import React from 'react';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Autocomplete,
+  Box,
   Checkbox,
-  CircularProgress,
-  Divider,
-  FormControlLabel,
-  Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
-import ApplicationSelect from '../../../components/fields/ApplicationSelect';
 import BusinessProcessSelect from '../../../components/fields/BusinessProcessSelect';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import TeamMemberMultiSelect from '../../../components/fields/TeamMemberMultiSelect';
+import { PropertyGroup, PropertyRow } from '../../../components/design';
 import { COUNTRY_OPTIONS, type CountryOption } from '../../../constants/isoOptions';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
+import { drawerFieldValueSx } from '../../../theme/formSx';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import type {
-  ApplicationOption,
+  InterfaceCompany,
   InterfaceDataResidency,
   InterfaceDetail,
   InterfaceOwner,
 } from '../components/interface-workspace/types';
 
-export type InterfacePropertyPanelSection = 'core' | 'team' | 'data-compliance';
-
-type Props = {
-  canManage: boolean;
-  data: InterfaceDetail | null;
-  focusSection?: InterfacePropertyPanelSection | null;
-  isCreate: boolean;
-  onPatch: (patch: Partial<InterfaceDetail>) => Promise<void>;
-  onReplaceDataResidency: (codes: string[]) => Promise<void>;
-  onReplaceOwners: (ownerType: 'business' | 'it', userIds: string[]) => Promise<void>;
+type CompanyOption = {
+  id: string;
+  name: string;
 };
-
-const compactFieldSx = {
-  '& .MuiFormLabel-root': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiInputBase-root': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiInputBase-input': {
-    fontSize: '0.9rem',
-  },
-  '& .MuiChip-root': {
-    fontSize: '0.78rem',
-    height: 24,
-  },
-};
-
-const accordionSx = {
-  '&:before': { display: 'none' },
-  bgcolor: 'transparent',
-};
-
-function SectionHeading({ title }: { title: string }) {
-  return (
-    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-      {title}
-    </Typography>
-  );
-}
 
 type TeamMemberValue = {
   user_id: string;
@@ -80,38 +39,54 @@ type TeamMemberValue = {
   email?: string;
 };
 
+type Props = {
+  canManage: boolean;
+  data: InterfaceDetail | null;
+  isCreate: boolean;
+  onPatch: (patch: Partial<InterfaceDetail>) => Promise<void>;
+  onReplaceCompanies: (companyIds: string[]) => Promise<void>;
+  onReplaceDataResidency: (codes: string[]) => Promise<void>;
+  onReplaceOwners: (ownerType: 'business' | 'it', userIds: string[]) => Promise<void>;
+};
+
+function formatShortDate(value: string | Date | null | undefined) {
+  if (!value) return 'Not set';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not set';
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+}
+
+function ReadOnlyValue({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography sx={{ fontSize: 13, color: 'kanap.text.primary', minHeight: 26, display: 'flex', alignItems: 'center' }}>
+      {children}
+    </Typography>
+  );
+}
+
 export default function InterfacePropertyPanel({
   canManage,
   data,
-  focusSection = null,
   isCreate,
   onPatch,
+  onReplaceCompanies,
   onReplaceDataResidency,
   onReplaceOwners,
 }: Props) {
   const { t } = useTranslation(['it', 'common']);
   const { byField } = useItOpsEnumOptions();
   const [panelError, setPanelError] = React.useState<string | null>(null);
-  const [expanded, setExpanded] = React.useState<InterfacePropertyPanelSection[]>(() => (
-    focusSection ? ['core', focusSection] : ['core']
-  ));
   const [interfaceIdDraft, setInterfaceIdDraft] = React.useState(data?.interface_id || '');
-  const [nameDraft, setNameDraft] = React.useState(data?.name || '');
-  const [businessPurposeDraft, setBusinessPurposeDraft] = React.useState(data?.business_purpose || '');
+  const [piiDescriptionDraft, setPiiDescriptionDraft] = React.useState(data?.pii_description || '');
   const owners = (data?.owners || []) as InterfaceOwner[];
+  const companies = (data?.companies || []) as InterfaceCompany[];
   const residency = (data?.data_residency || []) as InterfaceDataResidency[];
-
-  const coreFieldsDisabled = !isCreate && !canManage;
-
-  const { data: etlAppsData, isLoading: loadingEtlApps } = useQuery({
-    queryKey: ['applications', 'select', 'etl-middleware'],
-    queryFn: async () => {
-      const params: Record<string, any> = { limit: 500, sort: 'name:ASC' };
-      params.filters = JSON.stringify({ etl_enabled: { type: 'equals', filter: true } });
-      const res = await api.get<{ items: ApplicationOption[] }>('/applications', { params });
-      return res.data.items || [];
-    },
-  });
+  const disabled = !canManage;
 
   const { data: users } = useQuery({
     queryKey: ['users-for-team-select'],
@@ -127,24 +102,36 @@ export default function InterfacePropertyPanel({
     enabled: !isCreate,
   });
 
-  React.useEffect(() => {
-    if (!focusSection) return;
-    setExpanded((prev) => (prev.includes(focusSection) ? prev : [...prev, focusSection]));
-  }, [focusSection]);
+  const { data: companyOptionsData = [], isLoading: loadingCompanies } = useQuery({
+    queryKey: ['companies', 'active'],
+    queryFn: async () => {
+      const res = await api.get<{ items: CompanyOption[] }>('/companies', { params: { limit: 1000 } });
+      return res.data.items || [];
+    },
+    enabled: !isCreate,
+  });
 
   React.useEffect(() => {
     setInterfaceIdDraft(data?.interface_id || '');
   }, [data?.id, data?.interface_id]);
 
   React.useEffect(() => {
-    setNameDraft(data?.name || '');
-  }, [data?.id, data?.name]);
+    setPiiDescriptionDraft(data?.pii_description || '');
+  }, [data?.id, data?.pii_description]);
 
-  React.useEffect(() => {
-    setBusinessPurposeDraft(data?.business_purpose || '');
-  }, [data?.id, data?.business_purpose]);
+  const runPersist = React.useCallback(async (action: () => Promise<void>) => {
+    setPanelError(null);
+    try {
+      await action();
+    } catch (panelSaveError: any) {
+      setPanelError(getApiErrorMessage(panelSaveError, t, t('messages.saveInterfaceFailed')));
+    }
+  }, [t]);
 
-  const etlApps = React.useMemo(() => (etlAppsData || []) as ApplicationOption[], [etlAppsData]);
+  const companyOptions = React.useMemo(() => (
+    [...companyOptionsData].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+  ), [companyOptionsData]);
+
   const userById = React.useMemo(() => {
     const map = new Map<string, { first_name?: string | null; last_name?: string | null; email: string }>();
     for (const user of users || []) {
@@ -203,11 +190,6 @@ export default function InterfacePropertyPanel({
     return options.filter((item) => !item.deprecated || item.value === current);
   }, [byField.lifecycleStatus, data?.lifecycle]);
 
-  const routeOptions = React.useMemo(() => [
-    { label: 'Direct', value: 'direct' },
-    { label: 'Via middleware', value: 'via_middleware' },
-  ], []);
-
   const criticalityOptions = React.useMemo(() => [
     { label: t('enums.criticality.businessCritical'), value: 'business_critical' },
     { label: t('enums.criticality.high'), value: 'high' },
@@ -227,332 +209,256 @@ export default function InterfacePropertyPanel({
     return [...COUNTRY_OPTIONS, ...extras];
   }, [residencyCodes]);
 
-  const runPersist = React.useCallback(async (action: () => Promise<void>) => {
-    setPanelError(null);
-    try {
-      await action();
-    } catch (panelSaveError: any) {
-      setPanelError(getApiErrorMessage(panelSaveError, t, t('messages.saveInterfaceFailed')));
-    }
-  }, [t]);
-
-  const handleAccordionChange = (section: InterfacePropertyPanelSection) => (
-    _: React.SyntheticEvent,
-    isExpanded: boolean,
-  ) => {
-    setExpanded((prev) => (
-      isExpanded ? [...prev, section] : prev.filter((entry) => entry !== section)
-    ));
-  };
+  const selectedCompanies = React.useMemo(() => {
+    const companyIds = companies.map((row) => row.company_id).filter(Boolean);
+    return companyIds
+      .map((id) => companyOptions.find((company) => company.id === id) || { id, name: id })
+      .filter(Boolean);
+  }, [companies, companyOptions]);
 
   return (
-    <Stack spacing={1.5} sx={compactFieldSx}>
-      {!!panelError && <Alert severity="error">{panelError}</Alert>}
-
-      <Accordion
-        disableGutters
-        expanded={expanded.includes('core')}
-        onChange={handleAccordionChange('core')}
-        elevation={0}
-        sx={accordionSx}
-      >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <SectionHeading title="Core properties" />
-        </AccordionSummary>
-        <AccordionDetails>
-          <Stack spacing={1.5}>
-            <TextField
-              label="Interface ID"
-              value={interfaceIdDraft}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setInterfaceIdDraft(nextValue);
-                if (isCreate) {
-                  void onPatch({ interface_id: nextValue });
-                }
-              }}
-              onBlur={() => {
-                if (!coreFieldsDisabled && !isCreate && interfaceIdDraft !== (data?.interface_id || '')) {
-                  void runPersist(() => onPatch({ interface_id: interfaceIdDraft }));
-                }
-              }}
-              size="small"
-              required
-              fullWidth
-              disabled={coreFieldsDisabled}
-            />
-
-            <TextField
-              label="Name"
-              value={nameDraft}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setNameDraft(nextValue);
-                if (isCreate) {
-                  void onPatch({ name: nextValue });
-                }
-              }}
-              onBlur={() => {
-                if (!coreFieldsDisabled && !isCreate && nameDraft !== (data?.name || '')) {
-                  void runPersist(() => onPatch({ name: nameDraft }));
-                }
-              }}
-              size="small"
-              required
-              fullWidth
-              disabled={coreFieldsDisabled}
-            />
-
-            <TextField
-              label="Business purpose"
-              helperText="Short searchable summary kept on the interface row."
-              value={businessPurposeDraft}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setBusinessPurposeDraft(nextValue);
-                if (isCreate) {
-                  void onPatch({ business_purpose: nextValue });
-                }
-              }}
-              onBlur={() => {
-                if (!coreFieldsDisabled && !isCreate && businessPurposeDraft !== (data?.business_purpose || '')) {
-                  void runPersist(() => onPatch({ business_purpose: businessPurposeDraft }));
-                }
-              }}
-              size="small"
-              required
-              multiline
-              minRows={2}
-              fullWidth
-              disabled={coreFieldsDisabled}
-            />
-
-            <BusinessProcessSelect
-              label="Business process"
-              value={data?.business_process_id || null}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ business_process_id: value || null }));
-              }}
-              disabled={coreFieldsDisabled}
-            />
-
-            <EnumAutocomplete
-              label="Lifecycle"
-              value={data?.lifecycle || 'active'}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ lifecycle: value }));
-              }}
-              options={lifecycleOptions}
-              size="small"
-              disabled={coreFieldsDisabled}
-            />
-
-            <EnumAutocomplete
-              label="Criticality"
-              value={data?.criticality || 'medium'}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ criticality: value }));
-              }}
-              options={criticalityOptions}
-              size="small"
-              disabled={coreFieldsDisabled}
-            />
-
-            <ApplicationSelect
-              label="Source application"
-              value={data?.source_application_id || null}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ source_application_id: value || '' }));
-              }}
-              required
-              disabled={coreFieldsDisabled}
-            />
-
-            <ApplicationSelect
-              label="Target application"
-              value={data?.target_application_id || null}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ target_application_id: value || '' }));
-              }}
-              required
-              disabled={coreFieldsDisabled}
-            />
-
-            <EnumAutocomplete
-              label="Integration route type"
-              value={data?.integration_route_type || 'direct'}
-              onChange={(value) => {
-                void runPersist(() => onPatch({
-                  integration_route_type: value as 'direct' | 'via_middleware',
-                  ...(value === 'direct' ? { middleware_application_ids: [] } : {}),
-                }));
-              }}
-              options={routeOptions}
-              size="small"
-              disabled={coreFieldsDisabled}
-            />
-
-            {data?.integration_route_type === 'via_middleware' && (
-              <Autocomplete
-                multiple
-                size="small"
-                options={etlApps}
-                value={etlApps.filter((app) => (data?.middleware_application_ids || []).includes(app.id))}
-                onChange={(_, value) => {
-                  void runPersist(() => onPatch({
-                    middleware_application_ids: value.map((item) => item.id),
-                  }));
-                }}
-                getOptionLabel={(option) => option.name}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Middleware applications"
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loadingEtlApps ? <CircularProgress color="inherit" size={18} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                fullWidth
-                disabled={coreFieldsDisabled}
-              />
-            )}
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
-
-      {!isCreate && (
-        <Accordion
-          disableGutters
-          expanded={expanded.includes('team')}
-          onChange={handleAccordionChange('team')}
-          elevation={0}
-          sx={accordionSx}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <SectionHeading title="Team" />
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={1.5}>
-              <TeamMemberMultiSelect
-                label="Business owners"
-                value={enrichOwners('business')}
-                onChange={async (userIds) => runPersist(() => onReplaceOwners('business', userIds))}
-                disabled={!canManage}
-              />
-
-              <Divider />
-
-              <TeamMemberMultiSelect
-                label="IT owners"
-                value={enrichOwners('it')}
-                onChange={async (userIds) => runPersist(() => onReplaceOwners('it', userIds))}
-                disabled={!canManage}
-              />
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
+    <>
+      {!!panelError && (
+        <PropertyGroup>
+          <Alert severity="error">{panelError}</Alert>
+        </PropertyGroup>
       )}
 
-      <Accordion
-        disableGutters
-        expanded={expanded.includes('data-compliance')}
-        onChange={handleAccordionChange('data-compliance')}
-        elevation={0}
-        sx={accordionSx}
-      >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <SectionHeading title="Data & Compliance" />
-        </AccordionSummary>
-        <AccordionDetails>
-          <Stack spacing={1.5}>
-            <EnumAutocomplete
-              label="Data category"
-              value={data?.data_category || ''}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ data_category: value }));
-              }}
-              options={dataCategoryOptions}
-              size="small"
-              disabled={coreFieldsDisabled}
+      <PropertyGroup>
+        {!isCreate && (
+          <PropertyRow label="Reference">
+            <ReadOnlyValue>{data?.interface_reference || 'Assigned on create'}</ReadOnlyValue>
+          </PropertyRow>
+        )}
+        <PropertyRow label="Interface code">
+          <TextField
+            value={interfaceIdDraft}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setInterfaceIdDraft(nextValue);
+              if (isCreate) {
+                void onPatch({ interface_id: nextValue });
+              }
+            }}
+            onBlur={() => {
+              if (!disabled && !isCreate && interfaceIdDraft !== (data?.interface_id || '')) {
+                void runPersist(() => onPatch({ interface_id: interfaceIdDraft }));
+              }
+            }}
+            variant="standard"
+            InputProps={{ disableUnderline: true }}
+            sx={drawerFieldValueSx}
+            placeholder="e.g., ERP-ORDERS-SYNC"
+            disabled={disabled}
+          />
+        </PropertyRow>
+        <PropertyRow label="Business process">
+          <BusinessProcessSelect
+            value={data?.business_process_id || null}
+            onChange={(value) => {
+              void runPersist(() => onPatch({ business_process_id: value || null }));
+            }}
+            disabled={disabled}
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+            placeholder="Select process"
+          />
+        </PropertyRow>
+        <PropertyRow label="Lifecycle">
+          <EnumAutocomplete
+            label="Lifecycle"
+            value={data?.lifecycle || 'active'}
+            onChange={(value) => {
+              void runPersist(() => onPatch({ lifecycle: value }));
+            }}
+            options={lifecycleOptions}
+            size="small"
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+            disabled={disabled}
+          />
+        </PropertyRow>
+        {!isCreate && (
+          <>
+            <PropertyRow label="Created">
+              <ReadOnlyValue>{formatShortDate(data?.created_at)}</ReadOnlyValue>
+            </PropertyRow>
+            <PropertyRow label="Updated">
+              <ReadOnlyValue>{formatShortDate(data?.updated_at)}</ReadOnlyValue>
+            </PropertyRow>
+          </>
+        )}
+      </PropertyGroup>
+
+      {!isCreate && (
+        <PropertyGroup>
+          <PropertyRow label="Business owners">
+            <TeamMemberMultiSelect
+              label="Business owners"
+              value={enrichOwners('business')}
+              onChange={async (userIds) => runPersist(() => onReplaceOwners('business', userIds))}
+              disabled={!canManage}
+              hideLabel
+              textFieldSx={drawerFieldValueSx}
             />
-
-            <EnumAutocomplete
-              label="Data classification"
-              value={data?.data_class || 'internal'}
-              onChange={(value) => {
-                void runPersist(() => onPatch({ data_class: value }));
-              }}
-              options={dataClassOptions}
-              size="small"
-              disabled={coreFieldsDisabled}
+          </PropertyRow>
+          <PropertyRow label="IT owners">
+            <TeamMemberMultiSelect
+              label="IT owners"
+              value={enrichOwners('it')}
+              onChange={async (userIds) => runPersist(() => onReplaceOwners('it', userIds))}
+              disabled={!canManage}
+              hideLabel
+              textFieldSx={drawerFieldValueSx}
             />
-
-            <FormControlLabel
-              control={(
-                <Checkbox
-                  checked={!!data?.contains_pii}
-                  onChange={(event) => {
-                    void runPersist(() => onPatch({ contains_pii: event.target.checked }));
-                  }}
-                  disabled={coreFieldsDisabled}
-                />
-              )}
-              label="Contains PII"
-            />
-
-            {data?.contains_pii && (
-              <TextField
-                label="PII description"
-                value={data?.pii_description || ''}
-                onChange={(event) => {
-                  if (isCreate) {
-                    void onPatch({ pii_description: event.target.value });
-                  }
-                }}
-                onBlur={(event) => {
-                  if (!coreFieldsDisabled && !isCreate) {
-                    void runPersist(() => onPatch({ pii_description: event.target.value }));
-                  }
-                }}
-                size="small"
-                fullWidth
-                multiline
-                minRows={2}
-                disabled={coreFieldsDisabled}
-              />
-            )}
-
+          </PropertyRow>
+          <PropertyRow label="Impacted companies">
             <Autocomplete
               multiple
               size="small"
-              options={residencyOptions}
-              value={residencyOptions.filter((option) => residencyCodes.includes(option.code))}
+              options={companyOptions}
+              loading={loadingCompanies}
+              value={selectedCompanies}
               onChange={(_, value) => {
-                void runPersist(() => onReplaceDataResidency(value.map((item) => item.code)));
+                void runPersist(() => onReplaceCompanies(value.map((item) => item.id)));
               }}
-              getOptionLabel={(option) => `${option.name} (${option.code})`}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  {option.name}
+                </li>
+              )}
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Data residency"
-                  placeholder="Add countries"
+                  variant="standard"
+                  InputProps={{ ...params.InputProps, disableUnderline: true }}
+                  sx={drawerFieldValueSx}
+                  placeholder="Add companies"
                 />
               )}
-              isOptionEqualToValue={(option, value) => option.code === value.code}
-              fullWidth
-              disabled={coreFieldsDisabled}
+              disabled={!canManage || loadingCompanies}
             />
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
-    </Stack>
+          </PropertyRow>
+        </PropertyGroup>
+      )}
+
+      <PropertyGroup>
+        <PropertyRow label="Criticality">
+          <EnumAutocomplete
+            label="Criticality"
+            value={data?.criticality || 'medium'}
+            onChange={(value) => {
+              void runPersist(() => onPatch({ criticality: value as InterfaceDetail['criticality'] }));
+            }}
+            options={criticalityOptions}
+            size="small"
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+            disabled={disabled}
+          />
+        </PropertyRow>
+        <PropertyRow label="Data category" required>
+          <EnumAutocomplete
+            label="Data category"
+            value={data?.data_category || ''}
+            onChange={(value) => {
+              void runPersist(() => onPatch({ data_category: value }));
+            }}
+            options={dataCategoryOptions}
+            size="small"
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+            disabled={disabled}
+          />
+        </PropertyRow>
+        <PropertyRow label="Data class">
+          <EnumAutocomplete
+            label="Data class"
+            value={data?.data_class || 'internal'}
+            onChange={(value) => {
+              void runPersist(() => onPatch({ data_class: value }));
+            }}
+            options={dataClassOptions}
+            size="small"
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+            disabled={disabled}
+          />
+        </PropertyRow>
+        <PropertyRow label="Contains PII">
+          <Box sx={{ minHeight: 26, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Switch
+              size="small"
+              checked={!!data?.contains_pii}
+              onChange={(event) => {
+                void runPersist(() => onPatch({ contains_pii: event.target.checked }));
+              }}
+              disabled={disabled}
+            />
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>
+              {data?.contains_pii ? 'Yes' : 'No'}
+            </Typography>
+          </Box>
+        </PropertyRow>
+        {data?.contains_pii && (
+          <PropertyRow label="PII description">
+            <TextField
+              value={piiDescriptionDraft}
+              onChange={(event) => {
+                const next = event.target.value;
+                setPiiDescriptionDraft(next);
+                if (isCreate) {
+                  void onPatch({ pii_description: next });
+                }
+              }}
+              onBlur={() => {
+                if (!disabled && !isCreate && piiDescriptionDraft !== (data?.pii_description || '')) {
+                  void runPersist(() => onPatch({ pii_description: piiDescriptionDraft || null }));
+                }
+              }}
+              variant="standard"
+              InputProps={{ disableUnderline: true }}
+              sx={drawerFieldValueSx}
+              placeholder="e.g., customer contact data"
+              disabled={disabled}
+              multiline
+              minRows={2}
+            />
+          </PropertyRow>
+        )}
+        <PropertyRow label="Data residency">
+          <Autocomplete
+            multiple
+            size="small"
+            options={residencyOptions}
+            value={residencyOptions.filter((option) => residencyCodes.includes(option.code))}
+            onChange={(_, value) => {
+              void runPersist(() => onReplaceDataResidency(value.map((item) => item.code)));
+            }}
+            getOptionLabel={(option) => `${option.name} (${option.code})`}
+            isOptionEqualToValue={(option, value) => option.code === value.code}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="standard"
+                InputProps={{ ...params.InputProps, disableUnderline: true }}
+                sx={drawerFieldValueSx}
+                placeholder="Add countries"
+              />
+            )}
+            renderOption={(props, option, state) => (
+              <li {...props} key={option.code}>
+                <Checkbox checked={state.selected} size="small" sx={{ mr: 1, p: 0.25 }} />
+                {option.name} ({option.code})
+              </li>
+            )}
+            fullWidth
+            disabled={disabled}
+          />
+        </PropertyRow>
+      </PropertyGroup>
+    </>
   );
 }
