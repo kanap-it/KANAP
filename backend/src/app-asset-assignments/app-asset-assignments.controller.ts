@@ -3,14 +3,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { AppAssetAssignmentsService } from './app-asset-assignments.service';
+import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class AppAssetAssignmentsController {
   constructor(private readonly svc: AppAssetAssignmentsService) {}
 
-  private listForDeployment(instanceId: string, req: any) {
-    return this.svc.list(instanceId, { manager: req?.queryRunner?.manager });
+  private async listForDeployment(instanceId: string, req: any) {
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    return this.svc.list(instanceId, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   private createForDeployment(instanceId: string, body: any, req: any) {
@@ -95,17 +97,19 @@ export class AppAssetAssignmentsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('assets/:assetId/assignments')
-  listByAsset(@Param('assetId') assetId: string, @Req() req: any) {
-    return this.svc.listByAsset(assetId, { manager: req?.queryRunner?.manager });
+  async listByAsset(@Param('assetId') assetId: string, @Req() req: any) {
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    return this.svc.listByAsset(assetId, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Post('app-asset-assignments/assets-by-apps')
-  listAssetsByApps(@Body() body: { applicationIds: string[]; environments: string[] }, @Req() req: any) {
+  async listAssetsByApps(@Body() body: { applicationIds: string[]; environments: string[] }, @Req() req: any) {
     const applicationIds = Array.isArray(body?.applicationIds) ? body.applicationIds : [];
     const environments = Array.isArray(body?.environments) ? body.environments : [];
-    return this.svc.listAssetsByApps(applicationIds, environments, { manager: req?.queryRunner?.manager });
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    return this.svc.listAssetsByApps(applicationIds, environments, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   // Backwards compatibility endpoints (servers → assets)
@@ -178,16 +182,18 @@ export class AppAssetAssignmentsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('servers/:serverId/assignments')
-  listByServerLegacy(@Param('serverId') serverId: string, @Req() req: any) {
-    return this.svc.listByAsset(serverId, { manager: req?.queryRunner?.manager });
+  async listByServerLegacy(@Param('serverId') serverId: string, @Req() req: any) {
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    return this.svc.listByAsset(serverId, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Post('app-server-assignments/servers-by-apps')
-  listServersByAppsLegacy(@Body() body: { applicationIds: string[]; environments: string[] }, @Req() req: any) {
+  async listServersByAppsLegacy(@Body() body: { applicationIds: string[]; environments: string[] }, @Req() req: any) {
     const applicationIds = Array.isArray(body?.applicationIds) ? body.applicationIds : [];
     const environments = Array.isArray(body?.environments) ? body.environments : [];
-    return this.svc.listAssetsByApps(applicationIds, environments, { manager: req?.queryRunner?.manager });
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    return this.svc.listAssetsByApps(applicationIds, environments, { manager: req?.queryRunner?.manager, accessScope });
   }
 }

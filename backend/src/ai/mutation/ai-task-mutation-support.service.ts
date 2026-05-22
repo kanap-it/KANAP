@@ -2,6 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { validate as isUuid } from 'uuid';
 import { RelatedType } from '../../tasks/tasks-unified.service';
 import { AiExecutionContextWithManager } from '../ai.types';
+import {
+  participantConditionForAiEntity,
+  ParticipationScopedAiEntityType,
+  resolveAiParticipationAccessScope,
+} from '../query/ai-query-scope.util';
 
 const TASK_REF_RE = /^T-(\d+)$/i;
 const PROJECT_REF_RE = /^(?:PRJ-|project\s+#?|prj\s+#?|#)?(\d+)$/i;
@@ -107,6 +112,17 @@ function textOrNull(value: unknown): string | null {
   }
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function appendParticipationScopeSql(
+  entityType: ParticipationScopedAiEntityType,
+  alias: string,
+  params: unknown[],
+  accessScope?: { userId: string },
+): string {
+  if (!accessScope) return '';
+  params.push(accessScope.userId);
+  return `AND ${participantConditionForAiEntity(entityType, alias, `$${params.length}`)}`;
 }
 
 export function toDisplayStatus(value: string | null | undefined): string | null {
@@ -259,32 +275,43 @@ export class AiTaskMutationSupportService {
     const config = TARGET_QUERY_CONFIG[mode];
     const normalized = String(input || '').trim();
     let rows: Array<Record<string, unknown>> = [];
+    const accessScope = mode === 'project'
+      ? await resolveAiParticipationAccessScope(context, 'projects')
+      : undefined;
 
     if (isUuid(normalized)) {
+      const params: unknown[] = [context.tenantId, normalized];
+      const accessScopeSql = mode === 'project'
+        ? appendParticipationScopeSql('projects', 'target', params, accessScope)
+        : '';
       rows = await context.manager.query(
         `SELECT id,
-                ${config.nameColumn} AS name,
-                ${config.itemPrefix ? 'item_number,' : 'NULL::int AS item_number,'}
-                updated_at
-         FROM ${config.table}
-         WHERE tenant_id = $1
-           AND id = $2
+                target.${config.nameColumn} AS name,
+                ${config.itemPrefix ? 'target.item_number,' : 'NULL::int AS item_number,'}
+                target.updated_at
+         FROM ${config.table} target
+         WHERE target.tenant_id = $1
+           AND target.id = $2
+           ${accessScopeSql}
          LIMIT 1`,
-        [context.tenantId, normalized],
+        params,
       );
     } else if (mode === 'project') {
       const itemNumber = this.parseProjectItemNumber(normalized);
       if (itemNumber != null) {
+        const params: unknown[] = [context.tenantId, itemNumber];
+        const accessScopeSql = appendParticipationScopeSql('projects', 'target', params, accessScope);
         rows = await context.manager.query(
           `SELECT id,
-                  ${config.nameColumn} AS name,
-                  item_number,
-                  updated_at
-           FROM ${config.table}
-           WHERE tenant_id = $1
-             AND item_number = $2
+                  target.${config.nameColumn} AS name,
+                  target.item_number,
+                  target.updated_at
+           FROM ${config.table} target
+           WHERE target.tenant_id = $1
+             AND target.item_number = $2
+             ${accessScopeSql}
            LIMIT 1`,
-          [context.tenantId, itemNumber],
+          params,
         );
       }
     }
@@ -315,37 +342,45 @@ export class AiTaskMutationSupportService {
     const prefix = `${normalized}%`;
     const params: unknown[] = [context.tenantId, like, normalized, prefix];
     let itemNumberSql = '';
+    const accessScope = mode === 'project'
+      ? await resolveAiParticipationAccessScope(context, 'projects')
+      : undefined;
 
     if (mode === 'project') {
       const itemNumber = this.parseProjectItemNumber(normalized);
       if (itemNumber != null) {
         params.push(itemNumber);
-        itemNumberSql = ` OR item_number = $${params.length}`;
+        itemNumberSql = ` OR target.item_number = $${params.length}`;
       }
     }
 
+    const accessScopeSql = mode === 'project'
+      ? appendParticipationScopeSql('projects', 'target', params, accessScope)
+      : '';
     params.push(Math.min(Math.max(limit, 1), 10));
+    const limitRef = `$${params.length}`;
 
     const rows = await context.manager.query(
       `SELECT id,
-              ${config.nameColumn} AS name,
-              ${config.itemPrefix ? 'item_number,' : 'NULL::int AS item_number,'}
-              updated_at
-       FROM ${config.table}
-       WHERE tenant_id = $1
+              target.${config.nameColumn} AS name,
+              ${config.itemPrefix ? 'target.item_number,' : 'NULL::int AS item_number,'}
+              target.updated_at
+       FROM ${config.table} target
+       WHERE target.tenant_id = $1
+         ${accessScopeSql}
          AND (
-           COALESCE(${config.nameColumn}, '') ILIKE $2
+           COALESCE(target.${config.nameColumn}, '') ILIKE $2
            ${itemNumberSql}
          )
        ORDER BY
          CASE
-           WHEN lower(COALESCE(${config.nameColumn}, '')) = lower($3) THEN 0
-           WHEN COALESCE(${config.nameColumn}, '') ILIKE $4 THEN 1
-           WHEN COALESCE(${config.nameColumn}, '') ILIKE $2 THEN 2
+           WHEN lower(COALESCE(target.${config.nameColumn}, '')) = lower($3) THEN 0
+           WHEN COALESCE(target.${config.nameColumn}, '') ILIKE $4 THEN 1
+           WHEN COALESCE(target.${config.nameColumn}, '') ILIKE $2 THEN 2
            ELSE 3
          END ASC,
-         updated_at DESC
-       LIMIT $${params.length}`,
+         target.updated_at DESC
+       LIMIT ${limitRef}`,
       params,
     );
 
@@ -407,7 +442,10 @@ export class AiTaskMutationSupportService {
     }
 
     let rows: any[] = [];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'tasks');
     if (isUuid(normalized)) {
+      const params: unknown[] = [context.tenantId, normalized];
+      const accessScopeSql = appendParticipationScopeSql('tasks', 't', params, accessScope);
       rows = await context.manager.query(
         `
         SELECT t.id,
@@ -422,15 +460,18 @@ export class AiTaskMutationSupportService {
          AND u.tenant_id = t.tenant_id
         WHERE t.tenant_id = $1
           AND t.id = $2
+          ${accessScopeSql}
         LIMIT 1
         `,
-        [context.tenantId, normalized],
+        params,
       );
     } else {
       const match = normalized.match(TASK_REF_RE);
       if (!match) {
         throw new BadRequestException('Task reference must be a task UUID or a T-123 style reference.');
       }
+      const params: unknown[] = [context.tenantId, Number.parseInt(match[1], 10)];
+      const accessScopeSql = appendParticipationScopeSql('tasks', 't', params, accessScope);
       rows = await context.manager.query(
         `
         SELECT t.id,
@@ -445,9 +486,10 @@ export class AiTaskMutationSupportService {
          AND u.tenant_id = t.tenant_id
         WHERE t.tenant_id = $1
           AND t.item_number = $2
+          ${accessScopeSql}
         LIMIT 1
         `,
-        [context.tenantId, Number.parseInt(match[1], 10)],
+        params,
       );
     }
 

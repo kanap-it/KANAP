@@ -16,6 +16,9 @@ export const ListInterfacesQuerySchema = ListQuerySchema.extend({
   /** Filter by business process ID */
   business_process_id: z.string().uuid().optional(),
 
+  /** Filter by system reference */
+  interface_reference: z.string().optional(),
+
   /** Filter by integration route type */
   integration_route_type: z.enum(IntegrationRouteTypes).optional(),
 
@@ -72,6 +75,7 @@ export class ListInterfacesQueryDto implements ListInterfacesQuery {
   source_application_id?: string;
   target_application_id?: string;
   business_process_id?: string;
+  interface_reference?: string;
   integration_route_type?: (typeof IntegrationRouteTypes)[number];
   lifecycle?: string[];
   criticality?: (typeof CriticalityLevels)[number];

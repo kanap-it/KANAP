@@ -9,8 +9,8 @@ import {
  * All fields are optional for partial updates.
  */
 export const UpdateInterfaceSchema = z.object({
-  /** Interface ID (human-readable identifier) */
-  interface_id: z.string().min(1).optional(),
+  /** Optional external interface code */
+  interface_id: z.string().nullable().optional(),
 
   /** Interface name */
   name: z.string().min(1).optional(),

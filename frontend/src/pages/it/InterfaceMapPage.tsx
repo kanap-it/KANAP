@@ -58,7 +58,8 @@ type ApiMapNode = {
 
 type ApiMapInterface = {
   id: string;
-  interface_id: string;
+  interface_reference?: string | null;
+  interface_id?: string | null;
   name: string;
   source_application_id: string;
   target_application_id: string;
@@ -184,7 +185,8 @@ function buildBusinessGraph(data: InterfaceMapResponse): GraphData {
     .map((intf) => ({
       id: intf.id,
       interfaceDbId: intf.id,
-      interfaceId: intf.interface_id,
+      interfaceReference: intf.interface_reference || null,
+      interfaceId: intf.interface_reference || intf.interface_id || intf.id,
       source: intf.source_application_id,
       target: intf.target_application_id,
       lifecycle: intf.lifecycle,
@@ -205,7 +207,8 @@ function buildTechnicalGraph(data: InterfaceMapResponse): GraphData {
   for (const intf of data.interfaces) {
     const base: Omit<MapGraphLink, 'id' | 'source' | 'target' | 'parallelIndex' | 'parallelTotal'> = {
       interfaceDbId: intf.id,
-      interfaceId: intf.interface_id,
+      interfaceReference: intf.interface_reference || null,
+      interfaceId: intf.interface_reference || intf.interface_id || intf.id,
       lifecycle: intf.lifecycle,
       criticality: intf.criticality,
       containsPii: !!intf.contains_pii,
@@ -1121,7 +1124,7 @@ export default function InterfaceMapPage() {
 	                      variant="contained"
 	                      size="small"
                       onClick={() => {
-                        navigate(`/it/interfaces/${selectedLink.interfaceDbId}/specification`);
+                        navigate(`/it/interfaces/${selectedLink.interfaceReference || selectedLink.interfaceDbId}/overview`);
                       }}
                     >
                       Edit interface

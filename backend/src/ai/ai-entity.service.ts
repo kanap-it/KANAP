@@ -16,6 +16,11 @@ import {
   AiSearchEntityType,
 } from './ai.types';
 import { AiPolicyService } from './ai-policy.service';
+import {
+  participantConditionForAiEntity,
+  ParticipationScopedAiEntityType,
+  resolveAiParticipationAccessScope,
+} from './query/ai-query-scope.util';
 
 type SearchRow = {
   id: string;
@@ -348,6 +353,28 @@ function toIntegratedDocumentSummary(row: any): AiEntitySummaryDto {
   });
 }
 
+function appendParticipationScopeSql(
+  entityType: ParticipationScopedAiEntityType,
+  alias: string,
+  params: unknown[],
+  accessScope?: { userId: string },
+): string {
+  if (!accessScope) return '';
+  params.push(accessScope.userId);
+  return `AND ${participantConditionForAiEntity(entityType, alias, `$${params.length}`)}`;
+}
+
+function appendNullableParticipationScopeSql(
+  entityType: ParticipationScopedAiEntityType,
+  alias: string,
+  params: unknown[],
+  accessScope?: { userId: string },
+): string {
+  if (!accessScope) return '';
+  params.push(accessScope.userId);
+  return `AND (${alias}.id IS NULL OR ${participantConditionForAiEntity(entityType, alias, `$${params.length}`)})`;
+}
+
 @Injectable()
 export class AiEntityService {
   private readonly logger = new Logger(AiEntityService.name);
@@ -456,6 +483,10 @@ export class AiEntityService {
     const numericPrefix = this.parseNumericPrefix(query);
     const businessOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'business');
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
+    const params: unknown[] = [numericPrefix, like, context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const accessScopeSql = appendParticipationScopeSql('applications', 'a', params, accessScope);
+    params.push(limit);
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT a.id,
               a.sequential_id AS item_ref,
@@ -504,6 +535,7 @@ export class AiEntityService {
            OR ${businessOwnerNamesSql} ILIKE $2
            OR ${itOwnerNamesSql} ILIKE $2
          )
+         ${accessScopeSql}
        ORDER BY score DESC,
                 CASE
                   WHEN $1::text IS NOT NULL
@@ -514,8 +546,8 @@ export class AiEntityService {
                 END ASC NULLS LAST,
                 a.updated_at DESC,
                 a.name ASC
-       LIMIT $4`,
-      [numericPrefix, like, context.tenantId, limit],
+       LIMIT $${params.length}`,
+      params,
     );
 
     return {
@@ -939,6 +971,11 @@ export class AiEntityService {
     const numericPrefix = this.parseNumericPrefix(query);
     const summarySql = buildProjectSummarySql('p');
     const contributorNamesSql = buildContributorNamesSql('p', 'portfolio_project_team', 'pt', 'project_id');
+    const params: unknown[] = [ref, numericPrefix, like, context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'projects');
+    const accessScopeSql = appendParticipationScopeSql('projects', 'p', params, accessScope);
+    params.push(limit);
+    const limitRef = `$${params.length}`;
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT p.id,
               p.item_number,
@@ -966,6 +1003,7 @@ export class AiEntityService {
        LEFT JOIN users u_is ON u_is.id = p.it_sponsor_id AND u_is.tenant_id = p.tenant_id
        LEFT JOIN users u_il ON u_il.id = p.it_lead_id AND u_il.tenant_id = p.tenant_id
        WHERE p.tenant_id = $4
+         ${accessScopeSql}
          AND (
            ($1::int IS NOT NULL AND p.item_number = $1)
            OR ($2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%')
@@ -994,8 +1032,8 @@ export class AiEntityService {
                 CASE WHEN $2::text IS NOT NULL AND p.item_number::text LIKE $2 || '%' THEN p.item_number ELSE NULL END ASC NULLS LAST,
                 p.updated_at DESC,
                 p.name ASC
-       LIMIT $5`,
-      [ref, numericPrefix, like, context.tenantId, limit],
+       LIMIT ${limitRef}`,
+      params,
     );
 
     return {
@@ -1024,6 +1062,11 @@ export class AiEntityService {
     const numericPrefix = this.parseNumericPrefix(query);
     const summarySql = buildRequestSummarySql('r');
     const contributorNamesSql = buildContributorNamesSql('r', 'portfolio_request_team', 'rt', 'request_id');
+    const params: unknown[] = [ref, numericPrefix, like, context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const accessScopeSql = appendParticipationScopeSql('requests', 'r', params, accessScope);
+    params.push(limit);
+    const limitRef = `$${params.length}`;
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT r.id,
               r.item_number,
@@ -1053,6 +1096,7 @@ export class AiEntityService {
        LEFT JOIN users u_is ON u_is.id = r.it_sponsor_id AND u_is.tenant_id = r.tenant_id
        LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id
        WHERE r.tenant_id = $4
+         ${accessScopeSql}
          AND (
            ($1::int IS NOT NULL AND r.item_number = $1)
            OR ($2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%')
@@ -1083,8 +1127,8 @@ export class AiEntityService {
                 CASE WHEN $2::text IS NOT NULL AND r.item_number::text LIKE $2 || '%' THEN r.item_number ELSE NULL END ASC NULLS LAST,
                 r.updated_at DESC,
                 r.name ASC
-       LIMIT $5`,
-      [ref, numericPrefix, like, context.tenantId, limit],
+       LIMIT ${limitRef}`,
+      params,
     );
 
     return {
@@ -1112,6 +1156,11 @@ export class AiEntityService {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const numericPrefix = this.parseNumericPrefix(query);
+    const params: unknown[] = [ref, numericPrefix, like, context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'tasks');
+    const accessScopeSql = appendParticipationScopeSql('tasks', 't', params, accessScope);
+    params.push(limit);
+    const limitRef = `$${params.length}`;
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT t.id,
               t.item_number,
@@ -1140,6 +1189,7 @@ export class AiEntityService {
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $4
        LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $4
        WHERE t.tenant_id = $4
+         ${accessScopeSql}
          AND (
            ($1::int IS NOT NULL AND t.item_number = $1)
            OR ($2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%')
@@ -1164,8 +1214,8 @@ export class AiEntityService {
                 CASE WHEN $2::text IS NOT NULL AND t.item_number::text LIKE $2 || '%' THEN t.item_number ELSE NULL END ASC NULLS LAST,
                 t.updated_at DESC,
                 t.created_at DESC
-       LIMIT $5`,
-      [ref, numericPrefix, like, context.tenantId, limit],
+       LIMIT ${limitRef}`,
+      params,
     );
 
     return {
@@ -1565,7 +1615,7 @@ export class AiEntityService {
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT i.id,
               NULL::int AS item_number,
-              NULLIF(TRIM(CONCAT_WS(' - ', i.interface_id, i.name)), '') AS label,
+              NULLIF(TRIM(CONCAT_WS(' - ', i.interface_reference, i.name)), '') AS label,
               COALESCE(NULLIF(i.business_purpose, ''), NULLIF(CONCAT_WS(' | ', sa.name, ta.name), '')) AS summary,
               i.lifecycle AS status,
               i.updated_at,
@@ -1574,7 +1624,7 @@ export class AiEntityService {
               bp.name AS business_process_name,
               COUNT(*) OVER()::int AS total_count,
               CASE
-                WHEN i.interface_id ILIKE $1 OR i.name ILIKE $1 THEN 3
+                WHEN i.interface_reference ILIKE $1 OR i.interface_id ILIKE $1 OR i.name ILIKE $1 THEN 3
                 WHEN COALESCE(sa.name, '') ILIKE $1 OR COALESCE(ta.name, '') ILIKE $1 THEN 2
                 ELSE 1
               END AS score
@@ -1584,7 +1634,8 @@ export class AiEntityService {
        LEFT JOIN business_processes bp ON bp.id = i.business_process_id AND bp.tenant_id = i.tenant_id
        WHERE i.tenant_id = $2
          AND (
-           i.interface_id ILIKE $1
+           i.interface_reference ILIKE $1
+           OR i.interface_id ILIKE $1
            OR i.name ILIKE $1
            OR COALESCE(i.business_purpose, '') ILIKE $1
            OR COALESCE(i.overview_notes, '') ILIKE $1
@@ -1682,6 +1733,9 @@ export class AiEntityService {
 
   private async listApplications(context: AiExecutionContextWithManager) {
     const itOwnerNamesSql = buildApplicationOwnerNamesSql('a', 'it');
+    const params: unknown[] = [context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const accessScopeSql = appendParticipationScopeSql('applications', 'a', params, accessScope);
     const rows = await context.manager.query<any[]>(
       `SELECT a.id, a.sequential_id AS item_ref, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
               a.lifecycle, a.criticality, a.category, a.hosting_model, a.data_class, a.version,
@@ -1690,8 +1744,9 @@ export class AiEntityService {
        FROM applications a
        LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.tenant_id = $1
        WHERE a.tenant_id = $1
+       ${accessScopeSql}
        ORDER BY a.name ASC`,
-      [context.tenantId],
+      params,
     );
     return rows.map((row) => ({
       ...toSummary('applications', row),
@@ -1730,6 +1785,9 @@ export class AiEntityService {
 
   private async listProjects(context: AiExecutionContextWithManager) {
     const summarySql = buildProjectSummarySql('p');
+    const params: unknown[] = [context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'projects');
+    const accessScopeSql = appendParticipationScopeSql('projects', 'p', params, accessScope);
     const rows = await context.manager.query<any[]>(
       `SELECT p.id, p.item_number, p.name AS label, ${summarySql} AS summary, p.status, p.updated_at,
               pc.name AS category_name, ps.name AS stream_name, co.name AS company_name
@@ -1738,8 +1796,9 @@ export class AiEntityService {
        LEFT JOIN portfolio_streams ps ON ps.id = p.stream_id AND ps.tenant_id = $1
        LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = $1
        WHERE p.tenant_id = $1
+       ${accessScopeSql}
        ORDER BY p.updated_at DESC, p.name ASC`,
-      [context.tenantId],
+      params,
     );
     return rows.map((row) => ({
       ...toSummary('projects', row),
@@ -1753,6 +1812,9 @@ export class AiEntityService {
 
   private async listRequests(context: AiExecutionContextWithManager) {
     const summarySql = buildRequestSummarySql('r');
+    const params: unknown[] = [context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const accessScopeSql = appendParticipationScopeSql('requests', 'r', params, accessScope);
     const rows = await context.manager.query<any[]>(
       `SELECT r.id, r.item_number, r.name AS label, ${summarySql} AS summary, r.status, r.updated_at,
               pc.name AS category_name, ps.name AS stream_name, co.name AS company_name
@@ -1761,8 +1823,9 @@ export class AiEntityService {
        LEFT JOIN portfolio_streams ps ON ps.id = r.stream_id AND ps.tenant_id = $1
        LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = $1
        WHERE r.tenant_id = $1
+       ${accessScopeSql}
        ORDER BY r.updated_at DESC, r.name ASC`,
-      [context.tenantId],
+      params,
     );
     return rows.map((row) => ({
       ...toSummary('requests', row),
@@ -1775,6 +1838,9 @@ export class AiEntityService {
   }
 
   private async listTasks(context: AiExecutionContextWithManager) {
+    const params: unknown[] = [context.tenantId];
+    const accessScope = await resolveAiParticipationAccessScope(context, 'tasks');
+    const accessScopeSql = appendParticipationScopeSql('tasks', 't', params, accessScope);
     const rows = await context.manager.query<any[]>(
       `SELECT t.id, t.item_number, COALESCE(t.title, 'Untitled task') AS label, t.description AS summary, t.status, t.updated_at,
               tt.name AS task_type_name,
@@ -1790,8 +1856,9 @@ export class AiEntityService {
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $1
        LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $1
        WHERE t.tenant_id = $1
+       ${accessScopeSql}
        ORDER BY t.updated_at DESC, t.created_at DESC`,
-      [context.tenantId],
+      params,
     );
     return rows.map((row) => ({
       ...toSummary('tasks', row),
@@ -2186,22 +2253,35 @@ export class AiEntityService {
     return output;
   }
 
-  private async buildApplicationContext(context: AiExecutionContext, applicationId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
+  private async buildApplicationContext(context: AiExecutionContextWithManager, applicationId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
+    const applicationAccessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const applicationRootParams: unknown[] = [applicationId, tenantId];
+    const applicationRootScopeSql = appendParticipationScopeSql('applications', 'a', applicationRootParams, applicationAccessScope);
     const applications = await manager.query<any[]>(
       `SELECT a.id, a.name, a.description, a.status, a.updated_at, a.lifecycle, a.environment, a.editor, a.criticality, a.hosting_model, a.data_class, a.version
        FROM applications a
        WHERE a.id = $1
          AND a.tenant_id = $2
+         ${applicationRootScopeSql}
        LIMIT 1`,
-      [applicationId, tenantId],
+      applicationRootParams,
     );
     const application = applications[0];
     if (!application) {
       throw new NotFoundException('Application not found.');
     }
+
+    const requestAccessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const projectAccessScope = await resolveAiParticipationAccessScope(context, 'projects');
+    const applicationRequestParams: unknown[] = [applicationId, tenantId];
+    const applicationRequestScopeSql = appendParticipationScopeSql('requests', 'r', applicationRequestParams, requestAccessScope);
+    const applicationProjectParams: unknown[] = [applicationId, tenantId];
+    const applicationProjectScopeSql = appendParticipationScopeSql('projects', 'p', applicationProjectParams, projectAccessScope);
+    const relatedApplicationParams: unknown[] = [applicationId, tenantId];
+    const relatedApplicationScopeSql = appendParticipationScopeSql('applications', 'a', relatedApplicationParams, applicationAccessScope);
 
     const [requestRows, projectRows, relatedApplicationRows, assetRows, ownerRows] = await Promise.all([
       manager.query<SearchRow[]>(
@@ -2210,8 +2290,9 @@ export class AiEntityService {
          JOIN portfolio_requests r ON r.id = l.request_id AND r.tenant_id = $2 AND r.tenant_id = l.tenant_id
          WHERE l.application_id = $1
            AND l.tenant_id = $2
+           ${applicationRequestScopeSql}
          ORDER BY r.updated_at DESC`,
-        [applicationId, tenantId],
+        applicationRequestParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT p.id, p.item_number, p.name AS label, ${projectSummarySql} AS summary, p.status, p.updated_at
@@ -2219,8 +2300,9 @@ export class AiEntityService {
          JOIN portfolio_projects p ON p.id = l.project_id AND p.tenant_id = $2 AND p.tenant_id = l.tenant_id
          WHERE l.application_id = $1
            AND l.tenant_id = $2
+           ${applicationProjectScopeSql}
          ORDER BY p.updated_at DESC`,
-        [applicationId, tenantId],
+        applicationProjectParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at
@@ -2228,13 +2310,15 @@ export class AiEntityService {
          JOIN applications a ON a.id = l.suite_id AND a.tenant_id = $2 AND a.tenant_id = l.tenant_id
          WHERE l.application_id = $1
            AND l.tenant_id = $2
+           ${relatedApplicationScopeSql}
          UNION
          SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at
          FROM application_suites l
          JOIN applications a ON a.id = l.application_id AND a.tenant_id = $2 AND a.tenant_id = l.tenant_id
          WHERE l.suite_id = $1
-           AND l.tenant_id = $2`,
-        [applicationId, tenantId],
+           AND l.tenant_id = $2
+           ${relatedApplicationScopeSql}`,
+        relatedApplicationParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at
@@ -2291,7 +2375,7 @@ export class AiEntityService {
     };
   }
 
-  private async buildAssetContext(context: AiExecutionContext, assetId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
+  private async buildAssetContext(context: AiExecutionContextWithManager, assetId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
@@ -2308,6 +2392,16 @@ export class AiEntityService {
       throw new NotFoundException('Asset not found.');
     }
 
+    const requestAccessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const projectAccessScope = await resolveAiParticipationAccessScope(context, 'projects');
+    const applicationAccessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const assetRequestParams: unknown[] = [assetId, tenantId];
+    const assetRequestScopeSql = appendParticipationScopeSql('requests', 'r', assetRequestParams, requestAccessScope);
+    const assetProjectParams: unknown[] = [assetId, tenantId];
+    const assetProjectScopeSql = appendParticipationScopeSql('projects', 'p', assetProjectParams, projectAccessScope);
+    const assetApplicationParams: unknown[] = [assetId, tenantId];
+    const assetApplicationScopeSql = appendParticipationScopeSql('applications', 'a', assetApplicationParams, applicationAccessScope);
+
     const [requestRows, projectRows, relatedAssetRows, applicationRows] = await Promise.all([
       manager.query<SearchRow[]>(
         `SELECT r.id, r.item_number, r.name AS label, ${requestSummarySql} AS summary, r.status, r.updated_at
@@ -2315,8 +2409,9 @@ export class AiEntityService {
          JOIN portfolio_requests r ON r.id = l.request_id AND r.tenant_id = $2 AND r.tenant_id = l.tenant_id
          WHERE l.asset_id = $1
            AND l.tenant_id = $2
+           ${assetRequestScopeSql}
          ORDER BY r.updated_at DESC`,
-        [assetId, tenantId],
+        assetRequestParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT p.id, p.item_number, p.name AS label, ${projectSummarySql} AS summary, p.status, p.updated_at
@@ -2324,8 +2419,9 @@ export class AiEntityService {
          JOIN portfolio_projects p ON p.id = l.project_id AND p.tenant_id = $2 AND p.tenant_id = l.tenant_id
          WHERE l.asset_id = $1
            AND l.tenant_id = $2
+           ${assetProjectScopeSql}
          ORDER BY p.updated_at DESC`,
-        [assetId, tenantId],
+        assetProjectParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at
@@ -2348,8 +2444,9 @@ export class AiEntityService {
          JOIN applications a ON a.id = ai.application_id AND a.tenant_id = $2 AND a.tenant_id = ai.tenant_id
          WHERE aaa.asset_id = $1
            AND aaa.tenant_id = $2
+           ${assetApplicationScopeSql}
          ORDER BY a.updated_at DESC`,
-        [assetId, tenantId],
+        assetApplicationParams,
       ),
     ]);
 
@@ -2381,10 +2478,13 @@ export class AiEntityService {
     };
   }
 
-  private async buildRequestContext(context: AiExecutionContext, requestId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
+  private async buildRequestContext(context: AiExecutionContextWithManager, requestId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
+    const requestAccessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const requestRootParams: unknown[] = [requestId, tenantId];
+    const requestRootScopeSql = appendParticipationScopeSql('requests', 'r', requestRootParams, requestAccessScope);
     const requests = await manager.query<any[]>(
       `SELECT r.id,
               r.item_number,
@@ -2409,13 +2509,26 @@ export class AiEntityService {
        LEFT JOIN users u_il ON u_il.id = r.it_lead_id AND u_il.tenant_id = r.tenant_id
        WHERE r.id = $1
          AND r.tenant_id = $2
+         ${requestRootScopeSql}
        LIMIT 1`,
-      [requestId, tenantId],
+      requestRootParams,
     );
     const request = requests[0];
     if (!request) {
       throw new NotFoundException('Request not found.');
     }
+
+    const projectAccessScope = await resolveAiParticipationAccessScope(context, 'projects');
+    const applicationAccessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const requestProjectParams: unknown[] = [requestId, tenantId];
+    const requestProjectScopeSql = appendParticipationScopeSql('projects', 'p', requestProjectParams, projectAccessScope);
+    const requestDependencyParams: unknown[] = [requestId, tenantId];
+    const requestDependencyScopeSql = [
+      appendNullableParticipationScopeSql('requests', 'r', requestDependencyParams, requestAccessScope),
+      appendNullableParticipationScopeSql('projects', 'p', requestDependencyParams, projectAccessScope),
+    ].join('\n');
+    const requestApplicationParams: unknown[] = [requestId, tenantId];
+    const requestApplicationScopeSql = appendParticipationScopeSql('applications', 'a', requestApplicationParams, applicationAccessScope);
 
     const [projectRows, dependencyRows, applicationRows, assetRows, contributorRows] = await Promise.all([
       manager.query<SearchRow[]>(
@@ -2424,8 +2537,9 @@ export class AiEntityService {
          JOIN portfolio_projects p ON p.id = rp.project_id AND p.tenant_id = $2 AND p.tenant_id = rp.tenant_id
          WHERE rp.request_id = $1
            AND rp.tenant_id = $2
+           ${requestProjectScopeSql}
          ORDER BY p.updated_at DESC`,
-        [requestId, tenantId],
+        requestProjectParams,
       ),
       manager.query<any[]>(
         `SELECT r.id AS request_id,
@@ -2444,8 +2558,9 @@ export class AiEntityService {
          LEFT JOIN portfolio_requests r ON r.id = d.depends_on_request_id AND r.tenant_id = $2 AND r.tenant_id = d.tenant_id
          LEFT JOIN portfolio_projects p ON p.id = d.depends_on_project_id AND p.tenant_id = $2 AND p.tenant_id = d.tenant_id
          WHERE d.request_id = $1
-           AND d.tenant_id = $2`,
-        [requestId, tenantId],
+           AND d.tenant_id = $2
+           ${requestDependencyScopeSql}`,
+        requestDependencyParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at
@@ -2453,8 +2568,9 @@ export class AiEntityService {
          JOIN applications a ON a.id = l.application_id AND a.tenant_id = $2 AND a.tenant_id = l.tenant_id
          WHERE l.request_id = $1
            AND l.tenant_id = $2
+           ${requestApplicationScopeSql}
          ORDER BY a.updated_at DESC`,
-        [requestId, tenantId],
+        requestApplicationParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at
@@ -2532,11 +2648,14 @@ export class AiEntityService {
     };
   }
 
-  private async buildProjectContext(context: AiExecutionContext, projectId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
+  private async buildProjectContext(context: AiExecutionContextWithManager, projectId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const requestSummarySql = buildRequestSummarySql('r');
     const projectSummarySql = buildProjectSummarySql('p');
     const { tenantId } = context;
     const canReadKnowledge = await this.policy.canReadKnowledge(context, manager);
+    const projectAccessScope = await resolveAiParticipationAccessScope(context, 'projects');
+    const projectRootParams: unknown[] = [projectId, tenantId];
+    const projectRootScopeSql = appendParticipationScopeSql('projects', 'p', projectRootParams, projectAccessScope);
     const projects = await manager.query<any[]>(
       `SELECT p.id,
               p.item_number,
@@ -2559,13 +2678,26 @@ export class AiEntityService {
        LEFT JOIN users u_il ON u_il.id = p.it_lead_id AND u_il.tenant_id = p.tenant_id
        WHERE p.id = $1
          AND p.tenant_id = $2
+         ${projectRootScopeSql}
        LIMIT 1`,
-      [projectId, tenantId],
+      projectRootParams,
     );
     const project = projects[0];
     if (!project) {
       throw new NotFoundException('Project not found.');
     }
+
+    const requestAccessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const taskAccessScope = await resolveAiParticipationAccessScope(context, 'tasks');
+    const applicationAccessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const projectRequestParams: unknown[] = [projectId, tenantId];
+    const projectRequestScopeSql = appendParticipationScopeSql('requests', 'r', projectRequestParams, requestAccessScope);
+    const projectDependencyParams: unknown[] = [projectId, tenantId];
+    const projectDependencyScopeSql = appendParticipationScopeSql('projects', 'p', projectDependencyParams, projectAccessScope);
+    const projectTaskParams: unknown[] = [projectId, tenantId];
+    const projectTaskScopeSql = appendParticipationScopeSql('tasks', 't', projectTaskParams, taskAccessScope);
+    const projectApplicationParams: unknown[] = [projectId, tenantId];
+    const projectApplicationScopeSql = appendParticipationScopeSql('applications', 'a', projectApplicationParams, applicationAccessScope);
 
     const [
       requestRows,
@@ -2584,8 +2716,9 @@ export class AiEntityService {
          JOIN portfolio_requests r ON r.id = rp.request_id AND r.tenant_id = $2 AND r.tenant_id = rp.tenant_id
          WHERE rp.project_id = $1
            AND rp.tenant_id = $2
+           ${projectRequestScopeSql}
          ORDER BY r.updated_at DESC`,
-        [projectId, tenantId],
+        projectRequestParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT p.id, p.item_number, p.name AS label, ${projectSummarySql} AS summary, p.status, p.updated_at
@@ -2593,8 +2726,9 @@ export class AiEntityService {
          JOIN portfolio_projects p ON p.id = d.depends_on_project_id AND p.tenant_id = $2 AND p.tenant_id = d.tenant_id
          WHERE d.project_id = $1
            AND d.tenant_id = $2
+           ${projectDependencyScopeSql}
          ORDER BY p.updated_at DESC`,
-        [projectId, tenantId],
+        projectDependencyParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at
@@ -2602,8 +2736,9 @@ export class AiEntityService {
          JOIN applications a ON a.id = l.application_id AND a.tenant_id = $2 AND a.tenant_id = l.tenant_id
          WHERE l.project_id = $1
            AND l.tenant_id = $2
+           ${projectApplicationScopeSql}
          ORDER BY a.updated_at DESC`,
-        [projectId, tenantId],
+        projectApplicationParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id, NULL::int AS item_number, a.name AS label, COALESCE(a.fqdn, a.hostname, a.notes) AS summary, a.status, a.updated_at
@@ -2655,8 +2790,9 @@ export class AiEntityService {
          WHERE t.related_object_type = 'project'
            AND t.related_object_id = $1
            AND t.tenant_id = $2
+           ${projectTaskScopeSql}
          ORDER BY COALESCE(phase.sequence, 2147483647) ASC, t.updated_at DESC, t.item_number DESC`,
-        [projectId, tenantId],
+        projectTaskParams,
       ),
       canReadKnowledge
         ? this.listIntegratedDocuments(manager, {
@@ -2707,8 +2843,13 @@ export class AiEntityService {
     };
   }
 
-  private async buildTaskContext(context: AiExecutionContext, taskId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
+  private async buildTaskContext(context: AiExecutionContextWithManager, taskId: string, manager: AiExecutionContextWithManager['manager']): Promise<AiEntityContextPayloadDto> {
     const { tenantId } = context;
+    const taskAccessScope = await resolveAiParticipationAccessScope(context, 'tasks');
+    const taskRootParams: unknown[] = [taskId, tenantId];
+    const taskRootScopeSql = appendParticipationScopeSql('tasks', 't', taskRootParams, taskAccessScope);
+    const requestAccessScope = await resolveAiParticipationAccessScope(context, 'requests');
+    const convertedRequestScopeSql = appendParticipationScopeSql('requests', 'pr', taskRootParams, requestAccessScope);
     const tasks = await manager.query<any[]>(
       `SELECT t.id,
               t.item_number,
@@ -2746,11 +2887,12 @@ export class AiEntityService {
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $2
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $2
        LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $2
-       LEFT JOIN portfolio_requests pr ON pr.origin_task_id = t.id AND pr.tenant_id = $2
+       LEFT JOIN portfolio_requests pr ON pr.origin_task_id = t.id AND pr.tenant_id = $2 ${convertedRequestScopeSql}
        WHERE t.id = $1
          AND t.tenant_id = $2
+         ${taskRootScopeSql}
        LIMIT 1`,
-      [taskId, tenantId],
+      taskRootParams,
     );
     const task = tasks[0];
     if (!task) {
@@ -2758,6 +2900,9 @@ export class AiEntityService {
     }
 
     const relatedGroups: AiEntityRelationshipGroupDto[] = [];
+    const applicationAccessScope = await resolveAiParticipationAccessScope(context, 'applications');
+    const taskApplicationParams: unknown[] = [taskId, tenantId];
+    const taskApplicationScopeSql = appendParticipationScopeSql('applications', 'a', taskApplicationParams, applicationAccessScope);
     const [applicationRows, assetRows] = await Promise.all([
       manager.query<SearchRow[]>(
         `SELECT a.id,
@@ -2770,8 +2915,9 @@ export class AiEntityService {
          JOIN applications a ON a.id = ta.application_id AND a.tenant_id = ta.tenant_id
          WHERE ta.task_id = $1
            AND ta.tenant_id = $2
+           ${taskApplicationScopeSql}
          ORDER BY a.name ASC`,
-        [taskId, tenantId],
+        taskApplicationParams,
       ),
       manager.query<SearchRow[]>(
         `SELECT a.id,
@@ -2806,13 +2952,17 @@ export class AiEntityService {
     }
 
     if (task.related_object_type === 'project' && task.related_object_id) {
+      const projectAccessScope = await resolveAiParticipationAccessScope(context, 'projects');
+      const relatedProjectParams: unknown[] = [task.related_object_id, tenantId];
+      const relatedProjectScopeSql = appendParticipationScopeSql('projects', 'p', relatedProjectParams, projectAccessScope);
       const projectRows = await manager.query<SearchRow[]>(
         `SELECT p.id, p.item_number, p.name AS label, ${buildProjectSummarySql('p')} AS summary, p.status, p.updated_at
          FROM portfolio_projects p
          WHERE p.id = $1
            AND p.tenant_id = $2
+           ${relatedProjectScopeSql}
          LIMIT 1`,
-        [task.related_object_id, tenantId],
+        relatedProjectParams,
       );
       if (projectRows[0]) {
         relatedGroups.push({
@@ -2913,27 +3063,38 @@ export class AiEntityService {
       context.manager,
     );
 
+    const accessScope = await resolveAiParticipationAccessScope(context, entityType);
     const rows = entityType === 'projects'
-      ? await context.manager.query<EntityCommentTargetRow[]>(
-        `SELECT p.id,
-                p.item_number,
-                p.name AS label
-         FROM portfolio_projects p
-         WHERE p.id = $1
-           AND p.tenant_id = $2
-         LIMIT 1`,
-        [resolvedId, context.tenantId],
-      )
-      : await context.manager.query<EntityCommentTargetRow[]>(
-        `SELECT t.id,
-                t.item_number,
-                COALESCE(t.title, 'Untitled task') AS label
-         FROM tasks t
-         WHERE t.id = $1
-           AND t.tenant_id = $2
-         LIMIT 1`,
-        [resolvedId, context.tenantId],
-      );
+      ? await (() => {
+        const params: unknown[] = [resolvedId, context.tenantId];
+        const scopeSql = appendParticipationScopeSql('projects', 'p', params, accessScope);
+        return context.manager.query<EntityCommentTargetRow[]>(
+          `SELECT p.id,
+                  p.item_number,
+                  p.name AS label
+           FROM portfolio_projects p
+           WHERE p.id = $1
+             AND p.tenant_id = $2
+             ${scopeSql}
+           LIMIT 1`,
+          params,
+        );
+      })()
+      : await (() => {
+        const params: unknown[] = [resolvedId, context.tenantId];
+        const scopeSql = appendParticipationScopeSql('tasks', 't', params, accessScope);
+        return context.manager.query<EntityCommentTargetRow[]>(
+          `SELECT t.id,
+                  t.item_number,
+                  COALESCE(t.title, 'Untitled task') AS label
+           FROM tasks t
+           WHERE t.id = $1
+             AND t.tenant_id = $2
+             ${scopeSql}
+           LIMIT 1`,
+          params,
+        );
+      })();
 
     const row = rows[0];
     if (!row) {

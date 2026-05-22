@@ -3,14 +3,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { AppInstancesService } from './app-instances.service';
+import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class AppInstancesController {
   constructor(private readonly svc: AppInstancesService) {}
 
-  private listForApplication(applicationId: string, req: any) {
-    return this.svc.list(applicationId, { manager: req?.queryRunner?.manager });
+  private async listForApplication(applicationId: string, req: any) {
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    return this.svc.list(applicationId, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   private createForApplication(applicationId: string, body: any, req: any) {

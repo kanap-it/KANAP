@@ -1,8 +1,14 @@
 import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
-import { RequireLevel } from '../auth/require-level.decorator';
+import { RequireAnyLevel, RequireLevel } from '../auth/require-level.decorator';
 import { PortfolioSettingsService } from './portfolio-settings.service';
+
+const PORTFOLIO_SETTINGS_READER_REQUIREMENTS = [
+  { resource: 'portfolio_requests', level: 'reader' as const },
+  { resource: 'portfolio_projects', level: 'reader' as const },
+  { resource: 'portfolio_settings', level: 'reader' as const },
+];
 
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/settings')
@@ -10,7 +16,7 @@ export class PortfolioSettingsController {
   constructor(private readonly svc: PortfolioSettingsService) {}
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('portfolio_settings', 'reader')
+  @RequireAnyLevel(PORTFOLIO_SETTINGS_READER_REQUIREMENTS)
   @Get()
   get(@Req() req: any) {
     const tenantId = req?.tenant?.id ?? '';

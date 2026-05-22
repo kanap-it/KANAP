@@ -90,7 +90,8 @@ type LinkedInterfaceBinding = {
   id: string;
   binding_id: string;
   interface_id: string;
-  interface_code: string;
+  interface_reference?: string | null;
+  interface_code?: string | null;
   interface_name: string;
   environment: string;
   leg_type: string;
@@ -1359,7 +1360,7 @@ export default function ConnectionMapPage() {
                           >
                             <Stack spacing={0.35}>
                               <Typography variant="body2" fontWeight={600}>
-                                {link.interface_name} ({link.interface_code})
+                                {link.interface_name} ({link.interface_reference || link.interface_code})
                               </Typography>
                               <Typography variant="caption" color="text.secondary">
                                 Interface leg: {link.leg_type.toUpperCase()} · Env: {link.environment.toUpperCase()}
@@ -1375,7 +1376,7 @@ export default function ConnectionMapPage() {
                                 size="small"
                                 variant="text"
                                 onClick={() => {
-                                  navigate(`/it/interfaces/${link.interface_id}/specification`);
+                                  navigate(`/it/interfaces/${link.interface_reference || link.interface_id}/overview`);
                                 }}
                               >
                                 Open interface

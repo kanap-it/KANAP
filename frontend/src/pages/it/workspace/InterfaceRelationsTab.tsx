@@ -1,26 +1,32 @@
 import React from 'react';
-import { Alert, Divider, Stack, Typography } from '@mui/material';
+import { Divider, Stack } from '@mui/material';
+import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
 import InterfaceRelationsEditor from './InterfaceRelationsEditor';
-import type { InterfaceTabProps } from '../components/interface-workspace/types';
+import type { InterfaceDependency, InterfaceLink, InterfaceTabProps } from '../components/interface-workspace/types';
 
 type InterfaceRelationsTabProps = InterfaceTabProps & {
   canManage: boolean;
+  onReplaceDependencies?: (rows: InterfaceDependency[]) => Promise<void>;
+  onReplaceLinks?: (rows: InterfaceLink[]) => Promise<void>;
 };
 
 export default function InterfaceRelationsTab({
   canManage,
   data,
+  onReplaceDependencies,
+  onReplaceLinks,
   update,
   markDirty,
 }: InterfaceRelationsTabProps) {
   return (
     <Stack spacing={3}>
-      <Stack spacing={1}>
-        <Typography variant="subtitle2">Knowledge</Typography>
-        <Alert severity="info">
-          Interface knowledge links are not supported by the current knowledge relation backend yet. This tab keeps the intended structure for Phase 1, while dependencies, external URLs, and attachments remain fully editable below.
-        </Alert>
-      </Stack>
+      {data?.id ? (
+        <EntityKnowledgePanel
+          entityType="interfaces"
+          entityId={data.id}
+          canCreate={canManage}
+        />
+      ) : null}
 
       <Divider />
 
@@ -29,6 +35,8 @@ export default function InterfaceRelationsTab({
         data={data}
         isCreate={false}
         markDirty={markDirty}
+        onReplaceDependencies={onReplaceDependencies}
+        onReplaceLinks={onReplaceLinks}
         update={update}
       />
     </Stack>

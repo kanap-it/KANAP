@@ -33,7 +33,8 @@ type LinkedInterfaceRow = {
   id: string;
   binding_id: string;
   interface_id: string;
-  interface_code: string;
+  interface_reference?: string | null;
+  interface_code?: string | null;
   interface_name: string;
   environment: string;
   leg_type: string;

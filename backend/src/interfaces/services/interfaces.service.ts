@@ -74,6 +74,10 @@ export class InterfacesService {
     return this.crudService.duplicate(id, tenantId, userId, opts);
   }
 
+  shareInterface(id: string, body: any, tenantId: string, userId: string, opts?: ServiceOpts) {
+    return this.crudService.shareInterface(id, body, tenantId, userId, opts);
+  }
+
   // =========================================================================
   // Binding & Leg Operations (delegated to InterfaceBindingsManagementService)
   // =========================================================================

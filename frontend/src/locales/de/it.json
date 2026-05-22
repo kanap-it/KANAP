@@ -118,6 +118,8 @@
       "duplicate": "Duplizieren",
       "columns": {
         "interfaceId": "Schnittstellen-ID",
+        "reference": "Referenz",
+        "interfaceCode": "Schnittstellencode",
         "name": "Name",
         "environments": "Umgebungen",
         "sourceApp": "Quellanwendung",
@@ -667,7 +669,7 @@
     "hostingTypeRequired": "Hosting-Typ ist erforderlich.",
     "saveLayersFirst": "Speichern Sie zuerst die Verbindung, dann fügen Sie Schichten hinzu.",
     "roleRequired": "Rolle ist erforderlich.",
-    "interfaceIdNamePurposeRequired": "Schnittstellen-ID, Name und Geschäftszweck sind erforderlich",
+    "interfaceIdNamePurposeRequired": "Name und Geschäftszweck sind erforderlich",
     "selectSourceAndTarget": "Quell- und Zielanwendungen auswählen",
     "selectDataCategory": "Datenkategorie auswählen",
     "loadBindingsFailed": "Fehler beim Laden der Bindungen",

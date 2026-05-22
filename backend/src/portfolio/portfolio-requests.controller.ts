@@ -25,6 +25,7 @@ import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { resolveBusinessContributorScope, taskParticipantCondition } from '../auth/business-contributor-scope';
 
 const RANK: Record<PermissionLevel, number> = {
   reader: 1,
@@ -49,6 +50,17 @@ export class PortfolioRequestsController {
 
   private resolve(idOrRef: string, req: any): Promise<string> {
     return resolveToUuid(idOrRef, 'request', req.queryRunner.manager);
+  }
+
+  private requestAccessScope(req: any, level: PermissionLevel = 'reader') {
+    return resolveBusinessContributorScope(req, 'portfolio_requests', level);
+  }
+
+  private async resolveForAccess(idOrRef: string, req: any, level: PermissionLevel = 'reader') {
+    const id = await this.resolve(idOrRef, req);
+    const accessScope = await this.requestAccessScope(req, level);
+    await this.svc.assertVisible(id, accessScope, { manager: req?.queryRunner?.manager });
+    return { id, accessScope };
   }
 
   private async ensureTasksMemberPermission(req: any): Promise<void> {
@@ -85,27 +97,46 @@ export class PortfolioRequestsController {
     }
   }
 
+  private async ensureTaskConversionScope(taskId: string, req: any): Promise<void> {
+    const accessScope = await resolveBusinessContributorScope(req, 'tasks', 'member');
+    if (!accessScope) return;
+    const rows = await req?.queryRunner?.manager.query(
+      `SELECT 1
+       FROM tasks t
+       WHERE t.id = $1
+         AND ${taskParticipantCondition('t', '$2')}
+       LIMIT 1`,
+      [taskId, accessScope.userId],
+    );
+    if (!rows?.length) {
+      throw new ForbiddenException('Task is outside your access scope');
+    }
+  }
+
   // ==================== CRUD ====================
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
   @Get()
-  list(@Query() query: any, @Req() req: any) {
-    return this.svc.list(query, { manager: req?.queryRunner?.manager });
+  async list(@Query() query: any, @Req() req: any) {
+    const accessScope = await this.requestAccessScope(req, 'reader');
+    return this.svc.list(query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
   @Get('ids')
-  listIds(@Query() query: any, @Req() req: any) {
-    return this.svc.listIds(query, { manager: req?.queryRunner?.manager });
+  async listIds(@Query() query: any, @Req() req: any) {
+    const accessScope = await this.requestAccessScope(req, 'reader');
+    return this.svc.listIds(query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
   @Get('filter-values')
-  listFilterValues(@Query() query: any, @Req() req: any) {
-    return this.svc.listFilterValues(query, { manager: req?.queryRunner?.manager });
+  async listFilterValues(@Query() query: any, @Req() req: any) {
+    const accessScope = await this.requestAccessScope(req, 'reader');
+    return this.svc.listFilterValues(query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   // ==================== CSV ====================
@@ -236,6 +267,8 @@ export class PortfolioRequestsController {
     @Req() req: any,
   ) {
     const meta = await this.svc.getAttachment(attachmentId, { manager: req?.queryRunner?.manager });
+    const accessScope = await this.requestAccessScope(req, 'reader');
+    await this.svc.assertVisible(meta.request_id, accessScope, { manager: req?.queryRunner?.manager });
     const obj = await this.storage.getObjectStream(meta.storage_path);
     res.setHeader('Content-Type', obj.contentType || meta.mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', contentDisposition(meta.original_filename));
@@ -247,15 +280,15 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'reader')
   @Get(':id')
   async get(@Param('id') idOrRef: string, @Query() query: any, @Req() req: any) {
-    const id = await this.resolve(idOrRef, req);
-    return this.svc.get(id, query, { manager: req?.queryRunner?.manager });
+    const { id, accessScope } = await this.resolveForAccess(idOrRef, req, 'reader');
+    return this.svc.get(id, query, { manager: req?.queryRunner?.manager, accessScope });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'reader')
   @Get(':id/knowledge')
   async listDocuments(@Param('id') idOrRef: string, @Req() req: any) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     return this.knowledge.listDocumentsForEntity('requests', id, {
       manager: req?.queryRunner?.manager,
       userId: req?.user?.sub ?? null,
@@ -266,7 +299,7 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'reader')
   @Get(':id/knowledge-context')
   async getKnowledgeContext(@Param('id') idOrRef: string, @Req() req: any) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     return this.knowledge.getKnowledgeContextForEntity('requests', id, {
       manager: req?.queryRunner?.manager,
       userId: req?.user?.sub ?? null,
@@ -281,7 +314,7 @@ export class PortfolioRequestsController {
     @Param('slotKey') slotKey: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     return this.integratedDocuments.getBySource('requests', id, slotKey, req?.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -295,7 +328,7 @@ export class PortfolioRequestsController {
     @Param('slotKey') slotKey: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.acquireLockBySource('requests', id, slotKey, req?.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -309,7 +342,7 @@ export class PortfolioRequestsController {
     @Param('slotKey') slotKey: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.heartbeatLockBySource(
       'requests',
       id,
@@ -328,7 +361,7 @@ export class PortfolioRequestsController {
     @Param('slotKey') slotKey: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.releaseLockBySource(
       'requests',
       id,
@@ -348,7 +381,7 @@ export class PortfolioRequestsController {
     @Body() body: any,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.updateBySource(
       'requests',
       id,
@@ -370,7 +403,7 @@ export class PortfolioRequestsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.uploadInlineAttachmentBySource(
       'requests',
       id,
@@ -390,7 +423,7 @@ export class PortfolioRequestsController {
     @Body() body: { source_url?: string },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.importInlineAttachmentBySourceUrl(
       'requests',
       id,
@@ -413,7 +446,7 @@ export class PortfolioRequestsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.importDocumentBySource(
       'requests',
       id,
@@ -436,7 +469,7 @@ export class PortfolioRequestsController {
     @Param('slotKey') slotKey: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     return this.integratedDocuments.listVersionsBySource('requests', id, slotKey, req?.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -451,7 +484,7 @@ export class PortfolioRequestsController {
     @Param('versionNumber') versionNumber: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.integratedDocuments.revertBySource(
       'requests',
       id,
@@ -477,7 +510,7 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'member')
   @Patch(':id')
   async update(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.update(id, body, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
@@ -490,7 +523,7 @@ export class PortfolioRequestsController {
   @RequireLevel('portfolio_requests', 'admin')
   @Delete(':id')
   async delete(@Param('id') idOrRef: string, @Req() req: any) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'admin');
     return this.svc.delete(id, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -506,7 +539,7 @@ export class PortfolioRequestsController {
     @Body() body: ShareItemDto,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.shareRequest(id, body, tenantId, req.user?.sub ?? '', {
       manager: req?.queryRunner?.manager,
@@ -523,7 +556,7 @@ export class PortfolioRequestsController {
     @Body() body: { user_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceTeam(id, 'business_team', body?.user_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -538,7 +571,7 @@ export class PortfolioRequestsController {
     @Body() body: { user_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceTeam(id, 'it_team', body?.user_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -555,7 +588,7 @@ export class PortfolioRequestsController {
     @Body() body: { contact_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceContacts(id, body?.contact_ids ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -571,7 +604,7 @@ export class PortfolioRequestsController {
     @Body() body: { target_type: 'request' | 'project'; target_id: string },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.addDependency(id, body.target_type, body.target_id, tenantId, {
       manager: req?.queryRunner?.manager,
@@ -588,7 +621,7 @@ export class PortfolioRequestsController {
     @Param('targetId', ParseUUIDPipe) targetId: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.removeDependency(id, targetType, targetId, {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -604,7 +637,7 @@ export class PortfolioRequestsController {
     @Param('id') idOrRef: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     return this.svc.listLinkedApplications(id, {
       manager: req?.queryRunner?.manager,
     });
@@ -618,7 +651,7 @@ export class PortfolioRequestsController {
     @Body() body: { application_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceApplications(id, body?.application_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -634,7 +667,7 @@ export class PortfolioRequestsController {
     @Param('id') idOrRef: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     return this.svc.listLinkedAssets(id, {
       manager: req?.queryRunner?.manager,
     });
@@ -648,7 +681,7 @@ export class PortfolioRequestsController {
     @Body() body: { asset_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceAssets(id, body?.asset_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -665,7 +698,7 @@ export class PortfolioRequestsController {
     @Body() body: { capex_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceCapex(id, body?.capex_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -682,7 +715,7 @@ export class PortfolioRequestsController {
     @Body() body: { opex_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceOpex(id, body?.opex_ids ?? [], {
       manager: req?.queryRunner?.manager,
       userId: req.user?.sub ?? null,
@@ -699,7 +732,7 @@ export class PortfolioRequestsController {
     @Body() body: { business_process_ids: string[] },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.bulkReplaceBusinessProcesses(id, body?.business_process_ids ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -715,7 +748,7 @@ export class PortfolioRequestsController {
     @Body() body: { urls: Array<{ url: string; label?: string }> },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.replaceUrls(id, body?.urls ?? [], {
       manager: req?.queryRunner?.manager,
     });
@@ -737,7 +770,7 @@ export class PortfolioRequestsController {
     },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.addComment(
       id,
@@ -763,7 +796,7 @@ export class PortfolioRequestsController {
     @Body() body: { content: string },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     const userId = req.user?.sub;
     if (!userId) {
       throw new Error('User ID required');
@@ -784,7 +817,7 @@ export class PortfolioRequestsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.uploadAttachment(id, file, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -801,7 +834,7 @@ export class PortfolioRequestsController {
     @Body('source_field') sourceField: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.uploadInlineAttachment(id, file, sourceField || 'content', req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -815,7 +848,7 @@ export class PortfolioRequestsController {
     @Body() body: { source_field?: string; source_url?: string },
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.importInlineAttachmentFromUrl(
       id,
       body?.source_url || '',
@@ -828,10 +861,12 @@ export class PortfolioRequestsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_requests', 'member')
   @Delete(':id/attachments/:attachmentId')
-  deleteAttachment(
+  async deleteAttachment(
+    @Param('id') idOrRef: string,
     @Param('attachmentId') attachmentId: string,
     @Req() req: any,
   ) {
+    await this.resolveForAccess(idOrRef, req, 'member');
     return this.svc.deleteAttachment(attachmentId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
     });
@@ -846,7 +881,7 @@ export class PortfolioRequestsController {
     @Param('id') idOrRef: string,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.getEstimatedEffort(id, tenantId, {
       manager: req?.queryRunner?.manager,
@@ -861,7 +896,7 @@ export class PortfolioRequestsController {
     @Body() body: any,
     @Req() req: any,
   ) {
-    const id = await this.resolve(idOrRef, req);
+    const { id } = await this.resolveForAccess(idOrRef, req, 'reader');
     const tenantId = req?.tenant?.id ?? '';
     return this.projectsSvc.convertFromRequest(id, body, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,
@@ -878,6 +913,7 @@ export class PortfolioRequestsController {
   ) {
     await this.ensureTasksMemberPermission(req);
     const taskId = await resolveToUuid(taskIdOrRef, 'task', req.queryRunner.manager);
+    await this.ensureTaskConversionScope(taskId, req);
     const tenantId = req?.tenant?.id ?? '';
     return this.svc.convertFromTask(taskId, body ?? {}, tenantId, req.user?.sub ?? null, {
       manager: req?.queryRunner?.manager,

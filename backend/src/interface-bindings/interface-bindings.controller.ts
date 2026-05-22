@@ -1,18 +1,27 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { InterfaceBindingsService } from './interface-bindings.service';
+import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class InterfaceBindingsController {
   constructor(private readonly svc: InterfaceBindingsService) {}
 
+  private async assertUnrestrictedApplicationReader(req: any) {
+    const accessScope = await resolveBusinessContributorScope(req, 'applications', 'reader');
+    if (accessScope) {
+      throw new ForbiddenException('Business Contributor cannot access interface bindings');
+    }
+  }
+
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('interfaces/:interfaceId/bindings')
-  list(@Param('interfaceId') interfaceId: string, @Req() req: any) {
+  async list(@Param('interfaceId') interfaceId: string, @Req() req: any) {
+    await this.assertUnrestrictedApplicationReader(req);
     return this.svc.list(interfaceId, { manager: req?.queryRunner?.manager });
   }
 
@@ -42,7 +51,8 @@ export class InterfaceBindingsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('interface-bindings/:bindingId/connection-links')
-  listConnectionLinks(@Param('bindingId') bindingId: string, @Req() req: any) {
+  async listConnectionLinks(@Param('bindingId') bindingId: string, @Req() req: any) {
+    await this.assertUnrestrictedApplicationReader(req);
     const tenantId: string | undefined = req?.tenant?.id;
     return this.svc.listConnectionLinks(bindingId, tenantId ?? '', { manager: req?.queryRunner?.manager });
   }

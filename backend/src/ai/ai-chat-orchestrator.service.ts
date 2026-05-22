@@ -86,6 +86,36 @@ function stripBase64Images(text: string): string {
   return text;
 }
 
+function isOfficialDeepSeekEndpoint(endpointUrl: string | null): boolean {
+  if (!endpointUrl) {
+    return false;
+  }
+  try {
+    const parsed = new URL(endpointUrl);
+    return parsed.hostname.toLowerCase() === 'api.deepseek.com';
+  } catch {
+    return false;
+  }
+}
+
+function extractDeepSeekReasoningContent(providerMetadata: unknown): string | null {
+  if (!providerMetadata || typeof providerMetadata !== 'object') {
+    return null;
+  }
+  const deepseek = (providerMetadata as Record<string, unknown>).deepseek;
+  if (!deepseek || typeof deepseek !== 'object') {
+    return null;
+  }
+  const value = (deepseek as Record<string, unknown>).reasoning_content;
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function deepSeekReasoningMetadata(reasoningContent: string): Record<string, unknown> | null {
+  return reasoningContent.trim()
+    ? { deepseek: { reasoning_content: reasoningContent } }
+    : null;
+}
+
 function normalizePlainText(value: string): string {
   return String(value || '')
     .normalize('NFKD')
@@ -1593,6 +1623,7 @@ export class AiChatOrchestratorService {
     opts?: { signal?: AbortSignal | null; requestStartedAt?: number },
   ): AsyncGenerator<ChatStreamEvent> {
     const { context, userMessage, provider, model, apiKey, endpointUrl, tenantName, providerSource } = prepared;
+    const replayDeepSeekReasoning = isOfficialDeepSeekEndpoint(endpointUrl);
     const abortSignal = opts?.signal ?? null;
     const requestStartedAt = opts?.requestStartedAt ?? Date.now();
     const requestStartedIso = new Date(requestStartedAt).toISOString();
@@ -1809,9 +1840,26 @@ export class AiChatOrchestratorService {
                 replayableToolCallIds = new Set<string>();
               } else if (msg.role === 'assistant') {
                 const toolCalls = this.sanitizeReplayToolCalls(msg.tool_calls);
+                const reasoningContent = replayDeepSeekReasoning && toolCalls
+                  ? extractDeepSeekReasoningContent(msg.provider_metadata_json)
+                  : null;
+                if (replayDeepSeekReasoning && toolCalls && !reasoningContent) {
+                  this.logger.warn(
+                    'Skipping persisted DeepSeek assistant tool calls during approval continuation replay because reasoning_content metadata is unavailable.',
+                  );
+                  if (msg.content.trim()) {
+                    msgs.push({
+                      role: 'assistant',
+                      content: stripBase64Images(msg.content),
+                    });
+                  }
+                  replayableToolCallIds = new Set<string>();
+                  continue;
+                }
                 msgs.push({
                   role: 'assistant',
                   content: stripBase64Images(msg.content),
+                  ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
                   ...(toolCalls ? { tool_calls: toolCalls } : {}),
                 });
                 replayableToolCallIds = new Set((toolCalls ?? []).map((toolCall) => toolCall.id));
@@ -1995,9 +2043,26 @@ export class AiChatOrchestratorService {
             replayableToolCallIds = new Set<string>();
           } else if (msg.role === 'assistant') {
             const toolCalls = this.sanitizeReplayToolCalls(msg.tool_calls);
+            const reasoningContent = replayDeepSeekReasoning && toolCalls
+              ? extractDeepSeekReasoningContent(msg.provider_metadata_json)
+              : null;
+            if (replayDeepSeekReasoning && toolCalls && !reasoningContent) {
+              this.logger.warn(
+                'Skipping persisted DeepSeek assistant tool calls during replay because reasoning_content metadata is unavailable.',
+              );
+              if (msg.content.trim()) {
+                msgs.push({
+                  role: 'assistant',
+                  content: stripBase64Images(msg.content),
+                });
+              }
+              replayableToolCallIds = new Set<string>();
+              continue;
+            }
             msgs.push({
               role: 'assistant',
               content: stripBase64Images(msg.content),
+              ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
               ...(toolCalls ? { tool_calls: toolCalls } : {}),
             });
             replayableToolCallIds = new Set((toolCalls ?? []).map((toolCall) => toolCall.id));
@@ -2218,6 +2283,7 @@ export class AiChatOrchestratorService {
       );
 
       let accumulatedText = '';
+      let accumulatedReasoningContent = '';
       const pendingToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
       let iterationUsage: StreamUsage | undefined;
       let responseActivityEmitted = false;
@@ -2269,6 +2335,10 @@ export class AiChatOrchestratorService {
               if (!requiresWritePreviewGuard) {
                 yield { type: 'text_delta', text: event.text };
               }
+              break;
+
+            case 'reasoning_delta':
+              accumulatedReasoningContent += event.text;
               break;
 
             case 'tool_call_start':
@@ -2369,6 +2439,9 @@ export class AiChatOrchestratorService {
         for (let toolCallIndex = 0; toolCallIndex < assistantToolCalls.length; toolCallIndex++) {
           const tc = assistantToolCalls[toolCallIndex];
           const assistantContent = toolCallIndex === 0 ? assistantTextForToolTurn : '';
+          const assistantReasoningContent = replayDeepSeekReasoning
+            ? accumulatedReasoningContent
+            : '';
           const assistantUsage = toolCallIndex === 0 ? (iterationUsage ?? null) : null;
           const parsedArgsResult = tryParseToolCallArguments(tc.arguments || '{}');
           const parseErrorMessage = 'message' in parsedArgsResult ? parsedArgsResult.message : null;
@@ -2448,6 +2521,7 @@ export class AiChatOrchestratorService {
             messages.push({
               role: 'assistant',
               content: assistantContent,
+              ...(assistantReasoningContent.trim() ? { reasoning_content: assistantReasoningContent } : {}),
               tool_calls: [tc],
             });
 
@@ -2465,6 +2539,7 @@ export class AiChatOrchestratorService {
                   content: assistantContent,
                   toolCalls: [tc],
                   usage: assistantUsage,
+                  providerMetadata: deepSeekReasoningMetadata(assistantReasoningContent),
                 },
                 { manager: ctx.manager },
               );

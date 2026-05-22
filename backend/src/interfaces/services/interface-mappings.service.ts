@@ -7,6 +7,7 @@ import { InterfaceLeg } from '../interface-leg.entity';
 import { InterfaceMappingGroup } from '../interface-mapping-group.entity';
 import { InterfaceMappingRule } from '../interface-mapping-rule.entity';
 import { InterfaceMappingSet } from '../interface-mapping-set.entity';
+import { ENVIRONMENTS, EnvironmentValue } from './interfaces-base.service';
 
 export interface InterfaceMappingsServiceOpts {
   manager?: EntityManager;
@@ -16,6 +17,9 @@ export interface CloneInterfaceMappingsOptions extends InterfaceMappingsServiceO
   audit?: boolean;
   legMapping?: Map<string, string>;
 }
+
+const MAPPING_RULE_LIFECYCLES = ['active', 'proposed', 'deprecated', 'retired'] as const;
+type MappingRuleLifecycle = (typeof MAPPING_RULE_LIFECYCLES)[number];
 
 @Injectable()
 export class InterfaceMappingsService {
@@ -86,6 +90,40 @@ export class InterfaceMappingsService {
       throw new BadRequestException(`${label} must be a valid UUID`);
     }
     return text;
+  }
+
+  private normalizeRuleLifecycle(value: unknown): MappingRuleLifecycle {
+    const normalized = String(value ?? '').trim().toLowerCase() || 'active';
+    if (!MAPPING_RULE_LIFECYCLES.includes(normalized as MappingRuleLifecycle)) {
+      throw new BadRequestException(`Invalid lifecycle "${value}"`);
+    }
+    return normalized as MappingRuleLifecycle;
+  }
+
+  private normalizeEnvironmentScope(value: unknown): EnvironmentValue[] | null {
+    if (value == null) return null;
+    const rawItems = Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+        ? value.split(',')
+        : null;
+    if (!rawItems) {
+      throw new BadRequestException('environment_scope must be an array');
+    }
+
+    const normalized: EnvironmentValue[] = [];
+    for (const item of rawItems) {
+      const text = String(item ?? '').trim().toLowerCase();
+      if (!text) continue;
+      if (text === 'all' || text === '*') return null;
+      if (!ENVIRONMENTS.includes(text as EnvironmentValue)) {
+        throw new BadRequestException(`Invalid environment "${item}"`);
+      }
+      if (!normalized.includes(text as EnvironmentValue)) {
+        normalized.push(text as EnvironmentValue);
+      }
+    }
+    return normalized.length > 0 ? normalized : null;
   }
 
   private normalizeOrderIndex(value: unknown, label: string) {
@@ -673,6 +711,8 @@ export class InterfaceMappingsService {
       order_index?: number;
       applies_to_leg_id?: string | null;
       operation_kind?: string | null;
+      lifecycle?: string | null;
+      environment_scope?: string[] | string | null;
       source_bindings?: Array<Record<string, unknown>>;
       target_bindings?: Array<Record<string, unknown>>;
       condition_text?: string | null;
@@ -719,6 +759,8 @@ export class InterfaceMappingsService {
       order_index: orderIndex,
       applies_to_leg_id: appliesToLegId,
       operation_kind: this.normalizeOptionalText(body?.operation_kind) || 'direct',
+      lifecycle: this.normalizeRuleLifecycle(body?.lifecycle),
+      environment_scope: this.normalizeEnvironmentScope(body?.environment_scope),
       source_bindings: this.normalizeBindings(body?.source_bindings, 'source_bindings'),
       target_bindings: this.normalizeBindings(body?.target_bindings, 'target_bindings'),
       condition_text: this.normalizeOptionalText(body?.condition_text),
@@ -755,6 +797,8 @@ export class InterfaceMappingsService {
       order_index?: number;
       applies_to_leg_id?: string | null;
       operation_kind?: string | null;
+      lifecycle?: string | null;
+      environment_scope?: string[] | string | null;
       source_bindings?: Array<Record<string, unknown>>;
       target_bindings?: Array<Record<string, unknown>>;
       condition_text?: string | null;
@@ -803,6 +847,12 @@ export class InterfaceMappingsService {
     }
     if (this.has(body, 'operation_kind')) {
       existing.operation_kind = this.normalizeRequiredText(body?.operation_kind, 'operation_kind');
+    }
+    if (this.has(body, 'lifecycle')) {
+      existing.lifecycle = this.normalizeRuleLifecycle(body?.lifecycle);
+    }
+    if (this.has(body, 'environment_scope')) {
+      existing.environment_scope = this.normalizeEnvironmentScope(body?.environment_scope);
     }
     if (this.has(body, 'source_bindings')) {
       existing.source_bindings = this.normalizeBindings(body?.source_bindings, 'source_bindings');
@@ -957,6 +1007,8 @@ export class InterfaceMappingsService {
           order_index: rule.order_index,
           applies_to_leg_id: rule.applies_to_leg_id ? legMapping.get(rule.applies_to_leg_id) || null : null,
           operation_kind: rule.operation_kind,
+          lifecycle: this.normalizeRuleLifecycle(rule.lifecycle),
+          environment_scope: this.normalizeEnvironmentScope(rule.environment_scope),
           source_bindings: Array.isArray(rule.source_bindings)
             ? rule.source_bindings.map((item) => ({ ...item }))
             : [],

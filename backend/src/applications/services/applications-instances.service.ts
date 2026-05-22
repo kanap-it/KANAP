@@ -9,6 +9,7 @@ import { ApplicationProject } from '../application-project.entity';
 import { PortfolioProject } from '../../portfolio/portfolio-project.entity';
 import { AuditService } from '../../audit/audit.service';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
+import { projectParticipantCondition } from '../../auth/business-contributor-scope';
 
 /**
  * Service for managing application relations (spend items, capex items, contracts, projects).
@@ -26,7 +27,8 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Relations - OPEX (spend items)
   async listLinkedSpendItems(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    const resolvedAppId = app.id;
     const repo = mg.getRepository(ApplicationSpendItemLink);
     const rows = await repo.find({ where: { application_id: resolvedAppId } as any });
     const ids = rows.map((r: any) => r.spend_item_id);
@@ -66,7 +68,8 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Relations - CAPEX items
   async listLinkedCapexItems(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    const resolvedAppId = app.id;
     const repo = mg.getRepository(ApplicationCapexItemLink);
     const rows = await repo.find({ where: { application_id: resolvedAppId } as any });
     const ids = rows.map((r: any) => r.capex_item_id);
@@ -109,7 +112,8 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Relations - Contracts
   async listLinkedContracts(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    const resolvedAppId = app.id;
     const repo = mg.getRepository(ApplicationContractLink);
     const rows = await repo.find({ where: { application_id: resolvedAppId } as any });
     const ids = rows.map((r: any) => r.contract_id);
@@ -149,15 +153,23 @@ export class ApplicationsInstancesService extends ApplicationsBaseService {
   // Projects
   async listProjects(applicationId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(applicationId, mg);
-    await this.ensureApp(resolvedAppId, mg);
+    const app = await this.ensureApp(applicationId, mg, opts?.accessScope);
+    const resolvedAppId = app.id;
+    const params: unknown[] = [resolvedAppId];
+    const projectScopeSql = opts?.projectAccessScope
+      ? (() => {
+        params.push(opts.projectAccessScope.userId);
+        return `AND ${projectParticipantCondition('p', `$${params.length}`)}`;
+      })()
+      : '';
     const rows = await mg.query(
       `SELECT l.project_id as id, p.name
        FROM application_projects l
        JOIN portfolio_projects p ON p.id = l.project_id
        WHERE l.application_id = $1
+         ${projectScopeSql}
        ORDER BY p.name ASC`,
-      [resolvedAppId],
+      params,
     );
     return { items: rows };
   }

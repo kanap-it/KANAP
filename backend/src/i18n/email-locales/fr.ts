@@ -18,6 +18,7 @@ export const fr: EmailStrings = {
       application: { label: 'Application', lower: 'application', view: "Voir l'application" },
       location: { label: 'Site', lower: 'site', view: 'Voir le site' },
       connection: { label: 'Connexion', lower: 'connexion', view: 'Voir la connexion' },
+      interface: { label: 'Interface', lower: 'interface', view: "Voir l'interface" },
     },
     labels: {
       openDocument: 'Ouvrir le document',

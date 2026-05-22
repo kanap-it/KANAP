@@ -25,10 +25,8 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
   // Owners
   async listOwners(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
-    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
-    if (!app) throw new NotFoundException('Application not found');
-    return this.listOwnersInternal(resolvedAppId, app.tenant_id, mg);
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    return this.listOwnersInternal(app.id, app.tenant_id, mg);
   }
 
   async bulkReplaceOwners(appId: string, owners: Array<{ user_id: string; owner_type: 'business' | 'it' }>, userId?: string | null, opts?: ServiceOpts) {
@@ -108,10 +106,8 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
   // Companies (Audience)
   async listCompanies(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
-    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
-    if (!app) throw new NotFoundException('Application not found');
-    return mg.getRepository(ApplicationCompany).find({ where: { application_id: resolvedAppId, tenant_id: app.tenant_id } as any });
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    return mg.getRepository(ApplicationCompany).find({ where: { application_id: app.id, tenant_id: app.tenant_id } as any });
   }
 
   async bulkReplaceCompanies(appId: string, companyIds: string[], userId?: string | null, opts?: ServiceOpts) {
@@ -156,10 +152,8 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
   // Departments (Audience)
   async listDepartments(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
-    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
-    if (!app) throw new NotFoundException('Application not found');
-    return mg.getRepository(ApplicationDepartment).find({ where: { application_id: resolvedAppId, tenant_id: app.tenant_id } as any });
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    return mg.getRepository(ApplicationDepartment).find({ where: { application_id: app.id, tenant_id: app.tenant_id } as any });
   }
 
   async bulkReplaceDepartments(appId: string, departmentIds: string[], userId?: string | null, opts?: ServiceOpts) {
@@ -204,16 +198,14 @@ export class ApplicationsOwnersService extends ApplicationsBaseService {
   // Support contacts
   async listSupportContacts(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
-    const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
-    if (!app) throw new NotFoundException('Application not found');
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
     const rows = await mg.query(
       `SELECT sc.id, sc.contact_id, sc.role, c.first_name, c.last_name, c.email, c.phone, c.mobile
        FROM application_support_contacts sc
        JOIN contacts c ON c.id = sc.contact_id
        WHERE sc.application_id = $1
        ORDER BY sc.created_at ASC, sc.id ASC`,
-      [resolvedAppId],
+      [app.id],
     );
     return rows.map((r: any) => ({
       id: r.id,

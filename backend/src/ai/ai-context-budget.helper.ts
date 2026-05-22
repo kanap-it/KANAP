@@ -60,6 +60,9 @@ export function estimateTokenCount(text: string): number {
 
 function estimateMessageSize(message: AiProviderMessage): number {
   let size = estimateTokenCount(message.role) + estimateTokenCount(message.content) + 4;
+  if (message.reasoning_content) {
+    size += estimateTokenCount(message.reasoning_content);
+  }
   if (message.tool_call_id) {
     size += estimateTokenCount(message.tool_call_id);
   }
@@ -328,7 +331,7 @@ export function prepareAiProviderMessages(params: {
 
   const secondPass = compactPrefix(
     firstPass.messages,
-    (message, index) => index < protectedStart && message.role === 'assistant',
+    (message, index) => index < protectedStart && message.role === 'assistant' && !message.reasoning_content,
     budget,
     firstPass.size,
     compactAssistantMessage,

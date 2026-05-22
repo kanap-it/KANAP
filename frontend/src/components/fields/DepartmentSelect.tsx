@@ -51,13 +51,12 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
 ) {
   const { t } = useTranslation(['master-data']);
   const { data: departments, isLoading } = useQuery({
-    queryKey: ['departments', 'active', companyId, year],
+    queryKey: ['departments', 'lookup', 'active', companyId, year],
     queryFn: async () => {
       if (!companyId) return [];
-      const params: Record<string, any> = { limit: 1000 };
+      const params: Record<string, any> = { limit: 1000, company_id: companyId };
       if (year) params.year = year;
-      params.filters = JSON.stringify({ company_id: { type: 'equals', filter: companyId } });
-      const res = await api.get<{ items: Department[] }>('/departments', { params });
+      const res = await api.get<{ items: Department[] }>('/departments/lookup', { params });
       const items = res.data.items || [];
       return items.filter((dept) => !dept.company_id || dept.company_id === companyId);
     },
@@ -67,10 +66,10 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
   // Ensure the currently selected department is visible even if filtered out or off-page
   const needSelectedFetch = !!value && !(departments || []).some((d) => d.id === value);
   const { data: selectedById, isLoading: isLoadingSelected } = useQuery({
-    queryKey: ['departments', 'by-id', value],
+    queryKey: ['departments', 'lookup', 'by-id', value],
     enabled: needSelectedFetch,
     queryFn: async () => {
-      const res = await api.get<Department>(`/departments/${value}`);
+      const res = await api.get<Department>(`/departments/lookup/${value}`);
       return res.data as unknown as Department;
     },
   });

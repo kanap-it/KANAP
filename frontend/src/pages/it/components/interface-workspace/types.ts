@@ -59,7 +59,8 @@ export type InterfaceLeg = {
 export type InterfaceOption = {
   id: string;
   name: string;
-  interface_id?: string;
+  interface_reference?: string;
+  interface_id?: string | null;
 };
 
 export type ApplicationOption = {
@@ -71,7 +72,8 @@ export type ApplicationOption = {
 
 export type InterfaceDetail = {
   id: string;
-  interface_id: string;
+  interface_reference: string;
+  interface_id: string | null;
   name: string;
   specification_markdown?: string | null;
   business_process_id: string | null;
@@ -95,6 +97,8 @@ export type InterfaceDetail = {
   typical_data: string | null;
   audit_logging: string | null;
   security_controls_summary: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   source_application_name?: string | null;
   target_application_name?: string | null;
   business_process_name?: string | null;

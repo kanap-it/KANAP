@@ -33,7 +33,12 @@ import {
   buildFilterRepairSuggestions,
   hasEmailOrUuidFilterValue,
 } from './ai-filter-description.util';
-import { applyScopeToAiQuery } from './ai-query-scope.util';
+import {
+  applyScopeToAiQuery,
+  isParticipationScopedAiEntityType,
+  participantConditionForAiEntity,
+  resolveAiParticipationAccessScope,
+} from './ai-query-scope.util';
 import {
   AiFilterValue,
   AiFilterValuesResult,
@@ -839,11 +844,12 @@ export class AiQueryExecutor {
   private mapInterface(row: any): AiEntitySummaryDto {
     return toEntitySummary('interfaces', {
       id: row.id,
-      label: [row.interface_id, row.name].filter(Boolean).join(' - ') || 'Untitled interface',
+      label: [row.interface_reference || row.interface_id, row.name].filter(Boolean).join(' - ') || 'Untitled interface',
       status: row.lifecycle ?? null,
       summary: row.business_purpose ?? row.overview_notes ?? null,
       updated_at: row.updated_at ?? null,
       metadata: {
+        interface_reference: scalar(row.interface_reference),
         interface_id: scalar(row.interface_id),
         source_application: scalar(row.source_application_name),
         target_application: scalar(row.target_application_name),
@@ -982,11 +988,13 @@ export class AiQueryExecutor {
       && !truncated
       && filtersIgnored.length === 0
       && (scoped.scope?.resolved !== false);
+    const accessScope = await resolveAiParticipationAccessScope(context, input.entity_type);
 
     if (input.entity_type === 'tasks') {
       const result = await this.tasks.listAllTasks(this.serializeFiltersForTasks(scoped.query), {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
@@ -1010,6 +1018,7 @@ export class AiQueryExecutor {
       const result = await this.projects.list(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
@@ -1033,6 +1042,7 @@ export class AiQueryExecutor {
       const result = await this.requests.list(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
@@ -1056,6 +1066,7 @@ export class AiQueryExecutor {
       const result = await this.applications.list(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
@@ -1823,9 +1834,10 @@ export class AiQueryExecutor {
   ): Promise<AiEntityDetailDto> {
     const entityType = input.entity_type;
     const entityId = await this.resolveDetailEntityId(context, entityType, input.entity_id);
+    const accessScope = await resolveAiParticipationAccessScope(context, entityType);
 
     if (entityType === 'tasks') {
-      const row = await this.tasks.getOne(entityId, { manager: context.manager });
+      const row = await this.tasks.getOne(entityId, { manager: context.manager, accessScope });
       if (!row) throw new NotFoundException('Task not found.');
       return this.toDetailResult(this.mapTask(row), row);
     }
@@ -1834,7 +1846,7 @@ export class AiQueryExecutor {
       const row = await this.projects.get(
         entityId,
         { include: 'team,sponsors,contacts,company,department,source_requests,urls,dependencies,attachments,phases,milestones,financials' },
-        { manager: context.manager, tenantId: context.tenantId },
+        { manager: context.manager, tenantId: context.tenantId, accessScope },
       );
       return this.toDetailResult(this.mapProject(row), row);
     }
@@ -1843,7 +1855,7 @@ export class AiQueryExecutor {
       const row = await this.requests.get(
         entityId,
         { include: 'team,sponsors,contacts,company,department,origin_task,urls,attachments,projects,dependencies,financials,business_processes' },
-        { manager: context.manager },
+        { manager: context.manager, accessScope },
       );
       return this.toDetailResult(this.mapRequest(row), row);
     }
@@ -1853,10 +1865,13 @@ export class AiQueryExecutor {
         manager: context.manager,
         tenantId: context.tenantId,
         include: 'instances,deployments,support',
+        accessScope,
       });
       row.relation_counts = await this.applications.relationCounts(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
+        projectAccessScope: await resolveAiParticipationAccessScope(context, 'projects'),
       }).catch(() => null);
       if (row.supplier_id) {
         const supplierRows = await context.manager.query(
@@ -1873,26 +1888,33 @@ export class AiQueryExecutor {
       row.linked_spend_items = await this.applications.listLinkedSpendItems(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }).catch(() => ({ items: [] }));
       row.linked_capex_items = await this.applications.listLinkedCapexItems(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }).catch(() => ({ items: [] }));
       row.linked_contracts = await this.applications.listLinkedContracts(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }).catch(() => ({ items: [] }));
       row.projects = await this.applications.listProjects(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
+        projectAccessScope: await resolveAiParticipationAccessScope(context, 'projects'),
       }).catch(() => ({ items: [] }));
       row.suites = await this.applications.listSuites(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }).catch(() => ({ items: [] }));
       row.components = await this.applications.listComponents(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }).catch(() => ({ items: [] }));
       return this.toDetailResult(this.mapApplication(row), row);
     }
@@ -2050,14 +2072,21 @@ export class AiQueryExecutor {
       if (!groupField) continue;
       const joins = Array.from(new Set(groupField.joins || [])).join('\n');
       const alias = registry.aggregate.alias;
+      const params: unknown[] = [context.tenantId];
+      const accessScope = await resolveAiParticipationAccessScope(context, entityType);
+      const accessScopeSql = accessScope && isParticipationScopedAiEntityType(entityType)
+        ? `AND ${participantConditionForAiEntity(entityType, alias, `$${params.length + 1}`)}`
+        : '';
+      if (accessScopeSql) params.push(accessScope!.userId);
       const rows = await context.manager.query(
         `SELECT DISTINCT ${groupField.expression} AS value
          FROM ${registry.aggregate.baseTable} ${alias}
          ${joins}
          WHERE ${alias}.tenant_id = $1
+           ${accessScopeSql}
          ORDER BY value ASC NULLS LAST
          LIMIT 5000`,
-        [context.tenantId],
+        params,
       );
       values[aiField] = (rows || []).map((row: any) => {
         if (row.value === null || row.value === undefined || row.value === '') return null;
@@ -2144,26 +2173,31 @@ export class AiQueryExecutor {
       query.includeDisabled = true;
     }
 
+    const accessScope = await resolveAiParticipationAccessScope(context, input.entity_type);
     let raw: Record<string, Array<string | boolean | null>> = {};
     if (input.entity_type === 'tasks') {
       raw = await this.tasks.listFilterValues(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }) as any;
     } else if (input.entity_type === 'projects') {
       raw = await this.projects.listFilterValues(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }) as any;
     } else if (input.entity_type === 'requests') {
       raw = await this.requests.listFilterValues(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }) as any;
     } else if (input.entity_type === 'applications') {
       raw = await this.applications.listFilterValues(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       }) as any;
     } else if (input.entity_type === 'spend_items') {
       raw = await this.spendItems.summaryFilterValues(query, {

@@ -29,7 +29,7 @@ import {
   buildFilterRepairSuggestions,
   hasEmailOrUuidFilterValue,
 } from './ai-filter-description.util';
-import { applyScopeToAiQuery, ResolvedAiScope } from './ai-query-scope.util';
+import { applyScopeToAiQuery, resolveAiParticipationAccessScope, ResolvedAiScope } from './ai-query-scope.util';
 import {
   AiAggregateMetricDef,
   AiAggregateMetricType,
@@ -505,6 +505,7 @@ export class AiAggregateExecutor {
     scope?: AiQueryScope,
   ): Promise<{ ids: string[]; total: number; scope: ResolvedAiScope | null }> {
     if (entityType === 'tasks') {
+      const accessScope = await resolveAiParticipationAccessScope(context, entityType);
       const scoped = await applyScopeToAiQuery(
         context,
         entityType,
@@ -521,6 +522,7 @@ export class AiAggregateExecutor {
       const result = await this.tasks.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const ids = result.ids || [];
       return {
@@ -531,6 +533,7 @@ export class AiAggregateExecutor {
     }
 
     if (entityType === 'projects') {
+      const accessScope = await resolveAiParticipationAccessScope(context, entityType);
       const scoped = await applyScopeToAiQuery(
         context,
         entityType,
@@ -548,6 +551,7 @@ export class AiAggregateExecutor {
       const result = await this.projects.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const ids = result.ids || [];
       return {
@@ -558,6 +562,7 @@ export class AiAggregateExecutor {
     }
 
     if (entityType === 'requests') {
+      const accessScope = await resolveAiParticipationAccessScope(context, entityType);
       const scoped = await applyScopeToAiQuery(
         context,
         entityType,
@@ -575,6 +580,7 @@ export class AiAggregateExecutor {
       const result = await this.requests.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const ids = result.ids || [];
       return {
@@ -585,6 +591,7 @@ export class AiAggregateExecutor {
     }
 
     if (entityType === 'applications') {
+      const accessScope = await resolveAiParticipationAccessScope(context, entityType);
       const scoped = await applyScopeToAiQuery(
         context,
         entityType,
@@ -602,6 +609,7 @@ export class AiAggregateExecutor {
       const result = await this.applications.listIds(scoped.query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        accessScope,
       });
       const ids = result.ids || [];
       return {

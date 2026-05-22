@@ -4,6 +4,10 @@ import { validate as isUuid } from 'uuid';
 import { ApplicationsService } from '../../applications/services/applications.service';
 import { AssetsService } from '../../assets/services/assets.service';
 import { AuditService } from '../../audit/audit.service';
+import {
+  applicationParticipantCondition,
+  resolveBusinessContributorScopeForUser,
+} from '../../auth/business-contributor-scope';
 import { CapexItemsService } from '../../capex/capex-items.service';
 import { ConnectionsService } from '../../connections/services/connections.service';
 import { ContractsService } from '../../contracts/contracts.service';
@@ -273,7 +277,8 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
     businessResource: 'applications',
     tableName: 'interfaces',
     fields: {
-      interface_id: { label: 'Interface ID', kind: 'text', requiredOnCreate: true, aliases: ['reference'] },
+      interface_reference: { label: 'Interface reference', kind: 'text', aliases: ['reference'] },
+      interface_id: { label: 'Interface code', kind: 'text', nullable: true, aliases: ['legacy_code', 'external_code'] },
       name: { label: 'Name', kind: 'text', requiredOnCreate: true },
       business_process_id: { label: 'Business Process', kind: 'relation', nullable: true, relationTarget: 'business_processes', aliases: ['business_process'] },
       business_purpose: { label: 'Business Purpose', kind: 'text', requiredOnCreate: true },
@@ -728,7 +733,7 @@ export class AiBusinessRecordMutationSupportService {
   ): Promise<ResolvedReference> {
     const normalized = textOrNull(ref);
     if (!normalized) throw new BadRequestException('Record reference is required.');
-    const rows = await this.queryReferenceCandidates(context.manager, context.tenantId, entityType, normalized);
+    const rows = await this.queryReferenceCandidates(context, entityType, normalized);
     if (rows.length === 0) throw new NotFoundException(`No ${this.referenceLabelPlural(entityType)} found matching "${normalized}".`);
     if (rows.length > 1) {
       const labels = rows.map((row) => this.recordTitle(entityType, row)).join(', ');
@@ -738,24 +743,38 @@ export class AiBusinessRecordMutationSupportService {
   }
 
   private async queryReferenceCandidates(
-    manager: EntityManager,
-    tenantId: string,
+    context: AiExecutionContextWithManager,
     entityType: RelationTarget,
     ref: string,
   ): Promise<Record<string, unknown>[]> {
     const uuid = isUuid(ref);
     const itemNumber = Number((ref.match(/(?:^|[-\s])(\d+)$/)?.[1] ?? '').trim());
+    const { manager, tenantId } = context;
     switch (entityType) {
-      case 'applications':
+      case 'applications': {
+        const accessScope = await resolveBusinessContributorScopeForUser({
+          manager,
+          userId: context.userId,
+          tenantId,
+        }, 'applications', 'reader');
+        const params: unknown[] = [tenantId, ref];
+        const accessScopeSql = accessScope
+          ? (() => {
+            params.push(accessScope.userId);
+            return `AND ${applicationParticipantCondition('a', `$${params.length}`)}`;
+          })()
+          : '';
         return manager.query(
           `
-          SELECT * FROM applications
-          WHERE tenant_id = $1
-            AND (${uuid ? 'id = $2 OR ' : ''}LOWER(COALESCE(sequential_id, '')) = LOWER($2::text) OR LOWER(name) = LOWER($2::text))
-          ORDER BY name LIMIT 6
+          SELECT a.* FROM applications a
+          WHERE a.tenant_id = $1
+            AND (${uuid ? 'a.id = $2 OR ' : ''}LOWER(COALESCE(a.sequential_id, '')) = LOWER($2::text) OR LOWER(a.name) = LOWER($2::text))
+            ${accessScopeSql}
+          ORDER BY a.name LIMIT 6
           `,
-          [tenantId, ref],
+          params,
         );
+      }
       case 'assets':
         return manager.query(
           `
@@ -793,7 +812,7 @@ export class AiBusinessRecordMutationSupportService {
         );
       case 'interfaces':
         return manager.query(
-          `SELECT * FROM interfaces WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(interface_id) = LOWER($2::text) OR LOWER(name) = LOWER($2::text)) ORDER BY interface_id LIMIT 6`,
+          `SELECT * FROM interfaces WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(interface_reference) = LOWER($2::text) OR LOWER(COALESCE(interface_id, '')) = LOWER($2::text) OR LOWER(name) = LOWER($2::text)) ORDER BY interface_reference LIMIT 6`,
           [tenantId, ref],
         );
       case 'connections':
@@ -860,7 +879,7 @@ export class AiBusinessRecordMutationSupportService {
     switch (entityType) {
       case 'applications': return textOrNull(row.sequential_id);
       case 'assets': return textOrNull(row.asset_reference) || textOrNull(row.hostname);
-      case 'interfaces': return textOrNull(row.interface_id);
+      case 'interfaces': return textOrNull(row.interface_reference) || textOrNull(row.interface_id);
       case 'connections': return textOrNull(row.connection_reference);
       case 'projects': return row.item_number == null ? null : `PRJ-${row.item_number}`;
       case 'requests': return row.item_number == null ? null : `REQ-${row.item_number}`;
@@ -878,7 +897,7 @@ export class AiBusinessRecordMutationSupportService {
       case 'assets':
         return [row.asset_reference, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled asset';
       case 'interfaces':
-        return [row.interface_id, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled interface';
+        return [row.interface_reference || row.interface_id, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled interface';
       case 'connections':
         return [row.connection_reference, row.name].map(textOrNull).filter(Boolean).join(' - ') || 'Untitled connection';
       case 'projects':
@@ -1191,7 +1210,15 @@ export class AiBusinessRecordMutationSupportService {
   ): Promise<Record<string, unknown>> {
     switch (entityType) {
       case 'applications':
-        return this.applications.get(id, { manager: context.manager, tenantId: context.tenantId }) as any;
+        return this.applications.get(id, {
+          manager: context.manager,
+          tenantId: context.tenantId,
+          accessScope: await resolveBusinessContributorScopeForUser({
+            manager: context.manager,
+            userId: context.userId,
+            tenantId: context.tenantId,
+          }, 'applications', 'reader'),
+        }) as any;
       case 'assets':
         return this.assets.get(id, { manager: context.manager, tenantId: context.tenantId }) as any;
       case 'contracts':

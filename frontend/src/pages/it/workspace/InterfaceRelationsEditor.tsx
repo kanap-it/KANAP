@@ -18,6 +18,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { KanapDialog } from '../../../components/design';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import type {
   InterfaceAttachment,
@@ -32,6 +33,8 @@ type Props = {
   data: InterfaceDetail | null;
   isCreate: boolean;
   markDirty: () => void;
+  onReplaceDependencies?: (rows: InterfaceDependency[]) => Promise<void>;
+  onReplaceLinks?: (rows: InterfaceLink[]) => Promise<void>;
   update: (patch: Partial<InterfaceDetail>) => void;
 };
 
@@ -46,6 +49,8 @@ export default function InterfaceRelationsEditor({
   data,
   isCreate,
   markDirty,
+  onReplaceDependencies,
+  onReplaceLinks,
   update,
 }: Props) {
   const { t } = useTranslation(['it', 'common', 'errors']);
@@ -56,6 +61,7 @@ export default function InterfaceRelationsEditor({
   const [hover, setHover] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [uploadCount, setUploadCount] = React.useState(0);
+  const [pendingAttachmentDeleteId, setPendingAttachmentDeleteId] = React.useState<string | null>(null);
 
   const { data: interfacesData, isLoading: loadingInterfaces } = useQuery({
     queryKey: ['interfaces', 'select', 'all'],
@@ -87,12 +93,18 @@ export default function InterfaceRelationsEditor({
     nextDownstreamIds.forEach((id) => rows.push({ related_interface_id: id, direction: 'downstream' }));
     markDirty();
     update({ dependencies: rows });
-  }, [markDirty, update]);
+    if (!isCreate && canManage && onReplaceDependencies) {
+      void onReplaceDependencies(rows);
+    }
+  }, [canManage, isCreate, markDirty, onReplaceDependencies, update]);
 
   const updateLinks = React.useCallback((nextLinks: InterfaceLink[]) => {
     markDirty();
     update({ links: nextLinks });
-  }, [markDirty, update]);
+    if (!isCreate && canManage && onReplaceLinks) {
+      void onReplaceLinks(nextLinks);
+    }
+  }, [canManage, isCreate, markDirty, onReplaceLinks, update]);
 
   const addLink = () => {
     updateLinks([
@@ -151,10 +163,16 @@ export default function InterfaceRelationsEditor({
   };
 
   const handleAttachmentDelete = async (attachmentId: string) => {
-    if (!window.confirm(t('confirmations.deleteAttachment'))) return;
+    setPendingAttachmentDeleteId(attachmentId);
+  };
+
+  const confirmAttachmentDelete = async () => {
+    const attachmentId = pendingAttachmentDeleteId;
+    if (!attachmentId) return;
     setError(null);
     try {
       await api.patch(`/interfaces/attachments/${attachmentId}/delete`);
+      setPendingAttachmentDeleteId(null);
       await refreshAttachments();
     } catch (deleteError: any) {
       setError(getApiErrorMessage(deleteError, t, t('messages.saveInterfaceFailed')));
@@ -176,14 +194,14 @@ export default function InterfaceRelationsEditor({
             options={interfaceOptions}
             value={interfaceOptions.filter((item) => upstreamIds.includes(item.id))}
             onChange={(_, value) => syncDependencies(value.map((item) => item.id), downstreamIds)}
-            getOptionLabel={(option) => option.name || option.interface_id || ''}
+            getOptionLabel={(option) => option.name || option.interface_reference || option.interface_id || ''}
             renderOption={(props, option) => (
               <li {...props} key={option.id}>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2">{option.name}</Typography>
-                  {option.interface_id ? (
+                  {option.interface_reference || option.interface_id ? (
                     <Typography variant="caption" color="text.secondary">
-                      {option.interface_id}
+                      {option.interface_reference || option.interface_id}
                     </Typography>
                   ) : null}
                 </Box>
@@ -215,14 +233,14 @@ export default function InterfaceRelationsEditor({
             options={interfaceOptions}
             value={interfaceOptions.filter((item) => downstreamIds.includes(item.id))}
             onChange={(_, value) => syncDependencies(upstreamIds, value.map((item) => item.id))}
-            getOptionLabel={(option) => option.name || option.interface_id || ''}
+            getOptionLabel={(option) => option.name || option.interface_reference || option.interface_id || ''}
             renderOption={(props, option) => (
               <li {...props} key={option.id}>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2">{option.name}</Typography>
-                  {option.interface_id ? (
+                  {option.interface_reference || option.interface_id ? (
                     <Typography variant="caption" color="text.secondary">
-                      {option.interface_id}
+                      {option.interface_reference || option.interface_id}
                     </Typography>
                   ) : null}
                 </Box>
@@ -408,6 +426,18 @@ export default function InterfaceRelationsEditor({
           </Stack>
         </Stack>
       </Box>
+
+      <KanapDialog
+        open={!!pendingAttachmentDeleteId}
+        title="Delete attachment"
+        onClose={() => setPendingAttachmentDeleteId(null)}
+        saveLabel="Delete"
+        onSave={() => { void confirmAttachmentDelete(); }}
+      >
+        <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>
+          Delete this attachment from the interface.
+        </Typography>
+      </KanapDialog>
     </Stack>
   );
 }

@@ -118,6 +118,8 @@
       "duplicate": "Duplicate",
       "columns": {
         "interfaceId": "Interface ID",
+        "reference": "Reference",
+        "interfaceCode": "Interface code",
         "name": "Name",
         "environments": "Environments",
         "sourceApp": "Source App",
@@ -667,7 +669,7 @@
     "hostingTypeRequired": "Hosting type is required.",
     "saveLayersFirst": "Save the connection first, then add layers.",
     "roleRequired": "Role is required.",
-    "interfaceIdNamePurposeRequired": "Interface ID, Name, and Business purpose are required",
+    "interfaceIdNamePurposeRequired": "Name and business purpose are required",
     "selectSourceAndTarget": "Select source and target applications",
     "selectDataCategory": "Select data category",
     "loadBindingsFailed": "Failed to load bindings",

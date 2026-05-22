@@ -118,6 +118,8 @@
       "duplicate": "Dupliquer",
       "columns": {
         "interfaceId": "ID d'interface",
+        "reference": "Référence",
+        "interfaceCode": "Code d'interface",
         "name": "Nom",
         "environments": "Environnements",
         "sourceApp": "Application source",
@@ -667,7 +669,7 @@
     "hostingTypeRequired": "Le type d'hébergement est requis.",
     "saveLayersFirst": "Enregistrez d'abord la connexion, puis ajoutez des couches.",
     "roleRequired": "Le rôle est requis.",
-    "interfaceIdNamePurposeRequired": "L'ID d'interface, le nom et l'objectif métier sont requis",
+    "interfaceIdNamePurposeRequired": "Le nom et l'objectif métier sont requis",
     "selectSourceAndTarget": "Sélectionnez les applications source et cible",
     "selectDataCategory": "Sélectionnez une catégorie de données",
     "loadBindingsFailed": "Échec du chargement des liaisons",

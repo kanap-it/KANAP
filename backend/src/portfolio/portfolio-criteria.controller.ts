@@ -3,8 +3,14 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
-import { RequireLevel } from '../auth/require-level.decorator';
+import { RequireAnyLevel, RequireLevel } from '../auth/require-level.decorator';
 import { PortfolioCriteriaService } from './portfolio-criteria.service';
+
+const PORTFOLIO_SCORING_READER_REQUIREMENTS = [
+  { resource: 'portfolio_requests', level: 'reader' as const },
+  { resource: 'portfolio_projects', level: 'reader' as const },
+  { resource: 'portfolio_settings', level: 'reader' as const },
+];
 
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/criteria')
@@ -12,7 +18,7 @@ export class PortfolioCriteriaController {
   constructor(private readonly svc: PortfolioCriteriaService) {}
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('portfolio_settings', 'reader')
+  @RequireAnyLevel(PORTFOLIO_SCORING_READER_REQUIREMENTS)
   @Get()
   list(@Req() req: any) {
     const tenantId = req?.tenant?.id ?? '';
@@ -20,7 +26,7 @@ export class PortfolioCriteriaController {
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('portfolio_settings', 'reader')
+  @RequireAnyLevel(PORTFOLIO_SCORING_READER_REQUIREMENTS)
   @Get(':id')
   get(@Param('id') id: string, @Req() req: any) {
     return this.svc.get(id, { manager: req?.queryRunner?.manager });

@@ -19,7 +19,8 @@ import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 export type LinkOption = {
   binding_id: string;
   interface_id: string;
-  interface_code: string;
+  interface_reference?: string | null;
+  interface_code?: string | null;
   interface_name: string;
   environment: string;
   leg_type: string;
@@ -194,7 +195,7 @@ export default function ConnectionLinkInterfacesDialog({
                               color: 'kanap.text.secondary',
                             }}
                           >
-                            {opt.interface_code}
+                            {opt.interface_reference || opt.interface_code}
                           </Typography>
                           <Typography component="span" sx={{ fontSize: 13, color: 'kanap.text.primary' }} noWrap>
                             {opt.interface_name}
