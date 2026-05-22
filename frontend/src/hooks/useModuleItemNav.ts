@@ -328,3 +328,14 @@ export function useConnectionItemNav(params: ModuleItemNavParams): ModuleItemNav
     defaultSort: 'connection_reference:ASC',
   });
 }
+
+/**
+ * Interface item navigation
+ */
+export function useInterfaceItemNav(params: ModuleItemNavParams): ModuleItemNavResult {
+  return useModuleItemNav(params, {
+    endpoint: '/interfaces/ids',
+    queryKey: 'interfaces-ids',
+    defaultSort: 'interface_reference:ASC',
+  });
+}

@@ -36,6 +36,12 @@ export class InterfaceMappingRule {
   @Column('text', { default: 'direct' })
   operation_kind!: string;
 
+  @Column('text', { default: 'active' })
+  lifecycle!: string;
+
+  @Column('text', { array: true, nullable: true })
+  environment_scope!: string[] | null;
+
   @Column('jsonb', { default: '[]' })
   source_bindings!: Array<Record<string, unknown>>;
 

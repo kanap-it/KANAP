@@ -20,6 +20,7 @@ function createOrchestrator(options?: {
   historyMessages?: any[];
   providerId?: string;
   model?: string;
+  endpointUrl?: string | null;
   previewResult?: any;
   previewResults?: any[];
   followUpPreviews?: any[];
@@ -80,7 +81,7 @@ function createOrchestrator(options?: {
       llm_provider: options?.providerId ?? 'openai',
       llm_model: options?.model ?? 'gpt-4o',
       llm_api_key_encrypted: 'encrypted-key',
-      llm_endpoint_url: null,
+      llm_endpoint_url: options?.endpointUrl ?? null,
       chat_enabled: true,
     }),
     getEffectiveProviderSource: () => 'custom',
@@ -406,6 +407,239 @@ async function testToolCallFlow() {
   const done = events.find((e) => e.type === 'done') as any;
   assert.deepEqual(done.last_usage, { input_tokens: 200, output_tokens: 100 });
   assert.deepEqual(done.conversation_usage, { input_tokens: 300, output_tokens: 150 });
+}
+
+async function testDeepSeekReasoningContentIsReplayedForToolContinuation() {
+  const { orchestrator, persistedMessages, recordedRequests } = createOrchestrator({
+    providerId: 'custom',
+    endpointUrl: 'https://api.deepseek.com',
+    providerEvents: [
+      { type: 'reasoning_delta', text: 'I need to search first.' },
+      { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"crm"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'Found CRM.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Search for CRM',
+    }),
+  );
+
+  assert.equal(recordedRequests.length, 2);
+  const assistantReplay = (recordedRequests[1].messages as any[])
+    .find((message) => message.role === 'assistant' && message.tool_calls?.[0]?.id === 'tc-1');
+  assert.equal(assistantReplay.reasoning_content, 'I need to search first.');
+
+  const persistedAssistant = persistedMessages
+    .find((message) => message.role === 'assistant' && message.toolCalls?.[0]?.id === 'tc-1');
+  assert.equal(
+    persistedAssistant.providerMetadata.deepseek.reasoning_content,
+    'I need to search first.',
+  );
+}
+
+async function testDeepSeekReasoningContentIsReplayedForEverySplitToolCall() {
+  const { orchestrator, persistedMessages, recordedRequests } = createOrchestrator({
+    providerId: 'custom',
+    endpointUrl: 'https://api.deepseek.com',
+    providerEvents: [
+      { type: 'reasoning_delta', text: 'I need to inspect several asset groups.' },
+      { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"linux assets"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'tool_call_start', id: 'tc-2', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-2', arguments: '{"query":"windows assets"}' },
+      { type: 'tool_call_end', id: 'tc-2' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'Found asset groups.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Check Ansible asset compatibility',
+    }),
+  );
+
+  assert.equal(recordedRequests.length, 2);
+  const replayedAssistantToolCalls = (recordedRequests[1].messages as any[])
+    .filter((message) => message.role === 'assistant' && message.tool_calls?.length);
+  assert.equal(replayedAssistantToolCalls.length, 2);
+  assert.deepEqual(
+    replayedAssistantToolCalls.map((message) => message.reasoning_content),
+    [
+      'I need to inspect several asset groups.',
+      'I need to inspect several asset groups.',
+    ],
+  );
+
+  const persistedAssistantToolCalls = persistedMessages
+    .filter((message) => message.role === 'assistant' && message.toolCalls?.length);
+  assert.equal(persistedAssistantToolCalls.length, 2);
+  assert.deepEqual(
+    persistedAssistantToolCalls.map((message) => message.providerMetadata.deepseek.reasoning_content),
+    [
+      'I need to inspect several asset groups.',
+      'I need to inspect several asset groups.',
+    ],
+  );
+}
+
+async function testReasoningContentIsNotReplayedForNonDeepSeekEndpoint() {
+  const { orchestrator, persistedMessages, recordedRequests } = createOrchestrator({
+    providerId: 'custom',
+    endpointUrl: 'https://openrouter.ai/api/v1',
+    providerEvents: [
+      { type: 'reasoning_delta', text: 'Hidden provider reasoning.' },
+      { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
+      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"crm"}' },
+      { type: 'tool_call_end', id: 'tc-1' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+    providerToolEvents: [
+      { type: 'text_delta', text: 'Found CRM.' },
+      { type: 'done', usage: { input_tokens: 200, output_tokens: 100 } },
+    ],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Search for CRM',
+    }),
+  );
+
+  const assistantReplay = (recordedRequests[1].messages as any[])
+    .find((message) => message.role === 'assistant' && message.tool_calls?.[0]?.id === 'tc-1');
+  assert.equal(Object.prototype.hasOwnProperty.call(assistantReplay, 'reasoning_content'), false);
+
+  const persistedAssistant = persistedMessages
+    .find((message) => message.role === 'assistant' && message.toolCalls?.[0]?.id === 'tc-1');
+  assert.equal(persistedAssistant.providerMetadata, null);
+}
+
+async function testPersistedDeepSeekReasoningContentIsReplayedOnSecondTurn() {
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    providerId: 'custom',
+    endpointUrl: 'https://api.deepseek.com',
+    historyMessages: [
+      { id: 'msg-1', role: 'user', content: 'Search for CRM' },
+      {
+        id: 'msg-2',
+        role: 'assistant',
+        content: '',
+        tool_calls: [{ id: 'tc-1', name: 'search_all', arguments: '{"query":"crm"}' }],
+        provider_metadata_json: { deepseek: { reasoning_content: 'I need to search first.' } },
+      },
+      {
+        id: 'msg-3',
+        role: 'tool',
+        content: JSON.stringify({ tool_call_id: 'tc-1', tool_name: 'search_all', result: { total: 1 } }),
+      },
+      { id: 'msg-4', role: 'assistant', content: 'Found CRM.' },
+      { id: 'msg-5', role: 'user', content: 'Now summarize it.' },
+    ],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'Now summarize it.',
+    }),
+  );
+
+  const replayedAssistant = (recordedRequests[0].messages as any[])
+    .find((message) => message.role === 'assistant' && message.tool_calls?.[0]?.id === 'tc-1');
+  assert.equal(replayedAssistant.reasoning_content, 'I need to search first.');
+}
+
+async function testPersistedDeepSeekToolCallWithoutReasoningIsSkippedOnReplay() {
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    providerId: 'custom',
+    endpointUrl: 'https://api.deepseek.com',
+    historyMessages: [
+      { id: 'msg-1', role: 'user', content: 'Search for CRM' },
+      {
+        id: 'msg-2',
+        role: 'assistant',
+        content: '',
+        tool_calls: [{ id: 'tc-1', name: 'search_all', arguments: '{"query":"crm"}' }],
+        provider_metadata_json: null,
+      },
+      {
+        id: 'msg-3',
+        role: 'tool',
+        content: JSON.stringify({ tool_call_id: 'tc-1', tool_name: 'search_all', result: { total: 1 } }),
+      },
+      { id: 'msg-4', role: 'assistant', content: 'Found CRM.' },
+      { id: 'msg-5', role: 'user', content: 'Now summarize it.' },
+    ],
+  });
+
+  await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: 'Now summarize it.',
+    }),
+  );
+
+  const replayedMessages = recordedRequests[0].messages as any[];
+  assert.equal(
+    replayedMessages.some((message) => message.role === 'assistant' && message.tool_calls?.[0]?.id === 'tc-1'),
+    false,
+  );
+  assert.equal(
+    replayedMessages.some((message) => message.role === 'tool' && message.tool_call_id === 'tc-1'),
+    false,
+  );
+  assert.equal(
+    replayedMessages.some((message) => message.role === 'assistant' && message.content === 'Found CRM.'),
+    true,
+  );
 }
 
 async function testBatchPreviewToolResultEmitsEveryPreview() {
@@ -2426,6 +2660,11 @@ async function testChatProviderTimeoutResolver() {
 async function run() {
   await testSimpleTextResponse();
   await testToolCallFlow();
+  await testDeepSeekReasoningContentIsReplayedForToolContinuation();
+  await testDeepSeekReasoningContentIsReplayedForEverySplitToolCall();
+  await testReasoningContentIsNotReplayedForNonDeepSeekEndpoint();
+  await testPersistedDeepSeekReasoningContentIsReplayedOnSecondTurn();
+  await testPersistedDeepSeekToolCallWithoutReasoningIsSkippedOnReplay();
   await testBatchPreviewToolResultEmitsEveryPreview();
   await testUnsafeWriteConfirmationWithoutPreviewIsRetriedAsToolCall();
   await testRawPseudoToolCallTextIsRetriedAsRealToolCall();

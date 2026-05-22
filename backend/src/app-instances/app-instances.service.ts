@@ -8,6 +8,10 @@ import { AppAssetAssignment } from '../app-asset-assignments/app-asset-assignmen
 import { AuditService } from '../audit/audit.service';
 import { resolveLifecycleState, DisabledAtInput } from '../common/status';
 import { ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
+import {
+  applicationParticipantCondition,
+  ParticipationAccessScope,
+} from '../auth/business-contributor-scope';
 
 const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
 type EnvironmentValue = (typeof ENVIRONMENTS)[number];
@@ -84,27 +88,37 @@ export class AppInstancesService {
     return resolveLifecycleState({ currentDisabledAt, nextStatus: 'enabled' });
   }
 
-  private async ensureApplication(applicationId: string, manager?: EntityManager): Promise<Application> {
+  private async ensureApplication(
+    applicationId: string,
+    manager?: EntityManager,
+    accessScope?: ParticipationAccessScope,
+  ): Promise<Application> {
     const repo = this.getAppRepo(manager);
     const normalized = String(applicationId || '').trim();
     const uuidMatch = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized);
     const sequentialMatch = normalized.match(/^(APP-[0-9]+)(?:-.+)?$/i);
-    const app = uuidMatch
-      ? await repo.findOne({ where: { id: normalized } as any })
-      : sequentialMatch
-        ? await repo
-          .createQueryBuilder('application')
-          .where('upper(application.sequential_id) = upper(:sequentialId)', { sequentialId: sequentialMatch[1] })
-          .getOne()
-        : null;
+    const qb = repo.createQueryBuilder('app');
+    if (uuidMatch) {
+      qb.where('app.id = :id', { id: normalized });
+    } else if (sequentialMatch) {
+      qb.where('upper(app.sequential_id) = upper(:sequentialId)', { sequentialId: sequentialMatch[1] });
+    } else {
+      throw new NotFoundException('Application not found');
+    }
+    if (accessScope) {
+      qb.andWhere(applicationParticipantCondition('app', ':accessScopeUserId'), {
+        accessScopeUserId: accessScope.userId,
+      });
+    }
+    const app = await qb.getOne();
     if (!app) {
       throw new NotFoundException('Application not found');
     }
     return app;
   }
 
-  async list(applicationId: string, opts?: { manager?: EntityManager }) {
-    const app = await this.ensureApplication(applicationId, opts?.manager);
+  async list(applicationId: string, opts?: { manager?: EntityManager; accessScope?: ParticipationAccessScope }) {
+    const app = await this.ensureApplication(applicationId, opts?.manager, opts?.accessScope);
     const repo = this.getRepo(opts?.manager);
     return repo.find({
       where: { application_id: app.id } as any,

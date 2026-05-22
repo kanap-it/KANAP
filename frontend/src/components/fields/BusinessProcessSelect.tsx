@@ -1,8 +1,10 @@
 import React from 'react';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type BusinessProcessOption = {
   id: string;
@@ -15,8 +17,10 @@ type BusinessProcessSelectProps = {
   onChange: (v: string | null) => void;
   disabled?: boolean;
   helperText?: React.ReactNode;
+  hideLabel?: boolean;
   required?: boolean;
   placeholder?: string;
+  textFieldSx?: SxProps<Theme>;
 };
 
 function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) {
@@ -35,8 +39,10 @@ const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcess
     onChange,
     disabled,
     helperText,
+    hideLabel,
     required,
     placeholder,
+    textFieldSx,
   },
   ref,
 ) {
@@ -96,16 +102,19 @@ const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcess
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          label={hideLabel ? undefined : label}
           placeholder={placeholder}
           required={required}
           helperText={helperText}
+          variant={hideLabel ? 'standard' : undefined}
+          InputLabelProps={hideLabel ? undefined : { shrink: true }}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
           }}
           InputProps={{
             ...params.InputProps,
+            ...(hideLabel ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || loadingSelected) ? <CircularProgress color="inherit" size={16} /> : null}
@@ -113,8 +122,10 @@ const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcess
               </>
             ),
           }}
+          sx={textFieldSx}
         />
       )}
+      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
       loading={isLoading || loadingSelected}
       noOptionsText={isLoading ? t('selects.loadingEllipsis') : t('selects.noBusinessProcessesFound')}
       fullWidth
@@ -123,4 +134,3 @@ const BusinessProcessSelect = React.forwardRef<HTMLInputElement, BusinessProcess
 });
 
 export default BusinessProcessSelect;
-

@@ -20,6 +20,7 @@ import { computeAutoAllocations } from '../utils/allocation-utils';
 import { detectChanges, PROJECT_TRACKED_FIELDS, resolveDisplayNames } from '../../common/change-detection';
 import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
 import { IntegratedDocumentsService } from '../../knowledge/integrated-documents.service';
+import { ParticipationAccessScope, projectParticipantCondition } from '../../auth/business-contributor-scope';
 
 /**
  * Service for core CRUD operations on portfolio projects.
@@ -94,6 +95,24 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
   /**
    * Get a single project by ID with optional related data.
    */
+  async assertVisible(
+    id: string,
+    accessScope: ParticipationAccessScope | undefined,
+    opts?: ServiceOpts,
+  ): Promise<void> {
+    if (!accessScope) return;
+    const mg = this.getManager(opts);
+    const rows = await mg.query(
+      `SELECT 1
+       FROM portfolio_projects p
+       WHERE p.id = $1
+         AND ${projectParticipantCondition('p', '$2')}
+       LIMIT 1`,
+      [id, accessScope.userId],
+    );
+    if (rows.length === 0) throw new NotFoundException('Project not found');
+  }
+
   async get(id: string, query: any, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProject);
@@ -102,6 +121,8 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     const include = new Set(
       includeRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
     );
+
+    await this.assertVisible(id, opts?.accessScope, { manager: mg });
 
     const project = await repo.findOne({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');

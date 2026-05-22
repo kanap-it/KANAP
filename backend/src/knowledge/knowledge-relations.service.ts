@@ -2,7 +2,16 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
 
-const RELATION_ENTITY_TYPES: RelationEntityType[] = ['applications', 'assets', 'projects', 'requests', 'tasks'];
+const RELATION_ENTITY_TYPES: RelationEntityType[] = [
+  'applications',
+  'assets',
+  'projects',
+  'requests',
+  'tasks',
+  'locations',
+  'connections',
+  'interfaces',
+];
 
 type RelationMutationOptions = {
   manager?: EntityManager;

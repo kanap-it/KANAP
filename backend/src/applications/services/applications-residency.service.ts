@@ -20,8 +20,8 @@ export class ApplicationsResidencyService extends ApplicationsBaseService {
 
   async listDataResidency(appId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
-    const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
-    return mg.getRepository(ApplicationDataResidency).find({ where: { application_id: resolvedAppId } as any });
+    const app = await this.ensureApp(appId, mg, opts?.accessScope);
+    return mg.getRepository(ApplicationDataResidency).find({ where: { application_id: app.id } as any });
   }
 
   async bulkReplaceDataResidency(appId: string, countryCodes: string[], userId?: string | null, opts?: ServiceOpts) {

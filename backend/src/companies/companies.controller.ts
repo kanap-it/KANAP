@@ -7,9 +7,25 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { csvImportMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { PermissionGuard } from '../auth/permission.guard';
-import { RequireLevel } from '../auth/require-level.decorator';
+import { RequireAnyLevel, RequireAnyLevelMeta, RequireLevel } from '../auth/require-level.decorator';
 import { CompanyUpsertDto } from './dto/company.dto';
 import { Tenant, TenantRequest } from '../common/decorators';
+
+const referenceLookupRequirements: RequireAnyLevelMeta = [
+  { resource: 'companies', level: 'reader' },
+  { resource: 'departments', level: 'reader' },
+  { resource: 'users', level: 'admin' },
+  { resource: 'opex', level: 'reader' },
+  { resource: 'capex', level: 'reader' },
+  { resource: 'contracts', level: 'reader' },
+  { resource: 'reporting', level: 'reader' },
+  { resource: 'tasks', level: 'reader' },
+  { resource: 'portfolio_requests', level: 'reader' },
+  { resource: 'portfolio_projects', level: 'reader' },
+  { resource: 'applications', level: 'reader' },
+  { resource: 'locations', level: 'reader' },
+  { resource: 'infrastructure', level: 'reader' },
+];
 
 @UseGuards(JwtAuthGuard)
 @Controller('companies')
@@ -38,6 +54,20 @@ export class CompaniesController {
   @Get('totals')
   totals(@Query() query: any, @Tenant() ctx: TenantRequest) {
     return this.svc.totals(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireAnyLevel(referenceLookupRequirements)
+  @Get('lookup')
+  lookup(@Query() query: any, @Tenant() ctx: TenantRequest) {
+    return this.svc.lookup(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireAnyLevel(referenceLookupRequirements)
+  @Get('lookup/:id')
+  lookupById(@Param('id') id: string, @Tenant() ctx: TenantRequest) {
+    return this.svc.lookupById(id, { manager: ctx.manager });
   }
 
   // Export route before :id to avoid collisions

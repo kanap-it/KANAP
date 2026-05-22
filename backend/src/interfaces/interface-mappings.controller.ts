@@ -1,22 +1,38 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { InterfaceMappingsService } from './services/interface-mappings.service';
+import { resolveBusinessContributorScopeForUser } from '../auth/business-contributor-scope';
 
 @UseGuards(JwtAuthGuard)
 @Controller('interfaces')
 export class InterfaceMappingsController {
   constructor(private readonly mappings: InterfaceMappingsService) {}
 
+  private async assertUnrestrictedApplicationReader(ctx: TenantRequest) {
+    if (!ctx.manager) {
+      throw new ForbiddenException('Access scope could not be resolved');
+    }
+    const accessScope = await resolveBusinessContributorScopeForUser({
+      manager: ctx.manager,
+      userId: ctx.userId,
+      tenantId: ctx.tenantId,
+    }, 'applications', 'reader');
+    if (accessScope) {
+      throw new ForbiddenException('Business Contributor cannot access interface mappings');
+    }
+  }
+
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/mapping-sets')
-  listSets(
+  async listSets(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.mappings.listSets(id, { manager: ctx.manager });
   }
 
@@ -34,10 +50,11 @@ export class InterfaceMappingsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('mapping-sets/:mappingSetId')
-  getSet(
+  async getSet(
     @Param('mappingSetId') mappingSetId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.mappings.getSet(mappingSetId, { manager: ctx.manager });
   }
 
@@ -65,10 +82,11 @@ export class InterfaceMappingsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('mapping-sets/:mappingSetId/groups')
-  listGroups(
+  async listGroups(
     @Param('mappingSetId') mappingSetId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.mappings.listGroups(mappingSetId, { manager: ctx.manager });
   }
 
@@ -86,10 +104,11 @@ export class InterfaceMappingsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('mapping-groups/:groupId')
-  getGroup(
+  async getGroup(
     @Param('groupId') groupId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.mappings.getGroup(groupId, { manager: ctx.manager });
   }
 
@@ -117,11 +136,12 @@ export class InterfaceMappingsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('mapping-sets/:mappingSetId/rules')
-  listRules(
+  async listRules(
     @Param('mappingSetId') mappingSetId: string,
     @Query('group_id') groupId: string | undefined,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.mappings.listRules(mappingSetId, groupId, { manager: ctx.manager });
   }
 
@@ -138,6 +158,8 @@ export class InterfaceMappingsController {
       order_index?: number;
       applies_to_leg_id?: string | null;
       operation_kind?: string | null;
+      lifecycle?: string | null;
+      environment_scope?: string[] | string | null;
       source_bindings?: Array<Record<string, unknown>>;
       target_bindings?: Array<Record<string, unknown>>;
       condition_text?: string | null;
@@ -157,10 +179,11 @@ export class InterfaceMappingsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('mapping-rules/:ruleId')
-  getRule(
+  async getRule(
     @Param('ruleId') ruleId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.mappings.getRule(ruleId, { manager: ctx.manager });
   }
 
@@ -177,6 +200,8 @@ export class InterfaceMappingsController {
       order_index?: number;
       applies_to_leg_id?: string | null;
       operation_kind?: string | null;
+      lifecycle?: string | null;
+      environment_scope?: string[] | string | null;
       source_bindings?: Array<Record<string, unknown>>;
       target_bindings?: Array<Record<string, unknown>>;
       condition_text?: string | null;

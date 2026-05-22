@@ -14,6 +14,7 @@ import { TaskActivitiesService } from './task-activities.service';
 import { TaskAttachmentsService } from './task-attachments.service';
 import { detectChanges, resolveDisplayNames, TASK_TRACKED_FIELDS, FieldConfig } from '../common/change-detection';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
+import { ParticipationAccessScope, taskParticipantCondition } from '../auth/business-contributor-scope';
 
 export type RelatedType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
 type ProjectDefaults = {
@@ -266,7 +267,11 @@ export class TasksUnifiedService {
     );
   }
 
-  async listRelatedTasksForApplication(applicationId: string, query?: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async listRelatedTasksForApplication(
+    applicationId: string,
+    query?: any,
+    opts?: { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope },
+  ) {
     return this.listRelatedTasksByLink({
       linkTable: 'task_applications',
       targetColumn: 'application_id',
@@ -276,7 +281,11 @@ export class TasksUnifiedService {
     });
   }
 
-  async listRelatedTasksForAsset(assetId: string, query?: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async listRelatedTasksForAsset(
+    assetId: string,
+    query?: any,
+    opts?: { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope },
+  ) {
     return this.listRelatedTasksByLink({
       linkTable: 'task_assets',
       targetColumn: 'asset_id',
@@ -291,7 +300,7 @@ export class TasksUnifiedService {
     targetColumn: 'application_id' | 'asset_id';
     targetId: string;
     query?: any;
-    opts?: { manager?: EntityManager; tenantId?: string };
+    opts?: { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope };
   }) {
     const manager = params.opts?.manager ?? this.repo.manager;
     const tenantId = params.opts?.tenantId || await this.getTaskTenantContext(manager);
@@ -311,15 +320,25 @@ export class TasksUnifiedService {
     };
     const sortField = sortFieldMap[field] || 't.updated_at';
 
+    const baseParams: unknown[] = [tenantId, params.targetId];
+    const accessScopeSql = params.opts?.accessScope
+      ? (() => {
+        baseParams.push(params.opts.accessScope.userId);
+        return `AND ${taskParticipantCondition('t', `$${baseParams.length}`)}`;
+      })()
+      : '';
+
     const countRows: Array<{ count: number }> = await manager.query(
       `SELECT COUNT(*)::int AS count
        FROM ${params.linkTable} rel
        JOIN tasks t ON t.id = rel.task_id AND t.tenant_id = rel.tenant_id
        WHERE rel.tenant_id = $1
-         AND rel.${params.targetColumn} = $2`,
-      [tenantId, params.targetId],
+         AND rel.${params.targetColumn} = $2
+         ${accessScopeSql}`,
+      baseParams,
     );
 
+    const itemParams = [...baseParams, limit, skip];
     const items = await manager.query(
       `SELECT t.id,
               t.tenant_id,
@@ -340,9 +359,10 @@ export class TasksUnifiedService {
        LEFT JOIN users u ON u.id = t.assignee_user_id AND u.tenant_id = t.tenant_id
        WHERE rel.tenant_id = $1
          AND rel.${params.targetColumn} = $2
+         ${accessScopeSql}
        ORDER BY ${sortField} ${direction}, t.id ASC
-       LIMIT $3 OFFSET $4`,
-      [tenantId, params.targetId, limit, skip],
+       LIMIT $${baseParams.length + 1} OFFSET $${baseParams.length + 2}`,
+      itemParams,
     );
 
     return { items, total: countRows[0]?.count || 0, page, limit };

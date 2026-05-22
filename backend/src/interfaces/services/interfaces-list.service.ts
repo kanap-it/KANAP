@@ -48,11 +48,18 @@ export class InterfacesListService extends InterfacesBaseService {
     if (q) {
       qb.andWhere(
         new Brackets((expr) => {
-          expr.where('i.name ILIKE :q OR i.interface_id ILIKE :q OR i.business_purpose ILIKE :q', {
+          expr.where('i.name ILIKE :q OR i.interface_reference ILIKE :q OR i.interface_id ILIKE :q OR i.business_purpose ILIKE :q', {
             q: `%${q}%`,
           });
         }),
       );
+    }
+
+    const interfaceReferenceFilter = this.resolveFilterInput(query.interface_reference, filters?.interface_reference);
+    if (interfaceReferenceFilter) {
+      qb.andWhere('i.interface_reference ILIKE :interfaceReferenceFilter', {
+        interfaceReferenceFilter: `%${interfaceReferenceFilter}%`,
+      });
     }
 
     const interfaceIdFilter = this.resolveFilterInput(query.interface_id, filters?.interface_id);
@@ -118,8 +125,8 @@ export class InterfacesListService extends InterfacesBaseService {
       );
     }
 
-    const allowedSort = ['interface_id', 'name', 'lifecycle', 'criticality', 'created_at', 'updated_at'];
-    const sortField = allowedSort.includes(sort.field) ? sort.field : 'created_at';
+    const allowedSort = ['interface_reference', 'interface_id', 'name', 'lifecycle', 'criticality', 'created_at', 'updated_at'];
+    const sortField = allowedSort.includes(sort.field) ? sort.field : 'interface_reference';
     const sortDirection = sort.direction === 'ASC' ? 'ASC' : 'DESC';
     const qbCount = qb.clone();
     const total = await qbCount.getCount();
@@ -186,11 +193,18 @@ export class InterfacesListService extends InterfacesBaseService {
     if (q) {
       qb.andWhere(
         new Brackets((expr) => {
-          expr.where('i.name ILIKE :q OR i.interface_id ILIKE :q OR i.business_purpose ILIKE :q', {
+          expr.where('i.name ILIKE :q OR i.interface_reference ILIKE :q OR i.interface_id ILIKE :q OR i.business_purpose ILIKE :q', {
             q: `%${q}%`,
           });
         }),
       );
+    }
+
+    const interfaceReferenceFilter = this.resolveFilterInput(query.interface_reference, filters?.interface_reference);
+    if (interfaceReferenceFilter) {
+      qb.andWhere('i.interface_reference ILIKE :interfaceReferenceFilter', {
+        interfaceReferenceFilter: `%${interfaceReferenceFilter}%`,
+      });
     }
 
     const interfaceIdFilter = this.resolveFilterInput(query.interface_id, filters?.interface_id);
@@ -256,8 +270,8 @@ export class InterfacesListService extends InterfacesBaseService {
       );
     }
 
-    const allowedSort = ['interface_id', 'name', 'lifecycle', 'criticality', 'created_at', 'updated_at'];
-    const sortField = allowedSort.includes(sort.field) ? sort.field : 'created_at';
+    const allowedSort = ['interface_reference', 'interface_id', 'name', 'lifecycle', 'criticality', 'created_at', 'updated_at'];
+    const sortField = allowedSort.includes(sort.field) ? sort.field : 'interface_reference';
     const sortDirection = sort.direction === 'ASC' ? 'ASC' : 'DESC';
     const total = await qb.clone().getCount();
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
@@ -278,6 +292,7 @@ export class InterfacesListService extends InterfacesBaseService {
 
     const rows: Array<{
       interface_id: string;
+      interface_reference: string;
       interface_code: string;
       interface_name: string;
       environment: string;
@@ -294,6 +309,7 @@ export class InterfacesListService extends InterfacesBaseService {
     }> = await mg.query(
       `SELECT DISTINCT ON (i.id, b.environment)
          i.id AS interface_id,
+         i.interface_reference,
          i.interface_id AS interface_code,
          i.name AS interface_name,
          b.environment,
@@ -356,6 +372,7 @@ export class InterfacesListService extends InterfacesBaseService {
 
     const items = rows.map((row) => ({
       id: row.interface_id,
+      interface_reference: row.interface_reference,
       interface_id: row.interface_code,
       name: row.interface_name,
       environment: row.environment,
@@ -408,6 +425,7 @@ export class InterfacesListService extends InterfacesBaseService {
          b.monitoring_url,
          b.env_notes,
          i.interface_id AS interface_code,
+         i.interface_reference,
          i.name AS interface_name,
          i.lifecycle AS interface_lifecycle,
          i.criticality AS interface_criticality,
@@ -440,6 +458,7 @@ export class InterfacesListService extends InterfacesBaseService {
     type InterfaceAccumulator = {
       id: string;
       interface_code: string;
+      interface_reference: string;
       name: string;
       lifecycle: string;
       criticality: string;
@@ -462,6 +481,7 @@ export class InterfacesListService extends InterfacesBaseService {
         interfacesById.set(row.interface_id, {
           id: row.interface_id,
           interface_code: row.interface_code,
+          interface_reference: row.interface_reference,
           name: row.interface_name,
           lifecycle: row.interface_lifecycle,
           criticality: row.interface_criticality,
@@ -545,6 +565,7 @@ export class InterfacesListService extends InterfacesBaseService {
     const interfacePayload = Array.from(interfacesById.values()).map((acc) => ({
       id: acc.id,
       interface_id: acc.interface_code,
+      interface_reference: acc.interface_reference,
       name: acc.name,
       source_application_id: acc.source_application_id,
       target_application_id: acc.target_application_id,

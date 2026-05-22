@@ -3,6 +3,7 @@ import { EntityManager, Repository } from 'typeorm';
 import { PortfolioProject, ProjectStatus, ProjectOrigin } from '../portfolio-project.entity';
 import { PortfolioActivity } from '../portfolio-activity.entity';
 import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
+import { ParticipationAccessScope } from '../../auth/business-contributor-scope';
 
 /**
  * Common options for service methods.
@@ -11,6 +12,7 @@ export interface ServiceOpts {
   manager?: EntityManager;
   userId?: string | null;
   tenantId?: string;
+  accessScope?: ParticipationAccessScope;
 }
 
 /**

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -34,6 +35,9 @@ import {
   ListInterfacesQueryInput,
 } from './dto';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { resolveBusinessContributorScopeForUser } from '../auth/business-contributor-scope';
 
 @UseGuards(JwtAuthGuard)
 @Controller('interfaces')
@@ -42,47 +46,91 @@ export class InterfacesController {
     private readonly svc: InterfacesService,
     private readonly storage: StorageService,
     private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly knowledge: KnowledgeService,
     private readonly dataSource: DataSource,
   ) {}
+
+  private async assertUnrestrictedApplicationReader(ctx: TenantRequest) {
+    if (!ctx.manager) {
+      throw new ForbiddenException('Access scope could not be resolved');
+    }
+    const accessScope = await resolveBusinessContributorScopeForUser({
+      manager: ctx.manager,
+      userId: ctx.userId,
+      tenantId: ctx.tenantId,
+    }, 'applications', 'reader');
+    if (accessScope) {
+      throw new ForbiddenException('Business Contributor cannot access interfaces');
+    }
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get()
-  list(
+  async list(
     @Query() query: ListInterfacesQueryInput,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.list(query, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
-  @Get('map')
-  getMap(
+  @Get('ids')
+  async listIds(
     @Query() query: ListInterfacesQueryInput,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
+    return this.svc.listIds(query, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get('map')
+  async getMap(
+    @Query() query: ListInterfacesQueryInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.getMap(query, ctx.tenantId, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
+  @Post(':id/share')
+  async share(
+    @Param('id') id: string,
+    @Body() body: ShareItemDto,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
+    return this.svc.shareInterface(id, body, ctx.tenantId, ctx.userId || '', {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
   @Get('by-application/:applicationId')
-  listByApplication(
+  async listByApplication(
     @Param('applicationId') applicationId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listByApplication(applicationId, ctx.tenantId, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/connection-links')
-  listConnectionLinksForInterface(
+  async listConnectionLinksForInterface(
     @Param('id') id: string,
     @Query() query: Record<string, unknown>,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listConnectionLinksForInterface(id, ctx.tenantId, query, {
       manager: ctx.manager,
     });
@@ -91,11 +139,12 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/integrated-documents/:slotKey')
-  getIntegratedDocument(
+  async getIntegratedDocument(
     @Param('id') id: string,
     @Param('slotKey') slotKey: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.integratedDocuments.getBySource('interfaces', id, slotKey, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -242,11 +291,12 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/integrated-documents/:slotKey/versions')
-  listIntegratedDocumentVersions(
+  async listIntegratedDocumentVersions(
     @Param('id') id: string,
     @Param('slotKey') slotKey: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.integratedDocuments.listVersionsBySource('interfaces', id, slotKey, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -275,22 +325,38 @@ export class InterfacesController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
+  @Get(':id/knowledge-context')
+  async getKnowledgeContext(
+    @Param('id') id: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
+    return this.knowledge.getKnowledgeContextForEntity('interfaces', id, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
   @Get(':id')
-  get(
+  async get(
     @Param('id') id: string,
     @Query() query: Record<string, unknown>,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.get(id, query, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/legs')
-  listLegs(
+  async listLegs(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listLegs(id, { manager: ctx.manager });
   }
 
@@ -374,10 +440,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/owners')
-  listOwners(
+  async listOwners(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listOwners(id, { manager: ctx.manager });
   }
 
@@ -396,10 +463,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/companies')
-  listCompanies(
+  async listCompanies(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listCompanies(id, { manager: ctx.manager });
   }
 
@@ -418,10 +486,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/dependencies')
-  listDependencies(
+  async listDependencies(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listDependencies(id, { manager: ctx.manager });
   }
 
@@ -446,10 +515,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/key-identifiers')
-  listKeyIdentifiers(
+  async listKeyIdentifiers(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listKeyIdentifiers(id, { manager: ctx.manager });
   }
 
@@ -469,10 +539,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/data-residency')
-  listDataResidency(
+  async listDataResidency(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listDataResidency(id, { manager: ctx.manager });
   }
 
@@ -491,10 +562,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/links')
-  listLinks(
+  async listLinks(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listLinks(id, { manager: ctx.manager });
   }
 
@@ -547,10 +619,11 @@ export class InterfacesController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/attachments')
-  listAttachments(
+  async listAttachments(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.assertUnrestrictedApplicationReader(ctx);
     return this.svc.listAttachments(id, { manager: ctx.manager });
   }
 
@@ -578,6 +651,7 @@ export class InterfacesController {
     @Res() res: Response,
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
+    await this.assertUnrestrictedApplicationReader(ctx);
     const meta = await this.svc.downloadAttachment(attachmentId, { manager: ctx.manager });
     const obj = await this.storage.getObjectStream(meta.storage_path);
     res.setHeader('Content-Type', obj.contentType || meta.mime_type || 'application/octet-stream');

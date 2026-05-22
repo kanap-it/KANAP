@@ -33,7 +33,8 @@ import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 type InterfaceRow = {
   id: string;
-  interface_id: string;
+  interface_reference: string;
+  interface_id?: string | null;
   name: string;
   business_process_id?: string | null;
   business_process_name?: string | null;
@@ -82,7 +83,7 @@ export default function InterfacesPage() {
 
   const getInterfaceHref = useCallback((row: InterfaceRow | null | undefined) => {
     if (!row?.id) return undefined;
-    return `/it/interfaces/${row.id}/specification`;
+    return `/it/interfaces/${row.interface_reference || row.id}/overview`;
   }, []);
 
   const handleInternalNavigate = useCallback((event: React.MouseEvent, href: string | undefined) => {
@@ -198,11 +199,19 @@ export default function InterfacesPage() {
 
   const columns: EnhancedColDef<InterfaceRow>[] = [
     {
-      headerName: t('pages.interfaces.columns.interfaceId'),
-      field: 'interface_id',
+      headerName: t('pages.interfaces.columns.reference'),
+      field: 'interface_reference',
       width: 150,
       cellRenderer: ClickToWorkspace,
       cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
+    },
+    {
+      headerName: t('pages.interfaces.columns.interfaceCode'),
+      field: 'interface_id',
+      width: 170,
+      cellRenderer: ClickToWorkspace,
+      cellStyle: { fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace", fontSize: '12px', color: 'var(--kanap-text-secondary)', fontVariantNumeric: 'tabular-nums' },
+      defaultHidden: true,
     },
     {
       headerName: t('common.name'),
@@ -290,7 +299,7 @@ export default function InterfacesPage() {
   const actions = (
     <Stack direction="row" spacing={1}>
       {canCreate && (
-        <Button variant="contained" onClick={() => navigate('/it/interfaces/new/specification')}>
+        <Button variant="contained" onClick={() => navigate('/it/interfaces/new/overview')}>
           Add interface
         </Button>
       )}
@@ -337,7 +346,7 @@ export default function InterfacesPage() {
         extraParams={filterParams}
         enableColumnChooser
         enableSearch
-        defaultSort={{ field: 'created_at', direction: 'DESC' }}
+        defaultSort={{ field: 'interface_reference', direction: 'ASC' }}
         columnPreferencesKey="it-interfaces"
         refreshKey={refreshKey}
         enableRowSelection={canAdmin}

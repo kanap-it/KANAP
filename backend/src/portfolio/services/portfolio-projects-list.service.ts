@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { PortfolioProject } from '../portfolio-project.entity';
 import { parsePagination } from '../../common/pagination';
+import { applyProjectParticipantScope, projectParticipantCondition } from '../../auth/business-contributor-scope';
 import {
   compileAgFilterCondition,
   createParamNameGenerator,
@@ -307,6 +308,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       qb.andWhere('p.tenant_id = :tenantId', { tenantId });
     }
     applyProjectInvolvementScope(qb, involvementScope, 'p');
+    applyProjectParticipantScope(qb, opts?.accessScope, 'p');
 
     // Apply compiled filter conditions
     compiledFilters.forEach((c) => {
@@ -603,6 +605,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       qb.andWhere('p.tenant_id = :tenantId', { tenantId });
     }
     applyProjectInvolvementScope(qb, involvementScope, 'p');
+    applyProjectParticipantScope(qb, opts?.accessScope, 'p');
 
     // Apply compiled filter conditions
     compiledFilters.forEach((c) => {
@@ -770,6 +773,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
         qb.andWhere('p.tenant_id = :tenantId', { tenantId });
       }
       applyProjectInvolvementScope(qb, involvementScope, 'p');
+      applyProjectParticipantScope(qb, opts?.accessScope, 'p');
       compiledFilters.forEach((c) => {
         qb.andWhere(new Brackets((sub) => sub.where(c.sql, c.params)));
       });
@@ -841,6 +845,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       )
     `;
     const params: any[] = [startDate];
+
+    if (opts?.accessScope?.userId) {
+      params.push(opts.accessScope.userId);
+      sql += ` AND ${projectParticipantCondition('p', `$${params.length}`)}`;
+    }
 
     if (query.category) {
       params.push(query.category);

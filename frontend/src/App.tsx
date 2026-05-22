@@ -102,6 +102,7 @@ import AdminIntegrationsPage from './pages/admin/AdminIntegrationsPage';
 import AdminPlatformAiPage from './pages/admin/AdminPlatformAiPage';
 import ScheduledTasksPage from './pages/admin/ScheduledTasksPage';
 import { useAiCapabilities } from './ai/useAiCapabilities';
+import { useBusinessContributorApplicationVisibility } from './hooks/useBusinessContributorApplicationVisibility';
 
 function HomeRoute() {
   const { isPlatformHost } = useTenant();
@@ -116,7 +117,7 @@ function AdminDefaultRedirect() {
   const aiCapabilities = useAiCapabilities();
 
   if (isPlatformHost) return <Navigate to="/admin/tenants" replace />;
-  if (hasLevel('users', 'reader')) return <Navigate to="/admin/users" replace />;
+  if (hasLevel('users', 'admin')) return <Navigate to="/admin/users" replace />;
   if (config.features.aiSettings && hasLevel('ai_settings', 'admin') && !aiCapabilities.data && aiCapabilities.isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
@@ -138,8 +139,33 @@ function PortfolioDefaultRedirect() {
   if (hasLevel('portfolio_projects', 'reader')) return <Navigate to="/portfolio/projects" replace />;
   if (hasLevel('portfolio_planning', 'reader')) return <Navigate to="/portfolio/planning" replace />;
   if (hasLevel('portfolio_reports', 'reader')) return <Navigate to="/portfolio/reports" replace />;
-  if (hasLevel('portfolio_settings', 'reader')) return <Navigate to="/portfolio/contributors" replace />;
+  if (hasLevel('portfolio_settings', 'reader')) return <Navigate to="/portfolio/settings" replace />;
   return <Navigate to="/portfolio/tasks" replace />;
+}
+
+function ItDefaultRedirect() {
+  const { hasLevel } = useAuth();
+  const applicationVisibility = useBusinessContributorApplicationVisibility();
+  if (hasLevel('locations', 'reader')) return <Navigate to="/it/locations" replace />;
+  if (hasLevel('infrastructure', 'reader')) return <Navigate to="/it/assets" replace />;
+  if (hasLevel('applications', 'reader')) {
+    if (applicationVisibility.hasScopedApplicationReaderAccess) {
+      if (applicationVisibility.isLoading) {
+        return (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+            <CircularProgress />
+          </Box>
+        );
+      }
+      if (!applicationVisibility.shouldHideApplications) {
+        return <Navigate to="/it/applications" replace />;
+      }
+    } else {
+      return <Navigate to="/it/applications" replace />;
+    }
+  }
+  if (hasLevel('settings', 'reader')) return <Navigate to="/it/settings" replace />;
+  return <Navigate to="/403" replace />;
 }
 
 function LegacyTaskRedirect() {
@@ -260,7 +286,7 @@ function AppRoutes() {
           {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id/:tab" element={<AdminStandardAccountWorkspacePage />} />}
           {!isSingleTenant && <Route path="/admin/standard-accounts/:templateId/:id/*" element={<AdminStandardAccountWorkspacePage />} />}
           {/* IT Landscape */}
-          <Route path="/it" element={<Navigate to="/it/locations" replace />} />
+          <Route path="/it" element={<ItDefaultRedirect />} />
           <Route path="/it/locations" element={<LocationsPage />} />
           <Route path="/it/locations/:id" element={<LocationWorkspacePage />} />
           <Route path="/it/locations/:id/:tab" element={<LocationWorkspacePage />} />

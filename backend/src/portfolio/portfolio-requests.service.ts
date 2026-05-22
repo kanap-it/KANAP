@@ -49,8 +49,14 @@ import { IntegratedDocumentsService } from '../knowledge/integrated-documents.se
 import { Task } from '../tasks/task.entity';
 import { TaskAttachment } from '../tasks/task-attachment.entity';
 import { TaskActivitiesService } from '../tasks/task-activities.service';
+import {
+  ParticipationAccessScope,
+  applyRequestParticipantScope,
+  requestParticipantCondition,
+} from '../auth/business-contributor-scope';
 
 type InvolvementScope = { involvedUserId?: string; involvedTeamId?: string };
+type RequestServiceOpts = { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope };
 type ConvertFromTaskOverrides = {
   name?: string;
   purpose?: string;
@@ -81,6 +87,7 @@ const applyRequestInvolvementScope = (
 
   const userCondition = `(
     ${alias}.requestor_id = :involvedUserId
+    OR ${alias}.created_by_id = :involvedUserId
     OR ${alias}.business_sponsor_id = :involvedUserId
     OR ${alias}.business_lead_id = :involvedUserId
     OR ${alias}.it_sponsor_id = :involvedUserId
@@ -101,6 +108,7 @@ const applyRequestInvolvementScope = (
 
   const teamCondition = `(
     ${alias}.requestor_id IN ${teamUsersSql}
+    OR ${alias}.created_by_id IN ${teamUsersSql}
     OR ${alias}.business_sponsor_id IN ${teamUsersSql}
     OR ${alias}.business_lead_id IN ${teamUsersSql}
     OR ${alias}.it_sponsor_id IN ${teamUsersSql}
@@ -228,7 +236,7 @@ export class PortfolioRequestsService {
   ) {}
 
   // ==================== LIST ====================
-  async list(query: any, opts?: { manager?: EntityManager; tenantId?: string }) {
+  async list(query: any, opts?: RequestServiceOpts) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -361,6 +369,7 @@ export class PortfolioRequestsService {
       qb.andWhere('r.tenant_id = :tenantId', { tenantId });
     }
     applyRequestInvolvementScope(qb, involvementScope, 'r');
+    applyRequestParticipantScope(qb, opts?.accessScope, 'r');
 
     // Apply compiled filter conditions
     compiledFilters.forEach((c) => {
@@ -405,7 +414,7 @@ export class PortfolioRequestsService {
   }
 
   // ==================== LIST IDS ====================
-  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: RequestServiceOpts): Promise<{ ids: string[]; total: number }> {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -509,6 +518,7 @@ export class PortfolioRequestsService {
       qb.andWhere('r.tenant_id = :tenantId', { tenantId });
     }
     applyRequestInvolvementScope(qb, involvementScope, 'r');
+    applyRequestParticipantScope(qb, opts?.accessScope, 'r');
 
     // Apply compiled filter conditions
     compiledFilters.forEach((c) => {
@@ -548,7 +558,7 @@ export class PortfolioRequestsService {
   /**
    * Return scoped filter values for checkbox set filters.
    */
-  async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
+  async listFilterValues(query: any, opts?: RequestServiceOpts): Promise<Record<string, Array<string | null>>> {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -687,6 +697,7 @@ export class PortfolioRequestsService {
         qb.andWhere('r.tenant_id = :tenantId', { tenantId });
       }
       applyRequestInvolvementScope(qb, involvementScope, 'r');
+      applyRequestParticipantScope(qb, opts?.accessScope, 'r');
 
       compiledFilters.forEach((c) => {
         qb.andWhere(new Brackets((sub) => sub.where(c.sql, c.params)));
@@ -865,7 +876,25 @@ export class PortfolioRequestsService {
   }
 
   // ==================== GET ====================
-  async get(id: string, query: any, opts?: { manager?: EntityManager }) {
+  async assertVisible(
+    id: string,
+    accessScope: ParticipationAccessScope | undefined,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    if (!accessScope) return;
+    const mg = opts?.manager ?? this.repo.manager;
+    const rows = await mg.query(
+      `SELECT 1
+       FROM portfolio_requests r
+       WHERE r.id = $1
+         AND ${requestParticipantCondition('r', '$2')}
+       LIMIT 1`,
+      [id, accessScope.userId],
+    );
+    if (rows.length === 0) throw new NotFoundException('Request not found');
+  }
+
+  async get(id: string, query: any, opts?: { manager?: EntityManager; accessScope?: ParticipationAccessScope }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
 
@@ -873,6 +902,8 @@ export class PortfolioRequestsService {
     const include = new Set(
       includeRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
     );
+
+    await this.assertVisible(id, opts?.accessScope, { manager: mg });
 
     const request = await repo.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Request not found');

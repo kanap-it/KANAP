@@ -28,6 +28,9 @@ export class AiMessage {
   @Column('jsonb', { nullable: true })
   usage_json!: Record<string, unknown> | null;
 
+  @Column('jsonb', { nullable: true })
+  provider_metadata_json!: Record<string, unknown> | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 }

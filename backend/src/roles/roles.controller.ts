@@ -26,7 +26,7 @@ export class RolesController {
 
   @Get()
   @UseGuards(PermissionGuard)
-  @RequireLevel('users', 'reader')
+  @RequireLevel('users', 'admin')
   async getRoles(@Req() req: any) {
     const mg: EntityManager | undefined = req?.queryRunner?.manager;
     const items = await this.rolesService.list({ manager: mg });
@@ -121,7 +121,7 @@ export class RolesController {
 
   @Get(':id/permissions')
   @UseGuards(PermissionGuard)
-  @RequireLevel('users', 'reader')
+  @RequireLevel('users', 'admin')
   async getRolePermissions(@Param('id') id: string, @Req() req: any) {
     const mg: EntityManager | undefined = req?.queryRunner?.manager;
     const role = await (mg ?? this.roleRepo.manager).getRepository(Role).findOne({ where: { id } });

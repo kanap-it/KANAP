@@ -17,6 +17,21 @@ import { UserRole } from './user-role.entity';
 import { Role } from '../roles/role.entity';
 import { User } from './user.entity';
 
+function canViewUserAdministration(req: any): boolean {
+  return req?.isAdmin === true || req?.permissionLevel === 'admin';
+}
+
+function toUserLookup(user: User | null | undefined) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    status: user.status,
+  };
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
@@ -34,7 +49,12 @@ export class UsersController {
   @Get()
   @UseGuards(PermissionGuard)
   @RequireLevel('users', 'reader')
-  list(@Query() query: any, @Req() req: any) { return this.svc.list(query, { manager: req?.queryRunner?.manager }); }
+  list(@Query() query: any, @Req() req: any) {
+    return this.svc.list(query, {
+      manager: req?.queryRunner?.manager,
+      adminView: canViewUserAdministration(req),
+    });
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('users', 'admin')
@@ -46,7 +66,7 @@ export class UsersController {
 
   @Get('export')
   @UseGuards(PermissionGuard)
-  @RequireLevel('users', 'reader')
+  @RequireLevel('users', 'admin')
   async export(@Query('scope') scope: 'template' | 'data' = 'data', @Res() res: Response, @Req() req: any) {
     const { filename, content } = await this.svc.exportCsv(scope, { manager: req?.queryRunner?.manager });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -60,6 +80,7 @@ export class UsersController {
   async getById(@Param('id') id: string, @Req() req: any) {
     const user = await this.svc.findById(id, { manager: req?.queryRunner?.manager });
     if (!user) return null;
+    if (!canViewUserAdministration(req)) return toUserLookup(user);
     return { ...user, password_hash: undefined };
   }
 
@@ -139,7 +160,7 @@ export class UsersController {
   // Multi-role management endpoints
   @Get(':id/roles')
   @UseGuards(PermissionGuard)
-  @RequireLevel('users', 'reader')
+  @RequireLevel('users', 'admin')
   async getUserRoles(@Param('id') id: string, @Req() req: any) {
     const manager = req?.queryRunner?.manager;
     const repo = manager ? manager.getRepository(UserRole) : this.userRoleRepo;

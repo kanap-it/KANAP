@@ -27,7 +27,8 @@ import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 interface InterfaceForMigration {
   id: string;
   name: string | null;
-  interface_id: string;
+  interface_reference?: string | null;
+  interface_id?: string | null;
   lifecycle: string;
   source_app_name: string | null;
   target_app_name: string | null;
@@ -381,7 +382,7 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
                             />
                           </ListItemIcon>
                           <ListItemText
-                            primary={iface.name || iface.interface_id}
+                            primary={iface.name || iface.interface_reference || iface.interface_id}
                             secondary={
                               isMiddleware
                                 ? `${iface.source_app_name || '?'} → ${iface.target_app_name || '?'} (flows through this ETL)`

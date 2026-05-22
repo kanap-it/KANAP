@@ -24,6 +24,7 @@ import { UsersModule } from '../users/users.module';
 import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 // Decomposed services
 import {
@@ -61,6 +62,7 @@ import {
     ItOpsSettingsModule,
     StorageModule,
     KnowledgeModule,
+    NotificationsModule,
   ],
   providers: [
     // Decomposed services (order matters for DI)

@@ -337,7 +337,7 @@ export class UsersService {
     return result;
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; adminView?: boolean }) {
     const repo = this.getRepo(opts?.manager);
     const { page, limit, skip, sort, status, q, filters } = parsePagination(query);
     const allowedSortFields = [
@@ -362,9 +362,18 @@ export class UsersService {
       order: { [(allowedSortFields.includes(sort.field) ? sort.field : 'created_at')]: sort.direction as any },
       skip,
       take: limit,
-      relations: ['role', 'company', 'department']
+      relations: opts?.adminView ? ['role', 'company', 'department'] : [],
     });
-    const safe = items.map(u => ({ ...u, password_hash: undefined }));
+    const safe = items.map(u => {
+      if (opts?.adminView) return { ...u, password_hash: undefined };
+      return {
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        status: u.status,
+      };
+    });
     return { items: safe, total, page, limit };
   }
 

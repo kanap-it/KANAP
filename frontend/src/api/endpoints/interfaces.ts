@@ -5,7 +5,8 @@ import { api, PaginatedResponse, PaginationParams } from '../client';
  */
 export interface Interface {
   id: string;
-  interface_id: string; // Human-readable ID like INT-001
+  interface_reference: string; // Auto-assigned reference like INT-1
+  interface_id?: string | null; // Optional external or legacy interface code
   name: string;
   description?: string | null;
   source_application_id: string;
@@ -96,6 +97,7 @@ export interface ConnectionSummary extends Connection {
  * Payload for creating an interface
  */
 export interface CreateInterfaceInput {
+  interface_id?: string | null;
   name: string;
   specification_markdown?: string | null;
   description?: string | null;
@@ -172,6 +174,8 @@ export interface InterfaceMappingRule {
   order_index: number;
   applies_to_leg_id?: string | null;
   operation_kind: string;
+  lifecycle: string;
+  environment_scope?: string[] | null;
   source_bindings: Array<Record<string, unknown>>;
   target_bindings: Array<Record<string, unknown>>;
   condition_text?: string | null;
@@ -209,6 +213,8 @@ export interface CreateInterfaceMappingRuleInput {
   order_index?: number;
   applies_to_leg_id?: string | null;
   operation_kind?: string | null;
+  lifecycle?: string | null;
+  environment_scope?: string[] | null;
   source_bindings?: Array<Record<string, unknown>>;
   target_bindings?: Array<Record<string, unknown>>;
   condition_text?: string | null;
@@ -299,8 +305,8 @@ export const interfacesApi = {
   /**
    * Get bindings for an interface
    */
-  getBindings: (id: string): Promise<InterfaceBinding[]> =>
-    api.get<InterfaceBinding[]>(`/interfaces/${id}/bindings`),
+  getBindings: (id: string): Promise<{ items: InterfaceBinding[] }> =>
+    api.get<{ items: InterfaceBinding[] }>(`/interfaces/${id}/bindings`),
 
   /**
    * Create a binding for an interface

@@ -2,6 +2,10 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { EntityManager } from 'typeorm';
 import { validate as isUuid } from 'uuid';
 import { AuditService } from '../../audit/audit.service';
+import {
+  applicationParticipantCondition,
+  resolveBusinessContributorScopeForUser,
+} from '../../auth/business-contributor-scope';
 import { SupplierContactsService } from '../../suppliers/supplier-contacts.service';
 import { AiMutationPreview } from '../ai-mutation-preview.entity';
 import { AiExecutionContextWithManager, AiMutationPreviewChangeDto } from '../ai.types';
@@ -681,6 +685,20 @@ export class AiRelationMutationSupportService {
 
   private async loadSimpleRelation(context: AiExecutionContextWithManager, config: SimpleRelationConfig, sourceId: string): Promise<RelationItem[]> {
     const target = this.targetSql(config.target);
+    const params: unknown[] = [context.tenantId, sourceId];
+    const accessScope = config.target === 'applications'
+      ? await resolveBusinessContributorScopeForUser({
+        manager: context.manager,
+        userId: context.userId,
+        tenantId: context.tenantId,
+      }, 'applications', 'reader')
+      : undefined;
+    const accessScopeSql = accessScope
+      ? (() => {
+        params.push(accessScope.userId);
+        return `AND ${applicationParticipantCondition('t', `$${params.length}`)}`;
+      })()
+      : '';
     const rows = await context.manager.query(
       `
       SELECT l.${config.targetColumn} AS target_id,
@@ -688,9 +706,10 @@ export class AiRelationMutationSupportService {
       FROM ${config.table} l
       JOIN ${target.table} t ON t.id = l.${config.targetColumn} AND t.tenant_id = $1
       WHERE l.tenant_id = $1 AND l.${config.sourceColumn} = $2
+      ${accessScopeSql}
       ORDER BY label ASC
       `,
-      [context.tenantId, sourceId],
+      params,
     );
     return rows.map((row: any) => ({
       key: String(row.target_id),
@@ -1153,7 +1172,7 @@ export class AiRelationMutationSupportService {
   ): Promise<ResolvedReference> {
     const normalized = textOrNull(ref);
     if (!normalized) throw new BadRequestException('Record reference is required.');
-    const rows = await this.queryReferenceCandidates(context.manager, context.tenantId, entityType, normalized);
+    const rows = await this.queryReferenceCandidates(context, entityType, normalized);
     if (rows.length === 0) throw new NotFoundException(`No ${String(entityType).replace(/_/g, ' ')} found matching "${normalized}".`);
     if (rows.length > 1) {
       const labels = rows.map((row) => this.recordTitle(entityType, row)).join(', ');
@@ -1168,16 +1187,37 @@ export class AiRelationMutationSupportService {
   }
 
   private async queryReferenceCandidates(
-    manager: EntityManager,
-    tenantId: string,
+    context: AiExecutionContextWithManager,
     entityType: RelationTarget | 'locations',
     ref: string,
   ): Promise<Record<string, unknown>[]> {
     const uuid = isUuid(ref);
     const itemNumber = Number((ref.match(/(?:^|[-\s])(\d+)$/)?.[1] ?? '').trim());
+    const { manager, tenantId } = context;
     switch (entityType) {
-      case 'applications':
-        return manager.query(`SELECT * FROM applications WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(COALESCE(sequential_id, '')) = LOWER($2::text) OR LOWER(name) = LOWER($2::text)) ORDER BY name LIMIT 6`, [tenantId, ref]);
+      case 'applications': {
+        const accessScope = await resolveBusinessContributorScopeForUser({
+          manager,
+          userId: context.userId,
+          tenantId,
+        }, 'applications', 'reader');
+        const params: unknown[] = [tenantId, ref];
+        const accessScopeSql = accessScope
+          ? (() => {
+            params.push(accessScope.userId);
+            return `AND ${applicationParticipantCondition('a', `$${params.length}`)}`;
+          })()
+          : '';
+        return manager.query(
+          `SELECT a.*
+           FROM applications a
+           WHERE a.tenant_id = $1
+             AND (${uuid ? 'a.id = $2 OR ' : ''}LOWER(COALESCE(a.sequential_id, '')) = LOWER($2::text) OR LOWER(a.name) = LOWER($2::text))
+             ${accessScopeSql}
+           ORDER BY a.name LIMIT 6`,
+          params,
+        );
+      }
       case 'assets':
         return manager.query(`SELECT * FROM assets WHERE tenant_id = $1 AND (${uuid ? 'id = $2 OR ' : ''}LOWER(COALESCE(asset_reference, '')) = LOWER($2::text) OR LOWER(name) = LOWER($2::text) OR LOWER(COALESCE(hostname, '')) = LOWER($2::text) OR LOWER(COALESCE(fqdn, '')) = LOWER($2::text)) ORDER BY name LIMIT 6`, [tenantId, ref]);
       case 'business_processes':

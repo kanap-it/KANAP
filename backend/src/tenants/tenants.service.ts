@@ -81,12 +81,10 @@ const BUILT_IN_ROLES: Array<{
   },
   {
     name: 'Business Contributor',
-    description: 'Can submit requests, contribute to projects, and work on project tasks',
+    description: 'Can submit requests, contribute to projects and tasks, and read assigned applications',
     permissions: {
       portfolio_requests: 'member', portfolio_projects: 'contributor',
-      tasks: 'member', users: 'reader',
-      companies: 'reader', departments: 'reader', contacts: 'reader',
-      portfolio_settings: 'reader'
+      tasks: 'member', applications: 'reader', users: 'reader'
     }
   },
   // IT Landscape Roles

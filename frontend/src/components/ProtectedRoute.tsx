@@ -6,6 +6,11 @@ import { useFeatures } from '../config/FeaturesContext';
 import { Box, CircularProgress } from '@mui/material';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
 
+type RouteRequirement = {
+  resource: string;
+  level: 'reader' | 'contributor' | 'member' | 'manager' | 'admin';
+};
+
 export default function ProtectedRoute() {
   const { token, isAuthenticating, profile, claims, hasLevel, subscription } = useAuth();
   const location = useLocation();
@@ -52,8 +57,25 @@ export default function ProtectedRoute() {
     const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
     const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');
     const isAdminIntegrationsRoute = path === '/admin/integrations' || path.startsWith('/admin/integrations/');
+    const roleNames = [
+      profile.role,
+      ...(profile.roles || []).map((role) => role.name),
+    ];
+    const isBusinessContributor = roleNames.some((name) => String(name || '').trim().toLowerCase() === 'business contributor');
+    const hasScopedApplicationOnlyAccess = isBusinessContributor
+      && hasLevel('applications', 'reader')
+      && !hasLevel('applications', 'member')
+      && !hasLevel('infrastructure', 'reader')
+      && !hasLevel('locations', 'reader')
+      && !hasLevel('settings', 'reader');
     if (isPlatformHost && !path.startsWith('/admin')) {
       return <Navigate to="/admin/tenants" replace />;
+    }
+    if (
+      hasScopedApplicationOnlyAccess
+      && (path === '/it/interfaces' || path.startsWith('/it/interfaces/') || path === '/it/interface-map')
+    ) {
+      return <Navigate to="/403" replace />;
     }
     if (isAiWorkspaceRoute) {
       if (!config.features.aiChat) {
@@ -96,20 +118,18 @@ export default function ProtectedRoute() {
       }
     }
 
-    let resource: string | null = null;
-    const isSelfContributorRoute = (
-      path === '/portfolio/contributors/me' ||
-      path.startsWith('/portfolio/contributors/me/')
-    );
-    const adminAliases: Record<string, string> = {
-      roles: 'users',
-      auth: 'users',
-      branding: 'users',
-      integrations: 'ai_settings',
-      'audit-logs': 'users',
-      'choose-plan': 'billing',
-      ai: 'ai_settings',
-      'scheduled-tasks': 'users',
+    let requirement: RouteRequirement | null = null;
+    const adminAliases: Record<string, RouteRequirement> = {
+      users: { resource: 'users', level: 'admin' },
+      roles: { resource: 'users', level: 'admin' },
+      auth: { resource: 'users', level: 'admin' },
+      branding: { resource: 'users', level: 'admin' },
+      integrations: { resource: 'ai_settings', level: 'admin' },
+      'audit-logs': { resource: 'users', level: 'admin' },
+      billing: { resource: 'billing', level: 'reader' },
+      'choose-plan': { resource: 'billing', level: 'reader' },
+      ai: { resource: 'ai_settings', level: 'admin' },
+      'scheduled-tasks': { resource: 'users', level: 'admin' },
     };
     const opsAliases: Record<string, string> = { reports: 'reporting', servers: 'infrastructure', operations: 'opex' };
     const itAliases: Record<string, string> = {
@@ -147,47 +167,49 @@ export default function ProtectedRoute() {
       settings: 'knowledge',
     };
 
-    if (isSelfContributorRoute) {
-      const hasPortfolioReader = (
-        hasLevel('tasks', 'reader') ||
-        hasLevel('portfolio_requests', 'reader') ||
-        hasLevel('portfolio_projects', 'reader') ||
-        hasLevel('portfolio_planning', 'reader') ||
-        hasLevel('portfolio_reports', 'reader') ||
-        hasLevel('portfolio_settings', 'reader')
-      );
-      if (!hasPortfolioReader) {
+    if (path === '/master-data') {
+      const hasMasterDataAccess = [
+        'companies',
+        'departments',
+        'suppliers',
+        'contacts',
+        'accounts',
+        'settings',
+        'business_processes',
+        'analytics',
+      ].some((resource) => hasLevel(resource, 'reader'));
+      if (!hasMasterDataAccess) {
         return <Navigate to="/403" replace />;
       }
-      resource = null;
+      requirement = null;
     } else if (path.startsWith('/admin/')) {
       const seg = path.split('/')[2] || null;
-      resource = seg ? (adminAliases[seg] || seg) : null;
+      requirement = seg ? (adminAliases[seg] || { resource: seg, level: 'reader' }) : null;
     } else if (path === '/ai' || path.startsWith('/ai/')) {
-      resource = 'ai_chat';
+      requirement = { resource: 'ai_chat', level: 'reader' };
     } else if (path.startsWith('/ops/')) {
       const seg = path.split('/')[2] || null;
-      resource = seg ? (opsAliases[seg] || seg) : null;
+      requirement = seg ? { resource: opsAliases[seg] || seg, level: 'reader' } : null;
     } else if (path.startsWith('/it/')) {
       const seg = path.split('/')[2] || null;
-      resource = seg ? (itAliases[seg] || seg) : null;
+      requirement = seg ? { resource: itAliases[seg] || seg, level: 'reader' } : null;
     } else if (path.startsWith('/master-data/')) {
       const seg = path.split('/')[2] || null;
-      resource = seg ? (masterDataAliases[seg] || seg) : null;
+      requirement = seg ? { resource: masterDataAliases[seg] || seg, level: 'reader' } : null;
     } else if (path.startsWith('/portfolio/')) {
       const seg = path.split('/')[2] || null;
-      resource = seg ? (portfolioAliases[seg] || seg) : null;
+      requirement = seg ? { resource: portfolioAliases[seg] || seg, level: 'reader' } : null;
     } else if (path === '/knowledge' || path.startsWith('/knowledge/')) {
       const seg = path.split('/')[2] || null;
-      resource = seg ? (knowledgeAliases[seg] || 'knowledge') : 'knowledge';
+      requirement = { resource: seg ? (knowledgeAliases[seg] || 'knowledge') : 'knowledge', level: 'reader' };
     } else {
-      resource = null; // dashboard and other root pages allowed
+      requirement = null; // dashboard and other root pages allowed
     }
     if (isAdminAiRoute) {
       if (!hasLevel('ai_settings', 'admin')) {
         return <Navigate to="/403" replace />;
       }
-    } else if (resource && !hasLevel(resource, 'reader')) {
+    } else if (requirement && !hasLevel(requirement.resource, requirement.level)) {
       return <Navigate to="/403" replace />;
     }
 

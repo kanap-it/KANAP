@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
@@ -20,6 +20,10 @@ import { RATE_LIMITS } from '../common/rate-limit';
 import { RateLimitGuard } from '../common/rate-limit.guard';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { TasksUnifiedService } from '../tasks/tasks-unified.service';
+import {
+  ParticipationAccessScope,
+  resolveBusinessContributorScopeForUser,
+} from '../auth/business-contributor-scope';
 import {
   CreateApplicationInput,
   UpdateApplicationInput,
@@ -55,34 +59,64 @@ export class ApplicationsController {
     private readonly tasks: TasksUnifiedService,
   ) {}
 
+  private async participationScope(
+    ctx: TenantRequest,
+    resource: string,
+  ): Promise<ParticipationAccessScope | undefined> {
+    if (!ctx.manager) {
+      throw new ForbiddenException('Access scope could not be resolved');
+    }
+    return resolveBusinessContributorScopeForUser({
+      manager: ctx.manager,
+      userId: ctx.userId,
+      tenantId: ctx.tenantId,
+    }, resource, 'reader');
+  }
+
+  private async readApplicationOpts(ctx: TenantRequest) {
+    return {
+      manager: ctx.manager,
+      tenantId: ctx.tenantId,
+      accessScope: await this.participationScope(ctx, 'applications'),
+    };
+  }
+
+  private async readProjectScope(ctx: TenantRequest) {
+    return this.participationScope(ctx, 'portfolio_projects');
+  }
+
+  private async readTaskScope(ctx: TenantRequest) {
+    return this.participationScope(ctx, 'tasks');
+  }
+
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get()
-  list(
+  async list(
     @Query() query: ListApplicationsQueryInput,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: ApplicationListItemResponse[]; total: number; page: number; limit: number }> {
-    return this.svc.list(query, { manager: ctx.manager });
+    return this.svc.list(query, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('ids')
-  listIds(
+  async listIds(
     @Query() query: ListApplicationsQueryInput,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ ids: string[] }> {
-    return this.svc.listIds(query, { manager: ctx.manager });
+    return this.svc.listIds(query, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('filter-values')
-  listFilterValues(
+  async listFilterValues(
     @Query() query: any,
     @Tenant() ctx: TenantRequest,
   ): Promise<Record<string, Array<string | boolean | null>>> {
-    return this.svc.listFilterValues(query, { manager: ctx.manager });
+    return this.svc.listFilterValues(query, await this.readApplicationOpts(ctx));
   }
 
   // Export before :id - uses V2 CSV service
@@ -123,7 +157,7 @@ export class ApplicationsController {
     @Res() res: Response,
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
-    const meta = await this.svc.downloadAttachment(attachmentId, { manager: ctx.manager });
+    const meta = await this.svc.downloadAttachment(attachmentId, await this.readApplicationOpts(ctx));
     const obj = await this.storage.getObjectStream(meta.storage_path);
     res.setHeader('Content-Type', obj.contentType || meta.mime_type || 'application/octet-stream');
     res.setHeader('Content-Disposition', contentDisposition(meta.original_filename));
@@ -157,10 +191,10 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('with-server-assignments')
-  listWithServerAssignments(
+  async listWithServerAssignments(
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: ApplicationWithServerAssignments[] }> {
-    return this.svc.listWithServerAssignments({ manager: ctx.manager });
+    return this.svc.listWithServerAssignments(await this.readApplicationOpts(ctx));
   }
 
   // ==================== CSV V2 Endpoints ====================
@@ -231,22 +265,26 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id')
-  get(
+  async get(
     @Param('id') id: string,
     @Query('include') include: string | string[],
     @Tenant() ctx: TenantRequest,
   ): Promise<Record<string, unknown>> {
-    return this.svc.get(id, { manager: ctx.manager, include });
+    return this.svc.get(id, { ...(await this.readApplicationOpts(ctx)), include });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Post(':id/share')
-  share(
+  async share(
     @Param('id') id: string,
     @Body() body: ShareItemDto,
     @Tenant() ctx: TenantRequest,
   ) {
+    const opts = await this.readApplicationOpts(ctx);
+    if (opts.accessScope) {
+      throw new ForbiddenException('Business Contributor can only read assigned applications');
+    }
     return this.svc.shareApplication(id, body, ctx.tenantId, ctx.userId || '', {
       manager: ctx.manager,
       tenantId: ctx.tenantId,
@@ -261,21 +299,23 @@ export class ApplicationsController {
     @Query() query: any,
     @Tenant() ctx: TenantRequest,
   ) {
-    const app = await this.svc.get(id, { manager: ctx.manager });
+    const app = await this.svc.get(id, await this.readApplicationOpts(ctx));
     return this.tasks.listRelatedTasksForApplication(String((app as any).id), query, {
       manager: ctx.manager,
       tenantId: ctx.tenantId,
+      accessScope: await this.readTaskScope(ctx),
     });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/knowledge')
-  listDocuments(
+  async listDocuments(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
     @Req() req: any,
   ) {
+    await this.svc.assertVisible(id, await this.readApplicationOpts(ctx));
     return this.knowledge.listDocumentsForEntity('applications', id, {
       manager: ctx.manager,
       userId: req?.user?.sub ?? null,
@@ -285,11 +325,12 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/knowledge-context')
-  getKnowledgeContext(
+  async getKnowledgeContext(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
     @Req() req: any,
   ) {
+    await this.svc.assertVisible(id, await this.readApplicationOpts(ctx));
     return this.knowledge.getKnowledgeContextForEntity('applications', id, {
       manager: ctx.manager,
       userId: req?.user?.sub ?? null,
@@ -299,11 +340,12 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/integrated-documents/:slotKey')
-  getIntegratedDocument(
+  async getIntegratedDocument(
     @Param('id') id: string,
     @Param('slotKey') slotKey: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.svc.assertVisible(id, await this.readApplicationOpts(ctx));
     return this.integratedDocuments.getBySource('applications', id, slotKey, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -450,11 +492,12 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/integrated-documents/:slotKey/versions')
-  listIntegratedDocumentVersions(
+  async listIntegratedDocumentVersions(
     @Param('id') id: string,
     @Param('slotKey') slotKey: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.svc.assertVisible(id, await this.readApplicationOpts(ctx));
     return this.integratedDocuments.listVersionsBySource('applications', id, slotKey, ctx.userId || null, {
       manager: ctx.manager,
     });
@@ -545,11 +588,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/owners')
-  listOwners(
+  async listOwners(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationOwner[]> {
-    return this.svc.listOwners(id, { manager: ctx.manager });
+    return this.svc.listOwners(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -567,11 +610,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/companies')
-  listCompanies(
+  async listCompanies(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationCompany[]> {
-    return this.svc.listCompanies(id, { manager: ctx.manager });
+    return this.svc.listCompanies(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -588,11 +631,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/departments')
-  listDepartments(
+  async listDepartments(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationDepartment[]> {
-    return this.svc.listDepartments(id, { manager: ctx.manager });
+    return this.svc.listDepartments(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -610,22 +653,22 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/map-summary')
-  mapSummary(
+  async mapSummary(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationMapSummaryResponse> {
-    return this.svc.mapSummary(id, { manager: ctx.manager });
+    return this.svc.mapSummary(id, await this.readApplicationOpts(ctx));
   }
 
   // Support contacts
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/support-contacts')
-  listSupportContacts(
+  async listSupportContacts(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<Array<{ id: string; contact_id: string; role: string | null; contact: Record<string, unknown> }>> {
-    return this.svc.listSupportContacts(id, { manager: ctx.manager });
+    return this.svc.listSupportContacts(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -643,11 +686,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/links')
-  listLinks(
+  async listLinks(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationLink[]> {
-    return this.svc.listLinks(id, { manager: ctx.manager });
+    return this.svc.listLinks(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -688,11 +731,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/attachments')
-  listAttachments(
+  async listAttachments(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationAttachment[]> {
-    return this.svc.listAttachments(id, { manager: ctx.manager });
+    return this.svc.listAttachments(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -711,11 +754,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/data-residency')
-  listDataResidency(
+  async listDataResidency(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationDataResidency[]> {
-    return this.svc.listDataResidency(id, { manager: ctx.manager });
+    return this.svc.listDataResidency(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -732,22 +775,25 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/relations-count')
-  relationCounts(
+  async relationCounts(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ opex: number; capex: number; contracts: number; projects: number; links: number; attachments: number; total: number }> {
-    return this.svc.relationCounts(id, { manager: ctx.manager });
+    return this.svc.relationCounts(id, {
+      ...(await this.readApplicationOpts(ctx)),
+      projectAccessScope: await this.readProjectScope(ctx),
+    });
   }
 
   // Relations — OPEX (spend items)
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/spend-items')
-  listLinkedSpend(
+  async listLinkedSpend(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; name: string }> }> {
-    return this.svc.listLinkedSpendItems(id, { manager: ctx.manager });
+    return this.svc.listLinkedSpendItems(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -765,11 +811,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/capex-items')
-  listLinkedCapex(
+  async listLinkedCapex(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; description: string }> }> {
-    return this.svc.listLinkedCapexItems(id, { manager: ctx.manager });
+    return this.svc.listLinkedCapexItems(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -787,11 +833,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/contracts')
-  listLinkedContracts(
+  async listLinkedContracts(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; name: string }> }> {
-    return this.svc.listLinkedContracts(id, { manager: ctx.manager });
+    return this.svc.listLinkedContracts(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -809,11 +855,14 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/projects')
-  listProjects(
+  async listProjects(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; name: string }> }> {
-    return this.svc.listProjects(id, { manager: ctx.manager });
+    return this.svc.listProjects(id, {
+      ...(await this.readApplicationOpts(ctx)),
+      projectAccessScope: await this.readProjectScope(ctx),
+    });
   }
 
   @UseGuards(PermissionGuard)
@@ -831,11 +880,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/suites')
-  listSuites(
+  async listSuites(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; name: string; lifecycle: string; criticality: string }> }> {
-    return this.svc.listSuites(id, { manager: ctx.manager });
+    return this.svc.listSuites(id, await this.readApplicationOpts(ctx));
   }
 
   @UseGuards(PermissionGuard)
@@ -852,24 +901,24 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/components')
-  listComponents(
+  async listComponents(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<{ items: Array<{ id: string; name: string; lifecycle: string; criticality: string }> }> {
-    return this.svc.listComponents(id, { manager: ctx.manager });
+    return this.svc.listComponents(id, await this.readApplicationOpts(ctx));
   }
 
   // Derived total users helper (read-only)
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/total-users')
-  totalUsers(
+  async totalUsers(
     @Param('id') id: string,
     @Query('year') yearRaw: string | undefined,
     @Tenant() ctx: TenantRequest,
   ): Promise<TotalUsersResponse> {
     const y = yearRaw ? parseInt(String(yearRaw), 10) : undefined;
-    return this.svc.getTotalUsers(id, y, { manager: ctx.manager });
+    return this.svc.getTotalUsers(id, y, await this.readApplicationOpts(ctx));
   }
 
   // ==================== VERSION MANAGEMENT ====================
@@ -911,11 +960,11 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/version-lineage')
-  getVersionLineage(
+  async getVersionLineage(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<VersionLineageResponse> {
-    return this.svc.getVersionLineage(id, { manager: ctx.manager });
+    return this.svc.getVersionLineage(id, await this.readApplicationOpts(ctx));
   }
 
   /**
@@ -924,10 +973,10 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/interfaces-for-migration')
-  getInterfacesForMigration(
+  async getInterfacesForMigration(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ): Promise<Array<{ id: string; name: string; direction: string }>> {
-    return this.svc.getInterfacesForMigration(id, { manager: ctx.manager });
+    return this.svc.getInterfacesForMigration(id, await this.readApplicationOpts(ctx));
   }
 }

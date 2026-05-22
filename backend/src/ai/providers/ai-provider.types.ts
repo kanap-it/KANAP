@@ -43,6 +43,11 @@ export type AiProviderMessage = {
   role: 'user' | 'assistant' | 'tool';
   content: string;
   /**
+   * Provider-private reasoning transcript that must be replayed for APIs that
+   * require it after tool calls. This must never be shown as assistant text.
+   */
+  reasoning_content?: string | null;
+  /**
    * Image attachments for multimodal models. Only honored by providers that advertise
    * multimodal support (currently Anthropic). Other providers ignore the field and send
    * text-only messages — this keeps the type flexible without breaking existing adapters.
@@ -91,6 +96,7 @@ export type AiProviderDebugTraceName =
 
 export type AiStreamEvent =
   | { type: 'text_delta'; text: string }
+  | { type: 'reasoning_delta'; text: string }
   | { type: 'tool_call_start'; id: string; name: string }
   | { type: 'tool_call_delta'; id: string; arguments: string }
   | { type: 'tool_call_end'; id: string }

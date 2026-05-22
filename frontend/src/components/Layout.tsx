@@ -50,10 +50,12 @@ import SubscriptionBanner from './SubscriptionBanner';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../i18n/useLocale';
+import { useBusinessContributorApplicationVisibility } from '../hooks/useBusinessContributorApplicationVisibility';
 
 const drawerWidth = 220;
 
-type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string };
+type NavLevel = 'reader' | 'contributor' | 'member' | 'manager' | 'admin';
+type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string; level?: NavLevel };
 type NavDivider = { divider: string };
 type NavEntry = NavItem | NavDivider;
 type WorkspaceKey = 'ops' | 'it' | 'master-data' | 'portfolio' | 'ai' | 'knowledge' | 'admin';
@@ -72,9 +74,11 @@ function isNavItem(entry: NavEntry): entry is NavItem {
   return 'to' in entry;
 }
 
-// Helper to extract resource strings from a nav array (filtering out dividers)
-const getNavResources = (entries: NavEntry[]): string[] =>
-  [...new Set(entries.filter(isNavItem).map(i => i.resource).filter(Boolean) as string[])];
+const getNavRequirements = (entries: NavEntry[]): Array<{ resource: string; level: NavLevel }> =>
+  entries
+    .filter(isNavItem)
+    .filter((item): item is NavItem & { resource: string } => !!item.resource)
+    .map((item) => ({ resource: item.resource, level: item.level ?? 'reader' }));
 
 export default function Layout() {
   const location = useLocation();
@@ -84,9 +88,14 @@ export default function Layout() {
   const { config } = useFeatures();
   const { mode, resolvedMode, setMode } = useThemeMode();
   const aiCapabilities = useAiCapabilities();
+  const applicationVisibility = useBusinessContributorApplicationVisibility();
   const { t } = useTranslation(['nav', 'settings']);
   const locale = useLocale();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
+  const {
+    hasScopedApplicationReaderAccess,
+    shouldHideApplications,
+  } = applicationVisibility;
 
   const operations: NavEntry[] = [
     { to: '/ops', label: t('nav:sidebar.ops.overview'), icon: <DashboardIcon /> },
@@ -127,7 +136,15 @@ export default function Layout() {
     { to: '/it/interface-map', label: t('nav:sidebar.it.interfaceMap'), icon: <AccountTreeIcon />, resource: 'applications' },
     { divider: '' },
     { to: '/it/settings', label: t('nav:sidebar.it.settings'), icon: <SettingsIcon />, resource: 'settings' },
-  ];
+  ].filter((entry) => (
+    !hasScopedApplicationReaderAccess
+    || !isNavItem(entry)
+    || (
+      entry.to !== '/it/interfaces'
+      && entry.to !== '/it/interface-map'
+      && (!shouldHideApplications || entry.to !== '/it/applications')
+    )
+  ));
 
   const portfolioNav: NavEntry[] = [
     { to: '/portfolio/tasks', label: t('nav:sidebar.portfolio.tasks'), icon: <AssignmentIcon />, resource: 'tasks' },
@@ -142,14 +159,14 @@ export default function Layout() {
   const knowledgeNav: NavEntry[] = [];
 
   const tenantAdminNav: NavEntry[] = [
-    { to: '/admin/users', label: t('nav:sidebar.admin.users'), icon: <PeopleIcon />, resource: 'users' },
-    { to: '/admin/roles', label: t('nav:sidebar.admin.roles'), icon: <SecurityIcon />, resource: 'users' },
-    { to: '/admin/audit-logs', label: t('nav:sidebar.admin.auditLog'), icon: <HistoryIcon />, resource: 'users' },
+    { to: '/admin/users', label: t('nav:sidebar.admin.users'), icon: <PeopleIcon />, resource: 'users', level: 'admin' },
+    { to: '/admin/roles', label: t('nav:sidebar.admin.roles'), icon: <SecurityIcon />, resource: 'users', level: 'admin' },
+    { to: '/admin/audit-logs', label: t('nav:sidebar.admin.auditLog'), icon: <HistoryIcon />, resource: 'users', level: 'admin' },
     { to: '/admin/billing', label: t('nav:sidebar.admin.billing'), icon: <CreditCardIcon />, resource: 'billing' },
-    { to: '/admin/auth', label: t('nav:sidebar.admin.authentication'), icon: <AdminPanelSettingsIcon />, resource: 'users' },
-    { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users' },
-    { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings' },
-    { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings' },
+    { to: '/admin/auth', label: t('nav:sidebar.admin.authentication'), icon: <AdminPanelSettingsIcon />, resource: 'users', level: 'admin' },
+    { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users', level: 'admin' },
+    { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings', level: 'admin' },
+    { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings', level: 'admin' },
   ];
 
   const platformAdminNav: NavEntry[] = [
@@ -162,19 +179,6 @@ export default function Layout() {
     { to: '/admin/scheduled-tasks', label: t('nav:sidebar.platform.scheduledTasks'), icon: <ScheduleIcon /> },
   ];
 
-  // Helper to check if user has ANY permission for resources in a workspace
-  const getWorkspaceResources = (ws: string): string[] => {
-    switch (ws) {
-      case 'ops': return getNavResources(operations);
-      case 'master-data': return getNavResources(masterData);
-      case 'it': return getNavResources(itOperations);
-      case 'portfolio': return getNavResources(portfolioNav);
-      case 'ai': return ['ai_chat'];
-      case 'knowledge': return ['knowledge'];
-      case 'admin': return getNavResources(tenantAdminNav);
-      default: return [];
-    }
-  };
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
   const openMenu = (e: React.MouseEvent<HTMLElement>) => setMenuAnchor(e.currentTarget);
   const closeMenu = () => setMenuAnchor(null);
@@ -185,24 +189,34 @@ export default function Layout() {
       if (!config.features.aiChat) return false;
       return aiCapabilities.data?.surfaces.chat.available === true;
     }
+    if (ws === 'knowledge') {
+      return hasLevel('knowledge', 'reader');
+    }
     if (claims?.isGlobalAdmin || claims?.isPlatformAdmin) return true;
     if (ws === 'admin' && !isPlatformHost) {
-      const resources = getWorkspaceResources(ws).filter((resource) => {
-        if (resource === 'ai_settings') {
+      const requirements = getNavRequirements(tenantAdminNav).filter((entry) => {
+        if (entry.resource === 'ai_settings') {
           return aiCapabilities.data?.surfaces.settings.available === true;
         }
         return true;
       });
       if (!config.features.aiSettings) {
-        return resources
-          .filter((resource) => resource !== 'ai_settings')
-          .some((resource) => hasLevel(resource, 'reader'));
+        return requirements
+          .filter((entry) => entry.resource !== 'ai_settings')
+          .some((entry) => hasLevel(entry.resource, entry.level));
       }
-      return resources.some((resource) => hasLevel(resource, 'reader'));
+      return requirements.some((entry) => hasLevel(entry.resource, entry.level));
     }
-    const resources = getWorkspaceResources(ws);
-    return resources.some(r => hasLevel(r, 'reader'));
-  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data]);
+    const resources = getNavRequirements(
+      ws === 'ops' ? operations
+        : ws === 'master-data' ? masterData
+          : ws === 'it' ? itOperations
+            : ws === 'portfolio' ? portfolioNav
+              : ws === 'knowledge' ? knowledgeNav
+                : [],
+    );
+    return resources.some(r => hasLevel(r.resource, r.level));
+  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data, hasScopedApplicationReaderAccess, shouldHideApplications]);
 
   // Determine which workspaces are visible
   const visibleWorkspaces = React.useMemo(() => {
@@ -257,6 +271,13 @@ export default function Layout() {
     aiGatingNeeded &&
     (aiCapabilities.isLoading || (!aiCapabilities.data && aiCapabilities.isFetching))
   ) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+  if (applicationVisibility.isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
         <CircularProgress />
@@ -438,7 +459,7 @@ export default function Layout() {
               if (entry.to === '/admin/ai' || entry.to === '/admin/integrations') {
                 return aiCapabilities.data?.surfaces.settings.available === true;
               }
-              return !entry.resource || hasLevel(entry.resource, 'reader');
+              return !entry.resource || hasLevel(entry.resource, entry.level ?? 'reader');
             });
 
             return (

@@ -174,6 +174,89 @@ async function testCompletedNativeToolCallIsEmitted() {
   assert.equal(state.requests[0].parallel_tool_calls, false);
 }
 
+async function testReasoningContentDeltasAreEmittedButNotText() {
+  resetState([
+    {
+      choices: [{
+        delta: { reasoning_content: 'private reasoning' },
+        finish_reason: null,
+      }],
+    },
+    {
+      choices: [{ delta: { content: 'public answer' }, finish_reason: 'stop' }],
+    },
+  ]);
+
+  const events = await collectEvents(openaiCompatibleStream({
+    providerId: 'custom',
+    model: 'deepseek-v4-pro',
+    apiKey: 'test-key',
+    endpointUrl: 'https://api.deepseek.com',
+    systemPrompt: 'Use tools.',
+    messages: [{ role: 'user', content: 'Hello' }],
+    tools: [],
+    maxTokens: 128,
+  }));
+
+  assert.deepEqual(events, [
+    { type: 'reasoning_delta', text: 'private reasoning' },
+    { type: 'text_delta', text: 'public answer' },
+    { type: 'done', usage: undefined },
+  ]);
+}
+
+async function testAssistantReasoningContentIsPassedThroughWhenPresent() {
+  resetState([
+    {
+      choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
+    },
+  ]);
+
+  await collectEvents(openaiCompatibleStream({
+    providerId: 'custom',
+    model: 'deepseek-v4-pro',
+    apiKey: 'test-key',
+    endpointUrl: 'https://api.deepseek.com',
+    systemPrompt: 'Use tools.',
+    messages: [{
+      role: 'assistant',
+      content: '',
+      reasoning_content: 'previous reasoning',
+      tool_calls: [{ id: 'tc-1', name: 'search_all', arguments: '{"query":"crm"}' }],
+    }],
+    tools: [],
+    maxTokens: 128,
+  }));
+
+  assert.equal(state.requests[0].messages[1].reasoning_content, 'previous reasoning');
+}
+
+async function testAssistantReasoningContentIsNotSentToOtherEndpoints() {
+  resetState([
+    {
+      choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
+    },
+  ]);
+
+  await collectEvents(openaiCompatibleStream({
+    providerId: 'custom',
+    model: 'deepseek-v4-pro',
+    apiKey: 'test-key',
+    endpointUrl: 'https://openrouter.ai/api/v1',
+    systemPrompt: 'Use tools.',
+    messages: [{
+      role: 'assistant',
+      content: '',
+      reasoning_content: 'previous reasoning',
+      tool_calls: [{ id: 'tc-1', name: 'search_all', arguments: '{"query":"crm"}' }],
+    }],
+    tools: [],
+    maxTokens: 128,
+  }));
+
+  assert.equal(Object.prototype.hasOwnProperty.call(state.requests[0].messages[1], 'reasoning_content'), false);
+}
+
 async function testUnsupportedParallelToolCallsFallback() {
   resetState([
     {
@@ -329,6 +412,9 @@ async function run() {
   await testReasoningModelsPreferDeveloperRole();
   await testLengthFinishReasonWithPendingToolCallEmitsError();
   await testCompletedNativeToolCallIsEmitted();
+  await testReasoningContentDeltasAreEmittedButNotText();
+  await testAssistantReasoningContentIsPassedThroughWhenPresent();
+  await testAssistantReasoningContentIsNotSentToOtherEndpoints();
   await testUnsupportedParallelToolCallsFallback();
   await testXmlStyleToolCallCreateErrorIsRecovered();
   await testXmlStyleToolCallStreamErrorIsRecovered();

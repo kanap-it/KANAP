@@ -80,6 +80,7 @@ export const interfacesRegistry: AiEntityFilterRegistry = {
   },
   sortFields: {
     label: 'name',
+    interface_reference: 'interface_reference',
     interface_id: 'interface_id',
     name: 'name',
     lifecycle: 'lifecycle',

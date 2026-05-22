@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { ParticipationAccessScope } from '../../auth/business-contributor-scope';
 import { Application } from '../application.entity';
 import { ApplicationOwner } from '../application-owner.entity';
 import { ApplicationCompany } from '../application-company.entity';
@@ -22,6 +23,8 @@ import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 export interface ServiceOpts {
   manager?: EntityManager;
   tenantId?: string;
+  accessScope?: ParticipationAccessScope;
+  projectAccessScope?: ParticipationAccessScope;
 }
 
 /**
@@ -62,6 +65,10 @@ export class ApplicationsService {
 
   listWithServerAssignments(opts?: ServiceOpts) {
     return this.listService.listWithServerAssignments(opts);
+  }
+
+  assertVisible(id: string, opts?: ServiceOpts) {
+    return this.crudService.ensureApp(id, opts?.manager, opts?.accessScope).then(() => undefined);
   }
 
   // =========================================================================

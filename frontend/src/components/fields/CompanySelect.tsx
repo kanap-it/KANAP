@@ -33,9 +33,9 @@ export default function CompanySelect({
   textFieldSx?: SxProps<Theme>;
 }) {
   const { data: companies, isLoading } = useQuery({
-    queryKey: ['companies', 'active'],
+    queryKey: ['companies', 'lookup', 'active'],
     queryFn: async () => {
-      const res = await api.get<{ items: Company[] }>('/companies', { 
+      const res = await api.get<{ items: Company[] }>('/companies/lookup', {
         params: { limit: 1000 } 
       });
       return res.data.items;
@@ -50,10 +50,10 @@ export default function CompanySelect({
   // Ensure currently selected company is present even if not in list (disabled or off-page)
   const needSelectedFetch = !!value && !sorted.some((c) => c.id === value);
   const { data: selectedById, isLoading: isLoadingSelected } = useQuery({
-    queryKey: ['companies', 'by-id', value],
+    queryKey: ['companies', 'lookup', 'by-id', value],
     enabled: needSelectedFetch,
     queryFn: async () => {
-      const res = await api.get<Company>(`/companies/${value}`);
+      const res = await api.get<Company>(`/companies/lookup/${value}`);
       return res.data as unknown as Company;
     },
   });

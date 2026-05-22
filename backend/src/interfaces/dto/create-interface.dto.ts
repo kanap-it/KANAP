@@ -24,8 +24,8 @@ export const DataClassifications = ['public', 'internal', 'confidential', 'restr
  * Zod schema for creating an interface.
  */
 export const CreateInterfaceSchema = z.object({
-  /** Interface ID (human-readable identifier) */
-  interface_id: z.string().min(1, 'Interface ID is required'),
+  /** Optional external interface code */
+  interface_id: z.string().nullable().optional(),
 
   /** Interface name (required) */
   name: z.string().min(1, 'Name is required'),
