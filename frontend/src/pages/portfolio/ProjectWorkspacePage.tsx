@@ -45,6 +45,7 @@ import {
   fetchPortfolioRelationsCount,
   fetchProjectTasksCount,
 } from '../../utils/workspaceTabCounts';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'summary' | 'tasks' | 'timeline' | 'effort' | 'scoring' | 'relations' | 'knowledge';
 type LegacyPanelRoute = 'overview' | 'activity' | 'team';
@@ -102,6 +103,7 @@ const ProjectKnowledgeTab = React.lazy(() => import('./workspace/project/Project
 
 export default function ProjectWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -693,10 +695,10 @@ export default function ProjectWorkspacePage() {
     return buildInlineImageUrl(`/portfolio/projects/inline/${inlineImageTenantSlug}/${res.data.id}`);
   }, [id, inlineImageTenantSlug]);
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'summary') return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm(t('portfolio:workspace.project.confirmations.unsavedSwitchTabs'));
+      const proceed = await dialogs.confirm(t('portfolio:workspace.project.confirmations.unsavedSwitchTabs'));
       if (proceed) {
         void handleSave().then((ok) => {
           if (ok) navigate(`/portfolio/projects/${id}/${nextValue}?${searchParams.toString()}`);
@@ -784,7 +786,7 @@ export default function ProjectWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm(t('portfolio:workspace.project.confirmations.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('portfolio:workspace.project.confirmations.unsavedNavigate'));
       if (proceed) {
         const ok = await handleSave();
         if (!ok) return;
@@ -794,11 +796,11 @@ export default function ProjectWorkspacePage() {
     }
     const qs = listContextParams.toString();
     navigate(`/portfolio/projects/${targetId}/${routeTab}${qs ? `?${qs}` : ''}`);
-  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
+  }, [dialogs, handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, routeTab, t]);
 
   const closeWorkspace = React.useCallback(async () => {
     if (hasUnsavedChanges) {
-      const proceed = window.confirm(t('portfolio:workspace.project.confirmations.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('portfolio:workspace.project.confirmations.unsavedNavigate'));
       if (proceed) {
         const ok = await handleSave();
         if (!ok) return;
@@ -808,7 +810,7 @@ export default function ProjectWorkspacePage() {
     }
     const qs = listContextParams.toString();
     navigate(`/portfolio/projects${qs ? `?${qs}` : ''}`);
-  }, [handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, t]);
+  }, [dialogs, handleSave, handleReset, hasUnsavedChanges, listContextParams, navigate, t]);
 
   const statusLabel = form?.status ? getProjectStatusLabel(t, form.status) : '';
   const statusColor = (PROJECT_STATUS_COLORS[form?.status] || 'default') as 'default' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';

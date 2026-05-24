@@ -10,6 +10,7 @@ import { useCompanyNav } from '../../hooks/useCompanyNav';
 import CompanyOverviewEditor, { CompanyOverviewEditorHandle } from './editors/CompanyOverviewEditor';
 import CompanyCreateEditor, { CompanyCreateEditorHandle } from './editors/CompanyCreateEditor';
 import CompanyDetailsEditor, { CompanyDetailsEditorHandle } from './editors/CompanyDetailsEditor';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'overview' | 'details';
 
@@ -20,6 +21,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 export default function CompanyWorkspacePage() {
   const { t } = useTranslation(['master-data', 'common']);
+  const dialogs = useKanapDialogs();
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -97,10 +99,10 @@ export default function CompanyWorkspacePage() {
     setDirty(false);
   };
 
-  const handleYearChange = (nextYear: number) => {
+  const handleYearChange = async (nextYear: number) => {
     if (nextYear === currentYear) return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedSwitchYear'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedSwitchYear'));
       if (proceed) {
         void handleSave().then(() => applyYearParam(nextYear)).catch(() => {});
         return;
@@ -113,7 +115,7 @@ export default function CompanyWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -126,10 +128,10 @@ export default function CompanyWorkspacePage() {
   const handlePrev = () => { void confirmAndNavigate(prevId); };
   const handleNext = () => { void confirmAndNavigate(nextId); };
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedSwitchTab'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/master-data/companies/${id}/${nextValue}?${searchParams.toString()}`));
         return;

@@ -5,7 +5,6 @@ import {
   Button,
   Checkbox,
   CircularProgress,
-  Paper,
   Stack,
   Table,
   TableBody,
@@ -23,6 +22,8 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import PageHeader from '../../components/PageHeader';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { PropertyRow } from '../../components/design';
+import { dialogBorderedFieldSx } from '../../theme/formSx';
 
 type DocumentTypeItem = {
   id: string;
@@ -117,23 +118,33 @@ export default function KnowledgeTypesPage() {
     <>
       <PageHeader title={t('typesPage.title')} />
 
-      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Box sx={{ p: 2, mb: 2, border: (theme) => `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px' }}>
         <Stack spacing={2}>
           <Typography variant="subtitle2">{t('typesPage.create.title')}</Typography>
-          <TextField
-            size="small"
-            label={t('typesPage.fields.name')}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            sx={{ maxWidth: 360 }}
-          />
-          <TextField
-            multiline
-            minRows={4}
-            label={t('typesPage.fields.templateContent')}
-            value={newTemplate}
-            onChange={(e) => setNewTemplate(e.target.value)}
-          />
+          <PropertyRow label={t('typesPage.fields.name')} required sx={{ maxWidth: 360 }}>
+            <TextField
+              variant="standard"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              fullWidth
+              placeholder={t('typesPage.fields.name')}
+              InputProps={{ disableUnderline: true }}
+              sx={dialogBorderedFieldSx}
+            />
+          </PropertyRow>
+          <PropertyRow label={t('typesPage.fields.templateContent')}>
+            <TextField
+              multiline
+              minRows={4}
+              variant="standard"
+              value={newTemplate}
+              onChange={(e) => setNewTemplate(e.target.value)}
+              fullWidth
+              placeholder={t('typesPage.fields.templateContent')}
+              InputProps={{ disableUnderline: true }}
+              sx={dialogBorderedFieldSx}
+            />
+          </PropertyRow>
           <Box>
             <Button
               variant="contained"
@@ -145,9 +156,9 @@ export default function KnowledgeTypesPage() {
             </Button>
           </Box>
         </Stack>
-      </Paper>
+      </Box>
 
-      <Paper variant="outlined" sx={{ p: 2 }}>
+      <Box sx={{ p: 2, border: (theme) => `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px' }}>
         {isLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress size={28} />
@@ -253,7 +264,7 @@ export default function KnowledgeTypesPage() {
             </TableBody>
           </Table>
         )}
-      </Paper>
+      </Box>
     </>
   );
 }

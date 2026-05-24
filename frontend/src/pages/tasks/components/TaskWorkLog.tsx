@@ -22,6 +22,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import { useLocale } from '../../../i18n/useLocale';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import TaskLogTimeDialog, { TaskTimeEntryData } from './TaskLogTimeDialog';
+import { useKanapDialogs } from '../../../components/design';
 
 type TimeEntryCategory = 'it' | 'business';
 
@@ -50,6 +51,7 @@ const TIME_LOGGING_EXCLUDED_TYPES = ['contract', 'spend_item', 'capex_item'];
 
 export default function TaskWorkLog({ taskId, projectId, readOnly = false, relatedObjectType }: TaskWorkLogProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
@@ -88,7 +90,11 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
   });
 
   const handleDelete = async (entryId: string) => {
-    if (!window.confirm(t('portfolio:dialogs.logTime.confirmDelete'))) return;
+    if (!(await dialogs.confirm({
+      message: t('portfolio:dialogs.logTime.confirmDelete'),
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
     setError(null);
     try {
       const endpoint = projectId

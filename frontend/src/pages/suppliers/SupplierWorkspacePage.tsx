@@ -10,6 +10,7 @@ import { useSupplierNav } from '../../hooks/useSupplierNav';
 import SupplierOverviewEditor, { SupplierOverviewEditorHandle } from './editors/SupplierOverviewEditor';
 import SupplierCreateEditor, { SupplierCreateEditorHandle } from './editors/SupplierCreateEditor';
 import SupplierContactsPanel from './editors/SupplierContactsPanel';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'overview' | 'contacts';
 
@@ -21,6 +22,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 export default function SupplierWorkspacePage() {
   const navigate = useNavigate();
   const { t } = useTranslation(['master-data', 'common']);
+  const dialogs = useKanapDialogs();
   const params = useParams();
   const [searchParams] = useSearchParams();
   const { hasLevel } = useAuth();
@@ -81,7 +83,7 @@ export default function SupplierWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -94,10 +96,10 @@ export default function SupplierWorkspacePage() {
   const handlePrev = () => { void confirmAndNavigate(prevId); };
   const handleNext = () => { void confirmAndNavigate(nextId); };
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedSwitchTab'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/master-data/suppliers/${id}/${nextValue}?${searchParams.toString()}`));
         return;

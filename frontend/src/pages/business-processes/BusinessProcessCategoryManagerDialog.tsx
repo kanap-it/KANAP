@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import api from '../../api';
+import { useKanapDialogs } from '../../components/design';
 
 type BusinessProcessCategory = {
   id: string;
@@ -33,6 +34,7 @@ type Props = {
 export default function BusinessProcessCategoryManagerDialog({ open, onClose, onUpdated }: Props) {
   const [categories, setCategories] = useState<BusinessProcessCategory[]>([]);
   const { t } = useTranslation(['master-data', 'common']);
+  const dialogs = useKanapDialogs();
   const [originalCategories, setOriginalCategories] = useState<BusinessProcessCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,7 +99,11 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t('businessProcesses.categoryManager.deleteConfirm'))) return;
+    if (!(await dialogs.confirm({
+      message: t('businessProcesses.categoryManager.deleteConfirm'),
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
     setError(null);
     try {
       // Mark as deleted locally; deletion will be applied on Save
@@ -109,7 +115,10 @@ export default function BusinessProcessCategoryManagerDialog({ open, onClose, on
   };
 
   const handleCreate = async () => {
-    const name = window.prompt('New category name');
+    const name = await dialogs.prompt({
+      title: 'New category name',
+      required: true,
+    });
     const trimmed = (name ?? '').trim();
     if (!trimmed) return;
     setError(null);

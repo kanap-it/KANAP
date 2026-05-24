@@ -6,6 +6,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import ItemContactsSection from '../../../components/contacts/ItemContactsSection';
+import { useKanapDialogs } from '../../../components/design';
 
 export type RelationsPanelHandle = {
   isDirty: () => boolean;
@@ -18,6 +19,7 @@ type Props = { id: string; onDirtyChange?: (dirty: boolean) => void };
 export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({ id, onDirtyChange }, ref) {
   const { hasLevel } = useAuth();
   const { t } = useTranslation(['ops', 'common']);
+  const dialogs = useKanapDialogs();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -405,7 +407,11 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
             const canDelete = hasLevel('opex','manager') && !readOnly;
             const onDelete = async () => {
               if (!canDelete) return;
-              const ok = window.confirm(t('confirmations.deleteAttachment', { name: a.original_filename }));
+              const ok = await dialogs.confirm({
+                message: t('confirmations.deleteAttachment', { name: a.original_filename }),
+                confirmLabel: t('common:buttons.delete'),
+                intent: 'danger',
+              });
               if (!ok) return;
               try { await api.patch(`/spend-items/attachments/${a.id}/delete`, {}); await loadAttachments(); } catch {}
             };

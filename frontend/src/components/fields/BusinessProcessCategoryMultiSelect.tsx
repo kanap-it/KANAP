@@ -3,6 +3,7 @@ import { Autocomplete, Chip, CircularProgress, Stack, TextField, Button } from '
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { useKanapDialogs } from '../design';
 
 type BusinessProcessCategory = {
   id: string;
@@ -31,6 +32,7 @@ export default function BusinessProcessCategoryMultiSelect({
   onManageCategoriesClick,
 }: Props) {
   const { t } = useTranslation('common');
+  const dialogs = useKanapDialogs();
   const label = labelProp ?? t('selects.categories');
   const queryClient = useQueryClient();
 
@@ -58,7 +60,10 @@ export default function BusinessProcessCategoryMultiSelect({
   }, [options, value]);
 
   const handleCreateCategory = async () => {
-    const name = window.prompt('New category name');
+    const name = await dialogs.prompt({
+      title: 'New category name',
+      required: true,
+    });
     const trimmed = (name ?? '').trim();
     if (!trimmed) return;
     try {

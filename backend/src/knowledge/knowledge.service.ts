@@ -81,6 +81,10 @@ export type EntityDocumentListResponse = {
   total: number;
   items: EntityDocumentListItem[];
 };
+export type VersionSnapshotResult = {
+  version: DocumentVersion;
+  created: boolean;
+};
 export type EntityKnowledgeContextGroupKey =
   | 'direct'
   | 'resulting_projects'
@@ -1341,10 +1345,33 @@ export class KnowledgeService {
     changeNote: string | null,
     userId: string | null,
     manager: EntityManager,
-  ): Promise<void> {
+  ): Promise<VersionSnapshotResult> {
     const versionsRepo = manager.getRepository(DocumentVersion);
     const docsRepo = manager.getRepository(Document);
-    const nextVersion = Number(document.current_version_number || 0) + 1;
+    const latestVersion = await versionsRepo
+      .createQueryBuilder('v')
+      .where('v.document_id = :documentId', { documentId: document.id })
+      .orderBy('v.version_number', 'DESC')
+      .getOne();
+
+    if (
+      latestVersion
+      && latestVersion.title === document.title
+      && (latestVersion.summary || null) === (document.summary || null)
+      && latestVersion.content_markdown === document.content_markdown
+    ) {
+      const latestVersionNumber = Number(latestVersion.version_number || 0);
+      if (Number(document.current_version_number || 0) !== latestVersionNumber) {
+        document.current_version_number = latestVersionNumber;
+        await docsRepo.save(document);
+      }
+      return { version: latestVersion, created: false };
+    }
+
+    const nextVersion = Math.max(
+      Number(document.current_version_number || 0),
+      Number(latestVersion?.version_number || 0),
+    ) + 1;
 
     const version = versionsRepo.create({
       tenant_id: document.tenant_id,
@@ -1357,10 +1384,20 @@ export class KnowledgeService {
       change_note: changeNote,
       created_by: userId,
     });
-    await versionsRepo.save(version);
+    const savedVersion = await versionsRepo.save(version);
 
     document.current_version_number = nextVersion;
     await docsRepo.save(document);
+    return { version: savedVersion, created: true };
+  }
+
+  async ensureCurrentVersionSnapshot(
+    document: Document,
+    changeNote: string | null,
+    userId: string | null,
+    manager: EntityManager,
+  ): Promise<VersionSnapshotResult> {
+    return this.ensureVersionSnapshot(document, changeNote, userId, manager);
   }
 
   private parseDocReferences(markdown: string): number[] {
@@ -1808,40 +1845,6 @@ export class KnowledgeService {
     }
 
     return lock;
-  }
-
-  private async collectDescendantFolderIds(
-    folderId: string,
-    manager: EntityManager,
-    libraryId?: string,
-  ): Promise<string[]> {
-    const all = await manager.getRepository(DocumentFolder).find({
-      where: libraryId ? ({ library_id: libraryId } as any) : undefined,
-    });
-    const childrenByParent = new Map<string, string[]>();
-    for (const folder of all) {
-      if (!folder.parent_id) continue;
-      const current = childrenByParent.get(folder.parent_id) || [];
-      current.push(folder.id);
-      childrenByParent.set(folder.parent_id, current);
-    }
-
-    const ids: string[] = [];
-    const queue = [folderId];
-    const seen = new Set<string>();
-    while (queue.length) {
-      const parentId = queue.pop()!;
-      if (seen.has(parentId)) continue;
-      seen.add(parentId);
-      ids.push(parentId);
-      const children = childrenByParent.get(parentId) || [];
-      for (const childId of children) {
-        if (!seen.has(childId)) {
-          queue.push(childId);
-        }
-      }
-    }
-    return ids;
   }
 
   private slugifyLibraryName(name: string): string {
@@ -2497,14 +2500,12 @@ export class KnowledgeService {
       qb.andWhere('d.library_id = :libraryId', { libraryId: String(libraryId) });
     }
 
+    const rootFolder = ['1', 'true'].includes(String(query?.root_folder || '').toLowerCase());
     const folderId = query?.folder_id || (filters as any)?.folder_id?.filter;
-    if (folderId) {
-      const folderIds = await this.collectDescendantFolderIds(
-        String(folderId),
-        manager,
-        libraryId ? String(libraryId) : undefined,
-      );
-      qb.andWhere('d.folder_id = ANY(:folderIds)', { folderIds });
+    if (rootFolder) {
+      qb.andWhere('d.folder_id IS NULL');
+    } else if (folderId) {
+      qb.andWhere('d.folder_id = :folderId', { folderId: String(folderId) });
     }
 
     const typeId = query?.document_type_id || (filters as any)?.document_type_id?.filter;
@@ -2740,6 +2741,14 @@ export class KnowledgeService {
       qb.andWhere('d.library_id = :libraryId', { libraryId: String(libraryId) });
     }
 
+    const rootFolder = ['1', 'true'].includes(String(query?.root_folder || '').toLowerCase());
+    const folderId = query?.folder_id || (filters as any)?.folder_id?.filter;
+    if (rootFolder) {
+      qb.andWhere('d.folder_id IS NULL');
+    } else if (folderId) {
+      qb.andWhere('d.folder_id = :folderId', { folderId: String(folderId) });
+    }
+
     applyDocumentLinkedEntityFilters(qb, filters, nextLinkedEntityParam);
 
     const total = await qb.clone().getCount();
@@ -2784,6 +2793,14 @@ export class KnowledgeService {
     if (libraryId) {
       scopeConditions.push(`d.library_id = $${scopeParams.length + 1}`);
       scopeParams.push(String(libraryId));
+    }
+    const rootFolder = ['1', 'true'].includes(String(query?.root_folder || '').toLowerCase());
+    const folderId = query?.folder_id;
+    if (rootFolder) {
+      scopeConditions.push('d.folder_id IS NULL');
+    } else if (folderId) {
+      scopeConditions.push(`d.folder_id = $${scopeParams.length + 1}`);
+      scopeParams.push(String(folderId));
     }
     if (accessibleLibraries) {
       scopeConditions.push(`d.library_id = ANY($${scopeParams.length + 1}::uuid[])`);
@@ -4601,6 +4618,46 @@ export class KnowledgeService {
       .where('v.document_id = :documentId', { documentId })
       .orderBy('v.version_number', 'DESC')
       .getMany();
+  }
+
+  async createVersion(
+    idOrRef: string,
+    body: { change_note?: string | null } | null | undefined,
+    userId: string,
+    lockToken: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const documentId = await this.resolveDocumentId(idOrRef, manager);
+    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertWorkflowAllowsEditing(documentId, manager);
+    await this.ensureValidLock(documentId, userId, lockToken, manager);
+
+    const document = await manager.getRepository(Document).findOne({ where: { id: documentId } as any });
+    if (!document) throw new NotFoundException('Document not found');
+
+    const result = await this.ensureVersionSnapshot(
+      document,
+      body?.change_note == null ? null : String(body.change_note),
+      userId,
+      manager,
+    );
+
+    if (result.created) {
+      await this.createSystemActivity(
+        documentId,
+        userId,
+        'change',
+        `Version ${result.version.version_number} created`,
+        manager,
+      );
+    }
+
+    return {
+      created: result.created,
+      version: result.version,
+      document: await this.get(documentId, { manager, userId }),
+    };
   }
 
   async getVersion(idOrRef: string, versionNumber: number, opts?: { manager?: EntityManager; userId?: string | null }) {

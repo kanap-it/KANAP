@@ -14,6 +14,7 @@ import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../components/design';
 
 interface SkillProficiency {
   skill_id: string;
@@ -48,6 +49,7 @@ const PROFICIENCY_MARKS = [
 
 export default function TeamMemberWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -180,7 +182,11 @@ export default function TeamMemberWorkspacePage() {
   // Delete handler
   const handleDelete = useCallback(async () => {
     if (!id) return;
-    if (!confirm(t('portfolio:workspace.teamMember.confirmations.remove'))) return;
+    if (!(await dialogs.confirm({
+      message: t('portfolio:workspace.teamMember.confirmations.remove'),
+      confirmLabel: t('common:buttons.remove'),
+      intent: 'danger',
+    }))) return;
 
     try {
       await api.delete(`/portfolio/team-members/${id}`);
@@ -189,7 +195,7 @@ export default function TeamMemberWorkspacePage() {
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('portfolio:workspace.teamMember.messages.deleteFailed')));
     }
-  }, [id, navigate, queryClient, t]);
+  }, [dialogs, id, navigate, queryClient, t]);
 
   // Group selected skills by category
   const selectedSkillsByCategory = useMemo(() => {

@@ -25,11 +25,13 @@ import {
   AllocationCopyResponse,
   copyAllocations,
 } from '../../services/budgetOperations';
+import { useKanapDialogs } from '../../components/design';
 
 
 
 export default function CopyAllocationsPage() {
   const { t } = useTranslation(['ops']);
+  const dialogs = useKanapDialogs();
 
   const formatActionLabel = (action: AllocationCopyResult['action']) => {
     const key = `operations.copyAllocations.actionLabels.${action}`;
@@ -142,7 +144,7 @@ export default function CopyAllocationsPage() {
       setSummary(response.summary);
     } catch (error) {
       console.error('Dry run failed', error);
-      alert(t('operations.copyAllocations.dryRunFailed'));
+      await dialogs.alert(t('operations.copyAllocations.dryRunFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -158,13 +160,13 @@ export default function CopyAllocationsPage() {
     setIsProcessing(true);
     try {
       const response = await copyAllocations(payload);
-      alert(t('operations.copyAllocations.copyCompleted', { processed: response.summary.processed, skipped: response.summary.skipped, errors: response.summary.errors }));
+      await dialogs.alert(t('operations.copyAllocations.copyCompleted', { processed: response.summary.processed, skipped: response.summary.skipped, errors: response.summary.errors }));
       await queryClient.invalidateQueries({ queryKey: ['spend-items-summary'] });
       setPreviewData([]);
       setSummary(null);
     } catch (error) {
       console.error('Copy failed', error);
-      alert(t('operations.copyAllocations.copyFailed'));
+      await dialogs.alert(t('operations.copyAllocations.copyFailed'));
     } finally {
       setIsProcessing(false);
     }

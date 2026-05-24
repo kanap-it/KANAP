@@ -49,6 +49,10 @@ async function testSelectsExpectedProfilesForObservedWorkflows() {
     ['Show me my overdue tasks', 'read_query'],
     ['Show current tasks', 'read_query'],
     ['How many tasks are in progress by status?', 'read_query'],
+    ['quel est le dernier document modifié ?', 'knowledge'],
+    ['et tu es capable de me dire ce qui a été modifié ?', 'entity_inspection'],
+    ["sur la base de ce que tu connais de KANAP, quelle serait LA fonctionnalité à ajouter ou améliorer ?", 'read_query'],
+    ['Quelles applications ont été modifiées récemment ?', 'read_query'],
     ['Summarize T-48', 'entity_inspection'],
     ['Create a task to invent sliced bread.', 'write_task'],
     ['Change T-48 status to done.', 'write_task'],
@@ -155,6 +159,21 @@ async function testExplicitNewIntentDoesNotInheritOpenWriteRequestProfile() {
   assert.ok(!profile.toolNames.includes('add_task_comment'));
 }
 
+async function testReadOnlyModifiedDocumentFollowUpKeepsInspectionTools() {
+  const profile = selectAiContextProfileForTurn([
+    { role: 'user', content: 'quel est le dernier document modifié ?' },
+    {
+      role: 'assistant',
+      content: 'Le dernier document modifié est DOC-161 — "INT-5 - O365 to SAP - Specification".',
+    },
+    { role: 'user', content: 'et tu es capable de me dire ce qui a été modifié ?' },
+  ]);
+
+  assert.equal(profile.name, 'entity_inspection');
+  assert.ok(profile.toolNames.includes('get_document'));
+  assert.ok(!profile.toolNames.includes('update_document_content'));
+}
+
 async function run() {
   await testSelectsMinimalProfileForDirectGreeting();
   await testSelectsKnowledgeProfileForDocumentSearch();
@@ -167,6 +186,7 @@ async function run() {
   await testPreviewCorrectionInheritsWriteRequestProfile();
   await testTargetSetCorrectionInheritsWriteRequestProfile();
   await testExplicitNewIntentDoesNotInheritOpenWriteRequestProfile();
+  await testReadOnlyModifiedDocumentFollowUpKeepsInspectionTools();
 }
 
 void run();

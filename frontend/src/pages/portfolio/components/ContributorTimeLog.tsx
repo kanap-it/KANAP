@@ -21,6 +21,7 @@ import { useLocale } from '../../../i18n/useLocale';
 import LogTimeDialog, { TimeEntryData } from './LogTimeDialog';
 import TaskLogTimeDialog, { TaskTimeEntryData } from '../../tasks/components/TaskLogTimeDialog';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../../components/design';
 
 type TimeSourceType = 'task' | 'project';
 type TimeEntryCategory = 'it' | 'business';
@@ -63,6 +64,7 @@ const formatHours = (value: number) => {
 
 export default function ContributorTimeLog({ contributorId }: ContributorTimeLogProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
@@ -122,7 +124,11 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
   ]);
 
   const handleDelete = React.useCallback(async (entry: ContributorTimeEntry) => {
-    if (!window.confirm(t('portfolio:dialogs.logTime.confirmDelete'))) return;
+    if (!(await dialogs.confirm({
+      message: t('portfolio:dialogs.logTime.confirmDelete'),
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
 
     let endpoint: string | null = null;
     if (entry.source_type === 'task' && entry.task_id) {
@@ -150,7 +156,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
         t('portfolio:workspace.task.workLog.messages.deleteFailed'),
       ));
     }
-  }, [invalidateAfterMutation, refetch, t]);
+  }, [dialogs, invalidateAfterMutation, refetch, t]);
 
   const openTaskEdit = (entry: ContributorTimeEntry) => {
     if (!entry.task_id) {

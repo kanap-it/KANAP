@@ -13,6 +13,7 @@ import '@svar-ui/react-gantt/style.css';
 import api from '../../../api';
 import LightModeIsland from '../../../components/LightModeIsland';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../../components/design';
 
 interface ProjectPhase {
   id: string;
@@ -39,6 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableView }: Props) {
   const { t } = useTranslation(['portfolio', 'errors']);
+  const dialogs = useKanapDialogs();
   const [viewMode, setViewMode] = useState<'table' | 'gantt'>('table');
 
   // Transform phases to Gantt format (only phases with dates)
@@ -77,7 +79,7 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
 
     // Validate end >= start
     if (task.end < task.start) {
-      alert(t('workspace.project.timeline.messages.invalidDateRange'));
+      await dialogs.alert(t('workspace.project.timeline.messages.invalidDateRange'));
       onUpdate();
       return;
     }
@@ -88,10 +90,13 @@ export function ProjectTimeline({ projectId, phases, onUpdate, canManage, tableV
       });
       onUpdate();
     } catch (e: any) {
-      alert(getApiErrorMessage(e, t, t('workspace.project.timeline.messages.updatePhaseFailed')));
+      await dialogs.alert({
+        message: getApiErrorMessage(e, t, t('workspace.project.timeline.messages.updatePhaseFailed')),
+        intent: 'danger',
+      });
       onUpdate();
     }
-  }, [projectId, onUpdate, canManage, t]);
+  }, [canManage, dialogs, onUpdate, projectId, t]);
 
   // Custom task template for status colors
   const taskTemplate = useCallback(({ data }: { data: any }) => {

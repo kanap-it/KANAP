@@ -19,6 +19,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
 import ContributorTimeLog from './components/ContributorTimeLog';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../components/design';
 
 interface SkillProficiency {
   skill_id: string;
@@ -105,6 +106,7 @@ const isContributorTab = (value: string | undefined): value is ContributorTabKey
 
 export default function ContributorWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const location = useLocation();
   const { id: idParam, tab } = useParams<{ id?: string; tab?: string }>();
@@ -387,7 +389,11 @@ export default function ContributorWorkspacePage() {
   // Delete handler
   const handleDelete = useCallback(async () => {
     if (!contributorId || isSelfRoute) return;
-    if (!confirm(t('portfolio:workspace.contributor.confirmations.remove'))) return;
+    if (!(await dialogs.confirm({
+      message: t('portfolio:workspace.contributor.confirmations.remove'),
+      confirmLabel: t('common:buttons.remove'),
+      intent: 'danger',
+    }))) return;
 
     try {
       await api.delete(`/portfolio/team-members/${contributorId}`);
@@ -396,7 +402,7 @@ export default function ContributorWorkspacePage() {
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('portfolio:workspace.contributor.messages.deleteFailed')));
     }
-  }, [contributorId, isSelfRoute, navigate, queryClient, t]);
+  }, [contributorId, dialogs, isSelfRoute, navigate, queryClient, t]);
 
   // Group selected skills by category
   const selectedSkillsByCategory = useMemo(() => {

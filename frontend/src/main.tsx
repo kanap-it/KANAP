@@ -10,6 +10,7 @@ import { SessionManager } from './auth/SessionManager'
 import { WithQueryClient } from './lib/queryClient'
 import { ThemeModeProvider, createAppTheme, useThemeMode } from './config/ThemeContext'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
+import { KanapDialogProvider } from './components/design'
 import './i18n'
 import { useLocale } from './i18n/useLocale'
 import '@fontsource-variable/inter'
@@ -45,7 +46,9 @@ function AppShell() {
         <WithQueryClient>
           <AuthProvider>
             <SessionManager>
-              <App />
+              <KanapDialogProvider>
+                <App />
+              </KanapDialogProvider>
             </SessionManager>
           </AuthProvider>
         </WithQueryClient>

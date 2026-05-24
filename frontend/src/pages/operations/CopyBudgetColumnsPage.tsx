@@ -23,6 +23,7 @@ import { copyBudgetColumn, BudgetColumn, BudgetOperationResult } from '../../ser
 import { useFreezeState } from '../../hooks/useFreezeState';
 import { FreezeColumn } from '../../services/freeze';
 import { useLocale } from '../../i18n/useLocale';
+import { useKanapDialogs } from '../../components/design';
 
 type ProcessedRow = {
   id: string;
@@ -50,6 +51,7 @@ const budgetToFreezeColumn: Record<BudgetColumn, FreezeColumn> = {
 
 export default function CopyBudgetColumnsPage() {
   const { t } = useTranslation(['ops']);
+  const dialogs = useKanapDialogs();
 
   const BUDGET_COLUMNS: { value: BudgetColumn; label: string }[] = [
     { value: 'budget', label: t('operations.budgetColumns.budget') },
@@ -163,7 +165,7 @@ export default function CopyBudgetColumnsPage() {
       setShowPreview(true);
     } catch (error) {
       console.error('Dry run failed:', error);
-      alert(t('operations.copyBudgetColumns.dryRunFailed'));
+      await dialogs.alert(t('operations.copyBudgetColumns.dryRunFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -182,10 +184,11 @@ export default function CopyBudgetColumnsPage() {
         dryRun: false,
       });
 
-      alert(`Copy operation completed successfully!
-Processed: ${result.summary.processed} items
-Skipped: ${result.summary.skipped} items
-Errors: ${result.summary.errors} items`);
+      await dialogs.alert(t('operations.copyBudgetColumns.copySuccess', {
+        processed: result.summary.processed,
+        skipped: result.summary.skipped,
+        errors: result.summary.errors,
+      }));
 
       // Invalidate and refetch the summary data to show updated values
       await queryClient.invalidateQueries({ queryKey: ['spend-items-summary'] });
@@ -195,7 +198,7 @@ Errors: ${result.summary.errors} items`);
       setShowPreview(false);
     } catch (error) {
       console.error('Copy data failed:', error);
-      alert(t('operations.copyBudgetColumns.copyFailed'));
+      await dialogs.alert(t('operations.copyBudgetColumns.copyFailed'));
     } finally {
       setIsProcessing(false);
     }

@@ -18,7 +18,6 @@
   },
   "confirmations": {
     "deleteLibrary": "¿Eliminar esta biblioteca? Los documentos y carpetas se moverán a la biblioteca predeterminada.",
-    "discardChanges": "¿Descartar los cambios no guardados y volver a la última versión guardada?",
     "resetLibraryAccess": "¿Volver a dejar esta biblioteca abierta a todos y borrar las listas personalizadas de lectores y editores?"
   },
   "dialogs": {
@@ -92,7 +91,6 @@
       "newTopLevelFolder": "Nueva carpeta de nivel superior",
       "rename": "Renombrar"
     },
-    "allDocs": "Todos los documentos",
     "aria": {
       "folderActions": "Acciones de carpeta para {{name}}",
       "rootActions": "Acciones de carpeta"
@@ -113,6 +111,7 @@
       "moveFailed": "No se pudo mover la carpeta.",
       "moveInProgress": "Movimiento de carpeta en curso"
     },
+    "libraryRoot": "Raíz",
     "title": "Carpetas",
     "values": {
       "root": "Raíz"
@@ -211,6 +210,12 @@
         "authors": "Autores",
         "owner": "Responsable",
         "reviewers": "Revisores"
+      },
+      "placeholders": {
+        "approvers": "Añadir aprobadores",
+        "authors": "Añadir autores",
+        "owner": "Seleccionar responsable",
+        "reviewers": "Añadir revisores"
       },
       "messages": {
         "saveFirst": "Guarde primero para gestionar responsables, revisores y aprobadores."
@@ -389,12 +394,15 @@
   "workspace": {
     "actions": {
       "cancelReviewAndEdit": "Cancelar revisión y editar",
-      "discard": "Descartar",
+      "createVersion": "Crear versión",
+      "done": "Listo",
       "edit": "Editar",
       "hideSidebar": "Ocultar panel lateral",
       "requestReview": "Solicitar revisión",
       "retryLock": "Reintentar bloqueo",
-      "showSidebar": "Mostrar panel lateral"
+      "showSidebar": "Mostrar panel lateral",
+      "versionAlreadyCurrent": "Ya está actualizado",
+      "versionCreated": "Versión creada"
     },
     "breadcrumbs": {
       "knowledge": "Base de conocimiento",
@@ -409,6 +417,7 @@
       "approveWorkflowFailed": "Error al aprobar el flujo de trabajo.",
       "cancelReviewFailed": "Error al cancelar la revisión.",
       "clickToCopyReference": "Haga clic para copiar la referencia",
+      "createVersionFailed": "No se pudo crear la versión.",
       "importAvailableAfterCreate": "La importación de documentos está disponible después de crear el documento.",
       "importFailed": "Error en la importación del documento.",
       "inReview": "Este documento está en revisión. La edición está desactivada hasta que el flujo de trabajo sea aprobado, se soliciten cambios o se cancele la revisión.",

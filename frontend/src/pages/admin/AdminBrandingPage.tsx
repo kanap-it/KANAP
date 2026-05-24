@@ -24,6 +24,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useTenant } from '../../tenant/TenantContext';
 import ForbiddenPage from '../ForbiddenPage';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../components/design';
 
 type BrandingSettings = {
   has_logo: boolean;
@@ -136,6 +137,7 @@ export default function AdminBrandingPage() {
   const theme = useTheme();
   const { hasLevel } = useAuth();
   const { t } = useTranslation(['admin', 'common']);
+  const dialogs = useKanapDialogs();
   const {
     isPlatformHost,
     logoUrl,
@@ -317,7 +319,11 @@ export default function AdminBrandingPage() {
 
   const handleReset = async () => {
     if (!settings) return;
-    const confirmed = confirm(t('branding.confirmations.reset'));
+    const confirmed = await dialogs.confirm({
+      message: t('branding.confirmations.reset'),
+      confirmLabel: t('common:buttons.reset'),
+      intent: 'danger',
+    });
     if (!confirmed) return;
 
     setResetting(true);

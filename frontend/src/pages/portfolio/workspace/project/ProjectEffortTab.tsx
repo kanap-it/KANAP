@@ -18,6 +18,7 @@ import { useLocale } from '../../../../i18n/useLocale';
 import EffortAllocationDialog, { type EligibleUser } from '../../components/EffortAllocationDialog';
 import { type AllocationUser, type EffortAllocationData } from '../../components/EffortAllocationTable';
 import LogTimeDialog, { type TimeEntryData } from '../../components/LogTimeDialog';
+import { useKanapDialogs } from '../../../../components/design';
 
 type ProjectEffortTabProps = {
   businessAllocationData?: EffortAllocationData | null;
@@ -488,6 +489,7 @@ export default function ProjectEffortTab({
   taskTimeSummary,
 }: ProjectEffortTabProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const [logTimeDialogOpen, setLogTimeDialogOpen] = React.useState(false);
   const [editingTimeEntry, setEditingTimeEntry] = React.useState<TimeEntryData | undefined>(undefined);
@@ -790,7 +792,11 @@ export default function ProjectEffortTab({
                                 <IconButton
                                   size="small"
                                   onClick={async () => {
-                                    if (!window.confirm(t('dialogs.logTime.confirmDelete'))) return;
+                                    if (!(await dialogs.confirm({
+                                      message: t('dialogs.logTime.confirmDelete'),
+                                      confirmLabel: t('common:buttons.delete'),
+                                      intent: 'danger',
+                                    }))) return;
                                     try {
                                       await api.delete(`/portfolio/projects/${projectId}/time-entries/${entry.id}`);
                                       await onRefetch();

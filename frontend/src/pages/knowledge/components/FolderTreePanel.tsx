@@ -2,15 +2,9 @@ import React from 'react';
 import {
   Alert,
   Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Menu,
   MenuItem,
-  Paper,
   Snackbar,
   Stack,
   TextField,
@@ -31,6 +25,8 @@ import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { useTenant } from '../../../tenant/TenantContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
 type FolderNode = {
   id: string;
@@ -50,14 +46,14 @@ interface FolderTreePanelProps {
   documentDragAndDrop?: {
     active: boolean;
     hoverFolderId: string | null;
-    canDropOnFolder: (folderId: string) => boolean;
-    onFolderDragOver: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
-    onFolderDrop: (folderId: string, event: React.DragEvent<HTMLDivElement>) => void;
+    canDropOnFolder: (folderId: string | null) => boolean;
+    onFolderDragOver: (folderId: string | null, event: React.DragEvent<HTMLDivElement>) => void;
+    onFolderDrop: (folderId: string | null, event: React.DragEvent<HTMLDivElement>) => void;
   };
 }
 
 const FOLDER_TREE_STORAGE_PREFIX = 'kanap-knowledge-folder-tree';
-const ROOT_FOLDER_DROP_TARGET = '__root__';
+export const ROOT_FOLDER_DROP_TARGET = '__root__';
 
 export type DraggedFolderState = {
   id: string;
@@ -178,9 +174,16 @@ function FolderTreeNode({
   const isAnyDropTargetHovered = isHoveredFolderDropTarget || isHoveredDropTarget;
   const [editing, setEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(node.name);
+  const editInputRef = React.useRef<HTMLInputElement | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const menuOpen = !!menuAnchorEl;
   const { t } = useTranslation(['knowledge', 'common']);
+
+  React.useEffect(() => {
+    if (!editing) return;
+    editInputRef.current?.focus();
+    editInputRef.current?.select();
+  }, [editing]);
 
   return (
     <>
@@ -264,8 +267,8 @@ function FolderTreeNode({
             <TextField
               size="small"
               value={editName}
+              inputRef={editInputRef}
               onChange={(e) => setEditName(e.target.value)}
-              autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && editName.trim()) {
                   onRename(node.id, editName.trim());
@@ -293,7 +296,7 @@ function FolderTreeNode({
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
-              fontWeight: isSelected ? 600 : 400,
+              fontWeight: isSelected ? 500 : 400,
             }}
           >
             {node.name}
@@ -376,6 +379,7 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
   const [folderDialogOpen, setFolderDialogOpen] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState('');
   const [newFolderParentId, setNewFolderParentId] = React.useState('');
+  const [deleteFolderId, setDeleteFolderId] = React.useState<string | null>(null);
   const [rootMenuAnchorEl, setRootMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [draggedFolder, setDraggedFolder] = React.useState<DraggedFolderState | null>(null);
   const [folderHoverTargetId, setFolderHoverTargetId] = React.useState<string | null>(null);
@@ -486,10 +490,8 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
   }, [renameFolderMutation]);
 
   const handleDelete = React.useCallback((id: string) => {
-    if (confirm(t('folderTree.confirmations.deleteFolder'))) {
-      deleteFolderMutation.mutate(id);
-    }
-  }, [deleteFolderMutation, t]);
+    setDeleteFolderId(id);
+  }, []);
 
   const moveFolderMutation = useMutation({
     mutationFn: async ({ id, parentId }: { id: string; parentId: string | null }) => {
@@ -577,17 +579,26 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
     });
   }, [canDropDraggedFolderOnParent, draggedFolder, moveFolderMutation]);
 
+  const canDropDocumentsOnRoot = !!documentDragAndDrop?.active && documentDragAndDrop.canDropOnFolder(null);
+  const isRootDocumentDropTarget = canDropDocumentsOnRoot && documentDragAndDrop?.hoverFolderId === ROOT_FOLDER_DROP_TARGET;
   const isRootFolderDropTarget = folderHoverTargetId === ROOT_FOLDER_DROP_TARGET && canDropDraggedFolderOnParent(null);
+  const isRootDropTarget = isRootFolderDropTarget || isRootDocumentDropTarget;
+  const deleteFolderName = deleteFolderId
+    ? flatFolders.find((folder) => folder.id === deleteFolderId)?.name || ''
+    : '';
 
   return (
-    <Paper
-      variant="outlined"
+    <Box
       sx={{
         width: 240,
         minWidth: 240,
         alignSelf: 'flex-start',
         overflow: 'auto',
         maxHeight: 'calc(100vh - 180px)',
+        border: 1,
+        borderColor: 'kanap.border.default',
+        borderRadius: '8px',
+        bgcolor: 'kanap.bg.primary',
       }}
     >
       <Box sx={{ p: 1.5 }}>
@@ -602,19 +613,33 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
             borderRadius: 1,
             cursor: 'pointer',
             border: '1px solid',
-            borderColor: isRootFolderDropTarget ? 'primary.main' : 'transparent',
-            bgcolor: isRootFolderDropTarget ? 'action.focus' : (selectedFolderId === null ? 'action.selected' : 'transparent'),
+            borderColor: isRootDropTarget ? 'primary.main' : 'transparent',
+            bgcolor: isRootDropTarget ? 'action.focus' : (selectedFolderId === null ? 'action.selected' : 'transparent'),
             '&:hover': { bgcolor: selectedFolderId === null ? 'action.selected' : 'action.hover' },
             mb: 0.5,
           }}
           onClick={() => onSelectFolder(null)}
-          onDragOver={(event) => handleFolderMoveDragOver(null, event)}
-          onDrop={(event) => handleFolderMoveDrop(null, event)}
+          onDragOver={(event) => {
+            if (canDropDraggedFolderOnParent(null)) {
+              handleFolderMoveDragOver(null, event);
+              return;
+            }
+            if (!documentDragAndDrop || !canDropDocumentsOnRoot) return;
+            documentDragAndDrop.onFolderDragOver(null, event);
+          }}
+          onDrop={(event) => {
+            if (draggedFolder && canDropDraggedFolderOnParent(null)) {
+              handleFolderMoveDrop(null, event);
+              return;
+            }
+            if (!documentDragAndDrop || !canDropDocumentsOnRoot) return;
+            documentDragAndDrop.onFolderDrop(null, event);
+          }}
         >
           <Box sx={{ width: 16, mr: 0.25 }} />
           <FolderOpenIcon sx={{ fontSize: 18, mr: 0.75, color: 'text.secondary' }} />
-          <Typography variant="body2" sx={{ flex: 1, fontWeight: selectedFolderId === null ? 600 : 400 }}>
-            {t('folderTree.allDocs')}
+          <Typography variant="body2" sx={{ flex: 1, fontWeight: selectedFolderId === null ? 500 : 400 }}>
+            {t('folderTree.libraryRoot')}
           </Typography>
           {canManage && (
             <>
@@ -670,46 +695,70 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
         ))}
       </Box>
 
-      <Dialog open={folderDialogOpen} onClose={() => setFolderDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{newFolderParentId ? t('folderTree.dialogs.createSubfolderTitle') : t('folderTree.dialogs.createFolderTitle')}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+      <KanapDialog
+        open={folderDialogOpen}
+        onClose={() => setFolderDialogOpen(false)}
+        title={newFolderParentId ? t('folderTree.dialogs.createSubfolderTitle') : t('folderTree.dialogs.createFolderTitle')}
+        onSave={() => createFolderMutation.mutate({
+          name: newFolderName.trim(),
+          parentId: newFolderParentId || null,
+        })}
+        saveLabel={t('common:buttons.create')}
+        saveDisabled={!newFolderName.trim() || createFolderMutation.isPending}
+        saveLoading={createFolderMutation.isPending}
+      >
+        <Stack spacing={1.5}>
+          <PropertyRow label={t('folderTree.fields.folderName')} required>
             <TextField
-              size="small"
-              label={t('folderTree.fields.folderName')}
+              variant="standard"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder={t('folderTree.fields.folderName')}
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={dialogBorderedFieldSx}
             />
+          </PropertyRow>
+          <PropertyRow label={t('folderTree.fields.parentFolder')}>
             <TextField
               select
-              size="small"
-              label={t('folderTree.fields.parentFolder')}
+              variant="standard"
               value={newFolderParentId}
               onChange={(e) => setNewFolderParentId(e.target.value)}
+              fullWidth
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerSelectSx, dialogBorderedFieldSx]}
             >
-              <MenuItem value="">{t('folderTree.values.root')}</MenuItem>
+              <MenuItem value="" sx={drawerMenuItemSx}>{t('folderTree.values.root')}</MenuItem>
               {flatFolders.map((folder) => (
-                <MenuItem key={folder.id} value={folder.id}>
+                <MenuItem key={folder.id} value={folder.id} sx={drawerMenuItemSx}>
                   {`${'  '.repeat(folder.depth)}${folder.name}`}
                 </MenuItem>
               ))}
             </TextField>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFolderDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={() => createFolderMutation.mutate({
-              name: newFolderName.trim(),
-              parentId: newFolderParentId || null,
-            })}
-            disabled={!newFolderName.trim() || createFolderMutation.isPending}
-          >
-            {t('common:buttons.create')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </PropertyRow>
+        </Stack>
+      </KanapDialog>
+
+      <KanapDialog
+        open={!!deleteFolderId}
+        onClose={() => setDeleteFolderId(null)}
+        title={t('folderTree.dialogs.deleteFolderTitle')}
+        onSave={() => {
+          if (!deleteFolderId) return;
+          deleteFolderMutation.mutate(deleteFolderId);
+          setDeleteFolderId(null);
+        }}
+        saveLabel={t('common:buttons.delete')}
+        saveDisabled={!deleteFolderId || deleteFolderMutation.isPending}
+        saveLoading={deleteFolderMutation.isPending}
+      >
+        <Stack spacing={1}>
+          <Typography variant="body2" color="text.secondary">
+            {t('folderTree.confirmations.deleteFolder', { name: deleteFolderName })}
+          </Typography>
+        </Stack>
+      </KanapDialog>
 
       <Snackbar
         open={folderMoveSnackbar.open}
@@ -725,7 +774,7 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
           {folderMoveSnackbar.message}
         </Alert>
       </Snackbar>
-    </Paper>
+    </Box>
   );
 });
 

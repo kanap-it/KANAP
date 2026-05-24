@@ -2,11 +2,6 @@ import React from 'react';
 import {
   Alert,
   Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   MenuItem,
   Stack,
   TextField,
@@ -15,6 +10,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
 type DocumentLibrary = {
   id: string;
@@ -158,10 +155,16 @@ export default function KnowledgeFolderMoveDialog({
   const disableSubmit = pending || !folder || !targetLibraryId;
 
   return (
-    <Dialog open={open} onClose={pending ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{t('folderMoveDialog.title')}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
+    <KanapDialog
+      open={open}
+      onClose={pending ? () => undefined : onClose}
+      title={t('folderMoveDialog.title')}
+      onSave={() => onConfirm({ target_library_id: targetLibraryId, target_folder_id: targetFolderId })}
+      saveLabel={t('folderMoveDialog.actions.move')}
+      saveDisabled={disableSubmit}
+      saveLoading={pending}
+    >
+        <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
             {t('folderMoveDialog.folder', { name: folder?.name || '' })}
           </Typography>
@@ -182,53 +185,50 @@ export default function KnowledgeFolderMoveDialog({
             </Alert>
           )}
 
-          <TextField
-            select
-            label={t('folderMoveDialog.fields.targetLibrary')}
-            fullWidth
-            value={targetLibraryId}
-            onChange={(e) => {
-              setTargetLibraryId(e.target.value);
-              setTargetFolderId(null);
-            }}
-            disabled={!canChangeLibrary || folderInTemplates}
-          >
-            {selectableLibraries.map((library) => (
-              <MenuItem key={library.id} value={library.id}>
-                {library.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <PropertyRow label={t('folderMoveDialog.fields.targetLibrary')}>
+            <TextField
+              select
+              variant="standard"
+              fullWidth
+              value={targetLibraryId}
+              onChange={(e) => {
+                setTargetLibraryId(e.target.value);
+                setTargetFolderId(null);
+              }}
+              disabled={!canChangeLibrary || folderInTemplates}
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+            >
+              {selectableLibraries.map((library) => (
+                <MenuItem key={library.id} value={library.id} sx={drawerMenuItemSx}>
+                  {library.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </PropertyRow>
 
-          <TextField
-            select
-            label={t('folderMoveDialog.fields.destinationParent')}
-            fullWidth
-            value={targetFolderId || ''}
-            onChange={(e) => setTargetFolderId(e.target.value || null)}
-            disabled={!targetLibraryId}
-          >
-            <MenuItem value="">{t('folderMoveDialog.fields.topLevel')}</MenuItem>
-            {flatFolders.map((folderOption) => (
-              <MenuItem key={folderOption.id} value={folderOption.id}>
-                <Box component="span" sx={{ pl: folderOption.depth * 2 }}>
-                  {folderOption.name}
-                </Box>
-              </MenuItem>
-            ))}
-          </TextField>
+          <PropertyRow label={t('folderMoveDialog.fields.destinationParent')}>
+            <TextField
+              select
+              variant="standard"
+              fullWidth
+              value={targetFolderId || ''}
+              onChange={(e) => setTargetFolderId(e.target.value || null)}
+              disabled={!targetLibraryId}
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+            >
+              <MenuItem value="" sx={drawerMenuItemSx}>{t('folderMoveDialog.fields.topLevel')}</MenuItem>
+              {flatFolders.map((folderOption) => (
+                <MenuItem key={folderOption.id} value={folderOption.id} sx={drawerMenuItemSx}>
+                  <Box component="span" sx={{ pl: folderOption.depth * 2 }}>
+                    {folderOption.name}
+                  </Box>
+                </MenuItem>
+              ))}
+            </TextField>
+          </PropertyRow>
         </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={pending}>{t('common:buttons.cancel')}</Button>
-        <Button
-          variant="contained"
-          onClick={() => onConfirm({ target_library_id: targetLibraryId, target_folder_id: targetFolderId })}
-          disabled={disableSubmit}
-        >
-          {t('folderMoveDialog.actions.move')}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </KanapDialog>
   );
 }

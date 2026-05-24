@@ -10,6 +10,7 @@ import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { computeInactiveSegments, formatInactiveTooltip } from './roadmap-inactive-segments';
 import type { InactiveSegment } from './roadmap-inactive-segments';
 import { useLocale } from '../../../i18n/useLocale';
+import { useKanapDialogs } from '../../../components/design';
 
 interface GanttProject {
   id: string;
@@ -159,6 +160,7 @@ export function PortfolioGantt({
   readOnly = false,
 }: Props) {
   const { t } = useTranslation(['portfolio', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const navigate = useNavigate();
   const apiRef = useRef<IApi | null>(null);
@@ -509,7 +511,7 @@ export function PortfolioGantt({
 
       // Validate end >= start
       if (new Date(task.end) < new Date(task.start)) {
-        alert(t('workspace.project.timeline.messages.invalidDateRange'));
+        await dialogs.alert(t('workspace.project.timeline.messages.invalidDateRange'));
         onUpdateRef.current?.();
         return;
       }
@@ -521,7 +523,10 @@ export function PortfolioGantt({
         });
         onUpdateRef.current?.();
       } catch (e: any) {
-        alert(getApiErrorMessage(e, t, t('workspace.project.timeline.messages.updatePhaseFailed')));
+        await dialogs.alert({
+          message: getApiErrorMessage(e, t, t('workspace.project.timeline.messages.updatePhaseFailed')),
+          intent: 'danger',
+        });
         onUpdateRef.current?.();
       }
     });
@@ -536,6 +541,7 @@ export function PortfolioGantt({
     }
   }, [
     monthOffset,
+    dialogs,
     navigate,
     resetRenderedChart,
     scrollTodayIntoView,

@@ -295,6 +295,157 @@ export class TasksUnifiedService {
     });
   }
 
+  async bulkReplaceTasksForApplication(
+    applicationId: string,
+    taskIds: string[],
+    opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null; accessScope?: ParticipationAccessScope },
+  ) {
+    return this.bulkReplaceTargetTaskLinks({
+      linkTable: 'task_applications',
+      targetTable: 'applications',
+      targetColumn: 'application_id',
+      targetId: applicationId,
+      fieldName: 'application_ids',
+      changedField: 'linked_applications',
+      taskIds,
+      opts,
+    });
+  }
+
+  async bulkReplaceTasksForAsset(
+    assetId: string,
+    taskIds: string[],
+    opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null; accessScope?: ParticipationAccessScope },
+  ) {
+    return this.bulkReplaceTargetTaskLinks({
+      linkTable: 'task_assets',
+      targetTable: 'assets',
+      targetColumn: 'asset_id',
+      targetId: assetId,
+      fieldName: 'asset_ids',
+      changedField: 'linked_assets',
+      taskIds,
+      opts,
+    });
+  }
+
+  private async bulkReplaceTargetTaskLinks(params: {
+    linkTable: 'task_applications' | 'task_assets';
+    targetTable: 'applications' | 'assets';
+    targetColumn: 'application_id' | 'asset_id';
+    targetId: string;
+    fieldName: 'application_ids' | 'asset_ids';
+    changedField: 'linked_applications' | 'linked_assets';
+    taskIds: string[];
+    opts?: { manager?: EntityManager; tenantId?: string; userId?: string | null; accessScope?: ParticipationAccessScope };
+  }): Promise<{ task_ids: string[] }> {
+    const manager = params.opts?.manager ?? this.repo.manager;
+    const run = async (mg: EntityManager) => {
+      const tenantId = params.opts?.tenantId || await this.getTaskTenantContext(mg);
+      const taskIds = this.normalizeLinkIds(params.taskIds, 'task_ids');
+      await this.validateTaskIds(taskIds, tenantId, mg, params.opts?.accessScope);
+
+      const existingQueryParams: unknown[] = [tenantId, params.targetId];
+      const accessScopeSql = params.opts?.accessScope
+        ? (() => {
+          existingQueryParams.push(params.opts.accessScope.userId);
+          return `AND ${taskParticipantCondition('t', `$${existingQueryParams.length}`)}`;
+        })()
+        : '';
+      const existingRows: Array<{ id: string }> = await mg.query(
+        `SELECT rel.task_id::text AS id
+         FROM ${params.linkTable} rel
+         JOIN tasks t ON t.id = rel.task_id AND t.tenant_id = rel.tenant_id
+         WHERE rel.tenant_id = $1
+           AND rel.${params.targetColumn} = $2
+           ${accessScopeSql}`,
+        existingQueryParams,
+      );
+
+      const existingIds = existingRows.map((row) => row.id);
+      const nextTaskSet = new Set(taskIds);
+      const affectedTaskIds = Array.from(new Set([...existingIds, ...taskIds]));
+
+      for (const taskId of affectedTaskIds) {
+        const currentTargetIds = await this.listTaskLinkedTargetIds({
+          linkTable: params.linkTable,
+          targetColumn: params.targetColumn,
+          taskId,
+          tenantId,
+          manager: mg,
+        });
+        const nextTargetIds = nextTaskSet.has(taskId)
+          ? Array.from(new Set([...currentTargetIds, params.targetId]))
+          : currentTargetIds.filter((id) => id !== params.targetId);
+
+        await this.syncTaskLinks({
+          taskId,
+          ids: nextTargetIds,
+          table: params.linkTable,
+          targetTable: params.targetTable,
+          targetColumn: params.targetColumn,
+          fieldName: params.fieldName,
+          changedField: params.changedField,
+          tenantId,
+          userId: params.opts?.userId,
+          manager: mg,
+        });
+      }
+
+      return { task_ids: taskIds };
+    };
+
+    if (params.opts?.manager) return run(manager);
+    return this.dataSource.transaction(run);
+  }
+
+  private async validateTaskIds(
+    ids: string[],
+    tenantId: string,
+    manager: EntityManager,
+    accessScope?: ParticipationAccessScope,
+  ): Promise<void> {
+    if (ids.length === 0) return;
+    const queryParams: unknown[] = [tenantId, ids];
+    const accessScopeSql = accessScope
+      ? (() => {
+        queryParams.push(accessScope.userId);
+        return `AND ${taskParticipantCondition('t', `$${queryParams.length}`)}`;
+      })()
+      : '';
+    const rows: Array<{ id: string }> = await manager.query(
+      `SELECT t.id::text AS id
+       FROM tasks t
+       WHERE t.tenant_id = $1
+         AND t.id = ANY($2::uuid[])
+         ${accessScopeSql}`,
+      queryParams,
+    );
+    const found = new Set(rows.map((row) => row.id));
+    const missing = ids.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new BadRequestException(`Invalid task_ids: ${missing.join(', ')}`);
+    }
+  }
+
+  private async listTaskLinkedTargetIds(params: {
+    linkTable: 'task_applications' | 'task_assets';
+    targetColumn: 'application_id' | 'asset_id';
+    taskId: string;
+    tenantId: string;
+    manager: EntityManager;
+  }): Promise<string[]> {
+    const rows: Array<{ id: string }> = await params.manager.query(
+      `SELECT ${params.targetColumn}::text AS id
+       FROM ${params.linkTable}
+       WHERE tenant_id = $1
+         AND task_id = $2
+       ORDER BY ${params.targetColumn} ASC`,
+      [params.tenantId, params.taskId],
+    );
+    return rows.map((row) => row.id);
+  }
+
   private async listRelatedTasksByLink(params: {
     linkTable: 'task_applications' | 'task_assets';
     targetColumn: 'application_id' | 'asset_id';

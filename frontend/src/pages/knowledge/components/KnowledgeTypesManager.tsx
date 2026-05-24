@@ -21,6 +21,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { dialogBorderedFieldSx } from '../../../theme/formSx';
 
 type DocumentTypeItem = {
   id: string;
@@ -38,6 +40,7 @@ export default function KnowledgeTypesManager() {
   const [newName, setNewName] = React.useState('');
   const [newDescription, setNewDescription] = React.useState('');
   const [draftById, setDraftById] = React.useState<Record<string, DocumentTypeItem>>({});
+  const [deleteTypeCandidate, setDeleteTypeCandidate] = React.useState<DocumentTypeItem | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['knowledge-types'],
@@ -122,27 +125,35 @@ export default function KnowledgeTypesManager() {
   return (
     <Stack spacing={2}>
       <Alert severity="info">
-        {t('typesManager.messages.introPrefix')} <strong>{t('typesManager.messages.documentType')}</strong> {t('typesManager.messages.introSuffix')}
+        {t('typesManager.messages.introPrefix')} <Box component="span" sx={{ fontWeight: 500 }}>{t('typesManager.messages.documentType')}</Box> {t('typesManager.messages.introSuffix')}
       </Alert>
 
-      <Box sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 1.5, p: 2 }}>
+      <Box sx={{ border: (theme) => `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px', p: 2 }}>
         <Stack spacing={2}>
           <Typography variant="subtitle2">{t('typesManager.create.title')}</Typography>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <TextField
-              size="small"
-              label={t('typesManager.fields.name')}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              sx={{ minWidth: 220 }}
-            />
-            <TextField
-              size="small"
-              label={t('typesManager.fields.description')}
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              sx={{ flex: 1 }}
-            />
+            <PropertyRow label={t('typesManager.fields.name')} required sx={{ minWidth: 220 }}>
+              <TextField
+                variant="standard"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder={t('typesManager.fields.name')}
+                fullWidth
+                InputProps={{ disableUnderline: true }}
+                sx={dialogBorderedFieldSx}
+              />
+            </PropertyRow>
+            <PropertyRow label={t('typesManager.fields.description')} sx={{ flex: 1 }}>
+              <TextField
+                variant="standard"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder={t('typesManager.fields.description')}
+                fullWidth
+                InputProps={{ disableUnderline: true }}
+                sx={dialogBorderedFieldSx}
+              />
+            </PropertyRow>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -160,7 +171,7 @@ export default function KnowledgeTypesManager() {
         </Stack>
       </Box>
 
-      <Box sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 1.5, overflow: 'auto' }}>
+      <Box sx={{ border: (theme) => `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px', overflow: 'auto' }}>
         {isLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress size={28} />
@@ -243,10 +254,7 @@ export default function KnowledgeTypesManager() {
                             size="small"
                             color="error"
                             startIcon={<DeleteIcon />}
-                            onClick={() => {
-                              if (!confirm(t('typesManager.confirmations.delete', { name: item.name }))) return;
-                              deleteMutation.mutate(item.id);
-                            }}
+                            onClick={() => setDeleteTypeCandidate(item)}
                             disabled={deleteMutation.isPending}
                           >
                             {t('common:buttons.delete')}
@@ -280,6 +288,24 @@ export default function KnowledgeTypesManager() {
           )}
         </Alert>
       )}
+
+      <KanapDialog
+        open={!!deleteTypeCandidate}
+        title={t('typesManager.dialogs.delete.title')}
+        onClose={() => setDeleteTypeCandidate(null)}
+        onSave={() => {
+          if (!deleteTypeCandidate) return;
+          deleteMutation.mutate(deleteTypeCandidate.id);
+          setDeleteTypeCandidate(null);
+        }}
+        saveLabel={t('common:buttons.delete')}
+        saveDisabled={!deleteTypeCandidate || deleteMutation.isPending}
+        saveLoading={deleteMutation.isPending}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {t('typesManager.confirmations.delete', { name: deleteTypeCandidate?.name || '' })}
+        </Typography>
+      </KanapDialog>
     </Stack>
   );
 }

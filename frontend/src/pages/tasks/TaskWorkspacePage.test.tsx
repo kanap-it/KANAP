@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { KanapDialogProvider } from '../../components/design';
 import TaskWorkspacePage from './TaskWorkspacePage';
 
 const translationMock = vi.hoisted(() => {
@@ -187,11 +188,13 @@ function createLocalStorageMock() {
 
 function renderCreatePage() {
   return render(
-    <MemoryRouter initialEntries={['/portfolio/tasks/new/overview']}>
-      <Routes>
-        <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
-      </Routes>
-    </MemoryRouter>,
+    <KanapDialogProvider>
+      <MemoryRouter initialEntries={['/portfolio/tasks/new/overview']}>
+        <Routes>
+          <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
+        </Routes>
+      </MemoryRouter>
+    </KanapDialogProvider>,
   );
 }
 

@@ -21,7 +21,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import api from '../../../api';
-import { KanapDialog, PropertyRow } from '../../../components/design';
+import { KanapDialog, PropertyRow, useKanapDialogs } from '../../../components/design';
 import ServerSelect from '../../../components/fields/ServerSelect';
 import DateEUField from '../../../components/fields/DateEUField';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
@@ -125,6 +125,7 @@ export default function DeploymentsEditor({
 }: DeploymentsEditorProps) {
   const theme = useTheme();
   const { t } = useTranslation(['it', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const { byField, labelFor } = useItOpsEnumOptions();
   const [assignments, setAssignments] = React.useState<Record<string, Assignment[]>>({});
   const [deploymentDialogOpen, setDeploymentDialogOpen] = React.useState(false);
@@ -230,7 +231,11 @@ export default function DeploymentsEditor({
   }, [applicationId, deploymentDraft, onRefresh]);
 
   const deleteDeployment = React.useCallback(async (deployment: DeploymentRecord) => {
-    if (!window.confirm(`Delete ${envLabel(deployment.environment)} deployment?`)) return;
+    if (!(await dialogs.confirm({
+      message: `Delete ${envLabel(deployment.environment)} deployment?`,
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
     setError(null);
     try {
       await api.delete(`/app-deployments/${deployment.id}`);
@@ -239,7 +244,7 @@ export default function DeploymentsEditor({
     } catch (err: any) {
       setError(getApiErrorMessage(err, t, 'Failed to remove deployment'));
     }
-  }, [onRefresh]);
+  }, [dialogs, onRefresh, t]);
 
   const openAssignmentDialog = React.useCallback((deploymentId: string, assignment?: Assignment) => {
     setAssignmentDraft({
@@ -282,7 +287,11 @@ export default function DeploymentsEditor({
   }, [assignmentDraft, loadAssignments, onRefresh]);
 
   const deleteAssignment = React.useCallback(async (deploymentId: string, assignmentId: string) => {
-    if (!window.confirm('Remove this server assignment?')) return;
+    if (!(await dialogs.confirm({
+      message: 'Remove this server assignment?',
+      confirmLabel: t('common:buttons.remove'),
+      intent: 'danger',
+    }))) return;
     setError(null);
     try {
       await api.delete(`/app-deployments/${deploymentId}/servers/${assignmentId}`);
@@ -292,7 +301,7 @@ export default function DeploymentsEditor({
     } catch (err: any) {
       setError(getApiErrorMessage(err, t, 'Failed to remove server assignment'));
     }
-  }, [loadAssignments, onRefresh]);
+  }, [dialogs, loadAssignments, onRefresh, t]);
 
   return (
     <Stack spacing={2.75}>

@@ -14,9 +14,11 @@ import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useLocale } from '../i18n/useLocale';
 import { useTranslation } from 'react-i18next';
 import ForbiddenPage from './ForbiddenPage';
+import { useKanapDialogs } from '../components/design';
 
 export default function UsersPage() {
   const { t } = useTranslation(['admin', 'common']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const { hasLevel, subscription, tenantAuth } = useAuth();
   const [open, setOpen] = useState(false);
@@ -191,14 +193,14 @@ export default function UsersPage() {
       const success = results.filter((r) => r.status === 'fulfilled').length;
       const failed = results.length - success;
       if (failed === 0) {
-        window.alert(t('users.messages.inviteSuccess', { success }));
+        await dialogs.alert(t('users.messages.inviteSuccess', { success }));
       } else {
-        window.alert(t('users.messages.invitePartialFail', { success, failed }));
+        await dialogs.alert(t('users.messages.invitePartialFail', { success, failed }));
       }
       setRefreshKey((k) => k + 1);
     } catch (err) {
       console.error(err);
-      window.alert(t('users.messages.inviteFailed'));
+      await dialogs.alert(t('users.messages.inviteFailed'));
     } finally {
       setInviting(false);
     }

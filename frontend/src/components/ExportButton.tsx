@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, CircularProgress, Menu, MenuItem } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { exportDocument, DocumentExportFormat } from '../api/endpoints/export';
+import { useKanapDialogs } from './design';
 
 interface ExportButtonProps {
   content: string;
@@ -45,6 +46,7 @@ export default function ExportButton({
   getContent,
 }: ExportButtonProps) {
   const { t } = useTranslation('common');
+  const dialogs = useKanapDialogs();
   const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
   const [exporting, setExporting] = React.useState<DocumentExportFormat | null>(null);
 
@@ -71,20 +73,21 @@ export default function ExportButton({
       // Extract error message from blob response (axios returns blob even for errors when responseType is 'blob')
       const blobData = (error as any)?.response?.data;
       if (blobData instanceof Blob) {
-        blobData.text().then((text: string) => {
+        try {
+          const text = await blobData.text();
           // eslint-disable-next-line no-console
           console.error('[ExportButton] server error body:', text);
           try {
             const parsed = JSON.parse(text);
-            window.alert(t('export.exportFailed', { message: parsed?.message || text }));
+            await dialogs.alert({ message: t('export.exportFailed', { message: parsed?.message || text }), intent: 'danger' });
           } catch {
-            window.alert(t('export.exportFailed', { message: text }));
+            await dialogs.alert({ message: t('export.exportFailed', { message: text }), intent: 'danger' });
           }
-        }).catch(() => {
-          window.alert(t('export.exportFailedGeneric'));
-        });
+        } catch {
+          await dialogs.alert({ message: t('export.exportFailedGeneric'), intent: 'danger' });
+        }
       } else {
-        window.alert('Export failed. Please try again.');
+        await dialogs.alert({ message: t('export.exportFailedGeneric'), intent: 'danger' });
       }
     } finally {
       setExporting(null);

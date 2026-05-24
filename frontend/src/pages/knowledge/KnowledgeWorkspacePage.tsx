@@ -6,7 +6,6 @@ import {
   Button,
   IconButton,
   Link as MLink,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -14,6 +13,8 @@ import {
 import { alpha, useTheme } from '@mui/material/styles';
 import SaveIcon from '@mui/icons-material/Save';
 import EditIcon from '@mui/icons-material/Edit';
+import HistoryIcon from '@mui/icons-material/History';
+import CheckIcon from '@mui/icons-material/Check';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,8 +34,9 @@ import FolderTreePanel from './components/FolderTreePanel';
 import ValidatedBadge from './components/ValidatedBadge';
 import { CircularProgress } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-import { getDotColor } from '../../utils/statusColors';
+import { getDotColor, KNOWLEDGE_STATUS_COLORS } from '../../utils/statusColors';
 import { normalizeMarkdownForRichTextEditor } from '../../lib/markdownEditorNormalization';
+import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
@@ -106,6 +108,18 @@ type ClassificationRow = {
   category_id: string;
   stream_id: string | null;
 };
+type RelationSaveRequest = {
+  selections: Record<RelationKey, RelationOption[]>;
+  version: number;
+};
+type ClassificationSaveRequest = {
+  rows: ClassificationRow[];
+  version: number;
+};
+type ContributorSaveRequest = {
+  assignments: ContributorAssignments;
+  version: number;
+};
 
 type ClassificationResponse = {
   categories: Array<{ id: string; name: string; is_active?: boolean }>;
@@ -138,19 +152,12 @@ type EditLockInfo = {
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
-  in_review: 'In Review',
+  in_review: 'In review',
   published: 'Published',
   archived: 'Archived',
   obsolete: 'Obsolete',
 };
-
-const STATUS_CHIP_COLORS: Record<string, 'default' | 'warning' | 'info' | 'success' | 'secondary'> = {
-  draft: 'default',
-  in_review: 'warning',
-  published: 'success',
-  archived: 'secondary',
-  obsolete: 'default',
-};
+const SIDEBAR_STORAGE_KEY = 'kanap.knowledge.sidebarOpen';
 
 function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {
   return (
@@ -188,6 +195,7 @@ export default function KnowledgeWorkspacePage() {
   const searchParams = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
   const requestedLibrarySlug = searchParams.get('library') || '';
   const templateDocumentIdParam = searchParams.get('template_document_id') || null;
+  const createFolderIdParam = searchParams.get('folder_id') || null;
   const createRelationSelections = React.useMemo(
     () => buildCreateRelationSelections(searchParams),
     [searchParams],
@@ -198,7 +206,7 @@ export default function KnowledgeWorkspacePage() {
     summary: '',
     content_markdown: '',
     status: 'draft',
-    folder_id: null,
+    folder_id: createFolderIdParam,
     document_type_id: null,
     template_document_id: templateDocumentIdParam || null,
     template_document_title: '',
@@ -231,7 +239,13 @@ export default function KnowledgeWorkspacePage() {
   const [contributorAssignments, setContributorAssignments] = React.useState<ContributorAssignments>(EMPTY_CONTRIBUTOR_ASSIGNMENTS);
   const [contributorsDirty, setContributorsDirty] = React.useState(false);
   const [contributorsError, setContributorsError] = React.useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return stored == null ? true : stored === '1';
+  });
+  const [doneEditingPending, setDoneEditingPending] = React.useState(false);
+  const [createVersionFeedback, setCreateVersionFeedback] = React.useState<'created' | 'current' | null>(null);
   const canManageDocumentGlobal = hasLevel('knowledge', 'member');
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
   const [contentResetNonce, setContentResetNonce] = React.useState(0);
@@ -241,18 +255,39 @@ export default function KnowledgeWorkspacePage() {
   const hydratedDocumentIdRef = React.useRef<string | null>(null);
   const hasLocalWorkspaceChangesRef = React.useRef(false);
   const trackedRecentDocumentIdRef = React.useRef<string | null>(null);
+  const relationsSaveVersionRef = React.useRef(0);
+  const classificationsSaveVersionRef = React.useRef(0);
+  const contributorsSaveVersionRef = React.useRef(0);
+  const relationsAutosaveAttemptedVersionRef = React.useRef(0);
+  const classificationsAutosaveAttemptedVersionRef = React.useRef(0);
+  const contributorsAutosaveAttemptedVersionRef = React.useRef(0);
+  const createVersionFeedbackTimerRef = React.useRef<number | null>(null);
 
   hasLocalWorkspaceChangesRef.current = dirty || relationsDirty || classificationsDirty || contributorsDirty;
 
   React.useEffect(() => {
-    setSidebarOpen(false);
-  }, [id, isCreate]);
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarOpen ? '1' : '0');
+  }, [sidebarOpen]);
+
+  React.useEffect(() => () => {
+    if (createVersionFeedbackTimerRef.current != null) {
+      window.clearTimeout(createVersionFeedbackTimerRef.current);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!isCreate) return;
     setRelationSelections(createRelationSelections);
     setRelationsDirty(false);
   }, [createRelationSelections, isCreate]);
+
+  React.useEffect(() => {
+    if (!isCreate) return;
+    setForm((prev: any) => (
+      prev.folder_id === createFolderIdParam ? prev : { ...prev, folder_id: createFolderIdParam }
+    ));
+  }, [createFolderIdParam, isCreate]);
 
   const updateEditorRows = React.useCallback((height: number) => {
     const safeHeight = Math.max(240, Math.floor(height || 0));
@@ -608,6 +643,21 @@ export default function KnowledgeWorkspacePage() {
     [],
   );
 
+  const cloneRelationSelections = React.useCallback((selections: Record<RelationKey, RelationOption[]>) => ({
+    applications: [...(selections.applications || [])],
+    assets: [...(selections.assets || [])],
+    projects: [...(selections.projects || [])],
+    requests: [...(selections.requests || [])],
+    tasks: [...(selections.tasks || [])],
+  }), []);
+
+  const cloneContributorAssignments = React.useCallback((assignments: ContributorAssignments): ContributorAssignments => ({
+    owner_user_id: assignments.owner_user_id,
+    author_user_ids: [...assignments.author_user_ids],
+    reviewer_user_ids: [...assignments.reviewer_user_ids],
+    approver_user_ids: [...assignments.approver_user_ids],
+  }), []);
+
   const buildContributorCacheValue = React.useCallback((assignments: ContributorAssignments) => {
     const contributorById = new Map<string, KnowledgeContributorOption>();
     for (const option of contributorOptions) contributorById.set(option.id, option);
@@ -829,12 +879,25 @@ export default function KnowledgeWorkspacePage() {
   // Autosave
   React.useEffect(() => {
     if (!editMode || !dirty || isCreate) return;
-    if (!lockToken) return;
-    const timer = window.setInterval(() => {
+    if (!lockToken || saveMutation.isPending) return;
+    const timer = window.setTimeout(() => {
       void saveMutation.mutate('autosave');
-    }, 60_000);
-    return () => window.clearInterval(timer);
-  }, [dirty, editMode, isCreate, lockToken, saveMutation]);
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [
+    dirty,
+    editMode,
+    form.content_markdown,
+    form.document_type_id,
+    form.folder_id,
+    form.status,
+    form.summary,
+    form.template_document_id,
+    form.title,
+    isCreate,
+    lockToken,
+    saveMutation,
+  ]);
 
   // Comment mutation
   const commentMutation = useMutation({
@@ -864,6 +927,60 @@ export default function KnowledgeWorkspacePage() {
         qc.invalidateQueries({ queryKey: ['knowledge-versions', id] }),
         qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
       ]);
+    },
+  });
+
+  const createVersionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/knowledge/${id}/versions`, {}, {
+        headers: lockToken ? { 'X-Lock-Token': lockToken } : undefined,
+      });
+      return res.data;
+    },
+    onMutate: () => {
+      if (createVersionFeedbackTimerRef.current != null) {
+        window.clearTimeout(createVersionFeedbackTimerRef.current);
+        createVersionFeedbackTimerRef.current = null;
+      }
+      setCreateVersionFeedback(null);
+    },
+    onSuccess: async (result) => {
+      setError(null);
+      setCreateVersionFeedback(result?.created === false ? 'current' : 'created');
+      createVersionFeedbackTimerRef.current = window.setTimeout(() => {
+        setCreateVersionFeedback(null);
+        createVersionFeedbackTimerRef.current = null;
+      }, 2400);
+      if (result?.document) {
+        applyDocumentState(result.document);
+      } else {
+        const refreshed = await refetch();
+        applyDocumentState(refreshed.data || doc);
+      }
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['knowledge-versions', id] }),
+        qc.invalidateQueries({ queryKey: ['knowledge-activities', id] }),
+      ]);
+    },
+    onError: (e: any) => {
+      const status = Number(e?.response?.status || 0);
+      const lockInfo = parseLockInfoFromError(e);
+      if (status === 423) {
+        setEditMode(false);
+        setLockToken(null);
+        setLockExpiresAt(null);
+        setActiveLockInfo(lockInfo || parseLockInfo(doc?.edit_lock));
+        setError(null);
+        return;
+      }
+      if (status === 410) {
+        setEditMode(false);
+        setLockToken(null);
+        setLockExpiresAt(null);
+        setError(t('workspace.messages.lockExpired'));
+        return;
+      }
+      setError(getApiErrorMessage(e, t, t('workspace.messages.createVersionFailed')));
     },
   });
 
@@ -906,23 +1023,6 @@ export default function KnowledgeWorkspacePage() {
       }
     }
   }, [acquireLock, applyDocumentState, doc, doc?.edit_lock, id, isCreate, parseLockInfo, parseLockInfoFromError, t]);
-
-  const discardChanges = async () => {
-    const hasUnsavedChanges = dirty || relationsDirty || classificationsDirty || contributorsDirty;
-    if (!hasUnsavedChanges) {
-      setEditMode(false);
-      await releaseLock();
-      setError(null);
-      return;
-    }
-    const confirmed = confirm(t('confirmations.discardChanges'));
-    if (!confirmed) return;
-    const result = await refetch();
-    applyDocumentState(result.data || doc);
-    setEditMode(false);
-    await releaseLock();
-    setError(null);
-  };
 
   // Derived data
   const folderOptions = React.useMemo(() => {
@@ -988,7 +1088,7 @@ export default function KnowledgeWorkspacePage() {
   );
 
   const currentStatusColor = React.useMemo(
-    () => STATUS_CHIP_COLORS[String(form.status || '').toLowerCase()] || 'default',
+    () => KNOWLEDGE_STATUS_COLORS[String(form.status || '').toLowerCase()] || 'default',
     [form.status],
   );
 
@@ -1103,6 +1203,7 @@ export default function KnowledgeWorkspacePage() {
   const handleContentMarkdownChange = React.useCallback(
     (value: string) => {
       contentDraftRef.current = value;
+      setForm((prev: any) => ({ ...prev, content_markdown: value }));
       setDirty(true);
       const nextHasText = !!String(value || '').trim();
       setContentHasText((prev) => (prev === nextHasText ? prev : nextHasText));
@@ -1125,18 +1226,25 @@ export default function KnowledgeWorkspacePage() {
   }, [navigate, workspaceLibrarySlug]);
 
   const handleContributorAssignmentsChange = React.useCallback((next: ContributorAssignments) => {
-    setContributorAssignments(next);
+    contributorsSaveVersionRef.current += 1;
+    setContributorAssignments((prev) => ({
+      ...next,
+      owner_user_id: next.owner_user_id || prev.owner_user_id || profile?.id || null,
+    }));
     setContributorsError(null);
     setContributorsDirty(true);
-  }, []);
+  }, [profile?.id]);
 
   const handleClassificationRowsChange = React.useCallback((rows: ClassificationRow[]) => {
+    classificationsSaveVersionRef.current += 1;
     setClassificationRows(rows);
     setClassificationsDirty(true);
   }, []);
 
   const handleRelationSelectionsChange = React.useCallback((key: RelationKey, values: RelationOption[]) => {
+    relationsSaveVersionRef.current += 1;
     setRelationSelections((prev) => ({ ...prev, [key]: values }));
+    setRelationsError(null);
     setRelationsDirty(true);
   }, []);
 
@@ -1191,15 +1299,9 @@ export default function KnowledgeWorkspacePage() {
 
   // Save relations
   const saveRelationsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ selections }: RelationSaveRequest) => {
       if (isCreate) return;
-      const nextSelections: Record<RelationKey, RelationOption[]> = {
-        applications: [...relationSelections.applications],
-        assets: [...relationSelections.assets],
-        projects: [...relationSelections.projects],
-        requests: [...relationSelections.requests],
-        tasks: [...relationSelections.tasks],
-      };
+      const nextSelections = cloneRelationSelections(selections);
       const payload = buildRelationPayload(nextSelections);
       await Promise.all(
         (Object.keys(payload) as RelationKey[]).map((key) => api.post(
@@ -1209,7 +1311,8 @@ export default function KnowledgeWorkspacePage() {
       );
       return buildRelationCacheValue(nextSelections);
     },
-    onSuccess: async (nextRelations) => {
+    onSuccess: async (nextRelations, variables) => {
+      if (variables.version !== relationsSaveVersionRef.current) return;
       setRelationsError(null);
       setRelationsDirty(false);
       updateDocumentCache((current) => ({
@@ -1217,22 +1320,24 @@ export default function KnowledgeWorkspacePage() {
         relations: nextRelations || current?.relations || {},
       }));
     },
-    onError: (e: any) => {
+    onError: (e: any, variables) => {
+      if (variables.version !== relationsSaveVersionRef.current) return;
       setRelationsError(getApiErrorMessage(e, t, t('workspace.messages.saveRelationsFailed')));
     },
   });
 
   // Save classifications
   const saveClassificationsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ rows: rowsToSave }: ClassificationSaveRequest) => {
       if (isCreate) return;
-      const rows = classificationRows
+      const rows = rowsToSave
         .filter((row) => !!row.category_id)
         .map((row) => ({ category_id: row.category_id, stream_id: row.stream_id || null }));
       await api.post(`/knowledge/${id}/classifications/bulk-replace`, { classifications: rows });
       return rows;
     },
-    onSuccess: async (rows) => {
+    onSuccess: async (rows, variables) => {
+      if (variables.version !== classificationsSaveVersionRef.current) return;
       setClassificationError(null);
       setClassificationsDirty(false);
       updateDocumentCache((current) => ({
@@ -1240,32 +1345,34 @@ export default function KnowledgeWorkspacePage() {
         classifications: rows || [],
       }));
     },
-    onError: (e: any) => {
+    onError: (e: any, variables) => {
+      if (variables.version !== classificationsSaveVersionRef.current) return;
       setClassificationError(getApiErrorMessage(e, t, t('workspace.messages.saveClassificationsFailed')));
     },
   });
 
   const saveContributorsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ assignments }: ContributorSaveRequest) => {
       if (isCreate) return;
-      const ownerUserId = contributorAssignments.owner_user_id || profile?.id || null;
+      const ownerUserId = assignments.owner_user_id || profile?.id || null;
       if (!ownerUserId) {
         throw new Error(t('workspace.messages.selectOwnerBeforeSaving'));
       }
       const rows = [
         { user_id: ownerUserId, role: 'owner', is_primary: true },
-        ...Array.from(new Set(contributorAssignments.author_user_ids.filter(Boolean)))
+        ...Array.from(new Set(assignments.author_user_ids.filter(Boolean)))
           .map((user_id) => ({ user_id, role: 'author', is_primary: false })),
-        ...Array.from(new Set(contributorAssignments.reviewer_user_ids.filter(Boolean)))
+        ...Array.from(new Set(assignments.reviewer_user_ids.filter(Boolean)))
           .map((user_id) => ({ user_id, role: 'reviewer', is_primary: false })),
-        ...Array.from(new Set(contributorAssignments.approver_user_ids.filter(Boolean)))
+        ...Array.from(new Set(assignments.approver_user_ids.filter(Boolean)))
           .map((user_id) => ({ user_id, role: 'validator', is_primary: false })),
       ];
-      const nextContributors = buildContributorCacheValue(contributorAssignments);
+      const nextContributors = buildContributorCacheValue(assignments);
       await api.post(`/knowledge/${id}/contributors/bulk-replace`, { contributors: rows });
       return nextContributors;
     },
-    onSuccess: async (nextContributors) => {
+    onSuccess: async (nextContributors, variables) => {
+      if (variables.version !== contributorsSaveVersionRef.current) return;
       setContributorsError(null);
       setContributorsDirty(false);
       updateDocumentCache((current) => ({
@@ -1273,10 +1380,68 @@ export default function KnowledgeWorkspacePage() {
         contributors: nextContributors || current?.contributors || [],
       }));
     },
-    onError: (e: any) => {
+    onError: (e: any, variables) => {
+      if (variables.version !== contributorsSaveVersionRef.current) return;
       setContributorsError(getApiErrorMessage(e, t, t('workspace.messages.saveContributorsFailed')));
     },
   });
+
+  React.useEffect(() => {
+    if (isCreate || !relationsDirty || saveRelationsMutation.isPending) return;
+    const version = relationsSaveVersionRef.current;
+    if (relationsAutosaveAttemptedVersionRef.current === version) return;
+    const selections = cloneRelationSelections(relationSelections);
+    const timer = window.setTimeout(() => {
+      relationsAutosaveAttemptedVersionRef.current = version;
+      saveRelationsMutation.mutate({ selections, version });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [
+    cloneRelationSelections,
+    isCreate,
+    relationSelections,
+    relationsDirty,
+    saveRelationsMutation.isPending,
+    saveRelationsMutation.mutate,
+  ]);
+
+  React.useEffect(() => {
+    if (isCreate || !classificationsDirty || saveClassificationsMutation.isPending) return;
+    if (classificationRows.some((row) => !row.category_id)) return;
+    const version = classificationsSaveVersionRef.current;
+    if (classificationsAutosaveAttemptedVersionRef.current === version) return;
+    const rows = classificationRows.map((row) => ({ ...row }));
+    const timer = window.setTimeout(() => {
+      classificationsAutosaveAttemptedVersionRef.current = version;
+      saveClassificationsMutation.mutate({ rows, version });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [
+    classificationRows,
+    classificationsDirty,
+    isCreate,
+    saveClassificationsMutation.isPending,
+    saveClassificationsMutation.mutate,
+  ]);
+
+  React.useEffect(() => {
+    if (isCreate || !contributorsDirty || saveContributorsMutation.isPending) return;
+    const version = contributorsSaveVersionRef.current;
+    if (contributorsAutosaveAttemptedVersionRef.current === version) return;
+    const assignments = cloneContributorAssignments(contributorAssignments);
+    const timer = window.setTimeout(() => {
+      contributorsAutosaveAttemptedVersionRef.current = version;
+      saveContributorsMutation.mutate({ assignments, version });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [
+    cloneContributorAssignments,
+    contributorAssignments,
+    contributorsDirty,
+    isCreate,
+    saveContributorsMutation.isPending,
+    saveContributorsMutation.mutate,
+  ]);
 
   const requestReviewMutation = useMutation({
     mutationFn: async () => {
@@ -1354,17 +1519,77 @@ export default function KnowledgeWorkspacePage() {
     commentMutation.mutate();
   }, [commentMutation.mutate]);
 
-  const handleSaveRelations = React.useCallback(() => {
-    saveRelationsMutation.mutate();
-  }, [saveRelationsMutation.mutate]);
+  const handleDoneEditing = React.useCallback(async () => {
+    if (doneEditingPending) return;
+    setDoneEditingPending(true);
+    try {
+      if (dirty) {
+        await saveMutation.mutateAsync('autosave');
+      }
 
-  const handleSaveClassifications = React.useCallback(() => {
-    saveClassificationsMutation.mutate();
-  }, [saveClassificationsMutation.mutate]);
+      if (relationsDirty) {
+        const version = relationsSaveVersionRef.current;
+        relationsAutosaveAttemptedVersionRef.current = version;
+        await saveRelationsMutation.mutateAsync({
+          selections: cloneRelationSelections(relationSelections),
+          version,
+        });
+      }
 
-  const handleSaveContributors = React.useCallback(() => {
-    saveContributorsMutation.mutate();
-  }, [saveContributorsMutation.mutate]);
+      if (classificationsDirty) {
+        const version = classificationsSaveVersionRef.current;
+        classificationsAutosaveAttemptedVersionRef.current = version;
+        await saveClassificationsMutation.mutateAsync({
+          rows: classificationRows.map((row) => ({ ...row })),
+          version,
+        });
+      }
+
+      if (contributorsDirty) {
+        const version = contributorsSaveVersionRef.current;
+        contributorsAutosaveAttemptedVersionRef.current = version;
+        await saveContributorsMutation.mutateAsync({
+          assignments: cloneContributorAssignments(contributorAssignments),
+          version,
+        });
+      }
+
+      setEditMode(false);
+      await releaseLock();
+      setError(null);
+    } catch {
+      // Individual mutations surface errors and edit mode remains active.
+    } finally {
+      setDoneEditingPending(false);
+    }
+  }, [
+    classificationRows,
+    classificationsDirty,
+    cloneContributorAssignments,
+    cloneRelationSelections,
+    contributorAssignments,
+    contributorsDirty,
+    dirty,
+    doneEditingPending,
+    relationSelections,
+    relationsDirty,
+    releaseLock,
+    saveClassificationsMutation,
+    saveContributorsMutation,
+    saveMutation,
+    saveRelationsMutation,
+  ]);
+
+  const handleCreateVersion = React.useCallback(async () => {
+    try {
+      if (dirty) {
+        await saveMutation.mutateAsync('autosave');
+      }
+      await createVersionMutation.mutateAsync();
+    } catch {
+      // Individual mutations surface errors.
+    }
+  }, [createVersionMutation, dirty, saveMutation]);
 
   const handleRevertVersion = React.useCallback((versionNumber: number) => {
     revertMutation.mutate(versionNumber);
@@ -1398,17 +1623,25 @@ export default function KnowledgeWorkspacePage() {
 
   const isTitleMissing = !form.title?.trim();
   const titleBarSx = {
-    px: 1.5,
-    py: 0.75,
-    borderRadius: 1.5,
+    px: '6px',
+    py: '3px',
+    mx: '-6px',
+    my: '-3px',
+    borderRadius: '4px',
     border: 1,
     borderColor: isTitleMissing
       ? alpha(theme.palette.info.main, 0.25)
-      : 'divider',
+      : 'transparent',
     bgcolor: isTitleMissing
       ? alpha(theme.palette.info.main, 0.08)
-      : 'background.paper',
+      : 'transparent',
     transition: 'border-color 120ms ease, background-color 120ms ease',
+    '&:hover': {
+      bgcolor: theme.palette.kanap.bg.composer,
+    },
+    '&:focus-within': {
+      bgcolor: 'transparent',
+    },
   } as const;
 
   const libraryName = isCreate ? activeCreateLibrary?.name : doc?.library_name;
@@ -1425,8 +1658,8 @@ export default function KnowledgeWorkspacePage() {
   const canManageDocument = canManageDocumentGlobal && canWriteLibrary;
   const isLockedByAnotherUser = !!activeLockInfo?.holder_user_id && activeLockInfo.holder_user_id !== profile?.id;
   const workspaceReadOnly = !isCreate && (isLockedByAnotherUser || !canWriteLibrary);
-  const canEditContent = canManageDocument && (isCreate || (!workflowActive && editMode && !!lockToken));
-  const canManageDocumentState = canManageDocument && (isCreate || (!workflowActive && editMode && !!lockToken));
+  const canEditContent = canManageDocument && !doneEditingPending && (isCreate || (!workflowActive && editMode && !!lockToken));
+  const canManageDocumentState = canManageDocument && !doneEditingPending && (isCreate || (!workflowActive && editMode && !!lockToken));
   const lockHolderLabel = activeLockInfo?.holder_name || t('workspace.values.anotherUser');
   const currentWorkflowStage = workflow?.current_stage || null;
   const currentWorkflowParticipant = Array.isArray(workflow?.participants)
@@ -1441,6 +1674,22 @@ export default function KnowledgeWorkspacePage() {
     && !hasPendingWorkflowChanges
     && hasWorkflowAssignments
     && !['archived', 'obsolete'].includes(String(form.status || '').toLowerCase());
+  const canCreateVersion = !isCreate
+    && canEditContent
+    && !isManagedIntegratedDocument
+    && !workflowActive
+    && !workspaceReadOnly
+    && !!lockToken;
+  const workspaceSavePending = saveMutation.isPending
+    || saveRelationsMutation.isPending
+    || saveClassificationsMutation.isPending
+    || saveContributorsMutation.isPending
+    || doneEditingPending;
+  const createVersionActionLabel = createVersionFeedback === 'created'
+    ? t('workspace.actions.versionCreated')
+    : createVersionFeedback === 'current'
+      ? t('workspace.actions.versionAlreadyCurrent')
+      : t('workspace.actions.createVersion');
   const lockExpiryLabel = (() => {
     if (!activeLockInfo?.expires_at) return null;
     const dt = new Date(activeLockInfo.expires_at);
@@ -1487,9 +1736,15 @@ export default function KnowledgeWorkspacePage() {
               {t('workspace.actions.cancelReviewAndEdit')}
             </Button>
           )}
-          {!isCreate && !workflowActive && editMode && canManageDocument && (
-            <Button variant="outlined" size="small" onClick={discardChanges}>
-              {t('workspace.actions.discard')}
+          {canCreateVersion && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={createVersionFeedback ? <CheckIcon /> : <HistoryIcon />}
+              onClick={handleCreateVersion}
+              disabled={saveMutation.isPending || createVersionMutation.isPending}
+            >
+              {createVersionActionLabel}
             </Button>
           )}
           {!isCreate && canEditContent && (
@@ -1507,15 +1762,26 @@ export default function KnowledgeWorkspacePage() {
             disabled={!contentHasText}
             getContent={getCurrentContentMarkdown}
           />
-          {canManageDocument && !workflowActive && (isCreate || editMode) && (
+          {canManageDocument && !workflowActive && isCreate && (
             <Button
               variant="contained"
               size="small"
               startIcon={<SaveIcon />}
-              disabled={workspaceReadOnly || saveMutation.isPending || (!dirty && !isCreate)}
+              disabled={workspaceReadOnly || saveMutation.isPending}
               onClick={() => saveMutation.mutate('manual')}
             >
               {t('common:buttons.save')}
+            </Button>
+          )}
+          {!isCreate && !workflowActive && editMode && canManageDocument && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<CheckIcon />}
+              onClick={handleDoneEditing}
+              disabled={workspaceSavePending}
+            >
+              {t('workspace.actions.done')}
             </Button>
           )}
           <IconButton
@@ -1570,11 +1836,15 @@ export default function KnowledgeWorkspacePage() {
           />
         )}
 
-        {/* Main content area */}
         <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden', ml: 2 }}>
-          <Paper
-            variant="outlined"
-            sx={{ p: 2, height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          <Box
+            sx={{
+              height: '100%',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
               <Stack spacing={1} sx={{ mb: 2, flexShrink: 0 }}>
@@ -1591,15 +1861,18 @@ export default function KnowledgeWorkspacePage() {
                       }}
                       variant="standard"
                       fullWidth
-                      autoFocus={isCreate}
                       placeholder={t('workspace.fields.titlePlaceholder')}
                       InputProps={{
                         disableUnderline: true,
-                        sx: { fontSize: '1.5rem', fontWeight: 600 },
+                        sx: {
+                          fontSize: '1.5rem',
+                          fontWeight: 500,
+                          color: 'kanap.text.primary',
+                        },
                       }}
                     />
                   ) : (
-                    <Typography variant="h5" sx={{ fontWeight: 600, py: 0.4 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 500, py: 0.4 }}>
                       {displayTitle || t('workspace.values.untitled')}
                     </Typography>
                   )}
@@ -1609,7 +1882,7 @@ export default function KnowledgeWorkspacePage() {
                     {!isCreate && doc?.item_number && (
                       <Box
                         component="span"
-                        sx={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: 'text.secondary', cursor: 'pointer' }}
+                        sx={{ fontFamily: MONO_FONT_FAMILY, fontSize: '0.8125rem', color: 'text.secondary', cursor: 'pointer' }}
                         onClick={() => navigator.clipboard.writeText(`DOC-${doc.item_number}`)}
                         title={t('workspace.messages.clickToCopyReference')}
                       >
@@ -1657,11 +1930,13 @@ export default function KnowledgeWorkspacePage() {
                     maxRows={editorRows}
                     fillHeight
                     fullToolbar
+                    hideToolbarUntilFocus
+                    surface
                   />
                 </React.Suspense>
               </Box>
             </Box>
-          </Paper>
+          </Box>
         </Box>
 
         {/* Sidebar */}
@@ -1687,9 +1962,6 @@ export default function KnowledgeWorkspacePage() {
               contributorOptions={contributorOptions}
               contributorAssignments={contributorAssignments}
               onContributorAssignmentsChange={handleContributorAssignmentsChange}
-              onSaveContributors={handleSaveContributors}
-              savingContributors={saveContributorsMutation.isPending}
-              contributorsDirty={contributorsDirty}
               contributorsError={contributorsError}
               documentTypeOptions={documentTypeOptionsForForm}
               folderOptions={folderOptions}
@@ -1697,18 +1969,12 @@ export default function KnowledgeWorkspacePage() {
               classificationStreams={classificationStreams}
               classificationRows={classificationRows}
               onClassificationRowsChange={handleClassificationRowsChange}
-              onSaveClassifications={handleSaveClassifications}
-              savingClassifications={saveClassificationsMutation.isPending}
-              classificationsDirty={classificationsDirty}
               classificationError={classificationError}
               relationSelections={relationSelections}
               onRelationSelectionsChange={handleRelationSelectionsChange}
               relationSearch={relationSearch}
               onRelationSearchChange={handleRelationSearchChange}
               relationOptions={allRelationOptions}
-              onSaveRelations={handleSaveRelations}
-              savingRelations={saveRelationsMutation.isPending}
-              relationsDirty={relationsDirty}
               relationsError={relationsError}
               versions={versionList}
               onRevertVersion={handleRevertVersion}

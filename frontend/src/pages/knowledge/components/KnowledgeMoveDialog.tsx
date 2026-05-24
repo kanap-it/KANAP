@@ -2,11 +2,6 @@ import React from 'react';
 import {
   Alert,
   Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   MenuItem,
   Stack,
   TextField,
@@ -15,6 +10,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
 type DocumentLibrary = {
   id: string;
@@ -165,10 +162,16 @@ export default function KnowledgeMoveDialog({
     : t('moveDialog.selection.multiple', { count: selectedRows.length });
 
   return (
-    <Dialog open={open} onClose={pending ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{t('moveDialog.title')}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
+    <KanapDialog
+      open={open}
+      onClose={pending ? () => undefined : onClose}
+      title={t('moveDialog.title')}
+      onSave={() => onConfirm({ target_library_id: targetLibraryId, target_folder_id: targetFolderId })}
+      saveLabel={t('moveDialog.actions.move')}
+      saveDisabled={disableSubmit}
+      saveLoading={pending}
+    >
+        <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
             {selectionSummary}
           </Typography>
@@ -201,54 +204,51 @@ export default function KnowledgeMoveDialog({
             </Alert>
           )}
 
-          <TextField
-            select
-            label={t('moveDialog.fields.targetLibrary')}
-            fullWidth
-            value={targetLibraryId}
-            onChange={(e) => {
-              const nextLibraryId = e.target.value;
-              setTargetLibraryId(nextLibraryId);
-              setTargetFolderId(null);
-            }}
-            disabled={!canChangeLibraryForSelection || libraryChangeBlocked}
-          >
-            {selectableLibraries.map((library) => (
-              <MenuItem key={library.id} value={library.id}>
-                {library.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <PropertyRow label={t('moveDialog.fields.targetLibrary')}>
+            <TextField
+              select
+              variant="standard"
+              fullWidth
+              value={targetLibraryId}
+              onChange={(e) => {
+                const nextLibraryId = e.target.value;
+                setTargetLibraryId(nextLibraryId);
+                setTargetFolderId(null);
+              }}
+              disabled={!canChangeLibraryForSelection || libraryChangeBlocked}
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+            >
+              {selectableLibraries.map((library) => (
+                <MenuItem key={library.id} value={library.id} sx={drawerMenuItemSx}>
+                  {library.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </PropertyRow>
 
-          <TextField
-            select
-            label={t('moveDialog.fields.targetFolder')}
-            fullWidth
-            value={targetFolderId ?? UNFILED_OPTION_VALUE}
-            onChange={(e) => setTargetFolderId(e.target.value === UNFILED_OPTION_VALUE ? null : e.target.value)}
-            disabled={!targetLibraryId || libraryChangeBlocked}
-          >
-            <MenuItem value={UNFILED_OPTION_VALUE}>{t('shared.unfiled')}</MenuItem>
-            {flatFolders.map((folder) => (
-              <MenuItem key={folder.id} value={folder.id}>
-                <Box component="span" sx={{ pl: folder.depth * 2 }}>
-                  {folder.name}
-                </Box>
-              </MenuItem>
-            ))}
-          </TextField>
+          <PropertyRow label={t('moveDialog.fields.targetFolder')}>
+            <TextField
+              select
+              variant="standard"
+              fullWidth
+              value={targetFolderId ?? UNFILED_OPTION_VALUE}
+              onChange={(e) => setTargetFolderId(e.target.value === UNFILED_OPTION_VALUE ? null : e.target.value)}
+              disabled={!targetLibraryId || libraryChangeBlocked}
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+            >
+              <MenuItem value={UNFILED_OPTION_VALUE} sx={drawerMenuItemSx}>{t('shared.unfiled')}</MenuItem>
+              {flatFolders.map((folder) => (
+                <MenuItem key={folder.id} value={folder.id} sx={drawerMenuItemSx}>
+                  <Box component="span" sx={{ pl: folder.depth * 2 }}>
+                    {folder.name}
+                  </Box>
+                </MenuItem>
+              ))}
+            </TextField>
+          </PropertyRow>
         </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={pending}>{t('common:buttons.cancel')}</Button>
-        <Button
-          variant="contained"
-          onClick={() => onConfirm({ target_library_id: targetLibraryId, target_folder_id: targetFolderId })}
-          disabled={disableSubmit}
-        >
-          {t('moveDialog.actions.move')}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </KanapDialog>
   );
 }

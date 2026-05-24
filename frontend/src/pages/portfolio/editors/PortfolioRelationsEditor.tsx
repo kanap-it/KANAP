@@ -22,7 +22,7 @@ import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, editableFieldValueSx } from '../../../theme/formSx';
-import { RelevantWebsitesList } from '../../../components/design';
+import { RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
 import RelationsSectionTitle from '../components/RelationsSectionTitle';
 
 export type PortfolioRelationsEditorHandle = {
@@ -101,6 +101,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
   onRelationsChange,
 }, ref) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel(permissionByType[entityType], 'manager');
   const endpointBase = `${endpointBaseByType[entityType]}/${entityId}`;
@@ -748,11 +749,13 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     window.URL.revokeObjectURL(url);
                   }}
                   onDelete={!readOnly ? async () => {
-                    const confirmed = window.confirm(
-                      t('editors.relations.confirmations.deleteAttachment', {
+                    const confirmed = await dialogs.confirm({
+                      message: t('editors.relations.confirmations.deleteAttachment', {
                         name: attachment.original_filename,
                       }),
-                    );
+                      confirmLabel: t('common:buttons.delete'),
+                      intent: 'danger',
+                    });
                     if (!confirmed) return;
                     try {
                       await api.delete(`${endpointBase}/attachments/${attachment.id}`);

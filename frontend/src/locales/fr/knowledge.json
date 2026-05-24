@@ -18,7 +18,6 @@
   },
   "confirmations": {
     "deleteLibrary": "Supprimer cette bibliothèque ? Les documents et dossiers seront déplacés vers la bibliothèque par défaut.",
-    "discardChanges": "Abandonner les modifications non enregistrées et revenir à la dernière version sauvegardée ?",
     "resetLibraryAccess": "Repasser cette bibliothèque en accès ouvert et effacer les listes personnalisées de lecteurs et rédacteurs ?"
   },
   "dialogs": {
@@ -92,7 +91,6 @@
       "newTopLevelFolder": "Nouveau dossier racine",
       "rename": "Renommer"
     },
-    "allDocs": "Tous les documents",
     "aria": {
       "folderActions": "Actions du dossier {{name}}",
       "rootActions": "Actions des dossiers"
@@ -113,6 +111,7 @@
       "moveFailed": "Impossible de déplacer le dossier.",
       "moveInProgress": "Déplacement du dossier en cours"
     },
+    "libraryRoot": "Racine",
     "title": "Dossiers",
     "values": {
       "root": "Racine"
@@ -211,6 +210,12 @@
         "authors": "Auteurs",
         "owner": "Responsable",
         "reviewers": "Relecteurs"
+      },
+      "placeholders": {
+        "approvers": "Ajouter des approbateurs",
+        "authors": "Ajouter des auteurs",
+        "owner": "Sélectionner un responsable",
+        "reviewers": "Ajouter des relecteurs"
       },
       "messages": {
         "saveFirst": "Enregistrez d'abord pour gérer les responsables, relecteurs et approbateurs."
@@ -389,12 +394,15 @@
   "workspace": {
     "actions": {
       "cancelReviewAndEdit": "Annuler la revue et modifier",
-      "discard": "Abandonner",
+      "createVersion": "Créer une version",
+      "done": "Terminé",
       "edit": "Modifier",
       "hideSidebar": "Masquer le panneau latéral",
       "requestReview": "Demander une revue",
       "retryLock": "Réessayer le verrouillage",
-      "showSidebar": "Afficher le panneau latéral"
+      "showSidebar": "Afficher le panneau latéral",
+      "versionAlreadyCurrent": "Déjà à jour",
+      "versionCreated": "Version créée"
     },
     "breadcrumbs": {
       "knowledge": "Base de connaissances",
@@ -409,6 +417,7 @@
       "approveWorkflowFailed": "Échec de l'approbation du workflow.",
       "cancelReviewFailed": "Échec de l'annulation de la revue.",
       "clickToCopyReference": "Cliquer pour copier la référence",
+      "createVersionFailed": "Échec de la création de la version.",
       "importAvailableAfterCreate": "L'importation de document est disponible après la création du document.",
       "importFailed": "Échec de l'importation du document.",
       "inReview": "Ce document est en revue. La modification est désactivée jusqu'à ce que le workflow soit approuvé, que des modifications soient demandées ou que la revue soit annulée.",
