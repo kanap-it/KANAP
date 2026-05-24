@@ -30,6 +30,7 @@ import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../../components/design';
 const ENV_OPTIONS = [
   { value: 'prod', label: 'Prod' },
   { value: 'pre_prod', label: 'Pre-prod' },
@@ -204,6 +205,7 @@ function InstanceDialog({ open, onClose, onSave, draft, setDraft, mode, instance
 
 export default function InstancesEditor({ applicationId, instances, onRefresh, readOnly }: InstancesEditorProps) {
   const { t } = useTranslation(['it', 'common']);
+  const dialogs = useKanapDialogs();
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<'create' | 'edit'>('create');
   const [draft, setDraft] = React.useState<InstanceDraft>(() => createDraft(undefined));
@@ -263,7 +265,11 @@ export default function InstancesEditor({ applicationId, instances, onRefresh, r
   };
 
   const handleDelete = async (instance: AppInstanceRecord) => {
-    if (!window.confirm(`Delete ${instance.environment.toUpperCase()} instance?`)) return;
+    if (!(await dialogs.confirm({
+      message: `Delete ${instance.environment.toUpperCase()} instance?`,
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
     setError(null);
     try {
       await api.delete(`/app-instances/${instance.id}`);

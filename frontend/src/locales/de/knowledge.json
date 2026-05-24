@@ -18,7 +18,6 @@
   },
   "confirmations": {
     "deleteLibrary": "Diese Bibliothek löschen? Dokumente und Ordner werden in die Standardbibliothek verschoben.",
-    "discardChanges": "Nicht gespeicherte Änderungen verwerfen und zur letzten gespeicherten Version zurückkehren?",
     "resetLibraryAccess": "Diese Bibliothek wieder für alle freigeben und die benutzerdefinierten Leser- und Bearbeiterlisten löschen?"
   },
   "dialogs": {
@@ -92,7 +91,6 @@
       "newTopLevelFolder": "Neuer Ordner auf oberster Ebene",
       "rename": "Umbenennen"
     },
-    "allDocs": "Alle Dokumente",
     "aria": {
       "folderActions": "Ordneraktionen für {{name}}",
       "rootActions": "Ordneraktionen"
@@ -113,6 +111,7 @@
       "moveFailed": "Ordner konnte nicht verschoben werden.",
       "moveInProgress": "Ordner wird verschoben"
     },
+    "libraryRoot": "Stammverzeichnis",
     "title": "Ordner",
     "values": {
       "root": "Stammverzeichnis"
@@ -211,6 +210,12 @@
         "authors": "Autoren",
         "owner": "Verantwortlicher",
         "reviewers": "Prüfer"
+      },
+      "placeholders": {
+        "approvers": "Genehmiger hinzufügen",
+        "authors": "Autoren hinzufügen",
+        "owner": "Verantwortlichen auswählen",
+        "reviewers": "Prüfer hinzufügen"
       },
       "messages": {
         "saveFirst": "Zuerst speichern, um Verantwortliche, Prüfer und Genehmiger zu verwalten."
@@ -389,12 +394,15 @@
   "workspace": {
     "actions": {
       "cancelReviewAndEdit": "Review abbrechen und bearbeiten",
-      "discard": "Verwerfen",
+      "createVersion": "Version erstellen",
+      "done": "Fertig",
       "edit": "Bearbeiten",
       "hideSidebar": "Seitenleiste ausblenden",
       "requestReview": "Review anfordern",
       "retryLock": "Sperre erneut versuchen",
-      "showSidebar": "Seitenleiste einblenden"
+      "showSidebar": "Seitenleiste einblenden",
+      "versionAlreadyCurrent": "Bereits aktuell",
+      "versionCreated": "Version erstellt"
     },
     "breadcrumbs": {
       "knowledge": "Wissensdatenbank",
@@ -409,6 +417,7 @@
       "approveWorkflowFailed": "Workflow-Genehmigung fehlgeschlagen.",
       "cancelReviewFailed": "Review-Abbruch fehlgeschlagen.",
       "clickToCopyReference": "Klicken, um die Referenz zu kopieren",
+      "createVersionFailed": "Version konnte nicht erstellt werden.",
       "importAvailableAfterCreate": "Der Dokumentimport ist nach dem Erstellen des Dokuments verfügbar.",
       "importFailed": "Dokumentimport fehlgeschlagen.",
       "inReview": "Dieses Dokument befindet sich im Review. Die Bearbeitung ist deaktiviert, bis der Workflow genehmigt wird, Änderungen angefordert werden oder der Review abgebrochen wird.",

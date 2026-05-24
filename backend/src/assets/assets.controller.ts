@@ -187,6 +187,24 @@ export class AssetsController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('infrastructure', 'member')
+  @Post(':id/related-tasks/bulk-replace')
+  async bulkReplaceRelatedTasks(
+    @Param('id') id: string,
+    @Body() body: { task_ids?: string[] },
+    @Req() req: any,
+  ) {
+    const asset = /^AST-\d+$/i.test(String(id || '').trim())
+      ? await this.svc.getByReference(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id })
+      : await this.svc.get(id, { manager: req?.queryRunner?.manager, tenantId: req?.tenant?.id });
+    return this.tasks.bulkReplaceTasksForAsset(asset.id, body?.task_ids ?? [], {
+      manager: req?.queryRunner?.manager,
+      tenantId: req?.tenant?.id,
+      userId: req?.user?.sub ?? null,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('infrastructure', 'reader')
   @Get(':id/knowledge')
   listDocuments(@Param('id') id: string, @Req() req: any) {

@@ -47,6 +47,7 @@ import {
 } from '../../utils/portfolioI18n';
 import { useLocale } from '../../i18n/useLocale';
 import { useTenant } from '../../tenant/TenantContext';
+import { useKanapDialogs } from '../../components/design';
 
 const PROJECT_WORKSPACE_TABS = new Set([
   'summary',
@@ -108,6 +109,7 @@ const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'
 
 export default function TaskWorkspacePage() {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1042,7 +1044,11 @@ export default function TaskWorkspacePage() {
   };
 
   const handleDelete = async () => {
-    if (!task || !window.confirm(t('portfolio:workspace.task.confirmations.deleteTask'))) return;
+    if (!task || !(await dialogs.confirm({
+      message: t('portfolio:workspace.task.confirmations.deleteTask'),
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
     try {
       await waitForSidebarSaves();
       await api.delete('/tasks/bulk', { data: { ids: [task.id] } });
@@ -1094,7 +1100,7 @@ export default function TaskWorkspacePage() {
     }
     await waitForSidebarSaves();
     if (dirty) {
-      const proceed = window.confirm(t('portfolio:workspace.task.confirmations.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('portfolio:workspace.task.confirmations.unsavedNavigate'));
       if (proceed) {
         setSaving(true);
         try { await handleSave(); } catch { setSaving(false); return; }
@@ -1112,7 +1118,7 @@ export default function TaskWorkspacePage() {
     }
     const qs = cleanedSearchParams.toString();
     navigate(`/portfolio/tasks/${targetId}${qs ? `?${qs}` : ''}`);
-  }, [buildTaskFormFromTask, cleanedSearchParams, dirty, handleSave, navigate, resetClassificationTouched, task, t, waitForSidebarSaves]);
+  }, [buildTaskFormFromTask, cleanedSearchParams, dialogs, dirty, handleSave, navigate, resetClassificationTouched, task, t, waitForSidebarSaves]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString(locale, {

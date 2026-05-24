@@ -10,6 +10,7 @@ import { useDepartmentNav } from '../../hooks/useDepartmentNav';
 import DepartmentOverviewEditor, { DepartmentOverviewEditorHandle } from './editors/DepartmentOverviewEditor';
 import DepartmentCreateEditor, { DepartmentCreateEditorHandle } from './editors/DepartmentCreateEditor';
 import DepartmentDetailsEditor, { DepartmentDetailsEditorHandle } from './editors/DepartmentDetailsEditor';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'overview' | 'details';
 
@@ -21,6 +22,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 export default function DepartmentWorkspacePage() {
   const navigate = useNavigate();
   const { t } = useTranslation(['master-data', 'common']);
+  const dialogs = useKanapDialogs();
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasLevel } = useAuth();
@@ -101,7 +103,7 @@ export default function DepartmentWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -114,10 +116,10 @@ export default function DepartmentWorkspacePage() {
   const handlePrev = () => { void confirmAndNavigate(prevId); };
   const handleNext = () => { void confirmAndNavigate(nextId); };
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedSwitchTab'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/master-data/departments/${id}/${nextValue}?${searchParams.toString()}`));
         return;

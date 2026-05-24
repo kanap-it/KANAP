@@ -336,6 +336,36 @@ function isMinimalDirectRequest(text: string): boolean {
     .test(trimmed);
 }
 
+function isReadOnlyChangeInquiry(rawText: string, text: string): boolean {
+  const asksAboutPastChange = containsAny(text, [
+    /\b(?:ce qui|qu[' -]?est[- ]?ce qui|quoi|what|which)\b[\s\S]{0,100}\b(?:a ete|ont ete|was|were)?\s*(?:modifie(?:e|es|s)?|change(?:e|es|s|d)?|updated)\b/,
+    /\b(?:a ete|ont ete|was|were)\s+(?:modifie(?:e|es|s)?|change(?:e|es|s|d)?|updated)\b/,
+    /\b(?:dernier|derniere|last|recent|recemment|recently)\b[\s\S]{0,80}\b(?:modifie(?:e|es|s)?|change(?:e|es|s|d)?|updated|mis a jour|mise a jour)\b/,
+    /\b(?:modification|modifications|changement|changements|changes?)\b[\s\S]{0,80}\b(?:faite|faites|effectue|effectuees|apporte|apportees|recent|recemment|history|historique)\b/,
+  ]);
+  if (!asksAboutPastChange) {
+    return false;
+  }
+
+  return rawText.includes('?') || containsAny(text, [
+    /\b(?:quel|quelle|quels|quelles|quoi|what|which|comment|how|capable|peux|peut|can|could|dernier|derniere|last)\b/,
+  ]);
+}
+
+function isAdvisoryFeatureImprovementQuestion(rawText: string, text: string): boolean {
+  const asksForRecommendation = rawText.includes('?') || containsAny(text, [
+    /\b(?:quel|quelle|quels|quelles|what|which|idee|idees|idea|recommend|recommande|suggest|suggere|serait|would be|devrait|should)\b/,
+  ]);
+  if (!asksForRecommendation) {
+    return false;
+  }
+
+  return containsAny(text, [
+    /\b(?:fonctionnalite|feature|capability|capacite)\b[\s\S]{0,140}\b(?:a ajouter|a ameliorer|a faire evoluer|ameliorer|evoluer|improve|to add|better|meilleur)\b/,
+    /\b(?:a ajouter|a ameliorer|a faire evoluer|ameliorer|evoluer|improve|to add)\b[\s\S]{0,140}\b(?:fonctionnalite|feature|capability|capacite)\b/,
+  ]);
+}
+
 function classifyAiContextProfile(userMessage: string): ClassifiedContextProfile {
   const raw = String(userMessage || '');
   const text = normalizeText(raw);
@@ -349,6 +379,20 @@ function classifyAiContextProfile(userMessage: string): ClassifiedContextProfile
 
   if (isMinimalDirectRequest(raw)) {
     return { profile: PROFILES.minimal, explicitIntent: true };
+  }
+
+  if (isReadOnlyChangeInquiry(raw, text)) {
+    if (containsAny(text, [/\b(document|documents|doc|docs|knowledge|article|page|library|folder)\b/])) {
+      return { profile: withWebCapability(PROFILES.knowledge, needsWeb), explicitIntent: true };
+    }
+    if (hasEntityReference(raw) || containsAny(text, [/\b(?:ce qui|quoi|what|which)\b/])) {
+      return { profile: withWebCapability(PROFILES.entity_inspection, needsWeb), explicitIntent: true };
+    }
+    return { profile: withWebCapability(PROFILES.read_query, needsWeb), explicitIntent: true };
+  }
+
+  if (isAdvisoryFeatureImprovementQuestion(raw, text)) {
+    return { profile: withWebCapability(PROFILES.read_query, needsWeb), explicitIntent: true };
   }
 
   const isWrite = containsAny(text, [

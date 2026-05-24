@@ -8,6 +8,7 @@ import FormattedNumberField from '../../../components/inputs/FormattedNumberFiel
 import api from '../../../api';
 import { useFreezeState } from '../../../hooks/useFreezeState';
 import { useLocale } from '../../../i18n/useLocale';
+import { useKanapDialogs } from '../../../components/design';
 
 export type BudgetEditorHandle = {
   isDirty: () => boolean;
@@ -61,6 +62,7 @@ function monthLabel(m: number, locale: string) {
 
 export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
   const { t } = useTranslation(['ops', 'common']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -300,10 +302,10 @@ export default forwardRef<BudgetEditorHandle, Props>(function BudgetEditor({ id,
     reset: () => { void load(); },
   }), [hasUnsavedChanges, save, load]);
 
-  const onYearChangeGuard = (newYear: number) => {
+  const onYearChangeGuard = async (newYear: number) => {
     if (newYear === year) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm(t('confirmations.unsavedSwitchYear'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedSwitchYear'));
       if (proceed) {
         void save().then(() => onYearChange(newYear)).catch(() => {});
         return;

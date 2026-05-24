@@ -20,7 +20,7 @@ export default function ValidatedBadge({ size = 'small', validatedAtLabel, iconO
   if (iconOnly) {
     return (
       <Tooltip title={title}>
-        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', color: 'success.main' }}>
+        <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', color: getDotColor('success', mode) }}>
           <VerifiedIcon fontSize={size === 'small' ? 'small' : 'medium'} />
         </Box>
       </Tooltip>

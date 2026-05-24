@@ -29,6 +29,7 @@ import DateEUField from '../../../components/fields/DateEUField';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../../components/design';
 type Assignment = {
   id: string;
   app_instance_id: string;
@@ -158,6 +159,7 @@ function AssignmentDialog({
 
 export default function ServerAssignmentsEditor({ applicationId, instances, onRefreshInstances, readOnly }: ServerAssignmentsEditorProps) {
   const { t } = useTranslation(['it', 'common']);
+  const dialogs = useKanapDialogs();
   const [assignments, setAssignments] = React.useState<Record<string, Assignment[]>>({});
   const [error, setError] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -335,7 +337,11 @@ export default function ServerAssignmentsEditor({ applicationId, instances, onRe
   };
 
   const handleRemove = async (instanceId: string, assignmentId: string) => {
-    if (!window.confirm(t('confirmations.removeAssignment'))) return;
+    if (!(await dialogs.confirm({
+      message: t('confirmations.removeAssignment'),
+      confirmLabel: t('common:buttons.remove'),
+      intent: 'danger',
+    }))) return;
     setError(null);
     try {
       await api.delete(`/app-instances/${instanceId}/servers/${assignmentId}`);

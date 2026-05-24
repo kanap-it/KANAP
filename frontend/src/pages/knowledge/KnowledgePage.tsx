@@ -39,6 +39,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
+import { KanapDialog, PropertyRow } from '../../components/design';
 import ServerDataGrid from '../../components/ServerDataGrid';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
@@ -46,28 +47,29 @@ import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import { useAuth } from '../../auth/AuthContext';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
-import FolderTreePanel, { type DraggedFolderState as FolderTreeDraggedFolderState } from './components/FolderTreePanel';
+import FolderTreePanel, {
+  ROOT_FOLDER_DROP_TARGET,
+  type DraggedFolderState as FolderTreeDraggedFolderState,
+} from './components/FolderTreePanel';
 import KnowledgeFolderMoveDialog from './components/KnowledgeFolderMoveDialog';
 import KnowledgeMoveDialog from './components/KnowledgeMoveDialog';
 import ValidatedBadge from './components/ValidatedBadge';
 import KnowledgeTypesManager from './components/KnowledgeTypesManager';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-import { getDotColor } from '../../utils/statusColors';
+import { getDotColor, KNOWLEDGE_STATUS_COLORS } from '../../utils/statusColors';
+import {
+  dialogBorderedFieldSx,
+  drawerAutocompleteListboxSx,
+  drawerMenuItemSx,
+  drawerSelectSx,
+} from '../../theme/formSx';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
-  in_review: 'In Review',
+  in_review: 'In review',
   published: 'Published',
   archived: 'Archived',
   obsolete: 'Obsolete',
-};
-
-const STATUS_COLORS: Record<string, 'default' | 'warning' | 'info' | 'success' | 'secondary'> = {
-  draft: 'default',
-  in_review: 'warning',
-  published: 'success',
-  archived: 'secondary',
-  obsolete: 'default',
 };
 
 const TEMPLATE_LIBRARY_SLUG = 'templates';
@@ -153,7 +155,7 @@ function StatusCellRenderer(props: any) {
   const status = props.value;
   const { t } = useTranslation(['knowledge']);
   const mode = useTheme().palette.mode;
-  const colorKey = STATUS_COLORS[status] || 'default';
+  const colorKey = KNOWLEDGE_STATUS_COLORS[status] || 'default';
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ height: '100%' }}>
       <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
@@ -221,6 +223,8 @@ export default function KnowledgePage() {
   const [librarySettingsAccessMode, setLibrarySettingsAccessMode] = useState<'default' | 'restricted'>('default');
   const [librarySettingsReaderIds, setLibrarySettingsReaderIds] = useState<string[]>([]);
   const [librarySettingsWriterIds, setLibrarySettingsWriterIds] = useState<string[]>([]);
+  const [accessResetConfirmOpen, setAccessResetConfirmOpen] = useState(false);
+  const [deleteLibraryConfirmOpen, setDeleteLibraryConfirmOpen] = useState(false);
 
   const { data: libraries = [] } = useQuery({
     queryKey: ['knowledge-libraries'],
@@ -299,7 +303,10 @@ export default function KnowledgePage() {
     if (docScope === 'my') params.ownerUserId = profile?.id;
     else if (docScope === 'team' && hasTeam) params.teamId = myTeamConfig?.team_id;
     if (!searchAllLibraries && activeLibrary?.id) params.library_id = activeLibrary.id;
-    if (!searchAllLibraries && selectedFolderId) params.folder_id = selectedFolderId;
+    if (!searchAllLibraries) {
+      if (selectedFolderId) params.folder_id = selectedFolderId;
+      else params.root_folder = '1';
+    }
     return params;
   }, [docScope, profile?.id, hasTeam, myTeamConfig?.team_id, searchAllLibraries, activeLibrary?.id, selectedFolderId]);
 
@@ -742,13 +749,18 @@ export default function KnowledgePage() {
 
   const handleLibraryAccessModeChange = useCallback((nextMode: 'default' | 'restricted') => {
     if (nextMode === 'default' && librarySettingsAccessMode === 'restricted' && libraryHasRestrictedMembers) {
-      const confirmed = window.confirm(t('confirmations.resetLibraryAccess'));
-      if (!confirmed) return;
-      setLibrarySettingsReaderIds([]);
-      setLibrarySettingsWriterIds([]);
+      setAccessResetConfirmOpen(true);
+      return;
     }
     setLibrarySettingsAccessMode(nextMode);
-  }, [libraryHasRestrictedMembers, librarySettingsAccessMode, t]);
+  }, [libraryHasRestrictedMembers, librarySettingsAccessMode]);
+
+  const confirmResetLibraryAccess = useCallback(() => {
+    setLibrarySettingsReaderIds([]);
+    setLibrarySettingsWriterIds([]);
+    setLibrarySettingsAccessMode('default');
+    setAccessResetConfirmOpen(false);
+  }, []);
 
   const [newDocAnchorEl, setNewDocAnchorEl] = useState<null | HTMLElement>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
@@ -829,7 +841,10 @@ export default function KnowledgePage() {
 
   const goToBlankDocument = () => {
     if (!activeLibrary?.can_write) return;
-    navigate(`/knowledge/new?library=${encodeURIComponent(activeLibrary.slug)}`);
+    const sp = new URLSearchParams();
+    sp.set('library', activeLibrary.slug);
+    if (!searchAllLibraries && selectedFolderId) sp.set('folder_id', selectedFolderId);
+    navigate(`/knowledge/new?${sp.toString()}`);
   };
 
   const selectionLibraryIds = useMemo(
@@ -1015,26 +1030,27 @@ export default function KnowledgePage() {
     clearFolderDragState();
   }, [clearFolderDragState]);
 
-  const canDropDraggedDocumentsOnFolder = useCallback((folderId: string) => {
+  const canDropDraggedDocumentsOnFolder = useCallback((folderId: string | null) => {
     if (!draggedDocuments || !activeLibrary?.id) return false;
     if (draggedDocuments.libraryId !== activeLibrary.id) return false;
     if (draggedDocuments.rows.some((row) => !!row.is_managed_integrated_document)) return false;
     return draggedDocuments.rows.some((row) => (row.folder_id || null) !== folderId);
   }, [activeLibrary?.id, draggedDocuments]);
 
-  const handleFolderDragOver = useCallback((folderId: string, event: React.DragEvent<HTMLDivElement>) => {
+  const handleFolderDragOver = useCallback((folderId: string | null, event: React.DragEvent<HTMLDivElement>) => {
     if (!canDropDraggedDocumentsOnFolder(folderId)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     if (dragHoveredLibraryId !== null) {
       setDragHoveredLibraryId(null);
     }
-    if (dragHoveredFolderId !== folderId) {
-      setDragHoveredFolderId(folderId);
+    const hoverId = folderId ?? ROOT_FOLDER_DROP_TARGET;
+    if (dragHoveredFolderId !== hoverId) {
+      setDragHoveredFolderId(hoverId);
     }
   }, [canDropDraggedDocumentsOnFolder, dragHoveredFolderId, dragHoveredLibraryId]);
 
-  const handleFolderDrop = useCallback((folderId: string, event: React.DragEvent<HTMLDivElement>) => {
+  const handleFolderDrop = useCallback((folderId: string | null, event: React.DragEvent<HTMLDivElement>) => {
     if (!draggedDocuments || !activeLibrary?.id || !canDropDraggedDocumentsOnFolder(folderId)) return;
     event.preventDefault();
     setDragHoveredFolderId(null);
@@ -1101,9 +1117,11 @@ export default function KnowledgePage() {
 
   const createFromTemplate = () => {
     if (!activeLibrary || !selectedTemplateId) return;
-    navigate(
-      `/knowledge/new?library=${encodeURIComponent(activeLibrary.slug)}&template_document_id=${encodeURIComponent(selectedTemplateId)}`,
-    );
+    const sp = new URLSearchParams();
+    sp.set('library', activeLibrary.slug);
+    sp.set('template_document_id', selectedTemplateId);
+    if (!searchAllLibraries && selectedFolderId) sp.set('folder_id', selectedFolderId);
+    navigate(`/knowledge/new?${sp.toString()}`);
     setTemplatePickerOpen(false);
     setSelectedTemplateId('');
   };
@@ -1333,62 +1351,78 @@ export default function KnowledgePage() {
         </MenuItem>
       </Menu>
 
-      <Dialog open={createLibraryOpen} onClose={() => setCreateLibraryOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>{t('dialogs.createLibrary.title')}</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label={t('dialogs.createLibrary.fields.libraryName')}
-            fullWidth
-            value={newLibraryName}
-            onChange={(e) => setNewLibraryName(e.target.value)}
-          />
+      <KanapDialog
+        open={createLibraryOpen}
+        title={t('dialogs.createLibrary.title')}
+        onClose={() => setCreateLibraryOpen(false)}
+        onSave={() => createLibraryMutation.mutate()}
+        saveLabel={t('common:buttons.create')}
+        saveDisabled={!newLibraryName.trim() || createLibraryMutation.isPending}
+        saveLoading={createLibraryMutation.isPending}
+      >
+        <Stack spacing={1.5}>
+          <PropertyRow label={t('dialogs.createLibrary.fields.libraryName')} required>
+            <TextField
+              variant="standard"
+              fullWidth
+              value={newLibraryName}
+              onChange={(e) => setNewLibraryName(e.target.value)}
+              placeholder={t('dialogs.createLibrary.fields.libraryName')}
+              InputProps={{ disableUnderline: true }}
+              sx={dialogBorderedFieldSx}
+            />
+          </PropertyRow>
           {createLibraryMutation.isError && (
             <Alert severity="error" sx={{ mt: 2 }}>{t('dialogs.createLibrary.messages.failed')}</Alert>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateLibraryOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={() => createLibraryMutation.mutate()}
-            disabled={!newLibraryName.trim() || createLibraryMutation.isPending}
-          >
-            {t('common:buttons.create')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Stack>
+      </KanapDialog>
 
-      <Dialog
+      <KanapDialog
         open={!!editingLibrary}
+        title={t('dialogs.editLibrary.title')}
         onClose={() => setEditingLibrary(null)}
-        fullWidth
-        maxWidth="md"
+        onSave={() => saveLibraryMutation.mutate()}
+        saveLabel={t('common:buttons.save')}
+        saveDisabled={!librarySettingsName.trim() || !librarySettingsOwnerId || saveLibraryMutation.isPending || editingLibraryLoading}
+        saveLoading={saveLibraryMutation.isPending}
+        footerLeft={(
+          <Button
+            color="error"
+            onClick={() => setDeleteLibraryConfirmOpen(true)}
+            disabled={!editingLibrary || deleteLibraryMutation.isPending || editingLibraryLoading}
+          >
+            {t('common:buttons.delete')}
+          </Button>
+        )}
+        sx={{ maxWidth: 720 }}
       >
-        <DialogTitle>{t('dialogs.editLibrary.title')}</DialogTitle>
-        <DialogContent>
-          {editingLibraryLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress size={28} />
-            </Box>
-          ) : (
-            <Stack spacing={2.5} sx={{ mt: 0.5 }}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t('dialogs.editLibrary.sections.general')}
-                </Typography>
-                <Stack spacing={2}>
+        {editingLibraryLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : (
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
+                {t('dialogs.editLibrary.sections.general')}
+              </Typography>
+              <Stack spacing={1.25}>
+                <PropertyRow label={t('dialogs.editLibrary.fields.libraryName')} required>
                   <TextField
-                    autoFocus
-                    label={t('dialogs.editLibrary.fields.libraryName')}
+                    variant="standard"
                     fullWidth
                     value={librarySettingsName}
                     onChange={(e) => setLibrarySettingsName(e.target.value)}
+                    placeholder={t('dialogs.editLibrary.fields.libraryName')}
+                    InputProps={{ disableUnderline: true }}
+                    sx={dialogBorderedFieldSx}
                   />
-                  <Typography variant="body2" color="text.secondary">
-                    {t('dialogs.editLibrary.slugWarning')}
-                  </Typography>
+                </PropertyRow>
+                <Typography variant="body2" color="text.secondary">
+                  {t('dialogs.editLibrary.slugWarning')}
+                </Typography>
+                <PropertyRow label={t('dialogs.editLibrary.fields.owner')} required>
                   <Autocomplete
                     options={librarySelectableUsers}
                     value={selectedLibraryOwner}
@@ -1397,33 +1431,43 @@ export default function KnowledgePage() {
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     renderOption={renderLibrarySelectableUserOption}
                     noOptionsText={t('common:selects.noUsersFound')}
+                    ListboxProps={{ sx: drawerAutocompleteListboxSx }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label={t('dialogs.editLibrary.fields.owner')}
+                        variant="standard"
+                        placeholder={t('dialogs.editLibrary.fields.owner')}
+                        InputProps={{ ...params.InputProps, disableUnderline: true }}
+                        sx={dialogBorderedFieldSx}
                       />
                     )}
                   />
-                </Stack>
-              </Box>
+                </PropertyRow>
+              </Stack>
+            </Box>
 
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t('dialogs.editLibrary.sections.access')}
-                </Typography>
-                <Stack spacing={2}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
+                {t('dialogs.editLibrary.sections.access')}
+              </Typography>
+              <Stack spacing={1.25}>
+                <PropertyRow label={t('dialogs.editLibrary.fields.accessMode')}>
                   <TextField
                     select
-                    label={t('dialogs.editLibrary.fields.accessMode')}
+                    variant="standard"
                     value={librarySettingsAccessMode}
                     onChange={(event) => handleLibraryAccessModeChange(event.target.value as 'default' | 'restricted')}
+                    InputProps={{ disableUnderline: true }}
+                    sx={[drawerSelectSx, dialogBorderedFieldSx]}
                   >
-                    <MenuItem value="default">{t('dialogs.editLibrary.values.accessModeDefault')}</MenuItem>
-                    <MenuItem value="restricted">{t('dialogs.editLibrary.values.accessModeRestricted')}</MenuItem>
+                    <MenuItem value="default" sx={drawerMenuItemSx}>{t('dialogs.editLibrary.values.accessModeDefault')}</MenuItem>
+                    <MenuItem value="restricted" sx={drawerMenuItemSx}>{t('dialogs.editLibrary.values.accessModeRestricted')}</MenuItem>
                   </TextField>
+                </PropertyRow>
 
-                  {librarySettingsAccessMode === 'restricted' && (
-                    <>
+                {librarySettingsAccessMode === 'restricted' && (
+                  <>
+                    <PropertyRow label={t('dialogs.editLibrary.fields.readers')}>
                       <Autocomplete
                         multiple
                         options={librarySelectableUsers}
@@ -1434,13 +1478,19 @@ export default function KnowledgePage() {
                         filterSelectedOptions
                         renderOption={renderLibrarySelectableUserOption}
                         noOptionsText={t('common:selects.noUsersFound')}
+                        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
                         renderInput={(params) => (
                           <TextField
                             {...params}
-                            label={t('dialogs.editLibrary.fields.readers')}
+                            variant="standard"
+                            placeholder={t('dialogs.editLibrary.fields.readers')}
+                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                            sx={dialogBorderedFieldSx}
                           />
                         )}
                       />
+                    </PropertyRow>
+                    <PropertyRow label={t('dialogs.editLibrary.fields.writers')}>
                       <Autocomplete
                         multiple
                         options={librarySelectableUsers}
@@ -1451,58 +1501,40 @@ export default function KnowledgePage() {
                         filterSelectedOptions
                         renderOption={renderLibrarySelectableUserOption}
                         noOptionsText={t('common:selects.noUsersFound')}
+                        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
                         renderInput={(params) => (
                           <TextField
                             {...params}
-                            label={t('dialogs.editLibrary.fields.writers')}
+                            variant="standard"
+                            placeholder={t('dialogs.editLibrary.fields.writers')}
+                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                            sx={dialogBorderedFieldSx}
                           />
                         )}
                       />
-                      {!libraryHasRestrictedMembers && (
-                        <Alert severity="info">
-                          {t('dialogs.editLibrary.messages.restrictedEmpty')}
-                        </Alert>
-                      )}
-                    </>
-                  )}
-                </Stack>
-              </Box>
+                    </PropertyRow>
+                    {!libraryHasRestrictedMembers && (
+                      <Alert severity="info">
+                        {t('dialogs.editLibrary.messages.restrictedEmpty')}
+                      </Alert>
+                    )}
+                  </>
+                )}
+              </Stack>
+            </Box>
 
-              {(saveLibraryMutation.isError || deleteLibraryMutation.isError || editingLibraryError) && (
-                <Alert severity="error">
-                  {getApiErrorMessage(
-                    saveLibraryMutation.error || deleteLibraryMutation.error || editingLibraryError,
-                    t,
-                    t('dialogs.editLibrary.messages.failed'),
-                  )}
-                </Alert>
-              )}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingLibrary(null)}>{t('common:buttons.cancel')}</Button>
-          <Button
-            color="error"
-            onClick={() => {
-              if (!editingLibrary) return;
-              const confirmed = window.confirm(t('confirmations.deleteLibrary'));
-              if (!confirmed) return;
-              deleteLibraryMutation.mutate();
-            }}
-            disabled={!editingLibrary || deleteLibraryMutation.isPending || editingLibraryLoading}
-          >
-            {t('common:buttons.delete')}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => saveLibraryMutation.mutate()}
-            disabled={!librarySettingsName.trim() || !librarySettingsOwnerId || saveLibraryMutation.isPending || editingLibraryLoading}
-          >
-            {t('common:buttons.save')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            {(saveLibraryMutation.isError || deleteLibraryMutation.isError || editingLibraryError) && (
+              <Alert severity="error">
+                {getApiErrorMessage(
+                  saveLibraryMutation.error || deleteLibraryMutation.error || editingLibraryError,
+                  t,
+                  t('dialogs.editLibrary.messages.failed'),
+                )}
+              </Alert>
+            )}
+          </Stack>
+        )}
+      </KanapDialog>
 
       <Dialog open={typesManagerOpen} onClose={() => setTypesManagerOpen(false)} fullWidth maxWidth="lg">
         <DialogTitle>{t('dialogs.manageTypes.title')}</DialogTitle>
@@ -1514,41 +1546,73 @@ export default function KnowledgePage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t('dialogs.selectTemplate.title')}</DialogTitle>
-        <DialogContent>
-          <TextField
-            select
-            fullWidth
-            margin="dense"
-            label={t('dialogs.selectTemplate.fields.template')}
-            value={selectedTemplateId}
-            onChange={(e) => setSelectedTemplateId(e.target.value)}
-          >
-            {groupedTemplates.map((group) => ([
-              <ListSubheader key={`${group.typeName}-header`} disableSticky>
-                {group.typeName}
-              </ListSubheader>,
-              ...group.items.map((row) => (
-                <MenuItem key={row.id} value={row.id}>
-                  {`DOC-${row.item_number} - ${row.title}`}
-                </MenuItem>
-              )),
-            ]))}
-          </TextField>
+      <KanapDialog
+        open={templatePickerOpen}
+        title={t('dialogs.selectTemplate.title')}
+        onClose={() => setTemplatePickerOpen(false)}
+        onSave={createFromTemplate}
+        saveLabel={t('dialogs.selectTemplate.actions.useTemplate')}
+        saveDisabled={!selectedTemplateId || !activeLibrary}
+      >
+        <Stack spacing={1.5}>
+          <PropertyRow label={t('dialogs.selectTemplate.fields.template')}>
+            <TextField
+              select
+              variant="standard"
+              fullWidth
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              InputProps={{ disableUnderline: true }}
+              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+            >
+              {groupedTemplates.map((group) => ([
+                <ListSubheader key={`${group.typeName}-header`} disableSticky>
+                  {group.typeName}
+                </ListSubheader>,
+                ...group.items.map((row) => (
+                  <MenuItem key={row.id} value={row.id} sx={drawerMenuItemSx}>
+                    {`DOC-${row.item_number} - ${row.title}`}
+                  </MenuItem>
+                )),
+              ]))}
+            </TextField>
+          </PropertyRow>
           {!templatesData?.items?.length && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {t('dialogs.selectTemplate.empty')}
             </Typography>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTemplatePickerOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button variant="contained" onClick={createFromTemplate} disabled={!selectedTemplateId || !activeLibrary}>
-            {t('dialogs.selectTemplate.actions.useTemplate')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Stack>
+      </KanapDialog>
+
+      <KanapDialog
+        open={accessResetConfirmOpen}
+        title={t('dialogs.resetLibraryAccess.title')}
+        onClose={() => setAccessResetConfirmOpen(false)}
+        onSave={confirmResetLibraryAccess}
+        saveLabel={t('dialogs.resetLibraryAccess.actions.confirm')}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {t('confirmations.resetLibraryAccess')}
+        </Typography>
+      </KanapDialog>
+
+      <KanapDialog
+        open={deleteLibraryConfirmOpen}
+        title={t('dialogs.deleteLibrary.title')}
+        onClose={() => setDeleteLibraryConfirmOpen(false)}
+        onSave={() => {
+          setDeleteLibraryConfirmOpen(false);
+          deleteLibraryMutation.mutate();
+        }}
+        saveLabel={t('dialogs.deleteLibrary.actions.confirm')}
+        saveDisabled={!editingLibrary || deleteLibraryMutation.isPending}
+        saveLoading={deleteLibraryMutation.isPending}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {t('confirmations.deleteLibrary')}
+        </Typography>
+      </KanapDialog>
 
       <KnowledgeMoveDialog
         open={moveDialogOpen}

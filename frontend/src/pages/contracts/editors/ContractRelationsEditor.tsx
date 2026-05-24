@@ -6,6 +6,7 @@ import api from '../../../api';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAuth } from '../../../auth/AuthContext';
 import ItemContactsSection from '../../../components/contacts/ItemContactsSection';
+import { useKanapDialogs } from '../../../components/design';
 
 export type ContractRelationsEditorHandle = {
   save: () => Promise<void>;
@@ -20,6 +21,7 @@ type Props = {
 
 export default forwardRef<ContractRelationsEditorHandle, Props>(function ContractRelationsEditor({ id, readOnly, onDirtyChange }, ref) {
   const { t } = useTranslation(['ops', 'common']);
+  const dialogs = useKanapDialogs();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -353,7 +355,11 @@ export default forwardRef<ContractRelationsEditorHandle, Props>(function Contrac
             const canDelete = hasLevel('contracts','manager') && !readOnly;
             const onDelete = async () => {
               if (!canDelete) return;
-              const ok = window.confirm(t('confirmations.deleteAttachment', { name: a.original_filename }));
+              const ok = await dialogs.confirm({
+                message: t('confirmations.deleteAttachment', { name: a.original_filename }),
+                confirmLabel: t('common:buttons.delete'),
+                intent: 'danger',
+              });
               if (!ok) return;
               try {
                 await api.patch(`/contracts/attachments/${a.id}/delete`, {});

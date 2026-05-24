@@ -138,6 +138,7 @@ export class KnowledgeWorkflowService {
     document.updated_by = actedByUserId;
     document.updated_at = new Date();
     await manager.getRepository(Document).save(document);
+    await this.knowledge.ensureCurrentVersionSnapshot(document, 'Workflow approved', actedByUserId, manager);
 
     await this.knowledge.createSystemActivity(
       document.id,
@@ -205,6 +206,8 @@ export class KnowledgeWorkflowService {
     if (!reviewerIds.length && !approverIds.length) {
       throw new BadRequestException('Assign at least one reviewer or approver before requesting review');
     }
+
+    await this.knowledge.ensureCurrentVersionSnapshot(document, 'Review requested', userId, manager);
 
     const workflowStatus: DocumentWorkflowStatus = reviewerIds.length ? 'pending_review' : 'pending_approval';
     const workflow = manager.getRepository(DocumentWorkflow).create({

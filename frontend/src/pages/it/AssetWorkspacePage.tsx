@@ -45,7 +45,7 @@ import { useAuth } from '../../auth/AuthContext';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-import { KanapDialog, PropertyGroup, PropertyRow } from '../../components/design';
+import { KanapDialog, PropertyGroup, PropertyRow, useKanapDialogs } from '../../components/design';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, nakedInputHoverSx } from '../../theme/formSx';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
@@ -236,6 +236,7 @@ const denseTableSx = {
 
 export default function AssetWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
+  const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
   const theme = useTheme();
   const params = useParams();
@@ -833,7 +834,11 @@ export default function AssetWorkspacePage() {
   };
 
   const handleRemoveAssignment = async (assignment: AssignmentRow) => {
-    if (!window.confirm(t('confirmations.removeAssignment'))) return;
+    if (!(await dialogs.confirm({
+      message: t('confirmations.removeAssignment'),
+      confirmLabel: t('common:buttons.remove'),
+      intent: 'danger',
+    }))) return;
     try {
       await api.delete(`/app-instances/${assignment.app_instance_id}/assets/${assignment.id}`);
       await refreshAssignments();
@@ -1087,7 +1092,7 @@ export default function AssetWorkspacePage() {
   const confirmAndNavigate = React.useCallback(async (targetId: string | null) => {
     if (!targetId) return;
     if (isCreate && dirty) {
-      const proceed = window.confirm(t('confirmations.unsavedSaveBeforeNav'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedSaveBeforeNav'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -1096,10 +1101,10 @@ export default function AssetWorkspacePage() {
     }
     const qs = listContextParams.toString();
     navigate(`/it/assets/${targetId}/${tab}${qs ? `?${qs}` : ''}`);
-  }, [dirty, handleSave, handleReset, isCreate, listContextParams, navigate, tab, t]);
+  }, [dialogs, dirty, handleSave, handleReset, isCreate, listContextParams, navigate, tab, t]);
 
-  const handleClose = () => {
-    if (isCreate && dirty && !window.confirm(t('confirmations.unsavedSaveBeforeNav'))) return;
+  const handleClose = async () => {
+    if (isCreate && dirty && !(await dialogs.confirm(t('confirmations.unsavedSaveBeforeNav')))) return;
     const qs = listContextParams.toString();
     navigate(`/it/assets${qs ? `?${qs}` : ''}`);
   };
@@ -1200,9 +1205,13 @@ export default function AssetWorkspacePage() {
           size="small"
           onClick={async () => {
             if (!id) return;
-            if (!window.confirm(`Delete asset "${data?.name || name}"?`)) return;
+            if (!(await dialogs.confirm({
+              message: `Delete asset "${data?.name || name}"?`,
+              confirmLabel: t('common:buttons.delete'),
+              intent: 'danger',
+            }))) return;
             await api.delete(`/assets/${id}`);
-            handleClose();
+            await handleClose();
           }}
         >
           Delete
@@ -1216,7 +1225,7 @@ export default function AssetWorkspacePage() {
           itemName={data.name || name || 'Untitled asset'}
         />
       )}
-      <IconButton onClick={handleClose} title={t('common.close')} aria-label={t('common.close')} size="small">
+      <IconButton onClick={() => { void handleClose(); }} title={t('common.close')} aria-label={t('common.close')} size="small">
         <CloseIcon />
       </IconButton>
     </>

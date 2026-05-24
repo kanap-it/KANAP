@@ -426,6 +426,12 @@
     "replaceTitle": "¿Reemplazar el contenido actual?",
     "replaceDescription": "Al importar un documento se reemplazará el contenido Markdown actual en este editor."
   },
+  "systemDialogs": {
+    "noticeTitle": "Aviso",
+    "confirmTitle": "Confirmar acción",
+    "promptTitle": "Ingresar valor",
+    "valueRequired": "Ingrese un valor"
+  },
   "subscription": {
     "trialExpiresIn": "Su período de prueba expira en {{count}} día.",
     "trialExpiresIn_plural": "Su período de prueba expira en {{count}} días.",

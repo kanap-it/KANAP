@@ -94,6 +94,15 @@ export const REQUEST_STATUS_COLORS: Record<string, string> = {
   converted: 'success',
 };
 
+/** Knowledge document statuses */
+export const KNOWLEDGE_STATUS_COLORS: Record<string, string> = {
+  draft: 'default',
+  in_review: 'warning',
+  published: 'success',
+  archived: 'secondary',
+  obsolete: 'default',
+};
+
 /** Priority levels (shared across tasks/requests/projects) */
 export const PRIORITY_COLORS: Record<string, string> = {
   blocker: 'error',

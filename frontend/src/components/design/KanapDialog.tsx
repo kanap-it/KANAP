@@ -3,6 +3,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import {
   Box,
   Button,
+  type ButtonProps,
   CircularProgress,
   Dialog,
   IconButton,
@@ -18,8 +19,12 @@ export type KanapDialogProps = {
   footerLeft?: React.ReactNode;
   onSave: () => void | Promise<void>;
   saveLabel?: string;
+  saveVariant?: ButtonProps['variant'];
+  saveColor?: ButtonProps['color'];
   saveDisabled?: boolean;
   saveLoading?: boolean;
+  cancelLabel?: string;
+  showCancel?: boolean;
   sx?: SxProps<Theme>;
 };
 
@@ -35,8 +40,12 @@ export default function KanapDialog({
   footerLeft,
   onSave,
   saveLabel = 'Save',
+  saveVariant = 'contained',
+  saveColor = 'primary',
   saveDisabled = false,
   saveLoading = false,
+  cancelLabel = 'Cancel',
+  showCancel = true,
   sx,
 }: KanapDialogProps) {
   const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
@@ -127,13 +136,15 @@ export default function KanapDialog({
           <Box sx={{ flex: 1, minWidth: 0 }}>
             {footerLeft}
           </Box>
-          <Button variant="action" onClick={onClose}>
-            Cancel
-          </Button>
+          {showCancel ? (
+            <Button variant="action" onClick={onClose}>
+              {cancelLabel}
+            </Button>
+          ) : null}
           <Button
             type="submit"
-            variant="contained"
-            color="primary"
+            variant={saveVariant}
+            color={saveColor}
             disabled={saveDisabled || saveLoading}
             startIcon={saveLoading ? <CircularProgress color="inherit" size={14} /> : undefined}
             sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}

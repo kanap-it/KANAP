@@ -22,10 +22,16 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SaveIcon from '@mui/icons-material/Save';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import { getDotColor } from '../../../utils/statusColors';
+import { PropertyRow } from '../../../components/design';
+import {
+  drawerAutocompleteListboxSx,
+  drawerMenuItemSx,
+  drawerSelectSx,
+  editableFieldValueSx,
+} from '../../../theme/formSx';
 
 const STATUS_OPTIONS = [
   { value: 'draft' },
@@ -73,9 +79,6 @@ interface KnowledgeSidebarProps {
   contributorOptions: ContributorOption[];
   contributorAssignments: ContributorAssignments;
   onContributorAssignmentsChange: (next: ContributorAssignments) => void;
-  onSaveContributors: () => void;
-  savingContributors: boolean;
-  contributorsDirty: boolean;
   contributorsError: string | null;
   documentTypeOptions: DocumentTypeOption[];
   // Folder options
@@ -85,9 +88,6 @@ interface KnowledgeSidebarProps {
   classificationStreams: Array<any>;
   classificationRows: ClassificationRow[];
   onClassificationRowsChange: (rows: ClassificationRow[]) => void;
-  onSaveClassifications: () => void;
-  savingClassifications: boolean;
-  classificationsDirty: boolean;
   classificationError: string | null;
   // Relations
   relationSelections: Record<RelationKey, RelationOption[]>;
@@ -95,9 +95,6 @@ interface KnowledgeSidebarProps {
   relationSearch: Record<RelationKey, string>;
   onRelationSearchChange: (key: RelationKey, value: string) => void;
   relationOptions: Record<RelationKey, RelationOption[]>;
-  onSaveRelations: () => void;
-  savingRelations: boolean;
-  relationsDirty: boolean;
   relationsError: string | null;
   // Versions
   versions: any[];
@@ -132,6 +129,8 @@ const accordionSx = {
   '&:before': { display: 'none' },
   bgcolor: 'transparent',
 };
+
+const EMPTY_CLASSIFICATION_ROW: ClassificationRow = { category_id: '', stream_id: null };
 
 function ManagedReadonlyBadge({ title }: { title: string }) {
   return (
@@ -173,9 +172,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   contributorOptions,
   contributorAssignments,
   onContributorAssignmentsChange,
-  onSaveContributors,
-  savingContributors,
-  contributorsDirty,
   contributorsError,
   documentTypeOptions,
   folderOptions,
@@ -183,18 +179,12 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   classificationStreams,
   classificationRows,
   onClassificationRowsChange,
-  onSaveClassifications,
-  savingClassifications,
-  classificationsDirty,
   classificationError,
   relationSelections,
   onRelationSelectionsChange,
   relationSearch,
   onRelationSearchChange,
   relationOptions,
-  onSaveRelations,
-  savingRelations,
-  relationsDirty,
   relationsError,
   versions,
   onRevertVersion,
@@ -220,6 +210,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   const [activeTab, setActiveTab] = React.useState<'properties' | 'comments'>('properties');
   const [expanded, setExpanded] = React.useState<string[]>([]);
   const [workflowComment, setWorkflowComment] = React.useState('');
+  const autoExpandedWorkflowRef = React.useRef<string | null>(null);
 
   const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
     setExpanded((prev) =>
@@ -290,14 +281,37 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
         label: String(row?.user_name || row?.user_id || id),
       });
     }
+    if (currentUserId) {
+      const ownIndex = out.findIndex((row) => row.id === currentUserId);
+      if (ownIndex > 0) out.unshift(...out.splice(ownIndex, 1));
+    }
     return out;
-  }, [contributorOptions, doc?.contributors]);
+  }, [contributorOptions, currentUserId, doc?.contributors]);
   const formatContributorLabel = React.useCallback((option: ContributorOption) => {
     const firstName = String(option?.first_name || '').trim();
     const lastName = String(option?.last_name || '').trim();
     const fullName = [firstName, lastName].filter(Boolean).join(' ');
     return fullName || option?.label || option?.email || option?.id || '';
   }, []);
+  const getContributorOptionLabel = React.useCallback((option: ContributorOption) => {
+    const baseLabel = formatContributorLabel(option);
+    return option.id === currentUserId ? `${baseLabel} ${t('common:selects.meSuffix')}` : baseLabel;
+  }, [currentUserId, formatContributorLabel, t]);
+  const renderContributorOption = React.useCallback((
+    props: React.HTMLAttributes<HTMLLIElement>,
+    option: ContributorOption,
+  ) => (
+    <React.Fragment key={option.id}>
+      <li {...props}>
+        <div style={{ fontWeight: 500 }}>
+          {getContributorOptionLabel(option)}
+        </div>
+      </li>
+      {option.id === currentUserId && mergedContributorOptions.length > 1 && (
+        <Divider sx={(theme) => ({ borderColor: theme.palette.kanap.border.soft })} />
+      )}
+    </React.Fragment>
+  ), [currentUserId, getContributorOptionLabel, mergedContributorOptions.length]);
   const getContributorValue = React.useCallback((id: string | null | undefined) => {
     if (!id) return null;
     return mergedContributorOptions.find((row) => row.id === id) || null;
@@ -396,10 +410,38 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   }, [currentStage]);
   const reviewerStageState = getStageState('reviewer', reviewerParticipants);
   const approverStageState = getStageState('approver', approverParticipants);
+  const workflowAutoExpandKey = workflowActive
+    ? String(workflow?.id || `${workflow?.requested_revision || form.revision || 1}:${currentStage || 'active'}`)
+    : null;
+  const editableClassificationRows = classificationRows.length > 0
+    ? classificationRows
+    : [EMPTY_CLASSIFICATION_ROW];
+  const hasPendingClassificationRow = editableClassificationRows.some((row) => !row.category_id);
+  const updateClassificationRow = React.useCallback((index: number, nextRow: ClassificationRow) => {
+    const rows = classificationRows.length > 0 ? classificationRows : [EMPTY_CLASSIFICATION_ROW];
+    onClassificationRowsChange(rows.map((row, idx) => (idx === index ? nextRow : row)));
+  }, [classificationRows, onClassificationRowsChange]);
+  const removeClassificationRow = React.useCallback((index: number) => {
+    onClassificationRowsChange(classificationRows.filter((_, idx) => idx !== index));
+  }, [classificationRows, onClassificationRowsChange]);
+  const addClassificationRow = React.useCallback(() => {
+    if (classificationRows.some((row) => !row.category_id)) return;
+    onClassificationRowsChange([...classificationRows, { ...EMPTY_CLASSIFICATION_ROW }]);
+  }, [classificationRows, onClassificationRowsChange]);
 
   React.useEffect(() => {
     setWorkflowComment('');
   }, [workflow?.id]);
+
+  React.useEffect(() => {
+    if (!workflowAutoExpandKey) {
+      autoExpandedWorkflowRef.current = null;
+      return;
+    }
+    if (autoExpandedWorkflowRef.current === workflowAutoExpandKey) return;
+    autoExpandedWorkflowRef.current = workflowAutoExpandKey;
+    setExpanded((prev) => (prev.includes('workflow') ? prev : [...prev, 'workflow']));
+  }, [workflowAutoExpandKey]);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -423,105 +465,76 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   {t('sidebar.values.documentVersion', { itemNumber: doc.item_number, version: form.revision || 1 })}
                 </Typography>
               )}
-              {isManagedIntegratedDocument && (
-                <Box>
-                  <ManagedReadonlyFieldLabel label={t('sidebar.fields.status')} title={managedStatusTooltip} />
-                  <TextField
-                    select
-                    size="small"
-                    value={form.status || 'draft'}
-                      onChange={(e) => onChange('status', e.target.value)}
-                      disabled={managedMetadataDisabled}
-                      fullWidth
-                    >
-                      {form.status === 'in_review' && (
-                        <MenuItem value="in_review">{t('statuses.in_review')}</MenuItem>
-                      )}
-                      {STATUS_OPTIONS.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                        {t(`statuses.${option.value}`)}
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                </Box>
-              )}
-              {!isManagedIntegratedDocument && (
+              <PropertyRow
+                label={isManagedIntegratedDocument
+                  ? <ManagedReadonlyFieldLabel label={t('sidebar.fields.status')} title={managedStatusTooltip} />
+                  : t('sidebar.fields.status')}
+              >
                 <TextField
                   select
-                  label={t('sidebar.fields.status')}
-                  size="small"
+                  variant="standard"
                   value={form.status || 'draft'}
                   onChange={(e) => onChange('status', e.target.value)}
                   disabled={managedMetadataDisabled}
                   fullWidth
+                  InputProps={{ disableUnderline: true }}
+                  sx={drawerSelectSx}
                 >
                   {form.status === 'in_review' && (
-                    <MenuItem value="in_review">{t('statuses.in_review')}</MenuItem>
+                    <MenuItem value="in_review" sx={drawerMenuItemSx}>{t('statuses.in_review')}</MenuItem>
                   )}
                   {STATUS_OPTIONS.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
+                    <MenuItem key={option.value} value={option.value} sx={drawerMenuItemSx}>
                       {t(`statuses.${option.value}`)}
                     </MenuItem>
                   ))}
                 </TextField>
-              )}
-              {isManagedIntegratedDocument && (
-                <Box>
-                  <ManagedReadonlyFieldLabel label={t('sidebar.fields.folder')} title={managedFolderTooltip} />
-                  <TextField
-                    select
-                    size="small"
-                    value={form.folder_id || ''}
-                    onChange={(e) => onChange('folder_id', e.target.value || null)}
-                    disabled={managedMetadataDisabled}
-                    fullWidth
-                  >
-                    <MenuItem value="">{t('shared.unfiled')}</MenuItem>
-                    {folderOptions.map((folder) => (
-                      <MenuItem key={folder.id} value={folder.id}>
-                        {folder.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Box>
-              )}
-              {!isManagedIntegratedDocument && (
+              </PropertyRow>
+              <PropertyRow
+                label={isManagedIntegratedDocument
+                  ? <ManagedReadonlyFieldLabel label={t('sidebar.fields.folder')} title={managedFolderTooltip} />
+                  : t('sidebar.fields.folder')}
+              >
                 <TextField
                   select
-                  label={t('sidebar.fields.folder')}
-                  size="small"
+                  variant="standard"
                   value={form.folder_id || ''}
                   onChange={(e) => onChange('folder_id', e.target.value || null)}
                   disabled={managedMetadataDisabled}
                   fullWidth
+                  InputProps={{ disableUnderline: true }}
+                  sx={drawerSelectSx}
                 >
-                  <MenuItem value="">{t('shared.unfiled')}</MenuItem>
+                  <MenuItem value="" sx={drawerMenuItemSx}>{t('shared.unfiled')}</MenuItem>
                   {folderOptions.map((folder) => (
-                    <MenuItem key={folder.id} value={folder.id}>
+                    <MenuItem key={folder.id} value={folder.id} sx={drawerMenuItemSx}>
                       {folder.label}
                     </MenuItem>
                   ))}
                 </TextField>
-              )}
+              </PropertyRow>
               {documentTypeOptions.length > 0 ? (
-                <>
-                  {isManagedIntegratedDocument && (
-                    <ManagedReadonlyFieldLabel label={t('sidebar.fields.type')} title={managedTypeTooltip} />
-                  )}
+                <PropertyRow
+                  label={isManagedIntegratedDocument
+                    ? <ManagedReadonlyFieldLabel label={t('sidebar.fields.type')} title={managedTypeTooltip} />
+                    : t('sidebar.fields.type')}
+                >
                   <TextField
                     select
-                    label={isManagedIntegratedDocument ? undefined : t('sidebar.fields.type')}
-                    size="small"
+                    variant="standard"
                     value={form.document_type_id || ''}
                     onChange={(e) => onChange('document_type_id', e.target.value || null)}
                     disabled={managedMetadataDisabled}
                     fullWidth
+                    InputProps={{ disableUnderline: true }}
+                    sx={drawerSelectSx}
                   >
                     {documentTypeOptions.map((option) => (
                       <MenuItem
                         key={option.id}
                         value={option.id}
                         disabled={!option.is_active && option.id !== form.document_type_id}
+                        sx={drawerMenuItemSx}
                       >
                         {option.name}
                         {option.is_default ? ` (${t('sidebar.values.default')})` : ''}
@@ -529,47 +542,53 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                       </MenuItem>
                     ))}
                   </TextField>
-                </>
+                </PropertyRow>
               ) : (
-                <>
-                  {isManagedIntegratedDocument && (
-                    <ManagedReadonlyFieldLabel label={t('sidebar.fields.type')} title={managedTypeTooltip} />
-                  )}
+                <PropertyRow
+                  label={isManagedIntegratedDocument
+                    ? <ManagedReadonlyFieldLabel label={t('sidebar.fields.type')} title={managedTypeTooltip} />
+                    : t('sidebar.fields.type')}
+                >
                   <TextField
-                    label={isManagedIntegratedDocument ? undefined : t('sidebar.fields.type')}
-                    size="small"
+                    variant="standard"
                     value={activeDocumentType?.name || t('shared.document')}
                     fullWidth
-                    InputProps={{ readOnly: true }}
+                    InputProps={{ readOnly: true, disableUnderline: true }}
                   />
-                </>
+                </PropertyRow>
               )}
-              {isManagedIntegratedDocument && (
-                <ManagedReadonlyFieldLabel label={t('sidebar.fields.basedOnTemplate')} title={managedTemplateTooltip} />
-              )}
-              <TextField
-                label={isManagedIntegratedDocument ? undefined : t('sidebar.fields.basedOnTemplate')}
-                size="small"
-                value={templateTitle || t('shared.none')}
-                disabled
-                fullWidth
-              />
+              <PropertyRow
+                label={isManagedIntegratedDocument
+                  ? <ManagedReadonlyFieldLabel label={t('sidebar.fields.basedOnTemplate')} title={managedTemplateTooltip} />
+                  : t('sidebar.fields.basedOnTemplate')}
+              >
+                <TextField
+                  variant="standard"
+                  value={templateTitle || t('shared.none')}
+                  disabled
+                  fullWidth
+                  InputProps={{ disableUnderline: true }}
+                />
+              </PropertyRow>
               {!!templateTitle && !!templateRef && (
                 <Button size="small" href={`/knowledge/${templateRef}`} sx={{ alignSelf: 'flex-start', textTransform: 'none', px: 0 }}>
                   {t('sidebar.actions.openTemplate')}
                 </Button>
               )}
-              <TextField
-                label={t('sidebar.fields.summary')}
-                size="small"
-                value={form.summary || ''}
-                onChange={(e) => onChange('summary', e.target.value)}
-                multiline
-                minRows={2}
-                maxRows={4}
-                disabled={disabled}
-                fullWidth
-              />
+              <PropertyRow label={t('sidebar.fields.summary')} valueSx={editableFieldValueSx}>
+                <TextField
+                  variant="standard"
+                  value={form.summary || ''}
+                  onChange={(e) => onChange('summary', e.target.value)}
+                  multiline
+                  minRows={2}
+                  maxRows={4}
+                  disabled={disabled}
+                  fullWidth
+                  placeholder={t('sidebar.fields.summary')}
+                  InputProps={{ disableUnderline: true }}
+                />
+              </PropertyRow>
             </Stack>
 
             <Divider />
@@ -606,67 +625,103 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   )
                 ) : (
                   <Stack spacing={0.75}>
-                    <Autocomplete
-                      size="small"
-                      options={mergedContributorOptions}
-                      value={getContributorValue(contributorAssignments.owner_user_id)}
-                      onChange={(_, value) => onContributorAssignmentsChange({
-                        ...contributorAssignments,
-                        owner_user_id: value?.id || null,
-                      })}
-                      isOptionEqualToValue={(option, value) => option.id === value.id}
-                      getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.owner')} />}
-                    />
-                    <Autocomplete
-                      multiple
-                      size="small"
-                      options={mergedContributorOptions}
-                      value={getContributorValues(contributorAssignments.author_user_ids)}
-                      onChange={(_, values) => onContributorAssignmentsChange({
-                        ...contributorAssignments,
-                        author_user_ids: values.map((row) => row.id),
-                      })}
-                      isOptionEqualToValue={(option, value) => option.id === value.id}
-                      getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.authors')} />}
-                    />
-                    <Autocomplete
-                      multiple
-                      size="small"
-                      options={mergedContributorOptions}
-                      value={getContributorValues(contributorAssignments.reviewer_user_ids)}
-                      onChange={(_, values) => onContributorAssignmentsChange({
-                        ...contributorAssignments,
-                        reviewer_user_ids: values.map((row) => row.id),
-                      })}
-                      isOptionEqualToValue={(option, value) => option.id === value.id}
-                      getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.reviewers')} />}
-                    />
-                    <Autocomplete
-                      multiple
-                      size="small"
-                      options={mergedContributorOptions}
-                      value={getContributorValues(contributorAssignments.approver_user_ids)}
-                      onChange={(_, values) => onContributorAssignmentsChange({
-                        ...contributorAssignments,
-                        approver_user_ids: values.map((row) => row.id),
-                      })}
-                      isOptionEqualToValue={(option, value) => option.id === value.id}
-                      getOptionLabel={formatContributorLabel}
-                      renderInput={(params) => <TextField {...params} label={t('sidebar.contributors.fields.approvers')} />}
-                    />
+                    <PropertyRow label={t('sidebar.contributors.fields.owner')}>
+                      <Autocomplete
+                        size="small"
+                        options={mergedContributorOptions}
+                        disableClearable
+                        value={getContributorValue(contributorAssignments.owner_user_id) || undefined}
+                        onChange={(_, value) => onContributorAssignmentsChange({
+                          ...contributorAssignments,
+                          owner_user_id: value?.id || null,
+                        })}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        getOptionLabel={formatContributorLabel}
+                        renderOption={renderContributorOption}
+                        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            variant="standard"
+                            placeholder={t('sidebar.contributors.placeholders.owner')}
+                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                          />
+                        )}
+                      />
+                    </PropertyRow>
+                    <PropertyRow label={t('sidebar.contributors.fields.authors')}>
+                      <Autocomplete
+                        multiple
+                        size="small"
+                        options={mergedContributorOptions}
+                        value={getContributorValues(contributorAssignments.author_user_ids)}
+                        onChange={(_, values) => onContributorAssignmentsChange({
+                          ...contributorAssignments,
+                          author_user_ids: values.map((row) => row.id),
+                        })}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        getOptionLabel={formatContributorLabel}
+                        renderOption={renderContributorOption}
+                        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            variant="standard"
+                            placeholder={t('sidebar.contributors.placeholders.authors')}
+                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                          />
+                        )}
+                      />
+                    </PropertyRow>
+                    <PropertyRow label={t('sidebar.contributors.fields.reviewers')}>
+                      <Autocomplete
+                        multiple
+                        size="small"
+                        options={mergedContributorOptions}
+                        value={getContributorValues(contributorAssignments.reviewer_user_ids)}
+                        onChange={(_, values) => onContributorAssignmentsChange({
+                          ...contributorAssignments,
+                          reviewer_user_ids: values.map((row) => row.id),
+                        })}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        getOptionLabel={formatContributorLabel}
+                        renderOption={renderContributorOption}
+                        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            variant="standard"
+                            placeholder={t('sidebar.contributors.placeholders.reviewers')}
+                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                          />
+                        )}
+                      />
+                    </PropertyRow>
+                    <PropertyRow label={t('sidebar.contributors.fields.approvers')}>
+                      <Autocomplete
+                        multiple
+                        size="small"
+                        options={mergedContributorOptions}
+                        value={getContributorValues(contributorAssignments.approver_user_ids)}
+                        onChange={(_, values) => onContributorAssignmentsChange({
+                          ...contributorAssignments,
+                          approver_user_ids: values.map((row) => row.id),
+                        })}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        getOptionLabel={formatContributorLabel}
+                        renderOption={renderContributorOption}
+                        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            variant="standard"
+                            placeholder={t('sidebar.contributors.placeholders.approvers')}
+                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                          />
+                        )}
+                      />
+                    </PropertyRow>
                     {contributorsError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{contributorsError}</Alert>}
-                    <Button
-                      size="small"
-                      variant="contained"
-                      startIcon={<SaveIcon />}
-                      onClick={onSaveContributors}
-                      disabled={!contributorAssignments.owner_user_id || savingContributors || !contributorsDirty}
-                    >
-                      {t('common:buttons.save')}
-                    </Button>
                   </Stack>
                 )}
               </AccordionDetails>
@@ -807,19 +862,22 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                       )}
                       {canApproveWorkflow && (
                         <Stack spacing={1}>
-                          <TextField
-                            size="small"
-                            label={t('sidebar.workflow.fields.decisionNote')}
-                            multiline
-                            minRows={2}
-                            value={workflowComment}
-                            onChange={(e) => setWorkflowComment(e.target.value)}
-                            placeholder={t('sidebar.workflow.fields.decisionNotePlaceholder')}
-                          />
+                          <PropertyRow label={t('sidebar.workflow.fields.decisionNote')} valueSx={editableFieldValueSx}>
+                            <TextField
+                              variant="standard"
+                              multiline
+                              minRows={2}
+                              value={workflowComment}
+                              onChange={(e) => setWorkflowComment(e.target.value)}
+                              placeholder={t('sidebar.workflow.fields.decisionNotePlaceholder')}
+                              fullWidth
+                              InputProps={{ disableUnderline: true }}
+                            />
+                          </PropertyRow>
                           <Stack direction="row" spacing={1}>
                             <Button
                               size="small"
-                              variant="contained"
+                              variant="action"
                               onClick={async () => {
                                 try {
                                   await onApproveWorkflow(workflowComment);
@@ -885,7 +943,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     ) : (
                       recentWorkflowActivity.map((entry) => (
                         <Box key={entry.id}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
                             {entry.label}
                             {entry.actor ? ` • ${entry.actor}` : ''}
                           </Typography>
@@ -935,80 +993,77 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   )
                 ) : (
                   <Stack spacing={1}>
-                    {classificationRows.map((row, index) => {
+                    {editableClassificationRows.map((row, index) => {
                       const streamOptions = classificationStreams.filter((s: any) => s.category_id === row.category_id);
                       return (
                         <Stack key={`${index}-${row.category_id}`} spacing={0.75}>
                           <Stack direction="row" spacing={0.5} alignItems="center">
-                            <TextField
-                              select
-                              label={t('sidebar.classification.fields.category')}
-                              size="small"
-                              value={row.category_id}
-                              onChange={(e) => {
-                                onClassificationRowsChange(classificationRows.map((entry, idx) =>
-                                  idx === index ? { category_id: e.target.value, stream_id: null } : entry,
-                                ));
-                              }}
-                              sx={{ flex: 1 }}
-                              disabled={!canManage}
-                            >
-                              <MenuItem value="">{t('sidebar.classification.values.select')}</MenuItem>
-                              {classificationCategories.map((cat: any) => (
-                                <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                              ))}
-                            </TextField>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => onClassificationRowsChange(classificationRows.filter((_, idx) => idx !== index))}
-                              disabled={!canManage}
-                            >
-                              <DeleteIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
+                            <PropertyRow label={t('sidebar.classification.fields.category')} sx={{ flex: 1 }}>
+                              <TextField
+                                select
+                                variant="standard"
+                                value={row.category_id}
+                                onChange={(e) => {
+                                  updateClassificationRow(index, { category_id: e.target.value, stream_id: null });
+                                }}
+                                fullWidth
+                                disabled={!canManage}
+                                InputProps={{ disableUnderline: true }}
+                                sx={drawerSelectSx}
+                              >
+                                <MenuItem value="" sx={drawerMenuItemSx}>{t('sidebar.classification.values.select')}</MenuItem>
+                                {classificationCategories.map((cat: any) => (
+                                  <MenuItem key={cat.id} value={cat.id} sx={drawerMenuItemSx}>{cat.name}</MenuItem>
+                                ))}
+                              </TextField>
+                            </PropertyRow>
+                            {classificationRows.length > 0 && (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => removeClassificationRow(index)}
+                                disabled={!canManage}
+                              >
+                                <DeleteIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            )}
                           </Stack>
                           {row.category_id && streamOptions.length > 0 && (
-                            <TextField
-                              select
-                              label={t('sidebar.classification.fields.stream')}
-                              size="small"
-                              value={row.stream_id || ''}
-                              onChange={(e) => {
-                                onClassificationRowsChange(classificationRows.map((entry, idx) =>
-                                  idx === index ? { ...entry, stream_id: e.target.value || null } : entry,
-                                ));
-                              }}
-                              disabled={!canManage}
-                              fullWidth
-                            >
-                              <MenuItem value="">{t('shared.none')}</MenuItem>
-                              {streamOptions.map((s: any) => (
-                                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                              ))}
-                            </TextField>
+                            <PropertyRow label={t('sidebar.classification.fields.stream')}>
+                              <TextField
+                                select
+                                variant="standard"
+                                value={row.stream_id || ''}
+                                onChange={(e) => {
+                                  updateClassificationRow(index, { ...row, stream_id: e.target.value || null });
+                                }}
+                                disabled={!canManage}
+                                fullWidth
+                                InputProps={{ disableUnderline: true }}
+                                sx={drawerSelectSx}
+                              >
+                                <MenuItem value="" sx={drawerMenuItemSx}>{t('shared.none')}</MenuItem>
+                                {streamOptions.map((s: any) => (
+                                  <MenuItem key={s.id} value={s.id} sx={drawerMenuItemSx}>{s.name}</MenuItem>
+                                ))}
+                              </TextField>
+                            </PropertyRow>
                           )}
                         </Stack>
                       );
                     })}
-                    <Button
-                      size="small"
-                      startIcon={<AddIcon />}
-                      onClick={() => onClassificationRowsChange([...classificationRows, { category_id: '', stream_id: null }])}
-                      disabled={!canManage}
-                      sx={{ textTransform: 'none' }}
-                    >
-                      {t('common:buttons.add')}
-                    </Button>
+                    {classificationRows.length > 0 && (
+                      <Button
+                        size="small"
+                        variant="action"
+                        startIcon={<AddIcon />}
+                        onClick={addClassificationRow}
+                        disabled={!canManage || hasPendingClassificationRow}
+                      >
+                        {t('common:buttons.add')}
+                      </Button>
+                    )}
                     {classificationError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{classificationError}</Alert>}
-                    <Button
-                      size="small"
-                      variant="contained"
-                      startIcon={<SaveIcon />}
-                      onClick={onSaveClassifications}
-                      disabled={!canManage || savingClassifications || !classificationsDirty}
-                    >
-                      {t('common:buttons.save')}
-                    </Button>
                   </Stack>
                 )}
               </AccordionDetails>
@@ -1062,33 +1117,31 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                         ...relationSelections[key].filter((s) => !relationOptions[key].some((o) => o.id === s.id)),
                       ];
                       return (
-                        <Autocomplete
-                          key={key}
-                          multiple
-                          size="small"
-                          options={mergedOptions}
-                          value={relationSelections[key]}
-                          onChange={(_, values) => onRelationSelectionsChange(key, values)}
-                          onInputChange={(_, value) => onRelationSearchChange(key, value)}
-                          isOptionEqualToValue={(option, value) => option.id === value.id}
-                          getOptionLabel={(option) => option.label}
-                          renderInput={(params) => (
-                            <TextField {...params} label={t(`sidebar.relations.labels.${key}`)} placeholder={t('sidebar.relations.search', { value: key })} />
-                          )}
-                          disabled={!canManage}
-                        />
+                        <PropertyRow key={key} label={t(`sidebar.relations.labels.${key}`)}>
+                          <Autocomplete
+                            multiple
+                            size="small"
+                            options={mergedOptions}
+                            value={relationSelections[key]}
+                            onChange={(_, values) => onRelationSelectionsChange(key, values)}
+                            onInputChange={(_, value) => onRelationSearchChange(key, value)}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            getOptionLabel={(option) => option.label}
+                            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                variant="standard"
+                                placeholder={t('sidebar.relations.search', { value: key })}
+                                InputProps={{ ...params.InputProps, disableUnderline: true }}
+                              />
+                            )}
+                            disabled={!canManage}
+                          />
+                        </PropertyRow>
                       );
                     })}
                     {relationsError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{relationsError}</Alert>}
-                    <Button
-                      size="small"
-                      variant="contained"
-                      startIcon={<SaveIcon />}
-                      onClick={onSaveRelations}
-                      disabled={!canManage || savingRelations || !relationsDirty}
-                    >
-                      {t('common:buttons.save')}
-                    </Button>
                   </Stack>
                 )}
               </AccordionDetails>
@@ -1111,7 +1164,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   {(versions || []).map((version: any) => (
                     <Box key={version.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           v{version.version_number}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -1144,19 +1197,23 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
           <Stack spacing={2}>
             {!isCreate && (
               <>
-                <TextField
-                  multiline
-                  minRows={2}
-                  size="small"
-                  label={t('sidebar.comments.fields.addComment')}
-                  value={commentText}
-                  onChange={(e) => onCommentTextChange(e.target.value)}
-                  disabled={!canComment}
-                />
+                <PropertyRow label={t('sidebar.comments.fields.addComment')} valueSx={editableFieldValueSx}>
+                  <TextField
+                    multiline
+                    minRows={2}
+                    variant="standard"
+                    value={commentText}
+                    onChange={(e) => onCommentTextChange(e.target.value)}
+                    disabled={!canComment}
+                    fullWidth
+                    placeholder={t('sidebar.comments.fields.addComment')}
+                    InputProps={{ disableUnderline: true }}
+                  />
+                </PropertyRow>
                 <Box>
                   <Button
                     size="small"
-                    variant="contained"
+                    variant="action"
                     onClick={onPostComment}
                     disabled={!canComment || !commentText.trim() || postingComment}
                   >
@@ -1169,7 +1226,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
 
             {(activities || []).map((activity: any) => (
               <Box key={activity.id}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {activity.author_name || t('shared.unknown')} - {activity.type}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">

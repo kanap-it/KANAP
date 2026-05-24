@@ -13,6 +13,7 @@ import AllocationEditor, { AllocationEditorHandle } from './editors/AllocationEd
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import RelationsPanel, { RelationsPanelHandle } from './editors/RelationsPanel';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './listContextStorage';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'overview' | 'budget' | 'allocations' | 'tasks' | 'relations';
 
@@ -20,6 +21,7 @@ type TabKey = 'overview' | 'budget' | 'allocations' | 'tasks' | 'relations';
 
 export default function CapexItemPage() {
   const { t } = useTranslation(['ops', 'common']);
+  const dialogs = useKanapDialogs();
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: 'overview', label: t('opex.tabs.overview') },
     { key: 'budget', label: t('opex.tabs.budget') },
@@ -119,7 +121,7 @@ export default function CapexItemPage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm(t('confirmations.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -131,13 +133,13 @@ export default function CapexItemPage() {
     navigate(`/ops/capex/${targetId}/${routeTab}?${params.toString()}`);
   };
 
-  const handlePrev = () => confirmAndNavigate(prevId);
-  const handleNext = () => confirmAndNavigate(nextId);
+  const handlePrev = () => { void confirmAndNavigate(prevId); };
+  const handleNext = () => { void confirmAndNavigate(nextId); };
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm(t('confirmations.unsavedSwitchTab'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => {
           const params = buildListContextParams();

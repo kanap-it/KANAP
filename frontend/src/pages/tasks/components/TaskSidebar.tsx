@@ -25,6 +25,7 @@ import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { useAuth } from '../../../auth/AuthContext';
 import { getPriorityLabel, getTaskStatusOptions } from '../../../utils/portfolioI18n';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
+import { useKanapDialogs } from '../../../components/design';
 
 const compactFieldSx = {
   '& .MuiFormLabel-root': {
@@ -159,6 +160,7 @@ export default function TaskSidebar({
   projectWorkspaceLink = null,
 }: TaskSidebarProps) {
   const { t } = useTranslation('portfolio');
+  const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
   const [logTimeOpen, setLogTimeOpen] = React.useState(false);
@@ -447,7 +449,7 @@ export default function TaskSidebar({
                 value={task.status}
                 onChange={(v) => {
                   if (v === 'done' && isProjectTask && totalTimeHours === 0) {
-                    alert(t('workspace.task.sidebar.messages.doneRequiresTimeAlert'));
+                    void dialogs.alert(t('workspace.task.sidebar.messages.doneRequiresTimeAlert'));
                     return;
                   }
                   onPatch({ status: v });

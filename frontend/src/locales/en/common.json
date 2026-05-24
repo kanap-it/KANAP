@@ -426,6 +426,12 @@
     "replaceTitle": "Replace current content?",
     "replaceDescription": "Importing a document will replace the current markdown in this editor."
   },
+  "systemDialogs": {
+    "noticeTitle": "Notice",
+    "confirmTitle": "Confirm action",
+    "promptTitle": "Enter value",
+    "valueRequired": "Enter a value"
+  },
   "subscription": {
     "trialExpiresIn": "Your trial expires in {{count}} day.",
     "trialExpiresIn_plural": "Your trial expires in {{count}} days.",

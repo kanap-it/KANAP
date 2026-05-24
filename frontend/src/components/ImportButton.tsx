@@ -12,6 +12,7 @@ import {
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import { useTranslation } from 'react-i18next';
 import type { ImportDocumentResult } from '../api/endpoints/import';
+import { useKanapDialogs } from './design';
 
 interface ImportButtonProps {
   onImportFile: (file: File) => Promise<ImportDocumentResult>;
@@ -52,6 +53,7 @@ export default function ImportButton({
   size = 'small',
 }: ImportButtonProps) {
   const { t } = useTranslation('common');
+  const dialogs = useKanapDialogs();
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const focusCleanupRef = React.useRef<(() => void) | null>(null);
   const selectionHandledRef = React.useRef(false);
@@ -87,7 +89,7 @@ export default function ImportButton({
       if (onError) {
         onError(error);
       } else {
-        window.alert(getErrorMessage(error));
+        await dialogs.alert({ message: getErrorMessage(error), intent: 'danger' });
       }
       // eslint-disable-next-line no-console
       console.error('Document import failed', error);
@@ -95,7 +97,7 @@ export default function ImportButton({
       setImporting(false);
       clearDialogState();
     }
-  }, [clearDialogState, onError, onImportFile, onImported]);
+  }, [clearDialogState, dialogs, onError, onImportFile, onImported]);
 
   const openPicker = React.useCallback(() => {
     if (disabled || importing) return;

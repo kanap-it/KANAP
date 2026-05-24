@@ -17,6 +17,7 @@ import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.cons
 import type { TaskStatus } from '../pages/tasks/task.constants';
 import { getApiErrorMessage } from '../utils/apiErrorMessage';
 import { getDotColor, PRIORITY_COLORS } from '../utils/statusColors';
+import { useKanapDialogs } from './design';
 
 type Task = {
   id: string;
@@ -72,6 +73,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   const location = useLocation();
   const queryClient = useQueryClient();
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const dialogs = useKanapDialogs();
   const locale = useLocale();
   const isProject = entityType === 'project';
   const projectWorkspaceContextQuery = React.useMemo(() => {
@@ -140,14 +142,21 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   });
 
   const handleDelete = async (taskId: string) => {
-    if (!window.confirm(t('portfolio:shared.entityTasksPanel.messages.confirmDelete'))) return;
+    if (!(await dialogs.confirm({
+      message: t('portfolio:shared.entityTasksPanel.messages.confirmDelete'),
+      confirmLabel: t('common:buttons.delete'),
+      intent: 'danger',
+    }))) return;
     try {
       await api.delete(`/tasks/bulk`, { data: { ids: [taskId] } });
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       onTasksChange?.();
     } catch (e: any) {
-      alert(getApiErrorMessage(e, t, t('portfolio:shared.entityTasksPanel.messages.deleteFailed')));
+      await dialogs.alert({
+        message: getApiErrorMessage(e, t, t('portfolio:shared.entityTasksPanel.messages.deleteFailed')),
+        intent: 'danger',
+      });
     }
   };
 

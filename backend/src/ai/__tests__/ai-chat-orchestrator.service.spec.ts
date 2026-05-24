@@ -976,6 +976,92 @@ async function testTaskCommentContinuationKeepsTaskMutationTools() {
   assert.equal(contextEvent.context.tools.context_profile, 'write_task');
 }
 
+async function testModifiedDocumentFollowUpDoesNotTriggerWritePreviewGuard() {
+  const currentMessage = 'et tu es capable de me dire ce qui a été modifié ?';
+  const { orchestrator, recordedRequests, toolExecuteCount } = createOrchestrator({
+    historyMessages: [
+      { role: 'user', content: 'quel est le dernier document modifié ?' },
+      {
+        role: 'assistant',
+        content: 'Le dernier document modifié est le DOC-161 — "INT-5 - O365 to SAP - Specification".',
+      },
+      { role: 'user', content: currentMessage },
+    ],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'get_document', category: 'inspection', description: 'Get document', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'update_document_content', category: 'mutation', description: 'Update document content', input_summary: {}, read_only: false, surfaces: ['chat', 'mcp'], write_preview: { entity_type: 'documents', fields: ['content_markdown'], reversible: true, prompt_hint: 'Update document content.' } },
+    ],
+    providerEvents: [
+      { type: 'text_delta', text: "Je peux comparer ce que KANAP expose, mais je n'ai pas d'historique de version détaillé pour ce document." },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      conversationId: 'conv-1',
+      userMessage: currentMessage,
+    }),
+  );
+
+  const text = (events.filter((event) => event.type === 'text_delta') as any[])
+    .map((event) => event.text)
+    .join('');
+  assert.doesNotMatch(text, /previews backend/i);
+  assert.match(text, /historique de version/);
+  assert.equal(toolExecuteCount.value, 0);
+  assert.equal(recordedRequests.length, 1);
+
+  const contextEvent = events.find((e) => e.type === 'context' && (e as any).context.tools) as any;
+  assert.equal(contextEvent.context.tools.context_profile, 'entity_inspection');
+}
+
+async function testFeatureAdviceQuestionDoesNotTriggerWritePreviewGuard() {
+  const prompt = "sur la base de ce que tu connais de KANAP, quelle serait LA fonctionnalité à ajouter ou améliorer ?";
+  const { orchestrator, recordedRequests } = createOrchestrator({
+    historyMessages: [{ role: 'user', content: prompt }],
+    availableTools: [
+      { name: 'query_entities', category: 'authoritative', description: 'Query entities', input_summary: {}, read_only: true, surfaces: ['chat', 'mcp'] },
+      { name: 'create_task', category: 'mutation', description: 'Create task', input_summary: {}, read_only: false, surfaces: ['chat', 'mcp'], write_preview: { entity_type: 'tasks', fields: ['title'], reversible: false, prompt_hint: 'Create task.' } },
+    ],
+    providerEvents: [
+      { type: 'text_delta', text: 'La fonctionnalité à ajouter serait un diff explicable des changements, relié aux documents et aux previews.' },
+      { type: 'done', usage: { input_tokens: 100, output_tokens: 50 } },
+    ],
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: prompt,
+    }),
+  );
+
+  const text = (events.filter((event) => event.type === 'text_delta') as any[])
+    .map((event) => event.text)
+    .join('');
+  assert.doesNotMatch(text, /previews backend/i);
+  assert.match(text, /diff explicable/);
+  assert.equal(recordedRequests.length, 1);
+
+  const contextEvent = events.find((e) => e.type === 'context' && (e as any).context.tools) as any;
+  assert.equal(contextEvent.context.tools.context_profile, 'read_query');
+}
+
 async function testParallelToolCallsAreReplayedAsSequentialTurns() {
   const { orchestrator, recordedRequests, persistedMessages, toolExecuteCount } = createOrchestrator({
     providerEvents: [
@@ -2670,6 +2756,8 @@ async function run() {
   await testRawPseudoToolCallTextIsRetriedAsRealToolCall();
   await testTaskMentionWriteKeepsTaskMutationTools();
   await testTaskCommentContinuationKeepsTaskMutationTools();
+  await testModifiedDocumentFollowUpDoesNotTriggerWritePreviewGuard();
+  await testFeatureAdviceQuestionDoesNotTriggerWritePreviewGuard();
   await testParallelToolCallsAreReplayedAsSequentialTurns();
   await testApprovalMarkerExecutesPreviewWithoutProviderRoundTrip();
   await testBatchApprovalMarkerExecutesSelectedPreviewsWithoutProviderRoundTrip();

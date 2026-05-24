@@ -1,6 +1,6 @@
 {
   "actions": {
-    "manageTypes": "Manage Types",
+    "manageTypes": "Manage types",
     "moveCount": "Move ({{count}})",
     "new": "New"
   },
@@ -18,23 +18,28 @@
   },
   "confirmations": {
     "deleteLibrary": "Delete this library? Knowledge items and folders will be moved to the fallback library.",
-    "discardChanges": "Discard unsaved changes and revert to the last saved version?",
     "resetLibraryAccess": "Switch this library back to open access and clear the custom reader and writer lists?"
   },
   "dialogs": {
     "createLibrary": {
       "fields": {
-        "libraryName": "Library Name"
+        "libraryName": "Library name"
       },
       "messages": {
         "failed": "Unable to create library."
       },
-      "title": "Create Library"
+      "title": "Create library"
+    },
+    "deleteLibrary": {
+      "actions": {
+        "confirm": "Delete library"
+      },
+      "title": "Delete library"
     },
     "editLibrary": {
       "fields": {
         "accessMode": "Access mode",
-        "libraryName": "Library Name",
+        "libraryName": "Library name",
         "owner": "Owner",
         "readers": "Readers",
         "writers": "Writers"
@@ -48,24 +53,30 @@
         "general": "General"
       },
       "slugWarning": "Renaming this library also changes its URL slug.",
-      "title": "Library Settings",
+      "title": "Library settings",
       "values": {
         "accessModeDefault": "Open to all",
         "accessModeRestricted": "Restricted"
       }
     },
     "manageTypes": {
-      "title": "Manage Document Types"
+      "title": "Manage document types"
+    },
+    "resetLibraryAccess": {
+      "actions": {
+        "confirm": "Clear access list"
+      },
+      "title": "Clear restricted access"
     },
     "selectTemplate": {
       "actions": {
-        "useTemplate": "Use Template"
+        "useTemplate": "Use template"
       },
       "empty": "No published templates are available.",
       "fields": {
         "template": "Template"
       },
-      "title": "Select Template"
+      "title": "Select template"
     }
   },
   "folderMoveDialog": {
@@ -83,7 +94,7 @@
       "crossLibraryAdminOnly": "Cross-library folder moves are admin-only. You can only reparent within the current library.",
       "templatesOnly": "Folders in the Templates library can only be reorganized within Templates."
     },
-    "title": "Move Folder"
+    "title": "Move folder"
   },
   "folderTree": {
     "actions": {
@@ -92,34 +103,35 @@
       "newTopLevelFolder": "New top-level folder",
       "rename": "Rename"
     },
-    "allDocs": "All Docs",
     "aria": {
       "folderActions": "Folder actions for {{name}}",
       "rootActions": "Folder actions"
     },
     "confirmations": {
-      "deleteFolder": "Delete this folder? Documents will be moved to Unfiled. Folders with subfolders cannot be deleted."
+      "deleteFolder": "Delete \"{{name}}\"? Documents will be moved to unfiled. Folders with subfolders cannot be deleted."
     },
     "dialogs": {
-      "createFolderTitle": "Create Folder",
-      "createSubfolderTitle": "Create Subfolder"
+      "createFolderTitle": "Create folder",
+      "createSubfolderTitle": "Create subfolder",
+      "deleteFolderTitle": "Delete folder"
     },
     "fields": {
-      "folderName": "Folder Name",
-      "parentFolder": "Parent Folder"
+      "folderName": "Folder name",
+      "parentFolder": "Parent folder"
     },
     "messages": {
       "folderMoved": "Folder moved.",
       "moveFailed": "Unable to move folder.",
       "moveInProgress": "Folder move in progress"
     },
+    "libraryRoot": "Library root",
     "title": "Folders",
     "values": {
       "root": "Root"
     }
   },
   "menus": {
-    "blankDocument": "Blank Document",
+    "blankDocument": "Blank document",
     "fromTemplate": "From template..."
   },
   "messages": {
@@ -161,10 +173,10 @@
       "multiple": "{{count}} documents selected",
       "single": "{{ref}} - {{title}}"
     },
-    "title": "Move Documents"
+    "title": "Move documents"
   },
   "scope": {
-    "allDocs": "All Docs",
+    "allDocs": "All docs",
     "allLibraries": "All libraries",
     "myDocs": "My docs",
     "myTeamsDocs": "My team's docs",
@@ -172,7 +184,7 @@
     "show": "Show:"
   },
   "shared": {
-    "blank": "(Blank)",
+    "blank": "(blank)",
     "document": "Document",
     "none": "None",
     "unfiled": "Unfiled",
@@ -211,6 +223,12 @@
         "authors": "Authors",
         "owner": "Owner",
         "reviewers": "Reviewers"
+      },
+      "placeholders": {
+        "approvers": "Add approvers",
+        "authors": "Add authors",
+        "owner": "Select owner",
+        "reviewers": "Add reviewers"
       },
       "messages": {
         "saveFirst": "Save first to manage owners, reviewers, and approvers."
@@ -277,7 +295,7 @@
     "workflow": {
       "actions": {
         "approve": "Approve",
-        "requestChanges": "Request Changes"
+        "requestChanges": "Request changes"
       },
       "activity": {
         "approvalRequested": "Approval requested",
@@ -302,14 +320,14 @@
       },
       "recentActivity": "Recent workflow activity",
       "requestedBy": "Requested by {{user}}",
-      "stage1Review": "Stage 1: Review {{approved}}/{{total}}",
-      "stage2Approval": "Stage 2: Approval {{approved}}/{{total}}",
+      "stage1Review": "Stage 1: review {{approved}}/{{total}}",
+      "stage2Approval": "Stage 2: approval {{approved}}/{{total}}",
       "values": {
         "active": "Active",
         "approved": "Approved",
-        "awaitingApproval": "Awaiting Approval",
-        "awaitingReview": "Awaiting Review",
-        "changesRequested": "Changes Requested",
+        "awaitingApproval": "Awaiting approval",
+        "awaitingReview": "Awaiting review",
+        "changesRequested": "Changes requested",
         "completed": "Completed",
         "neverApproved": "Never approved",
         "pending": "Pending",
@@ -322,7 +340,7 @@
   "statuses": {
     "archived": "Archived",
     "draft": "Draft",
-    "in_review": "In Review",
+    "in_review": "In review",
     "obsolete": "Obsolete",
     "published": "Published"
   },
@@ -340,6 +358,11 @@
     },
     "create": {
       "title": "Create type"
+    },
+    "dialogs": {
+      "delete": {
+        "title": "Delete document type"
+      }
     },
     "empty": "No document types yet.",
     "fields": {
@@ -369,18 +392,18 @@
       "template": "Template"
     },
     "create": {
-      "button": "Create Type",
+      "button": "Create type",
       "title": "Create type"
     },
     "empty": "No document types yet.",
     "fields": {
       "name": "Name",
-      "templateContent": "Template content (Markdown)"
+      "templateContent": "Template content (markdown)"
     },
     "messages": {
       "loadFailed": "Failed to load document types."
     },
-    "title": "Knowledge Types"
+    "title": "Knowledge types"
   },
   "validatedBadge": {
     "label": "Validated",
@@ -388,17 +411,20 @@
   },
   "workspace": {
     "actions": {
-      "cancelReviewAndEdit": "Cancel Review and Edit",
-      "discard": "Discard",
+      "cancelReviewAndEdit": "Cancel review and edit",
+      "createVersion": "Create version",
+      "done": "Done",
       "edit": "Edit",
       "hideSidebar": "Hide sidebar",
-      "requestReview": "Request Review",
+      "requestReview": "Request review",
       "retryLock": "Retry lock",
-      "showSidebar": "Show sidebar"
+      "showSidebar": "Show sidebar",
+      "versionAlreadyCurrent": "Already current",
+      "versionCreated": "Version created"
     },
     "breadcrumbs": {
       "knowledge": "Knowledge",
-      "newDocument": "New Document"
+      "newDocument": "New document"
     },
     "fields": {
       "titlePlaceholder": "Knowledge title"
@@ -409,6 +435,7 @@
       "approveWorkflowFailed": "Failed to approve workflow.",
       "cancelReviewFailed": "Failed to cancel review.",
       "clickToCopyReference": "Click to copy reference",
+      "createVersionFailed": "Failed to create version.",
       "importAvailableAfterCreate": "Document import is available after the document is created.",
       "importFailed": "Document import failed.",
       "inReview": "This document is in review. Editing is disabled until the workflow is approved, changes are requested, or the review is cancelled.",
@@ -431,7 +458,7 @@
       "ownerLabel": "Owner: {{value}}",
       "typeLabel": "Type: {{value}}",
       "unassigned": "Unassigned",
-      "untitled": "Untitled Knowledge"
+      "untitled": "Untitled knowledge"
     }
   }
 }

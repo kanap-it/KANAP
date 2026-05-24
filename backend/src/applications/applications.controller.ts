@@ -308,6 +308,23 @@ export class ApplicationsController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/related-tasks/bulk-replace')
+  async bulkReplaceRelatedTasks(
+    @Param('id') id: string,
+    @Body() body: { task_ids?: string[] },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const app = await this.svc.get(id, await this.readApplicationOpts(ctx));
+    return this.tasks.bulkReplaceTasksForApplication(String((app as any).id), body?.task_ids ?? [], {
+      manager: ctx.manager,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId ?? null,
+      accessScope: await this.readTaskScope(ctx),
+    });
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id/knowledge')
   async listDocuments(

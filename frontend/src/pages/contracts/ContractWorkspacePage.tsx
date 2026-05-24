@@ -12,6 +12,7 @@ import ContractDetailsEditor, { ContractDetailsEditorHandle } from './editors/Co
 import ContractRelationsEditor, { ContractRelationsEditorHandle } from './editors/ContractRelationsEditor';
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'overview' | 'details' | 'relations' | 'tasks';
 
@@ -19,6 +20,7 @@ type TabKey = 'overview' | 'details' | 'relations' | 'tasks';
 
 export default function ContractWorkspacePage() {
   const { t } = useTranslation(['ops', 'common']);
+  const dialogs = useKanapDialogs();
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: 'overview', label: t('contracts.tabs.overview') },
     { key: 'details', label: t('contracts.tabs.details') },
@@ -103,7 +105,7 @@ export default function ContractWorkspacePage() {
   const confirmAndNavigate = async (targetId: string | null) => {
     if (!targetId) return;
     if (dirty) {
-      const proceed = window.confirm(t('confirmations.unsavedNavigate'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedNavigate'));
       if (proceed) {
         try { await handleSave(); } catch { return; }
       } else {
@@ -116,10 +118,10 @@ export default function ContractWorkspacePage() {
   const handlePrev = () => { void confirmAndNavigate(prevId); };
   const handleNext = () => { void confirmAndNavigate(nextId); };
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm(t('confirmations.unsavedSwitchTab'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/ops/contracts/${id}/${nextValue}?${searchParams.toString()}`));
         return;

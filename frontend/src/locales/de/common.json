@@ -426,6 +426,12 @@
     "replaceTitle": "Aktuellen Inhalt ersetzen?",
     "replaceDescription": "Beim Importieren eines Dokuments wird der aktuelle Markdown-Inhalt in diesem Editor ersetzt."
   },
+  "systemDialogs": {
+    "noticeTitle": "Hinweis",
+    "confirmTitle": "Aktion bestätigen",
+    "promptTitle": "Wert eingeben",
+    "valueRequired": "Geben Sie einen Wert ein"
+  },
   "subscription": {
     "trialExpiresIn": "Ihre Testphase läuft in {{count}} Tag ab.",
     "trialExpiresIn_plural": "Ihre Testphase läuft in {{count}} Tagen ab.",

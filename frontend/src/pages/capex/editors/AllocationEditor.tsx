@@ -9,6 +9,7 @@ import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import CompanySelect from '../../../components/fields/CompanySelect';
 import DepartmentSelect from '../../../components/fields/DepartmentSelect';
 import api from '../../../api';
+import { useKanapDialogs } from '../../../components/design';
 
 export type AllocationEditorHandle = {
   isDirty: () => boolean;
@@ -41,6 +42,7 @@ function withinTolerance(total: number) { return total >= 99.99 && total <= 100.
 
 export default forwardRef<AllocationEditorHandle, Props>(function AllocationEditor({ id, year, availableYears, onYearChange, onDirtyChange }, ref) {
   const { t } = useTranslation(['ops', 'common']);
+  const dialogs = useKanapDialogs();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -441,10 +443,10 @@ export default forwardRef<AllocationEditorHandle, Props>(function AllocationEdit
 
   useImperativeHandle(ref, () => ({ isDirty: () => hasUnsavedChanges, save, reset: () => { void load(); } }), [hasUnsavedChanges, save, load]);
 
-  const onYearChangeGuard = (newYear: number) => {
+  const onYearChangeGuard = async (newYear: number) => {
     if (newYear === year) return;
     if (hasUnsavedChanges) {
-      const proceed = window.confirm(t('confirmations.unsavedSwitchYear'));
+      const proceed = await dialogs.confirm(t('confirmations.unsavedSwitchYear'));
       if (proceed) { void save().then(() => onYearChange(newYear)).catch(() => {}); return; }
     }
     onYearChange(newYear);

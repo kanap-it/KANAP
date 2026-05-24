@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import ContactOverviewEditor, { ContactOverviewEditorHandle } from './editors/ContactOverviewEditor';
 import ContactCreateEditor, { ContactCreateEditorHandle } from './editors/ContactCreateEditor';
+import { useKanapDialogs } from '../../components/design';
 
 type TabKey = 'overview';
 const tabs: Array<{ key: TabKey; label: string }> = [ { key: 'overview', label: 'Overview' } ];
@@ -14,6 +15,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [ { key: 'overview', label: 
 export default function ContactWorkspacePage() {
   const navigate = useNavigate();
   const { t } = useTranslation(['master-data', 'common']);
+  const dialogs = useKanapDialogs();
   const [searchParams] = useSearchParams();
   const params = useParams();
   const { hasLevel } = useAuth();
@@ -73,10 +75,10 @@ export default function ContactWorkspacePage() {
     setDirty(false);
   };
 
-  const onTabChange = (_: React.SyntheticEvent, nextValue: TabKey) => {
+  const onTabChange = async (_: React.SyntheticEvent, nextValue: TabKey) => {
     if (isCreate && nextValue !== 'overview') return;
     if (dirty) {
-      const proceed = window.confirm(t('shared.workspace.unsavedSwitchTab'));
+      const proceed = await dialogs.confirm(t('shared.workspace.unsavedSwitchTab'));
       if (proceed) {
         void handleSave().then(() => navigate(`/master-data/contacts/${id}/${nextValue}?${searchParams.toString()}`));
         return;

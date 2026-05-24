@@ -262,6 +262,18 @@ export class KnowledgeController {
   }
 
   @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
+  @Post(':idOrRef/versions')
+  createVersion(
+    @Param('idOrRef') idOrRef: string,
+    @Body() body: { change_note?: string | null },
+    @Headers('x-lock-token') lockToken: string | undefined,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.docs.createVersion(idOrRef, body, ctx.userId || '', lockToken, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'reader')
   @Get(':idOrRef/versions/compare')
   compareVersions(

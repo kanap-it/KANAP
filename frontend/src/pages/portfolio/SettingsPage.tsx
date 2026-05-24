@@ -16,6 +16,7 @@ import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useKanapDialogs } from '../../components/design';
 
 interface CriterionValue {
   id?: string;
@@ -111,7 +112,13 @@ interface PortfolioCategory {
 export default function SettingsPage() {
   const { hasLevel } = useAuth();
   const { t } = useTranslation(['portfolio', 'common']);
+  const dialogs = useKanapDialogs();
   const canEdit = hasLevel('portfolio_settings', 'admin');
+  const confirmDelete = useCallback((message: string) => dialogs.confirm({
+    message,
+    confirmLabel: t('common:buttons.delete'),
+    intent: 'danger',
+  }), [dialogs, t]);
 
   const [activeTab, setActiveTab] = useState(0);
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -214,7 +221,7 @@ export default function SettingsPage() {
 
   const handleDeleteCriterion = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.scoring.confirmDelete'))) return;
+    if (!await confirmDelete(t('settings.scoring.confirmDelete'))) return;
 
     try {
       await api.delete(`/portfolio/criteria/${id}`);
@@ -222,7 +229,7 @@ export default function SettingsPage() {
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.scoring.messages.deleteFailed')));
     }
-  }, [loadData, canEdit, t]);
+  }, [loadData, canEdit, confirmDelete, t]);
 
   // Skills handlers
   const handleSeedDefaults = useCallback(async () => {
@@ -249,14 +256,14 @@ export default function SettingsPage() {
 
   const handleDeleteSkill = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.skills.confirmDelete'))) return;
+    if (!await confirmDelete(t('settings.skills.confirmDelete'))) return;
     try {
       await api.delete(`/portfolio/skills/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.skills.messages.deleteFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   const handleEditSkill = useCallback((skill: Skill) => {
     setEditingSkill(skill);
@@ -281,14 +288,14 @@ export default function SettingsPage() {
 
   const handleDeleteTemplate = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.phaseTemplates.confirmDelete'))) return;
+    if (!await confirmDelete(t('settings.phaseTemplates.confirmDelete'))) return;
     try {
       await api.delete(`/portfolio/phase-templates/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.phaseTemplates.messages.deleteFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   // Classification handlers
   const handleEditSource = useCallback((source: PortfolioSource) => {
@@ -303,14 +310,14 @@ export default function SettingsPage() {
 
   const handleDeleteSource = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.classification.confirmations.deleteSource'))) return;
+    if (!await confirmDelete(t('settings.classification.confirmations.deleteSource'))) return;
     try {
       await api.delete(`/portfolio/classification/sources/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteSourceFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   const handleToggleSource = useCallback(async (source: PortfolioSource) => {
     if (!canEdit) return;
@@ -334,14 +341,14 @@ export default function SettingsPage() {
 
   const handleDeleteCategory = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.classification.confirmations.deleteCategory'))) return;
+    if (!await confirmDelete(t('settings.classification.confirmations.deleteCategory'))) return;
     try {
       await api.delete(`/portfolio/classification/categories/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteCategoryFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   const handleToggleCategory = useCallback(async (category: PortfolioCategory) => {
     if (!canEdit) return;
@@ -367,14 +374,14 @@ export default function SettingsPage() {
 
   const handleDeleteStream = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.classification.confirmations.deleteStream'))) return;
+    if (!await confirmDelete(t('settings.classification.confirmations.deleteStream'))) return;
     try {
       await api.delete(`/portfolio/classification/streams/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteStreamFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   const handleToggleStream = useCallback(async (stream: PortfolioStream) => {
     if (!canEdit) return;
@@ -399,14 +406,14 @@ export default function SettingsPage() {
 
   const handleDeleteTaskType = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.classification.confirmations.deleteTaskType'))) return;
+    if (!await confirmDelete(t('settings.classification.confirmations.deleteTaskType'))) return;
     try {
       await api.delete(`/portfolio/classification/task-types/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.classification.messages.deleteTaskTypeFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   const handleToggleTaskType = useCallback(async (taskType: PortfolioTaskType) => {
     if (!canEdit) return;
@@ -431,14 +438,14 @@ export default function SettingsPage() {
 
   const handleDeleteTeam = useCallback(async (id: string) => {
     if (!canEdit) return;
-    if (!window.confirm(t('settings.teams.confirmDelete'))) return;
+    if (!await confirmDelete(t('settings.teams.confirmDelete'))) return;
     try {
       await api.delete(`/portfolio/teams/${id}`);
       loadData();
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.teams.messages.deleteFailed')));
     }
-  }, [canEdit, loadData, t]);
+  }, [canEdit, confirmDelete, loadData, t]);
 
   const handleToggleTeam = useCallback(async (team: PortfolioTeam) => {
     if (!canEdit) return;

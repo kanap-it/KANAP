@@ -13,7 +13,6 @@ import {
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
   TableRow,
   TextField,
   Typography,
@@ -24,8 +23,8 @@ import { useAuth } from '../../../auth/AuthContext';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import { KanapDialog, PropertyRow, RelevantWebsitesList } from '../../../components/design';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, editableFieldValueSx } from '../../../theme/formSx';
+import { KanapDialog, PropertyRow, RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 export type AssetRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -79,16 +78,33 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   ref
 ) {
   const { t } = useTranslation(['it', 'common']);
+  const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('infrastructure', 'member');
   const relationTagSx = {
-    borderRadius: '6px',
-    height: 24,
-    '& .MuiChip-label': { px: '8px', fontSize: 12 },
+    height: 22,
+    borderRadius: '4px',
+    fontSize: 12,
+    '& .MuiChip-label': { px: '7px' },
   } as const;
   const relationControlSx = { maxWidth: 420 } as const;
   const relationWideControlSx = { maxWidth: 640 } as const;
-  const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
+  const relationAutocompleteSx = [drawerFieldValueSx, { width: '100%' }] as const;
+  const relationGridSx = {
+    display: 'grid',
+    gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 420px))' },
+    columnGap: 2.5,
+    rowGap: 1,
+  } as const;
+  const compactRelationTableSx = {
+    maxWidth: 420,
+    borderRadius: '6px',
+    '& .MuiTableCell-root': {
+      py: 0.75,
+      px: 1.25,
+      fontSize: 13,
+    },
+  } as const;
   const taskLabel = React.useCallback((task: RelatedTaskOption) => {
     const prefix = task.item_number ? `#${task.item_number}` : '';
     const title = String(task.title || '').trim();
@@ -129,6 +145,9 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
   const [baselineProjects, setBaselineProjects] = React.useState<Array<{ id: string; name: string }>>([]);
   const [projectOptions, setProjectOptions] = React.useState<Array<{ id: string; name: string }>>([]);
   const [linkedTasks, setLinkedTasks] = React.useState<RelatedTaskOption[]>([]);
+  const [taskOptions, setTaskOptions] = React.useState<RelatedTaskOption[]>([]);
+  const [taskOptionsLoading, setTaskOptionsLoading] = React.useState(false);
+  const [taskSearch, setTaskSearch] = React.useState('');
 
   // URLs
   const [urls, setUrls] = React.useState<Array<{ id?: string; description?: string; url: string }>>([]);
@@ -193,6 +212,14 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
     }
     return Array.from(byId.values());
   }, [assetOptions, dependsOnAssets]);
+
+  const allTaskOptions = React.useMemo(() => {
+    const byId = new Map(taskOptions.map((option) => [option.id, option]));
+    for (const task of linkedTasks) {
+      if (!byId.has(task.id)) byId.set(task.id, task);
+    }
+    return Array.from(byId.values());
+  }, [linkedTasks, taskOptions]);
 
   // Load data
   const load = React.useCallback(async () => {
@@ -261,8 +288,18 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
 
       // Tasks
       try {
-        const res = await api.get(`/assets/${assetId}/related-tasks`, { params: { limit: 100, sort: 'updated_at:DESC' } });
-        const items = (res.data?.items || []) as RelatedTaskOption[];
+        const items: RelatedTaskOption[] = [];
+        let page = 1;
+        const limit = 100;
+        let total = Infinity;
+        while ((page - 1) * limit < total) {
+          const res = await api.get(`/assets/${assetId}/related-tasks`, { params: { page, limit, sort: 'updated_at:DESC' } });
+          const pageItems = (res.data?.items || []) as RelatedTaskOption[];
+          total = Number(res.data?.total || pageItems.length);
+          items.push(...pageItems);
+          if (pageItems.length < limit) break;
+          page += 1;
+        }
         setLinkedTasks(items);
       } catch { setLinkedTasks([]); }
 
@@ -363,6 +400,38 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
     return () => { alive = false; window.clearTimeout(timer); };
   }, [assetSearch, assetId]);
 
+  React.useEffect(() => {
+    if (readOnly) {
+      setTaskOptions([]);
+      setTaskOptionsLoading(false);
+      return undefined;
+    }
+
+    let alive = true;
+    const timer = window.setTimeout(async () => {
+      const query = taskSearch.trim();
+      setTaskOptionsLoading(true);
+      try {
+        const params: Record<string, string | number> = { page: 1, limit: 50, sort: 'updated_at:DESC' };
+        if (query) params.q = query;
+        const res = await api.get('/tasks', { params });
+        if (!alive) return;
+        const items = (res.data?.items || []).map((task: any) => ({
+          id: task.id,
+          item_number: task.item_number ?? null,
+          title: task.title ?? null,
+        })) as RelatedTaskOption[];
+        setTaskOptions(items);
+      } catch {
+        if (!alive) return;
+        setTaskOptions([]);
+      } finally {
+        if (alive) setTaskOptionsLoading(false);
+      }
+    }, 250);
+    return () => { alive = false; window.clearTimeout(timer); };
+  }, [readOnly, taskSearch]);
+
   const saveSignature = React.useMemo(() => JSON.stringify({
     contains: containsAssets.map((item) => item.id).sort(),
     dependsOn: dependsOnAssets.map((item) => item.id).sort(),
@@ -417,6 +486,23 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
       setSaving(false);
     }
   }, [assetId, baselineUrls, onRelationsChange, readOnly, t]);
+
+  const replaceTaskRelations = React.useCallback(async (next: RelatedTaskOption[]) => {
+    const previous = linkedTasks;
+    setLinkedTasks(next);
+    if (readOnly) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post(`/assets/${assetId}/related-tasks/bulk-replace`, { task_ids: next.map((task) => task.id) });
+      onRelationsChange?.();
+    } catch (e: any) {
+      setLinkedTasks(previous);
+      setError(getApiErrorMessage(e, t, t('messages.saveRelationsFailed')));
+    } finally {
+      setSaving(false);
+    }
+  }, [assetId, linkedTasks, onRelationsChange, readOnly, t]);
 
   const save = React.useCallback(async () => {
     if (readOnly) return;
@@ -525,136 +611,133 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
 
   return (
     <>
-    <Stack spacing={3}>
+    <Stack spacing={2}>
       {error && <Alert severity="error">{error}</Alert>}
 
-      <SectionTitle>Depends on</SectionTitle>
-      <Autocomplete
-        multiple
-        options={allDependsOnOptions}
-        value={dependsOnAssets}
-        getOptionLabel={(o) => o.name}
-        onChange={(_, v) => setDependsOnAssets(v as AssetOption[])}
-        inputValue={assetSearch}
-        onInputChange={(_, v) => setAssetSearch(v)}
-        loading={optionsLoading}
-        renderOption={(props, option) => {
-          const { key, ...optionProps } = props;
-          return <li key={key} {...optionProps} title={option.name}>{option.name}</li>;
-        }}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Search dependent assets"
-            variant="standard"
-            InputProps={{
-              ...params.InputProps,
-              disableUnderline: true,
-              endAdornment: (
-                <>
-                  {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
+      <SectionTitle>Asset relations</SectionTitle>
+      <Box sx={relationGridSx}>
+        <PropertyRow label="Depends on">
+          <Autocomplete
+            multiple
+            options={allDependsOnOptions}
+            value={dependsOnAssets}
+            getOptionLabel={(o) => o.name}
+            onChange={(_, v) => setDependsOnAssets(v as AssetOption[])}
+            inputValue={assetSearch}
+            onInputChange={(_, v) => setAssetSearch(v)}
+            loading={optionsLoading}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props;
+              return <li key={key} {...optionProps} title={option.name}>{option.name}</li>;
             }}
-            sx={editableFieldValueSx}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search dependent assets"
+                variant="standard"
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={drawerFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            filterSelectedOptions
+            disabled={readOnly}
+            sx={relationAutocompleteSx}
           />
-        )}
-        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-        isOptionEqualToValue={(opt, val) => opt.id === val.id}
-        filterSelectedOptions
-        disabled={readOnly}
-        sx={relationAutocompleteSx}
-      />
+        </PropertyRow>
 
-      <SectionTitle>Contains</SectionTitle>
-      <Autocomplete
-        multiple
-        options={allContainsOptions}
-        value={containsAssets}
-        getOptionLabel={(o) => o.name}
-        onChange={(_, v) => setContainsAssets(v as AssetOption[])}
-        inputValue={assetSearch}
-        onInputChange={(_, v) => setAssetSearch(v)}
-        loading={optionsLoading}
-        renderOption={(props, option) => {
-          const { key, ...optionProps } = props;
-          return <li key={key} {...optionProps} title={option.name}>{option.name}</li>;
-        }}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Search contained assets"
-            variant="standard"
-            InputProps={{
-              ...params.InputProps,
-              disableUnderline: true,
-              endAdornment: (
-                <>
-                  {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
+        <PropertyRow label="Contains">
+          <Autocomplete
+            multiple
+            options={allContainsOptions}
+            value={containsAssets}
+            getOptionLabel={(o) => o.name}
+            onChange={(_, v) => setContainsAssets(v as AssetOption[])}
+            inputValue={assetSearch}
+            onInputChange={(_, v) => setAssetSearch(v)}
+            loading={optionsLoading}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props;
+              return <li key={key} {...optionProps} title={option.name}>{option.name}</li>;
             }}
-            sx={editableFieldValueSx}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => <Chip {...getTagProps({ index })} key={option.id} label={option.name} sx={relationTagSx} />)
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search contained assets"
+                variant="standard"
+                InputProps={{
+                  ...params.InputProps,
+                  disableUnderline: true,
+                  endAdornment: (
+                    <>
+                      {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={drawerFieldValueSx}
+              />
+            )}
+            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
+            isOptionEqualToValue={(opt, val) => opt.id === val.id}
+            filterSelectedOptions
+            disabled={readOnly}
+            sx={relationAutocompleteSx}
           />
-        )}
-        ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-        isOptionEqualToValue={(opt, val) => opt.id === val.id}
-        filterSelectedOptions
-        disabled={readOnly}
-        sx={relationAutocompleteSx}
-      />
+        </PropertyRow>
+      </Box>
 
       {/* Reverse relations (read-only) */}
-      {containedBy.length > 0 && (
-        <>
-          <SectionTitle>Contained by</SectionTitle>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Asset</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {containedBy.map((r) => (
-                  <TableRow key={r.id} hover sx={{ cursor: 'pointer' }} onClick={() => window.open(`/it/assets/${r.id}/relations`, '_self')}>
-                    <TableCell>{r.name}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </>
-      )}
+      {(containedBy.length > 0 || dependedOnBy.length > 0) && (
+        <Box sx={relationGridSx}>
+          {containedBy.length > 0 && (
+            <PropertyRow label="Contained by">
+              <TableContainer component={Paper} variant="outlined" sx={compactRelationTableSx}>
+                <Table size="small" aria-label="Contained by assets">
+                  <TableBody>
+                    {containedBy.map((r) => (
+                      <TableRow key={r.id} hover sx={{ cursor: 'pointer' }} onClick={() => window.open(`/it/assets/${r.id}/relations`, '_self')}>
+                        <TableCell>{r.name}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </PropertyRow>
+          )}
 
-      {dependedOnBy.length > 0 && (
-        <>
-          <SectionTitle>Depended on by</SectionTitle>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Asset</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {dependedOnBy.map((r) => (
-                  <TableRow key={r.id} hover sx={{ cursor: 'pointer' }} onClick={() => window.open(`/it/assets/${r.id}/relations`, '_self')}>
-                    <TableCell>{r.name}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </>
+          {dependedOnBy.length > 0 && (
+            <PropertyRow label="Depended on by">
+              <TableContainer component={Paper} variant="outlined" sx={compactRelationTableSx}>
+                <Table size="small" aria-label="Depended on by assets">
+                  <TableBody>
+                    {dependedOnBy.map((r) => (
+                      <TableRow key={r.id} hover sx={{ cursor: 'pointer' }} onClick={() => window.open(`/it/assets/${r.id}/relations`, '_self')}>
+                        <TableCell>{r.name}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </PropertyRow>
+          )}
+        </Box>
       )}
 
       {/* Relations */}
@@ -679,7 +762,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               placeholder="Search OPEX items"
               variant="standard"
               InputProps={{ ...params.InputProps, disableUnderline: true }}
-              sx={editableFieldValueSx}
+              sx={drawerFieldValueSx}
             />
           )}
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -710,7 +793,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               placeholder="Search CAPEX items"
               variant="standard"
               InputProps={{ ...params.InputProps, disableUnderline: true }}
-              sx={editableFieldValueSx}
+              sx={drawerFieldValueSx}
             />
           )}
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -741,7 +824,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               placeholder="Search contracts"
               variant="standard"
               InputProps={{ ...params.InputProps, disableUnderline: true }}
-              sx={editableFieldValueSx}
+              sx={drawerFieldValueSx}
             />
           )}
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -772,7 +855,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               placeholder="Search projects"
               variant="standard"
               InputProps={{ ...params.InputProps, disableUnderline: true }}
-              sx={editableFieldValueSx}
+              sx={drawerFieldValueSx}
             />
           )}
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -786,10 +869,13 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
       <PropertyRow label="Tasks" valueSx={relationControlSx}>
         <Autocomplete
           multiple
-          options={linkedTasks}
+          options={allTaskOptions}
           value={linkedTasks}
           getOptionLabel={taskLabel}
-          readOnly
+          onChange={(_, v) => { void replaceTaskRelations(v as RelatedTaskOption[]); }}
+          inputValue={taskSearch}
+          onInputChange={(_, v) => setTaskSearch(v)}
+          loading={taskOptionsLoading}
           renderOption={(props, option) => {
             const { key, ...optionProps } = props;
             return <li key={key} {...optionProps}>{taskLabel(option)}</li>;
@@ -802,12 +888,23 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               {...params}
               placeholder="Search tasks"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
-              sx={editableFieldValueSx}
+              InputProps={{
+                ...params.InputProps,
+                disableUnderline: true,
+                endAdornment: (
+                  <>
+                    {taskOptionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+              sx={drawerFieldValueSx}
             />
           )}
           ListboxProps={{ sx: drawerAutocompleteListboxSx }}
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
+          filterSelectedOptions
+          disabled={readOnly}
           sx={relationAutocompleteSx}
         />
       </PropertyRow>
@@ -840,7 +937,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
 
       {/* Attachments */}
       <SectionTitle>Attachments</SectionTitle>
-      <Stack spacing={1} sx={relationControlSx}>
+      <Stack spacing={1} sx={relationWideControlSx}>
         <Box
           onDragOver={(e) => { e.preventDefault(); setHover(true); }}
           onDragLeave={() => setHover(false)}
@@ -916,7 +1013,11 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
             const canDelete = hasLevel('infrastructure', 'member') && !readOnly;
             const onDelete = async () => {
               if (!canDelete) return;
-              const ok = window.confirm(`Delete attachment "${a.original_filename}"?`);
+              const ok = await dialogs.confirm({
+                message: `Delete attachment "${a.original_filename}"?`,
+                confirmLabel: t('common:buttons.delete'),
+                intent: 'danger',
+              });
               if (!ok) return;
               try {
                 await api.patch(`/assets/attachments/${a.id}/delete`, {});
