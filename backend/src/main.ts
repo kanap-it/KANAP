@@ -333,10 +333,20 @@ async function bootstrap() {
       if (!subRows?.[0]) {
         await subRunner.query(`
           INSERT INTO subscriptions (tenant_id, plan_name, seat_limit, active_seats, subscription_type, payment_mode, status)
-          VALUES ($1, 'On-Prem', 1000, 0, 'ANNUAL', 'CARD', 'active')
+          VALUES ($1, 'On-Prem', 1000, 0, 'annual', 'card', 'active')
         `, [tenantId]);
         // eslint-disable-next-line no-console
         console.log('[on-prem] Created default subscription (On-Prem, 1000 seats)');
+      } else {
+        await subRunner.query(`
+          UPDATE subscriptions
+          SET plan_name = 'On-Prem',
+              seat_limit = 1000,
+              subscription_type = 'annual',
+              payment_mode = 'card',
+              status = 'active'
+          WHERE id = $1
+        `, [subRows[0].id]);
       }
       await subRunner.commitTransaction();
     } catch (e) {

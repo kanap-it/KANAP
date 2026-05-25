@@ -1279,10 +1279,35 @@ export class BillingService {
     let subscription = await repo.findOne({ where: {} });
     if (!subscription) {
       const defaults = Features.SINGLE_TENANT
-        ? { plan_name: 'On-Prem', seat_limit: 1000, active_seats: 0, subscription_type: SubscriptionType.ANNUAL, payment_mode: PaymentMode.CARD }
+        ? { plan_name: 'On-Prem', seat_limit: 1000, active_seats: 0, subscription_type: SubscriptionType.ANNUAL, payment_mode: PaymentMode.CARD, status: SubscriptionStatus.ACTIVE }
         : { plan_name: 'Starter', seat_limit: 5, active_seats: 0, subscription_type: SubscriptionType.MONTHLY, payment_mode: PaymentMode.CARD };
       subscription = repo.create(defaults);
       subscription = await repo.save(subscription);
+    } else if (Features.SINGLE_TENANT) {
+      let changed = false;
+      if (subscription.plan_name !== 'On-Prem') {
+        subscription.plan_name = 'On-Prem';
+        changed = true;
+      }
+      if (subscription.seat_limit !== 1000) {
+        subscription.seat_limit = 1000;
+        changed = true;
+      }
+      if (subscription.subscription_type !== SubscriptionType.ANNUAL) {
+        subscription.subscription_type = SubscriptionType.ANNUAL;
+        changed = true;
+      }
+      if (subscription.payment_mode !== PaymentMode.CARD) {
+        subscription.payment_mode = PaymentMode.CARD;
+        changed = true;
+      }
+      if (subscription.status !== SubscriptionStatus.ACTIVE) {
+        subscription.status = SubscriptionStatus.ACTIVE;
+        changed = true;
+      }
+      if (changed) {
+        subscription = await repo.save(subscription);
+      }
     }
     return subscription;
   }
