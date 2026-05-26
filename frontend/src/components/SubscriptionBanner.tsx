@@ -9,10 +9,11 @@ export default function SubscriptionBanner() {
   const { t } = useTranslation('common');
   const { subscription, claims } = useAuth();
   const navigate = useNavigate();
-  const { config } = useFeatures();
+  const { config, isLoading: featuresLoading } = useFeatures();
   const isBillingAdmin = claims?.isBillingAdmin;
 
   // Don't show billing banner when billing is disabled
+  if (featuresLoading) return null;
   if (!config.features.billing) return null;
 
   // Don't show the banner if user is platform admin

@@ -192,8 +192,15 @@ function LegacyAccountsRedirect() {
 
 function AppRoutes() {
   const { token } = useAuth();
-  const { config } = useFeatures();
+  const { config, isLoading: featuresLoading } = useFeatures();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
+  if (featuresLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
   return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
