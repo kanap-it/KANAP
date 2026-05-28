@@ -208,6 +208,7 @@ export default function UnifiedActivityForm({
               onImageUpload={onImageUpload}
               onImageUrlImport={onImageUrlImport}
               hideToolbarUntilFocus
+              delegateWheelUntilFocus
               onModEnter={() => {
                 void handleSubmit();
               }}

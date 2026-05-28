@@ -10,6 +10,7 @@ import { PropertyGroup, PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
 import UserSelect from '../../../components/fields/UserSelect';
 import UserMultiSelect from '../../../components/fields/UserMultiSelect';
+import MetadataUserPicker from '../../../components/workspace/MetadataUserPicker';
 import ApplicationMultiSelect from '../../../components/fields/ApplicationMultiSelect';
 import AssetMultiSelect from '../../../components/fields/AssetMultiSelect';
 import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
@@ -302,6 +303,18 @@ export default function TaskPropertiesDrawer({
           ) : (
             <UserSelect label="" value={task.creator_id} onChange={(v) => onPatch({ creator_id: v })} size="small" />
           )}
+        </PropertyRow>
+        <PropertyRow label={t('workspace.task.sidebar.fields.assignee')}>
+          <MetadataUserPicker
+            value={task.assignee_user_id}
+            displayName={task.assignee_name}
+            placeholder={t('workspace.task.sidebar.values.assigneeMissing')}
+            searchPlaceholder={t('workspace.task.sidebar.fields.assignee')}
+            disabled={readOnly}
+            showAvatar={false}
+            onChange={(v) => onPatch({ assignee_user_id: v })}
+            sx={{ maxWidth: '100%' }}
+          />
         </PropertyRow>
         <PropertyRow label={t('workspace.task.sidebar.fields.viewers')}>
           <UserMultiSelect label="" value={task.viewer_ids || []} onChange={(v) => onPatch({ viewer_ids: v })} disabled={readOnly} size="small" />
