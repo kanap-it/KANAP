@@ -105,6 +105,16 @@ interface TaskData {
   updated_at: string;
 }
 
+function taskMatchesRoute(task: TaskData | null | undefined, routeId: string): boolean {
+  if (!task) return false;
+  const raw = String(routeId || '').trim();
+  if (!raw) return false;
+  if (raw.toLowerCase() === task.id.toLowerCase()) return true;
+  if (task.item_number != null && raw === String(task.item_number)) return true;
+  if (task.item_number != null && raw.toUpperCase() === formatItemRef('task', task.item_number)) return true;
+  return false;
+}
+
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
 export default function TaskWorkspacePage() {
@@ -271,25 +281,34 @@ export default function TaskWorkspacePage() {
     };
   }, [isResizing, sidebarWidth]);
 
-  const { data: task, isLoading, refetch } = useQuery({
+  const {
+    data: task,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['tasks', id],
     queryFn: async () => {
       const res = await api.get<TaskData>(`/tasks/${id}`);
       return res.data;
     },
     enabled: !!id && !isCreate,
+    placeholderData: (previousData) => previousData,
   });
+  const taskMatchesCurrentRoute = React.useMemo(() => taskMatchesRoute(task, id), [task, id]);
+  const isShowingPreviousTask = Boolean(task && !taskMatchesCurrentRoute);
+  const canManageCurrentTask = canManage && !isShowingPreviousTask;
+  const canDeleteCurrentTask = canDelete && !isShowingPreviousTask;
 
   // Track recently viewed
   React.useEffect(() => {
-    if (task?.id && task?.title) {
+    if (taskMatchesCurrentRoute && task?.id && task?.title) {
       addToRecent('task', task.id, task.title);
     }
-  }, [task?.id, task?.title, addToRecent]);
+  }, [taskMatchesCurrentRoute, task?.id, task?.title, addToRecent]);
 
   // Browser tab title
   React.useEffect(() => {
-    if (task?.item_number && task?.title) {
+    if (taskMatchesCurrentRoute && task?.item_number && task?.title) {
       document.title = t('portfolio:workspace.task.browserTitle', {
         ref: `T-${task.item_number}`,
         title: task.title,
@@ -297,11 +316,11 @@ export default function TaskWorkspacePage() {
       });
     }
     return () => { document.title = 'KANAP'; };
-  }, [task?.item_number, task?.title, t]);
+  }, [taskMatchesCurrentRoute, task?.item_number, task?.title, t]);
 
   // Swap UUID with item ref in URL bar
   React.useEffect(() => {
-    if (!task?.item_number) return;
+    if (!task?.item_number || !taskMatchesCurrentRoute) return;
     const currentParam = params.id || '';
     const isUuid = /^[0-9a-f]{8}-/.test(currentParam);
     if (isUuid) {
@@ -309,7 +328,7 @@ export default function TaskWorkspacePage() {
       const newPath = location.pathname.replace(currentParam, ref);
       window.history.replaceState(null, '', newPath + location.search);
     }
-  }, [task?.item_number, params.id, location.pathname, location.search]);
+  }, [task?.item_number, taskMatchesCurrentRoute, params.id, location.pathname, location.search]);
 
   const { data: totalTimeHours = 0 } = useQuery({
     queryKey: ['task-time-entries-sum', task?.id],
@@ -325,7 +344,7 @@ export default function TaskWorkspacePage() {
         return 0;
       }
     },
-    enabled: !!id && !isCreate && !!task,
+    enabled: !!id && !isCreate && !!task && !isShowingPreviousTask,
   });
 
   const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
@@ -384,13 +403,14 @@ export default function TaskWorkspacePage() {
 
   // Attachments
   const [showUploadArea, setShowUploadArea] = React.useState(false);
+  const attachmentTaskId = !isCreate && task ? task.id : null;
   const { data: attachments = [], refetch: refetchAttachments } = useQuery({
-    queryKey: ['task-attachments', id],
+    queryKey: ['task-attachments', attachmentTaskId],
     queryFn: async () => {
-      const res = await api.get<TaskAttachment[]>(`/tasks/${id}/attachments`);
+      const res = await api.get<TaskAttachment[]>(`/tasks/${attachmentTaskId}/attachments`);
       return res.data;
     },
-    enabled: !!id && !isCreate,
+    enabled: !!attachmentTaskId,
   });
 
   React.useEffect(() => {
@@ -411,31 +431,38 @@ export default function TaskWorkspacePage() {
   }, [location.pathname, location.search, location.hash]);
 
   const initialStatus = React.useMemo<TaskStatus | null>(() => {
-    if (!task || !deepLinkStatus) return null;
+    if (!task || isShowingPreviousTask || !deepLinkStatus) return null;
     if (!validTaskStatuses.has(deepLinkStatus)) return null;
     if (deepLinkStatus === task.status) return null;
     return deepLinkStatus;
-  }, [task, deepLinkStatus, validTaskStatuses]);
+  }, [task, isShowingPreviousTask, deepLinkStatus, validTaskStatuses]);
 
   const handleUploadAttachment = async (file: File) => {
+    if (!task?.id || !canManageCurrentTask) return;
     const formData = new FormData();
     formData.append('file', file);
-    await api.post(`/tasks/${id}/attachments`, formData);
+    await api.post(`/tasks/${task.id}/attachments`, formData);
     refetchAttachments();
   };
 
   // Upload image for rich text editor, returns the URL to embed
   const handleUploadImage = async (file: File): Promise<string> => {
+    if (!task?.id || !canManageCurrentTask) {
+      throw new Error(t('portfolio:workspace.task.messages.saveFailed'));
+    }
     const formData = new FormData();
     formData.append('file', file);
     formData.append('source_field', 'description');
-    const res = await api.post<{ id: string }>(`/tasks/${id}/attachments`, formData);
+    const res = await api.post<{ id: string }>(`/tasks/${task.id}/attachments`, formData);
     refetchAttachments();
     return buildInlineImageUrl(`/tasks/attachments/${inlineImageTenantSlug}/${res.data.id}/inline`);
   };
 
   const handleImportImageUrl = async (sourceUrl: string): Promise<string> => {
-    const res = await api.post<{ id: string }>(`/tasks/${id}/attachments/inline/import`, {
+    if (!task?.id || !canManageCurrentTask) {
+      throw new Error(t('portfolio:workspace.task.messages.saveFailed'));
+    }
+    const res = await api.post<{ id: string }>(`/tasks/${task.id}/attachments/inline/import`, {
       source_field: 'description',
       source_url: sourceUrl,
     });
@@ -444,11 +471,11 @@ export default function TaskWorkspacePage() {
   };
 
   const handleDescriptionImport = React.useCallback(async (selectedFile: File): Promise<ImportDocumentResult> => {
-    if (isCreate || !task?.id) {
+    if (isCreate || !task?.id || !canManageCurrentTask) {
       throw new Error(t('portfolio:workspace.task.messages.documentImportAfterCreate'));
     }
     return importMarkdownDocument(`/tasks/${task.id}/import`, selectedFile);
-  }, [isCreate, task?.id, t]);
+  }, [canManageCurrentTask, isCreate, task?.id, t]);
 
   const handleDescriptionImported = React.useCallback((result: ImportDocumentResult) => {
     setError(null);
@@ -512,7 +539,7 @@ export default function TaskWorkspacePage() {
 
   // Initialize form from task data
   React.useEffect(() => {
-    if (task) {
+    if (task && taskMatchesCurrentRoute) {
       const taskChanged = hydratedTaskIdRef.current !== task.id;
       if (taskChanged || !dirtyRef.current) {
         setTitle(task.title || '');
@@ -527,7 +554,7 @@ export default function TaskWorkspacePage() {
       resetClassificationTouched();
       hydratedTaskIdRef.current = task.id;
     }
-  }, [buildTaskFormFromTask, resetClassificationTouched, task]);
+  }, [buildTaskFormFromTask, resetClassificationTouched, task, taskMatchesCurrentRoute]);
 
   // Fetch task types for default task type
   const { data: taskTypesData } = useQuery({
@@ -787,6 +814,31 @@ export default function TaskWorkspacePage() {
     await sidebarSaveQueueRef.current;
   }, []);
 
+  const invalidateTaskRelationQueries = React.useCallback((
+    taskId: string,
+    previous: { type: RelatedObjectType; id: string | null },
+    next: { type: RelatedObjectType; id: string | null },
+  ) => {
+    void queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+    void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    void queryClient.invalidateQueries({ queryKey: ['task-activities', taskId] });
+    void queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', taskId] });
+    void queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+
+    const projectIds = new Set<string>();
+    if (previous.type === 'project' && previous.id) projectIds.add(previous.id);
+    if (next.type === 'project' && next.id) projectIds.add(next.id);
+    for (const projectId of projectIds) {
+      void queryClient.invalidateQueries({ queryKey: ['portfolio-project', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['portfolio-project-task-time', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['portfolio-project-task-time-entries', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['project-workspace-tasks-count', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['project-tasks-time-summary', projectId] });
+      void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    }
+  }, [queryClient]);
+
   const buildSidebarPatchRequest = React.useCallback((snapshot: TaskData, patch: Record<string, any>) => {
     const requestPayload = { ...patch };
     delete requestPayload.related_object_name;
@@ -811,12 +863,17 @@ export default function TaskWorkspacePage() {
       throw new Error(t('portfolio:workspace.task.messages.relatedItemRequired'));
     }
 
+    const isRelationPatch = hasRelatedType || hasRelatedId;
     return {
-      endpoint: nextType === 'project' && nextId
+      endpoint: isRelationPatch
+        ? `/tasks/${snapshot.id}/move`
+        : nextType === 'project' && nextId
         ? `/portfolio/projects/${nextId}/tasks/${snapshot.id}`
         : `/tasks/${snapshot.id}`,
       payload: requestPayload,
       nextType,
+      nextId,
+      isRelationPatch,
     };
   }, [t]);
 
@@ -831,24 +888,25 @@ export default function TaskWorkspacePage() {
     const baseSnapshot = currentTaskDraftRef.current ?? liveTask ?? task;
     const snapshot = { ...baseSnapshot, ...localPatch } as TaskData;
     const previousRelatedType = baseSnapshot.related_object_type;
+    const previousRelatedId = baseSnapshot.related_object_id;
 
     setError(null);
     pendingSidebarPatchCountRef.current += 1;
     sidebarSaveQueueRef.current = sidebarSaveQueueRef.current.then(async () => {
       try {
-        const { endpoint, payload, nextType } = buildSidebarPatchRequest(snapshot, requestPatch);
+        const { endpoint, payload, nextType, nextId, isRelationPatch } = buildSidebarPatchRequest(snapshot, requestPatch);
         await api.patch(endpoint, payload);
         pendingSidebarPatchCountRef.current = Math.max(0, pendingSidebarPatchCountRef.current - 1);
-        if (pendingSidebarPatchCountRef.current === 0) {
+        if (isRelationPatch) {
+          invalidateTaskRelationQueries(
+            snapshot.id,
+            { type: previousRelatedType, id: previousRelatedId },
+            { type: nextType, id: nextId },
+          );
+        } else if (pendingSidebarPatchCountRef.current === 0) {
           void queryClient.invalidateQueries({ queryKey: ['tasks', snapshot.id] });
           void queryClient.invalidateQueries({ queryKey: ['tasks'] });
           void queryClient.invalidateQueries({ queryKey: ['task-activities', snapshot.id] });
-          if (
-            Object.prototype.hasOwnProperty.call(requestPatch, 'related_object_type')
-            || Object.prototype.hasOwnProperty.call(requestPatch, 'related_object_id')
-          ) {
-            void queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', snapshot.id] });
-          }
           if (previousRelatedType === 'project' || nextType === 'project') {
             void queryClient.invalidateQueries({ queryKey: ['portfolio-project'] });
             void queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
@@ -860,7 +918,7 @@ export default function TaskWorkspacePage() {
         await refetch();
       }
     });
-  }, [applyFormPatch, buildSidebarPatchRequest, isCreate, liveTask, queryClient, refetch, t, task]);
+  }, [applyFormPatch, buildSidebarPatchRequest, invalidateTaskRelationQueries, isCreate, liveTask, queryClient, refetch, t, task]);
 
   const handleCreateSidebarPatch = React.useCallback((patch: Record<string, any>) => {
     applyFormPatch(patch);
@@ -868,8 +926,9 @@ export default function TaskWorkspacePage() {
   }, [applyFormPatch]);
 
   const handleEditSidebarPatch = React.useCallback((patch: Record<string, any>) => {
+    if (!canManageCurrentTask) return;
     enqueueSidebarPatch(patch);
-  }, [enqueueSidebarPatch]);
+  }, [canManageCurrentTask, enqueueSidebarPatch]);
 
   const handleCreateRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
     setCreateRelation(params);
@@ -877,6 +936,7 @@ export default function TaskWorkspacePage() {
   }, []);
 
   const handleEditRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
+    if (!canManageCurrentTask) return;
     const snapshot = currentTaskDraftRef.current ?? liveTask ?? task;
     const relationChanged = snapshot
       ? snapshot.related_object_type !== params.type || snapshot.related_object_id !== params.id
@@ -901,11 +961,11 @@ export default function TaskWorkspacePage() {
       requestPatch.phase_id = localPatch.phase_id;
     }
     enqueueSidebarPatch(localPatch, requestPatch);
-  }, [applyFormPatch, enqueueSidebarPatch, liveTask, task]);
+  }, [applyFormPatch, canManageCurrentTask, enqueueSidebarPatch, liveTask, task]);
 
   // Title blur-to-save: patches only the title field immediately on blur
   const handleTitleSave = React.useCallback(async (newTitle: string) => {
-    if (!task || saving) return;
+    if (!task || saving || !canManageCurrentTask) return;
     const trimmed = newTitle.trim();
     if (!trimmed || trimmed === task.title) return;
     setTitle(trimmed);
@@ -923,11 +983,11 @@ export default function TaskWorkspacePage() {
     } catch (err) {
       setError(getApiErrorMessage(err, t, t('portfolio:workspace.task.messages.saveFailed')));
     }
-  }, [task, saving, waitForSidebarSaves, queryClient, t]);
+  }, [task, saving, canManageCurrentTask, waitForSidebarSaves, queryClient, t]);
 
   // Description autosave: patches only the description field
   const handleDescriptionAutosave = React.useCallback(async (descToSave: string) => {
-    if (!task || isCreate || !canManage || descSavingRef.current) return;
+    if (!task || isCreate || !canManageCurrentTask || descSavingRef.current) return;
     const trimmed = descToSave.trim() || null;
     const savedTrimmed = savedDescriptionRef.current.trim() || null;
     if (trimmed === savedTrimmed) return;
@@ -951,11 +1011,11 @@ export default function TaskWorkspacePage() {
     } finally {
       descSavingRef.current = false;
     }
-  }, [task, isCreate, canManage, queryClient, t]);
+  }, [task, isCreate, canManageCurrentTask, queryClient, t]);
 
   // Debounced description autosave: fires 2s after last change
   React.useEffect(() => {
-    if (isCreate || !initialized || !task || !canManage) return;
+    if (isCreate || !initialized || !task || !canManageCurrentTask) return;
     const trimmed = description.trim() || null;
     const savedTrimmed = savedDescriptionRef.current.trim() || null;
     if (trimmed === savedTrimmed) return;
@@ -966,10 +1026,10 @@ export default function TaskWorkspacePage() {
     descAutosaveTimerRef.current = timer;
 
     return () => clearTimeout(timer);
-  }, [description, isCreate, initialized, task, canManage, handleDescriptionAutosave]);
+  }, [description, isCreate, initialized, task, canManageCurrentTask, handleDescriptionAutosave]);
 
   const handleSave = async () => {
-    if (!task || saving) return;
+    if (!task || saving || !canManageCurrentTask) return;
     setSaving(true);
     setError(null);
 
@@ -988,7 +1048,7 @@ export default function TaskWorkspacePage() {
         throw new Error(t('portfolio:workspace.task.messages.relatedItemRequired'));
       }
 
-      const endpoint = nextType === 'project'
+      const endpoint = nextType === 'project' && nextId
         ? `/portfolio/projects/${nextId}/tasks/${task.id}`
         : `/tasks/${task.id}`;
 
@@ -1015,11 +1075,6 @@ export default function TaskWorkspacePage() {
         }
       }
 
-      if (relationChanged) {
-        payload.related_object_type = nextType;
-        payload.related_object_id = nextId;
-      }
-
       const canEditClassification = nextType === null || nextType === 'project';
       if (canEditClassification) {
         const classificationFields = ['source_id', 'category_id', 'stream_id', 'company_id'] as const;
@@ -1030,6 +1085,13 @@ export default function TaskWorkspacePage() {
         }
       }
 
+      if (relationChanged) {
+        await api.patch(`/tasks/${task.id}/move`, {
+          related_object_type: nextType,
+          related_object_id: nextId,
+        });
+      }
+
       await api.patch(endpoint, payload);
       savedDescriptionRef.current = description;
       setDirty(false);
@@ -1037,6 +1099,13 @@ export default function TaskWorkspacePage() {
       await refetch();
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['task-activities', task.id] });
+      if (relationChanged) {
+        invalidateTaskRelationQueries(
+          task.id,
+          { type: currentType, id: currentId },
+          { type: nextType, id: nextId },
+        );
+      }
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('portfolio:workspace.task.messages.saveFailed')));
     } finally {
@@ -1237,10 +1306,10 @@ export default function TaskWorkspacePage() {
   // Check if create form is valid for enabling save button
   // Title is required. Relation is optional (standalone tasks are allowed).
   const isCreateValid = Boolean(title.trim());
-  const taskImportDisabled = isCreate || !canManage;
+  const taskImportDisabled = isCreate || !canManageCurrentTask;
   const taskImportDisabledTitle = isCreate
     ? t('portfolio:workspace.task.messages.importSaveFirst')
-    : (!canManage ? t('portfolio:workspace.task.messages.importPermissionRequired') : undefined);
+    : (!canManageCurrentTask ? t('portfolio:workspace.task.messages.importPermissionRequired') : undefined);
   const contentSpacing = {
     section: 3,
     sectionLarge: 4,
@@ -1271,13 +1340,15 @@ export default function TaskWorkspacePage() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') return;
       event.preventDefault();
-      if (!canManage) return;
 
       if (isCreate) {
+        if (!canManage) return;
         if (!isCreateValid || createSaving) return;
         void handleCreateSave();
         return;
       }
+
+      if (!canManageCurrentTask) return;
 
       // Cancel pending description debounce — handleSave includes description
       if (descAutosaveTimerRef.current) {
@@ -1291,7 +1362,7 @@ export default function TaskWorkspacePage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canManage, isCreate, isCreateValid, createSaving, dirty, saving, handleCreateSave, handleSave]);
+  }, [canManage, canManageCurrentTask, isCreate, isCreateValid, createSaving, dirty, saving, handleCreateSave, handleSave]);
 
   // Keyboard shortcuts: J/K/←/→ for navigation, Escape to close
   React.useEffect(() => {
@@ -1555,7 +1626,7 @@ export default function TaskWorkspacePage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !task) {
     return (
       <Box sx={{ p: 3 }}>
         <Typography color="text.secondary">{t('portfolio:workspace.task.messages.loading')}</Typography>
@@ -1575,7 +1646,7 @@ export default function TaskWorkspacePage() {
   const effectiveTask = liveTask || task;
   const isProjectTask = effectiveTask.related_object_type === 'project';
   const hasConvertedRequest = Boolean(task.converted_request_id);
-  const canConvertToRequest = canManage && canCreateRequest;
+  const canConvertToRequest = canManageCurrentTask && canCreateRequest;
   const headerRelatedType = effectiveTask.related_object_type;
   const headerRelatedId = effectiveTask.related_object_id;
   const headerRelatedName = (effectiveTask.related_object_name ?? '').trim();
@@ -1619,8 +1690,8 @@ export default function TaskWorkspacePage() {
         onTitleChange={(v) => { setTitle(v); setDirty(true); }}
         onTitleSave={handleTitleSave}
         onMetadataPatch={handleEditSidebarPatch}
-        canManage={canManage}
-        canDelete={canDelete}
+        canManage={canManageCurrentTask}
+        canDelete={canDeleteCurrentTask}
         canConvertToRequest={canConvertToRequest}
         convertDisabledTitle={
           hasConvertedRequest
@@ -1679,7 +1750,7 @@ export default function TaskWorkspacePage() {
                   placeholder={t('portfolio:workspace.task.description.placeholder')}
                   minRows={10}
                   maxRows={26}
-                  disabled={!canManage}
+                  disabled={!canManageCurrentTask}
                   onImageUpload={handleUploadImage}
                   onImageUrlImport={handleImportImageUrl}
                   focusNonce={descriptionFocusNonce}
@@ -1703,7 +1774,7 @@ export default function TaskWorkspacePage() {
               attachments={attachments}
               onUpload={handleUploadAttachment}
               onDelete={handleDeleteAttachment}
-              canManage={canManage}
+              canManage={canManageCurrentTask}
               showUploadArea={showUploadArea}
             />
           </Box>
@@ -1714,7 +1785,7 @@ export default function TaskWorkspacePage() {
           <TaskActivity
             taskId={task.id}
             projectId={isProjectTask && effectiveTask.related_object_id ? effectiveTask.related_object_id : undefined}
-            readOnly={!canManage}
+            readOnly={!canManageCurrentTask}
             relatedObjectType={effectiveTask.related_object_type ?? undefined}
             currentStatus={effectiveTask.status}
             totalTimeHours={totalTimeHours}
@@ -1784,7 +1855,7 @@ export default function TaskWorkspacePage() {
             open={drawerOpen}
             onToggle={() => setDrawerOpen((o: boolean) => !o)}
             onPatch={handleEditSidebarPatch}
-            readOnly={!canManage}
+            readOnly={!canManageCurrentTask}
             totalTimeHours={totalTimeHours}
             onRelationChange={handleEditRelationChange}
             projectWorkspaceLink={sidebarProjectWorkspaceLink}

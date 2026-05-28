@@ -1,4 +1,22 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards, UseInterceptors, UploadedFile, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
@@ -24,8 +42,9 @@ import { RateLimitGuard } from '../common/rate-limit.guard';
 import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { KnowledgeService } from '../knowledge/knowledge.service';
-import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
+import { projectParticipantCondition, resolveBusinessContributorScope } from '../auth/business-contributor-scope';
 import { PermissionLevel } from '../permissions/permissions.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -41,6 +60,7 @@ export class TasksController {
     private readonly storage: StorageService,
     private readonly knowledge: KnowledgeService,
     private readonly dataSource: DataSource,
+    private readonly perms: PermissionsService,
   ) {}
 
   private resolve(idOrRef: string, req: any): Promise<string> {
@@ -55,6 +75,70 @@ export class TasksController {
     const accessScope = await this.taskAccessScope(req, level);
     await this.svc.assertVisible(id, accessScope, { manager: req?.queryRunner?.manager });
     return accessScope;
+  }
+
+  private async hasPermission(req: any, resource: string, level: PermissionLevel): Promise<boolean> {
+    if (req?.isAdmin === true) return true;
+    const userId = String(req?.user?.sub || '').trim();
+    if (!userId) return false;
+
+    const manager = req?.queryRunner?.manager ?? this.dataSource.manager;
+    const tenantId = req?.tenant?.id ?? null;
+    const rows = await manager.query(
+      `
+        SELECT DISTINCT
+          r.id::text AS role_id,
+          LOWER(TRIM(r.role_name)) AS role_name
+        FROM (
+          SELECT u.role_id
+          FROM users u
+          WHERE u.id = $1
+            AND ($2::uuid IS NULL OR u.tenant_id = $2::uuid)
+          UNION
+          SELECT ur.role_id
+          FROM user_roles ur
+          WHERE ur.user_id = $1
+            AND ($2::uuid IS NULL OR ur.tenant_id = $2::uuid)
+        ) assigned_roles
+        JOIN roles r ON r.id = assigned_roles.role_id
+        WHERE ($2::uuid IS NULL OR r.tenant_id = $2::uuid)
+      `,
+      [userId, tenantId],
+    );
+
+    if (rows.some((row: { role_name?: string }) => row.role_name === 'administrator')) {
+      return true;
+    }
+
+    const roleIds = rows.map((row: { role_id: string }) => row.role_id).filter(Boolean);
+    if (roleIds.length === 0) return false;
+
+    const rank: Record<PermissionLevel, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
+    const effective = await this.perms.listForRoles(roleIds, { manager });
+    const current = effective.get(resource);
+    return current ? rank[current] >= rank[level] : false;
+  }
+
+  private async ensureProjectTargetAccess(projectId: string, req: any) {
+    const canContribute = await this.hasPermission(req, 'portfolio_projects', 'contributor');
+    if (!canContribute) {
+      throw new ForbiddenException('Insufficient portfolio project permissions');
+    }
+
+    const accessScope = await resolveBusinessContributorScope(req, 'portfolio_projects', 'contributor');
+    if (!accessScope) return;
+
+    const rows = await req?.queryRunner?.manager.query(
+      `SELECT 1
+       FROM portfolio_projects p
+       WHERE p.id = $1
+         AND ${projectParticipantCondition('p', '$2')}
+       LIMIT 1`,
+      [projectId, accessScope.userId],
+    );
+    if (!rows?.length) {
+      throw new NotFoundException('Project not found');
+    }
   }
 
   @UseGuards(PermissionGuard)
@@ -236,7 +320,7 @@ export class TasksController {
 
     const nextType = (body?.related_object_type ?? null) as RelatedType;
     const nextId = (body?.related_object_id ?? null) as string | null;
-    const allowed: RelatedType[] = ['spend_item', 'contract', 'capex_item', null];
+    const allowed: RelatedType[] = ['spend_item', 'contract', 'capex_item', 'project', null];
     if (!allowed.includes(nextType)) {
       throw new BadRequestException('Invalid related_object_type');
     }
@@ -248,6 +332,9 @@ export class TasksController {
     }
 
     await this.ensureTaskAccess(id, req, 'member');
+    if (nextType === 'project' && nextId) {
+      await this.ensureProjectTargetAccess(nextId, req);
+    }
     return this.unified.moveTask(
       { id, next: { type: nextType, id: nextId } },
       req.user?.sub ?? null,

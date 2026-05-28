@@ -8,6 +8,7 @@ import { ItemNumberService } from '../common/item-number.service';
 import { PortfolioProjectPhase } from '../portfolio/portfolio-project-phase.entity';
 import { PortfolioActivity } from '../portfolio/portfolio-activity.entity';
 import { UserTimeAggregateService } from '../portfolio/services/user-time-aggregate.service';
+import { PortfolioProjectsService } from '../portfolio/services';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { TaskActivitiesService } from './task-activities.service';
@@ -53,6 +54,7 @@ export class TasksUnifiedService {
     private readonly itemNumberService: ItemNumberService,
     private readonly taskActivitiesSvc: TaskActivitiesService,
     private readonly taskAttachmentsSvc: TaskAttachmentsService,
+    private readonly portfolioProjectsService: PortfolioProjectsService,
   ) {}
 
   /**
@@ -66,6 +68,10 @@ export class TasksUnifiedService {
 
   private isNonProjectLinked(type: RelatedType): type is 'spend_item' | 'contract' | 'capex_item' {
     return type === 'spend_item' || type === 'contract' || type === 'capex_item';
+  }
+
+  private getRelatedProjectId(task: Pick<Task, 'related_object_type' | 'related_object_id'>): string | null {
+    return task.related_object_type === 'project' && task.related_object_id ? task.related_object_id : null;
   }
 
   private hasOwn(payload: Partial<Task>, key: keyof Task): boolean {
@@ -1061,6 +1067,14 @@ export class TasksUnifiedService {
 
     if (relationChanged) {
       await this.userTimeAggregateService.recalculateForTask(saved.id, manager);
+      const projectIds = new Set<string>();
+      const previousProjectId = this.getRelatedProjectId(before);
+      const nextProjectId = this.getRelatedProjectId(saved);
+      if (previousProjectId) projectIds.add(previousProjectId);
+      if (nextProjectId) projectIds.add(nextProjectId);
+      for (const projectId of projectIds) {
+        await this.portfolioProjectsService.recalculateActualEffort(projectId, manager);
+      }
     }
 
     // Fire-and-forget notifications

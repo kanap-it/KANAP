@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KanapDialogProvider } from '../../components/design';
+import api from '../../api';
 import TaskWorkspacePage from './TaskWorkspacePage';
 
 const translationMock = vi.hoisted(() => {
@@ -33,6 +34,12 @@ const queryClientMock = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
 }));
 
+const taskQueryMock = vi.hoisted(() => ({
+  task: undefined as any,
+  isLoading: false,
+  refetch: vi.fn(async () => undefined),
+}));
+
 vi.mock('react-i18next', async () => {
   const React = await import('react');
 
@@ -59,6 +66,13 @@ vi.mock('react-i18next', async () => {
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+    if (Array.isArray(queryKey) && queryKey[0] === 'tasks' && queryKey.length === 2 && queryKey[1] !== 'new') {
+      return {
+        data: taskQueryMock.task,
+        isLoading: taskQueryMock.isLoading,
+        refetch: taskQueryMock.refetch,
+      };
+    }
     if (Array.isArray(queryKey) && queryKey[0] === 'portfolio-task-types') {
       return {
         data: [
@@ -125,6 +139,29 @@ vi.mock('../../hooks/useTaskNav', () => ({
 
 vi.mock('./components/TaskSidebar', () => ({
   default: () => <div data-testid="task-sidebar" />,
+}));
+
+vi.mock('./components/TaskDetailHeader', () => ({
+  default: () => <div data-testid="task-detail-header" />,
+}));
+
+vi.mock('./components/TaskPropertiesDrawer', () => ({
+  default: ({ onRelationChange }: { onRelationChange?: (params: any) => void }) => (
+    <div data-testid="task-properties-drawer">
+      <button
+        type="button"
+        onClick={() => onRelationChange?.({ type: 'project', id: 'project-b', name: 'Project B' })}
+      >
+        Move to project B
+      </button>
+      <button
+        type="button"
+        onClick={() => onRelationChange?.({ type: null, id: null, name: null })}
+      >
+        Make standalone
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/ExportButton', () => ({
@@ -198,10 +235,67 @@ function renderCreatePage() {
   );
 }
 
+function renderEditPage(initialEntry = '/portfolio/tasks/task-1/overview') {
+  return render(
+    <KanapDialogProvider>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
+        </Routes>
+      </MemoryRouter>
+    </KanapDialogProvider>,
+  );
+}
+
+function makeTask(overrides: Record<string, any> = {}) {
+  return {
+    id: 'task-1',
+    item_number: 1,
+    title: 'Move me',
+    description: null,
+    status: 'open',
+    task_type_id: null,
+    task_type_name: null,
+    priority_level: 'normal',
+    priority_score: 0,
+    start_date: null,
+    due_date: null,
+    assignee_user_id: null,
+    assignee_name: null,
+    creator_id: null,
+    creator_name: null,
+    owner_ids: [],
+    viewer_ids: [],
+    labels: [],
+    application_ids: [],
+    asset_ids: [],
+    related_object_type: 'project',
+    related_object_id: 'project-a',
+    related_object_name: 'Project A',
+    phase_id: 'phase-a',
+    phase_name: 'Phase A',
+    source_id: null,
+    source_name: null,
+    category_id: null,
+    category_name: null,
+    stream_id: null,
+    stream_name: null,
+    company_id: null,
+    company_name: null,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
 describe('TaskWorkspacePage create mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     translationMock.reset();
+    taskQueryMock.task = undefined;
+    taskQueryMock.isLoading = false;
+    taskQueryMock.refetch.mockReset();
+    taskQueryMock.refetch.mockResolvedValue(undefined);
 
     const localStorageMock = createLocalStorageMock();
     vi.stubGlobal('localStorage', localStorageMock);
@@ -245,5 +339,79 @@ describe('TaskWorkspacePage create mode', () => {
 
     expect(screen.getByDisplayValue('Investigate disappearing draft')).toBeInTheDocument();
     expect(screen.getByDisplayValue('The form should keep this text.')).toBeInTheDocument();
+  });
+});
+
+describe('TaskWorkspacePage relation changes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    translationMock.reset();
+    taskQueryMock.task = makeTask();
+    taskQueryMock.isLoading = false;
+    taskQueryMock.refetch.mockReset();
+    taskQueryMock.refetch.mockResolvedValue(undefined);
+    vi.mocked(api.patch).mockResolvedValue({ data: {} } as any);
+
+    const localStorageMock = createLocalStorageMock();
+    vi.stubGlobal('localStorage', localStorageMock);
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      configurable: true,
+    });
+    window.localStorage.setItem('kanap.taskDetail.drawerOpen', 'true');
+
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  it('uses the global move endpoint when moving a task into another project', async () => {
+    renderEditPage();
+
+    fireEvent.click(await screen.findByText('Move to project B'));
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith('/tasks/task-1/move', {
+        related_object_type: 'project',
+        related_object_id: 'project-b',
+        phase_id: null,
+      });
+    });
+    expect(api.patch).not.toHaveBeenCalledWith('/portfolio/projects/project-b/tasks/task-1', expect.anything());
+  });
+
+  it('uses the global move endpoint when making a project task standalone', async () => {
+    renderEditPage();
+
+    fireEvent.click(await screen.findByText('Make standalone'));
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith('/tasks/task-1/move', {
+        related_object_type: null,
+        related_object_id: null,
+        phase_id: null,
+      });
+    });
+  });
+
+  it('keeps the current workspace rendered while the next task is loading', async () => {
+    taskQueryMock.task = makeTask({ id: 'task-1', item_number: 1, title: 'Previous task' });
+    taskQueryMock.isLoading = true;
+
+    renderEditPage('/portfolio/tasks/T-2/overview');
+
+    expect(screen.queryByText('portfolio:workspace.task.messages.loading__0')).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Move to project B'));
+    expect(api.patch).not.toHaveBeenCalled();
   });
 });
