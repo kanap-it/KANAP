@@ -78,10 +78,24 @@ interface MarkdownEditorProps {
   hideToolbarUntilFocus?: boolean;
   /** Render on the KANAP long-form composer surface. */
   surface?: boolean;
+  /** Delegate wheel scrolling to the parent scroll container until the editor is focused. */
+  delegateWheelUntilFocus?: boolean;
   /** Called when Ctrl+Enter or Cmd+Enter is pressed inside the editor. */
   onModEnter?: () => void;
   /** Called when Ctrl+S or Cmd+S is pressed inside the editor. */
   onModSave?: () => void;
+}
+
+function findScrollableParent(element: HTMLElement | null): HTMLElement | null {
+  let current = element?.parentElement || null;
+  while (current && current !== document.body) {
+    const style = window.getComputedStyle(current);
+    const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY) && current.scrollHeight > current.clientHeight;
+    const canScrollX = /(auto|scroll|overlay)/.test(style.overflowX) && current.scrollWidth > current.clientWidth;
+    if (canScrollY || canScrollX) return current;
+    current = current.parentElement;
+  }
+  return (document.scrollingElement || document.documentElement) as HTMLElement;
 }
 
 const EMOJI_OPTIONS = [
@@ -323,6 +337,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   fullToolbar = false,
   hideToolbarUntilFocus = false,
   surface = false,
+  delegateWheelUntilFocus = false,
   onModEnter,
   onModSave,
 }: MarkdownEditorProps) {
@@ -360,6 +375,28 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
     () => `${editorInstanceKey}:${disabled ? 'readonly' : 'editable'}:${onImageUpload ? 'image' : 'no-image'}`,
     [disabled, editorInstanceKey, onImageUpload],
   );
+  const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if (!delegateWheelUntilFocus || event.ctrlKey || event.metaKey) return;
+    const container = containerRef.current;
+    if (!container || container.matches(':focus-within')) return;
+
+    const scrollParent = findScrollableParent(container);
+    if (!scrollParent) return;
+
+    const previousTop = scrollParent.scrollTop;
+    const previousLeft = scrollParent.scrollLeft;
+    if (scrollParent.scrollHeight > scrollParent.clientHeight) {
+      scrollParent.scrollTop += event.deltaY;
+    }
+    if (event.deltaX && scrollParent.scrollWidth > scrollParent.clientWidth) {
+      scrollParent.scrollLeft += event.deltaX;
+    }
+
+    if (scrollParent.scrollTop !== previousTop || scrollParent.scrollLeft !== previousLeft) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, [delegateWheelUntilFocus]);
   const mdxThemeVariables = React.useMemo<Record<string, string>>(
     () => ({
       colorScheme: isDarkMode ? 'dark' : 'light',
@@ -748,6 +785,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       />
       <Box
         ref={containerRef}
+        onWheelCapture={handleWheelCapture}
         onKeyDownCapture={(event) => {
           if ((!event.ctrlKey && !event.metaKey) || event.nativeEvent.isComposing) return;
           if (event.key.toLowerCase() === 's') {

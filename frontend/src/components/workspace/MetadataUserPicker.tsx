@@ -34,6 +34,7 @@ type MetadataUserPickerProps = {
   label?: React.ReactNode;
   disabled?: boolean;
   allowClear?: boolean;
+  showAvatar?: boolean;
   onChange: (userId: string | null) => void;
   sx?: SxProps<Theme>;
 };
@@ -86,6 +87,7 @@ export default function MetadataUserPicker({
   label,
   disabled = false,
   allowClear = true,
+  showAvatar = true,
   onChange,
   sx,
 }: MetadataUserPickerProps) {
@@ -190,18 +192,20 @@ export default function MetadataUserPicker({
             {label}
           </Box>
         )}
-        <Avatar
-          sx={(theme) => ({
-            width: taskDetailAvatarSizes.metadata,
-            height: taskDetailAvatarSizes.metadata,
-            fontSize: 9,
-            fontWeight: 500,
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.primary.contrastText,
-          })}
-        >
-          {getInitials(selectedName)}
-        </Avatar>
+        {showAvatar && (
+          <Avatar
+            sx={(theme) => ({
+              width: taskDetailAvatarSizes.metadata,
+              height: taskDetailAvatarSizes.metadata,
+              fontSize: 9,
+              fontWeight: 500,
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.primary.contrastText,
+            })}
+          >
+            {getInitials(selectedName)}
+          </Avatar>
+        )}
         <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {displayedName}
         </Box>

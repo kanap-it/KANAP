@@ -242,6 +242,7 @@ export default function TaskComments({
                         disabled={editSubmitting}
                         onImageUpload={handleUploadImage}
                         onImageUrlImport={handleImportImageUrl}
+                        delegateWheelUntilFocus
                       />
                     </React.Suspense>
                     <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: 'flex-end' }}>

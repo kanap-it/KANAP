@@ -108,7 +108,7 @@ function PriorityChip({ priority, readOnly, onPatch }: { priority: PriorityLevel
         onClick={readOnly ? undefined : (e) => setAnchor(e.currentTarget)}
       >
         <Box component="span" sx={{ ...metaLabelSx, color: theme.palette.kanap.text.tertiary }}>
-          {t('workspace.task.sidebar.fields.priority')}
+          {t('workspace.task.priority.taskPriority')}
         </Box>
         <span>{getPriorityLabel(t, priority)}</span>
       </Box>
@@ -143,9 +143,12 @@ function ScoreChip({ score, isProjectTask }: { score: number; isProjectTask?: bo
   const color = getScoreColor(score, mode);
 
   return (
-    <Tooltip title={t('workspace.task.priority.title')} arrow>
+    <Tooltip title={t('workspace.task.priority.projectPriorityTitle')} arrow>
       <Box sx={{ ...metaItemSx, cursor: 'default', color: theme.palette.kanap.text.primary }}>
         <Box component="span" sx={{ ...dotSx, bgcolor: color }} />
+        <Box component="span" sx={{ ...metaLabelSx, color: theme.palette.kanap.text.tertiary }}>
+          {t('workspace.task.priority.projectPriority')}
+        </Box>
         <Box component="span" sx={{ ...taskDetailTypography.scoreValue }}>
           {Math.round(score)}
         </Box>
@@ -285,7 +288,7 @@ export default function TaskMetadataBar({
             component="span"
             className="kanap-meta-project-name"
             sx={{
-              maxWidth: 220,
+              maxWidth: 150,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

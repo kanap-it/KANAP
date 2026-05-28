@@ -624,6 +624,9 @@
         "position": "{{index}} von {{total}}"
       },
       "priority": {
+        "projectPriority": "Projektpriorität",
+        "projectPriorityTitle": "Projektprioritätsscore, angepasst durch die Aufgabenpriorität",
+        "taskPriority": "Aufgabenpriorität",
         "title": "Priorität"
       },
       "title": {

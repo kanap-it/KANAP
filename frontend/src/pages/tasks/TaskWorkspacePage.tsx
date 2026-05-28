@@ -840,6 +840,7 @@ export default function TaskWorkspacePage() {
         await api.patch(endpoint, payload);
         pendingSidebarPatchCountRef.current = Math.max(0, pendingSidebarPatchCountRef.current - 1);
         if (pendingSidebarPatchCountRef.current === 0) {
+          void queryClient.invalidateQueries({ queryKey: ['tasks', snapshot.id] });
           void queryClient.invalidateQueries({ queryKey: ['tasks'] });
           void queryClient.invalidateQueries({ queryKey: ['task-activities', snapshot.id] });
           if (
@@ -1539,6 +1540,7 @@ export default function TaskWorkspacePage() {
                     refreshNonce={descriptionResetNonce}
                     hideToolbarUntilFocus
                     surface
+                    delegateWheelUntilFocus
                   />
                 </React.Suspense>
               ) : (
@@ -1684,6 +1686,7 @@ export default function TaskWorkspacePage() {
                   refreshNonce={descriptionResetNonce}
                   hideToolbarUntilFocus
                   surface
+                  delegateWheelUntilFocus
                 />
               </React.Suspense>
             ) : (
