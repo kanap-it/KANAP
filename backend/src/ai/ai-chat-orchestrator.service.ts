@@ -6,7 +6,6 @@ import { AiPolicyService } from './ai-policy.service';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { AiSettingsService } from './ai-settings.service';
 import { AiSystemPromptService } from './ai-system-prompt.service';
-import { AiToolRegistry } from './ai-tool.registry';
 import {
   AiContextBudgetSectionBreakdown,
   estimateToolSchemaBreakdown,
@@ -45,6 +44,9 @@ import {
 import { buildStructuredToolResultValidation } from './ai-tool-result-validation.util';
 import { PlatformAiConfigService } from './platform/platform-ai-config.service';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
+import { AiApprovalService } from './control-plane/approval/ai-approval.service';
+import { AiCapabilityRegistry, EXECUTE_APPROVED_PREVIEW_CAPABILITY } from './control-plane/capability/ai-capability.registry';
+import { AiCapabilityDispatcherService } from './control-plane/dispatcher/ai-capability-dispatcher.service';
 
 const MAX_TOOL_ITERATIONS = 20;
 /**
@@ -986,7 +988,9 @@ export class AiChatOrchestratorService {
     private readonly builtinUsage: AiBuiltinUsageService,
     private readonly conversations: AiConversationService,
     private readonly previews: AiMutationPreviewService,
-    private readonly toolRegistry: AiToolRegistry,
+    private readonly capabilityRegistry: AiCapabilityRegistry,
+    private readonly dispatcher: AiCapabilityDispatcherService,
+    private readonly approvals: AiApprovalService,
     private readonly systemPrompt: AiSystemPromptService,
     private readonly attachments: AiAttachmentService,
   ) {}
@@ -1779,13 +1783,30 @@ export class AiChatOrchestratorService {
           let previewResults: AiMutationPreviewDto[] = [];
           let followUpPreviews: AiMutationPreviewDto[] = [];
           if (approvalAction.action === 'approve') {
-            const execution = await this.previews.executePreviewsWithFollowUps(
+            await this.approvals.approvePreviewsFromChat(
               { ...ctx, conversationId: convId! },
               approvalAction.previewIds,
             );
+            const dispatched = await this.dispatcher.execute<{ results: AiMutationPreviewDto[]; followUpPreviews: AiMutationPreviewDto[] }>(
+              { ...ctx, conversationId: convId! },
+              {
+                capabilityName: EXECUTE_APPROVED_PREVIEW_CAPABILITY,
+                input: { preview_ids: approvalAction.previewIds },
+                execution: {
+                  surface: 'internal',
+                  trigger_kind: 'human_user',
+                  metadata: { transport: 'chat_approval_marker' },
+                },
+              },
+            );
+            const execution = dispatched.output;
             previewResults = execution.results;
             followUpPreviews = execution.followUpPreviews;
           } else {
+            await this.approvals.rejectPreviewsFromChat(
+              { ...ctx, conversationId: convId! },
+              approvalAction.previewIds,
+            );
             previewResults = await this.previews.rejectPreviews(
               { ...ctx, conversationId: convId! },
               approvalAction.previewIds,
@@ -1900,12 +1921,12 @@ export class AiChatOrchestratorService {
                   content: msg.content,
                 })),
             );
-            const allAvailableTools = await this.toolRegistry.listAvailableTools(toolContext);
+            const allAvailableTools = await this.capabilityRegistry.listAvailableToolItems(toolContext);
             const availableTools = filterToolListForProfile(allAvailableTools, contextProfile);
             const writePreviewToolNames = availableTools
               .filter((tool) => tool.write_preview != null)
               .map((tool) => tool.name);
-            const toolSchemas = this.toolRegistry.toToolJsonSchemas(availableTools);
+            const toolSchemas = this.capabilityRegistry.toToolJsonSchemas(availableTools);
             const readableTypes = contextProfile.includeReadableEntityTypes
               ? await this.policy.listReadableEntityTypes(
                 ctx,
@@ -2096,12 +2117,12 @@ export class AiChatOrchestratorService {
               content: msg.content,
             })),
         );
-        const allAvailableTools = await this.toolRegistry.listAvailableTools(toolContext);
+        const allAvailableTools = await this.capabilityRegistry.listAvailableToolItems(toolContext);
         const availableTools = filterToolListForProfile(allAvailableTools, contextProfile);
         const writePreviewToolNames = availableTools
           .filter((tool) => tool.write_preview != null)
           .map((tool) => tool.name);
-        const toolSchemas = this.toolRegistry.toToolJsonSchemas(availableTools);
+        const toolSchemas = this.capabilityRegistry.toToolJsonSchemas(availableTools);
         const readableTypes = contextProfile.includeReadableEntityTypes
           ? await this.policy.listReadableEntityTypes(
             ctx,
@@ -2223,6 +2244,7 @@ export class AiChatOrchestratorService {
     let bulkCompletenessRepairRetries = 0;
     let mutationPreviewCountThisTurn = 0;
     let toolCallCountThisTurn = 0;
+    let controlPlaneRunId: string | null = null;
     let usedMutationPlanToolThisTurn = false;
     const bulkTargetSetsThisTurn: BulkTargetSet[] = [];
     const coveredBulkRefsThisTurn = new Set<string>();
@@ -2607,7 +2629,22 @@ export class AiChatOrchestratorService {
             }
             try {
               result = await this.tenantExecutor.runWithContext({ ...context, conversationId }, async (ctx) => {
-                return this.toolRegistry.execute(ctx, executionToolName, executionArgs);
+                const dispatched = await this.dispatcher.execute(ctx, {
+                  capabilityName: executionToolName,
+                  input: executionArgs,
+                  execution: {
+                    runId: controlPlaneRunId,
+                    stepIndex: toolCallCountThisTurn + 1,
+                    surface: 'chat',
+                    trigger_kind: 'human_user',
+                    metadata: {
+                      provider_tool_call_id: tc.id,
+                      requested_tool_name: tc.name,
+                    },
+                  },
+                });
+                controlPlaneRunId = dispatched.run_id;
+                return dispatched.output;
               });
               if (bulkAutoplan && result && typeof result === 'object') {
                 result = {

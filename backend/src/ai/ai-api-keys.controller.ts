@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
 import { AiApiKeysService } from './ai-api-keys.service';
 import { AiPolicyService } from './ai-policy.service';
+import { AiMcpAuditService } from './control-plane/mcp/ai-mcp-audit.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiExecutionContext } from './ai.types';
 
@@ -24,6 +26,7 @@ export class AiApiKeysController {
     private readonly tenantExecutor: AiTenantExecutionService,
     private readonly policy: AiPolicyService,
     private readonly apiKeys: AiApiKeysService,
+    private readonly mcpAudit: AiMcpAuditService,
   ) {}
 
   private buildContext(req: any): AiExecutionContext {
@@ -41,7 +44,14 @@ export class AiApiKeysController {
   // Self-service endpoints
   @Post('keys')
   async create(
-    @Body() body: { label: string; expires_at?: string },
+    @Body() body: {
+      label: string;
+      expires_at?: string;
+      mcp_scopes?: string[];
+      mcp_allowed_capabilities?: string[];
+      mcp_denied_capabilities?: string[];
+      mcp_rate_limit_per_minute?: number | null;
+    },
     @Req() req: any,
   ) {
     const context = this.buildContext(req);
@@ -54,6 +64,10 @@ export class AiApiKeysController {
           label: body.label,
           expiresAt: body.expires_at ? new Date(body.expires_at) : null,
           createdByUserId: context.userId,
+          mcpScopes: body.mcp_scopes as any,
+          mcpAllowedCapabilities: body.mcp_allowed_capabilities,
+          mcpDeniedCapabilities: body.mcp_denied_capabilities,
+          mcpRateLimitPerMinute: body.mcp_rate_limit_per_minute ?? undefined,
         },
         { manager },
       );
@@ -111,6 +125,22 @@ export class AiApiKeysController {
         userId: context.userId,
         tenantId: context.tenantId,
         revocationReason: 'admin_revocation',
+      });
+    });
+  }
+
+  @Get('admin/mcp-audit')
+  async adminMcpAudit(@Query() query: Record<string, unknown>, @Req() req: any) {
+    const context = this.buildContext(req);
+    return this.tenantExecutor.runWithContext(context, async (ctx) => {
+      await this.policy.assertSettingsAccess(context, ctx.manager);
+      return this.mcpAudit.list(ctx, {
+        apiKeyId: query.api_key_id == null ? null : String(query.api_key_id),
+        runId: query.run_id == null ? null : String(query.run_id),
+        toolExecutionId: query.tool_execution_id == null ? null : String(query.tool_execution_id),
+        capabilityName: query.capability_name == null ? null : String(query.capability_name),
+        status: query.status == null ? null : String(query.status),
+        limit: query.limit == null ? null : Number(query.limit),
       });
     });
   }

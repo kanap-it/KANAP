@@ -34,6 +34,11 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'portfolio_request_applications', 'portfolio_request_assets',
   'ai_settings', 'ai_api_keys', 'ai_conversations', 'ai_message_attachments', 'ai_messages',
   'ai_mutation_plan_steps', 'ai_mutation_plans', 'ai_mutation_previews',
+  'ai_runs', 'ai_run_steps', 'ai_tool_executions', 'ai_evidence',
+  'ai_action_requests', 'ai_approvals', 'ai_emergency_pauses',
+  'ai_adapter_configs', 'ai_approval_policies', 'ai_autonomy_ceilings', 'ai_autonomy_routines',
+  'ai_external_mcp_servers', 'ai_external_mcp_tool_snapshots',
+  'ai_automation_job_catalog', 'ai_live_test_targets', 'ai_observations', 'ai_recommendations', 'ai_decisions', 'ai_evaluations',
 ]));
 
 const TABLES_TO_CHECK_POLICY = new Set([
@@ -60,6 +65,25 @@ const TABLES_TO_CHECK_POLICY = new Set([
   'ai_mutation_plan_steps',
   'ai_mutation_plans',
   'ai_mutation_previews',
+  'ai_runs',
+  'ai_run_steps',
+  'ai_tool_executions',
+  'ai_evidence',
+  'ai_action_requests',
+  'ai_approvals',
+  'ai_emergency_pauses',
+  'ai_adapter_configs',
+  'ai_approval_policies',
+  'ai_autonomy_ceilings',
+  'ai_autonomy_routines',
+  'ai_external_mcp_servers',
+  'ai_external_mcp_tool_snapshots',
+  'ai_automation_job_catalog',
+  'ai_live_test_targets',
+  'ai_observations',
+  'ai_recommendations',
+  'ai_decisions',
+  'ai_evaluations',
 ]);
 
 const TABLES_TO_CHECK_FORCE = new Set([
@@ -454,6 +478,796 @@ async function runAiGraphChecks(
   );
 }
 
+async function runAiControlPlaneChecks(
+  r: QueryRunner,
+  results: TestResult[],
+  tenantOneId: string,
+  tenantTwoId: string,
+  tag: string,
+) {
+  await setTenant(r, tenantOneId);
+  const runId = randomUUID();
+  const stepId = randomUUID();
+  const actionRequestId = randomUUID();
+  const toolExecutionId = randomUUID();
+  const evidenceId = randomUUID();
+  const approvalId = randomUUID();
+  const userId = randomUUID();
+  const roleId = randomUUID();
+  const apiKeyId = randomUUID();
+  const previewId = randomUUID();
+  const pauseId = randomUUID();
+  const adapterConfigId = randomUUID();
+  const approvalPolicyId = randomUUID();
+  const autonomyCeilingTenantId = randomUUID();
+  const autonomyCeilingEnvironmentId = randomUUID();
+  const autonomyCeilingCapabilityId = randomUUID();
+  const autonomyRoutineId = randomUUID();
+  const automationJobCatalogId = randomUUID();
+  const liveTestTargetId = randomUUID();
+  const externalMcpServerId = randomUUID();
+  const externalMcpToolSnapshotId = randomUUID();
+  const observationId = randomUUID();
+  const recommendationId = randomUUID();
+  const decisionId = randomUUID();
+  const evaluationId = randomUUID();
+
+  await r.query(
+    `INSERT INTO ai_runs (
+       id, tenant_id, invocation_channel, trigger_kind, status, input_summary, created_at, updated_at
+     )
+     VALUES ($1, $2, 'chat', 'human_user', 'running', '{}'::jsonb, now(), now())`,
+    [runId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_run_steps (
+       id, tenant_id, run_id, step_index, kind, status, capability_name, capability_version
+     )
+     VALUES ($1, $2, $3, 1, 'tool', 'running', 'search_all', '1.0.0')`,
+    [stepId, tenantOneId, runId],
+  );
+  await r.query(
+    `INSERT INTO roles (id, tenant_id, role_name, role_description, is_system, is_built_in, created_at, updated_at)
+     VALUES ($1, $2, $3, 'AI graph test role', false, false, now(), now())`,
+    [roleId, tenantOneId, `AI Graph ${tag}`],
+  );
+  await r.query(
+    `INSERT INTO users (id, tenant_id, email, role_id, status, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, 'enabled', now(), now())`,
+    [userId, tenantOneId, `${tag}@example.invalid`, roleId],
+  );
+  await r.query(
+    `INSERT INTO ai_api_keys (
+       id, tenant_id, user_id, key_hash, key_prefix, label, created_by_user_id,
+       mcp_scopes_json, mcp_capability_allowlist_json, mcp_capability_denylist_json,
+       mcp_max_effect, mcp_rate_limit_per_minute
+     )
+     VALUES (
+       $1, $2, $3, $4, $5, 'RLS MCP key', $3,
+       '["mcp:tools:list","mcp:tools:execute"]'::jsonb,
+       '["kanap.read.core"]'::jsonb,
+       '[]'::jsonb,
+       'read',
+       60
+     )`,
+    [apiKeyId, tenantOneId, userId, `hash-${tag}`, tag.slice(0, 12).padEnd(12, '0')],
+  );
+  await r.query(
+    `INSERT INTO ai_mutation_previews (
+       id, tenant_id, user_id, tool_name, target_entity_type, mutation_input, status, expires_at
+     )
+     VALUES ($1, $2, $3, 'import_glpi_ticket', 'task', '{}'::jsonb, 'pending', now() + interval '10 minutes')`,
+    [previewId, tenantOneId, userId],
+  );
+  await r.query(
+    `INSERT INTO ai_action_requests (
+       id, tenant_id, run_id, capability_name, capability_version, effect, status,
+       target_type, target_ref, idempotency_key, action_payload_json, provider_kind,
+       provider_key, input_hash, metadata_json
+     )
+     VALUES (
+       $1, $2, $3, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write', 'pending',
+       'ticket', 'mock-ticket-rls', $4, '{"ticketId":"mock-ticket-rls","visibility":"internal","body":"RLS test note","bodyFormat":"plain_text"}'::jsonb,
+       'ticketing', 'mock', $5, '{"rls":"test"}'::jsonb
+     )`,
+    [actionRequestId, tenantOneId, runId, `idempotency-${tag}`, `hash-${tag}`],
+  );
+  await r.query(
+    `INSERT INTO ai_tool_executions (
+       id, tenant_id, run_id, step_id, action_request_id, capability_name, capability_version,
+       surface, effect, status, input_hash
+     )
+     VALUES ($1, $2, $3, $4, $5, 'search_all', '1.0.0', 'chat', 'read', 'completed', $6)`,
+    [toolExecutionId, tenantOneId, runId, stepId, actionRequestId, `hash-${tag}`],
+  );
+  await r.query(
+    `INSERT INTO ai_evidence (
+       id, tenant_id, run_id, tool_execution_id, action_request_id, source_provider, source_object_type,
+       trust_level, redaction_status, content_hash, summary, retention_class, collected_at
+     )
+     VALUES ($1, $2, $3, $4, $5, 'kanap_domain', 'search_all', 'system', 'redacted', $6, 'summary', 'standard', now())`,
+    [evidenceId, tenantOneId, runId, toolExecutionId, actionRequestId, `content-${tag}`],
+  );
+  await r.query(
+    `INSERT INTO ai_approvals (
+       id, tenant_id, action_request_id, capability_name, capability_version, source, status,
+       input_hash, expires_at, decided_at
+     )
+     VALUES ($1, $2, $3, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'human_chat', 'approved', $4, now() + interval '10 minutes', now())`,
+    [approvalId, tenantOneId, actionRequestId, `hash-${tag}`],
+  );
+  await r.query(
+    `INSERT INTO ai_emergency_pauses (
+       id, tenant_id, scope, capability_name, effect, active, reason
+     )
+     VALUES ($1, $2, 'tenant', 'kanap.mutation_preview.execute_approved', 'write', true, 'rls test')`,
+    [pauseId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_adapter_configs (
+       id, tenant_id, provider_kind, provider_key, implementation, environment, enabled,
+       credential_ref_json, live_test_safety
+     )
+     VALUES ($1, $2, 'monitoring', 'rls', 'mock', 'mock', true, '{"kind":"none"}'::jsonb, 'mock_only')`,
+    [adapterConfigId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_approval_policies (
+       id, tenant_id, policy_key, policy_version, name, status, enabled,
+       capability_name, capability_version, effect, provider_kind, provider_key,
+       environment, trigger_surface, trigger_kind, max_autonomy_level, target_type,
+       target_constraints_json, evidence_requirements_json, evaluation_requirements_json,
+       min_confidence, cooldown_seconds, budget_constraints_json, live_test_safety
+     )
+     VALUES (
+       $1, $2, 'rls-policy', 1, 'RLS policy', 'enabled', true,
+       'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write',
+       'ticketing', 'mock', 'mock', 'scheduler', 'scheduled_trigger', 'A3', 'ticket',
+       '{"allowed_refs":["mock-ticket-rls"]}'::jsonb,
+       '{"min_count":1,"trust_levels":["system"],"source_providers":["kanap_domain"]}'::jsonb,
+       '{"required_status":"completed"}'::jsonb,
+       0.75, 300, '{"max_recent_cost":100}'::jsonb, 'mock_only'
+     )`,
+    [approvalPolicyId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_autonomy_ceilings (
+       id, tenant_id, scope, max_autonomy_level, enabled, reason
+     )
+     VALUES ($1, $2, 'tenant', 'A3', true, 'rls tenant ceiling')`,
+    [autonomyCeilingTenantId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_autonomy_ceilings (
+       id, tenant_id, scope, environment, max_autonomy_level, enabled, reason
+     )
+     VALUES ($1, $2, 'environment', 'mock', 'A3', true, 'rls environment ceiling')`,
+    [autonomyCeilingEnvironmentId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_autonomy_ceilings (
+       id, tenant_id, scope, capability_name, capability_version, provider_kind,
+       provider_key, max_autonomy_level, enabled, reason
+     )
+     VALUES (
+       $1, $2, 'capability', 'ticketing.ticket.internal_note.add_approved',
+       '1.0.0', 'ticketing', 'mock', 'A3', true, 'rls capability ceiling'
+     )`,
+    [autonomyCeilingCapabilityId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_autonomy_routines (
+       id, tenant_id, routine_key, name, trigger_kind, workflow_type, enabled,
+       provider_key, schedule_json, input_json, max_runs_per_window, cooldown_seconds
+     )
+     VALUES (
+       $1, $2, 'rls-scheduled-diagnostic', 'RLS scheduled diagnostic',
+       'scheduled', 'readonly_diagnostic', false, 'mock',
+       '{"kind":"manual-test"}'::jsonb, '{"alert_id":"mock-alert-001"}'::jsonb, 1, 300
+     )`,
+    [autonomyRoutineId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_automation_job_catalog (
+       id, tenant_id, provider_key, job_key, catalog_version, display_name, environment,
+       external_job_template_ref, enabled, launch_allowed, dry_run_supported, dry_run_required,
+       variable_schema_json, target_policy_json, blast_radius_limit, cooldown_seconds,
+       timeout_seconds, redaction_policy_json, live_test_safety
+     )
+     VALUES (
+       $1, $2, 'mock', 'rls-safe-remediation', '1.0.0', 'RLS safe remediation', 'mock',
+       'awx-template-rls', true, true, true, true,
+       '{"type":"object","properties":{"service":{"type":"string"}},"required":["service"],"additionalProperties":false}'::jsonb,
+       '{"allowed_types":["host"],"allowed_values":["rls-host"],"max_targets":1}'::jsonb,
+       1, 300, 600, '{"fields":[]}'::jsonb, 'mock_only'
+    )`,
+    [automationJobCatalogId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_live_test_targets (
+       id, tenant_id, provider_kind, provider_key, environment, target_kind,
+       target_key, external_ref, allowed_effect, safety_label, enabled,
+       metadata_json, redaction_policy_json
+     )
+     VALUES (
+       $1, $2, 'ticketing', 'glpi-sandbox', 'sandbox', 'ticket',
+       'rls-sandbox-ticket', 'GLPI-12345', 'read', 'read_only', false,
+       '{"purpose":"rls"}'::jsonb, '{"fields":[]}'::jsonb
+     )`,
+    [liveTestTargetId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_external_mcp_servers (
+       id, tenant_id, server_key, display_name, transport_kind, endpoint_config_json,
+       credential_ref_json, enabled, max_effect, redaction_policy_json, metadata_json
+     )
+     VALUES (
+       $1, $2, 'rls-mcp', 'RLS MCP server', 'mock', '{"mode":"mock"}'::jsonb,
+       '{"kind":"none"}'::jsonb, true, 'read', '{"fields":["api_token"]}'::jsonb,
+       '{"rls":"test"}'::jsonb
+     )`,
+    [externalMcpServerId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_external_mcp_tool_snapshots (
+       id, tenant_id, server_id, server_key, external_tool_name, capability_name,
+       capability_version, tool_description, input_schema_json, input_schema_hash,
+       schema_version, effect, enabled, mcp_exposure_enabled, redaction_policy_json, metadata_json
+     )
+     VALUES (
+       $1, $2, $3, 'rls-mcp', 'read_resource',
+       'external_mcp.rls-mcp.read_resource', '1.0.0', 'RLS external MCP read',
+       '{"type":"object","properties":{"resource_id":{"type":"string"}},"required":["resource_id"],"additionalProperties":false}'::jsonb,
+       'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+       '1.0.0', 'read', true, false, '{"fields":["api_token"]}'::jsonb,
+       '{"rls":"test"}'::jsonb
+     )`,
+    [externalMcpToolSnapshotId, tenantOneId, externalMcpServerId],
+  );
+  await r.query(
+    `INSERT INTO ai_observations (
+       id, tenant_id, run_id, observation_type, status, source_provider, source_object_type,
+       source_object_id, severity, summary, evidence_ids, observed_at
+     )
+     VALUES ($1, $2, $3, 'monitoring_alert', 'observed', 'monitoring', 'alert',
+       'mock-alert-001', 'warning', 'Mock observation', $4::jsonb, now())`,
+    [observationId, tenantOneId, runId, JSON.stringify([evidenceId])],
+  );
+  await r.query(
+    `INSERT INTO ai_recommendations (
+       id, tenant_id, run_id, observation_id, recommendation_type, status, summary, rationale,
+       confidence, proposed_action_class, max_autonomy_level, evidence_ids
+     )
+     VALUES ($1, $2, $3, $4, 'read_only_diagnostic', 'proposed', 'Mock recommendation',
+       'Mock rationale', 0.82, 'operator_review', 'A1', $5::jsonb)`,
+    [recommendationId, tenantOneId, runId, observationId, JSON.stringify([evidenceId])],
+  );
+  await r.query(
+    `INSERT INTO ai_decisions (
+       id, tenant_id, run_id, recommendation_id, decision, status, reason, evidence_ids, policy_result_json
+     )
+     VALUES ($1, $2, $3, $4, 'recommend_only', 'recorded', 'Read-only test', $5::jsonb, '{"approval_required":false}'::jsonb)`,
+    [decisionId, tenantOneId, runId, recommendationId, JSON.stringify([evidenceId])],
+  );
+  await r.query(
+    `INSERT INTO ai_evaluations (
+       id, tenant_id, run_id, recommendation_id, decision_id, status, metadata_json
+     )
+     VALUES ($1, $2, $3, $4, $5, 'pending', '{"rls":"test"}'::jsonb)`,
+    [evaluationId, tenantOneId, runId, recommendationId, decisionId],
+  );
+
+  const selfRun = await r.query(`SELECT 1 FROM ai_runs WHERE id = $1`, [runId]);
+  results.push({ name: 'ai_runs: self-tenant read', ok: selfRun.length === 1 });
+  const selfApiKey = await r.query(`SELECT 1 FROM ai_api_keys WHERE id = $1`, [apiKeyId]);
+  results.push({ name: 'ai_api_keys: self-tenant read', ok: selfApiKey.length === 1 });
+
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_external_mcp_servers: enabled non-mock transport blocked',
+    `INSERT INTO ai_external_mcp_servers (
+       tenant_id, server_key, display_name, transport_kind, endpoint_config_json,
+       credential_ref_json, enabled, max_effect
+     )
+     VALUES (
+       $1, 'enabled-live-mcp', 'Enabled live MCP', 'stdio', '{"command_ref":"not-executed"}'::jsonb,
+       '{"kind":"secret_ref","ref":"secret/live-mcp"}'::jsonb, true, 'read'
+     )`,
+    [tenantOneId],
+  );
+
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_live_test_targets: broad target blocked',
+    `INSERT INTO ai_live_test_targets (
+       tenant_id, provider_kind, provider_key, environment, target_kind,
+       target_key, external_ref, allowed_effect, safety_label, enabled
+     )
+     VALUES ($1, 'monitoring', '*', 'sandbox', 'alert', 'all', '*', 'read', 'read_only', true)`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_live_test_targets: AWX broad metadata target blocked',
+    `INSERT INTO ai_live_test_targets (
+       tenant_id, provider_kind, provider_key, environment, target_kind,
+       target_key, external_ref, allowed_effect, safety_label, enabled, metadata_json
+     )
+     VALUES (
+       $1, 'automation', 'awx-sandbox', 'sandbox', 'awx_job',
+       'dry-run-all', 'awx-template-1', 'dry_run', 'dry_run_only', true,
+       '{"target":{"type":"host","values":["all"]}}'::jsonb
+     )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_live_test_targets: AWX wildcard metadata target blocked',
+    `INSERT INTO ai_live_test_targets (
+       tenant_id, provider_kind, provider_key, environment, target_kind,
+       target_key, external_ref, allowed_effect, safety_label, enabled, metadata_json
+     )
+     VALUES (
+       $1, 'automation', 'awx-sandbox', 'sandbox', 'awx_job',
+       'dry-run-wildcard', 'awx-template-1', 'dry_run', 'dry_run_only', true,
+       '{"target":{"type":"host","values":["host-*"]}}'::jsonb
+     )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_live_test_targets: AWX secret-looking metadata target blocked',
+    `INSERT INTO ai_live_test_targets (
+       tenant_id, provider_kind, provider_key, environment, target_kind,
+       target_key, external_ref, allowed_effect, safety_label, enabled, metadata_json
+     )
+     VALUES (
+       $1, 'automation', 'awx-sandbox', 'sandbox', 'awx_job',
+       'dry-run-secret', 'awx-template-1', 'dry_run', 'dry_run_only', true,
+       '{"target":{"type":"host","values":["password=plain-secret"]}}'::jsonb
+     )`,
+    [tenantOneId],
+  );
+
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_action_requests: duplicate provider idempotency blocked',
+    `INSERT INTO ai_action_requests (
+       tenant_id, run_id, capability_name, capability_version, effect, status,
+       target_type, target_ref, idempotency_key, action_payload_json, provider_kind,
+       provider_key, input_hash
+     )
+     VALUES (
+       $1, $2, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write', 'pending',
+       'ticket', 'mock-ticket-rls', $3, '{"ticketId":"mock-ticket-rls","visibility":"internal","body":"RLS duplicate","bodyFormat":"plain_text"}'::jsonb,
+       'ticketing', 'mock', $4
+     )`,
+    [tenantOneId, runId, `idempotency-${tag}`, `duplicate-hash-${tag}`],
+  );
+
+  await setTenant(r, tenantTwoId);
+  const tenantTwoRunId = randomUUID();
+  const tenantTwoStepId = randomUUID();
+  const tenantTwoActionRequestId = randomUUID();
+  await r.query(
+    `INSERT INTO ai_runs (
+       id, tenant_id, invocation_channel, trigger_kind, status, input_summary, created_at, updated_at
+     )
+     VALUES ($1, $2, 'internal', 'internal', 'running', '{}'::jsonb, now(), now())`,
+    [tenantTwoRunId, tenantTwoId],
+  );
+  await r.query(
+    `INSERT INTO ai_run_steps (
+       id, tenant_id, run_id, step_index, kind, status, capability_name, capability_version
+     )
+     VALUES ($1, $2, $3, 1, 'tool', 'running', 'search_all', '1.0.0')`,
+    [tenantTwoStepId, tenantTwoId, tenantTwoRunId],
+  );
+  await r.query(
+    `INSERT INTO ai_action_requests (
+       id, tenant_id, run_id, capability_name, capability_version, effect, status,
+       target_type, target_ref, idempotency_key, action_payload_json, provider_kind,
+       provider_key, input_hash
+     )
+     VALUES (
+       $1, $2, $3, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write', 'pending',
+       'ticket', 'tenant-two-ticket', $4,
+       '{"ticketId":"tenant-two-ticket","visibility":"internal","body":"Tenant two","bodyFormat":"plain_text"}'::jsonb,
+       'ticketing', 'mock', $5
+     )`,
+    [tenantTwoActionRequestId, tenantTwoId, tenantTwoRunId, `tenant-two-action-${tag}`, `tenant-two-hash-${tag}`],
+  );
+  await expectCrossTenantReadBlocked(r, results, 'ai_runs: cross-tenant read blocked', `SELECT 1 FROM ai_runs WHERE id = $1`, [runId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_api_keys: cross-tenant read blocked', `SELECT 1 FROM ai_api_keys WHERE id = $1`, [apiKeyId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_run_steps: cross-tenant read blocked', `SELECT 1 FROM ai_run_steps WHERE id = $1`, [stepId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_tool_executions: cross-tenant read blocked', `SELECT 1 FROM ai_tool_executions WHERE id = $1`, [toolExecutionId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_evidence: cross-tenant read blocked', `SELECT 1 FROM ai_evidence WHERE id = $1`, [evidenceId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_action_requests: cross-tenant read blocked', `SELECT 1 FROM ai_action_requests WHERE id = $1`, [actionRequestId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_approvals: cross-tenant read blocked', `SELECT 1 FROM ai_approvals WHERE id = $1`, [approvalId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_emergency_pauses: cross-tenant read blocked', `SELECT 1 FROM ai_emergency_pauses WHERE id = $1`, [pauseId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_adapter_configs: cross-tenant read blocked', `SELECT 1 FROM ai_adapter_configs WHERE id = $1`, [adapterConfigId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_approval_policies: cross-tenant read blocked', `SELECT 1 FROM ai_approval_policies WHERE id = $1`, [approvalPolicyId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_autonomy_ceilings: cross-tenant read blocked', `SELECT 1 FROM ai_autonomy_ceilings WHERE id = $1`, [autonomyCeilingTenantId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_autonomy_routines: cross-tenant read blocked', `SELECT 1 FROM ai_autonomy_routines WHERE id = $1`, [autonomyRoutineId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_automation_job_catalog: cross-tenant read blocked', `SELECT 1 FROM ai_automation_job_catalog WHERE id = $1`, [automationJobCatalogId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_live_test_targets: cross-tenant read blocked', `SELECT 1 FROM ai_live_test_targets WHERE id = $1`, [liveTestTargetId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_external_mcp_servers: cross-tenant read blocked', `SELECT 1 FROM ai_external_mcp_servers WHERE id = $1`, [externalMcpServerId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_external_mcp_tool_snapshots: cross-tenant read blocked', `SELECT 1 FROM ai_external_mcp_tool_snapshots WHERE id = $1`, [externalMcpToolSnapshotId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_observations: cross-tenant read blocked', `SELECT 1 FROM ai_observations WHERE id = $1`, [observationId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_recommendations: cross-tenant read blocked', `SELECT 1 FROM ai_recommendations WHERE id = $1`, [recommendationId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_decisions: cross-tenant read blocked', `SELECT 1 FROM ai_decisions WHERE id = $1`, [decisionId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_evaluations: cross-tenant read blocked', `SELECT 1 FROM ai_evaluations WHERE id = $1`, [evaluationId]);
+
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_runs: cross-tenant insert blocked',
+    `INSERT INTO ai_runs (tenant_id, invocation_channel, trigger_kind, status)
+     VALUES ($1, 'chat', 'human_user', 'running')`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_runs: cross-tenant api key link blocked',
+    `INSERT INTO ai_runs (tenant_id, ai_api_key_id, invocation_channel, trigger_kind, status)
+     VALUES ($1, $2, 'mcp', 'mcp_client', 'running')`,
+    [tenantTwoId, apiKeyId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_run_steps: cross-tenant run link blocked',
+    `INSERT INTO ai_run_steps (
+       tenant_id, run_id, step_index, kind, status, capability_name, capability_version
+     )
+     VALUES ($1, $2, 99, 'tool', 'running', 'search_all', '1.0.0')`,
+    [tenantTwoId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_action_requests: cross-tenant run link blocked',
+    `INSERT INTO ai_action_requests (
+       tenant_id, run_id, capability_name, capability_version, effect, status, input_hash, idempotency_key
+     )
+     VALUES ($1, $2, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write', 'pending', $3, $4)`,
+    [tenantTwoId, runId, `cross-action-run-${tag}`, `cross-action-run-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_action_requests: cross-tenant tool execution link blocked',
+    `INSERT INTO ai_action_requests (
+       tenant_id, run_id, tool_execution_id, capability_name, capability_version, effect, status, input_hash, idempotency_key
+     )
+     VALUES ($1, $2, $3, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write', 'pending', $4, $5)`,
+    [tenantTwoId, tenantTwoRunId, toolExecutionId, `cross-action-tool-${tag}`, `cross-action-tool-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_action_requests: cross-tenant preview link blocked',
+    `INSERT INTO ai_action_requests (
+       tenant_id, run_id, preview_id, capability_name, capability_version, effect, status, input_hash, idempotency_key
+     )
+     VALUES ($1, $2, $3, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write', 'pending', $4, $5)`,
+    [tenantTwoId, tenantTwoRunId, previewId, `cross-action-preview-${tag}`, `cross-action-preview-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_tool_executions: cross-tenant run link blocked',
+    `INSERT INTO ai_tool_executions (
+       tenant_id, run_id, capability_name, capability_version, surface, effect, status
+     )
+     VALUES ($1, $2, 'search_all', '1.0.0', 'internal', 'read', 'running')`,
+    [tenantTwoId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_tool_executions: cross-tenant step link blocked',
+    `INSERT INTO ai_tool_executions (
+       tenant_id, run_id, step_id, capability_name, capability_version, surface, effect, status
+     )
+     VALUES ($1, $2, $3, 'search_all', '1.0.0', 'internal', 'read', 'running')`,
+    [tenantTwoId, tenantTwoRunId, stepId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_tool_executions: cross-tenant action request link blocked',
+    `INSERT INTO ai_tool_executions (
+       tenant_id, run_id, step_id, action_request_id, capability_name, capability_version, surface, effect, status
+     )
+     VALUES ($1, $2, $3, $4, 'search_all', '1.0.0', 'internal', 'read', 'running')`,
+    [tenantTwoId, tenantTwoRunId, tenantTwoStepId, actionRequestId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_tool_executions: cross-tenant approval link blocked',
+    `INSERT INTO ai_tool_executions (
+       tenant_id, run_id, step_id, approval_id, capability_name, capability_version, surface, effect, status
+     )
+     VALUES ($1, $2, $3, $4, 'search_all', '1.0.0', 'internal', 'read', 'running')`,
+    [tenantTwoId, tenantTwoRunId, tenantTwoStepId, approvalId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_evidence: cross-tenant run link blocked',
+    `INSERT INTO ai_evidence (
+       tenant_id, run_id, source_provider, source_object_type, trust_level, redaction_status,
+       content_hash, summary, retention_class, collected_at
+     )
+     VALUES ($1, $2, 'kanap_domain', 'search_all', 'system', 'redacted', $3, 'cross', 'standard', now())`,
+    [tenantTwoId, runId, `cross-evidence-run-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_evidence: cross-tenant tool execution link blocked',
+    `INSERT INTO ai_evidence (
+       tenant_id, run_id, tool_execution_id, source_provider, source_object_type, trust_level,
+       redaction_status, content_hash, summary, retention_class, collected_at
+     )
+     VALUES ($1, $2, $3, 'kanap_domain', 'search_all', 'system', 'redacted', $4, 'cross', 'standard', now())`,
+    [tenantTwoId, tenantTwoRunId, toolExecutionId, `cross-evidence-tool-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_evidence: cross-tenant action request link blocked',
+    `INSERT INTO ai_evidence (
+       tenant_id, run_id, action_request_id, source_provider, source_object_type, trust_level,
+       redaction_status, content_hash, summary, retention_class, collected_at
+     )
+     VALUES ($1, $2, $3, 'kanap_domain', 'search_all', 'system', 'redacted', $4, 'cross', 'standard', now())`,
+    [tenantTwoId, tenantTwoRunId, actionRequestId, `cross-evidence-action-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_approvals: cross-tenant action request link blocked',
+    `INSERT INTO ai_approvals (
+       tenant_id, action_request_id, capability_name, capability_version, source, status, input_hash, expires_at
+     )
+     VALUES ($1, $2, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'human_ui', 'approved', $3, now() + interval '10 minutes')`,
+    [tenantTwoId, actionRequestId, `cross-approval-action-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_approvals: cross-tenant approval blocked',
+    `INSERT INTO ai_approvals (
+       tenant_id, action_request_id, capability_name, capability_version, source, status, input_hash, expires_at
+     )
+     VALUES ($1, $2, 'kanap.mutation_preview.execute_approved', '1.0.0', 'human_chat', 'approved', $3, now() + interval '10 minutes')`,
+    [tenantOneId, actionRequestId, `hash-${tag}`],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_approvals: cross-tenant matched policy link blocked',
+    `INSERT INTO ai_approvals (
+       tenant_id, action_request_id, capability_name, capability_version, source, status,
+       input_hash, matched_policy_id, matched_policy_version, decision_json, expires_at
+     )
+     VALUES (
+       $1, $2, 'ticketing.ticket.internal_note.add_approved', '1.0.0', 'policy',
+       'approved', $3, $4, 1, '{"outcome":"policy_approved"}'::jsonb,
+       now() + interval '10 minutes'
+     )`,
+    [tenantTwoId, tenantTwoActionRequestId, `tenant-two-hash-${tag}`, approvalPolicyId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_adapter_configs: cross-tenant insert blocked',
+    `INSERT INTO ai_adapter_configs (
+       tenant_id, provider_kind, provider_key, implementation, environment, enabled, live_test_safety
+     )
+     VALUES ($1, 'monitoring', 'cross', 'mock', 'mock', true, 'mock_only')`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_approval_policies: cross-tenant insert blocked',
+    `INSERT INTO ai_approval_policies (
+       tenant_id, policy_key, policy_version, name, status, enabled,
+       capability_name, capability_version, effect, provider_kind, provider_key,
+       environment, trigger_surface, trigger_kind, max_autonomy_level, target_type,
+       target_constraints_json, evidence_requirements_json, live_test_safety
+     )
+     VALUES (
+       $1, 'cross-policy', 1, 'Cross policy', 'enabled', true,
+       'ticketing.ticket.internal_note.add_approved', '1.0.0', 'write',
+       'ticketing', 'mock', 'mock', 'scheduler', 'scheduled_trigger', 'A3', 'ticket',
+       '{"allowed_refs":["cross-ticket"]}'::jsonb,
+       '{"min_count":1}'::jsonb, 'mock_only'
+     )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_autonomy_ceilings: cross-tenant insert blocked',
+    `INSERT INTO ai_autonomy_ceilings (
+       tenant_id, scope, max_autonomy_level, enabled
+     )
+     VALUES ($1, 'tenant', 'A3', true)`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_autonomy_routines: cross-tenant insert blocked',
+    `INSERT INTO ai_autonomy_routines (
+       tenant_id, routine_key, name, trigger_kind, workflow_type, enabled,
+       provider_key, max_runs_per_window, cooldown_seconds
+     )
+     VALUES (
+       $1, 'cross-routine', 'Cross routine', 'scheduled', 'readonly_diagnostic',
+       false, 'mock', 1, 300
+     )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_automation_job_catalog: cross-tenant insert blocked',
+    `INSERT INTO ai_automation_job_catalog (
+       tenant_id, provider_key, job_key, catalog_version, display_name, environment,
+       external_job_template_ref, enabled, launch_allowed, dry_run_supported, dry_run_required,
+       variable_schema_json, target_policy_json, blast_radius_limit, cooldown_seconds,
+       timeout_seconds, live_test_safety
+     )
+     VALUES (
+       $1, 'mock', 'cross', '1.0.0', 'Cross tenant job', 'mock', 'awx-cross',
+       true, true, true, true,
+       '{"type":"object","additionalProperties":false}'::jsonb,
+       '{"allowed_types":["host"],"allowed_values":["cross-host"],"max_targets":1}'::jsonb,
+       1, 300, 600, 'mock_only'
+    )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_live_test_targets: cross-tenant insert blocked',
+    `INSERT INTO ai_live_test_targets (
+       tenant_id, provider_kind, provider_key, environment, target_kind,
+       target_key, external_ref, allowed_effect, safety_label, enabled
+     )
+     VALUES (
+       $1, 'ticketing', 'glpi-cross', 'sandbox', 'ticket',
+       'cross-ticket', 'GLPI-CROSS', 'read', 'read_only', false
+     )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_external_mcp_servers: cross-tenant insert blocked',
+    `INSERT INTO ai_external_mcp_servers (
+       tenant_id, server_key, display_name, transport_kind, endpoint_config_json,
+       credential_ref_json, enabled, max_effect, redaction_policy_json
+     )
+     VALUES (
+       $1, 'cross-mcp', 'Cross MCP', 'mock', '{"mode":"mock"}'::jsonb,
+       '{"kind":"none"}'::jsonb, false, 'read', '{"fields":[]}'::jsonb
+     )`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_external_mcp_tool_snapshots: cross-tenant server link blocked',
+    `INSERT INTO ai_external_mcp_tool_snapshots (
+       tenant_id, server_id, server_key, external_tool_name, capability_name,
+       capability_version, input_schema_json, input_schema_hash, schema_version,
+       effect, enabled, mcp_exposure_enabled
+     )
+     VALUES (
+       $1, $2, 'rls-mcp', 'read_resource', 'external_mcp.rls-mcp.cross',
+       '1.0.0', '{"type":"object"}'::jsonb,
+       'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+       '1.0.0', 'read', true, false
+     )`,
+    [tenantTwoId, externalMcpServerId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_observations: cross-tenant insert blocked',
+    `INSERT INTO ai_observations (
+       tenant_id, run_id, observation_type, status, source_provider, source_object_type, summary
+     )
+     VALUES ($1, $2, 'monitoring_alert', 'observed', 'monitoring', 'alert', 'cross')`,
+    [tenantOneId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_recommendations: cross-tenant insert blocked',
+    `INSERT INTO ai_recommendations (
+       tenant_id, run_id, recommendation_type, status, summary, max_autonomy_level
+     )
+     VALUES ($1, $2, 'read_only_diagnostic', 'proposed', 'cross', 'A1')`,
+    [tenantOneId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_decisions: cross-tenant insert blocked',
+    `INSERT INTO ai_decisions (
+       tenant_id, run_id, decision, status, reason
+     )
+     VALUES ($1, $2, 'recommend_only', 'recorded', 'cross')`,
+    [tenantOneId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_evaluations: cross-tenant insert blocked',
+    `INSERT INTO ai_evaluations (
+       tenant_id, run_id, status
+     )
+     VALUES ($1, $2, 'pending')`,
+    [tenantOneId, runId],
+  );
+
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_observations: cross-tenant run link blocked',
+    `INSERT INTO ai_observations (
+       tenant_id, run_id, observation_type, status, source_provider, source_object_type, summary
+     )
+     VALUES ($1, $2, 'monitoring_alert', 'observed', 'monitoring', 'alert', 'cross run link')`,
+    [tenantTwoId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_recommendations: cross-tenant observation link blocked',
+    `INSERT INTO ai_recommendations (
+       tenant_id, run_id, observation_id, recommendation_type, status, summary, max_autonomy_level
+     )
+     VALUES ($1, $2, $3, 'read_only_diagnostic', 'proposed', 'cross observation link', 'A1')`,
+    [tenantTwoId, tenantTwoRunId, observationId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_decisions: cross-tenant recommendation link blocked',
+    `INSERT INTO ai_decisions (
+       tenant_id, run_id, recommendation_id, decision, status, reason
+     )
+     VALUES ($1, $2, $3, 'recommend_only', 'recorded', 'cross recommendation link')`,
+    [tenantTwoId, tenantTwoRunId, recommendationId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_evaluations: cross-tenant decision link blocked',
+    `INSERT INTO ai_evaluations (
+       tenant_id, run_id, recommendation_id, decision_id, status
+     )
+     VALUES ($1, $2, NULL, $3, 'pending')`,
+    [tenantTwoId, tenantTwoRunId, decisionId],
+  );
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -603,6 +1417,7 @@ async function main() {
 
     const aiGraphSeed = await seedAiGraph(r, tenantOneId, tag);
     await runAiGraphChecks(r, results, tenantOneId, tenantTwoId, aiGraphSeed, tag);
+    await runAiControlPlaneChecks(r, results, tenantOneId, tenantTwoId, tag);
 
     const failed = results.filter((result) => !result.ok);
     for (const result of results) {

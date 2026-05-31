@@ -38,6 +38,21 @@ export class AiApiKey {
   @Column('text', { nullable: true })
   revocation_reason!: string | null;
 
+  @Column('jsonb', { default: () => `'["mcp:tools:list","mcp:tools:execute"]'::jsonb` })
+  mcp_scopes_json!: string[];
+
+  @Column('jsonb', { default: () => `'["kanap.read.core"]'::jsonb` })
+  mcp_capability_allowlist_json!: string[];
+
+  @Column('jsonb', { default: () => `'[]'::jsonb` })
+  mcp_capability_denylist_json!: string[];
+
+  @Column('text', { default: 'read' })
+  mcp_max_effect!: string;
+
+  @Column('integer', { default: 60 })
+  mcp_rate_limit_per_minute!: number;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 

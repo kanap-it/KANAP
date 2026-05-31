@@ -1,13 +1,34 @@
-import { Controller, Delete, Get, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { validate as isUuid } from 'uuid';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
-import { AiPolicyService } from './ai-policy.service';
 import { AiSettingsService } from './ai-settings.service';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
-import { AiToolRegistry } from './ai-tool.registry';
+import { AiCapabilityDispatcherService } from './control-plane/dispatcher/ai-capability-dispatcher.service';
+import { AiMcpAuditService } from './control-plane/mcp/ai-mcp-audit.service';
+import { AiMcpExposureService } from './control-plane/mcp/ai-mcp-exposure.service';
+import { AiMcpRateLimiter } from './control-plane/mcp/ai-mcp-rate-limiter.service';
+import {
+  AiMcpApiKeyPolicy,
+  AiMcpScope,
+  MCP_SCOPE_TOOLS_EXECUTE,
+  MCP_SCOPE_TOOLS_LIST,
+  assertMcpScope,
+} from './control-plane/mcp/ai-mcp-access-policy';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { AiBuiltinRateLimiter } from './platform/ai-builtin-rate-limiter';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
@@ -17,10 +38,14 @@ import { AiExecutionContext } from './ai.types';
 @Controller('ai/mcp')
 @SkipTenantTransaction()
 export class AiMcpController {
+  private readonly maxResponseChars = 64_000;
+
   constructor(
-    private readonly toolRegistry: AiToolRegistry,
+    private readonly dispatcher: AiCapabilityDispatcherService,
+    private readonly mcpExposure: AiMcpExposureService,
+    private readonly mcpAudit: AiMcpAuditService,
+    private readonly mcpRateLimiter: AiMcpRateLimiter,
     private readonly tenantExecutor: AiTenantExecutionService,
-    private readonly policy: AiPolicyService,
     private readonly settingsService: AiSettingsService,
     private readonly platformAiConfig: PlatformAiConfigService,
     private readonly builtinUsage: AiBuiltinUsageService,
@@ -47,24 +72,115 @@ export class AiMcpController {
     };
   }
 
+  private requireApiKey(req: Request): any {
+    const apiKey = (req as any)?.aiApiKey;
+    if (!apiKey || typeof apiKey !== 'object') {
+      throw new UnauthorizedException('Missing MCP API key context.');
+    }
+    return apiKey;
+  }
+
+  private mcpMethods(body: unknown): Set<string> {
+    const methods = new Set<string>();
+    const bodies = Array.isArray(body) ? body : [body];
+    for (const entry of bodies) {
+      if (entry && typeof entry === 'object' && typeof (entry as any).method === 'string') {
+        methods.add((entry as any).method);
+      }
+    }
+    return methods;
+  }
+
+  private toolDefinitionScope(methods: Set<string>): AiMcpScope | null {
+    if (methods.has('tools/call')) {
+      return MCP_SCOPE_TOOLS_EXECUTE;
+    }
+    if (methods.has('tools/list')) {
+      return MCP_SCOPE_TOOLS_LIST;
+    }
+    return null;
+  }
+
+  private assertMcpPostPreflight(
+    context: AiExecutionContext,
+    apiKey: any,
+    methods: Set<string>,
+  ): AiMcpApiKeyPolicy {
+    const keyPolicy = this.mcpExposure.parsePolicy(apiKey);
+    this.mcpRateLimiter.assertAllowed(context.tenantId, context.aiApiKeyId, keyPolicy.rateLimitPerMinute);
+
+    if (!keyPolicy.valid) {
+      throw new ForbiddenException('MCP API key policy is invalid.');
+    }
+    if (methods.has('tools/list') && methods.has('tools/call')) {
+      throw new BadRequestException('MCP JSON-RPC batches must not mix tools/list and tools/call requests.');
+    }
+    if (methods.has('tools/list')) {
+      assertMcpScope(keyPolicy, MCP_SCOPE_TOOLS_LIST);
+    }
+    if (methods.has('tools/call')) {
+      assertMcpScope(keyPolicy, MCP_SCOPE_TOOLS_EXECUTE);
+    }
+    return keyPolicy;
+  }
+
+  private async assertBuiltinMcpBudget(ctx: AiExecutionContext & { manager: any }) {
+    const settings = await this.settingsService.get(ctx.tenantId, { manager: ctx.manager });
+    if (this.settingsService.getEffectiveProviderSource(settings) !== 'builtin') {
+      return;
+    }
+    const runtime = await this.platformAiConfig.getRuntimeConfig();
+    this.builtinRateLimiter.assertAllowed(ctx.tenantId, ctx.userId, {
+      tenantPerMinute: runtime.rate_limit_tenant_per_minute,
+      userPerHour: runtime.rate_limit_user_per_hour,
+    });
+    const limit = await this.builtinUsage.getMonthlyLimitForTenant(ctx.tenantId, ctx.manager);
+    await this.builtinUsage.reserveMessage(ctx.tenantId, limit, ctx.manager);
+  }
+
+  private mcpTextResult(result: unknown): string {
+    const text = JSON.stringify(result) ?? 'null';
+    if (text.length <= this.maxResponseChars) {
+      return text;
+    }
+    return JSON.stringify({
+      truncated: true,
+      reason: 'mcp_response_size_limit',
+      max_chars: this.maxResponseChars,
+      preview: text.slice(0, this.maxResponseChars),
+    });
+  }
+
+  private auditFilters(query: Record<string, unknown>) {
+    return {
+      runId: query.run_id == null ? null : String(query.run_id),
+      toolExecutionId: query.tool_execution_id == null ? null : String(query.tool_execution_id),
+      capabilityName: query.capability_name == null ? null : String(query.capability_name),
+      status: query.status == null ? null : String(query.status),
+      limit: query.limit == null ? null : Number(query.limit),
+    };
+  }
+
   @Post()
   @UseGuards(McpApiKeyAuthGuard)
   async handlePost(@Req() req: Request, @Res() res: Response) {
     const context = this.buildContext(req);
+    const apiKey = this.requireApiKey(req);
+    const methods = this.mcpMethods(req.body);
+    this.assertMcpPostPreflight(context, apiKey, methods);
+    const definitionScope = this.toolDefinitionScope(methods);
 
     const toolDefs = await this.tenantExecutor.runWithContext(context, async (ctx) => {
-      await this.policy.assertSurfaceAccess(ctx, ctx.manager);
-      const settings = await this.settingsService.get(ctx.tenantId, { manager: ctx.manager });
-      if (this.settingsService.getEffectiveProviderSource(settings) === 'builtin') {
-        const runtime = await this.platformAiConfig.getRuntimeConfig();
-        this.builtinRateLimiter.assertAllowed(ctx.tenantId, ctx.userId, {
-          tenantPerMinute: runtime.rate_limit_tenant_per_minute,
-          userPerHour: runtime.rate_limit_user_per_hour,
-        });
-        const limit = await this.builtinUsage.getMonthlyLimitForTenant(ctx.tenantId, ctx.manager);
-        await this.builtinUsage.reserveMessage(ctx.tenantId, limit, ctx.manager);
+      await this.mcpExposure.assertPostAccess(ctx, apiKey);
+      if (definitionScope == null) {
+        return [];
       }
-      return this.toolRegistry.getToolJsonSchemas(ctx);
+
+        const definitions = await this.mcpExposure.listToolJsonSchemas(ctx, apiKey, definitionScope);
+        if (methods.has('tools/list')) {
+          await this.assertBuiltinMcpBudget(ctx);
+        }
+        return definitions;
     });
 
     const server = new McpServer({
@@ -79,10 +195,25 @@ export class AiMcpController {
         toolDef.parameters as any,
         async (args: any) => {
           const result = await this.tenantExecutor.runWithContext(context, async (ctx) => {
-            return this.toolRegistry.execute(ctx, toolDef.name, args);
+            const keyPolicy = this.mcpExposure.parsePolicy(apiKey);
+            await this.mcpExposure.assertCanExecute(ctx, apiKey, toolDef.name);
+            this.mcpRateLimiter.assertAllowed(ctx.tenantId, ctx.aiApiKeyId, keyPolicy.rateLimitPerMinute);
+            await this.assertBuiltinMcpBudget(ctx);
+            const dispatched = await this.dispatcher.execute(ctx, {
+              capabilityName: toolDef.name,
+              input: args,
+              execution: {
+                surface: 'mcp',
+                trigger_kind: 'mcp_client',
+                metadata: {
+                  ai_api_key_id: ctx.aiApiKeyId ?? null,
+                },
+              },
+            });
+            return dispatched.output;
           });
           return {
-            content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+            content: [{ type: 'text' as const, text: this.mcpTextResult(result) }],
           };
         },
       );
@@ -99,6 +230,21 @@ export class AiMcpController {
 
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
+  }
+
+  @Get('audit')
+  @UseGuards(McpApiKeyAuthGuard)
+  async listAudit(@Req() req: Request, @Query() query: Record<string, unknown>) {
+    const context = this.buildContext(req);
+    const apiKey = this.requireApiKey(req);
+    return this.tenantExecutor.runWithContext(context, async (ctx) => {
+      const keyPolicy = await this.mcpExposure.assertCanReadAudit(ctx, apiKey);
+      this.mcpRateLimiter.assertAllowed(ctx.tenantId, ctx.aiApiKeyId, keyPolicy.rateLimitPerMinute);
+      return this.mcpAudit.list(ctx, {
+        ...this.auditFilters(query),
+        apiKeyId: ctx.aiApiKeyId ?? null,
+      });
+    });
   }
 
   @Get()

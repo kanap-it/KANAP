@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AiAdminOverviewController } from '../ai-admin-overview.controller';
 import { AiApiKeysController } from '../ai-api-keys.controller';
 import { AiCapabilitiesController } from '../ai-capabilities.controller';
@@ -8,10 +8,18 @@ import { AiChatController } from '../ai-chat.controller';
 import { AiConversationsController } from '../ai-conversations.controller';
 import { AiMcpController } from '../ai-mcp.controller';
 import { AiSettingsController } from '../ai-settings.controller';
+import { AiMcpRateLimiter } from '../control-plane/mcp/ai-mcp-rate-limiter.service';
+import {
+  MCP_SCOPE_TOOLS_EXECUTE,
+  MCP_SCOPE_TOOLS_LIST,
+  parseMcpApiKeyPolicy,
+} from '../control-plane/mcp/ai-mcp-access-policy';
+
+const TEST_TENANT_ID = '11111111-1111-4111-8111-111111111111';
 
 function createRequest(overrides?: Record<string, unknown>) {
   return {
-    tenant: { id: '11111111-1111-4111-8111-111111111111' },
+    tenant: { id: TEST_TENANT_ID },
     user: { sub: 'user-1', aiApiKeyId: 'key-1' },
     id: 'req-1',
     isPlatformHost: true,
@@ -57,13 +65,115 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1000) {
 }
 
 function assertBaseContext(context: any, expected: { surface: 'chat' | 'mcp'; authMethod: 'jwt' | 'api_key'; aiApiKeyId: string | null }) {
-  assert.equal(context.tenantId, '11111111-1111-4111-8111-111111111111');
+  assert.equal(context.tenantId, TEST_TENANT_ID);
   assert.equal(context.userId, 'user-1');
   assert.equal(context.isPlatformHost, true);
   assert.equal(context.surface, expected.surface);
   assert.equal(context.authMethod, expected.authMethod);
   assert.equal(context.requestId, 'req-1');
   assert.equal(context.aiApiKeyId, expected.aiApiKeyId);
+}
+
+function createMcpApiKey(overrides?: Record<string, unknown>) {
+  return {
+    id: 'key-1',
+    tenant_id: TEST_TENANT_ID,
+    user_id: 'user-1',
+    mcp_scopes: [MCP_SCOPE_TOOLS_LIST, MCP_SCOPE_TOOLS_EXECUTE],
+    mcp_allowed_capabilities: ['kanap.read.core'],
+    mcp_denied_capabilities: [],
+    mcp_max_effect: 'read',
+    mcp_rate_limit_per_minute: 60,
+    ...(overrides ?? {}),
+  };
+}
+
+function createMcpPostRequest(body: unknown, apiKey = createMcpApiKey()) {
+  return createRequest({
+    body,
+    aiApiKey: apiKey,
+  });
+}
+
+function parseTestMcpPolicy(apiKey: any) {
+  return parseMcpApiKeyPolicy({
+    mcp_scopes_json: apiKey.mcp_scopes_json ?? apiKey.mcp_scopes,
+    mcp_capability_allowlist_json: apiKey.mcp_capability_allowlist_json ?? apiKey.mcp_allowed_capabilities,
+    mcp_capability_denylist_json: apiKey.mcp_capability_denylist_json ?? apiKey.mcp_denied_capabilities,
+    mcp_max_effect: apiKey.mcp_max_effect,
+    mcp_rate_limit_per_minute: apiKey.mcp_rate_limit_per_minute,
+  });
+}
+
+function createMcpControllerHarness(options?: {
+  rateLimiter?: any;
+  assertPostAccess?: (ctx: any, apiKey: any) => Promise<void>;
+}) {
+  const rateCalls: Array<{ tenantId: string; apiKeyId: string | null | undefined; limit: number }> = [];
+  const exposureCalls = { post: 0, list: 0, execute: 0 };
+  const rateLimiter = options?.rateLimiter ?? {
+    assertAllowed: (tenantId: string, apiKeyId: string | null | undefined, limit: number) => {
+      rateCalls.push({ tenantId, apiKeyId, limit });
+    },
+  };
+  const controller = new AiMcpController(
+    {} as any,
+    {
+      parsePolicy: parseTestMcpPolicy,
+      assertPostAccess: async (ctx: any, apiKey: any) => {
+        exposureCalls.post += 1;
+        await options?.assertPostAccess?.(ctx, apiKey);
+      },
+      listToolJsonSchemas: async () => {
+        exposureCalls.list += 1;
+        return [];
+      },
+      assertCanExecute: async () => {
+        exposureCalls.execute += 1;
+        return {};
+      },
+      assertCanReadAudit: async (ctx: any, apiKey: any) => parseTestMcpPolicy(apiKey),
+    } as any,
+    {} as any,
+    rateLimiter,
+    {
+      runWithContext: async (context: any, fn: Function) => fn({ ...context, manager: { tag: 'manager' } }),
+    } as any,
+    {
+      get: async () => ({}),
+      getEffectiveProviderSource: () => 'custom',
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  return { controller, exposureCalls, rateCalls };
+}
+
+function runMcpPostPreflight(controller: AiMcpController, req: any) {
+  const context = (controller as any).buildContext(req);
+  const methods = (controller as any).mcpMethods(req.body);
+  return (controller as any).assertMcpPostPreflight(context, req.aiApiKey, methods);
+}
+
+function assertMcpRateLimited(error: any) {
+  const response = typeof error?.getResponse === 'function' ? error.getResponse() : null;
+  assert.equal(typeof error?.getStatus === 'function' ? error.getStatus() : null, 429);
+  assert.equal(response?.code, 'MCP_RATE_LIMITED');
+  return true;
+}
+
+function createInitializeRequest(id = 1) {
+  return {
+    jsonrpc: '2.0',
+    id,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2025-03-26',
+      capabilities: {},
+      clientInfo: { name: 'test', version: '1.0.0' },
+    },
+  };
 }
 
 async function testControllersBuildPlatformAwareContexts() {
@@ -90,7 +200,7 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const apiKeys = new AiApiKeysController({} as any, {} as any, {} as any);
+  const apiKeys = new AiApiKeysController({} as any, {} as any, {} as any, {} as any);
   assertBaseContext((apiKeys as any).buildContext(req), {
     surface: 'mcp',
     authMethod: 'jwt',
@@ -104,7 +214,7 @@ async function testControllersBuildPlatformAwareContexts() {
     aiApiKeyId: null,
   });
 
-  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   assertBaseContext((mcp as any).buildContext(req), {
     surface: 'mcp',
     authMethod: 'api_key',
@@ -115,7 +225,7 @@ async function testControllersBuildPlatformAwareContexts() {
 async function testControllersRejectMissingTenantContext() {
   const req = createRequest({ tenant: undefined });
   const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
-  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
   assert.throws(
     () => (settings as any).buildContext(req),
@@ -131,7 +241,7 @@ async function testControllersRejectInvalidTenantContext() {
   const req = createRequest({ tenant: { id: 'tenant-1' } });
   const settings = new AiSettingsController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
   const overview = new AiAdminOverviewController({} as any, {} as any, {} as any);
-  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const mcp = new AiMcpController({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
 
   assert.throws(
     () => (settings as any).buildContext(req),
@@ -145,6 +255,155 @@ async function testControllersRejectInvalidTenantContext() {
     () => (mcp as any).buildContext(req),
     (error: unknown) => error instanceof UnauthorizedException,
   );
+}
+
+async function testMcpPostRejectsMixedListAndCallBatchBeforeExposure() {
+  const { controller, exposureCalls, rateCalls } = createMcpControllerHarness();
+  const req = createMcpPostRequest(
+    [
+      { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} },
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'search_all', arguments: { query: 'kanap' } },
+      },
+    ],
+    createMcpApiKey({ mcp_scopes: [MCP_SCOPE_TOOLS_EXECUTE] }),
+  );
+
+  await assert.rejects(
+    () => controller.handlePost(req as any, {} as any),
+    (error: unknown) => error instanceof BadRequestException,
+  );
+  assert.equal(rateCalls.length, 1);
+  assert.equal(rateCalls[0].tenantId, TEST_TENANT_ID);
+  assert.equal(rateCalls[0].apiKeyId, 'key-1');
+  assert.equal(exposureCalls.list, 0);
+}
+
+async function testMcpPostRatesMissingScopeListAndCallAttemptsBeforeExposure() {
+  const { controller, exposureCalls, rateCalls } = createMcpControllerHarness();
+
+  await assert.rejects(
+    () => controller.handlePost(
+      createMcpPostRequest(
+        { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} },
+        createMcpApiKey({ mcp_scopes: [MCP_SCOPE_TOOLS_EXECUTE] }),
+      ) as any,
+      {} as any,
+    ),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+  await assert.rejects(
+    () => controller.handlePost(
+      createMcpPostRequest(
+        {
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'tools/call',
+          params: { name: 'search_all', arguments: { query: 'kanap' } },
+        },
+        createMcpApiKey({ mcp_scopes: [MCP_SCOPE_TOOLS_LIST] }),
+      ) as any,
+      {} as any,
+    ),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+
+  assert.equal(rateCalls.length, 2);
+  assert.equal(exposureCalls.list, 0);
+}
+
+function testMcpPostRateLimitsRepeatedInitializeAndBogusAttempts() {
+  const limiter = new AiMcpRateLimiter();
+  const { controller } = createMcpControllerHarness({ rateLimiter: limiter });
+  const apiKey = createMcpApiKey({ mcp_rate_limit_per_minute: 1 });
+
+  runMcpPostPreflight(
+    controller,
+    createMcpPostRequest({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '1.0.0' } },
+    }, apiKey),
+  );
+  assert.throws(
+    () => runMcpPostPreflight(controller, createMcpPostRequest({ bogus: true }, apiKey)),
+    assertMcpRateLimited,
+  );
+}
+
+async function testMcpPostRateLimitsUnknownAndHiddenToolCallsBeforeExposure() {
+  const limiter = new AiMcpRateLimiter();
+  const { controller, exposureCalls } = createMcpControllerHarness({ rateLimiter: limiter });
+  const apiKey = createMcpApiKey({
+    mcp_scopes: [MCP_SCOPE_TOOLS_EXECUTE],
+    mcp_rate_limit_per_minute: 1,
+  });
+
+  runMcpPostPreflight(
+    controller,
+    createMcpPostRequest({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'unknown.tool', arguments: {} },
+    }, apiKey),
+  );
+  await assert.rejects(
+    () => controller.handlePost(
+      createMcpPostRequest({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'ticketing.ticket.internal_note.add_approved', arguments: { action_request_id: 'act-1' } },
+      }, apiKey) as any,
+      {} as any,
+    ),
+    assertMcpRateLimited,
+  );
+  assert.equal(exposureCalls.list, 0);
+}
+
+async function testMcpPostInitializeRequiresTenantMcpEnabled() {
+  const { controller, exposureCalls, rateCalls } = createMcpControllerHarness({
+    assertPostAccess: async () => {
+      throw new ForbiddenException('AI MCP access is disabled for this tenant.');
+    },
+  });
+
+  await assert.rejects(
+    () => controller.handlePost(
+      createMcpPostRequest(createInitializeRequest()) as any,
+      {} as any,
+    ),
+    /AI MCP access is disabled/,
+  );
+  assert.equal(rateCalls.length, 1);
+  assert.equal(exposureCalls.post, 1);
+  assert.equal(exposureCalls.list, 0);
+}
+
+async function testMcpPostInitializeRequiresKeyOwnerMcpPermission() {
+  const { controller, exposureCalls, rateCalls } = createMcpControllerHarness({
+    assertPostAccess: async (ctx: any) => {
+      assert.equal(ctx.userId, 'user-1');
+      throw new ForbiddenException('Missing required permission ai_mcp:reader.');
+    },
+  });
+
+  await assert.rejects(
+    () => controller.handlePost(
+      createMcpPostRequest(createInitializeRequest()) as any,
+      {} as any,
+    ),
+    /Missing required permission ai_mcp:reader/,
+  );
+  assert.equal(rateCalls.length, 1);
+  assert.equal(exposureCalls.post, 1);
+  assert.equal(exposureCalls.list, 0);
 }
 
 async function testSettingsControllerDelegatesProviderTest() {
@@ -446,6 +705,12 @@ async function run() {
   await testControllersBuildPlatformAwareContexts();
   await testControllersRejectMissingTenantContext();
   await testControllersRejectInvalidTenantContext();
+  await testMcpPostRejectsMixedListAndCallBatchBeforeExposure();
+  await testMcpPostRatesMissingScopeListAndCallAttemptsBeforeExposure();
+  testMcpPostRateLimitsRepeatedInitializeAndBogusAttempts();
+  await testMcpPostRateLimitsUnknownAndHiddenToolCallsBeforeExposure();
+  await testMcpPostInitializeRequiresTenantMcpEnabled();
+  await testMcpPostInitializeRequiresKeyOwnerMcpPermission();
   await testSettingsControllerDelegatesProviderTest();
   await testSettingsControllerDelegatesGlpiTest();
   await testChatControllerRejectsPlatformHostBeforeStreaming();

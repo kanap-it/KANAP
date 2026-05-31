@@ -100,6 +100,58 @@ async function testNoLifetimeEnforcement() {
   assert.equal(result.record.expires_at, null, 'Key should have no expiry when no max lifetime');
 }
 
+async function testDefaultMcpKeyScopesAreReadOnlyAndExplicit() {
+  const service = createService();
+  const result = await service.createKey({
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    label: 'Scoped key',
+    expiresAt: null,
+    createdByUserId: 'user-1',
+  });
+
+  assert.deepEqual(result.record.mcp_scopes, ['mcp:tools:list', 'mcp:tools:execute']);
+  assert.deepEqual(result.record.mcp_allowed_capabilities, ['kanap.read.core']);
+  assert.deepEqual(result.record.mcp_denied_capabilities, []);
+  assert.equal(result.record.mcp_max_effect, 'read');
+  assert.equal(result.record.mcp_rate_limit_per_minute, 60);
+}
+
+async function testCustomMcpKeyScopesAndAllowlists() {
+  const service = createService();
+  const result = await service.createKey({
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    label: 'Audit key',
+    expiresAt: null,
+    createdByUserId: 'user-1',
+    mcpScopes: ['mcp:audit:read'],
+    mcpAllowedCapabilities: ['query_entities'],
+    mcpDeniedCapabilities: ['web_search'],
+    mcpRateLimitPerMinute: 5,
+  });
+
+  assert.deepEqual(result.record.mcp_scopes, ['mcp:audit:read']);
+  assert.deepEqual(result.record.mcp_allowed_capabilities, ['query_entities']);
+  assert.deepEqual(result.record.mcp_denied_capabilities, ['web_search']);
+  assert.equal(result.record.mcp_rate_limit_per_minute, 5);
+}
+
+async function testWildcardMcpCapabilityGrantIsRejected() {
+  const service = createService();
+  await assert.rejects(
+    () => service.createKey({
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      label: 'Wildcard key',
+      expiresAt: null,
+      createdByUserId: 'user-1',
+      mcpAllowedCapabilities: ['*'],
+    }),
+    /wildcard grants/,
+  );
+}
+
 async function testListForTenant() {
   const service = createService();
   await service.createKey({
@@ -123,6 +175,9 @@ async function run() {
   await testKeyLifetimeEnforcement();
   await testKeyLifetimeCapping();
   await testNoLifetimeEnforcement();
+  await testDefaultMcpKeyScopesAreReadOnlyAndExplicit();
+  await testCustomMcpKeyScopesAndAllowlists();
+  await testWildcardMcpCapabilityGrantIsRejected();
   await testListForTenant();
 }
 
