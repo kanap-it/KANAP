@@ -60,6 +60,47 @@ import { AiSystemPromptService } from './ai-system-prompt.service';
 import { AiToolRegistry } from './ai-tool.registry';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
+import { AiActionRequestService } from './control-plane/action-request/ai-action-request.service';
+import { AiApprovalService } from './control-plane/approval/ai-approval.service';
+import { AiAutomationJobCatalogService } from './control-plane/automation/ai-automation-job-catalog.service';
+import { AiCapabilityRegistry } from './control-plane/capability/ai-capability.registry';
+import { AiReadonlyDiagnosticWorkflowService } from './control-plane/diagnostics/ai-readonly-diagnostic-workflow.service';
+import { AiCapabilityDispatcherService } from './control-plane/dispatcher/ai-capability-dispatcher.service';
+import { AiActionRequest } from './control-plane/entities/ai-action-request.entity';
+import { AiApproval } from './control-plane/entities/ai-approval.entity';
+import { AiApprovalPolicy } from './control-plane/entities/ai-approval-policy.entity';
+import { AiAutomationJobCatalog } from './control-plane/entities/ai-automation-job-catalog.entity';
+import { AiAutonomyCeiling } from './control-plane/entities/ai-autonomy-ceiling.entity';
+import { AiAutonomyRoutine } from './control-plane/entities/ai-autonomy-routine.entity';
+import { AiDecision } from './control-plane/entities/ai-decision.entity';
+import { AiEmergencyPause } from './control-plane/entities/ai-emergency-pause.entity';
+import { AiEvaluation } from './control-plane/entities/ai-evaluation.entity';
+import { AiEvidence } from './control-plane/entities/ai-evidence.entity';
+import { AiExternalMcpServer } from './control-plane/entities/ai-external-mcp-server.entity';
+import { AiExternalMcpToolSnapshot } from './control-plane/entities/ai-external-mcp-tool-snapshot.entity';
+import { AiLiveTestTarget } from './control-plane/entities/ai-live-test-target.entity';
+import { AiObservation } from './control-plane/entities/ai-observation.entity';
+import { AiRecommendation } from './control-plane/entities/ai-recommendation.entity';
+import { AiRun } from './control-plane/entities/ai-run.entity';
+import { AiRunStep } from './control-plane/entities/ai-run-step.entity';
+import { AiToolExecution } from './control-plane/entities/ai-tool-execution.entity';
+import { AiEvidenceService } from './control-plane/evidence/ai-evidence.service';
+import { AiLiveContractHarnessService } from './control-plane/live-readiness/ai-live-contract-harness.service';
+import { AiLiveTestTargetService } from './control-plane/live-readiness/ai-live-test-target.service';
+import { AiExternalMcpBridgeService } from './control-plane/mcp/ai-external-mcp-bridge.service';
+import { AiExternalMcpMockTransport } from './control-plane/mcp/ai-external-mcp-mock-transport.service';
+import { AiMcpAuditService } from './control-plane/mcp/ai-mcp-audit.service';
+import { AiMcpExposureService } from './control-plane/mcp/ai-mcp-exposure.service';
+import { AiMcpRateLimiter } from './control-plane/mcp/ai-mcp-rate-limiter.service';
+import { AiEmergencyPauseService } from './control-plane/pause/ai-emergency-pause.service';
+import { AiApprovalPolicyResolverService } from './control-plane/policy/ai-approval-policy-resolver.service';
+import { AiAutonomyCeilingService } from './control-plane/policy/ai-autonomy-ceiling.service';
+import { AiAutonomyDemotionService } from './control-plane/policy/ai-autonomy-demotion.service';
+import { AiAutonomyRoutineService } from './control-plane/policy/ai-autonomy-routine.service';
+import { AiAdapterConfig } from './control-plane/providers/adapter-config.entity';
+import { AiAdapterConfigService } from './control-plane/providers/adapter-config.service';
+import { AiProviderRegistryService } from './control-plane/providers/provider-registry.service';
+import { AiTenantSecretResolverService } from './control-plane/providers/tenant-secret-resolver.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { GlpiService } from './glpi/glpi.service';
 import { AiDocumentMutationSupportService } from './mutation/ai-document-mutation-support.service';
@@ -101,6 +142,25 @@ import { BraveSearchService } from './web-search/brave-search.service';
       AiMutationPlan,
       AiMutationPlanStep,
       AiMutationPreview,
+      AiRun,
+      AiRunStep,
+      AiToolExecution,
+      AiEvidence,
+      AiActionRequest,
+      AiApproval,
+      AiApprovalPolicy,
+      AiAutomationJobCatalog,
+      AiAutonomyCeiling,
+      AiAutonomyRoutine,
+      AiEmergencyPause,
+      AiExternalMcpServer,
+      AiExternalMcpToolSnapshot,
+      AiLiveTestTarget,
+      AiAdapterConfig,
+      AiObservation,
+      AiRecommendation,
+      AiDecision,
+      AiEvaluation,
       UserRole,
       Subscription,
       Tenant,
@@ -182,6 +242,28 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiQueryExecutor,
     AiAggregateExecutor,
     AiToolRegistry,
+    AiCapabilityRegistry,
+    AiCapabilityDispatcherService,
+    AiEvidenceService,
+    AiExternalMcpBridgeService,
+    AiExternalMcpMockTransport,
+    AiLiveContractHarnessService,
+    AiLiveTestTargetService,
+    AiActionRequestService,
+    AiApprovalService,
+    AiApprovalPolicyResolverService,
+    AiAutonomyCeilingService,
+    AiAutonomyDemotionService,
+    AiAutonomyRoutineService,
+    AiMcpExposureService,
+    AiMcpAuditService,
+    AiMcpRateLimiter,
+    AiAutomationJobCatalogService,
+    AiEmergencyPauseService,
+    AiAdapterConfigService,
+    AiTenantSecretResolverService,
+    AiProviderRegistryService,
+    AiReadonlyDiagnosticWorkflowService,
     BraveSearchService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,
@@ -201,6 +283,28 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiQueryExecutor,
     AiAggregateExecutor,
     AiToolRegistry,
+    AiCapabilityRegistry,
+    AiCapabilityDispatcherService,
+    AiEvidenceService,
+    AiExternalMcpBridgeService,
+    AiExternalMcpMockTransport,
+    AiLiveContractHarnessService,
+    AiLiveTestTargetService,
+    AiActionRequestService,
+    AiApprovalService,
+    AiApprovalPolicyResolverService,
+    AiAutonomyCeilingService,
+    AiAutonomyDemotionService,
+    AiAutonomyRoutineService,
+    AiMcpExposureService,
+    AiMcpAuditService,
+    AiMcpRateLimiter,
+    AiAutomationJobCatalogService,
+    AiEmergencyPauseService,
+    AiAdapterConfigService,
+    AiTenantSecretResolverService,
+    AiProviderRegistryService,
+    AiReadonlyDiagnosticWorkflowService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,
     AiSystemPromptService,

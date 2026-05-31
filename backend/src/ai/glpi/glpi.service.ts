@@ -9,11 +9,13 @@ import {
   GlpiTestResult,
   GlpiTicket,
   GlpiTicketFollowup,
+  GlpiTicketFollowupWriteResult,
 } from './glpi.types';
 
 const GLPI_TIMEOUT_MS = 10_000;
 const GLPI_MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 const GLPI_PAGE_SIZE = 50;
+const GLPI_MAX_INTERNAL_NOTE_CHARS = 4000;
 
 type ResolvedGlpiSettings = {
   baseUrl: string;
@@ -124,6 +126,20 @@ function parseBooleanGlpiValue(value: unknown): boolean {
     return parseBooleanGlpiValue(record.id ?? record.value ?? record.name ?? null);
   }
   return false;
+}
+
+function normalizePlainInternalNote(value: string): string {
+  const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
+  if (!normalized) {
+    throw new BadRequestException('GLPI internal note content is required.');
+  }
+  if (normalized.length > GLPI_MAX_INTERNAL_NOTE_CHARS) {
+    throw new BadRequestException('GLPI internal note content exceeds the allowed length.');
+  }
+  if (/<[^>]+>/.test(normalized) || /javascript:/i.test(normalized)) {
+    throw new BadRequestException('GLPI internal notes must be plain text and cannot contain HTML or scripts.');
+  }
+  return normalized;
 }
 
 function decodeFilenameComponent(value: string): string {
@@ -314,6 +330,52 @@ export class GlpiService {
     }
 
     return results.sort(compareGlpiDatesDesc);
+  }
+
+  async addTicketFollowup(
+    session: GlpiSession,
+    ticketId: number,
+    content: string,
+    opts?: { isPrivate?: boolean },
+  ): Promise<GlpiTicketFollowupWriteResult> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    const body = normalizePlainInternalNote(content);
+    const isPrivate = opts?.isPrivate !== false;
+    if (!isPrivate) {
+      throw new BadRequestException('Only private/internal GLPI followups are allowed for agentic triage.');
+    }
+
+    const payload = await this.requestJson(
+      this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/ITILFollowup`),
+      {
+        method: 'POST',
+        headers: this.buildSessionHeaders(session),
+        body: JSON.stringify({
+          input: {
+            itemtype: 'Ticket',
+            items_id: ticketId,
+            content: body,
+            is_private: 1,
+          },
+        }),
+      },
+    );
+
+    const record = this.expectRecord(payload, 'GLPI followup creation');
+    const id = parseNumericGlpiValue(record.id)
+      ?? parseNumericGlpiValue((record as Record<string, unknown>).items_id)
+      ?? null;
+    if (!id) {
+      throw new BadRequestException('GLPI followup creation response was malformed.');
+    }
+    return {
+      id,
+      ticket_id: ticketId,
+      is_private: true,
+      content_html: body,
+    };
   }
 
   async fetchDocument(

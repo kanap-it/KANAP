@@ -4,13 +4,15 @@
 [![Documentation](https://img.shields.io/badge/docs-doc.kanap.net-green)](https://doc.kanap.net)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--v3-blue.svg)](LICENSE)
 
-**The open source IT governance platform for modern IT departments.**
+**The open source AI-native IT operating platform.**
 
-KANAP helps CIOs and IT managers run budget, architecture, portfolio, knowledge, tasks, and AI from one connected system.
+KANAP gives IT departments a governed system of record for budgets, assets,
+applications, interfaces, projects, tasks, and documentation, then makes that
+record operable in natural language through its native AI agent, **Plaid**.
 
 Self-host it for free, or let us run it for you.
 
-[Website](https://kanap.net) | [Documentation](https://doc.kanap.net) | [Self-hosting guide](https://doc.kanap.net/on-premise/) | [Source docs](doc/)
+[Website](https://kanap.net) | [Documentation](https://doc.kanap.net) | [Self-hosting guide](https://doc.kanap.net/on-premise/) | [Plaid architecture](doc/plaid-architecture.md) | [Source docs](doc/)
 
 ---
 
@@ -26,11 +28,44 @@ IT departments often run on disconnected fragments:
 
 Nothing connects. When the CFO asks "what are we spending on that system?", or the CEO asks "what happens if we delay this project?", the answer takes days to assemble.
 
-KANAP replaces that patchwork with a single open source system of record where costs link to applications, applications link to infrastructure, projects link to budgets and tasks, and knowledge links to the entities it describes.
+KANAP replaces that patchwork with a single open source system of record where
+costs link to applications, applications link to infrastructure, projects link
+to budgets and tasks, and knowledge links to the entities it describes. Plaid
+uses that same governed record as its working context, so AI answers and actions
+are grounded in the permissions, data model, and audit trail of the platform.
 
 Think of it as the operating system of the IT department: the coordination layer for planning, documenting, budgeting, deciding, and executing.
 
 ![KANAP Dashboard](doc/assets/dashboard.png)
+
+## Plaid: the agent layer
+
+Plaid is the native AI agent inside KANAP. It is not a chatbot bolted onto a
+wiki: it works through typed tools, tenant-scoped execution, RBAC, RLS, mutation
+previews, approvals, and audit records.
+
+Today, Plaid can:
+
+- read, search, filter, aggregate, and inspect governed KANAP data across the IT
+  system of record
+- create or update supported KANAP records through explicit write previews that
+  the user approves before execution
+- create and update documents, tasks, master data, business records,
+  relationships, and financial planning data through the same approval path
+- import a GLPI ticket into a KANAP task after user confirmation
+- expose read-only MCP tools so external AI clients can query governed KANAP data
+
+The agentic control plane also tracks runs, tool executions, evidence, action
+requests, approvals, policy decisions, and live-readiness checks. Provider
+contracts exist for monitoring, ticketing, virtualization, directory, and
+automation systems; production external adapters beyond the current GLPI import
+path are the next step, not a claim about every external system being connected
+out of the box.
+
+> **Plaid demo placeholder:** add a GIF or screenshot here showing Plaid reading
+> KANAP context, preparing a write preview, and executing it after approval.
+
+For the technical architecture, see [doc/plaid-architecture.md](doc/plaid-architecture.md).
 
 ## What it does
 
@@ -44,7 +79,7 @@ Think of it as the operating system of the IT department: the coordination layer
 
 **Unified tasks**: One task system spanning budget items, contracts, CAPEX items, applications, assets, requests, and projects.
 
-**Plaid AI assistant**: Ask questions, create documents, manage tasks, and explore IT data through natural-language chat. KANAP also exposes an MCP server so external AI tools can query and act on governed IT data directly.
+**Plaid AI agent**: Ask questions, create documents, manage tasks, update governed records, and explore IT data through natural-language chat. KANAP also exposes a read-only MCP server so external AI tools can query governed IT data directly; read-write MCP is on the roadmap and needs a dedicated approval protocol.
 
 ## Open source first
 

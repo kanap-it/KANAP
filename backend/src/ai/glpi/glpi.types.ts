@@ -30,6 +30,13 @@ export type GlpiTicketFollowup = {
   image_targets: string[];
 };
 
+export type GlpiTicketFollowupWriteResult = {
+  id: number;
+  ticket_id: number;
+  is_private: boolean;
+  content_html: string | null;
+};
+
 export type GlpiDocument = {
   buffer: Buffer;
   mimeType: string;

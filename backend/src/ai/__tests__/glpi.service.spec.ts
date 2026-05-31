@@ -239,6 +239,145 @@ async function testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored() {
   }
 }
 
+async function testAddTicketFollowupUsesFixedPrivatePostEndpoint() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  let requestedUrl = '';
+  let capturedMethod = '';
+  let capturedHeaders: Headers | undefined;
+  let capturedBody: any;
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestedUrl = String(input);
+      capturedMethod = String(init?.method || 'GET');
+      capturedHeaders = new Headers(init?.headers);
+      capturedBody = JSON.parse(String(init?.body || '{}'));
+      return new Response(JSON.stringify({ id: 987 }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const result = await service.addTicketFollowup(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      4523,
+      'Private operator triage note.',
+    );
+
+    assert.equal(requestedUrl, 'https://glpi.internal/helpdesk/apirest.php/Ticket/4523/ITILFollowup');
+    assert.equal(capturedMethod, 'POST');
+    assert.equal(capturedHeaders?.get('session-token'), 'session-token');
+    assert.equal(capturedHeaders?.get('app-token'), 'app-token');
+    assert.deepEqual(capturedBody, {
+      input: {
+        itemtype: 'Ticket',
+        items_id: 4523,
+        content: 'Private operator triage note.',
+        is_private: 1,
+      },
+    });
+    assert.equal(result.id, 987);
+    assert.equal(result.ticket_id, 4523);
+    assert.equal(result.is_private, true);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testAddTicketFollowupRejectsPublicWrites() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  let called = false;
+
+  try {
+    global.fetch = (async () => {
+      called = true;
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+
+    await assert.rejects(
+      () => service.addTicketFollowup(
+        {
+          baseUrl: 'https://glpi.internal/helpdesk/',
+          sessionToken: 'session-token',
+          appToken: null,
+        },
+        4523,
+        'Public note attempt.',
+        { isPrivate: false },
+      ),
+      (error: any) => error instanceof BadRequestException
+        && String(error.message || '').includes('Only private/internal GLPI followups are allowed'),
+    );
+    assert.equal(called, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testAddTicketFollowupRejectsHtmlOrScriptContent() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  let called = false;
+
+  try {
+    global.fetch = (async () => {
+      called = true;
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+
+    await assert.rejects(
+      () => service.addTicketFollowup(
+        {
+          baseUrl: 'https://glpi.internal/helpdesk/',
+          sessionToken: 'session-token',
+          appToken: null,
+        },
+        4523,
+        '<script>alert(1)</script>',
+      ),
+      (error: any) => error instanceof BadRequestException
+        && String(error.message || '').includes('plain text'),
+    );
+    assert.equal(called, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testAddTicketFollowupRejectsMalformedCreateResponse() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+
+  try {
+    global.fetch = (async () => new Response(JSON.stringify({ ok: true }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch;
+
+    await assert.rejects(
+      () => service.addTicketFollowup(
+        {
+          baseUrl: 'https://glpi.internal/helpdesk/',
+          sessionToken: 'session-token',
+          appToken: null,
+        },
+        4523,
+        'Private operator triage note.',
+      ),
+      (error: any) => error instanceof BadRequestException
+        && String(error.message || '').includes('followup creation response was malformed'),
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -246,6 +385,10 @@ async function run() {
   await testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls();
   await testGetTicketFollowupsPaginatesAndNormalizesNewestFirst();
   await testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored();
+  await testAddTicketFollowupUsesFixedPrivatePostEndpoint();
+  await testAddTicketFollowupRejectsPublicWrites();
+  await testAddTicketFollowupRejectsHtmlOrScriptContent();
+  await testAddTicketFollowupRejectsMalformedCreateResponse();
 }
 
 void run();

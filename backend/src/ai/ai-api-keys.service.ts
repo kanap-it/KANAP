@@ -6,6 +6,10 @@ import { UsersService } from '../users/users.service';
 import { AiApiKey } from './ai-api-key.entity';
 import { AiSettingsService } from './ai-settings.service';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
+import {
+  AiMcpScope,
+  buildMcpApiKeyPolicyRecord,
+} from './control-plane/mcp/ai-mcp-access-policy';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 
 export type CreateAiApiKeyInput = {
@@ -14,6 +18,10 @@ export type CreateAiApiKeyInput = {
   label: string;
   expiresAt?: Date | null;
   createdByUserId: string;
+  mcpScopes?: AiMcpScope[];
+  mcpAllowedCapabilities?: string[];
+  mcpDeniedCapabilities?: string[];
+  mcpRateLimitPerMinute?: number | null;
 };
 
 export type AiApiKeyRecordDto = {
@@ -27,6 +35,11 @@ export type AiApiKeyRecordDto = {
   revoked_at: string | null;
   revoked_by_user_id: string | null;
   revocation_reason: string | null;
+  mcp_scopes: string[];
+  mcp_allowed_capabilities: string[];
+  mcp_denied_capabilities: string[];
+  mcp_max_effect: string;
+  mcp_rate_limit_per_minute: number;
   created_at: string;
   created_by_user_id: string;
 };
@@ -88,6 +101,11 @@ export class AiApiKeysService {
       revoked_at: record.revoked_at?.toISOString() ?? null,
       revoked_by_user_id: record.revoked_by_user_id ?? null,
       revocation_reason: record.revocation_reason ?? null,
+      mcp_scopes: Array.isArray(record.mcp_scopes_json) ? [...record.mcp_scopes_json] : [],
+      mcp_allowed_capabilities: Array.isArray(record.mcp_capability_allowlist_json) ? [...record.mcp_capability_allowlist_json] : [],
+      mcp_denied_capabilities: Array.isArray(record.mcp_capability_denylist_json) ? [...record.mcp_capability_denylist_json] : [],
+      mcp_max_effect: typeof record.mcp_max_effect === 'string' ? record.mcp_max_effect : '',
+      mcp_rate_limit_per_minute: typeof record.mcp_rate_limit_per_minute === 'number' ? record.mcp_rate_limit_per_minute : 0,
       created_at: record.created_at.toISOString(),
       created_by_user_id: record.created_by_user_id,
     };
@@ -130,6 +148,13 @@ export class AiApiKeysService {
     }
 
     const { rawKey, keyHash, keyPrefix } = this.hashService.generate();
+    const mcpPolicy = buildMcpApiKeyPolicyRecord({
+      scopes: input.mcpScopes,
+      allowedCapabilities: input.mcpAllowedCapabilities,
+      deniedCapabilities: input.mcpDeniedCapabilities,
+      rateLimitPerMinute: input.mcpRateLimitPerMinute ?? undefined,
+      maxEffect: 'read',
+    });
     const repo = this.getRepo(opts?.manager);
     const record = await repo.save(repo.create({
       tenant_id: input.tenantId,
@@ -138,6 +163,7 @@ export class AiApiKeysService {
       key_prefix: keyPrefix,
       label: normalizedLabel,
       expires_at: expiresAt,
+      ...mcpPolicy,
       created_by_user_id: input.createdByUserId,
     }));
     await this.logAudit(
