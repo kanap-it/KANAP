@@ -326,6 +326,7 @@ export class DocumentExportService {
         this.assertAllowedImageHost(parsed.hostname);
         response = await fetch(candidate, {
           headers: opts?.imageFetchHeaders,
+          redirect: 'error',
           signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
         });
       } catch (error: any) {
