@@ -380,7 +380,10 @@
           "applyTemplate": "Apply Template",
           "deletePhase": "Delete phase",
           "replaceAll": "Replace All",
-          "replaceWithTemplate": "Replace with Template"
+          "replaceWithTemplate": "Replace with Template",
+          "showMilestones": "Show milestones",
+          "expandPhase": "Show tasks",
+          "collapsePhase": "Hide tasks"
         },
         "defaults": {
           "newMilestone": "New Milestone",
@@ -415,7 +418,8 @@
           "toggleMilestoneFailed": "Failed to toggle milestone",
           "unlinkPhaseMilestoneFirst": "Uncheck phase milestone to delete",
           "updateMilestoneFailed": "Failed to update milestone",
-          "updatePhaseFailed": "Failed to update phase"
+          "updatePhaseFailed": "Failed to update phase",
+          "updateTaskFailed": "Failed to update task"
         },
         "sections": {
           "applyPhaseTemplate": "Apply Phase Template",
@@ -430,7 +434,8 @@
           "noPlannedPhasesHelp": "Set planned start and end dates on phases to see them on the Gantt chart.",
           "noPlannedProjects": "No projects with planned dates",
           "noPlannedProjectsHelp": "Set planned start and end dates on projects to see them on the timeline.",
-          "selectTemplate": "Select a template..."
+          "selectTemplate": "Select a template...",
+          "noPhaseTasks": "No tasks in this phase."
         },
         "values": {
           "daysEarlier": "{{count}} day(s) earlier",
@@ -440,6 +445,24 @@
         "views": {
           "gantt": "Gantt",
           "table": "Table"
+        },
+        "summary": {
+          "title": "Project timeline",
+          "actual": "Actual",
+          "actualTooltip": "Date when the project status was changed to In Progress",
+          "planned": "Planned",
+          "plannedTooltip": "Target dates set by the project manager during planning",
+          "baseline": "Baseline",
+          "baselineAt": "at In Progress",
+          "baselineTooltip": "Snapshot of planned dates captured when the project entered In Progress",
+          "varianceLate": "{{days}}d late",
+          "varianceEarly": "{{days}}d early"
+        },
+        "zoom": {
+          "day": "Day",
+          "week": "Week",
+          "month": "Month",
+          "quarter": "Quarter"
         }
       }
     },

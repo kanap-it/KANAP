@@ -380,7 +380,10 @@
           "applyTemplate": "Aplicar plantilla",
           "deletePhase": "Eliminar fase",
           "replaceAll": "Reemplazar todo",
-          "replaceWithTemplate": "Reemplazar por plantilla"
+          "replaceWithTemplate": "Reemplazar por plantilla",
+          "showMilestones": "Mostrar hitos",
+          "expandPhase": "Mostrar tareas",
+          "collapsePhase": "Ocultar tareas"
         },
         "defaults": {
           "newMilestone": "Nuevo hito",
@@ -415,7 +418,8 @@
           "toggleMilestoneFailed": "Error al alternar el hito",
           "unlinkPhaseMilestoneFirst": "Desmarque el hito de fase para poder eliminarlo",
           "updateMilestoneFailed": "Error al actualizar el hito",
-          "updatePhaseFailed": "Error al actualizar la fase"
+          "updatePhaseFailed": "Error al actualizar la fase",
+          "updateTaskFailed": "Error al actualizar la tarea"
         },
         "sections": {
           "applyPhaseTemplate": "Aplicar plantilla de fase",
@@ -430,7 +434,8 @@
           "noPlannedPhasesHelp": "Establezca fechas de inicio y fin planificadas en las fases para verlas en el diagrama de Gantt.",
           "noPlannedProjects": "No hay proyectos con fechas planificadas",
           "noPlannedProjectsHelp": "Establezca fechas de inicio y fin planificadas en los proyectos para verlos en el cronograma.",
-          "selectTemplate": "Seleccione una plantilla..."
+          "selectTemplate": "Seleccione una plantilla...",
+          "noPhaseTasks": "No hay tareas en esta fase."
         },
         "values": {
           "daysEarlier": "{{count}} día(s) antes",
@@ -440,6 +445,24 @@
         "views": {
           "gantt": "Gantt",
           "table": "Tabla"
+        },
+        "summary": {
+          "title": "Cronología del proyecto",
+          "actual": "Real",
+          "actualTooltip": "Fecha en que el estado del proyecto cambió a En curso",
+          "planned": "Planificado",
+          "plannedTooltip": "Fechas objetivo definidas por el jefe de proyecto durante la planificación",
+          "baseline": "Línea base",
+          "baselineAt": "al pasar a En curso",
+          "baselineTooltip": "Instantánea de las fechas planificadas capturada cuando el proyecto pasó a En curso",
+          "varianceLate": "{{days}} d de retraso",
+          "varianceEarly": "{{days}} d de adelanto"
+        },
+        "zoom": {
+          "day": "Día",
+          "week": "Semana",
+          "month": "Mes",
+          "quarter": "Trimestre"
         }
       }
     },
