@@ -380,7 +380,10 @@
           "applyTemplate": "Appliquer un modèle",
           "deletePhase": "Supprimer la phase",
           "replaceAll": "Tout remplacer",
-          "replaceWithTemplate": "Remplacer par un modèle"
+          "replaceWithTemplate": "Remplacer par un modèle",
+          "showMilestones": "Afficher les jalons",
+          "expandPhase": "Afficher les tâches",
+          "collapsePhase": "Masquer les tâches"
         },
         "defaults": {
           "newMilestone": "Nouveau jalon",
@@ -415,7 +418,8 @@
           "toggleMilestoneFailed": "Échec de la bascule du jalon",
           "unlinkPhaseMilestoneFirst": "Décochez le jalon de phase pour pouvoir le supprimer",
           "updateMilestoneFailed": "Échec de la mise à jour du jalon",
-          "updatePhaseFailed": "Échec de la mise à jour de la phase"
+          "updatePhaseFailed": "Échec de la mise à jour de la phase",
+          "updateTaskFailed": "Échec de la mise à jour de la tâche"
         },
         "sections": {
           "applyPhaseTemplate": "Appliquer un modèle de phase",
@@ -430,7 +434,8 @@
           "noPlannedPhasesHelp": "Définissez les dates de début et de fin prévues sur les phases pour les voir sur le diagramme de Gantt.",
           "noPlannedProjects": "Aucun projet avec des dates planifiées",
           "noPlannedProjectsHelp": "Définissez les dates de début et de fin prévues sur les projets pour les voir sur la chronologie.",
-          "selectTemplate": "Sélectionnez un modèle..."
+          "selectTemplate": "Sélectionnez un modèle...",
+          "noPhaseTasks": "Aucune tâche dans cette phase."
         },
         "values": {
           "daysEarlier": "{{count}} jour(s) plus tôt",
@@ -440,6 +445,24 @@
         "views": {
           "gantt": "Gantt",
           "table": "Tableau"
+        },
+        "summary": {
+          "title": "Chronologie du projet",
+          "actual": "Réel",
+          "actualTooltip": "Date à laquelle le statut du projet est passé à En cours",
+          "planned": "Planifié",
+          "plannedTooltip": "Dates cibles définies par le chef de projet lors de la planification",
+          "baseline": "Référence",
+          "baselineAt": "au passage En cours",
+          "baselineTooltip": "Instantané des dates planifiées capturé lorsque le projet est passé à En cours",
+          "varianceLate": "{{days}} j de retard",
+          "varianceEarly": "{{days}} j d'avance"
+        },
+        "zoom": {
+          "day": "Jour",
+          "week": "Semaine",
+          "month": "Mois",
+          "quarter": "Trimestre"
         }
       }
     },

@@ -380,7 +380,10 @@
           "applyTemplate": "Vorlage anwenden",
           "deletePhase": "Phase löschen",
           "replaceAll": "Alle ersetzen",
-          "replaceWithTemplate": "Durch Vorlage ersetzen"
+          "replaceWithTemplate": "Durch Vorlage ersetzen",
+          "showMilestones": "Meilensteine anzeigen",
+          "expandPhase": "Aufgaben anzeigen",
+          "collapsePhase": "Aufgaben ausblenden"
         },
         "defaults": {
           "newMilestone": "Neuer Meilenstein",
@@ -415,7 +418,8 @@
           "toggleMilestoneFailed": "Meilenstein konnte nicht umgeschaltet werden",
           "unlinkPhaseMilestoneFirst": "Deaktivieren Sie den Phasen-Meilenstein, um ihn zu löschen",
           "updateMilestoneFailed": "Meilenstein konnte nicht aktualisiert werden",
-          "updatePhaseFailed": "Phase konnte nicht aktualisiert werden"
+          "updatePhaseFailed": "Phase konnte nicht aktualisiert werden",
+          "updateTaskFailed": "Aufgabe konnte nicht aktualisiert werden"
         },
         "sections": {
           "applyPhaseTemplate": "Phasenvorlage anwenden",
@@ -430,7 +434,8 @@
           "noPlannedPhasesHelp": "Legen Sie geplante Start- und Enddaten für Phasen fest, um sie im Gantt-Diagramm zu sehen.",
           "noPlannedProjects": "Keine Projekte mit geplanten Daten",
           "noPlannedProjectsHelp": "Legen Sie geplante Start- und Enddaten für Projekte fest, um sie auf dem Zeitstrahl zu sehen.",
-          "selectTemplate": "Vorlage auswählen..."
+          "selectTemplate": "Vorlage auswählen...",
+          "noPhaseTasks": "Keine Aufgaben in dieser Phase."
         },
         "values": {
           "daysEarlier": "{{count}} Tag(e) früher",
@@ -440,6 +445,24 @@
         "views": {
           "gantt": "Gantt",
           "table": "Tabelle"
+        },
+        "summary": {
+          "title": "Projekt-Zeitachse",
+          "actual": "Tatsächlich",
+          "actualTooltip": "Datum, an dem der Projektstatus auf In Bearbeitung geändert wurde",
+          "planned": "Geplant",
+          "plannedTooltip": "Vom Projektleiter während der Planung festgelegte Zieldaten",
+          "baseline": "Baseline",
+          "baselineAt": "bei In Bearbeitung",
+          "baselineTooltip": "Momentaufnahme der geplanten Daten, erfasst beim Übergang des Projekts zu In Bearbeitung",
+          "varianceLate": "{{days}} T zu spät",
+          "varianceEarly": "{{days}} T zu früh"
+        },
+        "zoom": {
+          "day": "Tag",
+          "week": "Woche",
+          "month": "Monat",
+          "quarter": "Quartal"
         }
       }
     },
