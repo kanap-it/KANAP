@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -11,6 +12,9 @@ import {
   Divider,
   IconButton,
   InputAdornment,
+  ListItemIcon,
+  ListItemText,
+  Menu,
   MenuItem,
   Select,
   Stack,
@@ -27,9 +31,15 @@ import type { SxProps, Theme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import EventIcon from '@mui/icons-material/Event';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import LinkIcon from '@mui/icons-material/Link';
+import NoteAddIcon from '@mui/icons-material/NoteAdd';
+import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
+import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
   DndContext,
   closestCenter,
@@ -60,6 +70,8 @@ import {
   getTaskStatusOptions,
 } from '../../../../utils/portfolioI18n';
 import { getDotColor, TASK_STATUS_COLORS } from '../../../../utils/statusColors';
+import { computePhaseAnomalies, type PhaseAnomaly } from '../../../../utils/phaseAnomalies';
+import { formatItemRef } from '../../../../utils/item-ref';
 import { ProjectTimeline } from '../../components/ProjectTimeline';
 
 type ProjectTimelineTabProps = {
@@ -87,16 +99,18 @@ type SortablePhaseRowProps = {
   expanded: boolean;
   onToggleExpand: () => void;
   onTaskUpdate: (taskId: string, patch: Record<string, any>) => void;
+  anomalies: PhaseAnomaly[];
+  onLinkExistingTask: () => void;
 };
 
 const PHASE_TABLE_COLUMN_COUNT = 8;
 
-// Expanded task rows mirror the phase columns: Name | Start | End | Status.
-// Left offset (chevron 64 + index 56) and right reserve (milestone 80 + actions 50)
-// align these columns under the matching phase-table columns.
+// Expanded task rows: Name | Assignee | Start | End | Status.
+// Left offset (index 56 + chevron 64) and right reserve (milestone 80 + actions 50)
+// indent these columns under the phase-table content.
 const TASK_SUBROW_GRID = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) 140px 140px 130px',
+  gridTemplateColumns: 'minmax(0, 1fr) 140px 140px 140px 130px',
   alignItems: 'center',
   columnGap: 2,
 } as const;
@@ -195,6 +209,71 @@ function TaskStatusValue({ status }: { status: string }) {
         {getTaskStatusLabel(t, status)}
       </Box>
     </Box>
+  );
+}
+
+const ANOMALY_MESSAGE_KEYS: Record<PhaseAnomaly['code'], { key: string; fallback: string }> = {
+  phase_completed_with_open_tasks: {
+    key: 'workspace.project.timeline.anomalies.completedWithOpenTasks',
+    fallback: 'Phase marked complete but some tasks are still open.',
+  },
+  phase_end_before_task_end: {
+    key: 'workspace.project.timeline.anomalies.endBeforeTaskEnd',
+    fallback: 'A linked task is due after the phase end date.',
+  },
+  phase_overdue: {
+    key: 'workspace.project.timeline.anomalies.overdue',
+    fallback: 'The phase end date has passed but it is not complete.',
+  },
+};
+
+function PhaseAnomalyIndicator({ anomalies }: { anomalies: PhaseAnomaly[] }) {
+  const { t } = useTranslation(['portfolio']);
+  if (!anomalies.length) return null;
+
+  const hasError = anomalies.some((anomaly) => anomaly.severity === 'error');
+  const Icon = hasError ? ErrorOutlineIcon : WarningAmberIcon;
+  const colorKey = hasError ? 'error.main' : 'warning.main';
+
+  return (
+    <Tooltip
+      title={(
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {anomalies.map((anomaly) => (
+            <span key={anomaly.code}>
+              {t(ANOMALY_MESSAGE_KEYS[anomaly.code].key, { defaultValue: ANOMALY_MESSAGE_KEYS[anomaly.code].fallback })}
+            </span>
+          ))}
+        </Box>
+      )}
+    >
+      <Icon sx={{ fontSize: 18, color: colorKey, flexShrink: 0 }} />
+    </Tooltip>
+  );
+}
+
+function AssigneeName({ name }: { name: string | null }) {
+  if (!name) {
+    return (
+      <Box component="span" sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>—</Box>
+    );
+  }
+  return (
+    <Tooltip title={name}>
+      <Box
+        component="span"
+        sx={(theme) => ({
+          minWidth: 0,
+          fontSize: 13,
+          color: theme.palette.kanap.text.primary,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        })}
+      >
+        {name}
+      </Box>
+    </Tooltip>
   );
 }
 
@@ -400,8 +479,10 @@ const phaseTableSx: SxProps<Theme> = (theme) => ({
   '& .MuiSelect-select': {
     display: 'flex',
     alignItems: 'center',
-    p: '0 !important',
+    // Reserve room on the right so the value text never slides under the caret.
+    padding: '0 22px 0 0 !important',
     minHeight: '20px !important',
+    overflow: 'hidden',
   },
   '& .MuiSelect-icon': {
     color: theme.palette.kanap.text.tertiary,
@@ -516,9 +597,12 @@ function SortablePhaseRow({
   expanded,
   onToggleExpand,
   onTaskUpdate,
+  anomalies,
+  onLinkExistingTask,
 }: SortablePhaseRowProps) {
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
   const locale = useLocale();
+  const [addMenuAnchor, setAddMenuAnchor] = React.useState<null | HTMLElement>(null);
   const {
     attributes,
     listeners,
@@ -540,6 +624,22 @@ function SortablePhaseRow({
   return (
     <>
       <TableRow ref={setNodeRef} style={style} className="kanap-phase-row">
+        <TableCell className="kanap-phase-index" sx={{ width: 56, px: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {canManage && (
+              <Box
+                component="span"
+                className="kanap-phase-drag-handle"
+                sx={{ display: 'inline-flex', cursor: 'grab', touchAction: 'none' }}
+                {...attributes}
+                {...listeners}
+              >
+                <DragIndicatorIcon />
+              </Box>
+            )}
+            <span>{index + 1}</span>
+          </Box>
+        </TableCell>
         <TableCell className="kanap-phase-expand" sx={{ width: 64, px: 0.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             <IconButton
@@ -582,22 +682,6 @@ function SortablePhaseRow({
                 {taskCount}
               </Box>
             )}
-          </Box>
-        </TableCell>
-        <TableCell className="kanap-phase-index" sx={{ width: 56, px: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {canManage && (
-              <Box
-                component="span"
-                className="kanap-phase-drag-handle"
-                sx={{ display: 'inline-flex', cursor: 'grab', touchAction: 'none' }}
-                {...attributes}
-                {...listeners}
-              >
-                <DragIndicatorIcon />
-              </Box>
-            )}
-            <span>{index + 1}</span>
           </Box>
         </TableCell>
       <TableCell>
@@ -674,35 +758,39 @@ function SortablePhaseRow({
         />
       </TableCell>
       <TableCell>
-        <Select
-          size="small"
-          value={phase.status || 'pending'}
-          fullWidth
-          disableUnderline
-          disabled={!canManage}
-          renderValue={(value) => <PhaseStatusValue status={String(value)} />}
-          onChange={async (event) => {
-            const nextStatus = event.target.value;
-            onSetForm((prev: any) => ({
-              ...prev,
-              phases: (prev?.phases || []).map((current: any) =>
-                current.id === phase.id ? { ...current, status: nextStatus } : current
-              ),
-            }));
-            try {
-              await api.patch(`/portfolio/projects/${projectId}/phases/${phase.id}`, { status: nextStatus });
-              await onRefetch();
-            } catch (error: any) {
-              onError(
-                getApiErrorMessage(error, t, t('workspace.project.timeline.messages.updatePhaseFailed')),
-              );
-            }
-          }}
-        >
-          <MenuItem value="pending"><PhaseStatusValue status="pending" /></MenuItem>
-          <MenuItem value="in_progress"><PhaseStatusValue status="in_progress" /></MenuItem>
-          <MenuItem value="completed"><PhaseStatusValue status="completed" /></MenuItem>
-        </Select>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Select
+            size="small"
+            value={phase.status || 'pending'}
+            fullWidth
+            disableUnderline
+            disabled={!canManage}
+            renderValue={(value) => <PhaseStatusValue status={String(value)} />}
+            onChange={async (event) => {
+              const nextStatus = event.target.value;
+              onSetForm((prev: any) => ({
+                ...prev,
+                phases: (prev?.phases || []).map((current: any) =>
+                  current.id === phase.id ? { ...current, status: nextStatus } : current
+                ),
+              }));
+              try {
+                await api.patch(`/portfolio/projects/${projectId}/phases/${phase.id}`, { status: nextStatus });
+                await onRefetch();
+              } catch (error: any) {
+                onError(
+                  getApiErrorMessage(error, t, t('workspace.project.timeline.messages.updatePhaseFailed')),
+                );
+              }
+            }}
+            sx={{ flex: 1, minWidth: 0 }}
+          >
+            <MenuItem value="pending"><PhaseStatusValue status="pending" /></MenuItem>
+            <MenuItem value="in_progress"><PhaseStatusValue status="in_progress" /></MenuItem>
+            <MenuItem value="completed"><PhaseStatusValue status="completed" /></MenuItem>
+          </Select>
+          <PhaseAnomalyIndicator anomalies={anomalies} />
+        </Box>
       </TableCell>
       <TableCell sx={{ textAlign: 'center' }}>
         <Checkbox
@@ -730,12 +818,36 @@ function SortablePhaseRow({
             size="small"
             disabled={!canManage}
             title={t('workspace.project.timeline.actions.addTaskToPhase')}
-            onClick={() => {
-              onNavigateToTask(`/portfolio/tasks/new/overview?projectId=${projectId}&phaseId=${phase.id}`);
-            }}
+            onClick={(event) => setAddMenuAnchor(event.currentTarget)}
           >
             <AddIcon fontSize="small" />
           </IconButton>
+          <Menu
+            anchorEl={addMenuAnchor}
+            open={Boolean(addMenuAnchor)}
+            onClose={() => setAddMenuAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <MenuItem
+              onClick={() => {
+                setAddMenuAnchor(null);
+                onNavigateToTask(`/portfolio/tasks/new/overview?projectId=${projectId}&phaseId=${phase.id}`);
+              }}
+            >
+              <ListItemIcon><NoteAddIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>{t('workspace.project.timeline.actions.newTaskInPhase', { defaultValue: 'New task' })}</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setAddMenuAnchor(null);
+                onLinkExistingTask();
+              }}
+            >
+              <ListItemIcon><LinkIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>{t('workspace.project.timeline.actions.linkExistingTask', { defaultValue: 'Link existing task' })}</ListItemText>
+            </MenuItem>
+          </Menu>
           <IconButton
             size="small"
             disabled={!canManage}
@@ -777,7 +889,8 @@ function SortablePhaseRow({
                       color: theme.palette.kanap.text.tertiary,
                     })}
                   >
-                    <span>{t('workspace.project.timeline.fields.name')}</span>
+                    <span />
+                    <span>{t('workspace.project.timeline.fields.assignee', { defaultValue: 'Assignee' })}</span>
                     <span>{t('workspace.project.timeline.fields.start')}</span>
                     <span>{t('workspace.project.timeline.fields.end')}</span>
                     <span>{t('workspace.project.fields.status')}</span>
@@ -793,13 +906,16 @@ function SortablePhaseRow({
                       })}
                     >
                       <Box
-                        component="span"
-                        onClick={() => onNavigateToTask(`/portfolio/tasks/${task.id}`)}
+                        component="a"
+                        href={`/portfolio/tasks/${task.item_number ? formatItemRef('task', task.item_number) : task.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         sx={(theme) => ({
                           minWidth: 0,
                           fontSize: 13,
                           color: theme.palette.kanap.text.primary,
                           cursor: 'pointer',
+                          textDecoration: 'none',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -808,6 +924,7 @@ function SortablePhaseRow({
                       >
                         {task.title}
                       </Box>
+                      <AssigneeName name={task.assignee_name || null} />
                       <CompactPhaseDateField
                         valueYmd={task.start_date || ''}
                         locale={locale}
@@ -832,7 +949,7 @@ function SortablePhaseRow({
                         sx={{
                           fontSize: 13,
                           '&:before, &:after': { display: 'none' },
-                          '& .MuiSelect-select': { p: '0 !important', minHeight: '20px !important', display: 'flex', alignItems: 'center' },
+                          '& .MuiSelect-select': { padding: '0 22px 0 0 !important', minHeight: '20px !important', display: 'flex', alignItems: 'center', overflow: 'hidden' },
                         }}
                       >
                         {getTaskStatusOptions(t).map((option) => (
@@ -868,6 +985,8 @@ export default function ProjectTimelineTab({
   const [selectedTemplateId, setSelectedTemplateId] = React.useState('');
   const [replaceConfirmOpen, setReplaceConfirmOpen] = React.useState(false);
   const [expandedPhases, setExpandedPhases] = React.useState<Set<string>>(() => new Set());
+  const [linkDialogPhase, setLinkDialogPhase] = React.useState<any | null>(null);
+  const [linkTaskValue, setLinkTaskValue] = React.useState<any | null>(null);
 
   React.useEffect(() => {
     api.get('/portfolio/phase-templates')
@@ -897,6 +1016,44 @@ export default function ProjectTimelineTab({
     return map;
   }, [projectTasks]);
 
+  const sortedPhases = React.useMemo(
+    () => [...(form?.phases || [])].sort((a: any, b: any) => a.sequence - b.sequence),
+    [form?.phases],
+  );
+
+  const todayYmd = React.useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const anomaliesByPhase = React.useMemo(() => {
+    const map = new Map<string, PhaseAnomaly[]>();
+    sortedPhases.forEach((phase: any) => {
+      map.set(phase.id, computePhaseAnomalies(phase, tasksByPhase.get(phase.id) || [], todayYmd));
+    });
+    return map;
+  }, [sortedPhases, tasksByPhase, todayYmd]);
+
+  const phaseNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (form?.phases || []).forEach((phase: any) => map.set(phase.id, phase.name));
+    return map;
+  }, [form?.phases]);
+
+  const linkTaskOptions = React.useMemo(
+    () => (projectTasks || []).filter((task: any) => task.phase_id !== linkDialogPhase?.id),
+    [projectTasks, linkDialogPhase],
+  );
+
+  const allExpanded = sortedPhases.length > 0 && sortedPhases.every((phase: any) => expandedPhases.has(phase.id));
+
+  const toggleExpandAll = React.useCallback(() => {
+    setExpandedPhases((prev) => {
+      const everyExpanded = sortedPhases.length > 0 && sortedPhases.every((phase: any) => prev.has(phase.id));
+      return everyExpanded ? new Set<string>() : new Set<string>(sortedPhases.map((phase: any) => phase.id));
+    });
+  }, [sortedPhases]);
+
   const toggleExpandPhase = React.useCallback((phaseId: string) => {
     setExpandedPhases((prev) => {
       const next = new Set(prev);
@@ -916,6 +1073,15 @@ export default function ProjectTimelineTab({
       );
     }
   }, [projectId, refetchTasks, onError, t]);
+
+  const handleConfirmLinkTask = React.useCallback(async () => {
+    if (!linkDialogPhase || !linkTaskValue) return;
+    const targetPhaseId = linkDialogPhase.id;
+    await handleTaskUpdate(linkTaskValue.id, { phase_id: targetPhaseId });
+    setExpandedPhases((prev) => new Set(prev).add(targetPhaseId));
+    setLinkDialogPhase(null);
+    setLinkTaskValue(null);
+  }, [linkDialogPhase, linkTaskValue, handleTaskUpdate]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1060,8 +1226,25 @@ export default function ProjectTimelineTab({
                 <Table className="kanap-phases-table" size="small" sx={phaseTableSx}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ width: 64 }} />
                       <TableCell sx={{ width: 56 }}>#</TableCell>
+                      <TableCell sx={{ width: 64, px: 0.5 }}>
+                        <Tooltip
+                          title={allExpanded
+                            ? t('workspace.project.timeline.actions.collapseAll', { defaultValue: 'Collapse all' })
+                            : t('workspace.project.timeline.actions.expandAll', { defaultValue: 'Expand all' })}
+                        >
+                          <IconButton
+                            size="small"
+                            aria-label={allExpanded
+                              ? t('workspace.project.timeline.actions.collapseAll', { defaultValue: 'Collapse all' })
+                              : t('workspace.project.timeline.actions.expandAll', { defaultValue: 'Expand all' })}
+                            onClick={toggleExpandAll}
+                            sx={{ p: '2px' }}
+                          >
+                            {allExpanded ? <UnfoldLessIcon sx={{ fontSize: 18 }} /> : <UnfoldMoreIcon sx={{ fontSize: 18 }} />}
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
                       <TableCell>{t('workspace.project.timeline.fields.name')}</TableCell>
                       <TableCell sx={{ width: 140 }}>{t('workspace.project.timeline.fields.start')}</TableCell>
                       <TableCell sx={{ width: 140 }}>{t('workspace.project.timeline.fields.end')}</TableCell>
@@ -1073,11 +1256,11 @@ export default function ProjectTimelineTab({
                     </TableRow>
                   </TableHead>
                   <SortableContext
-                    items={(form?.phases || []).sort((a: any, b: any) => a.sequence - b.sequence).map((phase: any) => phase.id)}
+                    items={sortedPhases.map((phase: any) => phase.id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <TableBody>
-                      {(form?.phases || []).sort((a: any, b: any) => a.sequence - b.sequence).map((phase: any, index: number) => (
+                      {sortedPhases.map((phase: any, index: number) => (
                         <SortablePhaseRow
                           key={phase.id}
                           canManage={canManage}
@@ -1093,6 +1276,8 @@ export default function ProjectTimelineTab({
                           expanded={expandedPhases.has(phase.id)}
                           onToggleExpand={() => toggleExpandPhase(phase.id)}
                           onTaskUpdate={handleTaskUpdate}
+                          anomalies={anomaliesByPhase.get(phase.id) || []}
+                          onLinkExistingTask={() => { setLinkTaskValue(null); setLinkDialogPhase(phase); }}
                         />
                       ))}
                     </TableBody>
@@ -1138,9 +1323,9 @@ export default function ProjectTimelineTab({
           <Table size="small" sx={milestoneTableSx}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: '40%' }}>{t('workspace.project.timeline.fields.name')}</TableCell>
-                <TableCell sx={{ width: '34%' }}>{t('workspace.project.fields.phase')}</TableCell>
-                <TableCell sx={{ width: 140 }}>{t('workspace.project.timeline.fields.targetDate')}</TableCell>
+                <TableCell sx={{ width: '32%' }}>{t('workspace.project.timeline.fields.name')}</TableCell>
+                <TableCell sx={{ width: '26%' }}>{t('workspace.project.fields.phase')}</TableCell>
+                <TableCell sx={{ width: 168 }}>{t('workspace.project.timeline.fields.targetDate')}</TableCell>
                 <TableCell sx={{ width: 130 }}>{t('workspace.project.fields.status')}</TableCell>
                 <TableCell sx={{ width: 50 }} />
               </TableRow>
@@ -1188,6 +1373,13 @@ export default function ProjectTimelineTab({
                       <DateEUField
                         valueYmd={milestone.target_date || ''}
                         label=""
+                        sx={{ minWidth: 150 }}
+                        textFieldSx={{
+                          '& .MuiInputBase-input': { minWidth: 78 },
+                          '& .MuiInputAdornment-root': { ml: 0 },
+                          '& .MuiButtonBase-root': { p: '2px' },
+                          '& .MuiButtonBase-root .MuiSvgIcon-root': { fontSize: 16 },
+                        }}
                         disabled={!canManage || !!linkedPhase}
                         onChangeYmd={async (value) => {
                           onSetForm((prev: any) => ({
@@ -1411,6 +1603,74 @@ export default function ProjectTimelineTab({
             }}
           >
             {t('workspace.project.timeline.actions.replaceAll')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(linkDialogPhase)}
+        onClose={() => setLinkDialogPhase(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {t('workspace.project.timeline.dialogs.linkTask.title', { defaultValue: 'Link an existing task' })}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {t('workspace.project.timeline.dialogs.linkTask.description', {
+              phase: linkDialogPhase?.name || '',
+              defaultValue: 'Attach an existing project task to phase "{{phase}}".',
+            })}
+          </DialogContentText>
+          <Autocomplete
+            options={linkTaskOptions}
+            value={linkTaskValue}
+            onChange={(_, value) => setLinkTaskValue(value)}
+            getOptionLabel={(option) => option?.title || ''}
+            isOptionEqualToValue={(option, value) => option.id === value?.id}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props as any;
+              return (
+              <Box
+                component="li"
+                key={key ?? option.id}
+                {...optionProps}
+                sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start !important', gap: '2px' }}
+              >
+                <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary })}>{option.title}</Box>
+                <Box sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>
+                  {option.phase_id
+                    ? t('workspace.project.timeline.dialogs.linkTask.currentPhase', {
+                      phase: phaseNameById.get(option.phase_id) || '—',
+                      defaultValue: 'Phase: {{phase}}',
+                    })
+                    : t('workspace.project.timeline.dialogs.linkTask.noPhase', { defaultValue: 'No phase' })}
+                </Box>
+              </Box>
+              );
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                autoFocus
+                placeholder={t('workspace.project.timeline.dialogs.linkTask.placeholder', { defaultValue: 'Search tasks' })}
+              />
+            )}
+            noOptionsText={t('workspace.project.timeline.dialogs.linkTask.empty', { defaultValue: 'No tasks available' })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLinkDialogPhase(null)}>
+            {t('common:buttons.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!linkTaskValue}
+            onClick={handleConfirmLinkTask}
+          >
+            {t('workspace.project.timeline.actions.link', { defaultValue: 'Link' })}
           </Button>
         </DialogActions>
       </Dialog>

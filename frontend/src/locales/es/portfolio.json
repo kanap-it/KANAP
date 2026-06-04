@@ -383,7 +383,14 @@
           "replaceWithTemplate": "Reemplazar por plantilla",
           "showMilestones": "Mostrar hitos",
           "expandPhase": "Mostrar tareas",
-          "collapsePhase": "Ocultar tareas"
+          "collapsePhase": "Ocultar tareas",
+          "newTaskInPhase": "Nueva tarea",
+          "linkExistingTask": "Vincular tarea existente",
+          "expandAll": "Expandir todo",
+          "collapseAll": "Contraer todo",
+          "exportPng": "Exportar como imagen",
+          "fullscreen": "Pantalla completa",
+          "link": "Vincular"
         },
         "defaults": {
           "newMilestone": "Nuevo hito",
@@ -394,6 +401,14 @@
           "replaceAll": {
             "description": "Esto eliminará todas las fases e hitos existentes y luego aplicará la plantilla seleccionada.",
             "title": "¿Reemplazar todas las fases?"
+          },
+          "linkTask": {
+            "title": "Vincular una tarea existente",
+            "description": "Adjuntar una tarea existente del proyecto a la fase «{{phase}}».",
+            "currentPhase": "Fase: {{phase}}",
+            "noPhase": "Sin fase",
+            "placeholder": "Buscar tareas",
+            "empty": "No hay tareas disponibles"
           }
         },
         "fields": {
@@ -405,7 +420,8 @@
           "milestone": "Hito",
           "name": "Nombre",
           "start": "Inicio",
-          "targetDate": "Fecha objetivo"
+          "targetDate": "Fecha objetivo",
+          "assignee": "Asignado"
         },
         "messages": {
           "addMilestoneFailed": "Error al agregar el hito",
@@ -419,7 +435,8 @@
           "unlinkPhaseMilestoneFirst": "Desmarque el hito de fase para poder eliminarlo",
           "updateMilestoneFailed": "Error al actualizar el hito",
           "updatePhaseFailed": "Error al actualizar la fase",
-          "updateTaskFailed": "Error al actualizar la tarea"
+          "updateTaskFailed": "Error al actualizar la tarea",
+          "exportFailed": "Error al exportar el diagrama."
         },
         "sections": {
           "applyPhaseTemplate": "Aplicar plantilla de fase",
@@ -463,6 +480,11 @@
           "week": "Semana",
           "month": "Mes",
           "quarter": "Trimestre"
+        },
+        "anomalies": {
+          "completedWithOpenTasks": "Fase marcada como completada, pero algunas tareas siguen abiertas.",
+          "endBeforeTaskEnd": "Una tarea vinculada vence después de la fecha de fin de la fase.",
+          "overdue": "La fecha de fin de la fase ha pasado pero no está completada."
         }
       }
     },

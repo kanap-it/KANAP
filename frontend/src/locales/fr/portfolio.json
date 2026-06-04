@@ -383,7 +383,14 @@
           "replaceWithTemplate": "Remplacer par un modèle",
           "showMilestones": "Afficher les jalons",
           "expandPhase": "Afficher les tâches",
-          "collapsePhase": "Masquer les tâches"
+          "collapsePhase": "Masquer les tâches",
+          "newTaskInPhase": "Nouvelle tâche",
+          "linkExistingTask": "Lier une tâche existante",
+          "expandAll": "Tout développer",
+          "collapseAll": "Tout réduire",
+          "exportPng": "Exporter en image",
+          "fullscreen": "Plein écran",
+          "link": "Lier"
         },
         "defaults": {
           "newMilestone": "Nouveau jalon",
@@ -394,6 +401,14 @@
           "replaceAll": {
             "description": "Cela supprimera toutes les phases et jalons existants, puis appliquera le modèle sélectionné.",
             "title": "Remplacer toutes les phases ?"
+          },
+          "linkTask": {
+            "title": "Lier une tâche existante",
+            "description": "Rattacher une tâche existante du projet à la phase « {{phase}} ».",
+            "currentPhase": "Phase : {{phase}}",
+            "noPhase": "Sans phase",
+            "placeholder": "Rechercher des tâches",
+            "empty": "Aucune tâche disponible"
           }
         },
         "fields": {
@@ -405,7 +420,8 @@
           "milestone": "Jalon",
           "name": "Nom",
           "start": "Début",
-          "targetDate": "Date cible"
+          "targetDate": "Date cible",
+          "assignee": "Assigné"
         },
         "messages": {
           "addMilestoneFailed": "Échec de l'ajout du jalon",
@@ -419,7 +435,8 @@
           "unlinkPhaseMilestoneFirst": "Décochez le jalon de phase pour pouvoir le supprimer",
           "updateMilestoneFailed": "Échec de la mise à jour du jalon",
           "updatePhaseFailed": "Échec de la mise à jour de la phase",
-          "updateTaskFailed": "Échec de la mise à jour de la tâche"
+          "updateTaskFailed": "Échec de la mise à jour de la tâche",
+          "exportFailed": "Échec de l'export du diagramme."
         },
         "sections": {
           "applyPhaseTemplate": "Appliquer un modèle de phase",
@@ -463,6 +480,11 @@
           "week": "Semaine",
           "month": "Mois",
           "quarter": "Trimestre"
+        },
+        "anomalies": {
+          "completedWithOpenTasks": "Phase marquée terminée alors que certaines tâches sont encore ouvertes.",
+          "endBeforeTaskEnd": "Une tâche liée a une échéance postérieure à la date de fin de la phase.",
+          "overdue": "La date de fin de la phase est dépassée mais elle n'est pas terminée."
         }
       }
     },

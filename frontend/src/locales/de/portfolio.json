@@ -383,7 +383,14 @@
           "replaceWithTemplate": "Durch Vorlage ersetzen",
           "showMilestones": "Meilensteine anzeigen",
           "expandPhase": "Aufgaben anzeigen",
-          "collapsePhase": "Aufgaben ausblenden"
+          "collapsePhase": "Aufgaben ausblenden",
+          "newTaskInPhase": "Neue Aufgabe",
+          "linkExistingTask": "Vorhandene Aufgabe verknüpfen",
+          "expandAll": "Alle aufklappen",
+          "collapseAll": "Alle einklappen",
+          "exportPng": "Als Bild exportieren",
+          "fullscreen": "Vollbild",
+          "link": "Verknüpfen"
         },
         "defaults": {
           "newMilestone": "Neuer Meilenstein",
@@ -394,6 +401,14 @@
           "replaceAll": {
             "description": "Dies löscht alle bestehenden Phasen und Meilensteine und wendet dann die ausgewählte Vorlage an.",
             "title": "Alle Phasen ersetzen?"
+          },
+          "linkTask": {
+            "title": "Vorhandene Aufgabe verknüpfen",
+            "description": "Eine vorhandene Projektaufgabe der Phase „{{phase}}“ zuordnen.",
+            "currentPhase": "Phase: {{phase}}",
+            "noPhase": "Keine Phase",
+            "placeholder": "Aufgaben suchen",
+            "empty": "Keine Aufgaben verfügbar"
           }
         },
         "fields": {
@@ -405,7 +420,8 @@
           "milestone": "Meilenstein",
           "name": "Name",
           "start": "Start",
-          "targetDate": "Zieldatum"
+          "targetDate": "Zieldatum",
+          "assignee": "Zugewiesen"
         },
         "messages": {
           "addMilestoneFailed": "Meilenstein konnte nicht hinzugefügt werden",
@@ -419,7 +435,8 @@
           "unlinkPhaseMilestoneFirst": "Deaktivieren Sie den Phasen-Meilenstein, um ihn zu löschen",
           "updateMilestoneFailed": "Meilenstein konnte nicht aktualisiert werden",
           "updatePhaseFailed": "Phase konnte nicht aktualisiert werden",
-          "updateTaskFailed": "Aufgabe konnte nicht aktualisiert werden"
+          "updateTaskFailed": "Aufgabe konnte nicht aktualisiert werden",
+          "exportFailed": "Export des Diagramms fehlgeschlagen."
         },
         "sections": {
           "applyPhaseTemplate": "Phasenvorlage anwenden",
@@ -463,6 +480,11 @@
           "week": "Woche",
           "month": "Monat",
           "quarter": "Quartal"
+        },
+        "anomalies": {
+          "completedWithOpenTasks": "Phase als abgeschlossen markiert, obwohl einige Aufgaben noch offen sind.",
+          "endBeforeTaskEnd": "Eine verknüpfte Aufgabe ist nach dem Enddatum der Phase fällig.",
+          "overdue": "Das Enddatum der Phase ist überschritten, sie ist aber nicht abgeschlossen."
         }
       }
     },
