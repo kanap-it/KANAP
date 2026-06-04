@@ -75,6 +75,9 @@ type ApiConnectionMapConnection = {
   contains_pii: boolean;
   protocol_codes: string[];
   protocol_labels: string[];
+  // Connection-level per-protocol port overrides (code -> port). Absent codes
+  // fall back to the protocol's typical port.
+  protocol_port_overrides?: Record<string, string>;
   source_asset_id: string | null;
   source_entity_code: string | null;
   destination_asset_id: string | null;
@@ -181,12 +184,17 @@ function buildLinks(
   showLayers: boolean,
   typicalPortsByCode: Map<string, string>,
 ): ConnectionMapLink[] {
-  const computeTypicalPorts = (codes: string[] | undefined | null, override?: string | null): string | undefined => {
+  const computeTypicalPorts = (
+    codes: string[] | undefined | null,
+    override?: string | null,
+    overridesByCode?: Record<string, string> | null,
+  ): string | undefined => {
     const overrideVal = (override || '').trim();
     if (overrideVal) return overrideVal;
     const ports: string[] = [];
     (codes || []).forEach((code) => {
-      const port = typicalPortsByCode.get(code);
+      const perCode = (overridesByCode?.[code] || '').trim();
+      const port = perCode || typicalPortsByCode.get(code);
       if (port) ports.push(port);
     });
     if (ports.length === 0) return undefined;
@@ -209,7 +217,7 @@ function buildLinks(
       connectionReference: conn.connection_reference,
       name: conn.name,
       purpose: conn.purpose,
-      typicalPorts: computeTypicalPorts(conn.protocol_codes),
+      typicalPorts: computeTypicalPorts(conn.protocol_codes, null, conn.protocol_port_overrides),
       lifecycle: conn.lifecycle,
       criticality: conn.criticality,
       dataClass: conn.data_class,
@@ -255,7 +263,11 @@ function buildLinks(
         const segmentLabels = upstream?.protocol_labels && upstream.protocol_labels.length > 0
           ? upstream.protocol_labels
           : segmentCodes;
-        const segmentPorts = computeTypicalPorts(segmentCodes, upstream?.port_override || null);
+        const segmentPorts = computeTypicalPorts(
+          segmentCodes,
+          upstream?.port_override || null,
+          conn.protocol_port_overrides,
+        );
         const linkSuffix = upstream ? `hop-${upstream.id}` : 'origin';
         links.push({
           ...base,
@@ -282,7 +294,7 @@ function buildLinks(
           id: conn.id,
           source,
           target,
-          typicalPorts: computeTypicalPorts(conn.protocol_codes),
+          typicalPorts: computeTypicalPorts(conn.protocol_codes, null, conn.protocol_port_overrides),
         });
       }
       return;
@@ -300,7 +312,7 @@ function buildLinks(
           source,
           target,
           topology: 'multi_server',
-          typicalPorts: computeTypicalPorts(conn.protocol_codes),
+          typicalPorts: computeTypicalPorts(conn.protocol_codes, null, conn.protocol_port_overrides),
         });
       }
     }

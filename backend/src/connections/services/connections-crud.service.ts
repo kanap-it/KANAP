@@ -39,9 +39,10 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
 
     const mg = opts?.manager ?? repo.manager;
     const includeLegs = !!opts?.includeLegs;
-    const protocols: Array<{ connection_type_code: string }> = await this.getConnProtocolRepo(mg).find({
-      where: { connection_id: resolvedId },
-    });
+    const protocols: Array<{ connection_type_code: string; port_override: string | null }> =
+      await this.getConnProtocolRepo(mg).find({
+        where: { connection_id: resolvedId },
+      });
     const servers = await this.getConnServerRepo(mg).find({ where: { connection_id: resolvedId } });
     const legs = includeLegs
       ? await this.getLegRepo(mg).find({
@@ -90,6 +91,10 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
       effective_contains_pii: effective?.effective_contains_pii ?? conn.contains_pii,
       derived_interface_count: effective?.derived_interface_count ?? 0,
       protocol_codes: protocols.map((p) => p.connection_type_code),
+      protocols: protocols.map((p) => ({
+        code: p.connection_type_code,
+        port_override: p.port_override ?? null,
+      })),
       servers: servers.map((row) => {
         const a = assetMap.get(row.asset_id);
         return a
@@ -149,7 +154,7 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     const description = this.normalizeNullable(body.description);
     const topology = body.topology ? this.normalizeTopology(body.topology) : 'server_to_server';
     const lifecycle = await this.normalizeLifecycle(body.lifecycle, tenant, mg, 'active');
-    const protocolCodes = await this.normalizeProtocolCodes(body.protocol_codes ?? body.protocols, tenant, mg);
+    const protocols = await this.normalizeProtocols(body.protocols ?? body.protocol_codes, tenant, mg);
     const criticality = this.normalizeCriticality(body.criticality);
     const data_class = await this.normalizeDataClass(body.data_class, tenant, mg);
     const contains_pii = this.normalizeContainsPii(body.contains_pii);
@@ -226,11 +231,12 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     const saved = await repo.save(entity);
 
     const protoRepo = this.getConnProtocolRepo(mg);
-    for (const code of protocolCodes) {
+    for (const proto of protocols) {
       const cp = protoRepo.create({
         tenant_id: tenant,
         connection_id: saved.id,
-        connection_type_code: code,
+        connection_type_code: proto.code,
+        port_override: proto.port_override,
       });
       await protoRepo.save(cp);
     }
@@ -305,10 +311,28 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     // Load existing protocols to compute next set
     const protoRepo = this.getConnProtocolRepo(mg);
     const existingProtocols = await protoRepo.find({ where: { connection_id: id } });
-    const nextProtocolCodes = body.hasOwnProperty('protocol_codes') || body.hasOwnProperty('protocols')
-      ? await this.normalizeProtocolCodes(body.protocol_codes ?? body.protocols, tenant, mg)
-      : existingProtocols.map((p) => p.connection_type_code);
-    if (nextProtocolCodes.length === 0) {
+    const existingPortByCode = new Map(
+      existingProtocols.map((p) => [p.connection_type_code, p.port_override ?? null]),
+    );
+    let nextProtocols: Array<{ code: string; port_override: string | null }>;
+    if (body.hasOwnProperty('protocols')) {
+      // Rich form: explicit per-protocol port overrides from the Overview tab.
+      nextProtocols = await this.normalizeProtocols(body.protocols, tenant, mg);
+    } else if (body.hasOwnProperty('protocol_codes')) {
+      // Legacy code-only form (metadata bar add/remove): preserve existing
+      // per-protocol overrides for codes that survive the change.
+      const codes = await this.normalizeProtocolCodes(body.protocol_codes, tenant, mg);
+      nextProtocols = codes.map((code) => ({
+        code,
+        port_override: existingPortByCode.get(code) ?? null,
+      }));
+    } else {
+      nextProtocols = existingProtocols.map((p) => ({
+        code: p.connection_type_code,
+        port_override: p.port_override ?? null,
+      }));
+    }
+    if (nextProtocols.length === 0) {
       throw new BadRequestException('At least one protocol is required');
     }
 
@@ -411,11 +435,12 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
 
     // Replace protocols
     await protoRepo.delete({ connection_id: id } as any);
-    for (const code of nextProtocolCodes) {
+    for (const proto of nextProtocols) {
       const cp = protoRepo.create({
         tenant_id: tenant,
         connection_id: id,
-        connection_type_code: code,
+        connection_type_code: proto.code,
+        port_override: proto.port_override,
       });
       await protoRepo.save(cp);
     }

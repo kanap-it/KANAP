@@ -18,6 +18,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import api from '../../../api';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import ConnectionHopEquipmentPicker from './ConnectionHopEquipmentPicker';
+import ConnectionProtocolsTable, { type ConnectionProtocol } from './ConnectionProtocolsTable';
 import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +39,8 @@ type Props = {
   hops: ConnectionPathHop[];
   canManage: boolean;
   defaultProtocolCodes?: string[];
+  /** Connection-level protocols + ports (defined in Overview), shown read-only at the destination. */
+  protocols?: ConnectionProtocol[];
   assetMap?: Record<string, { name: string; reference?: string | null }>;
   /** Read-only echo of the connection's source/destination for context. */
   sourceLabel: string;
@@ -53,6 +56,7 @@ export default function ConnectionPathSection({
   hops,
   canManage,
   defaultProtocolCodes = [],
+  protocols = [],
   assetMap = {},
   sourceLabel,
   destinationLabel,
@@ -62,6 +66,31 @@ export default function ConnectionPathSection({
   const { settings } = useItOpsEnumOptions();
   const connectionTypes = settings?.connectionTypes || [];
   const pathHopFunctions = (settings as any)?.pathHopFunctions || [];
+
+  // Map of protocol code -> typical ports string (e.g. "443", "80, 443"), used
+  // to surface the suggested port for a hop and to seed an empty port override
+  // when a protocol is picked (mirrors the connection-level Overview behavior).
+  const protocolPortMap = React.useMemo(
+    () =>
+      new Map<string, string>(
+        connectionTypes.map((ct: any) => [
+          String(ct.code || '').trim().toLowerCase(),
+          String(ct.typicalPorts || ct.typical_ports || '').trim(),
+        ]),
+      ),
+    [connectionTypes],
+  );
+
+  const suggestedPortFor = React.useCallback(
+    (hop: ConnectionPathHop): string => {
+      const codes = hop.protocol_codes && hop.protocol_codes.length > 0 ? hop.protocol_codes : defaultProtocolCodes;
+      const tokens = (codes || [])
+        .flatMap((c) => (protocolPortMap.get(c) || '').split(',').map((s) => s.trim()))
+        .filter(Boolean);
+      return Array.from(new Set(tokens)).join(', ');
+    },
+    [protocolPortMap, defaultProtocolCodes],
+  );
 
   const [error, setError] = React.useState<string | null>(null);
   const [protocolsAnchor, setProtocolsAnchor] = React.useState<{ hopId: string; anchor: HTMLElement } | null>(null);
@@ -399,7 +428,7 @@ export default function ConnectionPathSection({
                         updateLocal(hop.id, { port_override: next });
                         debouncedPatch(hop.id, { port_override: next });
                       }}
-                      placeholder="e.g., 8443"
+                      placeholder={suggestedPortFor(hop) || 'e.g., 8443'}
                       InputProps={{ disableUnderline: true }}
                       sx={{ '& input': { fontSize: 13, padding: '2px 0' } }}
                     />
@@ -429,6 +458,15 @@ export default function ConnectionPathSection({
         })}
         {sortedHops.length > 0 && renderConnector(connectorAfterDestination())}
         {renderEndpointCard('Destination', destinationLabel)}
+
+        {protocols.length > 0 && (
+          <Box sx={{ mt: 1.25, pl: 1.5 }}>
+            <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mb: 0.25 }}>
+              Destination service ports — defined in Overview
+            </Typography>
+            <ConnectionProtocolsTable protocols={protocols} />
+          </Box>
+        )}
 
         {canManage && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
@@ -475,9 +513,17 @@ export default function ConnectionPathSection({
                 onClick={() => {
                   if (!hop || !protocolsAnchor) return;
                   const cur = hop.protocol_codes || [];
-                  const next = isChecked ? cur.filter((c) => c !== ct.code) : [...cur, ct.code];
-                  updateLocal(hop.id, { protocol_codes: next });
-                  void callPatch(hop.id, { protocol_codes: next });
+                  const adding = !isChecked;
+                  const next = adding ? [...cur, ct.code] : cur.filter((c) => c !== ct.code);
+                  const patch: Partial<ConnectionPathHop> = { protocol_codes: next };
+                  // Seed the suggested port when picking a protocol into an empty
+                  // override, so the default is visible and editable.
+                  if (adding && !(hop.port_override || '').trim()) {
+                    const seed = (protocolPortMap.get(ct.code) || '').trim();
+                    if (seed) patch.port_override = seed;
+                  }
+                  updateLocal(hop.id, patch);
+                  void callPatch(hop.id, patch);
                 }}
               >
                 <Checkbox size="small" checked={isChecked} sx={{ p: 0.5, mr: 1 }} />

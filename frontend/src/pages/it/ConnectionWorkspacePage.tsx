@@ -14,7 +14,7 @@ import { PropertyGroup, PropertyRow } from '../../components/design/PropertyRow'
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import ConnectionMetadataBar from './workspace/ConnectionMetadataBar';
 import ConnectionPropertiesDrawer from './workspace/ConnectionPropertiesDrawer';
-import ConnectionOverviewTab from './workspace/ConnectionOverviewTab';
+import ConnectionOverviewTab, { type ConnectionProtocol } from './workspace/ConnectionOverviewTab';
 import ConnectionPathTab from './workspace/ConnectionPathTab';
 import ConnectionEndpointPicker, { type EndpointValue } from './workspace/ConnectionEndpointPicker';
 import { useConnectionItemNav } from '../../hooks/useModuleItemNav';
@@ -82,6 +82,7 @@ type ConnectionDetail = {
   destination_server: AssetSummary | null;
   servers: AssetSummary[];
   protocol_codes: string[];
+  protocols: ConnectionProtocol[];
   lifecycle: string;
   criticality: string;
   data_class: string;
@@ -447,6 +448,14 @@ export default function ConnectionWorkspacePage() {
     (next: string[]) => {
       if (next.length === 0) return;
       void patchConnection({ protocol_codes: next });
+    },
+    [patchConnection],
+  );
+
+  const handleProtocolsRichChange = React.useCallback(
+    (next: ConnectionProtocol[]) => {
+      if (next.length === 0) return;
+      void patchConnection({ protocols: next, protocol_codes: next.map((p) => p.code) });
     },
     [patchConnection],
   );
@@ -992,6 +1001,9 @@ export default function ConnectionWorkspacePage() {
             hops={legs}
             canManage={canManage}
             defaultProtocolCodes={data.protocol_codes || []}
+            protocols={
+              data.protocols ?? (data.protocol_codes || []).map((code) => ({ code, port_override: null }))
+            }
             assetMap={Object.fromEntries(
               Object.entries(assetMap).map(([id, a]) => [id, { name: a.name, reference: a.asset_reference || null }]),
             )}
@@ -1019,7 +1031,9 @@ export default function ConnectionWorkspacePage() {
             destination={{ asset_id: data.destination_asset_id, entity_code: data.destination_entity_code }}
             multiServerIds={(data.servers || []).map((s) => s.id)}
             assetMap={assetMap}
-            protocolCodes={data.protocol_codes || []}
+            protocols={
+              data.protocols ?? (data.protocol_codes || []).map((code) => ({ code, port_override: null }))
+            }
             riskMode={data.risk_mode}
             linkedInterfaces={linkedInterfaces}
             linkedInterfacesLoading={linkedInterfacesLoading}
@@ -1028,7 +1042,7 @@ export default function ConnectionWorkspacePage() {
             onDescriptionSaved={(next) => setData((prev) => prev ? { ...prev, description: next } : prev)}
             onEndpointChange={handleEndpointChange}
             onMultiServerChange={handleMultiServerChange}
-            onProtocolCodesChange={handleProtocolsChange}
+            onProtocolsChange={handleProtocolsRichChange}
             onLinkedInterfacesChanged={handleLinkedInterfacesChanged}
           />
         )}

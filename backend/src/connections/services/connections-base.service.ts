@@ -256,6 +256,48 @@ export abstract class ConnectionsBaseService {
   }
 
   /**
+   * Normalize connection-level protocols with their optional per-protocol port
+   * override. Accepts either the rich form (`[{ code, port_override }]`) or the
+   * legacy code-only form (`['https', 'ssh']`, override defaults to null).
+   * Deduplicates by code (last occurrence wins for the override) and validates
+   * each code against the tenant's configured connection types.
+   */
+  protected async normalizeProtocols(
+    input: unknown,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<Array<{ code: string; port_override: string | null }>> {
+    const arr = Array.isArray(input) ? input : [];
+    const byCode = new Map<string, string | null>();
+    for (const item of arr) {
+      let code: string;
+      let portOverride: string | null;
+      if (item && typeof item === 'object') {
+        code = String((item as any).code ?? (item as any).connection_type_code ?? '')
+          .trim()
+          .toLowerCase();
+        portOverride = this.normalizeNullable((item as any).port_override);
+      } else {
+        code = String(item ?? '').trim().toLowerCase();
+        portOverride = null;
+      }
+      if (!code) continue;
+      byCode.set(code, portOverride);
+    }
+    if (byCode.size === 0) {
+      throw new BadRequestException('At least one protocol is required');
+    }
+    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const allowed = new Set((settings.connectionTypes || []).map((o) => o.code));
+    for (const code of byCode.keys()) {
+      if (!allowed.has(code)) {
+        throw new BadRequestException(`Invalid protocol "${code}"`);
+      }
+    }
+    return Array.from(byCode.entries()).map(([code, port_override]) => ({ code, port_override }));
+  }
+
+  /**
    * Validate a hop's network function code against the tenant's configured
    * path-hop functions. Accepts null (unclassified hop).
    */
