@@ -14,4 +14,7 @@ export class ConnectionProtocol {
 
   @Column('text')
   connection_type_code!: string;
+
+  @Column('text', { nullable: true })
+  port_override!: string | null;
 }

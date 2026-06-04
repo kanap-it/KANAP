@@ -71,10 +71,33 @@ export class PortfolioProjectTasksController {
   @Get()
   async listTasks(@Param('projectId') projectIdOrRef: string, @Req() req: any) {
     const projectId = await this.resolveProjectForAccess(projectIdOrRef, req, 'reader');
-    return this.tasksSvc.listForTarget(
+    const tasks = await this.tasksSvc.listForTarget(
       { type: 'project', id: projectId },
       { manager: req?.queryRunner?.manager },
     );
+    return this.enrichAssigneeNames(tasks, req?.queryRunner?.manager);
+  }
+
+  // Attach a display name for each task's assignee so the timeline can render it
+  // without an extra round-trip. Batched by user id (no N+1) and tenant-scoped.
+  private async enrichAssigneeNames(tasks: any[], manager: any) {
+    const ids = [...new Set((tasks || []).map((task) => task.assignee_user_id).filter(Boolean))];
+    if (ids.length === 0) {
+      return (tasks || []).map((task) => ({ ...task, assignee_name: null }));
+    }
+    const rows = await manager.query(
+      `SELECT id,
+              COALESCE(NULLIF(TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))), ''), email) AS assignee_name
+       FROM users
+       WHERE tenant_id = app_current_tenant()
+         AND id = ANY($1)`,
+      [ids],
+    );
+    const nameById = new Map((rows as Array<{ id: string; assignee_name: string }>).map((row) => [row.id, row.assignee_name]));
+    return (tasks || []).map((task) => ({
+      ...task,
+      assignee_name: task.assignee_user_id ? nameById.get(task.assignee_user_id) ?? null : null,
+    }));
   }
 
   @UseGuards(PermissionGuard)

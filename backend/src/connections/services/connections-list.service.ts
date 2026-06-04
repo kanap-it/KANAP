@@ -573,6 +573,12 @@ export class ConnectionsListService extends ConnectionsBaseService {
       `SELECT
          c.*,
          ARRAY_REMOVE(ARRAY_AGG(DISTINCT cp.connection_type_code), NULL) AS protocol_codes,
+         COALESCE(
+           (SELECT JSONB_OBJECT_AGG(cp2.connection_type_code, cp2.port_override)
+            FROM connection_protocols cp2
+            WHERE cp2.connection_id = c.id AND cp2.port_override IS NOT NULL),
+           '{}'::jsonb
+         ) AS protocol_port_overrides,
          ARRAY_REMOVE(ARRAY_AGG(DISTINCT cs.asset_id), NULL) AS asset_ids
        FROM connections c
        LEFT JOIN connection_protocols cp ON cp.connection_id = c.id
@@ -803,6 +809,14 @@ export class ConnectionsListService extends ConnectionsBaseService {
         ? (row.protocol_codes as any[]).map((c) => String(c || '').trim().toLowerCase()).filter(Boolean)
         : [];
       const protocol_labels = protocol_codes.map((c) => protocolLabelMap.get(c) || c);
+      const protocol_port_overrides: Record<string, string> =
+        row.protocol_port_overrides && typeof row.protocol_port_overrides === 'object'
+          ? Object.fromEntries(
+              Object.entries(row.protocol_port_overrides as Record<string, any>)
+                .filter(([, v]) => v != null && String(v).trim().length > 0)
+                .map(([k, v]) => [String(k).trim().toLowerCase(), String(v).trim()]),
+            )
+          : {};
       const asset_ids_arr: string[] = Array.isArray(row.asset_ids)
         ? Array.from(new Set((row.asset_ids as any[]).map((aid) => String(aid || '')).filter(Boolean)))
         : [];
@@ -838,6 +852,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
         description: row.description,
         protocol_codes,
         protocol_labels,
+        protocol_port_overrides,
         source_asset_id: row.source_asset_id,
         source_entity_code: row.source_entity_code,
         destination_asset_id: row.destination_asset_id,

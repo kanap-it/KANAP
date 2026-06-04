@@ -383,7 +383,14 @@
           "replaceWithTemplate": "Replace with Template",
           "showMilestones": "Show milestones",
           "expandPhase": "Show tasks",
-          "collapsePhase": "Hide tasks"
+          "collapsePhase": "Hide tasks",
+          "newTaskInPhase": "New task",
+          "linkExistingTask": "Link existing task",
+          "expandAll": "Expand all",
+          "collapseAll": "Collapse all",
+          "exportPng": "Export as image",
+          "fullscreen": "Fullscreen",
+          "link": "Link"
         },
         "defaults": {
           "newMilestone": "New Milestone",
@@ -394,6 +401,14 @@
           "replaceAll": {
             "description": "This will delete all existing phases and milestones, then apply the selected template.",
             "title": "Replace All Phases?"
+          },
+          "linkTask": {
+            "title": "Link an existing task",
+            "description": "Attach an existing project task to phase \"{{phase}}\".",
+            "currentPhase": "Phase: {{phase}}",
+            "noPhase": "No phase",
+            "placeholder": "Search tasks",
+            "empty": "No tasks available"
           }
         },
         "fields": {
@@ -405,7 +420,8 @@
           "milestone": "Milestone",
           "name": "Name",
           "start": "Start",
-          "targetDate": "Target Date"
+          "targetDate": "Target Date",
+          "assignee": "Assignee"
         },
         "messages": {
           "addMilestoneFailed": "Failed to add milestone",
@@ -419,7 +435,8 @@
           "unlinkPhaseMilestoneFirst": "Uncheck phase milestone to delete",
           "updateMilestoneFailed": "Failed to update milestone",
           "updatePhaseFailed": "Failed to update phase",
-          "updateTaskFailed": "Failed to update task"
+          "updateTaskFailed": "Failed to update task",
+          "exportFailed": "Failed to export the chart."
         },
         "sections": {
           "applyPhaseTemplate": "Apply Phase Template",
@@ -463,6 +480,11 @@
           "week": "Week",
           "month": "Month",
           "quarter": "Quarter"
+        },
+        "anomalies": {
+          "completedWithOpenTasks": "Phase marked complete but some tasks are still open.",
+          "endBeforeTaskEnd": "A linked task is due after the phase end date.",
+          "overdue": "The phase end date has passed but it is not complete."
         }
       }
     },

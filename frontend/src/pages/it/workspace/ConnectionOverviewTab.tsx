@@ -23,6 +23,7 @@ import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
 import MarkdownEditor from '../../../components/MarkdownEditor';
 import ConnectionEndpointPicker from './ConnectionEndpointPicker';
 import ConnectionLinkInterfacesDialog from './ConnectionLinkInterfacesDialog';
+import ConnectionProtocolsTable, { type ConnectionProtocol } from './ConnectionProtocolsTable';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
@@ -41,7 +42,9 @@ type AssetSummary = {
   asset_reference?: string | null;
 };
 
-type ConnectionTypeOption = { code: string; label: string };
+type ConnectionTypeOption = { code: string; label: string; typicalPorts: string };
+
+export type { ConnectionProtocol };
 
 type LinkedInterfaceRow = {
   id: string;
@@ -70,7 +73,7 @@ type Props = {
   destination: { asset_id: string | null; entity_code: string | null };
   multiServerIds: string[];
   assetMap: Record<string, AssetSummary>;
-  protocolCodes: string[];
+  protocols: ConnectionProtocol[];
   riskMode: 'manual' | 'derived';
   linkedInterfaces: LinkedInterfaceRow[];
   linkedInterfacesLoading: boolean;
@@ -82,7 +85,7 @@ type Props = {
     next: { asset_id: string | null; entity_code: string | null },
   ) => void;
   onMultiServerChange: (nextIds: string[]) => void;
-  onProtocolCodesChange: (next: string[]) => void;
+  onProtocolsChange: (next: ConnectionProtocol[]) => void;
   onLinkedInterfacesChanged: () => void;
 };
 
@@ -115,7 +118,7 @@ export default function ConnectionOverviewTab({
   destination,
   multiServerIds,
   assetMap,
-  protocolCodes,
+  protocols,
   riskMode,
   linkedInterfaces,
   linkedInterfacesLoading,
@@ -124,7 +127,7 @@ export default function ConnectionOverviewTab({
   onDescriptionSaved,
   onEndpointChange,
   onMultiServerChange,
-  onProtocolCodesChange,
+  onProtocolsChange,
   onLinkedInterfacesChanged,
 }: Props) {
   const { t } = useTranslation(['it', 'common']);
@@ -133,6 +136,7 @@ export default function ConnectionOverviewTab({
   const connectionTypes: ConnectionTypeOption[] = (settings?.connectionTypes || []).map((ct: any) => ({
     code: ct.code,
     label: ct.label || ct.code,
+    typicalPorts: ct.typicalPorts || ct.typical_ports || '',
   }));
 
   const [description, setDescription] = React.useState(initialDescription);
@@ -241,9 +245,24 @@ export default function ConnectionOverviewTab({
   }, [multiServerIds, multiOptions, assetMap]);
 
   const selectedProtocols = React.useMemo(
-    () => protocolCodes.map((code) => connectionTypes.find((ct) => ct.code === code) || { code, label: code }),
-    [protocolCodes, connectionTypes],
+    () =>
+      protocols.map((p) => {
+        const ct = connectionTypes.find((c) => c.code === p.code);
+        return {
+          code: p.code,
+          label: ct?.label || p.code,
+          typicalPorts: ct?.typicalPorts || '',
+          port_override: p.port_override,
+        };
+      }),
+    [protocols, connectionTypes],
   );
+
+  const handleProtocolsSelected = (codes: string[]) => {
+    if (codes.length === 0) return;
+    const existing = new Map(protocols.map((p) => [p.code, p.port_override]));
+    onProtocolsChange(codes.map((code) => ({ code, port_override: existing.get(code) ?? null })));
+  };
 
   const derivationRows = riskMode === 'derived' ? linkedInterfaces : [];
 
@@ -361,16 +380,13 @@ export default function ConnectionOverviewTab({
           <Autocomplete
             size="small"
             multiple
+            disableClearable
             disabled={!canManage}
             options={connectionTypes}
             getOptionLabel={(opt) => opt.label}
             isOptionEqualToValue={(opt, val) => opt.code === val.code}
             value={selectedProtocols}
-            onChange={(_, val) => {
-              const next = val.map((v) => v.code);
-              if (next.length === 0) return;
-              onProtocolCodesChange(next);
-            }}
+            onChange={(_, val) => handleProtocolsSelected(val.map((v) => v.code))}
             renderTags={(value, getTagProps) =>
               value.map((opt, index) => (
                 <Chip {...getTagProps({ index })} key={opt.code} label={opt.label} size="small" />
@@ -386,6 +402,15 @@ export default function ConnectionOverviewTab({
               />
             )}
           />
+          <Box sx={{ mt: 1.5 }}>
+            <ConnectionProtocolsTable
+              protocols={protocols}
+              connectionKey={connectionId}
+              editable
+              disabled={!canManage}
+              onProtocolsChange={onProtocolsChange}
+            />
+          </Box>
         </Box>
       </Box>
 

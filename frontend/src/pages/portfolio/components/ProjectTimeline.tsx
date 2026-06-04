@@ -2,13 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Checkbox,
+  Dialog,
   FormControlLabel,
+  IconButton,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import CloseIcon from '@mui/icons-material/Close';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import ImageIcon from '@mui/icons-material/Image';
 import { useTranslation } from 'react-i18next';
 import { Gantt } from '@svar-ui/react-gantt';
 import type { IApi } from '@svar-ui/react-gantt';
@@ -18,6 +24,7 @@ import LightModeIsland from '../../../components/LightModeIsland';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useKanapDialogs } from '../../../components/design';
 import { useLocale } from '../../../i18n/useLocale';
+import { exportProjectTimelineGanttAsPng } from './project-timeline-png';
 
 interface ProjectPhase {
   id: string;
@@ -58,6 +65,36 @@ const MILESTONE_STATUS_COLORS: Record<string, string> = {
   achieved: '#66bb6a',
   missed: '#ef5350',
 };
+
+// Shared chart container styling — used both inline and in the fullscreen dialog.
+const GANTT_CONTAINER_SX = {
+  height: '100%',
+  minHeight: 0,
+  overflow: 'hidden',
+  // Constrain the SVAR Gantt root to the container so its internal chart area is
+  // bounded and renders its own horizontal scrollbar (mirrors PortfolioGantt).
+  '& .wx-gantt, & [class*="gantt"]': { height: '100%' },
+  // Slightly smaller chart typography, matching the roadmap (PortfolioGantt) Gantt.
+  '& .wx-table .wx-grid .wx-body .wx-cell': { fontSize: '12px' },
+  '& .wx-table .wx-grid .wx-header .wx-cell': { fontSize: '11px' },
+  '& .wx-scale .wx-cell': { fontSize: '12px' },
+  '& .kanap-timeline-today-line': {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: '2px',
+    backgroundColor: 'error.main',
+    zIndex: 8,
+    pointerEvents: 'none',
+  },
+  '& .today-highlight': {
+    backgroundColor: 'rgba(66, 165, 245, 0.15)',
+  },
+  // Hide SVAR's default progress tooltip (shows "0", "0.5", etc.)
+  '& .wx-gantt-tooltip': {
+    display: 'none !important',
+  },
+} as const;
 
 // Date formatting helpers — locale-aware via Intl
 const formatMonthYear = (date: Date, locale: string): string =>
@@ -109,6 +146,7 @@ export function ProjectTimeline({ projectId, phases, milestones = [], onUpdate, 
   const [viewMode, setViewMode] = useState<'table' | 'gantt'>('table');
   const [zoom, setZoom] = useState<ZoomLevel>('week');
   const [showMilestones, setShowMilestones] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef<IApi | null>(null);
 
@@ -420,6 +458,73 @@ export function ProjectTimeline({ projectId, phases, milestones = [], onUpdate, 
     );
   }, []);
 
+  // Export the chart as PNG by redrawing the current rows over the displayed
+  // range (period + milestone setting), independent of the on-screen viewport.
+  const handleExportPng = useCallback(async () => {
+    if (ganttTasks.length === 0) return;
+    const rows = ganttTasks.map((task) => ({
+      id: String(task.id),
+      text: task.text,
+      start: task.start,
+      end: task.end,
+      type: task.type,
+      color: task.type === 'milestone'
+        ? (MILESTONE_STATUS_COLORS[(task as any)._status] || MILESTONE_STATUS_COLORS.pending)
+        : (STATUS_COLORS[(task as any)._status] || STATUS_COLORS.pending),
+    }));
+    try {
+      await exportProjectTimelineGanttAsPng({
+        rows,
+        rangeStart: startDate,
+        rangeEnd: endDate,
+        locale,
+        fileName: 'project-timeline',
+      });
+    } catch (e: any) {
+      await dialogs.alert({
+        message: getApiErrorMessage(e, t, t('workspace.project.timeline.messages.exportFailed', { defaultValue: 'Failed to export the chart.' })),
+        intent: 'danger',
+      });
+    }
+  }, [ganttTasks, startDate, endDate, locale, dialogs, t]);
+
+  const renderGanttSurface = (attachRef: boolean) => {
+    if (ganttTasks.length === 0) {
+      return (
+        <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography variant="body1">{t('workspace.project.timeline.states.noPlannedPhases')}</Typography>
+          <Typography variant="body2">
+            {t('workspace.project.timeline.states.noPlannedPhasesHelp')}
+          </Typography>
+        </Box>
+      );
+    }
+    return (
+      <Box ref={attachRef ? containerRef : undefined} sx={GANTT_CONTAINER_SX}>
+        <Gantt
+          tasks={ganttTasks}
+          scales={scales}
+          start={startDate}
+          end={endDate}
+          cellWidth={cellWidth}
+          cellHeight={38}
+          autoScale={false}
+          columns={[
+            // No flexgrow: a growing grid column squeezes the chart to a sliver and
+            // hides its horizontal scroll. Fixed width keeps the chart usable (mirrors
+            // PortfolioGantt).
+            { id: 'text', header: t('workspace.project.fields.phase'), width: 200 },
+          ]}
+          highlightTime={highlightTime}
+          taskTemplate={taskTemplate}
+          readonly={!canManage}
+          onupdatetask={handleGanttUpdate}
+          init={handleInit}
+        />
+      </Box>
+    );
+  };
+
   return (
     <Box>
       {/* Controls — visible whenever there is anything plottable */}
@@ -466,6 +571,21 @@ export function ProjectTimeline({ projectId, phases, milestones = [], onUpdate, 
                 label={t('workspace.project.timeline.actions.showMilestones', { defaultValue: 'Show milestones' })}
                 sx={{ '& .MuiFormControlLabel-label': { fontSize: 13 } }}
               />
+
+              {ganttTasks.length > 0 && (
+                <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+                  <Tooltip title={t('workspace.project.timeline.actions.exportPng', { defaultValue: 'Export as image' })}>
+                    <IconButton size="small" onClick={handleExportPng}>
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t('workspace.project.timeline.actions.fullscreen', { defaultValue: 'Fullscreen' })}>
+                    <IconButton size="small" onClick={() => setFullscreen(true)}>
+                      <FullscreenIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
             </>
           )}
         </Box>
@@ -478,62 +598,44 @@ export function ProjectTimeline({ projectId, phases, milestones = [], onUpdate, 
       {viewMode === 'gantt' && (
         <LightModeIsland sx={{ p: 0 }}>
           <Box sx={{ height: 400 }}>
-            {ganttTasks.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                <Typography variant="body1">{t('workspace.project.timeline.states.noPlannedPhases')}</Typography>
-                <Typography variant="body2">
-                  {t('workspace.project.timeline.states.noPlannedPhasesHelp')}
-                </Typography>
-              </Box>
-            ) : (
-              <Box
-                ref={containerRef}
-                sx={{
-                  height: '100%',
-                  // Slightly smaller chart typography, matching the roadmap (PortfolioGantt) Gantt.
-                  '& .wx-table .wx-grid .wx-body .wx-cell': { fontSize: '12px' },
-                  '& .wx-table .wx-grid .wx-header .wx-cell': { fontSize: '11px' },
-                  '& .wx-scale .wx-cell': { fontSize: '12px' },
-                  '& .kanap-timeline-today-line': {
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    width: '2px',
-                    backgroundColor: 'error.main',
-                    zIndex: 8,
-                    pointerEvents: 'none',
-                  },
-                  '& .today-highlight': {
-                    backgroundColor: 'rgba(66, 165, 245, 0.15)',
-                  },
-                  // Hide SVAR's default progress tooltip (shows "0", "0.5", etc.)
-                  '& .wx-gantt-tooltip': {
-                    display: 'none !important',
-                  },
-                }}
-              >
-                <Gantt
-                  tasks={ganttTasks}
-                  scales={scales}
-                  start={startDate}
-                  end={endDate}
-                  cellWidth={cellWidth}
-                  cellHeight={38}
-                  autoScale={false}
-                  columns={[
-                    { id: 'text', header: t('workspace.project.fields.phase'), width: 180, flexgrow: 1 },
-                  ]}
-                  highlightTime={highlightTime}
-                  taskTemplate={taskTemplate}
-                  readonly={!canManage}
-                  onupdatetask={handleGanttUpdate}
-                  init={handleInit}
-                />
-              </Box>
-            )}
+            {renderGanttSurface(!fullscreen)}
           </Box>
         </LightModeIsland>
       )}
+
+      {/* Fullscreen Gantt — same chart at the current period and display settings. */}
+      <Dialog open={fullscreen} onClose={() => setFullscreen(false)} fullScreen>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <Box sx={(theme) => ({
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 2,
+            py: 1,
+            borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+          })}
+          >
+            <Typography sx={{ fontSize: 16, fontWeight: 500, flex: 1 }}>
+              {t('workspace.project.timeline.views.gantt')}
+            </Typography>
+            <Tooltip title={t('workspace.project.timeline.actions.exportPng', { defaultValue: 'Export as image' })}>
+              <IconButton size="small" onClick={handleExportPng}>
+                <ImageIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={t('common:buttons.close', { defaultValue: 'Close' })}>
+              <IconButton size="small" onClick={() => setFullscreen(false)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <LightModeIsland sx={{ p: 0, flex: 1, minHeight: 0 }}>
+            <Box sx={{ height: '100%' }}>
+              {renderGanttSurface(fullscreen)}
+            </Box>
+          </LightModeIsland>
+        </Box>
+      </Dialog>
     </Box>
   );
 }

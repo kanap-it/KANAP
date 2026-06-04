@@ -327,6 +327,10 @@ export default function TaskPropertiesDrawer({
           <DateEUField label="" valueYmd={task.start_date || ''} onChangeYmd={(v) => onPatch({ start_date: v || null })} disabled={readOnly} size="small" />
         </PropertyRow>
 
+        <PropertyRow label={t('workspace.task.sidebar.fields.dueDate')}>
+          <DateEUField label="" valueYmd={task.due_date || ''} onChangeYmd={(v) => onPatch({ due_date: v || null })} disabled={readOnly} size="small" />
+        </PropertyRow>
+
         {!isCreate && supportsTimeLogging && (
           <PropertyRow label={t('workspace.task.sidebar.fields.timeSpent')}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>

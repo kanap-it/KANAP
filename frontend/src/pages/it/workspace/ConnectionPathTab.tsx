@@ -1,12 +1,14 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import ConnectionPathSection, { ConnectionPathHop } from './ConnectionPathSection';
+import { type ConnectionProtocol } from './ConnectionProtocolsTable';
 
 type Props = {
   connectionId: string;
   hops: ConnectionPathHop[];
   canManage: boolean;
   defaultProtocolCodes: string[];
+  protocols?: ConnectionProtocol[];
   assetMap: Record<string, { name: string; reference?: string | null }>;
   sourceLabel: string;
   destinationLabel: string;
