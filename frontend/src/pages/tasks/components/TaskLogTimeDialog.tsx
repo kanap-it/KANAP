@@ -1,28 +1,19 @@
 import React from 'react';
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Slider, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import UserSelect from '../../../components/fields/UserSelect';
 import DateEUField from '../../../components/fields/DateEUField';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { KanapDialog, PropertyRow } from '../../../components/design';
+import { drawerFieldValueSx, dialogBorderedFieldSx } from '../../../theme/formSx';
+import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 
 type TimeEntryCategory = 'it' | 'business';
+
+const CATEGORIES: TimeEntryCategory[] = ['it', 'business'];
+const MAX_HOURS = 7;
 
 export interface TaskTimeEntryData {
   id: string;
@@ -40,6 +31,8 @@ interface TaskLogTimeDialogProps {
   projectId?: string;
   onSuccess: () => void;
   editEntry?: TaskTimeEntryData;
+  /** Optional contextual message shown at the top of the dialog (e.g. why time is required). */
+  infoMessage?: React.ReactNode;
 }
 
 export default function TaskLogTimeDialog({
@@ -49,6 +42,7 @@ export default function TaskLogTimeDialog({
   projectId,
   onSuccess,
   editEntry,
+  infoMessage,
 }: TaskLogTimeDialogProps) {
   const { profile, hasLevel } = useAuth();
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
@@ -96,6 +90,7 @@ export default function TaskLogTimeDialog({
   }, [open, editEntry, profile?.id, canAssignUser]);
 
   const totalHours = daysNum * 8 + hoursNum;
+  const canSubmit = totalHours >= 1 && !!(canAssignUser ? userId : profile?.id) && !!loggedAt;
 
   const handleSubmit = async () => {
     if (totalHours < 1) {
@@ -157,127 +152,156 @@ export default function TaskLogTimeDialog({
     }
   };
 
+  const fieldSx = [drawerFieldValueSx, dialogBorderedFieldSx];
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        {isEdit
-          ? t('portfolio:dialogs.logTime.title.edit')
-          : t('portfolio:dialogs.logTime.title.create')}
-      </DialogTitle>
-      <DialogContent>
-        <Stack spacing={3} sx={{ mt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
+    <KanapDialog
+      open={open}
+      onClose={handleClose}
+      title={isEdit
+        ? t('portfolio:dialogs.logTime.title.edit')
+        : t('portfolio:dialogs.logTime.title.create')}
+      onSave={handleSubmit}
+      saveLabel={isEdit
+        ? t('common:buttons.saveChanges')
+        : t('portfolio:dialogs.logTime.actions.logTime')}
+      saveDisabled={saving || !canSubmit}
+      saveLoading={saving}
+      cancelLabel={t('common:buttons.cancel')}
+    >
+      <Stack spacing={2.25}>
+        {infoMessage && <Alert severity="info">{infoMessage}</Alert>}
+        {error && <Alert severity="error">{error}</Alert>}
 
-          <FormControl component="fieldset">
-            <FormLabel component="legend">{t('portfolio:dialogs.logTime.fields.category')}</FormLabel>
-            <RadioGroup
-              row
-              value={category}
-              onChange={(e) => setCategory(e.target.value as TimeEntryCategory)}
-            >
-              <FormControlLabel
-                value="it"
-                control={<Radio />}
-                label={t('portfolio:dialogs.logTime.categories.it')}
+        <PropertyRow label={t('portfolio:dialogs.logTime.fields.category')}>
+          <Tabs
+            value={category}
+            onChange={(_, v) => setCategory(v as TimeEntryCategory)}
+            sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
+          >
+            {CATEGORIES.map((c) => (
+              <Tab
+                key={c}
+                value={c}
+                disableRipple
+                label={t(`portfolio:dialogs.logTime.categories.${c}`)}
+                sx={(theme) => ({
+                  minHeight: 'auto',
+                  p: 0,
+                  mr: 2.5,
+                  minWidth: 'auto',
+                  textTransform: 'none',
+                  fontSize: 13,
+                  fontWeight: category === c ? 500 : 400,
+                  color: category === c
+                    ? theme.palette.kanap.text.primary
+                    : theme.palette.kanap.text.tertiary,
+                })}
               />
-              <FormControlLabel
-                value="business"
-                control={<Radio />}
-                label={t('portfolio:dialogs.logTime.categories.business')}
-              />
-            </RadioGroup>
-          </FormControl>
+            ))}
+          </Tabs>
+        </PropertyRow>
 
+        <PropertyRow label={t('portfolio:dialogs.logTime.fields.person')} required>
           <UserSelect
-            label={t('portfolio:dialogs.logTime.fields.person')}
+            hideLabel
             value={userId}
             onChange={setUserId}
             placeholder={t('portfolio:dialogs.logTime.placeholders.searchUsers')}
             required
             disabled={!canAssignUser}
+            textFieldSx={fieldSx}
           />
+        </PropertyRow>
 
+        <PropertyRow label={t('portfolio:dialogs.logTime.fields.date')} required>
           <DateEUField
-            label={t('portfolio:dialogs.logTime.fields.date')}
+            label=""
+            hideLabel
             valueYmd={loggedAt}
             onChangeYmd={setLoggedAt}
             required
+            textFieldSx={fieldSx}
           />
+        </PropertyRow>
 
-          <Stack direction="row" spacing={2} alignItems="flex-start">
-            <TextField
-              label={t('portfolio:dialogs.logTime.fields.hours')}
-              type="text"
-              inputMode="numeric"
-              value={hours}
-              onChange={(e) => {
-                const raw = e.target.value;
-                // Allow empty or digits only
-                if (raw === '' || /^\d+$/.test(raw)) {
-                  const num = parseInt(raw, 10);
-                  if (raw === '' || (num >= 0 && num <= 7)) {
-                    setHours(raw);
-                  }
-                }
-              }}
-              sx={{
-                flex: 1,
-              }}
-              helperText={t('portfolio:dialogs.logTime.helper.hoursRange')}
-            />
-            <TextField
-              label={t('portfolio:dialogs.logTime.fields.days')}
-              type="text"
-              inputMode="numeric"
-              value={days}
-              onChange={(e) => {
-                const raw = e.target.value;
-                // Allow empty or digits only
-                if (raw === '' || /^\d+$/.test(raw)) {
-                  setDays(raw);
-                }
-              }}
-              sx={{
-                flex: 1,
-              }}
-              helperText={t('portfolio:dialogs.logTime.helper.dayLength')}
-            />
+        <PropertyRow
+          label={t('portfolio:dialogs.logTime.fields.duration')}
+          helperText={t('portfolio:dialogs.logTime.helper.total', {
+            hours: totalHours,
+            md: (totalHours / 8).toFixed(2),
+          })}
+        >
+          <Stack spacing={1.25}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Slider
+                min={0}
+                max={MAX_HOURS}
+                step={1}
+                value={hoursNum}
+                onChange={(_, v) => setHours(String(Array.isArray(v) ? v[0] : v))}
+                aria-label={t('portfolio:dialogs.logTime.fields.hours')}
+                sx={(theme) => ({
+                  flex: 1,
+                  height: 4,
+                  py: '10px',
+                  '& .MuiSlider-rail': { bgcolor: theme.palette.kanap.sliderTrack, opacity: 1 },
+                  '& .MuiSlider-track': { bgcolor: theme.palette.kanap.teal, border: 'none' },
+                  '& .MuiSlider-thumb': {
+                    bgcolor: theme.palette.kanap.teal,
+                    width: 14,
+                    height: 14,
+                    '&:hover, &.Mui-focusVisible': { boxShadow: 'none' },
+                  },
+                  color: theme.palette.kanap.teal,
+                })}
+              />
+              <Typography
+                sx={{
+                  fontFamily: MONO_FONT_FAMILY,
+                  fontSize: 13,
+                  minWidth: 30,
+                  textAlign: 'right',
+                  color: 'kanap.text.primary',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {hoursNum}h
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+                {t('portfolio:dialogs.logTime.fields.days')}
+              </Typography>
+              <TextField
+                variant="standard"
+                value={days}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === '' || /^\d+$/.test(raw)) setDays(raw);
+                }}
+                inputProps={{ inputMode: 'numeric', style: { textAlign: 'center' } }}
+                InputProps={{ disableUnderline: true }}
+                sx={[drawerFieldValueSx, dialogBorderedFieldSx, { width: 56 }]}
+              />
+            </Box>
           </Stack>
+        </PropertyRow>
 
-          <Typography variant="body2" color="text.secondary">
-            {t('portfolio:dialogs.logTime.helper.total', {
-              hours: totalHours,
-              md: (totalHours / 8).toFixed(2),
-            })}
-          </Typography>
-
+        <PropertyRow label={t('portfolio:dialogs.logTime.fields.notes')}>
           <TextField
-            label={t('portfolio:dialogs.logTime.fields.notes')}
+            variant="standard"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             multiline
-            rows={2}
+            minRows={2}
             placeholder={t('portfolio:dialogs.logTime.placeholders.notes')}
             fullWidth
+            InputProps={{ disableUnderline: true }}
+            sx={fieldSx}
           />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={saving}>
-          {t('common:buttons.cancel')}
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={saving || totalHours < 1 || !(canAssignUser ? userId : profile?.id) || !loggedAt}
-        >
-          {saving
-            ? t('common:status.saving')
-            : isEdit
-            ? t('common:buttons.saveChanges')
-            : t('portfolio:dialogs.logTime.actions.logTime')}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </PropertyRow>
+      </Stack>
+    </KanapDialog>
   );
 }

@@ -277,7 +277,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
       )}
 
       {filteredTasks.length > 0 && (
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableCell-root': { whiteSpace: 'nowrap' } }}>
           <TableHead>
             <TableRow>
               <TableCell>{t('portfolio:shared.entityTasksPanel.table.title')}</TableCell>
@@ -295,8 +295,12 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                   <Typography
                     variant="body2"
                     component="a"
+                    noWrap
+                    title={task.title}
                     onClick={() => navigate(buildTaskWorkspacePath(task.id))}
                     sx={{
+                      display: 'block',
+                      maxWidth: 360,
                       cursor: 'pointer',
                       color: 'text.primary',
                       textDecoration: 'none',
@@ -328,7 +332,13 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                 </TableCell>
                 {isProject && (
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      noWrap
+                      title={getPhaseLabel(task.phase_id)}
+                      sx={{ display: 'block', maxWidth: 260 }}
+                    >
                       {getPhaseLabel(task.phase_id)}
                     </Typography>
                   </TableCell>

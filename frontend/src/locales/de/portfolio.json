@@ -781,9 +781,6 @@
           "timeSpent": "Aufgewendete Zeit",
           "viewers": "Beobachter"
         },
-        "messages": {
-          "doneRequiresTimeAlert": "Aufgabe kann ohne Zeiterfassung nicht als erledigt markiert werden. Bitte erfassen Sie zuerst Zeit."
-        },
         "priorityOptions": {
           "blocker": "Blocker (+10)",
           "high": "Hoch (+5)",
@@ -802,7 +799,6 @@
         },
         "values": {
           "assigneeMissing": "Zuständiger fehlt",
-          "doneRequiresTime": "{{status}} (Zeit erforderlich)",
           "noClassification": "Keine Klassifizierung festgelegt.",
           "projectLevel": "Projektebene",
           "standaloneTask": "Eigenständige Aufgabe",
@@ -1497,6 +1493,7 @@
     },
     "logTime": {
       "confirmDelete": "Diesen Zeiteintrag löschen?",
+      "statusChangeRequiresTime": "Bevor diese Aufgabe als „Erledigt“ markiert werden kann, ist eine Zeiterfassung erforderlich.",
       "title": {
         "create": "Zeit erfassen",
         "edit": "Zeiteintrag bearbeiten"
@@ -1512,6 +1509,7 @@
         "category": "Kategorie",
         "date": "Datum",
         "days": "Tage",
+        "duration": "Dauer",
         "hours": "Stunden",
         "notes": "Anmerkungen",
         "person": "Person"

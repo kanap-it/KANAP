@@ -25,7 +25,6 @@ import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { useAuth } from '../../../auth/AuthContext';
 import { getPriorityLabel, getTaskStatusOptions } from '../../../utils/portfolioI18n';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
-import { useKanapDialogs } from '../../../components/design';
 
 const compactFieldSx = {
   '& .MuiFormLabel-root': {
@@ -160,7 +159,6 @@ export default function TaskSidebar({
   projectWorkspaceLink = null,
 }: TaskSidebarProps) {
   const { t } = useTranslation('portfolio');
-  const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
   const queryClient = useQueryClient();
   const [logTimeOpen, setLogTimeOpen] = React.useState(false);
@@ -447,19 +445,8 @@ export default function TaskSidebar({
               <EnumAutocomplete
                 label={t('workspace.task.sidebar.fields.status')}
                 value={task.status}
-                onChange={(v) => {
-                  if (v === 'done' && isProjectTask && totalTimeHours === 0) {
-                    void dialogs.alert(t('workspace.task.sidebar.messages.doneRequiresTimeAlert'));
-                    return;
-                  }
-                  onPatch({ status: v });
-                }}
-                options={statusOptions.map((opt) => ({
-                  ...opt,
-                  label: opt.value === 'done' && isProjectTask && totalTimeHours === 0
-                    ? t('workspace.task.sidebar.values.doneRequiresTime', { status: opt.label })
-                    : opt.label,
-                }))}
+                onChange={(v) => onPatch({ status: v })}
+                options={statusOptions}
                 size="small"
               />
             )}
