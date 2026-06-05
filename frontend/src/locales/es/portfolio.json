@@ -781,9 +781,6 @@
           "timeSpent": "Tiempo dedicado",
           "viewers": "Observadores"
         },
-        "messages": {
-          "doneRequiresTimeAlert": "No se puede marcar la tarea como completada sin registrar tiempo. Registre tiempo primero."
-        },
         "priorityOptions": {
           "blocker": "Bloqueante (+10)",
           "high": "Alta (+5)",
@@ -802,7 +799,6 @@
         },
         "values": {
           "assigneeMissing": "Falta asignado",
-          "doneRequiresTime": "{{status}} (requiere tiempo)",
           "noClassification": "Sin clasificación definida.",
           "projectLevel": "Nivel de proyecto",
           "standaloneTask": "Tarea independiente",
@@ -1497,6 +1493,7 @@
     },
     "logTime": {
       "confirmDelete": "¿Eliminar esta entrada de tiempo?",
+      "statusChangeRequiresTime": "Es necesario registrar tiempo antes de marcar esta tarea como completada.",
       "title": {
         "create": "Registrar tiempo",
         "edit": "Editar entrada de tiempo"
@@ -1512,6 +1509,7 @@
         "category": "Categoría",
         "date": "Fecha",
         "days": "Días",
+        "duration": "Duración",
         "hours": "Horas",
         "notes": "Notas",
         "person": "Persona"

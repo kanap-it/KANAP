@@ -30,6 +30,7 @@ import TaskPropertiesDrawer from './components/TaskPropertiesDrawer';
 import { taskDetailTokens, type PriorityLevel } from './theme/taskDetailTokens';
 import { RelatedObjectType } from '../../components/fields/RelatedObjectSelect';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
+import { useDoneRequiresTime } from './hooks/useDoneRequiresTime';
 import { formatItemRef } from '../../utils/item-ref';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import ConvertToRequestDialog from './components/ConvertToRequestDialog';
@@ -347,6 +348,9 @@ export default function TaskWorkspacePage() {
     enabled: !!id && !isCreate && !!task && !isShowingPreviousTask,
   });
 
+  // "Done" on a project task requires logged time: intercept and open the Log Time dialog.
+  const doneGuard = useDoneRequiresTime();
+
   const [convertToRequestOpen, setConvertToRequestOpen] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(() => {
     try {
@@ -608,14 +612,25 @@ export default function TaskWorkspacePage() {
         setInitialized(true);
       }
     };
-    const applyRelation = (relation: { type: RelatedObjectType; id: string; name: string }) => {
-      if (cancelled) return;
-      setCreateRelation(relation);
-      setInitialized(true);
-    };
-
     setInitialized(false);
-    setCreateRelation({ type: null, id: null, name: null });
+
+    // Seed the related-object context synchronously from the URL so the load-bearing
+    // { type, id } can't be lost to an async race (the GET below only enriches the name).
+    let seedRelation: { type: RelatedObjectType | null; id: string | null; name: string | null } = {
+      type: null,
+      id: null,
+      name: null,
+    };
+    if (originProjectId) {
+      seedRelation = { type: 'project', id: originProjectId, name: t('portfolio:context.project') };
+    } else if (createSpendItemId) {
+      seedRelation = { type: 'spend_item', id: createSpendItemId, name: t('portfolio:context.spend_item') };
+    } else if (createCapexItemId) {
+      seedRelation = { type: 'capex_item', id: createCapexItemId, name: t('portfolio:context.capex_item') };
+    } else if (createContractId) {
+      seedRelation = { type: 'contract', id: createContractId, name: t('portfolio:context.contract') };
+    }
+    setCreateRelation(seedRelation);
     setCreateSaving(false);
     setDirty(false);
     setError(null);
@@ -639,57 +654,31 @@ export default function TaskWorkspacePage() {
     setDescription('');
     resetClassificationTouched();
 
+    // Enrich the seeded relation's display name without ever downgrading its type/id.
+    const enrichName = (type: RelatedObjectType, name: string | null | undefined) => {
+      if (cancelled || !name) return;
+      setCreateRelation((prev) => (prev.type === type ? { ...prev, name } : prev));
+    };
+
     if (originProjectId) {
       api.get<{ id: string; name: string }>(`/portfolio/projects/${originProjectId}`)
-        .then((res) => {
-          applyRelation({
-            type: 'project',
-            id: res.data.id || originProjectId,
-            name: res.data.name || t('portfolio:context.project'),
-          });
-        })
-        .catch(() => {
-          finishInitialization();
-        });
+        .then((res) => enrichName('project', res.data.name))
+        .catch(() => {});
     } else if (createSpendItemId) {
       api.get<{ id: string; product_name: string }>(`/spend-items/${createSpendItemId}`)
-        .then((res) => {
-          applyRelation({
-            type: 'spend_item',
-            id: res.data.id || createSpendItemId,
-            name: res.data.product_name || t('portfolio:context.spend_item'),
-          });
-        })
-        .catch(() => {
-          finishInitialization();
-        });
+        .then((res) => enrichName('spend_item', res.data.product_name))
+        .catch(() => {});
     } else if (createCapexItemId) {
       api.get<{ id: string; description: string }>(`/capex-items/${createCapexItemId}`)
-        .then((res) => {
-          applyRelation({
-            type: 'capex_item',
-            id: res.data.id || createCapexItemId,
-            name: res.data.description || t('portfolio:context.capex_item'),
-          });
-        })
-        .catch(() => {
-          finishInitialization();
-        });
+        .then((res) => enrichName('capex_item', res.data.description))
+        .catch(() => {});
     } else if (createContractId) {
       api.get<{ id: string; name: string }>(`/contracts/${createContractId}`)
-        .then((res) => {
-          applyRelation({
-            type: 'contract',
-            id: res.data.id || createContractId,
-            name: res.data.name || t('portfolio:context.contract'),
-          });
-        })
-        .catch(() => {
-          finishInitialization();
-        });
-    } else {
-      finishInitialization();
+        .then((res) => enrichName('contract', res.data.name))
+        .catch(() => {});
     }
+
+    finishInitialization();
 
     return () => {
       cancelled = true;
@@ -927,8 +916,16 @@ export default function TaskWorkspacePage() {
 
   const handleEditSidebarPatch = React.useCallback((patch: Record<string, any>) => {
     if (!canManageCurrentTask) return;
-    enqueueSidebarPatch(patch);
-  }, [canManageCurrentTask, enqueueSidebarPatch]);
+    const targetTask = currentTaskDraftRef.current ?? liveTask ?? task;
+    const isProject = targetTask?.related_object_type === 'project';
+    void doneGuard.runWithGuard({
+      taskId: targetTask?.id ?? '',
+      projectId: isProject ? targetTask?.related_object_id ?? undefined : undefined,
+      isProjectTask: isProject,
+      nextStatus: patch.status,
+      apply: () => enqueueSidebarPatch(patch),
+    });
+  }, [canManageCurrentTask, enqueueSidebarPatch, doneGuard.runWithGuard, liveTask, task]);
 
   const handleCreateRelationChange = React.useCallback((params: { type: RelatedObjectType; id: string | null; name: string | null }) => {
     setCreateRelation(params);
@@ -1883,6 +1880,7 @@ export default function TaskWorkspacePage() {
           void refetch();
         }}
       />
+      {doneGuard.dialog}
     </Box>
   );
 }

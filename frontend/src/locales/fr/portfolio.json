@@ -781,9 +781,6 @@
           "timeSpent": "Temps passé",
           "viewers": "Observateurs"
         },
-        "messages": {
-          "doneRequiresTimeAlert": "Impossible de marquer la tâche comme terminée sans saisir du temps. Veuillez d'abord enregistrer du temps."
-        },
         "priorityOptions": {
           "blocker": "Bloquant (+10)",
           "high": "Haute (+5)",
@@ -802,7 +799,6 @@
         },
         "values": {
           "assigneeMissing": "Assigné manquant",
-          "doneRequiresTime": "{{status}} (temps requis)",
           "noClassification": "Aucune classification définie.",
           "projectLevel": "Niveau projet",
           "standaloneTask": "Tâche autonome",
@@ -1497,6 +1493,7 @@
     },
     "logTime": {
       "confirmDelete": "Supprimer cette entrée de temps ?",
+      "statusChangeRequiresTime": "Une saisie de temps est nécessaire avant de passer cette tâche en « Terminé ».",
       "title": {
         "create": "Saisir du temps",
         "edit": "Modifier l'entrée de temps"
@@ -1512,6 +1509,7 @@
         "category": "Catégorie",
         "date": "Date",
         "days": "Jours",
+        "duration": "Durée",
         "hours": "Heures",
         "notes": "Notes",
         "person": "Personne"

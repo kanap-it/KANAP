@@ -782,9 +782,6 @@
           "timeSpent": "Time Spent",
           "viewers": "Viewers"
         },
-        "messages": {
-          "doneRequiresTimeAlert": "Cannot mark task as done without logging time. Please log time first."
-        },
         "priorityOptions": {
           "blocker": "Blocker (+10)",
           "high": "High (+5)",
@@ -803,7 +800,6 @@
         },
         "values": {
           "assigneeMissing": "Assignee missing",
-          "doneRequiresTime": "{{status}} (requires time)",
           "noClassification": "No classification set.",
           "projectLevel": "Project-level",
           "standaloneTask": "Standalone task",
@@ -1498,12 +1494,13 @@
     },
     "logTime": {
       "confirmDelete": "Delete this time entry?",
+      "statusChangeRequiresTime": "Logging time is required before this task can be marked as done.",
       "title": {
-        "create": "Log Time",
-        "edit": "Edit Time Entry"
+        "create": "Log time",
+        "edit": "Edit time entry"
       },
       "actions": {
-        "logTime": "Log Time"
+        "logTime": "Log time"
       },
       "categories": {
         "business": "Business",
@@ -1513,6 +1510,7 @@
         "category": "Category",
         "date": "Date",
         "days": "Days",
+        "duration": "Duration",
         "hours": "Hours",
         "notes": "Notes",
         "person": "Person"

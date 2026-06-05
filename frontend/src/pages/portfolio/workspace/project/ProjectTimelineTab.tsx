@@ -73,6 +73,7 @@ import { getDotColor, TASK_STATUS_COLORS } from '../../../../utils/statusColors'
 import { computePhaseAnomalies, type PhaseAnomaly } from '../../../../utils/phaseAnomalies';
 import { formatItemRef } from '../../../../utils/item-ref';
 import { ProjectTimeline } from '../../components/ProjectTimeline';
+import { useDoneRequiresTime } from '../../../tasks/hooks/useDoneRequiresTime';
 
 type ProjectTimelineTabProps = {
   canManage: boolean;
@@ -1005,6 +1006,8 @@ export default function ProjectTimelineTab({
     enabled: !!projectId,
   });
 
+  const doneGuard = useDoneRequiresTime();
+
   const tasksByPhase = React.useMemo(() => {
     const map = new Map<string, any[]>();
     (projectTasks || []).forEach((task: any) => {
@@ -1063,7 +1066,7 @@ export default function ProjectTimelineTab({
     });
   }, []);
 
-  const handleTaskUpdate = React.useCallback(async (taskId: string, patch: Record<string, any>) => {
+  const applyTaskUpdate = React.useCallback(async (taskId: string, patch: Record<string, any>) => {
     try {
       await api.patch(`/portfolio/projects/${projectId}/tasks/${taskId}`, patch);
       await refetchTasks();
@@ -1073,6 +1076,17 @@ export default function ProjectTimelineTab({
       );
     }
   }, [projectId, refetchTasks, onError, t]);
+
+  // "Done" on a project task requires logged time: intercept and open the Log Time dialog.
+  const handleTaskUpdate = React.useCallback((taskId: string, patch: Record<string, any>) => {
+    void doneGuard.runWithGuard({
+      taskId,
+      projectId,
+      isProjectTask: true,
+      nextStatus: patch.status,
+      apply: () => applyTaskUpdate(taskId, patch),
+    });
+  }, [doneGuard.runWithGuard, projectId, applyTaskUpdate]);
 
   const handleConfirmLinkTask = React.useCallback(async () => {
     if (!linkDialogPhase || !linkTaskValue) return;
@@ -1674,6 +1688,8 @@ export default function ProjectTimelineTab({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {doneGuard.dialog}
     </Stack>
   );
 }
