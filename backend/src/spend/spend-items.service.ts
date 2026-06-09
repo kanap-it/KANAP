@@ -39,6 +39,8 @@ import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
+import { ItemNumberService } from '../common/item-number.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 
 const activeDisabledAtCondition = () => Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
 const inactiveDisabledAtCondition = () => Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
@@ -60,7 +62,16 @@ export class SpendItemsService {
     private readonly storage: StorageService,
     private readonly itemContacts: SpendItemContactsService,
     private readonly notifications: NotificationsService,
+    private readonly itemNumbers: ItemNumberService,
   ) {}
+
+  /** Resolve the active tenant id from the RLS session bound to this manager. */
+  private async resolveTenantId(mg: EntityManager): Promise<string> {
+    const rows = await mg.query(`SELECT current_setting('app.current_tenant', true) AS tenant_id`);
+    const tenantId = Array.isArray(rows) && rows.length > 0 ? (rows[0]?.tenant_id as string | null) : null;
+    if (!tenantId) throw new BadRequestException('Tenant context is required');
+    return tenantId;
+  }
 
   private formatAllocationMethodLabel(method?: string | null): string {
     switch (method) {
@@ -74,6 +85,8 @@ export class SpendItemsService {
         return 'Company';
       case 'manual_department':
         return 'Department';
+      case 'manual_pct':
+        return 'Manual %';
       case 'default':
         return 'Default';
       default:
@@ -89,7 +102,7 @@ export class SpendItemsService {
     const filtersToApply = sanitizedFilters ?? filters;
     // Only allow filtering/sorting by real columns on SpendItem
     const allowedFields = [
-      'id', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -126,6 +139,84 @@ export class SpendItemsService {
     const found = await repo.findOne({ where: { id } });
     if (!found) throw new NotFoundException('Spend item not found');
     return found;
+  }
+
+  /** Per-year budget/revision/actual/landing totals for one item (multi-year trend chart). */
+  async yearlyTotals(spendItemId: string, from: number, to: number, opts?: { manager?: EntityManager }) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const lo = Math.min(from, to);
+    // Clamp the span (defensive against an unbounded ?from&to driving a huge fill loop).
+    const hi = Math.min(Math.max(from, to), lo + 20);
+    const rows: Array<{ year: number; budget: string; revision: string; actual: string; landing: string }> = await mg.query(
+      // Only count amount rows whose period falls within the version's budget_year,
+      // matching aggregateAmountsByVersionIds so the chart agrees with the Budget tab / list.
+      `SELECT v.budget_year AS year,
+              COALESCE(SUM(a.planned), 0) AS budget,
+              COALESCE(SUM(a.committed), 0) AS revision,
+              COALESCE(SUM(a.actual), 0) AS actual,
+              COALESCE(SUM(a.expected_landing), 0) AS landing
+       FROM spend_versions v
+       LEFT JOIN spend_amounts a ON a.version_id = v.id AND EXTRACT(YEAR FROM a.period) = v.budget_year
+       WHERE v.spend_item_id = $1 AND v.budget_year BETWEEN $2 AND $3
+       GROUP BY v.budget_year
+       ORDER BY v.budget_year`,
+      [spendItemId, lo, hi],
+    );
+    const byYear = new Map(rows.map((r) => [Number(r.year), r]));
+    const years: Array<{ year: number; budget: number; revision: number; actual: number; landing: number }> = [];
+    for (let y = lo; y <= hi; y += 1) {
+      const r = byYear.get(y);
+      years.push({
+        year: y,
+        budget: Number(r?.budget) || 0,
+        revision: Number(r?.revision) || 0,
+        actual: Number(r?.actual) || 0,
+        landing: Number(r?.landing) || 0,
+      });
+    }
+    return { items: years };
+  }
+
+  /** Email a link to the spend item to the given recipients (fire-and-forget). */
+  async share(id: string, dto: ShareItemDto, tenantId: string, userId: string, opts?: { manager?: EntityManager }) {
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+    const mg = opts?.manager ?? this.repo.manager;
+    const item = await mg.getRepository(SpendItem).findOne({ where: { id }, select: ['id', 'product_name'] });
+    if (!item) throw new NotFoundException('Spend item not found');
+
+    const senderRows = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name} ${senderRows[0].last_name}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await mg.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'opex',
+        itemId: item.id,
+        itemName: item.product_name,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId,
+      });
+    }
+    return { success: true };
   }
 
   async listApplications(spendItemId: string, opts?: { manager?: EntityManager }) {
@@ -183,8 +274,11 @@ export class SpendItemsService {
       }
     }
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
+    const tenantId = await this.resolveTenantId(mg);
+    const item_number = await this.itemNumbers.nextItemNumber('spend', tenantId, mg);
     const entity = repo.create({
       ...rest,
+      item_number,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,
     });
@@ -282,7 +376,7 @@ export class SpendItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -401,7 +495,7 @@ export class SpendItemsService {
     const minYear = Math.min(...years);
     const periodStart = new Date(`${String(minYear).padStart(4, '0')}-01-01T00:00:00.000Z`);
     const allowedDbFields = [
-      'id', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
 
@@ -479,7 +573,7 @@ export class SpendItemsService {
   }
 
   // Return ordered list of matching item IDs for navigation, reflecting sort/filter/q
-  async summaryIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+  async summaryIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; item_numbers: number[]; total: number }> {
     const mg = opts?.manager ?? this.repo.manager;
     const now = new Date();
     const Y = now.getFullYear();
@@ -489,7 +583,7 @@ export class SpendItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -512,11 +606,12 @@ export class SpendItemsService {
     if (dbSortable) {
       const items = await mg.getRepository(SpendItem).find({ where, order: { [sort.field]: sort.direction as any } });
       const ids = items.map((i) => i.id);
-      return { ids, total: ids.length };
+      const item_numbers = items.map((i) => (i as any).item_number);
+      return { ids, item_numbers, total: ids.length };
     }
 
     const baseItems = await mg.getRepository(SpendItem).find({ where, order: { created_at: 'DESC' as any } });
-    if (baseItems.length === 0) return { ids: [], total: 0 };
+    if (baseItems.length === 0) return { ids: [], item_numbers: [], total: 0 };
 
     const tenantId = baseItems[0] ? (baseItems[0] as any).tenant_id ?? null : null;
     const { rows } = await buildSpendSummaryRows({
@@ -543,7 +638,8 @@ export class SpendItemsService {
     sortSummaryRows(data, sort.field, sort.direction as 'ASC' | 'DESC');
 
     const ids = data.map((r) => r.id);
-    return { ids, total: ids.length };
+    const item_numbers = data.map((r) => (r as any).item_number);
+    return { ids, item_numbers, total: ids.length };
   }
 
   async summaryRowsByIds(

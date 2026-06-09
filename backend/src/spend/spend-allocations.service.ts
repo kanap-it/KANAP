@@ -40,9 +40,10 @@ export class SpendAllocationsService {
 
     const isManualCompany = method === 'manual_company';
     const isManualDept = method === 'manual_department';
-    const isAuto = !isManualCompany && !isManualDept; // default/headcount/it_users/turnover
+    const isManualPct = method === 'manual_pct';
+    const isAuto = !isManualCompany && !isManualDept && !isManualPct; // default/headcount/it_users/turnover
 
-    if ((isManualCompany || isManualDept) && items.length === 0) {
+    if ((isManualCompany || isManualDept || isManualPct) && items.length === 0) {
       throw new BadRequestException('No allocations provided for manual method');
     }
 
@@ -77,7 +78,36 @@ export class SpendAllocationsService {
 
     let after: SpendAllocation[] = [];
 
-    if (isManualCompany) {
+    if (isManualPct) {
+      // True manual percentages — persist exactly what the user entered (validated to 100%).
+      const rows = items
+        .filter((row) => row.company_id)
+        .map((row) => ({ company_id: row.company_id, allocation_pct: Number(row.allocation_pct ?? 0) }));
+      if (rows.length === 0) {
+        throw new BadRequestException('Select at least one company for manual allocation.');
+      }
+      if (rows.some((row) => !Number.isFinite(row.allocation_pct) || row.allocation_pct < 0)) {
+        throw new BadRequestException('Allocation percentages must be zero or positive numbers.');
+      }
+      const sum = rows.reduce((acc, row) => acc + row.allocation_pct, 0);
+      if (sum < 99.99 || sum > 100.01) {
+        throw new BadRequestException(`Manual percentages must sum to 100% (currently ${Math.round(sum * 100) / 100}%).`);
+      }
+      after = await repo.save(
+        rows.map((row) =>
+          repo.create({
+            version_id: versionId,
+            company_id: row.company_id,
+            department_id: null,
+            allocation_pct: Math.round(row.allocation_pct * 10000) / 10000,
+            is_system_generated: false,
+            rule_id: null,
+            materialized_from: null,
+            tenant_id: tenantId,
+          }),
+        ),
+      );
+    } else if (isManualCompany) {
       const uniqueCompanyIds = Array.from(new Set(items.map((row) => row.company_id).filter((id): id is string => !!id)));
       if (uniqueCompanyIds.length === 0) {
         throw new BadRequestException('Select at least one company for manual allocation.');

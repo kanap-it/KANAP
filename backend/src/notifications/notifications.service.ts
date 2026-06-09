@@ -191,6 +191,7 @@ export class NotificationsService {
       task: { table: 'tasks', expression: `'T-' || item_number::text` },
       request: { table: 'portfolio_requests', expression: `'REQ-' || item_number::text` },
       project: { table: 'portfolio_projects', expression: `'PRJ-' || item_number::text` },
+      opex: { table: 'spend_items', expression: `'OPX-' || item_number::text` },
       asset: { table: 'assets', expression: 'asset_reference' },
       application: { table: 'applications', expression: 'sequential_id' },
       location: { table: 'locations', expression: 'location_reference' },
@@ -1124,7 +1125,7 @@ export class NotificationsService {
    * Notify recipients about a shared item (fire-and-forget, no dedupe).
    */
   async notifyShare(params: {
-    itemType: 'request' | 'project' | 'task' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+    itemType: 'request' | 'project' | 'task' | 'opex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
     itemId: string;
     itemName: string;
     senderName: string;

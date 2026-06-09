@@ -7,6 +7,7 @@
     "exportTitle": "OPEX exportieren",
     "importTitle": "OPEX importieren",
     "columns": {
+      "reference": "Ref",
       "productName": "Produktname",
       "supplier": "Lieferant",
       "payingCompany": "Zahlendes Unternehmen",
@@ -39,6 +40,7 @@
     "workspace": {
       "newSpendItem": "Neue OPEX-Position",
       "spendItem": "OPEX-Position",
+      "spendItems": "Ausgabenposten",
       "itemOf": "Position {{index}} von {{total}}",
       "prev": "Zurück",
       "next": "Weiter",
@@ -69,7 +71,13 @@
     "budget": {
       "title": "Budget",
       "mode": "Modus",
-      "flat": "Pauschal (Jahrestotale)",
+      "flat": "Jährlich",
+      "monthly": "Monatlich",
+      "total": "Gesamt",
+      "spreadHelper": "Jahresbetrag verteilen",
+      "spreadApply": "Anwenden",
+      "profileFlat": "Gleichmäßig",
+      "profile445": "4-4-5",
       "manual": "Manuell (monatlich)",
       "annualTotals": "Jahrestotale ({{year}})",
       "monthlyEntry": "Monatliche Eingabe ({{year}})",
@@ -84,7 +92,9 @@
       "someColumnsFrozen": "Einige Spalten sind eingefroren und schreibgeschützt.",
       "allColumnsEditable": "Alle Spalten sind bearbeitbar.",
       "failedToLoad": "Versionsdaten konnten nicht geladen werden",
-      "failedToSave": "Version konnte nicht gespeichert werden"
+      "failedToSave": "Version konnte nicht gespeichert werden",
+      "clearColumn": "Spalte leeren",
+      "multiYearTitle": "Mehrjahrestrend"
     },
     "allocations": {
       "title": "Zuordnungen",
@@ -94,9 +104,19 @@
       "turnover": "Umsatz",
       "manualByCompany": "Manuell nach Unternehmen",
       "manualByDepartment": "Manuell nach Abteilung",
+      "manualByPct": "Manuelle Prozentsätze",
       "allocateBy": "Zuordnen nach",
       "headcount": "Mitarbeiterzahl",
       "allocationPct": "Zuordnung %",
+      "yearBudget": "Jahresbudget",
+      "splitEqually": "Gleichmäßig aufteilen",
+      "clearPins": "Manuelle Fixierungen löschen",
+      "company": "Unternehmen",
+      "companyDept": "Unternehmen / Abteilung",
+      "driverValue": "Treiber",
+      "amount": "Betrag",
+      "total": "Gesamt",
+      "mustSum100": "Manuelle Prozentsätze müssen in Summe 100 % ergeben.",
       "addRow": "Zeile hinzufügen",
       "autoDistributeInfo": "Der Rest wird automatisch auf aktive Unternehmen basierend auf der gewählten Methode verteilt. Keine manuelle Auswahl erforderlich.",
       "totalAutoHint": "(<= 100 % erlaubt; Rest automatisch verteilt)",
@@ -114,7 +134,11 @@
       "provideDriverForCompanies": "Geben Sie {{driver}} für die ausgewählten Unternehmen an.",
       "provideHeadcountForDept": "Geben Sie eine Mitarbeiterzahl für die Abteilung an.",
       "headcountSumZero": "Die Summe der Mitarbeiterzahl ist null. Geben Sie eine Mitarbeiterzahl für die ausgewählten Abteilungen an.",
-      "provideDriverSumZero": "Geben Sie {{driver}} für Ihre aktiven Unternehmen an (Summe ist null)"
+      "provideDriverSumZero": "Geben Sie {{driver}} für Ihre aktiven Unternehmen an (Summe ist null)",
+      "selectCompany": "Unternehmen wählen",
+      "selectDepartment": "Abteilung wählen",
+      "noCompanies": "Keine Unternehmen",
+      "noDepartments": "Keine Abteilungen"
     },
     "relations": {
       "projects": "Projekte",
@@ -125,6 +149,13 @@
       "selectContracts": "Verträge auswählen",
       "relevantWebsites": "Relevante Websites",
       "addUrl": "URL hinzufügen",
+      "linkName": "Name",
+      "linkUrl": "URL",
+      "noWebsites": "Keine Links hinzugefügt",
+      "deleteWebsite": "Link löschen",
+      "addLinkTitle": "Link hinzufügen",
+      "editLinkTitle": "Link bearbeiten",
+      "linkDescriptionPlaceholder": "z. B. Lieferantenportal",
       "attachments": "Anhänge",
       "dragDrop": "Dateien hierher ziehen oder über die Schaltfläche auswählen",
       "noUploadPermission": "Sie haben keine Berechtigung zum Hochladen von Anhängen.",
@@ -132,6 +163,35 @@
       "uploadingFiles": "{{count}} Datei(en) werden hochgeladen…",
       "failedToLoad": "Verknüpfungen konnten nicht geladen werden",
       "failedToSave": "Verknüpfungen konnten nicht gespeichert werden"
+    },
+    "fields": {
+      "supplier": "Lieferant",
+      "payingCompany": "Zahlendes Unternehmen",
+      "account": "Konto",
+      "currency": "Währung",
+      "analyticsCategory": "Analysekategorie",
+      "effectiveStart": "Beginn der Gültigkeit",
+      "effectiveEnd": "Ende der Gültigkeit",
+      "lifecycle": "Lebenszyklus",
+      "created": "Erstellt",
+      "updated": "Aktualisiert",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "z. B. jährliches Monitoring-Abonnement",
+      "notes": "Notizen",
+      "notesPlaceholder": "z. B. Verlängerung im Q3 verhandelt",
+      "endOfValidity": "Ende der Gültigkeit",
+      "endOfValidityHint": "Leer lassen, um unbegrenzt aktiv zu bleiben."
+    },
+    "metadata": {
+      "status": "Status",
+      "itOwner": "IT-Verantwortlicher",
+      "itOwnerMissing": "IT-Verantwortlicher fehlt",
+      "businessOwner": "Fachverantwortlicher",
+      "businessOwnerMissing": "Fachverantwortlicher fehlt"
+    },
+    "status": {
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert"
     }
   },
   "capex": {

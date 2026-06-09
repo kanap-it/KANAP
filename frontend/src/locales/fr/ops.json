@@ -7,6 +7,7 @@
     "exportTitle": "Exporter OPEX",
     "importTitle": "Importer OPEX",
     "columns": {
+      "reference": "Réf",
       "productName": "Nom du produit",
       "supplier": "Fournisseur",
       "payingCompany": "Société payeuse",
@@ -39,6 +40,7 @@
     "workspace": {
       "newSpendItem": "Nouveau poste OPEX",
       "spendItem": "Poste OPEX",
+      "spendItems": "Postes de dépense",
       "itemOf": "Poste {{index}} sur {{total}}",
       "prev": "Préc.",
       "next": "Suiv.",
@@ -69,7 +71,13 @@
     "budget": {
       "title": "Budget",
       "mode": "Mode",
-      "flat": "Forfaitaire (totaux annuels)",
+      "flat": "Annuel",
+      "monthly": "Mensuel",
+      "total": "Total",
+      "spreadHelper": "Répartir un montant annuel",
+      "spreadApply": "Appliquer",
+      "profileFlat": "Linéaire",
+      "profile445": "4-4-5",
       "manual": "Manuel (mensuel)",
       "annualTotals": "Totaux annuels ({{year}})",
       "monthlyEntry": "Saisie mensuelle ({{year}})",
@@ -84,7 +92,9 @@
       "someColumnsFrozen": "Certaines colonnes sont gelées et en lecture seule.",
       "allColumnsEditable": "Toutes les colonnes sont modifiables.",
       "failedToLoad": "Impossible de charger les données de version",
-      "failedToSave": "Impossible d'enregistrer la version"
+      "failedToSave": "Impossible d'enregistrer la version",
+      "clearColumn": "Effacer la colonne",
+      "multiYearTitle": "Tendance pluriannuelle"
     },
     "allocations": {
       "title": "Ventilations",
@@ -94,9 +104,19 @@
       "turnover": "Chiffre d'affaires",
       "manualByCompany": "Manuel par société",
       "manualByDepartment": "Manuel par département",
+      "manualByPct": "Pourcentages manuels",
       "allocateBy": "Ventiler par",
       "headcount": "Effectif",
       "allocationPct": "Ventilation %",
+      "yearBudget": "Budget de l'année",
+      "splitEqually": "Répartir équitablement",
+      "clearPins": "Réinitialiser les valeurs fixées",
+      "company": "Société",
+      "companyDept": "Société / département",
+      "driverValue": "Inducteur",
+      "amount": "Montant",
+      "total": "Total",
+      "mustSum100": "Les pourcentages manuels doivent totaliser 100 %.",
       "addRow": "Ajouter une ligne",
       "autoDistributeInfo": "Le reliquat est réparti automatiquement entre les sociétés actives selon la méthode sélectionnée. Aucune sélection manuelle requise.",
       "totalAutoHint": "(<= 100 % autorisé ; reliquat réparti automatiquement)",
@@ -114,7 +134,11 @@
       "provideDriverForCompanies": "Fournissez {{driver}} pour les sociétés sélectionnées.",
       "provideHeadcountForDept": "Fournissez un effectif pour le département.",
       "headcountSumZero": "La somme des effectifs est nulle. Fournissez un effectif pour les départements sélectionnés.",
-      "provideDriverSumZero": "Fournissez {{driver}} pour vos sociétés actives (la somme est nulle)"
+      "provideDriverSumZero": "Fournissez {{driver}} pour vos sociétés actives (la somme est nulle)",
+      "selectCompany": "Choisir une société",
+      "selectDepartment": "Choisir un département",
+      "noCompanies": "Aucune société",
+      "noDepartments": "Aucun département"
     },
     "relations": {
       "projects": "Projets",
@@ -125,6 +149,13 @@
       "selectContracts": "Sélectionnez des contrats",
       "relevantWebsites": "Sites web pertinents",
       "addUrl": "Ajouter une URL",
+      "linkName": "Nom",
+      "linkUrl": "URL",
+      "noWebsites": "Aucun lien ajouté",
+      "deleteWebsite": "Supprimer le lien",
+      "addLinkTitle": "Ajouter un lien",
+      "editLinkTitle": "Modifier le lien",
+      "linkDescriptionPlaceholder": "ex. portail fournisseur",
       "attachments": "Pièces jointes",
       "dragDrop": "Glissez-déposez des fichiers ici, ou utilisez le bouton pour sélectionner",
       "noUploadPermission": "Vous n'avez pas l'autorisation de téléverser des pièces jointes.",
@@ -132,6 +163,35 @@
       "uploadingFiles": "Téléversement de {{count}} fichier(s)…",
       "failedToLoad": "Impossible de charger les relations",
       "failedToSave": "Impossible d'enregistrer les relations"
+    },
+    "fields": {
+      "supplier": "Fournisseur",
+      "payingCompany": "Société payeuse",
+      "account": "Compte",
+      "currency": "Devise",
+      "analyticsCategory": "Catégorie analytique",
+      "effectiveStart": "Début d'effet",
+      "effectiveEnd": "Fin d'effet",
+      "lifecycle": "Cycle de vie",
+      "created": "Créé",
+      "updated": "Mis à jour",
+      "description": "Description",
+      "descriptionPlaceholder": "ex. abonnement annuel de supervision",
+      "notes": "Notes",
+      "notesPlaceholder": "ex. renouvellement négocié au T3",
+      "endOfValidity": "Fin de validité",
+      "endOfValidityHint": "Laisser vide pour rester actif indéfiniment."
+    },
+    "metadata": {
+      "status": "Statut",
+      "itOwner": "Responsable IT",
+      "itOwnerMissing": "Responsable IT manquant",
+      "businessOwner": "Responsable métier",
+      "businessOwnerMissing": "Responsable métier manquant"
+    },
+    "status": {
+      "enabled": "Activé",
+      "disabled": "Désactivé"
     }
   },
   "capex": {

@@ -30,7 +30,7 @@ export class SpendVersion {
   budget_year!: number;
 
   @Column('text')
-  allocation_method!: 'default' | 'headcount' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department';
+  allocation_method!: 'default' | 'headcount' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department' | 'manual_pct';
 
   @Column('text', { default: 'headcount' })
   allocation_driver!: 'headcount' | 'it_users' | 'turnover';

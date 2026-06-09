@@ -10,6 +10,8 @@ export function formatAllocationMethodLabel(method?: string | null): string {
       return 'Company';
     case 'manual_department':
       return 'Department';
+    case 'manual_pct':
+      return 'Manual %';
     case 'default':
       return 'Default';
     default:

@@ -634,7 +634,7 @@ export function buildCommentEmail(params: {
 
 // Template: Share Item
 export function buildShareEmail(params: {
-  itemType: 'request' | 'project' | 'task' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+  itemType: 'request' | 'project' | 'task' | 'opex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
   itemName: string;
   itemUrl: string;
   senderName: string;

@@ -12,6 +12,9 @@ import { contentDisposition } from '../common/content-disposition';
 import { SpendItemContactsService } from './spend-item-contacts.service';
 import { SupplierContactRole } from '../contacts/supplier-contact.entity';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { resolveToUuid } from '../common/resolve-item-id';
+import { EntityManager } from 'typeorm';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import {
   CreateSpendItemInput,
   UpdateSpendItemInput,
@@ -96,11 +99,47 @@ export class SpendItemsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('opex', 'reader')
   @Get(':id')
-  get(
+  async get(
     @Param('id') id: string,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.get(id, { manager: ctx.manager });
+    // Accept either a UUID or an OPX-N business reference. Resolved here only;
+    // nested routes are always called with the resolved UUID by the frontend.
+    const uuid = await resolveToUuid(id, 'spend', ctx.manager as EntityManager);
+    return this.svc.get(uuid, { manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Get(':id/yearly-totals')
+  async yearlyTotals(
+    @Param('id') idOrRef: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await resolveToUuid(idOrRef, 'spend', ctx.manager as EntityManager);
+    const Y = new Date().getFullYear();
+    const fromY = Number.parseInt(from, 10);
+    const toY = Number.parseInt(to, 10);
+    return this.svc.yearlyTotals(
+      id,
+      Number.isFinite(fromY) ? fromY : Y - 3,
+      Number.isFinite(toY) ? toY : Y + 1,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('opex', 'reader')
+  @Post(':id/share')
+  async share(
+    @Param('id') idOrRef: string,
+    @Body() body: ShareItemDto,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await resolveToUuid(idOrRef, 'spend', ctx.manager as EntityManager);
+    return this.svc.share(id, body, ctx.tenantId, ctx.userId || '', { manager: ctx.manager });
   }
 
   // Linked projects (Portfolio workspace)

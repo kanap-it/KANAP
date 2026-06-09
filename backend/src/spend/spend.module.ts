@@ -51,10 +51,12 @@ import { PortfolioProjectOpex } from '../portfolio/portfolio-project-opex.entity
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SpendItem, SpendVersion, SpendAmount, SpendAllocation, SpreadProfile, Company, Department, DepartmentMetric, Supplier, Account, AllocationRule, CompanyMetric, AnalyticsCategory, SpendLink, SpendAttachment, Application, ApplicationSpendItemLink, SpendItemContactLink, ExternalContact, SupplierContactLink, PortfolioProjectOpex, PortfolioProject]),
+    CommonModule,
     AuditModule,
     PermissionsModule,
     forwardRef(() => UsersModule),
