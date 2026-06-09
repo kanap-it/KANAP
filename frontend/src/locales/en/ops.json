@@ -7,6 +7,7 @@
     "exportTitle": "Export OPEX",
     "importTitle": "Import OPEX",
     "columns": {
+      "reference": "Ref",
       "productName": "Product Name",
       "supplier": "Supplier",
       "payingCompany": "Paying Company",
@@ -39,11 +40,41 @@
     "workspace": {
       "newSpendItem": "New OPEX Item",
       "spendItem": "OPEX Item",
+      "spendItems": "Spend items",
       "itemOf": "Item {{index}} of {{total}}",
       "prev": "Prev",
       "next": "Next",
       "failedToLoad": "Failed to load item.",
       "tabsAfterCreate": "Other tabs will be available after you create the item."
+    },
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "metadata": {
+      "status": "Status",
+      "itOwner": "IT owner",
+      "itOwnerMissing": "IT owner missing",
+      "businessOwner": "Business owner",
+      "businessOwnerMissing": "Business owner missing"
+    },
+    "fields": {
+      "supplier": "Supplier",
+      "payingCompany": "Paying company",
+      "account": "Account",
+      "currency": "Currency",
+      "analyticsCategory": "Analytics category",
+      "effectiveStart": "Effective start",
+      "effectiveEnd": "Effective end",
+      "lifecycle": "Lifecycle",
+      "created": "Created",
+      "updated": "Updated",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g., annual subscription for monitoring",
+      "notes": "Notes",
+      "notesPlaceholder": "e.g., renewal negotiated in Q3",
+      "endOfValidity": "End of validity",
+      "endOfValidityHint": "Leave blank to keep active indefinitely."
     },
     "tabs": {
       "overview": "Overview",
@@ -69,7 +100,13 @@
     "budget": {
       "title": "Budget",
       "mode": "Mode",
-      "flat": "Flat (annual totals)",
+      "flat": "Flat",
+      "monthly": "Monthly",
+      "total": "Total",
+      "spreadHelper": "Spread an annual amount",
+      "spreadApply": "Apply",
+      "profileFlat": "Flat",
+      "profile445": "4-4-5",
       "manual": "Manual (monthly)",
       "annualTotals": "Annual totals ({{year}})",
       "monthlyEntry": "Monthly entry ({{year}})",
@@ -84,7 +121,9 @@
       "someColumnsFrozen": "Some columns are frozen and read-only.",
       "allColumnsEditable": "All columns are editable.",
       "failedToLoad": "Failed to load version data",
-      "failedToSave": "Failed to save version"
+      "failedToSave": "Failed to save version",
+      "clearColumn": "Clear column",
+      "multiYearTitle": "Multi-year trend"
     },
     "allocations": {
       "title": "Allocations",
@@ -94,9 +133,19 @@
       "turnover": "Turnover",
       "manualByCompany": "Manual by Company",
       "manualByDepartment": "Manual by Department",
+      "manualByPct": "Manual percentages",
       "allocateBy": "Allocate by",
       "headcount": "Headcount",
       "allocationPct": "Allocation %",
+      "yearBudget": "Year budget",
+      "splitEqually": "Split equally",
+      "clearPins": "Clear manual pins",
+      "company": "Company",
+      "companyDept": "Company / department",
+      "driverValue": "Driver",
+      "amount": "Amount",
+      "total": "Total",
+      "mustSum100": "Manual percentages must sum to 100%.",
       "addRow": "Add row",
       "autoDistributeInfo": "Remainder auto-distributes across enabled companies based on the selected method. No manual selection required.",
       "totalAutoHint": "(<= 100% allowed; remainder auto-distributed)",
@@ -114,7 +163,11 @@
       "provideDriverForCompanies": "Provide {{driver}} for the selected companies.",
       "provideHeadcountForDept": "Provide a headcount for the department.",
       "headcountSumZero": "Headcount sum is zero. Provide headcount for selected departments.",
-      "provideDriverSumZero": "Provide {{driver}} for your enabled companies (sum is zero)"
+      "provideDriverSumZero": "Provide {{driver}} for your enabled companies (sum is zero)",
+      "selectCompany": "Select company",
+      "selectDepartment": "Select department",
+      "noCompanies": "No companies",
+      "noDepartments": "No departments"
     },
     "relations": {
       "projects": "Projects",
@@ -125,6 +178,13 @@
       "selectContracts": "Select contracts",
       "relevantWebsites": "Relevant websites",
       "addUrl": "Add URL",
+      "linkName": "Name",
+      "linkUrl": "URL",
+      "noWebsites": "No links added",
+      "deleteWebsite": "Delete link",
+      "addLinkTitle": "Add link",
+      "editLinkTitle": "Edit link",
+      "linkDescriptionPlaceholder": "e.g., vendor portal",
       "attachments": "Attachments",
       "dragDrop": "Drag & drop files here, or use the button to select",
       "noUploadPermission": "You do not have permission to upload attachments.",

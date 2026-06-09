@@ -777,6 +777,11 @@ export function quickSearchSummaryRows(rows: SpendSummaryRow[], q: string): Spen
   const take = (value: any) => (value == null ? '' : String(value)).toLowerCase();
   return rows.filter((row) => {
     const bag: string[] = [];
+    const itemNumber = (row as any).item_number;
+    if (itemNumber != null) {
+      bag.push(take(itemNumber));
+      bag.push(`opx-${take(itemNumber)}`);
+    }
     bag.push(take((row as any).product_name));
     bag.push(take((row as any).description));
     bag.push(take(row.supplier_name));

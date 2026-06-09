@@ -14,6 +14,8 @@ import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { LinkCellRenderer } from '../components/grid/renderers';
+import { formatItemRef } from '../utils/item-ref';
+import { formatAmount as formatNumber } from '../i18n/formatters';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './opex/listContextStorage';
 import { STATUS_VALUES } from '../constants/status';
 import { useLocale } from '../i18n/useLocale';
@@ -21,6 +23,7 @@ import ForbiddenPage from './ForbiddenPage';
 
 type SummaryRow = {
   id: string;
+  item_number: number;
   product_name: string;
   description?: string | null;
   supplier?: { id: string; name: string } | null;
@@ -63,12 +66,6 @@ type LookupUser = {
   last_name?: string | null;
 };
 
-function formatNumber(v: any) {
-  const n = Number(v ?? 0);
-  if (!isFinite(n)) return '';
-  const i = Math.round(n);
-  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
 
 export default function OpexListPage() {
   const { hasLevel } = useAuth();
@@ -330,10 +327,31 @@ export default function OpexListPage() {
     } else if (colId === 'latest_task_text') {
       tab = 'tasks';
     }
-    return `/ops/opex/${item.id}/${tab}?${next.toString()}`;
+    const ref = item.item_number != null ? formatItemRef('opex', item.item_number) : item.id;
+    return `/ops/opex/${ref}/${tab}?${next.toString()}`;
   }, [Y, buildGridSearch]);
 
   const columns: ColDef<SummaryRow>[] = useMemo(() => [
+    {
+      colId: 'item_number',
+      headerName: t('opex.columns.reference', 'Ref'),
+      width: 96,
+      valueGetter: (p) => (p.data?.item_number != null ? formatItemRef('opex', p.data.item_number) : ''),
+      cellStyle: {
+        color: 'var(--kanap-text-secondary)',
+        fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+        fontVariantNumeric: 'tabular-nums',
+        fontSize: '12px',
+      },
+      cellRenderer: (params: any) => (
+        <LinkCellRenderer
+          {...params}
+          linkType="internal"
+          getHref={(row) => getOpexHref(row, 'product_name')}
+          onNavigate={(href) => navigate(href)}
+        />
+      ),
+    },
     {
       field: 'product_name',
       headerName: t('opex.columns.productName'),

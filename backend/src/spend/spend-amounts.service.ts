@@ -13,7 +13,7 @@ type AnnualPayload = {
   kind: 'annual';
   year: number;
   totals: Partial<Record<'planned' | 'forecast' | 'committed' | 'actual' | 'expected_landing', number>>;
-  spread_profile_name?: string; // default flat (ignored; we spread equally without DB profiles)
+  spread_profile_name?: string; // default 'flat' (equal twelfths); a named SpreadProfile applies its 12 weights
 };
 
 type QuarterlyPayload = {
@@ -83,9 +83,21 @@ export class SpendAmountsService {
     const toDbAmount = (value: unknown) => formatCents(toCents(value as any));
 
     if ((payload as any).kind === 'annual') {
-      // Spread equally across 12 months (no DB profile dependency)
-      const weights = Array.from({ length: 12 }, () => 1 / 12);
       const annual = payload as AnnualPayload;
+      // Resolve spread weights: 'flat' (or unset) spreads equally across 12 months;
+      // a named SpreadProfile applies its stored 12 weights (normalised). Falls back
+      // to equal twelfths if the profile is missing or malformed.
+      const equalWeights = Array.from({ length: 12 }, () => 1 / 12);
+      let weights = equalWeights;
+      const profileName = annual.spread_profile_name;
+      if (profileName && profileName !== 'flat') {
+        const profile = await mg.getRepository(SpreadProfile).findOne({ where: { name: profileName } });
+        const raw = profile?.weights_json as number[] | undefined;
+        if (Array.isArray(raw) && raw.length === 12) {
+          const sum = raw.reduce((acc, w) => acc + (Number(w) || 0), 0);
+          if (sum > 0) weights = raw.map((w) => (Number(w) || 0) / sum);
+        }
+      }
       const totals = annual.totals ?? {};
       for (const key of Object.keys(totals)) {
         if ((totals as any)[key] != null) registerColumn(key);
