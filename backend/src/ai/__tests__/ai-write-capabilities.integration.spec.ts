@@ -333,9 +333,9 @@ async function seedGraph(runner: QueryRunner): Promise<SeededTenant> {
   await runner.query(
     `INSERT INTO spend_items (
        id, tenant_id, paying_company_id, product_name, description, supplier_id,
-       currency, effective_start, status, notes, created_at, updated_at
+       currency, effective_start, status, notes, item_number, created_at, updated_at
      )
-     VALUES ($1, $2, $3, $4, 'Seeded spend item', $5, 'EUR', DATE '2026-01-01', 'enabled', 'Original spend note', now(), now())`,
+     VALUES ($1, $2, $3, $4, 'Seeded spend item', $5, 'EUR', DATE '2026-01-01', 'enabled', 'Original spend note', (SELECT COALESCE(MAX(item_number), 0) + 1 FROM spend_items WHERE tenant_id = $2), now(), now())`,
     [spendItemId, tenantId, companyId, `PLAID Capability Spend ${tag}`, supplierId],
   );
   await runner.query(

@@ -1329,7 +1329,7 @@ async function main() {
 
     await setTenant(r, tenantOneId);
     const spendRows = await r.query(
-      `INSERT INTO spend_items(product_name, currency, effective_start, status) VALUES ($1, 'EUR', '2025-01-01', 'enabled') RETURNING id`,
+      `INSERT INTO spend_items(product_name, currency, effective_start, status, item_number) VALUES ($1, 'EUR', '2025-01-01', 'enabled', (SELECT COALESCE(MAX(item_number), 0) + 1 FROM spend_items)) RETURNING id`,
       [`S ${tag}`],
     );
     const spendId = spendRows[0].id as string;
