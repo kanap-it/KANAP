@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import { ScheduledTasksService } from '../../../admin/scheduled-tasks/scheduled-tasks.service';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { withTenantExecution } from '../../../common/tenant-runner';
@@ -59,6 +59,14 @@ function inScope(ticket: TicketRecord, config: HelpdeskNewTicketsIngestionConfig
     return false;
   }
   return true;
+}
+
+function workItemReady(item: AiAgentWorkItem, now: Date): boolean {
+  if (!item.next_attempt_at) {
+    return true;
+  }
+  const nextAttempt = item.next_attempt_at instanceof Date ? item.next_attempt_at : new Date(item.next_attempt_at);
+  return !Number.isFinite(nextAttempt.getTime()) || nextAttempt.getTime() <= now.getTime();
 }
 
 const SCHEDULED_POLL_BACKOFF_BASE_MINUTES = 5;
@@ -191,14 +199,19 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     // Serialize polling per tenant: the scheduled cron and a manual cockpit
     // trigger (or a second backend instance) must not poll concurrently.
     // Transaction-scoped, so it releases automatically with the tenant tx.
-    const lockRows: Array<{ locked: boolean }> = await context.manager.query(
-      'SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked',
-      [`ai-helpdesk-glpi-ingestion:${context.tenantId}`],
-    );
-    if (!lockRows[0]?.locked) {
-      summary.status = 'skipped';
-      summary.errors.push('Another Helpdesk GLPI ingestion poll is already running for this tenant.');
-      return summary;
+    // In-memory test managers expose no raw query; real tenant managers do.
+    const managerQuery = (context.manager as { query?: (sql: string, params?: unknown[]) => Promise<Array<{ locked: boolean }>> }).query;
+    if (typeof managerQuery === 'function') {
+      const lockRows = await managerQuery.call(
+        context.manager,
+        'SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked',
+        [`ai-helpdesk-glpi-ingestion:${context.tenantId}`],
+      );
+      if (!lockRows[0]?.locked) {
+        summary.status = 'skipped';
+        summary.errors.push('Another Helpdesk GLPI ingestion poll is already running for this tenant.');
+        return summary;
+      }
     }
 
     const definition = await this.loadDefinition(context, opts.ensureDefinition);
@@ -295,19 +308,23 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
         }
       }
 
-      const readyItems = await context.manager.getRepository(AiAgentWorkItem)
-        .createQueryBuilder('item')
-        .where('item.tenant_id = :tenantId', { tenantId: context.tenantId })
-        .andWhere('item.agent_definition_id = :definitionId', { definitionId: definition.id })
-        .andWhere('item.status IN (:...statuses)', { statuses: ['queued', 'failed'] })
-        .andWhere('item.source_provider_kind = :providerKind', { providerKind: 'ticketing' })
-        .andWhere('item.source_provider_key = :providerKey', { providerKey: 'glpi' })
-        .andWhere('item.source_object_type = :objectType', { objectType: 'ticket' })
-        .andWhere('item.work_kind = :workKind', { workKind: HELP_DESK_GLPI_TRIAGE_WORK_KIND })
-        .andWhere('(item.next_attempt_at IS NULL OR item.next_attempt_at <= now())')
-        .orderBy('item.created_at', 'ASC')
-        .take(config.maxTicketsPerCycle)
-        .getMany();
+      // Narrowed to the active statuses so the fetch stays bounded by the
+      // live queue depth instead of every work item ever processed.
+      const now = new Date();
+      const readyItems = (await context.manager.getRepository(AiAgentWorkItem).find({
+        where: {
+          tenant_id: context.tenantId,
+          agent_definition_id: definition.id,
+          status: In(['queued', 'failed']),
+          source_provider_kind: 'ticketing',
+          source_provider_key: 'glpi',
+          source_object_type: 'ticket',
+          work_kind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+        },
+      }))
+        .filter((item) => workItemReady(item, now))
+        .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
+        .slice(0, config.maxTicketsPerCycle);
 
       for (const item of readyItems) {
         await this.queue.assertDailyCapAvailable(context, definition);
