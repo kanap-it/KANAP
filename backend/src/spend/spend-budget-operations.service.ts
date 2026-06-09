@@ -373,7 +373,7 @@ export class SpendBudgetOperationsService {
 
         const destinationMethodLabel = formatAllocationMethodLabel(destinationMethod);
 
-        const isSourceManual = sourceMethod === 'manual_company' || sourceMethod === 'manual_department';
+        const isSourceManual = sourceMethod === 'manual_company' || sourceMethod === 'manual_department' || sourceMethod === 'manual_pct';
         const hasSourceData = isSourceManual ? sourceManualAllocations.length > 0 : true;
         const hasDestinationData = destinationManualAllocations.length > 0;
 
@@ -454,7 +454,7 @@ export class SpendBudgetOperationsService {
         if (destinationManualAllocations.length > 0) {
           await mg.getRepository(SpendAllocation).delete({ version_id: destinationVersion.id } as any);
         }
-        const destIsManual = sourceMethod === 'manual_company' || sourceMethod === 'manual_department';
+        const destIsManual = sourceMethod === 'manual_company' || sourceMethod === 'manual_department' || sourceMethod === 'manual_pct';
         if (destIsManual) {
           if (sourceManualAllocations.length === 0) {
             throw new Error(`Source item ${spendItem.product_name} has no manual allocations to copy.`);

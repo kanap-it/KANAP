@@ -19,7 +19,7 @@ import api from '../api';
 import { useTranslation } from 'react-i18next';
 import { formatItemRef } from '../utils/item-ref';
 
-export type ShareItemType = 'task' | 'project' | 'request' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+export type ShareItemType = 'task' | 'project' | 'request' | 'opex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
 
 type User = {
   id: string;
@@ -50,6 +50,8 @@ function buildItemPath(itemType: ShareItemType, itemId: string): string {
       return `/portfolio/projects/${itemId}`;
     case 'request':
       return `/portfolio/requests/${itemId}`;
+    case 'opex':
+      return `/ops/opex/${itemId}`;
     case 'asset':
       return `/it/assets/${itemId}/overview`;
     case 'application':
@@ -71,6 +73,8 @@ function buildApiEndpoint(itemType: ShareItemType, itemId: string): string {
       return `/portfolio/projects/${itemId}/share`;
     case 'request':
       return `/portfolio/requests/${itemId}/share`;
+    case 'opex':
+      return `/spend-items/${itemId}/share`;
     case 'asset':
       return `/assets/${itemId}/share`;
     case 'application':

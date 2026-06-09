@@ -1,0 +1,473 @@
+import React, { forwardRef, useImperativeHandle } from 'react';
+import { Alert, Box, Button, IconButton, Menu, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { useTranslation } from 'react-i18next';
+import api from '../../../api';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { formatAmount } from '../../../i18n/formatters';
+import useAutosave from '../../../hooks/useAutosave';
+import YearTabs from '../../../components/navigation/YearTabs';
+import { drawerSelectSx, drawerMenuItemSx } from '../../../theme/formSx';
+
+type PickerOption = { id: string; label: string };
+
+/**
+ * Compact inline picker — a flat MenuItem list anchored to the value (charter:
+ * finite lists like companies/departments use a Menu, never a nested Autocomplete).
+ * One click opens; a second selects. Optionally auto-opens (e.g. on "Add row").
+ */
+function InlinePicker({
+  value, options, placeholder, emptyLabel, disabled, error, autoOpen, onSelect, onAutoOpened,
+}: {
+  value: string | null;
+  options: PickerOption[];
+  placeholder: string;
+  emptyLabel: string;
+  disabled?: boolean;
+  error?: boolean;
+  autoOpen?: boolean;
+  onSelect: (id: string) => void;
+  onAutoOpened?: () => void;
+}) {
+  const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  React.useEffect(() => {
+    if (autoOpen && btnRef.current && !anchorEl) {
+      setAnchorEl(btnRef.current);
+      onAutoOpened?.();
+    }
+  }, [autoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  const label = options.find((o) => o.id === value)?.label ?? null;
+  return (
+    <>
+      <Box
+        component="button"
+        type="button"
+        ref={btnRef}
+        disabled={disabled}
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        sx={{
+          display: 'inline-flex', alignItems: 'center', gap: 0.5, maxWidth: '100%',
+          border: 0, bgcolor: 'transparent', font: 'inherit', textAlign: 'left', fontSize: 13,
+          color: label ? 'kanap.text.primary' : (error ? 'kanap.danger' : 'kanap.text.tertiary'),
+          cursor: disabled ? 'default' : 'pointer', p: '3px 6px', m: '-3px -6px', borderRadius: '4px',
+          transition: 'background-color 120ms',
+          '&:hover': disabled ? {} : { bgcolor: 'kanap.bg.composer' },
+        }}
+      >
+        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label || placeholder}</Box>
+        {!disabled && <KeyboardArrowDownIcon sx={{ fontSize: 16, color: 'kanap.text.secondary', flexShrink: 0 }} />}
+      </Box>
+      <Menu
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { maxHeight: 360, minWidth: 240 } } }}
+      >
+        {options.length === 0
+          ? <MenuItem disabled sx={drawerMenuItemSx}>{emptyLabel}</MenuItem>
+          : options.map((o) => (
+            <MenuItem key={o.id} selected={o.id === value} sx={drawerMenuItemSx} onClick={() => { onSelect(o.id); setAnchorEl(null); }}>
+              {o.label}
+            </MenuItem>
+          ))}
+      </Menu>
+    </>
+  );
+}
+
+export type AllocationsTabHandle = { flush: () => Promise<boolean>; isDirty: () => boolean };
+
+type Props = {
+  id: string;
+  year: number;
+  currency?: string;
+  availableYears?: number[];
+  onYearChange: (y: number) => void;
+};
+
+type Method = 'default' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department' | 'manual_pct';
+type Driver = 'headcount' | 'it_users' | 'turnover';
+type Version = { id: string; budget_year?: number; allocation_method?: Method; allocation_driver?: Driver };
+type Row = { company_id: string | null; department_id: string | null; allocation_pct: number; pinned?: boolean };
+type Company = { id: string; name: string; headcount_year?: number; it_users_year?: number; turnover_year?: number };
+type Department = { id: string; name: string; company_id: string };
+
+const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const keyOf = (companyId: string | null, departmentId: string | null) => `${companyId ?? ''}|${departmentId ?? ''}`;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({ id, year, currency, availableYears, onYearChange }, ref) {
+  const { t } = useTranslation(['ops', 'common']);
+
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [version, setVersion] = React.useState<Version | null>(null);
+  const [method, setMethod] = React.useState<Method>('default');
+  const [driver, setDriver] = React.useState<Driver>('headcount');
+  const [rows, setRows] = React.useState<Row[]>([]);
+  const [computedPct, setComputedPct] = React.useState<Map<string, number>>(new Map());
+  const [budgetTotal, setBudgetTotal] = React.useState(0);
+  const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [departments, setDepartments] = React.useState<Department[]>([]);
+  const [autoOpenIdx, setAutoOpenIdx] = React.useState<number | null>(null);
+
+  const isManualPct = method === 'manual_pct';
+  const isManualCompany = method === 'manual_company';
+  const isManualDept = method === 'manual_department';
+  const isAuto = !isManualPct && !isManualCompany && !isManualDept;
+
+  const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t('opex.allocations.failedToSave'))) });
+
+  // Latest-value refs for the debounced persist.
+  const methodRef = React.useRef(method); methodRef.current = method;
+  const driverRef = React.useRef(driver); driverRef.current = driver;
+  const rowsRef = React.useRef(rows); rowsRef.current = rows;
+  const versionRef = React.useRef(version); versionRef.current = version;
+
+  const companyName = React.useCallback((cid: string | null) => companies.find((c) => c.id === cid)?.name ?? '—', [companies]);
+  const companyOptions = React.useMemo<PickerOption[]>(() => companies.map((c) => ({ id: c.id, label: c.name })), [companies]);
+  const deptOptionsFor = React.useCallback((companyId: string | null): PickerOption[] =>
+    departments.filter((d) => !companyId || d.company_id === companyId).map((d) => ({ id: d.id, label: d.name })), [departments]);
+  const driverValue = React.useCallback((cid: string | null): number | null => {
+    const c = companies.find((x) => x.id === cid);
+    if (!c) return null;
+    const d = methodRef.current === 'it_users' || driverRef.current === 'it_users' ? c.it_users_year
+      : methodRef.current === 'turnover' || driverRef.current === 'turnover' ? c.turnover_year
+      : c.headcount_year;
+    return d == null ? null : num(d);
+  }, [companies]);
+
+  const ensureVersion = React.useCallback(async (): Promise<Version> => {
+    if (versionRef.current) return versionRef.current;
+    const res = await api.get<Version[]>(`/spend-items/${id}/versions`);
+    const existing = (res.data || []).find((v) => Number(v.budget_year) === year);
+    if (existing) { setVersion(existing); return existing; }
+    const created = await api.post<Version>(`/spend-items/${id}/versions`, {
+      version_name: `Y${year}`, budget_year: year, as_of_date: `${year}-01-01`, input_grain: 'annual', notes: null,
+    });
+    setVersion(created.data);
+    return created.data;
+  }, [id, year]);
+
+  const loadComputed = React.useCallback(async (vid: string) => {
+    const res = await api.get<{ items: Array<{ company_id: string; department_id: string | null; allocation_pct: number }>; }>(`/spend-versions/${vid}/allocations`);
+    const map = new Map<string, number>();
+    (res.data?.items || []).forEach((it) => map.set(keyOf(it.company_id, it.department_id), num(it.allocation_pct)));
+    setComputedPct(map);
+    return res.data?.items || [];
+  }, []);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [versRes, compRes, deptRes] = await Promise.all([
+        api.get<Version[]>(`/spend-items/${id}/versions`),
+        api.get<{ items: Company[] }>(`/companies`, { params: { year, page: 1, limit: 1000, sort: 'name:ASC' } }),
+        api.get<{ items: Department[] }>(`/departments`, { params: { year, page: 1, limit: 1000, sort: 'name:ASC' } }).catch(() => ({ data: { items: [] } })),
+      ]);
+      setCompanies(compRes.data?.items || []);
+      setDepartments(deptRes.data?.items || []);
+      const v = (versRes.data || []).find((vv) => Number(vv.budget_year) === year) || null;
+      setVersion(v);
+      if (!v) {
+        setMethod('default'); setDriver('headcount'); setRows([]); setComputedPct(new Map()); setBudgetTotal(0);
+        return;
+      }
+      const rawMethod = (v.allocation_method ?? 'default') as string;
+      const m: Method = rawMethod === 'headcount' ? 'default' : (rawMethod as Method);
+      setMethod(m);
+      setDriver((v.allocation_driver ?? 'headcount') as Driver);
+      const [items] = await Promise.all([
+        loadComputed(v.id),
+        api.get<{ totals: { planned: number } }>(`/spend-versions/${v.id}/amounts`, { params: { year } })
+          .then((r) => setBudgetTotal(num(r.data?.totals?.planned))).catch(() => setBudgetTotal(0)),
+      ]);
+      // Seed editable rows from stored distribution for manual methods.
+      if (m === 'manual_pct' || m === 'manual_company' || m === 'manual_department') {
+        setRows(items.map((it) => ({ company_id: it.company_id, department_id: it.department_id, allocation_pct: num(it.allocation_pct) })));
+      } else {
+        setRows([]);
+      }
+    } catch (e) {
+      setError(getApiErrorMessage(e, t, t('opex.allocations.failedToLoad')));
+    } finally {
+      setLoading(false);
+    }
+  }, [id, year, loadComputed, t]);
+
+  React.useEffect(() => { void load(); }, [load]);
+
+  const persist = React.useCallback(async () => {
+    const v = await ensureVersion();
+    const m = methodRef.current;
+    const d: Driver = m === 'it_users' ? 'it_users' : m === 'turnover' ? 'turnover' : m === 'manual_company' ? driverRef.current : 'headcount';
+    if (v.allocation_method !== m || v.allocation_driver !== d) {
+      await api.patch(`/spend-items/${id}/versions`, { id: v.id, allocation_method: m, allocation_driver: d });
+      setVersion((prev) => (prev ? { ...prev, allocation_method: m, allocation_driver: d } : prev));
+    }
+    let payload: Array<{ company_id: string; department_id: string | null; allocation_pct?: number }> = [];
+    if (m === 'manual_pct') {
+      payload = rowsRef.current.filter((r) => r.company_id).map((r) => ({ company_id: r.company_id!, department_id: null, allocation_pct: round2(num(r.allocation_pct)) }));
+    } else if (m === 'manual_company') {
+      payload = rowsRef.current.filter((r) => r.company_id).map((r) => ({ company_id: r.company_id!, department_id: null }));
+    } else if (m === 'manual_department') {
+      payload = rowsRef.current.filter((r) => r.company_id && r.department_id).map((r) => ({ company_id: r.company_id!, department_id: r.department_id }));
+    }
+    const isManual = m === 'manual_pct' || m === 'manual_company' || m === 'manual_department';
+    // Manual methods require ≥1 valid row; while the user is still picking, the
+    // method is saved (PATCH above) but the empty upsert is skipped to avoid an error.
+    if (isManual && payload.length === 0) {
+      await loadComputed(v.id);
+      return;
+    }
+    await api.post(`/spend-versions/${v.id}/allocations/bulk-upsert`, payload);
+    await loadComputed(v.id);
+  }, [ensureVersion, id, loadComputed]);
+
+  const scheduleSave = React.useCallback(() => { autosave.schedule(persist); }, [autosave, persist]);
+
+  useImperativeHandle(ref, () => ({ flush: () => autosave.flush(), isDirty: () => autosave.isBusy() }), [autosave]);
+
+  const handleYearChange = React.useCallback(async (y: number) => { await autosave.flush(); onYearChange(y); }, [autosave, onYearChange]);
+
+  const onMethodChange = (next: Method) => {
+    setMethod(next);
+    if (next === 'it_users') setDriver('it_users');
+    else if (next === 'turnover') setDriver('turnover');
+    else if (next !== 'manual_company') setDriver('headcount');
+    // Seed one empty row for manual methods so the user can start picking.
+    if (next === 'manual_pct' || next === 'manual_company' || next === 'manual_department') {
+      setRows((prev) => (prev.length ? prev : [{ company_id: null, department_id: null, allocation_pct: 0 }]));
+    } else {
+      setRows([]);
+    }
+    scheduleSave();
+  };
+
+  // ----- manual_pct pin / redistribute -----
+  const redistribute = (base: Row[]): Row[] => {
+    const next = base.map((r) => ({ ...r }));
+    const pinnedSum = next.filter((r) => r.pinned).reduce((a, r) => a + num(r.allocation_pct), 0);
+    const remaining = Math.max(0, 100 - pinnedSum);
+    const unpinned = next.map((r, i) => (!r.pinned ? i : -1)).filter((i) => i >= 0);
+    if (unpinned.length === 0) return next;
+    const wSum = unpinned.reduce((a, i) => a + num(next[i].allocation_pct), 0);
+    let acc = 0;
+    unpinned.forEach((i, k) => {
+      let p = wSum > 0 ? remaining * (num(next[i].allocation_pct) / wSum) : remaining / unpinned.length;
+      p = round2(p);
+      if (k === unpinned.length - 1) p = round2(remaining - acc); else acc += p;
+      next[i] = { ...next[i], allocation_pct: Math.max(0, p) };
+    });
+    return next;
+  };
+
+  const onPctEdit = (idx: number, value: number | '') => {
+    setRows((prev) => redistribute(prev.map((r, i) => (i === idx ? { ...r, allocation_pct: num(value), pinned: true } : r))));
+    scheduleSave();
+  };
+  const splitEqually = () => {
+    setRows((prev) => {
+      const n = prev.length || 1;
+      const each = round2(100 / n);
+      return prev.map((r, i) => ({ ...r, pinned: false, allocation_pct: i === n - 1 ? round2(100 - each * (n - 1)) : each }));
+    });
+    scheduleSave();
+  };
+  const clearPins = () => { setRows((prev) => prev.map((r) => ({ ...r, pinned: false }))); };
+
+  const onCompanyChange = (idx: number, cid: string | null) => {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, company_id: cid, department_id: isManualDept ? null : r.department_id } : r)));
+    scheduleSave();
+  };
+  const onDeptChange = (idx: number, did: string | null) => {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, department_id: did } : r)));
+    scheduleSave();
+  };
+  const addRow = () => setRows((prev) => { setAutoOpenIdx(prev.length); return [...prev, { company_id: null, department_id: null, allocation_pct: 0 }]; });
+  const removeRow = (idx: number) => { setRows((prev) => prev.filter((_, i) => i !== idx)); scheduleSave(); };
+
+  // Display rows: editable rows for manual methods, computed distribution for auto.
+  const displayRows: Row[] = React.useMemo(() => {
+    if (isAuto) {
+      return Array.from(computedPct.entries()).map(([k, pct]) => {
+        const [cid, did] = k.split('|');
+        return { company_id: cid || null, department_id: did || null, allocation_pct: pct };
+      }).sort((a, b) => b.allocation_pct - a.allocation_pct);
+    }
+    return rows;
+  }, [isAuto, computedPct, rows]);
+
+  const pctFor = (r: Row) => isManualPct ? num(r.allocation_pct) : (computedPct.get(keyOf(r.company_id, r.department_id)) ?? 0);
+  const totalPct = displayRows.reduce((a, r) => a + pctFor(r), 0);
+  const totalValid = Math.abs(totalPct - 100) < 0.01 || (totalPct === 0 && displayRows.length === 0);
+
+  const savingHint = autosave.status === 'saving' || autosave.status === 'pending'
+    ? t('common:status.saving', 'Saving…')
+    : autosave.status === 'saved' ? t('common:status.saved', 'Saved') : null;
+
+  const methodOptions: Array<{ value: Method; label: string }> = [
+    { value: 'default', label: t('opex.allocations.headcountDefault') },
+    { value: 'it_users', label: t('opex.allocations.itUsers') },
+    { value: 'turnover', label: t('opex.allocations.turnover') },
+    { value: 'manual_company', label: t('opex.allocations.manualByCompany') },
+    { value: 'manual_department', label: t('opex.allocations.manualByDepartment') },
+    { value: 'manual_pct', label: t('opex.allocations.manualByPct') },
+  ];
+
+  const numHeadSx = { textAlign: 'right', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', px: 1.5, py: 0.75, whiteSpace: 'nowrap' } as const;
+  const numCellSx = { textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'kanap.text.primary', px: 1.5, py: 0.5, whiteSpace: 'nowrap' } as const;
+
+  return (
+    <Stack spacing={2.5} sx={{ pt: 1 }}>
+      {!!error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+
+      {/* Saving hint is absolutely positioned so it never reflows the year selector / table. */}
+      <Box sx={{ position: 'relative' }}>
+        <YearTabs currentYear={year} availableYears={availableYears} onYearChange={(y) => void handleYearChange(y)} disabled={loading} />
+        {savingHint && (
+          <Typography sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'kanap.text.tertiary', pointerEvents: 'none' }}>
+            {savingHint}
+          </Typography>
+        )}
+      </Box>
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-end' }}>
+        <Box sx={{ minWidth: 200 }}>
+          <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t('opex.allocations.method')}</Typography>
+          <TextField select fullWidth variant="standard" value={method} onChange={(e) => onMethodChange(e.target.value as Method)} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
+            {methodOptions.map((o) => <MenuItem key={o.value} value={o.value} sx={drawerMenuItemSx}>{o.label}</MenuItem>)}
+          </TextField>
+        </Box>
+        {isManualCompany && (
+          <Box sx={{ minWidth: 140 }}>
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t('opex.allocations.allocateBy')}</Typography>
+            <TextField select fullWidth variant="standard" value={driver} onChange={(e) => { setDriver(e.target.value as Driver); scheduleSave(); }} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
+              <MenuItem value="headcount" sx={drawerMenuItemSx}>{t('opex.allocations.headcount')}</MenuItem>
+              <MenuItem value="it_users" sx={drawerMenuItemSx}>{t('opex.allocations.itUsers')}</MenuItem>
+              <MenuItem value="turnover" sx={drawerMenuItemSx}>{t('opex.allocations.turnover')}</MenuItem>
+            </TextField>
+          </Box>
+        )}
+        <Box sx={{ ml: 'auto', textAlign: 'right' }}>
+          <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>{t('opex.allocations.yearBudget')}{currency ? ` · ${currency.toUpperCase()}` : ''}</Typography>
+          <Typography sx={{ fontSize: 15, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{formatAmount(budgetTotal)}</Typography>
+        </Box>
+      </Box>
+
+      {isAuto && (
+        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('opex.allocations.autoDistributeInfo')}</Typography>
+      )}
+      {isManualPct && (
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button size="small" variant="action" onClick={splitEqually}>{t('opex.allocations.splitEqually')}</Button>
+          <Button size="small" variant="action" onClick={clearPins}>{t('opex.allocations.clearPins')}</Button>
+        </Box>
+      )}
+
+      <Box component="table" sx={{ width: 'auto', minWidth: 420, borderCollapse: 'collapse', '& td, & th': { borderBottom: '1px solid', borderColor: 'kanap.border.soft' } }}>
+        <Box component="thead">
+          <Box component="tr">
+            <Box component="th" sx={{ textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', px: 1, py: 0.75, minWidth: 220 }}>{isManualDept ? t('opex.allocations.companyDept') : t('opex.allocations.company')}</Box>
+            {!isManualPct && <Box component="th" sx={numHeadSx}>{t('opex.allocations.driverValue')}</Box>}
+            <Box component="th" sx={numHeadSx}>%</Box>
+            <Box component="th" sx={numHeadSx}>{t('opex.allocations.amount')}</Box>
+            {!isAuto && <Box component="th" sx={{ width: 40 }} />}
+          </Box>
+        </Box>
+        <Box component="tbody">
+          {displayRows.map((r, idx) => {
+            const pct = pctFor(r);
+            return (
+              <Box component="tr" key={isAuto ? keyOf(r.company_id, r.department_id) : idx} sx={{ '&:hover': { bgcolor: 'kanap.bg.hover' }, '&:hover .alloc-row-delete': { opacity: 1 } }}>
+                <Box component="td" sx={{ px: 1, py: 0.5, fontSize: 13 }}>
+                  {isAuto ? (
+                    companyName(r.company_id)
+                  ) : (
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', minWidth: 0 }}>
+                      <InlinePicker
+                        value={r.company_id}
+                        options={companyOptions}
+                        placeholder={t('opex.allocations.selectCompany')}
+                        emptyLabel={t('opex.allocations.noCompanies')}
+                        error={!r.company_id}
+                        autoOpen={autoOpenIdx === idx}
+                        onSelect={(cid) => onCompanyChange(idx, cid)}
+                        onAutoOpened={() => setAutoOpenIdx(null)}
+                      />
+                      {isManualDept && (
+                        <InlinePicker
+                          value={r.department_id}
+                          options={deptOptionsFor(r.company_id)}
+                          placeholder={t('opex.allocations.selectDepartment')}
+                          emptyLabel={t('opex.allocations.noDepartments')}
+                          disabled={!r.company_id}
+                          error={!r.department_id}
+                          onSelect={(did) => onDeptChange(idx, did)}
+                        />
+                      )}
+                    </Box>
+                  )}
+                </Box>
+                {!isManualPct && <Box component="td" sx={numCellSx}>{driverValue(r.company_id) ?? '—'}</Box>}
+                <Box component="td" sx={{ ...numCellSx, width: isManualPct ? 124 : undefined }}>
+                  {isManualPct ? (
+                    <TextField
+                      type="number" size="small" variant="standard" value={r.allocation_pct}
+                      onChange={(e) => onPctEdit(idx, e.target.value === '' ? '' : Number(e.target.value))}
+                      inputProps={{ step: 0.01, style: { textAlign: 'right', padding: '2px 0' } }}
+                      InputProps={{
+                        disableUnderline: true,
+                        endAdornment: <Box component="span" sx={{ fontSize: 13, color: 'kanap.text.tertiary', pl: 0.25 }}>%</Box>,
+                      }}
+                      sx={{ width: '100%' }}
+                    />
+                  ) : `${round2(pct)}%`}
+                </Box>
+                <Box component="td" sx={numCellSx}>{formatAmount((pct / 100) * budgetTotal)}</Box>
+                {!isAuto && (
+                  <Box component="td" sx={{ textAlign: 'center' }}>
+                    <IconButton
+                      className="alloc-row-delete"
+                      size="small"
+                      aria-label={t('common:buttons.remove', 'Remove')}
+                      onClick={() => removeRow(idx)}
+                      disabled={displayRows.length <= 1}
+                      sx={{ opacity: 0, transition: 'opacity 120ms', color: 'kanap.text.tertiary', '&:hover': { color: 'kanap.danger' } }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+        <Box component="tfoot">
+          <Box component="tr">
+            <Box component="td" sx={{ fontSize: 12, fontWeight: 500, px: 1, py: 0.75 }}>{t('opex.allocations.total')}</Box>
+            {!isManualPct && <Box component="td" />}
+            <Box component="td" sx={{ ...numCellSx, fontWeight: 500, color: totalValid ? 'kanap.text.primary' : 'warning.main' }}>{round2(totalPct)}%</Box>
+            <Box component="td" sx={{ ...numCellSx, fontWeight: 500 }}>{formatAmount((totalPct / 100) * budgetTotal)}</Box>
+            {!isAuto && <Box component="td" />}
+          </Box>
+        </Box>
+      </Box>
+
+      {!isAuto && (
+        <Box>
+          <Button size="small" startIcon={<AddIcon />} onClick={addRow}>{t('opex.allocations.addRow')}</Button>
+        </Box>
+      )}
+      {isManualPct && !totalValid && (
+        <Typography sx={{ fontSize: 12, color: 'warning.main' }}>{t('opex.allocations.mustSum100')}</Typography>
+      )}
+    </Stack>
+  );
+});

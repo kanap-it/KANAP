@@ -28,6 +28,7 @@ const ALLOCATION_METHOD_LABELS: Record<ResolvedAllocationMethod, string> = {
   turnover: 'Turnover',
   manual_company: 'Manual (company)',
   manual_department: 'Manual (department)',
+  manual_pct: 'Manual (%)',
 };
 
 function toCurrency(n: number): number {
@@ -667,7 +668,9 @@ export class ChargebackReportService {
     for (const version of fullVersions) {
       const allocationInfo = allocationData.get(version.id);
       const fallbackMethod: ResolvedAllocationMethod =
-        version.allocation_method === 'manual_company' || version.allocation_method === 'manual_department'
+        version.allocation_method === 'manual_company'
+        || version.allocation_method === 'manual_department'
+        || version.allocation_method === 'manual_pct'
           ? (version.allocation_method as ResolvedAllocationMethod)
           : 'headcount';
       const resolvedMethod = allocationInfo?.resolvedMethod ?? fallbackMethod;

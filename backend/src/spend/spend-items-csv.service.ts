@@ -20,6 +20,7 @@ import { addCents, formatCents, toCents } from '../common/amount';
 import { spreadAnnualToMonths } from './spread.util';
 import { resolveLifecycleState, StatusState } from '../common/status';
 import { SpendItemUpsertDto } from './dto/spend-item.dto';
+import { ItemNumberService } from '../common/item-number.service';
 
 @Injectable()
 export class SpendItemsCsvService {
@@ -34,6 +35,7 @@ export class SpendItemsCsvService {
     private readonly audit: AuditService,
     private readonly freeze: FreezeService,
     private readonly currencySettings: CurrencySettingsService,
+    private readonly itemNumbers: ItemNumberService,
   ) {}
 
   private csvHeaders(): string[] {
@@ -400,6 +402,10 @@ export class SpendItemsCsvService {
     }
     if (dryRun) return { ok: true, dryRun: true, total: rows.length, inserted, updated, errors: [] };
 
+    if (!tenantId) {
+      return { ok: false, dryRun: false, total: rows.length, inserted: 0, updated: 0, errors: [{ row: 0, message: 'Tenant context is required for import' }], allowedCurrencies: Array.from(allowedSet) };
+    }
+
     let processed = 0;
     for (const item of unique) {
       let supplierId: string | null = null;
@@ -445,6 +451,7 @@ export class SpendItemsCsvService {
           notes: item.notes ?? null,
         },
         userId,
+        tenantId,
       });
       const years = [Y - 1, Y, Y + 1];
       for (const yr of years) {
@@ -510,12 +517,15 @@ export class SpendItemsCsvService {
     return { ok: true, dryRun: false, total: rows.length, inserted, updated, processed, errors: [], allowedCurrencies: Array.from(allowedSet) };
   }
 
-  private async createSpendItem({ manager, body, userId }: { manager: EntityManager; body: SpendItemUpsertDto; userId?: string | null }) {
+  private async createSpendItem({ manager, body, userId, tenantId }: { manager: EntityManager; body: SpendItemUpsertDto; userId?: string | null; tenantId: string }) {
     const repo = manager.getRepository(SpendItem);
     const { status: statusInput, disabled_at, ...rest } = body;
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
+    // One OPX number per actual insert. Dry-run and skipped/invalid rows never reach here.
+    const item_number = await this.itemNumbers.nextItemNumber('spend', tenantId, manager);
     const entity = repo.create({
       ...rest,
+      item_number,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,
     });

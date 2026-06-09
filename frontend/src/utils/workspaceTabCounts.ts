@@ -65,3 +65,23 @@ export async function fetchProjectTasksCount(projectId: string): Promise<number>
   const res = await api.get(`/portfolio/projects/${projectId}/tasks/status-summary`);
   return itemCount(res.data);
 }
+
+export async function fetchSpendTasksCount(spendItemId: string): Promise<number> {
+  const res = await api.get(`/spend-items/${spendItemId}/tasks`);
+  return itemCount(res.data);
+}
+
+export async function fetchSpendRelationsCount(spendItemId: string): Promise<number> {
+  const [contracts, applications, projects, links, attachments] = await Promise.allSettled([
+    api.get(`/spend-items/${spendItemId}/contracts`),
+    api.get(`/spend-items/${spendItemId}/applications`),
+    api.get(`/spend-items/${spendItemId}/projects`),
+    api.get(`/spend-items/${spendItemId}/links`),
+    api.get(`/spend-items/${spendItemId}/attachments`),
+  ]);
+  return settledItemCount(contracts)
+    + settledItemCount(applications)
+    + settledItemCount(projects)
+    + settledItemCount(links)
+    + settledItemCount(attachments);
+}
