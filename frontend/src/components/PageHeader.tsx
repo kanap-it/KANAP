@@ -45,6 +45,7 @@ function useBreadcrumbs(): Crumb[] {
       'analytics': 'analytics',
       'users': 'users',
       'roles': 'roles',
+      'agent-control': 'agentControl',
       'scheduled-tasks': 'scheduledTasks',
       'billing': 'billing',
       'reports': 'reports',

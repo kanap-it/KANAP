@@ -100,6 +100,495 @@ export type AiAdminOverview = {
   }>;
 };
 
+export type AiAgentControlRunItem = {
+  id: string;
+  tenant_id: string;
+  user_id: string | null;
+  conversation_id: string | null;
+  request_id: string | null;
+  ai_api_key_id: string | null;
+  invocation_channel: string;
+  trigger_kind: string;
+  status: string;
+  input_summary: Record<string, unknown> | null;
+  output_summary: Record<string, unknown> | null;
+  usage_json: Record<string, unknown> | null;
+  cost_json: Record<string, unknown> | null;
+  metadata_json: Record<string, unknown> | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  counts?: {
+    tool_executions: number;
+    evidence: number;
+    action_requests: number;
+    pending_actions: number;
+  };
+};
+
+export type AiAgentControlToolExecution = {
+  id: string;
+  run_id: string;
+  action_request_id: string | null;
+  approval_id: string | null;
+  capability_name: string;
+  capability_version: string;
+  surface: string;
+  effect: string;
+  status: string;
+  input_summary: Record<string, unknown> | null;
+  output_summary: Record<string, unknown> | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  metadata_json: Record<string, unknown> | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlEvidence = {
+  id: string;
+  run_id: string | null;
+  tool_execution_id: string | null;
+  action_request_id: string | null;
+  source_provider: string;
+  source_object_type: string;
+  source_object_id: string | null;
+  trust_level: string;
+  redaction_status: string;
+  summary: string;
+  payload_json: Record<string, unknown> | unknown[] | null;
+  collected_at: string | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlObservation = {
+  id: string;
+  run_id: string | null;
+  observation_type: string;
+  status: string;
+  source_provider: string;
+  source_object_type: string;
+  severity: string | null;
+  summary: string;
+  evidence_ids: string[] | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlRecommendation = {
+  id: string;
+  run_id: string | null;
+  observation_id: string | null;
+  recommendation_type: string;
+  status: string;
+  summary: string;
+  rationale: string | null;
+  confidence: number | null;
+  proposed_action_class: string | null;
+  max_autonomy_level: string;
+  evidence_ids: string[] | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlDecision = {
+  id: string;
+  run_id: string | null;
+  recommendation_id: string | null;
+  decision: string;
+  status: string;
+  reason: string;
+  created_at: string | null;
+};
+
+export type AiAgentControlEvaluation = {
+  id: string;
+  run_id: string | null;
+  recommendation_id: string | null;
+  decision_id: string | null;
+  status: string;
+  outcome: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlActionRequest = {
+  id: string;
+  run_id: string | null;
+  tool_execution_id: string | null;
+  capability_name: string;
+  capability_version: string;
+  effect: string;
+  status: string;
+  target_type: string | null;
+  target_id: string | null;
+  target_ref: string | null;
+  action_payload_json: Record<string, unknown> | null;
+  provider_kind: string | null;
+  provider_key: string | null;
+  input_summary: Record<string, unknown> | null;
+  evidence_ids: string[] | null;
+  expires_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  executed_at: string | null;
+  error_message: string | null;
+  metadata_json: Record<string, unknown> | null;
+  execution_readiness: {
+    can_execute: boolean;
+    can_reject: boolean;
+    blocked_reason: string | null;
+    requires_sandbox_write_target: boolean;
+    sandbox_write_target_ref: string | null;
+  } | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AiAgentControlAgentDefinition = {
+  id: string;
+  agent_key: string;
+  name: string;
+  description: string | null;
+  agent_type: string;
+  status: string;
+  environment: string;
+  provider_bindings_json: Record<string, unknown> | null;
+  allowed_capabilities_json: Record<string, unknown> | unknown[] | null;
+  forbidden_capabilities_json: Record<string, unknown> | unknown[] | null;
+  max_autonomy_level: string;
+  default_approval_requirement: string;
+  trigger_policy_json: Record<string, unknown> | null;
+  scope_policy_json: Record<string, unknown> | null;
+  queue_policy_json: Record<string, unknown> | null;
+  response_policy_json: Record<string, unknown> | null;
+  evaluation_policy_json: Record<string, unknown> | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AiAgentControlWorkItem = {
+  id: string;
+  agent_definition_id: string;
+  trigger_id: string | null;
+  source_provider_kind: string;
+  source_provider_key: string;
+  source_object_type: string;
+  source_object_ref: string;
+  source_object_updated_at: string | null;
+  work_kind: string;
+  status: string;
+  priority: number;
+  dedup_key: string;
+  lease_owner: string | null;
+  leased_until: string | null;
+  attempt_count: number;
+  max_attempts: number;
+  next_attempt_at: string | null;
+  last_run_id: string | null;
+  last_action_request_ids: string[] | null;
+  last_error: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AiAgentControlTargetState = {
+  id: string;
+  agent_definition_id: string;
+  provider_kind: string;
+  provider_key: string;
+  target_type: string;
+  target_ref: string;
+  last_seen_external_updated_at: string | null;
+  last_processed_external_updated_at: string | null;
+  last_run_id: string | null;
+  last_public_reply_hash: string | null;
+  last_internal_note_hash: string | null;
+  last_classification_hash: string | null;
+  last_assignment_hash: string | null;
+  agent_touched: boolean;
+  needs_followup: boolean;
+  state_json: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AiAgentControlAuditEvent = {
+  id: string;
+  tenant_id: string;
+  agent_definition_id: string | null;
+  work_item_id: string | null;
+  event_type: string;
+  severity: string;
+  message: string;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlHelpdeskSummary = {
+  agentDefinitionId: string;
+  ingestion: {
+    enabled: boolean;
+    mode: string;
+    paused: boolean;
+    pauseReason: string | null;
+    enabledAt: string | null;
+    createdAfter: string | null;
+    entityId: string | null;
+    categoryId: string | null;
+    maxTicketsPerCycle: number | null;
+    maxProviderRequestsPerCycle: number | null;
+    lastPollAt: string | null;
+    lastPollStatus: string | null;
+    lastAuditEventId: string | null;
+  };
+  guardrails: {
+    configured: boolean;
+    perRun: {
+      maxEstimatedTokens: number;
+      maxEstimatedCostEur: number;
+    } | null;
+    daily: {
+      windowStart: string;
+      windowEnd: string;
+      runs: number;
+      estimatedTokens: number;
+      estimatedCostEur: number;
+      cap: {
+        maxRuns: number;
+        maxTokens: number;
+        maxCostEur: number;
+      };
+      reached: boolean;
+      reachedReasons: string[];
+    } | null;
+  };
+  evaluation: {
+    windowStart: string;
+    windowEnd: string;
+    proposalsByActionClass: Record<string, number>;
+    terminalByStatus: Record<string, number>;
+    acceptanceRate: number | null;
+    rejectionReasons: Record<string, number>;
+    medianApprovalLatencySeconds: number | null;
+    runsPerTicket: number | null;
+    tokensPerTicket: number | null;
+    costPerTicketEur: number | null;
+    kbHitRate: number | null;
+  };
+};
+
+export type AiAgentControlQueueOverview = {
+  definitions: AiAgentControlAgentDefinition[];
+  work_items: AiAgentControlWorkItem[];
+  target_states: AiAgentControlTargetState[];
+  action_requests: AiAgentControlActionRequest[];
+  counts: Record<string, number>;
+  helpdesk?: {
+    summary: AiAgentControlHelpdeskSummary | null;
+    audit_events: AiAgentControlAuditEvent[];
+  };
+};
+
+export type AiAgentControlHelpdeskContextRead = {
+  run_id: string;
+  step_id: string;
+  tool_execution_id: string;
+  evidence_ids: string[];
+  output: unknown;
+};
+
+export type AiAgentControlHelpdeskContextResult = {
+  work_item: AiAgentControlWorkItem;
+  target_state: AiAgentControlTargetState | null;
+  run_id: string;
+  classification: AiAgentControlHelpdeskContextRead;
+  lifecycle: AiAgentControlHelpdeskContextRead;
+  routing: AiAgentControlHelpdeskContextRead;
+  participants: AiAgentControlHelpdeskContextRead;
+};
+
+export type AiAgentControlApproval = {
+  id: string;
+  action_request_id: string;
+  capability_name: string;
+  capability_version: string;
+  source: string;
+  status: string;
+  actor_user_id: string | null;
+  actor_label: string | null;
+  reason: string | null;
+  expires_at: string | null;
+  decided_at: string | null;
+  created_at: string | null;
+};
+
+export type AiAgentControlRunDetail = {
+  run: AiAgentControlRunItem;
+  tool_executions: AiAgentControlToolExecution[];
+  evidence: AiAgentControlEvidence[];
+  observations: AiAgentControlObservation[];
+  recommendations: AiAgentControlRecommendation[];
+  decisions: AiAgentControlDecision[];
+  evaluations: AiAgentControlEvaluation[];
+  action_requests: AiAgentControlActionRequest[];
+  approvals: AiAgentControlApproval[];
+};
+
+export type AiAgentControlMockTriageResult = {
+  diagnostic: {
+    run_id: string | null;
+    evidence_ids: string[];
+    observation_ids: string[];
+    recommendation_id: string;
+    decision_id: string;
+    evaluation_id: string;
+  };
+  proposal: {
+    run_id: string | null;
+    action_request_id: string;
+    decision_id: string;
+    evaluation_id: string;
+  };
+  detail: AiAgentControlRunDetail;
+};
+
+export type AiAgentControlLiveTarget = {
+  id: string;
+  tenant_id: string;
+  provider_kind: string;
+  provider_key: string;
+  environment: string;
+  target_kind: string;
+  target_key: string;
+  external_ref: string;
+  allowed_effect: string;
+  safety_label: string;
+  enabled: boolean;
+  expires_at: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AiAgentControlGlpiReadTargetsResult = {
+  provider: {
+    provider_kind: string;
+    provider_key: string;
+    available: boolean;
+    reason_code: string | null;
+    message: string | null;
+  };
+  items: AiAgentControlLiveTarget[];
+  ready: boolean;
+};
+
+export type AiAgentControlGlpiReadResult = {
+  target: AiAgentControlLiveTarget;
+  result: {
+    run_id: string;
+    step_id: string;
+    tool_execution_id: string;
+    output: unknown;
+  };
+  detail: AiAgentControlRunDetail;
+};
+
+export type AiAgentControlGlpiTriageResult = {
+  target: AiAgentControlLiveTarget;
+  agent_definition: AiAgentControlAgentDefinition | null;
+  work_item: AiAgentControlWorkItem | null;
+  target_state: AiAgentControlTargetState | null;
+  diagnostic: {
+    run_id: string;
+    ticket_tool_execution_id: string;
+    ticket_notes_tool_execution_id?: string;
+    knowledge_tool_execution_id: string;
+    knowledge_tool_execution_ids?: string[];
+    knowledge_query?: string;
+    knowledge_query_candidates?: string[];
+    knowledge_search_plan?: Record<string, unknown>;
+    knowledge_query_attempts?: Array<{
+      query: string;
+      result_count: number;
+      tool_execution_id: string;
+    }>;
+    knowledge_candidates?: Array<{
+      ref?: string | null;
+      title?: string | null;
+      search_queries?: string[];
+    }>;
+    knowledge_result_interpretation?: Record<string, unknown>;
+    internal_note_tool_execution_id?: string | null;
+    public_reply_tool_execution_id?: string | null;
+    evidence_ids: string[];
+    observation_id: string;
+    recommendation_id: string;
+    decision_id: string;
+    evaluation_id: string;
+    action_request_ids?: string[];
+    conversation_gate?: {
+      can_prepare_internal_note?: boolean;
+      can_prepare_public_reply?: boolean;
+      internal_note_reason?: string;
+      public_reply_reason?: string;
+      latest_requester_message_at?: string | null;
+      latest_requester_message_id?: string | null;
+      last_agent_internal_note_at?: string | null;
+      last_agent_internal_note_action_id?: string | null;
+      last_agent_public_reply_at?: string | null;
+      last_agent_public_reply_action_id?: string | null;
+      requester_classification_confidence?: string;
+      ticket_history_entry_count?: number;
+      latest_ticket_note_id?: string | null;
+      latest_ticket_note_at?: string | null;
+      latest_ticket_note_fingerprint?: string | null;
+      latest_requester_message_fingerprint?: string | null;
+      prepared_at?: string | null;
+    };
+    skipped_actions?: {
+      internal_note?: string | null;
+      public_reply?: string | null;
+    };
+    ticket_history_entry_count?: number;
+    knowledge_results: Array<{
+      id?: string;
+      ref?: string | null;
+      title?: string | null;
+      summary?: string | null;
+      snippet?: string | null;
+      status?: string | null;
+      updated_at?: string | null;
+    }>;
+  };
+  proposal: {
+    run_id: string;
+    step_id: string;
+    tool_execution_id: string;
+    output: unknown;
+  } | null;
+  public_reply_proposal?: {
+    run_id: string;
+    step_id: string;
+    tool_execution_id: string;
+    output: unknown;
+  };
+  detail: AiAgentControlRunDetail;
+};
+
+export type AiAgentControlHelpdeskIngestionPollResult = {
+  tenantId: string;
+  status: string;
+  listed: number;
+  enqueued: number;
+  deduped: number;
+  processed: number;
+  errors: string[];
+};
+
 export class ChatStreamRequestError extends Error {
   status: number;
   code: string | null;
@@ -291,6 +780,70 @@ export const aiAdminApi = {
   },
   async getBuiltinUsage(): Promise<BuiltinUsage> {
     const res = await api.get('/ai/settings/builtin-usage');
+    return res.data;
+  },
+};
+
+export const aiAgentControlApi = {
+  async listRuns(params?: { limit?: number; status?: string }): Promise<{ items: AiAgentControlRunItem[] }> {
+    const res = await api.get('/ai/admin/control-plane/runs', { params });
+    return res.data;
+  },
+  async getRun(id: string): Promise<AiAgentControlRunDetail> {
+    const res = await api.get(`/ai/admin/control-plane/runs/${id}`);
+    return res.data;
+  },
+  async listActions(params?: { limit?: number; status?: string }): Promise<{ items: AiAgentControlActionRequest[] }> {
+    const res = await api.get('/ai/admin/control-plane/actions', { params });
+    return res.data;
+  },
+  async getQueueOverview(params?: { limit?: number }): Promise<AiAgentControlQueueOverview> {
+    const res = await api.get('/ai/admin/control-plane/queue', { params });
+    return res.data;
+  },
+  async getHelpdeskWorkItemContext(id: string): Promise<AiAgentControlHelpdeskContextResult> {
+    const res = await api.get(`/ai/admin/control-plane/queue/work-items/${id}/helpdesk-context`);
+    return res.data;
+  },
+  async runMockTriage(payload?: {
+    alert_id?: string;
+    ticket_id?: string;
+    include_directory?: boolean;
+  }): Promise<AiAgentControlMockTriageResult> {
+    const res = await api.post('/ai/admin/control-plane/uat/mock-triage', payload ?? {});
+    return res.data;
+  },
+  async listGlpiReadTargets(): Promise<AiAgentControlGlpiReadTargetsResult> {
+    const res = await api.get('/ai/admin/control-plane/uat/glpi-read/targets');
+    return res.data;
+  },
+  async runGlpiRead(payload?: { target_key?: string }): Promise<AiAgentControlGlpiReadResult> {
+    const res = await api.post('/ai/admin/control-plane/uat/glpi-read', payload ?? {});
+    return res.data;
+  },
+  async runGlpiTriage(payload?: { target_key?: string }): Promise<AiAgentControlGlpiTriageResult> {
+    const res = await api.post('/ai/admin/control-plane/uat/glpi-triage', payload ?? {});
+    return res.data;
+  },
+  async pollHelpdeskGlpiIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
+    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/poll', {});
+    return res.data;
+  },
+  async approveAction(id: string, payload?: { execute?: boolean }): Promise<{
+    action: AiAgentControlActionRequest;
+    approval: AiAgentControlApproval;
+    execution: unknown;
+    detail: AiAgentControlRunDetail | null;
+  }> {
+    const res = await api.post(`/ai/admin/control-plane/actions/${id}/approve`, payload ?? { execute: true });
+    return res.data;
+  },
+  async rejectAction(id: string, payload?: { reason?: string }): Promise<{
+    action: AiAgentControlActionRequest;
+    approval: AiAgentControlApproval;
+    detail: AiAgentControlRunDetail | null;
+  }> {
+    const res = await api.post(`/ai/admin/control-plane/actions/${id}/reject`, payload ?? {});
     return res.data;
   },
 };

@@ -2,6 +2,7 @@ import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AiActionRequestService } from '../control-plane/action-request/ai-action-request.service';
+import { AiAgentWorkQueueService } from '../control-plane/agent/ai-agent-work-queue.service';
 import { AiApprovalService } from '../control-plane/approval/ai-approval.service';
 import {
   AUTOMATION_JOB_ALLOWED_LIST_CAPABILITY,
@@ -15,14 +16,35 @@ import {
   CapabilityContractSchema,
   EXTERNAL_MCP_CAPABILITY_VERSION,
   EXECUTE_APPROVED_PREVIEW_CAPABILITY,
+  TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
+  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+  TICKETING_LIFECYCLE_CONTEXT_CAPABILITY,
+  TICKETING_PARTICIPANT_CONTEXT_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+  TICKETING_ROUTING_CONTEXT_CAPABILITY,
+  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../control-plane/capability/capability-contract';
 import { AiCapabilityRegistry, providerCapabilityContracts } from '../control-plane/capability/ai-capability.registry';
 import { AiAutomationJobCatalogService } from '../control-plane/automation/ai-automation-job-catalog.service';
+import { AiAgentControlService } from '../control-plane/agent-control/ai-agent-control.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../control-plane/diagnostics/ai-readonly-diagnostic-workflow.service';
+import { AiAgentHelpdeskGlpiIngestionService } from '../control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
 import { AiCapabilityDispatcherService } from '../control-plane/dispatcher/ai-capability-dispatcher.service';
 import { AiActionRequest } from '../control-plane/entities/ai-action-request.entity';
+import { AiAgentAuditEvent } from '../control-plane/entities/ai-agent-audit-event.entity';
+import { AiAgentDefinition } from '../control-plane/entities/ai-agent-definition.entity';
+import { AiAgentTargetState } from '../control-plane/entities/ai-agent-target-state.entity';
+import { AiAgentWorkItem } from '../control-plane/entities/ai-agent-work-item.entity';
 import { AiApproval } from '../control-plane/entities/ai-approval.entity';
 import { AiApprovalPolicy } from '../control-plane/entities/ai-approval-policy.entity';
 import { AiAutomationJobCatalog } from '../control-plane/entities/ai-automation-job-catalog.entity';
@@ -61,7 +83,9 @@ import { isAwxLiveDryRunGateEnabled, MockAutomationProvider } from '../control-p
 import { MALICIOUS_EXTERNAL_TEXT } from '../control-plane/providers/mocks/mock-provider.helpers';
 import { MockMonitoringProvider } from '../control-plane/providers/mocks/mock-monitoring.provider';
 import { MockTicketingProvider } from '../control-plane/providers/mocks/mock-ticketing.provider';
+import { GlpiTicketingProvider } from '../control-plane/providers/glpi-ticketing.provider';
 import { AiProviderRegistryService } from '../control-plane/providers/provider-registry.service';
+import { AiExecutionContextWithManager } from '../ai.types';
 
 function baseContract(overrides?: Partial<CapabilityContract>): CapabilityContract {
   return CapabilityContractSchema.parse({
@@ -108,6 +132,9 @@ function createMemoryManager() {
       }
       if ((expected as any)._type === 'lessThan') {
         return rowValue < (expected as any)._value;
+      }
+      if ((expected as any)._type === 'in') {
+        return Array.isArray((expected as any)._value) && (expected as any)._value.includes(rowValue);
       }
     }
     return rowValue === expected;
@@ -161,6 +188,71 @@ function createContext(manager: any) {
     authMethod: 'jwt' as const,
     manager,
   };
+}
+
+function createTenantContext(manager: any, tenantId: string) {
+  return {
+    ...createContext(manager),
+    tenantId,
+  };
+}
+
+async function enableHelpdeskNewTicketsOnly(
+  context: AiExecutionContextWithManager,
+  queue: AiAgentWorkQueueService,
+  overrides?: {
+    enabledAt?: string;
+    entityId?: string | null;
+    categoryId?: string | null;
+    maxTicketsPerCycle?: number;
+    maxProviderRequestsPerCycle?: number;
+    dailyRuns?: number;
+  },
+) {
+  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const definition = bundle.definition;
+  definition.trigger_policy_json = {
+    ...(definition.trigger_policy_json ?? {}),
+    scheduled_poll: { enabled: true },
+    production_polling_enabled: true,
+    automatic_writes_enabled: false,
+  };
+  definition.scope_policy_json = {
+    ...(definition.scope_policy_json ?? {}),
+    mode: 'new_tickets_only',
+    new_tickets_only: {
+      enabled: true,
+      enabled_at: overrides?.enabledAt ?? '2026-06-09T08:00:00.000Z',
+      entity_id: overrides?.entityId ?? 'lohr-helpdesk',
+      category_id: overrides?.categoryId ?? 'access',
+      max_tickets_per_cycle: overrides?.maxTicketsPerCycle ?? 5,
+      max_provider_requests_per_cycle: overrides?.maxProviderRequestsPerCycle ?? 10,
+      hard_backfill_horizon_hours: 24 * 30,
+    },
+    all_matching: { enabled: false },
+    freeform_live_object_ids: false,
+  };
+  definition.queue_policy_json = {
+    ...(definition.queue_policy_json ?? {}),
+    economic_guardrails: {
+      configured: true,
+      per_run: {
+        max_estimated_tokens: 40_000,
+        max_estimated_cost_eur: 1,
+      },
+      daily: {
+        max_agent_runs: overrides?.dailyRuns ?? 25,
+        max_estimated_tokens: 500_000,
+        max_estimated_cost_eur: 10,
+      },
+    },
+  };
+  definition.metadata_json = {
+    ...(definition.metadata_json ?? {}),
+    production_polling_enabled: true,
+  };
+  definition.updated_at = new Date();
+  return context.manager.getRepository(AiAgentDefinition).save(definition);
 }
 
 function mcpApiKey(overrides?: Record<string, any>) {
@@ -238,11 +330,16 @@ function createDispatcher(options?: {
 
 function createRealProviderDispatcher(options?: {
   pause?: () => Promise<void>;
+  ticketingProvider?: any;
 }) {
   const { stores, manager } = createMemoryManager();
   const context = createContext(manager);
   const adapterConfigs = new AiAdapterConfigService({} as any);
   const providers = new AiProviderRegistryService(adapterConfigs);
+  if (options?.ticketingProvider) {
+    (providers as any).ticketing = async () => options.ticketingProvider;
+    (providers as any).getApplicability = async () => ({ available: true });
+  }
   const actions = new AiActionRequestService({} as any, {} as any);
   const autonomyCeilings = new AiAutonomyCeilingService({} as any);
   const autonomyDemotion = new AiAutonomyDemotionService();
@@ -664,6 +761,86 @@ async function testDispatcherRecordsDeniedSurface() {
   assert.equal((stores.get(AiToolExecution.name) ?? [])[0].status, 'failed');
 }
 
+async function testRegistryResolvesKnowledgeAsInternalCapabilities() {
+  let compatibilityToolCalled = false;
+  let knowledgeReadChecks = 0;
+  const registry = new AiCapabilityRegistry(
+    {
+      listAvailableTools: async () => [],
+      toToolJsonSchemas: () => [],
+      execute: async () => {
+        compatibilityToolCalled = true;
+        throw new Error('compatibility tool should not execute for internal knowledge capabilities');
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    undefined,
+    {
+      assertKnowledgeReadAccess: async () => {
+        knowledgeReadChecks++;
+      },
+    } as any,
+    {
+      search: async () => ({
+        items: [{
+          id: 'doc-1',
+          item_number: 1,
+          title: 'VPN access',
+          summary: 'VPN setup',
+          status: 'published',
+          snippet: 'Use MFA.',
+          library_id: 'lib-1',
+          library_name: 'IT',
+          updated_at: '2026-06-08T10:00:00.000Z',
+        }],
+        total: 1,
+        offset: 0,
+        limit: 5,
+        truncated: false,
+      }),
+      get: async () => ({
+        id: 'doc-1',
+        item_number: 1,
+        item_ref: 'DOC-1',
+        title: 'VPN access',
+        summary: 'VPN setup',
+        content_markdown: 'Use MFA.',
+        status: 'published',
+        library: { id: 'lib-1', name: 'IT' },
+        owner: null,
+        contributors: [],
+        relations: {},
+        updated_at: '2026-06-08T10:00:00.000Z',
+      }),
+    } as any,
+  );
+  const context = createContext(createMemoryManager().manager);
+
+  const search = await registry.resolve(context, 'search_knowledge', '1.0.0');
+  assert.deepEqual(search.contract.supported_surfaces, ['internal']);
+  const searchOutput = await search.handler(context, { query: 'vpn', limit: 5, offset: 0 }, {
+    surface: 'internal',
+    trigger_kind: 'internal',
+  } as any) as any;
+  assert.equal(searchOutput.items[0].ref, 'DOC-1');
+  assert.equal(searchOutput.complete, true);
+
+  const document = await registry.resolve(context, 'get_document', '1.0.0');
+  assert.deepEqual(document.contract.supported_surfaces, ['internal']);
+  const documentOutput = await document.handler(context, { document_id: 'DOC-1' }, {
+    surface: 'internal',
+    trigger_kind: 'internal',
+  } as any) as any;
+  assert.equal(documentOutput.ref, 'DOC-1');
+  assert.equal(documentOutput.complete, true);
+  assert.equal(compatibilityToolCalled, false);
+  assert.equal(knowledgeReadChecks, 2);
+}
+
 async function testDispatcherWriteWithoutApprovalStrategyFailsBeforeHandler() {
   let called = false;
   const { dispatcher, context, stores } = createDispatcher({
@@ -877,6 +1054,9 @@ function testProviderCapabilitiesAreReadOnlyAndHiddenFromMcp() {
   }
   const prepare = contracts.find((contract) => contract.name === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY);
   const execute = contracts.find((contract) => contract.name === TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY);
+  const preparePublicReply = contracts.find((contract) => contract.name === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY);
+  const executePublicReply = contracts.find((contract) => contract.name === TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY);
+  const listNotes = contracts.find((contract) => contract.name === TICKETING_TICKET_NOTES_LIST_CAPABILITY);
   assert.ok(prepare);
   assert.equal(prepare.effect, 'propose');
   assert.equal(prepare.default_approval, 'none');
@@ -888,6 +1068,21 @@ function testProviderCapabilitiesAreReadOnlyAndHiddenFromMcp() {
   assert.equal(execute.max_autonomy_level, 'A3');
   assert.deepEqual(execute.approval_strategy, { mode: 'action_request', action_request_id_input_field: 'action_request_id' });
   assert.equal(execute.mcp_exposure.enabled, false);
+  assert.ok(preparePublicReply);
+  assert.equal(preparePublicReply.effect, 'propose');
+  assert.equal(preparePublicReply.default_approval, 'none');
+  assert.equal(preparePublicReply.max_autonomy_level, 'A2');
+  assert.equal(preparePublicReply.mcp_exposure.enabled, false);
+  assert.ok(executePublicReply);
+  assert.equal(executePublicReply.effect, 'write');
+  assert.equal(executePublicReply.default_approval, 'human');
+  assert.equal(executePublicReply.max_autonomy_level, 'A3');
+  assert.deepEqual(executePublicReply.approval_strategy, { mode: 'action_request', action_request_id_input_field: 'action_request_id' });
+  assert.equal(executePublicReply.mcp_exposure.enabled, false);
+  assert.ok(listNotes);
+  assert.equal(listNotes.effect, 'read');
+  assert.equal(listNotes.default_approval, 'none');
+  assert.equal(listNotes.mcp_exposure.enabled, false);
 
   const automationNames = new Set([
     AUTOMATION_JOB_ALLOWED_LIST_CAPABILITY,
@@ -1097,6 +1292,262 @@ async function testMockAdapterContractScenarios() {
   assert.match(maliciousText, /ignore previous instructions/);
   assert.match(maliciousText, /APPROVAL_GRANTED/);
   assert.match(maliciousText, /"tool"/);
+}
+
+async function testMockTicketingHelpdeskContextReads() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const provider = new MockTicketingProvider();
+
+  const classification = await provider.getTicketClassificationContext(context, { ticketId: 'mock-ticket-1001' });
+  assert.equal(classification.ok, true);
+  assert.equal(classification.ok ? classification.data.category : null, 'Infrastructure / Monitoring');
+  assert.equal(classification.ok ? classification.data.supported : false, true);
+
+  const lifecycle = await provider.getTicketLifecycleContext(context, { ticketId: 'mock-ticket-1001' });
+  assert.equal(lifecycle.ok, true);
+  assert.equal(lifecycle.ok ? lifecycle.data.status : null, 'open');
+  assert.equal(lifecycle.ok ? lifecycle.data.allowedTransitions.length : 0, 2);
+  assert.equal(lifecycle.ok ? lifecycle.data.allowedTransitions.every((transition) => transition.requiresApproval) : false, true);
+
+  const routing = await provider.getTicketRoutingContext(context, { ticketId: 'mock-ticket-1001' });
+  assert.equal(routing.ok, true);
+  assert.equal(routing.ok ? routing.data.assignmentSupported : false, true);
+  assert.equal(routing.ok ? routing.data.supportedAssignmentTargets[0].kind : null, 'group');
+
+  const participants = await provider.getTicketParticipantContext(context, { ticketId: 'mock-ticket-1001' });
+  assert.equal(participants.ok, true);
+  assert.equal(participants.ok ? participants.data.participantUpdatesSupported : false, true);
+  assert.deepEqual(participants.ok ? participants.data.observers : [], ['SAP Operations']);
+
+  const classificationPrepare = await provider.prepareTicketClassificationUpdate(context, {
+    ticketId: 'mock-ticket-1001',
+    proposed: { priority: 'medium' },
+    reason: 'Normalize mock ticket priority.',
+  });
+  assert.equal(classificationPrepare.ok, true);
+  const classificationPayload = classificationPrepare.ok ? classificationPrepare.data.actionPayload : null;
+  assert.equal(classificationPayload?.action, 'classification_update');
+  assert.equal(classificationPayload?.proposed.priority, 'medium');
+  const classificationWrite = await provider.updateTicketClassification(context, {
+    actionPayload: classificationPayload!,
+    idempotencyKey: 'mock-classification-update',
+  });
+  assert.equal(classificationWrite.ok, true);
+  assert.deepEqual(classificationWrite.ok ? classificationWrite.data.updatedFields : [], ['priority']);
+
+  const statusPrepare = await provider.prepareTicketStatusUpdate(context, {
+    ticketId: 'mock-ticket-1001',
+    transitionKey: 'pending_user',
+    reason: 'Wait for requester feedback.',
+  });
+  assert.equal(statusPrepare.ok, true);
+  const statusPayload = statusPrepare.ok ? statusPrepare.data.actionPayload : null;
+  assert.equal(statusPayload?.action, 'status_update');
+  assert.equal(statusPayload?.targetStatus, 'pending_user');
+  const statusWrite = await provider.updateTicketStatus(context, {
+    actionPayload: statusPayload!,
+    idempotencyKey: 'mock-status-update',
+  });
+  assert.equal(statusWrite.ok, true);
+  assert.deepEqual(statusWrite.ok ? statusWrite.data.updatedFields : [], ['status']);
+
+  const assignmentPrepare = await provider.prepareTicketAssignmentUpdate(context, {
+    ticketId: 'mock-ticket-1001',
+    target: { kind: 'group', key: 'helpdesk_l1', label: 'Helpdesk L1' },
+    reason: 'Route to the L1 queue.',
+  });
+  assert.equal(assignmentPrepare.ok, true);
+  const assignmentPayload = assignmentPrepare.ok ? assignmentPrepare.data.actionPayload : null;
+  assert.equal(assignmentPayload?.action, 'assignment_update');
+  const assignmentWrite = await provider.updateTicketAssignment(context, {
+    actionPayload: assignmentPayload!,
+    idempotencyKey: 'mock-assignment-update',
+  });
+  assert.equal(assignmentWrite.ok, true);
+  assert.deepEqual(assignmentWrite.ok ? assignmentWrite.data.updatedFields : [], ['assignment']);
+
+  const participantPrepare = await provider.prepareTicketParticipantUpdate(context, {
+    ticketId: 'mock-ticket-1001',
+    operation: 'add_observer',
+    participants: [{ kind: 'group', key: 'sap_operations', label: 'SAP Operations' }],
+    reason: 'Keep SAP operations informed.',
+  });
+  assert.equal(participantPrepare.ok, true);
+  const participantPayload = participantPrepare.ok ? participantPrepare.data.actionPayload : null;
+  assert.equal(participantPayload?.action, 'participant_update');
+  const participantWrite = await provider.updateTicketParticipants(context, {
+    actionPayload: participantPayload!,
+    idempotencyKey: 'mock-participant-update',
+  });
+  assert.equal(participantWrite.ok, true);
+  assert.deepEqual(participantWrite.ok ? participantWrite.data.updatedFields : [], ['participants']);
+
+  const notFound = await provider.getTicketLifecycleContext(context, { ticketId: 'missing-ticket' });
+  assert.equal(notFound.ok, false);
+  assert.equal(notFound.ok ? '' : notFound.errorCode, 'not_found');
+}
+
+async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const ticketCalls: number[] = [];
+  const updateCalls: Array<{ ticketId: number; fields: Record<string, unknown> }> = [];
+  const provider = new GlpiTicketingProvider(
+    {} as any,
+    {
+      initSession: async () => ({ baseUrl: 'https://glpi.example.test', sessionToken: 'session', appToken: null }),
+      killSession: async () => undefined,
+      getTicket: async (_session: unknown, ticketId: number) => {
+        ticketCalls.push(ticketId);
+        return {
+          id: ticketId,
+          name: 'VPN access request',
+          content_html: '<p>Need VPN access</p>',
+          status: '2',
+          priority: 4,
+          urgency: '3',
+          type: 2,
+          entity_id: 12,
+          category_id: 34,
+          date: '2026-06-09 08:10:00',
+          updated_date: '2026-06-09 09:15:30',
+          glpi_url: `https://glpi.example.test/front/ticket.form.php?id=${ticketId}`,
+        };
+      },
+      getTicketUsers: async (_session: unknown, ticketId: number) => [
+        { id: 1, user_id: 202, user_label: `Requester ${ticketId}`, role: 'requester' },
+        { id: 2, user_id: 303, user_label: 'Helpdesk L1', role: 'assigned' },
+        { id: 3, user_id: 404, user_label: 'Duty Manager', role: 'observer' },
+      ],
+      updateTicketFields: async (_session: unknown, ticketId: number, fields: Record<string, unknown>) => {
+        updateCalls.push({ ticketId, fields });
+        return { ticket_id: ticketId, updated_fields: Object.keys(fields) };
+      },
+    } as any,
+  );
+
+  const ticket = await provider.getTicket(context, { ticketId: '4' });
+  assert.equal(ticket.ok, true);
+  assert.equal(ticket.ok ? ticket.data.createdAt : null, '2026-06-09 08:10:00');
+  assert.equal(ticket.ok ? ticket.data.updatedAt : null, '2026-06-09 09:15:30');
+  assert.deepEqual(ticket.ok ? ticket.data.scope : null, { entityId: '12', categoryId: '34' });
+
+  const classification = await provider.getTicketClassificationContext(context, { ticketId: '4' });
+  assert.equal(classification.ok, true);
+  assert.equal(classification.ok ? classification.data.type : null, 'Request');
+  assert.equal(classification.ok ? classification.data.priority : null, 'High');
+  assert.equal(classification.ok ? classification.data.urgency : null, 'Medium');
+  assert.equal(classification.ok ? classification.data.category : 'unexpected', null);
+  assert.equal(classification.ok ? classification.data.warnings?.includes('glpi_category_context_not_available_in_current_adapter') : false, true);
+
+  const lifecycle = await provider.getTicketLifecycleContext(context, { ticketId: '4' });
+  assert.equal(lifecycle.ok, true);
+  assert.equal(lifecycle.ok ? lifecycle.data.status : null, 'Processing assigned');
+  assert.equal(lifecycle.ok ? lifecycle.data.statusLabel : null, 'Processing assigned');
+  assert.equal(lifecycle.ok ? lifecycle.data.terminal : true, false);
+  assert.deepEqual(
+    lifecycle.ok ? lifecycle.data.allowedTransitions.map((transition) => transition.key) : [],
+    ['processing_planned', 'pending'],
+  );
+  assert.equal(lifecycle.ok ? lifecycle.data.allowedTransitions.every((transition) => transition.requiresApproval && !transition.destructive) : false, true);
+
+  const routing = await provider.getTicketRoutingContext(context, { ticketId: '4' });
+  assert.equal(routing.ok, true);
+  assert.equal(routing.ok ? routing.data.assignmentSupported : true, false);
+  assert.equal(routing.ok ? routing.data.supported : false, true);
+  assert.equal(routing.ok ? routing.data.requester : null, 'Requester 4');
+  assert.equal(routing.ok ? routing.data.assignee : null, 'Helpdesk L1');
+
+  const participants = await provider.getTicketParticipantContext(context, { ticketId: '4' });
+  assert.equal(participants.ok, true);
+  assert.equal(participants.ok ? participants.data.participantUpdatesSupported : true, false);
+  assert.equal(participants.ok ? participants.data.supported : false, true);
+  assert.equal(participants.ok ? participants.data.requester : null, 'Requester 4');
+  assert.deepEqual(participants.ok ? participants.data.observers : [], ['Duty Manager']);
+  assert.deepEqual(participants.ok ? participants.data.watchers : ['unexpected'], []);
+
+  const classificationPrepare = await provider.prepareTicketClassificationUpdate(context, {
+    ticketId: '4',
+    proposed: { urgency: 'high' },
+    reason: 'Escalate urgency for a requester-visible issue.',
+  });
+  assert.equal(classificationPrepare.ok, true);
+  const classificationPayload = classificationPrepare.ok ? classificationPrepare.data.actionPayload : null;
+  assert.deepEqual(classificationPayload?.providerFields, { urgency: 4 });
+  const classificationWrite = await provider.updateTicketClassification(context, {
+    actionPayload: classificationPayload!,
+    idempotencyKey: 'glpi-classification-update',
+  });
+  assert.equal(classificationWrite.ok, true);
+  assert.deepEqual(classificationWrite.ok ? classificationWrite.data.updatedFields : [], ['urgency']);
+
+  const statusPrepare = await provider.prepareTicketStatusUpdate(context, {
+    ticketId: '4',
+    transitionKey: 'pending',
+    reason: 'Wait for requester feedback after the approved response.',
+  });
+  assert.equal(statusPrepare.ok, true);
+  const statusPayload = statusPrepare.ok ? statusPrepare.data.actionPayload : null;
+  assert.equal(statusPayload?.targetStatus, 'pending');
+  assert.equal(statusPayload?.targetStatusLabel, 'Pending');
+  assert.deepEqual(statusPayload?.providerFields, { status: 4 });
+  const statusWrite = await provider.updateTicketStatus(context, {
+    actionPayload: statusPayload!,
+    idempotencyKey: 'glpi-status-update',
+  });
+  assert.equal(statusWrite.ok, true);
+  assert.deepEqual(statusWrite.ok ? statusWrite.data.updatedFields : [], ['status']);
+
+  const assignmentPrepare = await provider.prepareTicketAssignmentUpdate(context, {
+    ticketId: '4',
+    target: { kind: 'group', key: 'helpdesk_l1', label: 'Helpdesk L1' },
+    reason: 'Route to the helpdesk queue.',
+  });
+  assert.equal(assignmentPrepare.ok, false);
+  assert.equal(assignmentPrepare.ok ? '' : assignmentPrepare.errorCode, 'unsafe_operation');
+  const participantPrepare = await provider.prepareTicketParticipantUpdate(context, {
+    ticketId: '4',
+    operation: 'add_observer',
+    participants: [{ kind: 'group', key: 'sap_operations', label: 'SAP Operations' }],
+    reason: 'Keep SAP operations informed.',
+  });
+  assert.equal(participantPrepare.ok, false);
+  assert.equal(participantPrepare.ok ? '' : participantPrepare.errorCode, 'unsafe_operation');
+  assert.deepEqual(updateCalls, [
+    { ticketId: 4, fields: { urgency: 4 } },
+    { ticketId: 4, fields: { status: 4 } },
+  ]);
+  assert.deepEqual(ticketCalls, [4, 4, 4, 4, 4]);
+
+  const malformed = await provider.getTicketLifecycleContext(context, { ticketId: 'not-a-number' });
+  assert.equal(malformed.ok, false);
+  assert.equal(malformed.ok ? '' : malformed.errorCode, 'malformed_config');
+}
+
+async function testTicketingHelpdeskContextCapabilitiesExecuteThroughDispatcher() {
+  const { dispatcher, context, stores } = createRealProviderDispatcher();
+  const capabilities = [
+    TICKETING_TICKET_NOTES_LIST_CAPABILITY,
+    TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
+    TICKETING_LIFECYCLE_CONTEXT_CAPABILITY,
+    TICKETING_ROUTING_CONTEXT_CAPABILITY,
+    TICKETING_PARTICIPANT_CONTEXT_CAPABILITY,
+  ];
+
+  for (const capabilityName of capabilities) {
+    const result = await dispatcher.execute(context, {
+      capabilityName,
+      input: { provider_key: 'mock', ticket_id: 'mock-ticket-1001' },
+      execution: { surface: 'internal' },
+    });
+    assert.equal((result.output as any).ok, true);
+  }
+
+  const toolExecutions = stores.get(AiToolExecution.name) ?? [];
+  assert.equal(toolExecutions.length, capabilities.length);
+  assert.equal(toolExecutions.every((tool) => tool.effect === 'read'), true);
+  assert.equal((stores.get(AiActionRequest.name) ?? []).length, 0);
 }
 
 async function testMockTicketingInternalNoteWriteScenarios() {
@@ -1387,6 +1838,8 @@ async function testRealProviderCapabilitiesRemainHiddenAndBlockedFromMcp() {
   assert.equal(schemas.some((schema) => schema.name === 'monitoring.alert.get'), false);
   assert.equal(schemas.some((schema) => schema.name === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), false);
   assert.equal(schemas.some((schema) => schema.name === TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY), false);
+  assert.equal(schemas.some((schema) => schema.name === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), false);
+  assert.equal(schemas.some((schema) => schema.name === TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY), false);
   assert.equal(schemas.some((schema) => schema.name === AUTOMATION_JOB_DRY_RUN_CAPABILITY), false);
   assert.equal(schemas.some((schema) => schema.name === AUTOMATION_JOB_LAUNCH_APPROVED_CAPABILITY), false);
 
@@ -2063,6 +2516,161 @@ async function testPrepareInternalNoteCreatesProviderActionRequest() {
   assert.equal((stores.get(AiApproval.name) ?? []).length, 0);
 }
 
+async function testAdvancedTicketUpdateActionRequestsExecuteThroughDispatcher() {
+  const { dispatcher, context, stores, approvals } = createRealProviderDispatcher();
+  const scenarios: Array<{
+    prepareCapability: string;
+    approvedCapability: string;
+    input: Record<string, unknown>;
+    payloadAction: string;
+    updateKind: string;
+    updatedFields: string[];
+  }> = [
+    {
+      prepareCapability: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
+      approvedCapability: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+      input: {
+        provider_key: 'mock',
+        ticket_id: 'mock-ticket-1001',
+        proposed: { urgency: 'high' },
+        reason: 'Escalate ticket urgency after triage.',
+      },
+      payloadAction: 'classification_update',
+      updateKind: 'classification',
+      updatedFields: ['urgency'],
+    },
+    {
+      prepareCapability: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+      approvedCapability: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+      input: {
+        provider_key: 'mock',
+        ticket_id: 'mock-ticket-1001',
+        transition_key: 'pending_user',
+        reason: 'Wait for requester feedback.',
+      },
+      payloadAction: 'status_update',
+      updateKind: 'status',
+      updatedFields: ['status'],
+    },
+    {
+      prepareCapability: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
+      approvedCapability: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+      input: {
+        provider_key: 'mock',
+        ticket_id: 'mock-ticket-1001',
+        target: { kind: 'group', key: 'sap_operations', label: 'SAP Operations' },
+        reason: 'Route ticket to SAP operations.',
+      },
+      payloadAction: 'assignment_update',
+      updateKind: 'assignment',
+      updatedFields: ['assignment'],
+    },
+    {
+      prepareCapability: TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
+      approvedCapability: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+      input: {
+        provider_key: 'mock',
+        ticket_id: 'mock-ticket-1001',
+        operation: 'add_observer',
+        participants: [{ kind: 'group', key: 'sap_operations', label: 'SAP Operations' }],
+        reason: 'Keep SAP operations informed.',
+      },
+      payloadAction: 'participant_update',
+      updateKind: 'participants',
+      updatedFields: ['participants'],
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const evaluationRepo = context.manager.getRepository(AiEvaluation);
+    const evaluation = await evaluationRepo.save(evaluationRepo.create({
+      tenant_id: context.tenantId,
+      run_id: null,
+      recommendation_id: null,
+      decision_id: null,
+      status: 'pending',
+      outcome: null,
+      scores_json: null,
+      feedback_json: null,
+      metadata_json: { update_kind: scenario.updateKind },
+      created_at: new Date(),
+      updated_at: new Date(),
+    }));
+    const prepared = await dispatcher.execute(context, {
+      capabilityName: scenario.prepareCapability,
+      input: { ...scenario.input, evaluation_id: evaluation.id },
+      execution: { surface: 'internal' },
+    });
+    assert.equal((prepared.output as any).ok, true);
+    const actionRequestId = (prepared.output as any).data.action_request_id;
+    const action = (stores.get(AiActionRequest.name) ?? []).find((candidate) => candidate.id === actionRequestId);
+    assert.ok(action);
+    assert.equal(action.capability_name, scenario.approvedCapability);
+    assert.equal(action.status, 'pending');
+    assert.equal(action.target_ref, 'mock-ticket-1001');
+    assert.equal(action.action_payload_json.action, scenario.payloadAction);
+
+    await approvals.approveActionRequest(context, actionRequestId, {
+      source: 'human_ui',
+      reason: `Approve ${scenario.updateKind} update in unit test.`,
+    });
+    const executed = await dispatcher.execute(context, {
+      capabilityName: scenario.approvedCapability,
+      input: { action_request_id: actionRequestId },
+      execution: { surface: 'internal' },
+    });
+    assert.equal((executed.output as any).ok, true);
+    const executedAction = (stores.get(AiActionRequest.name) ?? []).find((candidate) => candidate.id === actionRequestId);
+    assert.ok(executedAction);
+    assert.equal(executedAction.status, 'executed');
+    assert.deepEqual(executedAction.metadata_json.provider_result.updated_fields, scenario.updatedFields);
+    assert.equal(executedAction.metadata_json.provider_result.update_kind, scenario.updateKind);
+    const updatedEvaluation = (stores.get(AiEvaluation.name) ?? []).find((candidate) => candidate.id === evaluation.id);
+    assert.equal(updatedEvaluation.status, 'completed');
+    assert.equal(updatedEvaluation.outcome, 'provider_action_executed');
+    assert.equal(updatedEvaluation.feedback_json.provider_action.action_request_id, actionRequestId);
+    assert.equal(updatedEvaluation.feedback_json.provider_action.status, 'executed');
+    assert.deepEqual(updatedEvaluation.feedback_json.provider_action.result.updated_fields, scenario.updatedFields);
+  }
+
+  const rejectionEvaluationRepo = context.manager.getRepository(AiEvaluation);
+  const rejectionEvaluation = await rejectionEvaluationRepo.save(rejectionEvaluationRepo.create({
+    tenant_id: context.tenantId,
+    run_id: null,
+    recommendation_id: null,
+    decision_id: null,
+    status: 'pending',
+    outcome: null,
+    scores_json: null,
+    feedback_json: null,
+    metadata_json: { update_kind: 'classification' },
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+  const rejectedPrepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
+    input: {
+      provider_key: 'mock',
+      ticket_id: 'mock-ticket-1001',
+      proposed: { priority: 'low' },
+      reason: 'Lower priority after triage.',
+      evaluation_id: rejectionEvaluation.id,
+    },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((rejectedPrepared.output as any).ok, true);
+  const rejectedActionRequestId = (rejectedPrepared.output as any).data.action_request_id;
+  await approvals.rejectActionRequest(context, rejectedActionRequestId, 'Operator rejected the suggested priority change.');
+  const rejectedAction = (stores.get(AiActionRequest.name) ?? []).find((candidate) => candidate.id === rejectedActionRequestId);
+  assert.equal(rejectedAction.status, 'rejected');
+  const rejectedEvaluation = (stores.get(AiEvaluation.name) ?? []).find((candidate) => candidate.id === rejectionEvaluation.id);
+  assert.equal(rejectedEvaluation.status, 'completed');
+  assert.equal(rejectedEvaluation.outcome, 'provider_action_rejected');
+  assert.equal(rejectedEvaluation.feedback_json.provider_action.action_request_id, rejectedActionRequestId);
+  assert.equal(rejectedEvaluation.feedback_json.provider_action.status, 'rejected');
+  assert.equal(rejectedEvaluation.feedback_json.provider_action.error_message, 'Operator rejected the suggested priority change.');
+}
+
 async function testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay() {
   const { dispatcher, context, stores, approvals } = createRealProviderDispatcher();
   const prepared = await dispatcher.execute(context, {
@@ -2104,6 +2712,236 @@ async function testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay() {
     }),
     (error: unknown) => error instanceof ForbiddenException,
   );
+}
+
+async function testApprovedTicketWriteFailsWhenTicketHistoryChangedAfterPreparation() {
+  const { dispatcher, context, stores, approvals } = createRealProviderDispatcher();
+  const prepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: 'mock-ticket-1001',
+      note_body: 'Internal note prepared from stale context.',
+      provider_key: 'mock',
+    },
+    execution: {
+      surface: 'internal',
+      metadata: {
+        conversation_gate: {
+          ticket_history_entry_count: 0,
+          latest_ticket_note_id: null,
+          latest_ticket_note_fingerprint: null,
+          prepared_at: '2026-06-07T10:00:00.000Z',
+        },
+      },
+    },
+  });
+  const actionRequestId = (prepared.output as any).data.action_request_id;
+  await approvals.approveActionRequest(context, actionRequestId, { source: 'human_ui', reason: 'unit test approval' });
+
+  const executed = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: actionRequestId },
+    execution: { surface: 'internal' },
+  });
+
+  assert.equal((executed.output as any).ok, false);
+  assert.equal((executed.output as any).errorCode, 'unsafe_operation');
+  assert.match((executed.output as any).message, /Ticket history changed/);
+  const action = (stores.get(AiActionRequest.name) ?? []).find((candidate) => candidate.id === actionRequestId);
+  assert.equal(action.status, 'failed');
+  assert.match(action.error_message, /Rerun triage/);
+}
+
+async function testApprovedTicketWriteAllowsUnchangedTicketHistoryGuard() {
+  const { dispatcher, context, stores, approvals } = createRealProviderDispatcher();
+  const prepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: 'mock-ticket-1001',
+      note_body: 'Internal note prepared from current context.',
+      provider_key: 'mock',
+    },
+    execution: {
+      surface: 'internal',
+      metadata: {
+        conversation_gate: {
+          ticket_history_entry_count: 1,
+          latest_ticket_note_id: 'mock-note-1',
+          latest_ticket_note_fingerprint: 'mock-note-1:mock-ticket-1001:2026-05-24T08:45:00.000Z',
+          prepared_at: '2026-06-07T10:00:00.000Z',
+        },
+      },
+    },
+  });
+  const actionRequestId = (prepared.output as any).data.action_request_id;
+  await approvals.approveActionRequest(context, actionRequestId, { source: 'human_ui', reason: 'unit test approval' });
+
+  const executed = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: actionRequestId },
+    execution: { surface: 'internal' },
+  });
+
+  assert.equal((executed.output as any).ok, true);
+  const action = (stores.get(AiActionRequest.name) ?? []).find((candidate) => candidate.id === actionRequestId);
+  assert.equal(action.status, 'executed');
+}
+
+async function testApprovedPairedTicketWritesAllowSameRunKanapHistoryChange() {
+  const baseProvider = new MockTicketingProvider();
+  const notes: any[] = [
+    {
+      id: 'mock-note-1',
+      visibility: 'public',
+      authorRole: 'requester',
+      body: 'Requester asked for a recipe.',
+      createdAt: '2026-05-24T08:45:00.000Z',
+      updatedAt: null,
+      updateFingerprint: 'mock-note-1:mock-ticket-1001:2026-05-24T08:45:00.000Z',
+    },
+  ];
+  const ticketingProvider = {
+    health: baseProvider.health.bind(baseProvider),
+    applicability: baseProvider.applicability.bind(baseProvider),
+    getTicket: baseProvider.getTicket.bind(baseProvider),
+    searchSimilarTickets: baseProvider.searchSimilarTickets.bind(baseProvider),
+    getTicketClassificationContext: baseProvider.getTicketClassificationContext.bind(baseProvider),
+    getTicketLifecycleContext: baseProvider.getTicketLifecycleContext.bind(baseProvider),
+    getTicketRoutingContext: baseProvider.getTicketRoutingContext.bind(baseProvider),
+    getTicketParticipantContext: baseProvider.getTicketParticipantContext.bind(baseProvider),
+    prepareInternalNote: baseProvider.prepareInternalNote.bind(baseProvider),
+    preparePublicReply: baseProvider.preparePublicReply.bind(baseProvider),
+    listTicketNotes: async () => ({
+      ok: true,
+      data: { notes: [...notes] },
+      evidence: [],
+    }),
+    addInternalNote: async (_context: unknown, input: any) => {
+      const noteId = `mock-note-${input.idempotencyKey.slice(0, 12)}`;
+      notes.push({
+        id: noteId,
+        visibility: 'internal',
+        authorRole: 'kanap_agent',
+        body: input.actionPayload.body,
+        createdAt: '2026-06-07T10:01:00.000Z',
+        updatedAt: null,
+        updateFingerprint: `${noteId}:mock-ticket-1001:2026-06-07T10:01:00.000Z`,
+      });
+      return {
+        ok: true,
+        data: {
+          noteId,
+          ticketId: input.actionPayload.ticketId,
+          summary: `Internal note added to ticket ${input.actionPayload.ticketId}.`,
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+    addPublicReply: async (_context: unknown, input: any) => {
+      const noteId = `mock-public-reply-${input.idempotencyKey.slice(0, 12)}`;
+      notes.push({
+        id: noteId,
+        visibility: 'public',
+        authorRole: 'kanap_agent',
+        body: input.actionPayload.body,
+        createdAt: '2026-06-07T10:02:00.000Z',
+        updatedAt: null,
+        updateFingerprint: `${noteId}:mock-ticket-1001:2026-06-07T10:02:00.000Z`,
+      });
+      return {
+        ok: true,
+        data: {
+          noteId,
+          ticketId: input.actionPayload.ticketId,
+          summary: `Public reply added to ticket ${input.actionPayload.ticketId}.`,
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+  };
+  const { dispatcher, context, stores, approvals } = createRealProviderDispatcher({ ticketingProvider });
+  const runRepo = context.manager.getRepository(AiRun);
+  await runRepo.save(runRepo.create({
+    id: 'paired-run',
+    tenant_id: context.tenantId,
+    user_id: null,
+    conversation_id: null,
+    request_id: null,
+    ai_api_key_id: null,
+    invocation_channel: 'internal',
+    trigger_kind: 'internal',
+    status: 'running',
+    input_summary: null,
+    output_summary: null,
+    usage_json: null,
+    cost_json: null,
+    metadata_json: null,
+    started_at: new Date('2026-06-07T10:00:00.000Z'),
+    completed_at: null,
+    created_at: new Date('2026-06-07T10:00:00.000Z'),
+    updated_at: new Date('2026-06-07T10:00:00.000Z'),
+  }));
+  const conversationGate = {
+    ticket_history_entry_count: 1,
+    latest_ticket_note_id: 'mock-note-1',
+    latest_ticket_note_fingerprint: 'mock-note-1:mock-ticket-1001:2026-05-24T08:45:00.000Z',
+    prepared_at: '2026-06-07T10:00:00.000Z',
+  };
+  const execution = {
+    surface: 'internal',
+    runId: 'paired-run',
+    metadata: {
+      conversation_gate: conversationGate,
+      agent_work_item_id: 'paired-work-item',
+    },
+  } as any;
+
+  const internalPrepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: 'mock-ticket-1001',
+      note_body: 'Internal note from paired triage.',
+      provider_key: 'mock',
+    },
+    execution,
+  });
+  const publicPrepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: 'mock-ticket-1001',
+      reply_body: 'Public reply from paired triage.',
+      provider_key: 'mock',
+    },
+    execution,
+  });
+  const internalActionId = (internalPrepared.output as any).data.action_request_id;
+  const publicActionId = (publicPrepared.output as any).data.action_request_id;
+
+  await approvals.approveActionRequest(context, internalActionId, { source: 'human_ui', reason: 'unit test approval' });
+  const internalExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: internalActionId },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((internalExecuted.output as any).ok, true);
+
+  await approvals.approveActionRequest(context, publicActionId, { source: 'human_ui', reason: 'unit test approval' });
+  const publicExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: publicActionId },
+    execution: { surface: 'internal' },
+  });
+
+  assert.equal((publicExecuted.output as any).ok, true);
+  const actions = stores.get(AiActionRequest.name) ?? [];
+  assert.equal(actions.find((candidate) => candidate.id === internalActionId)?.status, 'executed');
+  assert.equal(actions.find((candidate) => candidate.id === publicActionId)?.status, 'executed');
+  assert.equal(notes.some((note) => note.visibility === 'internal' && /Internal note from paired triage/.test(note.body)), true);
+  assert.equal(notes.some((note) => note.visibility === 'public' && /Public reply from paired triage/.test(note.body)), true);
 }
 
 async function testProviderActionApprovalScopeFailures() {
@@ -2314,6 +3152,38 @@ async function testCreateOrEnsureProviderActionIsIdempotent() {
     })),
     (error: unknown) => error instanceof BadRequestException,
   );
+}
+
+async function testCreateOrEnsureProviderActionCanRetryExecutedWhenRequested() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const actions = new AiActionRequestService({} as any, {} as any);
+  const seed = providerActionSeed({
+    idempotencyKey: 'manual-glpi-retriage',
+    actionPayload: {
+      ticketId: '4',
+      visibility: 'internal',
+      body: 'Same generated note.',
+      bodyFormat: 'plain_text',
+    },
+  });
+  const first = await actions.createOrEnsureProviderAction(context, seed);
+  await actions.markExecuted(context, first, 'executed', null);
+
+  const repeatedDefault = await actions.createOrEnsureProviderAction(context, seed);
+  assert.equal(repeatedDefault.id, first.id);
+  assert.equal(repeatedDefault.status, 'executed');
+
+  const retry = await actions.createOrEnsureProviderAction(context, {
+    ...seed,
+    retryAfterStatuses: ['executed'],
+  });
+  assert.notEqual(retry.id, first.id);
+  assert.equal(retry.status, 'pending');
+  assert.equal((stores.get(AiActionRequest.name) ?? []).length, 2);
+  assert.ok(retry.metadata_json);
+  assert.equal(retry.metadata_json.retry_after_action_request_id, first.id);
+  assert.equal(retry.metadata_json.retry_after_action_status, 'executed');
 }
 
 async function testEmergencyPauseBlocksTicketingWriteExecution() {
@@ -2960,6 +3830,1596 @@ async function testDiagnosticRecommendationCanProposeInternalNoteAction() {
   assert.equal((stores.get(AiApproval.name) ?? []).length, 0);
 }
 
+function glpiReadSafeTarget(overrides?: Record<string, any>) {
+  const now = new Date();
+  return {
+    id: 'target-read-4',
+    tenant_id: 'tenant-1',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    environment: 'sandbox',
+    target_kind: 'ticket',
+    target_key: 'glpi-ticket-4',
+    external_ref: '4',
+    allowed_effect: 'read',
+    safety_label: 'sandbox_only',
+    enabled: true,
+    expires_at: null,
+    metadata_json: null,
+    redaction_policy_json: null,
+    created_at: now,
+    updated_at: now,
+    ...(overrides ?? {}),
+  };
+}
+
+function testCapabilityNames(value: unknown): Set<string> {
+  const entries = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && Array.isArray((value as Record<string, unknown>).capabilities)
+      ? (value as { capabilities: unknown[] }).capabilities
+      : [];
+  const names = new Set<string>();
+  for (const entry of entries) {
+    if (typeof entry === 'string' && entry.trim()) {
+      names.add(entry.trim());
+    } else if (entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>).name === 'string') {
+      names.add(String((entry as Record<string, unknown>).name).trim());
+    }
+  }
+  return names;
+}
+
+async function testAgentWorkQueueUpgradesExistingHelpdeskDefinitionCapabilities() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  const now = new Date();
+
+  await definitionRepo.save(definitionRepo.create({
+    tenant_id: context.tenantId,
+    agent_key: 'helpdesk.glpi.triage',
+    name: 'Helpdesk GLPI triage agent',
+    description: 'Legacy Phase 10 definition.',
+    agent_type: 'helpdesk',
+    status: 'enabled',
+    environment: 'sandbox',
+    provider_bindings_json: {
+      ticketing: {
+        provider_kind: 'ticketing',
+        provider_key: 'glpi',
+      },
+    },
+    allowed_capabilities_json: [
+      { name: 'ticketing.ticket.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+      { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+      { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+      { name: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
+      { name: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
+    ],
+    forbidden_capabilities_json: [
+      'ticketing.ticket.close',
+      TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
+    ],
+    max_autonomy_level: 'A3',
+    default_approval_requirement: 'human_for_writes',
+    trigger_policy_json: {
+      manual_safe_target: { enabled: true },
+      scheduled_poll: { enabled: false },
+      provider_webhook: { enabled: false },
+      ticket_update: { enabled: false },
+      production_polling_enabled: false,
+      automatic_writes_enabled: false,
+    },
+    scope_policy_json: {
+      mode: 'manual_safe_target',
+      allowed_modes: ['manual_safe_target'],
+      provider_kind: 'ticketing',
+      provider_key: 'glpi',
+      target_kind: 'ticket',
+      all_matching: { enabled: false },
+      freeform_live_object_ids: false,
+    },
+    queue_policy_json: {
+      enabled: true,
+    },
+    response_policy_json: {
+      prepare_internal_note: true,
+      prepare_public_reply: true,
+      automatic_public_reply: false,
+      automatic_ticket_updates: false,
+      require_human_approval_for_writes: true,
+    },
+    evaluation_policy_json: {
+      create_pending_evaluation: true,
+    },
+    metadata_json: {
+      product_owned: true,
+      phase: 10,
+      production_polling_enabled: false,
+      production_a4_enabled: false,
+    },
+    created_at: now,
+    updated_at: now,
+  }));
+
+  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const allowed = testCapabilityNames(bundle.definition.allowed_capabilities_json);
+  const forbidden = testCapabilityNames(bundle.definition.forbidden_capabilities_json);
+
+  assert.equal(allowed.has(TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY), true);
+  assert.equal(allowed.has(TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY), true);
+  assert.equal(allowed.has(TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY), true);
+  assert.equal(allowed.has(TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY), true);
+  assert.equal(forbidden.has(TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY), false);
+  assert.equal(forbidden.has('ticketing.ticket.close'), true);
+  assert.doesNotThrow(() => queue.assertHelpdeskGlpiDefinitionRunnable(bundle.definition, bundle.trigger));
+}
+
+async function testAgentWorkQueueSeedsHelpdeskDefinitionAndDeniesUnsafeDefinitions() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+
+  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  assert.equal(bundle.definition.agent_key, 'helpdesk.glpi.triage');
+  assert.equal(bundle.definition.status, 'enabled');
+  assert.equal(bundle.definition.max_autonomy_level, 'A3');
+  assert.equal(bundle.trigger.trigger_kind, 'manual');
+  assert.equal(bundle.trigger.enabled, true);
+
+  const enqueued = await queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget());
+  assert.equal(enqueued.created, true);
+  assert.equal(enqueued.workItem.status, 'queued');
+  assert.equal(enqueued.workItem.source_object_ref, '4');
+  assert.equal(enqueued.workItem.work_kind, 'ticket_triage');
+
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  bundle.definition.status = 'draft';
+  await definitionRepo.save(bundle.definition);
+  await assert.rejects(
+    () => queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget({ target_key: 'glpi-ticket-5', external_ref: '5' })),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+
+  bundle.definition.status = 'enabled';
+  bundle.definition.forbidden_capabilities_json = ['ticketing.ticket.get'];
+  await definitionRepo.save(bundle.definition);
+  await assert.rejects(
+    () => queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget({ target_key: 'glpi-ticket-6', external_ref: '6' })),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+}
+
+async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const target = glpiReadSafeTarget();
+
+  const first = await queue.enqueueManualGlpiSafeTarget(context, target);
+  const duplicate = await queue.enqueueManualGlpiSafeTarget(context, target);
+  assert.equal(duplicate.created, false);
+  assert.equal(duplicate.workItem.id, first.workItem.id);
+
+  const now = new Date();
+  const leased = await queue.acquireWorkItem(context, first.workItem.id, { leaseOwner: 'worker-a', now });
+  assert.equal(leased.status, 'leased');
+  assert.equal(leased.attempt_count, 1);
+  await assert.rejects(
+    () => queue.acquireWorkItem(context, first.workItem.id, { leaseOwner: 'worker-b', now: new Date(now.getTime() + 1000) }),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+
+  leased.status = 'running';
+  leased.leased_until = new Date(now.getTime() - 1000);
+  await manager.getRepository(AiAgentWorkItem).save(leased);
+  const reclaimed = await queue.acquireWorkItem(context, first.workItem.id, {
+    leaseOwner: 'worker-b',
+    now: new Date(now.getTime() + 2000),
+  });
+  assert.equal(reclaimed.lease_owner, 'worker-b');
+  assert.equal(reclaimed.attempt_count, 2);
+
+  const failed = await queue.failWorkItem(context, reclaimed, new Error('paused before provider write'));
+  assert.equal(failed.status, 'failed');
+  assert.match(failed.last_error ?? '', /paused/);
+  await assert.rejects(
+    () => queue.acquireWorkItem(context, first.workItem.id, { leaseOwner: 'worker-c', now: new Date(now.getTime() + 3000) }),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+
+  failed.next_attempt_at = new Date(Date.now() - 1000);
+  await manager.getRepository(AiAgentWorkItem).save(failed);
+  const retry = await queue.acquireWorkItem(context, first.workItem.id, {
+    leaseOwner: 'worker-c',
+    now: new Date(),
+  });
+  assert.equal(retry.attempt_count, 3);
+  const deadLetter = await queue.failWorkItem(context, retry, new Error('still paused'));
+  assert.equal(deadLetter.status, 'dead_letter');
+
+  const state = await queue.upsertTargetState(context, {
+    agentDefinitionId: first.definition.id,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: '4',
+    lastRunId: 'run-queue',
+    internalNoteHash: 'internal-hash',
+    publicReplyHash: 'public-hash',
+    agentTouched: true,
+    needsFollowup: true,
+    state: { latest_work_item_id: first.workItem.id },
+  });
+  assert.equal(state.target_ref, '4');
+  assert.equal(state.needs_followup, true);
+
+  const afterDeadLetter = await queue.enqueueManualGlpiSafeTarget(context, target);
+  assert.equal(afterDeadLetter.created, true);
+  assert.notEqual(afterDeadLetter.workItem.id, first.workItem.id);
+}
+
+function createHelpdeskIngestionService(input: {
+  queue: AiAgentWorkQueueService;
+  provider: any;
+  processedWorkItemIds?: string[];
+  onRunWorkItem?: (context: AiExecutionContextWithManager, workItem: AiAgentWorkItem) => Promise<void>;
+}) {
+  const processed = input.processedWorkItemIds ?? [];
+  const providers = {
+    getApplicability: async () => ({ available: true }),
+    ticketing: async () => input.provider,
+  };
+  const control = {
+    runGlpiTriage: async (context: AiExecutionContextWithManager, runInput: { work_item_id?: string | null }) => {
+      const workItem = await context.manager.getRepository(AiAgentWorkItem).findOne({
+        where: { id: runInput.work_item_id, tenant_id: context.tenantId },
+      });
+      if (!workItem) {
+        throw new Error('missing test work item');
+      }
+      processed.push(workItem.id);
+      if (input.onRunWorkItem) {
+        await input.onRunWorkItem(context, workItem);
+        return { work_item: workItem };
+      }
+      workItem.status = 'waiting_approval';
+      workItem.last_action_request_ids = [`action-${workItem.id}`];
+      workItem.updated_at = new Date();
+      await context.manager.getRepository(AiAgentWorkItem).save(workItem);
+      return { work_item: workItem };
+    },
+  };
+  return new AiAgentHelpdeskGlpiIngestionService(
+    {} as any,
+    { register: () => undefined } as any,
+    providers as any,
+    input.queue,
+    control as any,
+  );
+}
+
+async function testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsolation() {
+  const { manager, stores } = createMemoryManager();
+  const queue = new AiAgentWorkQueueService();
+  const tenantOne = createContext(manager);
+  const tenantTwo = createTenantContext(manager, 'tenant-2');
+  await enableHelpdeskNewTicketsOnly(tenantOne, queue);
+  await enableHelpdeskNewTicketsOnly(tenantTwo, queue, {
+    entityId: 'lohr-helpdesk',
+    categoryId: 'tenant2-access',
+  });
+  const scopes: any[] = [];
+  const processed: string[] = [];
+  const provider = {
+    listTicketsForScope: async (_context: unknown, input: any) => {
+      scopes.push(input.scope);
+      const tenantTwoScope = input.scope.categoryId === 'tenant2-access';
+      return {
+        ok: true,
+        data: {
+          tickets: tenantTwoScope
+            ? [
+              {
+                id: 'tenant-2-ticket',
+                title: 'Tenant two access',
+                status: 'new',
+                createdAt: '2026-06-09T08:20:00.000Z',
+                updatedAt: '2026-06-09T08:20:00.000Z',
+                scope: { entityId: 'lohr-helpdesk', categoryId: 'tenant2-access' },
+              },
+              {
+                id: 'tenant-1-ticket',
+                title: 'Wrong category for tenant two',
+                status: 'new',
+                createdAt: '2026-06-09T08:20:00.000Z',
+                updatedAt: '2026-06-09T08:20:00.000Z',
+                scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+              },
+            ]
+            : [
+              {
+                id: 'tenant-1-ticket',
+                title: 'Tenant one access',
+                status: 'new',
+                createdAt: '2026-06-09T08:20:00.000Z',
+                updatedAt: '2026-06-09T08:21:00.000Z',
+                scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+              },
+              {
+                id: 'out-of-scope-ticket',
+                title: 'Wrong category',
+                status: 'new',
+                createdAt: '2026-06-09T08:20:00.000Z',
+                updatedAt: '2026-06-09T08:20:00.000Z',
+                scope: { entityId: 'lohr-helpdesk', categoryId: 'finance' },
+              },
+              {
+                id: 'old-ticket',
+                title: 'Old ticket',
+                status: 'new',
+                createdAt: '2026-06-09T07:00:00.000Z',
+                updatedAt: '2026-06-09T07:00:00.000Z',
+                scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+              },
+            ],
+        },
+        evidence: [],
+      };
+    },
+  };
+  const service = createHelpdeskIngestionService({ queue, provider, processedWorkItemIds: processed });
+
+  const first = await service.pollTenant(tenantOne);
+  assert.equal(first.status, 'completed');
+  assert.equal(first.listed, 3);
+  assert.equal(first.enqueued, 1);
+  assert.equal(first.processed, 1);
+  assert.equal(scopes[0].createdAfter, '2026-06-09T08:00:00.000Z');
+  assert.equal(scopes[0].entityId, 'lohr-helpdesk');
+  assert.equal(scopes[0].categoryId, 'access');
+
+  const second = await service.pollTenant(tenantOne);
+  assert.equal(second.enqueued, 0);
+  assert.equal(second.deduped, 1);
+  assert.equal(second.processed, 0);
+
+  const tenantTwoResult = await service.pollTenant(tenantTwo);
+  assert.equal(tenantTwoResult.enqueued, 1);
+  assert.equal(tenantTwoResult.processed, 1);
+
+  const workItems = stores.get(AiAgentWorkItem.name) ?? [];
+  assert.deepEqual(
+    workItems.filter((item) => item.tenant_id === 'tenant-1').map((item) => item.source_object_ref),
+    ['tenant-1-ticket'],
+  );
+  assert.deepEqual(
+    workItems.filter((item) => item.tenant_id === 'tenant-2').map((item) => item.source_object_ref),
+    ['tenant-2-ticket'],
+  );
+  assert.equal(processed.length, 2);
+}
+
+async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList() {
+  {
+    const { manager, stores } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+    await manager.getRepository(AiEmergencyPause).save(manager.getRepository(AiEmergencyPause).create({
+      tenant_id: context.tenantId,
+      scope: 'tenant',
+      capability_name: null,
+      category: null,
+      effect: null,
+      active: true,
+      reason: 'UAT emergency stop',
+      actor_user_id: null,
+      actor_label: null,
+      expires_at: null,
+      revoked_at: null,
+      created_at: new Date(),
+    }));
+    let listCalls = 0;
+    const service = createHelpdeskIngestionService({
+      queue,
+      provider: {
+        listTicketsForScope: async () => {
+          listCalls += 1;
+          return { ok: true, data: { tickets: [] }, evidence: [] };
+        },
+      },
+    });
+    const result = await service.pollTenant(context);
+    assert.equal(result.status, 'paused');
+    assert.equal(listCalls, 0);
+    assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event) => event.event_type === 'poller_paused_by_emergency_pause'), true);
+    assert.equal(definition.id, (stores.get(AiAgentDefinition.name) ?? [])[0].id);
+  }
+
+  {
+    const { manager, stores } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const definition = await enableHelpdeskNewTicketsOnly(context, queue, { dailyRuns: 1 });
+    await manager.getRepository(AiRun).save(manager.getRepository(AiRun).create({
+      tenant_id: context.tenantId,
+      user_id: null,
+      conversation_id: null,
+      request_id: null,
+      ai_api_key_id: null,
+      invocation_channel: 'internal',
+      trigger_kind: 'internal',
+      status: 'completed',
+      input_summary: null,
+      output_summary: null,
+      usage_json: { estimated_tokens: 100 },
+      cost_json: { estimated_cost_eur: 0.01 },
+      metadata_json: { agent_definition_id: definition.id },
+      started_at: new Date(),
+      completed_at: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    }));
+    let listCalls = 0;
+    const service = createHelpdeskIngestionService({
+      queue,
+      provider: {
+        listTicketsForScope: async () => {
+          listCalls += 1;
+          return { ok: true, data: { tickets: [] }, evidence: [] };
+        },
+      },
+    });
+    const result = await service.pollTenant(context);
+    assert.equal(result.status, 'paused');
+    assert.equal(listCalls, 0);
+    assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event) => event.event_type === 'daily_cap_reached'), true);
+  }
+
+  {
+    const { manager, stores } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    await enableHelpdeskNewTicketsOnly(context, queue);
+    const service = createHelpdeskIngestionService({
+      queue,
+      provider: {
+        listTicketsForScope: async () => ({ ok: true, data: { malformed: [] }, evidence: [] }),
+      },
+    });
+    const result = await service.pollTenant(context);
+    assert.equal(result.status, 'failed');
+    assert.equal(result.errors.some((message) => /malformed/i.test(message)), true);
+    assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event) => event.event_type === 'poller_cycle_failed'), true);
+  }
+}
+
+async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget());
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const now = new Date();
+  const internalActionId = randomUUID();
+  const publicActionId = randomUUID();
+  const classificationActionId = randomUUID();
+
+  await actionRepo.save(actionRepo.create({
+    id: internalActionId,
+    tenant_id: context.tenantId,
+    run_id: 'run-ticket-4',
+    tool_execution_id: 'tool-internal',
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    capability_version: 'v1',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    idempotency_key: 'internal-ticket-4',
+    action_payload_json: { note_body: 'Internal note for ticket 4.' },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: 'hash-internal-ticket-4',
+    input_summary: { ticket_id: '4' },
+    evidence_ids: ['evidence-ticket'],
+    expires_at: new Date(now.getTime() + 60_000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: null,
+    created_at: now,
+    updated_at: now,
+  }));
+  await actionRepo.save(actionRepo.create({
+    id: publicActionId,
+    tenant_id: context.tenantId,
+    run_id: 'run-ticket-4',
+    tool_execution_id: 'tool-public',
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    capability_version: 'v1',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    idempotency_key: 'public-ticket-4',
+    action_payload_json: { reply_body: 'Requester reply for ticket 4.' },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: 'hash-public-ticket-4',
+    input_summary: { ticket_id: '4' },
+    evidence_ids: ['evidence-ticket'],
+    expires_at: new Date(now.getTime() + 60_000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: null,
+    created_at: now,
+    updated_at: now,
+  }));
+  await actionRepo.save(actionRepo.create({
+    id: classificationActionId,
+    tenant_id: context.tenantId,
+    run_id: 'run-ticket-4',
+    tool_execution_id: 'tool-classification',
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+    capability_version: 'v1',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    idempotency_key: 'classification-ticket-4',
+    action_payload_json: {
+      action: 'classification_update',
+      ticketId: '4',
+      current: { ticketId: '4', type: 'request', priority: 'medium', urgency: 'medium', supported: true },
+      proposed: { urgency: 'high' },
+      reason: 'Escalate requester-visible issue urgency.',
+    },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: 'hash-classification-ticket-4',
+    input_summary: { ticket_id: '4' },
+    evidence_ids: ['evidence-ticket'],
+    expires_at: new Date(now.getTime() + 60_000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: null,
+    created_at: now,
+    updated_at: now,
+  }));
+
+  await queue.markWaitingApproval(context, bundle.workItem, {
+    runId: 'run-ticket-4',
+    actionRequestIds: [internalActionId, publicActionId, classificationActionId],
+  });
+  await queue.upsertTargetState(context, {
+    agentDefinitionId: bundle.definition.id,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: '4',
+    lastRunId: 'run-ticket-4',
+    agentTouched: true,
+    needsFollowup: true,
+    state: {
+      latest_work_item_id: bundle.workItem.id,
+      latest_action_request_ids: [internalActionId, publicActionId, classificationActionId],
+    },
+  });
+
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      findEnabledTargets: async () => [],
+    } as any,
+    {} as any,
+    queue,
+  );
+
+  const overview = await service.getQueueOverview(context, { limit: 10 });
+  assert.equal(overview.work_items[0].status, 'waiting_approval');
+  assert.deepEqual(
+    new Set(overview.work_items[0].last_action_request_ids ?? []),
+    new Set([internalActionId, publicActionId, classificationActionId]),
+  );
+  assert.equal(overview.counts.waiting_approval, 1);
+  assert.equal(overview.action_requests.length, 3);
+  const byId = new Map(overview.action_requests.map((action) => [action.id, action]));
+  assert.equal(byId.get(internalActionId)?.action_payload_json?.note_body, 'Internal note for ticket 4.');
+  assert.equal(byId.get(publicActionId)?.action_payload_json?.reply_body, 'Requester reply for ticket 4.');
+  assert.equal(byId.get(classificationActionId)?.action_payload_json?.action, 'classification_update');
+  assert.equal((byId.get(internalActionId) as any)?.execution_readiness.can_execute, false);
+  assert.match((byId.get(publicActionId) as any)?.execution_readiness.blocked_reason, /sandbox_write/);
+  assert.match((byId.get(classificationActionId) as any)?.execution_readiness.blocked_reason, /sandbox_write/);
+
+  const workItemRepo = manager.getRepository(AiAgentWorkItem);
+  const unlinkedWorkItem = overview.work_items[0] as any;
+  unlinkedWorkItem.last_action_request_ids = null;
+  unlinkedWorkItem.status = 'waiting_approval';
+  await workItemRepo.save(unlinkedWorkItem);
+  const fallbackOverview = await service.getQueueOverview(context, { limit: 10 });
+  assert.equal(fallbackOverview.action_requests.length, 3);
+  assert.equal(new Set(fallbackOverview.action_requests.map((action: any) => action.id)).has(internalActionId), true);
+  assert.equal(new Set(fallbackOverview.action_requests.map((action: any) => action.id)).has(classificationActionId), true);
+}
+
+async function seedExecutedGlpiFollowupActions(context: ReturnType<typeof createContext>, input: {
+  executedAt: Date;
+  internalBody?: string;
+  publicBody?: string;
+  internalNoteId?: string;
+  publicNoteId?: string;
+}) {
+  const repo = context.manager.getRepository(AiActionRequest);
+  const common = {
+    tenant_id: context.tenantId,
+    run_id: 'prior-run',
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'executed',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    evidence_ids: null,
+    expires_at: null,
+    approved_at: new Date(input.executedAt.getTime() - 60_000),
+    rejected_at: null,
+    executed_at: input.executedAt,
+    error_message: null,
+    created_at: new Date(input.executedAt.getTime() - 120_000),
+    updated_at: input.executedAt,
+  };
+  await repo.save(repo.create({
+    ...common,
+    id: randomUUID(),
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    idempotency_key: 'prior-internal-note',
+    action_payload_json: {
+      ticketId: '4',
+      visibility: 'internal',
+      body: input.internalBody ?? '[KANAP triage proposal]\nPrior internal note.',
+      bodyFormat: 'plain_text',
+    },
+    input_hash: 'prior-internal-hash',
+    input_summary: null,
+    metadata_json: {
+      visibility: 'internal',
+      ...(input.internalNoteId ? {
+        provider_result: { provider_key: 'glpi', ticket_id: '4', note_id: input.internalNoteId },
+      } : {}),
+    },
+  }));
+  await repo.save(repo.create({
+    ...common,
+    id: randomUUID(),
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    idempotency_key: 'prior-public-reply',
+    action_payload_json: {
+      ticketId: '4',
+      visibility: 'public',
+      body: input.publicBody ?? 'Prior public KANAP reply.',
+      bodyFormat: 'plain_text',
+    },
+    input_hash: 'prior-public-hash',
+    input_summary: null,
+    metadata_json: {
+      visibility: 'public',
+      ...(input.publicNoteId ? {
+        provider_result: { provider_key: 'glpi', ticket_id: '4', note_id: input.publicNoteId },
+      } : {}),
+    },
+  }));
+}
+
+function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input: {
+  id: string;
+  runId: string;
+  toolExecutionId: string;
+  capabilityName: string;
+  body: string;
+  visibility: 'internal' | 'public';
+}) {
+  const repo = context.manager.getRepository(AiActionRequest);
+  const now = new Date();
+  return repo.save(repo.create({
+    id: input.id,
+    tenant_id: context.tenantId,
+    run_id: input.runId,
+    tool_execution_id: input.toolExecutionId,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: input.capabilityName,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    idempotency_key: `${input.id}-key`,
+    action_payload_json: {
+      ticketId: '4',
+      visibility: input.visibility,
+      body: input.body,
+      bodyFormat: 'plain_text',
+    },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: `${input.id}-hash`,
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: null,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+function createGlpiConversationGateTriageService(input: {
+  context: ReturnType<typeof createContext>;
+  notes: Array<{ id: string; visibility: 'public' | 'internal'; body: string; createdAt: string }>;
+  calls: Array<{ capabilityName: string; input: any }>;
+}) {
+  const liveTarget = glpiReadSafeTarget();
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      input.calls.push({ capabilityName: request.capabilityName, input: request.input });
+      toolIndex += 1;
+      const toolExecutionId = `gate-tool-${toolIndex}`;
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-ticket',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              id: '4',
+              title: 'VPN access request',
+              status: 'open',
+              priority: '3',
+              description: 'Initial requester message.',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-notes',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { notes: input.notes },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-classification-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              type: 'request',
+              priority: 'medium',
+              urgency: 'medium',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-lifecycle-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-routing-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-participant-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === 'search_knowledge') {
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-search',
+          tool_execution_id: toolExecutionId,
+          output: {
+            items: [],
+            total: 0,
+            returned: 0,
+            truncated: false,
+            complete: true,
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedGlpiAction(input.context, {
+          id: 'gate-internal-action',
+          runId: 'run-glpi-gate',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+        });
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-internal-note',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { summary: 'Prepared internal note.', action_request_id: 'gate-internal-action' },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
+        await savePreparedGlpiAction(input.context, {
+          id: 'gate-public-action',
+          runId: 'run-glpi-gate',
+          toolExecutionId,
+          capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+          body: request.input.reply_body,
+          visibility: 'public',
+        });
+        return {
+          run_id: 'run-glpi-gate',
+          step_id: 'step-public-reply',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { summary: 'Prepared public reply.', action_request_id: 'gate-public-action' },
+            evidence: [],
+          },
+        };
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {
+      requireSingleEnabledTarget: async () => liveTarget,
+    } as any,
+    {
+      getApplicability: async () => ({ available: true }),
+    } as any,
+    new AiAgentWorkQueueService(),
+  ) as any;
+  service.getRunDetail = async () => ({ run: { id: 'run-glpi-gate' }, action_requests: [] });
+  return service;
+}
+
+async function testGlpiTriageSkipsFollowupsUntilRequesterAnswers() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  await seedExecutedGlpiFollowupActions(context, {
+    executedAt: new Date('2026-06-07T10:00:00.000Z'),
+  });
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  const service = createGlpiConversationGateTriageService({
+    context,
+    calls,
+    notes: [],
+  });
+
+  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+  assert.equal(calls.some((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), false);
+  assert.equal(calls.some((call) => call.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), false);
+  assert.deepEqual(result.diagnostic.action_request_ids, []);
+  assert.equal(result.diagnostic.conversation_gate.can_prepare_internal_note, false);
+  assert.equal(result.diagnostic.conversation_gate.can_prepare_public_reply, false);
+  assert.equal(result.work_item.status, 'completed');
+}
+
+async function testGlpiTriageAllowsFollowupsAfterRequesterAnswer() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  await seedExecutedGlpiFollowupActions(context, {
+    executedAt: new Date('2026-06-07T10:00:00.000Z'),
+    publicBody: 'Prior public KANAP reply.',
+  });
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  const service = createGlpiConversationGateTriageService({
+    context,
+    calls,
+    notes: [
+      {
+        id: '101',
+        visibility: 'public',
+        body: 'Prior public KANAP reply.',
+        createdAt: '2026-06-07T10:00:00.000Z',
+      },
+      {
+        id: '102',
+        visibility: 'public',
+        body: 'I still need help after trying this.',
+        createdAt: '2026-06-07T11:00:00.000Z',
+      },
+    ],
+  });
+
+  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+  assert.equal(calls.some((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), true);
+  assert.equal(calls.some((call) => call.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), true);
+  assert.equal(result.diagnostic.conversation_gate.can_prepare_internal_note, true);
+  assert.equal(result.diagnostic.conversation_gate.can_prepare_public_reply, true);
+  assert.equal(result.work_item.status, 'waiting_approval');
+  const pending = (stores.get(AiActionRequest.name) ?? []).filter((action) => action.status === 'pending');
+  assert.equal(pending.length, 2);
+}
+
+async function testGlpiTriageUsesProviderNoteTimeToBlockRepeatFollowups() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  await seedExecutedGlpiFollowupActions(context, {
+    executedAt: new Date('2026-06-07T19:57:22.000Z'),
+    internalNoteId: '201',
+    publicNoteId: '202',
+    publicBody: 'Prior public KANAP reply.',
+  });
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  const service = createGlpiConversationGateTriageService({
+    context,
+    calls,
+    notes: [
+      {
+        id: '200',
+        visibility: 'public',
+        body: 'Merci, pouvez-vous proposer une recette plus sucrée ?',
+        createdAt: '2026-06-07T21:03:03.000Z',
+      },
+      {
+        id: '201',
+        visibility: 'internal',
+        body: '[KANAP triage proposal]\nPrior internal note.',
+        createdAt: '2026-06-07T21:57:22.000Z',
+      },
+      {
+        id: '202',
+        visibility: 'public',
+        body: 'Prior public KANAP reply.',
+        createdAt: '2026-06-07T21:58:22.000Z',
+      },
+    ],
+  });
+
+  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+  assert.equal(calls.some((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), false);
+  assert.equal(calls.some((call) => call.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), false);
+  assert.deepEqual(result.diagnostic.action_request_ids, []);
+  assert.equal(result.diagnostic.conversation_gate.can_prepare_internal_note, false);
+  assert.equal(result.diagnostic.conversation_gate.can_prepare_public_reply, false);
+  assert.equal(result.diagnostic.conversation_gate.last_agent_internal_note_at, '2026-06-07T21:57:22.000Z');
+  assert.equal(result.diagnostic.conversation_gate.last_agent_public_reply_at, '2026-06-07T21:58:22.000Z');
+  assert.equal(result.work_item.status, 'completed');
+}
+
+async function testGlpiTriagePublicReplyUsesFullKnowledgeDocument() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const calls: Array<{ capabilityName: string; input: any; surface: string | null }> = [];
+  let publicReplyBody = '';
+  const searchQueries: string[] = [];
+  const now = new Date();
+  const liveTarget = {
+    id: 'target-read-4',
+    tenant_id: context.tenantId,
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    environment: 'sandbox',
+    target_kind: 'ticket',
+    target_key: 'glpi-ticket-4',
+    external_ref: '4',
+    allowed_effect: 'read',
+    safety_label: 'sandbox_only',
+    enabled: true,
+    expires_at: null,
+    metadata_json: null,
+    redaction_policy_json: null,
+    created_at: now,
+    updated_at: now,
+  };
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({
+        capabilityName: request.capabilityName,
+        input: request.input,
+        surface: request.execution?.surface ?? null,
+      });
+      const toolExecutionId = `tool-${calls.length}`;
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-ticket',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              id: '4',
+              title: 'Il me faut une recette',
+              status: 'open',
+              priority: '3',
+              description: 'De ton choix',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-notes',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { notes: [] },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-classification-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              type: 'Request',
+              priority: 'Medium',
+              urgency: 'Medium',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-lifecycle-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { allowedTransitions: [] },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-routing-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-participant-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === 'search_knowledge') {
+        searchQueries.push(request.input.query);
+        const matchesRecipe = /\brecette\b/i.test(String(request.input.query || ''));
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-search',
+          tool_execution_id: toolExecutionId,
+          output: {
+            items: matchesRecipe
+              ? [{
+                id: 'doc-164',
+                ref: 'DOC-164',
+                title: 'Recette du Pâté de Campagne',
+                summary: 'Résumé court seulement.',
+                snippet: 'Résumé court seulement.',
+                status: 'published',
+                updated_at: '2026-06-07T08:00:00.000Z',
+              }]
+              : [],
+            total: matchesRecipe ? 1 : 0,
+            returned: matchesRecipe ? 1 : 0,
+            truncated: false,
+            complete: false,
+          },
+        };
+      }
+      if (request.capabilityName === 'get_document') {
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-document',
+          tool_execution_id: toolExecutionId,
+          output: {
+            id: 'doc-164',
+            ref: 'DOC-164',
+            title: 'Recette du Pâté de Campagne',
+            summary: 'Résumé court seulement.',
+            status: 'published',
+            content_markdown: [
+              '# Recette du Pâté de Campagne',
+              '',
+              '## Ingrédients',
+              '',
+              '- 500 g de gorge de porc',
+              '- 300 g de foie de porc',
+              '- 12 g de sel par kilo de mêlée',
+              '',
+              '## Étapes',
+              '',
+              '1. Hacher grossièrement les viandes.',
+              '2. Assaisonner, mélanger, puis tasser dans une terrine.',
+              '3. Cuire au bain-marie jusqu\'à 72 °C à coeur.',
+              '4. Laisser reposer 24 heures au frais avant dégustation.',
+              '',
+              'Ce détail de repos au frais est volontairement absent du résumé court.',
+            ].join('\n'),
+            updated_at: '2026-06-07T08:00:00.000Z',
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        const repo = (_context as AiExecutionContextWithManager).manager.getRepository(AiActionRequest);
+        const now = new Date();
+        await repo.save(repo.create({
+          id: 'internal-action',
+          tenant_id: (_context as AiExecutionContextWithManager).tenantId,
+          run_id: 'run-glpi-full-doc',
+          tool_execution_id: toolExecutionId,
+          conversation_id: null,
+          user_id: null,
+          preview_id: null,
+          capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          capability_version: '1.0.0',
+          effect: 'write',
+          status: 'pending',
+          target_type: 'ticket',
+          target_id: null,
+          target_ref: '4',
+          idempotency_key: 'internal-action-key',
+          action_payload_json: {
+            ticketId: '4',
+            visibility: 'internal',
+            body: request.input.note_body,
+            bodyFormat: 'plain_text',
+          },
+          provider_kind: 'ticketing',
+          provider_key: 'glpi',
+          input_hash: 'internal-action-hash',
+          input_summary: null,
+          evidence_ids: null,
+          expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+          approved_at: null,
+          rejected_at: null,
+          executed_at: null,
+          error_message: null,
+          metadata_json: null,
+          created_at: now,
+          updated_at: now,
+        }));
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-internal-note',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { summary: 'Prepared internal note.', action_request_id: 'internal-action' },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
+        publicReplyBody = request.input.reply_body;
+        const repo = (_context as AiExecutionContextWithManager).manager.getRepository(AiActionRequest);
+        const now = new Date();
+        await repo.save(repo.create({
+          id: 'public-action',
+          tenant_id: (_context as AiExecutionContextWithManager).tenantId,
+          run_id: 'run-glpi-full-doc',
+          tool_execution_id: toolExecutionId,
+          conversation_id: null,
+          user_id: null,
+          preview_id: null,
+          capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+          capability_version: '1.0.0',
+          effect: 'write',
+          status: 'pending',
+          target_type: 'ticket',
+          target_id: null,
+          target_ref: '4',
+          idempotency_key: 'public-action-key',
+          action_payload_json: {
+            ticketId: '4',
+            visibility: 'public',
+            body: request.input.reply_body,
+            bodyFormat: 'plain_text',
+          },
+          provider_kind: 'ticketing',
+          provider_key: 'glpi',
+          input_hash: 'public-action-hash',
+          input_summary: null,
+          evidence_ids: null,
+          expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+          approved_at: null,
+          rejected_at: null,
+          executed_at: null,
+          error_message: null,
+          metadata_json: null,
+          created_at: now,
+          updated_at: now,
+        }));
+        return {
+          run_id: 'run-glpi-full-doc',
+          step_id: 'step-public-reply',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { summary: 'Prepared public reply.', action_request_id: 'public-action' },
+            evidence: [],
+          },
+        };
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {
+      requireSingleEnabledTarget: async () => liveTarget,
+    } as any,
+    {
+      getApplicability: async () => ({ available: true }),
+    } as any,
+    new AiAgentWorkQueueService(),
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+  const capabilityNames = calls.map((call) => call.capabilityName);
+  assert.equal(capabilityNames[0], 'ticketing.ticket.get');
+  assert.equal(capabilityNames.includes('get_document'), true);
+  assert.deepEqual(
+    [...new Set(calls
+      .filter((call) => call.capabilityName === 'search_knowledge' || call.capabilityName === 'get_document')
+      .map((call) => call.surface))],
+    ['internal'],
+  );
+  assert.equal(capabilityNames.at(-2), TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY);
+  assert.equal(capabilityNames.at(-1), TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY);
+  assert.equal(searchQueries.includes('GLPI 4'), false);
+  assert.equal(searchQueries.some((query) => /\brecette\b/i.test(query)), true);
+  assert.equal(result.agent_definition.agent_key, 'helpdesk.glpi.triage');
+  assert.equal(result.work_item.status, 'waiting_approval');
+  assert.equal(result.work_item.source_object_ref, '4');
+  assert.equal(result.target_state.target_ref, '4');
+  assert.equal((stores.get(AiAgentWorkItem.name) ?? []).length, 1);
+  assert.equal((stores.get(AiAgentTargetState.name) ?? []).length, 1);
+  assert.equal(result.diagnostic.knowledge_document_tool_execution_ids.length, 1);
+  assert.match(publicReplyBody, /500 g de gorge de porc/);
+  assert.match(publicReplyBody, /72 °C à coeur/);
+  assert.match(publicReplyBody, /repos au frais/);
+  assert.doesNotMatch(publicReplyBody, /Résumé court seulement\.\n\nSi/);
+}
+
+async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  const searchQueries: string[] = [];
+  const fetchedDocuments: string[] = [];
+  let publicReplyBody = '';
+  const liveTarget = glpiReadSafeTarget();
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({ capabilityName: request.capabilityName, input: request.input });
+      toolIndex += 1;
+      const toolExecutionId = `sweet-tool-${toolIndex}`;
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-ticket',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              id: '4',
+              title: 'Il me faut une recette',
+              status: 'open',
+              priority: '3',
+              description: 'De ton choix',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-notes',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              notes: [
+                {
+                  id: '10',
+                  visibility: 'public',
+                  authorRole: 'kanap_agent',
+                  body: 'Bonjour, voici une recette du pâté de campagne.',
+                  createdAt: '2026-06-07T17:17:15.000Z',
+                },
+                {
+                  id: '11',
+                  visibility: 'public',
+                  authorRole: 'unknown',
+                  body: 'C\'est intéressant, mais je n\'aime pas le pâté ! Tu n\'as pas quelque chose de plus sucré ?',
+                  createdAt: '2026-06-07T21:03:03.000Z',
+                },
+              ],
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-classification-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              type: 'Request',
+              priority: 'Medium',
+              urgency: 'Medium',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-lifecycle-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: { allowedTransitions: [] },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-routing-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-participant-context',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {},
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === 'search_knowledge') {
+        const query = String(request.input.query || '');
+        searchQueries.push(query);
+        const normalized = query.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const items = normalized.includes('sucre') || normalized.includes('dessert') || normalized.includes('gateau')
+          ? [{
+            id: 'doc-165',
+            ref: 'DOC-165',
+            title: 'Recette du Burnt Cheesecake',
+            summary: 'Dessert sucré au cream cheese et au sucre.',
+            snippet: 'Burnt cheesecake basque avec sucre, oeufs et crème.',
+            status: 'published',
+            updated_at: '2026-06-07T08:00:00.000Z',
+          }]
+          : normalized === 'recette'
+            ? [{
+              id: 'doc-164',
+              ref: 'DOC-164',
+              title: 'Recette du Pâté de Campagne',
+              summary: 'Recette salée de pâté.',
+              snippet: 'Pâté de campagne pour les astreintes.',
+              status: 'published',
+              updated_at: '2026-06-07T08:00:00.000Z',
+            }]
+            : [];
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-search',
+          tool_execution_id: toolExecutionId,
+          output: {
+            items,
+            total: items.length,
+            returned: items.length,
+            truncated: false,
+            complete: false,
+          },
+        };
+      }
+      if (request.capabilityName === 'get_document') {
+        fetchedDocuments.push(String(request.input.document_id));
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-document',
+          tool_execution_id: toolExecutionId,
+          output: {
+            id: 'doc-165',
+            ref: 'DOC-165',
+            title: 'Recette du Burnt Cheesecake',
+            summary: 'Dessert sucré au cream cheese et au sucre.',
+            status: 'published',
+            content_markdown: [
+              '# Recette du Burnt Cheesecake',
+              '',
+              'Ingrédients',
+              '- 900 g de cream cheese',
+              '- 300 g de sucre',
+              '- 6 oeufs',
+              '',
+              'Cuire à four très chaud pour obtenir une surface bien caramélisée.',
+            ].join('\n'),
+            updated_at: '2026-06-07T08:00:00.000Z',
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedGlpiAction(context, {
+          id: 'sweet-internal-action',
+          runId: 'run-glpi-sweet',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+        });
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-internal',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: 'sweet-internal-action' }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
+        publicReplyBody = request.input.reply_body;
+        await savePreparedGlpiAction(context, {
+          id: 'sweet-public-action',
+          runId: 'run-glpi-sweet',
+          toolExecutionId,
+          capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+          body: request.input.reply_body,
+          visibility: 'public',
+        });
+        return {
+          run_id: 'run-glpi-sweet',
+          step_id: 'step-public',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: 'sweet-public-action' }, evidence: [] },
+        };
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {
+      requireSingleEnabledTarget: async () => liveTarget,
+    } as any,
+    {
+      getApplicability: async () => ({ available: true }),
+    } as any,
+    new AiAgentWorkQueueService(),
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+  assert.ok(searchQueries.some((query) => /sucre|dessert|sucr/i.test(query.normalize('NFKD').replace(/[\u0300-\u036f]/g, ''))));
+  assert.deepEqual(fetchedDocuments, ['DOC-165']);
+  assert.equal(result.diagnostic.knowledge_results[0].ref, 'DOC-165');
+  assert.equal((result.diagnostic.knowledge_result_interpretation as any).selected_refs[0], 'DOC-165');
+  assert.match(publicReplyBody, /Burnt Cheesecake/);
+  assert.match(publicReplyBody, /300 g de sucre/);
+  assert.doesNotMatch(publicReplyBody, /Pâté de Campagne/);
+}
+
 async function testApprovalPolicyResolverDeniesByDefaultDisabledDraftAndMalformedPolicies() {
   const contract = providerCapabilityContracts().find((candidate) => candidate.name === TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY);
   assert.ok(contract);
@@ -3513,6 +5973,7 @@ async function run() {
   await testDispatcherCreatesDurableRecordsForSuccessfulCall();
   await testDispatcherValidatesProviderInputBeforeHandler();
   await testDispatcherRecordsDeniedSurface();
+  await testRegistryResolvesKnowledgeAsInternalCapabilities();
   await testDispatcherWriteWithoutApprovalStrategyFailsBeforeHandler();
   await testApprovedPreviewExecutionLinksActionAndApproval();
   await testDispatcherRecordsEmergencyPauseDenial();
@@ -3523,10 +5984,13 @@ async function run() {
   await testAdapterConfigApplicabilityStates();
   await testAutomationCatalogValidationStates();
   await testMockAdapterContractScenarios();
+  await testMockTicketingHelpdeskContextReads();
+  await testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly();
   await testMockTicketingInternalNoteWriteScenarios();
   await testMockAutomationAwxScenariosAndLiveGate();
   await testProviderRegistryMockProvidersAreAvailable();
   await testReadOnlyProviderCapabilityExecutesThroughDispatcher();
+  await testTicketingHelpdeskContextCapabilitiesExecuteThroughDispatcher();
   await testRealProviderDispatcherPersistsNormalizedAdapterEvidence();
   await testRealProviderDispatcherProviderFailureIsNotCompleted();
   await testRealProviderDispatcherMaliciousEvidenceCannotTriggerActions();
@@ -3547,17 +6011,33 @@ async function run() {
   await testExternalMcpBridgeRedactsSecretsAndKeepsMaliciousOutputInert();
   await testExternalMcpBridgeMcpSurfaceAndPauseDenyBeforeTransport();
   await testPrepareInternalNoteCreatesProviderActionRequest();
+  await testAdvancedTicketUpdateActionRequestsExecuteThroughDispatcher();
   await testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay();
+  await testApprovedTicketWriteFailsWhenTicketHistoryChangedAfterPreparation();
+  await testApprovedTicketWriteAllowsUnchangedTicketHistoryGuard();
+  await testApprovedPairedTicketWritesAllowSameRunKanapHistoryChange();
   await testProviderActionApprovalScopeFailures();
   await testRejectedExpiredAndAlteredProviderActionsFailClosed();
   await testRejectActionRequestRefusesTerminalStates();
   await testCreateOrEnsureProviderActionIsIdempotent();
+  await testCreateOrEnsureProviderActionCanRetryExecutedWhenRequested();
   await testEmergencyPauseBlocksTicketingWriteExecution();
   await testAutomationDryRunPrepareApprovedLaunchAndReads();
   await testAutomationLaunchMisuseFailsClosed();
   await testEmergencyPauseBlocksAutomationLaunchBeforeProviderCall();
   await testMockDiagnosticWorkflowPersistsObjectsAndResistsMaliciousEvidence();
   await testDiagnosticRecommendationCanProposeInternalNoteAction();
+  await testAgentWorkQueueUpgradesExistingHelpdeskDefinitionCapabilities();
+  await testAgentWorkQueueSeedsHelpdeskDefinitionAndDeniesUnsafeDefinitions();
+  await testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState();
+  await testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsolation();
+  await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
+  await testAgentControlQueueOverviewReturnsLinkedActionRequests();
+  await testGlpiTriageSkipsFollowupsUntilRequesterAnswers();
+  await testGlpiTriageAllowsFollowupsAfterRequesterAnswer();
+  await testGlpiTriageUsesProviderNoteTimeToBlockRepeatFollowups();
+  await testGlpiTriagePublicReplyUsesFullKnowledgeDocument();
+  await testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange();
   await testApprovalPolicyResolverDeniesByDefaultDisabledDraftAndMalformedPolicies();
   await testApprovalPolicyResolverScopeEvidenceAndEvaluationDenials();
   await testApprovalPolicyResolverMockOnlyAndStrictCeilings();

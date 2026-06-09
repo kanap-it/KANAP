@@ -2,12 +2,18 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiMutationPreview } from '../ai-mutation-preview.entity';
 import { AiActionRequestService } from './action-request/ai-action-request.service';
+import { AiAgentWorkQueueService } from './agent/ai-agent-work-queue.service';
 import { AiApprovalService } from './approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from './automation/ai-automation-job-catalog.service';
 import { AiCapabilityRegistry } from './capability/ai-capability.registry';
 import { AiReadonlyDiagnosticWorkflowService } from './diagnostics/ai-readonly-diagnostic-workflow.service';
 import { AiCapabilityDispatcherService } from './dispatcher/ai-capability-dispatcher.service';
 import { AiActionRequest } from './entities/ai-action-request.entity';
+import { AiAgentAuditEvent } from './entities/ai-agent-audit-event.entity';
+import { AiAgentDefinition } from './entities/ai-agent-definition.entity';
+import { AiAgentTargetState } from './entities/ai-agent-target-state.entity';
+import { AiAgentTrigger } from './entities/ai-agent-trigger.entity';
+import { AiAgentWorkItem } from './entities/ai-agent-work-item.entity';
 import { AiApproval } from './entities/ai-approval.entity';
 import { AiApprovalPolicy } from './entities/ai-approval-policy.entity';
 import { AiAutomationJobCatalog } from './entities/ai-automation-job-catalog.entity';
@@ -47,6 +53,11 @@ import { AiTenantSecretResolverService } from './providers/tenant-secret-resolve
       AiRunStep,
       AiToolExecution,
       AiEvidence,
+      AiAgentAuditEvent,
+      AiAgentDefinition,
+      AiAgentTrigger,
+      AiAgentWorkItem,
+      AiAgentTargetState,
       AiActionRequest,
       AiApproval,
       AiApprovalPolicy,
@@ -69,6 +80,7 @@ import { AiTenantSecretResolverService } from './providers/tenant-secret-resolve
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
     AiLiveContractHarnessService,
@@ -90,6 +102,7 @@ import { AiTenantSecretResolverService } from './providers/tenant-secret-resolve
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
     AiLiveContractHarnessService,

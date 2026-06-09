@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import {
   AiLiveContractHarnessService,
@@ -14,6 +14,10 @@ type TenantRow = {
   slug: string;
 };
 
+type UserRow = {
+  id: string;
+};
+
 function usage(): string {
   const scenarios = Object.keys(LIVE_CONTRACT_SCENARIOS).join('|');
   return [
@@ -23,6 +27,7 @@ function usage(): string {
     '  DATABASE_URL=postgres://...',
     '  KANAP_LIVE_CONTRACT_TESTS=1',
     '  KANAP_LIVE_TENANT_SLUG=<tenant-slug>',
+    '  KANAP_LIVE_USER_ID=<enabled tenant user uuid> (optional; auto-resolves for --run)',
     '  provider gate for the scenario, for example KANAP_GLPI_LIVE_READ=1',
   ].join('\n');
 }
@@ -63,6 +68,48 @@ async function resolveTenant(dataSource: DataSource, slug: string): Promise<Tena
   return tenant;
 }
 
+async function resolveHarnessUserId(
+  manager: EntityManager,
+  tenantId: string,
+  opts: { required: boolean },
+): Promise<string> {
+  const configuredUserId = process.env.KANAP_LIVE_USER_ID?.trim();
+  if (configuredUserId) {
+    const rows = await manager.query(
+      `SELECT id::text AS id
+       FROM users
+       WHERE id = $1
+         AND tenant_id = $2
+         AND status = 'enabled'
+       LIMIT 1`,
+      [configuredUserId, tenantId],
+    ) as UserRow[];
+    const user = rows[0];
+    if (!user?.id) {
+      throw new Error('KANAP_LIVE_USER_ID must reference an enabled user in KANAP_LIVE_TENANT_SLUG.');
+    }
+    return user.id;
+  }
+
+  const rows = await manager.query(
+    `SELECT id::text AS id
+     FROM users
+     WHERE tenant_id = $1
+       AND status = 'enabled'
+     ORDER BY created_at ASC
+     LIMIT 1`,
+    [tenantId],
+  ) as UserRow[];
+  const user = rows[0];
+  if (!user?.id) {
+    if (opts.required) {
+      throw new Error('No enabled tenant user found. Set KANAP_LIVE_USER_ID for --run.');
+    }
+    return '';
+  }
+  return user.id;
+}
+
 function printStatus(status: Awaited<ReturnType<AiLiveContractHarnessService['readiness']>>): void {
   if (status.status !== 'ready') {
     console.log(JSON.stringify(status, null, 2));
@@ -98,9 +145,10 @@ async function main(): Promise<void> {
     const tenant = await resolveTenant(dataSource, tenantSlug);
     await dataSource.transaction(async (manager) => {
       await manager.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
+      const userId = await resolveHarnessUserId(manager, tenant.id, { required: shouldRun });
       const context = {
         tenantId: tenant.id,
-        userId: 'phase8-live-readiness-script',
+        userId,
         isPlatformHost: false,
         surface: 'chat' as const,
         authMethod: 'jwt' as const,

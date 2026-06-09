@@ -1,15 +1,20 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { z } from 'zod';
+import { KnowledgeService } from '../../../knowledge/knowledge.service';
 import { AiMutationPreviewService } from '../../ai-mutation-preview.service';
+import { AiPolicyService } from '../../ai-policy.service';
 import { AiToolRegistry } from '../../ai-tool.registry';
 import {
+  AiDocumentDto,
   AiExecutionContextWithManager,
+  AiKnowledgeSearchResultDto,
   AiToolListItemDto,
 } from '../../ai.types';
 import { AiProviderToolDef } from '../../providers/ai-provider.types';
 import { AiActionRequestService } from '../action-request/ai-action-request.service';
 import { AiApprovalService } from '../approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from '../automation/ai-automation-job-catalog.service';
+import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiExternalMcpBridgeService } from '../mcp/ai-external-mcp-bridge.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
 import {
@@ -27,14 +32,39 @@ import {
   CapabilityProviderKind,
   CapabilitySurface,
   EXECUTE_APPROVED_PREVIEW_CAPABILITY,
+  TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+  TICKETING_LIFECYCLE_CONTEXT_CAPABILITY,
+  TICKETING_PARTICIPANT_CONTEXT_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+  TICKETING_ROUTING_CONTEXT_CAPABILITY,
+  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from './capability-contract';
 import {
   AdapterResult,
   AutomationLaunchActionPayload,
+  TicketAssignmentUpdateActionPayload,
+  TicketClassificationUpdateActionPayload,
   TicketInternalNoteActionPayload,
   TicketInternalNoteWriteResult,
+  TicketNote,
+  TicketParticipantUpdateActionPayload,
+  TicketPublicReplyActionPayload,
+  TicketPublicReplyWriteResult,
+  TicketProviderActionWriteResult,
+  TicketRoutingTarget,
+  TicketStatusUpdateActionPayload,
+  TicketingProvider,
 } from '../providers/provider.types';
 
 const COMPATIBILITY_CAPABILITY_VERSION = '1.0.0';
@@ -45,7 +75,20 @@ const ExecuteApprovedPreviewInputSchema = z.object({
   preview_ids: z.array(z.string().trim().uuid()).min(1).max(50),
 });
 
+const InternalKnowledgeSearchInputSchema = z.object({
+  query: z.string().trim().min(1),
+  offset: z.number().int().min(0).max(5000).default(0),
+  limit: z.number().int().min(1).max(200).default(100),
+}).strict();
+
+const InternalKnowledgeDocumentInputSchema = z.object({
+  document_id: z.string().trim().min(1),
+}).strict();
+
 const MAX_INTERNAL_NOTE_CHARS = 4000;
+const MAX_PUBLIC_REPLY_CHARS = 12000;
+const GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES = ['expired', 'failed', 'rejected', 'executed'];
+type ProviderActionForExecution = Awaited<ReturnType<AiActionRequestService['findProviderActionForExecution']>>;
 
 const PrepareInternalNoteInputSchema = z.object({
   ticket_id: z.string().trim().min(1).max(128),
@@ -59,6 +102,101 @@ const PrepareInternalNoteInputSchema = z.object({
 }).strict();
 
 const AddApprovedInternalNoteInputSchema = z.object({
+  action_request_id: z.string().trim().uuid(),
+}).strict();
+
+const PreparePublicReplyInputSchema = z.object({
+  ticket_id: z.string().trim().min(1).max(128),
+  reply_body: z.string().trim().min(1).max(MAX_PUBLIC_REPLY_CHARS),
+  provider_key: z.string().trim().min(1).max(128).optional(),
+  evidence_ids: z.array(z.string().trim().min(1)).max(100).optional(),
+  observation_id: z.string().trim().min(1).optional(),
+  recommendation_id: z.string().trim().min(1).optional(),
+  decision_id: z.string().trim().min(1).optional(),
+  evaluation_id: z.string().trim().min(1).optional(),
+}).strict();
+
+const AddApprovedPublicReplyInputSchema = z.object({
+  action_request_id: z.string().trim().uuid(),
+}).strict();
+
+const TicketClassificationProposalSchema = z.object({
+  type: z.enum(['incident', 'request']).optional(),
+  priority: z.enum(['very_low', 'low', 'medium', 'high', 'very_high', 'major']).optional(),
+  urgency: z.enum(['very_low', 'low', 'medium', 'high', 'very_high', 'major']).optional(),
+  impact: z.string().trim().min(1).max(128).optional(),
+  category: z.string().trim().min(1).max(256).optional(),
+  service: z.string().trim().min(1).max(256).optional(),
+}).strict();
+
+const PrepareClassificationUpdateInputSchema = z.object({
+  ticket_id: z.string().trim().min(1).max(128),
+  proposed: TicketClassificationProposalSchema,
+  reason: z.string().trim().min(1).max(1000),
+  provider_key: z.string().trim().min(1).max(128).optional(),
+  evidence_ids: z.array(z.string().trim().min(1)).max(100).optional(),
+  observation_id: z.string().trim().min(1).optional(),
+  recommendation_id: z.string().trim().min(1).optional(),
+  decision_id: z.string().trim().min(1).optional(),
+  evaluation_id: z.string().trim().min(1).optional(),
+}).strict();
+
+const AddApprovedClassificationUpdateInputSchema = z.object({
+  action_request_id: z.string().trim().uuid(),
+}).strict();
+
+const PrepareStatusUpdateInputSchema = z.object({
+  ticket_id: z.string().trim().min(1).max(128),
+  transition_key: z.enum(['processing_assigned', 'processing_planned', 'pending', 'escalated_l2', 'pending_user']),
+  reason: z.string().trim().min(1).max(1000),
+  provider_key: z.string().trim().min(1).max(128).optional(),
+  evidence_ids: z.array(z.string().trim().min(1)).max(100).optional(),
+  observation_id: z.string().trim().min(1).optional(),
+  recommendation_id: z.string().trim().min(1).optional(),
+  decision_id: z.string().trim().min(1).optional(),
+  evaluation_id: z.string().trim().min(1).optional(),
+}).strict();
+
+const AddApprovedStatusUpdateInputSchema = z.object({
+  action_request_id: z.string().trim().uuid(),
+}).strict();
+
+const TicketRoutingTargetInputSchema = z.object({
+  kind: z.enum(['user', 'group']),
+  key: z.string().trim().min(1).max(256),
+  label: z.string().trim().min(1).max(256),
+}).strict();
+
+const PrepareAssignmentUpdateInputSchema = z.object({
+  ticket_id: z.string().trim().min(1).max(128),
+  target: TicketRoutingTargetInputSchema,
+  reason: z.string().trim().min(1).max(1000),
+  provider_key: z.string().trim().min(1).max(128).optional(),
+  evidence_ids: z.array(z.string().trim().min(1)).max(100).optional(),
+  observation_id: z.string().trim().min(1).optional(),
+  recommendation_id: z.string().trim().min(1).optional(),
+  decision_id: z.string().trim().min(1).optional(),
+  evaluation_id: z.string().trim().min(1).optional(),
+}).strict();
+
+const AddApprovedAssignmentUpdateInputSchema = z.object({
+  action_request_id: z.string().trim().uuid(),
+}).strict();
+
+const PrepareParticipantUpdateInputSchema = z.object({
+  ticket_id: z.string().trim().min(1).max(128),
+  operation: z.enum(['add_observer', 'remove_observer', 'set_observers']),
+  participants: z.array(TicketRoutingTargetInputSchema).min(1).max(20),
+  reason: z.string().trim().min(1).max(1000),
+  provider_key: z.string().trim().min(1).max(128).optional(),
+  evidence_ids: z.array(z.string().trim().min(1)).max(100).optional(),
+  observation_id: z.string().trim().min(1).optional(),
+  recommendation_id: z.string().trim().min(1).optional(),
+  decision_id: z.string().trim().min(1).optional(),
+  evaluation_id: z.string().trim().min(1).optional(),
+}).strict();
+
+const AddApprovedParticipantUpdateInputSchema = z.object({
   action_request_id: z.string().trim().uuid(),
 }).strict();
 
@@ -204,6 +342,92 @@ function internalExecuteApprovedPreviewContract(): CapabilityContract {
   });
 }
 
+function internalKnowledgeSearchContract(): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: 'search_knowledge',
+    version: COMPATIBILITY_CAPABILITY_VERSION,
+    description: 'Search KANAP knowledge documents through the governed internal control-plane surface.',
+    category: 'knowledge',
+    provider_kind: 'kanap_domain',
+    supported_surfaces: ['internal'],
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', minLength: 1 },
+        offset: { type: 'number', minimum: 0, maximum: 5000, default: 0 },
+        limit: { type: 'number', minimum: 1, maximum: 200, default: 100 },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    output_schema: { type: 'object' },
+    effect: 'read',
+    risk_level: 'low',
+    max_autonomy_level: 'A1',
+    default_approval: 'none',
+    approval_strategy: { mode: 'none' },
+    evidence: {
+      persist_input: false,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'standard',
+    },
+    tenant_permissions: ['knowledge'],
+    business_resources: ['knowledge'],
+    timeout_seconds: 30,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: ['query', 'offset', 'limit'] },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'live_read',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
+function internalKnowledgeDocumentContract(): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: 'get_document',
+    version: COMPATIBILITY_CAPABILITY_VERSION,
+    description: 'Read one KANAP knowledge document through the governed internal control-plane surface.',
+    category: 'knowledge',
+    provider_kind: 'kanap_domain',
+    supported_surfaces: ['internal'],
+    input_schema: {
+      type: 'object',
+      properties: {
+        document_id: { type: 'string', minLength: 1 },
+      },
+      required: ['document_id'],
+      additionalProperties: false,
+    },
+    output_schema: { type: 'object' },
+    effect: 'read',
+    risk_level: 'low',
+    max_autonomy_level: 'A1',
+    default_approval: 'none',
+    approval_strategy: { mode: 'none' },
+    evidence: {
+      persist_input: false,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'standard',
+    },
+    tenant_permissions: ['knowledge'],
+    business_resources: ['knowledge'],
+    timeout_seconds: 30,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: ['document_id'] },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'live_read',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
 function providerReadContract(input: {
   name: string;
   description: string;
@@ -318,6 +542,187 @@ function ticketingInternalNoteAddApprovedContract(): CapabilityContract {
     output_schema: { type: 'object' },
     effect: 'write',
     risk_level: 'medium',
+    max_autonomy_level: 'A3',
+    default_approval: 'human',
+    approval_strategy: { mode: 'action_request' },
+    evidence: {
+      persist_input: true,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'audit',
+    },
+    tenant_permissions: ['ai.write'],
+    business_resources: ['tickets'],
+    timeout_seconds: 60,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: ['action_request_id'] },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'live_write_gated',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
+function ticketingPublicReplyPrepareContract(): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+    version: PROVIDER_CAPABILITY_VERSION,
+    description: 'Prepare an approval-gated public ticket reply action request.',
+    category: 'provider_ticketing',
+    provider_kind: 'ticketing',
+    supported_surfaces: ['internal', 'scheduler', 'alert'],
+    input_schema: {
+      type: 'object',
+      properties: {
+        ticket_id: { type: 'string', minLength: 1, maxLength: 128 },
+        reply_body: { type: 'string', minLength: 1, maxLength: MAX_PUBLIC_REPLY_CHARS },
+        provider_key: { type: 'string', minLength: 1, maxLength: 128 },
+        evidence_ids: {
+          type: 'array',
+          items: { type: 'string', minLength: 1 },
+          maxItems: 100,
+        },
+        observation_id: { type: 'string', minLength: 1 },
+        recommendation_id: { type: 'string', minLength: 1 },
+        decision_id: { type: 'string', minLength: 1 },
+        evaluation_id: { type: 'string', minLength: 1 },
+      },
+      required: ['ticket_id', 'reply_body'],
+      additionalProperties: false,
+    },
+    output_schema: { type: 'object' },
+    effect: 'propose',
+    risk_level: 'medium',
+    max_autonomy_level: 'A2',
+    default_approval: 'none',
+    approval_strategy: { mode: 'none' },
+    evidence: {
+      persist_input: true,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'audit',
+    },
+    tenant_permissions: ['ai.surface'],
+    business_resources: ['tickets'],
+    timeout_seconds: 30,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: ['provider_key', 'ticket_id', 'reply_body'] },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'mock_only',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
+function ticketingPublicReplyAddApprovedContract(): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    version: PROVIDER_CAPABILITY_VERSION,
+    description: 'Add a public ticket reply after a durable approval.',
+    category: 'provider_ticketing',
+    provider_kind: 'ticketing',
+    supported_surfaces: ['internal', 'scheduler', 'alert'],
+    input_schema: {
+      type: 'object',
+      properties: {
+        action_request_id: { type: 'string', format: 'uuid' },
+      },
+      required: ['action_request_id'],
+      additionalProperties: false,
+    },
+    output_schema: { type: 'object' },
+    effect: 'write',
+    risk_level: 'high',
+    max_autonomy_level: 'A3',
+    default_approval: 'human',
+    approval_strategy: { mode: 'action_request' },
+    evidence: {
+      persist_input: true,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'audit',
+    },
+    tenant_permissions: ['ai.write'],
+    business_resources: ['tickets'],
+    timeout_seconds: 60,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: ['action_request_id'] },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'live_write_gated',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
+function ticketingProviderUpdatePrepareContract(input: {
+  name: string;
+  description: string;
+  riskLevel: 'low' | 'medium';
+  input_schema: Record<string, unknown>;
+}): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: input.name,
+    version: PROVIDER_CAPABILITY_VERSION,
+    description: input.description,
+    category: 'provider_ticketing',
+    provider_kind: 'ticketing',
+    supported_surfaces: ['internal', 'scheduler', 'alert'],
+    input_schema: input.input_schema,
+    output_schema: { type: 'object' },
+    effect: 'propose',
+    risk_level: input.riskLevel,
+    max_autonomy_level: 'A2',
+    default_approval: 'none',
+    approval_strategy: { mode: 'none' },
+    evidence: {
+      persist_input: true,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'audit',
+    },
+    tenant_permissions: ['ai.surface'],
+    business_resources: ['tickets'],
+    timeout_seconds: 30,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: ['provider_key', 'ticket_id'] },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'mock_only',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
+function ticketingProviderUpdateApprovedContract(input: {
+  name: string;
+  description: string;
+  riskLevel: 'medium' | 'high';
+}): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: input.name,
+    version: PROVIDER_CAPABILITY_VERSION,
+    description: input.description,
+    category: 'provider_ticketing',
+    provider_kind: 'ticketing',
+    supported_surfaces: ['internal', 'scheduler', 'alert'],
+    input_schema: {
+      type: 'object',
+      properties: {
+        action_request_id: { type: 'string', format: 'uuid' },
+      },
+      required: ['action_request_id'],
+      additionalProperties: false,
+    },
+    output_schema: { type: 'object' },
+    effect: 'write',
+    risk_level: input.riskLevel,
     max_autonomy_level: 'A3',
     default_approval: 'human',
     approval_strategy: { mode: 'action_request' },
@@ -633,6 +1038,225 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       },
     }),
     providerReadContract({
+      name: TICKETING_TICKET_NOTES_LIST_CAPABILITY,
+      description: 'Read normalized ticket conversation notes through a ticketing provider adapter.',
+      category: 'provider_ticketing',
+      provider_kind: 'ticketing',
+      business_resources: ['tickets'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
+      name: TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
+      description: 'Read normalized ticket classification context through a ticketing provider adapter.',
+      category: 'provider_ticketing',
+      provider_kind: 'ticketing',
+      business_resources: ['tickets'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
+      name: TICKETING_LIFECYCLE_CONTEXT_CAPABILITY,
+      description: 'Read normalized ticket status and lifecycle context through a ticketing provider adapter.',
+      category: 'provider_ticketing',
+      provider_kind: 'ticketing',
+      business_resources: ['tickets'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
+      name: TICKETING_ROUTING_CONTEXT_CAPABILITY,
+      description: 'Read normalized ticket assignment and routing context through a ticketing provider adapter.',
+      category: 'provider_ticketing',
+      provider_kind: 'ticketing',
+      business_resources: ['tickets'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
+      name: TICKETING_PARTICIPANT_CONTEXT_CAPABILITY,
+      description: 'Read normalized ticket requester, watcher, observer, and viewer context through a ticketing provider adapter.',
+      category: 'provider_ticketing',
+      provider_kind: 'ticketing',
+      business_resources: ['tickets'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id'],
+        additionalProperties: false,
+      },
+    }),
+    ticketingProviderUpdatePrepareContract({
+      name: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
+      description: 'Prepare an approval-gated ticket classification update action request.',
+      riskLevel: 'low',
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1, maxLength: 128 },
+          provider_key: { type: 'string', minLength: 1, maxLength: 128 },
+          proposed: {
+            type: 'object',
+            properties: {
+              type: { enum: ['incident', 'request'] },
+              priority: { enum: ['very_low', 'low', 'medium', 'high', 'very_high', 'major'] },
+              urgency: { enum: ['very_low', 'low', 'medium', 'high', 'very_high', 'major'] },
+              impact: { type: 'string', minLength: 1, maxLength: 128 },
+              category: { type: 'string', minLength: 1, maxLength: 256 },
+              service: { type: 'string', minLength: 1, maxLength: 256 },
+            },
+            additionalProperties: false,
+          },
+          reason: { type: 'string', minLength: 1, maxLength: 1000 },
+          evidence_ids: { type: 'array', items: { type: 'string', minLength: 1 }, maxItems: 100 },
+          observation_id: { type: 'string', minLength: 1 },
+          recommendation_id: { type: 'string', minLength: 1 },
+          decision_id: { type: 'string', minLength: 1 },
+          evaluation_id: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id', 'proposed', 'reason'],
+        additionalProperties: false,
+      },
+    }),
+    ticketingProviderUpdateApprovedContract({
+      name: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+      description: 'Update ticket classification after a durable approval.',
+      riskLevel: 'medium',
+    }),
+    ticketingProviderUpdatePrepareContract({
+      name: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+      description: 'Prepare an approval-gated ticket lifecycle/status update action request.',
+      riskLevel: 'medium',
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1, maxLength: 128 },
+          provider_key: { type: 'string', minLength: 1, maxLength: 128 },
+          transition_key: { enum: ['processing_assigned', 'processing_planned', 'pending', 'escalated_l2', 'pending_user'] },
+          reason: { type: 'string', minLength: 1, maxLength: 1000 },
+          evidence_ids: { type: 'array', items: { type: 'string', minLength: 1 }, maxItems: 100 },
+          observation_id: { type: 'string', minLength: 1 },
+          recommendation_id: { type: 'string', minLength: 1 },
+          decision_id: { type: 'string', minLength: 1 },
+          evaluation_id: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id', 'transition_key', 'reason'],
+        additionalProperties: false,
+      },
+    }),
+    ticketingProviderUpdateApprovedContract({
+      name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+      description: 'Update ticket status after a durable approval.',
+      riskLevel: 'high',
+    }),
+    ticketingProviderUpdatePrepareContract({
+      name: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
+      description: 'Prepare an approval-gated ticket assignment/routing update action request.',
+      riskLevel: 'medium',
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1, maxLength: 128 },
+          provider_key: { type: 'string', minLength: 1, maxLength: 128 },
+          target: {
+            type: 'object',
+            properties: {
+              kind: { enum: ['user', 'group'] },
+              key: { type: 'string', minLength: 1, maxLength: 256 },
+              label: { type: 'string', minLength: 1, maxLength: 256 },
+            },
+            required: ['kind', 'key', 'label'],
+            additionalProperties: false,
+          },
+          reason: { type: 'string', minLength: 1, maxLength: 1000 },
+          evidence_ids: { type: 'array', items: { type: 'string', minLength: 1 }, maxItems: 100 },
+          observation_id: { type: 'string', minLength: 1 },
+          recommendation_id: { type: 'string', minLength: 1 },
+          decision_id: { type: 'string', minLength: 1 },
+          evaluation_id: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id', 'target', 'reason'],
+        additionalProperties: false,
+      },
+    }),
+    ticketingProviderUpdateApprovedContract({
+      name: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+      description: 'Update ticket assignment after a durable approval.',
+      riskLevel: 'high',
+    }),
+    ticketingProviderUpdatePrepareContract({
+      name: TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
+      description: 'Prepare an approval-gated ticket participant update action request.',
+      riskLevel: 'medium',
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1, maxLength: 128 },
+          provider_key: { type: 'string', minLength: 1, maxLength: 128 },
+          operation: { enum: ['add_observer', 'remove_observer', 'set_observers'] },
+          participants: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 20,
+            items: {
+              type: 'object',
+              properties: {
+                kind: { enum: ['user', 'group'] },
+                key: { type: 'string', minLength: 1, maxLength: 256 },
+                label: { type: 'string', minLength: 1, maxLength: 256 },
+              },
+              required: ['kind', 'key', 'label'],
+              additionalProperties: false,
+            },
+          },
+          reason: { type: 'string', minLength: 1, maxLength: 1000 },
+          evidence_ids: { type: 'array', items: { type: 'string', minLength: 1 }, maxItems: 100 },
+          observation_id: { type: 'string', minLength: 1 },
+          recommendation_id: { type: 'string', minLength: 1 },
+          decision_id: { type: 'string', minLength: 1 },
+          evaluation_id: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id', 'operation', 'participants', 'reason'],
+        additionalProperties: false,
+      },
+    }),
+    ticketingProviderUpdateApprovedContract({
+      name: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+      description: 'Update ticket participants after a durable approval.',
+      riskLevel: 'high',
+    }),
+    providerReadContract({
       name: 'directory.user.context',
       description: 'Read user context through a directory provider adapter.',
       category: 'provider_directory',
@@ -650,6 +1274,8 @@ export function providerCapabilityContracts(): CapabilityContract[] {
     }),
     ticketingInternalNotePrepareContract(),
     ticketingInternalNoteAddApprovedContract(),
+    ticketingPublicReplyPrepareContract(),
+    ticketingPublicReplyAddApprovedContract(),
     automationReadContract({
       name: AUTOMATION_JOB_ALLOWED_LIST_CAPABILITY,
       description: 'List tenant allowlisted automation jobs.',
@@ -749,6 +1375,20 @@ function normalizeInternalNoteBody(value: string): string {
   return normalized;
 }
 
+function normalizePublicReplyBody(value: string): string {
+  const normalized = value.replace(/\r\n/g, '\n').trim();
+  if (!normalized) {
+    throw new BadRequestException('Public reply body is required.');
+  }
+  if (normalized.length > MAX_PUBLIC_REPLY_CHARS) {
+    throw new BadRequestException('Public reply body exceeds the allowed length.');
+  }
+  if (/<[^>]+>/.test(normalized) || /javascript:/i.test(normalized)) {
+    throw new BadRequestException('Public replies must be plain text and cannot contain HTML or scripts.');
+  }
+  return normalized;
+}
+
 function isTicketInternalNotePayload(value: unknown): value is TicketInternalNoteActionPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return false;
@@ -758,6 +1398,67 @@ function isTicketInternalNotePayload(value: unknown): value is TicketInternalNot
     && record.visibility === 'internal'
     && typeof record.body === 'string'
     && record.bodyFormat === 'plain_text';
+}
+
+function isTicketPublicReplyPayload(value: unknown): value is TicketPublicReplyActionPayload {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.ticketId === 'string'
+    && record.visibility === 'public'
+    && typeof record.body === 'string'
+    && record.bodyFormat === 'plain_text';
+}
+
+function isTicketClassificationUpdatePayload(value: unknown): value is TicketClassificationUpdateActionPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.ticketId === 'string'
+    && value.action === 'classification_update'
+    && isRecord(value.current)
+    && isRecord(value.proposed)
+    && typeof value.reason === 'string';
+}
+
+function isTicketStatusUpdatePayload(value: unknown): value is TicketStatusUpdateActionPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.ticketId === 'string'
+    && value.action === 'status_update'
+    && isRecord(value.current)
+    && typeof value.transitionKey === 'string'
+    && typeof value.targetStatus === 'string'
+    && typeof value.reason === 'string';
+}
+
+function isTicketAssignmentUpdatePayload(value: unknown): value is TicketAssignmentUpdateActionPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.ticketId === 'string'
+    && value.action === 'assignment_update'
+    && isRecord(value.current)
+    && isRecord(value.target)
+    && typeof (value.target as Record<string, unknown>).kind === 'string'
+    && typeof (value.target as Record<string, unknown>).key === 'string'
+    && typeof (value.target as Record<string, unknown>).label === 'string'
+    && typeof value.reason === 'string';
+}
+
+function isTicketParticipantUpdatePayload(value: unknown): value is TicketParticipantUpdateActionPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.ticketId === 'string'
+    && value.action === 'participant_update'
+    && isRecord(value.current)
+    && typeof value.operation === 'string'
+    && Array.isArray(value.participants)
+    && value.participants.every(isRecord)
+    && typeof value.reason === 'string';
 }
 
 function isAutomationTargetPayload(value: unknown): value is { type: string; values: string[] } {
@@ -772,6 +1473,13 @@ function isAutomationTargetPayload(value: unknown): value is { type: string; val
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function shouldCreateFreshGlpiAgentControlProposal(execution: CapabilityExecutionContext): boolean {
+  const metadata = isRecord(execution.metadata) ? execution.metadata : null;
+  return metadata?.uat_workflow === 'agent_control_center_glpi_triage'
+    && typeof metadata.agent_work_item_id === 'string'
+    && metadata.agent_work_item_id.trim().length > 0;
 }
 
 function isAutomationLaunchPayload(value: unknown): value is AutomationLaunchActionPayload {
@@ -801,6 +1509,82 @@ function stringMetadataField(value: unknown, field: string): string | null {
   return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
 }
 
+function numberMetadataField(value: unknown, field: string): number | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const raw = value[field];
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+function metadataProviderResultNoteId(value: unknown): string | null {
+  const metadata = isRecord(value) ? value : null;
+  const providerResult = isRecord(metadata?.provider_result) ? metadata.provider_result : null;
+  return stringMetadataField(providerResult, 'note_id');
+}
+
+function ticketNoteTime(note: TicketNote): number | null {
+  const value = note.updatedAt ?? note.createdAt;
+  if (!value) {
+    return null;
+  }
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : null;
+}
+
+function ticketNoteFingerprint(note: TicketNote): string {
+  if (typeof note.updateFingerprint === 'string' && note.updateFingerprint.trim().length > 0) {
+    return note.updateFingerprint.trim();
+  }
+  return JSON.stringify({
+    id: note.id,
+    visibility: note.visibility,
+    author_id: note.authorId ?? null,
+    author_role: note.authorRole ?? 'unknown',
+    created_at: note.createdAt || null,
+    updated_at: note.updatedAt ?? null,
+    body: String(note.body || '').replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim(),
+  });
+}
+
+function latestTicketNote(notes: TicketNote[]): TicketNote | null {
+  return [...notes]
+    .sort((left, right) => {
+      const rightTime = ticketNoteTime(right) ?? 0;
+      const leftTime = ticketNoteTime(left) ?? 0;
+      if (rightTime !== leftTime) {
+        return rightTime - leftTime;
+      }
+      return String(right.id).localeCompare(String(left.id));
+    })[0] ?? null;
+}
+
+function ticketWriteGuardError<T>(message: string): AdapterResult<T> {
+  return {
+    ok: false,
+    errorCode: 'unsafe_operation',
+    message,
+    retryable: false,
+  };
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJson(entry)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+function sameSnapshot(left: unknown, right: unknown): boolean {
+  return stableJson(left) === stableJson(right);
+}
+
 function withActionRequestData<T extends Record<string, unknown>>(
   result: AdapterResult<T>,
   data: Record<string, unknown>,
@@ -821,6 +1605,8 @@ function withActionRequestData<T extends Record<string, unknown>>(
 export class AiCapabilityRegistry {
   private readonly internalContracts = new Map<string, CapabilityContract>([
     [EXECUTE_APPROVED_PREVIEW_CAPABILITY, internalExecuteApprovedPreviewContract()],
+    ['search_knowledge', internalKnowledgeSearchContract()],
+    ['get_document', internalKnowledgeDocumentContract()],
   ]);
   private readonly providerContracts = new Map<string, CapabilityContract>(
     providerCapabilityContracts().map((contract) => [contract.name, contract]),
@@ -834,6 +1620,8 @@ export class AiCapabilityRegistry {
     private readonly providers: AiProviderRegistryService,
     private readonly automationCatalog: AiAutomationJobCatalogService,
     private readonly externalMcpBridge?: AiExternalMcpBridgeService,
+    @Optional() private readonly policy?: AiPolicyService,
+    @Optional() private readonly knowledge?: KnowledgeService,
   ) {}
 
   validateContract(contract: CapabilityContract): CapabilityContract {
@@ -887,7 +1675,7 @@ export class AiCapabilityRegistry {
       }
       return {
         contract: internal,
-        handler: async (ctx, input) => this.executeApprovedPreview(ctx, input),
+        handler: async (ctx, input) => this.executeInternalCapability(ctx, internal.name, input),
       };
     }
 
@@ -927,6 +1715,116 @@ export class AiCapabilityRegistry {
       contract,
       handler: async (ctx, input) => this.tools.execute(ctx, toolName, input),
     };
+  }
+
+  private async executeInternalCapability(
+    context: AiExecutionContextWithManager,
+    capabilityName: string,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    switch (capabilityName) {
+      case EXECUTE_APPROVED_PREVIEW_CAPABILITY:
+        return this.executeApprovedPreview(context, rawInput);
+      case 'search_knowledge':
+        return this.searchKnowledgeInternal(context, rawInput);
+      case 'get_document':
+        return this.getDocumentInternal(context, rawInput);
+      default:
+        throw new NotFoundException('Unknown internal capability.');
+    }
+  }
+
+  private knowledgeServices(): { policy: AiPolicyService; knowledge: KnowledgeService } {
+    if (!this.policy || !this.knowledge) {
+      throw new BadRequestException('Internal knowledge capabilities are not configured.');
+    }
+    return { policy: this.policy, knowledge: this.knowledge };
+  }
+
+  private async searchKnowledgeInternal(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const { policy, knowledge } = this.knowledgeServices();
+    const parsed = InternalKnowledgeSearchInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await policy.assertKnowledgeReadAccess(context, context.manager);
+    const result = await knowledge.search(
+      { q: parsed.data.query, offset: parsed.data.offset, limit: parsed.data.limit },
+      { manager: context.manager, userId: context.userId },
+    );
+    return {
+      items: (result.items || []).map((item: any): AiKnowledgeSearchResultDto => ({
+        id: item.id,
+        ref: `DOC-${item.item_number}`,
+        title: item.title,
+        summary: item.summary ?? null,
+        status: item.status,
+        snippet: item.snippet ?? null,
+        library: {
+          id: item.library_id ?? null,
+          name: item.library_name ?? null,
+        },
+        updated_at: item.updated_at ? new Date(item.updated_at).toISOString() : null,
+      })),
+      total: result.total ?? 0,
+      offset: result.offset ?? parsed.data.offset,
+      limit: result.limit ?? parsed.data.limit,
+      returned: Array.isArray(result.items) ? result.items.length : 0,
+      truncated: result.truncated === true,
+      complete: result.truncated !== true,
+    };
+  }
+
+  private async getDocumentInternal(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const { policy, knowledge } = this.knowledgeServices();
+    const parsed = InternalKnowledgeDocumentInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await policy.assertKnowledgeReadAccess(context, context.manager);
+    const document = await knowledge.get(parsed.data.document_id, { manager: context.manager, userId: context.userId });
+    if (!document) {
+      throw new NotFoundException('Document not found.');
+    }
+    const result: AiDocumentDto = {
+      id: document.id,
+      ref: document.item_ref ?? `DOC-${document.item_number}`,
+      title: document.title,
+      summary: document.summary ?? null,
+      content_markdown: document.content_markdown ?? '',
+      status: document.status,
+      library: {
+        id: document.library_id ?? document.library?.id ?? null,
+        name: document.library_name ?? document.library?.name ?? null,
+        slug: document.library_slug ?? document.library?.slug ?? null,
+      },
+      folder: {
+        id: document.folder_id ?? document.folder?.id ?? null,
+        name: document.folder_name ?? document.folder?.name ?? null,
+      },
+      document_type: {
+        id: document.document_type_id ?? document.document_type?.id ?? null,
+        name: document.document_type_name ?? document.document_type?.name ?? null,
+      },
+      contributors: (document.contributors || []).map((contributor: any) => ({
+        name: contributor.user_name ?? contributor.name ?? 'Unknown user',
+        role: contributor.role,
+        is_primary: contributor.is_primary === true,
+      })),
+      relations: document.relations ?? {},
+      updated_at: document.updated_at ? new Date(document.updated_at).toISOString() : null,
+      total: 1,
+      returned: 1,
+      truncated: false,
+      complete: true,
+    };
+    return result;
   }
 
   private async executeApprovedPreview(
@@ -1008,10 +1906,50 @@ export class AiCapabilityRegistry {
           limit: optionalNumberField(rawInput, 'limit'),
         });
       }
+      case TICKETING_TICKET_NOTES_LIST_CAPABILITY: {
+        const provider = await this.providers.ticketing(context, providerKey(rawInput));
+        return provider.listTicketNotes(context, { ticketId: stringField(rawInput, 'ticket_id') });
+      }
+      case TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY: {
+        const provider = await this.providers.ticketing(context, providerKey(rawInput));
+        return provider.getTicketClassificationContext(context, { ticketId: stringField(rawInput, 'ticket_id') });
+      }
+      case TICKETING_LIFECYCLE_CONTEXT_CAPABILITY: {
+        const provider = await this.providers.ticketing(context, providerKey(rawInput));
+        return provider.getTicketLifecycleContext(context, { ticketId: stringField(rawInput, 'ticket_id') });
+      }
+      case TICKETING_ROUTING_CONTEXT_CAPABILITY: {
+        const provider = await this.providers.ticketing(context, providerKey(rawInput));
+        return provider.getTicketRoutingContext(context, { ticketId: stringField(rawInput, 'ticket_id') });
+      }
+      case TICKETING_PARTICIPANT_CONTEXT_CAPABILITY: {
+        const provider = await this.providers.ticketing(context, providerKey(rawInput));
+        return provider.getTicketParticipantContext(context, { ticketId: stringField(rawInput, 'ticket_id') });
+      }
+      case TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY:
+        return this.prepareTicketClassificationUpdate(context, rawInput, execution);
+      case TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY:
+        return this.updateApprovedTicketClassification(context, rawInput);
+      case TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY:
+        return this.prepareTicketStatusUpdate(context, rawInput, execution);
+      case TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY:
+        return this.updateApprovedTicketStatus(context, rawInput);
+      case TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY:
+        return this.prepareTicketAssignmentUpdate(context, rawInput, execution);
+      case TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY:
+        return this.updateApprovedTicketAssignment(context, rawInput);
+      case TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY:
+        return this.prepareTicketParticipantUpdate(context, rawInput, execution);
+      case TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY:
+        return this.updateApprovedTicketParticipants(context, rawInput);
       case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
         return this.prepareInternalNoteAction(context, rawInput, execution);
       case TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY:
         return this.addApprovedInternalNote(context, rawInput);
+      case TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY:
+        return this.preparePublicReplyAction(context, rawInput, execution);
+      case TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY:
+        return this.addApprovedPublicReply(context, rawInput);
       case AUTOMATION_JOB_ALLOWED_LIST_CAPABILITY:
         return this.listAllowedAutomationJobs(context, rawInput);
       case AUTOMATION_JOB_SCHEMA_GET_CAPABILITY:
@@ -1033,6 +1971,481 @@ export class AiCapabilityRegistry {
       default:
         throw new NotFoundException('Unknown provider capability.');
     }
+  }
+
+  private async prepareTicketClassificationUpdate(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+    execution: CapabilityExecutionContext,
+  ): Promise<unknown> {
+    const parsed = PrepareClassificationUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const providerKeyValue = parsed.data.provider_key ?? 'mock';
+    const provider = await this.providers.ticketing(context, providerKeyValue);
+    const prepared = await provider.prepareTicketClassificationUpdate(context, {
+      ticketId: parsed.data.ticket_id,
+      proposed: parsed.data.proposed,
+      reason: parsed.data.reason,
+    });
+    if (!prepared.ok) {
+      return prepared;
+    }
+    const actionPayload = prepared.data.actionPayload;
+    const idempotencyKey = this.actions.providerActionIdempotencyKey({
+      tenantId: context.tenantId,
+      providerKey: providerKeyValue,
+      ticketId: actionPayload.ticketId,
+      noteBody: stableJson({ action: actionPayload.action, proposed: actionPayload.proposed }),
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+    });
+    const action = await this.actions.createOrEnsureProviderAction(context, {
+      runId: execution.runId ?? null,
+      toolExecutionId: execution.toolExecutionId ?? null,
+      capabilityName: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+      effect: 'write',
+      providerKind: 'ticketing',
+      providerKey: providerKeyValue,
+      targetType: 'ticket',
+      targetRef: actionPayload.ticketId,
+      actionPayload: actionPayload as unknown as Record<string, unknown>,
+      idempotencyKey,
+      evidenceIds: parsed.data.evidence_ids ?? null,
+      inputSummary: {
+        provider_kind: 'ticketing',
+        provider_key: providerKeyValue,
+        target_type: 'ticket',
+        target_ref: actionPayload.ticketId,
+        action: 'classification_update',
+        proposed: actionPayload.proposed,
+      },
+      metadata: {
+        ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        observation_id: parsed.data.observation_id ?? null,
+        recommendation_id: parsed.data.recommendation_id ?? null,
+        decision_id: parsed.data.decision_id ?? null,
+        evaluation_id: parsed.data.evaluation_id ?? null,
+        update_kind: 'classification',
+      },
+      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
+        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+        : null,
+    });
+    return withActionRequestData(prepared, {
+      action_request_id: action.id,
+      action_request_status: action.status,
+      capability_name: action.capability_name,
+      capability_version: action.capability_version,
+      idempotency_key: action.idempotency_key,
+      target: { type: action.target_type, ref: action.target_ref },
+    });
+  }
+
+  private async updateApprovedTicketClassification(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const parsed = AddApprovedClassificationUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const action = await this.actions.findProviderActionForExecution(context, parsed.data.action_request_id);
+    this.actions.verifyProviderActionIntegrity(action);
+    if (!isTicketClassificationUpdatePayload(action.action_payload_json)) {
+      throw new BadRequestException('Action request does not contain a valid classification update payload.');
+    }
+    const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const current = await provider.getTicketClassificationContext(context, { ticketId: action.action_payload_json.ticketId });
+    if (current.ok === false) {
+      const message = `Cannot verify ticket classification freshness before write: ${current.message}`;
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    if (!sameSnapshot(action.action_payload_json.current, current.data)) {
+      const message = 'Ticket classification changed after this action was prepared. Rerun triage before approving this write.';
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    const result = await provider.updateTicketClassification(context, {
+      actionPayload: action.action_payload_json,
+      idempotencyKey: action.idempotency_key ?? '',
+    });
+    if (result.ok === false) {
+      await this.actions.markExecuted(context, action, 'failed', result.message);
+      return result;
+    }
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      provider_result: {
+        ticket_id: result.data.ticketId,
+        summary: result.data.summary,
+        updated_fields: result.data.updatedFields,
+        idempotency_key: result.data.idempotencyKey,
+        update_kind: 'classification',
+        already_applied: result.data.alreadyApplied ?? false,
+      },
+    };
+    await this.actions.markExecuted(context, action, 'executed', null);
+    return withActionRequestData(result, { action_request_id: action.id });
+  }
+
+  private async prepareTicketStatusUpdate(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+    execution: CapabilityExecutionContext,
+  ): Promise<unknown> {
+    const parsed = PrepareStatusUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const providerKeyValue = parsed.data.provider_key ?? 'mock';
+    const provider = await this.providers.ticketing(context, providerKeyValue);
+    const prepared = await provider.prepareTicketStatusUpdate(context, {
+      ticketId: parsed.data.ticket_id,
+      transitionKey: parsed.data.transition_key,
+      reason: parsed.data.reason,
+    });
+    if (!prepared.ok) {
+      return prepared;
+    }
+    const actionPayload = prepared.data.actionPayload;
+    const idempotencyKey = this.actions.providerActionIdempotencyKey({
+      tenantId: context.tenantId,
+      providerKey: providerKeyValue,
+      ticketId: actionPayload.ticketId,
+      noteBody: stableJson({ action: actionPayload.action, transition: actionPayload.transitionKey }),
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+    });
+    const action = await this.actions.createOrEnsureProviderAction(context, {
+      runId: execution.runId ?? null,
+      toolExecutionId: execution.toolExecutionId ?? null,
+      capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+      effect: 'write',
+      providerKind: 'ticketing',
+      providerKey: providerKeyValue,
+      targetType: 'ticket',
+      targetRef: actionPayload.ticketId,
+      actionPayload: actionPayload as unknown as Record<string, unknown>,
+      idempotencyKey,
+      evidenceIds: parsed.data.evidence_ids ?? null,
+      inputSummary: {
+        provider_kind: 'ticketing',
+        provider_key: providerKeyValue,
+        target_type: 'ticket',
+        target_ref: actionPayload.ticketId,
+        action: 'status_update',
+        transition_key: actionPayload.transitionKey,
+        target_status: actionPayload.targetStatus,
+      },
+      metadata: {
+        ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        observation_id: parsed.data.observation_id ?? null,
+        recommendation_id: parsed.data.recommendation_id ?? null,
+        decision_id: parsed.data.decision_id ?? null,
+        evaluation_id: parsed.data.evaluation_id ?? null,
+        update_kind: 'status',
+      },
+      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
+        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+        : null,
+    });
+    return withActionRequestData(prepared, {
+      action_request_id: action.id,
+      action_request_status: action.status,
+      capability_name: action.capability_name,
+      capability_version: action.capability_version,
+      idempotency_key: action.idempotency_key,
+      target: { type: action.target_type, ref: action.target_ref },
+    });
+  }
+
+  private async updateApprovedTicketStatus(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const parsed = AddApprovedStatusUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const action = await this.actions.findProviderActionForExecution(context, parsed.data.action_request_id);
+    this.actions.verifyProviderActionIntegrity(action);
+    if (!isTicketStatusUpdatePayload(action.action_payload_json)) {
+      throw new BadRequestException('Action request does not contain a valid status update payload.');
+    }
+    const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const current = await provider.getTicketLifecycleContext(context, { ticketId: action.action_payload_json.ticketId });
+    if (current.ok === false) {
+      const message = `Cannot verify ticket lifecycle freshness before write: ${current.message}`;
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    if (!sameSnapshot(action.action_payload_json.current, current.data)) {
+      const message = 'Ticket lifecycle changed after this action was prepared. Rerun triage before approving this write.';
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    const result = await provider.updateTicketStatus(context, {
+      actionPayload: action.action_payload_json,
+      idempotencyKey: action.idempotency_key ?? '',
+    });
+    if (result.ok === false) {
+      await this.actions.markExecuted(context, action, 'failed', result.message);
+      return result;
+    }
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      provider_result: {
+        ticket_id: result.data.ticketId,
+        summary: result.data.summary,
+        updated_fields: result.data.updatedFields,
+        idempotency_key: result.data.idempotencyKey,
+        update_kind: 'status',
+        already_applied: result.data.alreadyApplied ?? false,
+      },
+    };
+    await this.actions.markExecuted(context, action, 'executed', null);
+    return withActionRequestData(result, { action_request_id: action.id });
+  }
+
+  private async prepareTicketAssignmentUpdate(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+    execution: CapabilityExecutionContext,
+  ): Promise<unknown> {
+    const parsed = PrepareAssignmentUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const providerKeyValue = parsed.data.provider_key ?? 'mock';
+    const provider = await this.providers.ticketing(context, providerKeyValue);
+    const prepared = await provider.prepareTicketAssignmentUpdate(context, {
+      ticketId: parsed.data.ticket_id,
+      target: parsed.data.target as TicketRoutingTarget,
+      reason: parsed.data.reason,
+    });
+    if (!prepared.ok) {
+      return prepared;
+    }
+    const actionPayload = prepared.data.actionPayload;
+    const idempotencyKey = this.actions.providerActionIdempotencyKey({
+      tenantId: context.tenantId,
+      providerKey: providerKeyValue,
+      ticketId: actionPayload.ticketId,
+      noteBody: stableJson({ action: actionPayload.action, target: actionPayload.target }),
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+    });
+    const action = await this.actions.createOrEnsureProviderAction(context, {
+      runId: execution.runId ?? null,
+      toolExecutionId: execution.toolExecutionId ?? null,
+      capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+      effect: 'write',
+      providerKind: 'ticketing',
+      providerKey: providerKeyValue,
+      targetType: 'ticket',
+      targetRef: actionPayload.ticketId,
+      actionPayload: actionPayload as unknown as Record<string, unknown>,
+      idempotencyKey,
+      evidenceIds: parsed.data.evidence_ids ?? null,
+      inputSummary: {
+        provider_kind: 'ticketing',
+        provider_key: providerKeyValue,
+        target_type: 'ticket',
+        target_ref: actionPayload.ticketId,
+        action: 'assignment_update',
+        target: actionPayload.target,
+      },
+      metadata: {
+        ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        observation_id: parsed.data.observation_id ?? null,
+        recommendation_id: parsed.data.recommendation_id ?? null,
+        decision_id: parsed.data.decision_id ?? null,
+        evaluation_id: parsed.data.evaluation_id ?? null,
+        update_kind: 'assignment',
+      },
+      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
+        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+        : null,
+    });
+    return withActionRequestData(prepared, {
+      action_request_id: action.id,
+      action_request_status: action.status,
+      capability_name: action.capability_name,
+      capability_version: action.capability_version,
+      idempotency_key: action.idempotency_key,
+      target: { type: action.target_type, ref: action.target_ref },
+    });
+  }
+
+  private async updateApprovedTicketAssignment(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const parsed = AddApprovedAssignmentUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const action = await this.actions.findProviderActionForExecution(context, parsed.data.action_request_id);
+    this.actions.verifyProviderActionIntegrity(action);
+    if (!isTicketAssignmentUpdatePayload(action.action_payload_json)) {
+      throw new BadRequestException('Action request does not contain a valid assignment update payload.');
+    }
+    const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const current = await provider.getTicketRoutingContext(context, { ticketId: action.action_payload_json.ticketId });
+    if (current.ok === false) {
+      const message = `Cannot verify ticket routing freshness before write: ${current.message}`;
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    if (!sameSnapshot(action.action_payload_json.current, current.data)) {
+      const message = 'Ticket routing changed after this action was prepared. Rerun triage before approving this write.';
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    const result = await provider.updateTicketAssignment(context, {
+      actionPayload: action.action_payload_json,
+      idempotencyKey: action.idempotency_key ?? '',
+    });
+    if (result.ok === false) {
+      await this.actions.markExecuted(context, action, 'failed', result.message);
+      return result;
+    }
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      provider_result: {
+        ticket_id: result.data.ticketId,
+        summary: result.data.summary,
+        updated_fields: result.data.updatedFields,
+        idempotency_key: result.data.idempotencyKey,
+        update_kind: 'assignment',
+        already_applied: result.data.alreadyApplied ?? false,
+      },
+    };
+    await this.actions.markExecuted(context, action, 'executed', null);
+    return withActionRequestData(result, { action_request_id: action.id });
+  }
+
+  private async prepareTicketParticipantUpdate(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+    execution: CapabilityExecutionContext,
+  ): Promise<unknown> {
+    const parsed = PrepareParticipantUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const providerKeyValue = parsed.data.provider_key ?? 'mock';
+    const provider = await this.providers.ticketing(context, providerKeyValue);
+    const prepared = await provider.prepareTicketParticipantUpdate(context, {
+      ticketId: parsed.data.ticket_id,
+      operation: parsed.data.operation,
+      participants: parsed.data.participants as TicketRoutingTarget[],
+      reason: parsed.data.reason,
+    });
+    if (!prepared.ok) {
+      return prepared;
+    }
+    const actionPayload = prepared.data.actionPayload;
+    const idempotencyKey = this.actions.providerActionIdempotencyKey({
+      tenantId: context.tenantId,
+      providerKey: providerKeyValue,
+      ticketId: actionPayload.ticketId,
+      noteBody: stableJson({ action: actionPayload.action, operation: actionPayload.operation, participants: actionPayload.participants }),
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+    });
+    const action = await this.actions.createOrEnsureProviderAction(context, {
+      runId: execution.runId ?? null,
+      toolExecutionId: execution.toolExecutionId ?? null,
+      capabilityName: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+      effect: 'write',
+      providerKind: 'ticketing',
+      providerKey: providerKeyValue,
+      targetType: 'ticket',
+      targetRef: actionPayload.ticketId,
+      actionPayload: actionPayload as unknown as Record<string, unknown>,
+      idempotencyKey,
+      evidenceIds: parsed.data.evidence_ids ?? null,
+      inputSummary: {
+        provider_kind: 'ticketing',
+        provider_key: providerKeyValue,
+        target_type: 'ticket',
+        target_ref: actionPayload.ticketId,
+        action: 'participant_update',
+        operation: actionPayload.operation,
+        participants: actionPayload.participants,
+      },
+      metadata: {
+        ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        observation_id: parsed.data.observation_id ?? null,
+        recommendation_id: parsed.data.recommendation_id ?? null,
+        decision_id: parsed.data.decision_id ?? null,
+        evaluation_id: parsed.data.evaluation_id ?? null,
+        update_kind: 'participants',
+      },
+      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
+        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+        : null,
+    });
+    return withActionRequestData(prepared, {
+      action_request_id: action.id,
+      action_request_status: action.status,
+      capability_name: action.capability_name,
+      capability_version: action.capability_version,
+      idempotency_key: action.idempotency_key,
+      target: { type: action.target_type, ref: action.target_ref },
+    });
+  }
+
+  private async updateApprovedTicketParticipants(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const parsed = AddApprovedParticipantUpdateInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const action = await this.actions.findProviderActionForExecution(context, parsed.data.action_request_id);
+    this.actions.verifyProviderActionIntegrity(action);
+    if (!isTicketParticipantUpdatePayload(action.action_payload_json)) {
+      throw new BadRequestException('Action request does not contain a valid participant update payload.');
+    }
+    const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const current = await provider.getTicketParticipantContext(context, { ticketId: action.action_payload_json.ticketId });
+    if (current.ok === false) {
+      const message = `Cannot verify ticket participant freshness before write: ${current.message}`;
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    if (!sameSnapshot(action.action_payload_json.current, current.data)) {
+      const message = 'Ticket participants changed after this action was prepared. Rerun triage before approving this write.';
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
+    }
+    const result = await provider.updateTicketParticipants(context, {
+      actionPayload: action.action_payload_json,
+      idempotencyKey: action.idempotency_key ?? '',
+    });
+    if (result.ok === false) {
+      await this.actions.markExecuted(context, action, 'failed', result.message);
+      return result;
+    }
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      provider_result: {
+        ticket_id: result.data.ticketId,
+        summary: result.data.summary,
+        updated_fields: result.data.updatedFields,
+        idempotency_key: result.data.idempotencyKey,
+        update_kind: 'participants',
+        already_applied: result.data.alreadyApplied ?? false,
+      },
+    };
+    await this.actions.markExecuted(context, action, 'executed', null);
+    return withActionRequestData(result, { action_request_id: action.id });
   }
 
   private async prepareInternalNoteAction(
@@ -1083,12 +2496,16 @@ export class AiCapabilityRegistry {
         note_preview: actionPayload.body.slice(0, 240),
       },
       metadata: {
+        ...(isRecord(execution.metadata) ? execution.metadata : {}),
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         visibility: 'internal',
       },
+      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
+        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+        : null,
     });
 
     return withActionRequestData(prepared, {
@@ -1118,6 +2535,10 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid internal-note payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const staleGuard = await this.verifyTicketHistoryStaleGuard<TicketInternalNoteWriteResult>(context, provider, action);
+    if (staleGuard) {
+      return staleGuard;
+    }
     const result = await provider.addInternalNote(context, {
       actionPayload: action.action_payload_json,
       idempotencyKey: action.idempotency_key ?? '',
@@ -1126,8 +2547,296 @@ export class AiCapabilityRegistry {
       await this.actions.markExecuted(context, action, 'failed', result.message);
       return result;
     }
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      provider_result: {
+        note_id: result.data.noteId,
+        ticket_id: result.data.ticketId,
+        summary: result.data.summary,
+        idempotency_key: result.data.idempotencyKey,
+        visibility: 'internal',
+        already_applied: result.data.alreadyApplied ?? false,
+      },
+    };
     await this.actions.markExecuted(context, action, 'executed', null);
     return result;
+  }
+
+  private async preparePublicReplyAction(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+    execution: CapabilityExecutionContext,
+  ): Promise<unknown> {
+    const parsed = PreparePublicReplyInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const providerKeyValue = parsed.data.provider_key ?? 'mock';
+    const ticketId = parsed.data.ticket_id;
+    const replyBody = normalizePublicReplyBody(parsed.data.reply_body);
+    const provider = await this.providers.ticketing(context, providerKeyValue);
+    const prepared = await provider.preparePublicReply(context, { ticketId, replyBody });
+    if (!prepared.ok) {
+      return prepared;
+    }
+
+    const actionPayload = prepared.data.actionPayload;
+    const idempotencyKey = this.actions.providerActionIdempotencyKey({
+      tenantId: context.tenantId,
+      providerKey: providerKeyValue,
+      ticketId: actionPayload.ticketId,
+      noteBody: actionPayload.body,
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+    });
+    const action = await this.actions.createOrEnsureProviderAction(context, {
+      runId: execution.runId ?? null,
+      toolExecutionId: execution.toolExecutionId ?? null,
+      capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+      capabilityVersion: PROVIDER_CAPABILITY_VERSION,
+      effect: 'write',
+      providerKind: 'ticketing',
+      providerKey: providerKeyValue,
+      targetType: 'ticket',
+      targetRef: actionPayload.ticketId,
+      actionPayload: actionPayload as unknown as Record<string, unknown>,
+      idempotencyKey,
+      evidenceIds: parsed.data.evidence_ids ?? null,
+      inputSummary: {
+        provider_kind: 'ticketing',
+        provider_key: providerKeyValue,
+        target_type: 'ticket',
+        target_ref: actionPayload.ticketId,
+        action: 'add_public_reply',
+        reply_preview: actionPayload.body.slice(0, 240),
+      },
+      metadata: {
+        ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        observation_id: parsed.data.observation_id ?? null,
+        recommendation_id: parsed.data.recommendation_id ?? null,
+        decision_id: parsed.data.decision_id ?? null,
+        evaluation_id: parsed.data.evaluation_id ?? null,
+        visibility: 'public',
+      },
+      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
+        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+        : null,
+    });
+
+    return withActionRequestData(prepared, {
+      action_request_id: action.id,
+      action_request_status: action.status,
+      capability_name: action.capability_name,
+      capability_version: action.capability_version,
+      idempotency_key: action.idempotency_key,
+      target: {
+        type: action.target_type,
+        ref: action.target_ref,
+      },
+    });
+  }
+
+  private async addApprovedPublicReply(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    const parsed = AddApprovedPublicReplyInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    const action = await this.actions.findProviderActionForExecution(context, parsed.data.action_request_id);
+    this.actions.verifyProviderActionIntegrity(action);
+    if (!isTicketPublicReplyPayload(action.action_payload_json)) {
+      throw new BadRequestException('Action request does not contain a valid public-reply payload.');
+    }
+    const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const staleGuard = await this.verifyTicketHistoryStaleGuard<TicketPublicReplyWriteResult>(context, provider, action);
+    if (staleGuard) {
+      return staleGuard;
+    }
+    const result = await provider.addPublicReply(context, {
+      actionPayload: action.action_payload_json,
+      idempotencyKey: action.idempotency_key ?? '',
+    });
+    if (result.ok === false) {
+      await this.actions.markExecuted(context, action, 'failed', result.message);
+      return result;
+    }
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      provider_result: {
+        note_id: result.data.noteId,
+        ticket_id: result.data.ticketId,
+        summary: result.data.summary,
+        idempotency_key: result.data.idempotencyKey,
+        visibility: 'public',
+        already_applied: result.data.alreadyApplied ?? false,
+      },
+    };
+    await this.actions.markExecuted(context, action, 'executed', null);
+    return result;
+  }
+
+  private async verifyTicketHistoryStaleGuard<T>(
+    context: AiExecutionContextWithManager,
+    provider: TicketingProvider,
+    action: ProviderActionForExecution,
+  ): Promise<AdapterResult<T> | null> {
+    const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+    const gate = isRecord(metadata?.conversation_gate) ? metadata.conversation_gate : null;
+    const preparedCount = numberMetadataField(gate, 'ticket_history_entry_count');
+    const preparedLatestFingerprint = stringMetadataField(gate, 'latest_ticket_note_fingerprint');
+    const preparedLatestId = stringMetadataField(gate, 'latest_ticket_note_id');
+    const preparedAt = stringMetadataField(gate, 'prepared_at');
+    if (preparedCount == null && !preparedLatestFingerprint && !preparedLatestId) {
+      return null;
+    }
+
+    const ticketId = action.target_ref;
+    if (!ticketId) {
+      const message = 'Cannot verify ticket freshness because the action target is missing.';
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<T>(message);
+    }
+
+    const current = await provider.listTicketNotes(context, { ticketId });
+    if (current.ok === false) {
+      const message = `Cannot verify ticket freshness before GLPI write: ${current.message}`;
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<T>(message);
+    }
+
+    const currentNotes = current.data.notes;
+    const currentLatest = latestTicketNote(currentNotes);
+    const currentLatestFingerprint = currentLatest ? ticketNoteFingerprint(currentLatest) : null;
+    const countChanged = preparedCount != null && currentNotes.length !== preparedCount;
+    const latestIdChanged = preparedLatestId != null && (currentLatest?.id ?? null) !== preparedLatestId;
+    const latestFingerprintChanged = preparedLatestFingerprint != null && currentLatestFingerprint !== preparedLatestFingerprint;
+    if (!countChanged && !latestIdChanged && !latestFingerprintChanged) {
+      return null;
+    }
+
+    const onlySameRunKanapWrites = await this.ticketHistoryChangeIsOnlySameRunKanapWrites(context, action, currentNotes, {
+      preparedCount,
+      preparedLatestId,
+      preparedLatestFingerprint,
+      currentLatest,
+      currentLatestFingerprint,
+    });
+    if (onlySameRunKanapWrites) {
+      return null;
+    }
+
+    const message = [
+      'Ticket history changed after this action was prepared.',
+      preparedAt ? `Prepared at ${preparedAt}.` : null,
+      'Rerun triage before approving a GLPI write.',
+    ].filter((part): part is string => !!part).join(' ');
+    await this.actions.markExecuted(context, action, 'failed', message);
+    return ticketWriteGuardError<T>(message);
+  }
+
+  private async ticketHistoryChangeIsOnlySameRunKanapWrites(
+    context: AiExecutionContextWithManager,
+    action: ProviderActionForExecution,
+    currentNotes: TicketNote[],
+    snapshot: {
+      preparedCount: number | null;
+      preparedLatestId: string | null;
+      preparedLatestFingerprint: string | null;
+      currentLatest: TicketNote | null;
+      currentLatestFingerprint: string | null;
+    },
+  ): Promise<boolean> {
+    if (!action.run_id || !action.target_ref) {
+      return false;
+    }
+    const actionMetadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+    const actionWorkItemId = stringMetadataField(actionMetadata, 'agent_work_item_id');
+    const siblingActions = await context.manager.getRepository(AiActionRequest).find({
+      where: {
+        tenant_id: context.tenantId,
+        run_id: action.run_id,
+        target_type: action.target_type,
+        target_ref: action.target_ref,
+        provider_kind: action.provider_kind,
+        provider_key: action.provider_key,
+        status: 'executed',
+      },
+    });
+    const allowedSiblingNoteIds = new Set<string>();
+    for (const sibling of siblingActions) {
+      if (sibling.id === action.id) {
+        continue;
+      }
+      if (
+        sibling.capability_name !== TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY
+        && sibling.capability_name !== TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY
+      ) {
+        continue;
+      }
+      const siblingMetadata = isRecord(sibling.metadata_json) ? sibling.metadata_json : null;
+      const siblingWorkItemId = stringMetadataField(siblingMetadata, 'agent_work_item_id');
+      if (actionWorkItemId && siblingWorkItemId !== actionWorkItemId) {
+        continue;
+      }
+      const siblingNoteId = metadataProviderResultNoteId(siblingMetadata);
+      if (siblingNoteId) {
+        allowedSiblingNoteIds.add(siblingNoteId);
+      }
+    }
+    if (allowedSiblingNoteIds.size === 0) {
+      return false;
+    }
+
+    const currentNoteIds = new Set(currentNotes.map((note) => String(note.id)));
+    const visibleAllowedSiblingNoteIds = [...allowedSiblingNoteIds].filter((noteId) => currentNoteIds.has(noteId));
+    if (visibleAllowedSiblingNoteIds.length === 0) {
+      return false;
+    }
+
+    if (snapshot.preparedCount != null) {
+      const maxAllowedCount = snapshot.preparedCount + visibleAllowedSiblingNoteIds.length;
+      if (currentNotes.length < snapshot.preparedCount || currentNotes.length > maxAllowedCount) {
+        return false;
+      }
+    }
+
+    if (snapshot.preparedLatestId) {
+      const preparedLatestStillPresent = currentNotes.find((note) => String(note.id) === snapshot.preparedLatestId);
+      if (!preparedLatestStillPresent) {
+        return false;
+      }
+      if (
+        snapshot.preparedLatestFingerprint
+        && ticketNoteFingerprint(preparedLatestStillPresent) !== snapshot.preparedLatestFingerprint
+      ) {
+        return false;
+      }
+    } else if (snapshot.preparedLatestFingerprint) {
+      const preparedLatestStillPresent = currentNotes.some((note) => ticketNoteFingerprint(note) === snapshot.preparedLatestFingerprint);
+      if (!preparedLatestStillPresent) {
+        return false;
+      }
+    }
+
+    if (snapshot.currentLatest) {
+      const currentLatestId = String(snapshot.currentLatest.id);
+      const latestIsPreparedLatest = snapshot.preparedLatestId != null && currentLatestId === snapshot.preparedLatestId;
+      const latestIsAllowedSibling = allowedSiblingNoteIds.has(currentLatestId);
+      if (!latestIsPreparedLatest && !latestIsAllowedSibling) {
+        return false;
+      }
+      if (
+        snapshot.currentLatestFingerprint
+        && snapshot.preparedLatestFingerprint
+        && snapshot.currentLatestFingerprint !== snapshot.preparedLatestFingerprint
+        && !latestIsAllowedSibling
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private async listAllowedAutomationJobs(

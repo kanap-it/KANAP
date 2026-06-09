@@ -647,13 +647,13 @@ export class AiEntityService {
               si.product_name AS label,
               COALESCE(
                 NULLIF(si.description, ''),
-                NULLIF(CONCAT_WS(' | ', sup.name, comp.name, NULLIF(TRIM(CONCAT_WS(' ', acc.account_number, acc.account_name)), '')), '')
+                NULLIF(CONCAT_WS(' | ', sup.name, comp.name, NULLIF(TRIM(CONCAT_WS(' ', acc.account_number::text, acc.account_name)), '')), '')
               ) AS summary,
               si.status,
               si.updated_at,
               sup.name AS supplier_name,
               comp.name AS company_name,
-              NULLIF(TRIM(CONCAT_WS(' ', acc.account_number, acc.account_name)), '') AS account_display,
+              NULLIF(TRIM(CONCAT_WS(' ', acc.account_number::text, acc.account_name)), '') AS account_display,
               lc.contract_name,
               COUNT(*) OVER()::int AS total_count,
               CASE
@@ -680,7 +680,7 @@ export class AiEntityService {
            OR COALESCE(sup.name, '') ILIKE $1
            OR COALESCE(comp.name, '') ILIKE $1
            OR COALESCE(acc.account_name, '') ILIKE $1
-           OR COALESCE(acc.account_number, '') ILIKE $1
+           OR COALESCE(acc.account_number::text, '') ILIKE $1
            OR COALESCE(lc.contract_name, '') ILIKE $1
            OR COALESCE(si.currency, '') ILIKE $1
            OR COALESCE(si.notes, '') ILIKE $1
@@ -1330,7 +1330,7 @@ export class AiEntityService {
       `SELECT ci.id,
               NULL::int AS item_number,
               ci.description AS label,
-              NULLIF(CONCAT_WS(' | ', comp.name, sup.name, ci.ppe_type, ci.investment_type), '') AS summary,
+              NULLIF(CONCAT_WS(' | ', comp.name, sup.name, ci.ppe_type::text, ci.investment_type), '') AS summary,
               ci.status,
               ci.updated_at,
               comp.name AS company_name,
@@ -1348,7 +1348,7 @@ export class AiEntityService {
          AND (
            ci.description ILIKE $1
            OR COALESCE(ci.notes, '') ILIKE $1
-           OR COALESCE(ci.ppe_type, '') ILIKE $1
+           OR COALESCE(ci.ppe_type::text, '') ILIKE $1
            OR COALESCE(ci.investment_type, '') ILIKE $1
            OR COALESCE(ci.priority, '') ILIKE $1
            OR COALESCE(ci.currency, '') ILIKE $1
@@ -1909,6 +1909,7 @@ export class AiEntityService {
     const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
     const offset = Math.min(Math.max(Number(input.offset) || 0, 0), 5000);
     const fetchLimit = Math.min(limit + offset, 5000);
+    const failedEntityTypes: Array<{ type: AiSearchEntityType; message: string }> = [];
     // Isolate each per-entity-type search in its own PostgreSQL SAVEPOINT so a
     // single broken query (e.g. a SQL operator-mismatch in one of the searchXxx
     // helpers) doesn't poison the surrounding transaction and cascade-fail every
@@ -1918,7 +1919,7 @@ export class AiEntityService {
     const empty: RankedSearchResult = { items: [], total: 0 };
     let savepointCounter = 0;
     const safeRun = async (
-      type: string,
+      type: AiSearchEntityType,
       run: () => Promise<RankedSearchResult>,
     ): Promise<RankedSearchResult> => {
       // Unique name per savepoint — Promise.all dispatches all of these and PG
@@ -1928,7 +1929,9 @@ export class AiEntityService {
       try {
         await context.manager.query(`SAVEPOINT ${sp}`);
       } catch (err) {
-        this.logger.warn(`searchAll: ${type} could not start savepoint: ${(err as Error).message}`);
+        const message = (err as Error).message;
+        failedEntityTypes.push({ type, message });
+        this.logger.warn(`searchAll: ${type} could not start savepoint: ${message}`);
         return empty;
       }
       try {
@@ -1944,9 +1947,9 @@ export class AiEntityService {
         } catch {
           // ignore — best-effort cleanup
         }
-        this.logger.warn(
-          `searchAll: ${type} failed for query "${input.query}": ${(err as Error).message}`,
-        );
+        const message = (err as Error).message;
+        failedEntityTypes.push({ type, message });
+        this.logger.warn(`searchAll: ${type} failed for query "${input.query}": ${message}`);
         return empty;
       }
     };
@@ -1978,15 +1981,23 @@ export class AiEntityService {
       .slice(offset, offset + limit)
       .map(({ _score, ...item }: any) => item);
 
+    const truncated = offset + items.length < total;
+    const failedTypeNames = failedEntityTypes.map((entry) => entry.type);
+
     return {
       items,
       total,
       offset,
       limit,
       returned: items.length,
-      truncated: offset + items.length < total,
-      complete: false,
+      truncated,
+      complete: !truncated && failedEntityTypes.length === 0,
       entity_types: allowed,
+      failed_entity_types: failedTypeNames,
+      warnings: failedEntityTypes.map((entry) => ({
+        entity_type: entry.type,
+        message: `Search failed for ${entry.type}: ${entry.message}`,
+      })),
     };
   }
 

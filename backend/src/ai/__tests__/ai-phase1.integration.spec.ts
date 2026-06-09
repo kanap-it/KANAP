@@ -1485,7 +1485,9 @@ function buildToolIsolationCases(
             limit: 20,
           },
           assertResult: (result: any) => {
-            assert.equal(result.complete, false);
+            assert.equal(result.complete, true);
+            assert.equal(result.truncated, false);
+            assert.deepEqual(result.failed_entity_types, []);
             assert.equal(
               result.items.some((item: any) => item.id === fixtures.graphA.applicationId),
               true,

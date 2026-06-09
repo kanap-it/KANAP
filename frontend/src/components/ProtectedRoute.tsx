@@ -57,6 +57,7 @@ export default function ProtectedRoute() {
     const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
     const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');
     const isAdminIntegrationsRoute = path === '/admin/integrations' || path.startsWith('/admin/integrations/');
+    const isAdminAgentControlRoute = path === '/admin/agent-control' || path.startsWith('/admin/agent-control/');
     const roleNames = [
       profile.role,
       ...(profile.roles || []).map((role) => role.name),
@@ -97,7 +98,7 @@ export default function ProtectedRoute() {
         return <Navigate to="/403" replace />;
       }
     }
-    if (isAdminAiRoute || isAdminIntegrationsRoute) {
+    if (isAdminAiRoute || isAdminIntegrationsRoute || isAdminAgentControlRoute) {
       if (!config.features.aiSettings) {
         return <Navigate to="/403" replace />;
       }
@@ -205,7 +206,7 @@ export default function ProtectedRoute() {
     } else {
       requirement = null; // dashboard and other root pages allowed
     }
-    if (isAdminAiRoute) {
+    if (isAdminAiRoute || isAdminAgentControlRoute) {
       if (!hasLevel('ai_settings', 'admin')) {
         return <Navigate to="/403" replace />;
       }

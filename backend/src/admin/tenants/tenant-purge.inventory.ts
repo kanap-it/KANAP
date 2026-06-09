@@ -68,6 +68,11 @@ export const TENANT_PURGE_TABLES = [
   'document_libraries',
   // AI
   'ai_builtin_usage',
+  'ai_agent_audit_events',
+  'ai_agent_target_states',
+  'ai_agent_work_items',
+  'ai_agent_triggers',
+  'ai_agent_definitions',
   'ai_evaluations',
   'ai_decisions',
   'ai_recommendations',

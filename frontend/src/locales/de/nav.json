@@ -80,7 +80,8 @@
       "authentication": "Authentifizierung",
       "branding": "Branding",
       "integrations": "Integrationen",
-      "ai": "Plaid"
+      "ai": "Plaid",
+      "agentControl": "Agentensteuerung"
     },
     "platform": {
       "tenants": "Mandanten",
@@ -114,6 +115,7 @@
     "roles": "Rollen",
     "scheduledTasks": "Geplante Aufgaben",
     "billing": "Abrechnung",
+    "agentControl": "Agentensteuerung",
     "reports": "Berichte",
     "contracts": "Verträge",
     "applications": "Anwendungen",

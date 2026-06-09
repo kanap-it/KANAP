@@ -80,7 +80,8 @@
       "authentication": "Autenticación",
       "branding": "Personalización",
       "integrations": "Integraciones",
-      "ai": "Plaid"
+      "ai": "Plaid",
+      "agentControl": "Control de agentes"
     },
     "platform": {
       "tenants": "Espacios de trabajo",
@@ -114,6 +115,7 @@
     "roles": "Roles",
     "scheduledTasks": "Tareas programadas",
     "billing": "Facturación",
+    "agentControl": "Control de agentes",
     "reports": "Informes",
     "contracts": "Contratos",
     "applications": "Aplicaciones",

@@ -36,6 +36,7 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'ai_mutation_plan_steps', 'ai_mutation_plans', 'ai_mutation_previews',
   'ai_runs', 'ai_run_steps', 'ai_tool_executions', 'ai_evidence',
   'ai_action_requests', 'ai_approvals', 'ai_emergency_pauses',
+  'ai_agent_definitions', 'ai_agent_triggers', 'ai_agent_work_items', 'ai_agent_target_states', 'ai_agent_audit_events',
   'ai_adapter_configs', 'ai_approval_policies', 'ai_autonomy_ceilings', 'ai_autonomy_routines',
   'ai_external_mcp_servers', 'ai_external_mcp_tool_snapshots',
   'ai_automation_job_catalog', 'ai_live_test_targets', 'ai_observations', 'ai_recommendations', 'ai_decisions', 'ai_evaluations',
@@ -72,6 +73,11 @@ const TABLES_TO_CHECK_POLICY = new Set([
   'ai_action_requests',
   'ai_approvals',
   'ai_emergency_pauses',
+  'ai_agent_definitions',
+  'ai_agent_triggers',
+  'ai_agent_work_items',
+  'ai_agent_target_states',
+  'ai_agent_audit_events',
   'ai_adapter_configs',
   'ai_approval_policies',
   'ai_autonomy_ceilings',
@@ -497,6 +503,11 @@ async function runAiControlPlaneChecks(
   const apiKeyId = randomUUID();
   const previewId = randomUUID();
   const pauseId = randomUUID();
+  const agentDefinitionId = randomUUID();
+  const agentTriggerId = randomUUID();
+  const agentWorkItemId = randomUUID();
+  const agentTargetStateId = randomUUID();
+  const agentAuditEventId = randomUUID();
   const adapterConfigId = randomUUID();
   const approvalPolicyId = randomUUID();
   const autonomyCeilingTenantId = randomUUID();
@@ -602,6 +613,75 @@ async function runAiControlPlaneChecks(
      )
      VALUES ($1, $2, 'tenant', 'kanap.mutation_preview.execute_approved', 'write', true, 'rls test')`,
     [pauseId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_agent_definitions (
+       id, tenant_id, agent_key, name, description, agent_type, status, environment,
+       provider_bindings_json, allowed_capabilities_json, forbidden_capabilities_json,
+       max_autonomy_level, default_approval_requirement, trigger_policy_json,
+       scope_policy_json, queue_policy_json
+     )
+     VALUES (
+       $1, $2, 'helpdesk.glpi.triage.rls', 'RLS Helpdesk agent',
+       'RLS agent definition', 'helpdesk', 'enabled', 'sandbox',
+       '{"ticketing":{"provider_kind":"ticketing","provider_key":"glpi"}}'::jsonb,
+       '[{"name":"ticketing.ticket.get"},{"name":"search_knowledge"},{"name":"get_document"},{"name":"ticketing.ticket.internal_note.prepare"},{"name":"ticketing.ticket.public_reply.prepare"}]'::jsonb,
+       '["ticketing.ticket.status.update"]'::jsonb,
+       'A3', 'human_for_writes',
+       '{"manual_safe_target":{"enabled":true},"scheduled_poll":{"enabled":false}}'::jsonb,
+       '{"mode":"manual_safe_target","provider_kind":"ticketing","provider_key":"glpi","target_kind":"ticket","all_matching":{"enabled":false}}'::jsonb,
+       '{"enabled":true,"lease_ttl_seconds":300,"max_attempts":3,"cooldown_seconds":60}'::jsonb
+     )`,
+    [agentDefinitionId, tenantOneId],
+  );
+  await r.query(
+    `INSERT INTO ai_agent_triggers (
+       id, tenant_id, agent_definition_id, trigger_key, trigger_kind,
+       status, enabled, trigger_policy_json, scope_policy_json
+     )
+     VALUES (
+       $1, $2, $3, 'manual.safe_target', 'manual', 'enabled', true,
+       '{"safe_target_required":true}'::jsonb,
+       '{"mode":"manual_safe_target","provider_kind":"ticketing","provider_key":"glpi","target_kind":"ticket","allowed_effect":"read"}'::jsonb
+     )`,
+    [agentTriggerId, tenantOneId, agentDefinitionId],
+  );
+  await r.query(
+    `INSERT INTO ai_agent_work_items (
+       id, tenant_id, agent_definition_id, trigger_id, source_provider_kind,
+       source_provider_key, source_object_type, source_object_ref, work_kind,
+       status, priority, dedup_key, attempt_count, max_attempts, next_attempt_at,
+       last_run_id, last_action_request_ids, metadata_json
+     )
+     VALUES (
+       $1, $2, $3, $4, 'ticketing', 'glpi', 'ticket', 'rls-ticket-1',
+       'ticket_triage', 'waiting_approval', 100, $5, 1, 3, now(),
+       $6, $7::jsonb, '{"rls":"test"}'::jsonb
+     )`,
+    [agentWorkItemId, tenantOneId, agentDefinitionId, agentTriggerId, `agent-dedup-${tag}`, runId, JSON.stringify([actionRequestId])],
+  );
+  await r.query(
+    `INSERT INTO ai_agent_target_states (
+       id, tenant_id, agent_definition_id, provider_kind, provider_key, target_type,
+       target_ref, last_run_id, last_public_reply_hash, last_internal_note_hash,
+       agent_touched, needs_followup, state_json
+     )
+     VALUES (
+       $1, $2, $3, 'ticketing', 'glpi', 'ticket', 'rls-ticket-1',
+       $4, 'public-hash', 'internal-hash', true, true, '{"rls":"test"}'::jsonb
+    )`,
+    [agentTargetStateId, tenantOneId, agentDefinitionId, runId],
+  );
+  await r.query(
+    `INSERT INTO ai_agent_audit_events (
+       id, tenant_id, agent_definition_id, work_item_id, event_type, severity,
+       message, metadata_json
+     )
+     VALUES (
+       $1, $2, $3, $4, 'rls_test_event', 'info',
+       'RLS audit event', '{"rls":"test"}'::jsonb
+     )`,
+    [agentAuditEventId, tenantOneId, agentDefinitionId, agentWorkItemId],
   );
   await r.query(
     `INSERT INTO ai_adapter_configs (
@@ -850,6 +930,17 @@ async function runAiControlPlaneChecks(
      )`,
     [tenantOneId, runId, `idempotency-${tag}`, `duplicate-hash-${tag}`],
   );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: active deduplication blocked',
+    `INSERT INTO ai_agent_work_items (
+       tenant_id, agent_definition_id, source_provider_kind, source_provider_key,
+       source_object_type, source_object_ref, work_kind, status, dedup_key
+     )
+     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'rls-ticket-1', 'ticket_triage', 'queued', $3)`,
+    [tenantOneId, agentDefinitionId, `agent-dedup-${tag}`],
+  );
 
   await setTenant(r, tenantTwoId);
   const tenantTwoRunId = randomUUID();
@@ -891,6 +982,11 @@ async function runAiControlPlaneChecks(
   await expectCrossTenantReadBlocked(r, results, 'ai_action_requests: cross-tenant read blocked', `SELECT 1 FROM ai_action_requests WHERE id = $1`, [actionRequestId]);
   await expectCrossTenantReadBlocked(r, results, 'ai_approvals: cross-tenant read blocked', `SELECT 1 FROM ai_approvals WHERE id = $1`, [approvalId]);
   await expectCrossTenantReadBlocked(r, results, 'ai_emergency_pauses: cross-tenant read blocked', `SELECT 1 FROM ai_emergency_pauses WHERE id = $1`, [pauseId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_agent_definitions: cross-tenant read blocked', `SELECT 1 FROM ai_agent_definitions WHERE id = $1`, [agentDefinitionId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_agent_triggers: cross-tenant read blocked', `SELECT 1 FROM ai_agent_triggers WHERE id = $1`, [agentTriggerId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_agent_work_items: cross-tenant read blocked', `SELECT 1 FROM ai_agent_work_items WHERE id = $1`, [agentWorkItemId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_agent_target_states: cross-tenant read blocked', `SELECT 1 FROM ai_agent_target_states WHERE id = $1`, [agentTargetStateId]);
+  await expectCrossTenantReadBlocked(r, results, 'ai_agent_audit_events: cross-tenant read blocked', `SELECT 1 FROM ai_agent_audit_events WHERE id = $1`, [agentAuditEventId]);
   await expectCrossTenantReadBlocked(r, results, 'ai_adapter_configs: cross-tenant read blocked', `SELECT 1 FROM ai_adapter_configs WHERE id = $1`, [adapterConfigId]);
   await expectCrossTenantReadBlocked(r, results, 'ai_approval_policies: cross-tenant read blocked', `SELECT 1 FROM ai_approval_policies WHERE id = $1`, [approvalPolicyId]);
   await expectCrossTenantReadBlocked(r, results, 'ai_autonomy_ceilings: cross-tenant read blocked', `SELECT 1 FROM ai_autonomy_ceilings WHERE id = $1`, [autonomyCeilingTenantId]);
@@ -1067,6 +1163,100 @@ async function runAiControlPlaneChecks(
        now() + interval '10 minutes'
      )`,
     [tenantTwoId, tenantTwoActionRequestId, `tenant-two-hash-${tag}`, approvalPolicyId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_definitions: cross-tenant insert blocked',
+    `INSERT INTO ai_agent_definitions (
+       tenant_id, agent_key, name, agent_type, status, environment,
+       max_autonomy_level, default_approval_requirement
+     )
+     VALUES ($1, 'cross.agent', 'Cross agent', 'helpdesk', 'enabled', 'sandbox', 'A3', 'human_for_writes')`,
+    [tenantOneId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_triggers: cross-tenant definition link blocked',
+    `INSERT INTO ai_agent_triggers (
+       tenant_id, agent_definition_id, trigger_key, trigger_kind, status, enabled
+     )
+     VALUES ($1, $2, 'cross-trigger', 'manual', 'enabled', true)`,
+    [tenantTwoId, agentDefinitionId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: cross-tenant definition link blocked',
+    `INSERT INTO ai_agent_work_items (
+       tenant_id, agent_definition_id, source_provider_kind, source_provider_key,
+       source_object_type, source_object_ref, work_kind, status, dedup_key
+     )
+     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-definition')`,
+    [tenantTwoId, agentDefinitionId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: cross-tenant trigger link blocked',
+    `INSERT INTO ai_agent_work_items (
+       tenant_id, agent_definition_id, trigger_id, source_provider_kind, source_provider_key,
+       source_object_type, source_object_ref, work_kind, status, dedup_key
+     )
+     VALUES ($1, $2, $3, 'ticketing', 'glpi', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-trigger')`,
+    [tenantTwoId, agentDefinitionId, agentTriggerId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: cross-tenant run link blocked',
+    `INSERT INTO ai_agent_work_items (
+       tenant_id, agent_definition_id, source_provider_kind, source_provider_key,
+       source_object_type, source_object_ref, work_kind, status, dedup_key, last_run_id
+     )
+     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-run', $3)`,
+    [tenantTwoId, agentDefinitionId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_target_states: cross-tenant definition link blocked',
+    `INSERT INTO ai_agent_target_states (
+       tenant_id, agent_definition_id, provider_kind, provider_key, target_type, target_ref
+     )
+     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket')`,
+    [tenantTwoId, agentDefinitionId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_target_states: cross-tenant run link blocked',
+    `INSERT INTO ai_agent_target_states (
+       tenant_id, agent_definition_id, provider_kind, provider_key, target_type, target_ref, last_run_id
+     )
+     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket-run', $3)`,
+    [tenantTwoId, agentDefinitionId, runId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_audit_events: cross-tenant definition link blocked',
+    `INSERT INTO ai_agent_audit_events (
+       tenant_id, agent_definition_id, event_type, severity, message
+     )
+     VALUES ($1, $2, 'cross-definition', 'warning', 'cross tenant definition link')`,
+    [tenantTwoId, agentDefinitionId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_audit_events: cross-tenant work item link blocked',
+    `INSERT INTO ai_agent_audit_events (
+       tenant_id, agent_definition_id, work_item_id, event_type, severity, message
+     )
+     VALUES ($1, $2, $3, 'cross-work-item', 'warning', 'cross tenant work item link')`,
+    [tenantTwoId, agentDefinitionId, agentWorkItemId],
   );
   await expectCrossTenantInsertBlocked(
     r,
@@ -1329,7 +1519,7 @@ async function main() {
 
     await setTenant(r, tenantOneId);
     const spendRows = await r.query(
-      `INSERT INTO spend_items(product_name, currency, effective_start, status) VALUES ($1, 'EUR', '2025-01-01', 'enabled') RETURNING id`,
+      `INSERT INTO spend_items(product_name, currency, effective_start, status, item_number) VALUES ($1, 'EUR', '2025-01-01', 'enabled', (SELECT COALESCE(MAX(item_number), 0) + 1 FROM spend_items)) RETURNING id`,
       [`S ${tag}`],
     );
     const spendId = spendRows[0].id as string;

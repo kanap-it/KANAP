@@ -421,6 +421,19 @@ function createAggregateExecutor(overrides?: {
   );
 }
 
+function nullableWithoutTypePaths(value: unknown, path = '$'): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) => nullableWithoutTypePaths(entry, `${path}[${index}]`));
+  }
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  const record = value as Record<string, unknown>;
+  const current = record.nullable === true && record.type === undefined ? [path] : [];
+  const children = Object.entries(record).flatMap(([key, entry]) => nullableWithoutTypePaths(entry, `${path}.${key}`));
+  return [...current, ...children];
+}
+
 async function testListAvailableTools() {
   const registry = createRegistry();
 
@@ -849,6 +862,11 @@ async function testImportGlpiTicketToolSchemaUsesNumericExclusiveMinimum() {
   assert.ok(schema);
   assert.equal((schema!.parameters as any).properties?.ticket_id?.exclusiveMinimum, 0);
   assert.equal(typeof (schema!.parameters as any).properties?.ticket_id?.exclusiveMinimum, 'number');
+  assert.deepEqual(nullableWithoutTypePaths(schema!.parameters), []);
+  assert.equal((schema!.parameters as any).properties?.relation_ref?.anyOf?.[1]?.type, 'null');
+  assert.equal((schema!.parameters as any).properties?.assignee?.anyOf?.[1]?.type, 'null');
+  assert.equal((schema!.parameters as any).properties?.priority_level?.anyOf?.[1]?.type, 'null');
+  assert.equal((schema!.parameters as any).properties?.priority?.anyOf?.[1]?.type, 'null');
 }
 
 async function testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields() {

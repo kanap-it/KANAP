@@ -3,12 +3,28 @@ import {
   ProviderContext,
   SimilarTicket,
   TicketClassificationContext,
+  TicketClassificationUpdateActionPayload,
+  TicketClassificationUpdateProposal,
+  TicketAssignmentUpdateActionPayload,
   TicketInternalNoteActionPayload,
   TicketInternalNotePrepared,
   TicketInternalNoteWriteResult,
+  TicketLifecycleContext,
+  TicketParticipantUpdateActionPayload,
+  TicketParticipantUpdateOperation,
+  TicketParticipantContext,
+  TicketProviderActionPrepared,
+  TicketProviderActionWriteResult,
+  TicketPublicReplyActionPayload,
+  TicketPublicReplyPrepared,
+  TicketPublicReplyWriteResult,
+  TicketRoutingTarget,
+  TicketStatusUpdateActionPayload,
+  TicketRoutingContext,
   TicketingProvider,
   TicketNote,
   TicketRecord,
+  TicketListScope,
 } from '../provider.types';
 import {
   errorForScenario,
@@ -21,6 +37,12 @@ import {
 } from './mock-provider.helpers';
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
+const MAX_PUBLIC_REPLY_CHARS = 12000;
+
+function normalizeReason(value: string): string | null {
+  const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
+  return normalized.length > 0 && normalized.length <= 1000 ? normalized : null;
+}
 
 function normalizeNoteBody(value: string): string | null {
   const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
@@ -57,6 +79,7 @@ export class MockTicketingProvider implements TicketingProvider {
       title: malicious ? `Suspicious ticket ${MALICIOUS_EXTERNAL_TEXT}` : 'CPU pressure on SAP application server',
       status: 'resolved',
       priority: 'high',
+      requesterId: 'mock-user-operations',
       requester: 'Operations',
       description: malicious ? MALICIOUS_EXTERNAL_TEXT : 'Previous incident showed sustained CPU load during batch overlap.',
       createdAt: '2026-05-24T08:20:00.000Z',
@@ -116,13 +139,88 @@ export class MockTicketingProvider implements TicketingProvider {
       {
         id: 'mock-note-1',
         visibility: 'internal',
+        authorId: 'mock-user-helpdesk',
         author: 'Operations',
+        authorRole: 'support',
         body: input.ticketId.includes('malicious') ? MALICIOUS_EXTERNAL_TEXT : 'Checked Nutanix: VM healthy, CPU elevated only during batch.',
         createdAt: '2026-05-24T08:45:00.000Z',
+        updatedAt: '2026-05-24T08:45:00.000Z',
+        updateFingerprint: `mock-note-1:${input.ticketId}:2026-05-24T08:45:00.000Z`,
       },
     ];
     return ok({ notes }, [
       evidenceSeed('ticketing:mock', 'ticket_notes', input.ticketId, `Ticket ${input.ticketId} notes.`, { notes }),
+    ]);
+  }
+
+  async listTicketsForScope(
+    context: ProviderContext,
+    input: { scope: TicketListScope },
+  ): Promise<AdapterResult<{ tickets: TicketRecord[] }>> {
+    void context;
+    const scope = input.scope;
+    if (scope.mode !== 'new_tickets_only') {
+      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'Mock provider only supports new_tickets_only scope listing.', false);
+    }
+    const createdAfter = Date.parse(scope.createdAfter);
+    if (!Number.isFinite(createdAfter)) {
+      return providerError<{ tickets: TicketRecord[] }>('malformed_config', 'Scope createdAfter must be a valid timestamp.', false);
+    }
+    if (!scope.entityId && !scope.categoryId) {
+      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'Mock ticket listing requires an entity or category scope.', false);
+    }
+    const maxResults = Math.max(1, Math.min(Math.floor(scope.maxResults), 20));
+    const candidates: TicketRecord[] = [
+      {
+        id: 'mock-new-ticket-in-scope',
+        title: 'New requester VPN access question',
+        status: 'new',
+        priority: 'medium',
+        requesterId: 'mock-user-requester',
+        requester: 'Requester',
+        description: 'Need help with VPN access.',
+        createdAt: '2026-06-09T08:10:00.000Z',
+        updatedAt: '2026-06-09T08:10:00.000Z',
+        tags: ['vpn'],
+        scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+      },
+      {
+        id: 'mock-new-ticket-out-of-scope',
+        title: 'Out-of-scope finance question',
+        status: 'new',
+        priority: 'low',
+        requesterId: 'mock-user-finance',
+        requester: 'Finance',
+        description: 'Finance-only support request.',
+        createdAt: '2026-06-09T08:20:00.000Z',
+        updatedAt: '2026-06-09T08:20:00.000Z',
+        tags: ['finance'],
+        scope: { entityId: 'finance', categoryId: 'finance' },
+      },
+      {
+        id: 'mock-old-ticket-in-scope',
+        title: 'Historical ticket that must not backfill',
+        status: 'new',
+        priority: 'medium',
+        requesterId: 'mock-user-requester',
+        requester: 'Requester',
+        description: 'Old scoped request.',
+        createdAt: '2026-06-01T08:10:00.000Z',
+        updatedAt: '2026-06-01T08:10:00.000Z',
+        tags: ['vpn'],
+        scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+      },
+    ];
+    const tickets = candidates
+      .filter((ticket) => Date.parse(ticket.createdAt) >= createdAfter)
+      .filter((ticket) => !scope.entityId || ticket.scope?.entityId === scope.entityId)
+      .filter((ticket) => !scope.categoryId || ticket.scope?.categoryId === scope.categoryId)
+      .slice(0, maxResults);
+    return ok({ tickets }, [
+      evidenceSeed('ticketing:mock', 'ticket_scope_list', `${scope.mode}:${scope.createdAfter}`, `Mock listed ${tickets.length} ticket(s) for bounded scope.`, {
+        scope,
+        ticketIds: tickets.map((ticket) => ticket.id),
+      }),
     ]);
   }
 
@@ -139,11 +237,343 @@ export class MockTicketingProvider implements TicketingProvider {
       ticketId: input.ticketId,
       category: 'Infrastructure / Monitoring',
       service: 'SAP S/4HANA',
+      type: 'Incident',
+      priority: 'high',
       impact: 'application_performance',
       urgency: 'medium',
+      supported: true,
     };
     return ok(data, [
       evidenceSeed('ticketing:mock', 'ticket_classification', input.ticketId, `Ticket ${input.ticketId} classification context.`, data),
+    ]);
+  }
+
+  async getTicketLifecycleContext(
+    context: ProviderContext,
+    input: { ticketId: string },
+  ): Promise<AdapterResult<TicketLifecycleContext>> {
+    void context;
+    const scenario = errorForScenario<TicketLifecycleContext>(input.ticketId);
+    if (scenario) {
+      return scenario;
+    }
+    const data: TicketLifecycleContext = {
+      ticketId: input.ticketId,
+      status: 'open',
+      statusLabel: 'Open',
+      terminal: false,
+      allowedTransitions: [
+        { key: 'pending_user', label: 'Waiting for requester', requiresApproval: true, destructive: false },
+        { key: 'escalated_l2', label: 'Escalate to L2', requiresApproval: true, destructive: false },
+      ],
+      updatedAt: '2026-05-24T09:05:00.000Z',
+      supported: true,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_lifecycle', input.ticketId, `Ticket ${input.ticketId} lifecycle context.`, data),
+    ]);
+  }
+
+  async getTicketRoutingContext(
+    context: ProviderContext,
+    input: { ticketId: string },
+  ): Promise<AdapterResult<TicketRoutingContext>> {
+    void context;
+    const scenario = errorForScenario<TicketRoutingContext>(input.ticketId);
+    if (scenario) {
+      return scenario;
+    }
+    const data: TicketRoutingContext = {
+      ticketId: input.ticketId,
+      requester: 'Operations',
+      assignee: null,
+      group: 'Helpdesk L1',
+      supportedAssignmentTargets: [
+        { kind: 'group', key: 'helpdesk_l1', label: 'Helpdesk L1' },
+        { kind: 'group', key: 'sap_operations', label: 'SAP Operations' },
+      ],
+      assignmentSupported: true,
+      supported: true,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_routing', input.ticketId, `Ticket ${input.ticketId} routing context.`, data),
+    ]);
+  }
+
+  async getTicketParticipantContext(
+    context: ProviderContext,
+    input: { ticketId: string },
+  ): Promise<AdapterResult<TicketParticipantContext>> {
+    void context;
+    const scenario = errorForScenario<TicketParticipantContext>(input.ticketId);
+    if (scenario) {
+      return scenario;
+    }
+    const data: TicketParticipantContext = {
+      ticketId: input.ticketId,
+      requester: 'Operations',
+      observers: ['SAP Operations'],
+      watchers: ['Helpdesk Duty Manager'],
+      viewers: [],
+      participantUpdatesSupported: true,
+      supported: true,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_participants', input.ticketId, `Ticket ${input.ticketId} participant context.`, data),
+    ]);
+  }
+
+  async prepareTicketClassificationUpdate(
+    context: ProviderContext,
+    input: { ticketId: string; proposed: TicketClassificationUpdateProposal; reason: string },
+  ): Promise<AdapterResult<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>> {
+    void context;
+    const scenario = errorForScenario<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>(input.ticketId);
+    if (scenario) {
+      return scenario;
+    }
+    const reason = normalizeReason(input.reason);
+    const proposed = Object.fromEntries(
+      Object.entries(input.proposed)
+        .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
+        .map(([key, value]) => [key, String(value).trim()]),
+    ) as TicketClassificationUpdateProposal;
+    if (!reason || Object.keys(proposed).length === 0) {
+      return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>(
+        'unsafe_operation',
+        'Mock provider rejected an empty classification update proposal.',
+        false,
+      );
+    }
+    const current = (await this.getTicketClassificationContext(context, { ticketId: input.ticketId }));
+    if (current.ok === false) {
+      return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>(
+        current.errorCode,
+        current.message,
+        current.retryable,
+      );
+    }
+    const actionPayload: TicketClassificationUpdateActionPayload = {
+      ticketId: input.ticketId,
+      action: 'classification_update',
+      current: current.data,
+      proposed,
+      reason,
+    };
+    const data = {
+      actionPayload,
+      summary: `Prepared classification update for ticket ${input.ticketId}.`,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_classification_update_prepared', input.ticketId, data.summary, {
+        ticketId: input.ticketId,
+        proposed,
+      }),
+    ]);
+  }
+
+  async updateTicketClassification(
+    context: ProviderContext,
+    input: { actionPayload: TicketClassificationUpdateActionPayload; idempotencyKey: string },
+  ): Promise<AdapterResult<TicketProviderActionWriteResult>> {
+    void context;
+    const { actionPayload } = input;
+    const scenario = errorForScenario<TicketProviderActionWriteResult>(`${actionPayload.ticketId} ${JSON.stringify(actionPayload.proposed)}`);
+    if (scenario) {
+      return scenario;
+    }
+    const updatedFields = Object.keys(actionPayload.proposed).filter((key) => actionPayload.proposed[key as keyof TicketClassificationUpdateProposal] != null);
+    if (actionPayload.action !== 'classification_update' || updatedFields.length === 0) {
+      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'Mock provider refused an invalid classification update.', false);
+    }
+    const data: TicketProviderActionWriteResult = {
+      ticketId: actionPayload.ticketId,
+      summary: `Classification updated for ticket ${actionPayload.ticketId}.`,
+      idempotencyKey: input.idempotencyKey,
+      updatedFields,
+      alreadyApplied: false,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_classification_updated', actionPayload.ticketId, data.summary, data),
+    ]);
+  }
+
+  async prepareTicketStatusUpdate(
+    context: ProviderContext,
+    input: { ticketId: string; transitionKey: string; reason: string },
+  ): Promise<AdapterResult<TicketProviderActionPrepared<TicketStatusUpdateActionPayload>>> {
+    void context;
+    const reason = normalizeReason(input.reason);
+    const lifecycle = await this.getTicketLifecycleContext(context, { ticketId: input.ticketId });
+    if (lifecycle.ok === false) {
+      return providerError<TicketProviderActionPrepared<TicketStatusUpdateActionPayload>>(
+        lifecycle.errorCode,
+        lifecycle.message,
+        lifecycle.retryable,
+      );
+    }
+    const transition = lifecycle.data.allowedTransitions.find((candidate) => candidate.key === input.transitionKey);
+    if (!reason || !transition || transition.destructive) {
+      return providerError<TicketProviderActionPrepared<TicketStatusUpdateActionPayload>>('unsafe_operation', 'Mock provider rejected an unsupported status transition.', false);
+    }
+    const actionPayload: TicketStatusUpdateActionPayload = {
+      ticketId: input.ticketId,
+      action: 'status_update',
+      current: lifecycle.data,
+      transitionKey: transition.key,
+      targetStatus: transition.key,
+      targetStatusLabel: transition.label,
+      reason,
+    };
+    const data = {
+      actionPayload,
+      summary: `Prepared status transition ${transition.label} for ticket ${input.ticketId}.`,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_status_update_prepared', input.ticketId, data.summary, {
+        ticketId: input.ticketId,
+        transition: transition.key,
+      }),
+    ]);
+  }
+
+  async updateTicketStatus(
+    context: ProviderContext,
+    input: { actionPayload: TicketStatusUpdateActionPayload; idempotencyKey: string },
+  ): Promise<AdapterResult<TicketProviderActionWriteResult>> {
+    void context;
+    const { actionPayload } = input;
+    if (actionPayload.action !== 'status_update' || !actionPayload.targetStatus) {
+      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'Mock provider refused an invalid status update.', false);
+    }
+    const data: TicketProviderActionWriteResult = {
+      ticketId: actionPayload.ticketId,
+      summary: `Status updated to ${actionPayload.targetStatusLabel ?? actionPayload.targetStatus} for ticket ${actionPayload.ticketId}.`,
+      idempotencyKey: input.idempotencyKey,
+      updatedFields: ['status'],
+      alreadyApplied: false,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_status_updated', actionPayload.ticketId, data.summary, data),
+    ]);
+  }
+
+  async prepareTicketAssignmentUpdate(
+    context: ProviderContext,
+    input: { ticketId: string; target: TicketRoutingTarget; reason: string },
+  ): Promise<AdapterResult<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>> {
+    void context;
+    const reason = normalizeReason(input.reason);
+    const routing = await this.getTicketRoutingContext(context, { ticketId: input.ticketId });
+    if (routing.ok === false) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>(
+        routing.errorCode,
+        routing.message,
+        routing.retryable,
+      );
+    }
+    const target = routing.data.supportedAssignmentTargets.find((candidate) =>
+      candidate.kind === input.target.kind && candidate.key === input.target.key,
+    );
+    if (!reason || !routing.data.assignmentSupported || !target) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'Mock provider rejected an unsupported assignment target.', false);
+    }
+    const actionPayload: TicketAssignmentUpdateActionPayload = {
+      ticketId: input.ticketId,
+      action: 'assignment_update',
+      current: routing.data,
+      target,
+      reason,
+    };
+    const data = {
+      actionPayload,
+      summary: `Prepared assignment to ${target.label} for ticket ${input.ticketId}.`,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_assignment_update_prepared', input.ticketId, data.summary, {
+        ticketId: input.ticketId,
+        target,
+      }),
+    ]);
+  }
+
+  async updateTicketAssignment(
+    context: ProviderContext,
+    input: { actionPayload: TicketAssignmentUpdateActionPayload; idempotencyKey: string },
+  ): Promise<AdapterResult<TicketProviderActionWriteResult>> {
+    void context;
+    const { actionPayload } = input;
+    if (actionPayload.action !== 'assignment_update' || !actionPayload.target?.key) {
+      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'Mock provider refused an invalid assignment update.', false);
+    }
+    const data: TicketProviderActionWriteResult = {
+      ticketId: actionPayload.ticketId,
+      summary: `Ticket ${actionPayload.ticketId} assigned to ${actionPayload.target.label}.`,
+      idempotencyKey: input.idempotencyKey,
+      updatedFields: ['assignment'],
+      alreadyApplied: false,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_assignment_updated', actionPayload.ticketId, data.summary, data),
+    ]);
+  }
+
+  async prepareTicketParticipantUpdate(
+    context: ProviderContext,
+    input: { ticketId: string; operation: TicketParticipantUpdateOperation; participants: TicketRoutingTarget[]; reason: string },
+  ): Promise<AdapterResult<TicketProviderActionPrepared<TicketParticipantUpdateActionPayload>>> {
+    void context;
+    const reason = normalizeReason(input.reason);
+    const participantContext = await this.getTicketParticipantContext(context, { ticketId: input.ticketId });
+    if (participantContext.ok === false) {
+      return providerError<TicketProviderActionPrepared<TicketParticipantUpdateActionPayload>>(
+        participantContext.errorCode,
+        participantContext.message,
+        participantContext.retryable,
+      );
+    }
+    if (!reason || !participantContext.data.participantUpdatesSupported || input.participants.length === 0) {
+      return providerError<TicketProviderActionPrepared<TicketParticipantUpdateActionPayload>>('unsafe_operation', 'Mock provider rejected an unsupported participant update.', false);
+    }
+    const actionPayload: TicketParticipantUpdateActionPayload = {
+      ticketId: input.ticketId,
+      action: 'participant_update',
+      current: participantContext.data,
+      operation: input.operation,
+      participants: input.participants,
+      reason,
+    };
+    const data = {
+      actionPayload,
+      summary: `Prepared participant update for ticket ${input.ticketId}.`,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_participant_update_prepared', input.ticketId, data.summary, {
+        ticketId: input.ticketId,
+        operation: input.operation,
+        participants: input.participants,
+      }),
+    ]);
+  }
+
+  async updateTicketParticipants(
+    context: ProviderContext,
+    input: { actionPayload: TicketParticipantUpdateActionPayload; idempotencyKey: string },
+  ): Promise<AdapterResult<TicketProviderActionWriteResult>> {
+    void context;
+    const { actionPayload } = input;
+    if (actionPayload.action !== 'participant_update' || actionPayload.participants.length === 0) {
+      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'Mock provider refused an invalid participant update.', false);
+    }
+    const data: TicketProviderActionWriteResult = {
+      ticketId: actionPayload.ticketId,
+      summary: `Participants updated for ticket ${actionPayload.ticketId}.`,
+      idempotencyKey: input.idempotencyKey,
+      updatedFields: ['participants'],
+      alreadyApplied: false,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_participants_updated', actionPayload.ticketId, data.summary, data),
     ]);
   }
 
@@ -211,6 +641,78 @@ export class MockTicketingProvider implements TicketingProvider {
     };
     return ok(data, [
       evidenceSeed('ticketing:mock', 'ticket_internal_note_added', actionPayload.ticketId, data.summary, {
+        noteId: data.noteId,
+        ticketId: data.ticketId,
+        alreadyApplied,
+        idempotencyKey: input.idempotencyKey,
+      }),
+    ], alreadyApplied ? ['already_applied'] : undefined);
+  }
+
+  async preparePublicReply(
+    context: ProviderContext,
+    input: { ticketId: string; replyBody: string },
+  ): Promise<AdapterResult<TicketPublicReplyPrepared>> {
+    void context;
+    const scenario = errorForScenario<TicketPublicReplyPrepared>(`${input.ticketId} ${input.replyBody}`);
+    if (scenario) {
+      return scenario;
+    }
+    const body = normalizeNoteBody(input.replyBody);
+    if (!body || body.length > MAX_PUBLIC_REPLY_CHARS || noteBodyIsUnsafe(body)) {
+      return providerError<TicketPublicReplyPrepared>('unsafe_operation', 'Mock provider rejected an unsafe public reply body.', false);
+    }
+    const actionPayload: TicketPublicReplyActionPayload = {
+      ticketId: input.ticketId,
+      visibility: 'public',
+      body,
+      bodyFormat: 'plain_text',
+    };
+    const data: TicketPublicReplyPrepared = {
+      actionPayload,
+      summary: `Prepared public reply for ticket ${input.ticketId}.`,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_public_reply_prepared', input.ticketId, data.summary, {
+        ticketId: input.ticketId,
+        visibility: actionPayload.visibility,
+        bodyPreview: body.slice(0, 240),
+      }),
+    ]);
+  }
+
+  async addPublicReply(
+    context: ProviderContext,
+    input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string },
+  ): Promise<AdapterResult<TicketPublicReplyWriteResult>> {
+    void context;
+    const { actionPayload } = input;
+    const scenario = errorForScenario<TicketPublicReplyWriteResult>(`${actionPayload.ticketId} ${actionPayload.body}`);
+    if (scenario) {
+      return scenario;
+    }
+    const body = normalizeNoteBody(actionPayload.body);
+    if (
+      actionPayload.visibility !== 'public'
+      || actionPayload.bodyFormat !== 'plain_text'
+      || !body
+      || body.length > MAX_PUBLIC_REPLY_CHARS
+      || noteBodyIsUnsafe(body)
+    ) {
+      return providerError<TicketPublicReplyWriteResult>('unsafe_operation', 'Mock provider refused a non-public or unsafe reply write.', false);
+    }
+    const alreadyApplied = body.includes('already-applied') || input.idempotencyKey.includes('already-applied');
+    const data: TicketPublicReplyWriteResult = {
+      noteId: alreadyApplied ? 'mock-public-reply-existing' : `mock-public-reply-${input.idempotencyKey.slice(0, 12)}`,
+      ticketId: actionPayload.ticketId,
+      summary: alreadyApplied
+        ? `Public reply for ticket ${actionPayload.ticketId} was already applied.`
+        : `Public reply added to ticket ${actionPayload.ticketId}.`,
+      idempotencyKey: input.idempotencyKey,
+      alreadyApplied,
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_public_reply_added', actionPayload.ticketId, data.summary, {
         noteId: data.noteId,
         ticketId: data.ticketId,
         alreadyApplied,

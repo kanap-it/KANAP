@@ -80,7 +80,8 @@
       "authentication": "Authentication",
       "branding": "Branding",
       "integrations": "Integrations",
-      "ai": "Plaid"
+      "ai": "Plaid",
+      "agentControl": "Agent control"
     },
     "platform": {
       "tenants": "Tenants",
@@ -114,6 +115,7 @@
     "roles": "Roles",
     "scheduledTasks": "Scheduled Tasks",
     "billing": "Billing",
+    "agentControl": "Agent control",
     "reports": "Reporting",
     "contracts": "Contracts",
     "applications": "Applications",

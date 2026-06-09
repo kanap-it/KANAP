@@ -96,19 +96,43 @@ export type TicketRecord = {
   title: string;
   status: string;
   priority?: string | null;
+  requesterId?: string | null;
   requester?: string | null;
   description?: string | null;
   createdAt: string;
   updatedAt: string;
   tags?: string[];
+  scope?: {
+    entityId?: string | null;
+    categoryId?: string | null;
+  } | null;
+};
+
+export type TicketListScope = {
+  mode: 'new_tickets_only';
+  createdAfter: string;
+  maxResults: number;
+  entityId?: string | null;
+  categoryId?: string | null;
 };
 
 export type TicketNote = {
   id: string;
   visibility: 'public' | 'internal';
+  authorId?: string | null;
   author?: string | null;
+  authorRole?: 'requester' | 'support' | 'kanap_agent' | 'unknown';
   body: string;
   createdAt: string;
+  updatedAt?: string | null;
+  updateFingerprint?: string | null;
+};
+
+export type TicketUserAssociation = {
+  id: string;
+  userId: string;
+  label?: string | null;
+  role: 'requester' | 'assigned' | 'observer' | 'unknown';
 };
 
 export type SimilarTicket = {
@@ -123,8 +147,124 @@ export type TicketClassificationContext = {
   ticketId: string;
   category?: string | null;
   service?: string | null;
+  type?: string | null;
+  priority?: string | null;
   impact?: string | null;
   urgency?: string | null;
+  supported: boolean;
+  warnings?: string[];
+};
+
+export type TicketLifecycleTransition = {
+  key: string;
+  label: string;
+  requiresApproval: boolean;
+  destructive: boolean;
+};
+
+export type TicketLifecycleContext = {
+  ticketId: string;
+  status: string | null;
+  statusLabel?: string | null;
+  terminal: boolean;
+  allowedTransitions: TicketLifecycleTransition[];
+  updatedAt?: string | null;
+  supported: boolean;
+  warnings?: string[];
+};
+
+export type TicketRoutingTarget = {
+  kind: 'user' | 'group';
+  key: string;
+  label: string;
+};
+
+export type TicketRoutingContext = {
+  ticketId: string;
+  requester?: string | null;
+  assignee?: string | null;
+  group?: string | null;
+  supportedAssignmentTargets: TicketRoutingTarget[];
+  assignmentSupported: boolean;
+  supported: boolean;
+  warnings?: string[];
+};
+
+export type TicketParticipantContext = {
+  ticketId: string;
+  requester?: string | null;
+  observers: string[];
+  watchers: string[];
+  viewers: string[];
+  participantUpdatesSupported: boolean;
+  supported: boolean;
+  warnings?: string[];
+};
+
+export type TicketClassificationUpdateProposal = {
+  type?: string | null;
+  priority?: string | null;
+  urgency?: string | null;
+  impact?: string | null;
+  category?: string | null;
+  service?: string | null;
+};
+
+export type TicketClassificationUpdateActionPayload = {
+  ticketId: string;
+  action: 'classification_update';
+  current: TicketClassificationContext;
+  proposed: TicketClassificationUpdateProposal;
+  providerFields?: Record<string, unknown>;
+  reason: string;
+};
+
+export type TicketStatusUpdateActionPayload = {
+  ticketId: string;
+  action: 'status_update';
+  current: TicketLifecycleContext;
+  transitionKey: string;
+  targetStatus: string;
+  targetStatusLabel?: string | null;
+  providerFields?: Record<string, unknown>;
+  reason: string;
+};
+
+export type TicketAssignmentUpdateActionPayload = {
+  ticketId: string;
+  action: 'assignment_update';
+  current: TicketRoutingContext;
+  target: TicketRoutingTarget;
+  providerFields?: Record<string, unknown>;
+  reason: string;
+};
+
+export type TicketParticipantUpdateOperation =
+  | 'add_observer'
+  | 'remove_observer'
+  | 'set_observers';
+
+export type TicketParticipantUpdateActionPayload = {
+  ticketId: string;
+  action: 'participant_update';
+  current: TicketParticipantContext;
+  operation: TicketParticipantUpdateOperation;
+  participants: TicketRoutingTarget[];
+  providerFields?: Record<string, unknown>;
+  reason: string;
+};
+
+export type TicketProviderActionPrepared<TActionPayload> = {
+  actionPayload: TActionPayload;
+  summary: string;
+};
+
+export type TicketProviderActionWriteResult = {
+  ticketId: string;
+  summary: string;
+  idempotencyKey: string;
+  updatedFields: string[];
+  alreadyApplied?: boolean;
 };
 
 export type TicketInternalNoteActionPayload = {
@@ -134,12 +274,32 @@ export type TicketInternalNoteActionPayload = {
   bodyFormat: 'plain_text';
 };
 
+export type TicketPublicReplyActionPayload = {
+  ticketId: string;
+  visibility: 'public';
+  body: string;
+  bodyFormat: 'plain_text';
+};
+
 export type TicketInternalNotePrepared = {
   actionPayload: TicketInternalNoteActionPayload;
   summary: string;
 };
 
+export type TicketPublicReplyPrepared = {
+  actionPayload: TicketPublicReplyActionPayload;
+  summary: string;
+};
+
 export type TicketInternalNoteWriteResult = {
+  noteId: string;
+  ticketId: string;
+  summary: string;
+  idempotencyKey: string;
+  alreadyApplied?: boolean;
+};
+
+export type TicketPublicReplyWriteResult = {
   noteId: string;
   ticketId: string;
   summary: string;
@@ -326,9 +486,52 @@ export interface TicketingProvider extends ProviderBase {
   getTicket(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRecord>>;
   searchSimilarTickets(context: ProviderContext, input: { query: string; ticketId?: string | null; limit?: number | null }): Promise<AdapterResult<{ tickets: SimilarTicket[] }>>;
   listTicketNotes(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<{ notes: TicketNote[] }>>;
+  listTicketsForScope(context: ProviderContext, input: { scope: TicketListScope }): Promise<AdapterResult<{ tickets: TicketRecord[] }>>;
   getTicketClassificationContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketClassificationContext>>;
+  getTicketLifecycleContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketLifecycleContext>>;
+  getTicketRoutingContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRoutingContext>>;
+  getTicketParticipantContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketParticipantContext>>;
+  prepareTicketClassificationUpdate(context: ProviderContext, input: {
+    ticketId: string;
+    proposed: TicketClassificationUpdateProposal;
+    reason: string;
+  }): Promise<AdapterResult<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>>;
+  updateTicketClassification(context: ProviderContext, input: {
+    actionPayload: TicketClassificationUpdateActionPayload;
+    idempotencyKey: string;
+  }): Promise<AdapterResult<TicketProviderActionWriteResult>>;
+  prepareTicketStatusUpdate(context: ProviderContext, input: {
+    ticketId: string;
+    transitionKey: string;
+    reason: string;
+  }): Promise<AdapterResult<TicketProviderActionPrepared<TicketStatusUpdateActionPayload>>>;
+  updateTicketStatus(context: ProviderContext, input: {
+    actionPayload: TicketStatusUpdateActionPayload;
+    idempotencyKey: string;
+  }): Promise<AdapterResult<TicketProviderActionWriteResult>>;
+  prepareTicketAssignmentUpdate(context: ProviderContext, input: {
+    ticketId: string;
+    target: TicketRoutingTarget;
+    reason: string;
+  }): Promise<AdapterResult<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>>;
+  updateTicketAssignment(context: ProviderContext, input: {
+    actionPayload: TicketAssignmentUpdateActionPayload;
+    idempotencyKey: string;
+  }): Promise<AdapterResult<TicketProviderActionWriteResult>>;
+  prepareTicketParticipantUpdate(context: ProviderContext, input: {
+    ticketId: string;
+    operation: TicketParticipantUpdateOperation;
+    participants: TicketRoutingTarget[];
+    reason: string;
+  }): Promise<AdapterResult<TicketProviderActionPrepared<TicketParticipantUpdateActionPayload>>>;
+  updateTicketParticipants(context: ProviderContext, input: {
+    actionPayload: TicketParticipantUpdateActionPayload;
+    idempotencyKey: string;
+  }): Promise<AdapterResult<TicketProviderActionWriteResult>>;
   prepareInternalNote(context: ProviderContext, input: { ticketId: string; noteBody: string }): Promise<AdapterResult<TicketInternalNotePrepared>>;
   addInternalNote(context: ProviderContext, input: { actionPayload: TicketInternalNoteActionPayload; idempotencyKey: string }): Promise<AdapterResult<TicketInternalNoteWriteResult>>;
+  preparePublicReply(context: ProviderContext, input: { ticketId: string; replyBody: string }): Promise<AdapterResult<TicketPublicReplyPrepared>>;
+  addPublicReply(context: ProviderContext, input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string }): Promise<AdapterResult<TicketPublicReplyWriteResult>>;
 }
 
 export interface MonitoringProvider extends ProviderBase {
