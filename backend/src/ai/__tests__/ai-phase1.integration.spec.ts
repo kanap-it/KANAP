@@ -1087,6 +1087,9 @@ async function resolveDocumentId(manager: any, idOrRef: string): Promise<string 
 
 function createKnowledgeToolAdapter(manager: any) {
   return {
+    async listReadableLibraryIdsForUser() {
+      return null;
+    },
     async search(query: any, opts?: { manager?: any }) {
       const activeManager = opts?.manager ?? manager;
       const term = String(query?.q || '').trim();
@@ -2259,6 +2262,7 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
     const entityService = new AiEntityService(
       {
         search: async () => ({ items: [], total: 0 }),
+        listReadableLibraryIdsForUser: async () => null,
         getKnowledgeContextForEntity: async () => ({
           access: 'granted',
           total: 0,
@@ -2274,6 +2278,7 @@ async function testAiEntityServicePhase1TenantDefenseInDepth() {
     const entityServiceWithoutKnowledge = new AiEntityService(
       {
         search: async () => ({ items: [], total: 0 }),
+        listReadableLibraryIdsForUser: async () => null,
         getKnowledgeContextForEntity: async () => ({
           access: 'granted',
           total: 0,
@@ -2713,6 +2718,7 @@ async function testAiEntityContextMarksRecentActivityAsTruncatedWhenCapped() {
     const entityService = new AiEntityService(
       {
         search: async () => ({ items: [], total: 0 }),
+        listReadableLibraryIdsForUser: async () => null,
         getKnowledgeContextForEntity: async () => ({
           access: 'granted',
           total: 0,

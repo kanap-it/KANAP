@@ -90,6 +90,7 @@ const TABLES_TO_CHECK_POLICY = new Set([
   'ai_recommendations',
   'ai_decisions',
   'ai_evaluations',
+  'search_index',
 ]);
 
 const TABLES_TO_CHECK_FORCE = new Set([

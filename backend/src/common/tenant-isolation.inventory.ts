@@ -176,6 +176,7 @@ export const TENANT_SCOPED_TABLES = [
   'refresh_tokens',
   'role_permissions',
   'roles',
+  'search_index',
   'spend_allocations',
   'spend_amounts',
   'spend_attachments',
