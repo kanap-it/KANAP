@@ -19,6 +19,7 @@ import { ItemNumberService } from '../common/item-number.service';
 import { DocumentImportService, ImportedDocumentResult } from '../common/document-import.service';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { markdownToSearchText } from '../common/markdown-search-text';
+import { bilingualDocumentTsQuerySql } from '../common/document-search-tsquery';
 import { DocumentExportService } from '../common/document-export.service';
 import { BulkDeleteResult } from '../common/delete.types';
 import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
@@ -1368,7 +1369,7 @@ export class KnowledgeService {
     const searchTermIndex = paramOffset + 1;
     const searchLikeIndex = paramOffset + 2;
     const clauses = [
-      `${alias}.search_vector @@ websearch_to_tsquery('simple', $${searchTermIndex})`,
+      `${alias}.search_vector @@ ${bilingualDocumentTsQuerySql(`$${searchTermIndex}`)}`,
       `${alias}.title ILIKE $${searchLikeIndex}`,
       `COALESCE(${alias}.summary, '') ILIKE $${searchLikeIndex}`,
       `COALESCE(${alias}.content_plain, '') ILIKE $${searchLikeIndex}`,
@@ -2521,7 +2522,7 @@ export class KnowledgeService {
         searchLike: `%${search.term}%`,
       };
       const searchClauses = [
-        `d.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`,
+        `d.search_vector @@ ${bilingualDocumentTsQuerySql(':searchTerm')}`,
         `d.title ILIKE :searchLike`,
         `COALESCE(d.summary, '') ILIKE :searchLike`,
         `COALESCE(d.content_plain, '') ILIKE :searchLike`,
@@ -2767,7 +2768,7 @@ export class KnowledgeService {
       const params: Record<string, string | number> = {
         searchTerm: search.term,
       };
-      const searchClauses = [`d.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`];
+      const searchClauses = [`d.search_vector @@ ${bilingualDocumentTsQuerySql(':searchTerm')}`];
       if (search.itemNumber != null) {
         params.searchItemNumber = search.itemNumber;
         searchClauses.unshift('d.item_number = :searchItemNumber');
@@ -5104,12 +5105,13 @@ export class KnowledgeService {
     }
 
     const params: Array<string | number | string[]> = [search.term, `%${search.term}%`];
+    // No content_markdown ILIKE here: it forces a seq scan over the largest
+    // column and content_plain carries the same visible text.
     const searchClauses = [
-      `d.search_vector @@ websearch_to_tsquery('simple', $1)`,
+      `d.search_vector @@ ${bilingualDocumentTsQuerySql('$1')}`,
       `d.title ILIKE $2`,
       `COALESCE(d.summary, '') ILIKE $2`,
       `COALESCE(d.content_plain, '') ILIKE $2`,
-      `COALESCE(d.content_markdown, '') ILIKE $2`,
     ];
     if (search.itemNumber != null) {
       params.push(search.itemNumber);
@@ -5140,8 +5142,8 @@ export class KnowledgeService {
               dl.name AS library_name,
               CASE WHEN d.title ILIKE $2 THEN 1 ELSE 0 END AS title_match,
               COUNT(*) OVER()::int AS total_count,
-              ts_rank_cd(d.search_vector, websearch_to_tsquery('simple', $1)) AS rank,
-              ts_headline('simple', coalesce(d.content_plain, ''), websearch_to_tsquery('simple', $1),
+              ts_rank_cd(d.search_vector, ${bilingualDocumentTsQuerySql('$1')}) AS rank,
+              ts_headline('kanap_fr', coalesce(d.content_plain, ''), ${bilingualDocumentTsQuerySql('$1')},
                 'MaxFragments=2, MinWords=8, MaxWords=20') AS snippet
        FROM documents d
        LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
@@ -5164,7 +5166,6 @@ export class KnowledgeService {
             `d.title ILIKE $${index}`,
             `COALESCE(d.summary, '') ILIKE $${index}`,
             `COALESCE(d.content_plain, '') ILIKE $${index}`,
-            `COALESCE(d.content_markdown, '') ILIKE $${index}`,
           );
         }
         if (search.itemNumber != null) {

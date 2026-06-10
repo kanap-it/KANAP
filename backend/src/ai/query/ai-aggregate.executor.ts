@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { normalizeAgFilterModel } from '../../common/ag-grid-filtering';
+import { bilingualDocumentTsQuerySql } from '../../common/document-search-tsquery';
 import { AccountsService } from '../../accounts/accounts.service';
 import { ChartOfAccountsService } from '../../accounts/chart-of-accounts.service';
 import { AnalyticsCategoriesService } from '../../analytics/analytics-categories.service';
@@ -220,7 +221,7 @@ function buildDocumentSearchSql(
     searchLike: `%${search.term}%`,
   };
   const clauses = [
-    `${alias}.search_vector @@ websearch_to_tsquery('simple', :searchTerm)`,
+    `${alias}.search_vector @@ ${bilingualDocumentTsQuerySql(':searchTerm')}`,
     `${alias}.title ILIKE :searchLike`,
     `COALESCE(${alias}.summary, '') ILIKE :searchLike`,
     `COALESCE(${alias}.content_plain, '') ILIKE :searchLike`,
