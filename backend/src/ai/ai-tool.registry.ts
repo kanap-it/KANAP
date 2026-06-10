@@ -36,7 +36,7 @@ import {
 const SearchAllInputSchema = z.object({
   query: z.string().trim().min(1),
   entity_types: z.array(AiSearchEntityTypeSchema).optional(),
-  limit: z.number().int().min(1).max(100).default(100),
+  limit: z.number().int().min(1).max(100).default(25),
 });
 
 const GetEntityContextInputSchema = z.object({
@@ -61,7 +61,7 @@ const GetEntityCommentsInputSchema = z.object({
 const SearchKnowledgeInputSchema = z.object({
   query: z.string().trim().min(1),
   offset: z.number().int().min(0).max(5000).default(0),
-  limit: z.number().int().min(1).max(200).default(100),
+  limit: z.number().int().min(1).max(200).default(20),
 });
 
 const GetDocumentInputSchema = z.object({
@@ -270,7 +270,7 @@ export class AiToolRegistry {
           inputSummary: {
             query: 'Search text or item reference such as PRJ-12, REQ-7, T-42, or DOC-3.',
             entity_types: 'Optional entity families to include.',
-            limit: 'Maximum number of results to return (default 100). If truncated=true, narrow the query or switch to a more specific tool.',
+            limit: 'Maximum number of results to return (default 25, max 100). Raise limit or page with offset only when the first page is insufficient. If truncated=true, narrow the query or switch to a more specific tool.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,
@@ -427,7 +427,7 @@ export class AiToolRegistry {
           inputSummary: {
             query: 'Search text or document reference such as DOC-14.',
             offset: 'Zero-based result offset (default 0). Increase this to fetch the next batch when truncated=true.',
-            limit: 'Maximum number of documents to return (default 100, max 200).',
+            limit: 'Maximum number of documents to return (default 20, max 200). Raise limit or page with offset only when the first page is insufficient.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,

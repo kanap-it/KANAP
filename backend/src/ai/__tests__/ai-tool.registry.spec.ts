@@ -970,7 +970,7 @@ async function testSearchAllDelegatesToEntityTools() {
   }]);
 }
 
-async function testSearchAllAppliesGenerousDefaultLimit() {
+async function testSearchAllAppliesTokenLeanDefaultLimit() {
   const calls: unknown[] = [];
   const registry = createRegistry({
     entityTools: {
@@ -987,7 +987,7 @@ async function testSearchAllAppliesGenerousDefaultLimit() {
 
   assert.deepEqual(calls, [{
     query: 'billing',
-    limit: 100,
+    limit: 25,
   }]);
 }
 
@@ -1120,7 +1120,7 @@ async function testSearchKnowledgeAppliesDefaultLimit() {
   assert.deepEqual(calls, [{
     q: 'runbook',
     offset: 0,
-    limit: 100,
+    limit: 20,
   }]);
 }
 
@@ -1227,11 +1227,13 @@ async function testSchemasExposeDefaultLimits() {
   const queryEntities = schemas.find((schema) => schema.name === 'query_entities');
   const searchKnowledge = schemas.find((schema) => schema.name === 'search_knowledge');
 
-  assert.equal(searchAll.parameters.properties.limit.default, 100);
+  assert.equal(searchAll.parameters.properties.limit.default, 25);
+  assert.equal(searchAll.parameters.properties.limit.maximum, 100);
   assert.equal(queryEntities.parameters.properties.page.default, 1);
   assert.equal(queryEntities.parameters.properties.limit.default, 200);
   assert.equal(searchKnowledge.parameters.properties.offset.default, 0);
-  assert.equal(searchKnowledge.parameters.properties.limit.default, 100);
+  assert.equal(searchKnowledge.parameters.properties.limit.default, 20);
+  assert.equal(searchKnowledge.parameters.properties.limit.maximum, 200);
 }
 
 async function testGetEntityCommentsSchemaExposesPaginationDefaults() {
@@ -1687,7 +1689,7 @@ async function run() {
   await testRegisteredToolCategoriesMatchExpectedAssignments();
   await testDescribeEntityFiltersExposesAssigneeFormat();
   await testSearchAllDelegatesToEntityTools();
-  await testSearchAllAppliesGenerousDefaultLimit();
+  await testSearchAllAppliesTokenLeanDefaultLimit();
   await testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed();
   await testWritePreviewToolsStayHiddenWithoutWriteAccess();
   await testUpdateTaskAssigneesCreatesOnePreviewPerTaskAndReturnsPartialErrors();
