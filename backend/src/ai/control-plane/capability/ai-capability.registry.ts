@@ -1667,9 +1667,15 @@ export class AiCapabilityRegistry {
     context: AiExecutionContextWithManager,
     capabilityName: string,
     version = COMPATIBILITY_CAPABILITY_VERSION,
+    surface?: CapabilitySurface,
   ): Promise<ResolvedCapability> {
+    const effectiveSurface = surface ?? toCapabilitySurface(context.surface);
+    // An internal contract shares its name with the chat/MCP tool it wraps
+    // (search_knowledge, get_document): it is only selected when the effective
+    // surface is one it declares, otherwise resolution falls through to the
+    // tool compatibility contract so chat and MCP keep their tool surfaces.
     const internal = this.internalContracts.get(capabilityName);
-    if (internal) {
+    if (internal && internal.supported_surfaces.includes(effectiveSurface)) {
       if (version !== internal.version) {
         throw new NotFoundException('Unknown capability version.');
       }

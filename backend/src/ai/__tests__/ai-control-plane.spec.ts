@@ -820,7 +820,7 @@ async function testRegistryResolvesKnowledgeAsInternalCapabilities() {
   );
   const context = createContext(createMemoryManager().manager);
 
-  const search = await registry.resolve(context, 'search_knowledge', '1.0.0');
+  const search = await registry.resolve(context, 'search_knowledge', '1.0.0', 'internal');
   assert.deepEqual(search.contract.supported_surfaces, ['internal']);
   const searchOutput = await search.handler(context, { query: 'vpn', limit: 5, offset: 0 }, {
     surface: 'internal',
@@ -829,7 +829,7 @@ async function testRegistryResolvesKnowledgeAsInternalCapabilities() {
   assert.equal(searchOutput.items[0].ref, 'DOC-1');
   assert.equal(searchOutput.complete, true);
 
-  const document = await registry.resolve(context, 'get_document', '1.0.0');
+  const document = await registry.resolve(context, 'get_document', '1.0.0', 'internal');
   assert.deepEqual(document.contract.supported_surfaces, ['internal']);
   const documentOutput = await document.handler(context, { document_id: 'DOC-1' }, {
     surface: 'internal',
@@ -839,6 +839,69 @@ async function testRegistryResolvesKnowledgeAsInternalCapabilities() {
   assert.equal(documentOutput.complete, true);
   assert.equal(compatibilityToolCalled, false);
   assert.equal(knowledgeReadChecks, 2);
+}
+
+async function testRegistryResolvesKnowledgeAsToolOnChatAndMcpSurfaces() {
+  const executedTools: string[] = [];
+  const knowledgeTools = [
+    {
+      name: 'search_knowledge',
+      category: 'discovery',
+      description: 'Search knowledge documents.',
+      input_summary: { query: 'Search text.' },
+      read_only: true,
+      surfaces: ['chat', 'mcp'],
+    },
+    {
+      name: 'get_document',
+      category: 'inspection',
+      description: 'Fetch one knowledge document.',
+      input_summary: { document_id: 'Document id.' },
+      read_only: true,
+      surfaces: ['chat', 'mcp'],
+    },
+  ];
+  const registry = new AiCapabilityRegistry(
+    {
+      listAvailableTools: async () => knowledgeTools,
+      toToolJsonSchemas: (tools: Array<{ name: string }>) => tools.map((tool) => ({
+        name: tool.name,
+        description: 'schema',
+        parameters: { type: 'object', properties: {}, additionalProperties: true },
+      })),
+      execute: async (_ctx: unknown, toolName: string) => {
+        executedTools.push(toolName);
+        return { items: [], total: 0 };
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    undefined,
+    {
+      assertKnowledgeReadAccess: async () => {
+        throw new Error('internal knowledge handler must not run on chat/mcp surfaces');
+      },
+    } as any,
+    {} as any,
+  );
+  const context = createContext(createMemoryManager().manager);
+
+  // Chat surface (defaulted from the context): the internal-only contract must
+  // not shadow the tool of the same name.
+  const chatSearch = await registry.resolve(context, 'search_knowledge', '1.0.0');
+  assert.equal(chatSearch.contract.compatibility.ai_tool_name, 'search_knowledge');
+  assert.equal(chatSearch.contract.supported_surfaces.includes('chat'), true);
+  await chatSearch.handler(context, { query: 'vpn' }, { surface: 'chat', trigger_kind: 'human_user' } as any);
+
+  // Explicit MCP surface resolves to the tool contract as well.
+  const mcpDocument = await registry.resolve(context, 'get_document', '1.0.0', 'mcp');
+  assert.equal(mcpDocument.contract.compatibility.ai_tool_name, 'get_document');
+  await mcpDocument.handler(context, { document_id: 'DOC-1' }, { surface: 'mcp', trigger_kind: 'mcp_client' } as any);
+
+  assert.deepEqual(executedTools, ['search_knowledge', 'get_document']);
 }
 
 async function testDispatcherWriteWithoutApprovalStrategyFailsBeforeHandler() {
@@ -5974,6 +6037,7 @@ async function run() {
   await testDispatcherValidatesProviderInputBeforeHandler();
   await testDispatcherRecordsDeniedSurface();
   await testRegistryResolvesKnowledgeAsInternalCapabilities();
+  await testRegistryResolvesKnowledgeAsToolOnChatAndMcpSurfaces();
   await testDispatcherWriteWithoutApprovalStrategyFailsBeforeHandler();
   await testApprovedPreviewExecutionLinksActionAndApproval();
   await testDispatcherRecordsEmergencyPauseDenial();
