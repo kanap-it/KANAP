@@ -383,6 +383,7 @@ export class AiCapabilityDispatcherService {
         context,
         input.capabilityName,
         input.capabilityVersion ?? undefined,
+        surface,
       );
     } catch (error: any) {
       run.status = 'failed';
