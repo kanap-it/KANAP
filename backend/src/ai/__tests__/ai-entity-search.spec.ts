@@ -2,15 +2,17 @@ import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { AiEntityService } from '../ai-entity.service';
 
-function createService() {
+function createService(overrides?: { knowledge?: Record<string, unknown> }) {
   return new AiEntityService(
     {
       searchMentionOptions: async () => ({ items: [], total: 0 }),
+      listReadableLibraryIdsForUser: async () => null,
       getKnowledgeContextForEntity: async () => ({
         access: 'granted',
         total: 0,
         groups: [],
       }),
+      ...(overrides?.knowledge ?? {}),
     } as any,
     {
       listReadableEntityTypes: async (_context: unknown, requested: string[]) => requested,
@@ -31,7 +33,73 @@ function createContext(query: (sql: string, params?: unknown[]) => Promise<unkno
   };
 }
 
-async function testSearchAllCastsNonTextFieldsBeforeLike() {
+async function withFlag<T>(value: string | undefined, run: () => Promise<T>): Promise<T> {
+  const previous = process.env.AI_SEARCH_INDEX_ENABLED;
+  if (value === undefined) {
+    delete process.env.AI_SEARCH_INDEX_ENABLED;
+  } else {
+    process.env.AI_SEARCH_INDEX_ENABLED = value;
+  }
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) {
+      delete process.env.AI_SEARCH_INDEX_ENABLED;
+    } else {
+      process.env.AI_SEARCH_INDEX_ENABLED = previous;
+    }
+  }
+}
+
+async function testLegacySearchAllCastsNonTextFieldsBeforeLike() {
+  await withFlag('false', async () => {
+    const sqlStatements: string[] = [];
+    const service = createService();
+    const context = createContext(async (sql) => {
+      sqlStatements.push(sql);
+      return [];
+    });
+
+    const result = await service.searchAll(context as any, {
+      query: 'Eva Fried task',
+      entity_types: ['spend_items', 'capex_items'],
+      limit: 10,
+    });
+
+    assert.equal(result.complete, true);
+    assert.equal(result.truncated, false);
+    assert.deepEqual((result as any).failed_entity_types, []);
+    assert.equal(sqlStatements.some((sql) => sql.includes('acc.account_number::text')), true);
+    assert.equal(sqlStatements.some((sql) => sql.includes('ci.ppe_type::text')), true);
+    assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(acc.account_number, '')")), false);
+    assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(ci.ppe_type, '')")), false);
+  });
+}
+
+async function testLegacySearchAllReportsPartialEntityFailures() {
+  await withFlag('false', async () => {
+    const service = createService();
+    const context = createContext(async (sql) => {
+      if (sql.includes('FROM capex_items')) {
+        throw new Error('invalid input value for enum ppe_type: ""');
+      }
+      return [];
+    });
+
+    const result = await service.searchAll(context as any, {
+      query: 'project',
+      entity_types: ['spend_items', 'capex_items'],
+      limit: 10,
+    });
+
+    assert.equal(result.complete, false);
+    assert.equal(result.truncated, false);
+    assert.deepEqual((result as any).failed_entity_types, ['capex_items']);
+    assert.equal((result as any).warnings[0].entity_type, 'capex_items');
+  });
+}
+
+async function testIndexedSearchAllRunsSingleSearchIndexQuery() {
   const sqlStatements: string[] = [];
   const service = createService();
   const context = createContext(async (sql) => {
@@ -40,7 +108,7 @@ async function testSearchAllCastsNonTextFieldsBeforeLike() {
   });
 
   const result = await service.searchAll(context as any, {
-    query: 'Eva Fried task',
+    query: 'billing',
     entity_types: ['spend_items', 'capex_items'],
     limit: 10,
   });
@@ -48,36 +116,168 @@ async function testSearchAllCastsNonTextFieldsBeforeLike() {
   assert.equal(result.complete, true);
   assert.equal(result.truncated, false);
   assert.deepEqual((result as any).failed_entity_types, []);
-  assert.equal(sqlStatements.some((sql) => sql.includes('acc.account_number::text')), true);
-  assert.equal(sqlStatements.some((sql) => sql.includes('ci.ppe_type::text')), true);
-  assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(acc.account_number, '')")), false);
-  assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(ci.ppe_type, '')")), false);
+  assert.deepEqual((result as any).warnings, []);
+  const searchStatements = sqlStatements.filter((sql) => sql.includes('FROM search_index'));
+  assert.equal(searchStatements.length, 1);
+  assert.equal(sqlStatements.some((sql) => sql.includes('FROM spend_items')), false);
+  assert.equal(sqlStatements.some((sql) => sql.includes('SAVEPOINT')), false);
+  assert.equal(searchStatements[0].includes(`websearch_to_tsquery('kanap_fr'`), true);
+  assert.equal(searchStatements[0].includes('similarity(label,'), true);
 }
 
-async function testSearchAllReportsPartialEntityFailures() {
+async function testIndexedSearchAllAppliesParticipationScope() {
+  const sqlStatements: string[] = [];
   const service = createService();
   const context = createContext(async (sql) => {
-    if (sql.includes('FROM capex_items')) {
-      throw new Error('invalid input value for enum ppe_type: ""');
+    sqlStatements.push(sql);
+    if (sql.includes('assigned_roles')) {
+      // Business-contributor-only role assignment → scoped access.
+      return [{ role_id: randomUUID(), role_name: 'business contributor', level: null }];
     }
     return [];
   });
 
-  const result = await service.searchAll(context as any, {
-    query: 'project',
-    entity_types: ['spend_items', 'capex_items'],
+  await service.searchAll(context as any, {
+    query: 'roadmap',
+    entity_types: ['projects', 'requests', 'tasks', 'applications', 'companies'],
     limit: 10,
   });
 
-  assert.equal(result.complete, false);
-  assert.equal(result.truncated, false);
-  assert.deepEqual((result as any).failed_entity_types, ['capex_items']);
-  assert.equal((result as any).warnings[0].entity_type, 'capex_items');
+  const searchSql = sqlStatements.find((sql) => sql.includes('FROM search_index'));
+  assert.ok(searchSql, 'expected a search_index query');
+  assert.equal(searchSql!.includes(`search_index.entity_type <> 'projects' OR EXISTS`), true);
+  assert.equal(searchSql!.includes('portfolio_project_team pt_scope'), true);
+  assert.equal(searchSql!.includes(`search_index.entity_type <> 'requests' OR EXISTS`), true);
+  assert.equal(searchSql!.includes('portfolio_request_team rt_scope'), true);
+  assert.equal(searchSql!.includes(`search_index.entity_type <> 'tasks' OR EXISTS`), true);
+  assert.equal(searchSql!.includes('assignee_user_id'), true);
+  assert.equal(searchSql!.includes(`search_index.entity_type <> 'applications' OR EXISTS`), true);
+  assert.equal(searchSql!.includes('application_owners ao_scope'), true);
+  // Non-participation-scoped types stay unrestricted.
+  assert.equal(searchSql!.includes(`search_index.entity_type <> 'companies'`), false);
+}
+
+async function testIndexedSearchAllAppliesDocumentLibraryAcl() {
+  const sqlStatements: string[] = [];
+  const libraryId = randomUUID();
+  const service = createService({
+    knowledge: {
+      listReadableLibraryIdsForUser: async () => [libraryId],
+    },
+  });
+  const context = createContext(async (sql) => {
+    sqlStatements.push(sql);
+    return [];
+  });
+
+  await service.searchAll(context as any, {
+    query: 'runbook',
+    entity_types: ['documents', 'tasks'],
+    limit: 10,
+  });
+
+  const searchSql = sqlStatements.find((sql) => sql.includes('FROM search_index'));
+  assert.ok(searchSql, 'expected a search_index query');
+  assert.equal(searchSql!.includes(`search_index.entity_type <> 'documents' OR EXISTS`), true);
+  assert.equal(searchSql!.includes('d_acl.library_id = ANY'), true);
+}
+
+async function testIndexedRowsMapToLegacyDtoShape() {
+  const updatedAt = new Date('2026-06-01T08:00:00.000Z');
+  const service = createService();
+  const context = createContext(async (sql) => {
+    if (!sql.includes('FROM search_index')) return [];
+    return [
+      {
+        entity_type: 'tasks',
+        entity_id: 'task-1',
+        ref_prefix: 'T',
+        ref_number: 42,
+        label: 'Patch servers',
+        summary: 'Apply June updates',
+        status: 'open',
+        extra_json: { assignee: 'Eva Fried', creator: null },
+        source_updated_at: updatedAt,
+        total_count: 3,
+        score: 4,
+      },
+      {
+        entity_type: 'applications',
+        entity_id: 'app-1',
+        ref_prefix: 'APP',
+        ref_number: 7,
+        label: 'Billing App',
+        summary: null,
+        status: 'active',
+        extra_json: { item_ref: 'APP-7', lifecycle: 'production', criticality: null },
+        source_updated_at: updatedAt,
+        total_count: 3,
+        score: 3,
+      },
+      {
+        entity_type: 'spend_items',
+        entity_id: 'spend-1',
+        ref_prefix: 'OPX',
+        ref_number: 9,
+        label: 'License renewal',
+        summary: null,
+        status: 'active',
+        extra_json: { supplier: 'ACME', paying_company: null, account: null, contract: null },
+        source_updated_at: updatedAt,
+        total_count: 3,
+        score: 2,
+      },
+    ];
+  });
+
+  const result = await service.searchAll(context as any, {
+    query: 'whatever',
+    entity_types: ['tasks', 'applications', 'spend_items'],
+    limit: 10,
+  });
+
+  assert.equal(result.total, 3);
+  const [task, app, spend] = result.items as any[];
+
+  assert.equal(task.type, 'tasks');
+  assert.equal(task.ref, 'T-42');
+  assert.equal(task.label, 'Patch servers');
+  assert.equal(task.match_context, 'Apply June updates');
+  assert.equal(task.updated_at, '2026-06-01T08:00:00.000Z');
+  assert.deepEqual(task.metadata, { assignee: 'Eva Fried', creator: null });
+  assert.equal('_score' in task, false);
+
+  // applications take their text ref from the source sequential_id…
+  assert.equal(app.ref, 'APP-7');
+  assert.deepEqual(app.metadata, {
+    lifecycle: 'production',
+    criticality: null,
+    category: null,
+    hosting_model: null,
+    data_class: null,
+    version: null,
+    supplier: null,
+    business_owner: null,
+    it_owner: null,
+  });
+
+  // …while spend items keep ref=null exactly like the legacy DTO.
+  assert.equal(spend.ref, null);
+  assert.deepEqual(spend.metadata, {
+    supplier: 'ACME',
+    paying_company: null,
+    account: null,
+    contract: null,
+  });
 }
 
 async function run() {
-  await testSearchAllCastsNonTextFieldsBeforeLike();
-  await testSearchAllReportsPartialEntityFailures();
+  await testLegacySearchAllCastsNonTextFieldsBeforeLike();
+  await testLegacySearchAllReportsPartialEntityFailures();
+  await testIndexedSearchAllRunsSingleSearchIndexQuery();
+  await testIndexedSearchAllAppliesParticipationScope();
+  await testIndexedSearchAllAppliesDocumentLibraryAcl();
+  await testIndexedRowsMapToLegacyDtoShape();
 }
 
 void run();

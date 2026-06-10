@@ -1,6 +1,9 @@
 import { TENANT_SCOPED_TABLES } from '../../common/tenant-isolation.inventory';
 
 export const TENANT_PURGE_TABLES = [
+  // Denormalized AI search index first: row triggers on the source tables
+  // below would otherwise delete these rows one by one.
+  'search_index',
   // Portfolio: purge in FK order (children before parents)
   'portfolio_project_time_entries',
   'portfolio_project_milestones',

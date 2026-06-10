@@ -831,6 +831,18 @@ export class KnowledgeService {
       .map((library) => library.id);
   }
 
+  /**
+   * Library IDs the user can read, or null when unrestricted (no user / full
+   * access). Used by the AI search-index path to keep document results behind
+   * the same library ACL as KnowledgeService.search.
+   */
+  async listReadableLibraryIdsForUser(
+    manager: EntityManager,
+    userId: string | null | undefined,
+  ): Promise<string[] | null> {
+    return this.listAccessibleLibraryIds(manager, userId, 'reader');
+  }
+
   async assertLibraryReadable(
     libraryId: string,
     manager: EntityManager,

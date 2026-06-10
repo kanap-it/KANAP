@@ -53,6 +53,8 @@ import { AiProviderTestService } from './ai-provider-test.service';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { AiAdminOverviewController } from './ai-admin-overview.controller';
 import { AiAdminOverviewService } from './ai-admin-overview.service';
+import { AiAdminSearchIndexController } from './search-index/ai-admin-search-index.controller';
+import { AiSearchIndexService } from './search-index/ai-search-index.service';
 import { AiSettingsController } from './ai-settings.controller';
 import { AiSettings } from './ai-settings.entity';
 import { AiSettingsService } from './ai-settings.service';
@@ -213,6 +215,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilitiesController,
     AiSettingsController,
     AiAdminOverviewController,
+    AiAdminSearchIndexController,
     AiChatController,
     AiConversationsController,
     AiApiKeysController,
@@ -225,6 +228,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     McpApiKeyHashService,
     AiSettingsService,
     AiAdminOverviewService,
+    AiSearchIndexService,
     AiApiKeysService,
     AiAttachmentService,
     AiConversationService,
@@ -295,6 +299,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiTenantExecutionService,
     AiSettingsService,
     AiAdminOverviewService,
+    AiSearchIndexService,
     AiApiKeysService,
     AiAttachmentService,
     AiConversationService,

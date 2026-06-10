@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { bilingualDocumentTsQuerySql } from '../common/document-search-tsquery';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
@@ -352,6 +353,61 @@ function toIntegratedDocumentSummary(row: any): AiEntitySummaryDto {
     },
   });
 }
+
+/**
+ * Feature flag for the unified `search_index` path (Phase B of
+ * planning/search-revamp.md). Defaults to enabled; set
+ * AI_SEARCH_INDEX_ENABLED=false to fall back to the legacy per-entity-type
+ * SQL searches for one release while the new path soaks in QA.
+ */
+function aiSearchIndexEnabled(): boolean {
+  return process.env.AI_SEARCH_INDEX_ENABLED !== 'false';
+}
+
+// Indexed-path ref parsing. Superset of parseNumericPrefix: also accepts the
+// OPX prefix that the OPEX revamp renders for spend items. The query prefix is
+// only used to PRIORITIZE the matching entity type (score tier 4); the bare
+// digits still match every type's ref_number, like the legacy path did.
+const INDEXED_REF_QUERY_RE = /^(PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|OPX|COMP|CONT|DEPT|SUP|BP)-?(\d+)$/i;
+
+const QUERY_PREFIX_TO_INDEX_REF_PREFIX: Record<string, string> = {
+  SI: 'OPX',
+};
+
+const PARTICIPATION_SCOPE_SOURCE_TABLE: Record<ParticipationScopedAiEntityType, string> = {
+  applications: 'applications',
+  projects: 'portfolio_projects',
+  requests: 'portfolio_requests',
+  tasks: 'tasks',
+};
+
+// Per-type metadata DTO shape on the indexed path — mirrors the inline
+// metadata objects the legacy searchXxx() helpers build, sourced from
+// search_index.extra_json. Types absent here return metadata: null.
+const SEARCH_INDEX_METADATA_KEYS: Partial<Record<AiSearchEntityType, string[]>> = {
+  accounts: ['coa_code'],
+  applications: [
+    'lifecycle', 'criticality', 'category', 'hosting_model', 'data_class',
+    'version', 'supplier', 'business_owner', 'it_owner',
+  ],
+  business_processes: ['primary_category'],
+  capex_items: ['paying_company', 'supplier'],
+  companies: ['base_currency'],
+  connections: ['source', 'destination'],
+  contacts: ['supplier'],
+  contracts: ['company', 'supplier'],
+  departments: ['company'],
+  interfaces: ['source_application', 'target_application', 'business_process'],
+  projects: ['business_lead', 'it_lead', 'contributors'],
+  requests: ['requestor', 'business_lead', 'it_lead', 'contributors'],
+  spend_items: ['supplier', 'paying_company', 'account', 'contract'],
+  suppliers: ['erp_supplier_id'],
+  tasks: ['assignee', 'creator'],
+  users: [
+    'email', 'job_title', 'primary_role', 'company', 'department', 'locale',
+    'team', 'contributor_profile', 'project_availability', 'areas_of_expertise',
+  ],
+};
 
 function appendParticipationScopeSql(
   entityType: ParticipationScopedAiEntityType,
@@ -1349,7 +1405,7 @@ export class AiEntityService {
            ci.description ILIKE $1
            OR COALESCE(ci.notes, '') ILIKE $1
            OR COALESCE(ci.ppe_type::text, '') ILIKE $1
-           OR COALESCE(ci.investment_type, '') ILIKE $1
+           OR COALESCE(ci.investment_type::text, '') ILIKE $1
            OR COALESCE(ci.priority, '') ILIKE $1
            OR COALESCE(ci.currency, '') ILIKE $1
            OR COALESCE(comp.name, '') ILIKE $1
@@ -1898,6 +1954,237 @@ export class AiEntityService {
       offset?: number;
     },
   ) {
+    if (aiSearchIndexEnabled()) {
+      return this.searchAllIndexed(context, input);
+    }
+    return this.searchAllLegacy(context, input);
+  }
+
+  /**
+   * Unified search over the trigger-maintained `search_index` table: a single
+   * indexed query (GIN tsvector + pg_trgm) replaces the legacy sequential
+   * per-entity-type scans, with one comparable score scale across types.
+   * Participation scope and the documents library ACL are enforced query-time
+   * (never baked into the index).
+   */
+  private async searchAllIndexed(
+    context: AiExecutionContextWithManager,
+    input: {
+      query: string;
+      entity_types?: AiSearchEntityType[];
+      limit?: number;
+      offset?: number;
+    },
+  ) {
+    const requested = input.entity_types && input.entity_types.length > 0
+      ? input.entity_types
+      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+    const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
+    if (allowed.length === 0) {
+      return { items: [], total: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
+    }
+
+    const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
+    const offset = Math.min(Math.max(Number(input.offset) || 0, 0), 5000);
+
+    const { rows, total } = await this.runSearchIndexQuery(context, allowed, input.query, limit, offset);
+    const items = rows.map((row) => {
+      const { _score, ...item } = this.searchIndexRowToSummary(row);
+      return item;
+    });
+    const truncated = offset + items.length < total;
+
+    return {
+      items,
+      total,
+      offset,
+      limit,
+      returned: items.length,
+      truncated,
+      complete: !truncated,
+      entity_types: allowed,
+      failed_entity_types: [] as AiSearchEntityType[],
+      warnings: [] as Array<{ entity_type: AiSearchEntityType; message: string }>,
+    };
+  }
+
+  private async runSearchIndexQuery(
+    context: AiExecutionContextWithManager,
+    entityTypes: AiSearchEntityType[],
+    query: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ rows: any[]; total: number }> {
+    const q = String(query || '').trim();
+    const prefixed = q.match(INDEXED_REF_QUERY_RE);
+    const bare = q.match(/^(\d+)$/);
+    const digits = prefixed?.[2] ?? bare?.[1] ?? null;
+    const numericPrefix = digits && Number.isSafeInteger(Number(digits)) ? digits : null;
+    const ref = numericPrefix != null ? Number(numericPrefix) : null;
+    const queryPrefix = prefixed ? prefixed[1].toUpperCase() : null;
+    const refPrefix = queryPrefix
+      ? (QUERY_PREFIX_TO_INDEX_REF_PREFIX[queryPrefix] ?? queryPrefix)
+      : null;
+
+    const params: unknown[] = [];
+    const push = (value: unknown): string => {
+      params.push(value);
+      return `$${params.length}`;
+    };
+
+    // Lexeme-prefix fallback: the legacy path substring-ILIKEd every indexed
+    // field, so "admin" used to match a user through the "Administrator" role
+    // name. websearch_to_tsquery only matches whole stems; AND-ing the query
+    // tokens as :* prefixes keeps that recall (such matches score in the same
+    // bottom tier the legacy CASE gave them).
+    const prefixTokens = (prefixed || bare ? [] : q.split(/[^\p{L}\p{N}]+/u))
+      .filter((token) => token.length >= 3)
+      .slice(0, 4);
+    const prefixTsQueryInput = prefixTokens.length > 0
+      ? prefixTokens.map((token) => `${token}:*`).join(' & ')
+      : null;
+
+    const tenantRef = push(context.tenantId);
+    const typesRef = push(entityTypes);
+    const qRef = push(q);
+    const likeRef = push(`%${q}%`);
+    const refRef = push(ref);
+    const numPrefixRef = push(numericPrefix);
+    const refPrefixRef = push(refPrefix);
+    const prefixRef = push(prefixTsQueryInput);
+    const tsq = bilingualDocumentTsQuerySql(qRef);
+    const prefixTsq = `(to_tsquery('kanap_fr', ${prefixRef}) || to_tsquery('kanap_en', ${prefixRef}))`;
+
+    // Participation scope (CRITICAL — security): scoped users only see the
+    // applications/projects/requests/tasks they participate in. Resolved once
+    // per type (cached on the context) and replicated with the exact same
+    // participantCondition SQL as the legacy per-type searches, via EXISTS
+    // against the source tables.
+    const scopeClauses: string[] = [];
+    for (const type of ['applications', 'projects', 'requests', 'tasks'] as ParticipationScopedAiEntityType[]) {
+      if (!entityTypes.includes(type)) continue;
+      const accessScope = await resolveAiParticipationAccessScope(context, type);
+      if (!accessScope) continue;
+      const userRef = push(accessScope.userId);
+      const sourceTable = PARTICIPATION_SCOPE_SOURCE_TABLE[type];
+      scopeClauses.push(`AND (search_index.entity_type <> '${type}' OR EXISTS (
+        SELECT 1 FROM ${sourceTable} scope_src
+        WHERE scope_src.id = search_index.entity_id
+          AND scope_src.tenant_id = search_index.tenant_id
+          AND ${participantConditionForAiEntity(type, 'scope_src', userRef)}
+      ))`);
+    }
+
+    // Documents stay behind the knowledge library ACL (same check as
+    // KnowledgeService.search). null = unrestricted; [] = no library access.
+    if (entityTypes.includes('documents')) {
+      // Optional call: the real KnowledgeService always implements this;
+      // partial test doubles without it behave like an unrestricted user.
+      const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser?.(
+        context.manager,
+        context.userId ?? null,
+      ) ?? null;
+      if (accessibleLibraries) {
+        const librariesRef = push(accessibleLibraries);
+        scopeClauses.push(`AND (search_index.entity_type <> 'documents' OR EXISTS (
+          SELECT 1 FROM documents d_acl
+          WHERE d_acl.id = search_index.entity_id
+            AND d_acl.tenant_id = search_index.tenant_id
+            AND d_acl.library_id = ANY(${librariesRef}::uuid[])
+        ))`);
+      }
+    }
+
+    const limitRef = push(limit);
+    const offsetRef = push(offset);
+
+    const rows = await context.manager.query(
+      `SELECT entity_type, entity_id, ref_prefix, ref_number, label, summary, status,
+              extra_json, source_updated_at,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN ${refRef}::int IS NOT NULL AND ref_number = ${refRef}
+                     AND (${refPrefixRef}::text IS NULL OR ref_prefix = ${refPrefixRef}) THEN 4
+                WHEN LOWER(COALESCE(extra_json->>'email', '')) = LOWER(${qRef}) THEN 4
+                WHEN ${numPrefixRef}::text IS NOT NULL
+                     AND ref_number::text LIKE ${numPrefixRef} || '%' THEN 3.5
+                WHEN label ILIKE ${likeRef} THEN 3
+                WHEN similarity(label, ${qRef}) > 0.35 THEN 2.5
+                ELSE 1 + LEAST(ts_rank(search_vector, ${tsq}), 0.99)
+              END AS score
+       FROM search_index
+       WHERE tenant_id = ${tenantRef}
+         AND entity_type = ANY(${typesRef}::text[])
+         AND (
+               (${refRef}::int IS NOT NULL AND ref_number = ${refRef})
+            OR (${numPrefixRef}::text IS NOT NULL AND ref_number::text LIKE ${numPrefixRef} || '%')
+            OR label ILIKE ${likeRef}
+            OR similarity(label, ${qRef}) > 0.35
+            OR search_vector @@ ${tsq}
+            OR (${prefixRef}::text IS NOT NULL AND search_vector @@ ${prefixTsq})
+            OR LOWER(COALESCE(extra_json->>'email', '')) = LOWER(${qRef})
+         )
+         ${scopeClauses.join('\n         ')}
+       ORDER BY score DESC,
+                CASE WHEN ${numPrefixRef}::text IS NOT NULL THEN ref_number END ASC NULLS LAST,
+                source_updated_at DESC NULLS LAST,
+                label ASC
+       LIMIT ${limitRef} OFFSET ${offsetRef}`,
+      params,
+    );
+
+    return {
+      rows,
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private searchIndexRowToSummary(row: any): AiEntitySummaryDto & { _score: number } {
+    const type = row.entity_type as AiSearchEntityType;
+    const extra = (row.extra_json ?? null) as Record<string, unknown> | null;
+
+    let ref: string | null = null;
+    if (type === 'applications' || type === 'assets') {
+      ref = (extra?.item_ref as string | undefined) ?? null;
+    } else {
+      ref = buildRef(type, row.ref_number ?? null);
+    }
+
+    const metadataKeys = SEARCH_INDEX_METADATA_KEYS[type];
+    let metadata: Record<string, string | number | boolean | null> | null = null;
+    if (metadataKeys) {
+      metadata = {};
+      for (const key of metadataKeys) {
+        const value = extra ? extra[key] : null;
+        metadata[key] = key === 'project_availability'
+          ? toNullableNumber(value)
+          : ((value as string | number | boolean | null | undefined) ?? null);
+      }
+    }
+
+    return {
+      type,
+      id: row.entity_id,
+      ref,
+      label: row.label,
+      status: row.status ?? null,
+      summary: row.summary ?? null,
+      updated_at: toIso(row.source_updated_at),
+      match_context: row.summary ?? null,
+      metadata,
+      _score: Number(row.score) || 1,
+    };
+  }
+
+  private async searchAllLegacy(
+    context: AiExecutionContextWithManager,
+    input: {
+      query: string;
+      entity_types?: AiSearchEntityType[];
+      limit?: number;
+      offset?: number;
+    },
+  ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
       : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
@@ -2114,6 +2401,22 @@ export class AiEntityService {
     query: string,
     fetchLimit: number,
   ): Promise<RankedSearchResult> {
+    // Indexed path: single-type query over search_index. Documents keep the
+    // KnowledgeService path below so per-type callers (the @-mention picker)
+    // retain ts_headline snippets and item-ref prefix ordering.
+    if (aiSearchIndexEnabled() && type !== 'documents') {
+      const { rows, total } = await this.runSearchIndexQuery(
+        context,
+        [type as AiSearchEntityType],
+        query,
+        fetchLimit,
+        0,
+      );
+      return {
+        items: rows.map((row) => this.searchIndexRowToSummary(row)),
+        total,
+      };
+    }
     if (type === 'accounts') return this.searchAccounts(context, query, fetchLimit);
     if (type === 'analytics_categories') return this.searchAnalyticsCategories(context, query, fetchLimit);
     if (type === 'applications') return this.searchApplications(context, query, fetchLimit);
