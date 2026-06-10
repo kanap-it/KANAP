@@ -17,6 +17,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *   or the daily reindex job runs. This staleness is a deliberate trade-off.
  * - Participation/visibility scope is NEVER baked into the index — it is
  *   enforced query-time in AiEntityService (EXISTS against source tables).
+ * - Data-migrations that write to the source tables under a non-BYPASSRLS
+ *   role must loop per tenant with set_config('app.current_tenant', …, true)
+ *   — the sync triggers insert into search_index, whose RLS WITH CHECK
+ *   otherwise rejects the write (see the backfill below for the pattern).
  *
  * Vector weights: A = ref + label/name/title (+ user email), B = status and
  * category/type/stream/lifecycle-ish fields, C = descriptions, notes,
@@ -406,7 +410,7 @@ const TYPE_SPECS: SearchIndexTypeSpec[] = [
     alias: 'l',
     refPrefix: textRefPrefix('l.location_reference', 'LOC'),
     refNumber: textRefNumber('l.location_reference', 'LOC'),
-    label: `l.location_reference || ' — ' || l.name`,
+    label: `COALESCE(NULLIF(TRIM(CONCAT_WS(' — ', l.location_reference, l.name)), ''), '')`,
     summary: `COALESCE(NULLIF(l.city, ''), l.country_iso)`,
     status: 'NULL',
     extraJson: 'NULL',

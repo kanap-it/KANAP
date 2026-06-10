@@ -2078,12 +2078,10 @@ export class AiEntityService {
     // Documents stay behind the knowledge library ACL (same check as
     // KnowledgeService.search). null = unrestricted; [] = no library access.
     if (entityTypes.includes('documents')) {
-      // Optional call: the real KnowledgeService always implements this;
-      // partial test doubles without it behave like an unrestricted user.
-      const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser?.(
+      const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser(
         context.manager,
         context.userId ?? null,
-      ) ?? null;
+      );
       if (accessibleLibraries) {
         const librariesRef = push(accessibleLibraries);
         scopeClauses.push(`AND (search_index.entity_type <> 'documents' OR EXISTS (

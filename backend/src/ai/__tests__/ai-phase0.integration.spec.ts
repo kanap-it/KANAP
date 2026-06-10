@@ -188,6 +188,7 @@ async function testAiEntityServiceAgainstRealQueries() {
     const entityService = new AiEntityService(
       {
         search: async () => ({ items: [], total: 0 }),
+        listReadableLibraryIdsForUser: async () => null,
         getKnowledgeContextForEntity: async () => ({
           access: 'granted',
           total: 0,
