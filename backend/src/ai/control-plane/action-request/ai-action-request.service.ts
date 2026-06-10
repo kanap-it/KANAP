@@ -10,6 +10,7 @@ import { hashStableJson } from '../evidence/ai-evidence.service';
 import { PolicyDecisionRecord } from '../policy/policy-decision.types';
 
 const DEFAULT_PROVIDER_ACTION_TTL_MS = 30 * 60 * 1000;
+const PROVIDER_ACTION_RETRYABLE_TERMINAL_STATUSES = new Set(['expired', 'failed', 'rejected']);
 
 export type ProviderActionRequestSeed = {
   runId?: string | null;
@@ -30,6 +31,7 @@ export type ProviderActionRequestSeed = {
   inputSummary?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
   expiresAt?: Date | null;
+  retryAfterStatuses?: string[] | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -44,6 +46,20 @@ function isUniqueViolation(error: unknown): boolean {
   return !!error
     && typeof error === 'object'
     && (error as { code?: unknown }).code === '23505';
+}
+
+function providerActionRetryableStatuses(seed: ProviderActionRequestSeed): Set<string> {
+  const statuses = new Set(PROVIDER_ACTION_RETRYABLE_TERMINAL_STATUSES);
+  for (const status of seed.retryAfterStatuses ?? []) {
+    if (typeof status === 'string' && status.trim().length > 0) {
+      statuses.add(status.trim());
+    }
+  }
+  return statuses;
+}
+
+function isRetryableTerminalProviderAction(action: AiActionRequest, seed: ProviderActionRequestSeed): boolean {
+  return providerActionRetryableStatuses(seed).has(action.status);
 }
 
 function isMutationPreviewDto(value: unknown): value is AiMutationPreviewDto {
@@ -131,6 +147,21 @@ export class AiActionRequestService {
 
   providerActionInputHash(seed: Pick<ProviderActionRequestSeed, 'capabilityName' | 'capabilityVersion' | 'effect' | 'providerKind' | 'providerKey' | 'targetType' | 'targetId' | 'targetRef' | 'actionPayload' | 'idempotencyKey'>): string {
     return this.inputHashForProviderAction(seed);
+  }
+
+  private retryProviderActionSeed(seed: ProviderActionRequestSeed, previousAction: AiActionRequest): ProviderActionRequestSeed {
+    return {
+      ...seed,
+      idempotencyKey: hashStableJson({
+        original_idempotency_key: seed.idempotencyKey,
+        retry_after_action_request_id: previousAction.id,
+      }),
+      metadata: {
+        ...(seed.metadata ?? {}),
+        retry_after_action_request_id: previousAction.id,
+        retry_after_action_status: previousAction.status,
+      },
+    };
   }
 
   async getPreviewForAction(
@@ -252,60 +283,58 @@ export class AiActionRequestService {
       throw new ForbiddenException('Tenant context is required for provider action requests.');
     }
     const repo = this.actionRepository(context.manager);
-    const findExisting = () => repo.findOne({
+    const findExisting = (candidate: ProviderActionRequestSeed) => repo.findOne({
       where: {
         tenant_id: context.tenantId,
-        capability_name: seed.capabilityName,
-        capability_version: seed.capabilityVersion,
-        idempotency_key: seed.idempotencyKey,
+        capability_name: candidate.capabilityName,
+        capability_version: candidate.capabilityVersion,
+        idempotency_key: candidate.idempotencyKey,
       },
     });
-    const existing = await repo.findOne({
-      where: {
-        tenant_id: context.tenantId,
-        capability_name: seed.capabilityName,
-        capability_version: seed.capabilityVersion,
-        idempotency_key: seed.idempotencyKey,
-      },
-    });
+    let candidateSeed = seed;
+    let existing = await findExisting(candidateSeed);
+    while (existing && isRetryableTerminalProviderAction(existing, candidateSeed)) {
+      candidateSeed = this.retryProviderActionSeed(seed, existing);
+      existing = await findExisting(candidateSeed);
+    }
     if (existing) {
-      return this.mergeExistingProviderAction(context, existing, seed);
+      return this.mergeExistingProviderAction(context, existing, candidateSeed);
     }
 
-    const expiresAt = seed.expiresAt ?? new Date(Date.now() + DEFAULT_PROVIDER_ACTION_TTL_MS);
+    const expiresAt = candidateSeed.expiresAt ?? new Date(Date.now() + DEFAULT_PROVIDER_ACTION_TTL_MS);
     const action = repo.create({
       tenant_id: context.tenantId,
-      run_id: seed.runId ?? null,
-      tool_execution_id: seed.toolExecutionId ?? null,
-      conversation_id: seed.conversationId ?? context.conversationId ?? null,
-      user_id: seed.userId ?? context.userId ?? null,
+      run_id: candidateSeed.runId ?? null,
+      tool_execution_id: candidateSeed.toolExecutionId ?? null,
+      conversation_id: candidateSeed.conversationId ?? context.conversationId ?? null,
+      user_id: candidateSeed.userId ?? context.userId ?? null,
       preview_id: null,
-      capability_name: seed.capabilityName,
-      capability_version: seed.capabilityVersion,
-      effect: seed.effect,
+      capability_name: candidateSeed.capabilityName,
+      capability_version: candidateSeed.capabilityVersion,
+      effect: candidateSeed.effect,
       status: 'pending',
-      target_type: seed.targetType,
-      target_id: seed.targetId ?? null,
-      target_ref: seed.targetRef,
-      idempotency_key: seed.idempotencyKey,
-      action_payload_json: seed.actionPayload,
-      provider_kind: seed.providerKind,
-      provider_key: seed.providerKey,
-      input_hash: this.inputHashForProviderAction(seed),
-      input_summary: seed.inputSummary ?? {
-        provider_kind: seed.providerKind,
-        provider_key: seed.providerKey,
-        target_type: seed.targetType,
-        target_ref: seed.targetRef,
-        effect: seed.effect,
+      target_type: candidateSeed.targetType,
+      target_id: candidateSeed.targetId ?? null,
+      target_ref: candidateSeed.targetRef,
+      idempotency_key: candidateSeed.idempotencyKey,
+      action_payload_json: candidateSeed.actionPayload,
+      provider_kind: candidateSeed.providerKind,
+      provider_key: candidateSeed.providerKey,
+      input_hash: this.inputHashForProviderAction(candidateSeed),
+      input_summary: candidateSeed.inputSummary ?? {
+        provider_kind: candidateSeed.providerKind,
+        provider_key: candidateSeed.providerKey,
+        target_type: candidateSeed.targetType,
+        target_ref: candidateSeed.targetRef,
+        effect: candidateSeed.effect,
       },
-      evidence_ids: seed.evidenceIds ?? null,
+      evidence_ids: candidateSeed.evidenceIds ?? null,
       expires_at: expiresAt,
       approved_at: null,
       rejected_at: null,
       executed_at: null,
       error_message: null,
-      metadata_json: seed.metadata ?? null,
+      metadata_json: candidateSeed.metadata ?? null,
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -315,11 +344,11 @@ export class AiActionRequestService {
       if (!isUniqueViolation(error)) {
         throw error;
       }
-      const concurrentExisting = await findExisting();
+      const concurrentExisting = await findExisting(candidateSeed);
       if (!concurrentExisting) {
         throw error;
       }
-      return this.mergeExistingProviderAction(context, concurrentExisting, seed);
+      return this.mergeExistingProviderAction(context, concurrentExisting, candidateSeed);
     }
   }
 
@@ -473,10 +502,13 @@ export class AiActionRequestService {
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
   ): Promise<AiActionRequest> {
+    const repo = this.actionRepository(context.manager);
     action.status = 'expired';
     action.error_message = 'Action request expired before approval or execution.';
     action.updated_at = new Date();
-    return this.actionRepository(context.manager).save(action);
+    const saved = await repo.save(action);
+    await this.updateLinkedEvaluation(context, saved, 'expired', saved.error_message);
+    return saved;
   }
 
   async markRejected(
@@ -484,11 +516,14 @@ export class AiActionRequestService {
     action: AiActionRequest,
     reason?: string | null,
   ): Promise<AiActionRequest> {
+    const repo = this.actionRepository(context.manager);
     action.status = 'rejected';
     action.rejected_at = new Date();
     action.error_message = reason ?? null;
     action.updated_at = new Date();
-    return this.actionRepository(context.manager).save(action);
+    const saved = await repo.save(action);
+    await this.updateLinkedEvaluation(context, saved, 'rejected', reason ?? null);
+    return saved;
   }
 
   async markExecuted(
@@ -527,12 +562,16 @@ export class AiActionRequestService {
     if (!evaluation) {
       return;
     }
-    evaluation.status = status === 'executed' ? 'completed' : 'pending';
+    evaluation.status = status === 'executed' || status === 'rejected' || status === 'expired' ? 'completed' : 'pending';
     evaluation.outcome = status === 'executed'
       ? 'provider_action_executed'
-      : status === 'failed'
-        ? 'provider_action_failed'
-        : evaluation.outcome;
+      : status === 'rejected'
+        ? 'provider_action_rejected'
+        : status === 'expired'
+          ? 'provider_action_expired_unreviewed'
+          : status === 'failed'
+            ? 'provider_action_failed'
+            : evaluation.outcome;
     evaluation.feedback_json = {
       ...(isRecord(evaluation.feedback_json) ? evaluation.feedback_json : {}),
       provider_action: {

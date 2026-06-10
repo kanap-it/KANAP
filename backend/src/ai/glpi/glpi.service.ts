@@ -10,12 +10,17 @@ import {
   GlpiTicket,
   GlpiTicketFollowup,
   GlpiTicketFollowupWriteResult,
+  GlpiTicketListScope,
+  GlpiTicketUpdateFields,
+  GlpiTicketUpdateResult,
+  GlpiTicketUserAssociation,
 } from './glpi.types';
 
 const GLPI_TIMEOUT_MS = 10_000;
 const GLPI_MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 const GLPI_PAGE_SIZE = 50;
 const GLPI_MAX_INTERNAL_NOTE_CHARS = 4000;
+const GLPI_MAX_PUBLIC_REPLY_CHARS = 12000;
 
 type ResolvedGlpiSettings = {
   baseUrl: string;
@@ -128,16 +133,18 @@ function parseBooleanGlpiValue(value: unknown): boolean {
   return false;
 }
 
-function normalizePlainInternalNote(value: string): string {
+function normalizePlainTicketFollowup(value: string, opts?: { maxChars?: number; label?: string }): string {
+  const maxChars = opts?.maxChars ?? GLPI_MAX_INTERNAL_NOTE_CHARS;
+  const label = opts?.label ?? 'GLPI followup';
   const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
   if (!normalized) {
-    throw new BadRequestException('GLPI internal note content is required.');
+    throw new BadRequestException(`${label} content is required.`);
   }
-  if (normalized.length > GLPI_MAX_INTERNAL_NOTE_CHARS) {
-    throw new BadRequestException('GLPI internal note content exceeds the allowed length.');
+  if (normalized.length > maxChars) {
+    throw new BadRequestException(`${label} content exceeds the allowed length.`);
   }
   if (/<[^>]+>/.test(normalized) || /javascript:/i.test(normalized)) {
-    throw new BadRequestException('GLPI internal notes must be plain text and cannot contain HTML or scripts.');
+    throw new BadRequestException(`${label} content must be plain text and cannot contain HTML or scripts.`);
   }
   return normalized;
 }
@@ -190,6 +197,56 @@ function parseContentRangeTotal(value: string | null): number | null {
 
 function normalizeGlpiDate(value: unknown): string | null {
   return textOrNull(value);
+}
+
+function parseGlpiDateMs(value: unknown): number | null {
+  const text = textOrNull(value);
+  if (!text) {
+    return null;
+  }
+  const direct = Date.parse(text);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+  const normalized = Date.parse(text.replace(' ', 'T'));
+  return Number.isFinite(normalized) ? normalized : null;
+}
+
+function formatGlpiSearchDate(value: string): string {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) {
+    throw new BadRequestException('GLPI ticket list horizon must be a valid timestamp.');
+  }
+  return new Date(parsed).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function parsePositiveInteger(value: unknown): number | null {
+  const parsed = parseNumericGlpiValue(value);
+  return parsed && parsed > 0 ? parsed : null;
+}
+
+function glpiTicketUserRole(value: unknown): GlpiTicketUserAssociation['role'] {
+  const numeric = parseNumericGlpiValue(value);
+  if (numeric === 1) {
+    return 'requester';
+  }
+  if (numeric === 2) {
+    return 'assigned';
+  }
+  if (numeric === 3) {
+    return 'observer';
+  }
+  const label = stringifyGlpiValue(value)?.toLowerCase() ?? '';
+  if (label.includes('requester') || label.includes('demandeur')) {
+    return 'requester';
+  }
+  if (label.includes('assign') || label.includes('technician') || label.includes('attrib')) {
+    return 'assigned';
+  }
+  if (label.includes('observer') || label.includes('watcher') || label.includes('observateur')) {
+    return 'observer';
+  }
+  return 'unknown';
 }
 
 function compareGlpiDatesDesc(a: GlpiTicketFollowup, b: GlpiTicketFollowup): number {
@@ -264,8 +321,98 @@ export class GlpiService {
       priority: parseNumericGlpiValue(record.priority),
       urgency: stringifyGlpiValue(record.urgency),
       type: parseNumericGlpiValue(record.type),
+      entity_id: parsePositiveInteger(record.entities_id),
+      category_id: parsePositiveInteger(record.itilcategories_id),
+      date: normalizeGlpiDate(record.date ?? record.date_creation ?? null),
+      updated_date: normalizeGlpiDate(record.date_mod ?? record.date ?? record.date_creation ?? null),
       glpi_url: this.buildUrl(session.baseUrl, `front/ticket.form.php?id=${resolvedTicketId}`),
     };
+  }
+
+  async searchTicketsForScope(
+    session: GlpiSession,
+    scope: GlpiTicketListScope,
+  ): Promise<GlpiTicket[]> {
+    const maxResults = Math.max(1, Math.min(Math.floor(scope.maxResults), 20));
+    if (!scope.entityId && !scope.categoryId) {
+      throw new BadRequestException('GLPI ticket list requires an entity or category scope.');
+    }
+    const horizon = formatGlpiSearchDate(scope.createdAfter);
+    const horizonMs = Date.parse(scope.createdAfter);
+    const searchUrl = new URL(this.buildUrl(session.baseUrl, 'apirest.php/search/Ticket'));
+    searchUrl.searchParams.set('range', `0-${maxResults - 1}`);
+    searchUrl.searchParams.set('get_hateoas', 'false');
+    searchUrl.searchParams.set('sort', '15');
+    searchUrl.searchParams.set('order', 'DESC');
+    searchUrl.searchParams.set('criteria[0][field]', '15');
+    searchUrl.searchParams.set('criteria[0][searchtype]', 'morethan');
+    searchUrl.searchParams.set('criteria[0][value]', horizon);
+    let criteriaIndex = 1;
+    if (scope.entityId) {
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '80');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'equals');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, String(scope.entityId));
+      criteriaIndex += 1;
+    }
+    if (scope.categoryId) {
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '7');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'equals');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, String(scope.categoryId));
+      criteriaIndex += 1;
+    }
+    ['2', '1', '12', '15', '19', '80', '7'].forEach((field, index) => {
+      searchUrl.searchParams.set(`forcedisplay[${index}]`, field);
+    });
+
+    const payload = await this.requestJson(
+      searchUrl.toString(),
+      {
+        headers: this.buildSessionHeaders(session),
+      },
+    );
+    const record = this.expectRecord(payload, 'GLPI ticket search');
+    if (!Array.isArray(record.data)) {
+      throw new BadRequestException('GLPI ticket search response was malformed.');
+    }
+
+    const ticketIds = record.data.map((row, index) => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        throw new BadRequestException(`GLPI ticket search row ${index + 1} was malformed.`);
+      }
+      const rowRecord = row as Record<string, unknown>;
+      const ticketId = parsePositiveInteger(rowRecord.id ?? rowRecord['2']);
+      if (!ticketId) {
+        throw new BadRequestException(`GLPI ticket search row ${index + 1} did not include a ticket id.`);
+      }
+      return ticketId;
+    });
+
+    const tickets: GlpiTicket[] = [];
+    const seen = new Set<number>();
+    for (const ticketId of ticketIds) {
+      if (seen.has(ticketId)) {
+        continue;
+      }
+      seen.add(ticketId);
+      const ticket = await this.getTicket(session, ticketId);
+      const createdMs = parseGlpiDateMs(ticket.date);
+      if (createdMs == null || createdMs < horizonMs) {
+        continue;
+      }
+      if (scope.entityId && ticket.entity_id !== scope.entityId) {
+        continue;
+      }
+      if (scope.categoryId && ticket.category_id !== scope.categoryId) {
+        continue;
+      }
+      tickets.push(ticket);
+      if (tickets.length >= maxResults) {
+        break;
+      }
+    }
+    return tickets;
   }
 
   async getTicketFollowups(
@@ -332,23 +479,61 @@ export class GlpiService {
     return results.sort(compareGlpiDatesDesc);
   }
 
+  async getTicketUsers(
+    session: GlpiSession,
+    ticketId: number,
+  ): Promise<GlpiTicketUserAssociation[]> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/Ticket_User`));
+    pageUrl.searchParams.set('expand_dropdowns', 'true');
+    pageUrl.searchParams.set('get_hateoas', 'false');
+
+    const payload = await this.requestJson(
+      pageUrl.toString(),
+      {
+        headers: this.buildSessionHeaders(session),
+      },
+      { notFoundMessage: `GLPI ticket #${ticketId} users were not found.` },
+    );
+    if (!Array.isArray(payload)) {
+      throw new BadRequestException('GLPI ticket users response was malformed.');
+    }
+    const associations = payload
+      .map((item) => this.normalizeTicketUserAssociation(item))
+      .filter((item): item is GlpiTicketUserAssociation => !!item);
+    const seen = new Set<string>();
+    return associations.filter((association) => {
+      const key = `${association.user_id}:${association.role}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
   async addTicketFollowup(
     session: GlpiSession,
     ticketId: number,
     content: string,
-    opts?: { isPrivate?: boolean },
+    opts?: { isPrivate?: boolean; allowPublic?: boolean },
   ): Promise<GlpiTicketFollowupWriteResult> {
     if (!Number.isInteger(ticketId) || ticketId <= 0) {
       throw new BadRequestException('GLPI ticket id must be a positive integer.');
     }
-    const body = normalizePlainInternalNote(content);
     const isPrivate = opts?.isPrivate !== false;
-    if (!isPrivate) {
+    if (!isPrivate && opts?.allowPublic !== true) {
       throw new BadRequestException('Only private/internal GLPI followups are allowed for agentic triage.');
     }
+    const body = normalizePlainTicketFollowup(content, {
+      maxChars: isPrivate ? GLPI_MAX_INTERNAL_NOTE_CHARS : GLPI_MAX_PUBLIC_REPLY_CHARS,
+      label: isPrivate ? 'GLPI internal note' : 'GLPI public reply',
+    });
 
     const payload = await this.requestJson(
-      this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/ITILFollowup`),
+      this.buildUrl(session.baseUrl, 'apirest.php/ITILFollowup'),
       {
         method: 'POST',
         headers: this.buildSessionHeaders(session),
@@ -357,7 +542,7 @@ export class GlpiService {
             itemtype: 'Ticket',
             items_id: ticketId,
             content: body,
-            is_private: 1,
+            is_private: isPrivate ? 1 : 0,
           },
         }),
       },
@@ -373,8 +558,49 @@ export class GlpiService {
     return {
       id,
       ticket_id: ticketId,
-      is_private: true,
+      is_private: isPrivate,
       content_html: body,
+    };
+  }
+
+  async updateTicketFields(
+    session: GlpiSession,
+    ticketId: number,
+    fields: GlpiTicketUpdateFields,
+  ): Promise<GlpiTicketUpdateResult> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    const input: Record<string, number> = {};
+    const allowedFields: Array<keyof GlpiTicketUpdateFields> = ['type', 'priority', 'urgency', 'status'];
+    for (const field of allowedFields) {
+      const value = fields[field];
+      if (value == null) {
+        continue;
+      }
+      if (!Number.isInteger(value) || value <= 0) {
+        throw new BadRequestException(`GLPI ticket field ${field} must be a positive integer.`);
+      }
+      input[field] = value;
+    }
+    const updatedFields = Object.keys(input);
+    if (updatedFields.length === 0) {
+      throw new BadRequestException('No supported GLPI ticket fields were provided for update.');
+    }
+
+    await this.requestJson(
+      this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}`),
+      {
+        method: 'PUT',
+        headers: this.buildSessionHeaders(session),
+        body: JSON.stringify({ input }),
+      },
+      { notFoundMessage: `GLPI ticket #${ticketId} was not found.` },
+    );
+
+    return {
+      ticket_id: ticketId,
+      updated_fields: updatedFields,
     };
   }
 
@@ -546,6 +772,8 @@ export class GlpiService {
     }
 
     const contentHtml = textOrNull(record.content);
+    const authorId = parseNumericGlpiValue(record.users_id);
+    const editorId = parseNumericGlpiValue(record.users_id_editor);
     const authorLabel = textOrNull(record.user_name)
       ?? stringifyGlpiValue(record.users_id)
       ?? stringifyGlpiValue(record.users_id_editor)
@@ -554,10 +782,31 @@ export class GlpiService {
     return {
       id,
       content_html: contentHtml,
+      author_id: authorId,
       author_label: authorLabel,
+      editor_id: editorId,
       date: normalizeGlpiDate(record.date ?? record.date_creation ?? record.date_mod),
+      updated_date: normalizeGlpiDate(record.date_mod ?? record.date ?? record.date_creation),
       is_private: parseBooleanGlpiValue(record.is_private),
       image_targets: extractImageTargets(contentHtml),
+    };
+  }
+
+  private normalizeTicketUserAssociation(payload: unknown): GlpiTicketUserAssociation | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+    const record = payload as Record<string, unknown>;
+    const id = parseNumericGlpiValue(record.id);
+    const userId = parseNumericGlpiValue(record.users_id);
+    if (!id || !userId) {
+      return null;
+    }
+    return {
+      id,
+      user_id: userId,
+      user_label: stringifyGlpiValue(record.users_id),
+      role: glpiTicketUserRole(record.type),
     };
   }
 

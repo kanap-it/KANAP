@@ -167,6 +167,7 @@ export default function Layout() {
     { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users', level: 'admin' },
     { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings', level: 'admin' },
     { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings', level: 'admin' },
+    { to: '/admin/agent-control', label: t('nav:sidebar.admin.agentControl'), icon: <AutoAwesomeIcon />, resource: 'ai_settings', level: 'admin' },
   ];
 
   const platformAdminNav: NavEntry[] = [
@@ -431,8 +432,10 @@ export default function Layout() {
                 if (entry.to === '/admin/billing' && !config.features.billing) return false;
                 if (entry.to === '/admin/auth' && !config.features.sso) return false;
                 if (entry.to === '/admin/ai' && !config.features.aiSettings) return false;
+                if (entry.to === '/admin/agent-control' && !config.features.aiSettings) return false;
                 if (entry.to === '/admin/integrations' && !config.features.aiSettings) return false;
                 if (entry.to === '/admin/ai' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
+                if (entry.to === '/admin/agent-control' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 if (entry.to === '/admin/integrations' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 return true;
               });
@@ -456,7 +459,7 @@ export default function Layout() {
             // Filter items by permission (dividers pass through)
             const visible = entries.filter((entry) => {
               if (!isNavItem(entry)) return true;
-              if (entry.to === '/admin/ai' || entry.to === '/admin/integrations') {
+              if (entry.to === '/admin/ai' || entry.to === '/admin/integrations' || entry.to === '/admin/agent-control') {
                 return aiCapabilities.data?.surfaces.settings.available === true;
               }
               return !entry.resource || hasLevel(entry.resource, entry.level ?? 'reader');

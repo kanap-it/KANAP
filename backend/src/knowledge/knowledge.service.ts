@@ -1315,6 +1315,50 @@ export class KnowledgeService {
     };
   }
 
+  private normalizeDocumentSearchTerm(input: string): string {
+    return String(input || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\p{L}\p{N}'-]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  private getDocumentSearchFallbackTerms(term: string): string[] {
+    const normalized = this.normalizeDocumentSearchTerm(term);
+    if (!normalized) return [];
+    const stopWords = new Set([
+      'avec',
+      'dans',
+      'des',
+      'donc',
+      'for',
+      'les',
+      'plus',
+      'pour',
+      'the',
+      'une',
+      'with',
+    ]);
+    const values = [
+      normalized,
+      ...normalized.split(/\s+/)
+        .flatMap((token) => token.split(/['-]/))
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 3 && !stopWords.has(token)),
+    ];
+    const result: string[] = [];
+    const seen = new Set<string>();
+    for (const value of values) {
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      result.push(value);
+      if (result.length >= 8) break;
+    }
+    return result;
+  }
+
   private buildDocumentSearchSql(
     alias: string,
     paramOffset: number,
@@ -5083,7 +5127,7 @@ export class KnowledgeService {
     params.push(limit);
     params.push(offset);
 
-    const rows = await manager.query(
+    let rows = await manager.query(
       `SELECT d.id,
               d.item_number,
               d.title,
@@ -5107,6 +5151,62 @@ export class KnowledgeService {
        OFFSET $${params.length}`,
       params,
     );
+
+    if (rows.length === 0) {
+      const fallbackTerms = this.getDocumentSearchFallbackTerms(search.term);
+      if (fallbackTerms.length > 0) {
+        const fallbackParams: Array<string | number | string[]> = [];
+        const fallbackClauses: string[] = [];
+        for (const term of fallbackTerms) {
+          fallbackParams.push(`%${term}%`);
+          const index = fallbackParams.length;
+          fallbackClauses.push(
+            `d.title ILIKE $${index}`,
+            `COALESCE(d.summary, '') ILIKE $${index}`,
+            `COALESCE(d.content_plain, '') ILIKE $${index}`,
+            `COALESCE(d.content_markdown, '') ILIKE $${index}`,
+          );
+        }
+        if (search.itemNumber != null) {
+          fallbackParams.push(search.itemNumber);
+          fallbackClauses.unshift(`d.item_number = $${fallbackParams.length}`);
+        }
+        const fallbackWhereClauses = [`(${fallbackClauses.join(' OR ')})`];
+        if (libraryId) {
+          fallbackParams.push(libraryId);
+          fallbackWhereClauses.push(`d.library_id = $${fallbackParams.length}`);
+        }
+        if (accessibleLibraries) {
+          fallbackParams.push(accessibleLibraries);
+          fallbackWhereClauses.push(`d.library_id = ANY($${fallbackParams.length}::uuid[])`);
+        }
+        fallbackParams.push(limit);
+        fallbackParams.push(offset);
+        rows = await manager.query(
+          `SELECT d.id,
+                  d.item_number,
+                  d.title,
+                  d.summary,
+                  d.status,
+                  d.updated_at,
+                  d.folder_id,
+                  d.document_type_id,
+                  d.library_id,
+                  dl.name AS library_name,
+                  0 AS title_match,
+                  COUNT(*) OVER()::int AS total_count,
+                  0 AS rank,
+                  NULL AS snippet
+           FROM documents d
+           LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
+           WHERE ${fallbackWhereClauses.join(' AND ')}
+           ORDER BY d.title ASC, d.updated_at DESC
+           LIMIT $${fallbackParams.length - 1}
+           OFFSET $${fallbackParams.length}`,
+          fallbackParams,
+        );
+      }
+    }
 
     const total = rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0;
 

@@ -61,12 +61,22 @@ import { AiToolRegistry } from './ai-tool.registry';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
 import { AiActionRequestService } from './control-plane/action-request/ai-action-request.service';
+import { AiAgentControlController } from './control-plane/agent-control/ai-agent-control.controller';
+import { AiAgentControlService } from './control-plane/agent-control/ai-agent-control.service';
+import { AiKnowledgeSearchPlannerService } from './control-plane/agent-control/ai-knowledge-search-planner.service';
+import { AiAgentHelpdeskGlpiIngestionService } from './control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
+import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
 import { AiApprovalService } from './control-plane/approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from './control-plane/automation/ai-automation-job-catalog.service';
 import { AiCapabilityRegistry } from './control-plane/capability/ai-capability.registry';
 import { AiReadonlyDiagnosticWorkflowService } from './control-plane/diagnostics/ai-readonly-diagnostic-workflow.service';
 import { AiCapabilityDispatcherService } from './control-plane/dispatcher/ai-capability-dispatcher.service';
 import { AiActionRequest } from './control-plane/entities/ai-action-request.entity';
+import { AiAgentAuditEvent } from './control-plane/entities/ai-agent-audit-event.entity';
+import { AiAgentDefinition } from './control-plane/entities/ai-agent-definition.entity';
+import { AiAgentTargetState } from './control-plane/entities/ai-agent-target-state.entity';
+import { AiAgentTrigger } from './control-plane/entities/ai-agent-trigger.entity';
+import { AiAgentWorkItem } from './control-plane/entities/ai-agent-work-item.entity';
 import { AiApproval } from './control-plane/entities/ai-approval.entity';
 import { AiApprovalPolicy } from './control-plane/entities/ai-approval-policy.entity';
 import { AiAutomationJobCatalog } from './control-plane/entities/ai-automation-job-catalog.entity';
@@ -99,6 +109,7 @@ import { AiAutonomyDemotionService } from './control-plane/policy/ai-autonomy-de
 import { AiAutonomyRoutineService } from './control-plane/policy/ai-autonomy-routine.service';
 import { AiAdapterConfig } from './control-plane/providers/adapter-config.entity';
 import { AiAdapterConfigService } from './control-plane/providers/adapter-config.service';
+import { GlpiTicketingProvider } from './control-plane/providers/glpi-ticketing.provider';
 import { AiProviderRegistryService } from './control-plane/providers/provider-registry.service';
 import { AiTenantSecretResolverService } from './control-plane/providers/tenant-secret-resolver.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
@@ -146,6 +157,10 @@ import { BraveSearchService } from './web-search/brave-search.service';
       AiRunStep,
       AiToolExecution,
       AiEvidence,
+      AiAgentDefinition,
+      AiAgentTrigger,
+      AiAgentWorkItem,
+      AiAgentTargetState,
       AiActionRequest,
       AiApproval,
       AiApprovalPolicy,
@@ -161,6 +176,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
       AiRecommendation,
       AiDecision,
       AiEvaluation,
+      AiAgentAuditEvent,
       UserRole,
       Subscription,
       Tenant,
@@ -202,6 +218,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiApiKeysController,
     AiMcpController,
     AiSearchController,
+    AiAgentControlController,
   ],
   providers: [
     AiTenantExecutionService,
@@ -245,6 +262,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentHelpdeskGlpiIngestionService,
+    AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
     AiLiveContractHarnessService,
@@ -261,9 +280,12 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAutomationJobCatalogService,
     AiEmergencyPauseService,
     AiAdapterConfigService,
+    GlpiTicketingProvider,
     AiTenantSecretResolverService,
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
+    AiKnowledgeSearchPlannerService,
+    AiAgentControlService,
     BraveSearchService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,
@@ -286,6 +308,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentHelpdeskGlpiIngestionService,
+    AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
     AiLiveContractHarnessService,
@@ -302,9 +326,12 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAutomationJobCatalogService,
     AiEmergencyPauseService,
     AiAdapterConfigService,
+    GlpiTicketingProvider,
     AiTenantSecretResolverService,
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
+    AiKnowledgeSearchPlannerService,
+    AiAgentControlService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,
     AiSystemPromptService,

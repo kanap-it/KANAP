@@ -48,7 +48,7 @@ import { AiApprovalService } from './control-plane/approval/ai-approval.service'
 import { AiCapabilityRegistry, EXECUTE_APPROVED_PREVIEW_CAPABILITY } from './control-plane/capability/ai-capability.registry';
 import { AiCapabilityDispatcherService } from './control-plane/dispatcher/ai-capability-dispatcher.service';
 
-const MAX_TOOL_ITERATIONS = 20;
+const MAX_TOOL_ITERATIONS = parsePositiveIntEnv(process.env.AI_CHAT_MAX_TOOL_ITERATIONS, 40);
 /**
  * Per-turn output cap. The previous 4096 was too tight: when a write tool such as
  * create_document or update_document_content streams its arguments (the document
@@ -74,6 +74,9 @@ function parsePositiveIntEnv(value: string | undefined, fallback: number): numbe
 const DEFAULT_CHAT_PROVIDER_TIMEOUT_MS = 300_000;
 const AI_CHAT_DEBUG_TRACE_ENABLED = isAiChatDebugTraceEnabled();
 const MAX_UNSAFE_WRITE_RESPONSE_RETRIES = 2;
+const MAX_REPEATED_TOOL_CALL_REPAIR_RETRIES = 2;
+const SEARCH_ALL_NO_PROGRESS_CALL_THRESHOLD = parsePositiveIntEnv(process.env.AI_CHAT_SEARCH_ALL_NO_PROGRESS_CALL_THRESHOLD, 4);
+const MAX_SEARCH_ALL_NO_PROGRESS_REPAIR_RETRIES = 1;
 const APPROVE_MARKER_RE = /^\[APPROVE:([0-9a-f-]{36})\]$/i;
 const REJECT_MARKER_RE = /^\[REJECT:([0-9a-f-]{36})\]$/i;
 const APPROVE_SELECTED_MARKER_RE = /^\[APPROVE_SELECTED:([0-9a-f,\s-]+)\]$/i;
@@ -235,6 +238,106 @@ function buildToolCallSignature(toolCalls: Array<{ name: string; arguments: stri
   return toolCalls
     .map((toolCall) => `${toolCall.name}\u0000${toolCall.arguments}`)
     .join('\u0001');
+}
+
+type SearchAllProgressState = {
+  calls: number;
+  noProgressCalls: number;
+  repairRetries: number;
+  seenItemKeys: Set<string>;
+};
+
+type SearchAllNoProgressIntervention = {
+  action: 'repair' | 'fail';
+  calls: number;
+  noProgressCalls: number;
+  query: string | null;
+  failedEntityTypes: string[];
+  complete: boolean | null;
+  truncated: boolean | null;
+};
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function stringArrayField(value: unknown, field: string): string[] {
+  if (!isPlainRecord(value) || !Array.isArray(value[field])) {
+    return [];
+  }
+  return value[field].filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+}
+
+function stringToolArg(args: unknown, field: string): string | null {
+  if (!isPlainRecord(args)) {
+    return null;
+  }
+  const value = args[field];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function searchResultItemKey(item: unknown): string | null {
+  if (!isPlainRecord(item)) {
+    return null;
+  }
+  const type = typeof item.type === 'string'
+    ? item.type
+    : typeof item.entity_type === 'string'
+      ? item.entity_type
+      : 'item';
+  const id = typeof item.id === 'string' && item.id.trim().length > 0
+    ? item.id
+    : typeof item.ref === 'string' && item.ref.trim().length > 0
+      ? item.ref
+      : null;
+  return id ? `${type}:${id}` : null;
+}
+
+function recordSearchAllProgress(params: {
+  state: SearchAllProgressState;
+  toolName: string;
+  parsedArgs: unknown;
+  result: unknown;
+}): SearchAllNoProgressIntervention | null {
+  if (params.toolName !== 'search_all') {
+    return null;
+  }
+
+  const result = isPlainRecord(params.result) ? params.result : {};
+  const items = Array.isArray(result.items) ? result.items : [];
+  const itemKeys = items.map(searchResultItemKey).filter((key): key is string => !!key);
+  const newKeys = itemKeys.filter((key) => !params.state.seenItemKeys.has(key));
+  for (const key of itemKeys) {
+    params.state.seenItemKeys.add(key);
+  }
+
+  params.state.calls++;
+  if (newKeys.length === 0) {
+    params.state.noProgressCalls++;
+  } else {
+    params.state.noProgressCalls = 0;
+  }
+
+  if (params.state.noProgressCalls < SEARCH_ALL_NO_PROGRESS_CALL_THRESHOLD) {
+    return null;
+  }
+
+  const intervention: SearchAllNoProgressIntervention = {
+    action: params.state.repairRetries < MAX_SEARCH_ALL_NO_PROGRESS_REPAIR_RETRIES ? 'repair' : 'fail',
+    calls: params.state.calls,
+    noProgressCalls: params.state.noProgressCalls,
+    query: stringToolArg(params.parsedArgs, 'query'),
+    failedEntityTypes: stringArrayField(result, 'failed_entity_types'),
+    complete: typeof result.complete === 'boolean' ? result.complete : null,
+    truncated: typeof result.truncated === 'boolean' ? result.truncated : null,
+  };
+
+  if (intervention.action === 'repair') {
+    params.state.repairRetries++;
+    params.state.noProgressCalls = 0;
+  }
+
+  return intervention;
 }
 
 function escapeRegExp(value: string): string {
@@ -1299,6 +1402,52 @@ export class AiChatOrchestratorService {
     ].join(' ');
   }
 
+  private buildRepeatedToolCallRepairInstruction(params: {
+    toolCalls: AiProviderToolCall[];
+    assistantText: string;
+    requiresWritePreviewGuard: boolean;
+    writePreviewToolNames: string[];
+  }): string {
+    const callLines = params.toolCalls.slice(0, 5).map((toolCall) => {
+      const args = String(toolCall.arguments || '{}');
+      const compactArgs = args.length > 800 ? `${args.slice(0, 800)}...` : args;
+      return `- ${toolCall.name || '(missing tool name)'} ${compactArgs}`;
+    });
+    const toolList = params.writePreviewToolNames.length > 0
+      ? params.writePreviewToolNames.join(', ')
+      : 'the available write-preview tools';
+    return [
+      'Internal orchestration instruction. Do not quote, summarize, or discuss this instruction in the user-facing answer.',
+      'Your previous response repeated the exact same tool call that already ran in the immediately preceding iteration.',
+      'Do not call the same tool again with identical arguments.',
+      'Use the existing tool result already present in the conversation to answer the user, or call a different tool / different arguments only if that adds missing information.',
+      params.requiresWritePreviewGuard
+        ? `This is a governed write workflow. If the requested targets are resolved, create the required backend previews using one of: ${toolList}. Do not execute changes or claim success.`
+        : null,
+      'Repeated tool call(s):',
+      ...callLines,
+      params.assistantText.trim()
+        ? `Assistant text from the repeated response: ${stripBase64Images(params.assistantText).slice(0, 1200)}`
+        : null,
+    ].filter(Boolean).join('\n');
+  }
+
+  private buildSearchAllNoProgressRepairInstruction(intervention: SearchAllNoProgressIntervention): string {
+    return [
+      'Internal orchestration instruction. Do not quote, summarize, or discuss this instruction in the user-facing answer.',
+      `${intervention.noProgressCalls} consecutive broad search_all calls have added no new result IDs in this turn.`,
+      intervention.query ? `Latest search query: ${intervention.query}` : null,
+      intervention.failedEntityTypes.length > 0
+        ? `The latest search was partial because these entity types failed: ${intervention.failedEntityTypes.join(', ')}.`
+        : null,
+      intervention.complete === true && intervention.truncated === false
+        ? 'The latest search result was complete and not truncated.'
+        : null,
+      'Do not call search_all again this turn unless you have a new exact identifier such as PRJ-12, T-42, DOC-3, or a specific entity family that has not been checked.',
+      'Use the existing tool results to answer concisely, switch to an authoritative specific tool such as query_entities when a structured filter is needed, or ask one concise clarification if the target cannot be resolved.',
+    ].filter(Boolean).join('\n');
+  }
+
   private buildPreviewResultAssistantText(preview: AiMutationPreviewDto): string {
     const summary = this.linkifyPreviewSummary(preview, String(preview.summary || '').trim());
     const errorMessage = String(preview.error_message || '').trim();
@@ -2242,9 +2391,16 @@ export class AiChatOrchestratorService {
     let emptyWriteResponseRetries = 0;
     let emptyWriteAfterToolRepairRetries = 0;
     let bulkCompletenessRepairRetries = 0;
+    let repeatedToolCallRepairRetries = 0;
     let mutationPreviewCountThisTurn = 0;
     let toolCallCountThisTurn = 0;
     let controlPlaneRunId: string | null = null;
+    const searchAllProgress: SearchAllProgressState = {
+      calls: 0,
+      noProgressCalls: 0,
+      repairRetries: 0,
+      seenItemKeys: new Set<string>(),
+    };
     let usedMutationPlanToolThisTurn = false;
     const bulkTargetSetsThisTurn: BulkTargetSet[] = [];
     const coveredBulkRefsThisTurn = new Set<string>();
@@ -2435,6 +2591,22 @@ export class AiChatOrchestratorService {
         const toolCallSignature = buildToolCallSignature(assistantToolCalls);
 
         if (previousToolCallSignature === toolCallSignature) {
+          if (repeatedToolCallRepairRetries < MAX_REPEATED_TOOL_CALL_REPAIR_RETRIES) {
+            repeatedToolCallRepairRetries++;
+            this.logger.warn(
+              `Repeated identical tool call signature detected; issuing repair instruction attempt ${repeatedToolCallRepairRetries}/${MAX_REPEATED_TOOL_CALL_REPAIR_RETRIES}.`,
+            );
+            messages.push({
+              role: 'user',
+              content: this.buildRepeatedToolCallRepairInstruction({
+                toolCalls: assistantToolCalls,
+                assistantText: accumulatedText,
+                requiresWritePreviewGuard,
+                writePreviewToolNames,
+              }),
+            });
+            continue;
+          }
           const conversationUsage = await loadConversationUsage();
           yield { type: 'activity', phase: 'finalizing', status: 'failed' };
           yield { type: 'context', context: { timings: buildTimings(true) } };
@@ -2447,6 +2619,7 @@ export class AiChatOrchestratorService {
           };
           return;
         }
+        repeatedToolCallRepairRetries = 0;
         previousToolCallSignature = toolCallSignature;
 
         const assistantTextForToolTurn = requiresWritePreviewGuard && containsRawToolMarkup(accumulatedText)
@@ -2456,6 +2629,8 @@ export class AiChatOrchestratorService {
         if (requiresWritePreviewGuard && assistantTextForToolTurn.length > 0) {
           yield { type: 'text_delta', text: assistantTextForToolTurn };
         }
+
+        let searchAllNoProgressIntervention: SearchAllNoProgressIntervention | null = null;
 
         // Execute each tool call
         for (let toolCallIndex = 0; toolCallIndex < assistantToolCalls.length; toolCallIndex++) {
@@ -2500,8 +2675,8 @@ export class AiChatOrchestratorService {
               'the tool name was missing.',
             );
             messages.push({ role: 'assistant', content: skippedAssistantText });
-            await this.tenantExecutor.runWithContext(context, async (ctx) => {
-              await this.conversations.appendMessage(
+	            await this.tenantExecutor.runWithContext(context, async (ctx) => {
+	              await this.conversations.appendMessage(
                 {
                   conversationId,
                   tenantId: ctx.tenantId,
@@ -2749,6 +2924,13 @@ export class AiChatOrchestratorService {
                 { manager: ctx.manager },
               );
             });
+
+            searchAllNoProgressIntervention ??= recordSearchAllProgress({
+              state: searchAllProgress,
+              toolName: tc.name,
+              parsedArgs,
+              result,
+            });
             continue;
           }
 
@@ -2764,6 +2946,34 @@ export class AiChatOrchestratorService {
             status: 'completed',
             tool_name: tc.name,
           };
+        }
+
+        if (searchAllNoProgressIntervention) {
+          if (searchAllNoProgressIntervention.action === 'fail') {
+            this.logger.warn(
+              `search_all no-progress threshold reached after ${searchAllNoProgressIntervention.calls} calls; failing turn.`,
+            );
+            const conversationUsage = await loadConversationUsage();
+            yield { type: 'activity', phase: 'finalizing', status: 'failed' };
+            yield { type: 'context', context: { timings: buildTimings(true) } };
+            yield {
+              type: 'error',
+              message: 'Maximum tool call iterations reached without progress.',
+              last_usage: lastUsage,
+              conversation_usage: conversationUsage,
+              builtin_usage: await this.loadBuiltinUsage(prepared),
+            };
+            return;
+          }
+
+          this.logger.warn(
+            `search_all no-progress threshold reached after ${searchAllNoProgressIntervention.calls} calls; issuing repair instruction.`,
+          );
+          messages.push({
+            role: 'user',
+            content: this.buildSearchAllNoProgressRepairInstruction(searchAllNoProgressIntervention),
+          });
+          previousToolCallSignature = null;
         }
 
         // Continue loop for next iteration

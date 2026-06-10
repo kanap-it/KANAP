@@ -111,6 +111,57 @@ async function testKnowledgeSearchFallsBackToRawMarkdownText() {
   }
 }
 
+async function testKnowledgeSearchFallsBackToNormalizedSearchTerms() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  try {
+    const tenantId = randomUUID();
+    const libraryId = randomUUID();
+    const documentId = randomUUID();
+    const service = createKnowledgeService(runner.manager);
+
+    await setCurrentTenant(runner, tenantId);
+    await runner.query(
+      `INSERT INTO tenants (id, slug, name, status, metadata, branding, created_at, updated_at)
+       VALUES ($1, $2, $3, 'active', '{}'::jsonb, '{"logo_version":0,"use_logo_in_dark":true}'::jsonb, now(), now())`,
+      [tenantId, `normalized-search-${tenantId.slice(0, 8)}`, 'Normalized Search Spec Tenant'],
+    );
+    await runner.query(
+      `INSERT INTO document_libraries (
+         id, tenant_id, name, slug, is_system, display_order, created_at, updated_at
+       )
+       VALUES ($1, $2, 'Normalized Search Spec', 'normalized-search-spec', false, 0, now(), now())`,
+      [libraryId, tenantId],
+    );
+    await runner.query(
+      `INSERT INTO documents (
+         id, tenant_id, item_number, title, summary, content_markdown, content_plain,
+         library_id, document_type_id, status, revision, current_version_number, created_at, updated_at
+       )
+       VALUES (
+         $1, $2, 165, 'Recette du Burnt Cheesecake', 'Dessert au cream cheese',
+         $3, $4,
+         $5, null, 'published', 1, 0, now(), now()
+       )`,
+      [
+        documentId,
+        tenantId,
+        'Une recette avec 300 g de sucre et une surface caramélisée.',
+        'Une recette avec 300 g de sucre et une surface caramélisée.',
+        libraryId,
+      ],
+    );
+
+    const result = await service.search({ q: 'plus sucré', limit: 10, offset: 0 }, { manager: runner.manager });
+    assert.deepEqual(result.items.map((item: any) => item.id), [documentId]);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function testLinkOptionsSearchesBeyondInitialPage() {
   const runner = dataSource.createQueryRunner();
   await runner.connect();
@@ -186,6 +237,7 @@ async function run() {
   await dataSource.initialize();
   try {
     await testKnowledgeSearchFallsBackToRawMarkdownText();
+    await testKnowledgeSearchFallsBackToNormalizedSearchTerms();
     await testLinkOptionsSearchesBeyondInitialPage();
   } finally {
     await dataSource.destroy();

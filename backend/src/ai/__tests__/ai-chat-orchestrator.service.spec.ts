@@ -2323,21 +2323,66 @@ async function testProviderRequestUsesChatTimeout() {
   assert.equal(recordedRequests[0].timeoutMs, 300000);
 }
 
-async function testRepeatedToolCallsStopWithoutFurtherProgress() {
-  const { orchestrator, providerCallCount, toolExecuteCount } = createOrchestrator({
-    providerEvents: [
-      { type: 'text_delta', text: 'Need to search again.' },
-      { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
-      { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"test"}' },
-      { type: 'tool_call_end', id: 'tc-1' },
-      { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+async function testRepeatedToolCallRepairCanRecoverToFinalAnswer() {
+  const repeatedSearchBatch = (id: string) => [
+    { type: 'tool_call_start', id, name: 'search_all' },
+    { type: 'tool_call_delta', id, arguments: '{"query":"test"}' },
+    { type: 'tool_call_end', id },
+    { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+  ];
+  const { orchestrator, providerCallCount, toolExecuteCount, recordedRequests } = createOrchestrator({
+    providerEventBatches: [
+      repeatedSearchBatch('tc-1'),
+      repeatedSearchBatch('tc-2'),
+      [
+        { type: 'text_delta', text: 'No matching results.' },
+        { type: 'done', usage: { input_tokens: 150, output_tokens: 25 } },
+      ],
     ],
-    providerToolEvents: [
-      { type: 'text_delta', text: 'Need to search again.' },
-      { type: 'tool_call_start', id: 'tc-2', name: 'search_all' },
-      { type: 'tool_call_delta', id: 'tc-2', arguments: '{"query":"test"}' },
-      { type: 'tool_call_end', id: 'tc-2' },
-      { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+    toolResult: { items: [], total: 0 },
+    conversationUsage: { input_tokens: 250, output_tokens: 45 },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Search',
+    }),
+  );
+
+  assert.equal(events.find((e) => e.type === 'error'), undefined);
+  assert.ok(events.some((e) => e.type === 'done'));
+  assert.equal(providerCallCount.value, 3);
+  assert.equal(toolExecuteCount.value, 1);
+  assert.equal(events.filter((e) => e.type === 'tool_result').length, 1);
+
+  const repairRequestMessages = recordedRequests[2].messages as any[];
+  const repairMessage = [...repairRequestMessages].reverse().find((message) => message.role === 'user') as any;
+  assert.match(repairMessage.content, /repeated the exact same tool call/i);
+  assert.match(repairMessage.content, /search_all/);
+  assert.match(repairMessage.content, /Do not call the same tool again with identical arguments/);
+}
+
+async function testRepeatedToolCallsStopWithoutFurtherProgress() {
+  const repeatedSearchBatch = (id: string) => [
+    { type: 'text_delta', text: 'Need to search again.' },
+    { type: 'tool_call_start', id, name: 'search_all' },
+    { type: 'tool_call_delta', id, arguments: '{"query":"test"}' },
+    { type: 'tool_call_end', id },
+    { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+  ];
+  const { orchestrator, providerCallCount, toolExecuteCount, recordedRequests } = createOrchestrator({
+    providerEventBatches: [
+      repeatedSearchBatch('tc-1'),
+      repeatedSearchBatch('tc-2'),
+      repeatedSearchBatch('tc-3'),
+      repeatedSearchBatch('tc-4'),
     ],
     toolResult: { items: [], total: 0 },
     conversationUsage: { input_tokens: 100, output_tokens: 20 },
@@ -2360,8 +2405,70 @@ async function testRepeatedToolCallsStopWithoutFurtherProgress() {
   assert.equal(errorEvent?.message, 'Maximum tool call iterations reached without progress.');
   assert.deepEqual(errorEvent?.last_usage, { input_tokens: 100, output_tokens: 20 });
   assert.deepEqual(errorEvent?.conversation_usage, { input_tokens: 100, output_tokens: 20 });
-  assert.equal(providerCallCount.value, 2);
+  assert.equal(providerCallCount.value, 4);
   assert.equal(toolExecuteCount.value, 1);
+
+  const finalRepairRequestMessages = recordedRequests[3].messages as any[];
+  const repairMessages = finalRepairRequestMessages.filter((message) =>
+    message.role === 'user' && /repeated the exact same tool call/i.test(message.content),
+  );
+  assert.equal(repairMessages.length, 2);
+}
+
+async function testDistinctSearchAllNoProgressStopsEarly() {
+  const searchBatch = (id: string, query: string) => [
+    { type: 'tool_call_start', id, name: 'search_all' },
+    { type: 'tool_call_delta', id, arguments: JSON.stringify({ query }) },
+    { type: 'tool_call_end', id },
+    { type: 'done', usage: { input_tokens: 100, output_tokens: 20 } },
+  ];
+  const { orchestrator, providerCallCount, toolExecuteCount, recordedRequests } = createOrchestrator({
+    providerEventBatches: [
+      searchBatch('tc-1', 'Eva Fried task'),
+      searchBatch('tc-2', 'fried@kanap.net task'),
+      searchBatch('tc-3', 'Fried Eva assignee'),
+      searchBatch('tc-4', 'T- task'),
+      searchBatch('tc-5', 'project'),
+      searchBatch('tc-6', 'Infrastructure team tasks'),
+      searchBatch('tc-7', 'Eva task open'),
+      searchBatch('tc-8', 'assignee Eva'),
+    ],
+    toolResult: {
+      items: [],
+      total: 0,
+      returned: 0,
+      truncated: false,
+      complete: true,
+      failed_entity_types: [],
+    },
+    conversationUsage: { input_tokens: 100, output_tokens: 20 },
+  });
+
+  const events = await collectEvents(
+    orchestrator.stream({
+      context: {
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        isPlatformHost: false,
+        surface: 'chat',
+        authMethod: 'jwt',
+      },
+      userMessage: 'Search',
+    }),
+  );
+
+  const errorEvent = events.find((e) => e.type === 'error') as any;
+  assert.equal(errorEvent?.message, 'Maximum tool call iterations reached without progress.');
+  assert.equal(providerCallCount.value, 8);
+  assert.equal(toolExecuteCount.value, 8);
+
+  const repairRequestMessages = recordedRequests[4].messages as any[];
+  const repairMessage = [...repairRequestMessages].reverse().find((message) =>
+    message.role === 'user' && /broad search_all calls have added no new result IDs/i.test(message.content),
+  ) as any;
+  assert.ok(repairMessage);
+  assert.match(repairMessage.content, /Do not call search_all again this turn/i);
+  assert.doesNotMatch(repairMessage.content, /repeated the exact same tool call/i);
 }
 
 async function testProviderErrorIncludesConversationUsage() {
@@ -2844,7 +2951,9 @@ async function run() {
   await testTextualWriteConfirmationWithoutPreviewIsRewrittenToCreatePreviews();
   await testProviderReceivesAbortSignal();
   await testProviderRequestUsesChatTimeout();
+  await testRepeatedToolCallRepairCanRecoverToFinalAnswer();
   await testRepeatedToolCallsStopWithoutFurtherProgress();
+  await testDistinctSearchAllNoProgressStopsEarly();
   await testProviderErrorIncludesConversationUsage();
   await testSystemPromptGuidance();
   await testContextCompaction();

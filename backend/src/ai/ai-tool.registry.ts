@@ -205,6 +205,16 @@ function normalizeJsonSchemaForProviders(value: unknown): unknown {
       .map(([key, entry]) => [key, normalizeJsonSchemaForProviders(entry)]),
   );
 
+  if (
+    normalized.nullable === true
+    && normalized.type === undefined
+    && Array.isArray(normalized.enum)
+    && normalized.enum.length === 1
+    && normalized.enum[0] === 'null'
+  ) {
+    return { type: 'null' };
+  }
+
   if (normalized.exclusiveMinimum === true && typeof normalized.minimum === 'number') {
     normalized.exclusiveMinimum = normalized.minimum;
     delete normalized.minimum;
@@ -255,12 +265,12 @@ export class AiToolRegistry {
         {
           name: 'search_all',
           category: 'discovery',
-          description: 'Search across readable KANAP entity families using stable AI DTOs.',
+          description: 'Search across readable KANAP entity families using stable AI DTOs. If complete=true and truncated=false, use the returned results instead of repeating broad searches; if failed_entity_types is non-empty, treat the answer as partial and prefer a specific authoritative tool.',
           inputSchema: SearchAllInputSchema,
           inputSummary: {
             query: 'Search text or item reference such as PRJ-12, REQ-7, T-42, or DOC-3.',
             entity_types: 'Optional entity families to include.',
-            limit: 'Maximum number of results to return (default 100). If the result says truncated=true, narrow the query or switch to a more specific tool.',
+            limit: 'Maximum number of results to return (default 100). If truncated=true, narrow the query or switch to a more specific tool.',
           },
           surfaces: ['chat', 'mcp'],
           readOnly: true,

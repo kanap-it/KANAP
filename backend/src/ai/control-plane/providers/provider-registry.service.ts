@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { GlpiTicketingProvider } from './glpi-ticketing.provider';
 import { AiAdapterConfigService } from './adapter-config.service';
 import { MockAutomationProvider } from './mocks/mock-automation.provider';
 import { MockCommunicationProvider } from './mocks/mock-communication.provider';
@@ -86,9 +87,23 @@ class UnavailableTicketingProvider extends UnavailableProvider implements Ticket
   async getTicket() { return this.unavailable<any>(); }
   async searchSimilarTickets() { return this.unavailable<any>(); }
   async listTicketNotes() { return this.unavailable<any>(); }
+  async listTicketsForScope() { return this.unavailable<any>(); }
   async getTicketClassificationContext() { return this.unavailable<any>(); }
+  async getTicketLifecycleContext() { return this.unavailable<any>(); }
+  async getTicketRoutingContext() { return this.unavailable<any>(); }
+  async getTicketParticipantContext() { return this.unavailable<any>(); }
+  async prepareTicketClassificationUpdate() { return this.unavailable<any>(); }
+  async updateTicketClassification() { return this.unavailable<any>(); }
+  async prepareTicketStatusUpdate() { return this.unavailable<any>(); }
+  async updateTicketStatus() { return this.unavailable<any>(); }
+  async prepareTicketAssignmentUpdate() { return this.unavailable<any>(); }
+  async updateTicketAssignment() { return this.unavailable<any>(); }
+  async prepareTicketParticipantUpdate() { return this.unavailable<any>(); }
+  async updateTicketParticipants() { return this.unavailable<any>(); }
   async prepareInternalNote() { return this.unavailable<any>(); }
   async addInternalNote() { return this.unavailable<any>(); }
+  async preparePublicReply() { return this.unavailable<any>(); }
+  async addPublicReply() { return this.unavailable<any>(); }
 }
 
 class UnavailableMonitoringProvider extends UnavailableProvider implements MonitoringProvider {
@@ -143,7 +158,10 @@ export class AiProviderRegistryService {
 
   constructor(
     private readonly adapterConfigs: AiAdapterConfigService,
+    @Optional()
     private readonly secretResolver?: AiTenantSecretResolverService,
+    @Optional()
+    private readonly glpiTicketing?: GlpiTicketingProvider,
   ) {}
 
   async getApplicability(
@@ -153,6 +171,9 @@ export class AiProviderRegistryService {
   ): Promise<CapabilityApplicability> {
     if (providerKey === 'mock') {
       return { available: true };
+    }
+    if (providerKind === 'ticketing' && providerKey === 'glpi' && this.glpiTicketing) {
+      return this.glpiTicketing.applicability(context);
     }
     const config = await this.adapterConfigs.getConfig(context, providerKind, providerKey);
     if (!config) {
@@ -197,6 +218,9 @@ export class AiProviderRegistryService {
     if (providerKey === 'mock') {
       return this.mockForKind(providerKind).health(context);
     }
+    if (providerKind === 'ticketing' && providerKey === 'glpi' && this.glpiTicketing) {
+      return this.glpiTicketing.health(context);
+    }
     const health = await this.adapterConfigs.getHealth(context, providerKind, providerKey);
     if (!health.ok || health.implementation !== 'mock') {
       return health.ok
@@ -213,6 +237,12 @@ export class AiProviderRegistryService {
   }
 
   async ticketing(context: AiExecutionContextWithManager, providerKey = 'mock'): Promise<TicketingProvider> {
+    if (providerKey === 'glpi' && this.glpiTicketing) {
+      const applicability = await this.glpiTicketing.applicability(context);
+      return applicability.available
+        ? this.glpiTicketing
+        : new UnavailableTicketingProvider('ticketing', providerKey, applicability);
+    }
     const applicability = await this.getApplicability(context, 'ticketing', providerKey);
     return applicability.available
       ? this.mockTicketing
