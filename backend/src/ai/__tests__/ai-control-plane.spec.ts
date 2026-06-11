@@ -4360,6 +4360,85 @@ async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList
   }
 }
 
+async function testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+
+  const initial = await queue.getHelpdeskGlpiIngestionSettings(context);
+  assert.equal(initial.ingestion.enabled, false);
+  assert.equal(initial.ingestion.ready, false);
+  assert.equal(typeof initial.ingestion.readyReason, 'string');
+  assert.equal(initial.guardrails.configured, true);
+
+  await assert.rejects(
+    () => queue.updateHelpdeskGlpiIngestionSettings(context, { ingestion: { enabled: true } }),
+    (error: any) => error instanceof BadRequestException,
+  );
+  await assert.rejects(
+    () => queue.updateHelpdeskGlpiIngestionSettings(context, {
+      ingestion: { enabled: true, entityId: 'lohr-helpdesk', maxTicketsPerCycle: 50 },
+    }),
+    (error: any) => error instanceof BadRequestException,
+  );
+  await assert.rejects(
+    () => queue.updateHelpdeskGlpiIngestionSettings(context, {
+      ingestion: { enabled: true, entityId: 'lohr-helpdesk' },
+      guardrails: { perRun: { maxEstimatedTokens: -5 } },
+    }),
+    (error: any) => error instanceof BadRequestException,
+  );
+
+  const enabled = await queue.updateHelpdeskGlpiIngestionSettings(context, {
+    ingestion: { enabled: true, entityId: 'lohr-helpdesk', categoryId: 'access', maxTicketsPerCycle: 3 },
+    guardrails: { daily: { maxAgentRuns: 2 } },
+  });
+  assert.equal(enabled.ingestion.enabled, true);
+  assert.equal(enabled.ingestion.ready, true);
+  assert.equal(enabled.ingestion.entityId, 'lohr-helpdesk');
+  assert.equal(enabled.ingestion.categoryId, 'access');
+  assert.equal(enabled.ingestion.maxTicketsPerCycle, 3);
+  assert.equal(enabled.guardrails.daily.maxAgentRuns, 2);
+  assert.equal(typeof enabled.ingestion.enabledAt, 'string');
+  assert.equal(typeof enabled.ingestion.effectiveCreatedAfter, 'string');
+  assert.equal(
+    (stores.get(AiAgentAuditEvent.name) ?? []).some((event) => event.event_type === 'ingestion_settings_updated'),
+    true,
+  );
+
+  // The definition upgrade path must preserve operator-set ingestion settings.
+  await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const afterUpgrade = await queue.getHelpdeskGlpiIngestionSettings(context);
+  assert.equal(afterUpgrade.ingestion.enabled, true);
+  assert.equal(afterUpgrade.ingestion.entityId, 'lohr-helpdesk');
+  assert.equal(afterUpgrade.ingestion.maxTicketsPerCycle, 3);
+  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const config = queue.resolveNewTicketsIngestionConfig(bundle.definition);
+  assert.equal(config.entityId, 'lohr-helpdesk');
+  assert.equal(config.maxTicketsPerCycle, 3);
+
+  const disabled = await queue.updateHelpdeskGlpiIngestionSettings(context, {
+    ingestion: { enabled: false, entityId: 'lohr-helpdesk', categoryId: 'access' },
+  });
+  assert.equal(disabled.ingestion.enabled, false);
+  assert.equal(disabled.ingestion.ready, false);
+
+  const pauseService = new AiEmergencyPauseService({} as any);
+  const tenantTwo = createTenantContext(manager, 'tenant-2');
+  const pause = await pauseService.createPause(context, { scope: 'tenant', reason: 'UAT pause test' });
+  assert.equal(pause.active, true);
+  const found = await pauseService.findActiveTenantWidePause(context);
+  assert.equal(found?.id, pause.id);
+  assert.equal(await pauseService.findActiveTenantWidePause(tenantTwo), null);
+  await assert.rejects(
+    () => pauseService.revokePause(tenantTwo, pause.id),
+    (error: any) => error instanceof ForbiddenException,
+  );
+  const revoked = await pauseService.revokePause(context, pause.id);
+  assert.equal(revoked.active, false);
+  assert.equal(await pauseService.findActiveTenantWidePause(context), null);
+}
+
 async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -6096,6 +6175,7 @@ async function run() {
   await testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState();
   await testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsolation();
   await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
+  await testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls();
   await testAgentControlQueueOverviewReturnsLinkedActionRequests();
   await testGlpiTriageSkipsFollowupsUntilRequesterAnswers();
   await testGlpiTriageAllowsFollowupsAfterRequesterAnswer();

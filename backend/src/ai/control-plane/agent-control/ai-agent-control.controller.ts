@@ -18,6 +18,11 @@ import { AiPolicyService } from '../../ai-policy.service';
 import { AiTenantExecutionService } from '../../execution/ai-tenant-execution.service';
 import { AiAgentHelpdeskGlpiIngestionService } from '../agent/ai-agent-helpdesk-glpi-ingestion.service';
 import {
+  AiAgentWorkQueueService,
+  HelpdeskGlpiIngestionSettingsInput,
+} from '../agent/ai-agent-work-queue.service';
+import { AiEmergencyPauseService } from '../pause/ai-emergency-pause.service';
+import {
   AgentControlGlpiReadInput,
   AgentControlGlpiTriageInput,
   AgentControlMockTriageInput,
@@ -40,6 +45,8 @@ export class AiAgentControlController {
     private readonly policy: AiPolicyService,
     private readonly control: AiAgentControlService,
     private readonly glpiIngestion: AiAgentHelpdeskGlpiIngestionService,
+    private readonly workQueue: AiAgentWorkQueueService,
+    private readonly emergencyPause: AiEmergencyPauseService,
   ) {}
 
   private buildContext(req: any): AiExecutionContext {
@@ -182,6 +189,98 @@ export class AiAgentControlController {
   ) {
     const context = this.buildContext(req);
     return this.runWrite(context, (tenantContext) => this.glpiIngestion.pollTenant(tenantContext));
+  }
+
+  @Get('helpdesk/glpi-ingestion/settings')
+  async getHelpdeskGlpiIngestionSettings(
+    @Req() req: any,
+  ) {
+    const context = this.buildContext(req);
+    return this.runWrite(context, async (tenantContext) => {
+      const settings = await this.workQueue.getHelpdeskGlpiIngestionSettings(tenantContext);
+      const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
+      return { ...settings, emergency_pause: this.pauseView(activePause) };
+    });
+  }
+
+  @Post('helpdesk/glpi-ingestion/settings')
+  async updateHelpdeskGlpiIngestionSettings(
+    @Req() req: any,
+    @Body() body: HelpdeskGlpiIngestionSettingsInput,
+  ) {
+    const context = this.buildContext(req);
+    return this.runWrite(context, async (tenantContext) => {
+      const settings = await this.workQueue.updateHelpdeskGlpiIngestionSettings(tenantContext, body);
+      const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
+      return { ...settings, emergency_pause: this.pauseView(activePause) };
+    });
+  }
+
+  @Post('helpdesk/emergency-pause')
+  async createHelpdeskEmergencyPause(
+    @Req() req: any,
+    @Body() body: { reason?: string; expires_in_minutes?: number | null } = {},
+  ) {
+    const context = this.buildContext(req);
+    const reason = typeof body?.reason === 'string' ? body.reason.trim() : '';
+    if (!reason) {
+      throw new ForbiddenException('An emergency pause requires an explicit reason.');
+    }
+    const expiresInMinutes = typeof body?.expires_in_minutes === 'number'
+      && Number.isFinite(body.expires_in_minutes) && body.expires_in_minutes > 0
+      ? Math.min(Math.floor(body.expires_in_minutes), 7 * 24 * 60)
+      : null;
+    return this.runWrite(context, async (tenantContext) => {
+      const pause = await this.emergencyPause.createPause(tenantContext, {
+        scope: 'tenant',
+        reason,
+        expiresAt: expiresInMinutes ? new Date(Date.now() + expiresInMinutes * 60_000) : null,
+      });
+      await this.recordPauseAudit(tenantContext, 'emergency_pause_created', `Tenant emergency pause activated: ${reason}`, pause.id);
+      return this.pauseView(pause);
+    });
+  }
+
+  @Post('helpdesk/emergency-pause/:id/revoke')
+  async revokeHelpdeskEmergencyPause(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runWrite(context, async (tenantContext) => {
+      const pause = await this.emergencyPause.revokePause(tenantContext, id);
+      await this.recordPauseAudit(tenantContext, 'emergency_pause_revoked', `Tenant emergency pause lifted: ${pause.reason}`, pause.id);
+      return this.pauseView(pause);
+    });
+  }
+
+  private pauseView(pause: { id: string; active: boolean; reason: string; created_at?: Date | null; expires_at?: Date | null } | null) {
+    if (!pause) {
+      return null;
+    }
+    return {
+      id: pause.id,
+      active: pause.active,
+      reason: pause.reason,
+      created_at: pause.created_at ? new Date(pause.created_at).toISOString() : null,
+      expires_at: pause.expires_at ? new Date(pause.expires_at).toISOString() : null,
+    };
+  }
+
+  private async recordPauseAudit(
+    tenantContext: AiExecutionContextWithManager,
+    eventType: 'emergency_pause_created' | 'emergency_pause_revoked',
+    message: string,
+    pauseId: string,
+  ): Promise<void> {
+    const { definition } = await this.workQueue.ensureHelpdeskGlpiTriageDefinition(tenantContext);
+    await this.workQueue.recordAuditEvent(tenantContext, {
+      agentDefinitionId: definition.id,
+      eventType,
+      severity: 'warning',
+      message,
+      metadata: { pause_id: pauseId },
+    });
   }
 
   @Post('actions/:id/approve')

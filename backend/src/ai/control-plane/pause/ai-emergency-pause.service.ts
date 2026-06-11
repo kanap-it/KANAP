@@ -70,6 +70,18 @@ export class AiEmergencyPauseService {
     return repo.save(pause);
   }
 
+  async findActiveTenantWidePause(
+    context: AiExecutionContextWithManager,
+  ): Promise<AiEmergencyPause | null> {
+    const rows = await this.repo(context.manager).find({
+      where: { tenant_id: context.tenantId, active: true },
+    });
+    const now = Date.now();
+    return rows
+      .filter((pause) => !pause.expires_at || new Date(pause.expires_at).getTime() > now)
+      .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())[0] ?? null;
+  }
+
   async findActivePause(
     context: AiExecutionContextWithManager,
     input: AiPauseCheckInput,

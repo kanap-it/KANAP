@@ -202,6 +202,42 @@ export type HelpdeskNewTicketsIngestionConfig = {
   maxProviderRequestsPerCycle: number;
 };
 
+export type HelpdeskGlpiIngestionSettingsInput = {
+  ingestion: {
+    enabled: boolean;
+    entityId?: string | null;
+    categoryId?: string | null;
+    maxTicketsPerCycle?: number | null;
+    maxProviderRequestsPerCycle?: number | null;
+    hardBackfillHorizonHours?: number | null;
+  };
+  guardrails?: {
+    perRun?: { maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+    daily?: { maxAgentRuns?: number | null; maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+  };
+};
+
+export type HelpdeskGlpiIngestionSettingsView = {
+  agentDefinitionId: string;
+  ingestion: {
+    enabled: boolean;
+    enabledAt: string | null;
+    entityId: string | null;
+    categoryId: string | null;
+    maxTicketsPerCycle: number | null;
+    maxProviderRequestsPerCycle: number | null;
+    hardBackfillHorizonHours: number;
+    ready: boolean;
+    readyReason: string | null;
+    effectiveCreatedAfter: string | null;
+  };
+  guardrails: {
+    configured: boolean;
+    perRun: { maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+    daily: { maxAgentRuns: number | null; maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+  };
+};
+
 export type HelpdeskDailyUsageSummary = {
   windowStart: string;
   windowEnd: string;
@@ -367,6 +403,34 @@ function numberPolicyOrNull(value: unknown, min: number, max: number): number | 
 
 function positivePolicyNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function trimmedSettingOrNull(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function settingNumberInRange(value: unknown, min: number, max: number, fallback: number, label: string): number {
+  if (value == null) {
+    return fallback;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new BadRequestException(`${label} must be a number between ${min} and ${max}.`);
+  }
+  return Math.floor(value);
+}
+
+function settingPositiveNumber(value: unknown, current: unknown, fallback: number, label: string): number {
+  if (value == null) {
+    return positivePolicyNumber(current) ?? fallback;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new BadRequestException(`${label} must be a positive number.`);
+  }
+  return value;
 }
 
 function defaultEconomicGuardrails(): Record<string, unknown> {
@@ -944,6 +1008,172 @@ export class AiAgentWorkQueueService {
       throw new ForbiddenException('Helpdesk GLPI triage run guardrails are not configured.');
     }
     return guardrails;
+  }
+
+  async getHelpdeskGlpiIngestionSettings(
+    context: AiExecutionContextWithManager,
+  ): Promise<HelpdeskGlpiIngestionSettingsView> {
+    const { definition } = await this.ensureHelpdeskGlpiTriageDefinition(context);
+    return this.buildIngestionSettingsView(definition);
+  }
+
+  async updateHelpdeskGlpiIngestionSettings(
+    context: AiExecutionContextWithManager,
+    input: HelpdeskGlpiIngestionSettingsInput,
+  ): Promise<HelpdeskGlpiIngestionSettingsView> {
+    const { definition } = await this.ensureHelpdeskGlpiTriageDefinition(context);
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    const scopePolicy = policyObject(definition.scope_policy_json);
+    const queuePolicy = policyObject(definition.queue_policy_json);
+    const currentIngestion = nestedPolicy(scopePolicy, 'new_tickets_only');
+    const wasEnabled = hasEnabledFlag(triggerPolicy, 'scheduled_poll') && currentIngestion.enabled === true;
+
+    const ingestionInput = input?.ingestion;
+    if (!isRecord(ingestionInput) || typeof ingestionInput.enabled !== 'boolean') {
+      throw new BadRequestException('Ingestion settings require an explicit enabled flag.');
+    }
+    const enabled = ingestionInput.enabled === true;
+    const entityId = trimmedSettingOrNull(ingestionInput.entityId);
+    const categoryId = trimmedSettingOrNull(ingestionInput.categoryId);
+    if (enabled && !entityId && !categoryId) {
+      throw new BadRequestException('Enabling ingestion requires a GLPI entity id and/or category id scope.');
+    }
+    const maxTicketsPerCycle = settingNumberInRange(
+      ingestionInput.maxTicketsPerCycle, 1, 20, DEFAULT_NEW_TICKET_MAX_PER_CYCLE, 'Max tickets per cycle');
+    const maxProviderRequestsPerCycle = settingNumberInRange(
+      ingestionInput.maxProviderRequestsPerCycle, 1, 100, DEFAULT_NEW_TICKET_RATE_LIMIT_PER_CYCLE, 'Max provider requests per cycle');
+    const hardBackfillHorizonHours = settingNumberInRange(
+      ingestionInput.hardBackfillHorizonHours, 1, 24 * 30, DEFAULT_BACKFILL_HORIZON_HOURS, 'Backfill horizon hours');
+
+    const currentGuardrails = nestedPolicy(queuePolicy, 'economic_guardrails');
+    const currentPerRun = policyObject(currentGuardrails.per_run);
+    const currentDaily = policyObject(currentGuardrails.daily);
+    const guardrailsInput = isRecord(input?.guardrails) ? input.guardrails : {};
+    const perRunInput = policyObject((guardrailsInput as Record<string, unknown>).perRun);
+    const dailyInput = policyObject((guardrailsInput as Record<string, unknown>).daily);
+    const nextGuardrails = {
+      configured: true,
+      per_run: {
+        max_estimated_tokens: settingPositiveNumber(
+          perRunInput.maxEstimatedTokens, currentPerRun.max_estimated_tokens, DEFAULT_PER_RUN_TOKEN_CAP, 'Per-run token cap'),
+        max_estimated_cost_eur: settingPositiveNumber(
+          perRunInput.maxEstimatedCostEur, currentPerRun.max_estimated_cost_eur, DEFAULT_PER_RUN_COST_CAP_EUR, 'Per-run cost cap'),
+      },
+      daily: {
+        max_agent_runs: settingPositiveNumber(
+          dailyInput.maxAgentRuns, currentDaily.max_agent_runs, DEFAULT_DAILY_RUN_CAP, 'Daily run cap'),
+        max_estimated_tokens: settingPositiveNumber(
+          dailyInput.maxEstimatedTokens, currentDaily.max_estimated_tokens, DEFAULT_DAILY_TOKEN_CAP, 'Daily token cap'),
+        max_estimated_cost_eur: settingPositiveNumber(
+          dailyInput.maxEstimatedCostEur, currentDaily.max_estimated_cost_eur, DEFAULT_DAILY_COST_CAP_EUR, 'Daily cost cap'),
+      },
+    };
+
+    // Re-enablement refreshes the horizon anchor so the disabled gap is never
+    // backfilled. An already-enabled scope keeps its original anchor.
+    const enabledAt = enabled
+      ? (wasEnabled ? isoFromPolicy(currentIngestion.enabled_at) ?? new Date().toISOString() : new Date().toISOString())
+      : isoFromPolicy(currentIngestion.enabled_at);
+
+    definition.trigger_policy_json = {
+      ...triggerPolicy,
+      scheduled_poll: {
+        ...(isRecord(triggerPolicy.scheduled_poll) ? triggerPolicy.scheduled_poll : {}),
+        enabled,
+      },
+      production_polling_enabled: enabled,
+      // Never operator-editable from this path.
+      automatic_writes_enabled: false,
+    };
+    definition.scope_policy_json = {
+      ...scopePolicy,
+      new_tickets_only: {
+        enabled,
+        enabled_at: enabledAt,
+        entity_id: entityId,
+        category_id: categoryId,
+        max_tickets_per_cycle: maxTicketsPerCycle,
+        max_provider_requests_per_cycle: maxProviderRequestsPerCycle,
+        hard_backfill_horizon_hours: hardBackfillHorizonHours,
+      },
+    };
+    definition.queue_policy_json = {
+      ...queuePolicy,
+      economic_guardrails: nextGuardrails,
+    };
+    definition.updated_at = new Date();
+    const saved = await this.definitionRepo(context).save(definition);
+
+    await this.recordAuditEvent(context, {
+      agentDefinitionId: saved.id,
+      eventType: 'ingestion_settings_updated',
+      severity: 'info',
+      message: enabled
+        ? 'Helpdesk GLPI ingestion settings updated; bounded new-ticket ingestion is enabled.'
+        : 'Helpdesk GLPI ingestion settings updated; ingestion is disabled.',
+      metadata: {
+        enabled,
+        entity_id: entityId,
+        category_id: categoryId,
+        max_tickets_per_cycle: maxTicketsPerCycle,
+        max_provider_requests_per_cycle: maxProviderRequestsPerCycle,
+        hard_backfill_horizon_hours: hardBackfillHorizonHours,
+        economic_guardrails: nextGuardrails,
+      },
+    });
+
+    return this.buildIngestionSettingsView(saved);
+  }
+
+  private buildIngestionSettingsView(definition: AiAgentDefinition): HelpdeskGlpiIngestionSettingsView {
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    const scopePolicy = policyObject(definition.scope_policy_json);
+    const queuePolicy = policyObject(definition.queue_policy_json);
+    const ingestion = nestedPolicy(scopePolicy, 'new_tickets_only');
+    const guardrails = nestedPolicy(queuePolicy, 'economic_guardrails');
+    const perRun = policyObject(guardrails.per_run);
+    const daily = policyObject(guardrails.daily);
+
+    let ready = true;
+    let readyReason: string | null = null;
+    let effectiveCreatedAfter: string | null = null;
+    try {
+      this.assertHelpdeskGlpiDefinitionRunnable(definition, null);
+      const config = this.resolveNewTicketsIngestionConfig(definition);
+      effectiveCreatedAfter = config.createdAfter;
+    } catch (error) {
+      ready = false;
+      readyReason = error instanceof Error ? error.message : String(error);
+    }
+
+    return {
+      agentDefinitionId: definition.id,
+      ingestion: {
+        enabled: hasEnabledFlag(triggerPolicy, 'scheduled_poll') && ingestion.enabled === true,
+        enabledAt: isoFromPolicy(ingestion.enabled_at),
+        entityId: stringFromPolicy(ingestion.entity_id ?? ingestion.entityId),
+        categoryId: stringFromPolicy(ingestion.category_id ?? ingestion.categoryId),
+        maxTicketsPerCycle: numberPolicyOrNull(ingestion.max_tickets_per_cycle, 1, 20),
+        maxProviderRequestsPerCycle: numberPolicyOrNull(ingestion.max_provider_requests_per_cycle, 1, 100),
+        hardBackfillHorizonHours: numberPolicyOrNull(ingestion.hard_backfill_horizon_hours, 1, 24 * 30)
+          ?? DEFAULT_BACKFILL_HORIZON_HOURS,
+        ready,
+        readyReason,
+        effectiveCreatedAfter,
+      },
+      guardrails: {
+        configured: guardrails.configured === true,
+        perRun: {
+          maxEstimatedTokens: positivePolicyNumber(perRun.max_estimated_tokens),
+          maxEstimatedCostEur: positivePolicyNumber(perRun.max_estimated_cost_eur),
+        },
+        daily: {
+          maxAgentRuns: positivePolicyNumber(daily.max_agent_runs),
+          maxEstimatedTokens: positivePolicyNumber(daily.max_estimated_tokens),
+          maxEstimatedCostEur: positivePolicyNumber(daily.max_estimated_cost_eur),
+        },
+      },
+    };
   }
 
   workItemDedupKey(input: {

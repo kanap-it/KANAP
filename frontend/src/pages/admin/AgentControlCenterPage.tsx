@@ -18,6 +18,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -25,20 +26,26 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import SourceOutlinedIcon from '@mui/icons-material/SourceOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
+import KanapDialog from '../../components/design/KanapDialog';
 import {
   aiAgentControlApi,
   type AiAgentControlActionRequest,
   type AiAgentControlAgentDefinition,
   type AiAgentControlAuditEvent,
+  type AiAgentControlEmergencyPause,
   type AiAgentControlGlpiReadTargetsResult,
   type AiAgentControlHelpdeskContextResult,
+  type AiAgentControlHelpdeskIngestionSettings,
+  type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlHelpdeskSummary,
   type AiAgentControlLiveTarget,
   type AiAgentControlQueueOverview,
@@ -655,6 +662,273 @@ function ProposalBody({
   );
 }
 
+function SettingsField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.25 }}>
+        {label}
+      </Typography>
+      {children}
+    </Box>
+  );
+}
+
+type HelpdeskSettingsFormState = {
+  enabled: boolean;
+  entityId: string;
+  categoryId: string;
+  maxTicketsPerCycle: string;
+  maxProviderRequestsPerCycle: string;
+  hardBackfillHorizonHours: string;
+  perRunTokens: string;
+  perRunCostEur: string;
+  dailyRuns: string;
+  dailyTokens: string;
+  dailyCostEur: string;
+};
+
+function settingsToFormState(settings: AiAgentControlHelpdeskIngestionSettings | null): HelpdeskSettingsFormState {
+  return {
+    enabled: settings?.ingestion.enabled ?? false,
+    entityId: settings?.ingestion.entityId ?? '',
+    categoryId: settings?.ingestion.categoryId ?? '',
+    maxTicketsPerCycle: settings?.ingestion.maxTicketsPerCycle != null ? String(settings.ingestion.maxTicketsPerCycle) : '',
+    maxProviderRequestsPerCycle: settings?.ingestion.maxProviderRequestsPerCycle != null ? String(settings.ingestion.maxProviderRequestsPerCycle) : '',
+    hardBackfillHorizonHours: settings?.ingestion.hardBackfillHorizonHours != null ? String(settings.ingestion.hardBackfillHorizonHours) : '',
+    perRunTokens: settings?.guardrails.perRun.maxEstimatedTokens != null ? String(settings.guardrails.perRun.maxEstimatedTokens) : '',
+    perRunCostEur: settings?.guardrails.perRun.maxEstimatedCostEur != null ? String(settings.guardrails.perRun.maxEstimatedCostEur) : '',
+    dailyRuns: settings?.guardrails.daily.maxAgentRuns != null ? String(settings.guardrails.daily.maxAgentRuns) : '',
+    dailyTokens: settings?.guardrails.daily.maxEstimatedTokens != null ? String(settings.guardrails.daily.maxEstimatedTokens) : '',
+    dailyCostEur: settings?.guardrails.daily.maxEstimatedCostEur != null ? String(settings.guardrails.daily.maxEstimatedCostEur) : '',
+  };
+}
+
+function parseOptionalNumber(value: string, label: string, errors: string[]): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(',', '.'));
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    errors.push(`${label} must be a positive number.`);
+    return null;
+  }
+  return parsed;
+}
+
+function HelpdeskAgentSettingsDialog({
+  open,
+  settings,
+  saving,
+  saveError,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  settings: AiAgentControlHelpdeskIngestionSettings | null;
+  saving: boolean;
+  saveError: string | null;
+  onClose: () => void;
+  onSave: (payload: AiAgentControlHelpdeskIngestionSettingsInput) => void;
+}) {
+  const [form, setForm] = React.useState<HelpdeskSettingsFormState>(() => settingsToFormState(settings));
+  const [formError, setFormError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (open) {
+      setForm(settingsToFormState(settings));
+      setFormError(null);
+    }
+  }, [open, settings]);
+
+  const setField = (field: keyof HelpdeskSettingsFormState) =>
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  const handleSave = () => {
+    const errors: string[] = [];
+    if (form.enabled && !form.entityId.trim() && !form.categoryId.trim()) {
+      errors.push('Enabling ingestion requires a GLPI entity id and/or category id.');
+    }
+    const payload: AiAgentControlHelpdeskIngestionSettingsInput = {
+      ingestion: {
+        enabled: form.enabled,
+        entityId: form.entityId.trim() || null,
+        categoryId: form.categoryId.trim() || null,
+        maxTicketsPerCycle: parseOptionalNumber(form.maxTicketsPerCycle, 'Max tickets per cycle', errors),
+        maxProviderRequestsPerCycle: parseOptionalNumber(form.maxProviderRequestsPerCycle, 'Max provider requests per cycle', errors),
+        hardBackfillHorizonHours: parseOptionalNumber(form.hardBackfillHorizonHours, 'Backfill horizon hours', errors),
+      },
+      guardrails: {
+        perRun: {
+          maxEstimatedTokens: parseOptionalNumber(form.perRunTokens, 'Per-run token cap', errors),
+          maxEstimatedCostEur: parseOptionalNumber(form.perRunCostEur, 'Per-run cost cap', errors),
+        },
+        daily: {
+          maxAgentRuns: parseOptionalNumber(form.dailyRuns, 'Daily run cap', errors),
+          maxEstimatedTokens: parseOptionalNumber(form.dailyTokens, 'Daily token cap', errors),
+          maxEstimatedCostEur: parseOptionalNumber(form.dailyCostEur, 'Daily cost cap', errors),
+        },
+      },
+    };
+    if (errors.length > 0) {
+      setFormError(errors.join(' '));
+      return;
+    }
+    setFormError(null);
+    onSave(payload);
+  };
+
+  const fieldSx = { '& .MuiInputBase-input': { fontSize: 13, py: 0.75 } } as const;
+
+  return (
+    <KanapDialog
+      open={open}
+      title="Helpdesk GLPI agent settings"
+      onClose={onClose}
+      onSave={handleSave}
+      saveLabel={form.enabled ? 'Save and enable ingestion' : 'Save'}
+      saveLoading={saving}
+    >
+      <Stack spacing={2.25}>
+        {(formError || saveError) && <Alert severity="error">{formError || saveError}</Alert>}
+        {settings && !settings.ingestion.ready && settings.ingestion.enabled && (
+          <Alert severity="warning">{settings.ingestion.readyReason}</Alert>
+        )}
+
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Switch
+            size="small"
+            checked={form.enabled}
+            onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))}
+          />
+          <Box>
+            <Typography variant="body2">Automatic new-ticket ingestion</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Polls the bounded GLPI scope every 5 minutes and prepares proposals only. Nothing is written without approval.
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+          <SettingsField label="GLPI entity id">
+            <TextField fullWidth size="small" value={form.entityId} onChange={setField('entityId')} placeholder="e.g., 12" sx={fieldSx} />
+          </SettingsField>
+          <SettingsField label="GLPI category id">
+            <TextField fullWidth size="small" value={form.categoryId} onChange={setField('categoryId')} placeholder="e.g., 31" sx={fieldSx} />
+          </SettingsField>
+          <SettingsField label="Max tickets per cycle (1-20)">
+            <TextField fullWidth size="small" value={form.maxTicketsPerCycle} onChange={setField('maxTicketsPerCycle')} placeholder="5" sx={fieldSx} />
+          </SettingsField>
+          <SettingsField label="Max provider requests per cycle (1-100)">
+            <TextField fullWidth size="small" value={form.maxProviderRequestsPerCycle} onChange={setField('maxProviderRequestsPerCycle')} placeholder="10" sx={fieldSx} />
+          </SettingsField>
+          <SettingsField label="Backfill horizon (hours)">
+            <TextField fullWidth size="small" value={form.hardBackfillHorizonHours} onChange={setField('hardBackfillHorizonHours')} placeholder="24" sx={fieldSx} />
+          </SettingsField>
+        </Box>
+        {settings?.ingestion.enabledAt && (
+          <Typography variant="caption" color="text.secondary">
+            Ingestion only considers tickets created after enablement ({settings.ingestion.enabledAt}). Re-enabling refreshes this anchor.
+          </Typography>
+        )}
+
+        <Divider />
+
+        <Box>
+          <Typography variant="body2" sx={{ mb: 1 }}>Economic guardrails</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label="Per-run token cap">
+              <TextField fullWidth size="small" value={form.perRunTokens} onChange={setField('perRunTokens')} placeholder="40000" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField label="Per-run cost cap (EUR)">
+              <TextField fullWidth size="small" value={form.perRunCostEur} onChange={setField('perRunCostEur')} placeholder="1" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField label="Daily run cap">
+              <TextField fullWidth size="small" value={form.dailyRuns} onChange={setField('dailyRuns')} placeholder="25" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField label="Daily token cap">
+              <TextField fullWidth size="small" value={form.dailyTokens} onChange={setField('dailyTokens')} placeholder="500000" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField label="Daily cost cap (EUR)">
+              <TextField fullWidth size="small" value={form.dailyCostEur} onChange={setField('dailyCostEur')} placeholder="10" sx={fieldSx} />
+            </SettingsField>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            A run over its cap is terminated and recorded as failed. Reaching a daily cap pauses ingestion until the next UTC day; queued work items are kept.
+          </Typography>
+        </Box>
+      </Stack>
+    </KanapDialog>
+  );
+}
+
+function EmergencyPauseDialog({
+  open,
+  saving,
+  saveError,
+  onClose,
+  onActivate,
+}: {
+  open: boolean;
+  saving: boolean;
+  saveError: string | null;
+  onClose: () => void;
+  onActivate: (payload: { reason: string; expires_in_minutes: number | null }) => void;
+}) {
+  const [reason, setReason] = React.useState('');
+  const [expiresInMinutes, setExpiresInMinutes] = React.useState('');
+  React.useEffect(() => {
+    if (open) {
+      setReason('');
+      setExpiresInMinutes('');
+    }
+  }, [open]);
+
+  const parsedExpiry = Number(expiresInMinutes.trim());
+  const expiry = expiresInMinutes.trim() && Number.isFinite(parsedExpiry) && parsedExpiry > 0
+    ? Math.floor(parsedExpiry)
+    : null;
+
+  return (
+    <KanapDialog
+      open={open}
+      title="Activate emergency pause"
+      onClose={onClose}
+      onSave={() => onActivate({ reason: reason.trim(), expires_in_minutes: expiry })}
+      saveLabel="Activate pause"
+      saveColor="error"
+      saveDisabled={!reason.trim()}
+      saveLoading={saving}
+    >
+      <Stack spacing={2}>
+        {saveError && <Alert severity="error">{saveError}</Alert>}
+        <Typography variant="body2" color="text.secondary">
+          Pausing suspends all agent activity for this tenant: scheduled polling stops and capability execution is blocked
+          until the pause is lifted. Queued work items and pending proposals are kept.
+        </Typography>
+        <SettingsField label="Reason (required, audited)">
+          <TextField
+            fullWidth
+            size="small"
+            multiline
+            minRows={2}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="e.g., GLPI maintenance window"
+          />
+        </SettingsField>
+        <SettingsField label="Auto-expire after (minutes, optional)">
+          <TextField
+            fullWidth
+            size="small"
+            value={expiresInMinutes}
+            onChange={(event) => setExpiresInMinutes(event.target.value)}
+            placeholder="e.g., 120"
+          />
+        </SettingsField>
+      </Stack>
+    </KanapDialog>
+  );
+}
+
 function AgentSummary({
   definition,
   summary,
@@ -663,6 +937,11 @@ function AgentSummary({
   locale,
   pollBusy,
   onPoll,
+  activePause,
+  pauseBusy,
+  onOpenSettings,
+  onActivatePause,
+  onLiftPause,
 }: {
   definition: AiAgentControlAgentDefinition | null;
   summary: AiAgentControlHelpdeskSummary | null;
@@ -671,6 +950,11 @@ function AgentSummary({
   locale: string;
   pollBusy: boolean;
   onPoll: () => void;
+  activePause: AiAgentControlEmergencyPause | null;
+  pauseBusy: boolean;
+  onOpenSettings: () => void;
+  onActivatePause: () => void;
+  onLiftPause: () => void;
 }) {
   if (loading) {
     return (
@@ -687,12 +971,43 @@ function AgentSummary({
       actions={definition ? (
         <Stack direction="row" spacing={1} alignItems="center">
           <StatusText status={definition.status} />
+          {activePause ? (
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              startIcon={pauseBusy ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
+              onClick={onLiftPause}
+              disabled={pauseBusy}
+            >
+              Lift pause
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<PauseCircleOutlineIcon />}
+              onClick={onActivatePause}
+              disabled={pauseBusy}
+            >
+              Pause
+            </Button>
+          )}
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<SettingsOutlinedIcon />}
+            onClick={onOpenSettings}
+          >
+            Settings
+          </Button>
           <Button
             size="small"
             variant="outlined"
             startIcon={pollBusy ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
             onClick={onPoll}
-            disabled={pollBusy}
+            disabled={pollBusy || !!activePause}
           >
             Poll
           </Button>
@@ -701,6 +1016,12 @@ function AgentSummary({
     >
       {definition ? (
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
+          {activePause && (
+            <Alert severity="warning">
+              Emergency pause active since {formatDateTime(activePause.created_at ?? '', locale)}: {activePause.reason}
+              {activePause.expires_at ? ` (auto-expires ${formatDateTime(activePause.expires_at, locale)})` : ''}
+            </Alert>
+          )}
           <Box
             sx={{
               display: 'grid',
@@ -1837,8 +2158,58 @@ export default function AgentControlCenterPage() {
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-queue'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-glpi-read-targets'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-helpdesk-context'] }),
+      queryClient.invalidateQueries({ queryKey: ['ai-agent-helpdesk-settings'] }),
     ]);
   }, [queryClient]);
+
+  const [settingsDialogOpen, setSettingsDialogOpen] = React.useState(false);
+  const [pauseDialogOpen, setPauseDialogOpen] = React.useState(false);
+
+  const helpdeskSettingsQuery = useQuery({
+    queryKey: ['ai-agent-helpdesk-settings'],
+    queryFn: () => aiAgentControlApi.getHelpdeskIngestionSettings(),
+  });
+  const helpdeskSettings = helpdeskSettingsQuery.data ?? null;
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (payload: AiAgentControlHelpdeskIngestionSettingsInput) =>
+      aiAgentControlApi.updateHelpdeskIngestionSettings(payload),
+    onSuccess: async (result) => {
+      queryClient.setQueryData(['ai-agent-helpdesk-settings'], result);
+      setSettingsDialogOpen(false);
+      setMutationInfo(result.ingestion.enabled
+        ? (result.ingestion.ready
+          ? 'Ingestion settings saved. Bounded new-ticket polling is enabled.'
+          : `Ingestion settings saved, but polling is not ready: ${result.ingestion.readyReason}`)
+        : 'Ingestion settings saved. Automatic polling is disabled.');
+      await invalidateControlQueries();
+    },
+  });
+
+  const createPauseMutation = useMutation({
+    mutationFn: (payload: { reason: string; expires_in_minutes: number | null }) =>
+      aiAgentControlApi.createHelpdeskEmergencyPause(payload),
+    onSuccess: async () => {
+      setPauseDialogOpen(false);
+      setMutationInfo('Emergency pause activated. All agent activity for this tenant is suspended.');
+      await invalidateControlQueries();
+    },
+  });
+
+  const revokePauseMutation = useMutation({
+    mutationFn: (id: string) => aiAgentControlApi.revokeHelpdeskEmergencyPause(id),
+    onMutate: () => {
+      setMutationError(null);
+      setMutationInfo(null);
+    },
+    onSuccess: async () => {
+      setMutationInfo('Emergency pause lifted. Agent activity can resume.');
+      await invalidateControlQueries();
+    },
+    onError: (error: any) => {
+      setMutationError(getApiErrorMessage(error, t, 'The emergency pause could not be lifted.'));
+    },
+  });
 
   const runMockTriageMutation = useMutation({
     mutationFn: () => aiAgentControlApi.runMockTriage({
@@ -1997,7 +2368,10 @@ export default function AgentControlCenterPage() {
       setMutationInfo(null);
     },
     onSuccess: async (result) => {
-      setMutationInfo(`Poll ${humanize(result.status)}: listed ${result.listed}, enqueued ${result.enqueued}, processed ${result.processed}.`);
+      const counts = `listed ${result.listed}, enqueued ${result.enqueued}, processed ${result.processed}`;
+      setMutationInfo(result.reason
+        ? `Poll ${humanize(result.status)}: ${result.reason} (${counts}.)`
+        : `Poll ${humanize(result.status)}: ${counts}.`);
       await invalidateControlQueries();
     },
     onError: (error: any) => {
@@ -2121,6 +2495,14 @@ export default function AgentControlCenterPage() {
           locale={locale}
           pollBusy={pollHelpdeskIngestionMutation.isPending}
           onPoll={() => pollHelpdeskIngestionMutation.mutate()}
+          activePause={helpdeskSettings?.emergency_pause ?? null}
+          pauseBusy={createPauseMutation.isPending || revokePauseMutation.isPending}
+          onOpenSettings={() => setSettingsDialogOpen(true)}
+          onActivatePause={() => setPauseDialogOpen(true)}
+          onLiftPause={() => {
+            const pauseId = helpdeskSettings?.emergency_pause?.id;
+            if (pauseId) revokePauseMutation.mutate(pauseId);
+          }}
         />
 
         <Section title="Audit drill-down">
@@ -2180,6 +2562,26 @@ export default function AgentControlCenterPage() {
           </Box>
         </Section>
       </Stack>
+
+      <HelpdeskAgentSettingsDialog
+        open={settingsDialogOpen}
+        settings={helpdeskSettings}
+        saving={updateSettingsMutation.isPending}
+        saveError={updateSettingsMutation.error
+          ? getApiErrorMessage(updateSettingsMutation.error, t, 'The settings could not be saved.')
+          : null}
+        onClose={() => setSettingsDialogOpen(false)}
+        onSave={(payload) => updateSettingsMutation.mutate(payload)}
+      />
+      <EmergencyPauseDialog
+        open={pauseDialogOpen}
+        saving={createPauseMutation.isPending}
+        saveError={createPauseMutation.error
+          ? getApiErrorMessage(createPauseMutation.error, t, 'The emergency pause could not be activated.')
+          : null}
+        onClose={() => setPauseDialogOpen(false)}
+        onActivate={(payload) => createPauseMutation.mutate(payload)}
+      />
     </>
   );
 }

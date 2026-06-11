@@ -18,6 +18,7 @@ import {
 export type HelpdeskGlpiIngestionPollSummary = {
   tenantId: string;
   status: 'disabled' | 'paused' | 'completed' | 'failed' | 'skipped';
+  reason?: string | null;
   listed: number;
   enqueued: number;
   deduped: number;
@@ -209,7 +210,8 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       );
       if (!lockRows[0]?.locked) {
         summary.status = 'skipped';
-        summary.errors.push('Another Helpdesk GLPI ingestion poll is already running for this tenant.');
+        summary.reason = 'Another Helpdesk GLPI ingestion poll is already running for this tenant.';
+        summary.errors.push(summary.reason);
         return summary;
       }
     }
@@ -217,6 +219,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     const definition = await this.loadDefinition(context, opts.ensureDefinition);
     if (!definition) {
       summary.status = 'disabled';
+      summary.reason = 'The Helpdesk GLPI triage agent definition does not exist yet for this tenant.';
       return summary;
     }
 
@@ -226,6 +229,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       config = this.queue.resolveNewTicketsIngestionConfig(definition);
     } catch (error) {
       summary.status = 'disabled';
+      summary.reason = error instanceof Error ? error.message : String(error);
       return summary;
     }
 
@@ -237,6 +241,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       const cooldownUntil = scheduledPollCooldownUntil(definition);
       if (cooldownUntil != null && Date.now() < cooldownUntil) {
         summary.status = 'skipped';
+        summary.reason = `Scheduled polling is backing off after a failed cycle until ${new Date(cooldownUntil).toISOString()}.`;
         return summary;
       }
     }
@@ -244,6 +249,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     const pause = await this.queue.hasActiveEmergencyPause(context);
     if (pause) {
       summary.status = 'paused';
+      summary.reason = `An emergency pause is active: ${pause.reason}`;
       const event = await this.queue.recordAuditEvent(context, {
         agentDefinitionId: definition.id,
         eventType: 'poller_paused_by_emergency_pause',
@@ -265,7 +271,8 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       await this.queue.assertDailyCapAvailable(context, definition);
     } catch (error) {
       summary.status = 'paused';
-      summary.errors.push(error instanceof Error ? error.message : String(error));
+      summary.reason = error instanceof Error ? error.message : String(error);
+      summary.errors.push(summary.reason);
       return summary;
     }
 

@@ -582,11 +582,57 @@ export type AiAgentControlGlpiTriageResult = {
 export type AiAgentControlHelpdeskIngestionPollResult = {
   tenantId: string;
   status: string;
+  reason?: string | null;
   listed: number;
   enqueued: number;
   deduped: number;
   processed: number;
   errors: string[];
+};
+
+export type AiAgentControlEmergencyPause = {
+  id: string;
+  active: boolean;
+  reason: string;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
+export type AiAgentControlHelpdeskIngestionSettings = {
+  agentDefinitionId: string;
+  ingestion: {
+    enabled: boolean;
+    enabledAt: string | null;
+    entityId: string | null;
+    categoryId: string | null;
+    maxTicketsPerCycle: number | null;
+    maxProviderRequestsPerCycle: number | null;
+    hardBackfillHorizonHours: number;
+    ready: boolean;
+    readyReason: string | null;
+    effectiveCreatedAfter: string | null;
+  };
+  guardrails: {
+    configured: boolean;
+    perRun: { maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+    daily: { maxAgentRuns: number | null; maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+  };
+  emergency_pause: AiAgentControlEmergencyPause | null;
+};
+
+export type AiAgentControlHelpdeskIngestionSettingsInput = {
+  ingestion: {
+    enabled: boolean;
+    entityId?: string | null;
+    categoryId?: string | null;
+    maxTicketsPerCycle?: number | null;
+    maxProviderRequestsPerCycle?: number | null;
+    hardBackfillHorizonHours?: number | null;
+  };
+  guardrails?: {
+    perRun?: { maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+    daily?: { maxAgentRuns?: number | null; maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+  };
 };
 
 export class ChatStreamRequestError extends Error {
@@ -827,6 +873,24 @@ export const aiAgentControlApi = {
   },
   async pollHelpdeskGlpiIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
     const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/poll', {});
+    return res.data;
+  },
+  async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {
+    const res = await api.get('/ai/admin/control-plane/helpdesk/glpi-ingestion/settings');
+    return res.data;
+  },
+  async updateHelpdeskIngestionSettings(
+    payload: AiAgentControlHelpdeskIngestionSettingsInput,
+  ): Promise<AiAgentControlHelpdeskIngestionSettings> {
+    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/settings', payload);
+    return res.data;
+  },
+  async createHelpdeskEmergencyPause(payload: { reason: string; expires_in_minutes?: number | null }): Promise<AiAgentControlEmergencyPause> {
+    const res = await api.post('/ai/admin/control-plane/helpdesk/emergency-pause', payload);
+    return res.data;
+  },
+  async revokeHelpdeskEmergencyPause(id: string): Promise<AiAgentControlEmergencyPause> {
+    const res = await api.post(`/ai/admin/control-plane/helpdesk/emergency-pause/${id}/revoke`, {});
     return res.data;
   },
   async approveAction(id: string, payload?: { execute?: boolean }): Promise<{
