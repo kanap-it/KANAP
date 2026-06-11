@@ -1,0 +1,232 @@
+import React from 'react';
+import { Autocomplete, Box, TextField, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { PropertyGroup, PropertyRow } from '../../../components/design/PropertyRow';
+import SupplierSelect from '../../../components/fields/SupplierSelect';
+import CompanySelect from '../../../components/fields/CompanySelect';
+import AccountSelect from '../../../components/fields/AccountSelect';
+import AnalyticsCategorySelect from '../../../components/fields/AnalyticsCategorySelect';
+import DateEUField from '../../../components/fields/DateEUField';
+import StatusLifecycleField from '../../../components/fields/StatusLifecycleField';
+import { CURRENCY_OPTIONS, CurrencyOption } from '../../../constants/isoOptions';
+import useCurrencySettings from '../../../hooks/useCurrencySettings';
+import { StatusValue } from '../../../constants/status';
+
+export type CapexPpeType = 'hardware' | 'software';
+export type CapexInvestmentType = 'replacement' | 'capacity' | 'productivity' | 'security' | 'conformity' | 'business_growth' | 'other';
+
+type Option<T extends string> = { value: T; label: string };
+
+type Props = {
+  supplierId: string;
+  payingCompanyId: string;
+  accountId: string;
+  currency: string;
+  ppeType: CapexPpeType;
+  investmentType: CapexInvestmentType;
+  analyticsCategoryId: string;
+  effectiveStart: string;
+  effectiveEnd: string;
+  status: StatusValue;
+  disabledAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  disabled?: boolean;
+  onSupplierChange: (next: string) => void;
+  onPayingCompanyChange: (next: string) => void;
+  onAccountChange: (next: string) => void;
+  onCurrencyChange: (next: string) => void;
+  onPpeTypeChange: (next: CapexPpeType) => void;
+  onInvestmentTypeChange: (next: CapexInvestmentType) => void;
+  onAnalyticsCategoryChange: (next: string) => void;
+  onEffectiveStartChange: (next: string) => void;
+  onEffectiveEndChange: (next: string) => void;
+  onStatusChange: (next: StatusValue) => void;
+  onDisabledAtChange: (next: string | null) => void;
+};
+
+const hideInnerLabelSx = {
+  '& .MuiInputLabel-root': { display: 'none' },
+  '& .MuiFormControl-root': { m: 0 },
+} as const;
+
+function formatShortDate(value: string | null): string {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+}
+
+function valueOption<T extends string>(options: Option<T>[], value: T): Option<T> {
+  return options.find((opt) => opt.value === value) || options[0];
+}
+
+export default function CapexPropertiesDrawer({
+  supplierId,
+  payingCompanyId,
+  accountId,
+  currency,
+  ppeType,
+  investmentType,
+  analyticsCategoryId,
+  effectiveStart,
+  effectiveEnd,
+  status,
+  disabledAt,
+  createdAt,
+  updatedAt,
+  disabled = false,
+  onSupplierChange,
+  onPayingCompanyChange,
+  onAccountChange,
+  onCurrencyChange,
+  onPpeTypeChange,
+  onInvestmentTypeChange,
+  onAnalyticsCategoryChange,
+  onEffectiveStartChange,
+  onEffectiveEndChange,
+  onStatusChange,
+  onDisabledAtChange,
+}: Props) {
+  const { t } = useTranslation(['ops', 'common']);
+  const { data: currencySettings } = useCurrencySettings();
+
+  const ppeOptions = React.useMemo<Array<Option<CapexPpeType>>>(() => [
+    { value: 'hardware', label: t('capex.ppeTypes.hardware') },
+    { value: 'software', label: t('capex.ppeTypes.software') },
+  ], [t]);
+  const investmentOptions = React.useMemo<Array<Option<CapexInvestmentType>>>(() => [
+    { value: 'replacement', label: t('capex.investmentTypes.replacement') },
+    { value: 'capacity', label: t('capex.investmentTypes.capacity') },
+    { value: 'productivity', label: t('capex.investmentTypes.productivity') },
+    { value: 'security', label: t('capex.investmentTypes.security') },
+    { value: 'conformity', label: t('capex.investmentTypes.conformity') },
+    { value: 'business_growth', label: t('capex.investmentTypes.business_growth') },
+    { value: 'other', label: t('capex.investmentTypes.other') },
+  ], [t]);
+
+  const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
+    const allowed = currencySettings?.allowedCurrencies;
+    if (allowed && allowed.length > 0) {
+      const set = new Set(allowed.map((c: string) => c.toUpperCase()));
+      const filtered = CURRENCY_OPTIONS.filter((opt) => set.has(opt.code));
+      return filtered.length ? filtered : CURRENCY_OPTIONS;
+    }
+    return CURRENCY_OPTIONS;
+  }, [currencySettings]);
+
+  const currencyValue = React.useMemo<CurrencyOption | null>(() => {
+    const code = (currency || '').toUpperCase();
+    return currencyOptions.find((opt) => opt.code === code)
+      ?? (code ? ({ code, name: code } as CurrencyOption) : null);
+  }, [currency, currencyOptions]);
+
+  return (
+    <>
+      <PropertyGroup>
+        <PropertyRow label={t('capex.fields.supplier')}>
+          <Box sx={hideInnerLabelSx}>
+            <SupplierSelect value={supplierId} onChange={(v) => onSupplierChange(v ?? '')} disabled={disabled} />
+          </Box>
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.payingCompany')} required>
+          <Box sx={hideInnerLabelSx}>
+            <CompanySelect value={payingCompanyId || null} onChange={(v) => onPayingCompanyChange(v ?? '')} disabled={disabled} required />
+          </Box>
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.account')}>
+          <Box sx={hideInnerLabelSx}>
+            <AccountSelect value={accountId} onChange={(v) => onAccountChange(v ?? '')} companyId={payingCompanyId || undefined} disabled={disabled} />
+          </Box>
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.currency')} required>
+          <Autocomplete<CurrencyOption, false, true, false>
+            options={currencyOptions}
+            disableClearable
+            value={currencyValue ?? undefined}
+            onChange={(_e, option) => onCurrencyChange(option?.code ?? currency)}
+            getOptionLabel={(option) => `${option.code} - ${option.name}`}
+            isOptionEqualToValue={(option, value) => option.code === value.code}
+            disabled={disabled}
+            renderInput={(params) => (
+              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+            )}
+          />
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.ppeType')} required>
+          <Autocomplete<Option<CapexPpeType>, false, true, false>
+            options={ppeOptions}
+            disableClearable
+            value={valueOption(ppeOptions, ppeType)}
+            onChange={(_e, option) => onPpeTypeChange(option?.value ?? ppeType)}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            disabled={disabled}
+            renderInput={(params) => (
+              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+            )}
+          />
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.investmentType')} required>
+          <Autocomplete<Option<CapexInvestmentType>, false, true, false>
+            options={investmentOptions}
+            disableClearable
+            value={valueOption(investmentOptions, investmentType)}
+            onChange={(_e, option) => onInvestmentTypeChange(option?.value ?? investmentType)}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            disabled={disabled}
+            renderInput={(params) => (
+              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+            )}
+          />
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.analyticsCategory')}>
+          <Box sx={hideInnerLabelSx}>
+            <AnalyticsCategorySelect value={analyticsCategoryId || null} onChange={(v) => onAnalyticsCategoryChange(v ?? '')} />
+          </Box>
+        </PropertyRow>
+      </PropertyGroup>
+
+      <PropertyGroup>
+        <PropertyRow label={t('capex.fields.effectiveStart')} required>
+          <Box sx={hideInnerLabelSx}>
+            <DateEUField label="" valueYmd={effectiveStart || ''} onChangeYmd={onEffectiveStartChange} disabled={disabled} required />
+          </Box>
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.effectiveEnd')}>
+          <Box sx={hideInnerLabelSx}>
+            <DateEUField label="" valueYmd={effectiveEnd || ''} onChangeYmd={onEffectiveEndChange} disabled={disabled} />
+          </Box>
+        </PropertyRow>
+      </PropertyGroup>
+
+      <PropertyGroup>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, py: '5px' }}>
+          <Typography sx={{ fontSize: 12, lineHeight: 1.3, color: 'kanap.text.tertiary' }}>{t('capex.fields.lifecycle')}</Typography>
+          <StatusLifecycleField
+            status={status}
+            onStatusChange={onStatusChange}
+            disabledAt={disabledAt}
+            onDisabledAtChange={onDisabledAtChange}
+            disabled={disabled}
+            statusLabel={t('capex.status.enabled')}
+            disabledAtLabel={t('capex.fields.endOfValidity')}
+            disabledAtHelperText={t('capex.fields.endOfValidityHint')}
+          />
+        </Box>
+      </PropertyGroup>
+
+      <PropertyGroup>
+        <PropertyRow label={t('capex.fields.created')}>
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt)}</Typography>
+        </PropertyRow>
+        <PropertyRow label={t('capex.fields.updated')}>
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt)}</Typography>
+        </PropertyRow>
+      </PropertyGroup>
+    </>
+  );
+}

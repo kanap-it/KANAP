@@ -3,15 +3,16 @@ import { Alert, Box, Button, IconButton, MenuItem, Stack, Tab, Tabs, TextField, 
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
 import { useTranslation } from 'react-i18next';
-import api from '../../../api';
-import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import { useLocale } from '../../../i18n/useLocale';
-import { formatAmount } from '../../../i18n/formatters';
-import { useFreezeState } from '../../../hooks/useFreezeState';
-import useAutosave from '../../../hooks/useAutosave';
-import YearTabs from '../../../components/navigation/YearTabs';
-import FormattedNumberField from '../../../components/inputs/FormattedNumberField';
+import api from '../../api';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useLocale } from '../../i18n/useLocale';
+import { formatAmount } from '../../i18n/formatters';
+import { useFreezeState } from '../../hooks/useFreezeState';
+import useAutosave from '../../hooks/useAutosave';
+import YearTabs from '../navigation/YearTabs';
+import FormattedNumberField from '../inputs/FormattedNumberField';
 import BudgetTrendChart from './BudgetTrendChart';
+import { FinanceModuleConfig } from './config';
 
 export type BudgetTabHandle = {
   flush: () => Promise<boolean>;
@@ -19,11 +20,12 @@ export type BudgetTabHandle = {
 };
 
 type Props = {
-  id: string; // resolved spend item UUID
+  id: string; // resolved finance item UUID
   year: number;
   currency?: string;
   availableYears?: number[];
   onYearChange: (y: number) => void;
+  config: FinanceModuleConfig;
 };
 
 type Version = { id: string; input_grain: 'annual' | 'quarterly' | 'monthly'; budget_year?: number };
@@ -61,7 +63,7 @@ const QUARTERS = [
   { label: 'Q4', months: [9, 10, 11] },
 ];
 
-export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year, currency, availableYears, onYearChange }, ref) {
+export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year, currency, availableYears, onYearChange, config }, ref) {
   const { t } = useTranslation(['ops', 'common']);
   const locale = useLocale();
 
@@ -79,17 +81,17 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
 
   const { data: freezeData } = useFreezeState(year);
   const frozen = React.useMemo(() => {
-    const s = freezeData?.summary?.scopes.opex;
+    const s = freezeData?.summary?.scopes?.[config.freezeScope];
     return {
       budget: s?.budget?.frozen ?? false,
       revision: s?.revision?.frozen ?? false,
       actual: s?.actual?.frozen ?? false,
       landing: s?.landing?.frozen ?? false,
     };
-  }, [freezeData]);
+  }, [freezeData, config.freezeScope]);
   const anyFrozen = frozen.budget || frozen.revision || frozen.actual || frozen.landing;
 
-  const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t('opex.budget.failedToSave'))) });
+  const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToSave`))) });
 
   // Latest-value refs so the debounced persist never reads stale state.
   const modeRef = React.useRef(mode); modeRef.current = mode;
@@ -100,10 +102,10 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
 
   const ensureVersion = React.useCallback(async (): Promise<Version> => {
     if (versionRef.current) return versionRef.current;
-    const res = await api.get<Version[]>(`/spend-items/${id}/versions`);
+    const res = await api.get<Version[]>(`${config.itemsApi}/${id}/versions`);
     const existing = (res.data || []).find((v) => Number(v.budget_year) === year);
     if (existing) { versionRef.current = existing; setVersion(existing); return existing; }
-    const created = await api.post<Version>(`/spend-items/${id}/versions`, {
+    const created = await api.post<Version>(`${config.itemsApi}/${id}/versions`, {
       version_name: `Y${year}`, budget_year: year, as_of_date: `${year}-01-01`,
       input_grain: modeRef.current === 'flat' ? 'annual' : 'monthly', notes: null,
     });
@@ -118,7 +120,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<Version[]>(`/spend-items/${id}/versions`);
+      const res = await api.get<Version[]>(`${config.itemsApi}/${id}/versions`);
       const v = (res.data || []).find((vv) => Number(vv.budget_year) === year);
       if (!v) {
         setVersion(null);
@@ -129,7 +131,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
       }
       setVersion(v);
       setMode(v.input_grain === 'annual' ? 'flat' : 'monthly');
-      const amt = await api.get<YearAmounts>(`/spend-versions/${v.id}/amounts`, { params: { year } });
+      const amt = await api.get<YearAmounts>(`${config.versionsApi}/${v.id}/amounts`, { params: { year } });
       const totals = amt.data?.totals;
       setFlat({
         planned: Number(totals?.planned || 0),
@@ -147,7 +149,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
           : { period: p, planned: 0, committed: 0, actual: 0, expected_landing: 0, forecast: 0 };
       }));
     } catch (e) {
-      setError(getApiErrorMessage(e, t, t('opex.budget.failedToLoad')));
+      setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToLoad`)));
     } finally {
       setLoading(false);
     }
@@ -161,7 +163,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     const fr = frozenRef.current;
     const nextGrain = modeRef.current === 'flat' ? 'annual' : 'monthly';
     if (v.input_grain !== nextGrain) {
-      await api.patch(`/spend-items/${id}/versions`, { id: v.id, input_grain: nextGrain });
+      await api.patch(`${config.itemsApi}/${id}/versions`, { id: v.id, input_grain: nextGrain });
       setVersion((prev) => (prev ? { ...prev, input_grain: nextGrain } : prev));
     }
     if (modeRef.current === 'flat') {
@@ -171,9 +173,9 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
       if (!fr.revision) totals.committed = Number(f.committed || 0);
       if (!fr.actual) totals.actual = Number(f.actual || 0);
       if (!fr.landing) totals.expected_landing = Number(f.expected_landing || 0);
-      await api.post(`/spend-versions/${v.id}/amounts/bulk-upsert`, { kind: 'annual', year, totals });
+      await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, { kind: 'annual', year, totals });
     } else {
-      await api.post(`/spend-versions/${v.id}/amounts/bulk-upsert`, {
+      await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, {
         kind: 'monthly', year,
         months: monthsRef.current.map((m) => ({
           period: m.period,
@@ -223,10 +225,10 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     const v = versionRef.current;
     if (!v) return; // no version yet — grain persists on first edit
     try {
-      await api.patch(`/spend-items/${id}/versions`, { id: v.id, input_grain: next === 'flat' ? 'annual' : 'monthly' });
+      await api.patch(`${config.itemsApi}/${id}/versions`, { id: v.id, input_grain: next === 'flat' ? 'annual' : 'monthly' });
       await load();
     } catch (e) {
-      setError(getApiErrorMessage(e, t, t('opex.budget.failedToSave')));
+      setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToSave`)));
     }
   }, [autosave, id, load, t]);
 
@@ -236,17 +238,17 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     setError(null);
     try {
       const v = await ensureVersion();
-      await api.post(`/spend-versions/${v.id}/amounts/bulk-upsert`, {
+      await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, {
         kind: 'annual', year, totals: { [spreadMeasure]: amount }, spread_profile_name: spreadProfile,
       });
       if (v.input_grain !== 'monthly') {
-        await api.patch(`/spend-items/${id}/versions`, { id: v.id, input_grain: 'monthly' });
+        await api.patch(`${config.itemsApi}/${id}/versions`, { id: v.id, input_grain: 'monthly' });
       }
       setMode('monthly');
       setSpreadAmount('');
       await load();
     } catch (e) {
-      setError(getApiErrorMessage(e, t, t('opex.budget.failedToSave')));
+      setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToSave`)));
     }
   };
 
@@ -291,8 +293,8 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
       </Box>
 
       <Tabs value={mode} onChange={(_, v) => void onModeChange(v)}>
-        <Tab value="flat" label={t('opex.budget.flat')} />
-        <Tab value="monthly" label={t('opex.budget.monthly')} />
+        <Tab value="flat" label={t(`${config.i18nPrefix}.budget.flat`)} />
+        <Tab value="monthly" label={t(`${config.i18nPrefix}.budget.monthly`)} />
       </Tabs>
 
       {mode === 'flat' ? (
@@ -315,29 +317,29 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
               </Box>
             ))}
           </Box>
-          <BudgetTrendChart id={id} currency={currency} />
+          <BudgetTrendChart id={id} currency={currency} config={config} />
         </Stack>
       ) : (
         <Stack spacing={2}>
           {/* Spread-from-annual helper */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 1.5, bgcolor: 'kanap.bg.drawer', border: '1px solid', borderColor: 'kanap.border.soft', borderRadius: '8px', p: 1.5 }}>
-            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', alignSelf: 'center' }}>{t('opex.budget.spreadHelper')}</Typography>
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', alignSelf: 'center' }}>{t(`${config.i18nPrefix}.budget.spreadHelper`)}</Typography>
             <TextField select size="small" variant="standard" value={spreadMeasure} onChange={(e) => setSpreadMeasure(e.target.value as MeasureKey)} InputProps={{ disableUnderline: true }} sx={{ minWidth: 120 }}>
               {MEASURES.map((m) => <MenuItem key={m.key} value={m.key}>{labelFor(m)}</MenuItem>)}
             </TextField>
             <FormattedNumberField value={spreadAmount} onChange={(e) => setSpreadAmount(e.target.value as unknown as number | '')} variant="standard" size="small" placeholder="e.g., 120000" InputProps={{ disableUnderline: true }} sx={{ width: 120 }} />
             <TextField select size="small" variant="standard" value={spreadProfile} onChange={(e) => setSpreadProfile(e.target.value as 'flat' | '4-4-5')} InputProps={{ disableUnderline: true }} sx={{ minWidth: 90 }}>
-              <MenuItem value="flat">{t('opex.budget.profileFlat')}</MenuItem>
-              <MenuItem value="4-4-5">{t('opex.budget.profile445')}</MenuItem>
+              <MenuItem value="flat">{t(`${config.i18nPrefix}.budget.profileFlat`)}</MenuItem>
+              <MenuItem value="4-4-5">{t(`${config.i18nPrefix}.budget.profile445`)}</MenuItem>
             </TextField>
-            <Button size="small" variant="contained" onClick={() => void applySpread()} disabled={!spreadAmount}>{t('opex.budget.spreadApply')}</Button>
+            <Button size="small" variant="contained" onClick={() => void applySpread()} disabled={!spreadAmount}>{t(`${config.i18nPrefix}.budget.spreadApply`)}</Button>
           </Box>
 
           {/* Dense monthly table */}
           <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', '& td, & th': { borderBottom: '1px solid', borderColor: 'kanap.border.soft' } }}>
             <Box component="thead">
               <Box component="tr">
-                <Box component="th" sx={{ ...headCellSx, textAlign: 'left' }}>{t('opex.budget.month')}</Box>
+                <Box component="th" sx={{ ...headCellSx, textAlign: 'left' }}>{t(`${config.i18nPrefix}.budget.month`)}</Box>
                 {MEASURES.map((m) => (
                   <Box component="th" key={m.key} sx={headCellSx}>
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, justifyContent: 'flex-end' }}>
@@ -345,8 +347,8 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                       {isFrozen(m) ? (
                         <LockOutlinedIcon sx={{ fontSize: 12, color: 'kanap.text.tertiary' }} />
                       ) : (
-                        <Tooltip title={t('opex.budget.clearColumn')}>
-                          <IconButton size="small" aria-label={t('opex.budget.clearColumn')} onClick={() => clearColumn(m.key)} sx={{ p: '2px' }}>
+                        <Tooltip title={t(`${config.i18nPrefix}.budget.clearColumn`)}>
+                          <IconButton size="small" aria-label={t(`${config.i18nPrefix}.budget.clearColumn`)} onClick={() => clearColumn(m.key)} sx={{ p: '2px' }}>
                             <BackspaceOutlinedIcon sx={{ fontSize: 13 }} />
                           </IconButton>
                         </Tooltip>
@@ -356,9 +358,9 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                 ))}
                 <Box component="th" sx={headCellSx}>
                   <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, justifyContent: 'flex-end' }}>
-                    {t('opex.budget.forecast')}
-                    <Tooltip title={t('opex.budget.clearColumn')}>
-                      <IconButton size="small" aria-label={t('opex.budget.clearColumn')} onClick={() => clearColumn('forecast')} sx={{ p: '2px' }}>
+                    {t(`${config.i18nPrefix}.budget.forecast`)}
+                    <Tooltip title={t(`${config.i18nPrefix}.budget.clearColumn`)}>
+                      <IconButton size="small" aria-label={t(`${config.i18nPrefix}.budget.clearColumn`)} onClick={() => clearColumn('forecast')} sx={{ p: '2px' }}>
                         <BackspaceOutlinedIcon sx={{ fontSize: 13 }} />
                       </IconButton>
                     </Tooltip>
@@ -405,7 +407,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
             </Box>
             <Box component="tfoot">
               <Box component="tr">
-                <Box component="td" sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.primary', px: 1, py: 0.75 }}>{t('opex.budget.total')}</Box>
+                <Box component="td" sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.primary', px: 1, py: 0.75 }}>{t(`${config.i18nPrefix}.budget.total`)}</Box>
                 {ALL_COLS.map((c) => (
                   <Box component="td" key={c} sx={{ ...numCellSx, fontWeight: 500, py: 0.75 }}>{fmt(totals[c])}</Box>
                 ))}
@@ -416,7 +418,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
       )}
 
       {anyFrozen && (
-        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('opex.budget.someColumnsFrozen')}</Typography>
+        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t(`${config.i18nPrefix}.budget.someColumnsFrozen`)}</Typography>
       )}
     </Stack>
   );
