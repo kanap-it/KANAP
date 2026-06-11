@@ -351,13 +351,23 @@ async function seedGraph(runner: QueryRunner): Promise<SeededTenant> {
     `INSERT INTO capex_items (
        id, tenant_id, paying_company_id, supplier_id, description, ppe_type,
        investment_type, priority, currency, effective_start, status, notes,
-       created_at, updated_at
+       item_number, created_at, updated_at
      )
      VALUES (
        $1, $2, $3, $4, $5, 'hardware', 'capacity', 'medium', 'EUR',
-       DATE '2026-01-01', 'enabled', 'Original capex note', now(), now()
+       DATE '2026-01-01', 'enabled', 'Original capex note',
+       (SELECT COALESCE(MAX(item_number), 0) + 1 FROM capex_items WHERE tenant_id = $2), now(), now()
      )`,
     [capexItemId, tenantId, companyId, supplierId, `PLAID Capability CAPEX ${tag}`],
+  );
+  await runner.query(
+    `INSERT INTO item_sequences (tenant_id, entity_type, next_val)
+     SELECT $1, 'capex', COALESCE(MAX(item_number), 0) + 1
+     FROM capex_items
+     WHERE tenant_id = $1
+     ON CONFLICT (tenant_id, entity_type)
+     DO UPDATE SET next_val = GREATEST(item_sequences.next_val, EXCLUDED.next_val)`,
+    [tenantId],
   );
   await runner.query(
     `INSERT INTO contracts (

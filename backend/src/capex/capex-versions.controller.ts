@@ -5,6 +5,8 @@ import { RequireLevel } from '../auth/require-level.decorator';
 import { CapexVersionsService } from './capex-versions.service';
 import { CapexAmountsService } from './capex-amounts.service';
 import { CapexAllocationsService } from './capex-allocations.service';
+import { resolveToUuid } from '../common/resolve-item-id';
+import { EntityManager } from 'typeorm';
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -15,23 +17,35 @@ export class CapexVersionsController {
     private readonly allocations: CapexAllocationsService,
   ) {}
 
+  private resolveItemId(id: string, manager: EntityManager): Promise<string> {
+    return resolveToUuid(id, 'capex', manager);
+  }
+
   @Get('capex-items/:id/versions')
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
-  listForItem(@Param('id') itemId: string, @Req() req: any) { return this.versions.listForItem(itemId, { manager: req?.queryRunner?.manager }); }
+  async listForItem(@Param('id') idOrRef: string, @Req() req: any) {
+    const manager = req?.queryRunner?.manager as EntityManager;
+    const itemId = await this.resolveItemId(idOrRef, manager);
+    return this.versions.listForItem(itemId, { manager });
+  }
 
   @Post('capex-items/:id/versions')
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
-  createForItem(@Param('id') itemId: string, @Body() body: any, @Req() req: any) {
-    return this.versions.createForItem(itemId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  async createForItem(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
+    const manager = req?.queryRunner?.manager as EntityManager;
+    const itemId = await this.resolveItemId(idOrRef, manager);
+    return this.versions.createForItem(itemId, body, req.user?.sub ?? null, { manager });
   }
 
   @Patch('capex-items/:id/versions')
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
-  updateForItem(@Param('id') itemId: string, @Body() body: any, @Req() req: any) {
-    return this.versions.updateForItem(itemId, body, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
+  async updateForItem(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
+    const manager = req?.queryRunner?.manager as EntityManager;
+    const itemId = await this.resolveItemId(idOrRef, manager);
+    return this.versions.updateForItem(itemId, body, req.user?.sub ?? null, { manager });
   }
 
   @Post('capex-versions/:id/amounts/bulk-upsert')

@@ -32,10 +32,13 @@ import { ExternalContact } from '../contacts/external-contact.entity';
 import { SupplierContactLink } from '../contacts/supplier-contact.entity';
 import { PortfolioProjectCapex } from '../portfolio/portfolio-project-capex.entity';
 import { PortfolioProject } from '../portfolio/portfolio-project.entity';
+import { CommonModule } from '../common/common.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([CapexItem, CapexVersion, CapexAmount, CapexAllocation, AllocationRule, Company, CompanyMetric, CapexLink, CapexAttachment, CapexItemContactLink, ExternalContact, SupplierContactLink, PortfolioProjectCapex, PortfolioProject]),
+    CommonModule,
     AuditModule,
     PermissionsModule,
     forwardRef(() => UsersModule),
@@ -43,6 +46,7 @@ import { PortfolioProject } from '../portfolio/portfolio-project.entity';
     CurrencyModule,
     TasksModule,
     StorageModule,
+    NotificationsModule,
   ],
   controllers: [CapexItemsController, CapexVersionsController, CapexTasksController],
   providers: [CapexItemsService, CapexItemsDeleteService, CapexVersionsService, CapexAmountsService, CapexAllocationsService, CapexAllocationCalculatorService, CapexItemContactsService],

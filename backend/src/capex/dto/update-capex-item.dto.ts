@@ -42,6 +42,15 @@ export const UpdateCapexItemSchema = z.object({
   /** Project ID */
   project_id: z.string().uuid().nullable().optional(),
 
+  /** IT owner user ID */
+  owner_it_id: z.string().uuid().nullable().optional(),
+
+  /** Business owner user ID */
+  owner_business_id: z.string().uuid().nullable().optional(),
+
+  /** Analytics category ID */
+  analytics_category_id: z.string().uuid().nullable().optional(),
+
   /** Notes */
   notes: z.string().nullable().optional(),
 

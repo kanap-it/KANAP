@@ -63,6 +63,15 @@ export const CreateCapexItemSchema = z.object({
   /** Project ID (optional) */
   project_id: z.string().uuid().nullable().optional(),
 
+  /** IT owner user ID (optional) */
+  owner_it_id: z.string().uuid().nullable().optional(),
+
+  /** Business owner user ID (optional) */
+  owner_business_id: z.string().uuid().nullable().optional(),
+
+  /** Analytics category ID (optional) */
+  analytics_category_id: z.string().uuid().nullable().optional(),
+
   /** Notes (optional) */
   notes: z.string().nullable().optional(),
 });

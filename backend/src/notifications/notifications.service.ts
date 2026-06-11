@@ -23,7 +23,7 @@ import { renderMarkdownToHtml } from '../common/markdown-to-html';
 import { EmailBranding, resolveEmailBranding } from '../email/email-branding';
 import { getEmailStrings, resolveEmailLocale } from '../i18n/email-i18n';
 
-type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
 
 interface NotificationRecipient {
@@ -171,6 +171,8 @@ export class NotificationsService {
         return `${base}/ops/contracts/${id}`;
       case 'opex':
         return `${base}/ops/opex/${id}`;
+      case 'capex':
+        return `${base}/ops/capex/${id}`;
       case 'asset':
         return `${base}/it/assets/${id}/overview`;
       case 'application':
@@ -192,6 +194,7 @@ export class NotificationsService {
       request: { table: 'portfolio_requests', expression: `'REQ-' || item_number::text` },
       project: { table: 'portfolio_projects', expression: `'PRJ-' || item_number::text` },
       opex: { table: 'spend_items', expression: `'OPX-' || item_number::text` },
+      capex: { table: 'capex_items', expression: `'CPX-' || item_number::text` },
       asset: { table: 'assets', expression: 'asset_reference' },
       application: { table: 'applications', expression: 'sequential_id' },
       location: { table: 'locations', expression: 'location_reference' },
@@ -1125,7 +1128,7 @@ export class NotificationsService {
    * Notify recipients about a shared item (fire-and-forget, no dedupe).
    */
   async notifyShare(params: {
-    itemType: 'request' | 'project' | 'task' | 'opex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+    itemType: 'request' | 'project' | 'task' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
     itemId: string;
     itemName: string;
     senderName: string;
@@ -1182,6 +1185,7 @@ export class NotificationsService {
         return 'tasks';
       case 'contract':
       case 'opex':
+      case 'capex':
         return 'budget';
       case 'asset':
       case 'application':
