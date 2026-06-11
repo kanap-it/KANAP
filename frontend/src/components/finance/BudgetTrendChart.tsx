@@ -3,8 +3,9 @@ import { Box, Typography, useTheme } from '@mui/material';
 import { AgChartsReact } from 'ag-charts-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import api from '../../../api';
-import { formatAmount } from '../../../i18n/formatters';
+import api from '../../api';
+import { formatAmount } from '../../i18n/formatters';
+import { FinanceModuleConfig } from './config';
 
 type YearTotals = { year: number; budget: number; revision: number; actual: number; landing: number };
 
@@ -13,15 +14,15 @@ const N = new Date().getFullYear();
 const FROM = N - 3;
 const TO = N + 1;
 
-export default function BudgetTrendChart({ id, currency }: { id: string; currency?: string }) {
+export default function BudgetTrendChart({ id, currency, config }: { id: string; currency?: string; config: FinanceModuleConfig }) {
   const { t } = useTranslation(['ops', 'common']);
   const theme = useTheme();
   const dark = theme.palette.mode === 'dark';
 
   const { data } = useQuery({
-    queryKey: ['spend-yearly-totals', id, FROM, TO],
+    queryKey: [`${config.queryKeyPrefix}-yearly-totals`, id, FROM, TO],
     queryFn: async () => {
-      const res = await api.get<{ items: YearTotals[] }>(`/spend-items/${id}/yearly-totals`, { params: { from: FROM, to: TO } });
+      const res = await api.get<{ items: YearTotals[] }>(`${config.itemsApi}/${id}/yearly-totals`, { params: { from: FROM, to: TO } });
       return res.data?.items || [];
     },
     staleTime: 30_000,
@@ -68,7 +69,7 @@ export default function BudgetTrendChart({ id, currency }: { id: string; currenc
   return (
     <Box sx={{ bgcolor: 'kanap.bg.drawer', border: '1px solid', borderColor: 'kanap.border.soft', borderRadius: '8px', p: 2 }}>
       <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary', mb: 1 }}>
-        {t('opex.budget.multiYearTitle')}{currency ? ` · ${currency.toUpperCase()}` : ''}
+        {t(`${config.i18nPrefix}.budget.multiYearTitle`)}{currency ? ` · ${currency.toUpperCase()}` : ''}
       </Typography>
       <Box sx={{ height: 260 }}>
         <AgChartsReact options={options as any} />

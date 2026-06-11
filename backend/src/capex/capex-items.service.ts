@@ -7,6 +7,9 @@ import { CapexAmount } from './capex-amount.entity';
 import { CapexAllocationCalculatorService, CapexAllocationComputation } from './capex-allocation-calculator.service';
 import { Company } from '../companies/company.entity';
 import { Account } from '../accounts/account.entity';
+import { Supplier } from '../suppliers/supplier.entity';
+import { AnalyticsCategory } from '../analytics/analytics-category.entity';
+import { User } from '../users/user.entity';
 import { parsePagination, buildWhereFromAgFilters } from '../common/pagination';
 import { AuditService } from '../audit/audit.service';
 import { spreadAnnualToMonths } from '../spend/spread.util';
@@ -33,6 +36,10 @@ import { PortfolioProject } from '../portfolio/portfolio-project.entity';
 import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
 import { ACTIVE_TASK_STATUSES } from '../tasks/task.entity';
+import { ItemNumberService } from '../common/item-number.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
+import { resolveToUuid } from '../common/resolve-item-id';
 
 const activeDisabledAtCondition = () => Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
 const inactiveDisabledAtCondition = () => Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
@@ -41,8 +48,24 @@ const activeSinceCondition = (date: Date) =>
 
 function getCapexSummaryFieldValue(row: any, field: string): any {
   if (!row) return null;
-  if (field === 'company_name') return row.company_name ?? null;
+  if (field === 'company_name') return row.company_name ?? row.paying_company_name ?? null;
+  if (field === 'paying_company_name') return row.paying_company_name ?? row.company_name ?? null;
+  if (field === 'supplier_name') return row.supplier_name ?? row.supplier?.name ?? null;
+  if (field === 'account_display') return row.account_display ?? null;
+  if (field === 'account_name') return row.account_name ?? null;
+  if (field === 'account_number') return row.account_number ?? null;
+  if (field === 'owner_it_name') return row.owner_it_name ?? null;
+  if (field === 'owner_business_name') return row.owner_business_name ?? null;
+  if (field === 'analytics_category_name') return row.analytics_category_name ?? null;
   return (row as any)[field];
+}
+
+function displayName(user?: User | null): string {
+  if (!user) return '';
+  const fn = (user as any).first_name ? String((user as any).first_name).trim() : '';
+  const ln = (user as any).last_name ? String((user as any).last_name).trim() : '';
+  const name = [fn, ln].filter(Boolean).join(' ');
+  return name || (user as any).email || '';
 }
 
 function valueToString(val: any): string {
@@ -134,8 +157,65 @@ export class CapexItemsService {
     private readonly fxRates: FxRateService,
     private readonly storage: StorageService,
     private readonly itemContacts: CapexItemContactsService,
+    private readonly itemNumbers: ItemNumberService,
+    private readonly notifications: NotificationsService,
   ) {}
   private readonly logger = new Logger(CapexItemsService.name);
+
+  private async resolveTenantId(mg: EntityManager): Promise<string> {
+    const rows = await mg.query(`SELECT current_setting('app.current_tenant', true) AS tenant_id`);
+    const tenantId = Array.isArray(rows) && rows.length > 0 ? (rows[0]?.tenant_id as string | null) : null;
+    if (!tenantId) throw new BadRequestException('Tenant context is required');
+    return tenantId;
+  }
+
+  private async resolveItemId(idOrRef: string, mg: EntityManager): Promise<string> {
+    return resolveToUuid(idOrRef, 'capex', mg);
+  }
+
+  private async enrichSummaryItems(baseItems: CapexItem[], mg: EntityManager): Promise<any[]> {
+    if (!baseItems.length) return [];
+    const companyIds = Array.from(new Set(baseItems.map((i: any) => i.paying_company_id).filter(Boolean)));
+    const supplierIds = Array.from(new Set(baseItems.map((i: any) => i.supplier_id).filter(Boolean)));
+    const accountIds = Array.from(new Set(baseItems.map((i: any) => i.account_id).filter(Boolean)));
+    const ownerIds = Array.from(new Set(baseItems.flatMap((i: any) => [i.owner_it_id, i.owner_business_id]).filter(Boolean))) as string[];
+    const categoryIds = Array.from(new Set(baseItems.map((i: any) => i.analytics_category_id).filter(Boolean)));
+
+    const [companies, suppliers, accounts, owners, categories] = await Promise.all([
+      companyIds.length ? mg.getRepository(Company).find({ where: { id: In(companyIds) as any } as any }) : Promise.resolve([]),
+      supplierIds.length ? mg.getRepository(Supplier).find({ where: { id: In(supplierIds) as any } as any }) : Promise.resolve([]),
+      accountIds.length ? mg.getRepository(Account).find({ where: { id: In(accountIds) as any } as any }) : Promise.resolve([]),
+      ownerIds.length ? mg.getRepository(User).find({ where: { id: In(ownerIds) as any } as any }) : Promise.resolve([]),
+      categoryIds.length ? mg.getRepository(AnalyticsCategory).find({ where: { id: In(categoryIds) as any } as any }) : Promise.resolve([]),
+    ]);
+
+    const companyById = new Map(companies.map((c) => [c.id, c]));
+    const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+    const accountById = new Map(accounts.map((a) => [a.id, a]));
+    const ownerById = new Map(owners.map((u) => [u.id, u]));
+    const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+    return baseItems.map((item: any) => {
+      const company = item.paying_company_id ? companyById.get(item.paying_company_id) : undefined;
+      const supplier = item.supplier_id ? supplierById.get(item.supplier_id) : undefined;
+      const account = item.account_id ? accountById.get(item.account_id) : undefined;
+      const category = item.analytics_category_id ? categoryById.get(item.analytics_category_id) : undefined;
+      return {
+        ...item,
+        company_name: company ? (company as any).name ?? null : null,
+        paying_company_name: company ? (company as any).name ?? null : null,
+        supplier: supplier ? { id: supplier.id, name: (supplier as any).name } : undefined,
+        supplier_name: supplier ? (supplier as any).name : undefined,
+        account: account ? { id: account.id, account_number: (account as any).account_number, account_name: (account as any).account_name } : undefined,
+        account_number: account ? (account as any).account_number : undefined,
+        account_name: account ? (account as any).account_name : undefined,
+        account_display: account ? `${(account as any).account_number} - ${(account as any).account_name}` : undefined,
+        owner_it_name: displayName(ownerById.get(item.owner_it_id) || null),
+        owner_business_name: displayName(ownerById.get(item.owner_business_id) || null),
+        analytics_category_name: category ? (category as any).name : null,
+      };
+    });
+  }
 
   private mapFrontendColumnToFreeze(column: 'budget' | 'revision' | 'follow_up' | 'landing'): FreezeColumn {
     switch (column) {
@@ -183,7 +263,8 @@ export class CapexItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedFields = [
-      'id', 'description', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end', 'status', 'notes', 'created_at', 'updated_at',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
     const where: any = {};
     if (filtersToApply && Object.keys(filtersToApply).length > 0) {
@@ -200,16 +281,92 @@ export class CapexItemsService {
     }
     if (q) where.description = ILike(`%${q}%`);
     const safeSortField = allowedFields.includes(sort.field) ? sort.field : 'created_at';
-    const [items, total] = await repo.findAndCount({ where, order: { [safeSortField]: sort.direction as any }, skip, take: limit });
+    const [itemsRaw, total] = await repo.findAndCount({ where, order: { [safeSortField]: sort.direction as any }, skip, take: limit });
+    const items = await this.enrichSummaryItems(itemsRaw as CapexItem[], mg);
     return { items, total, page, limit };
   }
 
   async get(id: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(CapexItem);
-    const found = await repo.findOne({ where: { id } });
+    const itemId = await this.resolveItemId(id, mg);
+    const found = await repo.findOne({ where: { id: itemId } });
     if (!found) throw new NotFoundException('CAPEX item not found');
     return found;
+  }
+
+  async yearlyTotals(capexItemId: string, from: number, to: number, opts?: { manager?: EntityManager }) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const lo = Math.min(from, to);
+    const hi = Math.min(Math.max(from, to), lo + 20);
+    const rows: Array<{ year: number; budget: string; revision: string; actual: string; landing: string }> = await mg.query(
+      `SELECT v.budget_year AS year,
+              COALESCE(SUM(a.planned), 0) AS budget,
+              COALESCE(SUM(a.committed), 0) AS revision,
+              COALESCE(SUM(a.actual), 0) AS actual,
+              COALESCE(SUM(a.expected_landing), 0) AS landing
+       FROM capex_versions v
+       LEFT JOIN capex_amounts a ON a.version_id = v.id AND EXTRACT(YEAR FROM a.period) = v.budget_year
+       WHERE v.capex_item_id = $1 AND v.budget_year BETWEEN $2 AND $3
+       GROUP BY v.budget_year
+       ORDER BY v.budget_year`,
+      [capexItemId, lo, hi],
+    );
+    const byYear = new Map(rows.map((r) => [Number(r.year), r]));
+    const years: Array<{ year: number; budget: number; revision: number; actual: number; landing: number }> = [];
+    for (let y = lo; y <= hi; y += 1) {
+      const row = byYear.get(y);
+      years.push({
+        year: y,
+        budget: Number(row?.budget) || 0,
+        revision: Number(row?.revision) || 0,
+        actual: Number(row?.actual) || 0,
+        landing: Number(row?.landing) || 0,
+      });
+    }
+    return { items: years };
+  }
+
+  async share(id: string, dto: ShareItemDto, tenantId: string, userId: string, opts?: { manager?: EntityManager }) {
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+    const mg = opts?.manager ?? this.repo.manager;
+    const item = await mg.getRepository(CapexItem).findOne({ where: { id }, select: ['id', 'description'] as any });
+    if (!item) throw new NotFoundException('CAPEX item not found');
+
+    const senderRows = await mg.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name} ${senderRows[0].last_name}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await mg.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'capex',
+        itemId: item.id,
+        itemName: item.description,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId,
+        manager: mg,
+      });
+    }
+    return { success: true };
   }
 
   async create(body: CapexItemUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
@@ -240,8 +397,11 @@ export class CapexItemsService {
     const repo = mg.getRepository(CapexItem);
     const { status: statusInput, disabled_at, ...rest } = body ?? {};
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
+    const tenantId = await this.resolveTenantId(mg);
+    const item_number = await this.itemNumbers.nextItemNumber('capex', tenantId, mg);
     const entity = repo.create({
       ...rest,
+      item_number,
       account_id: body.account_id ?? null,
       paying_company_id,
       status: lifecycle.status,
@@ -267,6 +427,7 @@ export class CapexItemsService {
     const mg = opts?.manager ?? this.repo.manager;
     // Map legacy field if present
     const existing = await this.get(id, { manager: mg });
+    const itemId = existing.id;
     const nextPayingCompanyId = body.paying_company_id ?? body.company_id ?? ((existing as any).paying_company_id ?? null);
     if (body.company_id && !body.paying_company_id) {
       console.warn('[capex] company_id is deprecated; use paying_company_id');
@@ -302,29 +463,29 @@ export class CapexItemsService {
     });
     existing.status = lifecycle.status;
     existing.disabled_at = lifecycle.disabled_at;
-    this.logger.log(`[update] id=${id} incoming company=${nextPayingCompanyId} account=${body.account_id ?? null}`);
+    this.logger.log(`[update] id=${itemId} incoming company=${nextPayingCompanyId} account=${body.account_id ?? null}`);
     const saved = await repo.save(existing);
     if ('account_id' in body) {
       try {
-        await mg.query(`UPDATE capex_items SET account_id = $1 WHERE id = $2`, [body.account_id ?? null, saved.id]);
+        await mg.query(`UPDATE capex_items SET account_id = $1 WHERE id = $2`, [body.account_id ?? null, itemId]);
         (saved as any).account_id = body.account_id ?? null;
       } catch {}
     }
     if ('project_id' in body) {
       try {
-        await mg.query(`UPDATE capex_items SET project_id = $1 WHERE id = $2`, [body.project_id ?? null, saved.id]);
+        await mg.query(`UPDATE capex_items SET project_id = $1 WHERE id = $2`, [body.project_id ?? null, itemId]);
         (saved as any).project_id = body.project_id ?? null;
       } catch {}
     }
-    const persisted = await repo.findOne({ where: { id } });
-    this.logger.log(`[update] persisted id=${id} company=${(persisted as any)?.paying_company_id ?? null} account=${(persisted as any)?.account_id ?? null}`);
+    const persisted = await repo.findOne({ where: { id: itemId } });
+    this.logger.log(`[update] persisted id=${itemId} company=${(persisted as any)?.paying_company_id ?? null} account=${(persisted as any)?.account_id ?? null}`);
     await this.audit.log({ table: 'capex_items', recordId: saved.id, action: 'update', before, after: persisted ?? saved, userId }, { manager: mg });
 
     // Detect supplier change for contact sync
     const oldSupplierId = (before as any).supplier_id ?? null;
     const newSupplierId = (persisted as any)?.supplier_id ?? (saved as any).supplier_id ?? null;
     if (oldSupplierId !== newSupplierId) {
-      await this.itemContacts.syncFromSupplier(id, newSupplierId, userId ?? null, { manager: mg });
+      await this.itemContacts.syncFromSupplier(itemId, newSupplierId, userId ?? null, { manager: mg });
     }
 
     return persisted ?? saved;
@@ -335,13 +496,14 @@ export class CapexItemsService {
     const mg = opts?.manager ?? this.repo.manager;
     const now = new Date();
     const Y = now.getFullYear();
-    const years = [Y - 1, Y, Y + 1];
+    const years = [Y - 1, Y, Y + 1, Y + 2];
 
     const { page, limit, skip, sort, status, q, filters } = parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'description', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end', 'status', 'notes', 'created_at', 'updated_at',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
     const where: any = {};
     if (filtersToApply && Object.keys(filtersToApply).length > 0) {
@@ -371,16 +533,7 @@ export class CapexItemsService {
       order: { created_at: 'DESC' as any },
       take: 10000,
     });
-    const companyIds = baseItems.map((i: any) => i.paying_company_id).filter(Boolean);
-    const companyRecords =
-      companyIds.length > 0
-        ? await mg.getRepository(Company).find({ where: { id: In(companyIds) as any } as any })
-        : [];
-    const companyNameById = new Map(companyRecords.map((c) => [c.id, c.name ?? null]));
-    const items = baseItems.map((item: any) => ({
-      ...item,
-      company_name: item.paying_company_id ? companyNameById.get(item.paying_company_id) ?? null : null,
-    }));
+    const items = await this.enrichSummaryItems(baseItems as CapexItem[], mg);
     const total = items.length;
     const derivedFilters = Object.fromEntries(
       Object.entries(filtersToApply || {}).filter(([key]) => !allowedDbFields.includes(key)),
@@ -532,6 +685,7 @@ export class CapexItemsService {
       const vMinus1 = perYear.get(Y - 1);
       const vCurr = perYear.get(Y);
       const vPlus1 = perYear.get(Y + 1);
+      const vPlus2 = perYear.get(Y + 2);
       const spread_mode_for_y = vCurr ? (vCurr.input_grain === 'annual' ? 'flat' : 'manual') : null;
       const allocationForY = vCurr ? allocationDataByYear.get(Y)?.get(vCurr.id) : undefined;
       const allocationForYPlus1 = vPlus1 ? allocationDataByYear.get(Y + 1)?.get(vPlus1.id) : undefined;
@@ -547,6 +701,7 @@ export class CapexItemsService {
           yMinus1: toTotals(vMinus1),
           y: toTotals(vCurr),
           yPlus1: toTotals(vPlus1),
+          yPlus2: toTotals(vPlus2),
         },
         spread_mode_for_y,
         allocation_method_label: allocationMethodLabel,
@@ -566,7 +721,20 @@ export class CapexItemsService {
       const take = (v: any) => (v == null ? '' : String(v)).toLowerCase();
       const matches = (row: any): boolean => {
         const bag: string[] = [];
+        const itemNumber = row.item_number;
+        if (itemNumber != null) {
+          bag.push(take(itemNumber));
+          bag.push(`cpx-${take(itemNumber)}`);
+        }
         bag.push(take(row.description));
+        bag.push(take(row.supplier_name));
+        bag.push(take(row.paying_company_name));
+        bag.push(take(row.account_display));
+        bag.push(take(row.account_name));
+        bag.push(take(row.account_number));
+        bag.push(take(row.owner_it_name));
+        bag.push(take(row.owner_business_name));
+        bag.push(take(row.analytics_category_name));
         bag.push(take(row.notes));
         bag.push(take(row.ppe_type));
         bag.push(take(row.investment_type));
@@ -596,12 +764,15 @@ export class CapexItemsService {
     const get = (row: any): any => {
       switch (sortField) {
         case 'yMinus1Landing': return versionMetric(row, 'yMinus1', 'landing');
+        case 'yMinus1Budget': return versionMetric(row, 'yMinus1', 'budget');
         case 'yBudget': return versionMetric(row, 'y', 'budget');
         case 'yRevision': return versionMetric(row, 'y', 'revision');
         case 'yFollowUp': return versionMetric(row, 'y', 'follow_up');
         case 'yLanding': return versionMetric(row, 'y', 'landing');
         case 'yPlus1Budget': return versionMetric(row, 'yPlus1', 'budget');
+        case 'yPlus1Revision': return versionMetric(row, 'yPlus1', 'revision');
         case 'yPlus1Landing': return versionMetric(row, 'yPlus1', 'landing');
+        case 'yPlus2Budget': return versionMetric(row, 'yPlus2', 'budget');
         default: return row?.[sortField];
       }
     };
@@ -623,18 +794,31 @@ export class CapexItemsService {
     const rawFields = typeof query.fields === 'string'
       ? query.fields.split(',').map((f: string) => f.trim()).filter(Boolean)
       : [];
-    const allowedFields = new Set(['company_name', 'ppe_type', 'investment_type', 'priority', 'currency']);
+    const allowedFields = new Set([
+      'company_name',
+      'paying_company_name',
+      'supplier_name',
+      'account_display',
+      'owner_it_name',
+      'owner_business_name',
+      'analytics_category_name',
+      'ppe_type',
+      'investment_type',
+      'priority',
+      'currency',
+    ]);
     const fields = rawFields.filter((field) => allowedFields.has(field));
     if (fields.length === 0) return {};
 
     const now = new Date();
     const Y = now.getFullYear();
-    const years = [Y - 1, Y, Y + 1];
+    const years = [Y - 1, Y, Y + 1, Y + 2];
     const { status, q, filters } = parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters ?? {};
     const allowedDbFields = [
-      'id', 'description', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end', 'status', 'notes', 'created_at', 'updated_at',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
 
     const includeDisabled =
@@ -664,16 +848,7 @@ export class CapexItemsService {
         take: 10000,
       });
       if (!baseItems.length) return [];
-      const companyIds = baseItems.map((i: any) => i.paying_company_id).filter(Boolean);
-      const companyRecords =
-        companyIds.length > 0
-          ? await mg.getRepository(Company).find({ where: { id: In(companyIds) as any } as any })
-          : [];
-      const companyNameById = new Map(companyRecords.map((c) => [c.id, c.name ?? null]));
-      let data: any[] = baseItems.map((item: any) => ({
-        ...item,
-        company_name: item.paying_company_id ? companyNameById.get(item.paying_company_id) ?? null : null,
-      }));
+      let data: any[] = await this.enrichSummaryItems(baseItems as CapexItem[], mg);
 
       const derivedFilters = Object.fromEntries(
         Object.entries(fieldFilters || {}).filter(([key]) => !allowedDbFields.includes(key)),
@@ -687,7 +862,20 @@ export class CapexItemsService {
         const take = (v: any) => (v == null ? '' : String(v)).toLowerCase();
         const matches = (row: any): boolean => {
           const bag: string[] = [];
+          const itemNumber = row.item_number;
+          if (itemNumber != null) {
+            bag.push(take(itemNumber));
+            bag.push(`cpx-${take(itemNumber)}`);
+          }
           bag.push(take(row.description));
+          bag.push(take(row.supplier_name));
+          bag.push(take(row.paying_company_name));
+          bag.push(take(row.account_display));
+          bag.push(take(row.account_name));
+          bag.push(take(row.account_number));
+          bag.push(take(row.owner_it_name));
+          bag.push(take(row.owner_business_name));
+          bag.push(take(row.analytics_category_name));
           bag.push(take(row.notes));
           bag.push(take(row.ppe_type));
           bag.push(take(row.investment_type));
@@ -780,18 +968,23 @@ export class CapexItemsService {
     return totalsMap;
   }
 
-  async summaryTotals(query: any, opts?: { manager?: EntityManager }): Promise<{ yMinus1Landing: number; yBudget: number; yLanding: number; yPlus1Budget: number; reportingCurrency: string }> {
+  async summaryTotals(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, number | string>> {
     const mg = opts?.manager ?? this.repo.manager;
     const now = new Date();
     const Y = now.getFullYear();
-    const years = [Y - 1, Y, Y + 1];
+    const years = [Y - 1, Y, Y + 1, Y + 2];
 
     const { ids: itemIds } = await this.summaryIds(query, { manager: mg });
     const defaultSummary = {
+      yMinus1Budget: 0,
       yMinus1Landing: 0,
       yBudget: 0,
+      yRevision: 0,
+      yFollowUp: 0,
       yLanding: 0,
       yPlus1Budget: 0,
+      yPlus1Revision: 0,
+      yPlus2Budget: 0,
       reportingCurrency: 'EUR',
     };
 
@@ -850,14 +1043,14 @@ export class CapexItemsService {
     // Convert each version's totals to reporting currency
     const versionReportingTotalsById = new Map<
       string,
-      { budget: number; landing: number }
+      { budget: number; revision: number; follow_up: number; landing: number }
     >();
 
     for (const version of versions) {
       const totals = versionTotalsById.get(version.id);
       if (!totals) {
         // Version has no amounts - set to zero
-        versionReportingTotalsById.set(version.id, { budget: 0, landing: 0 });
+        versionReportingTotalsById.set(version.id, { budget: 0, revision: 0, follow_up: 0, landing: 0 });
         continue;
       }
 
@@ -875,10 +1068,14 @@ export class CapexItemsService {
 
       // Convert bigint amounts to numbers and apply FX conversion
       const budget = Number(formatCents(totals.planned));
+      const revision = Number(formatCents(totals.committed));
+      const followUp = Number(formatCents(totals.actual));
       const landing = Number(formatCents(totals.expected_landing));
 
       versionReportingTotalsById.set(version.id, {
         budget: this.fxRates.convertValue(budget, fx.rate),
+        revision: this.fxRates.convertValue(revision, fx.rate),
+        follow_up: this.fxRates.convertValue(followUp, fx.rate),
         landing: this.fxRates.convertValue(landing, fx.rate),
       });
     }
@@ -897,12 +1094,17 @@ export class CapexItemsService {
     }
 
     // Sum up totals across all items, respecting disabled_at logic
-    const zeroTotals = { budget: 0, landing: 0 };
+    const zeroTotals = { budget: 0, revision: 0, follow_up: 0, landing: 0 };
     const totals = {
+      yMinus1Budget: 0,
       yMinus1Landing: 0,
       yBudget: 0,
+      yRevision: 0,
+      yFollowUp: 0,
       yLanding: 0,
       yPlus1Budget: 0,
+      yPlus1Revision: 0,
+      yPlus2Budget: 0,
     };
 
     const getTotals = (versionId?: string | null) => {
@@ -911,6 +1113,8 @@ export class CapexItemsService {
       if (!totals) return zeroTotals;
       return {
         budget: totals.budget,
+        revision: totals.revision,
+        follow_up: totals.follow_up,
         landing: totals.landing,
       };
     };
@@ -922,35 +1126,49 @@ export class CapexItemsService {
       const vMinus1Raw = perYear.get(Y - 1);
       const vCurrRaw = perYear.get(Y);
       const vPlus1Raw = perYear.get(Y + 1);
+      const vPlus2Raw = perYear.get(Y + 2);
       const vMinus1 = disabledYear != null && (Y - 1) > disabledYear ? undefined : vMinus1Raw;
       const vCurr = disabledYear != null && Y > disabledYear ? undefined : vCurrRaw;
       const vPlus1 = disabledYear != null && (Y + 1) > disabledYear ? undefined : vPlus1Raw;
+      const vPlus2 = disabledYear != null && (Y + 2) > disabledYear ? undefined : vPlus2Raw;
 
       const minus1 = getTotals(vMinus1?.id);
       const current = getTotals(vCurr?.id);
       const plus1 = getTotals(vPlus1?.id);
+      const plus2 = getTotals(vPlus2?.id);
 
+      totals.yMinus1Budget += minus1.budget;
       totals.yMinus1Landing += minus1.landing;
       totals.yBudget += current.budget;
+      totals.yRevision += current.revision;
+      totals.yFollowUp += current.follow_up;
       totals.yLanding += current.landing;
       totals.yPlus1Budget += plus1.budget;
+      totals.yPlus1Revision += plus1.revision;
+      totals.yPlus2Budget += plus2.budget;
     }
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
 
     return {
+      yMinus1Budget: round2(totals.yMinus1Budget),
       yMinus1Landing: round2(totals.yMinus1Landing),
       yBudget: round2(totals.yBudget),
+      yRevision: round2(totals.yRevision),
+      yFollowUp: round2(totals.yFollowUp),
       yLanding: round2(totals.yLanding),
       yPlus1Budget: round2(totals.yPlus1Budget),
+      yPlus1Revision: round2(totals.yPlus1Revision),
+      yPlus2Budget: round2(totals.yPlus2Budget),
       reportingCurrency: settings.reportingCurrency ?? 'EUR',
     };
   }
 
   csvHeaders() {
     return [
-      'description','ppe_type','investment_type','priority','currency','effective_start','effective_end','status','disabled_at','notes','company_name',
-      'y_minus1_budget','y_minus1_landing','y_budget','y_follow_up','y_landing','y_revision','y_plus1_budget'
+      'item_number','description','ppe_type','investment_type','priority','currency','effective_start','effective_end','status','disabled_at','notes','company_name',
+      'owner_it_id','owner_business_id','analytics_category_id',
+      'y_minus1_budget','y_minus1_landing','y_budget','y_follow_up','y_landing','y_revision','y_plus1_budget','y_plus1_revision','y_plus2_budget'
     ];
   }
 
@@ -993,7 +1211,7 @@ export class CapexItemsService {
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));
-      function getTotals(row: any, key: 'yMinus1' | 'y' | 'yPlus1') {
+      function getTotals(row: any, key: 'yMinus1' | 'y' | 'yPlus1' | 'yPlus2') {
         const v = row?.versions?.[key]?.totals || { budget: 0, follow_up: 0, landing: 0, revision: 0 };
         return v;
       }
@@ -1001,7 +1219,9 @@ export class CapexItemsService {
         const tMinus1 = getTotals(it, 'yMinus1');
         const tY = getTotals(it, 'y');
         const tPlus1 = getTotals(it, 'yPlus1');
+        const tPlus2 = getTotals(it, 'yPlus2');
         stream.write({
+          item_number: (it as any).item_number ?? '',
           description: (it as any).description ?? '',
           ppe_type: (it as any).ppe_type ?? '',
           investment_type: (it as any).investment_type ?? '',
@@ -1013,6 +1233,9 @@ export class CapexItemsService {
           disabled_at: (it as any).disabled_at ? toIsoDate((it as any).disabled_at) : '',
           notes: (it as any).notes ?? '',
           company_name: (it as any).paying_company_id ? (companiesById.get((it as any).paying_company_id) ?? '') : '',
+          owner_it_id: (it as any).owner_it_id ?? '',
+          owner_business_id: (it as any).owner_business_id ?? '',
+          analytics_category_id: (it as any).analytics_category_id ?? '',
           y_minus1_budget: tMinus1.budget,
           y_minus1_landing: tMinus1.landing,
           y_budget: tY.budget,
@@ -1020,6 +1243,8 @@ export class CapexItemsService {
           y_landing: tY.landing,
           y_revision: tY.revision,
           y_plus1_budget: tPlus1.budget,
+          y_plus1_revision: tPlus1.revision,
+          y_plus2_budget: tPlus2.budget,
         });
       }
       stream.end();
@@ -1086,10 +1311,23 @@ export class CapexItemsService {
       errors.push({ row: line, message: `${field} must be a valid date in YYYY-MM-DD format` });
       return fallback;
     };
+    const normalizeUuidField = (
+      raw: unknown,
+      { field, line }: { field: string; line: number },
+    ): string | null => {
+      const str = raw == null ? '' : raw.toString().trim();
+      if (str === '') return null;
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) return str;
+      errors.push({ row: line, message: `${field} must be a UUID` });
+      return null;
+    };
 
     const normalized: Array<{
       description: string; ppe_type: string; investment_type: string; priority: string; currency: string; effective_start: string; effective_end: string | null; status: StatusState; disabled_at: Date | null; notes: string | null;
       paying_company_id: string | null;
+      owner_it_id: string | null;
+      owner_business_id: string | null;
+      analytics_category_id: string | null;
       totals: { [year: number]: { planned?: number; actual?: number; expected_landing?: number; committed?: number } };
     }> = [];
 
@@ -1119,6 +1357,9 @@ export class CapexItemsService {
       }
       const notes = ((r['notes'] ?? '').toString().trim()) || null;
       const company_name = (r['company_name'] ?? '').toString().trim();
+      const owner_it_id = normalizeUuidField(r['owner_it_id'], { field: 'owner_it_id', line });
+      const owner_business_id = normalizeUuidField(r['owner_business_id'], { field: 'owner_business_id', line });
+      const analytics_category_id = normalizeUuidField(r['analytics_category_id'], { field: 'analytics_category_id', line });
       
       // Resolve company name to ID
       let paying_company_id: string | null = null;
@@ -1143,9 +1384,29 @@ export class CapexItemsService {
         expected_landing: parseAmount((r['y_landing'] ?? '').toString()),
         committed: parseAmount((r['y_revision'] ?? '').toString()),
       };
-      const tPlus1 = { planned: parseAmount((r['y_plus1_budget'] ?? '').toString()) };
-      const totals: any = {}; totals[Y - 1] = tMinus1; totals[Y] = tY; totals[Y + 1] = tPlus1;
-      normalized.push({ description, ppe_type, investment_type, priority, currency, effective_start, effective_end, status, disabled_at, notes, paying_company_id, totals });
+      const tPlus1 = {
+        planned: parseAmount((r['y_plus1_budget'] ?? '').toString()),
+        committed: parseAmount((r['y_plus1_revision'] ?? '').toString()),
+      };
+      const tPlus2 = { planned: parseAmount((r['y_plus2_budget'] ?? '').toString()) };
+      const totals: any = {}; totals[Y - 1] = tMinus1; totals[Y] = tY; totals[Y + 1] = tPlus1; totals[Y + 2] = tPlus2;
+      normalized.push({
+        description,
+        ppe_type,
+        investment_type,
+        priority,
+        currency,
+        effective_start,
+        effective_end,
+        status,
+        disabled_at,
+        notes,
+        paying_company_id,
+        owner_it_id,
+        owner_business_id,
+        analytics_category_id,
+        totals,
+      });
     }
     if (errors.length > 0) return { ok: false, dryRun, total: rows.length, inserted: 0, updated: 0, errors };
 
@@ -1178,9 +1439,12 @@ export class CapexItemsService {
         disabled_at: item.disabled_at,
         notes: item.notes ?? null,
         paying_company_id: item.paying_company_id,
+        owner_it_id: item.owner_it_id,
+        owner_business_id: item.owner_business_id,
+        analytics_category_id: item.analytics_category_id,
       } as any, userId ?? undefined, { manager: mg });
 
-      const years = [Y - 1, Y, Y + 1];
+      const years = [Y - 1, Y, Y + 1, Y + 2];
       for (const yr of years) {
         const totals = (item.totals as any)[yr] || {};
         const hasAny = Object.values(totals).some((v: any) => v != null && !isNaN(Number(v)));
@@ -1243,17 +1507,18 @@ export class CapexItemsService {
   }
 
   // Return ordered list of matching CAPEX item IDs for navigation (reflects sort/filter/q)
-  async summaryIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; total: number }> {
+  async summaryIds(query: any, opts?: { manager?: EntityManager }): Promise<{ ids: string[]; item_numbers: number[]; total: number }> {
     const mg = opts?.manager ?? this.repo.manager;
     const now = new Date();
     const Y = now.getFullYear();
-    const years = [Y - 1, Y, Y + 1];
+    const years = [Y - 1, Y, Y + 1, Y + 2];
 
     const { sort, status, q, filters } = parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'description', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end', 'status', 'notes', 'created_at', 'updated_at',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
 
     const where: Record<string, any> = {};
@@ -1274,18 +1539,9 @@ export class CapexItemsService {
       order: { created_at: 'DESC' as any },
       take: 10000,
     });
-    if (!baseItems.length) return { ids: [], total: 0 };
+    if (!baseItems.length) return { ids: [], item_numbers: [], total: 0 };
 
-    const companyIds = baseItems.map((i: any) => i.paying_company_id).filter(Boolean);
-    const companyRecords =
-      companyIds.length > 0
-        ? await mg.getRepository(Company).find({ where: { id: In(companyIds) as any } as any })
-        : [];
-    const companyNameById = new Map(companyRecords.map((c) => [c.id, c.name ?? null]));
-    let data: any[] = baseItems.map((item: any) => ({
-      ...item,
-      company_name: item.paying_company_id ? companyNameById.get(item.paying_company_id) ?? null : null,
-    }));
+    let data: any[] = await this.enrichSummaryItems(baseItems as CapexItem[], mg);
 
     const derivedFilters = Object.fromEntries(
       Object.entries(filtersToApply || {}).filter(([key]) => !allowedDbFields.includes(key)),
@@ -1301,7 +1557,20 @@ export class CapexItemsService {
       const take = (v: any) => (v == null ? '' : String(v)).toLowerCase();
       const matches = (row: any): boolean => {
         const bag: string[] = [];
+        const itemNumber = row.item_number;
+        if (itemNumber != null) {
+          bag.push(take(itemNumber));
+          bag.push(`cpx-${take(itemNumber)}`);
+        }
         bag.push(take(row.description));
+        bag.push(take(row.supplier_name));
+        bag.push(take(row.paying_company_name));
+        bag.push(take(row.account_display));
+        bag.push(take(row.account_name));
+        bag.push(take(row.account_number));
+        bag.push(take(row.owner_it_name));
+        bag.push(take(row.owner_business_name));
+        bag.push(take(row.analytics_category_name));
         bag.push(take(row.notes));
         bag.push(take(row.ppe_type));
         bag.push(take(row.investment_type));
@@ -1313,7 +1582,7 @@ export class CapexItemsService {
       data = data.filter(matches);
     }
 
-    if (!data.length) return { ids: [], total: 0 };
+    if (!data.length) return { ids: [], item_numbers: [], total: 0 };
 
     // Load versions for required years and compute rollups used for sorting by derived fields
     const itemIds = data.map((i) => i.id);
@@ -1347,10 +1616,10 @@ export class CapexItemsService {
       acc.committed = addCents(acc.committed, (a as any).committed);
     }
 
-    function sumFor(itemId: string, year: number, key: 'planned' | 'expected_landing' | 'committed') {
+    function sumFor(itemId: string, year: number, key: 'planned' | 'actual' | 'expected_landing' | 'committed') {
       const v = versionsByItemYear.get(itemId)?.get(year);
       if (!v) return 0;
-      const sum = amountsByVersion[v.id] || { planned: 0n, expected_landing: 0n, committed: 0n } as any;
+      const sum = amountsByVersion[v.id] || { planned: 0n, actual: 0n, expected_landing: 0n, committed: 0n } as any;
       return Number(formatCents(sum[key]));
     }
 
@@ -1358,10 +1627,15 @@ export class CapexItemsService {
     const dir = sort.direction === 'ASC' ? 1 : -1;
     const getValue = (row: any): any => {
       switch (sort.field) {
+        case 'yMinus1Budget': return sumFor(row.id, Y - 1, 'planned');
         case 'yMinus1Landing': return sumFor(row.id, Y - 1, 'expected_landing');
         case 'yBudget': return sumFor(row.id, Y, 'planned');
+        case 'yRevision': return sumFor(row.id, Y, 'committed');
+        case 'yFollowUp': return sumFor(row.id, Y, 'actual');
         case 'yLanding': return sumFor(row.id, Y, 'expected_landing');
         case 'yPlus1Budget': return sumFor(row.id, Y + 1, 'planned');
+        case 'yPlus1Revision': return sumFor(row.id, Y + 1, 'committed');
+        case 'yPlus2Budget': return sumFor(row.id, Y + 2, 'planned');
         default: return row?.[sort.field];
       }
     };
@@ -1375,7 +1649,8 @@ export class CapexItemsService {
     });
 
     const ids = data.map((r: any) => r.id);
-    return { ids, total: ids.length };
+    const item_numbers = data.map((r: any) => r.item_number);
+    return { ids, item_numbers, total: ids.length };
   }
 
   // Links
@@ -1482,14 +1757,15 @@ export class CapexItemsService {
   // Projects
   async listProjects(capexItemId: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
-    await this.get(capexItemId, { manager: mg }); // ensure item exists
+    const capex = await this.get(capexItemId, { manager: mg }); // ensure item exists
+    const itemId = capex.id;
     const rows = await mg.query(
       `SELECT l.project_id as id, p.name
        FROM portfolio_project_capex l
        JOIN portfolio_projects p ON p.id = l.project_id
        WHERE l.capex_id = $1
        ORDER BY p.name ASC`,
-      [capexItemId],
+      [itemId],
     );
     return { items: rows };
   }
@@ -1497,6 +1773,7 @@ export class CapexItemsService {
   async bulkReplaceProjects(capexItemId: string, projectIds: string[], opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const capex = await this.get(capexItemId, { manager: mg });
+    const itemId = capex.id;
     const cleanIds = Array.from(new Set((projectIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
     if (cleanIds.length) {
       const projects = await mg.getRepository(PortfolioProject).find({ where: { id: In(cleanIds) } as any });
@@ -1505,12 +1782,12 @@ export class CapexItemsService {
       if (invalid) throw new BadRequestException('Project does not belong to tenant');
     }
     const repo = mg.getRepository(PortfolioProjectCapex);
-    const existing = await repo.find({ where: { capex_id: capexItemId } as any });
+    const existing = await repo.find({ where: { capex_id: itemId } as any });
     if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     if (cleanIds.length) {
-      const rows = cleanIds.map((projId) => repo.create({ tenant_id: (capex as any).tenant_id, project_id: projId, capex_id: capexItemId }));
+      const rows = cleanIds.map((projId) => repo.create({ tenant_id: (capex as any).tenant_id, project_id: projId, capex_id: itemId }));
       await repo.save(rows);
     }
-    return this.listProjects(capexItemId, { manager: mg });
+    return this.listProjects(itemId, { manager: mg });
   }
 }

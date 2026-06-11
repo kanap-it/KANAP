@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 
-export type EntityType = 'task' | 'request' | 'project' | 'document' | 'spend';
+export type EntityType = 'task' | 'request' | 'project' | 'document' | 'spend' | 'capex';
 
 const EXPECTED_PREFIX: Record<EntityType, string> = {
   task: 'T',
@@ -9,10 +9,11 @@ const EXPECTED_PREFIX: Record<EntityType, string> = {
   project: 'PRJ',
   document: 'DOC',
   spend: 'OPX',
+  capex: 'CPX',
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ITEM_REF_RE = /^(T|PRJ|REQ|DOC|OPX)-(\d+)$/i;
+const ITEM_REF_RE = /^(T|PRJ|REQ|DOC|OPX|CPX)-(\d+)$/i;
 
 export function parseItemRef(
   raw: string,
@@ -58,6 +59,7 @@ export async function resolveToUuid(
     project: 'SELECT id FROM portfolio_projects WHERE item_number = $1 LIMIT 1',
     document: 'SELECT id FROM documents WHERE item_number = $1 LIMIT 1',
     spend: 'SELECT id FROM spend_items WHERE item_number = $1 LIMIT 1',
+    capex: 'SELECT id FROM capex_items WHERE item_number = $1 LIMIT 1',
   };
 
   const rows = await manager.query(queries[entityType], [parsed.value]);

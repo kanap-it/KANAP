@@ -26,6 +26,7 @@
     "test:security": "ts-node src/common/__tests__/document-export.security.spec.ts",
     "test:tenant-isolation": "ts-node ./scripts/tenant-isolation-audit.ts",
     "test:rls": "ts-node ./scripts/rls-self-test.ts",
+    "test:capex": "ts-node src/capex/__tests__/capex-backend-contract.spec.ts",
     "stripe:migrate": "typeorm-ts-node-commonjs -d src/data-source.ts migration:generate --dr --pretty"
   },
   "dependencies": {

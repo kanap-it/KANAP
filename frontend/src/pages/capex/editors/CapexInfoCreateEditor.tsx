@@ -3,52 +3,32 @@ import { Stack, TextField, Alert, Typography, Autocomplete } from '@mui/material
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
+import SupplierSelect from '../../../components/fields/SupplierSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
 import AccountSelect from '../../../components/fields/AccountSelect';
-import StatusLifecycleField from '../../../components/fields/StatusLifecycleField';
 import api from '../../../api';
 import { CURRENCY_OPTIONS, CurrencyOption } from '../../../constants/isoOptions';
 import useCurrencySettings from '../../../hooks/useCurrencySettings';
-import { STATUS_ENABLED, StatusValue, deriveStatusFromDisabledAt, normalizeDisabledAtInput } from '../../../constants/status';
 import DateEUField from '../../../components/fields/DateEUField';
 import { deepEqual } from '../../../lib/deepEqual';
+import type { CapexInvestmentType, CapexPpeType } from '../workspace/CapexPropertiesDrawer';
+import type { CapexPriority } from '../workspace/CapexMetadataBar';
 
 export type CapexInfoCreateEditorHandle = {
   isDirty: () => boolean;
-  save: () => Promise<string>; // returns new id
+  save: () => Promise<string>;
   reset: () => void;
 };
 
 type Props = { onDirtyChange?: (dirty: boolean) => void };
 
-const PPE_OPTIONS = [
-  { value: 'hardware', label: 'Hardware' },
-  { value: 'software', label: 'Software' },
-] as const;
-
-const INVESTMENT_OPTIONS = [
-  { value: 'replacement', label: 'Replacement' },
-  { value: 'capacity', label: 'Capacity' },
-  { value: 'productivity', label: 'Productivity' },
-  { value: 'security', label: 'Security' },
-  { value: 'conformity', label: 'Conformity' },
-  { value: 'business_growth', label: 'Business Growth' },
-  { value: 'other', label: 'Other' },
-] as const;
-
-const PRIORITY_OPTIONS = [
-  { value: 'mandatory', label: 'Mandatory' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-] as const;
-
 export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfoCreateEditor({ onDirtyChange }, ref) {
   const { t } = useTranslation(['ops', 'common']);
   const [description, setDescription] = React.useState('');
-  const [ppeType, setPpeType] = React.useState<'hardware' | 'software'>('hardware');
-  const [investmentType, setInvestmentType] = React.useState<(typeof INVESTMENT_OPTIONS)[number]['value']>('replacement');
-  const [priority, setPriority] = React.useState<(typeof PRIORITY_OPTIONS)[number]['value']>('medium');
+  const [supplierId, setSupplierId] = React.useState<string>('');
+  const [ppeType, setPpeType] = React.useState<CapexPpeType>('hardware');
+  const [investmentType, setInvestmentType] = React.useState<CapexInvestmentType>('replacement');
+  const [priority, setPriority] = React.useState<CapexPriority>('medium');
   const { data: currencySettings } = useCurrencySettings();
   const defaultCurrency = React.useMemo(
     () => currencySettings?.defaultCapexCurrency?.toUpperCase() ?? 'EUR',
@@ -68,7 +48,6 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
     }
     return CURRENCY_OPTIONS;
   }, [allowedCurrencyCodes]);
-
   const fallbackCurrencyOption = React.useMemo<CurrencyOption>(() => {
     const preferred = currencyOptions.find((opt) => opt.code === defaultCurrency);
     return preferred ?? currencyOptions[0] ?? ({ code: defaultCurrency, name: 'Unknown currency code' } as CurrencyOption);
@@ -76,41 +55,38 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
 
   const [currency, setCurrency] = React.useState(defaultCurrency);
   const [currencyTouched, setCurrencyTouched] = React.useState(false);
-  const [effectiveStart, setEffectiveStart] = React.useState<string>(() => new Date().toISOString().slice(0,10));
+  const [effectiveStart, setEffectiveStart] = React.useState<string>(() => new Date().toISOString().slice(0, 10));
   const [effectiveEnd, setEffectiveEnd] = React.useState<string>('');
-  const [status, setStatus] = React.useState<StatusValue>(STATUS_ENABLED);
-  const [disabledAt, setDisabledAtState] = React.useState<string | null>(null);
-  const setDisabledAt = React.useCallback((next: string | null) => {
-    const normalized = normalizeDisabledAtInput(next);
-    setDisabledAtState(normalized);
-    setStatus(deriveStatusFromDisabledAt(normalized));
-  }, []);
   const [notes, setNotes] = React.useState<string>('');
-  const [companyId, setCompanyId] = React.useState<string | null>(null);
+  const [payingCompanyId, setPayingCompanyId] = React.useState<string>('');
   const [accountId, setAccountId] = React.useState<string>('');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Check for obsolete account (account from different CoA than company's CoA)
+  React.useEffect(() => {
+    if (!currencyTouched) setCurrency(defaultCurrency);
+  }, [defaultCurrency, currencyTouched]);
+
+  // Check for obsolete account (account from a different CoA than the paying company's CoA)
   const [accountCoaId, setAccountCoaId] = React.useState<string | null>(null);
   const [companyCoaId, setCompanyCoaId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let alive = true;
     (async () => {
-      if (!companyId) {
+      if (!payingCompanyId) {
         setCompanyCoaId(null);
         return;
       }
       try {
-        const res = await api.get(`/companies/${companyId}`);
+        const res = await api.get(`/companies/${payingCompanyId}`);
         if (alive) setCompanyCoaId(res.data?.coa_id || null);
       } catch {
         if (alive) setCompanyCoaId(null);
       }
     })();
     return () => { alive = false; };
-  }, [companyId]);
+  }, [payingCompanyId]);
 
   React.useEffect(() => {
     let alive = true;
@@ -130,23 +106,58 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
   }, [accountId]);
 
   const hasObsoleteAccount = React.useMemo(() => {
-    if (!accountId || !companyId) return false;
+    if (!accountId || !payingCompanyId) return false;
     if (!accountCoaId || !companyCoaId) return false;
     return accountCoaId !== companyCoaId;
-  }, [accountId, companyId, accountCoaId, companyCoaId]);
+  }, [accountId, payingCompanyId, accountCoaId, companyCoaId]);
 
-  React.useEffect(() => {
-    if (!currencyTouched) {
-      setCurrency(defaultCurrency);
-    }
-  }, [defaultCurrency, currencyTouched]);
+  const ppeOptions = React.useMemo(() => [
+    { value: 'hardware', label: t('capex.ppeTypes.hardware') },
+    { value: 'software', label: t('capex.ppeTypes.software') },
+  ], [t]);
+  const investmentOptions = React.useMemo(() => [
+    { value: 'replacement', label: t('capex.investmentTypes.replacement') },
+    { value: 'capacity', label: t('capex.investmentTypes.capacity') },
+    { value: 'productivity', label: t('capex.investmentTypes.productivity') },
+    { value: 'security', label: t('capex.investmentTypes.security') },
+    { value: 'conformity', label: t('capex.investmentTypes.conformity') },
+    { value: 'business_growth', label: t('capex.investmentTypes.business_growth') },
+    { value: 'other', label: t('capex.investmentTypes.other') },
+  ], [t]);
+  const priorityOptions = React.useMemo(() => [
+    { value: 'mandatory', label: t('capex.priorityTypes.mandatory') },
+    { value: 'high', label: t('capex.priorityTypes.high') },
+    { value: 'medium', label: t('capex.priorityTypes.medium') },
+    { value: 'low', label: t('capex.priorityTypes.low') },
+  ], [t]);
 
   const baseline = React.useMemo(() => ({
-    description: '', ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium', currency: defaultCurrency,
-    effective_start: effectiveStart, effective_end: '', status: STATUS_ENABLED, disabled_at: null, notes: '', company_id: null, account_id: '',
+    description: '',
+    supplier_id: '',
+    ppe_type: 'hardware',
+    investment_type: 'replacement',
+    priority: 'medium',
+    currency: defaultCurrency,
+    effective_start: effectiveStart,
+    effective_end: '',
+    notes: '',
+    paying_company_id: '',
+    account_id: '',
   }), [defaultCurrency, effectiveStart]);
 
-  const current = { description, ppe_type: ppeType, investment_type: investmentType, priority, currency, effective_start: effectiveStart, effective_end: effectiveEnd, status, disabled_at: disabledAt, notes, company_id: companyId, account_id: accountId };
+  const current = {
+    description,
+    supplier_id: supplierId,
+    ppe_type: ppeType,
+    investment_type: investmentType,
+    priority,
+    currency,
+    effective_start: effectiveStart,
+    effective_end: effectiveEnd,
+    notes,
+    paying_company_id: payingCompanyId,
+    account_id: accountId,
+  };
   const dirty = React.useMemo(() => !deepEqual(current, baseline), [current, baseline]);
   React.useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
@@ -156,30 +167,25 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
       setSaving(true);
       setError(null);
       try {
-        // allow any pending field selection to flush into state
-        await new Promise((r) => setTimeout(r, 0));
         if (!description.trim()) throw new Error(t('capex.editor.descriptionRequired'));
         if ((currency || '').trim().length !== 3) throw new Error(t('capex.editor.currencyMust3'));
         if (!effectiveStart) throw new Error(t('capex.editor.effectiveStartRequired'));
+        if (!payingCompanyId) throw new Error(t('capex.editor.payingCompanyRequired'));
 
-        const toNull = (v: any) => (v === '' || v === undefined ? null : v);
-        const disabled_at = disabledAt ?? null;
-        const statusValue = deriveStatusFromDisabledAt(disabled_at);
+        const toNull = (v: unknown) => (v === '' || v === undefined ? null : v);
         const payload = {
-          description,
+          description: description.trim(),
+          supplier_id: toNull(supplierId),
           ppe_type: ppeType,
           investment_type: investmentType,
           priority,
           currency: currency.toUpperCase(),
           effective_start: effectiveStart,
           effective_end: toNull(effectiveEnd),
-          status: statusValue,
-          disabled_at,
           notes: toNull(notes),
-          paying_company_id: toNull(companyId),
+          paying_company_id: toNull(payingCompanyId),
           account_id: toNull(accountId),
         };
-        console.log('[CAPEX][create] payload', payload);
         const res = await api.post('/capex-items', payload);
         const id = res.data?.id as string;
         if (!id) throw new Error(t('capex.editor.failedToCreate'));
@@ -193,21 +199,20 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
     },
     reset: () => {
       setDescription('');
+      setSupplierId('');
       setPpeType('hardware');
       setInvestmentType('replacement');
       setPriority('medium');
       setCurrency(defaultCurrency);
       setCurrencyTouched(false);
-      setEffectiveStart(new Date().toISOString().slice(0,10));
+      setEffectiveStart(new Date().toISOString().slice(0, 10));
       setEffectiveEnd('');
-      setStatus(STATUS_ENABLED);
-      setDisabledAt(null);
       setNotes('');
-      setCompanyId(null);
+      setPayingCompanyId('');
       setAccountId('');
       onDirtyChange?.(false);
     },
-  }), [dirty, description, ppeType, investmentType, priority, currency, effectiveStart, effectiveEnd, status, disabledAt, notes, companyId, accountId, onDirtyChange, defaultCurrency]);
+  }), [dirty, description, supplierId, ppeType, investmentType, priority, currency, effectiveStart, effectiveEnd, notes, payingCompanyId, accountId, onDirtyChange, defaultCurrency, t]);
 
   return (
     <Stack spacing={2}>
@@ -218,12 +223,23 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
         </Alert>
       )}
       <Typography variant="subtitle2">{t('capex.editor.generalInfo')}</Typography>
-      <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={saving} required fullWidth multiline minRows={2} InputLabelProps={{ shrink: true }} />
-      <CompanySelect value={companyId} onChange={setCompanyId} />
-      <AccountSelect value={accountId} onChange={(v) => setAccountId(v ?? '')} companyId={companyId || undefined} disabled={!companyId || saving} />
-      <EnumAutocomplete label="PP&E Type" value={ppeType} onChange={(v) => setPpeType(v as any)} options={PPE_OPTIONS as any} required />
-      <EnumAutocomplete label="Investment Type" value={investmentType} onChange={(v) => setInvestmentType(v as any)} options={INVESTMENT_OPTIONS as any} required />
-      <EnumAutocomplete label="Priority" value={priority} onChange={(v) => setPriority(v as any)} options={PRIORITY_OPTIONS as any} required />
+      {/* Single-line: the description is the workspace title (edited via the shell's
+          single-line title editor) — multiline input here would get flattened later. */}
+      <TextField
+        label={t('capex.fields.description')}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        disabled={saving}
+        required
+        fullWidth
+        InputLabelProps={{ shrink: true }}
+      />
+      <SupplierSelect label={t('capex.fields.supplier')} value={supplierId} onChange={(v) => setSupplierId(v ?? '')} disabled={saving} />
+      <CompanySelect label={t('capex.fields.payingCompany')} value={payingCompanyId || null} onChange={(v) => setPayingCompanyId(v ?? '')} disabled={saving} required />
+      <AccountSelect label={t('capex.fields.account')} value={accountId} onChange={(v) => setAccountId(v ?? '')} companyId={payingCompanyId || undefined} disabled={!payingCompanyId || saving} />
+      <EnumAutocomplete label={t('capex.fields.ppeType')} value={ppeType} onChange={(v) => setPpeType(v as CapexPpeType)} options={ppeOptions} required />
+      <EnumAutocomplete label={t('capex.fields.investmentType')} value={investmentType} onChange={(v) => setInvestmentType(v as CapexInvestmentType)} options={investmentOptions} required />
+      <EnumAutocomplete label={t('capex.fields.priority')} value={priority} onChange={(v) => setPriority(v as CapexPriority)} options={priorityOptions} required />
       <Autocomplete<CurrencyOption, false, true, false>
         options={currencyOptions}
         disableClearable
@@ -239,28 +255,21 @@ export default forwardRef<CapexInfoCreateEditorHandle, Props>(function CapexInfo
           setCurrency(option?.code ?? fallbackCurrencyOption.code);
         }}
         disabled={saving}
-        getOptionLabel={(option) => `${option.code} — ${option.name}`}
+        getOptionLabel={(option) => `${option.code} - ${option.name}`}
         isOptionEqualToValue={(option, value) => option.code === value.code}
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Currency"
+            label={t('capex.fields.currency')}
             required
             helperText={t('capex.editor.defaultCurrency', { currency: defaultCurrency })}
             InputLabelProps={{ shrink: true }}
           />
         )}
       />
-      <DateEUField label="Effective Start" valueYmd={effectiveStart || ''} onChangeYmd={setEffectiveStart} disabled={saving} required />
-      <DateEUField label="Effective End" valueYmd={effectiveEnd || ''} onChangeYmd={setEffectiveEnd} disabled={saving} />
-      <TextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} multiline minRows={2} fullWidth InputLabelProps={{ shrink: true }} />
-      <StatusLifecycleField
-        status={status}
-        onStatusChange={(next) => setStatus(next)}
-        disabledAt={disabledAt}
-        onDisabledAtChange={(next) => setDisabledAt(next)}
-        statusLabel="Enabled"
-      />
+      <DateEUField label={t('capex.fields.effectiveStart')} valueYmd={effectiveStart || ''} onChangeYmd={setEffectiveStart} disabled={saving} required />
+      <DateEUField label={t('capex.fields.effectiveEnd')} valueYmd={effectiveEnd || ''} onChangeYmd={setEffectiveEnd} disabled={saving} />
+      <TextField label={t('capex.fields.notes')} value={notes} onChange={(e) => setNotes(e.target.value)} multiline minRows={2} fullWidth InputLabelProps={{ shrink: true }} />
     </Stack>
   );
 });

@@ -1555,8 +1555,8 @@ async function main() {
 
     await setTenant(r, tenantOneId);
     const capexRows = await r.query(
-      `INSERT INTO capex_items(description, ppe_type, investment_type, priority, currency, effective_start, status)
-       VALUES ($1, 'hardware', 'replacement', 'medium', 'EUR', '2025-01-01', 'enabled')
+      `INSERT INTO capex_items(description, ppe_type, investment_type, priority, currency, effective_start, status, item_number)
+       VALUES ($1, 'hardware', 'replacement', 'medium', 'EUR', '2025-01-01', 'enabled', (SELECT COALESCE(MAX(item_number), 0) + 1 FROM capex_items))
        RETURNING id`,
       [`CAPEX ${tag}`],
     );

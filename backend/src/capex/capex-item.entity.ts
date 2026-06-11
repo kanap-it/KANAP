@@ -1,13 +1,18 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { StatusState } from '../common/status';
 
 @Entity('capex_items')
+@Index(['tenant_id', 'item_number'], { unique: true })
 export class CapexItem {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column('uuid')
   tenant_id!: string;
+
+  // Per-tenant sequential business reference (rendered as CPX-N). Assigned on create.
+  @Column('int')
+  item_number!: number;
 
   @Column('uuid', { nullable: true })
   paying_company_id!: string | null;
@@ -52,6 +57,15 @@ export class CapexItem {
 
   @Column('uuid', { nullable: true })
   project_id!: string | null;
+
+  @Column('uuid', { nullable: true })
+  owner_it_id!: string | null;
+
+  @Column('uuid', { nullable: true })
+  owner_business_id!: string | null;
+
+  @Column('uuid', { nullable: true })
+  analytics_category_id!: string | null;
 
   @Column('text', { nullable: true })
   notes!: string | null;

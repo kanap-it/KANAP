@@ -4,12 +4,13 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useTranslation } from 'react-i18next';
-import api from '../../../api';
-import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import { formatAmount } from '../../../i18n/formatters';
-import useAutosave from '../../../hooks/useAutosave';
-import YearTabs from '../../../components/navigation/YearTabs';
-import { drawerSelectSx, drawerMenuItemSx } from '../../../theme/formSx';
+import api from '../../api';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { formatAmount } from '../../i18n/formatters';
+import useAutosave from '../../hooks/useAutosave';
+import YearTabs from '../navigation/YearTabs';
+import { drawerSelectSx, drawerMenuItemSx } from '../../theme/formSx';
+import { FinanceModuleConfig } from './config';
 
 type PickerOption = { id: string; label: string };
 
@@ -88,6 +89,7 @@ type Props = {
   currency?: string;
   availableYears?: number[];
   onYearChange: (y: number) => void;
+  config: FinanceModuleConfig;
 };
 
 type Method = 'default' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department' | 'manual_pct';
@@ -101,7 +103,7 @@ const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n
 const keyOf = (companyId: string | null, departmentId: string | null) => `${companyId ?? ''}|${departmentId ?? ''}`;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({ id, year, currency, availableYears, onYearChange }, ref) {
+export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({ id, year, currency, availableYears, onYearChange, config }, ref) {
   const { t } = useTranslation(['ops', 'common']);
 
   const [loading, setLoading] = React.useState(false);
@@ -121,7 +123,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
   const isManualDept = method === 'manual_department';
   const isAuto = !isManualPct && !isManualCompany && !isManualDept;
 
-  const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t('opex.allocations.failedToSave'))) });
+  const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.allocations.failedToSave`))) });
 
   // Latest-value refs for the debounced persist.
   const methodRef = React.useRef(method); methodRef.current = method;
@@ -144,10 +146,10 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
 
   const ensureVersion = React.useCallback(async (): Promise<Version> => {
     if (versionRef.current) return versionRef.current;
-    const res = await api.get<Version[]>(`/spend-items/${id}/versions`);
+    const res = await api.get<Version[]>(`${config.itemsApi}/${id}/versions`);
     const existing = (res.data || []).find((v) => Number(v.budget_year) === year);
     if (existing) { setVersion(existing); return existing; }
-    const created = await api.post<Version>(`/spend-items/${id}/versions`, {
+    const created = await api.post<Version>(`${config.itemsApi}/${id}/versions`, {
       version_name: `Y${year}`, budget_year: year, as_of_date: `${year}-01-01`, input_grain: 'annual', notes: null,
     });
     setVersion(created.data);
@@ -155,7 +157,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
   }, [id, year]);
 
   const loadComputed = React.useCallback(async (vid: string) => {
-    const res = await api.get<{ items: Array<{ company_id: string; department_id: string | null; allocation_pct: number }>; }>(`/spend-versions/${vid}/allocations`);
+    const res = await api.get<{ items: Array<{ company_id: string; department_id: string | null; allocation_pct: number }>; }>(`${config.versionsApi}/${vid}/allocations`);
     const map = new Map<string, number>();
     (res.data?.items || []).forEach((it) => map.set(keyOf(it.company_id, it.department_id), num(it.allocation_pct)));
     setComputedPct(map);
@@ -167,7 +169,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
     setError(null);
     try {
       const [versRes, compRes, deptRes] = await Promise.all([
-        api.get<Version[]>(`/spend-items/${id}/versions`),
+        api.get<Version[]>(`${config.itemsApi}/${id}/versions`),
         api.get<{ items: Company[] }>(`/companies`, { params: { year, page: 1, limit: 1000, sort: 'name:ASC' } }),
         api.get<{ items: Department[] }>(`/departments`, { params: { year, page: 1, limit: 1000, sort: 'name:ASC' } }).catch(() => ({ data: { items: [] } })),
       ]);
@@ -185,7 +187,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
       setDriver((v.allocation_driver ?? 'headcount') as Driver);
       const [items] = await Promise.all([
         loadComputed(v.id),
-        api.get<{ totals: { planned: number } }>(`/spend-versions/${v.id}/amounts`, { params: { year } })
+        api.get<{ totals: { planned: number } }>(`${config.versionsApi}/${v.id}/amounts`, { params: { year } })
           .then((r) => setBudgetTotal(num(r.data?.totals?.planned))).catch(() => setBudgetTotal(0)),
       ]);
       // Seed editable rows from stored distribution for manual methods.
@@ -195,7 +197,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
         setRows([]);
       }
     } catch (e) {
-      setError(getApiErrorMessage(e, t, t('opex.allocations.failedToLoad')));
+      setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.allocations.failedToLoad`)));
     } finally {
       setLoading(false);
     }
@@ -208,7 +210,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
     const m = methodRef.current;
     const d: Driver = m === 'it_users' ? 'it_users' : m === 'turnover' ? 'turnover' : m === 'manual_company' ? driverRef.current : 'headcount';
     if (v.allocation_method !== m || v.allocation_driver !== d) {
-      await api.patch(`/spend-items/${id}/versions`, { id: v.id, allocation_method: m, allocation_driver: d });
+      await api.patch(`${config.itemsApi}/${id}/versions`, { id: v.id, allocation_method: m, allocation_driver: d });
       setVersion((prev) => (prev ? { ...prev, allocation_method: m, allocation_driver: d } : prev));
     }
     let payload: Array<{ company_id: string; department_id: string | null; allocation_pct?: number }> = [];
@@ -226,7 +228,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
       await loadComputed(v.id);
       return;
     }
-    await api.post(`/spend-versions/${v.id}/allocations/bulk-upsert`, payload);
+    await api.post(`${config.versionsApi}/${v.id}/allocations/bulk-upsert`, payload);
     await loadComputed(v.id);
   }, [ensureVersion, id, loadComputed]);
 
@@ -313,12 +315,12 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
     : autosave.status === 'saved' ? t('common:status.saved', 'Saved') : null;
 
   const methodOptions: Array<{ value: Method; label: string }> = [
-    { value: 'default', label: t('opex.allocations.headcountDefault') },
-    { value: 'it_users', label: t('opex.allocations.itUsers') },
-    { value: 'turnover', label: t('opex.allocations.turnover') },
-    { value: 'manual_company', label: t('opex.allocations.manualByCompany') },
-    { value: 'manual_department', label: t('opex.allocations.manualByDepartment') },
-    { value: 'manual_pct', label: t('opex.allocations.manualByPct') },
+    { value: 'default', label: t(`${config.i18nPrefix}.allocations.headcountDefault`) },
+    { value: 'it_users', label: t(`${config.i18nPrefix}.allocations.itUsers`) },
+    { value: 'turnover', label: t(`${config.i18nPrefix}.allocations.turnover`) },
+    { value: 'manual_company', label: t(`${config.i18nPrefix}.allocations.manualByCompany`) },
+    { value: 'manual_department', label: t(`${config.i18nPrefix}.allocations.manualByDepartment`) },
+    { value: 'manual_pct', label: t(`${config.i18nPrefix}.allocations.manualByPct`) },
   ];
 
   const numHeadSx = { textAlign: 'right', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', px: 1.5, py: 0.75, whiteSpace: 'nowrap' } as const;
@@ -340,44 +342,44 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-end' }}>
         <Box sx={{ minWidth: 200 }}>
-          <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t('opex.allocations.method')}</Typography>
+          <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t(`${config.i18nPrefix}.allocations.method`)}</Typography>
           <TextField select fullWidth variant="standard" value={method} onChange={(e) => onMethodChange(e.target.value as Method)} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
             {methodOptions.map((o) => <MenuItem key={o.value} value={o.value} sx={drawerMenuItemSx}>{o.label}</MenuItem>)}
           </TextField>
         </Box>
         {isManualCompany && (
           <Box sx={{ minWidth: 140 }}>
-            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t('opex.allocations.allocateBy')}</Typography>
+            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t(`${config.i18nPrefix}.allocations.allocateBy`)}</Typography>
             <TextField select fullWidth variant="standard" value={driver} onChange={(e) => { setDriver(e.target.value as Driver); scheduleSave(); }} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
-              <MenuItem value="headcount" sx={drawerMenuItemSx}>{t('opex.allocations.headcount')}</MenuItem>
-              <MenuItem value="it_users" sx={drawerMenuItemSx}>{t('opex.allocations.itUsers')}</MenuItem>
-              <MenuItem value="turnover" sx={drawerMenuItemSx}>{t('opex.allocations.turnover')}</MenuItem>
+              <MenuItem value="headcount" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.headcount`)}</MenuItem>
+              <MenuItem value="it_users" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.itUsers`)}</MenuItem>
+              <MenuItem value="turnover" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.turnover`)}</MenuItem>
             </TextField>
           </Box>
         )}
         <Box sx={{ ml: 'auto', textAlign: 'right' }}>
-          <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>{t('opex.allocations.yearBudget')}{currency ? ` · ${currency.toUpperCase()}` : ''}</Typography>
+          <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>{t(`${config.i18nPrefix}.allocations.yearBudget`)}{currency ? ` · ${currency.toUpperCase()}` : ''}</Typography>
           <Typography sx={{ fontSize: 15, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{formatAmount(budgetTotal)}</Typography>
         </Box>
       </Box>
 
       {isAuto && (
-        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('opex.allocations.autoDistributeInfo')}</Typography>
+        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t(`${config.i18nPrefix}.allocations.autoDistributeInfo`)}</Typography>
       )}
       {isManualPct && (
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button size="small" variant="action" onClick={splitEqually}>{t('opex.allocations.splitEqually')}</Button>
-          <Button size="small" variant="action" onClick={clearPins}>{t('opex.allocations.clearPins')}</Button>
+          <Button size="small" variant="action" onClick={splitEqually}>{t(`${config.i18nPrefix}.allocations.splitEqually`)}</Button>
+          <Button size="small" variant="action" onClick={clearPins}>{t(`${config.i18nPrefix}.allocations.clearPins`)}</Button>
         </Box>
       )}
 
       <Box component="table" sx={{ width: 'auto', minWidth: 420, borderCollapse: 'collapse', '& td, & th': { borderBottom: '1px solid', borderColor: 'kanap.border.soft' } }}>
         <Box component="thead">
           <Box component="tr">
-            <Box component="th" sx={{ textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', px: 1, py: 0.75, minWidth: 220 }}>{isManualDept ? t('opex.allocations.companyDept') : t('opex.allocations.company')}</Box>
-            {!isManualPct && <Box component="th" sx={numHeadSx}>{t('opex.allocations.driverValue')}</Box>}
+            <Box component="th" sx={{ textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', px: 1, py: 0.75, minWidth: 220 }}>{isManualDept ? t(`${config.i18nPrefix}.allocations.companyDept`) : t(`${config.i18nPrefix}.allocations.company`)}</Box>
+            {!isManualPct && <Box component="th" sx={numHeadSx}>{t(`${config.i18nPrefix}.allocations.driverValue`)}</Box>}
             <Box component="th" sx={numHeadSx}>%</Box>
-            <Box component="th" sx={numHeadSx}>{t('opex.allocations.amount')}</Box>
+            <Box component="th" sx={numHeadSx}>{t(`${config.i18nPrefix}.allocations.amount`)}</Box>
             {!isAuto && <Box component="th" sx={{ width: 40 }} />}
           </Box>
         </Box>
@@ -394,8 +396,8 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
                       <InlinePicker
                         value={r.company_id}
                         options={companyOptions}
-                        placeholder={t('opex.allocations.selectCompany')}
-                        emptyLabel={t('opex.allocations.noCompanies')}
+                        placeholder={t(`${config.i18nPrefix}.allocations.selectCompany`)}
+                        emptyLabel={t(`${config.i18nPrefix}.allocations.noCompanies`)}
                         error={!r.company_id}
                         autoOpen={autoOpenIdx === idx}
                         onSelect={(cid) => onCompanyChange(idx, cid)}
@@ -405,8 +407,8 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
                         <InlinePicker
                           value={r.department_id}
                           options={deptOptionsFor(r.company_id)}
-                          placeholder={t('opex.allocations.selectDepartment')}
-                          emptyLabel={t('opex.allocations.noDepartments')}
+                          placeholder={t(`${config.i18nPrefix}.allocations.selectDepartment`)}
+                          emptyLabel={t(`${config.i18nPrefix}.allocations.noDepartments`)}
                           disabled={!r.company_id}
                           error={!r.department_id}
                           onSelect={(did) => onDeptChange(idx, did)}
@@ -451,7 +453,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
         </Box>
         <Box component="tfoot">
           <Box component="tr">
-            <Box component="td" sx={{ fontSize: 12, fontWeight: 500, px: 1, py: 0.75 }}>{t('opex.allocations.total')}</Box>
+            <Box component="td" sx={{ fontSize: 12, fontWeight: 500, px: 1, py: 0.75 }}>{t(`${config.i18nPrefix}.allocations.total`)}</Box>
             {!isManualPct && <Box component="td" />}
             <Box component="td" sx={{ ...numCellSx, fontWeight: 500, color: totalValid ? 'kanap.text.primary' : 'warning.main' }}>{round2(totalPct)}%</Box>
             <Box component="td" sx={{ ...numCellSx, fontWeight: 500 }}>{formatAmount((totalPct / 100) * budgetTotal)}</Box>
@@ -462,11 +464,11 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
 
       {!isAuto && (
         <Box>
-          <Button size="small" startIcon={<AddIcon />} onClick={addRow}>{t('opex.allocations.addRow')}</Button>
+          <Button size="small" startIcon={<AddIcon />} onClick={addRow}>{t(`${config.i18nPrefix}.allocations.addRow`)}</Button>
         </Box>
       )}
       {isManualPct && !totalValid && (
-        <Typography sx={{ fontSize: 12, color: 'warning.main' }}>{t('opex.allocations.mustSum100')}</Typography>
+        <Typography sx={{ fontSize: 12, color: 'warning.main' }}>{t(`${config.i18nPrefix}.allocations.mustSum100`)}</Typography>
       )}
     </Stack>
   );

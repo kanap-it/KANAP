@@ -14,6 +14,7 @@ export const de: EmailStrings = {
       task: { label: 'Aufgabe', lower: 'Aufgabe', view: 'Aufgabe anzeigen' },
       contract: { label: 'Vertrag', lower: 'Vertrag', view: 'Vertrag anzeigen' },
       opex: { label: 'OPEX-Posten', lower: 'OPEX-Posten', view: 'OPEX-Posten anzeigen' },
+      capex: { label: 'CAPEX-Posten', lower: 'CAPEX-Posten', view: 'CAPEX-Posten anzeigen' },
       asset: { label: 'Asset', lower: 'Asset', view: 'Asset anzeigen' },
       application: { label: 'Anwendung', lower: 'Anwendung', view: 'Anwendung anzeigen' },
       location: { label: 'Standort', lower: 'Standort', view: 'Standort anzeigen' },

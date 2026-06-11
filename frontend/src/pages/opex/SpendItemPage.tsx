@@ -19,8 +19,9 @@ import SendLinkButton from '../../components/workspace/SendLinkButton';
 import SpendMetadataBar from './workspace/SpendMetadataBar';
 import SpendPropertiesDrawer from './workspace/SpendPropertiesDrawer';
 import SpendInfoCreateEditor, { SpendInfoCreateEditorHandle } from './editors/SpendInfoCreateEditor';
-import BudgetTab, { BudgetTabHandle } from './workspace/BudgetTab';
-import AllocationsTab, { AllocationsTabHandle } from './workspace/AllocationsTab';
+import BudgetTab, { BudgetTabHandle } from '../../components/finance/BudgetTab';
+import AllocationsTab, { AllocationsTabHandle } from '../../components/finance/AllocationsTab';
+import { OPEX_FINANCE_CONFIG } from '../../components/finance/config';
 import RelationsPanel, { RelationsPanelHandle } from './editors/RelationsPanel';
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './listContextStorage';
@@ -436,10 +437,10 @@ export default function SpendItemPage() {
         )}
 
         {routeTab === 'budget' && !isCreate && uuid && (
-          <BudgetTab key={uuid} id={uuid} year={currentYear} currency={form.currency} availableYears={availableYears} onYearChange={setYear} ref={budgetRef} />
+          <BudgetTab key={uuid} id={uuid} year={currentYear} currency={form.currency} availableYears={availableYears} onYearChange={setYear} config={OPEX_FINANCE_CONFIG} ref={budgetRef} />
         )}
         {routeTab === 'allocations' && !isCreate && uuid && (
-          <AllocationsTab key={uuid} id={uuid} year={currentYear} currency={form.currency} availableYears={availableYears} onYearChange={setYear} ref={allocRef} />
+          <AllocationsTab key={uuid} id={uuid} year={currentYear} currency={form.currency} availableYears={availableYears} onYearChange={setYear} config={OPEX_FINANCE_CONFIG} ref={allocRef} />
         )}
         {routeTab === 'tasks' && !isCreate && uuid && (
           <EntityTasksPanel key={uuid} entityType="spend_item" entityId={uuid} onTasksChange={() => { void tasksCountQuery.refetch(); }} />

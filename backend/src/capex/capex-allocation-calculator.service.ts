@@ -21,7 +21,7 @@ export type CapexAllocationShare = {
 
 export type CapexAllocationComputation = {
   versionId: string;
-  resolvedMethod: 'headcount' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department';
+  resolvedMethod: 'headcount' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department' | 'manual_pct';
   shares: CapexAllocationShare[];
   error?: string | null;
 };
@@ -64,7 +64,7 @@ export class CapexAllocationCalculatorService {
       manualRowsByVersion.set(row.version_id, manualArr);
     }
 
-    const autoVersions = versions.filter((v) => !['manual_company', 'manual_department'].includes((v as any).allocation_method ?? 'default'));
+    const autoVersions = versions.filter((v) => !['manual_company', 'manual_department', 'manual_pct'].includes((v as any).allocation_method ?? 'default'));
     // Consider all versions to build the set of distinct years in scope.
     const years = Array.from(new Set(versions.map((v) => v.budget_year))).sort();
 
@@ -116,6 +116,22 @@ export class CapexAllocationCalculatorService {
 
     for (const version of versions) {
       const method = ((version as any).allocation_method ?? 'default') as string;
+      if (method === 'manual_pct') {
+        const rows = manualRowsByVersion.get(version.id) ?? [];
+        result.set(version.id, {
+          versionId: version.id,
+          resolvedMethod: 'manual_pct',
+          shares: rows.map((row) => ({
+            allocation_id: row.id,
+            company_id: row.company_id,
+            department_id: row.department_id ?? null,
+            allocation_pct: Number(row.allocation_pct || 0),
+            source: 'manual' as CapexAllocationSource,
+          })),
+          error: null,
+        });
+        continue;
+      }
       if (method === 'manual_company' || method === 'manual_department') {
         const rows = manualRowsByVersion.get(version.id) ?? [];
         const fallbackShares = rows.map((row) => ({

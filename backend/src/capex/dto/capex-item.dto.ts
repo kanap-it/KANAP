@@ -59,4 +59,16 @@ export class CapexItemUpsertDto extends StatusLifecycleDto {
   @IsOptional()
   @IsUUID()
   project_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  owner_it_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  owner_business_id?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  analytics_category_id?: string | null;
 }

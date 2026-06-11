@@ -85,3 +85,21 @@ export async function fetchSpendRelationsCount(spendItemId: string): Promise<num
     + settledItemCount(links)
     + settledItemCount(attachments);
 }
+
+export async function fetchCapexTasksCount(capexItemId: string): Promise<number> {
+  const res = await api.get(`/capex-items/${capexItemId}/tasks`);
+  return itemCount(res.data);
+}
+
+export async function fetchCapexRelationsCount(capexItemId: string): Promise<number> {
+  const [contracts, projects, links, attachments] = await Promise.allSettled([
+    api.get(`/capex-items/${capexItemId}/contracts`),
+    api.get(`/capex-items/${capexItemId}/projects`),
+    api.get(`/capex-items/${capexItemId}/links`),
+    api.get(`/capex-items/${capexItemId}/attachments`),
+  ]);
+  return settledItemCount(contracts)
+    + settledItemCount(projects)
+    + settledItemCount(links)
+    + settledItemCount(attachments);
+}
