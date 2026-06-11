@@ -738,16 +738,26 @@ function HelpdeskAgentSettingsDialog({
 }) {
   const [form, setForm] = React.useState<HelpdeskSettingsFormState>(() => settingsToFormState(settings));
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [dirty, setDirty] = React.useState(false);
+  // Seed the form when the dialog opens, and keep following server state only
+  // until the user edits something. Background refetches (window refocus,
+  // query invalidation) must never silently reset in-progress edits.
   React.useEffect(() => {
-    if (open) {
+    if (!open) {
+      setDirty(false);
+      return;
+    }
+    if (!dirty) {
       setForm(settingsToFormState(settings));
       setFormError(null);
     }
-  }, [open, settings]);
+  }, [open, settings, dirty]);
 
   const setField = (field: keyof HelpdeskSettingsFormState) =>
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDirty(true);
       setForm((current) => ({ ...current, [field]: event.target.value }));
+    };
 
   const handleSave = () => {
     const errors: string[] = [];
@@ -801,7 +811,11 @@ function HelpdeskAgentSettingsDialog({
           <Switch
             size="small"
             checked={form.enabled}
-            onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))}
+            onChange={(event) => {
+              setDirty(true);
+              const enabled = event.target.checked;
+              setForm((current) => ({ ...current, enabled }));
+            }}
           />
           <Box>
             <Typography variant="body2">Watch GLPI for new tickets automatically</Typography>
@@ -2218,9 +2232,9 @@ export default function AgentControlCenterPage() {
       setSettingsDialogOpen(false);
       setMutationInfo(result.ingestion.enabled
         ? (result.ingestion.ready
-          ? 'Ingestion settings saved. Bounded new-ticket polling is enabled.'
-          : `Ingestion settings saved, but polling is not ready: ${result.ingestion.readyReason}`)
-        : 'Ingestion settings saved. Automatic polling is disabled.');
+          ? 'Settings saved. The agent is now watching for new GLPI tickets.'
+          : `Settings saved, but the watcher is not ready: ${result.ingestion.readyReason}`)
+        : 'Settings saved. Automatic ticket watching is OFF — use the switch at the top of the settings dialog to enable it.');
       await invalidateControlQueries();
     },
   });
