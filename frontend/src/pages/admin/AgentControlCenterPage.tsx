@@ -751,9 +751,6 @@ function HelpdeskAgentSettingsDialog({
 
   const handleSave = () => {
     const errors: string[] = [];
-    if (form.enabled && !form.entityId.trim() && !form.categoryId.trim()) {
-      errors.push('To watch GLPI tickets automatically, fill in at least one filter: a GLPI entity id or a category id.');
-    }
     const payload: AiAgentControlHelpdeskIngestionSettingsInput = {
       ingestion: {
         enabled: form.enabled,
@@ -818,8 +815,9 @@ function HelpdeskAgentSettingsDialog({
         <Box>
           <Typography variant="body2" sx={{ mb: 0.25 }}>Which tickets the agent watches</Typography>
           <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
-            Fill in at least one of the two filters. If you fill in both, a ticket must match both.
-            Only tickets created after you enable the watcher are considered — it never digs into history.
+            Both filters are optional. Leave them empty to watch all new tickets; if you fill in both,
+            a ticket must match both. Only tickets created after you enable the watcher are considered —
+            it never digs into history.
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
             <SettingsField

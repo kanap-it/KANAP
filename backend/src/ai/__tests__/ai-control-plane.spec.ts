@@ -4371,10 +4371,15 @@ async function testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls(
   assert.equal(typeof initial.ingestion.readyReason, 'string');
   assert.equal(initial.guardrails.configured, true);
 
-  await assert.rejects(
-    () => queue.updateHelpdeskGlpiIngestionSettings(context, { ingestion: { enabled: true } }),
-    (error: any) => error instanceof BadRequestException,
-  );
+  // Empty entity/category filters are allowed: they mean "all new tickets",
+  // still bounded by the enablement horizon and per-check limits.
+  const wildcard = await queue.updateHelpdeskGlpiIngestionSettings(context, { ingestion: { enabled: true } });
+  assert.equal(wildcard.ingestion.enabled, true);
+  assert.equal(wildcard.ingestion.ready, true);
+  assert.equal(wildcard.ingestion.entityId, null);
+  assert.equal(wildcard.ingestion.categoryId, null);
+  assert.equal(typeof wildcard.ingestion.effectiveCreatedAfter, 'string');
+
   await assert.rejects(
     () => queue.updateHelpdeskGlpiIngestionSettings(context, {
       ingestion: { enabled: true, entityId: 'lohr-helpdesk', maxTicketsPerCycle: 50 },

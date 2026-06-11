@@ -567,8 +567,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
     }
     const entityId = scope.entityId == null ? null : normalizeTicketId(scope.entityId);
     const categoryId = scope.categoryId == null ? null : normalizeTicketId(scope.categoryId);
-    if (!entityId && !categoryId) {
-      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'GLPI new-ticket listing requires an entity or category scope.', false);
+    if (!scope.createdAfter || !Number.isFinite(Date.parse(scope.createdAfter))) {
+      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'GLPI new-ticket listing requires a valid created-after horizon.', false);
     }
     return this.withSession(context, async (session) => {
       const tickets = await this.glpi.searchTicketsForScope(session, {

@@ -961,11 +961,10 @@ export class AiAgentWorkQueueService {
     if (!enabledAt) {
       throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a valid enablement timestamp.');
     }
+    // Entity/category filters are optional: empty filters mean all new
+    // tickets, still bounded by the enablement horizon and per-check limits.
     const entityId = stringFromPolicy(newTicketsOnly.entity_id ?? newTicketsOnly.entityId);
     const categoryId = stringFromPolicy(newTicketsOnly.category_id ?? newTicketsOnly.categoryId);
-    if (!entityId && !categoryId) {
-      throw new ForbiddenException('Add a GLPI entity or category filter in the agent settings: the agent only watches a bounded ticket scope.');
-    }
     const maxTicketsPerCycle = numberPolicyOrNull(
       newTicketsOnly.max_tickets_per_cycle,
       1,
@@ -1035,9 +1034,6 @@ export class AiAgentWorkQueueService {
     const enabled = ingestionInput.enabled === true;
     const entityId = trimmedSettingOrNull(ingestionInput.entityId);
     const categoryId = trimmedSettingOrNull(ingestionInput.categoryId);
-    if (enabled && !entityId && !categoryId) {
-      throw new BadRequestException('To watch GLPI tickets automatically, fill in at least one filter: a GLPI entity id or a category id.');
-    }
     const maxTicketsPerCycle = settingNumberInRange(
       ingestionInput.maxTicketsPerCycle, 1, 20, DEFAULT_NEW_TICKET_MAX_PER_CYCLE, 'Max tickets per cycle');
     const maxProviderRequestsPerCycle = settingNumberInRange(

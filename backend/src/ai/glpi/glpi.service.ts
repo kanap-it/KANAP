@@ -334,11 +334,13 @@ export class GlpiService {
     scope: GlpiTicketListScope,
   ): Promise<GlpiTicket[]> {
     const maxResults = Math.max(1, Math.min(Math.floor(scope.maxResults), 20));
-    if (!scope.entityId && !scope.categoryId) {
-      throw new BadRequestException('GLPI ticket list requires an entity or category scope.');
-    }
     const horizon = formatGlpiSearchDate(scope.createdAfter);
     const horizonMs = Date.parse(scope.createdAfter);
+    // Entity/category filters are optional (empty = all new tickets), so the
+    // created-after horizon is the remaining scope bound and must be valid.
+    if (!Number.isFinite(horizonMs)) {
+      throw new BadRequestException('GLPI ticket list requires a valid created-after horizon.');
+    }
     const searchUrl = new URL(this.buildUrl(session.baseUrl, 'apirest.php/search/Ticket'));
     searchUrl.searchParams.set('range', `0-${maxResults - 1}`);
     searchUrl.searchParams.set('get_hateoas', 'false');

@@ -166,9 +166,6 @@ export class MockTicketingProvider implements TicketingProvider {
     if (!Number.isFinite(createdAfter)) {
       return providerError<{ tickets: TicketRecord[] }>('malformed_config', 'Scope createdAfter must be a valid timestamp.', false);
     }
-    if (!scope.entityId && !scope.categoryId) {
-      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'Mock ticket listing requires an entity or category scope.', false);
-    }
     const maxResults = Math.max(1, Math.min(Math.floor(scope.maxResults), 20));
     const candidates: TicketRecord[] = [
       {
