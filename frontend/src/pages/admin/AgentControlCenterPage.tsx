@@ -662,13 +662,18 @@ function ProposalBody({
   );
 }
 
-function SettingsField({ label, children }: { label: string; children: React.ReactNode }) {
+function SettingsField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <Box sx={{ minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.25 }}>
         {label}
       </Typography>
       {children}
+      {hint && (
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25, opacity: 0.85 }}>
+          {hint}
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -719,6 +724,7 @@ function HelpdeskAgentSettingsDialog({
   settings,
   saving,
   saveError,
+  locale,
   onClose,
   onSave,
 }: {
@@ -726,6 +732,7 @@ function HelpdeskAgentSettingsDialog({
   settings: AiAgentControlHelpdeskIngestionSettings | null;
   saving: boolean;
   saveError: string | null;
+  locale: string;
   onClose: () => void;
   onSave: (payload: AiAgentControlHelpdeskIngestionSettingsInput) => void;
 }) {
@@ -745,7 +752,7 @@ function HelpdeskAgentSettingsDialog({
   const handleSave = () => {
     const errors: string[] = [];
     if (form.enabled && !form.entityId.trim() && !form.categoryId.trim()) {
-      errors.push('Enabling ingestion requires a GLPI entity id and/or category id.');
+      errors.push('To watch GLPI tickets automatically, fill in at least one filter: a GLPI entity id or a category id.');
     }
     const payload: AiAgentControlHelpdeskIngestionSettingsInput = {
       ingestion: {
@@ -784,7 +791,7 @@ function HelpdeskAgentSettingsDialog({
       title="Helpdesk GLPI agent settings"
       onClose={onClose}
       onSave={handleSave}
-      saveLabel={form.enabled ? 'Save and enable ingestion' : 'Save'}
+      saveLabel={form.enabled ? 'Save and start watching' : 'Save'}
       saveLoading={saving}
     >
       <Stack spacing={2.25}>
@@ -800,60 +807,92 @@ function HelpdeskAgentSettingsDialog({
             onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))}
           />
           <Box>
-            <Typography variant="body2">Automatic new-ticket ingestion</Typography>
+            <Typography variant="body2">Watch GLPI for new tickets automatically</Typography>
             <Typography variant="caption" color="text.secondary">
-              Polls the bounded GLPI scope every 5 minutes and prepares proposals only. Nothing is written without approval.
+              The agent checks GLPI every 5 minutes for newly created tickets in the scope below, triages them,
+              and prepares draft replies and updates. Nothing is sent or changed in GLPI without your approval.
             </Typography>
           </Box>
         </Stack>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-          <SettingsField label="GLPI entity id">
-            <TextField fullWidth size="small" value={form.entityId} onChange={setField('entityId')} placeholder="e.g., 12" sx={fieldSx} />
-          </SettingsField>
-          <SettingsField label="GLPI category id">
-            <TextField fullWidth size="small" value={form.categoryId} onChange={setField('categoryId')} placeholder="e.g., 31" sx={fieldSx} />
-          </SettingsField>
-          <SettingsField label="Max tickets per cycle (1-20)">
-            <TextField fullWidth size="small" value={form.maxTicketsPerCycle} onChange={setField('maxTicketsPerCycle')} placeholder="5" sx={fieldSx} />
-          </SettingsField>
-          <SettingsField label="Max provider requests per cycle (1-100)">
-            <TextField fullWidth size="small" value={form.maxProviderRequestsPerCycle} onChange={setField('maxProviderRequestsPerCycle')} placeholder="10" sx={fieldSx} />
-          </SettingsField>
-          <SettingsField label="Backfill horizon (hours)">
-            <TextField fullWidth size="small" value={form.hardBackfillHorizonHours} onChange={setField('hardBackfillHorizonHours')} placeholder="24" sx={fieldSx} />
-          </SettingsField>
+        <Box>
+          <Typography variant="body2" sx={{ mb: 0.25 }}>Which tickets the agent watches</Typography>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
+            Fill in at least one of the two filters. If you fill in both, a ticket must match both.
+            Only tickets created after you enable the watcher are considered — it never digs into history.
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField
+              label="GLPI entity (numeric id)"
+              hint="Limits the agent to one GLPI entity (organization unit). Find the id in GLPI under Administration → Entities — it is the number shown in the entity's URL."
+            >
+              <TextField fullWidth size="small" value={form.entityId} onChange={setField('entityId')} placeholder="e.g., 12" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField
+              label="GLPI category (numeric id)"
+              hint="Limits the agent to one ITIL category. Find the id in GLPI under Setup → Dropdowns → ITIL categories — the number in the category's URL."
+            >
+              <TextField fullWidth size="small" value={form.categoryId} onChange={setField('categoryId')} placeholder="e.g., 31" sx={fieldSx} />
+            </SettingsField>
+          </Box>
+        </Box>
+
+        <Box>
+          <Typography variant="body2" sx={{ mb: 0.25 }}>Pace</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField
+              label="New tickets handled per check (1-20)"
+              hint="Each 5-minute check picks up at most this many new tickets. Anything beyond waits for the next check."
+            >
+              <TextField fullWidth size="small" value={form.maxTicketsPerCycle} onChange={setField('maxTicketsPerCycle')} placeholder="5" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField
+              label="GLPI API calls per check (1-100)"
+              hint="Safety limit on how many requests one check may send to your GLPI server. The default is fine for most setups."
+            >
+              <TextField fullWidth size="small" value={form.maxProviderRequestsPerCycle} onChange={setField('maxProviderRequestsPerCycle')} placeholder="10" sx={fieldSx} />
+            </SettingsField>
+            <SettingsField
+              label="Catch-up window (hours)"
+              hint="If KANAP was offline, the agent looks back at most this many hours for tickets it missed — and never before the moment the watcher was enabled."
+            >
+              <TextField fullWidth size="small" value={form.hardBackfillHorizonHours} onChange={setField('hardBackfillHorizonHours')} placeholder="24" sx={fieldSx} />
+            </SettingsField>
+          </Box>
         </Box>
         {settings?.ingestion.enabledAt && (
           <Typography variant="caption" color="text.secondary">
-            Ingestion only considers tickets created after enablement ({settings.ingestion.enabledAt}). Re-enabling refreshes this anchor.
+            Watching tickets created after {formatDateTime(settings.ingestion.enabledAt, locale)}.
+            Turning the watcher off and on again moves this starting point to now.
           </Typography>
         )}
 
         <Divider />
 
         <Box>
-          <Typography variant="body2" sx={{ mb: 1 }}>Economic guardrails</Typography>
+          <Typography variant="body2" sx={{ mb: 0.25 }}>Spending limits</Typography>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
+            Hard limits on AI usage. A triage that exceeds its per-ticket limit is stopped and marked failed.
+            When a daily limit is reached, the agent pauses until the next day (UTC) — pending tickets stay queued
+            and resume automatically. Token amounts are conservative estimates, not exact provider counts.
+          </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label="Per-run token cap">
+            <SettingsField label="Max tokens per ticket triage">
               <TextField fullWidth size="small" value={form.perRunTokens} onChange={setField('perRunTokens')} placeholder="40000" sx={fieldSx} />
             </SettingsField>
-            <SettingsField label="Per-run cost cap (EUR)">
+            <SettingsField label="Max cost per ticket triage (EUR)">
               <TextField fullWidth size="small" value={form.perRunCostEur} onChange={setField('perRunCostEur')} placeholder="1" sx={fieldSx} />
             </SettingsField>
-            <SettingsField label="Daily run cap">
+            <SettingsField label="Max triage runs per day">
               <TextField fullWidth size="small" value={form.dailyRuns} onChange={setField('dailyRuns')} placeholder="25" sx={fieldSx} />
             </SettingsField>
-            <SettingsField label="Daily token cap">
+            <SettingsField label="Max tokens per day">
               <TextField fullWidth size="small" value={form.dailyTokens} onChange={setField('dailyTokens')} placeholder="500000" sx={fieldSx} />
             </SettingsField>
-            <SettingsField label="Daily cost cap (EUR)">
+            <SettingsField label="Max cost per day (EUR)">
               <TextField fullWidth size="small" value={form.dailyCostEur} onChange={setField('dailyCostEur')} placeholder="10" sx={fieldSx} />
             </SettingsField>
           </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-            A run over its cap is terminated and recorded as failed. Reaching a daily cap pauses ingestion until the next UTC day; queued work items are kept.
-          </Typography>
         </Box>
       </Stack>
     </KanapDialog>
@@ -1036,17 +1075,17 @@ function AgentSummary({
               </Typography>
             </Box>
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary">Scope</Typography>
+              <Typography variant="caption" color="text.secondary">Mode</Typography>
               <Typography variant="body2">
-                {summary?.ingestion.enabled ? 'new_tickets_only' : 'disabled'}
+                {summary?.ingestion.enabled ? 'Watching new GLPI tickets' : 'Manual tickets only'}
               </Typography>
             </Box>
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary">Polling</Typography>
+              <Typography variant="caption" color="text.secondary">Automatic watch</Typography>
               <Stack direction="row" spacing={0.75} alignItems="center">
                 <Chip
                   size="small"
-                  label={summary?.ingestion.paused ? 'Paused' : summary?.ingestion.enabled ? 'Active' : 'Disabled'}
+                  label={summary?.ingestion.paused ? 'Paused' : summary?.ingestion.enabled ? 'Active' : 'Off'}
                   color={summary?.ingestion.paused ? 'warning' : summary?.ingestion.enabled ? 'success' : 'default'}
                   variant="outlined"
                 />
@@ -1094,12 +1133,14 @@ function AgentSummary({
             }}
           >
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary">Bounded GLPI scope</Typography>
+              <Typography variant="caption" color="text.secondary">Watched GLPI scope</Typography>
               <Typography variant="body2">
-                Entity {summary?.ingestion.entityId ?? 'not set'} · Category {summary?.ingestion.categoryId ?? 'not set'}
+                Entity {summary?.ingestion.entityId ?? 'any'} · Category {summary?.ingestion.categoryId ?? 'any'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Horizon {summary?.ingestion.createdAfter ? formatDateTime(summary.ingestion.createdAfter, locale) : 'not set'}
+                {summary?.ingestion.createdAfter
+                  ? `Tickets created after ${formatDateTime(summary.ingestion.createdAfter, locale)}`
+                  : 'Not watching automatically'}
               </Typography>
             </Box>
             <Box sx={{ minWidth: 0 }}>
@@ -2566,6 +2607,7 @@ export default function AgentControlCenterPage() {
       <HelpdeskAgentSettingsDialog
         open={settingsDialogOpen}
         settings={helpdeskSettings}
+        locale={locale}
         saving={updateSettingsMutation.isPending}
         saveError={updateSettingsMutation.error
           ? getApiErrorMessage(updateSettingsMutation.error, t, 'The settings could not be saved.')

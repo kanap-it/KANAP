@@ -944,7 +944,7 @@ export class AiAgentWorkQueueService {
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const scopePolicy = policyObject(definition.scope_policy_json);
     if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion is disabled for this agent definition.');
+      throw new ForbiddenException('Automatic GLPI ticket watching is turned off. Enable it in the agent settings.');
     }
     if (triggerPolicy.automatic_writes_enabled === true) {
       throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion cannot run with automatic writes enabled.');
@@ -955,7 +955,7 @@ export class AiAgentWorkQueueService {
 
     const newTicketsOnly = nestedPolicy(scopePolicy, 'new_tickets_only');
     if (newTicketsOnly.enabled !== true) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires new_tickets_only.enabled=true.');
+      throw new ForbiddenException('Automatic GLPI ticket watching is not configured. Enable it in the agent settings.');
     }
     const enabledAt = isoFromPolicy(newTicketsOnly.enabled_at);
     if (!enabledAt) {
@@ -964,7 +964,7 @@ export class AiAgentWorkQueueService {
     const entityId = stringFromPolicy(newTicketsOnly.entity_id ?? newTicketsOnly.entityId);
     const categoryId = stringFromPolicy(newTicketsOnly.category_id ?? newTicketsOnly.categoryId);
     if (!entityId && !categoryId) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a tenant-scoped GLPI entity or category.');
+      throw new ForbiddenException('Add a GLPI entity or category filter in the agent settings: the agent only watches a bounded ticket scope.');
     }
     const maxTicketsPerCycle = numberPolicyOrNull(
       newTicketsOnly.max_tickets_per_cycle,
@@ -1036,7 +1036,7 @@ export class AiAgentWorkQueueService {
     const entityId = trimmedSettingOrNull(ingestionInput.entityId);
     const categoryId = trimmedSettingOrNull(ingestionInput.categoryId);
     if (enabled && !entityId && !categoryId) {
-      throw new BadRequestException('Enabling ingestion requires a GLPI entity id and/or category id scope.');
+      throw new BadRequestException('To watch GLPI tickets automatically, fill in at least one filter: a GLPI entity id or a category id.');
     }
     const maxTicketsPerCycle = settingNumberInRange(
       ingestionInput.maxTicketsPerCycle, 1, 20, DEFAULT_NEW_TICKET_MAX_PER_CYCLE, 'Max tickets per cycle');
