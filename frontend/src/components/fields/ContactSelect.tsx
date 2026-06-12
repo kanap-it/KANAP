@@ -31,6 +31,7 @@ type ContactSelectProps = {
   compactOptions?: boolean;
   groupByCompany?: boolean;
   hideLabel?: boolean;
+  placeholder?: string;
   textFieldSx?: SxProps<Theme>;
 };
 
@@ -58,6 +59,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
     compactOptions = false,
     groupByCompany = true,
     hideLabel = false,
+    placeholder,
     textFieldSx,
   },
   ref,
@@ -126,6 +128,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
         <TextField
           {...params}
           label={hideLabel ? undefined : label}
+          placeholder={placeholder}
           required={required}
           inputRef={ref}
           error={error}

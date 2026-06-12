@@ -333,7 +333,7 @@ export default function CapexPage() {
       tab = 'budget';
       next.set('year', String(Y + 2));
     } else if (colId === 'latest_task_text') {
-      tab = 'tasks';
+      tab = 'overview'; // tasks now live in the overview tab
     }
     const ref = item.item_number != null ? formatItemRef('capex', item.item_number) : item.id;
     return `/ops/capex/${ref}/${tab}?${next.toString()}`;

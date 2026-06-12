@@ -25,10 +25,10 @@ import { OPEX_FINANCE_CONFIG } from '../../components/finance/config';
 import RelationsPanel, { RelationsPanelHandle } from './editors/RelationsPanel';
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './listContextStorage';
-import { fetchSpendTasksCount, fetchSpendRelationsCount } from '../../utils/workspaceTabCounts';
+import { fetchSpendRelationsCount } from '../../utils/workspaceTabCounts';
 
-type TabKey = 'overview' | 'budget' | 'allocations' | 'tasks' | 'relations';
-const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'tasks', 'relations'];
+type TabKey = 'overview' | 'budget' | 'allocations' | 'relations';
+const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'relations'];
 
 type SpendForm = {
   id?: string;
@@ -135,11 +135,6 @@ export default function SpendItemPage() {
   }, [data?.item_number, idParam, routeTab, location.search]);
 
   // Tab badge counts.
-  const tasksCountQuery = useQuery({
-    queryKey: ['spend-tasks-count', uuid],
-    queryFn: () => fetchSpendTasksCount(uuid as string),
-    enabled: !!uuid && !isCreate,
-  });
   const relationsCountQuery = useQuery({
     queryKey: ['spend-relations-count', uuid],
     queryFn: () => fetchSpendRelationsCount(uuid as string),
@@ -297,7 +292,6 @@ export default function SpendItemPage() {
     { key: 'overview', label: t('opex.tabs.overview') },
     { key: 'budget', label: t('opex.tabs.budget') },
     { key: 'allocations', label: t('opex.tabs.allocations') },
-    { key: 'tasks', label: t('opex.tabs.tasks') },
     { key: 'relations', label: t('opex.tabs.relations') },
   ] as Array<{ key: TabKey; label: string }>), [t]);
 
@@ -317,11 +311,7 @@ export default function SpendItemPage() {
         tabs={tabs.map((tab) => ({
           ...tab,
           disabled: isCreate && tab.key !== 'overview',
-          badge: tab.key === 'tasks'
-            ? (tasksCountQuery.data || undefined)
-            : tab.key === 'relations'
-              ? (relationsCountQuery.data || undefined)
-              : undefined,
+          badge: tab.key === 'relations' ? (relationsCountQuery.data || undefined) : undefined,
         }))}
         onTabChange={(next) => { void goToTab(next as TabKey); }}
         drawerStorageKey="kanap.opex.drawerOpen"
@@ -432,6 +422,7 @@ export default function SpendItemPage() {
                   sx={composerSx}
                 />
               </Box>
+              {uuid && <EntityTasksPanel key={uuid} entityType="spend_item" entityId={uuid} />}
             </Stack>
           )
         )}
@@ -441,9 +432,6 @@ export default function SpendItemPage() {
         )}
         {routeTab === 'allocations' && !isCreate && uuid && (
           <AllocationsTab key={uuid} id={uuid} year={currentYear} currency={form.currency} availableYears={availableYears} onYearChange={setYear} config={OPEX_FINANCE_CONFIG} ref={allocRef} />
-        )}
-        {routeTab === 'tasks' && !isCreate && uuid && (
-          <EntityTasksPanel key={uuid} entityType="spend_item" entityId={uuid} onTasksChange={() => { void tasksCountQuery.refetch(); }} />
         )}
         {routeTab === 'relations' && !isCreate && uuid && (
           <RelationsPanel key={uuid} id={uuid} ref={relationsRef} autoSave onRelationsChange={() => { void relationsCountQuery.refetch(); }} />

@@ -25,10 +25,10 @@ import { CAPEX_FINANCE_CONFIG } from '../../components/finance/config';
 import RelationsPanel, { RelationsPanelHandle } from './editors/RelationsPanel';
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './listContextStorage';
-import { fetchCapexTasksCount, fetchCapexRelationsCount } from '../../utils/workspaceTabCounts';
+import { fetchCapexRelationsCount } from '../../utils/workspaceTabCounts';
 
-type TabKey = 'overview' | 'budget' | 'allocations' | 'tasks' | 'relations';
-const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'tasks', 'relations'];
+type TabKey = 'overview' | 'budget' | 'allocations' | 'relations';
+const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'relations'];
 
 type CapexForm = {
   id?: string;
@@ -150,11 +150,6 @@ export default function CapexItemPage() {
     window.history.replaceState(null, '', `/ops/capex/${ref}/${routeTab}${location.search}`);
   }, [data?.item_number, idParam, routeTab, location.search]);
 
-  const tasksCountQuery = useQuery({
-    queryKey: ['capex-tasks-count', uuid],
-    queryFn: () => fetchCapexTasksCount(uuid as string),
-    enabled: !!uuid && !isCreate,
-  });
   const relationsCountQuery = useQuery({
     queryKey: ['capex-relations-count', uuid],
     queryFn: () => fetchCapexRelationsCount(uuid as string),
@@ -301,7 +296,6 @@ export default function CapexItemPage() {
     { key: 'overview', label: t('capex.tabs.overview') },
     { key: 'budget', label: t('capex.tabs.budget') },
     { key: 'allocations', label: t('capex.tabs.allocations') },
-    { key: 'tasks', label: t('capex.tabs.tasks') },
     { key: 'relations', label: t('capex.tabs.relations') },
   ] as Array<{ key: TabKey; label: string }>), [t]);
 
@@ -321,11 +315,7 @@ export default function CapexItemPage() {
         tabs={tabs.map((tab) => ({
           ...tab,
           disabled: isCreate && tab.key !== 'overview',
-          badge: tab.key === 'tasks'
-            ? (tasksCountQuery.data || undefined)
-            : tab.key === 'relations'
-              ? (relationsCountQuery.data || undefined)
-              : undefined,
+          badge: tab.key === 'relations' ? (relationsCountQuery.data || undefined) : undefined,
         }))}
         onTabChange={(next) => { void goToTab(next as TabKey); }}
         drawerStorageKey="kanap.capex.drawerOpen"
@@ -421,7 +411,7 @@ export default function CapexItemPage() {
           ) : (
             <Stack spacing={3} sx={{ pt: 1 }}>
               <Box>
-                <Typography component="label" sx={sectionLabelSx}>{t('capex.fields.notes')}</Typography>
+                <Typography component="label" sx={sectionLabelSx}>{t('capex.fields.description')}</Typography>
                 <TextField
                   value={form.notes}
                   onChange={(e) => patchDebounced({ notes: e.target.value })}
@@ -431,6 +421,7 @@ export default function CapexItemPage() {
                   sx={composerSx}
                 />
               </Box>
+              {uuid && <EntityTasksPanel key={uuid} entityType="capex_item" entityId={uuid} />}
             </Stack>
           )
         )}
@@ -440,9 +431,6 @@ export default function CapexItemPage() {
         )}
         {routeTab === 'allocations' && !isCreate && uuid && (
           <AllocationsTab key={uuid} id={uuid} year={currentYear} currency={form.currency} availableYears={availableYears} onYearChange={setYear} config={CAPEX_FINANCE_CONFIG} ref={allocRef} />
-        )}
-        {routeTab === 'tasks' && !isCreate && uuid && (
-          <EntityTasksPanel key={uuid} entityType="capex_item" entityId={uuid} onTasksChange={() => { void tasksCountQuery.refetch(); }} />
         )}
         {routeTab === 'relations' && !isCreate && uuid && (
           <RelationsPanel key={uuid} id={uuid} ref={relationsRef} autoSave onRelationsChange={() => { void relationsCountQuery.refetch(); }} />
