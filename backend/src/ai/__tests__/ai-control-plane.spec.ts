@@ -693,6 +693,23 @@ function testEvidenceRedactionAndHashing() {
   assert.equal(redacted.nested.email, '[REDACTED_EMAIL]');
   assert.equal(redacted.nested.ip, '[REDACTED_IP]');
   assert.equal(service.hash({ b: 2, a: 1 }), service.hash({ a: 1, b: 2 }));
+
+  // Hashes must survive the JSONB round-trip of persisted payloads:
+  // undefined-valued keys are dropped, Dates serialize via toJSON, and
+  // undefined array entries become null — exactly like JSON.stringify.
+  assert.equal(service.hash({ a: 1, b: undefined }), service.hash({ a: 1 }));
+  assert.equal(
+    service.hash({ nested: { kept: 'x', dropped: undefined } }),
+    service.hash({ nested: { kept: 'x' } }),
+  );
+  assert.equal(
+    service.hash({ at: new Date('2026-06-12T00:00:00.000Z') }),
+    service.hash({ at: '2026-06-12T00:00:00.000Z' }),
+  );
+  assert.equal(service.hash([undefined, 1]), service.hash([null, 1]));
+  for (const payload of [{ a: 1, b: undefined, c: [new Date('2026-06-12T00:00:00.000Z'), undefined] }]) {
+    assert.equal(service.hash(payload), service.hash(JSON.parse(JSON.stringify(payload))));
+  }
 }
 
 async function testDispatcherCreatesDurableRecordsForSuccessfulCall() {
@@ -4611,9 +4628,11 @@ async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
   assert.equal(byId.get(internalActionId)?.action_payload_json?.note_body, 'Internal note for ticket 4.');
   assert.equal(byId.get(publicActionId)?.action_payload_json?.reply_body, 'Requester reply for ticket 4.');
   assert.equal(byId.get(classificationActionId)?.action_payload_json?.action, 'classification_update');
-  assert.equal((byId.get(internalActionId) as any)?.execution_readiness.can_execute, false);
-  assert.match((byId.get(publicActionId) as any)?.execution_readiness.blocked_reason, /sandbox_write/);
-  assert.match((byId.get(classificationActionId) as any)?.execution_readiness.blocked_reason, /sandbox_write/);
+  // Approved GLPI writes no longer require a sandbox_write safe target:
+  // pending, unexpired proposals are executable after human approval.
+  assert.equal((byId.get(internalActionId) as any)?.execution_readiness.can_execute, true);
+  assert.equal((byId.get(publicActionId) as any)?.execution_readiness.blocked_reason, null);
+  assert.equal((byId.get(classificationActionId) as any)?.execution_readiness.can_execute, true);
 
   const workItemRepo = manager.getRepository(AiAgentWorkItem);
   const unlinkedWorkItem = overview.work_items[0] as any;

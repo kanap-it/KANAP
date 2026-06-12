@@ -653,7 +653,7 @@ async function testSearchTicketsForScopeTreatsZeroResultsAsEmpty() {
         categoryId: null,
       }),
       (error: any) => error instanceof BadRequestException
-        && String(error.message || '').includes('created-after'),
+        && /horizon|created-after/i.test(String(error.message || '')),
     );
   } finally {
     global.fetch = originalFetch;

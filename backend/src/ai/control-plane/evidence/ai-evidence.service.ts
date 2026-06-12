@@ -30,17 +30,27 @@ export type AiEvidenceSeed = {
   collectedAt?: Date;
 };
 
+// Must match JSON.stringify semantics (undefined-valued keys dropped, toJSON
+// honored, undefined array entries as null) so that hashes computed over
+// in-memory values still match after the value is persisted to JSONB and
+// loaded back. Divergence here breaks input-hash integrity checks on stored
+// action requests.
 export function stableStringify(value: unknown): string {
+  if (value !== null && typeof value === 'object' && typeof (value as { toJSON?: unknown }).toJSON === 'function') {
+    return stableStringify((value as { toJSON: () => unknown }).toJSON());
+  }
   if (value == null || typeof value !== 'object') {
-    return JSON.stringify(value);
+    return JSON.stringify(value) ?? 'null';
   }
   if (Array.isArray(value)) {
-    return `[${value.map((entry) => stableStringify(entry)).join(',')}]`;
+    return `[${value.map((entry) => (entry === undefined ? 'null' : stableStringify(entry))).join(',')}]`;
   }
   const object = value as Record<string, unknown>;
-  return `{${Object.keys(object).sort().map((key) =>
-    `${JSON.stringify(key)}:${stableStringify(object[key])}`,
-  ).join(',')}}`;
+  return `{${Object.keys(object)
+    .sort()
+    .filter((key) => object[key] !== undefined)
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(object[key])}`)
+    .join(',')}}`;
 }
 
 export function hashStableJson(value: unknown): string {
