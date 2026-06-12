@@ -80,7 +80,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
@@ -88,7 +87,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
@@ -96,7 +94,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
@@ -104,7 +101,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
@@ -112,7 +108,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
@@ -120,7 +115,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
 ];
 
@@ -692,7 +686,6 @@ export class AiAgentWorkQueueService {
           provider_key: 'glpi',
           target_kind: 'ticket',
           required_safe_target_effect: 'read',
-          write_requires_safe_target_effect: 'sandbox_write',
           new_tickets_only: { enabled: false },
           new_plus_agent_touched: { enabled: false },
           saved_filter: { enabled: false },
@@ -776,7 +769,6 @@ export class AiAgentWorkQueueService {
         provider_key: 'glpi',
         target_kind: 'ticket',
         required_safe_target_effect: 'read',
-        write_requires_safe_target_effect: 'sandbox_write',
         new_tickets_only: isRecord(currentScopePolicy.new_tickets_only) ? currentScopePolicy.new_tickets_only : { enabled: false },
         new_plus_agent_touched: { enabled: false },
         saved_filter: isRecord(currentScopePolicy.saved_filter) ? currentScopePolicy.saved_filter : { enabled: false },
@@ -983,9 +975,12 @@ export class AiAgentWorkQueueService {
       1,
       24 * 30,
     ) ?? DEFAULT_BACKFILL_HORIZON_HOURS;
-    const enabledAtMs = Date.parse(enabledAt);
-    const horizonMs = Date.now() - horizonHours * 60 * 60 * 1000;
-    const createdAfter = new Date(Math.max(enabledAtMs, horizonMs)).toISOString();
+    // The catch-up window is an absolute lookback: a 72h window picks up
+    // tickets from the last 72 hours, including ones created shortly before
+    // the watcher was enabled (maintainer decision 2026-06-12). Volume stays
+    // bounded by the 30-day window cap, per-check limits, daily caps, and
+    // work-item dedup. enabled_at is kept for audit/UI, not as a floor.
+    const createdAfter = new Date(Date.now() - horizonHours * 60 * 60 * 1000).toISOString();
     if (!runGuardrailsFromDefinition(definition) || !dailyGuardrailCapsFromDefinition(definition)) {
       throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires configured economic guardrails.');
     }
@@ -1065,8 +1060,8 @@ export class AiAgentWorkQueueService {
       },
     };
 
-    // Re-enablement refreshes the horizon anchor so the disabled gap is never
-    // backfilled. An already-enabled scope keeps its original anchor.
+    // enabled_at is informational (audit/UI) since the catch-up window became
+    // an absolute lookback; re-enabling still refreshes it for traceability.
     const enabledAt = enabled
       ? (wasEnabled ? isoFromPolicy(currentIngestion.enabled_at) ?? new Date().toISOString() : new Date().toISOString())
       : isoFromPolicy(currentIngestion.enabled_at);

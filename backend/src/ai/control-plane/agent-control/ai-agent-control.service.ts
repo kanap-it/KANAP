@@ -1771,6 +1771,11 @@ export class AiAgentControlService {
     return updated;
   }
 
+  // Helpdesk GLPI writes are gated by durable human approval plus the
+  // stale-state recheck at execution time. The earlier UAT-only requirement
+  // for a sandbox_write safe target per ticket was removed on 2026-06-12:
+  // proposals are reviewed one by one, so the per-ticket allowlist added
+  // friction without adding safety.
   private async assertActionSafeForUiExecution(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
@@ -1786,46 +1791,19 @@ export class AiAgentControlService {
     if (!targetRef) {
       throw new ForbiddenException('GLPI action has no ticket target.');
     }
-    const writeTargets = await this.liveTargets.findEnabledTargets(context, {
-      providerKind: 'ticketing',
-      providerKey: 'glpi',
-      allowedEffect: 'sandbox_write',
-      targetKind: 'ticket',
-    });
-    const matchingTarget = writeTargets.find((target) => target.external_ref === targetRef);
-    if (!matchingTarget) {
-      throw new ForbiddenException('GLPI write execution requires an enabled sandbox_write safe target for this ticket.');
-    }
-  }
-
-  private actionRequiresSandboxWriteTarget(action: AiActionRequest): boolean {
-    return action.provider_kind === 'ticketing'
-      && action.provider_key === 'glpi'
-      && HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name);
   }
 
   private async executionReadinessForActions(
     context: AiExecutionContextWithManager,
     actions: AiActionRequest[],
   ): Promise<Map<string, ActionExecutionReadiness>> {
-    const sandboxWriteRefs = new Set<string>();
-    const needsSandboxWrite = actions.some((action) => this.actionRequiresSandboxWriteTarget(action));
-    if (needsSandboxWrite) {
-      const writeTargets = await this.liveTargets.findEnabledTargets(context, {
-        providerKind: 'ticketing',
-        providerKey: 'glpi',
-        allowedEffect: 'sandbox_write',
-        targetKind: 'ticket',
-      });
-      for (const target of writeTargets) {
-        sandboxWriteRefs.add(target.external_ref);
-      }
-    }
-
+    void context;
     const now = Date.now();
     const result = new Map<string, ActionExecutionReadiness>();
     for (const action of actions) {
-      const requiresSandboxWrite = this.actionRequiresSandboxWriteTarget(action);
+      const isHelpdeskGlpiWrite = action.provider_kind === 'ticketing'
+        && action.provider_key === 'glpi'
+        && HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name);
       const targetRef = trimmedString(action.target_ref);
       const expiresAt = action.expires_at instanceof Date
         ? action.expires_at.getTime()
@@ -1837,18 +1815,16 @@ export class AiAgentControlService {
         blockedReason = `Action is ${action.status}.`;
       } else if (expired) {
         blockedReason = 'Action request is expired.';
-      } else if (requiresSandboxWrite && !targetRef) {
+      } else if (isHelpdeskGlpiWrite && !targetRef) {
         blockedReason = 'GLPI action has no ticket target.';
-      } else if (requiresSandboxWrite && targetRef && !sandboxWriteRefs.has(targetRef)) {
-        blockedReason = `Enable a sandbox_write safe target for GLPI ticket ${targetRef} before executing.`;
       }
 
       result.set(action.id, {
         can_execute: blockedReason === null,
         can_reject: activeDecisionStatus && !expired,
         blocked_reason: blockedReason,
-        requires_sandbox_write_target: requiresSandboxWrite,
-        sandbox_write_target_ref: requiresSandboxWrite && targetRef && sandboxWriteRefs.has(targetRef) ? targetRef : null,
+        requires_sandbox_write_target: false,
+        sandbox_write_target_ref: null,
       });
     }
     return result;

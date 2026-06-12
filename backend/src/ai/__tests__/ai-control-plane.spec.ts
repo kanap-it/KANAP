@@ -206,6 +206,7 @@ async function enableHelpdeskNewTicketsOnly(
     categoryId?: string | null;
     maxTicketsPerCycle?: number;
     maxProviderRequestsPerCycle?: number;
+    hardBackfillHorizonHours?: number;
     dailyRuns?: number;
   },
 ) {
@@ -227,7 +228,7 @@ async function enableHelpdeskNewTicketsOnly(
       category_id: overrides?.categoryId ?? 'access',
       max_tickets_per_cycle: overrides?.maxTicketsPerCycle ?? 5,
       max_provider_requests_per_cycle: overrides?.maxProviderRequestsPerCycle ?? 10,
-      hard_backfill_horizon_hours: 24 * 30,
+      hard_backfill_horizon_hours: overrides?.hardBackfillHorizonHours ?? 24 * 30,
     },
     all_matching: { enabled: false },
     freeform_live_object_ids: false,
@@ -4169,10 +4170,20 @@ async function testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsola
   const queue = new AiAgentWorkQueueService();
   const tenantOne = createContext(manager);
   const tenantTwo = createTenantContext(manager, 'tenant-2');
-  await enableHelpdeskNewTicketsOnly(tenantOne, queue);
+  // The catch-up window is an absolute lookback from "now", so the fixture
+  // dates are relative: in-window tickets 1h old, out-of-window 100h old,
+  // with a 72h window.
+  const nowMs = Date.now();
+  const hoursAgo = (hours: number) => new Date(nowMs - hours * 60 * 60 * 1000).toISOString();
+  await enableHelpdeskNewTicketsOnly(tenantOne, queue, {
+    enabledAt: hoursAgo(2),
+    hardBackfillHorizonHours: 72,
+  });
   await enableHelpdeskNewTicketsOnly(tenantTwo, queue, {
+    enabledAt: hoursAgo(2),
     entityId: 'lohr-helpdesk',
     categoryId: 'tenant2-access',
+    hardBackfillHorizonHours: 72,
   });
   const scopes: any[] = [];
   const processed: string[] = [];
@@ -4189,16 +4200,16 @@ async function testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsola
                 id: 'tenant-2-ticket',
                 title: 'Tenant two access',
                 status: 'new',
-                createdAt: '2026-06-09T08:20:00.000Z',
-                updatedAt: '2026-06-09T08:20:00.000Z',
+                createdAt: hoursAgo(1),
+                updatedAt: hoursAgo(1),
                 scope: { entityId: 'lohr-helpdesk', categoryId: 'tenant2-access' },
               },
               {
                 id: 'tenant-1-ticket',
                 title: 'Wrong category for tenant two',
                 status: 'new',
-                createdAt: '2026-06-09T08:20:00.000Z',
-                updatedAt: '2026-06-09T08:20:00.000Z',
+                createdAt: hoursAgo(1),
+                updatedAt: hoursAgo(1),
                 scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
               },
             ]
@@ -4207,24 +4218,24 @@ async function testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsola
                 id: 'tenant-1-ticket',
                 title: 'Tenant one access',
                 status: 'new',
-                createdAt: '2026-06-09T08:20:00.000Z',
-                updatedAt: '2026-06-09T08:21:00.000Z',
+                createdAt: hoursAgo(1),
+                updatedAt: hoursAgo(1),
                 scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
               },
               {
                 id: 'out-of-scope-ticket',
                 title: 'Wrong category',
                 status: 'new',
-                createdAt: '2026-06-09T08:20:00.000Z',
-                updatedAt: '2026-06-09T08:20:00.000Z',
+                createdAt: hoursAgo(1),
+                updatedAt: hoursAgo(1),
                 scope: { entityId: 'lohr-helpdesk', categoryId: 'finance' },
               },
               {
                 id: 'old-ticket',
-                title: 'Old ticket',
+                title: 'Older than the catch-up window but in scope',
                 status: 'new',
-                createdAt: '2026-06-09T07:00:00.000Z',
-                updatedAt: '2026-06-09T07:00:00.000Z',
+                createdAt: hoursAgo(100),
+                updatedAt: hoursAgo(100),
                 scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
               },
             ],
@@ -4240,7 +4251,10 @@ async function testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsola
   assert.equal(first.listed, 3);
   assert.equal(first.enqueued, 1);
   assert.equal(first.processed, 1);
-  assert.equal(scopes[0].createdAfter, '2026-06-09T08:00:00.000Z');
+  // createdAfter is a rolling now-minus-window bound, independent of when
+  // the watcher was enabled.
+  const createdAfterMs = Date.parse(scopes[0].createdAfter);
+  assert.ok(Math.abs(createdAfterMs - (nowMs - 72 * 60 * 60 * 1000)) < 5 * 60 * 1000);
   assert.equal(scopes[0].entityId, 'lohr-helpdesk');
   assert.equal(scopes[0].categoryId, 'access');
 

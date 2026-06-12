@@ -830,8 +830,8 @@ function HelpdeskAgentSettingsDialog({
           <Typography variant="body2" sx={{ mb: 0.25 }}>Which tickets the agent watches</Typography>
           <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
             Both filters are optional. Leave them empty to watch all new tickets; if you fill in both,
-            a ticket must match both. Only tickets created after you enable the watcher are considered —
-            it never digs into history.
+            a ticket must match both. The agent only looks back as far as the catch-up window below —
+            older tickets are never picked up.
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
             <SettingsField
@@ -866,16 +866,15 @@ function HelpdeskAgentSettingsDialog({
             </SettingsField>
             <SettingsField
               label="Catch-up window (hours)"
-              hint="If KANAP was offline, the agent looks back at most this many hours for tickets it missed — and never before the moment the watcher was enabled."
+              hint="How far back the agent looks for tickets to pick up — e.g., 72 means tickets from the last 3 days. Older tickets are never touched, and each ticket is only processed once."
             >
               <TextField fullWidth size="small" value={form.hardBackfillHorizonHours} onChange={setField('hardBackfillHorizonHours')} placeholder="24" sx={fieldSx} />
             </SettingsField>
           </Box>
         </Box>
-        {settings?.ingestion.enabledAt && (
+        {settings?.ingestion.enabled && settings.ingestion.effectiveCreatedAfter && (
           <Typography variant="caption" color="text.secondary">
-            Watching tickets created after {formatDateTime(settings.ingestion.enabledAt, locale)}.
-            Turning the watcher off and on again moves this starting point to now.
+            Currently picking up tickets created after {formatDateTime(settings.ingestion.effectiveCreatedAfter, locale)} (rolling window).
           </Typography>
         )}
 
@@ -1300,6 +1299,7 @@ function TicketWorkItemCockpit({
   onApprove,
   onReject,
   onRejectAll,
+  onApproveAll,
 }: {
   title: string;
   emptyState: string;
@@ -1315,6 +1315,7 @@ function TicketWorkItemCockpit({
   onApprove: (action: AiAgentControlActionRequest) => void;
   onReject: (action: AiAgentControlActionRequest) => void;
   onRejectAll: (group: TicketWorkGroup) => void;
+  onApproveAll: (group: TicketWorkGroup) => void;
 }) {
   if (loading) {
     return (
@@ -1343,6 +1344,7 @@ function TicketWorkItemCockpit({
               || action.capability_name === PARTICIPANT_UPDATE_CAPABILITY,
             );
             const rejectableActions = group.pendingActions.filter(actionCanReject);
+            const executableActions = group.pendingActions.filter(actionCanExecute);
             const blockers = group.pendingActions
               .map((action) => ({ action, reason: actionBlockedReason(action) }))
               .filter((entry): entry is { action: AiAgentControlActionRequest; reason: string } => !!entry.reason);
@@ -1400,6 +1402,20 @@ function TicketWorkItemCockpit({
                           />
                         </Stack>
                       ))}
+                      {executableActions.length > 1 ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          disabled={busyTicketKey === group.key}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onApproveAll(group);
+                          }}
+                        >
+                          Approve all
+                        </Button>
+                      ) : null}
                       {rejectableActions.length > 1 ? (
                         <Button
                           size="small"
@@ -2330,6 +2346,54 @@ export default function AgentControlCenterPage() {
     },
   });
 
+  const approveTicketMutation = useMutation({
+    mutationFn: async (group: TicketWorkGroup) => {
+      const actions = group.pendingActions.filter(actionCanExecute);
+      if (actions.length === 0) {
+        throw new Error(`No executable proposals for GLPI ticket ${group.targetRef}.`);
+      }
+      const results = [];
+      let failed: { action: AiAgentControlActionRequest; error: unknown } | null = null;
+      for (const action of actions) {
+        try {
+          results.push(await aiAgentControlApi.approveAction(action.id, { execute: true }));
+        } catch (error) {
+          failed = { action, error };
+          break;
+        }
+      }
+      return { group, results, total: actions.length, failed };
+    },
+    onMutate: (group) => {
+      setBusyTicketKey(group.key);
+      setMutationError(null);
+      setMutationInfo(null);
+    },
+    onSuccess: async (result) => {
+      const detail = result.results.find((entry) => !!entry.detail)?.detail;
+      if (detail?.run.id) {
+        setSelectedRunId(detail.run.id);
+        queryClient.setQueryData(['ai-agent-control-run', detail.run.id], detail);
+      }
+      if (result.failed) {
+        setMutationError(
+          `Approved ${result.results.length} of ${result.total} proposals for GLPI ticket ${result.group.targetRef}; `
+          + `"${actionLabel(result.failed.action)}" failed: ${getApiErrorMessage(result.failed.error, t, 'execution failed.')}`,
+        );
+      } else {
+        setMutationInfo(`Approved and executed ${result.results.length} proposal${result.results.length === 1 ? '' : 's'} for GLPI ticket ${result.group.targetRef}.`);
+      }
+      await invalidateControlQueries();
+    },
+    onError: async (error: any) => {
+      setMutationError(getApiErrorMessage(error, t, 'Ticket proposal approval failed.'));
+      await invalidateControlQueries();
+    },
+    onSettled: () => {
+      setBusyTicketKey(null);
+    },
+  });
+
   const rejectTicketMutation = useMutation({
     mutationFn: async (group: TicketWorkGroup) => {
       const actions = group.pendingActions.filter(actionCanReject);
@@ -2518,6 +2582,7 @@ export default function AgentControlCenterPage() {
           onApprove={(action) => approveMutation.mutate(action)}
           onReject={(action) => rejectMutation.mutate(action)}
           onRejectAll={(group) => rejectTicketMutation.mutate(group)}
+          onApproveAll={(group) => approveTicketMutation.mutate(group)}
         />
 
         <SelectedHelpdeskContext
