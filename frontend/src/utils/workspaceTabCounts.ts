@@ -66,10 +66,6 @@ export async function fetchProjectTasksCount(projectId: string): Promise<number>
   return itemCount(res.data);
 }
 
-export async function fetchSpendTasksCount(spendItemId: string): Promise<number> {
-  const res = await api.get(`/spend-items/${spendItemId}/tasks`);
-  return itemCount(res.data);
-}
 
 export async function fetchSpendRelationsCount(spendItemId: string): Promise<number> {
   const [contracts, applications, projects, links, attachments] = await Promise.allSettled([
@@ -86,10 +82,6 @@ export async function fetchSpendRelationsCount(spendItemId: string): Promise<num
     + settledItemCount(attachments);
 }
 
-export async function fetchCapexTasksCount(capexItemId: string): Promise<number> {
-  const res = await api.get(`/capex-items/${capexItemId}/tasks`);
-  return itemCount(res.data);
-}
 
 export async function fetchCapexRelationsCount(capexItemId: string): Promise<number> {
   const [contracts, projects, links, attachments] = await Promise.allSettled([
