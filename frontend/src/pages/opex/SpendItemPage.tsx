@@ -18,7 +18,6 @@ import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetai
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import SpendMetadataBar from './workspace/SpendMetadataBar';
 import SpendPropertiesDrawer from './workspace/SpendPropertiesDrawer';
-import SpendInfoCreateEditor, { SpendInfoCreateEditorHandle } from './editors/SpendInfoCreateEditor';
 import BudgetTab, { BudgetTabHandle } from '../../components/finance/BudgetTab';
 import AllocationsTab, { AllocationsTabHandle } from '../../components/finance/AllocationsTab';
 import { OPEX_FINANCE_CONFIG } from '../../components/finance/config';
@@ -26,6 +25,7 @@ import RelationsPanel, { RelationsPanelHandle } from './editors/RelationsPanel';
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './listContextStorage';
 import { fetchSpendRelationsCount } from '../../utils/workspaceTabCounts';
+import useCurrencySettings from '../../hooks/useCurrencySettings';
 
 type TabKey = 'overview' | 'budget' | 'allocations' | 'relations';
 const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'relations'];
@@ -56,6 +56,22 @@ const EMPTY_FORM: SpendForm = {
   paying_company_id: '', effective_start: '', effective_end: '', status: 'enabled', disabled_at: null,
   owner_it_id: '', owner_business_id: '', analytics_category_id: '', notes: '', created_at: null, updated_at: null,
 };
+
+function todayYmd() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function createEmptySpendForm(currency = 'EUR'): SpendForm {
+  return {
+    ...EMPTY_FORM,
+    currency,
+    effective_start: todayYmd(),
+  };
+}
+
+function toNull(value: string): string | null {
+  return value === '' ? null : value;
+}
 
 function toForm(data: any): SpendForm {
   const normalizedDisabledAt = data?.disabled_at ? new Date(data.disabled_at).toISOString() : null;
@@ -141,11 +157,76 @@ export default function SpendItemPage() {
     enabled: !!uuid && !isCreate,
   });
 
+  const { data: currencySettings } = useCurrencySettings();
+  const defaultSpendCurrency = React.useMemo(
+    () => currencySettings?.defaultSpendCurrency?.toUpperCase() ?? 'EUR',
+    [currencySettings],
+  );
   const [form, setForm] = React.useState<SpendForm>(EMPTY_FORM);
+  const [createForm, setCreateForm] = React.useState<SpendForm>(() => createEmptySpendForm());
+  const [createCurrencyTouched, setCreateCurrencyTouched] = React.useState(false);
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (data && !isCreate) setForm(toForm(data));
   }, [data, isCreate]);
+  React.useEffect(() => {
+    if (!isCreate) return;
+    setCreateForm(createEmptySpendForm(defaultSpendCurrency));
+    setCreateCurrencyTouched(false);
+    setSaveError(null);
+  }, [isCreate, idParam]);
+  React.useEffect(() => {
+    if (!isCreate || createCurrencyTouched) return;
+    setCreateForm((prev) => (
+      prev.currency === defaultSpendCurrency ? prev : { ...prev, currency: defaultSpendCurrency }
+    ));
+  }, [createCurrencyTouched, defaultSpendCurrency, isCreate]);
+
+  const updateCreateForm = React.useCallback((patch: Partial<SpendForm>) => {
+    setCreateForm((prev) => ({ ...prev, ...patch }));
+    setSaveError(null);
+  }, []);
+
+  const [createAccountCoaId, setCreateAccountCoaId] = React.useState<string | null>(null);
+  const [createCompanyCoaId, setCreateCompanyCoaId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!isCreate || !createForm.paying_company_id) {
+        setCreateCompanyCoaId(null);
+        return;
+      }
+      try {
+        const res = await api.get(`/companies/${createForm.paying_company_id}`);
+        if (alive) setCreateCompanyCoaId(res.data?.coa_id || null);
+      } catch {
+        if (alive) setCreateCompanyCoaId(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [createForm.paying_company_id, isCreate]);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!isCreate || !createForm.account_id) {
+        setCreateAccountCoaId(null);
+        return;
+      }
+      try {
+        const res = await api.get(`/accounts/${createForm.account_id}`);
+        if (alive) setCreateAccountCoaId(res.data?.coa_id || null);
+      } catch {
+        if (alive) setCreateAccountCoaId(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [createForm.account_id, isCreate]);
+  const hasCreateObsoleteAccount = React.useMemo(() => {
+    if (!isCreate || !createForm.account_id || !createForm.paying_company_id) return false;
+    if (!createAccountCoaId || !createCompanyCoaId) return false;
+    return createAccountCoaId !== createCompanyCoaId;
+  }, [createAccountCoaId, createCompanyCoaId, createForm.account_id, createForm.paying_company_id, isCreate]);
 
   // List context for prev/next + return navigation.
   const sort = searchParams.get('sort') || storedListContext?.sort || 'yBudget:DESC';
@@ -221,7 +302,6 @@ export default function SpendItemPage() {
   }, [isCreate, uuid, stale, autosave, flushPending]);
 
   // ----- Transitional ref-save tabs (budget / allocations / relations) -----
-  const createRef = React.useRef<SpendInfoCreateEditorHandle>(null);
   const budgetRef = React.useRef<BudgetTabHandle>(null);
   const allocRef = React.useRef<AllocationsTabHandle>(null);
   const relationsRef = React.useRef<RelationsPanelHandle>(null);
@@ -269,12 +349,63 @@ export default function SpendItemPage() {
   }, [flushAll, buildListContextParams, navigate]);
 
   const handleCreate = React.useCallback(async () => {
-    const newId = await createRef.current?.save();
-    if (newId) {
+    if (createSubmitting) return; // Ctrl+S bypasses the disabled button — guard double-submit
+    const productName = createForm.product_name.trim();
+    if (!productName) {
+      setSaveError(t('opex.editor.productNameRequired'));
+      return;
+    }
+    if (!createForm.supplier_id) {
+      setSaveError(t('opex.editor.supplierRequired'));
+      return;
+    }
+    if ((createForm.currency || '').trim().length !== 3) {
+      setSaveError(t('opex.editor.currencyMust3'));
+      return;
+    }
+    if (!createForm.paying_company_id) {
+      setSaveError(t('opex.editor.payingCompanyRequired'));
+      return;
+    }
+    if (!createForm.account_id) {
+      setSaveError(t('opex.editor.accountRequired'));
+      return;
+    }
+    if (!createForm.effective_start) {
+      setSaveError(t('opex.editor.effectiveStartRequired'));
+      return;
+    }
+
+    setCreateSubmitting(true);
+    setSaveError(null);
+    try {
+      const payload = {
+        product_name: productName,
+        description: toNull(createForm.description),
+        supplier_id: createForm.supplier_id,
+        currency: createForm.currency.toUpperCase(),
+        account_id: createForm.account_id,
+        paying_company_id: createForm.paying_company_id,
+        effective_start: createForm.effective_start,
+        effective_end: toNull(createForm.effective_end),
+        owner_it_id: toNull(createForm.owner_it_id),
+        owner_business_id: toNull(createForm.owner_business_id),
+        analytics_category_id: toNull(createForm.analytics_category_id),
+        notes: toNull(createForm.notes),
+      };
+      const res = await api.post('/spend-items', payload);
+      const newId = res.data?.id as string | undefined;
+      if (!newId) throw new Error(t('opex.editor.failedToCreate'));
+      queryClient.invalidateQueries({ queryKey: ['spend-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['spend-items-summary-ids'] });
       const sp = buildListContextParams();
       navigate(`/ops/opex/${newId}/overview?${sp.toString()}`);
+    } catch (e) {
+      setSaveError(getApiErrorMessage(e, t, t('opex.editor.failedToCreate')));
+    } finally {
+      setCreateSubmitting(false);
     }
-  }, [buildListContextParams, navigate]);
+  }, [buildListContextParams, createForm, createSubmitting, navigate, queryClient, t]);
 
   // ----- Status lifecycle handlers -----
   const handleStatusChange = (next: StatusValue) => {
@@ -319,11 +450,18 @@ export default function SpendItemPage() {
         onBack={() => { void closeWorkspace(); }}
         itemReference={reference}
         onCopyReference={reference ? () => { void navigator.clipboard?.writeText(reference); } : undefined}
-        title={form.product_name}
+        title={isCreate ? createForm.product_name : form.product_name}
         titleFallback={isCreate ? t('opex.workspace.newSpendItem') : t('opex.workspace.spendItem')}
-        canEditTitle={!isCreate}
-        onTitleSave={(value) => { void patchNow({ product_name: value }); }}
+        canEditTitle
+        onTitleSave={(value) => {
+          if (isCreate) {
+            updateCreateForm({ product_name: value });
+          } else {
+            void patchNow({ product_name: value });
+          }
+        }}
         isCreate={isCreate}
+        forceDrawerOpen={isCreate}
         nav={!isCreate && total > 0 ? {
           currentIndex: index + 1,
           totalCount: total,
@@ -334,7 +472,7 @@ export default function SpendItemPage() {
           previousLabel: t('opex.workspace.prev'),
           nextLabel: t('opex.workspace.next'),
         } : undefined}
-        onSaveShortcut={() => { void flushAll(); }}
+        onSaveShortcut={() => { if (isCreate) { void handleCreate(); } else { void flushAll(); } }}
         metadata={!isCreate ? (
           <SpendMetadataBar
             status={form.status}
@@ -361,7 +499,7 @@ export default function SpendItemPage() {
               />
             )}
             {isCreate && (
-              <Button variant="contained" size="small" onClick={() => void handleCreate()}>
+              <Button variant="contained" size="small" onClick={() => void handleCreate()} disabled={createSubmitting}>
                 {t('common:buttons.create')}
               </Button>
             )}
@@ -370,8 +508,35 @@ export default function SpendItemPage() {
             </IconButton>
           </>
         )}
-        properties={!isCreate ? (
+        properties={isCreate ? (
           <SpendPropertiesDrawer
+            mode="create"
+            supplierId={createForm.supplier_id}
+            payingCompanyId={createForm.paying_company_id}
+            accountId={createForm.account_id}
+            currency={createForm.currency}
+            analyticsCategoryId={createForm.analytics_category_id}
+            effectiveStart={createForm.effective_start}
+            effectiveEnd={createForm.effective_end}
+            ownerItId={createForm.owner_it_id}
+            ownerBusinessId={createForm.owner_business_id}
+            disabled={createSubmitting}
+            onSupplierChange={(v) => updateCreateForm({ supplier_id: v })}
+            onPayingCompanyChange={(v) => updateCreateForm({ paying_company_id: v })}
+            onAccountChange={(v) => updateCreateForm({ account_id: v })}
+            onCurrencyChange={(v) => {
+              setCreateCurrencyTouched(true);
+              updateCreateForm({ currency: v.toUpperCase() });
+            }}
+            onAnalyticsCategoryChange={(v) => updateCreateForm({ analytics_category_id: v })}
+            onEffectiveStartChange={(v) => updateCreateForm({ effective_start: v })}
+            onEffectiveEndChange={(v) => updateCreateForm({ effective_end: v })}
+            onOwnerItChange={(v) => updateCreateForm({ owner_it_id: v })}
+            onOwnerBusinessChange={(v) => updateCreateForm({ owner_business_id: v })}
+          />
+        ) : (
+          <SpendPropertiesDrawer
+            mode="edit"
             supplierId={form.supplier_id}
             payingCompanyId={form.paying_company_id}
             accountId={form.account_id}
@@ -393,11 +558,41 @@ export default function SpendItemPage() {
             onStatusChange={handleStatusChange}
             onDisabledAtChange={handleDisabledAtChange}
           />
-        ) : <></>}
+        )}
       >
         {routeTab === 'overview' && (
           isCreate ? (
-            <SpendInfoCreateEditor ref={createRef} />
+            <Stack spacing={3} sx={{ pt: 1 }}>
+              {hasCreateObsoleteAccount && (
+                <Alert severity="warning">
+                  {t('opex.editor.obsoleteAccount')}
+                </Alert>
+              )}
+              <Box>
+                <Typography component="label" sx={sectionLabelSx}>{t('opex.fields.description')}</Typography>
+                <TextField
+                  value={createForm.description}
+                  onChange={(e) => updateCreateForm({ description: e.target.value })}
+                  multiline minRows={3} fullWidth variant="standard"
+                  placeholder={t('opex.fields.descriptionPlaceholder', 'e.g., annual subscription for monitoring')}
+                  InputProps={{ disableUnderline: true }}
+                  sx={composerSx}
+                  disabled={createSubmitting}
+                />
+              </Box>
+              <Box>
+                <Typography component="label" sx={sectionLabelSx}>{t('opex.fields.notes')}</Typography>
+                <TextField
+                  value={createForm.notes}
+                  onChange={(e) => updateCreateForm({ notes: e.target.value })}
+                  multiline minRows={3} fullWidth variant="standard"
+                  placeholder={t('opex.fields.notesPlaceholder', 'e.g., renewal negotiated in Q3')}
+                  InputProps={{ disableUnderline: true }}
+                  sx={composerSx}
+                  disabled={createSubmitting}
+                />
+              </Box>
+            </Stack>
           ) : (
             <Stack spacing={3} sx={{ pt: 1 }}>
               <Box>

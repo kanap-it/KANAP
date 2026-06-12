@@ -55,7 +55,6 @@
       "relations": "Verknüpfungen"
     },
     "editor": {
-      "generalInfo": "Allgemeine Informationen",
       "productNameRequired": "Produktname ist erforderlich",
       "supplierRequired": "Lieferant ist erforderlich",
       "currencyMust3": "Die Währung muss aus 3 Buchstaben bestehen",
@@ -65,8 +64,7 @@
       "failedToCreate": "Position konnte nicht erstellt werden",
       "failedToSave": "Speichern fehlgeschlagen",
       "failedToLoad": "Position konnte nicht geladen werden",
-      "obsoleteAccount": "Veraltetes Konto erkannt. Das ausgewählte Konto gehört nicht zum Kontenplan des Unternehmens. Bitte aktualisieren Sie das Konto.",
-      "defaultCurrency": "Standard {{currency}}"
+      "obsoleteAccount": "Veraltetes Konto erkannt. Das ausgewählte Konto gehört nicht zum Kontenplan des Unternehmens. Bitte aktualisieren Sie das Konto."
     },
     "budget": {
       "title": "Budget",
@@ -268,7 +266,6 @@
       "capexItems": "CAPEX-Positionen"
     },
     "editor": {
-      "generalInfo": "Allgemeine Informationen",
       "descriptionRequired": "Beschreibung ist erforderlich",
       "currencyMust3": "Die Währung muss aus 3 Buchstaben bestehen",
       "effectiveStartRequired": "Gültigkeitsbeginn ist erforderlich",
@@ -276,7 +273,6 @@
       "failedToSave": "Speichern fehlgeschlagen",
       "failedToLoad": "Position konnte nicht geladen werden",
       "obsoleteAccount": "Veraltetes Konto erkannt. Das ausgewählte Konto gehört nicht zum Kontenplan des Unternehmens. Bitte aktualisieren Sie das Konto.",
-      "defaultCurrency": "Standard {{currency}}",
       "payingCompanyRequired": "Zahlendes Unternehmen ist erforderlich"
     },
     "budget": {

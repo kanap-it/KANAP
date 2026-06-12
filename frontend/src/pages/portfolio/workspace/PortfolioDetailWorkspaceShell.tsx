@@ -42,6 +42,7 @@ type PortfolioDetailWorkspaceShellProps = {
   canEditTitle?: boolean;
   children: React.ReactNode;
   drawerStorageKey: string;
+  forceDrawerOpen?: boolean;
   isCreate?: boolean;
   itemReference?: string | null;
   metadata?: React.ReactNode;
@@ -147,6 +148,7 @@ function EditableTitle({
   }, [editing, value]);
 
   const displayValue = value || fallback;
+  const isFallback = !value;
 
   const commit = React.useCallback(() => {
     const trimmed = draft.trim();
@@ -158,7 +160,14 @@ function EditableTitle({
 
   if (!canEdit) {
     return (
-      <Typography component="span" sx={{ ...taskDetailTypography.title, display: 'inline' }}>
+      <Typography
+        component="span"
+        sx={(theme) => ({
+          ...taskDetailTypography.title,
+          display: 'inline',
+          color: isFallback ? theme.palette.kanap.text.tertiary : 'inherit',
+        })}
+      >
         {displayValue}
       </Typography>
     );
@@ -172,7 +181,13 @@ function EditableTitle({
           setDraft(value);
           setEditing(true);
         }}
-        sx={{ ...taskDetailTypography.title, display: 'inline', cursor: 'text', '&:hover': { opacity: 0.85 } }}
+        sx={(theme) => ({
+          ...taskDetailTypography.title,
+          display: 'inline',
+          color: isFallback ? theme.palette.kanap.text.tertiary : 'inherit',
+          cursor: 'text',
+          '&:hover': { opacity: 0.85 },
+        })}
       >
         {displayValue}
       </Typography>
@@ -218,6 +233,7 @@ export default function PortfolioDetailWorkspaceShell({
   canEditTitle = false,
   children,
   drawerStorageKey,
+  forceDrawerOpen = false,
   isCreate = false,
   itemReference,
   metadata,
@@ -237,14 +253,16 @@ export default function PortfolioDetailWorkspaceShell({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
   const [drawerOpen, setDrawerOpen] = React.useState(() => getStoredDrawerState(drawerStorageKey));
+  const effectiveDrawerOpen = forceDrawerOpen || drawerOpen;
 
   React.useEffect(() => {
+    if (forceDrawerOpen) return;
     try {
       window.localStorage.setItem(drawerStorageKey, JSON.stringify(drawerOpen));
     } catch {
       // Local storage can be unavailable in private contexts.
     }
-  }, [drawerOpen, drawerStorageKey]);
+  }, [drawerOpen, drawerStorageKey, forceDrawerOpen]);
 
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -256,7 +274,10 @@ export default function PortfolioDetailWorkspaceShell({
         return;
       }
 
-      if (isCreate || isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTypingTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+
+      // In create mode only Escape (close) is meaningful — no prev/next, no drawer toggle.
+      if (isCreate && event.key !== 'Escape') return;
 
       switch (event.key) {
         case 'j':
@@ -279,6 +300,7 @@ export default function PortfolioDetailWorkspaceShell({
           break;
         case 'p':
         case '.':
+          if (forceDrawerOpen) return;
           event.preventDefault();
           setDrawerOpen((open) => !open);
           break;
@@ -287,7 +309,7 @@ export default function PortfolioDetailWorkspaceShell({
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isCreate, nav, onBack, onSaveShortcut]);
+  }, [forceDrawerOpen, isCreate, nav, onBack, onSaveShortcut]);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -513,20 +535,24 @@ export default function PortfolioDetailWorkspaceShell({
             <Box
               component="button"
               type="button"
-              onClick={() => setDrawerOpen((open) => !open)}
-              aria-label={drawerOpen ? t('workspace.closeProperties') : t('workspace.openProperties')}
-              aria-expanded={drawerOpen}
+              onClick={() => {
+                if (!forceDrawerOpen) setDrawerOpen((open) => !open);
+              }}
+              aria-label={effectiveDrawerOpen ? t('workspace.closeProperties') : t('workspace.openProperties')}
+              aria-expanded={effectiveDrawerOpen}
+              aria-disabled={forceDrawerOpen}
+              tabIndex={forceDrawerOpen ? -1 : 0}
               sx={(theme) => ({
                 position: 'absolute',
                 top: taskDetailTokens.drawer.tabTop,
                 right: 0,
                 width: 26,
                 height: 120,
-                bgcolor: drawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bg,
-                border: `1px solid ${drawerOpen ? theme.palette.kanap.tab.borderActive : theme.palette.kanap.tab.border}`,
+                bgcolor: effectiveDrawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bg,
+                border: `1px solid ${effectiveDrawerOpen ? theme.palette.kanap.tab.borderActive : theme.palette.kanap.tab.border}`,
                 borderRight: 'none',
                 borderRadius: '8px 0 0 8px',
-                cursor: 'pointer',
+                cursor: forceDrawerOpen ? 'default' : 'pointer',
                 zIndex: 2,
                 display: 'flex',
                 alignItems: 'center',
@@ -534,7 +560,7 @@ export default function PortfolioDetailWorkspaceShell({
                 p: 0,
                 transition: 'background-color 0.15s, border-color 0.15s',
                 '&:hover': {
-                  bgcolor: drawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bgHover,
+                  bgcolor: effectiveDrawerOpen || forceDrawerOpen ? theme.palette.kanap.tab.bgActive : theme.palette.kanap.tab.bgHover,
                 },
               })}
             >
@@ -546,23 +572,25 @@ export default function PortfolioDetailWorkspaceShell({
                   fontSize: '11px',
                   fontWeight: 500,
                   letterSpacing: 0,
-                  color: drawerOpen ? theme.palette.kanap.tab.fgActive : theme.palette.kanap.tab.fg,
+                  color: effectiveDrawerOpen ? theme.palette.kanap.tab.fgActive : theme.palette.kanap.tab.fg,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   pointerEvents: 'none',
                 })}
               >
-                <Box component="span" sx={{ fontSize: '14px', lineHeight: 1 }}>
-                  {drawerOpen ? <ChevronRightIcon sx={{ fontSize: 14 }} /> : <ChevronLeftIcon sx={{ fontSize: 14 }} />}
-                </Box>
+                {!forceDrawerOpen && (
+                  <Box component="span" sx={{ fontSize: '14px', lineHeight: 1 }}>
+                    {effectiveDrawerOpen ? <ChevronRightIcon sx={{ fontSize: 14 }} /> : <ChevronLeftIcon sx={{ fontSize: 14 }} />}
+                  </Box>
+                )}
                 <span>{t('workspace.sidebarTitle')}</span>
               </Box>
             </Box>
           </Box>
         )}
 
-        {drawerOpen && (
+        {effectiveDrawerOpen && (
           <Box
             component="aside"
             sx={(theme) => ({
