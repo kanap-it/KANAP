@@ -372,6 +372,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       summary.status = 'failed';
+      summary.reason = message;
       summary.errors.push(message);
       const event = await this.queue.recordAuditEvent(context, {
         agentDefinitionId: definition.id,

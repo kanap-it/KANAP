@@ -375,6 +375,12 @@ export class GlpiService {
       },
     );
     const record = this.expectRecord(payload, 'GLPI ticket search');
+    // GLPI omits the data key entirely when a search matches zero rows;
+    // that is an empty result, not a malformed response.
+    const totalCount = typeof record.totalcount === 'number' ? record.totalcount : Number(record.totalcount ?? Number.NaN);
+    if (record.data == null && (totalCount === 0 || record.count === 0)) {
+      return [];
+    }
     if (!Array.isArray(record.data)) {
       throw new BadRequestException('GLPI ticket search response was malformed.');
     }

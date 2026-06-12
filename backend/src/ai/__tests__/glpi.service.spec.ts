@@ -603,6 +603,63 @@ async function testUpdateTicketFieldsRejectsUnsupportedOrInvalidUpdates() {
   }
 }
 
+async function testSearchTicketsForScopeTreatsZeroResultsAsEmpty() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+
+  try {
+    // GLPI omits the data key entirely when a search matches zero rows.
+    global.fetch = (async () => new Response(
+      JSON.stringify({ totalcount: 0, count: 0, sort: 15, order: 'DESC' }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as typeof fetch;
+
+    const tickets = await service.searchTicketsForScope(session, {
+      createdAfter: '2026-06-11T08:00:00.000Z',
+      maxResults: 5,
+      entityId: null,
+      categoryId: null,
+    });
+    assert.deepEqual(tickets, []);
+
+    // A response without data and without a zero count is still malformed.
+    global.fetch = (async () => new Response(
+      JSON.stringify({ sort: 15, order: 'DESC' }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as typeof fetch;
+    await assert.rejects(
+      () => service.searchTicketsForScope(session, {
+        createdAfter: '2026-06-11T08:00:00.000Z',
+        maxResults: 5,
+        entityId: null,
+        categoryId: null,
+      }),
+      (error: any) => error instanceof BadRequestException
+        && String(error.message || '').includes('malformed'),
+    );
+
+    // The created-after horizon is the remaining bound for wildcard scopes
+    // and must be valid.
+    await assert.rejects(
+      () => service.searchTicketsForScope(session, {
+        createdAfter: 'not-a-date',
+        maxResults: 5,
+        entityId: null,
+        categoryId: null,
+      }),
+      (error: any) => error instanceof BadRequestException
+        && String(error.message || '').includes('created-after'),
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -619,6 +676,7 @@ async function run() {
   await testAddTicketFollowupRejectsMalformedCreateResponse();
   await testUpdateTicketFieldsUsesSafePutEndpoint();
   await testUpdateTicketFieldsRejectsUnsupportedOrInvalidUpdates();
+  await testSearchTicketsForScopeTreatsZeroResultsAsEmpty();
 }
 
 void run();
