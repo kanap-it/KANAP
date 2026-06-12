@@ -325,7 +325,7 @@ export default function OpexListPage() {
       tab = 'budget';
       next.set('year', String(Y + 2));
     } else if (colId === 'latest_task_text') {
-      tab = 'tasks';
+      tab = 'overview'; // tasks now live in the overview tab
     }
     const ref = item.item_number != null ? formatItemRef('opex', item.item_number) : item.id;
     return `/ops/opex/${ref}/${tab}?${next.toString()}`;

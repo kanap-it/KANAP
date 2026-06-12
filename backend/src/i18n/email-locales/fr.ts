@@ -14,6 +14,7 @@ export const fr: EmailStrings = {
       task: { label: 'Tâche', lower: 'tâche', view: 'Voir la tâche' },
       contract: { label: 'Contrat', lower: 'contrat', view: 'Voir le contrat' },
       opex: { label: 'Élément OPEX', lower: 'élément OPEX', view: "Voir l'élément OPEX" },
+      capex: { label: 'Élément CAPEX', lower: 'élément CAPEX', view: "Voir l'élément CAPEX" },
       asset: { label: 'Actif', lower: 'actif', view: "Voir l'actif" },
       application: { label: 'Application', lower: 'application', view: "Voir l'application" },
       location: { label: 'Site', lower: 'site', view: 'Voir le site' },

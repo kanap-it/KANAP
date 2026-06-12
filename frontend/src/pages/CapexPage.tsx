@@ -12,14 +12,30 @@ import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
+import { formatItemRef } from '../utils/item-ref';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './capex/listContextStorage';
 import ForbiddenPage from './ForbiddenPage';
 import { STATUS_VALUES } from '../constants/status';
+import { formatAmount as formatNumber } from '../i18n/formatters';
+import { useLocale } from '../i18n/useLocale';
 // import StatusSwitch from '../components/fields/StatusSwitch';
 
 type SummaryRow = {
   id: string;
+  item_number: number;
   description: string;
+  supplier?: { id: string; name: string } | null;
+  supplier_name?: string | null;
+  paying_company_id?: string | null;
+  paying_company_name?: string | null;
+  account?: { id: string; account_number: number; account_name: string } | null;
+  account_display?: string | null;
+  owner_it_id?: string | null;
+  owner_business_id?: string | null;
+  owner_it_name?: string | null;
+  owner_business_name?: string | null;
+  analytics_category_id?: string | null;
+  analytics_category_name?: string | null;
   ppe_type: 'hardware' | 'software';
   investment_type: 'replacement' | 'capacity' | 'productivity' | 'security' | 'conformity' | 'business_growth' | 'other';
   priority: 'mandatory' | 'high' | 'medium' | 'low';
@@ -49,6 +65,12 @@ type SummaryRow = {
       reporting?: { budget: number; follow_up: number; landing: number; revision: number };
       version_id?: string;
     };
+    yPlus2?: {
+      year?: number;
+      totals: { budget: number; follow_up: number; landing: number; revision: number };
+      reporting?: { budget: number; follow_up: number; landing: number; revision: number };
+      version_id?: string;
+    };
   };
   spread_mode_for_y?: 'flat' | 'manual' | null;
   allocation_method_label?: string | null;
@@ -56,18 +78,12 @@ type SummaryRow = {
   allocation_warning?: string | null;
 };
 
-function formatNumber(v: any) {
-  const n = Number(v ?? 0);
-  if (!Number.isFinite(n)) return '';
-  const i = Math.round(n);
-  return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
-
 // modal-specific option lists removed
 
 export default function CapexPage() {
   const { hasLevel } = useAuth();
   const { t } = useTranslation(["ops", "common"]);
+  const locale = useLocale();
 
   if (!hasLevel('capex', 'reader')) {
     return <ForbiddenPage />;
@@ -120,12 +136,12 @@ export default function CapexPage() {
       });
       return options;
     };
-  }, []);
+  }, [t]);
 
   const PPE_LABELS: Record<string, string> = useMemo(() => ({
     hardware: t('capex.ppeTypes.hardware'),
     software: t('capex.ppeTypes.software'),
-  }), []);
+  }), [t]);
 
   const INVESTMENT_LABELS: Record<string, string> = useMemo(() => ({
     replacement: t('capex.investmentTypes.replacement'),
@@ -135,14 +151,14 @@ export default function CapexPage() {
     conformity: t('capex.investmentTypes.conformity'),
     business_growth: t('capex.investmentTypes.business_growth'),
     other: t('capex.investmentTypes.other'),
-  }), []);
+  }), [t]);
 
   const PRIORITY_LABELS: Record<string, string> = useMemo(() => ({
     mandatory: t('capex.priorityTypes.mandatory'),
     high: t('capex.priorityTypes.high'),
     medium: t('capex.priorityTypes.medium'),
     low: t('capex.priorityTypes.low'),
-  }), []);
+  }), [t]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -157,18 +173,16 @@ export default function CapexPage() {
     const currentQ = currentParams.get('q') || '';
     const currentFilters = currentParams.get('filters') || '';
 
-    // Only update URL if stored values differ from current URL
-    const needsUpdate =
-      (stored.sort && stored.sort !== currentSort) ||
-      (stored.q && stored.q !== currentQ) ||
-      (stored.filters && stored.filters !== currentFilters);
+    const shouldApplySort = !!stored.sort && !currentSort;
+    const shouldApplyQ = !!stored.q && !currentQ;
+    const shouldApplyFilters = !!stored.filters && !currentFilters;
 
-    if (!needsUpdate) return;
+    if (!shouldApplySort && !shouldApplyQ && !shouldApplyFilters) return;
 
     const newParams = new URLSearchParams(location.search);
-    if (stored.sort) newParams.set('sort', stored.sort);
-    if (stored.q) newParams.set('q', stored.q);
-    if (stored.filters) newParams.set('filters', stored.filters);
+    if (shouldApplySort) newParams.set('sort', stored.sort);
+    if (shouldApplyQ) newParams.set('q', stored.q);
+    if (shouldApplyFilters) newParams.set('filters', stored.filters);
 
     navigate({ search: newParams.toString() }, { replace: true });
   }, [location.search, navigate]);
@@ -192,14 +206,14 @@ export default function CapexPage() {
         versions: {
           yMinus1: {
             reporting: {
+              budget: Number(totals.yMinus1Budget || 0),
               landing: Number(totals.yMinus1Landing || 0),
-              budget: Number(totals.yMinus1Landing || 0),
               revision: 0,
               follow_up: 0,
             },
             totals: {
+              budget: Number(totals.yMinus1Budget || 0),
               landing: Number(totals.yMinus1Landing || 0),
-              budget: Number(totals.yMinus1Landing || 0),
               revision: 0,
               follow_up: 0,
             },
@@ -207,28 +221,42 @@ export default function CapexPage() {
           y: {
             reporting: {
               budget: Number(totals.yBudget || 0),
+              revision: Number(totals.yRevision || 0),
+              follow_up: Number(totals.yFollowUp || 0),
               landing: Number(totals.yLanding || 0),
-              revision: 0,
-              follow_up: 0,
             },
             totals: {
               budget: Number(totals.yBudget || 0),
+              revision: Number(totals.yRevision || 0),
+              follow_up: Number(totals.yFollowUp || 0),
               landing: Number(totals.yLanding || 0),
-              revision: 0,
-              follow_up: 0,
             },
           },
           yPlus1: {
             reporting: {
               budget: Number(totals.yPlus1Budget || 0),
+              revision: Number(totals.yPlus1Revision || 0),
               landing: 0,
-              revision: 0,
               follow_up: 0,
             },
             totals: {
               budget: Number(totals.yPlus1Budget || 0),
+              revision: Number(totals.yPlus1Revision || 0),
               landing: 0,
+              follow_up: 0,
+            },
+          },
+          yPlus2: {
+            reporting: {
+              budget: Number(totals.yPlus2Budget || 0),
               revision: 0,
+              landing: 0,
+              follow_up: 0,
+            },
+            totals: {
+              budget: Number(totals.yPlus2Budget || 0),
+              revision: 0,
+              landing: 0,
               follow_up: 0,
             },
           },
@@ -289,62 +317,97 @@ export default function CapexPage() {
     const sp = buildGridSearch();
     const next = new URLSearchParams(sp);
     let tab = 'overview';
-    if (colId === 'yAllocation') {
+    if (colId === 'allocation_label') {
       tab = 'allocations';
       next.set('year', String(Y));
-    } else if (colId === 'yPlus1Allocation') {
-      tab = 'allocations';
-      next.set('year', String(Y + 1));
-    } else if (colId === 'yMinus1Landing') {
+    } else if (colId === 'yMinus1Budget' || colId === 'yMinus1Landing') {
       tab = 'budget';
       next.set('year', String(Y - 1));
-    } else if (colId === 'yBudget' || colId === 'yLanding') {
+    } else if (colId === 'yBudget' || colId === 'yRevision' || colId === 'yFollowUp' || colId === 'yLanding') {
       tab = 'budget';
       next.set('year', String(Y));
-    } else if (colId === 'yPlus1Budget') {
+    } else if (colId === 'yPlus1Budget' || colId === 'yPlus1Revision') {
       tab = 'budget';
       next.set('year', String(Y + 1));
+    } else if (colId === 'yPlus2Budget') {
+      tab = 'budget';
+      next.set('year', String(Y + 2));
     } else if (colId === 'latest_task_text') {
-      tab = 'tasks';
+      tab = 'overview'; // tasks now live in the overview tab
     }
-    return `/ops/capex/${item.id}/${tab}?${next.toString()}`;
+    const ref = item.item_number != null ? formatItemRef('capex', item.item_number) : item.id;
+    return `/ops/capex/${ref}/${tab}?${next.toString()}`;
   }, [Y, buildGridSearch]);
 
   const columns = useMemo(() => {
+    const linkCell = (colId: string) => (params: any) => (
+      <LinkCellRenderer
+        {...params}
+        linkType="internal"
+        getHref={(row) => getCapexHref(row, colId)}
+        onNavigate={(href) => navigate(href)}
+      />
+    );
+    const moneyGetter = (slot: 'yMinus1' | 'y' | 'yPlus1' | 'yPlus2', metric: 'budget' | 'revision' | 'follow_up' | 'landing') =>
+      (p: any) => p.data?.versions?.[slot]?.reporting?.[metric] ?? p.data?.versions?.[slot]?.totals?.[metric] ?? 0;
+    const accountGetter = (p: any) => {
+      const d: any = p.data || {};
+      const a = d?.account;
+      if (a && (a.account_number != null || a.account_name != null)) {
+        return [a.account_number != null ? String(a.account_number) : '', a.account_name != null ? String(a.account_name) : ''].filter(Boolean).join(' - ');
+      }
+      return d.account_display || '';
+    };
     return [
+      {
+        colId: 'item_number',
+        headerName: t('capex.columns.reference', 'Ref'),
+        width: 96,
+        valueGetter: (p: any) => (p.data?.item_number != null ? formatItemRef('capex', p.data.item_number) : ''),
+        cellStyle: {
+          color: 'var(--kanap-text-secondary)',
+          fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: '12px',
+        },
+        cellRenderer: linkCell('description'),
+      },
       {
         field: 'description',
         headerName: t('capex.columns.description'),
         flex: 1,
         minWidth: 220,
         required: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'description')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('description'),
       },
       {
-        field: 'company_name',
-        headerName: t('capex.columns.company'),
-        width: 160,
+        colId: 'supplier_name',
+        headerName: t('capex.columns.supplier'),
+        valueGetter: (p: any) => p.data?.supplier?.name ?? p.data?.supplier_name ?? '',
+        width: 180,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('company_name'),
-          searchable: false,
-        },
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'company_name')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        filterParams: { getValues: getCapexFilterValues('supplier_name'), searchable: false },
+        cellRenderer: linkCell('supplier_name'),
+      },
+      {
+        field: 'paying_company_name',
+        headerName: t('capex.columns.payingCompany'),
+        width: 200,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: { getValues: getCapexFilterValues('paying_company_name'), searchable: false },
+        cellRenderer: linkCell('paying_company_name'),
+      },
+      {
+        colId: 'account_display',
+        headerName: t('capex.columns.account'),
+        valueGetter: accountGetter,
+        width: 220,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: { getValues: getCapexFilterValues('account_display'), searchable: false },
+        cellRenderer: linkCell('account_display'),
       },
       {
         field: 'ppe_type',
@@ -352,22 +415,9 @@ export default function CapexPage() {
         width: 140,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('ppe_type', { labelMap: PPE_LABELS }),
-          searchable: false,
-        },
-        valueFormatter: (p: any) => {
-          const raw = p?.value;
-          return raw != null ? (PPE_LABELS[String(raw)] || String(raw)) : '';
-        },
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'ppe_type')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        filterParams: { getValues: getCapexFilterValues('ppe_type', { labelMap: PPE_LABELS }), searchable: false },
+        valueFormatter: (p: any) => p.value != null ? (PPE_LABELS[String(p.value)] || String(p.value)) : '',
+        cellRenderer: linkCell('ppe_type'),
       },
       {
         field: 'investment_type',
@@ -375,22 +425,9 @@ export default function CapexPage() {
         width: 170,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('investment_type', { labelMap: INVESTMENT_LABELS }),
-          searchable: false,
-        },
-        valueFormatter: (p: any) => {
-          const raw = p?.value;
-          return raw != null ? (INVESTMENT_LABELS[String(raw)] || String(raw)) : '';
-        },
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'investment_type')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        filterParams: { getValues: getCapexFilterValues('investment_type', { labelMap: INVESTMENT_LABELS }), searchable: false },
+        valueFormatter: (p: any) => p.value != null ? (INVESTMENT_LABELS[String(p.value)] || String(p.value)) : '',
+        cellRenderer: linkCell('investment_type'),
       },
       {
         field: 'priority',
@@ -398,118 +435,105 @@ export default function CapexPage() {
         width: 120,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('priority', { labelMap: PRIORITY_LABELS }),
-          searchable: false,
-        },
-        valueFormatter: (p: any) => {
-          const raw = p?.value;
-          return raw != null ? (PRIORITY_LABELS[String(raw)] || String(raw)) : '';
-        },
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'priority')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        filterParams: { getValues: getCapexFilterValues('priority', { labelMap: PRIORITY_LABELS }), searchable: false },
+        valueFormatter: (p: any) => p.value != null ? (PRIORITY_LABELS[String(p.value)] || String(p.value)) : '',
+        cellRenderer: linkCell('priority'),
       },
       {
-        colId: 'yAllocation',
-        headerName: t('capex.columns.yAllocation'),
+        colId: 'allocation_label',
+        headerName: t('capex.columns.allocation'),
         valueGetter: (p: any) => p.data?.allocation_method_label ?? '',
         tooltipValueGetter: (p: any) => p.data?.allocation_method_label ?? '',
         width: 180,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'yAllocation')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('allocation_label'),
       },
       {
-        colId: 'yPlus1Allocation',
-        headerName: t('capex.columns.yPlus1Allocation'),
-        valueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '',
-        tooltipValueGetter: (p: any) => p.data?.next_year_allocation_method_label ?? '',
-        width: 200,
-        defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'yPlus1Allocation')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
-      },
-      {
-        colId: 'yMinus1Landing',
-        headerName: t('capex.columns.yMinus1Landing', { year: Y - 1 }),
-        valueGetter: (p: any) => p.data?.versions?.yMinus1?.reporting?.landing ?? p.data?.versions?.yMinus1?.totals?.landing ?? 0,
+        colId: 'yMinus1Budget',
+        headerName: t('capex.columns.yMinus1Budget', { year: Y - 1 }),
+        valueGetter: moneyGetter('yMinus1', 'budget'),
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
         width: 170,
         defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'yMinus1Landing')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('yMinus1Budget'),
+      },
+      {
+        colId: 'yMinus1Landing',
+        headerName: t('capex.columns.yMinus1Landing', { year: Y - 1 }),
+        valueGetter: moneyGetter('yMinus1', 'landing'),
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 170,
+        defaultHidden: true,
+        cellRenderer: linkCell('yMinus1Landing'),
       },
       {
         colId: 'yBudget',
         headerName: t('capex.columns.yBudget', { year: Y }),
-        valueGetter: (p: any) => p.data?.versions?.y?.reporting?.budget ?? p.data?.versions?.y?.totals?.budget ?? 0,
+        valueGetter: moneyGetter('y', 'budget'),
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
         width: 160,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'yBudget')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('yBudget'),
+      },
+      {
+        colId: 'yRevision',
+        headerName: t('capex.columns.yRevision', { year: Y }),
+        valueGetter: moneyGetter('y', 'revision'),
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 160,
+        defaultHidden: true,
+        cellRenderer: linkCell('yRevision'),
+      },
+      {
+        colId: 'yFollowUp',
+        headerName: t('capex.columns.yFollowUp', { year: Y }),
+        valueGetter: moneyGetter('y', 'follow_up'),
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 170,
+        defaultHidden: true,
+        cellRenderer: linkCell('yFollowUp'),
       },
       {
         colId: 'yLanding',
         headerName: t('capex.columns.yLanding', { year: Y }),
-        valueGetter: (p: any) => p.data?.versions?.y?.reporting?.landing ?? p.data?.versions?.y?.totals?.landing ?? 0,
+        valueGetter: moneyGetter('y', 'landing'),
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
         width: 160,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'yLanding')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('yLanding'),
       },
       {
         colId: 'yPlus1Budget',
         headerName: t('capex.columns.yPlus1Budget', { year: Y + 1 }),
-        valueGetter: (p: any) => p.data?.versions?.yPlus1?.reporting?.budget ?? p.data?.versions?.yPlus1?.totals?.budget ?? 0,
+        valueGetter: moneyGetter('yPlus1', 'budget'),
         valueFormatter: (p: any) => formatNumber(p.value),
         type: 'rightAligned',
         width: 180,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'yPlus1Budget')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        defaultHidden: true,
+        cellRenderer: linkCell('yPlus1Budget'),
+      },
+      {
+        colId: 'yPlus1Revision',
+        headerName: t('capex.columns.yPlus1Revision', { year: Y + 1 }),
+        valueGetter: moneyGetter('yPlus1', 'revision'),
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 190,
+        defaultHidden: true,
+        cellRenderer: linkCell('yPlus1Revision'),
+      },
+      {
+        colId: 'yPlus2Budget',
+        headerName: t('capex.columns.yPlus2Budget', { year: Y + 2 }),
+        valueGetter: moneyGetter('yPlus2', 'budget'),
+        valueFormatter: (p: any) => formatNumber(p.value),
+        type: 'rightAligned',
+        width: 180,
+        defaultHidden: true,
+        cellRenderer: linkCell('yPlus2Budget'),
       },
       {
         field: 'currency',
@@ -518,61 +542,63 @@ export default function CapexPage() {
         defaultHidden: true,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: {
-          getValues: getCapexFilterValues('currency'),
-          searchable: false,
-        },
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'currency')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        filterParams: { getValues: getCapexFilterValues('currency'), searchable: false },
+        cellRenderer: linkCell('currency'),
       },
       {
         field: 'effective_start',
-        headerName: t('capex.columns.start'),
-        width: 120,
+        headerName: t('capex.columns.effectiveStart'),
+        width: 150,
         defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'effective_start')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
+        cellRenderer: linkCell('effective_start'),
       },
       {
         field: 'effective_end',
-        headerName: t('capex.columns.end'),
-        width: 120,
+        headerName: t('capex.columns.effectiveEnd'),
+        width: 150,
         defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'effective_end')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
+        cellRenderer: linkCell('effective_end'),
+      },
+      {
+        colId: 'owner_it_name',
+        headerName: t('capex.columns.itOwner'),
+        valueGetter: (p: any) => p.data?.owner_it_name ?? '',
+        width: 200,
+        defaultHidden: true,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: { getValues: getCapexFilterValues('owner_it_name'), searchable: false },
+        cellRenderer: linkCell('owner_it_name'),
+      },
+      {
+        colId: 'owner_business_name',
+        headerName: t('capex.columns.businessOwner'),
+        valueGetter: (p: any) => p.data?.owner_business_name ?? '',
+        width: 200,
+        defaultHidden: true,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: { getValues: getCapexFilterValues('owner_business_name'), searchable: false },
+        cellRenderer: linkCell('owner_business_name'),
+      },
+      {
+        field: 'analytics_category_name',
+        headerName: t('capex.columns.analytics'),
+        width: 200,
+        defaultHidden: true,
+        filter: CheckboxSetFilter,
+        floatingFilterComponent: CheckboxSetFloatingFilter,
+        filterParams: { getValues: getCapexFilterValues('analytics_category_name'), searchable: false },
+        cellRenderer: linkCell('analytics_category_name'),
       },
       {
         field: 'notes',
         headerName: t('capex.columns.notes'),
-        flex: 1,
-        minWidth: 200,
+        width: 250,
         defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'notes')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('notes'),
       },
       {
         colId: 'latest_task_text',
@@ -582,14 +608,7 @@ export default function CapexPage() {
         flex: 1,
         minWidth: 220,
         defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'latest_task_text')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('latest_task_text'),
       },
       {
         field: 'status',
@@ -598,17 +617,26 @@ export default function CapexPage() {
         filter: 'agSetColumnFilter',
         filterParams: { values: STATUS_VALUES, suppressMiniFilter: true },
         defaultHidden: true,
-        cellRenderer: (params: any) => (
-          <LinkCellRenderer
-            {...params}
-            linkType="internal"
-            getHref={(row) => getCapexHref(row, 'status')}
-            onNavigate={(href) => navigate(href)}
-          />
-        ),
+        cellRenderer: linkCell('status'),
+      },
+      {
+        field: 'created_at',
+        headerName: t('capex.columns.created'),
+        width: 200,
+        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        defaultHidden: true,
+        cellRenderer: linkCell('created_at'),
+      },
+      {
+        field: 'updated_at',
+        headerName: t('capex.columns.updated'),
+        width: 200,
+        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        defaultHidden: true,
+        cellRenderer: linkCell('updated_at'),
       },
     ];
-  }, [Y, getCapexFilterValues, getCapexHref, INVESTMENT_LABELS, PPE_LABELS, PRIORITY_LABELS, navigate, reportingCurrency]);
+  }, [Y, getCapexFilterValues, getCapexHref, INVESTMENT_LABELS, PPE_LABELS, PRIORITY_LABELS, locale, navigate, t]);
 
   const canCreate = hasLevel('capex','manager');
   const canAdmin = hasLevel('capex','admin');
@@ -652,7 +680,7 @@ export default function CapexPage() {
 
   return (
     <>
-      <PageHeader title={`CAPEX (${reportingCurrency})`} actions={actions} />
+      <PageHeader title={t('capex.titleWithCurrency', { currency: reportingCurrency })} actions={actions} />
       <ServerDataGrid<SummaryRow>
         columns={columns as any}
         endpoint="/capex-items/summary"
@@ -661,6 +689,7 @@ export default function CapexPage() {
         enableSearch
         pinnedBottomRowData={pinnedTotals}
         defaultSort={{ field: 'yBudget', direction: 'DESC' }}
+        extraParams={{ years: [Y - 1, Y, Y + 1, Y + 2].join(',') }}
         statusScopeConfig={{ defaultScope: 'enabled' }}
         columnPreferencesKey="capex-summary"
         refreshKey={refreshKey}
@@ -679,9 +708,6 @@ export default function CapexPage() {
         enableRowSelection={canAdmin}
         onSelectionChanged={setSelectedRows}
       />
-
-      {/* Workspace replaces modal-based edit/budget flows */}
-
       <CsvExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoint="/capex-items" title={t("capex.exportTitle")} />
       <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} endpoint="/capex-items" title={t("capex.importTitle")} onImported={() => setRefreshKey((k) => k + 1)} />
     </>

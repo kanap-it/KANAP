@@ -12,6 +12,9 @@ import { StorageService } from '../common/storage/storage.service';
 import { CapexItemContactsService } from './capex-item-contacts.service';
 import { SupplierContactRole } from '../contacts/supplier-contact.entity';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { resolveToUuid } from '../common/resolve-item-id';
+import { EntityManager } from 'typeorm';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import {
   CreateCapexItemInput,
   UpdateCapexItemInput,
@@ -27,6 +30,10 @@ export class CapexItemsController {
     private readonly storage: StorageService,
     private readonly contactsSvc: CapexItemContactsService,
   ) {}
+
+  private resolveId(id: string, manager: EntityManager): Promise<string> {
+    return resolveToUuid(id, 'capex', manager);
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
@@ -92,48 +99,85 @@ export class CapexItemsController {
     res.send(content);
   }
 
+  @UseGuards(PermissionGuard)
+  @RequireLevel('capex', 'reader')
+  @Get(':id/yearly-totals')
+  async yearlyTotals(
+    @Param('id') idOrRef: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const Y = new Date().getFullYear();
+    const fromY = Number.parseInt(from, 10);
+    const toY = Number.parseInt(to, 10);
+    return this.svc.yearlyTotals(
+      id,
+      Number.isFinite(fromY) ? fromY : Y - 3,
+      Number.isFinite(toY) ? toY : Y + 1,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('capex', 'reader')
+  @Post(':id/share')
+  async share(
+    @Param('id') idOrRef: string,
+    @Body() body: ShareItemDto,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    return this.svc.share(id, body, ctx.tenantId, ctx.userId || '', { manager: ctx.manager });
+  }
+
   // Links
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
   @Get(':id/links')
-  listLinks(
-    @Param('id') id: string,
+  async listLinks(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.listLinks(id, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Post(':id/links')
-  createLink(
-    @Param('id') id: string,
+  async createLink(
+    @Param('id') idOrRef: string,
     @Body() body: { description?: string; url: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.createLink(id, body, ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Patch(':id/links/:linkId')
-  updateLink(
-    @Param('id') id: string,
+  async updateLink(
+    @Param('id') idOrRef: string,
     @Param('linkId') linkId: string,
     @Body() body: { description?: string; url?: string },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.updateLink(id, linkId, body, ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Delete(':id/links/:linkId')
-  deleteLink(
-    @Param('id') id: string,
+  async deleteLink(
+    @Param('id') idOrRef: string,
     @Param('linkId') linkId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.deleteLink(id, linkId, ctx.userId || null, { manager: ctx.manager });
   }
 
@@ -167,10 +211,11 @@ export class CapexItemsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
   @Get(':id/attachments')
-  listAttachments(
-    @Param('id') id: string,
+  async listAttachments(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.listAttachments(id, { manager: ctx.manager });
   }
 
@@ -178,11 +223,12 @@ export class CapexItemsController {
   @RequireLevel('capex', 'member')
   @Post(':id/attachments')
   @UseInterceptors(FileInterceptor('file', attachmentMulterOptions))
-  uploadAttachment(
-    @Param('id') id: string,
+  async uploadAttachment(
+    @Param('id') idOrRef: string,
     @UploadedFile() file: Express.Multer.File,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.uploadAttachment(id, file, ctx.userId || null, { manager: ctx.manager });
   }
 
@@ -190,42 +236,46 @@ export class CapexItemsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
   @Get(':id/contacts')
-  listContacts(
-    @Param('id') id: string,
+  async listContacts(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.contactsSvc.listForItem(id, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Post(':id/contacts')
-  attachContact(
-    @Param('id') id: string,
+  async attachContact(
+    @Param('id') idOrRef: string,
     @Body() body: { contactId: string; role: SupplierContactRole },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.contactsSvc.attachManual(id, body, ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Delete(':id/contacts/:linkId')
-  detachContact(
-    @Param('id') id: string,
+  async detachContact(
+    @Param('id') idOrRef: string,
     @Param('linkId') linkId: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.contactsSvc.detach(linkId, ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Post(':id/contacts/sync-from-supplier')
-  syncContactsFromSupplier(
-    @Param('id') id: string,
+  async syncContactsFromSupplier(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.contactsSvc.syncFromSupplierForItem(id, ctx.userId || null, { manager: ctx.manager });
   }
 
@@ -233,31 +283,34 @@ export class CapexItemsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
   @Get(':id/projects')
-  listProjects(
-    @Param('id') id: string,
+  async listProjects(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.listProjects(id, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Post(':id/projects/bulk-replace')
-  bulkReplaceProjects(
-    @Param('id') id: string,
+  async bulkReplaceProjects(
+    @Param('id') idOrRef: string,
     @Body() body: { project_ids: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.bulkReplaceProjects(id, body?.project_ids ?? [], { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'reader')
   @Get(':id')
-  get(
-    @Param('id') id: string,
+  async get(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.get(id, { manager: ctx.manager });
   }
 
@@ -274,11 +327,12 @@ export class CapexItemsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'member')
   @Patch(':id')
-  update(
-    @Param('id') id: string,
+  async update(
+    @Param('id') idOrRef: string,
     @Body() body: UpdateCapexItemInput,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.svc.update(id, body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
   }
 
@@ -308,10 +362,11 @@ export class CapexItemsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('capex', 'admin')
   @Delete(':id')
-  delete(
-    @Param('id') id: string,
+  async delete(
+    @Param('id') idOrRef: string,
     @Tenant() ctx: TenantRequest,
   ) {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     return this.deleteSvc.delete(id, { manager: ctx.manager, userId: ctx.userId || null });
   }
 }
