@@ -8,9 +8,11 @@ import AccountSelect from '../../../components/fields/AccountSelect';
 import AnalyticsCategorySelect from '../../../components/fields/AnalyticsCategorySelect';
 import DateEUField from '../../../components/fields/DateEUField';
 import StatusLifecycleField from '../../../components/fields/StatusLifecycleField';
+import UserSelect from '../../../components/fields/UserSelect';
 import { CURRENCY_OPTIONS, CurrencyOption } from '../../../constants/isoOptions';
 import useCurrencySettings from '../../../hooks/useCurrencySettings';
-import { StatusValue } from '../../../constants/status';
+import { STATUS_ENABLED, StatusValue } from '../../../constants/status';
+import type { CapexPriority } from './CapexMetadataBar';
 
 export type CapexPpeType = 'hardware' | 'software';
 export type CapexInvestmentType = 'replacement' | 'capacity' | 'productivity' | 'security' | 'conformity' | 'business_growth' | 'other';
@@ -18,19 +20,23 @@ export type CapexInvestmentType = 'replacement' | 'capacity' | 'productivity' | 
 type Option<T extends string> = { value: T; label: string };
 
 type Props = {
+  mode?: 'create' | 'edit';
   supplierId: string;
   payingCompanyId: string;
   accountId: string;
   currency: string;
   ppeType: CapexPpeType;
   investmentType: CapexInvestmentType;
+  priority?: CapexPriority;
   analyticsCategoryId: string;
   effectiveStart: string;
   effectiveEnd: string;
-  status: StatusValue;
-  disabledAt: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
+  status?: StatusValue;
+  disabledAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  ownerItId?: string;
+  ownerBusinessId?: string;
   disabled?: boolean;
   onSupplierChange: (next: string) => void;
   onPayingCompanyChange: (next: string) => void;
@@ -38,11 +44,14 @@ type Props = {
   onCurrencyChange: (next: string) => void;
   onPpeTypeChange: (next: CapexPpeType) => void;
   onInvestmentTypeChange: (next: CapexInvestmentType) => void;
+  onPriorityChange?: (next: CapexPriority) => void;
   onAnalyticsCategoryChange: (next: string) => void;
   onEffectiveStartChange: (next: string) => void;
   onEffectiveEndChange: (next: string) => void;
-  onStatusChange: (next: StatusValue) => void;
-  onDisabledAtChange: (next: string | null) => void;
+  onStatusChange?: (next: StatusValue) => void;
+  onDisabledAtChange?: (next: string | null) => void;
+  onOwnerItChange?: (next: string) => void;
+  onOwnerBusinessChange?: (next: string) => void;
 };
 
 const hideInnerLabelSx = {
@@ -64,19 +73,23 @@ function valueOption<T extends string>(options: Option<T>[], value: T): Option<T
 }
 
 export default function CapexPropertiesDrawer({
+  mode = 'edit',
   supplierId,
   payingCompanyId,
   accountId,
   currency,
   ppeType,
   investmentType,
+  priority = 'medium',
   analyticsCategoryId,
   effectiveStart,
   effectiveEnd,
-  status,
-  disabledAt,
-  createdAt,
-  updatedAt,
+  status = STATUS_ENABLED,
+  disabledAt = null,
+  createdAt = null,
+  updatedAt = null,
+  ownerItId = '',
+  ownerBusinessId = '',
   disabled = false,
   onSupplierChange,
   onPayingCompanyChange,
@@ -84,11 +97,14 @@ export default function CapexPropertiesDrawer({
   onCurrencyChange,
   onPpeTypeChange,
   onInvestmentTypeChange,
+  onPriorityChange,
   onAnalyticsCategoryChange,
   onEffectiveStartChange,
   onEffectiveEndChange,
   onStatusChange,
   onDisabledAtChange,
+  onOwnerItChange,
+  onOwnerBusinessChange,
 }: Props) {
   const { t } = useTranslation(['ops', 'common']);
   const { data: currencySettings } = useCurrencySettings();
@@ -105,6 +121,12 @@ export default function CapexPropertiesDrawer({
     { value: 'conformity', label: t('capex.investmentTypes.conformity') },
     { value: 'business_growth', label: t('capex.investmentTypes.business_growth') },
     { value: 'other', label: t('capex.investmentTypes.other') },
+  ], [t]);
+  const priorityOptions = React.useMemo<Array<Option<CapexPriority>>>(() => [
+    { value: 'mandatory', label: t('capex.priorityTypes.mandatory') },
+    { value: 'high', label: t('capex.priorityTypes.high') },
+    { value: 'medium', label: t('capex.priorityTypes.medium') },
+    { value: 'low', label: t('capex.priorityTypes.low') },
   ], [t]);
 
   const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
@@ -138,7 +160,7 @@ export default function CapexPropertiesDrawer({
         </PropertyRow>
         <PropertyRow label={t('capex.fields.account')}>
           <Box sx={hideInnerLabelSx}>
-            <AccountSelect value={accountId} onChange={(v) => onAccountChange(v ?? '')} companyId={payingCompanyId || undefined} disabled={disabled} />
+            <AccountSelect value={accountId} onChange={(v) => onAccountChange(v ?? '')} companyId={payingCompanyId || undefined} disabled={disabled || !payingCompanyId} />
           </Box>
         </PropertyRow>
         <PropertyRow label={t('capex.fields.currency')} required>
@@ -183,11 +205,29 @@ export default function CapexPropertiesDrawer({
             )}
           />
         </PropertyRow>
-        <PropertyRow label={t('capex.fields.analyticsCategory')}>
-          <Box sx={hideInnerLabelSx}>
-            <AnalyticsCategorySelect value={analyticsCategoryId || null} onChange={(v) => onAnalyticsCategoryChange(v ?? '')} />
-          </Box>
-        </PropertyRow>
+        {mode === 'create' && onPriorityChange && (
+          <PropertyRow label={t('capex.fields.priority')} required>
+            <Autocomplete<Option<CapexPriority>, false, true, false>
+              options={priorityOptions}
+              disableClearable
+              value={valueOption(priorityOptions, priority)}
+              onChange={(_e, option) => onPriorityChange(option?.value ?? priority)}
+              getOptionLabel={(option) => option.label}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              disabled={disabled}
+              renderInput={(params) => (
+                <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+              )}
+            />
+          </PropertyRow>
+        )}
+        {mode === 'edit' && (
+          <PropertyRow label={t('capex.fields.analyticsCategory')}>
+            <Box sx={hideInnerLabelSx}>
+              <AnalyticsCategorySelect value={analyticsCategoryId || null} onChange={(v) => onAnalyticsCategoryChange(v ?? '')} disabled={disabled} />
+            </Box>
+          </PropertyRow>
+        )}
       </PropertyGroup>
 
       <PropertyGroup>
@@ -203,30 +243,61 @@ export default function CapexPropertiesDrawer({
         </PropertyRow>
       </PropertyGroup>
 
-      <PropertyGroup>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, py: '5px' }}>
-          <Typography sx={{ fontSize: 12, lineHeight: 1.3, color: 'kanap.text.tertiary' }}>{t('capex.fields.lifecycle')}</Typography>
-          <StatusLifecycleField
-            status={status}
-            onStatusChange={onStatusChange}
-            disabledAt={disabledAt}
-            onDisabledAtChange={onDisabledAtChange}
-            disabled={disabled}
-            statusLabel={t('capex.status.enabled')}
-            disabledAtLabel={t('capex.fields.endOfValidity')}
-            disabledAtHelperText={t('capex.fields.endOfValidityHint')}
-          />
-        </Box>
-      </PropertyGroup>
+      {mode === 'create' && (onOwnerItChange || onOwnerBusinessChange) && (
+        <PropertyGroup>
+          <PropertyRow label={t('capex.metadata.itOwner')}>
+            <Box sx={hideInnerLabelSx}>
+              <UserSelect
+                hideLabel
+                value={ownerItId || null}
+                onChange={(v) => onOwnerItChange?.(v ?? '')}
+                disabled={disabled}
+                placeholder={t('capex.metadata.itOwnerMissing')}
+              />
+            </Box>
+          </PropertyRow>
+          <PropertyRow label={t('capex.metadata.businessOwner')}>
+            <Box sx={hideInnerLabelSx}>
+              <UserSelect
+                hideLabel
+                value={ownerBusinessId || null}
+                onChange={(v) => onOwnerBusinessChange?.(v ?? '')}
+                disabled={disabled}
+                placeholder={t('capex.metadata.businessOwnerMissing')}
+              />
+            </Box>
+          </PropertyRow>
+        </PropertyGroup>
+      )}
 
-      <PropertyGroup>
-        <PropertyRow label={t('capex.fields.created')}>
-          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt)}</Typography>
-        </PropertyRow>
-        <PropertyRow label={t('capex.fields.updated')}>
-          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt)}</Typography>
-        </PropertyRow>
-      </PropertyGroup>
+      {mode === 'edit' && onStatusChange && onDisabledAtChange && (
+        <PropertyGroup>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, py: '5px' }}>
+            <Typography sx={{ fontSize: 12, lineHeight: 1.3, color: 'kanap.text.tertiary' }}>{t('capex.fields.lifecycle')}</Typography>
+            <StatusLifecycleField
+              status={status}
+              onStatusChange={onStatusChange}
+              disabledAt={disabledAt}
+              onDisabledAtChange={onDisabledAtChange}
+              disabled={disabled}
+              statusLabel={t('capex.status.enabled')}
+              disabledAtLabel={t('capex.fields.endOfValidity')}
+              disabledAtHelperText={t('capex.fields.endOfValidityHint')}
+            />
+          </Box>
+        </PropertyGroup>
+      )}
+
+      {mode === 'edit' && (
+        <PropertyGroup>
+          <PropertyRow label={t('capex.fields.created')}>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt)}</Typography>
+          </PropertyRow>
+          <PropertyRow label={t('capex.fields.updated')}>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt)}</Typography>
+          </PropertyRow>
+        </PropertyGroup>
+      )}
     </>
   );
 }

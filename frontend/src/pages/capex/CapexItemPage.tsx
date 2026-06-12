@@ -18,7 +18,6 @@ import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetai
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import CapexMetadataBar, { CapexPriority } from './workspace/CapexMetadataBar';
 import CapexPropertiesDrawer, { CapexInvestmentType, CapexPpeType } from './workspace/CapexPropertiesDrawer';
-import CapexInfoCreateEditor, { CapexInfoCreateEditorHandle } from './editors/CapexInfoCreateEditor';
 import BudgetTab, { BudgetTabHandle } from '../../components/finance/BudgetTab';
 import AllocationsTab, { AllocationsTabHandle } from '../../components/finance/AllocationsTab';
 import { CAPEX_FINANCE_CONFIG } from '../../components/finance/config';
@@ -26,6 +25,7 @@ import RelationsPanel, { RelationsPanelHandle } from './editors/RelationsPanel';
 import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './listContextStorage';
 import { fetchCapexRelationsCount } from '../../utils/workspaceTabCounts';
+import useCurrencySettings from '../../hooks/useCurrencySettings';
 
 type TabKey = 'overview' | 'budget' | 'allocations' | 'relations';
 const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'relations'];
@@ -60,6 +60,22 @@ const EMPTY_FORM: CapexForm = {
   owner_it_id: '', owner_business_id: '', analytics_category_id: '', notes: '',
   created_at: null, updated_at: null,
 };
+
+function todayYmd() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function createEmptyCapexForm(currency = 'EUR'): CapexForm {
+  return {
+    ...EMPTY_FORM,
+    currency,
+    effective_start: todayYmd(),
+  };
+}
+
+function toNull(value: string): string | null {
+  return value === '' ? null : value;
+}
 
 const NULLABLE_PATCH_FIELDS = new Set([
   'supplier_id',
@@ -156,11 +172,76 @@ export default function CapexItemPage() {
     enabled: !!uuid && !isCreate,
   });
 
+  const { data: currencySettings } = useCurrencySettings();
+  const defaultCapexCurrency = React.useMemo(
+    () => currencySettings?.defaultCapexCurrency?.toUpperCase() ?? 'EUR',
+    [currencySettings],
+  );
   const [form, setForm] = React.useState<CapexForm>(EMPTY_FORM);
+  const [createForm, setCreateForm] = React.useState<CapexForm>(() => createEmptyCapexForm());
+  const [createCurrencyTouched, setCreateCurrencyTouched] = React.useState(false);
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (data && !isCreate) setForm(toForm(data));
   }, [data, isCreate]);
+  React.useEffect(() => {
+    if (!isCreate) return;
+    setCreateForm(createEmptyCapexForm(defaultCapexCurrency));
+    setCreateCurrencyTouched(false);
+    setSaveError(null);
+  }, [isCreate, idParam]);
+  React.useEffect(() => {
+    if (!isCreate || createCurrencyTouched) return;
+    setCreateForm((prev) => (
+      prev.currency === defaultCapexCurrency ? prev : { ...prev, currency: defaultCapexCurrency }
+    ));
+  }, [createCurrencyTouched, defaultCapexCurrency, isCreate]);
+
+  const updateCreateForm = React.useCallback((patch: Partial<CapexForm>) => {
+    setCreateForm((prev) => ({ ...prev, ...patch }));
+    setSaveError(null);
+  }, []);
+
+  const [createAccountCoaId, setCreateAccountCoaId] = React.useState<string | null>(null);
+  const [createCompanyCoaId, setCreateCompanyCoaId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!isCreate || !createForm.paying_company_id) {
+        setCreateCompanyCoaId(null);
+        return;
+      }
+      try {
+        const res = await api.get(`/companies/${createForm.paying_company_id}`);
+        if (alive) setCreateCompanyCoaId(res.data?.coa_id || null);
+      } catch {
+        if (alive) setCreateCompanyCoaId(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [createForm.paying_company_id, isCreate]);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!isCreate || !createForm.account_id) {
+        setCreateAccountCoaId(null);
+        return;
+      }
+      try {
+        const res = await api.get(`/accounts/${createForm.account_id}`);
+        if (alive) setCreateAccountCoaId(res.data?.coa_id || null);
+      } catch {
+        if (alive) setCreateAccountCoaId(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [createForm.account_id, isCreate]);
+  const hasCreateObsoleteAccount = React.useMemo(() => {
+    if (!isCreate || !createForm.account_id || !createForm.paying_company_id) return false;
+    if (!createAccountCoaId || !createCompanyCoaId) return false;
+    return createAccountCoaId !== createCompanyCoaId;
+  }, [createAccountCoaId, createCompanyCoaId, createForm.account_id, createForm.paying_company_id, isCreate]);
 
   const sort = searchParams.get('sort') || storedListContext?.sort || 'yBudget:DESC';
   const q = searchParams.get('q') || storedListContext?.q || '';
@@ -230,7 +311,6 @@ export default function CapexItemPage() {
     autosave.schedule(flushPending);
   }, [isCreate, uuid, stale, autosave, flushPending]);
 
-  const createRef = React.useRef<CapexInfoCreateEditorHandle>(null);
   const budgetRef = React.useRef<BudgetTabHandle>(null);
   const allocRef = React.useRef<AllocationsTabHandle>(null);
   const relationsRef = React.useRef<RelationsPanelHandle>(null);
@@ -274,12 +354,56 @@ export default function CapexItemPage() {
   }, [flushAll, buildListContextParams, navigate]);
 
   const handleCreate = React.useCallback(async () => {
-    const newId = await createRef.current?.save();
-    if (newId) {
+    if (createSubmitting) return; // Ctrl+S bypasses the disabled button — guard double-submit
+    const description = createForm.description.trim();
+    if (!description) {
+      setSaveError(t('capex.editor.descriptionRequired'));
+      return;
+    }
+    if ((createForm.currency || '').trim().length !== 3) {
+      setSaveError(t('capex.editor.currencyMust3'));
+      return;
+    }
+    if (!createForm.effective_start) {
+      setSaveError(t('capex.editor.effectiveStartRequired'));
+      return;
+    }
+    if (!createForm.paying_company_id) {
+      setSaveError(t('capex.editor.payingCompanyRequired'));
+      return;
+    }
+
+    setCreateSubmitting(true);
+    setSaveError(null);
+    try {
+      const payload = {
+        description,
+        supplier_id: toNull(createForm.supplier_id),
+        ppe_type: createForm.ppe_type,
+        investment_type: createForm.investment_type,
+        priority: createForm.priority,
+        currency: createForm.currency.toUpperCase(),
+        effective_start: createForm.effective_start,
+        effective_end: toNull(createForm.effective_end),
+        notes: toNull(createForm.notes),
+        paying_company_id: createForm.paying_company_id,
+        account_id: toNull(createForm.account_id),
+        owner_it_id: toNull(createForm.owner_it_id),
+        owner_business_id: toNull(createForm.owner_business_id),
+      };
+      const res = await api.post('/capex-items', payload);
+      const newId = res.data?.id as string | undefined;
+      if (!newId) throw new Error(t('capex.editor.failedToCreate'));
+      queryClient.invalidateQueries({ queryKey: ['capex-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['capex-items-summary-ids'] });
       const sp = buildListContextParams();
       navigate(`/ops/capex/${newId}/overview?${sp.toString()}`);
+    } catch (e) {
+      setSaveError(getApiErrorMessage(e, t, t('capex.editor.failedToCreate')));
+    } finally {
+      setCreateSubmitting(false);
     }
-  }, [buildListContextParams, navigate]);
+  }, [buildListContextParams, createForm, createSubmitting, navigate, queryClient, t]);
 
   const handleStatusChange = (next: StatusValue) => {
     const disabled_at = next === 'disabled' ? (form.disabled_at || new Date().toISOString()) : null;
@@ -323,11 +447,18 @@ export default function CapexItemPage() {
         onBack={() => { void closeWorkspace(); }}
         itemReference={reference}
         onCopyReference={reference ? () => { void navigator.clipboard?.writeText(reference); } : undefined}
-        title={form.description}
+        title={isCreate ? createForm.description : form.description}
         titleFallback={isCreate ? t('capex.workspace.newCapexItem') : t('capex.workspace.capexItem')}
-        canEditTitle={!isCreate}
-        onTitleSave={(value) => { void patchNow({ description: value }); }}
+        canEditTitle
+        onTitleSave={(value) => {
+          if (isCreate) {
+            updateCreateForm({ description: value });
+          } else {
+            void patchNow({ description: value });
+          }
+        }}
         isCreate={isCreate}
+        forceDrawerOpen={isCreate}
         nav={!isCreate && total > 0 ? {
           currentIndex: index + 1,
           totalCount: total,
@@ -338,7 +469,7 @@ export default function CapexItemPage() {
           previousLabel: t('capex.workspace.prev'),
           nextLabel: t('capex.workspace.next'),
         } : undefined}
-        onSaveShortcut={() => { void flushAll(); }}
+        onSaveShortcut={() => { if (isCreate) { void handleCreate(); } else { void flushAll(); } }}
         metadata={!isCreate ? (
           <CapexMetadataBar
             status={form.status}
@@ -367,7 +498,7 @@ export default function CapexItemPage() {
               />
             )}
             {isCreate && (
-              <Button variant="contained" size="small" onClick={() => void handleCreate()}>
+              <Button variant="contained" size="small" onClick={() => void handleCreate()} disabled={createSubmitting}>
                 {t('common:buttons.create')}
               </Button>
             )}
@@ -376,14 +507,48 @@ export default function CapexItemPage() {
             </IconButton>
           </>
         )}
-        properties={!isCreate ? (
+        properties={isCreate ? (
           <CapexPropertiesDrawer
+            mode="create"
+            supplierId={createForm.supplier_id}
+            payingCompanyId={createForm.paying_company_id}
+            accountId={createForm.account_id}
+            currency={createForm.currency}
+            ppeType={createForm.ppe_type}
+            investmentType={createForm.investment_type}
+            priority={createForm.priority}
+            analyticsCategoryId={createForm.analytics_category_id}
+            effectiveStart={createForm.effective_start}
+            effectiveEnd={createForm.effective_end}
+            ownerItId={createForm.owner_it_id}
+            ownerBusinessId={createForm.owner_business_id}
+            disabled={createSubmitting}
+            onSupplierChange={(v) => updateCreateForm({ supplier_id: v })}
+            onPayingCompanyChange={(v) => updateCreateForm({ paying_company_id: v })}
+            onAccountChange={(v) => updateCreateForm({ account_id: v })}
+            onCurrencyChange={(v) => {
+              setCreateCurrencyTouched(true);
+              updateCreateForm({ currency: v.toUpperCase() });
+            }}
+            onPpeTypeChange={(v) => updateCreateForm({ ppe_type: v })}
+            onInvestmentTypeChange={(v) => updateCreateForm({ investment_type: v })}
+            onPriorityChange={(v) => updateCreateForm({ priority: v })}
+            onAnalyticsCategoryChange={(v) => updateCreateForm({ analytics_category_id: v })}
+            onEffectiveStartChange={(v) => updateCreateForm({ effective_start: v })}
+            onEffectiveEndChange={(v) => updateCreateForm({ effective_end: v })}
+            onOwnerItChange={(v) => updateCreateForm({ owner_it_id: v })}
+            onOwnerBusinessChange={(v) => updateCreateForm({ owner_business_id: v })}
+          />
+        ) : (
+          <CapexPropertiesDrawer
+            mode="edit"
             supplierId={form.supplier_id}
             payingCompanyId={form.paying_company_id}
             accountId={form.account_id}
             currency={form.currency}
             ppeType={form.ppe_type}
             investmentType={form.investment_type}
+            priority={form.priority}
             analyticsCategoryId={form.analytics_category_id}
             effectiveStart={form.effective_start}
             effectiveEnd={form.effective_end}
@@ -397,17 +562,36 @@ export default function CapexItemPage() {
             onCurrencyChange={(v) => void patchNow({ currency: v.toUpperCase() })}
             onPpeTypeChange={(v) => void patchNow({ ppe_type: v })}
             onInvestmentTypeChange={(v) => void patchNow({ investment_type: v })}
+            // priority is edited via the metadata bar in edit mode; the drawer renders it in create mode only
             onAnalyticsCategoryChange={(v) => void patchNow({ analytics_category_id: v })}
             onEffectiveStartChange={(v) => void patchNow({ effective_start: v })}
             onEffectiveEndChange={(v) => void patchNow({ effective_end: v })}
             onStatusChange={handleStatusChange}
             onDisabledAtChange={handleDisabledAtChange}
           />
-        ) : <></>}
+        )}
       >
         {routeTab === 'overview' && (
           isCreate ? (
-            <CapexInfoCreateEditor ref={createRef} />
+            <Stack spacing={3} sx={{ pt: 1 }}>
+              {hasCreateObsoleteAccount && (
+                <Alert severity="warning">
+                  {t('capex.editor.obsoleteAccount')}
+                </Alert>
+              )}
+              <Box>
+                <Typography component="label" sx={sectionLabelSx}>{t('capex.fields.description')}</Typography>
+                <TextField
+                  value={createForm.notes}
+                  onChange={(e) => updateCreateForm({ notes: e.target.value })}
+                  multiline minRows={4} fullWidth variant="standard"
+                  placeholder={t('capex.fields.notesPlaceholder', 'e.g., approved investment rationale')}
+                  InputProps={{ disableUnderline: true }}
+                  sx={composerSx}
+                  disabled={createSubmitting}
+                />
+              </Box>
+            </Stack>
           ) : (
             <Stack spacing={3} sx={{ pt: 1 }}>
               <Box>

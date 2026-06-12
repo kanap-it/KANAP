@@ -84,7 +84,6 @@
       "relations": "Relations"
     },
     "editor": {
-      "generalInfo": "General Information",
       "productNameRequired": "Product name is required",
       "supplierRequired": "Supplier is required",
       "currencyMust3": "Currency must be 3 letters",
@@ -94,8 +93,7 @@
       "failedToCreate": "Failed to create item",
       "failedToSave": "Failed to save",
       "failedToLoad": "Failed to load item",
-      "obsoleteAccount": "Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account.",
-      "defaultCurrency": "Default {{currency}}"
+      "obsoleteAccount": "Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account."
     },
     "budget": {
       "title": "Budget",
@@ -268,7 +266,6 @@
       "capexItems": "CAPEX items"
     },
     "editor": {
-      "generalInfo": "General Information",
       "descriptionRequired": "Description is required",
       "currencyMust3": "Currency must be 3 letters",
       "effectiveStartRequired": "Effective start is required",
@@ -276,7 +273,6 @@
       "failedToSave": "Failed to save",
       "failedToLoad": "Failed to load item",
       "obsoleteAccount": "Obsolete account detected. The selected account does not belong to the company's Chart of Accounts. Please update the account.",
-      "defaultCurrency": "Default {{currency}}",
       "payingCompanyRequired": "Paying company is required"
     },
     "budget": {

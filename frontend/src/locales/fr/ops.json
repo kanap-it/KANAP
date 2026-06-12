@@ -55,7 +55,6 @@
       "relations": "Relations"
     },
     "editor": {
-      "generalInfo": "Informations générales",
       "productNameRequired": "Le nom du produit est requis",
       "supplierRequired": "Le fournisseur est requis",
       "currencyMust3": "La devise doit comporter 3 lettres",
@@ -65,8 +64,7 @@
       "failedToCreate": "Impossible de créer le poste",
       "failedToSave": "Impossible d'enregistrer",
       "failedToLoad": "Impossible de charger le poste",
-      "obsoleteAccount": "Compte obsolète détecté. Le compte sélectionné n'appartient pas au plan comptable de la société. Veuillez mettre à jour le compte.",
-      "defaultCurrency": "Par défaut {{currency}}"
+      "obsoleteAccount": "Compte obsolète détecté. Le compte sélectionné n'appartient pas au plan comptable de la société. Veuillez mettre à jour le compte."
     },
     "budget": {
       "title": "Budget",
@@ -268,7 +266,6 @@
       "capexItems": "Postes CAPEX"
     },
     "editor": {
-      "generalInfo": "Informations générales",
       "descriptionRequired": "La description est requise",
       "currencyMust3": "La devise doit comporter 3 lettres",
       "effectiveStartRequired": "La date de début effectif est requise",
@@ -276,7 +273,6 @@
       "failedToSave": "Impossible d'enregistrer",
       "failedToLoad": "Impossible de charger le poste",
       "obsoleteAccount": "Compte obsolète détecté. Le compte sélectionné n'appartient pas au plan comptable de la société. Veuillez mettre à jour le compte.",
-      "defaultCurrency": "Par défaut {{currency}}",
       "payingCompanyRequired": "La société payeuse est requise"
     },
     "budget": {
