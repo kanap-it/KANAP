@@ -406,7 +406,6 @@ export default function TaskWorkspacePage() {
   ), [description, form, task, title]);
 
   // Attachments
-  const [showUploadArea, setShowUploadArea] = React.useState(false);
   const attachmentTaskId = !isCreate && task ? task.id : null;
   const { data: attachments = [], refetch: refetchAttachments } = useQuery({
     queryKey: ['task-attachments', attachmentTaskId],
@@ -1747,6 +1746,7 @@ export default function TaskWorkspacePage() {
                   placeholder={t('portfolio:workspace.task.description.placeholder')}
                   minRows={10}
                   maxRows={26}
+                  collapsedRows={16}
                   disabled={!canManageCurrentTask}
                   onImageUpload={handleUploadImage}
                   onImageUrlImport={handleImportImageUrl}
@@ -1765,16 +1765,17 @@ export default function TaskWorkspacePage() {
           </Box>
 
           {/* Attachments */}
-          <Box sx={{ mb: contentSpacing.section }}>
-            <TaskAttachments
-              taskId={task.id}
-              attachments={attachments}
-              onUpload={handleUploadAttachment}
-              onDelete={handleDeleteAttachment}
-              canManage={canManageCurrentTask}
-              showUploadArea={showUploadArea}
-            />
-          </Box>
+          {(canManageCurrentTask || attachments.length > 0) && (
+            <Box sx={{ mb: contentSpacing.section }}>
+              <TaskAttachments
+                taskId={task.id}
+                attachments={attachments}
+                onUpload={handleUploadAttachment}
+                onDelete={handleDeleteAttachment}
+                canManage={canManageCurrentTask}
+              />
+            </Box>
+          )}
 
           <Divider sx={{ my: contentSpacing.section }} />
 
