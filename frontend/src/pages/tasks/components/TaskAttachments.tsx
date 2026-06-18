@@ -7,6 +7,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
@@ -26,7 +27,6 @@ interface TaskAttachmentsProps {
   onUpload: (file: File) => Promise<void>;
   onDelete: (attachmentId: string) => Promise<void>;
   canManage: boolean;
-  showUploadArea: boolean;
 }
 
 export default function TaskAttachments({
@@ -34,47 +34,46 @@ export default function TaskAttachments({
   onUpload,
   onDelete,
   canManage,
-  showUploadArea,
 }: TaskAttachmentsProps) {
   const { t } = useTranslation('portfolio');
   const [hover, setHover] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const uploadFiles = async (files: File[]) => {
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        await onUpload(file);
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
+    if (!canManage) return;
     e.preventDefault();
     setHover(true);
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Ignore drag-leave caused by moving onto a child element.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setHover(false);
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
+    if (!canManage) return;
     e.preventDefault();
     setHover(false);
-    const files = Array.from(e.dataTransfer?.files || []);
-    for (const file of files) {
-      setUploading(true);
-      try {
-        await onUpload(file);
-      } finally {
-        setUploading(false);
-      }
-    }
+    void uploadFiles(Array.from(e.dataTransfer?.files || []));
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploading(true);
-      try {
-        await onUpload(file);
-      } finally {
-        setUploading(false);
-      }
-    }
-    // Reset input so the same file can be selected again
+    await uploadFiles(Array.from(e.target.files || []));
+    // Reset input so the same file can be selected again.
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -104,48 +103,58 @@ export default function TaskAttachments({
   };
 
   return (
-    <Box>
-      {/* Upload area - shown when button clicked */}
-      {showUploadArea && canManage && (
-        <Box
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          sx={{
-            border: '2px dashed',
-            borderColor: hover ? 'primary.main' : 'divider',
-            borderRadius: 1,
-            p: 2,
-            mb: 2,
-            textAlign: 'center',
-            bgcolor: hover ? 'action.hover' : 'transparent',
-            transition: 'all 0.2s',
-          }}
-        >
-          <Typography color="text.secondary">
-            {t('workspace.task.attachments.dragAndDrop')}
-          </Typography>
+    <Box
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      sx={{
+        borderRadius: 1,
+        outline: '2px dashed transparent',
+        outlineOffset: 4,
+        transition: 'background-color 0.15s, outline-color 0.15s',
+        ...(hover && canManage
+          ? {
+              outlineColor: 'primary.main',
+              bgcolor: 'action.hover',
+            }
+          : {}),
+      }}
+    >
+      {/* Compact header: title + inline upload button. Drop a file anywhere on
+          this section to upload — the section highlights only while dragging. */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ minHeight: 32 }}>
+        <Typography variant="subtitle2" fontWeight="bold">
+          {t('workspace.task.attachments.title')}
+        </Typography>
+        {canManage && (
           <Button
             component="label"
             size="small"
-            sx={{ mt: 1 }}
+            startIcon={<AttachFileIcon fontSize="small" />}
             disabled={uploading}
           >
-            {t('workspace.task.attachments.browseFiles')}
+            {t('workspace.task.actions.attachFiles')}
             <input
               ref={fileInputRef}
               type="file"
               hidden
+              multiple
               onChange={handleFileChange}
             />
           </Button>
-          {uploading && <LinearProgress sx={{ mt: 1 }} />}
-        </Box>
+        )}
+      </Stack>
+
+      {hover && canManage && (
+        <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+          {t('workspace.task.attachments.dropHere')}
+        </Typography>
       )}
 
-      {/* Attachments display */}
+      {uploading && <LinearProgress sx={{ mt: 1 }} />}
+
       {attachments.length > 0 && (
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
           {attachments.map((a) => (
             <Chip
               key={a.id}
@@ -154,7 +163,6 @@ export default function TaskAttachments({
               onDelete={canManage ? () => onDelete(a.id) : undefined}
               deleteIcon={<DeleteIcon fontSize="small" />}
               size="small"
-              sx={{ mb: 0.5 }}
             />
           ))}
         </Stack>

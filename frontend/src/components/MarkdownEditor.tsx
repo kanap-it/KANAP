@@ -59,6 +59,7 @@ import {
   looksLikeMarkdown,
   shouldHandleRichClipboardImport,
 } from '../lib/richClipboardMarkdown';
+import MarkdownLinkDialog from './MarkdownLinkDialog';
 
 interface MarkdownEditorProps {
   value: string;
@@ -66,6 +67,10 @@ interface MarkdownEditorProps {
   placeholder?: string;
   minRows?: number;
   maxRows?: number;
+  /** When set, the content area is capped to this many rows until the editor receives
+   *  focus (via :focus-within), then expands to minRows/maxRows. Lets a read-mode
+   *  description stay compact and reveal more of the page below it. */
+  collapsedRows?: number;
   fillHeight?: boolean;
   disabled?: boolean;
   focusNonce?: number;
@@ -328,6 +333,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   placeholder = 'Start typing...',
   minRows = 10,
   maxRows = 18,
+  collapsedRows,
   fillHeight = false,
   disabled = false,
   focusNonce,
@@ -348,6 +354,8 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const contentHeightOffset = disabled ? 0 : 24;
   const editorContentMinHeight = fillHeight ? 0 : (minHeight - contentHeightOffset);
   const editorContentMaxHeight = fillHeight ? '100%' : (maxHeight - contentHeightOffset);
+  const collapsedContentMaxHeight =
+    collapsedRows && !fillHeight ? Math.max(0, collapsedRows * 24 - contentHeightOffset) : undefined;
   const fixedSourceEditorHeight = fillHeight
     ? '100%'
     : (minRows === maxRows ? (maxHeight - contentHeightOffset) : undefined);
@@ -646,7 +654,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       listsPlugin(),
       quotePlugin(),
       linkPlugin(),
-      linkDialogPlugin(),
+      linkDialogPlugin({ LinkDialog: MarkdownLinkDialog }),
       imagePlugin({
         imageUploadHandler: async (file: File) => {
           const handler = imageUploadHandlerRef.current;
@@ -954,6 +962,16 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
               my: 1,
             },
           },
+          // Read-mode height cap: shrink to fit content (up to collapsedRows) until
+          // the editor is focused, then expand to the full minRows/maxRows range.
+          ...(collapsedContentMaxHeight !== undefined
+            ? {
+                '&:not(:focus-within) .kanap-mdx-content': {
+                  minHeight: 0,
+                  maxHeight: collapsedContentMaxHeight,
+                },
+              }
+            : {}),
           '&:not(:focus-within) .kanap-mdx-root.kanap-mdx-hide-toolbar.kanap-mdx-surface .kanap-mdx-content': {
             p: 0,
           },

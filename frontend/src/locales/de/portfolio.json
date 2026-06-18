@@ -713,7 +713,9 @@
       },
       "attachments": {
         "browseFiles": "Dateien durchsuchen",
-        "dragAndDrop": "Dateien hierher ziehen oder"
+        "dragAndDrop": "Dateien hierher ziehen oder",
+        "dropHere": "Dateien hier ablegen",
+        "title": "Anhänge"
       },
       "history": {
         "actions": {
