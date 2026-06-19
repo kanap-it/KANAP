@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Box,
   Button,
-  ClickAwayListener,
+  Dialog,
   IconButton,
   Paper,
   Popper,
@@ -69,7 +69,7 @@ function LinkEditForm({
         e.stopPropagation();
         onSubmit({ url: url.trim(), text, title });
       }}
-      sx={{ p: 1.5, width: 320, display: 'flex', flexDirection: 'column', gap: 1.25 }}
+      sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.25 }}
     >
       <TextField
         label="URL"
@@ -145,9 +145,38 @@ export default function MarkdownLinkDialog() {
     return { getBoundingClientRect: () => ({ ...r, toJSON: () => r }) as DOMRect };
   }, [rect?.top, rect?.left, rect?.width, rect?.height]);
 
-  if (state.type === 'inactive' || !virtualAnchor) return <></>;
+  if (state.type === 'inactive') return <></>;
 
-  const urlIsExternal = state.type === 'preview' && state.url.startsWith('http');
+  // Edit form: a centered modal. Anchoring it to the caret read as "oddly placed"
+  // when the caret sat at the editor's top-left (e.g. an empty Description).
+  if (state.type === 'edit') {
+    return (
+      <Dialog
+        open
+        onClose={() => cancelLinkEdit()}
+        fullWidth
+        maxWidth="xs"
+        disableEnforceFocus
+        disableAutoFocus
+        disableRestoreFocus
+      >
+        <LinkEditForm
+          key={state.linkNodeKey}
+          initialUrl={state.url}
+          initialText={state.text}
+          withAnchorText={state.withAnchorText}
+          title={state.title}
+          onSubmit={(payload) => updateLink(payload)}
+          onCancel={() => cancelLinkEdit()}
+        />
+      </Dialog>
+    );
+  }
+
+  // Preview popover for an existing link: stays anchored to the link, and closes
+  // when the selection moves off it (matching MDXEditor's default behaviour).
+  if (!virtualAnchor) return <></>;
+  const urlIsExternal = state.url.startsWith('http');
 
   return (
     <Popper
@@ -161,81 +190,54 @@ export default function MarkdownLinkDialog() {
         { name: 'flip', options: { padding: 8 } },
       ]}
     >
-      <ClickAwayListener
-        onClickAway={() => {
-          // `cancelLinkEdit` is only valid in edit mode; a preview popover
-          // dismisses itself when the selection moves off the link.
-          if (state.type === 'edit') cancelLinkEdit();
-        }}
+      <Paper
+        elevation={6}
+        sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}
       >
-        <Paper
-          elevation={6}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && state.type === 'edit') {
-              e.stopPropagation();
-              cancelLinkEdit();
-            }
-          }}
-          sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={0.5}
+          sx={{ pl: 1.5, pr: 0.5, py: 0.5, maxWidth: 440 }}
         >
-          {state.type === 'edit' && (
-            <LinkEditForm
-              key={state.linkNodeKey}
-              initialUrl={state.url}
-              initialText={state.text}
-              withAnchorText={state.withAnchorText}
-              title={state.title}
-              onSubmit={(payload) => updateLink(payload)}
-              onCancel={() => cancelLinkEdit()}
-            />
+          <Typography
+            component="a"
+            href={state.url}
+            target={urlIsExternal ? '_blank' : undefined}
+            rel="noreferrer"
+            sx={{
+              color: 'primary.main',
+              textDecoration: 'none',
+              maxWidth: 280,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: 13,
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
+            {state.url}
+          </Typography>
+          {urlIsExternal && (
+            <OpenInNewIcon sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
           )}
-          {state.type === 'preview' && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={0.5}
-              sx={{ pl: 1.5, pr: 0.5, py: 0.5, maxWidth: 440 }}
-            >
-              <Typography
-                component="a"
-                href={state.url}
-                target={urlIsExternal ? '_blank' : undefined}
-                rel="noreferrer"
-                sx={{
-                  color: 'primary.main',
-                  textDecoration: 'none',
-                  maxWidth: 280,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontSize: 13,
-                  '&:hover': { textDecoration: 'underline' },
-                }}
-              >
-                {state.url}
-              </Typography>
-              {urlIsExternal && (
-                <OpenInNewIcon sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
-              )}
-              <Tooltip title="Edit link">
-                <IconButton size="small" onClick={() => switchToEdit()}>
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Copy URL">
-                <IconButton size="small" onClick={() => void navigator.clipboard?.writeText(state.url)}>
-                  <ContentCopyIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Remove link">
-                <IconButton size="small" onClick={() => removeLink()}>
-                  <LinkOffIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-          )}
-        </Paper>
-      </ClickAwayListener>
+          <Tooltip title="Edit link">
+            <IconButton size="small" onClick={() => switchToEdit()}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Copy URL">
+            <IconButton size="small" onClick={() => void navigator.clipboard?.writeText(state.url)}>
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Remove link">
+            <IconButton size="small" onClick={() => removeLink()}>
+              <LinkOffIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Paper>
     </Popper>
   );
 }
