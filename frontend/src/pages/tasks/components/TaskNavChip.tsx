@@ -44,7 +44,6 @@ export default function TaskNavChip({ currentIndex, totalCount, onPrev, onNext, 
         borderRadius: taskDetailTokens.borderRadius.pill,
         bgcolor: theme.palette.kanap.navChip.bg,
         border: `1px solid ${theme.palette.kanap.navChip.border}`,
-        ml: '6px',
       })}
     >
       <IconButton
