@@ -296,7 +296,7 @@ export default function ConnectionWorkspacePage() {
     if (!routeMatchesLoadedConnection) return;
     if (routeId.toUpperCase() === data.connection_reference.toUpperCase()) return;
     const qs = searchParams.toString();
-    navigate(`/it/connections/${data.connection_reference}/${validTab}${qs ? `?${qs}` : ''}`, { replace: true });
+    window.history.replaceState(null, '', `/it/connections/${data.connection_reference}/${validTab}${qs ? `?${qs}` : ''}`);
   }, [data?.connection_reference, isCreate, navigate, routeId, routeMatchesLoadedConnection, searchParams, validTab]);
 
   const reloadLinkedInterfaces = React.useCallback(async () => {

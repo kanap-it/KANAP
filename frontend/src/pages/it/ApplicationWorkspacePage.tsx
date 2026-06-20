@@ -253,6 +253,10 @@ function useAppData(id: string, enabled: boolean) {
       return res.data;
     },
     enabled,
+    // Keep the previously-loaded application on screen while the next one
+    // loads (prev/next, deep-link), so the workspace never blanks to a
+    // full-page loading bar between items.
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -1246,9 +1250,13 @@ export default function ApplicationWorkspacePage() {
   React.useEffect(() => {
     if (!app?.sequential_id || isCreate) return;
     const canonicalBase = `${app.sequential_id}-${slugify(app.name)}`;
+    // While placeholderData keeps the previous app on screen during a nav, `app`
+    // can be stale for the current route id — only canonicalize once the loaded
+    // app actually matches the route, otherwise we'd write the old item's URL.
+    if (routeId !== app.id && routeId !== app.sequential_id && routeId !== canonicalBase) return;
     if (routeId === canonicalBase || routeId === app.sequential_id) return;
     const qs = searchParams.toString();
-    navigate(`/it/applications/${canonicalBase}/${routeTab}${qs ? `?${qs}` : ''}`, { replace: true });
+    window.history.replaceState(null, '', `/it/applications/${canonicalBase}/${routeTab}${qs ? `?${qs}` : ''}`);
   }, [app?.name, app?.sequential_id, isCreate, navigate, routeId, routeTab, searchParams]);
 
   const closeWorkspace = React.useCallback(() => {
