@@ -149,7 +149,7 @@ export default function LocationWorkspacePage() {
     if (!routeMatchesLoadedLocation) return;
     if (routeId.toUpperCase() === data.location_reference.toUpperCase()) return;
     const qs = searchParams.toString();
-    navigate(`/it/locations/${data.location_reference}/${validTab}${qs ? `?${qs}` : ''}`, { replace: true });
+    window.history.replaceState(null, '', `/it/locations/${data.location_reference}/${validTab}${qs ? `?${qs}` : ''}`);
   }, [data?.location_reference, isCreate, navigate, routeId, routeMatchesLoadedLocation, searchParams, validTab]);
 
   React.useEffect(() => {
