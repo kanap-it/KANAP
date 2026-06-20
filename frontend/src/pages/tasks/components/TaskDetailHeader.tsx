@@ -184,8 +184,10 @@ export default function TaskDetailHeader({
       <Box
         component="header"
         sx={(theme) => ({
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
           alignItems: 'center',
+          columnGap: '12px',
           py: taskDetailTokens.topbar.py,
           px: taskDetailTokens.topbar.px,
           borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
@@ -193,7 +195,7 @@ export default function TaskDetailHeader({
       >
         <Box
           component="nav"
-          sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.breadcrumb.gap, fontSize: '12px', flexWrap: 'wrap', minWidth: 0 }}
+          sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.breadcrumb.gap, fontSize: '12px', minWidth: 0, overflow: 'hidden' }}
         >
           <Typography
             component="a"
@@ -203,6 +205,8 @@ export default function TaskDetailHeader({
               textDecoration: 'none',
               cursor: 'pointer',
               fontSize: '12px',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
               '&:hover': { color: theme.palette.kanap.text.primary },
             })}
           >
@@ -210,12 +214,24 @@ export default function TaskDetailHeader({
           </Typography>
           {originProjectName && (
             <>
-              <Box component="span" sx={(theme) => ({ color: theme.palette.kanap.text.tertiary })}>/</Box>
-              <Typography component="span" sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: '12px' })}>
+              <Box component="span" sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, flexShrink: 0 })}>/</Box>
+              <Typography
+                component="span"
+                sx={(theme) => ({
+                  color: theme.palette.kanap.text.secondary,
+                  fontSize: '12px',
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                })}
+              >
                 {originProjectName}
               </Typography>
             </>
           )}
+        </Box>
+        <Box sx={{ justifySelf: 'center', display: 'flex', alignItems: 'center' }}>
           <TaskNavChip
             currentIndex={currentIndex + 1}
             totalCount={totalCount}

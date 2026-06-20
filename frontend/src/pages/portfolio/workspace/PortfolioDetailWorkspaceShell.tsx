@@ -104,7 +104,6 @@ function NavChip({ nav }: { nav: PortfolioDetailWorkspaceNav }) {
         borderRadius: taskDetailTokens.borderRadius.pill,
         bgcolor: theme.palette.kanap.navChip.bg,
         border: `1px solid ${theme.palette.kanap.navChip.border}`,
-        ml: '6px',
       })}
     >
       <IconButton onClick={nav.onPrev} disabled={!nav.hasPrev} aria-label={nav.previousLabel} sx={navButtonSx} size="small">
@@ -317,14 +316,16 @@ export default function PortfolioDetailWorkspaceShell({
         <Box
           component="header"
           sx={(theme) => ({
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
             alignItems: 'center',
+            columnGap: '12px',
             py: taskDetailTokens.topbar.py,
             px: isCompact ? 2 : taskDetailTokens.topbar.px,
             borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
           })}
         >
-          <Box component="nav" sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.breadcrumb.gap, fontSize: '12px', minWidth: 0 }}>
+          <Box component="nav" sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.breadcrumb.gap, fontSize: '12px', minWidth: 0, overflow: 'hidden' }}>
             <Box
               component="button"
               type="button"
@@ -333,6 +334,8 @@ export default function PortfolioDetailWorkspaceShell({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
+                minWidth: 0,
+                overflow: 'hidden',
                 color: theme.palette.kanap.text.secondary,
                 bgcolor: 'transparent',
                 border: 0,
@@ -343,11 +346,17 @@ export default function PortfolioDetailWorkspaceShell({
                 '&:hover': { color: theme.palette.kanap.text.primary },
               })}
             >
-              <ArrowBackIcon sx={{ fontSize: 14 }} />
-              {backLabel}
+              <ArrowBackIcon sx={{ fontSize: 14, flexShrink: 0 }} />
+              <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {backLabel}
+              </Box>
             </Box>
-            {nav && <NavChip nav={nav} />}
           </Box>
+          {nav && (
+            <Box sx={{ justifySelf: 'center', display: 'flex', alignItems: 'center' }}>
+              <NavChip nav={nav} />
+            </Box>
+          )}
         </Box>
 
         <Box sx={{ pt: taskDetailTokens.titleBlock.pt, px: isCompact ? 2 : taskDetailTokens.titleBlock.px, pb: taskDetailTokens.titleBlock.pb }}>
