@@ -202,6 +202,15 @@ export default function ProjectWorkspacePage() {
     }
   }, [data?.id, data?.item_number, params.id, location.pathname, location.search]);
 
+  const projectMatchesCurrentRoute = React.useMemo(() => {
+    const raw = String(idParam || '').trim();
+    if (!data || !raw) return false;
+    if (data.id && raw.toLowerCase() === String(data.id).toLowerCase()) return true;
+    if (data.item_number != null && raw === String(data.item_number)) return true;
+    if (data.item_number != null && raw.toUpperCase() === formatItemRef('project', data.item_number)) return true;
+    return false;
+  }, [data?.id, data?.item_number, idParam]);
+
   // Fetch classification data (types, categories, streams)
   const { data: classificationData } = useQuery({
     queryKey: ['portfolio-classification'],
@@ -783,7 +792,8 @@ export default function ProjectWorkspacePage() {
     if (involvedTeamId) params.involvedTeamId = involvedTeamId;
     return Object.keys(params).length > 0 ? params : undefined;
   }, [involvedUserId, involvedTeamId]);
-  const nav = useProjectNav({ id, sort, q, filters, extraParams: navExtraParams });
+  const navCurrentId = projectMatchesCurrentRoute ? data?.id || '' : '';
+  const nav = useProjectNav({ id: navCurrentId, sort, q, filters, extraParams: navExtraParams });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
     : nav;

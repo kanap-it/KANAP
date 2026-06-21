@@ -568,7 +568,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
   /**
    * Return ordered list of matching application IDs for navigation.
    */
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -668,7 +668,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const quickSearch = q ? buildQuickSearchConditions(q, ['a.name', buildApplicationOwnerNamesSql('it')], nextParam) : [];
 
     // Build query
-    const qb = repo.createQueryBuilder('a').select('a.id');
+    const qb = repo.createQueryBuilder('a').select('a.id').addSelect('a.sequential_id', 'ref');
     if (tenantId) {
       qb.andWhere('a.tenant_id = :tenantId', { tenantId });
     }
@@ -712,10 +712,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     const total = await qb.clone().getCount();
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
-    const rows = await qb.take(limit).getRawMany();
+    const rows: Array<{ a_id: string; ref: string | null }> = await qb.take(limit).getRawMany();
     const ids = rows.map((r) => r.a_id);
+    const refs = rows.map((r) => r.ref || r.a_id);
 
-    return { ids, total };
+    return { ids, refs, total };
   }
 
   /**

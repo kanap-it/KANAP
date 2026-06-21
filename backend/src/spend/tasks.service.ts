@@ -728,7 +728,7 @@ export class TasksService {
     return { items, total, page, limit };
   }
 
-  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope }): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope }): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const manager = opts?.manager ?? this.dataSource.manager;
     const tenantId = String(opts?.tenantId || '').trim();
     const { sort, q, filters } = parsePagination({ ...query, page: 1, limit: query?.limit ?? 10000 });
@@ -784,6 +784,7 @@ export class TasksService {
 
     const idsQuery = `
       SELECT t.id,
+        t.item_number,
         CASE
           WHEN t.related_object_type = 'project' AND pp.priority_score IS NOT NULL THEN
             ROUND(LEAST(GREATEST(
@@ -826,9 +827,10 @@ export class TasksService {
       ORDER BY ${sortField} ${sort.direction}
       LIMIT ${limit}
     `;
-    const rows: Array<{ id: string }> = await manager.query(idsQuery, params);
+    const rows: Array<{ id: string; item_number: number | null }> = await manager.query(idsQuery, params);
     const ids = rows.map((r) => r.id);
-    return { ids, total };
+    const refs = rows.map((r) => (r.item_number != null ? `T-${r.item_number}` : r.id));
+    return { ids, refs, total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string; accessScope?: ParticipationAccessScope }): Promise<Record<string, Array<string | null>>> {

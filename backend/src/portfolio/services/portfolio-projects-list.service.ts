@@ -495,7 +495,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
   /**
    * Return ordered list of matching project IDs for navigation.
    */
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(PortfolioProject);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -600,7 +600,7 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
     // Build query
-    const qb = repo.createQueryBuilder('p').select('p.id');
+    const qb = repo.createQueryBuilder('p').select('p.id').addSelect('p.item_number', 'item_number');
     if (tenantId) {
       qb.andWhere('p.tenant_id = :tenantId', { tenantId });
     }
@@ -638,10 +638,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
 
     const total = await qb.clone().getCount();
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
-    const rows = await qb.take(limit).getRawMany();
+    const rows: Array<{ p_id: string; item_number: number | null }> = await qb.take(limit).getRawMany();
     const ids = rows.map((r) => r.p_id);
+    const refs = rows.map((r) => (r.item_number != null ? `PRJ-${r.item_number}` : r.p_id));
 
-    return { ids, total };
+    return { ids, refs, total };
   }
 
   /**

@@ -1152,7 +1152,8 @@ export default function TaskWorkspacePage() {
     if (assetId) params.assetId = assetId;
     return Object.keys(params).length > 0 ? params : undefined;
   }, [assigneeUserId, applicationId, assetId, teamId]);
-  const nav = useTaskNav({ id, sort, q, filters, extraParams: navExtraParams });
+  const navCurrentId = taskMatchesCurrentRoute ? task?.id || '' : '';
+  const nav = useTaskNav({ id: navCurrentId, sort, q, filters, extraParams: navExtraParams });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
     : nav;

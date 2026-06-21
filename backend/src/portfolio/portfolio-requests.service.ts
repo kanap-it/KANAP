@@ -414,7 +414,7 @@ export class PortfolioRequestsService {
   }
 
   // ==================== LIST IDS ====================
-  async listIds(query: any, opts?: RequestServiceOpts): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: RequestServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(PortfolioRequest);
     const tenantId = String(opts?.tenantId || '').trim();
@@ -513,7 +513,7 @@ export class PortfolioRequestsService {
     const quickSearch = q ? buildQuickSearchConditions(q, quickSearchExpressions, nextParam) : [];
 
     // Build query
-    const qb = repo.createQueryBuilder('r').select('r.id');
+    const qb = repo.createQueryBuilder('r').select('r.id').addSelect('r.item_number', 'item_number');
     if (tenantId) {
       qb.andWhere('r.tenant_id = :tenantId', { tenantId });
     }
@@ -548,10 +548,11 @@ export class PortfolioRequestsService {
 
     const total = await qb.clone().getCount();
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
-    const rows = await qb.take(limit).getRawMany();
+    const rows: Array<{ r_id: string; item_number: number | null }> = await qb.take(limit).getRawMany();
     const ids = rows.map((r) => r.r_id);
+    const refs = rows.map((r) => (r.item_number != null ? `REQ-${r.item_number}` : r.r_id));
 
-    return { ids, total };
+    return { ids, refs, total };
   }
 
   // ==================== FILTER VALUES ====================

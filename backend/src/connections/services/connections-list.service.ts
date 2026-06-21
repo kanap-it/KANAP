@@ -229,7 +229,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
     return { items, total, page, limit };
   }
 
-  async listIds(tenantId: string, query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+  async listIds(tenantId: string, query: any, opts?: ServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const tenant = this.ensureTenantId(tenantId);
     const repo = this.getRepo(opts?.manager);
     const mg = opts?.manager ?? repo.manager;
@@ -277,9 +277,11 @@ export class ConnectionsListService extends ConnectionsBaseService {
       order: { [sortField]: sort.direction as any },
       take: limit,
       skip: 0,
-      select: ['id'],
+      select: ['id', 'connection_reference'],
     });
-    return { ids: rows.map((row) => row.id), total };
+    const ids = rows.map((row) => row.id);
+    const refs = rows.map((row) => row.connection_reference || row.id);
+    return { ids, refs, total };
   }
 
   /**

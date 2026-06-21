@@ -42,7 +42,7 @@ export function useCapexNav(params: CapexNavParams): ModuleItemNavResult {
     return {
       ids,
       index: found ? rawIdx : 0,
-      total: ids.length,
+      total: found ? ids.length : 0,
       hasPrev,
       hasNext,
       prevId: hasPrev ? refAt(rawIdx - 1) : null,
