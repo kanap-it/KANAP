@@ -2,6 +2,11 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 
+type ModuleItemNavData = {
+  ids: string[];
+  refs: Array<string | null | undefined>;
+};
+
 /**
  * Configuration for module item navigation (prev/next through list)
  */
@@ -111,35 +116,43 @@ export function useModuleItemNav(
         apiParams.year = year;
       }
 
-      const res = await api.get<{ ids: string[] }>(endpoint, { params: apiParams });
-      return res.data?.ids || [];
+      const res = await api.get<{ ids?: string[]; refs?: Array<string | null | undefined> }>(endpoint, { params: apiParams });
+      return {
+        ids: res.data?.ids || [],
+        refs: res.data?.refs || [],
+      } satisfies ModuleItemNavData;
     },
     staleTime: 30_000,
   });
 
   const { index, hasPrev, hasNext, total } = useMemo(() => {
-    const ids = data || [];
-    const idx = Math.max(0, ids.indexOf(id));
+    const ids = data?.ids || [];
+    const rawIdx = id ? ids.indexOf(id) : -1;
+    const found = rawIdx >= 0;
     return {
-      index: idx,
-      hasPrev: idx > 0,
-      hasNext: idx >= 0 && idx < ids.length - 1,
-      total: ids.length,
+      index: found ? rawIdx : 0,
+      hasPrev: found && rawIdx > 0,
+      hasNext: found && rawIdx < ids.length - 1,
+      total: found ? ids.length : 0,
     };
   }, [data, id]);
 
   const prevId = useMemo(() => {
     if (!data || !hasPrev) return null;
-    return data[index - 1];
+    const ref = data.refs[index - 1];
+    if (typeof ref === 'string' && ref.trim()) return ref;
+    return data.ids[index - 1] || null;
   }, [data, index, hasPrev]);
 
   const nextId = useMemo(() => {
     if (!data || !hasNext) return null;
-    return data[index + 1];
+    const ref = data.refs[index + 1];
+    if (typeof ref === 'string' && ref.trim()) return ref;
+    return data.ids[index + 1] || null;
   }, [data, index, hasNext]);
 
   return {
-    ids: (data || []) as string[],
+    ids: data?.ids || [],
     index,
     total,
     hasPrev,

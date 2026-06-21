@@ -135,7 +135,7 @@ export class AssetsListService extends AssetsBaseService {
    * Return ordered list of matching asset IDs for navigation.
    * Uses raw SQL to support filtering on enriched fields.
    */
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const mg = this.getManager(opts);
     const { sort, q, filters } = parsePagination(query);
 
@@ -180,7 +180,7 @@ export class AssetsListService extends AssetsBaseService {
     // Need a subquery to properly order by sort field
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
     const orderedIdsQuery = `
-      SELECT DISTINCT a.id, ${sortField} as sort_value
+      SELECT DISTINCT a.id, a.asset_reference as ref, ${sortField} as sort_value
       FROM assets a
       LEFT JOIN locations l ON l.id = a.location_id AND l.tenant_id = a.tenant_id
       LEFT JOIN location_sub_items sl ON sl.id = a.sub_location_id AND sl.tenant_id = a.tenant_id
@@ -191,9 +191,10 @@ export class AssetsListService extends AssetsBaseService {
       LIMIT $${params.length + 1}
     `;
 
-    const rows: Array<{ id: string }> = await mg.query(orderedIdsQuery, [...params, limit]);
+    const rows: Array<{ id: string; ref: string | null }> = await mg.query(orderedIdsQuery, [...params, limit]);
     const ids = rows.map((r) => r.id);
-    return { ids, total };
+    const refs = rows.map((r) => r.ref || r.id);
+    return { ids, refs, total };
   }
 
   /**

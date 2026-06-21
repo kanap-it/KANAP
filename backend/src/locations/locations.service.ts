@@ -249,7 +249,7 @@ export class LocationsService {
     return { items, total, page, limit };
   }
 
-  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const repo = this.getRepo(opts?.manager);
     const { sort, q, filters } = parsePagination(query, {
       field: 'created_at',
@@ -280,9 +280,11 @@ export class LocationsService {
       order: { [sortField]: sort.direction as any },
       take: limit,
       skip: 0,
-      select: ['id'],
+      select: ['id', 'location_reference'],
     });
-    return { ids: rows.map((row) => row.id), total };
+    const ids = rows.map((row) => row.id);
+    const refs = rows.map((row) => row.location_reference || row.id);
+    return { ids, refs, total };
   }
 
   async listFilterValues(query: any, opts?: { manager?: EntityManager; tenantId?: string }): Promise<Record<string, Array<string | null>>> {
