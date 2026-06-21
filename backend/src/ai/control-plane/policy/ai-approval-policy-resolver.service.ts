@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import {
+  actionClassForCapabilityName,
+  isAgentAutonomyPolicyMetadata,
+  isLowRiskAutomationActionClass,
+} from '../agent/ai-agent-autonomy';
 import { CapabilityContract, CapabilityExecutionContext, CapabilitySurface } from '../capability/capability-contract';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiApprovalPolicy } from '../entities/ai-approval-policy.entity';
@@ -177,6 +182,7 @@ export class AiApprovalPolicyResolverService {
 
   private validatePolicyShape(policy: AiApprovalPolicy): PolicyDecisionReason[] {
     const reasons: PolicyDecisionReason[] = [];
+    const agentAutonomyMetadata = isAgentAutonomyPolicyMetadata(policy.metadata_json) ? policy.metadata_json : null;
     if (!policy.enabled) {
       reasons.push({ code: 'POLICY_DISABLED', detail: `Policy ${policy.policy_key} is disabled.` });
     }
@@ -206,7 +212,14 @@ export class AiApprovalPolicyResolverService {
     if (policy.budget_constraints_json !== null && !isRecord(policy.budget_constraints_json)) {
       reasons.push({ code: 'MALFORMED_POLICY_BUDGET', detail: 'Policy budget constraints must be an object.' });
     }
-    if (policy.live_test_safety !== 'mock_only') {
+    if (
+      policy.live_test_safety !== 'mock_only'
+      && !(
+        agentAutonomyMetadata
+        && policy.live_test_safety === 'live_write_gated'
+        && isLowRiskAutomationActionClass(agentAutonomyMetadata.action_class)
+      )
+    ) {
       reasons.push({ code: 'LIVE_POLICY_NOT_MOCK_ONLY', detail: 'Phase 6 policy approval is limited to mock-only safety.' });
     }
     return reasons;
@@ -220,6 +233,7 @@ export class AiApprovalPolicyResolverService {
     environment: string | null,
   ): PolicyDecisionReason[] {
     const reasons: PolicyDecisionReason[] = [];
+    const agentAutonomyMetadata = isAgentAutonomyPolicyMetadata(policy.metadata_json) ? policy.metadata_json : null;
     if (policy.capability_name !== contract.name || policy.capability_version !== contract.version) {
       reasons.push({ code: 'POLICY_CAPABILITY_MISMATCH', detail: 'Policy capability does not match action capability.' });
     }
@@ -235,7 +249,7 @@ export class AiApprovalPolicyResolverService {
     if (policy.environment && policy.environment !== environment) {
       reasons.push({ code: 'POLICY_ENVIRONMENT_MISMATCH', detail: 'Policy environment does not match action environment.' });
     }
-    if (environment === 'production') {
+    if (environment === 'production' && !agentAutonomyMetadata) {
       reasons.push({ code: 'PRODUCTION_AUTONOMY_DISABLED', detail: 'Production policy autonomy is deferred for Phase 6.' });
     }
     if (policy.trigger_surface && policy.trigger_surface !== execution?.surface) {
@@ -267,6 +281,35 @@ export class AiApprovalPolicyResolverService {
     }
     if (policy.live_test_safety === 'mock_only' && action.provider_key !== 'mock') {
       reasons.push({ code: 'MOCK_ONLY_POLICY_PROVIDER_DENIED', detail: 'Mock-only policy approval requires a mock-safe provider action.' });
+    }
+    if (agentAutonomyMetadata) {
+      const metadata = actionMetadata(action);
+      const actionAgentDefinitionId = metadataString(metadata, 'agent_definition_id');
+      const actionClass = actionClassForCapabilityName(metadataString(metadata, 'action_class') ?? action.capability_name);
+      if (agentAutonomyMetadata.agent_definition_id !== actionAgentDefinitionId) {
+        reasons.push({
+          code: 'AGENT_AUTONOMY_AGENT_MISMATCH',
+          detail: 'Agent autonomy policy does not match the action agent definition.',
+        });
+      }
+      if (agentAutonomyMetadata.action_class !== actionClass) {
+        reasons.push({
+          code: 'AGENT_AUTONOMY_CLASS_MISMATCH',
+          detail: 'Agent autonomy policy does not match the action class.',
+        });
+      }
+      if (!isLowRiskAutomationActionClass(actionClass)) {
+        reasons.push({
+          code: 'AGENT_AUTONOMY_CLASS_NOT_ALLOWLISTED',
+          detail: 'Action class is not allowlisted for automatic agent execution.',
+        });
+      }
+      if (policy.live_test_safety !== 'live_write_gated') {
+        reasons.push({
+          code: 'AGENT_AUTONOMY_LIVE_SAFETY_REQUIRED',
+          detail: 'Agent autonomy policies must use live-write-gated safety.',
+        });
+      }
     }
     return reasons;
   }

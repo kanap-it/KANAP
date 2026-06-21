@@ -341,11 +341,10 @@ async function seedAiExecutionTestData(tenantOne: string, tenantTwo: string) {
          mcp_enabled,
          llm_provider,
          llm_model,
-         web_enrichment_enabled,
          created_at,
          updated_at
        )
-       VALUES ($1, true, false, 'openai', 'gpt-4o-mini', false, now(), now())`,
+       VALUES ($1, true, false, 'openai', 'gpt-4o-mini', now(), now())`,
       [tenantOne],
     );
 
@@ -357,11 +356,10 @@ async function seedAiExecutionTestData(tenantOne: string, tenantTwo: string) {
          mcp_enabled,
          llm_provider,
          llm_model,
-         web_enrichment_enabled,
          created_at,
          updated_at
        )
-       VALUES ($1, false, true, 'custom', 'tenant-two-model', false, now(), now())`,
+       VALUES ($1, false, true, 'custom', 'tenant-two-model', now(), now())`,
       [tenantTwo],
     );
 

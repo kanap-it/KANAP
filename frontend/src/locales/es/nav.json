@@ -1,6 +1,7 @@
 {
   "workspaces": {
     "ai": "Plaid",
+    "agents": "Agentes IA",
     "portfolio": "Portafolio",
     "itOperations": "Panorama IT",
     "knowledge": "Base de conocimiento",
@@ -71,6 +72,12 @@
       "reporting": "Informes",
       "contributors": "Colaboradores",
       "settings": "Configuración"
+    },
+    "agents": {
+      "overview": "Vista general",
+      "approvals": "Aprobaciones",
+      "approvalsWithCount": "Aprobaciones ({{count}})",
+      "activity": "Actividad"
     },
     "admin": {
       "users": "Usuarios",

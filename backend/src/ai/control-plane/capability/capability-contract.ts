@@ -67,6 +67,7 @@ export const CapabilityProviderKindSchema = z.enum([
   'communication',
   'automation',
   'external_mcp',
+  'web',
 ]);
 export type CapabilityProviderKind = z.infer<typeof CapabilityProviderKindSchema>;
 

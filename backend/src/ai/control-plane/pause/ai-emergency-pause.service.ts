@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { CapabilityContract, CapabilityEffect } from '../capability/capability-contract';
+import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiEmergencyPause } from '../entities/ai-emergency-pause.entity';
 
 export type AiPauseCheckInput = {
   capabilityName: string;
   category: string;
   effect: CapabilityEffect;
+  agentDefinitionId?: string | null;
 };
 
 @Injectable()
@@ -25,7 +27,8 @@ export class AiEmergencyPauseService {
   async createPause(
     context: AiExecutionContextWithManager,
     input: {
-      scope?: 'tenant' | 'global';
+      scope?: 'tenant' | 'agent' | 'global';
+      agentDefinitionId?: string | null;
       capabilityName?: string | null;
       category?: string | null;
       effect?: string | null;
@@ -37,10 +40,25 @@ export class AiEmergencyPauseService {
     if (scope === 'global') {
       throw new ForbiddenException('Global emergency pause mutation requires a platform control path.');
     }
+    const agentDefinitionId = input.agentDefinitionId ?? null;
+    if (scope === 'agent') {
+      if (!agentDefinitionId) {
+        throw new ForbiddenException('Agent emergency pause requires an agent definition.');
+      }
+      const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+        where: { id: agentDefinitionId, tenant_id: context.tenantId },
+      });
+      if (!definition) {
+        throw new ForbiddenException('Agent definition not found.');
+      }
+    } else if (agentDefinitionId) {
+      throw new ForbiddenException('Only agent-scoped pauses may reference an agent definition.');
+    }
     const repo = this.repo(context.manager);
     return repo.save(repo.create({
       tenant_id: context.tenantId,
       scope,
+      agent_definition_id: scope === 'agent' ? agentDefinitionId : null,
       capability_name: input.capabilityName ?? null,
       category: input.category ?? null,
       effect: input.effect ?? null,
@@ -70,23 +88,33 @@ export class AiEmergencyPauseService {
     return repo.save(pause);
   }
 
+  async getPause(
+    context: AiExecutionContextWithManager,
+    pauseId: string,
+  ): Promise<AiEmergencyPause | null> {
+    return this.repo(context.manager).findOne({
+      where: { id: pauseId, tenant_id: context.tenantId },
+    });
+  }
+
   async findActiveTenantWidePause(
     context: AiExecutionContextWithManager,
   ): Promise<AiEmergencyPause | null> {
-    const rows = await this.repo(context.manager).find({
-      where: { tenant_id: context.tenantId, active: true },
-    });
-    const now = Date.now();
-    return rows
-      .filter((pause) => !pause.expires_at || new Date(pause.expires_at).getTime() > now)
-      .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())[0] ?? null;
+    return this.repo(context.manager).createQueryBuilder('pause')
+      .where('(pause.tenant_id = :tenantId OR pause.tenant_id IS NULL)', { tenantId: context.tenantId })
+      .andWhere('pause.active = true')
+      .andWhere('(pause.expires_at IS NULL OR pause.expires_at > now())')
+      .andWhere('pause.agent_definition_id IS NULL')
+      .andWhere("pause.scope IN ('tenant', 'global')")
+      .orderBy('pause.created_at', 'DESC')
+      .getOne();
   }
 
   async findActivePause(
     context: AiExecutionContextWithManager,
     input: AiPauseCheckInput,
   ): Promise<AiEmergencyPause | null> {
-    const rows = await this.repo(context.manager).createQueryBuilder('pause')
+    const query = this.repo(context.manager).createQueryBuilder('pause')
       .where('(pause.tenant_id = :tenantId OR pause.tenant_id IS NULL)', { tenantId: context.tenantId })
       .andWhere('pause.active = true')
       .andWhere('(pause.expires_at IS NULL OR pause.expires_at > now())')
@@ -99,19 +127,28 @@ export class AiEmergencyPauseService {
       .andWhere('(pause.effect IS NULL OR pause.effect = :effect)', {
         effect: input.effect,
       })
-      .orderBy('pause.created_at', 'DESC')
-      .getMany();
+      .orderBy('pause.created_at', 'DESC');
+    if (input.agentDefinitionId) {
+      query.andWhere('(pause.agent_definition_id IS NULL OR pause.agent_definition_id = :agentDefinitionId)', {
+        agentDefinitionId: input.agentDefinitionId,
+      });
+    } else {
+      query.andWhere('pause.agent_definition_id IS NULL');
+    }
+    const rows = await query.getMany();
     return rows[0] ?? null;
   }
 
   async assertNotPaused(
     context: AiExecutionContextWithManager,
     contract: CapabilityContract,
+    input: { agentDefinitionId?: string | null } = {},
   ): Promise<void> {
     const pause = await this.findActivePause(context, {
       capabilityName: contract.name,
       category: contract.category,
       effect: contract.effect,
+      agentDefinitionId: input.agentDefinitionId ?? null,
     });
     if (pause) {
       throw new ForbiddenException(`AI emergency pause is active: ${pause.reason}`);

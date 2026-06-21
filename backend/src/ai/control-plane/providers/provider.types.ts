@@ -108,13 +108,27 @@ export type TicketRecord = {
   } | null;
 };
 
-export type TicketListScope = {
-  mode: 'new_tickets_only';
-  createdAfter: string;
-  maxResults: number;
-  entityId?: string | null;
-  categoryId?: string | null;
-};
+export type TicketListScope =
+  | {
+      mode: 'new_tickets_only';
+      createdAfter: string;
+      maxResults: number;
+      entityId?: string | null;
+      categoryId?: string | null;
+    }
+  | {
+      // All currently-open tickets (status New/Assigned/Planned/Pending), bounded by
+      // per-cycle caps and an optional last-changed window. Oldest-changed first so a
+      // cleanup agent sees the stalest tickets. `agent_involved` selection is NOT a
+      // provider mode — it is resolved in the control-plane layer from agent-touched
+      // target states, then fetched per id.
+      mode: 'all_open';
+      maxResults: number;
+      entityId?: string | null;
+      categoryId?: string | null;
+      lastChangedBefore?: string | null;
+      lastChangedAfter?: string | null;
+    };
 
 export type TicketNote = {
   id: string;
@@ -226,6 +240,9 @@ export type TicketStatusUpdateActionPayload = {
   transitionKey: string;
   targetStatus: string;
   targetStatusLabel?: string | null;
+  // Terminal (solve/close) transitions are destructive cleanup actions that must
+  // always be human-approved and surfaced distinctly in approvals/audit.
+  terminal?: boolean;
   providerFields?: Record<string, unknown>;
   reason: string;
 };

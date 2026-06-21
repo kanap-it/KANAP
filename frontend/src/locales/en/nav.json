@@ -1,6 +1,7 @@
 {
   "workspaces": {
     "ai": "Plaid",
+    "agents": "AI Agents",
     "portfolio": "Portfolio",
     "itOperations": "IT Landscape",
     "knowledge": "Knowledge",
@@ -71,6 +72,12 @@
       "reporting": "Reporting",
       "contributors": "Contributors",
       "settings": "Settings"
+    },
+    "agents": {
+      "overview": "Overview",
+      "approvals": "Approvals",
+      "approvalsWithCount": "Approvals ({{count}})",
+      "activity": "Activity"
     },
     "admin": {
       "users": "Users",

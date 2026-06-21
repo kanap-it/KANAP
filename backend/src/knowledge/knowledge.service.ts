@@ -5111,6 +5111,11 @@ export class KnowledgeService {
     const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 200);
     const offset = Math.min(Math.max(Number(query?.offset) || 0, 0), 5000);
     const libraryId = query?.library_id ? String(query.library_id) : null;
+    // Optional allow-list of library ids (agent "restrict to specific libraries"). Kept
+    // intersected with the caller's accessible libraries below — never substituted for it.
+    const libraryIds = Array.isArray(query?.library_ids)
+      ? query.library_ids.map((value: unknown) => String(value)).filter((value: string) => value.length > 0)
+      : null;
     const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
     if (accessibleLibraries && accessibleLibraries.length === 0) {
       return { items: [], total: 0, offset, limit, truncated: false };
@@ -5133,6 +5138,10 @@ export class KnowledgeService {
     if (libraryId) {
       params.push(libraryId);
       whereClauses.push(`d.library_id = $${params.length}`);
+    }
+    if (libraryIds && libraryIds.length > 0) {
+      params.push(libraryIds);
+      whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
     }
     if (accessibleLibraries) {
       params.push(accessibleLibraries);
@@ -5188,6 +5197,10 @@ export class KnowledgeService {
         if (libraryId) {
           fallbackParams.push(libraryId);
           fallbackWhereClauses.push(`d.library_id = $${fallbackParams.length}`);
+        }
+        if (libraryIds && libraryIds.length > 0) {
+          fallbackParams.push(libraryIds);
+          fallbackWhereClauses.push(`d.library_id = ANY($${fallbackParams.length}::uuid[])`);
         }
         if (accessibleLibraries) {
           fallbackParams.push(accessibleLibraries);

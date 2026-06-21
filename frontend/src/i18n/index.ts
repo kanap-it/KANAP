@@ -16,6 +16,7 @@ export const NAMESPACES = [
   'admin',
   'knowledge',
   'ai',
+  'agents',
   'validation',
   'errors',
   'grid',

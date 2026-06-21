@@ -49,6 +49,8 @@ Dans une bibliothèque restreinte :
 
 Utilisez les bibliothèques restreintes pour le contenu sensible (procédures de sécurité, documents RH, matériel exécutif) où vous voulez un contrôle d'accès fin au sein de la base de connaissances plutôt que de vous appuyer uniquement sur les rôles globaux.
 
+Les bibliothèques restreintes limitent également ce qu'un agent IA peut consulter. Lorsqu'un administrateur restreint un agent à un ensemble de bibliothèques choisi dans ses paramètres **Sources de connaissances et web**, ce choix est combiné avec les bibliothèques que l'administrateur configurant peut déjà consulter -- un agent ne voit jamais plus que la personne qui l'a configuré. Une bibliothèque restreinte à laquelle l'administrateur n'a pas accès reste également invisible pour l'agent.
+
 ### Dossiers
 
 Les dossiers organisent les documents au sein d'une bibliothèque. Ils ne sont pas cosmétiques : ils façonnent la manière dont les utilisateurs parcourent la bibliothèque et comment les équipes maintiennent une structure partagée dans le temps.

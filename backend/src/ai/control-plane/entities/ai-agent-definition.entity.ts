@@ -60,6 +60,15 @@ export class AiAgentDefinition {
   evaluation_policy_json!: Record<string, unknown> | null;
 
   @Column('jsonb', { nullable: true })
+  persona_json!: Record<string, unknown> | null;
+
+  @Column('int', { default: 1 })
+  config_version!: number;
+
+  @Column('uuid', { nullable: true })
+  updated_by_user_id!: string | null;
+
+  @Column('jsonb', { nullable: true })
   metadata_json!: Record<string, unknown> | null;
 
   @Column('timestamptz', { default: () => 'now()' })

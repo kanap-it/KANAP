@@ -269,7 +269,8 @@ Fail fast with a clear error if missing.
 | `backend/src/ai/ai-chat.controller.ts` | 1 | `POST /ai/chat/stream` | Chat surface is unavailable when native AI chat is disabled by feature flag or tenant settings |
 | `backend/src/ai/ai-mcp.controller.ts` | 1 | MCP endpoints | MCP surface is unavailable when MCP is disabled by feature flag or tenant settings |
 | `backend/src/ai/ai-settings.controller.ts` | 1 | AI settings endpoints | AI settings surface is unavailable when the AI settings feature is disabled |
-| `backend/src/ai/ai-tool.registry.ts` | 1 | `web_search` tool registration and execution | Web search is only listed and executable when `AI_WEB_SEARCH_READY` is true and tenant web search is enabled |
+| `backend/src/ai/ai-tool.registry.ts` | 1 | Chat `web_search` tool registration and execution | The Plaid **chat** web search tool is only listed and executable when `AI_WEB_SEARCH_READY` is true and the tenant chat web search toggle is enabled |
+| `backend/src/ai/control-plane/capability/ai-capability.registry.ts` | 1 | Control-plane `web_search` capability | A separate governed internal capability used by agents (e.g. Helpdesk triage). Shares the same `AI_WEB_SEARCH_READY` readiness gate (`BRAVE_SEARCH_API_KEY`) but is independent of the tenant chat toggle and is gated per-agent by that agent's own "Search the web" setting. Not exposed over MCP. Mode-agnostic — no cloud/on-prem branch. |
 | `frontend/src/config/FeaturesContext.tsx` | 1 | Frontend feature bootstrap | Normalizes AI feature flags from `/config/public` for route and UI gating |
 | `frontend/src/pages/ai/AiWorkspacePage.tsx` | 1 | Plaid workspace route | Hides native AI chat UI when `aiChat` is false |
 | `frontend/src/pages/admin/AdminAiPage.tsx` | 1 | Admin AI settings page | Hides AI settings and web search controls when the corresponding flags are false |

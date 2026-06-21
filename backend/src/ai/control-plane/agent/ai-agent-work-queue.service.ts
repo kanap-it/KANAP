@@ -68,6 +68,7 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
   { name: TICKETING_PARTICIPANT_CONTEXT_CAPABILITY, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
   { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
   { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'web_search', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
   { name: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
   { name: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
   { name: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
@@ -182,19 +183,51 @@ export type AgentQueueOverview = {
   counts: Record<string, number>;
   helpdesk: {
     summary: HelpdeskGlpiAgentSummary | null;
+    summaries: HelpdeskGlpiAgentSummary[];
+    fleet: HelpdeskGlpiAgentSummary['evaluation'] | null;
     auditEvents: AiAgentAuditEvent[];
   };
 };
 
+export type HelpdeskScopeMode = 'new_tickets_only' | 'all_open' | 'agent_involved';
+
 export type HelpdeskNewTicketsIngestionConfig = {
   enabled: true;
+  mode: HelpdeskScopeMode;
   enabledAt: string;
-  createdAfter: string;
+  // new_tickets_only: created-after horizon. null for the other modes.
+  createdAfter: string | null;
+  // all_open / agent_involved: only tickets unchanged since this cutoff (stale).
+  lastChangedBefore?: string | null;
   entityId?: string | null;
   categoryId?: string | null;
   maxTicketsPerCycle: number;
   maxProviderRequestsPerCycle: number;
 };
+
+export type StaleClosureConfig = {
+  enabled: boolean;
+  message: string;
+  stalenessMs: number;
+  action: 'closed' | 'solved';
+};
+
+// Per-agent stale-ticket cleanup config (scope_policy_json.stale_closure). Shared
+// by the scope resolver (to bound the all_open/agent_involved window) and triage
+// (to decide closure). Disabled unless a positive staleness window is set.
+export function readStaleClosureConfig(definition: AiAgentDefinition): StaleClosureConfig {
+  const scope = policyObject(definition.scope_policy_json);
+  const sc = policyObject(scope.stale_closure);
+  const hours = numberPolicyOrNull(sc.staleness_hours, 0, 24 * 365) ?? 0;
+  const days = numberPolicyOrNull(sc.staleness_days, 0, 365) ?? 0;
+  const stalenessMs = (hours * 3600 + days * 86400) * 1000;
+  return {
+    enabled: sc.enabled === true && stalenessMs > 0,
+    message: stringFromPolicy(sc.message) ?? '',
+    stalenessMs,
+    action: sc.action === 'solved' ? 'solved' : 'closed',
+  };
+}
 
 export type HelpdeskGlpiIngestionSettingsInput = {
   ingestion: {
@@ -252,6 +285,16 @@ export type HelpdeskRunGuardrailSummary = {
   maxEstimatedCostEur: number;
 };
 
+export type HelpdeskEmergencyPauseSummary = {
+  id: string;
+  active: boolean;
+  scope: string | null;
+  agent_definition_id: string | null;
+  reason: string;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
 export type HelpdeskGlpiAgentSummary = {
   agentDefinitionId: string;
   ingestion: {
@@ -274,6 +317,7 @@ export type HelpdeskGlpiAgentSummary = {
     perRun: HelpdeskRunGuardrailSummary | null;
     daily: HelpdeskDailyUsageSummary | null;
   };
+  emergencyPause: HelpdeskEmergencyPauseSummary | null;
   evaluation: {
     windowStart: string;
     windowEnd: string;
@@ -691,6 +735,11 @@ export class AiAgentWorkQueueService {
           saved_filter: { enabled: false },
           all_matching: { enabled: false },
           freeform_live_object_ids: false,
+          knowledge_sources: {
+            knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+            web: { enabled: false },
+            precedence: 'knowledge_first',
+          },
         },
         queue_policy_json: {
           enabled: true,
@@ -717,6 +766,18 @@ export class AiAgentWorkQueueService {
           create_pending_evaluation: true,
           feedback_required_for_autonomy_promotion: true,
         },
+        persona_json: {
+          mission: 'Triage GLPI helpdesk tickets, gather supporting KANAP knowledge, and prepare safe follow-up proposals for review.',
+          tone: 'Clear, concise, and support-oriented.',
+          instructions: [
+            'Prefer internal notes when evidence is incomplete or the next step needs analyst review.',
+            'Prepare requester replies only when a newer requester message needs a direct response.',
+            'Do not broaden capabilities or execute writes from persona instructions.',
+          ],
+          escalation_text: 'Escalate to a human operator when the request is ambiguous, high-impact, or lacks reliable evidence.',
+        },
+        config_version: 1,
+        updated_by_user_id: null,
         metadata_json: {
           product_owned: true,
           phase: 11,
@@ -726,7 +787,7 @@ export class AiAgentWorkQueueService {
         created_at: new Date(),
         updated_at: new Date(),
       }));
-    } else {
+    } else if (!isRecord(definition.metadata_json) || definition.metadata_json.user_modified !== true) {
       const currentTriggerPolicy = policyObject(definition.trigger_policy_json);
       const currentScopePolicy = policyObject(definition.scope_policy_json);
       const currentQueuePolicy = policyObject(definition.queue_policy_json);
@@ -905,9 +966,9 @@ export class AiAgentWorkQueueService {
       throw new ForbiddenException('Helpdesk GLPI triage scope must target GLPI tickets.');
     }
     if (hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
-      this.resolveNewTicketsIngestionConfig(definition);
+      this.resolveScopeIngestionConfig(definition);
     } else if (triggerPolicy.production_polling_enabled === true) {
-      throw new ForbiddenException('Production polling requires the bounded new_tickets_only scheduled poll trigger.');
+      throw new ForbiddenException('Production polling requires a bounded scheduled-poll scope.');
     }
 
     const allowed = capabilityNames(definition.allowed_capabilities_json);
@@ -987,13 +1048,97 @@ export class AiAgentWorkQueueService {
 
     return {
       enabled: true,
+      mode: 'new_tickets_only',
       enabledAt,
       createdAfter,
+      lastChangedBefore: null,
       entityId,
       categoryId,
       maxTicketsPerCycle,
       maxProviderRequestsPerCycle,
     };
+  }
+
+  // Resolve the configured ticket-selection scope for an agent. new_tickets_only
+  // delegates to the bounded new-ticket resolver; all_open / agent_involved are
+  // bounded (open-status or agent-touched + per-cycle/daily caps + an optional
+  // last-changed window aligned to the stale-closure threshold) — never the
+  // forbidden unbounded all_matching.
+  resolveScopeIngestionConfig(definition: AiAgentDefinition): HelpdeskNewTicketsIngestionConfig {
+    const scopePolicy = policyObject(definition.scope_policy_json);
+    const mode = stringFromPolicy(scopePolicy.mode) ?? 'new_tickets_only';
+    if (mode === 'new_tickets_only' || mode === 'manual_safe_target') {
+      return this.resolveNewTicketsIngestionConfig(definition);
+    }
+    if (mode !== 'all_open' && mode !== 'agent_involved') {
+      throw new ForbiddenException(`Unsupported agent scope mode: ${mode}.`);
+    }
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
+      throw new ForbiddenException('Automatic GLPI ticket watching is turned off. Enable it in the agent settings.');
+    }
+    if (triggerPolicy.automatic_writes_enabled === true) {
+      throw new ForbiddenException('Helpdesk GLPI ingestion cannot run with automatic writes enabled.');
+    }
+    if (hasEnabledFlag(scopePolicy, 'all_matching') || scopePolicy.freeform_live_object_ids === true) {
+      throw new ForbiddenException('Helpdesk GLPI ingestion requires a bounded scope.');
+    }
+    const block = nestedPolicy(scopePolicy, mode);
+    if (block.enabled !== true) {
+      throw new ForbiddenException('This ticket-selection mode is not configured. Enable it in the agent settings.');
+    }
+    const enabledAt = isoFromPolicy(block.enabled_at) ?? new Date().toISOString();
+    const entityId = stringFromPolicy(block.entity_id ?? block.entityId);
+    const categoryId = stringFromPolicy(block.category_id ?? block.categoryId);
+    const maxTicketsPerCycle = numberPolicyOrNull(block.max_tickets_per_cycle, 1, 20);
+    const maxProviderRequestsPerCycle = numberPolicyOrNull(block.max_provider_requests_per_cycle, 1, 100);
+    if (!maxTicketsPerCycle || !maxProviderRequestsPerCycle) {
+      throw new ForbiddenException('This ticket-selection mode requires explicit per-cycle ticket and provider-request limits.');
+    }
+    if (!runGuardrailsFromDefinition(definition) || !dailyGuardrailCapsFromDefinition(definition)) {
+      throw new ForbiddenException('Helpdesk GLPI ingestion requires configured economic guardrails.');
+    }
+    // Bound the window to the stale-closure threshold when set, so the agent only
+    // pulls tickets already past the cutoff; otherwise rely on per-cycle caps +
+    // oldest-changed-first ordering.
+    const stale = readStaleClosureConfig(definition);
+    const lastChangedBefore = stale.enabled ? new Date(Date.now() - stale.stalenessMs).toISOString() : null;
+    return {
+      enabled: true,
+      mode,
+      enabledAt,
+      createdAfter: null,
+      lastChangedBefore,
+      entityId,
+      categoryId,
+      maxTicketsPerCycle,
+      maxProviderRequestsPerCycle,
+    };
+  }
+
+  // Ticket refs this agent previously acted on (agent_touched target states),
+  // oldest-updated first. Backs the `agent_involved` scope mode — control-plane
+  // state, kept out of the GLPI provider.
+  async listAgentTouchedTicketRefs(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.targetStateRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: definition.id,
+        provider_kind: 'ticketing',
+        provider_key: 'glpi',
+        target_type: 'ticket',
+        agent_touched: true,
+      },
+      order: { updated_at: 'ASC' },
+      take: Math.max(1, Math.min(Math.floor(limit), 20)),
+    });
+    return rows
+      .map((row) => row.target_ref)
+      .filter((ref): ref is string => typeof ref === 'string' && ref.trim().length > 0);
   }
 
   runGuardrails(definition: AiAgentDefinition): HelpdeskRunGuardrailSummary {
@@ -1130,7 +1275,7 @@ export class AiAgentWorkQueueService {
     let effectiveCreatedAfter: string | null = null;
     try {
       this.assertHelpdeskGlpiDefinitionRunnable(definition, null);
-      const config = this.resolveNewTicketsIngestionConfig(definition);
+      const config = this.resolveScopeIngestionConfig(definition);
       effectiveCreatedAfter = config.createdAfter;
     } catch (error) {
       ready = false;
@@ -1229,6 +1374,33 @@ export class AiAgentWorkQueueService {
       return null;
     }
     return workItem;
+  }
+
+  async resolveWaitingApprovalForActionRequest(
+    context: AiExecutionContextWithManager,
+    actionRequestId: string,
+  ): Promise<AiAgentWorkItem | null> {
+    const action = await this.actionRepo(context).findOne({
+      where: {
+        tenant_id: context.tenantId,
+        id: actionRequestId,
+      },
+    });
+    const metadata = action && isRecord(action.metadata_json) ? action.metadata_json : {};
+    const workItemId = typeof metadata.agent_work_item_id === 'string' ? metadata.agent_work_item_id : null;
+    if (!workItemId) {
+      return null;
+    }
+    const workItem = await this.workItemRepo(context).findOne({
+      where: {
+        tenant_id: context.tenantId,
+        id: workItemId,
+      },
+    });
+    if (!workItem) {
+      return null;
+    }
+    return this.refreshResolvedWaitingApproval(context, workItem);
   }
 
   private async findActiveWorkItem(
@@ -1340,7 +1512,7 @@ export class AiAgentWorkQueueService {
     },
   ): Promise<{ workItem: AiAgentWorkItem; created: boolean }> {
     this.assertHelpdeskGlpiDefinitionRunnable(input.definition, null);
-    this.resolveNewTicketsIngestionConfig(input.definition);
+    this.resolveScopeIngestionConfig(input.definition);
     const targetRef = normalizedTargetRef(input.ticket.id);
     const dedupKey = this.workItemDedupKey({
       agentDefinitionId: input.definition.id,
@@ -1657,7 +1829,8 @@ export class AiAgentWorkQueueService {
       },
     });
 
-    const workItem = uniqueActionIds.length > 0
+    const hasActivePendingActions = actions.some(activePendingAction);
+    const workItem = hasActivePendingActions
       ? await this.markWaitingApproval(context, input.workItem, {
         runId: input.runId,
         actionRequestIds: uniqueActionIds,
@@ -1704,13 +1877,20 @@ export class AiAgentWorkQueueService {
     }));
   }
 
-  async hasActiveEmergencyPause(context: AiExecutionContextWithManager): Promise<AiEmergencyPause | null> {
-    const pauses = await this.pauseRepo(context).find({
-      where: {
-        tenant_id: context.tenantId,
-        active: true,
-      },
-    });
+  async hasActiveEmergencyPause(
+    context: AiExecutionContextWithManager,
+    agentDefinitionId: string | null = null,
+  ): Promise<AiEmergencyPause | null> {
+    const query = this.pauseRepo(context).createQueryBuilder('pause')
+      .where('(pause.tenant_id = :tenantId OR pause.tenant_id IS NULL)', { tenantId: context.tenantId })
+      .andWhere('pause.active = true')
+      .orderBy('pause.created_at', 'DESC');
+    if (agentDefinitionId) {
+      query.andWhere('(pause.agent_definition_id IS NULL OR pause.agent_definition_id = :agentDefinitionId)', { agentDefinitionId });
+    } else {
+      query.andWhere('pause.agent_definition_id IS NULL');
+    }
+    const pauses = await query.getMany();
     const now = Date.now();
     return pauses.find((pause) => {
       const expiresAt = dateFromUnknown(pause.expires_at);
@@ -1811,6 +1991,19 @@ export class AiAgentWorkQueueService {
     definition: AiAgentDefinition,
     now = new Date(),
   ): Promise<HelpdeskGlpiAgentSummary['evaluation']> {
+    return this.computeHelpdeskEvaluation(context, [definition.id], now);
+  }
+
+  // Pooled evaluation metrics across one or more agent definitions. Per-agent
+  // callers pass a single id; the fleet header passes every helpdesk agent id so
+  // acceptance and cost-per-ticket are pooled from raw data, not averaged ratios.
+  private async computeHelpdeskEvaluation(
+    context: AiExecutionContextWithManager,
+    definitionIds: string[],
+    now = new Date(),
+  ): Promise<HelpdeskGlpiAgentSummary['evaluation']> {
+    const idSet = new Set(definitionIds);
+    const inScope = (id: string | null): boolean => id != null && idSet.has(id);
     const windowEnd = now;
     const windowStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const [actions, runs, targetStates] = await Promise.all([
@@ -1826,16 +2019,18 @@ export class AiAgentWorkQueueService {
           tenant_id: context.tenantId,
         },
       }),
-      this.targetStateRepo(context).find({
-        where: {
-          tenant_id: context.tenantId,
-          agent_definition_id: definition.id,
-        },
-      }),
+      definitionIds.length > 0
+        ? this.targetStateRepo(context).find({
+          where: {
+            tenant_id: context.tenantId,
+            agent_definition_id: In(definitionIds),
+          },
+        })
+        : Promise.resolve([]),
     ]);
     const relevantActions = actions.filter((action) =>
       HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name)
-      && definitionIdFromMetadata(action.metadata_json) === definition.id
+      && inScope(definitionIdFromMetadata(action.metadata_json))
       && isWithinWindow(action.created_at, windowStart, windowEnd),
     );
     const proposalsByActionClass: Record<string, number> = {};
@@ -1864,7 +2059,7 @@ export class AiAgentWorkQueueService {
     }
 
     const relevantRuns = runs.filter((run) =>
-      definitionIdFromMetadata(run.metadata_json) === definition.id
+      inScope(definitionIdFromMetadata(run.metadata_json))
       && isWithinWindow(run.created_at ?? run.started_at, windowStart, windowEnd),
     );
     const usage = { tokens: 0, cost: 0 };
@@ -1904,21 +2099,32 @@ export class AiAgentWorkQueueService {
   ): Promise<HelpdeskGlpiAgentSummary> {
     let ingestionConfig: HelpdeskNewTicketsIngestionConfig | null = null;
     try {
-      ingestionConfig = this.resolveNewTicketsIngestionConfig(definition);
+      ingestionConfig = this.resolveScopeIngestionConfig(definition);
     } catch {
       ingestionConfig = null;
     }
     const ingestionState = policyObject(policyObject(definition.metadata_json).helpdesk_ingestion_state);
+    const metadataPauseReason = stringFromPolicy(ingestionState.reason);
+    const activePause = await this.hasActiveEmergencyPause(context, definition.id);
     const daily = dailyGuardrailCapsFromDefinition(definition)
       ? await this.dailyUsageSummary(context, definition)
       : null;
+    const emergencyPause = activePause ? {
+      id: activePause.id,
+      active: activePause.active,
+      scope: activePause.scope ?? null,
+      agent_definition_id: activePause.agent_definition_id ?? null,
+      reason: activePause.reason,
+      created_at: activePause.created_at ? new Date(activePause.created_at).toISOString() : null,
+      expires_at: activePause.expires_at ? new Date(activePause.expires_at).toISOString() : null,
+    } : null;
     return {
       agentDefinitionId: definition.id,
       ingestion: {
         enabled: !!ingestionConfig,
         mode: ingestionConfig ? 'new_tickets_only' : 'disabled',
-        paused: stringFromPolicy(ingestionState.status) === 'paused',
-        pauseReason: stringFromPolicy(ingestionState.reason),
+        paused: stringFromPolicy(ingestionState.status) === 'paused' || !!emergencyPause,
+        pauseReason: emergencyPause?.reason ?? metadataPauseReason,
         enabledAt: ingestionConfig?.enabledAt ?? null,
         createdAfter: ingestionConfig?.createdAfter ?? null,
         entityId: ingestionConfig?.entityId ?? null,
@@ -1934,6 +2140,7 @@ export class AiAgentWorkQueueService {
         perRun: runGuardrailsFromDefinition(definition),
         daily,
       },
+      emergencyPause,
       evaluation: await this.helpdeskEvaluationSummary(context, definition),
     };
   }
@@ -1968,28 +2175,37 @@ export class AiAgentWorkQueueService {
       acc[item.status] = (acc[item.status] ?? 0) + 1;
       return acc;
     }, {});
-    const helpdeskDefinition = definitions.find((definition) => definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY) ?? null;
-    const auditEvents = helpdeskDefinition
-      ? (await this.auditRepo(context).find({
-        where: {
-          tenant_id: context.tenantId,
-          agent_definition_id: helpdeskDefinition.id,
-        },
-      }))
-        .sort((left, right) => {
-          const leftTime = left.created_at instanceof Date ? left.created_at.getTime() : Date.parse(String(left.created_at ?? ''));
-          const rightTime = right.created_at instanceof Date ? right.created_at.getTime() : Date.parse(String(right.created_at ?? ''));
-          return rightTime - leftTime;
-        })
-        .slice(0, 10)
-      : [];
+    const helpdeskDefinitions = definitions.filter((definition) => definition.agent_type === 'helpdesk');
+    const helpdeskDefinition = helpdeskDefinitions.find((definition) => definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY)
+      ?? helpdeskDefinitions[0]
+      ?? null;
+    const helpdeskDefinitionIds = helpdeskDefinitions.map((definition) => definition.id);
+    // Scope, order, and limit in SQL instead of loading every tenant audit event and
+    // filtering/sorting in memory (which scaled with total history, not the 20 returned).
+    const auditEvents = helpdeskDefinitionIds.length === 0
+      ? []
+      : await this.auditRepo(context).find({
+        where: { tenant_id: context.tenantId, agent_definition_id: In(helpdeskDefinitionIds) },
+        order: { created_at: 'DESC' },
+        take: 20,
+      });
+    const helpdeskSummaries = await Promise.all(helpdeskDefinitions.map((definition) => this.helpdeskSummary(context, definition)));
+    // Fleet header aggregate: pooled across every helpdesk agent so it represents
+    // the whole fleet, not the built-in agent's summary used as a proxy.
+    const fleet = helpdeskDefinitionIds.length > 0
+      ? await this.computeHelpdeskEvaluation(context, helpdeskDefinitionIds)
+      : null;
     return {
       definitions,
       workItems,
       targetStates,
       counts,
       helpdesk: {
-        summary: helpdeskDefinition ? await this.helpdeskSummary(context, helpdeskDefinition) : null,
+        summary: helpdeskDefinition
+          ? helpdeskSummaries.find((summary) => summary.agentDefinitionId === helpdeskDefinition.id) ?? null
+          : null,
+        summaries: helpdeskSummaries,
+        fleet,
         auditEvents,
       },
     };
@@ -2001,6 +2217,8 @@ export class AiAgentWorkQueueService {
       agent_key: definition.agent_key,
       agent_type: definition.agent_type,
       agent_environment: definition.environment,
+      agent_config_version: definition.config_version ?? 1,
+      agent_updated_by_user_id: definition.updated_by_user_id ?? null,
       agent_work_item_id: workItem.id,
       agent_work_kind: workItem.work_kind,
       agent_work_status: workItem.status,

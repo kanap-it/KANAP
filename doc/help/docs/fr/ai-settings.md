@@ -58,8 +58,7 @@ La section Fonctionnalités active ou désactive les surfaces optionnelles de Pl
 
 - **Activer le chat** -- active ou désactive l'espace de travail de chat dans l'application pour les utilisateurs finaux
 - **Activer MCP** -- active ou désactive l'API MCP pour les clients externes
-- **Recherche web** -- permet à Plaid d'effectuer des recherches sur le web (nécessite que `BRAVE_SEARCH_API_KEY` soit configuré au niveau de l'instance ; sinon le bouton est désactivé avec une infobulle). Activer le bouton lance automatiquement un test de connectivité.
-- **Enrichissement web** -- permet à Plaid de compléter une recherche en récupérant des pages pour un contexte plus riche. Disponible uniquement lorsque la recherche web est activée.
+- **Recherche web** -- permet à l'assistant de chat Plaid d'effectuer des recherches sur le web (nécessite que `BRAVE_SEARCH_API_KEY` soit configuré au niveau de l'instance ; sinon le bouton est désactivé avec une infobulle). Activer le bouton lance automatiquement un test de connectivité. Ce paramètre s'applique uniquement à l'assistant de chat -- les agents IA disposent de leur propre paramètre de recherche web indépendant, dans l'onglet **Paramètres** de chaque agent au sein de l'espace Agents IA, qui s'appuie sur la même configuration de recherche web au niveau de l'instance.
 
 ## Rétention
 

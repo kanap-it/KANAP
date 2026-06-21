@@ -360,6 +360,49 @@ export class AiPolicyService {
     await this.assertUserPermission(context.userId, 'ai_settings', 'admin', manager);
   }
 
+  private async assertAgentAccess(
+    context: AiPolicyAccessContext,
+    manager: EntityManager,
+    minimumLevel: PermissionLevel,
+  ): Promise<void> {
+    this.assertPlatformHostAllowed(context);
+
+    if (!Features.AI_SETTINGS_ENABLED) {
+      throwFeatureDisabled('ai_settings');
+    }
+
+    await this.assertTenantAvailable(context.tenantId, manager);
+    const state = await this.getEffectivePermissionState(context.userId, manager);
+    if (this.hasPermission(state, 'ai_settings', 'admin')) {
+      return;
+    }
+    if (this.hasPermission(state, 'ai_agents', minimumLevel)) {
+      return;
+    }
+    throw new ForbiddenException(`Missing required permission ai_agents:${minimumLevel}.`);
+  }
+
+  async assertAgentRead(
+    context: AiPolicyAccessContext,
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.assertAgentAccess(context, manager, 'reader');
+  }
+
+  async assertAgentOperate(
+    context: AiPolicyAccessContext,
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.assertAgentAccess(context, manager, 'contributor');
+  }
+
+  async assertAgentAdmin(
+    context: AiPolicyAccessContext,
+    manager: EntityManager,
+  ): Promise<void> {
+    await this.assertAgentAccess(context, manager, 'admin');
+  }
+
   async assertKnowledgeReadAccess(context: AiExecutionContext, manager: EntityManager): Promise<void> {
     await this.assertSurfaceAccess(context, manager);
     await this.assertUserPermission(context.userId, 'knowledge', 'reader', manager);

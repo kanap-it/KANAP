@@ -4279,9 +4279,9 @@ async function testAiConversationRetentionArchivesAndPurgesOldConversations() {
     await setCurrentTenant(runner, tenantA);
     await runner.query(
       `INSERT INTO ai_settings (
-         tenant_id, chat_enabled, mcp_enabled, conversation_retention_days, web_enrichment_enabled, created_at, updated_at
+         tenant_id, chat_enabled, mcp_enabled, conversation_retention_days, created_at, updated_at
        )
-       VALUES ($1, false, false, 7, false, now(), now())`,
+       VALUES ($1, false, false, 7, now(), now())`,
       [tenantA],
     );
     await runner.query(

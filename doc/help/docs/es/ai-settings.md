@@ -58,8 +58,7 @@ La sección Funcionalidades alterna las superficies opcionales de Plaid:
 
 - **Habilitar chat** — activa o desactiva el espacio de trabajo del chat dentro de la app para los usuarios finales
 - **Habilitar MCP** — activa o desactiva la API MCP para clientes externos
-- **Búsqueda web** — permite a Plaid buscar en la web (requiere que `BRAVE_SEARCH_API_KEY` esté configurada a nivel de instancia; el conmutador está deshabilitado y con tooltip de lo contrario). Activar el conmutador ejecuta automáticamente una prueba de conectividad.
-- **Enriquecimiento web** — permite a Plaid hacer un seguimiento de una búsqueda recuperando páginas para un contexto más rico. Solo disponible cuando la búsqueda web está habilitada.
+- **Búsqueda web** — permite al asistente de chat Plaid buscar en la web (requiere que `BRAVE_SEARCH_API_KEY` esté configurada a nivel de instancia; el conmutador está deshabilitado y con tooltip de lo contrario). Activar el conmutador ejecuta automáticamente una prueba de conectividad. Este ajuste se aplica solo al asistente de chat: los agentes de IA tienen su propio ajuste de búsqueda web independiente, en la pestaña **Configuración** de cada agente dentro del espacio Agentes de IA, que se basa en la misma configuración de búsqueda web a nivel de instancia.
 
 ## Retención
 

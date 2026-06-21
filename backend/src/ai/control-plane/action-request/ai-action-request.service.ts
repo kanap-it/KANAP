@@ -62,6 +62,16 @@ function isRetryableTerminalProviderAction(action: AiActionRequest, seed: Provid
   return providerActionRetryableStatuses(seed).has(action.status);
 }
 
+function providerActionIsExpired(action: AiActionRequest, now = Date.now()): boolean {
+  if (action.status !== 'pending' || !action.expires_at) {
+    return false;
+  }
+  const expiresAt = action.expires_at instanceof Date
+    ? action.expires_at.getTime()
+    : Date.parse(String(action.expires_at));
+  return Number.isFinite(expiresAt) && expiresAt <= now;
+}
+
 function isMutationPreviewDto(value: unknown): value is AiMutationPreviewDto {
   if (!value || typeof value !== 'object') {
     return false;
@@ -291,11 +301,19 @@ export class AiActionRequestService {
         idempotency_key: candidate.idempotencyKey,
       },
     });
+    const normalizeExpiredPending = async (action: AiActionRequest | null): Promise<AiActionRequest | null> => {
+      if (!action || !providerActionIsExpired(action)) {
+        return action;
+      }
+      action.status = 'expired';
+      action.updated_at = new Date();
+      return repo.save(action);
+    };
     let candidateSeed = seed;
-    let existing = await findExisting(candidateSeed);
+    let existing = await normalizeExpiredPending(await findExisting(candidateSeed));
     while (existing && isRetryableTerminalProviderAction(existing, candidateSeed)) {
       candidateSeed = this.retryProviderActionSeed(seed, existing);
-      existing = await findExisting(candidateSeed);
+      existing = await normalizeExpiredPending(await findExisting(candidateSeed));
     }
     if (existing) {
       return this.mergeExistingProviderAction(context, existing, candidateSeed);

@@ -20,7 +20,6 @@ export type AiSettingsView = {
   mcp_key_max_lifetime_days: number | null;
   conversation_retention_days: number | null;
   web_search_enabled: boolean;
-  web_enrichment_enabled: boolean;
   glpi_enabled: boolean;
   glpi_url: string | null;
   has_glpi_user_token: boolean;
@@ -44,7 +43,6 @@ export type UpdateAiSettingsInput = {
   mcp_key_max_lifetime_days?: number | null;
   conversation_retention_days?: number | null;
   web_search_enabled?: boolean;
-  web_enrichment_enabled?: boolean;
   glpi_enabled?: boolean;
   glpi_url?: string | null;
   glpi_user_token?: string | null;
@@ -162,7 +160,6 @@ export class AiSettingsService {
         mcp_enabled: false,
         provider_source: Features.SINGLE_TENANT ? 'custom' : 'builtin',
         web_search_enabled: false,
-        web_enrichment_enabled: false,
         glpi_enabled: false,
         glpi_url: null,
       }));
@@ -259,12 +256,6 @@ export class AiSettingsService {
         throw new BadRequestException('Web search cannot be enabled: BRAVE_SEARCH_API_KEY is not configured.');
       }
       settings.web_search_enabled = wantEnabled;
-      if (!wantEnabled) {
-        settings.web_enrichment_enabled = false;
-      }
-    }
-    if (Object.prototype.hasOwnProperty.call(input, 'web_enrichment_enabled')) {
-      settings.web_enrichment_enabled = input.web_enrichment_enabled === true;
     }
     if (Object.prototype.hasOwnProperty.call(input, 'glpi_enabled')) {
       settings.glpi_enabled = input.glpi_enabled === true;
@@ -279,10 +270,6 @@ export class AiSettingsService {
     if (Object.prototype.hasOwnProperty.call(input, 'glpi_app_token')) {
       const raw = normalizeNullableString(input.glpi_app_token);
       settings.glpi_app_token_encrypted = raw ? this.cipher.encrypt(raw) : null;
-    }
-
-    if (settings.web_enrichment_enabled && !settings.web_search_enabled) {
-      throw new BadRequestException('Web enrichment requires web search to be enabled.');
     }
 
     const glpiConfigTouched = [
@@ -348,7 +335,6 @@ export class AiSettingsService {
       mcp_key_max_lifetime_days: normalized.mcp_key_max_lifetime_days,
       conversation_retention_days: normalized.conversation_retention_days,
       web_search_enabled: normalized.web_search_enabled,
-      web_enrichment_enabled: normalized.web_enrichment_enabled,
       glpi_enabled: normalized.glpi_enabled,
       glpi_url: normalized.glpi_url,
       has_glpi_user_token: !!normalized.glpi_user_token_encrypted,

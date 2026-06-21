@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -26,6 +27,10 @@ import {
   AgentControlGlpiReadInput,
   AgentControlGlpiTriageInput,
   AgentControlMockTriageInput,
+  AgentControlActivityType,
+  AgentControlAgentDefinitionInput,
+  AgentControlAgentStatusInput,
+  AgentControlAutonomyInput,
   AiAgentControlService,
 } from './ai-agent-control.service';
 
@@ -35,6 +40,24 @@ function parseLimit(value: unknown, fallback: number): number {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.floor(parsed);
 }
+
+function parseActivityTypes(value: unknown): AgentControlActivityType[] | null {
+  if (typeof value !== 'string' && !Array.isArray(value)) return null;
+  const rawValues = Array.isArray(value) ? value : value.split(',');
+  const allowed = new Set(['proposal', 'decision', 'execution', 'configuration', 'pause', 'error']);
+  const parsed = rawValues
+    .map((entry) => String(entry).trim())
+    .filter((entry): entry is AgentControlActivityType => allowed.has(entry));
+  return parsed.length > 0 ? Array.from(new Set(parsed)) : null;
+}
+
+type AgentControlAccess = 'read' | 'operate' | 'admin';
+type EmergencyPauseBody = {
+  scope?: 'tenant' | 'agent' | null;
+  agent_definition_id?: string | null;
+  reason?: string;
+  expires_in_minutes?: number | null;
+};
 
 @Controller('ai/admin/control-plane')
 @UseGuards(JwtAuthGuard)
@@ -69,28 +92,118 @@ export class AiAgentControlController {
   private async runRead<T>(
     context: AiExecutionContext,
     fn: (context: AiExecutionContextWithManager) => Promise<T>,
+    access: AgentControlAccess = 'read',
   ): Promise<T> {
     return this.tenantExecutor.run(
       context.tenantId,
       async (manager) => {
-        await this.policy.assertSettingsAccess(context, manager);
+        await this.assertAccess(context, manager, access);
         return fn({ ...context, manager });
       },
       { transaction: false },
     );
   }
 
-  private async runWrite<T>(
+  private async runTransaction<T>(
     context: AiExecutionContext,
+    access: AgentControlAccess,
     fn: (context: AiExecutionContextWithManager) => Promise<T>,
   ): Promise<T> {
     return this.tenantExecutor.run(
       context.tenantId,
       async (manager) => {
-        await this.policy.assertSettingsAccess(context, manager);
+        await this.assertAccess(context, manager, access);
         return fn({ ...context, manager });
       },
     );
+  }
+
+  private async assertAccess(
+    context: AiExecutionContext,
+    manager: AiExecutionContextWithManager['manager'],
+    access: AgentControlAccess,
+  ): Promise<void> {
+    if (access === 'admin') {
+      await this.policy.assertAgentAdmin(context, manager);
+      return;
+    }
+    if (access === 'operate') {
+      await this.policy.assertAgentOperate(context, manager);
+      return;
+    }
+    await this.policy.assertAgentRead(context, manager);
+  }
+
+  @Get('agents')
+  async listAgents(@Req() req: any) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.listAgentDefinitions(tenantContext));
+  }
+
+  @Post('agents')
+  async createAgent(
+    @Req() req: any,
+    @Body() body: AgentControlAgentDefinitionInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.createAgentDefinition(tenantContext, body ?? {}));
+  }
+
+  @Get('agents/:id/autonomy')
+  async getAgentAutonomy(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.getAgentAutonomy(tenantContext, id));
+  }
+
+  @Post('agents/:id/autonomy')
+  async setAgentAutonomy(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: AgentControlAutonomyInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.setAgentAutonomy(tenantContext, id, body ?? {}));
+  }
+
+  @Get('agents/:id')
+  async getAgent(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.getAgentDefinition(tenantContext, id));
+  }
+
+  @Post('agents/:id')
+  async updateAgent(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: AgentControlAgentDefinitionInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.updateAgentDefinition(tenantContext, id, body ?? {}));
+  }
+
+  @Post('agents/:id/status')
+  async updateAgentStatus(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: AgentControlAgentStatusInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.updateAgentStatus(tenantContext, id, body ?? {}));
+  }
+
+  @Delete('agents/:id')
+  async deleteAgentDefinition(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.deleteAgentDefinition(tenantContext, id));
   }
 
   @Get('runs')
@@ -128,6 +241,52 @@ export class AiAgentControlController {
     }));
   }
 
+  @Get('badges')
+  async getBadges(@Req() req: any) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.getBadges(tenantContext));
+  }
+
+  @Get('activity')
+  async listActivity(
+    @Req() req: any,
+    @Query('agentDefinitionId') agentDefinitionId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('targetRef') targetRef?: string,
+    @Query('types') types?: string | string[],
+    @Query('actorUserId') actorUserId?: string,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.listActivity(tenantContext, {
+      agentDefinitionId: agentDefinitionId ?? null,
+      from: from ?? null,
+      to: to ?? null,
+      targetRef: targetRef ?? null,
+      types: parseActivityTypes(types),
+      actorUserId: actorUserId ?? null,
+      status: status ?? null,
+      limit: parseLimit(limit, 50),
+      offset: parseLimit(offset, 0),
+    }));
+  }
+
+  @Get('helpdesk/evaluation/daily')
+  async getHelpdeskEvaluationDaily(
+    @Req() req: any,
+    @Query('days') days?: string,
+    @Query('agentDefinitionId') agentDefinitionId?: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.getHelpdeskEvaluationDaily(tenantContext, {
+      days: parseLimit(days, 30),
+      agentDefinitionId: agentDefinitionId ?? undefined,
+    }));
+  }
+
   @Get('queue')
   async getQueueOverview(
     @Req() req: any,
@@ -139,13 +298,31 @@ export class AiAgentControlController {
     }));
   }
 
+  @Post('emergency-pause')
+  async createEmergencyPause(
+    @Req() req: any,
+    @Body() body: EmergencyPauseBody = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.createEmergencyPauseForScope(context, body);
+  }
+
+  @Post('emergency-pause/:id/revoke')
+  async revokeEmergencyPause(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.revokeEmergencyPauseByScope(context, id);
+  }
+
   @Get('queue/work-items/:id/helpdesk-context')
   async getHelpdeskWorkItemContext(
     @Req() req: any,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.control.getHelpdeskWorkItemContext(tenantContext, id));
+    return this.runRead(context, (tenantContext) => this.control.getHelpdeskWorkItemContext(tenantContext, id));
   }
 
   @Post('uat/mock-triage')
@@ -154,7 +331,7 @@ export class AiAgentControlController {
     @Body() body: AgentControlMockTriageInput = {},
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.control.runMockTriage(tenantContext, body ?? {}));
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runMockTriage(tenantContext, body ?? {}));
   }
 
   @Get('uat/glpi-read/targets')
@@ -171,7 +348,7 @@ export class AiAgentControlController {
     @Body() body: AgentControlGlpiReadInput = {},
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.control.runGlpiRead(tenantContext, body ?? {}));
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runGlpiRead(tenantContext, body ?? {}));
   }
 
   @Post('uat/glpi-triage')
@@ -180,7 +357,7 @@ export class AiAgentControlController {
     @Body() body: AgentControlGlpiTriageInput = {},
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.control.runGlpiTriage(tenantContext, body ?? {}));
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runGlpiTriage(tenantContext, body ?? {}));
   }
 
   @Post('helpdesk/glpi-ingestion/poll')
@@ -188,7 +365,7 @@ export class AiAgentControlController {
     @Req() req: any,
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.glpiIngestion.pollTenant(tenantContext));
+    return this.runTransaction(context, 'operate', (tenantContext) => this.glpiIngestion.pollTenant(tenantContext));
   }
 
   @Get('helpdesk/glpi-ingestion/settings')
@@ -196,7 +373,7 @@ export class AiAgentControlController {
     @Req() req: any,
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, async (tenantContext) => {
+    return this.runRead(context, async (tenantContext) => {
       const settings = await this.workQueue.getHelpdeskGlpiIngestionSettings(tenantContext);
       const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
       return { ...settings, emergency_pause: this.pauseView(activePause) };
@@ -209,7 +386,7 @@ export class AiAgentControlController {
     @Body() body: HelpdeskGlpiIngestionSettingsInput,
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, async (tenantContext) => {
+    return this.runTransaction(context, 'admin', async (tenantContext) => {
       const settings = await this.workQueue.updateHelpdeskGlpiIngestionSettings(tenantContext, body);
       const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
       return { ...settings, emergency_pause: this.pauseView(activePause) };
@@ -219,9 +396,17 @@ export class AiAgentControlController {
   @Post('helpdesk/emergency-pause')
   async createHelpdeskEmergencyPause(
     @Req() req: any,
-    @Body() body: { reason?: string; expires_in_minutes?: number | null } = {},
+    @Body() body: EmergencyPauseBody = {},
   ) {
     const context = this.buildContext(req);
+    return this.createEmergencyPauseForScope(context, { ...body, scope: 'tenant' });
+  }
+
+  private async createEmergencyPauseForScope(
+    context: AiExecutionContext,
+    body: EmergencyPauseBody,
+  ) {
+    const scope = body?.scope === 'agent' ? 'agent' : 'tenant';
     const reason = typeof body?.reason === 'string' ? body.reason.trim() : '';
     if (!reason) {
       throw new ForbiddenException('An emergency pause requires an explicit reason.');
@@ -230,13 +415,22 @@ export class AiAgentControlController {
       && Number.isFinite(body.expires_in_minutes) && body.expires_in_minutes > 0
       ? Math.min(Math.floor(body.expires_in_minutes), 7 * 24 * 60)
       : null;
-    return this.runWrite(context, async (tenantContext) => {
+    const agentDefinitionId = scope === 'agent' ? (body?.agent_definition_id ?? null) : null;
+    return this.runTransaction(context, scope === 'agent' ? 'operate' : 'admin', async (tenantContext) => {
       const pause = await this.emergencyPause.createPause(tenantContext, {
-        scope: 'tenant',
+        scope,
+        agentDefinitionId,
         reason,
         expiresAt: expiresInMinutes ? new Date(Date.now() + expiresInMinutes * 60_000) : null,
       });
-      await this.recordPauseAudit(tenantContext, 'emergency_pause_created', `Tenant emergency pause activated: ${reason}`, pause.id);
+      const label = scope === 'agent' ? 'Agent emergency pause' : 'Tenant emergency pause';
+      await this.recordPauseAudit(
+        tenantContext,
+        'emergency_pause_created',
+        `${label} activated: ${reason}`,
+        pause.id,
+        pause.agent_definition_id ?? null,
+      );
       return this.pauseView(pause);
     });
   }
@@ -247,20 +441,51 @@ export class AiAgentControlController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, async (tenantContext) => {
+    return this.revokeEmergencyPauseByScope(context, id);
+  }
+
+  private async revokeEmergencyPauseByScope(
+    context: AiExecutionContext,
+    id: string,
+  ) {
+    return this.runTransaction(context, 'operate', async (tenantContext) => {
+      const existing = await this.emergencyPause.getPause(tenantContext, id);
+      if (!existing) {
+        throw new ForbiddenException('Emergency pause not found.');
+      }
+      if (existing.scope !== 'agent') {
+        await this.policy.assertAgentAdmin(tenantContext, tenantContext.manager);
+      }
       const pause = await this.emergencyPause.revokePause(tenantContext, id);
-      await this.recordPauseAudit(tenantContext, 'emergency_pause_revoked', `Tenant emergency pause lifted: ${pause.reason}`, pause.id);
+      const label = pause.scope === 'agent' ? 'Agent emergency pause' : 'Tenant emergency pause';
+      await this.recordPauseAudit(
+        tenantContext,
+        'emergency_pause_revoked',
+        `${label} lifted: ${pause.reason}`,
+        pause.id,
+        pause.agent_definition_id ?? null,
+      );
       return this.pauseView(pause);
     });
   }
 
-  private pauseView(pause: { id: string; active: boolean; reason: string; created_at?: Date | null; expires_at?: Date | null } | null) {
+  private pauseView(pause: {
+    id: string;
+    active: boolean;
+    reason: string;
+    scope?: string | null;
+    agent_definition_id?: string | null;
+    created_at?: Date | null;
+    expires_at?: Date | null;
+  } | null) {
     if (!pause) {
       return null;
     }
     return {
       id: pause.id,
       active: pause.active,
+      scope: pause.scope ?? null,
+      agent_definition_id: pause.agent_definition_id ?? null,
       reason: pause.reason,
       created_at: pause.created_at ? new Date(pause.created_at).toISOString() : null,
       expires_at: pause.expires_at ? new Date(pause.expires_at).toISOString() : null,
@@ -272,10 +497,10 @@ export class AiAgentControlController {
     eventType: 'emergency_pause_created' | 'emergency_pause_revoked',
     message: string,
     pauseId: string,
+    agentDefinitionId: string | null,
   ): Promise<void> {
-    const { definition } = await this.workQueue.ensureHelpdeskGlpiTriageDefinition(tenantContext);
     await this.workQueue.recordAuditEvent(tenantContext, {
-      agentDefinitionId: definition.id,
+      agentDefinitionId,
       eventType,
       severity: 'warning',
       message,
@@ -290,7 +515,7 @@ export class AiAgentControlController {
     @Body() body: { execute?: boolean | null } = {},
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.control.approveActionRequest(tenantContext, id, {
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.approveActionRequest(tenantContext, id, {
       execute: body?.execute,
     }));
   }
@@ -302,7 +527,7 @@ export class AiAgentControlController {
     @Body() body: { reason?: string | null } = {},
   ) {
     const context = this.buildContext(req);
-    return this.runWrite(context, (tenantContext) => this.control.rejectActionRequest(
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.rejectActionRequest(
       tenantContext,
       id,
       body?.reason ?? null,

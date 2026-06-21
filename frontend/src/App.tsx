@@ -97,8 +97,11 @@ import AdminBrandingPage from './pages/admin/AdminBrandingPage';
 import KnowledgePage from './pages/knowledge/KnowledgePage';
 import KnowledgeWorkspacePage from './pages/knowledge/KnowledgeWorkspacePage';
 import AiWorkspacePage from './pages/ai/AiWorkspacePage';
+import AgentsOverviewPage from './pages/agents/AgentsOverviewPage';
+import AgentsApprovalsPage from './pages/agents/AgentsApprovalsPage';
+import AgentsActivityPage from './pages/agents/AgentsActivityPage';
+import AgentWorkspacePage from './pages/agents/AgentWorkspacePage';
 import AdminAiPage from './pages/admin/AdminAiPage';
-import AgentControlCenterPage from './pages/admin/AgentControlCenterPage';
 import AdminIntegrationsPage from './pages/admin/AdminIntegrationsPage';
 import AdminPlatformAiPage from './pages/admin/AdminPlatformAiPage';
 import ScheduledTasksPage from './pages/admin/ScheduledTasksPage';
@@ -282,7 +285,8 @@ function AppRoutes() {
           {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
           {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
           <Route path="/admin/ai" element={<AdminAiPage />} />
-          <Route path="/admin/agent-control" element={<AgentControlCenterPage />} />
+          <Route path="/admin/agent-control" element={<Navigate to="/agents" replace />} />
+          <Route path="/admin/agent-control/*" element={<Navigate to="/agents" replace />} />
           <Route path="/admin/integrations" element={<AdminIntegrationsPage />} />
           {!isSingleTenant && <Route path="/admin/platform-ai" element={<AdminPlatformAiPage />} />}
           <Route path="/admin/branding" element={<AdminBrandingPage />} />
@@ -335,6 +339,11 @@ function AppRoutes() {
           <Route path="/portfolio/tasks/:id/:tab" element={<TaskWorkspacePage />} />
           {/* AI */}
           <Route path="/ai" element={<AiWorkspacePage />} />
+          {/* AI Agents */}
+          <Route path="/agents" element={<AgentsOverviewPage />} />
+          <Route path="/agents/approvals" element={<AgentsApprovalsPage />} />
+          <Route path="/agents/activity" element={<AgentsActivityPage />} />
+          <Route path="/agents/:agentKey" element={<AgentWorkspacePage />} />
           {/* Knowledge Center */}
           <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/knowledge/new" element={<KnowledgeWorkspacePage />} />

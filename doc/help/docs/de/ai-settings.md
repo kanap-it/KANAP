@@ -58,8 +58,7 @@ Der Funktionsbereich schaltet die optionalen Oberflächen von Plaid um:
 
 - **Chat aktivieren** – schaltet den In-App-Chat-Arbeitsbereich für Endbenutzer ein oder aus
 - **MCP aktivieren** – schaltet die MCP-API für externe Clients ein oder aus
-- **Websuche** – ermöglicht es Plaid, das Web zu durchsuchen (erfordert, dass der `BRAVE_SEARCH_API_KEY` auf Instanzebene konfiguriert ist; andernfalls ist der Schalter deaktiviert und mit einem Tooltip versehen). Das Aktivieren des Schalters führt automatisch einen Konnektivitätstest durch.
-- **Web-Anreicherung** – ermöglicht es Plaid, eine Suche zu vertiefen, indem Seiten für reichhaltigeren Kontext abgerufen werden. Nur verfügbar, wenn die Websuche aktiviert ist.
+- **Websuche** – ermöglicht es dem Plaid-Chat-Assistenten, das Web zu durchsuchen (erfordert, dass der `BRAVE_SEARCH_API_KEY` auf Instanzebene konfiguriert ist; andernfalls ist der Schalter deaktiviert und mit einem Tooltip versehen). Das Aktivieren des Schalters führt automatisch einen Konnektivitätstest durch. Diese Einstellung gilt nur für den Chat-Assistenten – KI-Agenten haben ihre eigene, unabhängige Websuche-Einstellung auf der Registerkarte **Einstellungen** jedes Agenten im Arbeitsbereich KI-Agenten, die auf derselben Websuche-Konfiguration auf Instanzebene beruht.
 
 ## Aufbewahrung
 

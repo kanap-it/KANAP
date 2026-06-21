@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppBar, Box, CircularProgress, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Toolbar, Typography, Tooltip, Tabs, Tab, Menu, MenuItem } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -48,6 +49,7 @@ import { useThemeMode } from '../config/ThemeContext';
 import { getDocUrl } from '../utils/docUrls';
 import SubscriptionBanner from './SubscriptionBanner';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
+import { aiAgentControlApi } from '../ai/aiApi';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../i18n/useLocale';
 import { useBusinessContributorApplicationVisibility } from '../hooks/useBusinessContributorApplicationVisibility';
@@ -58,10 +60,11 @@ type NavLevel = 'reader' | 'contributor' | 'member' | 'manager' | 'admin';
 type NavItem = { to: string; label: string; icon: React.ReactNode; resource?: string; level?: NavLevel };
 type NavDivider = { divider: string };
 type NavEntry = NavItem | NavDivider;
-type WorkspaceKey = 'ops' | 'it' | 'master-data' | 'portfolio' | 'ai' | 'knowledge' | 'admin';
+type WorkspaceKey = 'ops' | 'it' | 'master-data' | 'portfolio' | 'ai' | 'agents' | 'knowledge' | 'admin';
 
 const workspaceRoutes: Record<WorkspaceKey, string> = {
   ai: '/ai',
+  agents: '/agents',
   portfolio: '/portfolio',
   knowledge: '/knowledge',
   it: '/it',
@@ -88,6 +91,15 @@ export default function Layout() {
   const { config } = useFeatures();
   const { mode, resolvedMode, setMode } = useThemeMode();
   const aiCapabilities = useAiCapabilities();
+  const canShowAgents = config.features.aiSettings
+    && hasLevel('ai_agents', 'reader')
+    && aiCapabilities.data?.instance_features.ai_settings === true;
+  const agentBadgesQuery = useQuery({
+    queryKey: ['ai-agent-control-badges'],
+    queryFn: () => aiAgentControlApi.getBadges(),
+    enabled: canShowAgents,
+    refetchInterval: 60_000,
+  });
   const applicationVisibility = useBusinessContributorApplicationVisibility();
   const { t } = useTranslation(['nav', 'settings']);
   const locale = useLocale();
@@ -158,6 +170,20 @@ export default function Layout() {
 
   const knowledgeNav: NavEntry[] = [];
 
+  const agentsNav: NavEntry[] = [
+    { to: '/agents', label: t('nav:sidebar.agents.overview'), icon: <AutoAwesomeIcon />, resource: 'ai_agents' },
+    {
+      to: '/agents/approvals',
+      label: agentBadgesQuery.data?.pendingApprovals
+        ? t('nav:sidebar.agents.approvalsWithCount', { count: agentBadgesQuery.data.pendingApprovals })
+        : t('nav:sidebar.agents.approvals'),
+      icon: <InboxIcon />,
+      resource: 'ai_agents',
+      level: 'reader',
+    },
+    { to: '/agents/activity', label: t('nav:sidebar.agents.activity'), icon: <HistoryIcon />, resource: 'ai_agents' },
+  ];
+
   const tenantAdminNav: NavEntry[] = [
     { to: '/admin/users', label: t('nav:sidebar.admin.users'), icon: <PeopleIcon />, resource: 'users', level: 'admin' },
     { to: '/admin/roles', label: t('nav:sidebar.admin.roles'), icon: <SecurityIcon />, resource: 'users', level: 'admin' },
@@ -167,7 +193,6 @@ export default function Layout() {
     { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users', level: 'admin' },
     { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings', level: 'admin' },
     { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings', level: 'admin' },
-    { to: '/admin/agent-control', label: t('nav:sidebar.admin.agentControl'), icon: <AutoAwesomeIcon />, resource: 'ai_settings', level: 'admin' },
   ];
 
   const platformAdminNav: NavEntry[] = [
@@ -189,6 +214,9 @@ export default function Layout() {
     if (ws === 'ai') {
       if (!config.features.aiChat) return false;
       return aiCapabilities.data?.surfaces.chat.available === true;
+    }
+    if (ws === 'agents') {
+      return canShowAgents;
     }
     if (ws === 'knowledge') {
       return hasLevel('knowledge', 'reader');
@@ -217,12 +245,12 @@ export default function Layout() {
                 : [],
     );
     return resources.some(r => hasLevel(r.resource, r.level));
-  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data, hasScopedApplicationReaderAccess, shouldHideApplications]);
+  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data, canShowAgents, hasScopedApplicationReaderAccess, shouldHideApplications]);
 
   // Determine which workspaces are visible
   const visibleWorkspaces = React.useMemo(() => {
     if (isPlatformHost) return ['admin'];
-    const all = ['ai', 'portfolio', 'knowledge', 'it', 'ops', 'master-data', 'admin'] as const;
+    const all = ['ai', 'agents', 'portfolio', 'knowledge', 'it', 'ops', 'master-data', 'admin'] as const;
     return all.filter(ws => hasWorkspaceAccess(ws));
   }, [isPlatformHost, hasWorkspaceAccess]);
 
@@ -233,6 +261,7 @@ export default function Layout() {
     if (p === '/') return 'home';
     if (p.startsWith('/admin')) return 'admin';
     if (p.startsWith('/ai')) return 'ai';
+    if (p.startsWith('/agents')) return 'agents';
     if (p.startsWith('/master-data')) return 'master-data';
     if (p.startsWith('/portfolio')) return 'portfolio';
     if (p.startsWith('/knowledge')) return 'knowledge';
@@ -353,6 +382,7 @@ export default function Layout() {
               aria-label={t('nav:topBar.sectionNav')}
             >
               {visibleWorkspaces.includes('ai') && <Tab component={Link} to={workspaceRoutes.ai} value="ai" label={t('nav:workspaces.ai')} />}
+              {visibleWorkspaces.includes('agents') && <Tab component={Link} to={workspaceRoutes.agents} value="agents" label={t('nav:workspaces.agents')} />}
               {visibleWorkspaces.includes('portfolio') && <Tab component={Link} to={workspaceRoutes.portfolio} value="portfolio" label={t('nav:workspaces.portfolio')} />}
               {visibleWorkspaces.includes('it') && <Tab component={Link} to={workspaceRoutes.it} value="it" label={t('nav:workspaces.itOperations')} />}
               {visibleWorkspaces.includes('knowledge') && <Tab component={Link} to={workspaceRoutes.knowledge} value="knowledge" label={t('nav:workspaces.knowledge')} />}
@@ -432,10 +462,8 @@ export default function Layout() {
                 if (entry.to === '/admin/billing' && !config.features.billing) return false;
                 if (entry.to === '/admin/auth' && !config.features.sso) return false;
                 if (entry.to === '/admin/ai' && !config.features.aiSettings) return false;
-                if (entry.to === '/admin/agent-control' && !config.features.aiSettings) return false;
                 if (entry.to === '/admin/integrations' && !config.features.aiSettings) return false;
                 if (entry.to === '/admin/ai' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
-                if (entry.to === '/admin/agent-control' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 if (entry.to === '/admin/integrations' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 return true;
               });
@@ -450,6 +478,7 @@ export default function Layout() {
                 ops: operations,
                 'master-data': masterData,
                 it: itOperations,
+                agents: agentsNav,
                 portfolio: portfolioNav,
                 knowledge: knowledgeNav,
               };
@@ -459,7 +488,7 @@ export default function Layout() {
             // Filter items by permission (dividers pass through)
             const visible = entries.filter((entry) => {
               if (!isNavItem(entry)) return true;
-              if (entry.to === '/admin/ai' || entry.to === '/admin/integrations' || entry.to === '/admin/agent-control') {
+              if (entry.to === '/admin/ai' || entry.to === '/admin/integrations') {
                 return aiCapabilities.data?.surfaces.settings.available === true;
               }
               return !entry.resource || hasLevel(entry.resource, entry.level ?? 'reader');

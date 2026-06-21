@@ -24,7 +24,9 @@ async function testInitSessionSendsJsonHeaders() {
 
   try {
     global.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
-      capturedHeaders = new Headers(init?.headers);
+      // initSession now also calls getFullSession; capture the first (initSession) call's
+      // headers so the auth-header assertions below check the initSession request.
+      if (!capturedHeaders) capturedHeaders = new Headers(init?.headers);
       return new Response(JSON.stringify({ session_token: 'session-1' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -69,7 +71,8 @@ async function testInitSessionNormalizesApiEndpointBaseUrl() {
 
   try {
     global.fetch = (async (input: RequestInfo | URL) => {
-      requestedUrl = String(input);
+      // Capture the first (initSession) request; initSession now also calls getFullSession.
+      if (!requestedUrl) requestedUrl = String(input);
       return new Response(JSON.stringify({ session_token: 'session-1' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },

@@ -1,7 +1,24 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FindOptionsWhere, In } from 'typeorm';
+import { Features } from '../../../config/features';
 import { AiExecutionContextWithManager } from '../../ai.types';
-import { AgentQueueLiveTargetLike, AiAgentWorkQueueService, estimateAgentRunUsage } from '../agent/ai-agent-work-queue.service';
+import {
+  AGENT_AUTONOMY_POLICY_SOURCE,
+  AgentAutonomyMode,
+  actionClassForCapabilityName,
+  agentAutonomyPolicyKey,
+  approvedCapabilityForAutonomyActionClass,
+  isAgentAutonomyPolicyMetadata,
+  isLowRiskAutomationActionClass,
+  LOW_RISK_AUTOMATION_ALLOWLIST,
+} from '../agent/ai-agent-autonomy';
+import {
+  AgentQueueLiveTargetLike,
+  AiAgentWorkQueueService,
+  estimateAgentRunUsage,
+  HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
+  readStaleClosureConfig,
+} from '../agent/ai-agent-work-queue.service';
 import { AiApprovalService } from '../approval/ai-approval.service';
 import {
   CapabilityExecutionResult,
@@ -32,6 +49,7 @@ import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiAgentTargetState } from '../entities/ai-agent-target-state.entity';
 import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
 import { AiApproval } from '../entities/ai-approval.entity';
+import { AiApprovalPolicy } from '../entities/ai-approval-policy.entity';
 import { AiDecision } from '../entities/ai-decision.entity';
 import { AiEvaluation } from '../entities/ai-evaluation.entity';
 import { AiEvidence } from '../entities/ai-evidence.entity';
@@ -39,6 +57,7 @@ import { AiLiveTestTarget } from '../entities/ai-live-test-target.entity';
 import { AiObservation } from '../entities/ai-observation.entity';
 import { AiRecommendation } from '../entities/ai-recommendation.entity';
 import { AiRun } from '../entities/ai-run.entity';
+import { AiRunStep } from '../entities/ai-run-step.entity';
 import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
@@ -59,6 +78,20 @@ export type AgentControlListActionsOptions = {
   status?: string | null;
 };
 
+export type AgentControlActivityType = 'proposal' | 'decision' | 'execution' | 'configuration' | 'pause' | 'error';
+
+export type AgentControlActivityOptions = {
+  agentDefinitionId?: string | null;
+  from?: string | null;
+  to?: string | null;
+  targetRef?: string | null;
+  types?: AgentControlActivityType[] | null;
+  actorUserId?: string | null;
+  status?: string | null;
+  limit?: number;
+  offset?: number;
+};
+
 export type AgentControlMockTriageInput = {
   alert_id?: string | null;
   ticket_id?: string | null;
@@ -75,6 +108,34 @@ export type AgentControlGlpiReadInput = {
 export type AgentControlGlpiTriageInput = {
   target_key?: string | null;
   work_item_id?: string | null;
+};
+
+export type AgentControlAgentDefinitionInput = {
+  agent_key?: string | null;
+  name?: string | null;
+  description?: string | null;
+  agent_type?: string | null;
+  environment?: string | null;
+  provider_bindings_json?: Record<string, unknown> | null;
+  allowed_capabilities_json?: Record<string, unknown> | unknown[] | null;
+  forbidden_capabilities_json?: Record<string, unknown> | unknown[] | null;
+  persona_json?: Record<string, unknown> | null;
+  trigger_policy_json?: Record<string, unknown> | null;
+  scope_policy_json?: Record<string, unknown> | null;
+  knowledge_sources?: Record<string, unknown> | null;
+  queue_policy_json?: Record<string, unknown> | null;
+  response_policy_json?: Record<string, unknown> | null;
+  evaluation_policy_json?: Record<string, unknown> | null;
+};
+
+export type AgentControlAgentStatusInput = {
+  status?: string | null;
+};
+
+export type AgentControlAutonomyInput = {
+  actionClass?: string | null;
+  mode?: AgentAutonomyMode | null;
+  confirm?: boolean | null;
 };
 
 type AdapterResultLike<T> =
@@ -153,6 +214,12 @@ type KnowledgeSearchAttempt = {
   items: KnowledgeSearchItem[];
 };
 
+type WebSearchResultItem = {
+  title: string;
+  url: string;
+  description: string;
+};
+
 type MergedKnowledgeCandidate = KnowledgeSearchItem & {
   search_queries: string[];
 };
@@ -175,7 +242,54 @@ const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
   TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
 ];
-const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'expired', 'executed']);
+const AUTONOMY_ACTION_CLASSES = ['internal_note', 'classification', 'status', 'public_reply', 'assignment', 'participant'] as const;
+const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
+  ['ticketing.ticket.get', 'A1'],
+  [TICKETING_TICKET_NOTES_LIST_CAPABILITY, 'A1'],
+  [TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY, 'A1'],
+  [TICKETING_LIFECYCLE_CONTEXT_CAPABILITY, 'A1'],
+  [TICKETING_ROUTING_CONTEXT_CAPABILITY, 'A1'],
+  [TICKETING_PARTICIPANT_CONTEXT_CAPABILITY, 'A1'],
+  ['search_knowledge', 'A1'],
+  ['get_document', 'A1'],
+  [TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, 'A2'],
+  [TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, 'A2'],
+  [TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, 'A2'],
+  [TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY, 'A2'],
+  [TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY, 'A2'],
+  [TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY, 'A2'],
+  [TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, 'A3'],
+  [TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, 'A3'],
+  [TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY, 'A3'],
+  [TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY, 'A3'],
+  [TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY, 'A3'],
+  [TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, 'A3'],
+]);
+const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
+const STALE_CLOSURE_TRIAGE_ACTIONS = new Set(['prepare_stale_closure', 'prepare_stale_closure_reply']);
+
+// An identical earlier proposal only suppresses regeneration while it is still a live or
+// settled decision. A proposal that lapsed unreviewed (status left at 'pending' past its
+// expiry, or swept to 'expired') is gone from the operator's queue, so it must NOT keep
+// blocking a fresh proposal — otherwise a stale ticket, whose context hash never changes,
+// becomes permanently un-proposable after its first proposal expired.
+export function proposalStillBlocksRegeneration(action: AiActionRequest, now: number): boolean {
+  if (action.status === 'expired') {
+    return false;
+  }
+  if (!SUPPRESS_UNCHANGED_PROPOSAL_STATUSES.has(action.status)) {
+    return false;
+  }
+  if (action.status === 'pending' && action.expires_at) {
+    const expiresAt = action.expires_at instanceof Date
+      ? action.expires_at.getTime()
+      : Date.parse(String(action.expires_at));
+    if (Number.isFinite(expiresAt) && expiresAt <= now) {
+      return false;
+    }
+  }
+  return true;
+}
 
 const KNOWLEDGE_QUERY_STOP_WORDS = new Set([
   'a',
@@ -495,6 +609,43 @@ function knowledgeItemsFromOutput(value: unknown): KnowledgeSearchItem[] {
     }));
 }
 
+function stripWebText(value: string): string {
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, '\'')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function webSearchItemsFromOutput(value: unknown): WebSearchResultItem[] {
+  const record = isRecord(value) ? value : null;
+  const items = Array.isArray(record?.items) ? record.items : [];
+  const seen = new Set<string>();
+  const results: WebSearchResultItem[] = [];
+  for (const item of items.filter(isRecord)) {
+    const url = typeof item.url === 'string' ? item.url.trim() : '';
+    const title = stripWebText(typeof item.title === 'string' ? item.title : '');
+    const description = stripWebText(typeof item.description === 'string' ? item.description : '');
+    if (!url || (!title && !description)) {
+      continue;
+    }
+    const key = url.toLocaleLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    results.push({ title, url, description });
+    if (results.length >= 5) {
+      break;
+    }
+  }
+  return results;
+}
+
 function knowledgeDocumentFromOutput(searchItem: KnowledgeSearchItem, value: unknown): KnowledgeSearchItem | null {
   if (!isRecord(value)) {
     return null;
@@ -670,6 +821,288 @@ function actionIsActivePending(action: AiActionRequest, now = Date.now()): boole
   if (!action.expires_at) return true;
   const expiresAt = action.expires_at instanceof Date ? action.expires_at.getTime() : Date.parse(String(action.expires_at));
   return Number.isFinite(expiresAt) && expiresAt > now;
+}
+
+function stringFromMetadata(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function metadataObject(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function definitionIdFromMetadata(value: unknown): string | null {
+  return stringFromMetadata(metadataObject(value).agent_definition_id);
+}
+
+function actionClass(action: Pick<AiActionRequest, 'metadata_json' | 'capability_name'>): string {
+  return actionClassForCapabilityName(
+    stringFromMetadata(metadataObject(action.metadata_json).action_class) ?? action.capability_name,
+  );
+}
+
+function numericMetadata(value: unknown): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Per-agent retrieval-source policy, read from scope_policy_json.knowledge_sources.
+// Defaults preserve current behaviour: knowledge ON over all accessible libraries, web OFF.
+function readAgentKnowledgeSources(definition: AiAgentDefinition | null): {
+  knowledgeEnabled: boolean;
+  knowledgeLibraryIds: string[] | null; // null = all accessible libraries
+  webEnabled: boolean;
+} {
+  const scope = isRecord(definition?.scope_policy_json) ? definition.scope_policy_json : {};
+  const sources = isRecord(scope.knowledge_sources) ? scope.knowledge_sources : {};
+  const knowledge = isRecord(sources.knowledge) ? sources.knowledge : {};
+  const web = isRecord(sources.web) ? sources.web : {};
+  const allLibraries = knowledge.all_libraries !== false;
+  const libraryIds = Array.isArray(knowledge.library_ids)
+    ? knowledge.library_ids.filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))
+    : [];
+  return {
+    knowledgeEnabled: knowledge.enabled !== false,
+    knowledgeLibraryIds: allLibraries || libraryIds.length === 0 ? null : libraryIds,
+    webEnabled: web.enabled === true,
+  };
+}
+
+// Validate/clamp a knowledge_sources patch at write time. Library ids are UUID-checked and
+// de-duplicated here; tenant/ACL safety is additionally enforced at read time by
+// KnowledgeService.search (the configured ids are intersected with the agent user's
+// accessible libraries, never substituted for them).
+function normalizeKnowledgeSources(value: unknown): Record<string, unknown> {
+  const source = isRecord(value) ? value : {};
+  const knowledge = isRecord(source.knowledge) ? source.knowledge : {};
+  const web = isRecord(source.web) ? source.web : {};
+  const allLibraries = knowledge.all_libraries !== false;
+  const libraryIds = Array.isArray(knowledge.library_ids)
+    ? Array.from(new Set(knowledge.library_ids.filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))))
+    : [];
+  return {
+    knowledge: {
+      enabled: knowledge.enabled !== false,
+      all_libraries: allLibraries,
+      library_ids: allLibraries ? [] : libraryIds,
+    },
+    web: { enabled: web.enabled === true },
+    precedence: 'knowledge_first',
+  };
+}
+
+function addEstimatedUsage(acc: { tokens: number; cost: number }, run: AiRun): void {
+  const usage = metadataObject(run.usage_json);
+  const cost = metadataObject(run.cost_json);
+  acc.tokens += numericMetadata(usage.estimated_tokens ?? usage.total_tokens);
+  acc.cost += numericMetadata(cost.estimated_cost_eur ?? cost.total_cost_eur ?? cost.total_cost);
+}
+
+function dateKey(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function withinDateRange(value: Date | string | null | undefined, start: Date, end: Date): boolean {
+  if (!value) return false;
+  const time = value instanceof Date ? value.getTime() : Date.parse(String(value));
+  return Number.isFinite(time) && time >= start.getTime() && time <= end.getTime();
+}
+
+function cleanSingleLine(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  return normalized.length > max ? normalized.slice(0, max) : normalized;
+}
+
+function cleanAgentKey(value: unknown): string {
+  const key = cleanSingleLine(value, 120);
+  if (!key || !/^[a-z0-9][a-z0-9._:-]*$/.test(key) || key.includes('*')) {
+    throw new BadRequestException('Agent key must be lowercase letters, numbers, dots, underscores, colons, or hyphens.');
+  }
+  return key;
+}
+
+function slugAgentKey(value: string): string {
+  const slug = value
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 80);
+  return slug || 'agent';
+}
+
+function cleanAgentType(value: unknown): string {
+  const candidate = cleanSingleLine(value, 40) ?? 'custom';
+  if (!['helpdesk', 'sre', 'software_dev', 'code_review', 'custom'].includes(candidate)) {
+    throw new BadRequestException('Unsupported agent type.');
+  }
+  return candidate;
+}
+
+function cleanAgentEnvironment(value: unknown): string {
+  const candidate = cleanSingleLine(value, 40) ?? 'sandbox';
+  if (!['production', 'staging', 'sandbox', 'lab', 'mock'].includes(candidate)) {
+    throw new BadRequestException('Unsupported agent environment.');
+  }
+  return candidate;
+}
+
+function cleanAgentStatus(value: unknown): string {
+  const candidate = cleanSingleLine(value, 40);
+  if (!candidate || !['draft', 'enabled', 'disabled', 'archived'].includes(candidate)) {
+    throw new BadRequestException('Unsupported agent status.');
+  }
+  return candidate;
+}
+
+function normalizedPolicyObject(value: unknown, label: string): Record<string, unknown> | null {
+  if (value == null) return null;
+  if (!isRecord(value)) {
+    throw new BadRequestException(`${label} must be an object.`);
+  }
+  return value;
+}
+
+function normalizePersona(value: unknown, fallback: Record<string, unknown> | null = null): Record<string, unknown> | null {
+  if (value == null) return fallback;
+  if (!isRecord(value)) {
+    throw new BadRequestException('Persona must be a structured object.');
+  }
+  const mission = cleanSingleLine(value.mission, 500);
+  const tone = cleanSingleLine(value.tone, 300);
+  const escalationText = cleanSingleLine(value.escalation_text ?? value.escalationText, 500);
+  const instructions = Array.isArray(value.instructions)
+    ? value.instructions
+      .map((entry) => cleanSingleLine(entry, 500))
+      .filter((entry): entry is string => !!entry)
+      .slice(0, 12)
+    : [];
+  const persona = {
+    ...(fallback ?? {}),
+    ...(mission ? { mission } : {}),
+    ...(tone ? { tone } : {}),
+    instructions,
+    ...(escalationText ? { escalation_text: escalationText } : {}),
+  };
+  return Object.keys(persona).length > 0 ? persona : null;
+}
+
+function normalizeResponsePolicyForConfig(value: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!value) return null;
+  return {
+    ...value,
+    automatic_public_reply: false,
+    automatic_ticket_updates: false,
+    require_human_approval_for_writes: true,
+  };
+}
+
+function autonomyLevelRank(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^A([0-6])$/);
+  return match ? Number(match[1]) : null;
+}
+
+function capabilityNameFromEntry(entry: unknown): string | null {
+  if (typeof entry === 'string') return trimmedString(entry);
+  if (isRecord(entry)) return trimmedString(entry.name);
+  return null;
+}
+
+function normalizeAllowedCapabilitiesForConfig(value: unknown): Record<string, unknown>[] | null {
+  if (value == null) return null;
+  const entries = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value.capabilities)
+      ? value.capabilities
+      : null;
+  if (!entries) {
+    throw new BadRequestException('Allowed capabilities must be an array or object with a capabilities array.');
+  }
+  const normalized: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const name = capabilityNameFromEntry(entry);
+    if (!name) {
+      throw new BadRequestException('Every capability entry requires a name.');
+    }
+    const maxCap = HELPDESK_POSSIBLE_CAPABILITY_CAPS.get(name);
+    if (!maxCap) {
+      throw new ForbiddenException(`Capability ${name} is not available for this agent type.`);
+    }
+    const requestedLevel = isRecord(entry) && typeof entry.max_autonomy_level === 'string'
+      ? entry.max_autonomy_level
+      : maxCap;
+    const requestedRank = autonomyLevelRank(requestedLevel);
+    const maxRank = autonomyLevelRank(maxCap);
+    if (requestedRank === null || maxRank === null || requestedRank > maxRank) {
+      throw new ForbiddenException(`Capability ${name} cannot exceed ${maxCap}.`);
+    }
+    if (!seen.has(name)) {
+      seen.add(name);
+      normalized.push({
+        ...(isRecord(entry) ? entry : {}),
+        name,
+        version: isRecord(entry) && typeof entry.version === 'string' ? entry.version : '1.0.0',
+        max_autonomy_level: requestedLevel,
+      });
+    }
+  }
+  return normalized;
+}
+
+function definitionAllowsCapability(definition: AiAgentDefinition, capabilityName: string): boolean {
+  const capabilities = Array.isArray(definition.allowed_capabilities_json)
+    ? definition.allowed_capabilities_json
+    : isRecord(definition.allowed_capabilities_json) && Array.isArray(definition.allowed_capabilities_json.capabilities)
+      ? definition.allowed_capabilities_json.capabilities
+      : [];
+  return capabilities.some((entry) => {
+    if (typeof entry === 'string') return entry === capabilityName;
+    return isRecord(entry) && entry.name === capabilityName;
+  });
+}
+
+function configSnapshot(definition: AiAgentDefinition): Record<string, unknown> {
+  return {
+    name: definition.name,
+    description: definition.description,
+    status: definition.status,
+    environment: definition.environment,
+    persona_json: definition.persona_json ?? null,
+    trigger_policy_json: definition.trigger_policy_json,
+    scope_policy_json: definition.scope_policy_json,
+    queue_policy_json: definition.queue_policy_json,
+    response_policy_json: definition.response_policy_json,
+    evaluation_policy_json: definition.evaluation_policy_json,
+    config_version: definition.config_version ?? 1,
+  };
+}
+
+function changedConfigDiff(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): Record<string, { before: unknown; after: unknown }> {
+  const diff: Record<string, { before: unknown; after: unknown }> = {};
+  for (const key of Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))) {
+    if (hashStableJson(before[key]) !== hashStableJson(after[key])) {
+      diff[key] = { before: before[key] ?? null, after: after[key] ?? null };
+    }
+  }
+  return diff;
+}
+
+function autonomyThresholds(definition: AiAgentDefinition) {
+  const evaluation = metadataObject(definition.evaluation_policy_json);
+  const earned = metadataObject(evaluation.earned_autonomy);
+  return {
+    minimumDecided: Math.max(1, numericMetadata(earned.minimum_decided_count) || 20),
+    minimumAcceptanceRate: Math.max(0, Math.min(1, numericMetadata(earned.minimum_acceptance_rate) || 0.7)),
+    minimumObservationDays: Math.max(0, numericMetadata(earned.minimum_observation_days) || 28),
+  };
 }
 
 function actionRequestIdsFromCapabilityOutput(value: unknown): string[] {
@@ -967,7 +1400,12 @@ function timelineSummaryLines(timeline: TicketTimelineEntry[]): string[] {
   });
 }
 
-function buildTriageNote(ticket: TicketLike, knowledgeItems: KnowledgeSearchItem[], timeline: TicketTimelineEntry[]): string {
+function buildTriageNote(
+  ticket: TicketLike,
+  knowledgeItems: KnowledgeSearchItem[],
+  timeline: TicketTimelineEntry[],
+  webResults: WebSearchResultItem[] = [],
+): string {
   const knowledgeLines = knowledgeItems.length > 0
     ? knowledgeItems.map((item, index) => {
       const ref = item.ref ?? item.id ?? `document-${index + 1}`;
@@ -976,6 +1414,19 @@ function buildTriageNote(ticket: TicketLike, knowledgeItems: KnowledgeSearchItem
       return `- ${ref} - ${title}${context ? `: ${context}` : ''}`;
     })
     : ['- No matching KANAP knowledge document was found.'];
+
+  // Web references are external and unverified: KANAP knowledge always takes precedence. They
+  // are listed below the knowledge section, clearly marked, so a technician can weigh them.
+  const webSection = webResults.length > 0
+    ? [
+      '',
+      'Web references (external, unverified — KANAP knowledge takes precedence):',
+      ...webResults.map((result) => {
+        const title = result.title || result.url;
+        return `- ${title}${result.description ? `: ${clampText(result.description, 220)}` : ''} (${result.url})`;
+      }),
+    ]
+    : [];
 
   return [
     '[KANAP triage proposal]',
@@ -988,11 +1439,14 @@ function buildTriageNote(ticket: TicketLike, knowledgeItems: KnowledgeSearchItem
     '',
     'Relevant KANAP knowledge:',
     ...knowledgeLines,
+    ...webSection,
     '',
     'Suggested internal note:',
     knowledgeItems.length > 0
       ? 'I found potentially relevant KANAP knowledge articles for this request. Please review the references above before responding to the requester.'
-      : 'I did not find a matching KANAP knowledge article for this request. Please review manually before responding to the requester.',
+      : webResults.length > 0
+        ? 'I did not find a matching KANAP knowledge article, but the web references above may help. Please review them before responding to the requester.'
+        : 'I did not find a matching KANAP knowledge article for this request. Please review manually before responding to the requester.',
     '',
     'No external change has been made. This note was prepared by KANAP and requires human approval before posting.',
   ].filter((line): line is string => line !== null).join('\n').slice(0, 3900);
@@ -1109,12 +1563,56 @@ function latestRequesterExcerpt(timeline: TicketTimelineEntry[]): string | null 
   return entry ? clampText(entry.body, 260) : null;
 }
 
-function buildRequesterReply(ticket: TicketLike, knowledgeItems: KnowledgeSearchItem[], timeline: TicketTimelineEntry[] = []): string {
+function buildRequesterReply(
+  ticket: TicketLike,
+  knowledgeItems: KnowledgeSearchItem[],
+  timeline: TicketTimelineEntry[] = [],
+  webResults: WebSearchResultItem[] = [],
+): string {
   const isFrench = ticketLooksFrench(ticket);
   const latestRequester = latestRequesterExcerpt(timeline);
   const bestKnowledge = knowledgeItems[0] ?? null;
   const details = bestKnowledge ? knowledgeAnswerDetails(bestKnowledge) : '';
   if (!bestKnowledge || !details) {
+    // No KANAP knowledge matched. When web search surfaced public resources, include them in the
+    // reply — always cited with their source URL (web may appear in public replies, but sourced).
+    // Knowledge always takes precedence, so this branch only runs when no knowledge was found.
+    const webLines = webResults
+      .slice(0, 3)
+      .map((result) => `- ${result.title || result.url} : ${result.url}`);
+    if (webLines.length > 0) {
+      return (isFrench
+        ? [
+          'Bonjour,',
+          '',
+          'Nous n\'avons pas trouvé de fiche interne correspondant exactement à votre demande, mais voici quelques ressources publiques qui pourraient vous aider :',
+          '',
+          ...webLines,
+          '',
+          'Ces liens proviennent de sources web externes ; merci de vérifier qu\'ils correspondent bien à votre situation.',
+          latestRequester ? `Dernier message demandeur pris en compte : ${latestRequester}.` : null,
+          '',
+          'Un technicien du support va également reprendre votre ticket et reviendra vers vous si nécessaire.',
+          '',
+          'Cordialement,',
+          'L\'équipe support',
+        ].filter((line): line is string => line !== null)
+        : [
+          'Hello,',
+          '',
+          'We could not find an internal article matching your request exactly, but here are a few public resources that may help:',
+          '',
+          ...webLines,
+          '',
+          'These links come from external web sources; please check that they match your situation.',
+          latestRequester ? `Latest requester update considered: ${latestRequester}.` : null,
+          '',
+          'A helpdesk technician will also review your ticket and get back to you if needed.',
+          '',
+          'Best regards,',
+          'The support team',
+        ].filter((line): line is string => line !== null)).join('\n').slice(0, MAX_PUBLIC_REPLY_CHARS);
+    }
     return (isFrench
       ? [
         'Bonjour,',
@@ -1207,6 +1705,23 @@ function proposalHash(value: unknown): string {
   return hashStableJson(value);
 }
 
+// Terminal ticket transitions (solve/close) are destructive cleanup actions. Even
+// though they reuse the status_update capability (action class 'status', which is
+// in the low-risk automation allowlist), they must NEVER auto-execute — closure is
+// always human-approved. Detect them by the prepared payload (transition key or the
+// GLPI status code 5/6) so the auto-exec path can hard-skip them.
+function isTerminalStatusAction(action: AiActionRequest): boolean {
+  if (!action.capability_name.includes('status_update')) return false;
+  const payload = isRecord(action.action_payload_json) ? action.action_payload_json : null;
+  if (!payload) return false;
+  if (payload.terminal === true) return true;
+  const transitionKey = typeof payload.transitionKey === 'string' ? payload.transitionKey : null;
+  if (transitionKey === 'solved' || transitionKey === 'closed') return true;
+  const fields = isRecord(payload.providerFields) ? payload.providerFields : null;
+  const status = fields ? fields.status : null;
+  return status === 5 || status === 6;
+}
+
 function actionMetadataString(action: AiActionRequest, field: string): string | null {
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
   const value = metadata?.[field];
@@ -1290,6 +1805,88 @@ function serializeToolExecution(tool: AiToolExecution) {
     started_at: toIso(tool.started_at),
     completed_at: toIso(tool.completed_at),
     created_at: toIso(tool.created_at),
+  };
+}
+
+function serializeRunStep(step: AiRunStep) {
+  return {
+    id: step.id,
+    run_id: step.run_id,
+    step_index: step.step_index,
+    kind: step.kind,
+    status: step.status,
+    capability_name: step.capability_name,
+    capability_version: step.capability_version,
+    input_summary: step.input_summary,
+    output_summary: step.output_summary,
+    error_message: step.error_message,
+    started_at: toIso(step.started_at),
+    completed_at: toIso(step.completed_at),
+    created_at: toIso(step.created_at),
+  };
+}
+
+// Human-readable per-task detail derived from an action's proposed payload, used
+// to surface "what the agent actually proposed/did" inline in the Activity
+// timeline (KANAP IA spec 23 §4.3) instead of only a generic label. Bounded:
+// long text is truncated; only the proposed content and diffs are exposed.
+const ACTIVITY_DETAIL_BODY_MAX = 1200;
+type ActivityActionDetail = {
+  capabilityName: string | null;
+  body: string | null;
+  changes: Array<{ field: string; from: string | null; to: string | null }> | null;
+  reason: string | null;
+  rationale: string | null;
+  evidenceCount: number | null;
+};
+
+function activityActionDetail(action: AiActionRequest): ActivityActionDetail | null {
+  const payload = isRecord(action.action_payload_json) ? action.action_payload_json : null;
+  const evidenceCount = Array.isArray(action.evidence_ids) ? action.evidence_ids.length : null;
+  const truncate = (value: unknown): string | null => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.length > ACTIVITY_DETAIL_BODY_MAX ? `${trimmed.slice(0, ACTIVITY_DETAIL_BODY_MAX)}…` : trimmed;
+  };
+  if (!payload) {
+    return evidenceCount
+      ? { capabilityName: action.capability_name, body: null, changes: null, reason: null, rationale: null, evidenceCount }
+      : null;
+  }
+  const body = truncate(payload.note_body) ?? truncate(payload.reply_body) ?? truncate(payload.body);
+  const reason = truncate(payload.reason);
+  const changes: Array<{ field: string; from: string | null; to: string | null }> = [];
+  const current = isRecord(payload.current) ? payload.current : null;
+  const proposed = isRecord(payload.proposed) ? payload.proposed : null;
+  if (proposed) {
+    for (const [field, value] of Object.entries(proposed)) {
+      if (value == null || value === '') continue;
+      changes.push({
+        field,
+        from: current && current[field] != null && current[field] !== '' ? String(current[field]) : null,
+        to: String(value),
+      });
+    }
+  } else {
+    const target = payload.targetStatusLabel ?? payload.targetStatus ?? payload.transitionKey;
+    if (target != null && target !== '') {
+      const from = current ? (current.statusLabel ?? current.status ?? null) : null;
+      changes.push({ field: 'status', from: from != null && from !== '' ? String(from) : null, to: String(target) });
+    }
+  }
+  const assignmentTarget = isRecord(payload.target) ? payload.target : null;
+  if (assignmentTarget && assignmentTarget.label != null && assignmentTarget.label !== '') {
+    changes.push({ field: 'assignee', from: null, to: String(assignmentTarget.label) });
+  }
+  if (!body && !reason && changes.length === 0 && !evidenceCount) return null;
+  return {
+    capabilityName: action.capability_name,
+    body,
+    changes: changes.length > 0 ? changes : null,
+    reason,
+    rationale: null,
+    evidenceCount,
   };
 }
 
@@ -1495,6 +2092,9 @@ function serializeAgentDefinition(definition: AiAgentDefinition) {
     queue_policy_json: definition.queue_policy_json,
     response_policy_json: definition.response_policy_json,
     evaluation_policy_json: definition.evaluation_policy_json,
+    persona_json: definition.persona_json ?? null,
+    config_version: definition.config_version ?? 1,
+    updated_by_user_id: definition.updated_by_user_id ?? null,
     metadata_json: definition.metadata_json,
     created_at: toIso(definition.created_at),
     updated_at: toIso(definition.updated_at),
@@ -1570,15 +2170,44 @@ function serializeAgentAuditEvent(event: AiAgentAuditEvent) {
 
 @Injectable()
 export class AiAgentControlService {
+  private readonly logger = new Logger(AiAgentControlService.name);
+
   constructor(
     private readonly diagnostics: AiReadonlyDiagnosticWorkflowService,
     private readonly approvals: AiApprovalService,
-  private readonly dispatcher: AiCapabilityDispatcherService,
-  private readonly liveTargets: AiLiveTestTargetService,
-  private readonly providers: AiProviderRegistryService,
-  private readonly agentQueue?: AiAgentWorkQueueService,
-  private readonly knowledgePlanner?: AiKnowledgeSearchPlannerService,
+    private readonly dispatcher: AiCapabilityDispatcherService,
+    private readonly liveTargets: AiLiveTestTargetService,
+    private readonly providers: AiProviderRegistryService,
+    private readonly agentQueue?: AiAgentWorkQueueService,
+    private readonly knowledgePlanner?: AiKnowledgeSearchPlannerService,
   ) {}
+
+  private async recordAgentAuditEvent(
+    context: AiExecutionContextWithManager,
+    input: {
+      agentDefinitionId?: string | null;
+      eventType: string;
+      severity?: string | null;
+      message: string;
+      metadata?: Record<string, unknown> | null;
+    },
+  ): Promise<void> {
+    if (this.agentQueue) {
+      await this.agentQueue.recordAuditEvent(context, input);
+      return;
+    }
+    const repo = context.manager.getRepository(AiAgentAuditEvent);
+    await repo.save(repo.create({
+      tenant_id: context.tenantId,
+      agent_definition_id: input.agentDefinitionId ?? null,
+      work_item_id: null,
+      event_type: input.eventType,
+      severity: input.severity ?? 'info',
+      message: input.message,
+      metadata_json: input.metadata ?? null,
+      created_at: new Date(),
+    }));
+  }
 
   private async evidenceIdsForTool(context: AiExecutionContextWithManager, toolExecutionId: string): Promise<string[]> {
     const rows = await context.manager.getRepository(AiEvidence).find({
@@ -1685,8 +2314,9 @@ export class AiAgentControlService {
       },
       order: { created_at: 'DESC' },
     });
+    const now = Date.now();
     const matching = actions.find((action) =>
-      SUPPRESS_UNCHANGED_PROPOSAL_STATUSES.has(action.status)
+      proposalStillBlocksRegeneration(action, now)
       && actionMetadataString(action, 'proposal_hash') === input.proposalHash
       && actionMetadataString(action, 'proposal_context_hash') === input.contextHash,
     );
@@ -1694,6 +2324,53 @@ export class AiAgentControlService {
       return null;
     }
     return `unchanged_${matching.status}_proposal:${matching.id}`;
+  }
+
+  // Safety: a standing stale-closure proposal (note/close) must not survive a ticket that is
+  // no longer eligible for cleanup — e.g. a requester replied, so it is no longer stale. When
+  // a cleanup agent re-polls such a ticket, withdraw its live stale-closure proposals so no
+  // operator can approve a close on a freshly-active ticket. Scoped to this agent's own
+  // proposals for this ticket; returns the number withdrawn.
+  private async withdrawStaleClosureProposals(
+    context: AiExecutionContextWithManager,
+    input: { ticketId: string; agentDefinitionId: string | null },
+  ): Promise<number> {
+    const candidates = await context.manager.getRepository(AiActionRequest).find({
+      where: {
+        tenant_id: context.tenantId,
+        provider_kind: 'ticketing',
+        provider_key: 'glpi',
+        target_type: 'ticket',
+        target_ref: input.ticketId,
+        status: 'pending',
+        capability_name: In([
+          TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+          TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+        ]),
+      },
+    });
+    const now = new Date();
+    let withdrawn = 0;
+    for (const action of candidates) {
+      const triageAction = actionMetadataString(action, 'triage_action');
+      if (!triageAction || !STALE_CLOSURE_TRIAGE_ACTIONS.has(triageAction)) {
+        continue;
+      }
+      if (input.agentDefinitionId
+        && actionMetadataString(action, 'agent_definition_id') !== input.agentDefinitionId) {
+        continue;
+      }
+      action.status = 'expired';
+      action.updated_at = now;
+      action.metadata_json = {
+        ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+        withdrawn_reason: 'ticket_no_longer_stale',
+        withdrawn_at: now.toISOString(),
+      };
+      await context.manager.getRepository(AiActionRequest).save(action);
+      withdrawn += 1;
+    }
+    return withdrawn;
   }
 
   private async recoverPreparedGlpiActionIds(
@@ -1899,6 +2576,7 @@ export class AiAgentControlService {
     }
 
     const [
+      runSteps,
       toolExecutions,
       evidence,
       observations,
@@ -1907,6 +2585,10 @@ export class AiAgentControlService {
       evaluations,
       actionRequests,
     ] = await Promise.all([
+      context.manager.getRepository(AiRunStep).find({
+        where: { tenant_id: context.tenantId, run_id: run.id },
+        order: { step_index: 'ASC', created_at: 'ASC' },
+      }),
       context.manager.getRepository(AiToolExecution).find({
         where: { tenant_id: context.tenantId, run_id: run.id },
         order: { created_at: 'ASC' },
@@ -1974,6 +2656,7 @@ export class AiAgentControlService {
     const readiness = await this.executionReadinessForActions(context, mergedActionRequests);
     return {
       run: serializeRun(run),
+      run_steps: runSteps.map(serializeRunStep),
       tool_executions: toolExecutions.map(serializeToolExecution),
       evidence: evidence.map(serializeEvidence),
       observations: observations.map(serializeObservation),
@@ -2003,6 +2686,1068 @@ export class AiAgentControlService {
     return { items: visibleItems.map((action) => serializeActionRequest(action, readiness.get(action.id))) };
   }
 
+  private async uniqueAgentKey(
+    context: AiExecutionContextWithManager,
+    requestedKey: string | null,
+    name: string,
+  ): Promise<string> {
+    const repo = context.manager.getRepository(AiAgentDefinition);
+    const base = requestedKey ? cleanAgentKey(requestedKey) : slugAgentKey(name);
+    let candidate = base;
+    let suffix = 2;
+    while (await repo.findOne({ where: { tenant_id: context.tenantId, agent_key: candidate } })) {
+      candidate = `${base}.${suffix++}`;
+      if (candidate.length > 120) {
+        candidate = `${base.slice(0, 110)}.${suffix}`;
+      }
+    }
+    return candidate;
+  }
+
+  async listAgentDefinitions(context: AiExecutionContextWithManager) {
+    if (this.agentQueue) {
+      await this.agentQueue.ensureHelpdeskGlpiTriageDefinition(context);
+    }
+    const items = await context.manager.getRepository(AiAgentDefinition).find({
+      where: { tenant_id: context.tenantId },
+      order: { agent_key: 'ASC' },
+    });
+    return { items: items.map(serializeAgentDefinition) };
+  }
+
+  async getAgentDefinition(context: AiExecutionContextWithManager, id: string) {
+    if (this.agentQueue) {
+      await this.agentQueue.ensureHelpdeskGlpiTriageDefinition(context);
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    return { agent_definition: serializeAgentDefinition(definition) };
+  }
+
+  async createAgentDefinition(
+    context: AiExecutionContextWithManager,
+    input: AgentControlAgentDefinitionInput = {},
+  ) {
+    if (this.agentQueue) {
+      await this.agentQueue.ensureHelpdeskGlpiTriageDefinition(context);
+    }
+    const repo = context.manager.getRepository(AiAgentDefinition);
+    const name = cleanSingleLine(input.name, 160);
+    if (!name) {
+      throw new BadRequestException('Agent name is required.');
+    }
+    const agentType = cleanAgentType(input.agent_type ?? 'helpdesk');
+    // Only Helpdesk has a capability/possible-set model today. The shared caps map is
+    // helpdesk-specific, so creating another type would yield a non-functional shell or
+    // mis-validated capabilities. Fail closed until each type ships its own model.
+    if (agentType !== 'helpdesk') {
+      throw new BadRequestException('Only Helpdesk agents can be created today. Other agent types are not available yet.');
+    }
+    const template = agentType === 'helpdesk'
+      ? await repo.findOne({ where: { tenant_id: context.tenantId, agent_key: HELP_DESK_GLPI_TRIAGE_AGENT_KEY } })
+      : null;
+    const agentKey = await this.uniqueAgentKey(context, input.agent_key ? cleanAgentKey(input.agent_key) : null, name);
+    const providerBindings = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings')
+      ?? template?.provider_bindings_json
+      ?? null;
+    const allowedCapabilities = input.allowed_capabilities_json !== undefined
+      ? normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json)
+      : template?.allowed_capabilities_json ?? [];
+    const forbiddenCapabilities = input.forbidden_capabilities_json !== undefined
+      ? (() => { throw new ForbiddenException('Forbidden capabilities are immutable from this endpoint.'); })()
+      : template?.forbidden_capabilities_json ?? [];
+    const now = new Date();
+    const definition = await repo.save(repo.create({
+      tenant_id: context.tenantId,
+      agent_key: agentKey,
+      name,
+      description: cleanSingleLine(input.description, 500),
+      agent_type: agentType,
+      status: 'draft',
+      environment: cleanAgentEnvironment(input.environment ?? template?.environment ?? 'sandbox'),
+      provider_bindings_json: providerBindings,
+      allowed_capabilities_json: allowedCapabilities,
+      forbidden_capabilities_json: forbiddenCapabilities,
+      max_autonomy_level: template?.max_autonomy_level ?? 'A3',
+      default_approval_requirement: template?.default_approval_requirement ?? 'human_for_writes',
+      trigger_policy_json: normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? template?.trigger_policy_json ?? null,
+      scope_policy_json: normalizedPolicyObject(input.scope_policy_json, 'Scope policy') ?? template?.scope_policy_json ?? null,
+      queue_policy_json: normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
+      response_policy_json: normalizeResponsePolicyForConfig(
+        normalizedPolicyObject(input.response_policy_json, 'Response policy') ?? template?.response_policy_json ?? null,
+      ),
+      evaluation_policy_json: normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy')
+        ?? template?.evaluation_policy_json
+        ?? { create_pending_evaluation: true, feedback_required_for_autonomy_promotion: true },
+      persona_json: normalizePersona(input.persona_json, template?.persona_json ?? null),
+      config_version: 1,
+      updated_by_user_id: context.userId || null,
+      metadata_json: {
+        created_from_ui: true,
+        user_modified: true,
+        template_agent_definition_id: template?.id ?? null,
+      },
+      created_at: now,
+      updated_at: now,
+    }));
+    await this.recordAgentAuditEvent(context, {
+      agentDefinitionId: definition.id,
+      eventType: 'agent_config_updated',
+      severity: 'info',
+      message: `Agent ${definition.name} was created.`,
+      metadata: {
+        actor_user_id: context.userId || null,
+        config_version: definition.config_version,
+        diff: { created: { before: null, after: configSnapshot(definition) } },
+      },
+    });
+    return { agent_definition: serializeAgentDefinition(definition) };
+  }
+
+  async updateAgentDefinition(
+    context: AiExecutionContextWithManager,
+    id: string,
+    input: AgentControlAgentDefinitionInput = {},
+  ) {
+    const repo = context.manager.getRepository(AiAgentDefinition);
+    const definition = await repo.findOne({ where: { id, tenant_id: context.tenantId } });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'forbidden_capabilities_json')) {
+      throw new ForbiddenException('Forbidden capabilities are immutable from this endpoint.');
+    }
+    const before = configSnapshot(definition);
+    if (Object.prototype.hasOwnProperty.call(input, 'name')) {
+      const name = cleanSingleLine(input.name, 160);
+      if (!name) throw new BadRequestException('Agent name is required.');
+      definition.name = name;
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'description')) {
+      definition.description = cleanSingleLine(input.description, 500);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'environment')) {
+      definition.environment = cleanAgentEnvironment(input.environment);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'provider_bindings_json')) {
+      definition.provider_bindings_json = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'allowed_capabilities_json')) {
+      definition.allowed_capabilities_json = normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'persona_json')) {
+      definition.persona_json = normalizePersona(input.persona_json, definition.persona_json);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'trigger_policy_json')) {
+      definition.trigger_policy_json = normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'scope_policy_json')) {
+      definition.scope_policy_json = normalizedPolicyObject(input.scope_policy_json, 'Scope policy');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'knowledge_sources')) {
+      // Patch only the knowledge_sources sub-block, preserving the rest of scope_policy_json.
+      definition.scope_policy_json = {
+        ...(isRecord(definition.scope_policy_json) ? definition.scope_policy_json : {}),
+        knowledge_sources: normalizeKnowledgeSources(input.knowledge_sources),
+      };
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'queue_policy_json')) {
+      definition.queue_policy_json = normalizedPolicyObject(input.queue_policy_json, 'Queue policy');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'response_policy_json')) {
+      definition.response_policy_json = normalizeResponsePolicyForConfig(normalizedPolicyObject(input.response_policy_json, 'Response policy'));
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'evaluation_policy_json')) {
+      definition.evaluation_policy_json = normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy');
+    }
+    definition.metadata_json = {
+      ...metadataObject(definition.metadata_json),
+      user_modified: true,
+    };
+    definition.config_version = Math.max(1, numericMetadata(definition.config_version) || 1) + 1;
+    definition.updated_by_user_id = context.userId || null;
+    definition.updated_at = new Date();
+    const saved = await repo.save(definition);
+    const after = configSnapshot(saved);
+    const diff = changedConfigDiff(before, after);
+    await this.recordAgentAuditEvent(context, {
+      agentDefinitionId: saved.id,
+      eventType: 'agent_config_updated',
+      severity: 'info',
+      message: `Agent ${saved.name} configuration was updated.`,
+      metadata: {
+        actor_user_id: context.userId || null,
+        config_version: saved.config_version,
+        diff,
+      },
+    });
+    return { agent_definition: serializeAgentDefinition(saved), diff };
+  }
+
+  async updateAgentStatus(
+    context: AiExecutionContextWithManager,
+    id: string,
+    input: AgentControlAgentStatusInput = {},
+  ) {
+    const repo = context.manager.getRepository(AiAgentDefinition);
+    const definition = await repo.findOne({ where: { id, tenant_id: context.tenantId } });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    const before = configSnapshot(definition);
+    const status = cleanAgentStatus(input.status);
+    definition.status = status;
+    definition.metadata_json = {
+      ...metadataObject(definition.metadata_json),
+      user_modified: true,
+    };
+    definition.config_version = Math.max(1, numericMetadata(definition.config_version) || 1) + 1;
+    definition.updated_by_user_id = context.userId || null;
+    definition.updated_at = new Date();
+    const saved = await repo.save(definition);
+    const diff = changedConfigDiff(before, configSnapshot(saved));
+    await this.recordAgentAuditEvent(context, {
+      agentDefinitionId: saved.id,
+      eventType: 'agent_config_updated',
+      severity: 'info',
+      message: `Agent ${saved.name} status changed to ${status}.`,
+      metadata: {
+        actor_user_id: context.userId || null,
+        config_version: saved.config_version,
+        diff,
+      },
+    });
+    return { agent_definition: serializeAgentDefinition(saved), diff };
+  }
+
+  async deleteAgentDefinition(context: AiExecutionContextWithManager, id: string) {
+    const repo = context.manager.getRepository(AiAgentDefinition);
+    const definition = await repo.findOne({ where: { id, tenant_id: context.tenantId } });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    // The built-in Helpdesk agent is auto-seeded on poll/settings load, so deleting it just
+    // re-creates it. Block deletion and steer the user to disable/archive instead.
+    if (definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY) {
+      throw new BadRequestException('The built-in Helpdesk agent cannot be deleted. Disable it instead.');
+    }
+    // Remove this agent's earned-autonomy policies (metadata-linked, no FK) so no orphan
+    // auto-approval policy survives the agent.
+    const policyRepo = context.manager.getRepository(AiApprovalPolicy);
+    const orphanPolicyIds = (await policyRepo.find({ where: { tenant_id: context.tenantId } }))
+      .filter((policy) => isAgentAutonomyPolicyMetadata(policy.metadata_json) && policy.metadata_json.agent_definition_id === definition.id)
+      .map((policy) => policy.id);
+    if (orphanPolicyIds.length > 0) {
+      await policyRepo.delete({ id: In(orphanPolicyIds), tenant_id: context.tenantId });
+    }
+    await this.recordAgentAuditEvent(context, {
+      agentDefinitionId: definition.id,
+      eventType: 'agent_deleted',
+      severity: 'info',
+      message: `Agent ${definition.name} was deleted.`,
+      metadata: { actor_user_id: context.userId || null, agent_key: definition.agent_key },
+    });
+    // FK cascades remove triggers, work items, target states, and agent-scoped pauses;
+    // audit events are SET NULL so the deletion record is preserved.
+    await repo.delete({ id: definition.id, tenant_id: context.tenantId });
+    return { deleted: true, id: definition.id };
+  }
+
+  private async autonomyRowsForDefinition(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+  ) {
+    const thresholds = autonomyThresholds(definition);
+    const actions = await context.manager.getRepository(AiActionRequest).find({
+      where: { tenant_id: context.tenantId },
+      order: { created_at: 'ASC' },
+    });
+    const policies = await context.manager.getRepository(AiApprovalPolicy).find({
+      where: { tenant_id: context.tenantId },
+      order: { policy_version: 'DESC' },
+    });
+    const openIncident = metadataObject(definition.evaluation_policy_json).open_incident === true;
+    return AUTONOMY_ACTION_CLASSES.map((actionClassName) => {
+      const capabilityName = approvedCapabilityForAutonomyActionClass(actionClassName);
+      const classActions = actions.filter((action) =>
+        definitionIdFromMetadata(action.metadata_json) === definition.id
+        && actionClass(action) === actionClassName);
+      const firstProposalAt = classActions.length > 0
+        ? classActions.reduce((earliest, action) => Math.min(earliest, actionSortTime(action)), Number.POSITIVE_INFINITY)
+        : null;
+      const decidedActions = classActions.filter((action) =>
+        !!action.approved_at
+        || !!action.rejected_at
+        || ['approved', 'executed', 'rejected'].includes(action.status));
+      const accepted = decidedActions.filter((action) =>
+        !!action.approved_at
+        || action.status === 'approved'
+        || action.status === 'executed').length;
+      const decided = decidedActions.length;
+      const acceptanceRate = decided > 0 ? accepted / decided : null;
+      const daysActive = firstProposalAt && Number.isFinite(firstProposalAt)
+        ? Math.floor((Date.now() - firstProposalAt) / (24 * 60 * 60 * 1000))
+        : 0;
+      const matchingPolicy = policies.find((policy) =>
+        isAgentAutonomyPolicyMetadata(policy.metadata_json)
+        && policy.metadata_json.agent_definition_id === definition.id
+        && policy.metadata_json.action_class === actionClassName) ?? null;
+      const reasons: string[] = [];
+      if (!isLowRiskAutomationActionClass(actionClassName)) {
+        reasons.push('ACTION_CLASS_NOT_ALLOWLISTED');
+      }
+      if (!capabilityName || !definitionAllowsCapability(definition, capabilityName)) {
+        reasons.push('CAPABILITY_NOT_ALLOWED');
+      }
+      if (decided < thresholds.minimumDecided) {
+        reasons.push('INSUFFICIENT_DECIDED_PROPOSALS');
+      }
+      if (acceptanceRate === null || acceptanceRate < thresholds.minimumAcceptanceRate) {
+        reasons.push('ACCEPTANCE_RATE_TOO_LOW');
+      }
+      if (daysActive < thresholds.minimumObservationDays) {
+        reasons.push('OBSERVATION_WINDOW_TOO_SHORT');
+      }
+      if (openIncident) {
+        reasons.push('OPEN_INCIDENT_FLAG');
+      }
+      return {
+        actionClass: actionClassName,
+        capabilityName,
+        mode: matchingPolicy && matchingPolicy.enabled && matchingPolicy.status === 'enabled' ? 'automatic' : 'ask_first',
+        allowlisted: isLowRiskAutomationActionClass(actionClassName),
+        eligible: reasons.length === 0,
+        reasons,
+        progress: {
+          decided,
+          required: thresholds.minimumDecided,
+          acceptanceRate: acceptanceRate === null ? null : Number(acceptanceRate.toFixed(4)),
+          requiredRate: thresholds.minimumAcceptanceRate,
+          daysActive,
+          requiredDays: thresholds.minimumObservationDays,
+        },
+        effectiveCeiling: null,
+        demotion: null,
+        policy: matchingPolicy ? {
+          id: matchingPolicy.id,
+          policy_key: matchingPolicy.policy_key,
+          policy_version: matchingPolicy.policy_version,
+          enabled: matchingPolicy.enabled,
+          status: matchingPolicy.status,
+          live_test_safety: matchingPolicy.live_test_safety,
+        } : null,
+      };
+    });
+  }
+
+  private async demoteUnsafeAutomaticRows(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    rows: Array<{
+      actionClass: string;
+      mode: string;
+      progress: { decided: number; acceptanceRate: number | null };
+      policy: { id: string; policy_version: number } | null;
+    }>,
+  ): Promise<boolean> {
+    let changed = false;
+    const policyRepo = context.manager.getRepository(AiApprovalPolicy);
+    for (const row of rows) {
+      if (
+        row.mode !== 'automatic'
+        || !row.policy
+        || row.progress.decided <= 0
+        || row.progress.acceptanceRate === null
+        || row.progress.acceptanceRate >= 0.5
+      ) {
+        continue;
+      }
+      const policy = await policyRepo.findOne({
+        where: {
+          id: row.policy.id,
+          tenant_id: context.tenantId,
+        },
+      });
+      if (!policy || !policy.enabled) {
+        continue;
+      }
+      policy.enabled = false;
+      policy.status = 'disabled';
+      policy.policy_version += 1;
+      policy.updated_at = new Date();
+      const saved = await policyRepo.save(policy);
+      await this.recordAgentAuditEvent(context, {
+        agentDefinitionId: definition.id,
+        eventType: 'agent_autonomy_demoted',
+        severity: 'warning',
+        message: `Automatic mode was turned off for ${row.actionClass} because acceptance dropped below 50%.`,
+        metadata: {
+          actor_user_id: null,
+          action_class: row.actionClass,
+          reason: 'rolling_acceptance_below_50_percent',
+          acceptance_rate: row.progress.acceptanceRate,
+          decided: row.progress.decided,
+          policy_id: saved.id,
+          policy_version: saved.policy_version,
+        },
+      });
+      changed = true;
+    }
+    return changed;
+  }
+
+  async getAgentAutonomy(context: AiExecutionContextWithManager, id: string) {
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    let items = await this.autonomyRowsForDefinition(context, definition);
+    if (await this.demoteUnsafeAutomaticRows(context, definition, items)) {
+      items = await this.autonomyRowsForDefinition(context, definition);
+    }
+    return {
+      agent_definition: serializeAgentDefinition(definition),
+      lowRiskAutomationAllowlist: LOW_RISK_AUTOMATION_ALLOWLIST,
+      items,
+    };
+  }
+
+  async setAgentAutonomy(
+    context: AiExecutionContextWithManager,
+    id: string,
+    input: AgentControlAutonomyInput = {},
+  ) {
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    const actionClassName = cleanSingleLine(input.actionClass, 80);
+    if (!actionClassName || !AUTONOMY_ACTION_CLASSES.includes(actionClassName as typeof AUTONOMY_ACTION_CLASSES[number])) {
+      throw new BadRequestException('Unsupported action class.');
+    }
+    const mode = input.mode === 'automatic' || input.mode === 'ask_first' ? input.mode : null;
+    if (!mode) {
+      throw new BadRequestException('Autonomy mode must be ask_first or automatic.');
+    }
+    const policyRepo = context.manager.getRepository(AiApprovalPolicy);
+    const policyKey = agentAutonomyPolicyKey(definition.id, actionClassName);
+    const existingPolicies = (await policyRepo.find({ where: { tenant_id: context.tenantId, policy_key: policyKey } }))
+      .sort((left, right) => right.policy_version - left.policy_version);
+    const existingPolicy = existingPolicies[0] ?? null;
+
+    if (mode === 'ask_first') {
+      let policy = existingPolicy;
+      if (policy) {
+        policy.enabled = false;
+        policy.status = 'disabled';
+        policy.policy_version += 1;
+        policy.updated_at = new Date();
+        policy = await policyRepo.save(policy);
+      }
+      await this.recordAgentAuditEvent(context, {
+        agentDefinitionId: definition.id,
+        eventType: 'agent_autonomy_revoked',
+        severity: 'info',
+        message: `Automatic mode was turned off for ${actionClassName}.`,
+        metadata: {
+          actor_user_id: context.userId || null,
+          action_class: actionClassName,
+          policy_id: policy?.id ?? null,
+          policy_version: policy?.policy_version ?? null,
+        },
+      });
+      return this.getAgentAutonomy(context, definition.id);
+    }
+
+    if (input.confirm !== true) {
+      throw new ForbiddenException('Automatic mode requires explicit confirmation.');
+    }
+    const rows = await this.autonomyRowsForDefinition(context, definition);
+    const row = rows.find((candidate) => candidate.actionClass === actionClassName);
+    if (!row || !row.eligible) {
+      throw new ForbiddenException({
+        message: 'Automatic mode is not eligible for this action class.',
+        reasons: row?.reasons ?? ['ACTION_CLASS_NOT_FOUND'],
+        progress: row?.progress ?? null,
+      });
+    }
+    const capabilityName = approvedCapabilityForAutonomyActionClass(actionClassName);
+    if (!capabilityName || !isLowRiskAutomationActionClass(actionClassName)) {
+      throw new ForbiddenException('This action class is not allowlisted for automatic execution.');
+    }
+    if (!definitionAllowsCapability(definition, capabilityName)) {
+      throw new ForbiddenException('The agent definition does not allow this capability.');
+    }
+    const providerBindings = metadataObject(definition.provider_bindings_json);
+    const ticketingBinding = metadataObject(providerBindings.ticketing);
+    const providerKey = stringFromMetadata(ticketingBinding.provider_key) ?? 'glpi';
+    const providerKind = stringFromMetadata(ticketingBinding.provider_kind) ?? 'ticketing';
+    const now = new Date();
+    const nextPolicyVersion = existingPolicy ? existingPolicy.policy_version + 1 : 1;
+    const policy = await policyRepo.save(policyRepo.create({
+      ...(existingPolicy ?? {}),
+      tenant_id: context.tenantId,
+      policy_key: policyKey,
+      policy_version: nextPolicyVersion,
+      name: `${definition.name}: automatic ${actionClassName}`,
+      description: 'Eval-gated agent autonomy grant for a low-risk helpdesk action class.',
+      status: 'enabled',
+      enabled: true,
+      capability_name: capabilityName,
+      capability_version: '1.0.0',
+      effect: 'write',
+      provider_kind: providerKind,
+      provider_key: providerKey,
+      environment: definition.environment,
+      trigger_surface: 'internal',
+      trigger_kind: 'internal',
+      max_autonomy_level: 'A3',
+      target_type: 'ticket',
+      target_constraints_json: { allowed_patterns: ['^[A-Za-z0-9][A-Za-z0-9:_-]{0,127}$'] },
+      evidence_requirements_json: { min_count: 1 },
+      evaluation_requirements_json: null,
+      min_confidence: 0.5,
+      cooldown_seconds: 0,
+      budget_constraints_json: {
+        window_minutes: 60,
+        max_failed_actions: 0,
+        max_operator_rejections: 0,
+        max_provider_errors: 0,
+        max_recent_cost: 100,
+        cost_json_key: 'estimated_cost_eur',
+      },
+      live_test_safety: 'live_write_gated',
+      metadata_json: {
+        created_by: AGENT_AUTONOMY_POLICY_SOURCE,
+        agent_definition_id: definition.id,
+        agent_key: definition.agent_key,
+        action_class: actionClassName,
+        allowlist: LOW_RISK_AUTOMATION_ALLOWLIST,
+        granted_by_user_id: context.userId || null,
+        granted_at: now.toISOString(),
+        eligibility: row.progress,
+      },
+      created_at: existingPolicy?.created_at ?? now,
+      updated_at: now,
+    }));
+    await this.recordAgentAuditEvent(context, {
+      agentDefinitionId: definition.id,
+      eventType: 'agent_autonomy_granted',
+      severity: 'info',
+      message: `Automatic mode was enabled for ${actionClassName}.`,
+      metadata: {
+        actor_user_id: context.userId || null,
+        action_class: actionClassName,
+        policy_id: policy.id,
+        policy_version: policy.policy_version,
+        eligibility: row.progress,
+      },
+    });
+    return this.getAgentAutonomy(context, definition.id);
+  }
+
+  async getBadges(context: AiExecutionContextWithManager) {
+    const pendingApprovals = await context.manager.getRepository(AiActionRequest)
+      .createQueryBuilder('action')
+      .where('action.tenant_id = :tenantId', { tenantId: context.tenantId })
+      .andWhere('action.status = :status', { status: 'pending' })
+      .andWhere('(action.expires_at IS NULL OR action.expires_at > now())')
+      .getCount();
+    return { pendingApprovals };
+  }
+
+  async listActivity(context: AiExecutionContextWithManager, options: AgentControlActivityOptions = {}) {
+    const limit = safeLimit(options.limit, 50, 100);
+    const offset = Math.max(0, Math.floor(options.offset ?? 0));
+    const fetchLimit = Math.min(400, Math.max(100, (limit + offset) * 4));
+    const allTypes: AgentControlActivityType[] = ['proposal', 'decision', 'execution', 'configuration', 'pause', 'error'];
+    const wantedTypes = new Set(options.types?.length ? options.types : allTypes);
+    const from = options.from ? new Date(options.from) : null;
+    const to = options.to ? new Date(options.to) : null;
+    const fromTime = from && Number.isFinite(from.getTime()) ? from.getTime() : null;
+    const toTime = to && Number.isFinite(to.getTime()) ? to.getTime() : null;
+    const targetRef = options.targetRef?.trim() || null;
+    const status = options.status?.trim() || null;
+    const agentDefinitionId = options.agentDefinitionId?.trim() || null;
+    const actorUserId = options.actorUserId?.trim() || null;
+
+    type ActivityEntry = {
+      id: string;
+      at: string;
+      type: AgentControlActivityType;
+      agentDefinitionId: string | null;
+      agentKey: string | null;
+      targetType: string | null;
+      targetRef: string | null;
+      titleKey: string;
+      status: string | null;
+      actorUserId: string | null;
+      actionRequestId: string | null;
+      approvalId: string | null;
+      runId: string | null;
+      auditEventId: string | null;
+      capabilityName: string | null;
+      actionClass: string | null;
+      eventType: string | null;
+      severity: string | null;
+      errorMessage: string | null;
+      detail: ActivityActionDetail | null;
+    };
+
+    const entries: ActivityEntry[] = [];
+    const withinWindow = (value: Date | string | null | undefined): value is Date | string => {
+      if (!value) return false;
+      const time = value instanceof Date ? value.getTime() : Date.parse(String(value));
+      if (!Number.isFinite(time)) return false;
+      if (fromTime !== null && time < fromTime) return false;
+      if (toTime !== null && time > toTime) return false;
+      return true;
+    };
+    const iso = (value: Date | string): string => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+    const auditType = (event: AiAgentAuditEvent): AgentControlActivityType => {
+      if (event.event_type.includes('pause')) return 'pause';
+      if (event.severity === 'error' || event.event_type.includes('fail') || event.event_type.includes('error')) return 'error';
+      return 'configuration';
+    };
+
+    let actionRows: AiActionRequest[] = [];
+    if (wantedTypes.has('proposal') || wantedTypes.has('execution') || wantedTypes.has('error')) {
+      const qb = context.manager.getRepository(AiActionRequest).createQueryBuilder('action')
+        .where('action.tenant_id = :tenantId', { tenantId: context.tenantId });
+      if (agentDefinitionId) {
+        qb.andWhere("action.metadata_json ->> 'agent_definition_id' = :agentDefinitionId", { agentDefinitionId });
+      }
+      if (targetRef) {
+        qb.andWhere('action.target_ref ILIKE :targetRef', { targetRef: `%${targetRef}%` });
+      }
+      if (status) {
+        qb.andWhere('action.status = :status', { status });
+      }
+      if (actorUserId) {
+        qb.andWhere('action.user_id = :actorUserId', { actorUserId });
+      }
+      actionRows = await qb.orderBy('action.created_at', 'DESC').take(fetchLimit).getMany();
+      for (const action of actionRows) {
+        const actionAgentDefinitionId = definitionIdFromMetadata(action.metadata_json);
+        const base = {
+          agentDefinitionId: actionAgentDefinitionId,
+          agentKey: null,
+          targetType: action.target_type,
+          targetRef: action.target_ref,
+          actorUserId: action.user_id,
+          actionRequestId: action.id,
+          approvalId: null,
+          runId: action.run_id,
+          auditEventId: null,
+          capabilityName: action.capability_name,
+          actionClass: actionClass(action),
+          eventType: null,
+          severity: null,
+          errorMessage: action.error_message,
+          detail: activityActionDetail(action),
+        };
+        if (wantedTypes.has('proposal') && withinWindow(action.created_at)) {
+          entries.push({
+            ...base,
+            id: `action:${action.id}:proposal`,
+            at: iso(action.created_at),
+            type: 'proposal',
+            titleKey: 'proposal_created',
+            status: action.status,
+          });
+        }
+        if (wantedTypes.has('execution') && action.executed_at && withinWindow(action.executed_at)) {
+          entries.push({
+            ...base,
+            id: `action:${action.id}:execution`,
+            at: iso(action.executed_at),
+            type: 'execution',
+            titleKey: 'action_executed',
+            status: action.status,
+          });
+        }
+        if (wantedTypes.has('error') && ['failed', 'provider_error'].includes(action.status) && withinWindow(action.updated_at ?? action.created_at)) {
+          entries.push({
+            ...base,
+            id: `action:${action.id}:error`,
+            at: iso(action.updated_at ?? action.created_at),
+            type: 'error',
+            titleKey: 'action_failed',
+            status: action.status,
+          });
+        }
+      }
+    }
+
+    const actionById = new Map(actionRows.map((action) => [action.id, action]));
+    if (wantedTypes.has('decision')) {
+      const qb = context.manager.getRepository(AiApproval).createQueryBuilder('approval')
+        .where('approval.tenant_id = :tenantId', { tenantId: context.tenantId });
+      if (status) {
+        qb.andWhere('approval.status = :status', { status });
+      }
+      if (actorUserId) {
+        qb.andWhere('approval.actor_user_id = :actorUserId', { actorUserId });
+      }
+      if (fromTime !== null) {
+        qb.andWhere('approval.created_at >= :fromDate', { fromDate: new Date(fromTime) });
+      }
+      if (toTime !== null) {
+        qb.andWhere('approval.created_at <= :toDate', { toDate: new Date(toTime) });
+      }
+      const approvals = await qb.orderBy('approval.created_at', 'DESC').take(fetchLimit).getMany();
+      const missingActionIds = approvals
+        .map((approval) => approval.action_request_id)
+        .filter((id) => !actionById.has(id));
+      if (missingActionIds.length > 0) {
+        const linkedActions = await context.manager.getRepository(AiActionRequest).find({
+          where: {
+            tenant_id: context.tenantId,
+            id: In(Array.from(new Set(missingActionIds))),
+          },
+        });
+        for (const action of linkedActions) {
+          actionById.set(action.id, action);
+        }
+      }
+      for (const approval of approvals) {
+        const action = actionById.get(approval.action_request_id) ?? null;
+        if (!withinWindow(approval.decided_at ?? approval.created_at)) continue;
+        const actionAgentDefinitionId = action ? definitionIdFromMetadata(action.metadata_json) : null;
+        if (agentDefinitionId && actionAgentDefinitionId !== agentDefinitionId) continue;
+        if (targetRef && !(action?.target_ref ?? '').toLocaleLowerCase().includes(targetRef.toLocaleLowerCase())) continue;
+        const actionDetail = action ? activityActionDetail(action) : null;
+        const decisionDetail = (actionDetail || approval.reason)
+          ? {
+            capabilityName: actionDetail?.capabilityName ?? approval.capability_name,
+            body: actionDetail?.body ?? null,
+            changes: actionDetail?.changes ?? null,
+            reason: actionDetail?.reason ?? null,
+            rationale: approval.reason ?? null,
+            evidenceCount: actionDetail?.evidenceCount ?? null,
+          }
+          : null;
+        entries.push({
+          id: `approval:${approval.id}`,
+          at: iso(approval.decided_at ?? approval.created_at),
+          type: 'decision',
+          agentDefinitionId: actionAgentDefinitionId,
+          agentKey: null,
+          targetType: action?.target_type ?? null,
+          targetRef: action?.target_ref ?? null,
+          titleKey: approval.status === 'approved' ? 'decision_approved' : 'decision_rejected',
+          status: approval.status,
+          actorUserId: approval.actor_user_id,
+          actionRequestId: approval.action_request_id,
+          approvalId: approval.id,
+          runId: action?.run_id ?? null,
+          auditEventId: null,
+          capabilityName: approval.capability_name,
+          actionClass: action ? actionClass(action) : approval.capability_name,
+          eventType: null,
+          severity: null,
+          errorMessage: null,
+          detail: decisionDetail,
+        });
+      }
+    }
+
+    if (wantedTypes.has('configuration') || wantedTypes.has('pause') || wantedTypes.has('error')) {
+      const qb = context.manager.getRepository(AiAgentAuditEvent).createQueryBuilder('event')
+        .where('event.tenant_id = :tenantId', { tenantId: context.tenantId });
+      if (agentDefinitionId) {
+        qb.andWhere('event.agent_definition_id = :agentDefinitionId', { agentDefinitionId });
+      }
+      if (status) {
+        qb.andWhere('(event.severity = :status OR event.event_type = :status)', { status });
+      }
+      if (actorUserId) {
+        qb.andWhere("event.metadata_json ->> 'actor_user_id' = :actorUserId", { actorUserId });
+      }
+      if (fromTime !== null) {
+        qb.andWhere('event.created_at >= :fromDate', { fromDate: new Date(fromTime) });
+      }
+      if (toTime !== null) {
+        qb.andWhere('event.created_at <= :toDate', { toDate: new Date(toTime) });
+      }
+      const auditEvents = await qb.orderBy('event.created_at', 'DESC').take(fetchLimit).getMany();
+      for (const event of auditEvents) {
+        const type = auditType(event);
+        if (!wantedTypes.has(type)) continue;
+        entries.push({
+          id: `audit:${event.id}`,
+          at: iso(event.created_at),
+          type,
+          agentDefinitionId: event.agent_definition_id,
+          agentKey: null,
+          targetType: stringFromMetadata(metadataObject(event.metadata_json).target_type),
+          targetRef: stringFromMetadata(metadataObject(event.metadata_json).target_ref),
+          titleKey: event.event_type,
+          status: event.severity,
+          actorUserId: stringFromMetadata(metadataObject(event.metadata_json).actor_user_id),
+          actionRequestId: stringFromMetadata(metadataObject(event.metadata_json).action_request_id),
+          approvalId: null,
+          runId: stringFromMetadata(metadataObject(event.metadata_json).run_id),
+          auditEventId: event.id,
+          capabilityName: null,
+          actionClass: stringFromMetadata(metadataObject(event.metadata_json).action_class),
+          eventType: event.event_type,
+          severity: event.severity,
+          errorMessage: event.severity === 'error'
+            ? (stringFromMetadata(metadataObject(event.metadata_json).error) ?? event.message)
+            : null,
+          detail: null,
+        });
+      }
+    }
+
+    if (wantedTypes.has('error')) {
+      const qb = context.manager.getRepository(AiRun).createQueryBuilder('run')
+        .where('run.tenant_id = :tenantId', { tenantId: context.tenantId })
+        .andWhere("run.status IN ('failed', 'provider_error')");
+      if (agentDefinitionId) {
+        qb.andWhere("run.metadata_json ->> 'agent_definition_id' = :agentDefinitionId", { agentDefinitionId });
+      }
+      if (actorUserId) {
+        qb.andWhere('run.user_id = :actorUserId', { actorUserId });
+      }
+      if (status) {
+        qb.andWhere('run.status = :status', { status });
+      }
+      if (fromTime !== null) {
+        qb.andWhere('run.created_at >= :fromDate', { fromDate: new Date(fromTime) });
+      }
+      if (toTime !== null) {
+        qb.andWhere('run.created_at <= :toDate', { toDate: new Date(toTime) });
+      }
+      const runs = await qb.orderBy('run.created_at', 'DESC').take(fetchLimit).getMany();
+      for (const run of runs) {
+        const metadata = metadataObject(run.metadata_json);
+        const runTargetRef = stringFromMetadata(metadata.target_ref ?? metadata.targetRef);
+        if (targetRef && !(runTargetRef ?? '').toLocaleLowerCase().includes(targetRef.toLocaleLowerCase())) continue;
+        entries.push({
+          id: `run:${run.id}:error`,
+          at: iso(run.created_at),
+          type: 'error',
+          agentDefinitionId: definitionIdFromMetadata(run.metadata_json),
+          agentKey: null,
+          targetType: stringFromMetadata(metadata.target_type ?? metadata.targetType),
+          targetRef: runTargetRef,
+          titleKey: 'run_failed',
+          status: run.status,
+          actorUserId: run.user_id,
+          actionRequestId: null,
+          approvalId: null,
+          runId: run.id,
+          auditEventId: null,
+          capabilityName: null,
+          actionClass: null,
+          eventType: null,
+          severity: 'error',
+          errorMessage: stringFromMetadata(metadata.error_message ?? metadata.errorMessage),
+          detail: null,
+        });
+      }
+    }
+
+    const definitionIds = Array.from(new Set(entries
+      .map((entry) => entry.agentDefinitionId)
+      .filter((id): id is string => !!id)));
+    const definitions = definitionIds.length > 0
+      ? await context.manager.getRepository(AiAgentDefinition).find({
+        where: { tenant_id: context.tenantId, id: In(definitionIds) },
+      })
+      : [];
+    const definitionKeyById = new Map(definitions.map((definition) => [definition.id, definition.agent_key]));
+    const sorted = entries
+      .map((entry) => ({
+        ...entry,
+        agentKey: entry.agentDefinitionId ? definitionKeyById.get(entry.agentDefinitionId) ?? null : null,
+      }))
+      .sort((left, right) => Date.parse(right.at) - Date.parse(left.at));
+
+    return {
+      items: sorted.slice(offset, offset + limit),
+      total: sorted.length,
+      limit,
+      offset,
+    };
+  }
+
+  async getHelpdeskEvaluationDaily(
+    context: AiExecutionContextWithManager,
+    options: { days?: number; agentDefinitionId?: string } = {},
+  ) {
+    const days = Math.max(1, Math.min(180, Math.floor(options.days ?? 30)));
+    const end = new Date();
+    const endDay = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+    const start = new Date(endDay);
+    start.setUTCDate(start.getUTCDate() - days + 1);
+    // When scoped to one agent, the trend must reflect only that agent's own
+    // activity and must never show days before it existed: floor the window at
+    // the agent's creation day so a freshly created agent starts with an empty
+    // (not back-filled) history. See agentic-control-plane issue #1.
+    const agentDefinitionId = options.agentDefinitionId?.trim() || null;
+    if (agentDefinitionId) {
+      const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+        where: { id: agentDefinitionId, tenant_id: context.tenantId },
+      });
+      if (!definition) {
+        throw new NotFoundException('Agent definition not found.');
+      }
+      const created = definition.created_at instanceof Date
+        ? definition.created_at
+        : new Date(definition.created_at);
+      if (Number.isFinite(created.getTime())) {
+        const createdDay = new Date(Date.UTC(created.getUTCFullYear(), created.getUTCMonth(), created.getUTCDate()));
+        if (createdDay.getTime() > start.getTime()) {
+          start.setTime(createdDay.getTime());
+        }
+      }
+    }
+    type Daily = {
+      day: string;
+      proposals: number;
+      decided: number;
+      acceptanceRate: number | null;
+      executed: number;
+      costEur: number;
+      tokens: number;
+    };
+    const byDay = new Map<string, Daily>();
+    for (let day = new Date(start); day.getTime() <= endDay.getTime(); day.setUTCDate(day.getUTCDate() + 1)) {
+      const key = dateKey(day);
+      byDay.set(key, {
+        day: key,
+        proposals: 0,
+        decided: 0,
+        acceptanceRate: null,
+        executed: 0,
+        costEur: 0,
+        tokens: 0,
+      });
+    }
+
+    if (typeof (context.manager as unknown as { query?: unknown }).query === 'function') {
+      const [actionRows, runRows] = await Promise.all([
+        context.manager.query(
+          `
+            SELECT
+              date_trunc('day', created_at AT TIME ZONE 'UTC')::date AS day,
+              COUNT(*)::int AS proposals,
+              COUNT(*) FILTER (WHERE status IN ('executed', 'rejected'))::int AS decided,
+              COUNT(*) FILTER (WHERE status = 'executed')::int AS executed
+            FROM ai_action_requests
+            WHERE tenant_id = $1
+              AND provider_kind = 'ticketing'
+              AND provider_key = 'glpi'
+              AND capability_name = ANY($2)
+              AND created_at >= $3
+              AND created_at <= $4
+              AND ($5::text IS NULL OR metadata_json ->> 'agent_definition_id' = $5::text)
+            GROUP BY 1
+          `,
+          [context.tenantId, HELPDESK_REVIEW_ACTION_CAPABILITIES, start, end, agentDefinitionId],
+        ),
+        context.manager.query(
+          `
+            SELECT
+              date_trunc('day', created_at AT TIME ZONE 'UTC')::date AS day,
+              COALESCE(SUM(COALESCE((usage_json ->> 'estimated_tokens')::numeric, (usage_json ->> 'total_tokens')::numeric, 0)), 0)::float AS tokens,
+              COALESCE(SUM(COALESCE((cost_json ->> 'estimated_cost_eur')::numeric, (cost_json ->> 'total_cost_eur')::numeric, (cost_json ->> 'total_cost')::numeric, 0)), 0)::float AS cost_eur
+            FROM ai_runs
+            WHERE tenant_id = $1
+              AND created_at >= $2
+              AND created_at <= $3
+              AND ($4::text IS NULL OR metadata_json ->> 'agent_definition_id' = $4::text)
+            GROUP BY 1
+          `,
+          [context.tenantId, start, end, agentDefinitionId],
+        ),
+      ]);
+      for (const row of actionRows as Array<Record<string, unknown>>) {
+        const key = row.day instanceof Date ? dateKey(row.day) : String(row.day ?? '').slice(0, 10);
+        const target = byDay.get(key);
+        if (!target) continue;
+        target.proposals = numericMetadata(row.proposals);
+        target.decided = numericMetadata(row.decided);
+        target.executed = numericMetadata(row.executed);
+      }
+      for (const row of runRows as Array<Record<string, unknown>>) {
+        const key = row.day instanceof Date ? dateKey(row.day) : String(row.day ?? '').slice(0, 10);
+        const target = byDay.get(key);
+        if (!target) continue;
+        target.tokens = Math.round(numericMetadata(row.tokens));
+        target.costEur = Number(numericMetadata(row.cost_eur).toFixed(6));
+      }
+      for (const row of byDay.values()) {
+        row.acceptanceRate = row.decided > 0
+          ? Number((row.executed / row.decided).toFixed(4))
+          : null;
+      }
+      return { days: Array.from(byDay.values()) };
+    }
+
+    const [actions, runs] = await Promise.all([
+      context.manager.getRepository(AiActionRequest).find({
+        where: {
+          tenant_id: context.tenantId,
+          provider_kind: 'ticketing',
+          provider_key: 'glpi',
+        },
+      }),
+      context.manager.getRepository(AiRun).createQueryBuilder('run')
+        .where('run.tenant_id = :tenantId', { tenantId: context.tenantId })
+        .andWhere('run.created_at >= :start', { start })
+        .getMany(),
+    ]);
+
+    const acceptedByDay = new Map<string, number>();
+    for (const action of actions) {
+      if (!HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name)) continue;
+      if (agentDefinitionId && stringFromMetadata(metadataObject(action.metadata_json).agent_definition_id) !== agentDefinitionId) continue;
+      if (!withinDateRange(action.created_at, start, end)) continue;
+      const key = dateKey(action.created_at instanceof Date ? action.created_at : new Date(action.created_at));
+      const row = byDay.get(key);
+      if (!row) continue;
+      row.proposals += 1;
+      if (action.status === 'executed') {
+        row.decided += 1;
+        row.executed += 1;
+        acceptedByDay.set(key, (acceptedByDay.get(key) ?? 0) + 1);
+      } else if (action.status === 'rejected') {
+        row.decided += 1;
+      }
+    }
+    for (const run of runs) {
+      if (agentDefinitionId && stringFromMetadata(metadataObject(run.metadata_json).agent_definition_id) !== agentDefinitionId) continue;
+      if (!withinDateRange(run.created_at, start, end)) continue;
+      const key = dateKey(run.created_at instanceof Date ? run.created_at : new Date(run.created_at));
+      const row = byDay.get(key);
+      if (!row) continue;
+      const usage = { tokens: 0, cost: 0 };
+      addEstimatedUsage(usage, run);
+      row.tokens += usage.tokens;
+      row.costEur += usage.cost;
+    }
+    for (const [key, row] of byDay) {
+      row.tokens = Math.round(row.tokens);
+      row.costEur = Number(row.costEur.toFixed(6));
+      row.acceptanceRate = row.decided > 0
+        ? Number(((acceptedByDay.get(key) ?? 0) / row.decided).toFixed(4))
+        : null;
+    }
+    return { days: Array.from(byDay.values()) };
+  }
+
   async getQueueOverview(context: AiExecutionContextWithManager, options: { limit?: number } = {}) {
     if (!this.agentQueue) {
       return {
@@ -2011,7 +3756,7 @@ export class AiAgentControlService {
         target_states: [],
         action_requests: [],
         counts: {},
-        helpdesk: { summary: null, audit_events: [] },
+        helpdesk: { summary: null, summaries: [], fleet: null, audit_events: [] },
       };
     }
     const overview = await this.agentQueue.listOverview(context, { limit: safeLimit(options.limit, 50, 100) });
@@ -2062,14 +3807,36 @@ export class AiAgentControlService {
       ...runActionRequests,
     ].map((action) => [action.id, action])).values());
     const readiness = await this.executionReadinessForActions(context, actionRequests);
+    // Per-agent earned-autonomy summary for the fleet view: which action classes run
+    // automatically (an enabled agent-autonomy policy). One query, grouped by agent.
+    const automaticByDefinition = new Map<string, string[]>();
+    if (overview.definitions.length > 0) {
+      const autonomyPolicies = await context.manager.getRepository(AiApprovalPolicy).find({
+        where: { tenant_id: context.tenantId, enabled: true, status: 'enabled' },
+      });
+      for (const policy of autonomyPolicies) {
+        if (isAgentAutonomyPolicyMetadata(policy.metadata_json)) {
+          const list = automaticByDefinition.get(policy.metadata_json.agent_definition_id) ?? [];
+          if (!list.includes(policy.metadata_json.action_class)) {
+            list.push(policy.metadata_json.action_class);
+          }
+          automaticByDefinition.set(policy.metadata_json.agent_definition_id, list);
+        }
+      }
+    }
     return {
-      definitions: overview.definitions.map(serializeAgentDefinition),
+      definitions: overview.definitions.map((definition) => ({
+        ...serializeAgentDefinition(definition),
+        automatic_action_classes: automaticByDefinition.get(definition.id) ?? [],
+      })),
       work_items: overview.workItems.map(serializeAgentWorkItem),
       target_states: overview.targetStates.map(serializeAgentTargetState),
       action_requests: actionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id))),
       counts: overview.counts,
       helpdesk: {
         summary: overview.helpdesk.summary,
+        summaries: overview.helpdesk.summaries,
+        fleet: overview.helpdesk.fleet,
         audit_events: overview.helpdesk.auditEvents.map(serializeAgentAuditEvent),
       },
     };
@@ -2241,6 +4008,114 @@ export class AiAgentControlService {
       items: targets.map(serializeLiveTarget),
       ready: applicability.available && targets.length === 1,
     };
+  }
+
+  private async executeAutomaticPreparedActions(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition | null;
+      actions: AiActionRequest[];
+      baseMetadata: Record<string, unknown>;
+      runId: string;
+      stepIndex: number;
+    },
+  ): Promise<{
+    executions: Array<{
+      action_request_id: string;
+      action_class: string;
+      status: 'executed' | 'skipped' | 'failed';
+      tool_execution_id: string | null;
+      error_message: string | null;
+    }>;
+    nextStepIndex: number;
+  }> {
+    if (!input.definition || input.actions.length === 0) {
+      return { executions: [], nextStepIndex: input.stepIndex };
+    }
+    const autonomyRows = await this.autonomyRowsForDefinition(context, input.definition);
+    await this.demoteUnsafeAutomaticRows(context, input.definition, autonomyRows);
+    const policies = await context.manager.getRepository(AiApprovalPolicy).find({
+      where: { tenant_id: context.tenantId },
+      order: { policy_version: 'DESC' },
+    });
+    const policyEnabledForClass = (className: string) => policies.some((policy) =>
+      policy.enabled
+      && policy.status === 'enabled'
+      && isAgentAutonomyPolicyMetadata(policy.metadata_json)
+      && policy.metadata_json.agent_definition_id === input.definition?.id
+      && policy.metadata_json.action_class === className);
+    const executions: Array<{
+      action_request_id: string;
+      action_class: string;
+      status: 'executed' | 'skipped' | 'failed';
+      tool_execution_id: string | null;
+      error_message: string | null;
+    }> = [];
+    let stepIndex = input.stepIndex;
+    for (const action of input.actions) {
+      const className = actionClass(action);
+      // Hard safety boundary: terminal solve/close is destructive and stays
+      // human-approved even when 'status' autonomy is automatic.
+      const terminalStatus = isTerminalStatusAction(action);
+      if (terminalStatus || !isLowRiskAutomationActionClass(className) || !policyEnabledForClass(className)) {
+        executions.push({
+          action_request_id: action.id,
+          action_class: className,
+          status: 'skipped',
+          tool_execution_id: null,
+          error_message: terminalStatus ? 'terminal_status_requires_approval' : null,
+        });
+        continue;
+      }
+      try {
+        const result = await this.dispatcher.execute(context, {
+          capabilityName: action.capability_name,
+          input: { action_request_id: action.id },
+          execution: {
+            surface: 'internal',
+            trigger_kind: 'internal',
+            runId: input.runId,
+            stepIndex: stepIndex++,
+            metadata: {
+              ...input.baseMetadata,
+              triage_action: 'automatic_execution',
+              agent_autonomy_automatic: true,
+              action_request_id: action.id,
+              action_class: className,
+            },
+          },
+        });
+        executions.push({
+          action_request_id: action.id,
+          action_class: className,
+          status: 'executed',
+          tool_execution_id: result.tool_execution_id,
+          error_message: null,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || 'Automatic execution failed.');
+        await this.recordAgentAuditEvent(context, {
+          agentDefinitionId: input.definition.id,
+          eventType: 'agent_autonomy_execution_failed',
+          severity: 'warning',
+          message: `Automatic execution failed for ${className}.`,
+          metadata: {
+            action_request_id: action.id,
+            action_class: className,
+            run_id: input.runId,
+            error_message: message,
+          },
+        });
+        executions.push({
+          action_request_id: action.id,
+          action_class: className,
+          status: 'failed',
+          tool_execution_id: null,
+          error_message: message,
+        });
+      }
+    }
+    return { executions, nextStepIndex: stepIndex };
   }
 
   async runGlpiRead(context: AiExecutionContextWithManager, input: AgentControlGlpiReadInput = {}) {
@@ -2537,60 +4412,78 @@ export class AiAgentControlService {
     };
 
     const deterministicKnowledgeQueries = buildKnowledgeQueryCandidates(ticketForKnowledge);
-    const plannedKnowledgeSearch = this.knowledgePlanner
-      ? await this.knowledgePlanner.planKnowledgeSearch(context, {
-        ticket,
-        timeline: ticketTimeline,
-      })
-      : buildFallbackKnowledgeSearchPlan(ticket, ticketTimeline, deterministicKnowledgeQueries);
-    const knowledgeSearchPlan: KnowledgeSearchPlan = {
-      ...plannedKnowledgeSearch,
-      queries: uniqueKnowledgeCandidates([
-        ...plannedKnowledgeSearch.queries,
-        ...deterministicKnowledgeQueries,
-      ]),
-    };
-    const knowledgeQueryCandidates = knowledgeSearchPlan.queries;
+    const knowledgeSources = readAgentKnowledgeSources(agentDefinition);
+    let knowledgeSearchPlan: KnowledgeSearchPlan;
+    let knowledgeQueryCandidates: string[];
     const knowledgeAttempts: KnowledgeSearchAttempt[] = [];
-    for (const [candidateIndex, knowledgeQuery] of knowledgeQueryCandidates.entries()) {
-      const result = await this.dispatcher.execute<Record<string, unknown>>(context, {
-        capabilityName: 'search_knowledge',
-        input: {
-          query: knowledgeQuery,
-          limit: 5,
-          offset: 0,
-        },
-        execution: {
-          surface: 'internal',
-          trigger_kind: 'internal',
-          runId: ticketResult.run_id,
-          stepIndex: stepIndex++,
-          metadata: {
-            ...baseMetadata,
-            knowledge_query_source: 'glpi_ticket',
-            knowledge_query_index: candidateIndex + 1,
-            knowledge_query_count: knowledgeQueryCandidates.length,
+    let mergedKnowledgeCandidates: MergedKnowledgeCandidate[] = [];
+    let knowledgeInterpretation: KnowledgeResultInterpretation;
+    let selectedKnowledgeItems: KnowledgeSearchItem[] = [];
+    if (!knowledgeSources.knowledgeEnabled) {
+      // Knowledge search is disabled for this agent — gather no KANAP knowledge so the
+      // triage relies on the LLM (and web, when enabled). The plan/interpretation are kept
+      // as valid empty structures for the downstream audit metadata.
+      knowledgeSearchPlan = buildFallbackKnowledgeSearchPlan(ticket, ticketTimeline, []);
+      knowledgeQueryCandidates = [];
+      knowledgeInterpretation = buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, []);
+    } else {
+      const plannedKnowledgeSearch = this.knowledgePlanner
+        ? await this.knowledgePlanner.planKnowledgeSearch(context, {
+          ticket,
+          timeline: ticketTimeline,
+        })
+        : buildFallbackKnowledgeSearchPlan(ticket, ticketTimeline, deterministicKnowledgeQueries);
+      knowledgeSearchPlan = {
+        ...plannedKnowledgeSearch,
+        queries: uniqueKnowledgeCandidates([
+          ...plannedKnowledgeSearch.queries,
+          ...deterministicKnowledgeQueries,
+        ]),
+      };
+      knowledgeQueryCandidates = knowledgeSearchPlan.queries;
+      for (const [candidateIndex, knowledgeQuery] of knowledgeQueryCandidates.entries()) {
+        const result = await this.dispatcher.execute<Record<string, unknown>>(context, {
+          capabilityName: 'search_knowledge',
+          input: {
+            query: knowledgeQuery,
+            limit: 5,
+            offset: 0,
+            // Restrict to the agent's configured libraries (intersected with the agent
+            // user's accessible libraries by the search service); omit = all accessible.
+            ...(knowledgeSources.knowledgeLibraryIds ? { library_ids: knowledgeSources.knowledgeLibraryIds } : {}),
           },
-        },
-      });
-      allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
-      const items = knowledgeItemsFromOutput(result.output);
-      knowledgeAttempts.push({
-        query: knowledgeQuery,
-        result,
-        items,
-      });
+          execution: {
+            surface: 'internal',
+            trigger_kind: 'internal',
+            runId: ticketResult.run_id,
+            stepIndex: stepIndex++,
+            metadata: {
+              ...baseMetadata,
+              knowledge_query_source: 'glpi_ticket',
+              knowledge_query_index: candidateIndex + 1,
+              knowledge_query_count: knowledgeQueryCandidates.length,
+            },
+          },
+        });
+        allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
+        const items = knowledgeItemsFromOutput(result.output);
+        knowledgeAttempts.push({
+          query: knowledgeQuery,
+          result,
+          items,
+        });
+      }
+      mergedKnowledgeCandidates = mergeKnowledgeAttempts(knowledgeAttempts);
+      knowledgeInterpretation = this.knowledgePlanner
+        ? await this.knowledgePlanner.interpretKnowledgeResults(context, {
+          plan: knowledgeSearchPlan,
+          ticket,
+          timeline: ticketTimeline,
+          candidates: plannerCandidatesFromKnowledge(mergedKnowledgeCandidates),
+        })
+        : buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, mergedKnowledgeCandidates);
+      selectedKnowledgeItems = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
     }
-    const mergedKnowledgeCandidates = mergeKnowledgeAttempts(knowledgeAttempts);
-    const knowledgeInterpretation = this.knowledgePlanner
-      ? await this.knowledgePlanner.interpretKnowledgeResults(context, {
-        plan: knowledgeSearchPlan,
-        ticket,
-        timeline: ticketTimeline,
-        candidates: plannerCandidatesFromKnowledge(mergedKnowledgeCandidates),
-      })
-      : buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, mergedKnowledgeCandidates);
-    const selectedKnowledgeItems = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
     const selectedKnowledgeRefs = new Set(
       selectedKnowledgeItems.map((item) => knowledgeDocumentRef(item)?.toLocaleLowerCase()).filter((ref): ref is string => !!ref),
     );
@@ -2601,10 +4494,12 @@ export class AiAgentControlService {
       }),
     ) ?? knowledgeAttempts.find((attempt) => attempt.items.length > 0)
       ?? knowledgeAttempts[knowledgeAttempts.length - 1];
-    if (!selectedKnowledgeAttempt) {
-      throw new BadRequestException('Knowledge search did not execute.');
-    }
-    const knowledgeResult = selectedKnowledgeAttempt.result;
+    // Knowledge search is optional: an agent may run with KANAP knowledge disabled
+    // (relying on the LLM and, when enabled, web search — see the disabled branch
+    // above), and a ticket may produce no query candidates. In either case there is
+    // simply no knowledge tool result to reference, so triage must still proceed
+    // rather than fail the whole work item.
+    const knowledgeResult = selectedKnowledgeAttempt?.result ?? null;
     const knowledgeItems = selectedKnowledgeItems;
     const enrichedKnowledgeItems = [...knowledgeItems];
     const knowledgeDocumentAttempts: KnowledgeDocumentFetchAttempt[] = [];
@@ -2647,6 +4542,44 @@ export class AiAgentControlService {
           document_id: documentId,
           error_message: error instanceof Error ? error.message : String(error || 'Document fetch failed.'),
         });
+      }
+    }
+
+    // Web search (best-effort): only when this agent has web search enabled AND a Brave Search
+    // key is configured platform-side. Web findings are recorded as external (lower) trust and
+    // never outrank KANAP knowledge — they augment the internal note and only fill a gap in the
+    // requester reply when no knowledge matched. The capability sanitises the query to public-only
+    // terms (internal refs stripped) and throws if nothing public-meaningful remains; we treat any
+    // failure as "no web results" so triage still proceeds on knowledge + the LLM.
+    let webSearchResults: WebSearchResultItem[] = [];
+    if (knowledgeSources.webEnabled && Features.AI_WEB_SEARCH_READY) {
+      const webQueryCandidates = (knowledgeQueryCandidates.length > 0
+        ? knowledgeQueryCandidates
+        : deterministicKnowledgeQueries)
+        .map((candidate) => candidate.trim())
+        .filter((candidate) => candidate.length > 0);
+      const webQuery = webQueryCandidates[0] ?? trimmedString(ticket.title) ?? '';
+      if (webQuery) {
+        try {
+          const webResult = await this.dispatcher.execute<Record<string, unknown>>(context, {
+            capabilityName: 'web_search',
+            input: { query: webQuery, count: 5 },
+            execution: {
+              surface: 'internal',
+              trigger_kind: 'internal',
+              runId: ticketResult.run_id,
+              stepIndex: stepIndex++,
+              metadata: {
+                ...baseMetadata,
+                web_query_source: 'glpi_ticket',
+              },
+            },
+          });
+          allEvidenceIds.push(...await this.evidenceIdsForTool(context, webResult.tool_execution_id));
+          webSearchResults = webSearchItemsFromOutput(webResult.output);
+        } catch (error) {
+          this.logger.warn(`Web search skipped for GLPI ticket ${ticket.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
     }
 
@@ -2694,8 +4627,10 @@ export class AiAgentControlService {
         participant_context: participantContext,
         run_usage_estimate: runUsageEstimate,
         knowledge_result_count: knowledgeItems.length,
+        web_search_enabled: knowledgeSources.webEnabled === true,
+        web_result_count: webSearchResults.length,
         knowledge_candidate_count: mergedKnowledgeCandidates.length,
-        knowledge_query: selectedKnowledgeAttempt.query,
+        knowledge_query: selectedKnowledgeAttempt?.query ?? null,
         knowledge_query_attempt_count: knowledgeAttempts.length,
         knowledge_document_fetch_count: knowledgeDocumentAttempts.filter((attempt) => !!attempt.result).length,
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
@@ -2745,7 +4680,7 @@ export class AiAgentControlService {
           created_at: entry.createdAt,
           body_preview: clampText(entry.body, 220),
         })),
-        knowledge_query: selectedKnowledgeAttempt.query,
+        knowledge_query: selectedKnowledgeAttempt?.query ?? null,
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
         knowledge_query_attempts: knowledgeAttempts.map((attempt) => ({
           query: attempt.query,
@@ -2816,8 +4751,30 @@ export class AiAgentControlService {
       updated_at: now,
     }));
 
-    const noteBody = buildTriageNote(ticket, knowledgeItems, ticketTimeline);
-    const proposal = conversationGate.can_prepare_internal_note
+    // Stale-ticket cleanup: when configured and the ticket is past the inactivity
+    // threshold (and still open), the agent's job is to post a closing note and
+    // close/solve the ticket — it skips the normal responsive-triage proposals.
+    const staleClosure = readStaleClosureConfig(agentDefinition);
+    const ticketLastActivityMs = Date.parse(ticket.updatedAt ?? (ticket as { createdAt?: string }).createdAt ?? '');
+    const staleClosureActive = staleClosure.enabled
+      && lifecycleContext?.terminal !== true
+      && Number.isFinite(ticketLastActivityMs)
+      && (Date.now() - ticketLastActivityMs) >= staleClosure.stalenessMs;
+    const staleActivityBucket = staleClosureActive ? (ticket.updatedAt ?? '') : '';
+    const staleClosureGroup = staleClosureActive ? `stale-closure:${ticket.id}:${staleActivityBucket}` : null;
+
+    // If this cleanup agent now sees the ticket as no longer eligible (e.g. fresh activity, or
+    // it has become terminal), retract any standing stale-closure proposal so an operator can
+    // never approve a close on a ticket that is no longer stale.
+    if (staleClosure.enabled && !staleClosureActive) {
+      await this.withdrawStaleClosureProposals(context, {
+        ticketId: ticket.id,
+        agentDefinitionId: stringFromMetadata(metadataObject(baseMetadata).agent_definition_id),
+      });
+    }
+
+    const noteBody = buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults);
+    const proposal = (conversationGate.can_prepare_internal_note && !staleClosureActive)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
         input: {
@@ -2843,8 +4800,8 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const requesterReplyBody = buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline);
-    const publicReplyProposal = conversationGate.can_prepare_public_reply
+    const requesterReplyBody = buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline, webSearchResults);
+    const publicReplyProposal = (conversationGate.can_prepare_public_reply && !staleClosureActive)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
         input: {
@@ -2870,7 +4827,7 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const classificationUpdateInput = buildClassificationUpdateProposal(ticket, classificationContext);
+    const classificationUpdateInput = staleClosureActive ? null : buildClassificationUpdateProposal(ticket, classificationContext);
     const classificationProposalHash = classificationUpdateInput
       ? proposalHash({
         action: 'classification_update',
@@ -2919,7 +4876,7 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const statusUpdateInput = buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply);
+    const statusUpdateInput = staleClosureActive ? null : buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply);
     const statusProposalHash = statusUpdateInput
       ? proposalHash({
         action: 'status_update',
@@ -2968,7 +4925,7 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const assignmentUpdateInput = buildAssignmentUpdateProposal(routingContext);
+    const assignmentUpdateInput = staleClosureActive ? null : buildAssignmentUpdateProposal(routingContext);
     const assignmentUpdateProposal = assignmentUpdateInput
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
@@ -2996,19 +4953,108 @@ export class AiAgentControlService {
       })
       : null;
 
+    // Stale-closure proposals: a closing note + a terminal close/solve, deduped so a
+    // still-stale ticket isn't re-proposed each cycle. Both carry the shared group +
+    // destructive/high-risk flags so approvals and audit present them as a pair, not
+    // an ordinary status move.
+    const staleReplyBody = staleClosure.message.trim() || 'This ticket has been inactive and is being closed for cleanup.';
+    const staleReplyProposalHash = staleClosureActive ? proposalHash({ action: 'stale_closure_reply', body: staleReplyBody }) : null;
+    const staleContextHash = staleClosureActive ? proposalHash({ ticket: ticket.id, bucket: staleActivityBucket }) : null;
+    const staleReplySuppression = staleClosureActive && staleReplyProposalHash && staleContextHash
+      ? await this.unchangedProposalSuppressionReason(context, {
+        capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+        targetRef: ticket.id,
+        proposalHash: staleReplyProposalHash,
+        contextHash: staleContextHash,
+      })
+      : null;
+    const staleReplyProposal = staleClosureActive && !staleReplySuppression
+      ? await this.dispatcher.execute(context, {
+        capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+        input: {
+          provider_key: target.provider_key,
+          ticket_id: ticket.id,
+          reply_body: staleReplyBody,
+          evidence_ids: allEvidenceIds,
+          observation_id: observation.id,
+          recommendation_id: recommendation.id,
+          decision_id: decision.id,
+          evaluation_id: evaluation.id,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          metadata: {
+            ...baseMetadata,
+            triage_action: 'prepare_stale_closure_reply',
+            stale_closure_group: staleClosureGroup,
+            proposal_hash: staleReplyProposalHash,
+            proposal_context_hash: staleContextHash,
+          },
+        },
+      })
+      : null;
+    const staleCloseProposalHash = staleClosureActive ? proposalHash({ action: 'stale_closure', transition: staleClosure.action }) : null;
+    const staleCloseSuppression = staleClosureActive && staleCloseProposalHash && staleContextHash
+      ? await this.unchangedProposalSuppressionReason(context, {
+        capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+        targetRef: ticket.id,
+        proposalHash: staleCloseProposalHash,
+        contextHash: staleContextHash,
+      })
+      : null;
+    const staleCloseProposal = staleClosureActive && !staleCloseSuppression
+      ? await this.dispatcher.execute(context, {
+        capabilityName: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+        input: {
+          provider_key: target.provider_key,
+          ticket_id: ticket.id,
+          transition_key: staleClosure.action,
+          reason: `Closing stale ticket after a posted cleanup note (${staleClosure.action}).`,
+          evidence_ids: allEvidenceIds,
+          observation_id: observation.id,
+          recommendation_id: recommendation.id,
+          decision_id: decision.id,
+          evaluation_id: evaluation.id,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          metadata: {
+            ...baseMetadata,
+            triage_action: 'prepare_stale_closure',
+            stale_closure_group: staleClosureGroup,
+            terminal: true,
+            destructive: true,
+            risk: 'high',
+            proposal_hash: staleCloseProposalHash,
+            proposal_context_hash: staleContextHash,
+          },
+        },
+      })
+      : null;
+
     const directPreparedActionIds = Array.from(new Set([
       ...(proposal ? actionRequestIdsFromCapabilityOutput(proposal.output) : []),
       ...(publicReplyProposal ? actionRequestIdsFromCapabilityOutput(publicReplyProposal.output) : []),
       ...(classificationUpdateProposal ? actionRequestIdsFromCapabilityOutput(classificationUpdateProposal.output) : []),
       ...(statusUpdateProposal ? actionRequestIdsFromCapabilityOutput(statusUpdateProposal.output) : []),
       ...(assignmentUpdateProposal ? actionRequestIdsFromCapabilityOutput(assignmentUpdateProposal.output) : []),
+      ...(staleReplyProposal ? actionRequestIdsFromCapabilityOutput(staleReplyProposal.output) : []),
+      ...(staleCloseProposal ? actionRequestIdsFromCapabilityOutput(staleCloseProposal.output) : []),
     ]));
     const expectedPreparedActionCount = [
-      conversationGate.can_prepare_internal_note,
-      conversationGate.can_prepare_public_reply,
+      conversationGate.can_prepare_internal_note && !staleClosureActive,
+      conversationGate.can_prepare_public_reply && !staleClosureActive,
       !!classificationUpdateProposal && adapterData(classificationUpdateProposal.output) != null,
       !!statusUpdateProposal && adapterData(statusUpdateProposal.output) != null,
       !!assignmentUpdateProposal && adapterData(assignmentUpdateProposal.output) != null,
+      !!staleReplyProposal && adapterData(staleReplyProposal.output) != null,
+      !!staleCloseProposal && adapterData(staleCloseProposal.output) != null,
     ].filter(Boolean).length;
     const recoveredPreparedActionIds = directPreparedActionIds.length >= expectedPreparedActionCount
       ? []
@@ -3038,6 +5084,27 @@ export class AiAgentControlService {
       actions: durablePreparedActions,
       agentMetadata,
     });
+    const automaticExecution = await this.executeAutomaticPreparedActions(context, {
+      definition: agentDefinition,
+      actions: durablePreparedActions,
+      baseMetadata,
+      runId: ticketResult.run_id,
+      stepIndex,
+    });
+    stepIndex = automaticExecution.nextStepIndex;
+    const executedAutomaticActionIds = new Set(
+      automaticExecution.executions
+        .filter((execution) => execution.status === 'executed')
+        .map((execution) => execution.action_request_id),
+    );
+    if (executedAutomaticActionIds.size > 0) {
+      durablePreparedActions = await context.manager.getRepository(AiActionRequest).find({
+        where: {
+          tenant_id: context.tenantId,
+          id: In(durablePreparedActions.map((action) => action.id)),
+        },
+      });
+    }
     const durablePreparedActionIds = durablePreparedActions.map((action) => action.id);
     let finalWorkItem: AiAgentWorkItem | null = leasedWorkItem;
     let targetState: AiAgentTargetState | null = null;
@@ -3054,7 +5121,7 @@ export class AiAgentControlService {
           recommendation_id: recommendation.id,
           decision_id: decision.id,
           evaluation_id: evaluation.id,
-          knowledge_query: selectedKnowledgeAttempt.query,
+          knowledge_query: selectedKnowledgeAttempt?.query ?? null,
           knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
           knowledge_query_attempts: knowledgeAttempts.map((attempt) => ({
             query: attempt.query,
@@ -3074,6 +5141,7 @@ export class AiAgentControlService {
           routing_context: routingContext,
           participant_context: participantContext,
           run_usage_estimate: runUsageEstimate,
+          automatic_executions: automaticExecution.executions,
           ticket_history_entry_count: ticketTimeline.length,
           phase11_proposals: {
             classification: classificationUpdateInput ? {
@@ -3117,12 +5185,12 @@ export class AiAgentControlService {
         lifecycle_context_tool_execution_id: lifecycleContextResult.tool_execution_id,
         routing_context_tool_execution_id: routingContextResult.tool_execution_id,
         participant_context_tool_execution_id: participantContextResult.tool_execution_id,
-        knowledge_tool_execution_id: knowledgeResult.tool_execution_id,
+        knowledge_tool_execution_id: knowledgeResult?.tool_execution_id ?? null,
         knowledge_tool_execution_ids: knowledgeAttempts.map((attempt) => attempt.result.tool_execution_id),
         knowledge_document_tool_execution_ids: knowledgeDocumentAttempts
           .map((attempt) => attempt.result?.tool_execution_id)
           .filter((id): id is string => typeof id === 'string' && id.length > 0),
-        knowledge_query: selectedKnowledgeAttempt.query,
+        knowledge_query: selectedKnowledgeAttempt?.query ?? null,
         knowledge_query_candidates: knowledgeQueryCandidates,
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
         knowledge_query_attempts: knowledgeAttempts.map((attempt) => ({
@@ -3148,6 +5216,7 @@ export class AiAgentControlService {
         routing_context: routingContext,
         participant_context: participantContext,
         run_usage_estimate: runUsageEstimate,
+        automatic_executions: automaticExecution.executions,
         skipped_actions: {
           internal_note: conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason,
           public_reply: conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason,
@@ -3207,6 +5276,13 @@ export class AiAgentControlService {
 
     let execution: unknown = null;
     if (options.execute !== false) {
+      // Carry the agent id so an agent-scoped emergency pause blocks this write too.
+      // Without it the dispatcher only sees tenant-wide pauses and an agent-scoped
+      // "pause this agent" would not hold its already-pending human-approved writes.
+      // Invariant: agent-produced write proposals MUST stamp agent_definition_id into
+      // metadata_json at preparation time (agentExecutionMetadata / triage baseMetadata)
+      // for this guard to apply.
+      const agentDefinitionId = definitionIdFromMetadata(approved.action.metadata_json);
       execution = await this.dispatcher.execute(context, {
         capabilityName: approved.action.capability_name,
         capabilityVersion: approved.action.capability_version,
@@ -3220,6 +5296,7 @@ export class AiAgentControlService {
             uat_workflow: 'agent_control_center_approved_execution',
             source: 'admin_ui',
             action_request_id: approved.action.id,
+            ...(agentDefinitionId ? { agent_definition_id: agentDefinitionId } : {}),
           },
         },
       });
@@ -3230,6 +5307,7 @@ export class AiAgentControlService {
     });
     const detailRunId = freshAction?.run_id ?? approved.action.run_id;
     const responseAction = freshAction ?? approved.action;
+    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, responseAction.id);
     const readiness = await this.executionReadinessForActions(context, [responseAction]);
 
     return {
@@ -3255,6 +5333,7 @@ export class AiAgentControlService {
     });
     const detailRunId = freshAction?.run_id ?? rejected.action.run_id;
     const responseAction = freshAction ?? rejected.action;
+    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, responseAction.id);
     const readiness = await this.executionReadinessForActions(context, [responseAction]);
 
     return {

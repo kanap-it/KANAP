@@ -2,6 +2,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('ai_emergency_pauses')
 @Index(['tenant_id', 'active', 'created_at'])
+@Index(['tenant_id', 'agent_definition_id', 'active'])
 @Index(['tenant_id', 'capability_name', 'active'])
 @Index(['tenant_id', 'category', 'active'])
 @Index(['tenant_id', 'effect', 'active'])
@@ -14,6 +15,9 @@ export class AiEmergencyPause {
 
   @Column('text')
   scope!: string;
+
+  @Column('uuid', { nullable: true })
+  agent_definition_id!: string | null;
 
   @Column('text', { nullable: true })
   capability_name!: string | null;

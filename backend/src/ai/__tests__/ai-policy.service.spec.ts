@@ -164,6 +164,63 @@ async function testSettingsAccessRequiresAiSettingsAdmin() {
   Features.AI_SETTINGS_ENABLED = originalFeature;
 }
 
+async function testAgentPermissionMatrixAndSettingsCompatibility() {
+  const originalFeature = Features.AI_SETTINGS_ENABLED;
+  Features.AI_SETTINGS_ENABLED = true;
+  const context = {
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    isPlatformHost: false,
+  };
+
+  const readerPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_agents', 'reader'],
+    ]),
+  });
+  await readerPolicy.assertAgentRead(context, createManager());
+  await assert.rejects(
+    () => readerPolicy.assertAgentOperate(context, createManager()),
+    /Missing required permission ai_agents:contributor/,
+  );
+  await assert.rejects(
+    () => readerPolicy.assertAgentAdmin(context, createManager()),
+    /Missing required permission ai_agents:admin/,
+  );
+
+  const contributorPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_agents', 'contributor'],
+    ]),
+  });
+  await contributorPolicy.assertAgentRead(context, createManager());
+  await contributorPolicy.assertAgentOperate(context, createManager());
+  await assert.rejects(
+    () => contributorPolicy.assertAgentAdmin(context, createManager()),
+    /Missing required permission ai_agents:admin/,
+  );
+
+  const adminPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_agents', 'admin'],
+    ]),
+  });
+  await adminPolicy.assertAgentRead(context, createManager());
+  await adminPolicy.assertAgentOperate(context, createManager());
+  await adminPolicy.assertAgentAdmin(context, createManager());
+
+  const legacySettingsAdminPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_settings', 'admin'],
+    ]),
+  });
+  await legacySettingsAdminPolicy.assertAgentRead(context, createManager());
+  await legacySettingsAdminPolicy.assertAgentOperate(context, createManager());
+  await legacySettingsAdminPolicy.assertAgentAdmin(context, createManager());
+
+  Features.AI_SETTINGS_ENABLED = originalFeature;
+}
+
 async function testChatSurfaceRequiresFeatureFlag() {
   const originalFeature = Features.AI_CHAT_ENABLED;
   Features.AI_CHAT_ENABLED = false;
@@ -469,6 +526,7 @@ async function testCapabilitiesRejectPlatformHost() {
 async function run() {
   await testListReadableEntityTypesFiltersUnreadableFamilies();
   await testSettingsAccessRequiresAiSettingsAdmin();
+  await testAgentPermissionMatrixAndSettingsCompatibility();
   await testChatSurfaceRequiresFeatureFlag();
   await testChatSurfaceRequiresTenantEnablement();
   await testMcpSurfaceRequiresTenantEnablement();

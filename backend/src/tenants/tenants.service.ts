@@ -199,6 +199,7 @@ const BUILT_IN_ROLES: Array<{
     permissions: {
       ai_chat: 'member',
       ai_mcp: 'reader',
+      ai_agents: 'admin',
       ai_settings: 'admin',
     }
   }

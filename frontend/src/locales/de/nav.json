@@ -1,6 +1,7 @@
 {
   "workspaces": {
     "ai": "Plaid",
+    "agents": "KI-Agenten",
     "portfolio": "Portfolio",
     "itOperations": "IT-Landschaft",
     "knowledge": "Wissensdatenbank",
@@ -71,6 +72,12 @@
       "reporting": "Berichte",
       "contributors": "Mitwirkende",
       "settings": "Einstellungen"
+    },
+    "agents": {
+      "overview": "Übersicht",
+      "approvals": "Freigaben",
+      "approvalsWithCount": "Freigaben ({{count}})",
+      "activity": "Aktivität"
     },
     "admin": {
       "users": "Benutzer",

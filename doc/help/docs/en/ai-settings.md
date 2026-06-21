@@ -58,8 +58,7 @@ The Features section toggles the optional surfaces of Plaid:
 
 - **Enable chat** — turns the in-app chat workspace on or off for end users
 - **Enable MCP** — turns the MCP API on or off for external clients
-- **Web search** — lets Plaid search the web (requires the `BRAVE_SEARCH_API_KEY` to be configured at the instance level; the toggle is disabled and tooltipped otherwise). Activating the toggle automatically runs a connectivity test.
-- **Web enrichment** — lets Plaid follow up a search by fetching pages for richer context. Only available when web search is enabled.
+- **Web search** — lets the Plaid chat assistant search the web (requires the `BRAVE_SEARCH_API_KEY` to be configured at the instance level; the toggle is disabled and tooltipped otherwise). Activating the toggle automatically runs a connectivity test. This toggle applies to the chat assistant only — AI agents have their own, independent web search setting on each agent's **Settings** tab in the AI Agents workspace, which relies on the same instance-level web search configuration.
 
 ## Retention
 
