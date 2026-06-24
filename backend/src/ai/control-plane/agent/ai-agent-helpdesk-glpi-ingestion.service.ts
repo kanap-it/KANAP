@@ -13,6 +13,7 @@ import {
   HELP_DESK_GLPI_TRIAGE_WORK_KIND,
   HelpdeskNewTicketsIngestionConfig,
 } from './ai-agent-work-queue.service';
+import { normalizeServiceDeskTargeting, ticketMatchesServiceDeskTargeting } from './service-desk-targeting';
 
 export type HelpdeskGlpiIngestionPollSummary = {
   tenantId: string;
@@ -49,12 +50,17 @@ function parseDateMs(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizedStatusSet(values: string[] | undefined): Set<string> {
+  const source = values && values.length > 0 ? values : ['1', '2', '3', '4'];
+  return new Set(source.map((value) => String(value).trim().toLowerCase()).filter(Boolean));
+}
+
 function inScope(ticket: TicketRecord, config: HelpdeskNewTicketsIngestionConfig): boolean {
+  const statusSet = normalizedStatusSet(config.statusValues);
+  if (!statusSet.has(String(ticket.status ?? '').trim().toLowerCase())) {
+    return false;
+  }
   if (config.mode === 'all_open' || config.mode === 'agent_involved') {
-    // Open tickets only (GLPI status codes 1-4; 5/6 are solved/closed).
-    if (!['1', '2', '3', '4'].includes(String(ticket.status ?? '').trim())) {
-      return false;
-    }
     const cutoff = parseDateMs(config.lastChangedBefore);
     if (cutoff != null) {
       const changed = parseDateMs(ticket.updatedAt);
@@ -377,6 +383,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
           ? {
             mode: 'all_open' as const,
             maxResults,
+            statusValues: config.statusValues,
             entityId: config.entityId ?? null,
             categoryId: config.categoryId ?? null,
             lastChangedBefore: config.lastChangedBefore ?? null,
@@ -385,6 +392,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
             mode: 'new_tickets_only' as const,
             createdAfter: config.createdAfter ?? '',
             maxResults,
+            statusValues: config.statusValues,
             entityId: config.entityId ?? null,
             categoryId: config.categoryId ?? null,
           };
@@ -397,15 +405,54 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
         }
         listedTickets = listed.data.tickets;
       }
-      const scopedTickets = listedTickets.filter((ticket) => inScope(ticket, config));
+      const targeting = normalizeServiceDeskTargeting(definition.scope_policy_json);
+      const scopedTickets = listedTickets.filter((ticket) =>
+        inScope(ticket, config)
+        && ticketMatchesServiceDeskTargeting(ticket, targeting, {
+          agentTouched: config.mode === 'agent_involved',
+        }),
+      );
       summary.listed = listedTickets.length;
       for (const ticket of scopedTickets.slice(0, config.maxTicketsPerCycle)) {
+        const readiness = await this.queue.targetReviewReadiness(context, {
+          definition,
+          ticket,
+        });
+        if (!readiness.ready) {
+          summary.deduped += 1;
+          continue;
+        }
+        const claim = await this.queue.acquireTargetClaim(context, {
+          definition,
+          targetRef: ticket.id,
+          metadata: {
+            source: 'scheduled_poller',
+            readiness_reason: readiness.reason,
+            ticket_updated_at: ticket.updatedAt ?? null,
+          },
+        });
+        if (!claim.acquired) {
+          summary.deduped += 1;
+          continue;
+        }
         const result = await this.queue.enqueueHelpdeskGlpiScopedTicket(context, {
           definition,
           ticket,
           metadata: {
             poller_created_after: config.createdAfter,
             poller_enabled_at: config.enabledAt,
+            target_readiness_reason: readiness.reason,
+            target_claim_status: claim.status,
+          },
+        });
+        await this.queue.acquireTargetClaim(context, {
+          definition,
+          targetRef: ticket.id,
+          workItemId: result.workItem.id,
+          metadata: {
+            source: 'scheduled_poller',
+            work_item_id: result.workItem.id,
+            target_readiness_reason: readiness.reason,
           },
         });
         if (result.created) {

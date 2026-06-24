@@ -170,11 +170,13 @@ export function useAgentControlData() {
   });
 
   const setAutonomyMutation = useMutation({
-    mutationFn: (input: { id: string; actionClass: string; mode: 'ask_first' | 'automatic'; confirm?: boolean }) =>
+    mutationFn: (input: { id: string; actionClass: string; mode: 'ask_first' | 'automatic'; confirm?: boolean; overrideAcknowledged?: boolean; overrideReason?: string | null }) =>
       aiAgentControlApi.setAgentAutonomy(input.id, {
         actionClass: input.actionClass,
         mode: input.mode,
         confirm: input.confirm,
+        overrideAcknowledged: input.overrideAcknowledged,
+        overrideReason: input.overrideReason,
       }),
     onSuccess: async () => {
       setMessage(t('messages.autonomySaved'));

@@ -2,7 +2,11 @@ import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AiActionRequestService } from '../control-plane/action-request/ai-action-request.service';
-import { AiAgentWorkQueueService } from '../control-plane/agent/ai-agent-work-queue.service';
+import {
+  AiAgentWorkQueueService,
+  readStaleClosureConfig,
+  staleClosureCapabilityEnabled,
+} from '../control-plane/agent/ai-agent-work-queue.service';
 import { AGENT_AUTONOMY_POLICY_SOURCE } from '../control-plane/agent/ai-agent-autonomy';
 import { AiApprovalService } from '../control-plane/approval/ai-approval.service';
 import {
@@ -38,8 +42,16 @@ import {
 import { AiCapabilityRegistry, providerCapabilityContracts } from '../control-plane/capability/ai-capability.registry';
 import { AiAutomationJobCatalogService } from '../control-plane/automation/ai-automation-job-catalog.service';
 import { AiAgentControlService, proposalStillBlocksRegeneration } from '../control-plane/agent-control/ai-agent-control.service';
+import { AiReplySynthesisService } from '../control-plane/agent-control/ai-reply-synthesis.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../control-plane/diagnostics/ai-readonly-diagnostic-workflow.service';
 import { AiAgentHelpdeskGlpiIngestionService } from '../control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
+import { AiAgentApprovalLifecycleSweeperService } from '../control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
+import {
+  deriveServiceDeskTargetingFetchConfig,
+  normalizeServiceDeskScopePolicy,
+  normalizeServiceDeskTargeting,
+  ticketMatchesServiceDeskTargeting,
+} from '../control-plane/agent/service-desk-targeting';
 import { AiCapabilityDispatcherService } from '../control-plane/dispatcher/ai-capability-dispatcher.service';
 import { AiActionRequest } from '../control-plane/entities/ai-action-request.entity';
 import { AiAgentAuditEvent } from '../control-plane/entities/ai-agent-audit-event.entity';
@@ -87,6 +99,7 @@ import { MockTicketingProvider } from '../control-plane/providers/mocks/mock-tic
 import { GlpiTicketingProvider } from '../control-plane/providers/glpi-ticketing.provider';
 import { AiProviderRegistryService } from '../control-plane/providers/provider-registry.service';
 import { AiExecutionContextWithManager } from '../ai.types';
+import { Features } from '../../config/features';
 
 function baseContract(overrides?: Partial<CapabilityContract>): CapabilityContract {
   return CapabilityContractSchema.parse({
@@ -241,6 +254,9 @@ function createMemoryManager() {
         ...payload,
       }),
       save: async (record: any) => {
+        if (Array.isArray(record)) {
+          return Promise.all(record.map((entry) => repoFor(entity).save(entry)));
+        }
         const existingIndex = rows.findIndex((row) => row.id === record.id);
         if (existingIndex >= 0) {
           rows[existingIndex] = record;
@@ -355,6 +371,7 @@ async function enableHelpdeskNewTicketsOnly(
 ) {
   const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
   const definition = bundle.definition;
+  const { targeting: _previousTargeting, ...baseScopePolicy } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
   definition.trigger_policy_json = {
     ...(definition.trigger_policy_json ?? {}),
     scheduled_poll: { enabled: true },
@@ -362,7 +379,7 @@ async function enableHelpdeskNewTicketsOnly(
     automatic_writes_enabled: false,
   };
   definition.scope_policy_json = {
-    ...(definition.scope_policy_json ?? {}),
+    ...baseScopePolicy,
     mode: 'new_tickets_only',
     new_tickets_only: {
       enabled: true,
@@ -475,6 +492,7 @@ function createDispatcher(options?: {
 function createRealProviderDispatcher(options?: {
   pause?: () => Promise<void>;
   ticketingProvider?: any;
+  agentQueue?: AiAgentWorkQueueService;
 }) {
   const { stores, manager } = createMemoryManager();
   const context = createContext(manager);
@@ -506,6 +524,10 @@ function createRealProviderDispatcher(options?: {
     providers,
     automationCatalog,
     externalMcpBridge,
+    undefined,
+    undefined,
+    undefined,
+    options?.agentQueue,
   );
   const evidence = new AiEvidenceService({} as any);
   const dispatcher = new AiCapabilityDispatcherService(
@@ -1596,6 +1618,68 @@ async function testMockAdapterContractScenarios() {
   assert.match(maliciousText, /"tool"/);
 }
 
+async function testTicketingProviderReferenceDataContract() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+
+  const mock = new MockTicketingProvider();
+  const mockEnums = await mock.describeReferenceEnums(context);
+  assert.equal(mockEnums.ok, true);
+  assert.equal(mockEnums.ok && mockEnums.data.statuses.some((item) => item.value === 'new'), true);
+  const mockCategories = await mock.searchReferenceCatalog(context, { kind: 'category', query: 'vpn', limit: 5 });
+  assert.equal(mockCategories.ok, true);
+  assert.deepEqual(mockCategories.ok ? mockCategories.data.items.map((item) => item.value) : [], ['vpn']);
+
+  let initSessionCalls = 0;
+  let killedSessions = 0;
+  const glpi = new GlpiTicketingProvider(
+    {
+      get: async () => ({
+        glpi_enabled: true,
+        glpi_url: 'https://glpi.internal',
+        glpi_user_token_encrypted: 'enc-token',
+      }),
+    } as any,
+    {
+      initSession: async () => {
+        initSessionCalls += 1;
+        return { baseUrl: 'https://glpi.internal', sessionToken: 'session-1', appToken: null };
+      },
+      killSession: async () => {
+        killedSessions += 1;
+      },
+      searchReferenceCatalog: async (_session: unknown, input: any) => [
+        { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
+        { id: 13, name: 'Badge', completename: 'IT > Access > Badge', parent_id: 4 },
+      ].slice(0, input.limit),
+    } as any,
+  );
+  const glpiEnums = await glpi.describeReferenceEnums(context);
+  assert.equal(glpiEnums.ok, true);
+  // Status reference value is the normalized key (matching toTicketRecord + the picker namespace),
+  // not the raw GLPI code; the code stays available in metadata.
+  assert.equal(glpiEnums.ok ? glpiEnums.data.statuses[0].value : null, 'new');
+  assert.equal(glpiEnums.ok ? (glpiEnums.data.statuses[0].metadata as any)?.code : null, 1);
+  assert.equal(glpiEnums.ok ? glpiEnums.data.priorities.some((item) => item.value === 'high') : false, true);
+  assert.equal(initSessionCalls, 1, 'GLPI enum lookup must go through initSession');
+  assert.equal(killedSessions, 1);
+
+  const glpiCatalog = await glpi.searchReferenceCatalog(context, { kind: 'category', query: 'vpn', limit: 1 });
+  assert.equal(glpiCatalog.ok, true);
+  assert.deepEqual(glpiCatalog.ok ? glpiCatalog.data.items : [], [{
+    value: '12',
+    label: 'IT > Access > VPN',
+    metadata: {
+      kind: 'category',
+      name: 'VPN',
+      completename: 'IT > Access > VPN',
+      parentId: 4,
+    },
+  }]);
+  assert.equal(initSessionCalls, 2, 'GLPI catalog lookup must go through initSession');
+  assert.equal(killedSessions, 2);
+}
+
 async function testMockTicketingHelpdeskContextReads() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -1734,6 +1818,12 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
   assert.equal(ticket.ok ? ticket.data.createdAt : null, '2026-06-09 08:10:00');
   assert.equal(ticket.ok ? ticket.data.updatedAt : null, '2026-06-09 09:15:30');
   assert.deepEqual(ticket.ok ? ticket.data.scope : null, { entityId: '12', categoryId: '34' });
+  // toTicketRecord exposes normalized keys (not raw GLPI codes/numbers) so status/priority/type
+  // targeting filters compare the same namespace the reference-data pickers store. Regression guard:
+  // priority previously returned the numeric '4' and never matched the 'high' picker value.
+  assert.equal(ticket.ok ? ticket.data.status : null, 'processing_assigned');
+  assert.equal(ticket.ok ? ticket.data.priority : null, 'high');
+  assert.equal(ticket.ok ? ticket.data.type : null, 'request');
 
   const classification = await provider.getTicketClassificationContext(context, { ticketId: '4' });
   assert.equal(classification.ok, true);
@@ -3021,6 +3111,34 @@ async function testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay() {
   );
 }
 
+async function testServiceDeskProposalExpiryMergesPartialTtlConfig() {
+  const { dispatcher, context, stores } = createRealProviderDispatcher();
+  const started = Date.now();
+  const prepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: 'mock-ticket-1001',
+      reply_body: 'Requester reply with default service-desk review window.',
+      provider_key: 'mock',
+    },
+    execution: {
+      surface: 'internal',
+      metadata: {
+        approval_ttl_seconds_by_action_class: {
+          internal_note: 60 * 60,
+        },
+      },
+    },
+  });
+
+  const actionRequestId = (prepared.output as any).data.action_request_id;
+  const action = (stores.get(AiActionRequest.name) ?? []).find((candidate) => candidate.id === actionRequestId);
+  assert.ok(action);
+  assert.equal(action.capability_name, TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY);
+  assert.ok(action.expires_at.getTime() >= started + 7 * 60 * 60 * 1000);
+  assert.ok(action.expires_at.getTime() <= started + 9 * 60 * 60 * 1000);
+}
+
 async function testApprovedTicketWriteFailsWhenTicketHistoryChangedAfterPreparation() {
   const { dispatcher, context, stores, approvals } = createRealProviderDispatcher();
   const prepared = await dispatcher.execute(context, {
@@ -3495,6 +3613,28 @@ async function testCreateOrEnsureProviderActionRetriesExpiredPending() {
     expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   });
   assert.equal(repeated.id, fresh.id);
+}
+
+async function testApproveActionRequestExtendsNearExpiredExecutionWindow() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const actions = new AiActionRequestService({} as any, {} as any);
+  const approvals = new AiApprovalService({} as any, actions);
+  const started = Date.now();
+  const action = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: 'provider-action-near-expired-approval',
+    expiresAt: new Date(started + 1_000),
+  }));
+
+  const result = await approvals.approveActionRequest(context, action.id, {
+    source: 'human_ui',
+    reason: 'Approve near expiry.',
+  });
+
+  const savedAction = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === action.id);
+  assert.equal(savedAction.status, 'approved');
+  assert.ok(savedAction.expires_at.getTime() >= started + 29 * 60 * 1000);
+  assert.equal(result.approval.expires_at.getTime(), savedAction.expires_at.getTime());
 }
 
 async function testCreateOrEnsureProviderActionCanRetryExecutedWhenRequested() {
@@ -4633,14 +4773,15 @@ async function enableHelpdeskAllOpenStaleClosure(
 ) {
   const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
   const definition = bundle.definition;
+  const { targeting: _previousTargeting, ...baseScopePolicy } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
   definition.trigger_policy_json = {
     ...(definition.trigger_policy_json ?? {}),
     scheduled_poll: { enabled: true },
     production_polling_enabled: true,
     automatic_writes_enabled: false,
   };
-  definition.scope_policy_json = {
-    ...(definition.scope_policy_json ?? {}),
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...baseScopePolicy,
     mode: 'all_open',
     new_tickets_only: { enabled: false },
     all_open: {
@@ -4660,7 +4801,7 @@ async function enableHelpdeskAllOpenStaleClosure(
       staleness_hours: 72,
       staleness_days: 0,
     },
-  };
+  });
   definition.queue_policy_json = {
     ...(definition.queue_policy_json ?? {}),
     economic_guardrails: {
@@ -4668,6 +4809,15 @@ async function enableHelpdeskAllOpenStaleClosure(
       per_run: { max_estimated_tokens: 40_000, max_estimated_cost_eur: 1 },
       daily: { max_agent_runs: 25, max_estimated_tokens: 500_000, max_estimated_cost_eur: 10 },
     },
+  };
+  definition.response_policy_json = {
+    ...(definition.response_policy_json ?? {}),
+    prepare_stale_closure: true,
+  };
+  definition.metadata_json = {
+    ...(definition.metadata_json ?? {}),
+    user_modified: true,
+    production_polling_enabled: true,
   };
   definition.updated_at = new Date();
   return context.manager.getRepository(AiAgentDefinition).save(definition);
@@ -4745,10 +4895,11 @@ function testStaleProposalSuppressionIgnoresExpired() {
   assert.equal(proposalStillBlocksRegeneration(make({ status: 'rejected' }), now), true);
   assert.equal(proposalStillBlocksRegeneration(make({ status: 'executed' }), now), true);
 
-  // A proposal that lapsed unreviewed must NOT block regeneration — this is the deadlock fix:
+  // A proposal/action that lapsed must NOT block regeneration — this is the deadlock fix:
   // a stale ticket's context hash never changes, so an expired proposal would otherwise make it
   // permanently un-proposable.
   assert.equal(proposalStillBlocksRegeneration(make({ status: 'pending', expires_at: new Date(now - 1) }), now), false);
+  assert.equal(proposalStillBlocksRegeneration(make({ status: 'approved', expires_at: new Date(now - 1) }), now), false);
   assert.equal(proposalStillBlocksRegeneration(make({ status: 'expired', expires_at: new Date(now - 60_000) }), now), false);
   assert.equal(proposalStillBlocksRegeneration(make({ status: 'failed' }), now), false);
 }
@@ -4796,6 +4947,1623 @@ async function testStaleClosureWithdrawalOnReactivation() {
   assert.equal(byId(responsive.id).status, 'pending');
   assert.equal(byId(otherAgent.id).status, 'pending');
   assert.equal(byId(otherTicket.id).status, 'pending');
+}
+
+function testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig() {
+  const legacyScope = {
+    mode: 'agent_involved',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    target_kind: 'ticket',
+    agent_involved: {
+      enabled: true,
+      entity_id: 'lohr-helpdesk',
+      category_id: 'access',
+      max_tickets_per_cycle: 5,
+      max_provider_requests_per_cycle: 8,
+    },
+    stale_closure: {
+      enabled: true,
+      action: 'closed',
+      message: 'Merci, au revoir',
+      staleness_hours: 72,
+      staleness_days: 0,
+    },
+    knowledge_sources: {
+      knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+      web: { enabled: true },
+      precedence: 'knowledge_first',
+    },
+  };
+
+  const normalized = normalizeServiceDeskScopePolicy(legacyScope) as any;
+  assert.equal(normalized.stale_closure.message, 'Merci, au revoir');
+  assert.equal(normalized.knowledge_sources.web.enabled, true);
+  assert.equal(normalized.targeting.combinator, 'and');
+  assert.equal(normalized.targeting.predicates.some((predicate: any) => predicate.field === 'touched_by' && predicate.value === 'self'), true);
+  assert.equal(normalized.targeting.predicates.some((predicate: any) => predicate.field === 'inactivity_age'), true);
+  assert.equal(
+    normalized.targeting.resolution.find((entry: any) => entry.predicate.field === 'touched_by')?.resolution,
+    'control_plane_resolved',
+  );
+  assert.equal(
+    normalizeServiceDeskTargeting(legacyScope).resolution.some((entry) => entry.resolution === 'unsupported'),
+    false,
+  );
+  const typeTargeting = normalizeServiceDeskTargeting({
+    targeting: {
+      predicates: [{ field: 'type', operator: 'eq', value: 'incident' }],
+    },
+  });
+  assert.equal(
+    typeTargeting.resolution.find((entry) => entry.predicate.field === 'type')?.resolution,
+    'locally_filtered_bounded_fetch',
+  );
+  assert.equal(ticketMatchesServiceDeskTargeting({
+    id: 'type-ticket',
+    title: 'Type ticket',
+    status: 'new',
+    priority: 'high',
+    type: 'incident',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+  }, typeTargeting), true);
+  assert.throws(
+    () => normalizeServiceDeskScopePolicy({
+      targeting: {
+        predicates: [{ field: 'status', operator: 'in', value: ['1'], or: [{ field: 'priority', value: 'high' }] }],
+      },
+    }),
+    BadRequestException,
+  );
+  assert.throws(
+    () => normalizeServiceDeskScopePolicy({
+      targeting: {
+        predicates: [{ field: 'unsupported_field', operator: 'eq', value: 'x' }],
+      },
+    }),
+    BadRequestException,
+  );
+  assert.throws(
+    () => normalizeServiceDeskScopePolicy({
+      targeting: {
+        predicates: [{ field: 'assignee', operator: 'eq', value: 'agent-1' }],
+      },
+    }),
+    BadRequestException,
+  );
+  assert.throws(
+    () => normalizeServiceDeskScopePolicy({
+      targeting: {
+        predicates: [{ field: 'requester', operator: 'eq', value: 'requester-1' }],
+      },
+    }),
+    BadRequestException,
+  );
+}
+
+async function testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    categoryId: null,
+    hardBackfillHorizonHours: 72,
+  });
+  const baseScope = definition.scope_policy_json as Record<string, unknown>;
+  definition.scope_policy_json = {
+    ...baseScope,
+    mode: 'new_tickets_only',
+    new_tickets_only: {
+      ...(baseScope.new_tickets_only as Record<string, unknown>),
+      enabled: true,
+      category_id: null,
+    },
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending'] },
+        { field: 'category', operator: 'eq', value: 'access' },
+        { field: 'inactivity_age', operator: 'gte', value: { seconds: 72 * 3600 } },
+      ],
+    },
+  };
+
+  const allOpenConfig = queue.resolveScopeIngestionConfig(definition);
+  assert.equal(allOpenConfig.mode, 'all_open');
+  assert.equal(allOpenConfig.createdAfter, null);
+  assert.equal(allOpenConfig.categoryId, 'access');
+  assert.deepEqual(allOpenConfig.statusValues, ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending']);
+  assert.ok(allOpenConfig.lastChangedBefore, 'inactivity_age should derive an all_open last-changed cutoff');
+
+  definition.scope_policy_json = {
+    ...baseScope,
+    mode: 'all_open',
+    all_open: {
+      enabled: true,
+      enabled_at: '2026-06-09T08:00:00.000Z',
+      max_tickets_per_cycle: 5,
+      max_provider_requests_per_cycle: 10,
+    },
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [
+        { field: 'created_at', operator: 'gte', value: { relative_hours: 48 } },
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending'] },
+      ],
+    },
+  };
+  const createdConfig = queue.resolveScopeIngestionConfig(definition);
+  assert.equal(createdConfig.mode, 'new_tickets_only');
+  assert.ok(createdConfig.createdAfter, 'created_at predicate should derive a created-after provider bound');
+  assert.deepEqual(createdConfig.statusValues, ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending']);
+  const createdAfterMs = Date.parse(createdConfig.createdAfter ?? '');
+  assert.ok(Number.isFinite(createdAfterMs));
+  assert.ok(Math.abs(createdAfterMs - (Date.now() - 48 * 60 * 60 * 1000)) < 5 * 60 * 1000);
+
+  const touchedTargeting = normalizeServiceDeskTargeting({
+    targeting: {
+      predicates: [
+        { field: 'touched_by', operator: 'eq', value: 'self' },
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+      ],
+    },
+  });
+  assert.equal(deriveServiceDeskTargetingFetchConfig(touchedTargeting).mode, 'agent_involved');
+  assert.deepEqual(deriveServiceDeskTargetingFetchConfig(touchedTargeting).statusValues, ['1', '2', '3', '4']);
+
+  const priorityTargeting = normalizeServiceDeskTargeting({
+    targeting: {
+      predicates: [
+        { field: 'priority', operator: 'gte', value: 'high' },
+      ],
+    },
+  });
+  const priorityFetch = deriveServiceDeskTargetingFetchConfig(priorityTargeting);
+  assert.equal(priorityFetch.mode, 'all_open');
+  assert.deepEqual(priorityFetch.statusValues, ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending', 'open']);
+  assert.equal(ticketMatchesServiceDeskTargeting({
+    id: 'p4',
+    title: 'High priority',
+    status: 'new',
+    priority: '4',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+  }, priorityTargeting), true);
+  assert.equal(ticketMatchesServiceDeskTargeting({
+    id: 'p2',
+    title: 'Low priority',
+    status: 'new',
+    priority: 'low',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+  }, priorityTargeting), false);
+}
+
+async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    maxTicketsPerCycle: 3,
+    maxProviderRequestsPerCycle: 3,
+  });
+  const baseScope = definition.scope_policy_json as Record<string, unknown>;
+  definition.response_policy_json = {
+    ...(definition.response_policy_json ?? {}),
+    prepare_stale_closure: true,
+  };
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...baseScope,
+    mode: 'all_open',
+    all_open: {
+      enabled: true,
+      enabled_at: '2026-06-09T08:00:00.000Z',
+      max_tickets_per_cycle: 5,
+      max_provider_requests_per_cycle: 10,
+    },
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'inactivity_age', operator: 'gte', value: { seconds: 24 * 3600 } },
+      ],
+    },
+    stale_closure: {
+      enabled: true,
+      action: 'solved',
+      message: 'Closing dormant ticket.',
+      staleness_hours: 72,
+      staleness_days: 0,
+    },
+  });
+
+  const runtime = readStaleClosureConfig(definition);
+  assert.equal(staleClosureCapabilityEnabled(definition), true);
+  assert.equal(runtime.action, 'solved');
+  assert.equal(runtime.message, 'Closing dormant ticket.');
+  const scoped = queue.resolveScopeIngestionConfig(definition);
+  assert.ok(scoped.lastChangedBefore);
+  assert.ok(Math.abs(Date.parse(scoped.lastChangedBefore ?? '') - (Date.now() - 24 * 3600 * 1000)) < 5 * 60 * 1000);
+
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...(definition.scope_policy_json as Record<string, unknown>),
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [{ field: 'status', operator: 'in', value: ['1', '2', '3', '4'] }],
+    },
+  });
+  assert.equal(staleClosureCapabilityEnabled(definition), true, 'response policy remains the only stale-close enablement flag');
+  assert.equal(queue.resolveScopeIngestionConfig(definition).lastChangedBefore, null, 'hidden stale_closure cannot add a fetch cutoff when targeting omits inactivity');
+
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...(definition.scope_policy_json as Record<string, unknown>),
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'inactivity_age', operator: 'gte', value: { seconds: 12 * 3600 } },
+      ],
+    },
+  });
+  definition.response_policy_json = {
+    ...(definition.response_policy_json ?? {}),
+    prepare_stale_closure: false,
+  };
+  assert.equal(staleClosureCapabilityEnabled(definition), false, 'canonical targeting requires the response-policy stale-close flag');
+
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...baseScope,
+    mode: 'all_open',
+    all_open: {
+      enabled: true,
+      enabled_at: '2026-06-09T08:00:00.000Z',
+      max_tickets_per_cycle: 5,
+      max_provider_requests_per_cycle: 10,
+    },
+    stale_closure: {
+      enabled: true,
+      action: 'closed',
+      message: 'Legacy close.',
+      staleness_hours: 48,
+      staleness_days: 0,
+    },
+  });
+  definition.response_policy_json = {
+    ...(definition.response_policy_json ?? {}),
+    prepare_stale_closure: true,
+  };
+  const legacyRuntime = readStaleClosureConfig(definition);
+  assert.equal(staleClosureCapabilityEnabled(definition), true, 'legacy stale_closure action/message remains read-compatible after flag migration');
+  assert.equal(legacyRuntime.action, 'closed');
+  assert.equal(legacyRuntime.message, 'Legacy close.');
+  assert.equal(queue.resolveScopeIngestionConfig(definition).lastChangedBefore !== null, true);
+}
+
+async function testPhase136StaleClosureCloseGateUsesTargetingOnly() {
+  const staleActionCount = (calls: Array<{ triageAction: string | null }>, action: string) =>
+    calls.filter((call) => call.triageAction === action).length;
+
+  const eligibleAt24h = await runQueuedStaleClosureTriage({
+    targetingSeconds: 24 * 3600,
+    hiddenStalenessHours: 72,
+    ticketAgeHours: 48,
+  });
+  assert.equal(
+    staleActionCount(eligibleAt24h.calls, 'prepare_stale_closure'),
+    1,
+    '48h inactive ticket must close when targeting threshold is 24h even if hidden stale_closure says 72h',
+  );
+  assert.equal(staleActionCount(eligibleAt24h.calls, 'prepare_stale_closure_reply'), 1);
+
+  const ineligibleAt72h = await runQueuedStaleClosureTriage({
+    targetingSeconds: 72 * 3600,
+    hiddenStalenessHours: 1,
+    ticketAgeHours: 48,
+  });
+  assert.equal(
+    staleActionCount(ineligibleAt72h.calls, 'prepare_stale_closure'),
+    0,
+    '48h inactive ticket must not close when targeting threshold is 72h even if hidden stale_closure says 1h',
+  );
+  assert.equal(staleActionCount(ineligibleAt72h.calls, 'prepare_stale_closure_reply'), 0);
+
+  const noInactivityPredicate = await runQueuedStaleClosureTriage({
+    targetingSeconds: null,
+    hiddenStalenessHours: 1,
+    ticketAgeHours: 48,
+  });
+  assert.equal(
+    staleActionCount(noInactivityPredicate.calls, 'prepare_stale_closure'),
+    0,
+    'stale-close capability must not close when targeting omits inactivity_age',
+  );
+  assert.equal(staleActionCount(noInactivityPredicate.calls, 'prepare_stale_closure_reply'), 0);
+
+  const legacyConfig = await runQueuedStaleClosureTriage({
+    targetingSeconds: null,
+    hiddenStalenessHours: 48,
+    ticketAgeHours: 49,
+    legacyScope: true,
+  });
+  assert.equal(staleActionCount(legacyConfig.calls, 'prepare_stale_closure'), 1);
+  assert.equal(staleActionCount(legacyConfig.calls, 'prepare_stale_closure_reply'), 1);
+}
+
+async function testPhase137TargetingOptionsAreProviderScopedAndCached() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const tenantTwo = createTenantContext(manager, 'tenant-2');
+  const agentId = randomUUID();
+  const tenantTwoAgentId = randomUUID();
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  const baseDefinition = {
+    id: agentId,
+    agent_key: 'helpdesk.reference-options',
+    name: 'Reference options agent',
+    agent_type: 'helpdesk',
+    status: 'enabled',
+    environment: 'sandbox',
+    provider_bindings_json: {
+      ticketing: {
+        provider_key: 'mock',
+        connection_id: 'mock-connection',
+      },
+    },
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+  await definitionRepo.save(definitionRepo.create({ ...baseDefinition, tenant_id: context.tenantId }));
+  await definitionRepo.save(definitionRepo.create({
+    ...baseDefinition,
+    id: tenantTwoAgentId,
+    tenant_id: tenantTwo.tenantId,
+  }));
+
+  let enumCalls = 0;
+  let catalogCalls = 0;
+  const providerRequests: string[] = [];
+  const provider = {
+    describeReferenceEnums: async () => {
+      enumCalls += 1;
+      return {
+        ok: true,
+        data: {
+          statuses: [{ value: 'provider-open', label: 'Provider open' }],
+          priorities: [{ value: 'provider-high', label: 'Provider high' }],
+          types: [{ value: 'provider-request', label: 'Provider request' }],
+        },
+        evidence: [],
+      };
+    },
+    searchReferenceCatalog: async (_providerContext: unknown, input: any) => {
+      catalogCalls += 1;
+      return {
+        ok: true,
+        data: {
+          items: [{
+            value: `${input.kind}-${String(input.query || 'root')}`,
+            label: `${input.kind} ${String(input.query || 'root')}`,
+          }],
+        },
+        evidence: [],
+      };
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      ticketing: async (providerContext: AiExecutionContextWithManager, providerKey: string) => {
+        providerRequests.push(`${providerContext.tenantId}:${providerKey}`);
+        return provider;
+      },
+    } as any,
+    new AiAgentWorkQueueService(),
+  );
+
+  const first = await service.getAgentTargetingOptions(context, agentId, 'status', { limit: 10 });
+  const second = await service.getAgentTargetingOptions(context, agentId, 'status', { limit: 10 });
+  assert.deepEqual(first.options, [{ value: 'provider-open', label: 'Provider open' }]);
+  assert.deepEqual(second.options, first.options);
+  assert.equal(enumCalls, 1, 'enum options should be cached per tenant/provider/field/query');
+
+  const categoryFirst = await service.getAgentTargetingOptions(context, agentId, 'category', { query: 'vpn', limit: 5 });
+  const categorySecond = await service.getAgentTargetingOptions(context, agentId, 'category', { query: 'vpn', limit: 5 });
+  const categoryOtherQuery = await service.getAgentTargetingOptions(context, agentId, 'category', { query: 'badge', limit: 5 });
+  assert.equal(categoryFirst.options[0].value, 'category-vpn');
+  assert.deepEqual(categorySecond.options, categoryFirst.options);
+  assert.equal(categoryOtherQuery.options[0].value, 'category-badge');
+  assert.equal(catalogCalls, 2, 'catalog cache key must include query');
+
+  await service.getAgentTargetingOptions(tenantTwo, tenantTwoAgentId, 'status', { limit: 10 });
+  assert.equal(enumCalls, 2, 'cache key must include tenant id');
+  assert.deepEqual(providerRequests, ['tenant-1:mock', 'tenant-1:mock', 'tenant-1:mock', 'tenant-2:mock']);
+  await assert.rejects(
+    () => service.getAgentTargetingOptions(context, agentId, 'requester', { limit: 10 }),
+    (error: unknown) => error instanceof BadRequestException,
+  );
+}
+
+async function testPhase136PollerUsesPredicateDerivedScopeInsteadOfLegacyMode() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    maxTicketsPerCycle: 3,
+    maxProviderRequestsPerCycle: 3,
+  });
+  const baseScope = definition.scope_policy_json as Record<string, unknown>;
+  definition.scope_policy_json = {
+    ...baseScope,
+    mode: 'new_tickets_only',
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'category', operator: 'eq', value: 'access' },
+        { field: 'updated_at', operator: 'lte', value: { relative_hours: 24 } },
+      ],
+    },
+  };
+  await manager.getRepository(AiAgentDefinition).save(definition);
+
+  const requestedScopes: any[] = [];
+  const nowMs = Date.now();
+  const service = createHelpdeskIngestionService({
+    queue,
+    provider: {
+      listTicketsForScope: async (_context: unknown, input: any) => {
+        requestedScopes.push(input.scope);
+        return {
+          ok: true,
+          data: {
+            tickets: [{
+              id: 'predicate-all-open-ticket',
+              status: '2',
+              title: 'Predicate all-open ticket',
+              createdAt: new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString(),
+              updatedAt: new Date(nowMs - 48 * 60 * 60 * 1000).toISOString(),
+              scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+            }],
+          },
+          evidence: [],
+        };
+      },
+    },
+  });
+
+  const result = await service.pollTenant(context);
+  assert.equal(result.status, 'completed');
+  assert.equal(result.enqueued, 1);
+  assert.equal(requestedScopes.length, 1);
+  assert.equal(requestedScopes[0].mode, 'all_open');
+  assert.equal(requestedScopes[0].categoryId, 'access');
+  assert.ok(requestedScopes[0].lastChangedBefore, 'updated_at <= relative hours should derive lastChangedBefore');
+}
+
+async function testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejectsUnbounded() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    maxTicketsPerCycle: 2,
+    maxProviderRequestsPerCycle: 2,
+  });
+  const { targeting: _oldPreviewTargeting, ...previewBaseScope } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...previewBaseScope,
+    mode: 'agent_involved',
+    agent_involved: {
+      enabled: true,
+      entity_id: 'lohr-helpdesk',
+      category_id: 'access',
+      max_tickets_per_cycle: 2,
+      max_provider_requests_per_cycle: 2,
+    },
+    all_matching: { enabled: false },
+    freeform_live_object_ids: false,
+  });
+  definition.queue_policy_json = {
+    ...(definition.queue_policy_json ?? {}),
+    review_cooldown_seconds: 12 * 60 * 60,
+  };
+  await manager.getRepository(AiAgentDefinition).save(definition);
+  await queue.upsertTargetState(context, {
+    agentDefinitionId: definition.id,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'preview-1',
+    agentTouched: true,
+  });
+  await queue.upsertTargetState(context, {
+    agentDefinitionId: definition.id,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'preview-2',
+    agentTouched: true,
+  });
+  await queue.upsertTargetState(context, {
+    agentDefinitionId: 'other-agent-definition',
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'preview-1',
+    agentTouched: true,
+  });
+
+  let listCalls = 0;
+  const getCalls: string[] = [];
+  const provider = {
+    getTicket: async (_context: unknown, input: any) => {
+      getCalls.push(input.ticketId);
+      return {
+        ok: true,
+        data: {
+          id: input.ticketId,
+          status: 'new',
+          title: `Ticket ${input.ticketId}`,
+          createdAt: '2026-06-10T09:00:00.000Z',
+          updatedAt: '2026-06-10T10:00:00.000Z',
+          scope: {
+            entityId: 'lohr-helpdesk',
+            categoryId: input.ticketId === 'preview-1' ? 'access' : 'finance',
+          },
+        },
+        evidence: [],
+      };
+    },
+    listTicketsForScope: async () => {
+      listCalls += 1;
+      return { ok: true, data: { tickets: [] }, evidence: [] };
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    { findEnabledTargets: async () => [] } as any,
+    { ticketing: async () => provider } as any,
+    queue,
+  );
+
+  const result = await service.previewAgentTargeting(context, definition.id);
+  assert.equal(listCalls, 0);
+  assert.deepEqual(getCalls.sort(), ['preview-1', 'preview-2']);
+  assert.equal(result.preview.sampleSize, 2);
+  assert.equal(result.preview.matchEstimate, 1);
+  assert.equal(result.preview.overlapEstimate, 1);
+  assert.equal(result.preview.runsPerDayEstimate, 2);
+  assert.equal(
+    result.preview.resolution.find((entry) => entry.predicate.field === 'touched_by')?.resolution,
+    'control_plane_resolved',
+  );
+
+  await assert.rejects(
+    () => service.previewAgentTargeting(context, definition.id, {
+      scope_policy_json: {
+        ...(definition.scope_policy_json ?? {}),
+        mode: 'all_open',
+        all_open: { enabled: true },
+        targeting: {
+          schema_version: 1,
+          combinator: 'and',
+          predicates: [{ field: 'status', operator: 'in', value: ['1', '2', '3', '4'] }],
+        },
+        all_matching: { enabled: false },
+        freeform_live_object_ids: false,
+      },
+    }),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+}
+
+async function testPhase135TargetStateSchedulingWakeOnChangeAndSelfWrite() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  definition.queue_policy_json = {
+    ...(definition.queue_policy_json ?? {}),
+    review_cooldown_seconds: 60 * 60,
+  };
+  await manager.getRepository(AiAgentDefinition).save(definition);
+  const ticket = {
+    id: 'wake-ticket',
+    status: 'new',
+    title: 'Wake ticket',
+    createdAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+
+  const first = await queue.targetReviewReadiness(context, {
+    definition,
+    ticket,
+    now: new Date(),
+  });
+  assert.equal(first.ready, true);
+  assert.equal(first.reason, 'first_review');
+
+  const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, { definition, ticket });
+  const claimed = await queue.acquireTargetClaim(context, {
+    definition,
+    targetRef: ticket.id,
+    workItemId: enqueued.workItem.id,
+  });
+  assert.equal(claimed.acquired, true);
+  const outcome = await queue.recordManualGlpiTriageOutcome(context, {
+    definition,
+    workItem: enqueued.workItem,
+    runId: 'self-write-run',
+    actionRequestIds: [],
+    ticket,
+    knowledgeResultCount: 0,
+    metadata: { self_write_test: true },
+  });
+  assert.equal(outcome.workItem.status, 'completed');
+  assert.equal(outcome.targetState.last_processed_external_updated_at?.toISOString(), ticket.updatedAt);
+
+  const sameTimestamp = await queue.targetReviewReadiness(context, {
+    definition,
+    ticket,
+    now: new Date(Date.now() + 60_000),
+  });
+  assert.equal(sameTimestamp.ready, false);
+  assert.equal(sameTimestamp.reason, 'not_due');
+
+  const changedTicket = {
+    ...ticket,
+    updatedAt: new Date(Date.parse(ticket.updatedAt) + 2 * 60 * 60 * 1000).toISOString(),
+  };
+  const changed = await queue.targetReviewReadiness(context, {
+    definition,
+    ticket: changedTicket,
+    now: new Date(Date.now() + 2 * 60_000),
+  });
+  assert.equal(changed.ready, true);
+  assert.equal(changed.reason, 'changed');
+
+  const savedState = (stores.get(AiAgentTargetState.name) ?? []).find((row: AiAgentTargetState) => row.target_ref === ticket.id);
+  assert.ok(savedState);
+  assert.equal(savedState.claim_status, 'none');
+  assert.ok(savedState.next_review_at);
+}
+
+async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const low = await enableHelpdeskNewTicketsOnly(context, queue);
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  low.agent_priority = 100;
+  await definitionRepo.save(low);
+  const high = await definitionRepo.save(definitionRepo.create({
+    ...low,
+    id: randomUUID(),
+    agent_key: 'helpdesk.glpi.high-priority',
+    name: 'High priority helpdesk',
+    agent_priority: 250,
+    metadata_json: { user_modified: true },
+  }));
+  const equalDefer = await definitionRepo.save(definitionRepo.create({
+    ...low,
+    id: randomUUID(),
+    agent_key: 'helpdesk.glpi.equal-defer',
+    name: 'Equal defer helpdesk',
+    agent_priority: 250,
+    queue_policy_json: { ...(low.queue_policy_json ?? {}), on_conflict: 'defer' },
+    metadata_json: { user_modified: true },
+  }));
+  const equalSupersede = await definitionRepo.save(definitionRepo.create({
+    ...low,
+    id: randomUUID(),
+    agent_key: 'helpdesk.glpi.equal-supersede',
+    name: 'Equal supersede helpdesk',
+    agent_priority: 250,
+    queue_policy_json: { ...(low.queue_policy_json ?? {}), on_conflict: 'supersede' },
+    metadata_json: { user_modified: true },
+  }));
+
+  const lowClaim = await queue.acquireTargetClaim(context, { definition: low, targetRef: 'claim-ticket', workItemId: 'low-work' });
+  assert.equal(lowClaim.acquired, true);
+  const highClaim = await queue.acquireTargetClaim(context, { definition: high, targetRef: 'claim-ticket', workItemId: 'high-work' });
+  assert.equal(highClaim.acquired, true);
+  assert.equal(highClaim.status, 'superseded');
+  const equalDeferred = await queue.acquireTargetClaim(context, {
+    definition: equalDefer,
+    targetRef: 'claim-ticket',
+    workItemId: 'equal-defer-work',
+  });
+  assert.equal(equalDeferred.acquired, false);
+  assert.equal(equalDeferred.reason, 'equal_priority_claim_active');
+  const equalClaim = await queue.acquireTargetClaim(context, {
+    definition: equalSupersede,
+    targetRef: 'claim-ticket',
+    workItemId: 'equal-supersede-work',
+  });
+  assert.equal(equalClaim.acquired, true);
+  assert.equal(equalClaim.status, 'superseded');
+
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const claimAction = await actionRepo.save(actionRepo.create({
+    tenant_id: context.tenantId,
+    run_id: 'claim-run',
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_ref: 'claim-ticket',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: 'claim-action-hash',
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: new Date(Date.now() + 60 * 60_000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: { agent_definition_id: equalSupersede.id },
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+  await queue.holdTargetClaimForPendingProposals(context, {
+    definition: equalSupersede,
+    workItem: {
+      id: 'equal-supersede-work',
+      tenant_id: context.tenantId,
+      agent_definition_id: equalSupersede.id,
+      source_provider_kind: 'ticketing',
+      source_provider_key: 'glpi',
+      source_object_type: 'ticket',
+      source_object_ref: 'claim-ticket',
+      last_run_id: 'claim-run',
+      work_kind: 'ticket_triage',
+      status: 'waiting_approval',
+      dedup_key: 'claim-ticket-dedup',
+    } as AiAgentWorkItem,
+    actionRequestIds: [claimAction.id],
+    runId: 'claim-run',
+  });
+  const state = await manager.getRepository(AiAgentTargetState).findOne({
+    where: { tenant_id: context.tenantId, agent_definition_id: equalSupersede.id, target_ref: 'claim-ticket' },
+  });
+  assert.ok(state);
+  state.claim_expires_at = new Date(Date.now() - 1000);
+  await manager.getRepository(AiAgentTargetState).save(state);
+  const reconciled = await queue.reconcileTargetClaims(context, { targetRef: 'claim-ticket', now: new Date() });
+  assert.equal(reconciled.released, 1);
+  assert.equal(reconciled.expiredActions, 1);
+  const expiredClaimAction = await actionRepo.findOne({ where: { id: claimAction.id, tenant_id: context.tenantId } });
+  assert.equal(expiredClaimAction.status, 'expired');
+
+  const raceQueue = new AiAgentWorkQueueService();
+  const originalUpsert = raceQueue.upsertTargetState.bind(raceQueue);
+  let failOnce = true;
+  (raceQueue as any).upsertTargetState = async (ctx: any, input: any) => {
+    if (failOnce && input.claimStatus === 'claimed' && input.agentDefinitionId === equalDefer.id) {
+      failOnce = false;
+      await originalUpsert(ctx, {
+        ...input,
+        agentDefinitionId: high.id,
+        claimOwnerPriority: high.agent_priority,
+        claimOwnerWorkItemId: 'race-owner-work',
+      });
+      const error: any = new Error('duplicate active target claim');
+      error.code = '23505';
+      throw error;
+    }
+    return originalUpsert(ctx, input);
+  };
+  const race = await raceQueue.acquireTargetClaim(context, {
+    definition: equalDefer,
+    targetRef: 'race-ticket',
+    workItemId: 'race-contender-work',
+  });
+  assert.equal(race.acquired, false);
+  assert.equal(race.reason, 'concurrent_claim_conflict');
+  assert.equal(race.ownerAgentDefinitionId, high.id);
+}
+
+async function testPhase135SweeperExpiresPendingAndReconcilesClaims() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  const actions = new AiActionRequestService({} as any, {} as any);
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const expiredPending = await actionRepo.save(actionRepo.create({
+    tenant_id: context.tenantId,
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    target_type: 'ticket',
+    target_ref: 'sweeper-ticket-1',
+    idempotency_key: 'sweeper-expired',
+    action_payload_json: { ticketId: 'sweeper-ticket-1', visibility: 'internal', body: 'Expired.', bodyFormat: 'plain_text' },
+    input_hash: 'sweeper-expired-hash',
+    expires_at: new Date(Date.now() - 60_000),
+    metadata_json: { agent_definition_id: definition.id },
+    created_at: new Date(Date.now() - 120_000),
+    updated_at: new Date(Date.now() - 120_000),
+  }));
+  const expiredApproved = await actionRepo.save(actionRepo.create({
+    tenant_id: context.tenantId,
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'approved',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    target_type: 'ticket',
+    target_ref: 'sweeper-ticket-approved',
+    idempotency_key: 'sweeper-expired-approved',
+    action_payload_json: { ticketId: 'sweeper-ticket-approved', visibility: 'public', body: 'Expired approved.', bodyFormat: 'plain_text' },
+    input_hash: 'sweeper-expired-approved-hash',
+    expires_at: new Date(Date.now() - 60_000),
+    metadata_json: { agent_definition_id: definition.id },
+    approved_at: new Date(Date.now() - 90_000),
+    created_at: new Date(Date.now() - 120_000),
+    updated_at: new Date(Date.now() - 90_000),
+  }));
+  const claimAction = await actionRepo.save(actionRepo.create({
+    tenant_id: context.tenantId,
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    target_type: 'ticket',
+    target_ref: 'sweeper-ticket-2',
+    idempotency_key: 'sweeper-claim',
+    action_payload_json: { ticketId: 'sweeper-ticket-2', visibility: 'internal', body: 'Claim.', bodyFormat: 'plain_text' },
+    input_hash: 'sweeper-claim-hash',
+    expires_at: new Date(Date.now() + 60 * 60_000),
+    metadata_json: { agent_definition_id: definition.id },
+    created_at: new Date(Date.now() - 90_000),
+    updated_at: new Date(Date.now() - 90_000),
+  }));
+  await queue.upsertTargetState(context, {
+    agentDefinitionId: definition.id,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'sweeper-ticket-2',
+    claimStatus: 'claimed',
+    claimExpiresAt: new Date(Date.now() - 10_000),
+    claimOwnerPriority: definition.agent_priority,
+    claimOwnerActionRequestIds: [claimAction.id],
+  });
+
+  const sweeper = new AiAgentApprovalLifecycleSweeperService(null, null, queue, actions);
+  const summary = await sweeper.sweepTenant(context, { limit: 25, now: new Date() });
+  assert.equal(summary.expiredActions, 2);
+  assert.equal(summary.claimsReleased, 1);
+  assert.equal(summary.claimActionsExpired, 1);
+  assert.equal((await actionRepo.findOne({ where: { id: expiredPending.id, tenant_id: context.tenantId } })).status, 'expired');
+  const expiredApprovedAfterSweep = await actionRepo.findOne({ where: { id: expiredApproved.id, tenant_id: context.tenantId } });
+  assert.equal(expiredApprovedAfterSweep.status, 'expired');
+  assert.match(expiredApprovedAfterSweep.error_message, /before execution/);
+  assert.equal((await actionRepo.findOne({ where: { id: claimAction.id, tenant_id: context.tenantId } })).status, 'expired');
+  assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event: AiAgentAuditEvent) => event.event_type === 'approval_lifecycle_swept'), true);
+}
+
+async function testPhase135SweeperHonorsPauseCapsAndClaimRefresh() {
+  {
+    const { manager } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+    const actions = new AiActionRequestService({} as any, {} as any);
+    const actionRepo = manager.getRepository(AiActionRequest);
+    const pausedAction = await actionRepo.save(actionRepo.create({
+      tenant_id: context.tenantId,
+      capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+      capability_version: '1.0.0',
+      effect: 'write',
+      status: 'pending',
+      provider_kind: 'ticketing',
+      provider_key: 'glpi',
+      target_type: 'ticket',
+      target_ref: 'paused-sweeper-ticket',
+      idempotency_key: 'paused-sweeper-action',
+      action_payload_json: { ticketId: 'paused-sweeper-ticket', visibility: 'internal', body: 'Paused.', bodyFormat: 'plain_text' },
+      input_hash: 'paused-sweeper-hash',
+      expires_at: new Date(Date.now() - 60_000),
+      metadata_json: { agent_definition_id: definition.id },
+      created_at: new Date(Date.now() - 120_000),
+      updated_at: new Date(Date.now() - 120_000),
+    }));
+    await queue.upsertTargetState(context, {
+      agentDefinitionId: definition.id,
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      targetType: 'ticket',
+      targetRef: 'paused-sweeper-ticket',
+      claimStatus: 'claimed',
+      claimExpiresAt: new Date(Date.now() - 10_000),
+      claimOwnerPriority: definition.agent_priority,
+      claimOwnerActionRequestIds: [pausedAction.id],
+    });
+    await manager.getRepository(AiEmergencyPause).save(manager.getRepository(AiEmergencyPause).create({
+      tenant_id: context.tenantId,
+      scope: 'agent',
+      agent_definition_id: definition.id,
+      capability_name: null,
+      category: null,
+      effect: null,
+      active: true,
+      reason: 'Freeze agent lifecycle',
+      actor_user_id: null,
+      actor_label: null,
+      expires_at: null,
+      revoked_at: null,
+      created_at: new Date(),
+    }));
+
+    const sweeper = new AiAgentApprovalLifecycleSweeperService(null, null, queue, actions);
+    const summary = await sweeper.sweepTenant(context, { limit: 25, now: new Date() });
+    assert.equal(summary.expiredActions, 0);
+    assert.equal(summary.claimsReleased, 0);
+    assert.equal((await actionRepo.findOne({ where: { id: pausedAction.id, tenant_id: context.tenantId } })).status, 'pending');
+    const pausedState = await manager.getRepository(AiAgentTargetState).findOne({ where: { agent_definition_id: definition.id, target_ref: 'paused-sweeper-ticket' } });
+    assert.equal(pausedState.claim_status, 'claimed');
+  }
+
+  {
+    const { manager } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const definition = await enableHelpdeskNewTicketsOnly(context, queue, { dailyRuns: 1 });
+    await manager.getRepository(AiRun).save(manager.getRepository(AiRun).create({
+      tenant_id: context.tenantId,
+      metadata_json: { agent_definition_id: definition.id },
+      usage_json: { estimated_tokens: 1 },
+      cost_json: { estimated_cost_eur: 0.01 },
+      created_at: new Date(),
+      started_at: new Date(),
+    }));
+    const actions = new AiActionRequestService({} as any, {} as any);
+    const actionRepo = manager.getRepository(AiActionRequest);
+    const cappedAction = await actionRepo.save(actionRepo.create({
+      tenant_id: context.tenantId,
+      capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+      capability_version: '1.0.0',
+      effect: 'write',
+      status: 'pending',
+      provider_kind: 'ticketing',
+      provider_key: 'glpi',
+      target_type: 'ticket',
+      target_ref: 'capped-sweeper-ticket',
+      idempotency_key: 'capped-sweeper-action',
+      action_payload_json: { ticketId: 'capped-sweeper-ticket', visibility: 'internal', body: 'Capped.', bodyFormat: 'plain_text' },
+      input_hash: 'capped-sweeper-hash',
+      expires_at: new Date(Date.now() - 60_000),
+      metadata_json: { agent_definition_id: definition.id },
+      created_at: new Date(Date.now() - 120_000),
+      updated_at: new Date(Date.now() - 120_000),
+    }));
+    const sweeper = new AiAgentApprovalLifecycleSweeperService(null, null, queue, actions);
+    const summary = await sweeper.sweepTenant(context, { limit: 25, now: new Date() });
+    assert.equal(summary.expiredActions, 0);
+    assert.equal((await actionRepo.findOne({ where: { id: cappedAction.id, tenant_id: context.tenantId } })).status, 'pending');
+  }
+
+  {
+    const { manager } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+    const oldExpiry = new Date(Date.now() - 10_000);
+    const actionIds = ['claim-action-1'];
+    await queue.upsertTargetState(context, {
+      agentDefinitionId: definition.id,
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      targetType: 'ticket',
+      targetRef: 'refreshed-claim-ticket',
+      claimStatus: 'claimed',
+      claimExpiresAt: oldExpiry,
+      claimOwnerPriority: definition.agent_priority,
+      claimOwnerActionRequestIds: actionIds,
+    });
+    await queue.upsertTargetState(context, {
+      agentDefinitionId: definition.id,
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      targetType: 'ticket',
+      targetRef: 'refreshed-claim-ticket',
+      claimStatus: 'claimed',
+      claimExpiresAt: new Date(Date.now() + 60_000),
+      claimOwnerPriority: definition.agent_priority,
+      claimOwnerActionRequestIds: actionIds,
+    });
+    const release = await queue.releaseTargetClaim(context, {
+      agentDefinitionId: definition.id,
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      targetType: 'ticket',
+      targetRef: 'refreshed-claim-ticket',
+      reason: 'stale_reconcile_snapshot',
+      expectedClaimExpiresAt: oldExpiry,
+      expectedClaimOwnerActionRequestIds: actionIds,
+    });
+    assert.equal(release?.claim_status, 'claimed');
+  }
+}
+
+async function testPhase135StaleExecuteReReviewAndTerminalFreshnessInvariant() {
+  const queue = new AiAgentWorkQueueService();
+  const baseProvider = new MockTicketingProvider();
+  const oldTicket = {
+    id: 'freshness-ticket',
+    status: 'new',
+    title: 'Freshness ticket',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  let currentTicket = oldTicket;
+  let internalWrites = 0;
+  let statusWrites = 0;
+  let assignmentWrites = 0;
+  const provider = {
+    health: baseProvider.health.bind(baseProvider),
+    applicability: baseProvider.applicability.bind(baseProvider),
+    searchSimilarTickets: baseProvider.searchSimilarTickets.bind(baseProvider),
+    prepareInternalNote: baseProvider.prepareInternalNote.bind(baseProvider),
+    preparePublicReply: baseProvider.preparePublicReply.bind(baseProvider),
+    prepareTicketClassificationUpdate: baseProvider.prepareTicketClassificationUpdate.bind(baseProvider),
+    prepareTicketStatusUpdate: baseProvider.prepareTicketStatusUpdate.bind(baseProvider),
+    prepareTicketAssignmentUpdate: baseProvider.prepareTicketAssignmentUpdate.bind(baseProvider),
+    prepareTicketParticipantUpdate: baseProvider.prepareTicketParticipantUpdate.bind(baseProvider),
+    getTicket: async () => ({ ok: true, data: currentTicket, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [] }, evidence: [] }),
+    getTicketLifecycleContext: async () => ({
+      ok: true,
+      data: {
+        ticketId: currentTicket.id,
+        status: currentTicket.status,
+        allowedTransitions: ['closed'],
+        terminal: false,
+        updatedAt: currentTicket.updatedAt,
+      },
+      evidence: [],
+    }),
+    addInternalNote: async (_context: unknown, input: any) => {
+      internalWrites += 1;
+      return {
+        ok: true,
+        data: {
+          noteId: 'freshness-note',
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Internal note added.',
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+    updateTicketStatus: async (_context: unknown, input: any) => {
+      statusWrites += 1;
+      return {
+        ok: true,
+        data: {
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Status updated.',
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+    getTicketRoutingContext: async () => ({
+      ok: true,
+      data: {
+        ticketId: currentTicket.id,
+        requester: 'Requester',
+        assignee: null,
+        group: null,
+        supportedAssignmentTargets: [{ kind: 'user', key: 'agent-1', label: 'Agent 1' }],
+        assignmentSupported: true,
+        supported: true,
+      },
+      evidence: [],
+    }),
+    updateTicketAssignment: async (_context: unknown, input: any) => {
+      assignmentWrites += 1;
+      return {
+        ok: true,
+        data: {
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Assignment updated.',
+          idempotencyKey: input.idempotencyKey,
+          updatedFields: ['assignment'],
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+  };
+  const { dispatcher, context, stores, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  const executionMetadata = queue.agentExecutionMetadata(definition, {
+    id: 'freshness-work',
+    work_kind: 'ticket_triage',
+    status: 'running',
+    dedup_key: 'freshness-work-dedup',
+  } as AiAgentWorkItem);
+
+  const prepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: oldTicket.id,
+      note_body: 'Prepared before requester update.',
+      provider_key: 'mock',
+    },
+    execution: { surface: 'internal', metadata: executionMetadata },
+  });
+  const actionRequestId = (prepared.output as any).data.action_request_id;
+  await approvals.approveActionRequest(context, actionRequestId, { source: 'human_ui', reason: 'unit test approval' });
+  currentTicket = {
+    ...oldTicket,
+    title: 'Freshness ticket after requester update',
+    updatedAt: '2026-06-10T11:00:00.000Z',
+  };
+  const executed = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: actionRequestId },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((executed.output as any).ok, false);
+  assert.match((executed.output as any).message, /fresh review was queued/);
+  assert.equal(internalWrites, 0);
+  const staleAction = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === actionRequestId);
+  assert.equal(staleAction.status, 'expired');
+  assert.equal(
+    (stores.get(AiAgentWorkItem.name) ?? []).some((row: AiAgentWorkItem) =>
+      row.source_object_ref === oldTicket.id
+      && row.metadata_json?.source === 'execute_time_stale_re_review'
+      && row.metadata_json?.stale_action_request_id === actionRequestId),
+    true,
+  );
+
+  currentTicket = oldTicket;
+  const applyAnywayAction = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'apply-anyway-ticket',
+    idempotencyKey: 'apply-anyway-internal-note',
+    actionPayload: {
+      ticketId: 'apply-anyway-ticket',
+      visibility: 'internal',
+      body: 'Apply despite stale low-risk metadata.',
+      bodyFormat: 'plain_text',
+    },
+    metadata: {
+      agent_definition_id: definition.id,
+      action_class: 'internal_note',
+      on_stale_by_action_class: { internal_note: 'apply_anyway' },
+      proposal_ticket_updated_at: '2026-06-10T10:00:00.000Z',
+      proposal_ticket_hash: 'old-apply-hash',
+    },
+  }));
+  await approvals.approveActionRequest(context, applyAnywayAction.id, { source: 'human_ui', reason: 'apply anyway approval' });
+  currentTicket = {
+    ...oldTicket,
+    id: 'apply-anyway-ticket',
+    title: 'Apply anyway ticket changed',
+    updatedAt: '2026-06-10T11:00:00.000Z',
+  };
+  const applyAnywayExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: applyAnywayAction.id },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((applyAnywayExecuted.output as any).ok, true);
+  assert.equal(internalWrites, 1);
+  const savedApplyAnyway = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === applyAnywayAction.id);
+  assert.equal(savedApplyAnyway.metadata_json?.stale_policy_override?.mode, 'apply_anyway');
+
+  const cancelAction = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'cancel-stale-ticket',
+    idempotencyKey: 'cancel-stale-internal-note',
+    actionPayload: {
+      ticketId: 'cancel-stale-ticket',
+      visibility: 'internal',
+      body: 'Cancel when stale.',
+      bodyFormat: 'plain_text',
+    },
+    metadata: {
+      agent_definition_id: definition.id,
+      action_class: 'internal_note',
+      on_stale_by_action_class: { internal_note: 'cancel' },
+      proposal_ticket_updated_at: '2026-06-10T10:00:00.000Z',
+      proposal_ticket_hash: 'old-cancel-hash',
+    },
+  }));
+  await approvals.approveActionRequest(context, cancelAction.id, { source: 'human_ui', reason: 'cancel stale approval' });
+  currentTicket = {
+    ...oldTicket,
+    id: 'cancel-stale-ticket',
+    title: 'Cancel stale ticket changed',
+    updatedAt: '2026-06-10T11:00:00.000Z',
+  };
+  const cancelExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: cancelAction.id },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((cancelExecuted.output as any).ok, false);
+  assert.match((cancelExecuted.output as any).message, /canceled/);
+  assert.equal(internalWrites, 1);
+  const savedCancel = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === cancelAction.id);
+  assert.equal(savedCancel.status, 'expired');
+
+  const assignmentAction = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+    targetRef: 'assignment-stale-ticket',
+    idempotencyKey: 'assignment-stale-apply-anyway',
+    actionPayload: {
+      ticketId: 'assignment-stale-ticket',
+      action: 'assignment_update',
+      current: {
+        ticketId: 'assignment-stale-ticket',
+        requester: 'Requester',
+        assignee: null,
+        group: null,
+        supportedAssignmentTargets: [{ kind: 'user', key: 'agent-1', label: 'Agent 1' }],
+        assignmentSupported: true,
+        supported: true,
+      },
+      target: { kind: 'user', key: 'agent-1', label: 'Agent 1' },
+      reason: 'Assign stale ticket.',
+    },
+    metadata: {
+      agent_definition_id: definition.id,
+      action_class: 'assignment',
+      on_stale_by_action_class: { assignment: 'apply_anyway' },
+      proposal_ticket_updated_at: '2026-06-10T10:00:00.000Z',
+      proposal_ticket_hash: 'old-assignment-hash',
+    },
+  }));
+  await approvals.approveActionRequest(context, assignmentAction.id, { source: 'human_ui', reason: 'assignment stale approval' });
+  currentTicket = {
+    ...oldTicket,
+    id: 'assignment-stale-ticket',
+    title: 'Assignment stale ticket changed',
+    updatedAt: '2026-06-10T11:00:00.000Z',
+  };
+  const assignmentExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+    input: { action_request_id: assignmentAction.id },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((assignmentExecuted.output as any).ok, false);
+  assert.match((assignmentExecuted.output as any).message, /fresh review was queued/);
+  assert.equal(assignmentWrites, 0);
+  const savedAssignment = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === assignmentAction.id);
+  assert.equal(savedAssignment.metadata_json?.stale_policy_override, undefined);
+
+  const terminalAction = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    targetRef: 'terminal-ticket',
+    idempotencyKey: 'terminal-ticket-close',
+    actionPayload: {
+      ticketId: 'terminal-ticket',
+      action: 'status_update',
+      current: { ticketId: 'terminal-ticket', status: 'solved', allowedTransitions: ['closed'], updatedAt: '2026-06-10T10:00:00.000Z' },
+      transitionKey: 'closed',
+      targetStatus: 'closed',
+      terminal: true,
+      reason: 'Close solved ticket.',
+    },
+    metadata: {
+      agent_definition_id: definition.id,
+      action_class: 'status',
+      on_stale_by_action_class: { status: 'apply_anyway' },
+      proposal_ticket_updated_at: '2026-06-10T10:00:00.000Z',
+      proposal_ticket_hash: 'old-terminal-hash',
+    },
+  }));
+  currentTicket = {
+    id: 'terminal-ticket',
+    status: 'solved',
+    title: 'Terminal ticket changed',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T12:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  await approvals.approveActionRequest(context, terminalAction.id, { source: 'human_ui', reason: 'terminal invariant approval' });
+  const terminalExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    input: { action_request_id: terminalAction.id },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((terminalExecuted.output as any).ok, false);
+  assert.match((terminalExecuted.output as any).message, /Terminal ticket update blocked/);
+  assert.equal(statusWrites, 0);
+  const savedTerminal = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === terminalAction.id);
+  assert.equal(savedTerminal.status, 'expired');
+  assert.equal(savedTerminal.metadata_json?.stale_policy_override, undefined);
+}
+
+async function testSameRunApproveAllSiblingWritesDoNotBlockEachOther() {
+  const queue = new AiAgentWorkQueueService();
+  const ticketId = 'approve-all-ticket';
+  const runId = randomUUID();
+  const oldTicket = {
+    id: ticketId,
+    status: 'new',
+    priority: 'medium',
+    title: 'Approve all ticket',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  let currentTicket = { ...oldTicket };
+  const notes = [{
+    id: 'initial-note',
+    visibility: 'public',
+    authorRole: 'requester',
+    body: 'Initial requester message.',
+    createdAt: '2026-06-10T09:30:00.000Z',
+  }];
+  let internalWrites = 0;
+  let publicWrites = 0;
+  let statusWrites = 0;
+  const provider = {
+    getTicket: async () => ({ ok: true, data: currentTicket, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [...notes] }, evidence: [] }),
+    prepareInternalNote: async (_context: unknown, input: any) => ({
+      ok: true,
+      data: {
+        actionPayload: {
+          ticketId: input.ticketId,
+          visibility: 'internal',
+          body: input.noteBody,
+          bodyFormat: 'plain_text',
+        },
+        summary: 'Internal note prepared.',
+      },
+      evidence: [],
+    }),
+    addInternalNote: async (_context: unknown, input: any) => {
+      internalWrites += 1;
+      notes.push({
+        id: 'same-run-internal-note',
+        visibility: 'internal',
+        authorRole: 'kanap_agent',
+        body: input.actionPayload.body,
+        createdAt: '2026-06-10T10:01:00.000Z',
+      });
+      currentTicket = { ...currentTicket, updatedAt: '2026-06-10T10:01:00.000Z' };
+      return {
+        ok: true,
+        data: {
+          noteId: 'same-run-internal-note',
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Internal note added.',
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+    preparePublicReply: async (_context: unknown, input: any) => ({
+      ok: true,
+      data: {
+        actionPayload: {
+          ticketId: input.ticketId,
+          visibility: 'public',
+          body: input.replyBody,
+          bodyFormat: 'plain_text',
+        },
+        summary: 'Public reply prepared.',
+      },
+      evidence: [],
+    }),
+    addPublicReply: async (_context: unknown, input: any) => {
+      publicWrites += 1;
+      notes.push({
+        id: 'same-run-public-reply',
+        visibility: 'public',
+        authorRole: 'kanap_agent',
+        body: input.actionPayload.body,
+        createdAt: '2026-06-10T10:02:00.000Z',
+      });
+      currentTicket = { ...currentTicket, updatedAt: '2026-06-10T10:02:00.000Z' };
+      return {
+        ok: true,
+        data: {
+          noteId: 'same-run-public-reply',
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Public reply added.',
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+    getTicketLifecycleContext: async () => ({
+      ok: true,
+      data: {
+        ticketId,
+        status: currentTicket.status,
+        statusLabel: currentTicket.status === 'new' ? 'New' : 'Processing assigned',
+        terminal: false,
+        allowedTransitions: [{
+          key: 'processing_assigned',
+          label: 'Processing assigned',
+          requiresApproval: true,
+          destructive: false,
+        }],
+        updatedAt: currentTicket.updatedAt,
+        supported: true,
+      },
+      evidence: [],
+    }),
+    prepareTicketStatusUpdate: async (_context: unknown, input: any) => ({
+      ok: true,
+      data: {
+        actionPayload: {
+          ticketId: input.ticketId,
+          action: 'status_update',
+          current: {
+            ticketId,
+            status: currentTicket.status,
+            statusLabel: 'New',
+            terminal: false,
+            allowedTransitions: [{
+              key: input.transitionKey,
+              label: 'Processing assigned',
+              requiresApproval: true,
+              destructive: false,
+            }],
+            updatedAt: currentTicket.updatedAt,
+            supported: true,
+          },
+          transitionKey: input.transitionKey,
+          targetStatus: input.transitionKey,
+          targetStatusLabel: 'Processing assigned',
+          terminal: false,
+          reason: input.reason,
+        },
+        summary: 'Status update prepared.',
+      },
+      evidence: [],
+    }),
+    updateTicketStatus: async (_context: unknown, input: any) => {
+      statusWrites += 1;
+      currentTicket = {
+        ...currentTicket,
+        status: input.actionPayload.targetStatus,
+        updatedAt: '2026-06-10T10:03:00.000Z',
+      };
+      return {
+        ok: true,
+        data: {
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Status updated.',
+          idempotencyKey: input.idempotencyKey,
+          updatedFields: ['status'],
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+  };
+  const { dispatcher, context, stores, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  await context.manager.getRepository(AiRun).save(context.manager.getRepository(AiRun).create({
+    id: runId,
+    tenant_id: context.tenantId,
+    user_id: null,
+    conversation_id: null,
+    request_id: null,
+    ai_api_key_id: null,
+    invocation_channel: 'internal',
+    trigger_kind: 'internal',
+    status: 'running',
+    input_summary: null,
+    output_summary: null,
+    usage_json: null,
+    cost_json: null,
+    metadata_json: { test: 'same_run_approve_all' },
+    started_at: new Date(),
+    completed_at: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+  const executionMetadata = {
+    ...queue.agentExecutionMetadata(definition, {
+      id: 'approve-all-work',
+      work_kind: 'ticket_triage',
+      status: 'running',
+      dedup_key: 'approve-all-work-dedup',
+    } as AiAgentWorkItem),
+    conversation_gate: {
+      ticket_history_entry_count: notes.length,
+      latest_ticket_note_id: notes[notes.length - 1].id,
+      prepared_at: oldTicket.updatedAt,
+    },
+  };
+
+  const prepareExecution = { surface: 'internal' as const, runId, metadata: executionMetadata };
+  const internalPrepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input: { ticket_id: ticketId, note_body: 'Internal triage note.', provider_key: 'mock' },
+    execution: prepareExecution,
+  });
+  const publicPrepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+    input: { ticket_id: ticketId, reply_body: 'Requester-facing answer.', provider_key: 'mock' },
+    execution: prepareExecution,
+  });
+  const statusPrepared = await dispatcher.execute(context, {
+    capabilityName: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+    input: {
+      ticket_id: ticketId,
+      transition_key: 'processing_assigned',
+      reason: 'Ticket is being handled.',
+      provider_key: 'mock',
+    },
+    execution: prepareExecution,
+  });
+  const internalActionId = (internalPrepared.output as any).data.action_request_id;
+  const publicActionId = (publicPrepared.output as any).data.action_request_id;
+  const statusActionId = (statusPrepared.output as any).data.action_request_id;
+
+  await approvals.approveActionRequest(context, internalActionId, { source: 'human_ui', reason: 'Approve all internal note.' });
+  const internalExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: internalActionId },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((internalExecuted.output as any).ok, true);
+
+  await approvals.approveActionRequest(context, publicActionId, { source: 'human_ui', reason: 'Approve all public reply.' });
+  const publicExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: publicActionId },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((publicExecuted.output as any).ok, true);
+
+  await approvals.approveActionRequest(context, statusActionId, { source: 'human_ui', reason: 'Approve all status.' });
+  const statusExecuted = await dispatcher.execute(context, {
+    capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    input: { action_request_id: statusActionId },
+    execution: { surface: 'internal' },
+  });
+  assert.equal((statusExecuted.output as any).ok, true);
+  assert.equal(internalWrites, 1);
+  assert.equal(publicWrites, 1);
+  assert.equal(statusWrites, 1);
+  const savedPublic = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === publicActionId);
+  const savedStatus = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === statusActionId);
+  assert.equal(savedPublic.status, 'executed');
+  assert.equal(savedStatus.status, 'executed');
+  assert.equal(savedPublic.metadata_json?.same_run_freshness_override?.mode, 'allow_after_same_run_sibling_writes');
+  assert.equal(savedStatus.metadata_json?.same_run_freshness_override?.mode, 'allow_after_same_run_sibling_writes');
 }
 
 async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList() {
@@ -5424,6 +7192,22 @@ async function testAgentAutonomyGrantRequiresEligibilityAndAllowlist() {
     (error: unknown) => error instanceof ForbiddenException,
   );
 
+  const advisory = await service.getAgentAutonomy(context, definition.id);
+  const advisoryInternalNote = advisory.items.find((item: any) => item.actionClass === 'internal_note');
+  assert.equal(advisoryInternalNote?.recommendationOverrideAvailable, true);
+  const overrideResult = await service.setAgentAutonomy(context, definition.id, {
+    actionClass: 'internal_note',
+    mode: 'automatic',
+    confirm: true,
+    overrideAcknowledged: true,
+    overrideReason: 'Maintainer accepts the advisory-risk calibration window for UAT.',
+  });
+  assert.equal(overrideResult.items.find((item: any) => item.actionClass === 'internal_note')?.mode, 'automatic');
+  const overridePolicy = (stores.get(AiApprovalPolicy.name) ?? [])
+    .find((row: AiApprovalPolicy) => ((row.metadata_json?.override ?? null) as any)?.acknowledged === true);
+  assert.ok(overridePolicy);
+  assert.equal(((overridePolicy.metadata_json?.override ?? null) as any)?.reason, 'Maintainer accepts the advisory-risk calibration window for UAT.');
+
   await seedAgentDecisionHistory(context, {
     agentDefinitionId: definition.id,
     actionClass: 'internal_note',
@@ -5463,6 +7247,8 @@ async function testAgentAutonomyGrantRequiresEligibilityAndAllowlist() {
       actionClass: 'public_reply',
       mode: 'automatic',
       confirm: true,
+      overrideAcknowledged: true,
+      overrideReason: 'Attempt to bypass hard public reply invariant.',
     }),
     (error: unknown) => error instanceof ForbiddenException,
   );
@@ -5907,6 +7693,333 @@ function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input
   }));
 }
 
+function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>, input: {
+  id: string;
+  runId: string;
+  toolExecutionId: string;
+  transitionKey: string;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const repo = context.manager.getRepository(AiActionRequest);
+  const now = new Date();
+  return repo.save(repo.create({
+    id: input.id,
+    tenant_id: context.tenantId,
+    run_id: input.runId,
+    tool_execution_id: input.toolExecutionId,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    idempotency_key: `${input.id}-key`,
+    action_payload_json: {
+      ticketId: '4',
+      action: 'status_update',
+      transitionKey: input.transitionKey,
+      targetStatus: input.transitionKey,
+      reason: 'Closing inactive ticket.',
+    },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: `${input.id}-hash`,
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: input.metadata ?? null,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext>, input: {
+  id: string;
+  runId: string;
+  toolExecutionId: string;
+  capabilityName: string;
+  action: string;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const repo = context.manager.getRepository(AiActionRequest);
+  const now = new Date();
+  return repo.save(repo.create({
+    id: input.id,
+    tenant_id: context.tenantId,
+    run_id: input.runId,
+    tool_execution_id: input.toolExecutionId,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: input.capabilityName,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4',
+    idempotency_key: `${input.id}-key`,
+    action_payload_json: {
+      ticketId: '4',
+      action: input.action,
+      proposed: {},
+      reason: 'Prepared by the stale-closure test harness.',
+    },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: `${input.id}-hash`,
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: input.metadata ?? null,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
+async function runQueuedStaleClosureTriage(input: {
+  targetingSeconds: number | null;
+  hiddenStalenessHours: number;
+  ticketAgeHours: number;
+  responseEnabled?: boolean;
+  legacyScope?: boolean;
+}) {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    categoryId: null,
+    maxTicketsPerCycle: 3,
+    maxProviderRequestsPerCycle: 3,
+  });
+  const ticketUpdatedAt = new Date(Date.now() - input.ticketAgeHours * 60 * 60 * 1000).toISOString();
+  const predicates: Array<Record<string, unknown>> = [
+    { field: 'status', operator: 'in', value: ['open', '1', '2', '3', '4'] },
+  ];
+  if (input.targetingSeconds != null) {
+    predicates.push({ field: 'inactivity_age', operator: 'gte', value: { seconds: input.targetingSeconds } });
+  }
+  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...(definition.scope_policy_json as Record<string, unknown>),
+    mode: 'all_open',
+    all_open: {
+      enabled: true,
+      enabled_at: '2026-06-09T08:00:00.000Z',
+      max_tickets_per_cycle: 3,
+      max_provider_requests_per_cycle: 3,
+    },
+    new_tickets_only: { enabled: false },
+    ...(input.legacyScope ? {} : { targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates,
+    } }),
+    stale_closure: {
+      enabled: true,
+      action: 'closed',
+      message: 'Closing inactive ticket.',
+      staleness_hours: input.hiddenStalenessHours,
+      staleness_days: 0,
+    },
+  });
+  definition.response_policy_json = {
+    ...(definition.response_policy_json ?? {}),
+    prepare_stale_closure: input.responseEnabled !== false,
+  };
+  await context.manager.getRepository(AiAgentDefinition).save(definition);
+  const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, {
+    definition,
+    ticket: {
+      id: '4',
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: ticketUpdatedAt,
+      scope: { entityId: null, categoryId: null },
+    },
+  });
+
+  const calls: Array<{ capabilityName: string; triageAction: string | null }> = [];
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      const triageAction = typeof request.execution?.metadata?.triage_action === 'string'
+        ? request.execution.metadata.triage_action
+        : null;
+      calls.push({ capabilityName: request.capabilityName, triageAction });
+      toolIndex += 1;
+      const toolExecutionId = `stale-tool-${toolIndex}`;
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-ticket',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              id: '4',
+              title: 'Dormant access request',
+              status: 'open',
+              priority: '3',
+              type: 'request',
+              description: 'No recent activity.',
+              createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              updatedAt: ticketUpdatedAt,
+              scope: { entityId: null, categoryId: null },
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-notes',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { notes: [] }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-classification-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: {}, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-lifecycle-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { terminal: false, allowedTransitions: [] }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-routing-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: {}, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-participant-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: {}, evidence: [] },
+        };
+      }
+      if (request.capabilityName === 'search_knowledge') {
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-search',
+          tool_execution_id: toolExecutionId,
+          output: { items: [], total: 0, returned: 0, truncated: false, complete: true },
+        };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedGlpiAction(context, {
+          id: `stale-internal-${toolIndex}`,
+          runId: 'run-stale-closure',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+        });
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-internal',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: `stale-internal-${toolIndex}` }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
+        const id = triageAction === 'prepare_stale_closure_reply' ? 'stale-reply-action' : `stale-public-${toolIndex}`;
+        await savePreparedGlpiAction(context, {
+          id,
+          runId: 'run-stale-closure',
+          toolExecutionId,
+          capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+          body: request.input.reply_body,
+          visibility: 'public',
+        });
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-public',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: id }, evidence: [] },
+        };
+      }
+      const advancedPrepare = new Map<string, { approved: string; action: string }>([
+        [TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, { approved: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY, action: 'classification_update' }],
+        [TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY, { approved: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY, action: 'assignment_update' }],
+        [TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY, { approved: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, action: 'participant_update' }],
+      ]);
+      const advanced = advancedPrepare.get(request.capabilityName);
+      if (advanced) {
+        const id = `stale-${advanced.action}-${toolIndex}`;
+        await savePreparedGlpiAdvancedAction(context, {
+          id,
+          runId: 'run-stale-closure',
+          toolExecutionId,
+          capabilityName: advanced.approved,
+          action: advanced.action,
+          metadata: request.execution?.metadata ?? null,
+        });
+        return {
+          run_id: 'run-stale-closure',
+          step_id: `step-${advanced.action}`,
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: id }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY) {
+        const id = triageAction === 'prepare_stale_closure' ? 'stale-close-action' : `stale-status-${toolIndex}`;
+        await savePreparedGlpiStatusAction(context, {
+          id,
+          runId: 'run-stale-closure',
+          toolExecutionId,
+          transitionKey: request.input.transition_key,
+          metadata: request.execution?.metadata ?? null,
+        });
+        return {
+          run_id: 'run-stale-closure',
+          step_id: 'step-status',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: id }, evidence: [] },
+        };
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {} as any,
+    {
+      getApplicability: async () => ({ available: true }),
+    } as any,
+    queue,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const result = await service.runGlpiTriage(context, { work_item_id: enqueued.workItem.id });
+  return { calls, result, stores };
+}
+
 function createGlpiConversationGateTriageService(input: {
   context: ReturnType<typeof createContext>;
   notes: Array<{ id: string; visibility: 'public' | 'internal'; body: string; createdAt: string }>;
@@ -6182,13 +8295,110 @@ async function testGlpiTriageUsesProviderNoteTimeToBlockRepeatFollowups() {
   assert.equal(result.work_item.status, 'completed');
 }
 
-async function testGlpiTriagePublicReplyUsesFullKnowledgeDocument() {
+async function testReplySynthesisServiceFiltersSourcesAndDowngradesUngroundedAnswers() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const baseInput = {
+    ticket: {
+      id: '14',
+      title: 'Réservation voyage',
+      description: 'J\'ai besoin d\'un billet d\'avion, comment m\'y prendre ?',
+      status: 'processing_assigned',
+      priority: 'medium',
+    },
+    timeline: [],
+    language: 'fr',
+    knowledgeDocs: [{
+      ref: 'DOC-1',
+      title: 'Procédure voyage',
+      summary: 'Procédure interne pour les voyages.',
+      content_markdown: 'La procédure indique de créer une demande de voyage.',
+    }],
+    webResults: [{
+      title: 'Guide réservation avion',
+      url: 'https://example.test/vol',
+      description: 'Préparer une réservation de vol.',
+    }],
+    interpretation: null,
+  };
+  const groundedService = new AiReplySynthesisService({
+    callJsonModel: async () => ({
+      text: JSON.stringify({
+        language: 'fr',
+        usable: true,
+        needs_human_review: false,
+        requester_reply: 'Créez une demande de voyage puis préparez les informations de vol.',
+        technician_brief: 'La réponse utilise la procédure voyage.',
+        used_sources: [
+          { kind: 'knowledge', ref: 'DOC-1', url: null, title: 'Model title is ignored' },
+          { kind: 'web', ref: null, url: 'https://example.test/unknown', title: 'Hallucinated link' },
+        ],
+        rejected_sources: [
+          { kind: 'web', ref: null, url: 'https://example.test/vol', title: 'Guide réservation avion', reason: 'External reference not needed because the KB answers.' },
+          { kind: 'knowledge', ref: 'DOC-404', url: null, title: 'Missing doc', reason: 'Hallucinated.' },
+        ],
+        confidence: 0.82,
+      }),
+      runtime: { providerId: 'test-provider', model: 'test-model' },
+      usage: { input_tokens: 40, output_tokens: 30 },
+      latencyMs: 7,
+    }),
+  } as any);
+
+  const grounded = await groundedService.synthesizeTicketReply(context, baseInput);
+
+  assert.equal(grounded.usable, true);
+  assert.deepEqual(grounded.used_sources, [{
+    kind: 'knowledge',
+    ref: 'DOC-1',
+    url: null,
+    title: 'Procédure voyage',
+  }]);
+  assert.deepEqual(grounded.rejected_sources, [{
+    kind: 'web',
+    ref: null,
+    url: 'https://example.test/vol',
+    title: 'Guide réservation avion',
+    reason: 'External reference not needed because the KB answers.',
+  }]);
+  assert.deepEqual(grounded.usage, { input_tokens: 40, output_tokens: 30 });
+  assert.equal(grounded.model, 'test-provider:test-model');
+
+  const ungroundedService = new AiReplySynthesisService({
+    callJsonModel: async () => ({
+      text: JSON.stringify({
+        language: 'fr',
+        usable: true,
+        needs_human_review: false,
+        requester_reply: 'Réponse sans citation valide.',
+        technician_brief: 'Le modèle a cité une source absente.',
+        used_sources: [{ kind: 'knowledge', ref: 'DOC-404', url: null, title: 'Missing doc' }],
+        rejected_sources: [],
+        confidence: 0.7,
+      }),
+      runtime: { providerId: 'test-provider', model: 'test-model' },
+      usage: null,
+      latencyMs: 3,
+    }),
+  } as any);
+
+  const ungrounded = await ungroundedService.synthesizeTicketReply(context, baseInput);
+
+  assert.equal(ungrounded.usable, false);
+  assert.equal(ungrounded.requester_reply, '');
+  assert.deepEqual(ungrounded.used_sources, []);
+  assert.equal(ungrounded.fallback_reason, 'invalid_or_ungrounded_synthesis');
+}
+
+async function testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
   const calls: Array<{ capabilityName: string; input: any; surface: string | null }> = [];
+  let internalNoteBody = '';
   let publicReplyBody = '';
   const searchQueries: string[] = [];
   const now = new Date();
+  let synthesisCalled = false;
   const liveTarget = {
     id: 'target-read-4',
     tenant_id: context.tenantId,
@@ -6357,6 +8567,7 @@ async function testGlpiTriagePublicReplyUsesFullKnowledgeDocument() {
         };
       }
       if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        internalNoteBody = request.input.note_body;
         const repo = (_context as AiExecutionContextWithManager).manager.getRepository(AiActionRequest);
         const now = new Date();
         await repo.save(repo.create({
@@ -6460,6 +8671,15 @@ async function testGlpiTriagePublicReplyUsesFullKnowledgeDocument() {
       throw new Error(`Unexpected capability ${request.capabilityName}`);
     },
   };
+  const queue = new AiAgentWorkQueueService();
+  const synthesis = {
+    buildPromptPayload: () => ({ prompt: 'budget skip', large: 'x'.repeat(1000) }),
+    maxOutputTokens: () => 1_000_000,
+    synthesizeTicketReply: async () => {
+      synthesisCalled = true;
+      throw new Error('synthesis should have been skipped before the LLM call');
+    },
+  };
   const service = new AiAgentControlService(
     {} as any,
     {} as any,
@@ -6470,7 +8690,9 @@ async function testGlpiTriagePublicReplyUsesFullKnowledgeDocument() {
     {
       getApplicability: async () => ({ available: true }),
     } as any,
-    new AiAgentWorkQueueService(),
+    queue,
+    undefined,
+    synthesis as any,
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
@@ -6490,16 +8712,273 @@ async function testGlpiTriagePublicReplyUsesFullKnowledgeDocument() {
   assert.equal(searchQueries.includes('GLPI 4'), false);
   assert.equal(searchQueries.some((query) => /\brecette\b/i.test(query)), true);
   assert.equal(result.agent_definition.agent_key, 'helpdesk.glpi.triage');
+  assert.equal(synthesisCalled, false);
+  assert.equal((result.diagnostic.synthesis as any).synthesis_fallback_reason, 'synthesis_projected_over_per_run_cap');
   assert.equal(result.work_item.status, 'waiting_approval');
   assert.equal(result.work_item.source_object_ref, '4');
   assert.equal(result.target_state.target_ref, '4');
   assert.equal((stores.get(AiAgentWorkItem.name) ?? []).length, 1);
   assert.equal((stores.get(AiAgentTargetState.name) ?? []).length, 1);
   assert.equal(result.diagnostic.knowledge_document_tool_execution_ids.length, 1);
-  assert.match(publicReplyBody, /500 g de gorge de porc/);
-  assert.match(publicReplyBody, /72 °C à coeur/);
-  assert.match(publicReplyBody, /repos au frais/);
-  assert.doesNotMatch(publicReplyBody, /Résumé court seulement\.\n\nSi/);
+  assert.match(publicReplyBody, /Recette du Pâté de Campagne/);
+  assert.match(publicReplyBody, /technicien/i);
+  assert.doesNotMatch(publicReplyBody, /500 g de gorge de porc/);
+  assert.doesNotMatch(publicReplyBody, /72 °C à coeur/);
+  assert.doesNotMatch(publicReplyBody, /repos au frais/);
+  assert.match(internalNoteBody, /Possible sources found/);
+  assert.match(internalNoteBody, /Recette du Pâté de Campagne/);
+  assert.doesNotMatch(internalNoteBody, /500 g de gorge de porc/);
+}
+
+async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const previousWebReady = Features.AI_WEB_SEARCH_READY;
+  (Features as any).AI_WEB_SEARCH_READY = true;
+  const queue = new AiAgentWorkQueueService();
+  const definitionBundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  definitionBundle.definition.scope_policy_json = {
+    ...(definitionBundle.definition.scope_policy_json ?? {}),
+    knowledge_sources: {
+      knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+      web: { enabled: true },
+      precedence: 'knowledge_first',
+    },
+  };
+  await manager.getRepository(AiAgentDefinition).save(definitionBundle.definition);
+  const liveTarget = glpiReadSafeTarget();
+  let publicReplyBody = '';
+  let internalNoteBody = '';
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({ capabilityName: request.capabilityName, input: request.input });
+      toolIndex += 1;
+      const toolExecutionId = `flight-tool-${toolIndex}`;
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-ticket',
+          tool_execution_id: toolExecutionId,
+          output: {
+            ok: true,
+            data: {
+              id: '14',
+              title: 'Reservation voyage',
+              status: 'processing_assigned',
+              priority: 'medium',
+              description: 'J\'ai besoin d\'un billet d\'avion, comment m\'y prendre ? Je n\'ai pas accès Notilus.',
+            },
+            evidence: [],
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-notes',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { notes: [] }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-classification-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { type: 'Request', priority: 'Medium', urgency: 'Medium' }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-lifecycle-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { allowedTransitions: [] }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-routing-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: {}, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-participant-context',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: {}, evidence: [] },
+        };
+      }
+      if (request.capabilityName === 'search_knowledge') {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-search',
+          tool_execution_id: toolExecutionId,
+          output: {
+            items: [{
+              id: 'doc-68',
+              ref: 'DOC-68',
+              title: 'doc sql',
+              summary: 'Optimisation SQL Server - Base TCPROD.',
+              snippet: 'Optimisation SQL Server pour la base TCPROD.',
+              status: 'published',
+              updated_at: '2026-06-01T08:00:00.000Z',
+            }],
+            total: 1,
+            returned: 1,
+            truncated: false,
+            complete: false,
+          },
+        };
+      }
+      if (request.capabilityName === 'get_document') {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-document',
+          tool_execution_id: toolExecutionId,
+          output: {
+            id: 'doc-68',
+            ref: 'DOC-68',
+            title: 'doc sql',
+            summary: 'Optimisation SQL Server.',
+            status: 'published',
+            content_markdown: [
+              'Optimisation SQL Server - Base TCPROD (Teamcenter)',
+              'Redemarrer le service SQL si le plan de requete est bloque.',
+              'Analyser les index et statistiques.',
+            ].join('\n'),
+            updated_at: '2026-06-01T08:00:00.000Z',
+          },
+        };
+      }
+      if (request.capabilityName === 'web_search') {
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-web',
+          tool_execution_id: toolExecutionId,
+          output: {
+            items: [{
+              title: 'Comment réserver un billet d\'avion',
+              url: 'https://example.test/reserver-billet-avion',
+              description: 'Guide public pour préparer une réservation de vol.',
+            }],
+            total: null,
+            returned: 1,
+            truncated: false,
+            complete: false,
+          },
+        };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        internalNoteBody = request.input.note_body;
+        await savePreparedGlpiAction(context, {
+          id: 'flight-internal-action',
+          runId: 'run-glpi-flight',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+        });
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-internal',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: 'flight-internal-action' }, evidence: [] },
+        };
+      }
+      if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
+        publicReplyBody = request.input.reply_body;
+        await savePreparedGlpiAction(context, {
+          id: 'flight-public-action',
+          runId: 'run-glpi-flight',
+          toolExecutionId,
+          capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+          body: request.input.reply_body,
+          visibility: 'public',
+        });
+        return {
+          run_id: 'run-glpi-flight',
+          step_id: 'step-public',
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data: { action_request_id: 'flight-public-action' }, evidence: [] },
+        };
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const longRequesterReply = [
+    'Pour réserver votre billet d\'avion, préparez les informations de voyage puis suivez la procédure de réservation indiquée dans la ressource ci-dessous. Comme vous n\'avez pas accès à Notilus, le support doit vérifier le bon circuit interne ou vous faire donner l\'accès.',
+    'Détail complémentaire. '.repeat(900),
+  ].join(' ');
+  const synthesis = {
+    buildPromptPayload: () => ({ prompt: 'flight synthesis' }),
+    maxOutputTokens: () => 1200,
+    synthesizeTicketReply: async (_ctx: unknown, input: any) => {
+      assert.equal(input.knowledgeDocs.some((doc: any) => doc.ref === 'DOC-68'), true);
+      assert.equal(input.webResults.length, 1);
+      return {
+        language: 'fr',
+        usable: true,
+        needs_human_review: true,
+        requester_reply: longRequesterReply,
+        technician_brief: 'La demande concerne une réservation de billet d\'avion sans accès Notilus. <b>DOC-68 est hors sujet</b>; ne pas utiliser javascript:alert(1).',
+        used_sources: [{ kind: 'web', ref: null, url: 'https://example.test/reserver-billet-avion', title: 'Comment réserver <b>un billet</b> javascript: avion' }],
+        rejected_sources: [{ kind: 'knowledge', ref: 'DOC-68', url: null, title: 'doc sql', reason: 'SQL optimization does not answer flight booking or Notilus access.' }],
+        confidence: 0.86,
+        model: 'test:model',
+        usage: { input_tokens: 100, output_tokens: 80 },
+        estimated_tokens: 180,
+        estimated_cost_eur: 0.00036,
+        latency_ms: 12,
+        fallback_reason: null,
+      };
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {
+      requireSingleEnabledTarget: async () => liveTarget,
+    } as any,
+    {
+      getApplicability: async () => ({ available: true }),
+    } as any,
+    queue,
+    undefined,
+    synthesis as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  try {
+    const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+    assert.equal(calls.some((call) => call.capabilityName === 'web_search'), true);
+    assert.match(publicReplyBody, /billet d'avion/);
+    assert.match(publicReplyBody, /https:\/\/example\.test\/reserver-billet-avion/);
+    assert.match(publicReplyBody, /L'équipe support/);
+    assert.equal(publicReplyBody.length <= 12000, true);
+    assert.doesNotMatch(publicReplyBody, /<[^>]+>|javascript:/i);
+    assert.doesNotMatch(publicReplyBody, /TCPROD|SQL Server|Teamcenter/i);
+    assert.match(internalNoteBody, /DOC-68 - doc sql: SQL optimization does not answer flight booking or Notilus access\./);
+    assert.match(internalNoteBody, /Recommended reply to requester:/);
+    assert.equal(internalNoteBody.length <= 4000, true);
+    assert.ok(
+      internalNoteBody.indexOf('Rejected/off-topic sources:') < internalNoteBody.indexOf('Recommended reply to requester:'),
+      'Rejected-source audit trail should appear before the embedded requester reply.',
+    );
+    assert.doesNotMatch(internalNoteBody, /<[^>]+>|javascript:/i);
+    assert.doesNotMatch(internalNoteBody, /Redemarrer le service SQL/);
+    assert.equal((result.diagnostic.synthesis as any).synthesis_usable, true);
+    assert.deepEqual((result.diagnostic.synthesis as any).synthesis_rejected_sources[0].ref, 'DOC-68');
+  } finally {
+    (Features as any).AI_WEB_SEARCH_READY = previousWebReady;
+  }
 }
 
 async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
@@ -6736,7 +9215,7 @@ async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
   assert.equal(result.diagnostic.knowledge_results[0].ref, 'DOC-165');
   assert.equal((result.diagnostic.knowledge_result_interpretation as any).selected_refs[0], 'DOC-165');
   assert.match(publicReplyBody, /Burnt Cheesecake/);
-  assert.match(publicReplyBody, /300 g de sucre/);
+  assert.doesNotMatch(publicReplyBody, /300 g de sucre/);
   assert.doesNotMatch(publicReplyBody, /Pâté de Campagne/);
 }
 
@@ -7305,6 +9784,7 @@ async function run() {
   await testAdapterConfigApplicabilityStates();
   await testAutomationCatalogValidationStates();
   await testMockAdapterContractScenarios();
+  await testTicketingProviderReferenceDataContract();
   await testMockTicketingHelpdeskContextReads();
   await testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly();
   await testMockTicketingInternalNoteWriteScenarios();
@@ -7334,6 +9814,7 @@ async function run() {
   await testPrepareInternalNoteCreatesProviderActionRequest();
   await testAdvancedTicketUpdateActionRequestsExecuteThroughDispatcher();
   await testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay();
+  await testServiceDeskProposalExpiryMergesPartialTtlConfig();
   await testApprovedTicketWriteFailsWhenTicketHistoryChangedAfterPreparation();
   await testApprovedTicketWriteAllowsUnchangedTicketHistoryGuard();
   await testApprovedPairedTicketWritesAllowSameRunKanapHistoryChange();
@@ -7342,6 +9823,7 @@ async function run() {
   await testRejectActionRequestRefusesTerminalStates();
   await testCreateOrEnsureProviderActionIsIdempotent();
   await testCreateOrEnsureProviderActionRetriesExpiredPending();
+  await testApproveActionRequestExtendsNearExpiredExecutionWindow();
   await testCreateOrEnsureProviderActionCanRetryExecutedWhenRequested();
   await testEmergencyPauseBlocksTicketingWriteExecution();
   await testAutomationDryRunPrepareApprovedLaunchAndReads();
@@ -7357,6 +9839,19 @@ async function run() {
   await testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets();
   testStaleProposalSuppressionIgnoresExpired();
   await testStaleClosureWithdrawalOnReactivation();
+  testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig();
+  await testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast();
+  await testPhase136StaleClosureDerivesFromTargetingAndCapability();
+  await testPhase136StaleClosureCloseGateUsesTargetingOnly();
+  await testPhase137TargetingOptionsAreProviderScopedAndCached();
+  await testPhase136PollerUsesPredicateDerivedScopeInsteadOfLegacyMode();
+  await testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejectsUnbounded();
+  await testPhase135TargetStateSchedulingWakeOnChangeAndSelfWrite();
+  await testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace();
+  await testPhase135SweeperExpiresPendingAndReconcilesClaims();
+  await testPhase135SweeperHonorsPauseCapsAndClaimRefresh();
+  await testPhase135StaleExecuteReReviewAndTerminalFreshnessInvariant();
+  await testSameRunApproveAllSiblingWritesDoNotBlockEachOther();
   await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
   await testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls();
   await testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent();
@@ -7374,7 +9869,9 @@ async function run() {
   await testGlpiTriageSkipsFollowupsUntilRequesterAnswers();
   await testGlpiTriageAllowsFollowupsAfterRequesterAnswer();
   await testGlpiTriageUsesProviderNoteTimeToBlockRepeatFollowups();
-  await testGlpiTriagePublicReplyUsesFullKnowledgeDocument();
+  await testReplySynthesisServiceFiltersSourcesAndDowngradesUngroundedAnswers();
+  await testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument();
+  await testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb();
   await testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange();
   await testApprovalPolicyResolverDeniesByDefaultDisabledDraftAndMalformedPolicies();
   await testApprovalPolicyResolverScopeEvidenceAndEvaluationDenials();

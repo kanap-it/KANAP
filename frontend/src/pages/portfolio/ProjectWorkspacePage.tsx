@@ -165,9 +165,9 @@ export default function ProjectWorkspacePage() {
       return res.data;
     },
     enabled: !isCreate,
-    placeholderData: (previousData, previousQuery) => (
-      previousQuery?.queryKey?.[1] === id ? previousData : undefined
-    ),
+    // Keep the previous project on screen while the next one loads (prev/next,
+    // deep-link) so the workspace never blanks to a full-page loading bar.
+    placeholderData: (previousData) => previousData,
   });
 
   // Track recently viewed
@@ -193,12 +193,23 @@ export default function ProjectWorkspacePage() {
     if (!data?.item_number) return;
     const currentParam = params.id || '';
     const isUuid = /^[0-9a-f]{8}-/.test(currentParam);
-    if (isUuid) {
+    // Only rewrite once the loaded data matches the current route id — during a
+    // placeholderData nav, `data` is briefly still the previous item.
+    if (isUuid && data.id === currentParam) {
       const ref = formatItemRef('project', data.item_number);
       const newPath = location.pathname.replace(currentParam, ref);
       window.history.replaceState(null, '', newPath + location.search);
     }
-  }, [data?.item_number, params.id, location.pathname, location.search]);
+  }, [data?.id, data?.item_number, params.id, location.pathname, location.search]);
+
+  const projectMatchesCurrentRoute = React.useMemo(() => {
+    const raw = String(idParam || '').trim();
+    if (!data || !raw) return false;
+    if (data.id && raw.toLowerCase() === String(data.id).toLowerCase()) return true;
+    if (data.item_number != null && raw === String(data.item_number)) return true;
+    if (data.item_number != null && raw.toUpperCase() === formatItemRef('project', data.item_number)) return true;
+    return false;
+  }, [data?.id, data?.item_number, idParam]);
 
   // Fetch classification data (types, categories, streams)
   const { data: classificationData } = useQuery({
@@ -315,7 +326,10 @@ export default function ProjectWorkspacePage() {
   });
 
   React.useEffect(() => {
-    setForm(isCreate ? { origin: 'fast_track' } : {});
+    // For an existing item, keep the current form until the new data syncs in
+    // (effect below) so the header/actions don't blank between items. Only the
+    // create skeleton needs an explicit reset.
+    if (isCreate) setForm({ origin: 'fast_track' });
     setDirty(false);
     setScoringDirty(false);
     setPurposeDirty(false);
@@ -778,7 +792,8 @@ export default function ProjectWorkspacePage() {
     if (involvedTeamId) params.involvedTeamId = involvedTeamId;
     return Object.keys(params).length > 0 ? params : undefined;
   }, [involvedUserId, involvedTeamId]);
-  const nav = useProjectNav({ id, sort, q, filters, extraParams: navExtraParams });
+  const navCurrentId = projectMatchesCurrentRoute ? data?.id || '' : '';
+  const nav = useProjectNav({ id: navCurrentId, sort, q, filters, extraParams: navExtraParams });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
     : nav;

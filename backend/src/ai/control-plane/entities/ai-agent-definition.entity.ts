@@ -44,6 +44,9 @@ export class AiAgentDefinition {
   @Column('text')
   default_approval_requirement!: string;
 
+  @Column('int', { default: 100 })
+  agent_priority!: number;
+
   @Column('jsonb', { nullable: true })
   trigger_policy_json!: Record<string, unknown> | null;
 

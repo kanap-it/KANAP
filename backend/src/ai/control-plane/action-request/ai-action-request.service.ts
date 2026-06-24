@@ -509,9 +509,15 @@ export class AiActionRequestService {
   async markApproved(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
+    opts?: {
+      expiresAt?: Date | null;
+    },
   ): Promise<AiActionRequest> {
     action.status = 'approved';
     action.approved_at = new Date();
+    if (opts && Object.prototype.hasOwnProperty.call(opts, 'expiresAt')) {
+      action.expires_at = opts.expiresAt ?? null;
+    }
     action.updated_at = new Date();
     return this.actionRepository(context.manager).save(action);
   }
@@ -519,10 +525,11 @@ export class AiActionRequestService {
   async markExpired(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
+    reason = 'Action request expired before approval or execution.',
   ): Promise<AiActionRequest> {
     const repo = this.actionRepository(context.manager);
     action.status = 'expired';
-    action.error_message = 'Action request expired before approval or execution.';
+    action.error_message = reason;
     action.updated_at = new Date();
     const saved = await repo.save(action);
     await this.updateLinkedEvaluation(context, saved, 'expired', saved.error_message);

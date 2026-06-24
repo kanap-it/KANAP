@@ -278,6 +278,7 @@
   },
   "settings": {
     "identity": "Identidad y persona",
+    "objectiveCapabilities": "Objetivo y capacidades",
     "name": "Nombre",
     "status": "Estado",
     "statuses": {
@@ -297,8 +298,56 @@
     "saved": "Guardado",
     "saveFailed": "No se pudo guardar",
     "watching": "Vigilancia",
+    "targeting": "Segmentación",
     "watchNewTickets": "Vigilar nuevos tickets",
     "watchTickets": "Vigilar tickets automáticamente",
+    "targetingPresets": {
+      "new_tickets": "Tickets nuevos",
+      "all_open": "Todos abiertos",
+      "handled": "Gestionados por este agente"
+    },
+    "targetingBuilder": {
+      "filters": "Filtros",
+      "hint": "Todos los filtros se combinan. Los valores vienen del sistema de tickets conectado.",
+      "add": "Añadir filtro",
+      "remove": "Quitar filtro",
+      "comingSoon": "Próximamente",
+      "categoryPlaceholder": "ID de categoría",
+      "noOptions": "Sin opciones",
+      "hours": "Horas",
+      "days": "Días",
+      "thisAgent": "Este agente",
+      "replaceTitle": "¿Sustituir filtros?",
+      "replaceDescription": "{{preset}} sustituirá el conjunto de filtros actual.",
+      "replace": "Sustituir"
+    },
+    "targetingFields": {
+      "status": "Estado",
+      "priority": "Prioridad mínima",
+      "type": "Tipo",
+      "category": "Categoría",
+      "entity": "Entidad",
+      "created_at": "Creado en",
+      "updated_at": "Última actualización antes de",
+      "inactivity_age": "Inactivo durante al menos",
+      "touched_by": "Gestionado por",
+      "requester": "Solicitante",
+      "viewer": "Observador",
+      "assignee": "Asignado"
+    },
+    "ticketStatuses": {
+      "1": "Nuevo",
+      "2": "Asignado",
+      "3": "Planificado",
+      "4": "Pendiente"
+    },
+    "priorities": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "very_high": "Muy alta",
+      "major": "Crítica"
+    },
     "scopeMode": "Qué tickets vigilar",
     "scopeModes": {
       "new_tickets_only": "Tickets nuevos",
@@ -314,12 +363,34 @@
     "entityHint": "Dejar vacío para incluir todas las entidades.",
     "category": "ID de categoría",
     "categoryHint": "Dejar vacío para incluir todas las categorías.",
+    "preview": {
+      "matches": "Coincidencias",
+      "sample": "Muestra",
+      "overlap": "Solape",
+      "runsPerDay": "Ejec./día",
+      "capped": "La vista previa está limitada por los topes configurados por revisión."
+    },
+    "predicateResolution": {
+      "pushed_down": "Proveedor",
+      "locally_filtered_bounded_fetch": "Local acotado",
+      "control_plane_resolved": "Plano de control",
+      "unsupported": "No admitido"
+    },
     "pace": "Ritmo",
+    "operatingSettings": "Ajustes operativos",
+    "agentPriority": "Prioridad del agente",
+    "reviewCooldown": "Revisar cada (horas)",
+    "onConflict": "Colisión de ticket",
+    "conflictPolicies": {
+      "defer": "Diferir",
+      "supersede": "Sustituir misma prioridad"
+    },
     "maxTickets": "Tickets máximos por comprobación",
     "maxRequests": "Solicitudes máximas al proveedor",
     "horizon": "Horizonte de relleno (horas)",
     "staleClosure": "Limpieza de tickets inactivos",
     "staleClosureEnable": "Cerrar tickets inactivos",
+    "staleClosureObjectiveHint": "Usa un filtro de inactividad en Segmentación para elegir qué tickets cumplen. La plantilla de nota de cierre va en las instrucciones de arriba.",
     "staleClosureHint": "Publica una nota de cierre y propone cerrar los tickets sin actividad desde el umbral de abajo. Cada propuesta sigue requiriendo tu aprobación.",
     "staleHours": "Inactivo durante (horas)",
     "staleDays": "Inactivo durante (días)",
@@ -336,6 +407,16 @@
     "dailyRuns": "Ejecuciones por día",
     "dailyTokens": "Tokens por día",
     "dailyCost": "Coste por día (EUR)",
+    "publicReplyTtl": "TTL respuesta (horas)",
+    "internalNoteTtl": "TTL nota (horas)",
+    "metadataTtl": "TTL actualización (horas)",
+    "staleClosureTtl": "TTL cierre inactivo (días)",
+    "onStale": "Si el ticket cambió",
+    "stalePolicies": {
+      "re_review": "Revisar de nuevo",
+      "cancel": "Cancelar",
+      "apply_anyway": "Aplicar igualmente"
+    },
     "save": "Guardar configuración",
     "knowledgeSources": "Fuentes de conocimiento y web",
     "knowledgeEnabled": "Buscar en el conocimiento de KANAP",
@@ -348,12 +429,23 @@
     "webHint": "Si está activado, el agente también puede buscar en la web pública. El conocimiento de KANAP siempre tiene prioridad y los resultados web se citan en las respuestas.",
     "webUnavailableHint": "La búsqueda web aún no está disponible en esta plataforma. Contacte con su administrador para habilitarla.",
     "saveKnowledge": "Guardar fuentes",
+    "capabilities": "Capacidades",
+    "capabilityGroups": {
+      "internal_note": "Notas internas",
+      "public_reply": "Respuestas al solicitante",
+      "classification": "Clasificación",
+      "status": "Cambios de estado",
+      "assignment": "Asignación",
+      "participant": "Participantes"
+    },
     "autonomy": "Autonomía",
     "autonomyDialog": {
       "title": "¿Activar el modo automático para {{actionClass}}?",
       "confirm": "Activar automático",
       "evidence": "Basado en {{decided}} decisiones con {{rate}} de aceptación durante {{days}} días.",
-      "frame": "Las acciones automáticas siguen respetando los límites diarios y la pausa de emergencia, y vuelven a aprobación si la aceptación baja."
+      "frame": "Las acciones automáticas siguen respetando los límites diarios y la pausa de emergencia, y vuelven a aprobación si la aceptación baja.",
+      "overrideFrame": "Esta anulación solo omite los umbrales de recomendación. Siguen aplicándose límites de seguridad, frescura, proveedor, presupuestos, pausas y restricciones de respuestas públicas.",
+      "reason": "Motivo de la anulación"
     },
     "autonomyReasons": {
       "ACTION_CLASS_NOT_ALLOWLISTED": "Este tipo de acción no puede ejecutarse automáticamente.",
@@ -369,6 +461,7 @@
     "askFirst": "Preguntar primero",
     "turnOffAutomatic": "Desactivar",
     "turnOnAutomatic": "Activar",
+    "overrideAutomatic": "Anular",
     "actionClasses": {
       "internal_note": "Nota interna",
       "classification": "Actualización de clasificación",

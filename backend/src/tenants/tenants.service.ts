@@ -202,6 +202,21 @@ const BUILT_IN_ROLES: Array<{
       ai_agents: 'admin',
       ai_settings: 'admin',
     }
+  },
+  {
+    name: 'Agent Admin',
+    description: 'Configure AI agents, grant autonomy, and manage the agent lifecycle',
+    permissions: { ai_agents: 'admin' }
+  },
+  {
+    name: 'Agent Contributor',
+    description: 'Review and approve or reject AI agent proposals, run checks, and pause agents',
+    permissions: { ai_agents: 'contributor' }
+  },
+  {
+    name: 'Agent Reader',
+    description: 'View AI agents, their activity, and performance (read-only)',
+    permissions: { ai_agents: 'reader' }
   }
 ];
 

@@ -295,7 +295,7 @@ export default function InterfaceWorkspacePage() {
     if (!routeMatchesLoadedInterface) return;
     if (idParam.toUpperCase() === data.interface_reference.toUpperCase()) return;
     const qs = searchParams.toString();
-    navigate(`/it/interfaces/${data.interface_reference}/${routeTab}${qs ? `?${qs}` : ''}`, { replace: true });
+    window.history.replaceState(null, '', `/it/interfaces/${data.interface_reference}/${routeTab}${qs ? `?${qs}` : ''}`);
   }, [data?.interface_reference, idParam, isCreate, navigate, routeMatchesLoadedInterface, routeTab, searchParams]);
 
   React.useEffect(() => {

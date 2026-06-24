@@ -10,8 +10,22 @@ import { AiApprovalPolicyResolverService } from '../policy/ai-approval-policy-re
 import { PolicyDecisionRecord } from '../policy/policy-decision.types';
 
 const DEFAULT_APPROVAL_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_APPROVED_ACTION_EXECUTION_TTL_MS = 30 * 60 * 1000;
 
 export type AiApprovalSource = 'human_chat' | 'human_ui' | 'teams' | 'policy' | 'system';
+
+function approvalExpiryForAction(action: AiActionRequest, now = new Date()): Date {
+  const minimum = new Date(now.getTime() + DEFAULT_APPROVED_ACTION_EXECUTION_TTL_MS);
+  if (!action.expires_at) {
+    return minimum;
+  }
+  const currentExpiry = action.expires_at instanceof Date
+    ? action.expires_at
+    : new Date(action.expires_at);
+  return Number.isFinite(currentExpiry.getTime()) && currentExpiry > minimum
+    ? currentExpiry
+    : minimum;
+}
 
 @Injectable()
 export class AiApprovalService {
@@ -37,7 +51,7 @@ export class AiApprovalService {
       capabilityVersion: '1.0.0',
       effect: 'write',
     });
-    const expiresAt = action.expires_at ?? new Date(Date.now() + DEFAULT_APPROVAL_TTL_MS);
+    const expiresAt = approvalExpiryForAction(action);
     const approval = await this.repo(context).save(this.repo(context).create({
       tenant_id: context.tenantId,
       action_request_id: action.id,
@@ -57,7 +71,7 @@ export class AiApprovalService {
       decided_at: new Date(),
       created_at: new Date(),
     }));
-    await this.actions.markApproved(context, action);
+    await this.actions.markApproved(context, action, { expiresAt });
     return { action, approval };
   }
 
@@ -142,6 +156,7 @@ export class AiApprovalService {
       await this.actions.markExpired(context, action);
       throw new ForbiddenException('Expired action requests cannot be approved.');
     }
+    const expiresAt = approvalExpiryForAction(action);
     const approval = await this.repo(context).save(this.repo(context).create({
       tenant_id: context.tenantId,
       action_request_id: action.id,
@@ -157,11 +172,11 @@ export class AiApprovalService {
       matched_policy_id: null,
       matched_policy_version: null,
       decision_json: null,
-      expires_at: action.expires_at ?? new Date(Date.now() + DEFAULT_APPROVAL_TTL_MS),
+      expires_at: expiresAt,
       decided_at: new Date(),
       created_at: new Date(),
     }));
-    await this.actions.markApproved(context, action);
+    await this.actions.markApproved(context, action, { expiresAt });
     return { action, approval };
   }
 
@@ -250,6 +265,7 @@ export class AiApprovalService {
     action: AiActionRequest,
     decision: PolicyDecisionRecord,
   ): Promise<AiApproval> {
+    const expiresAt = approvalExpiryForAction(action);
     const approval = await this.repo(context).save(this.repo(context).create({
       tenant_id: context.tenantId,
       action_request_id: action.id,
@@ -265,11 +281,11 @@ export class AiApprovalService {
       matched_policy_id: decision.matched_policy_id ?? null,
       matched_policy_version: decision.matched_policy_version ?? null,
       decision_json: decision as unknown as Record<string, unknown>,
-      expires_at: action.expires_at ?? new Date(Date.now() + DEFAULT_APPROVAL_TTL_MS),
+      expires_at: expiresAt,
       decided_at: new Date(),
       created_at: new Date(),
     }));
-    await this.actions.markApproved(context, action);
+    await this.actions.markApproved(context, action, { expiresAt });
     return approval;
   }
 

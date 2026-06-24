@@ -278,6 +278,7 @@
   },
   "settings": {
     "identity": "Identität und Persona",
+    "objectiveCapabilities": "Ziel und Fähigkeiten",
     "name": "Name",
     "status": "Status",
     "statuses": {
@@ -297,8 +298,56 @@
     "saved": "Gespeichert",
     "saveFailed": "Speichern fehlgeschlagen",
     "watching": "Überwachung",
+    "targeting": "Zielauswahl",
     "watchNewTickets": "Neue Tickets überwachen",
     "watchTickets": "Tickets automatisch überwachen",
+    "targetingPresets": {
+      "new_tickets": "Neue Tickets",
+      "all_open": "Alle offenen",
+      "handled": "Von diesem Agenten bearbeitet"
+    },
+    "targetingBuilder": {
+      "filters": "Filter",
+      "hint": "Alle Filter werden kombiniert. Werte kommen aus dem verbundenen Ticketsystem.",
+      "add": "Filter hinzufügen",
+      "remove": "Filter entfernen",
+      "comingSoon": "Demnächst",
+      "categoryPlaceholder": "Kategorie-ID",
+      "noOptions": "Keine Optionen",
+      "hours": "Stunden",
+      "days": "Tage",
+      "thisAgent": "Dieser Agent",
+      "replaceTitle": "Filter ersetzen?",
+      "replaceDescription": "{{preset}} ersetzt den aktuellen Filtersatz.",
+      "replace": "Ersetzen"
+    },
+    "targetingFields": {
+      "status": "Status",
+      "priority": "Mindestpriorität",
+      "type": "Typ",
+      "category": "Kategorie",
+      "entity": "Entität",
+      "created_at": "Erstellt innerhalb",
+      "updated_at": "Zuletzt aktualisiert vor",
+      "inactivity_age": "Inaktiv seit mindestens",
+      "touched_by": "Bearbeitet von",
+      "requester": "Anforderer",
+      "viewer": "Beobachter",
+      "assignee": "Zugewiesen"
+    },
+    "ticketStatuses": {
+      "1": "Neu",
+      "2": "Zugewiesen",
+      "3": "Geplant",
+      "4": "Ausstehend"
+    },
+    "priorities": {
+      "low": "Niedrig",
+      "medium": "Mittel",
+      "high": "Hoch",
+      "very_high": "Sehr hoch",
+      "major": "Kritisch"
+    },
     "scopeMode": "Welche Tickets überwachen",
     "scopeModes": {
       "new_tickets_only": "Neue Tickets",
@@ -314,12 +363,34 @@
     "entityHint": "Leer lassen, um alle Entitäten einzuschließen.",
     "category": "Kategorie-ID",
     "categoryHint": "Leer lassen, um alle Kategorien einzuschließen.",
+    "preview": {
+      "matches": "Treffer",
+      "sample": "Stichprobe",
+      "overlap": "Überlappung",
+      "runsPerDay": "Läufe/Tag",
+      "capped": "Die Vorschau ist durch die konfigurierten Prüf-Limits begrenzt."
+    },
+    "predicateResolution": {
+      "pushed_down": "Provider",
+      "locally_filtered_bounded_fetch": "Lokal begrenzt",
+      "control_plane_resolved": "Control Plane",
+      "unsupported": "Nicht unterstützt"
+    },
     "pace": "Tempo",
+    "operatingSettings": "Betriebseinstellungen",
+    "agentPriority": "Agentenpriorität",
+    "reviewCooldown": "Prüfen alle (Stunden)",
+    "onConflict": "Ticket-Kollision",
+    "conflictPolicies": {
+      "defer": "Zurückstellen",
+      "supersede": "Gleiche Priorität ersetzen"
+    },
     "maxTickets": "Max. Tickets pro Prüfung",
     "maxRequests": "Max. Provider-Anfragen",
     "horizon": "Backfill-Horizont (Stunden)",
     "staleClosure": "Bereinigung inaktiver Tickets",
     "staleClosureEnable": "Inaktive Tickets schließen",
+    "staleClosureObjectiveHint": "Verwenden Sie in der Zielauswahl einen Inaktivitätsfilter, um geeignete Tickets auszuwählen. Die Vorlage für die Abschlussnotiz gehört in die Anweisungen oben.",
     "staleClosureHint": "Veröffentlicht eine Abschlussnotiz und schlägt vor, Tickets ohne Aktivität seit dem unten festgelegten Schwellenwert zu schließen. Jeder Vorschlag erfordert weiterhin Ihre Genehmigung.",
     "staleHours": "Inaktiv seit (Stunden)",
     "staleDays": "Inaktiv seit (Tagen)",
@@ -336,6 +407,16 @@
     "dailyRuns": "Läufe pro Tag",
     "dailyTokens": "Tokens pro Tag",
     "dailyCost": "Kosten pro Tag (EUR)",
+    "publicReplyTtl": "Antwort-TTL (Stunden)",
+    "internalNoteTtl": "Notiz-TTL (Stunden)",
+    "metadataTtl": "Update-TTL (Stunden)",
+    "staleClosureTtl": "Inaktiv-Abschluss-TTL (Tage)",
+    "onStale": "Wenn Ticket geändert wurde",
+    "stalePolicies": {
+      "re_review": "Neu prüfen",
+      "cancel": "Abbrechen",
+      "apply_anyway": "Trotzdem anwenden"
+    },
     "save": "Einstellungen speichern",
     "knowledgeSources": "Wissens- und Webquellen",
     "knowledgeEnabled": "KANAP-Wissensdatenbank durchsuchen",
@@ -348,12 +429,23 @@
     "webHint": "Wenn aktiviert, kann der Agent auch das öffentliche Web durchsuchen. Das KANAP-Wissen hat immer Vorrang, und Web-Ergebnisse werden in Antworten als Quelle angegeben.",
     "webUnavailableHint": "Die Websuche ist auf dieser Plattform noch nicht verfügbar. Wenden Sie sich an Ihren Administrator, um sie zu aktivieren.",
     "saveKnowledge": "Quellen speichern",
+    "capabilities": "Fähigkeiten",
+    "capabilityGroups": {
+      "internal_note": "Interne Notizen",
+      "public_reply": "Antworten an Anfragende",
+      "classification": "Klassifizierung",
+      "status": "Statusänderungen",
+      "assignment": "Zuweisung",
+      "participant": "Beteiligte"
+    },
     "autonomy": "Autonomie",
     "autonomyDialog": {
       "title": "Automatischen Modus für {{actionClass}} aktivieren?",
       "confirm": "Automatisch aktivieren",
       "evidence": "Basierend auf {{decided}} Entscheidungen mit {{rate}} Annahme über {{days}} Tage.",
-      "frame": "Automatische Aktionen halten weiterhin die Tageslimits und die Notfallpause ein und kehren bei sinkender Annahme zur Rückfrage zurück."
+      "frame": "Automatische Aktionen halten weiterhin die Tageslimits und die Notfallpause ein und kehren bei sinkender Annahme zur Rückfrage zurück.",
+      "overrideFrame": "Diese Übersteuerung umgeht nur Empfehlungsschwellen. Sicherheitslimits, Aktualitätsprüfungen, Provider-Unterstützung, Budgets, Pausen und Einschränkungen für öffentliche Antworten bleiben aktiv.",
+      "reason": "Grund für Übersteuerung"
     },
     "autonomyReasons": {
       "ACTION_CLASS_NOT_ALLOWLISTED": "Dieser Aktionstyp kann nicht automatisch ausgeführt werden.",
@@ -369,6 +461,7 @@
     "askFirst": "Zuerst fragen",
     "turnOffAutomatic": "Ausschalten",
     "turnOnAutomatic": "Einschalten",
+    "overrideAutomatic": "Übersteuern",
     "actionClasses": {
       "internal_note": "Interne Notiz",
       "classification": "Klassifizierung aktualisieren",

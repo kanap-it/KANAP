@@ -59,6 +59,7 @@ import {
   looksLikeMarkdown,
   shouldHandleRichClipboardImport,
 } from '../lib/richClipboardMarkdown';
+import MarkdownLinkDialog from './MarkdownLinkDialog';
 
 interface MarkdownEditorProps {
   value: string;
@@ -66,6 +67,10 @@ interface MarkdownEditorProps {
   placeholder?: string;
   minRows?: number;
   maxRows?: number;
+  /** When set, the content area is capped to this many rows until the editor receives
+   *  focus (via :focus-within), then expands to minRows/maxRows. Lets a read-mode
+   *  description stay compact and reveal more of the page below it. */
+  collapsedRows?: number;
   fillHeight?: boolean;
   disabled?: boolean;
   focusNonce?: number;
@@ -84,18 +89,6 @@ interface MarkdownEditorProps {
   onModEnter?: () => void;
   /** Called when Ctrl+S or Cmd+S is pressed inside the editor. */
   onModSave?: () => void;
-}
-
-function findScrollableParent(element: HTMLElement | null): HTMLElement | null {
-  let current = element?.parentElement || null;
-  while (current && current !== document.body) {
-    const style = window.getComputedStyle(current);
-    const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY) && current.scrollHeight > current.clientHeight;
-    const canScrollX = /(auto|scroll|overlay)/.test(style.overflowX) && current.scrollWidth > current.clientWidth;
-    if (canScrollY || canScrollX) return current;
-    current = current.parentElement;
-  }
-  return (document.scrollingElement || document.documentElement) as HTMLElement;
 }
 
 const EMOJI_OPTIONS = [
@@ -328,6 +321,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   placeholder = 'Start typing...',
   minRows = 10,
   maxRows = 18,
+  collapsedRows,
   fillHeight = false,
   disabled = false,
   focusNonce,
@@ -348,6 +342,24 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
   const contentHeightOffset = disabled ? 0 : 24;
   const editorContentMinHeight = fillHeight ? 0 : (minHeight - contentHeightOffset);
   const editorContentMaxHeight = fillHeight ? '100%' : (maxHeight - contentHeightOffset);
+  const collapsedContentMaxHeight =
+    collapsedRows && !fillHeight ? Math.max(0, collapsedRows * 24 - contentHeightOffset) : undefined;
+  // Overrides applied to the content area while the editor is NOT focused:
+  //  - cap the height (read-mode collapse via collapsedRows), and
+  //  - for editable wheel-delegating editors, disable internal scrolling so a
+  //    scroll above an unfocused field moves the page, not the field. The content
+  //    only scrolls internally once the editor is focused (clicked) for editing.
+  const unfocusedContentSx: Record<string, number | string> = {};
+  if (collapsedContentMaxHeight !== undefined) {
+    unfocusedContentSx.minHeight = 0;
+    unfocusedContentSx.maxHeight = collapsedContentMaxHeight;
+  }
+  if (delegateWheelUntilFocus && !disabled) {
+    // Clip (don't scroll) the content, and allow the wheel to chain to the page
+    // (the base `overscroll-behavior: contain` would otherwise trap it).
+    unfocusedContentSx.overflowY = 'hidden';
+    unfocusedContentSx.overscrollBehavior = 'auto';
+  }
   const fixedSourceEditorHeight = fillHeight
     ? '100%'
     : (minRows === maxRows ? (maxHeight - contentHeightOffset) : undefined);
@@ -375,28 +387,6 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
     () => `${editorInstanceKey}:${disabled ? 'readonly' : 'editable'}:${onImageUpload ? 'image' : 'no-image'}`,
     [disabled, editorInstanceKey, onImageUpload],
   );
-  const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-    if (!delegateWheelUntilFocus || event.ctrlKey || event.metaKey) return;
-    const container = containerRef.current;
-    if (!container || container.matches(':focus-within')) return;
-
-    const scrollParent = findScrollableParent(container);
-    if (!scrollParent) return;
-
-    const previousTop = scrollParent.scrollTop;
-    const previousLeft = scrollParent.scrollLeft;
-    if (scrollParent.scrollHeight > scrollParent.clientHeight) {
-      scrollParent.scrollTop += event.deltaY;
-    }
-    if (event.deltaX && scrollParent.scrollWidth > scrollParent.clientWidth) {
-      scrollParent.scrollLeft += event.deltaX;
-    }
-
-    if (scrollParent.scrollTop !== previousTop || scrollParent.scrollLeft !== previousLeft) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  }, [delegateWheelUntilFocus]);
   const mdxThemeVariables = React.useMemo<Record<string, string>>(
     () => ({
       colorScheme: isDarkMode ? 'dark' : 'light',
@@ -646,7 +636,7 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       listsPlugin(),
       quotePlugin(),
       linkPlugin(),
-      linkDialogPlugin(),
+      linkDialogPlugin({ LinkDialog: MarkdownLinkDialog }),
       imagePlugin({
         imageUploadHandler: async (file: File) => {
           const handler = imageUploadHandlerRef.current;
@@ -785,7 +775,6 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
       />
       <Box
         ref={containerRef}
-        onWheelCapture={handleWheelCapture}
         onKeyDownCapture={(event) => {
           if ((!event.ctrlKey && !event.metaKey) || event.nativeEvent.isComposing) return;
           if (event.key.toLowerCase() === 's') {
@@ -954,6 +943,11 @@ const MarkdownEditor = React.memo(function MarkdownEditor({
               my: 1,
             },
           },
+          // Read-mode content overrides: see `unfocusedContentSx` above (height
+          // cap + no internal wheel scroll until the editor is focused).
+          ...(Object.keys(unfocusedContentSx).length
+            ? { '&:not(:focus-within) .kanap-mdx-content': unfocusedContentSx }
+            : {}),
           '&:not(:focus-within) .kanap-mdx-root.kanap-mdx-hide-toolbar.kanap-mdx-surface .kanap-mdx-content': {
             p: 0,
           },

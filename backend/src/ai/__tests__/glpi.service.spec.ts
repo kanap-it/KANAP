@@ -663,6 +663,61 @@ async function testSearchTicketsForScopeTreatsZeroResultsAsEmpty() {
   }
 }
 
+async function testSearchReferenceCatalogBuildsBoundedSearchAndNormalizesRows() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      requestedUrls.push(String(input));
+      return new Response(JSON.stringify({
+        totalcount: 2,
+        count: 2,
+        data: [
+          { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
+          { 2: 13, 1: 'Badge', completename: 'IT > Access > Badge' },
+          { id: 12, name: 'VPN duplicate', completename: 'Duplicate' },
+        ],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const categories = await service.searchReferenceCatalog(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      { kind: 'category', query: 'vpn', limit: 2 },
+    );
+
+    assert.match(requestedUrls[0], /search\/ITILCategory/);
+    assert.match(requestedUrls[0], /range=0-1/);
+    assert.match(requestedUrls[0], /criteria%5B0%5D%5Bvalue%5D=vpn/);
+    assert.deepEqual(categories, [
+      { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
+      { id: 13, name: 'Badge', completename: 'IT > Access > Badge', parent_id: null },
+    ]);
+
+    // Entity kind routes to the GLPI Entity dropdown and stays bounded by the limit.
+    await service.searchReferenceCatalog(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      { kind: 'entity', query: 'it', limit: 1 },
+    );
+    assert.match(requestedUrls[1], /search\/Entity/);
+    assert.match(requestedUrls[1], /range=0-0/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -679,6 +734,7 @@ async function run() {
   await testAddTicketFollowupRejectsMalformedCreateResponse();
   await testUpdateTicketFieldsUsesSafePutEndpoint();
   await testUpdateTicketFieldsRejectsUnsupportedOrInvalidUpdates();
+  await testSearchReferenceCatalogBuildsBoundedSearchAndNormalizesRows();
   await testSearchTicketsForScopeTreatsZeroResultsAsEmpty();
 }
 

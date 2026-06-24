@@ -55,7 +55,6 @@
       "relations": "Relaciones"
     },
     "editor": {
-      "generalInfo": "Información general",
       "productNameRequired": "El nombre del producto es obligatorio",
       "supplierRequired": "El proveedor es obligatorio",
       "currencyMust3": "La moneda debe tener 3 letras",
@@ -65,8 +64,7 @@
       "failedToCreate": "No se pudo crear la partida",
       "failedToSave": "No se pudo guardar",
       "failedToLoad": "No se pudo cargar la partida",
-      "obsoleteAccount": "Cuenta obsoleta detectada. La cuenta seleccionada no pertenece al plan de cuentas de la empresa. Actualice la cuenta.",
-      "defaultCurrency": "Por defecto {{currency}}"
+      "obsoleteAccount": "Cuenta obsoleta detectada. La cuenta seleccionada no pertenece al plan de cuentas de la empresa. Actualice la cuenta."
     },
     "budget": {
       "title": "Presupuesto",
@@ -268,7 +266,6 @@
       "capexItems": "Partidas CAPEX"
     },
     "editor": {
-      "generalInfo": "Información general",
       "descriptionRequired": "La descripción es obligatoria",
       "currencyMust3": "La moneda debe tener 3 letras",
       "effectiveStartRequired": "La fecha de inicio efectivo es obligatoria",
@@ -276,7 +273,6 @@
       "failedToSave": "No se pudo guardar",
       "failedToLoad": "No se pudo cargar la partida",
       "obsoleteAccount": "Cuenta obsoleta detectada. La cuenta seleccionada no pertenece al plan de cuentas de la empresa. Actualice la cuenta.",
-      "defaultCurrency": "Por defecto {{currency}}",
       "payingCompanyRequired": "La empresa pagadora es obligatoria"
     },
     "budget": {

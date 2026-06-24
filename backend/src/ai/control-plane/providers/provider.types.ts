@@ -96,6 +96,7 @@ export type TicketRecord = {
   title: string;
   status: string;
   priority?: string | null;
+  type?: string | null;
   requesterId?: string | null;
   requester?: string | null;
   description?: string | null;
@@ -108,11 +109,26 @@ export type TicketRecord = {
   } | null;
 };
 
+export type RefItem = {
+  value: string;
+  label: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type TicketReferenceEnums = {
+  statuses: RefItem[];
+  priorities: RefItem[];
+  types: RefItem[];
+};
+
+export type TicketReferenceCatalogKind = 'category' | 'entity';
+
 export type TicketListScope =
   | {
       mode: 'new_tickets_only';
       createdAfter: string;
       maxResults: number;
+      statusValues?: string[];
       entityId?: string | null;
       categoryId?: string | null;
     }
@@ -124,6 +140,7 @@ export type TicketListScope =
       // target states, then fetched per id.
       mode: 'all_open';
       maxResults: number;
+      statusValues?: string[];
       entityId?: string | null;
       categoryId?: string | null;
       lastChangedBefore?: string | null;
@@ -504,6 +521,8 @@ export interface TicketingProvider extends ProviderBase {
   searchSimilarTickets(context: ProviderContext, input: { query: string; ticketId?: string | null; limit?: number | null }): Promise<AdapterResult<{ tickets: SimilarTicket[] }>>;
   listTicketNotes(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<{ notes: TicketNote[] }>>;
   listTicketsForScope(context: ProviderContext, input: { scope: TicketListScope }): Promise<AdapterResult<{ tickets: TicketRecord[] }>>;
+  describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<TicketReferenceEnums>>;
+  searchReferenceCatalog(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number }): Promise<AdapterResult<{ items: RefItem[] }>>;
   getTicketClassificationContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketClassificationContext>>;
   getTicketLifecycleContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketLifecycleContext>>;
   getTicketRoutingContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRoutingContext>>;

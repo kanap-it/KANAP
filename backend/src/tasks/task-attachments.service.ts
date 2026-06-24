@@ -219,10 +219,11 @@ export class TaskAttachmentsService {
 
     const refs = await mg.query<Array<{ exists: number }>>(
       `SELECT 1 AS exists
-       FROM portfolio_request_attachments
+       FROM task_attachments
        WHERE storage_path = $1
+         AND id <> $2
        LIMIT 1`,
-      [found.storage_path],
+      [found.storage_path, found.id],
     );
     if (refs.length === 0) {
       try {

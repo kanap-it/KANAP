@@ -182,10 +182,10 @@ export class InterfacesListService extends InterfacesBaseService {
     return { items, total, page, limit };
   }
 
-  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; total: number }> {
+  async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const repo = this.getRepo(opts?.manager);
     const { sort, q, filters } = parsePagination(query);
-    const qb = repo.createQueryBuilder('i').select('i.id', 'id');
+    const qb = repo.createQueryBuilder('i').select('i.id', 'id').addSelect('i.interface_reference', 'ref');
     qb.leftJoin('applications', 'sa', 'sa.id = i.source_application_id');
     qb.leftJoin('applications', 'ta', 'ta.id = i.target_application_id');
     qb.leftJoin('business_processes', 'bp', 'bp.id = i.business_process_id');
@@ -275,8 +275,11 @@ export class InterfacesListService extends InterfacesBaseService {
     const sortDirection = sort.direction === 'ASC' ? 'ASC' : 'DESC';
     const total = await qb.clone().getCount();
     const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
-    const rows = await qb.orderBy(`i.${sortField}`, sortDirection as any).take(limit).getRawMany<{ id: string }>();
-    return { ids: rows.map((row) => row.id).filter(Boolean), total };
+    const rows = await qb.orderBy(`i.${sortField}`, sortDirection as any).take(limit).getRawMany<{ id: string; ref: string | null }>();
+    const navRows = rows.filter((row) => Boolean(row.id));
+    const ids = navRows.map((row) => row.id);
+    const refs = navRows.map((row) => row.ref || row.id);
+    return { ids, refs, total };
   }
 
   /**

@@ -331,7 +331,7 @@ export default function AssetWorkspacePage() {
     if (!routeMatchesLoadedAsset) return;
     if (routeId.toUpperCase() === data.asset_reference.toUpperCase()) return;
     const qs = searchParams.toString();
-    navigate(`/it/assets/${data.asset_reference}/${tab}${qs ? `?${qs}` : ''}`, { replace: true });
+    window.history.replaceState(null, '', `/it/assets/${data.asset_reference}/${tab}${qs ? `?${qs}` : ''}`);
   }, [data?.asset_reference, isCreate, navigate, routeId, routeMatchesLoadedAsset, searchParams, tab]);
 
   React.useEffect(() => {

@@ -278,6 +278,7 @@
   },
   "settings": {
     "identity": "Identité et persona",
+    "objectiveCapabilities": "Objectif et capacités",
     "name": "Nom",
     "status": "Statut",
     "statuses": {
@@ -297,8 +298,56 @@
     "saved": "Enregistré",
     "saveFailed": "Échec de l'enregistrement",
     "watching": "Surveillance",
+    "targeting": "Ciblage",
     "watchNewTickets": "Surveiller les nouveaux tickets",
     "watchTickets": "Surveiller les tickets automatiquement",
+    "targetingPresets": {
+      "new_tickets": "Nouveaux tickets",
+      "all_open": "Tous ouverts",
+      "handled": "Traités par cet agent"
+    },
+    "targetingBuilder": {
+      "filters": "Filtres",
+      "hint": "Tous les filtres sont combinés. Les valeurs viennent du système de tickets connecté.",
+      "add": "Ajouter un filtre",
+      "remove": "Retirer le filtre",
+      "comingSoon": "Bientôt",
+      "categoryPlaceholder": "ID catégorie",
+      "noOptions": "Aucune option",
+      "hours": "Heures",
+      "days": "Jours",
+      "thisAgent": "Cet agent",
+      "replaceTitle": "Remplacer les filtres ?",
+      "replaceDescription": "{{preset}} remplacera le jeu de filtres actuel.",
+      "replace": "Remplacer"
+    },
+    "targetingFields": {
+      "status": "Statut",
+      "priority": "Priorité minimale",
+      "type": "Type",
+      "category": "Catégorie",
+      "entity": "Entité",
+      "created_at": "Créé depuis",
+      "updated_at": "Dernière mise à jour avant",
+      "inactivity_age": "Inactif depuis au moins",
+      "touched_by": "Touché par",
+      "requester": "Demandeur",
+      "viewer": "Observateur",
+      "assignee": "Assigné"
+    },
+    "ticketStatuses": {
+      "1": "Nouveau",
+      "2": "Assigné",
+      "3": "Planifié",
+      "4": "En attente"
+    },
+    "priorities": {
+      "low": "Basse",
+      "medium": "Moyenne",
+      "high": "Haute",
+      "very_high": "Très haute",
+      "major": "Majeure"
+    },
     "scopeMode": "Tickets à surveiller",
     "scopeModes": {
       "new_tickets_only": "Nouveaux tickets",
@@ -314,12 +363,34 @@
     "entityHint": "Laisser vide pour inclure toutes les entités.",
     "category": "ID catégorie",
     "categoryHint": "Laisser vide pour inclure toutes les catégories.",
+    "preview": {
+      "matches": "Correspondances",
+      "sample": "Échantillon",
+      "overlap": "Chevauchement",
+      "runsPerDay": "Exéc./jour",
+      "capped": "L'aperçu est limité par les plafonds configurés par contrôle."
+    },
+    "predicateResolution": {
+      "pushed_down": "Fournisseur",
+      "locally_filtered_bounded_fetch": "Local borné",
+      "control_plane_resolved": "Plan de contrôle",
+      "unsupported": "Non pris en charge"
+    },
     "pace": "Rythme",
+    "operatingSettings": "Paramètres d'exploitation",
+    "agentPriority": "Priorité agent",
+    "reviewCooldown": "Réviser toutes les (heures)",
+    "onConflict": "Collision ticket",
+    "conflictPolicies": {
+      "defer": "Différer",
+      "supersede": "Remplacer à priorité égale"
+    },
     "maxTickets": "Tickets max par contrôle",
     "maxRequests": "Requêtes fournisseur max",
     "horizon": "Horizon de reprise (heures)",
     "staleClosure": "Nettoyage des tickets inactifs",
     "staleClosureEnable": "Clôturer les tickets inactifs",
+    "staleClosureObjectiveHint": "Utilisez un filtre d'inactivité dans Ciblage pour choisir les tickets admissibles. Le modèle de note de clôture se configure dans les instructions ci-dessus.",
     "staleClosureHint": "Publie une note de clôture et propose de clôturer les tickets sans activité depuis le seuil ci-dessous. Chaque proposition reste soumise à votre approbation.",
     "staleHours": "Inactif depuis (heures)",
     "staleDays": "Inactif depuis (jours)",
@@ -336,6 +407,16 @@
     "dailyRuns": "Exécutions par jour",
     "dailyTokens": "Tokens par jour",
     "dailyCost": "Coût par jour (EUR)",
+    "publicReplyTtl": "TTL réponse (heures)",
+    "internalNoteTtl": "TTL note (heures)",
+    "metadataTtl": "TTL mises à jour (heures)",
+    "staleClosureTtl": "TTL clôture inactive (jours)",
+    "onStale": "Si le ticket a changé",
+    "stalePolicies": {
+      "re_review": "Réviser à nouveau",
+      "cancel": "Annuler",
+      "apply_anyway": "Appliquer quand même"
+    },
     "save": "Enregistrer",
     "knowledgeSources": "Sources de connaissances et web",
     "knowledgeEnabled": "Rechercher dans les connaissances KANAP",
@@ -348,12 +429,23 @@
     "webHint": "Activé, l'agent peut aussi rechercher sur le web public. Les connaissances KANAP restent prioritaires et les résultats web sont cités dans les réponses.",
     "webUnavailableHint": "La recherche web n'est pas encore disponible sur cette plateforme. Contactez votre administrateur pour l'activer.",
     "saveKnowledge": "Enregistrer les sources",
+    "capabilities": "Capacités",
+    "capabilityGroups": {
+      "internal_note": "Notes internes",
+      "public_reply": "Réponses demandeur",
+      "classification": "Classification",
+      "status": "Mises à jour statut",
+      "assignment": "Affectation",
+      "participant": "Participants"
+    },
     "autonomy": "Autonomie",
     "autonomyDialog": {
       "title": "Activer le mode automatique pour {{actionClass}} ?",
       "confirm": "Activer le mode automatique",
       "evidence": "Sur la base de {{decided}} décisions avec {{rate}} d'acceptation sur {{days}} jours.",
-      "frame": "Les actions automatiques respectent toujours les limites quotidiennes et la pause d'urgence, et reviennent en mode validation si l'acceptation baisse."
+      "frame": "Les actions automatiques respectent toujours les limites quotidiennes et la pause d'urgence, et reviennent en mode validation si l'acceptation baisse.",
+      "overrideFrame": "Ce forçage contourne uniquement les seuils de recommandation. Les limites de sécurité, fraîcheur, fournisseur, budgets, pauses et restrictions de réponse publique restent appliquées.",
+      "reason": "Motif du forçage"
     },
     "autonomyReasons": {
       "ACTION_CLASS_NOT_ALLOWLISTED": "Ce type d'action ne peut pas s'exécuter automatiquement.",
@@ -369,6 +461,7 @@
     "askFirst": "Demander d'abord",
     "turnOffAutomatic": "Désactiver",
     "turnOnAutomatic": "Activer",
+    "overrideAutomatic": "Forcer",
     "actionClasses": {
       "internal_note": "Note interne",
       "classification": "Mise à jour classification",

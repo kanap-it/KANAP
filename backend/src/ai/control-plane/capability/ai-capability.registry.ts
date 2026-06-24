@@ -13,9 +13,14 @@ import {
 } from '../../ai.types';
 import { AiProviderToolDef } from '../../providers/ai-provider.types';
 import { AiActionRequestService } from '../action-request/ai-action-request.service';
+import {
+  AiAgentWorkQueueService,
+  SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS,
+} from '../agent/ai-agent-work-queue.service';
 import { AiApprovalService } from '../approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from '../automation/ai-automation-job-catalog.service';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
+import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiExternalMcpBridgeService } from '../mcp/ai-external-mcp-bridge.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
 import {
@@ -62,6 +67,7 @@ import {
   TicketParticipantUpdateActionPayload,
   TicketPublicReplyActionPayload,
   TicketPublicReplyWriteResult,
+  TicketRecord,
   TicketProviderActionWriteResult,
   TicketRoutingTarget,
   TicketStatusUpdateActionPayload,
@@ -1544,13 +1550,93 @@ function shouldCreateFreshGlpiAgentControlProposal(execution: CapabilityExecutio
     && metadata.agent_work_item_id.trim().length > 0;
 }
 
-// Stale-cleanup note/close proposals get a standing review-window expiry; everything else
-// keeps the short interactive-preview default.
+// Stale-cleanup note/close proposals get a standing review-window expiry; normal
+// service-desk proposals use per-action-class defaults unless the agent config overrides them.
 function staleCleanupProposalExpiry(execution: CapabilityExecutionContext): Date | null {
   const triageAction = stringMetadataField(execution.metadata, 'triage_action');
   return triageAction && STALE_CLEANUP_TRIAGE_ACTIONS.has(triageAction)
     ? new Date(Date.now() + STALE_CLEANUP_PROPOSAL_TTL_MS)
     : null;
+}
+
+function serviceDeskProposalExpiry(execution: CapabilityExecutionContext, actionClass: string): Date | null {
+  const metadata = isRecord(execution.metadata) ? execution.metadata : null;
+  const ttlMap = isRecord(metadata?.approval_ttl_seconds_by_action_class)
+    ? metadata.approval_ttl_seconds_by_action_class
+    : null;
+  const triageAction = stringMetadataField(execution.metadata, 'triage_action');
+  const effectiveClass = triageAction && STALE_CLEANUP_TRIAGE_ACTIONS.has(triageAction) ? 'stale_closure' : actionClass;
+  const configuredTtl = ttlMap ? ttlMap[effectiveClass] : null;
+  const configuredSeconds = typeof configuredTtl === 'number' ? configuredTtl : Number(configuredTtl);
+  const defaultSeconds = SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS[effectiveClass] ?? null;
+  const ttlSeconds = Number.isFinite(configuredSeconds)
+    ? Math.max(60, Math.min(30 * 24 * 60 * 60, Math.floor(configuredSeconds)))
+    : defaultSeconds;
+  if (ttlSeconds != null) {
+    return new Date(Date.now() + ttlSeconds * 1000);
+  }
+  return staleCleanupProposalExpiry(execution);
+}
+
+function approvedActionClass(capabilityName: string): string {
+  if (capabilityName === TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY) return 'public_reply';
+  if (capabilityName === TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY) return 'internal_note';
+  if (capabilityName === TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY) return 'classification';
+  if (capabilityName === TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY) return 'status';
+  if (capabilityName === TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY) return 'assignment';
+  if (capabilityName === TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY) return 'participant';
+  return capabilityName;
+}
+
+const APPLY_ANYWAY_ACTION_CLASSES = new Set(['internal_note', 'classification']);
+
+function serviceDeskOnStalePolicy(action: AiActionRequest, actionClass: string): 're_review' | 'cancel' | 'apply_anyway' {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+  const policyMap = isRecord(metadata?.on_stale_by_action_class) ? metadata.on_stale_by_action_class : null;
+  const raw = typeof policyMap?.[actionClass] === 'string' ? policyMap[actionClass] : null;
+  return raw === 'cancel' || raw === 'apply_anyway' || raw === 're_review' ? raw : 're_review';
+}
+
+function ticketFreshnessUpdatedAt(ticket: TicketRecord): string | null {
+  return typeof ticket.updatedAt === 'string' && ticket.updatedAt.trim().length > 0
+    ? ticket.updatedAt
+    : typeof (ticket as unknown as Record<string, unknown>).updated_at === 'string'
+      ? String((ticket as unknown as Record<string, unknown>).updated_at)
+      : null;
+}
+
+function ticketFreshnessHash(ticket: TicketRecord): string {
+  return stableJson({
+    id: ticket.id,
+    title: ticket.title,
+    status: ticket.status ?? null,
+    priority: ticket.priority ?? null,
+    updated_at: ticketFreshnessUpdatedAt(ticket),
+    created_at: ticket.createdAt ?? null,
+    scope: ticket.scope ?? null,
+    requester_id: ticket.requesterId ?? null,
+  });
+}
+
+function ticketFreshnessChanged(action: AiActionRequest, ticket: TicketRecord): boolean {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+  const preparedHash = typeof metadata?.proposal_ticket_hash === 'string' ? metadata.proposal_ticket_hash : null;
+  const preparedUpdatedAt = typeof metadata?.proposal_ticket_updated_at === 'string' ? metadata.proposal_ticket_updated_at : null;
+  if (!preparedHash && !preparedUpdatedAt) {
+    return false;
+  }
+  const currentUpdatedAt = ticketFreshnessUpdatedAt(ticket);
+  const preparedMs = preparedUpdatedAt ? Date.parse(preparedUpdatedAt) : Number.NaN;
+  const currentMs = currentUpdatedAt ? Date.parse(currentUpdatedAt) : Number.NaN;
+  const dateMoved = Number.isFinite(preparedMs) && Number.isFinite(currentMs) && currentMs > preparedMs;
+  const hashMoved = preparedHash != null && ticketFreshnessHash(ticket) !== preparedHash;
+  return dateMoved || hashMoved;
+}
+
+function actionHasApplyAnywayOverride(action: AiActionRequest): boolean {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+  const override = isRecord(metadata?.stale_policy_override) ? metadata.stale_policy_override : null;
+  return override?.mode === 'apply_anyway';
 }
 
 function isAutomationLaunchPayload(value: unknown): value is AutomationLaunchActionPayload {
@@ -1708,6 +1794,7 @@ export class AiCapabilityRegistry {
     @Optional() private readonly policy?: AiPolicyService,
     @Optional() private readonly knowledge?: KnowledgeService,
     @Optional() private readonly braveSearch?: BraveSearchService,
+    @Optional() private readonly agentQueue?: AiAgentWorkQueueService,
   ) {}
 
   validateContract(contract: CapabilityContract): CapabilityContract {
@@ -2100,6 +2187,248 @@ export class AiCapabilityRegistry {
     }
   }
 
+  private async ticketFreshnessMetadata(
+    context: AiExecutionContextWithManager,
+    provider: TicketingProvider,
+    ticketId: string,
+  ): Promise<Record<string, unknown>> {
+    const ticket = await provider.getTicket(context, { ticketId });
+    if (ticket.ok === false) {
+      return {};
+    }
+    return {
+      proposal_ticket_updated_at: ticketFreshnessUpdatedAt(ticket.data),
+      proposal_ticket_hash: ticketFreshnessHash(ticket.data),
+    };
+  }
+
+  private async enqueueFreshReviewAfterStaleAction(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    ticket: TicketRecord,
+    reason: string,
+  ): Promise<void> {
+    if (!this.agentQueue || !action.target_ref) {
+      return;
+    }
+    const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+    const definitionId = typeof metadata?.agent_definition_id === 'string' ? metadata.agent_definition_id : null;
+    if (!definitionId) {
+      return;
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: {
+        id: definitionId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!definition) {
+      return;
+    }
+    await this.agentQueue.resolveWaitingApprovalForActionRequest(context, action.id);
+    await this.agentQueue.releaseTargetClaim(context, {
+      agentDefinitionId: definition.id,
+      providerKind: action.provider_kind ?? 'ticketing',
+      providerKey: action.provider_key ?? 'glpi',
+      targetType: action.target_type ?? 'ticket',
+      targetRef: action.target_ref,
+      reason,
+    });
+    await this.agentQueue.enqueueHelpdeskGlpiScopedTicket(context, {
+      definition,
+      ticket,
+      metadata: {
+        source: 'execute_time_stale_re_review',
+        stale_action_request_id: action.id,
+        stale_reason: reason,
+      },
+    });
+  }
+
+  private async verifyTicketFreshnessPolicy<T>(
+    context: AiExecutionContextWithManager,
+    provider: TicketingProvider,
+    action: AiActionRequest,
+    options: { terminal?: boolean } = {},
+  ): Promise<AdapterResult<T> | null> {
+    if (!action.target_ref) {
+      const message = 'Cannot verify ticket freshness because the action target is missing.';
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<T>(message);
+    }
+    const current = await provider.getTicket(context, { ticketId: action.target_ref });
+    if (current.ok === false) {
+      const message = `Cannot verify ticket freshness before GLPI write: ${current.message}`;
+      await this.actions.markExecuted(context, action, 'failed', message);
+      return ticketWriteGuardError<T>(message);
+    }
+    if (!ticketFreshnessChanged(action, current.data)) {
+      return null;
+    }
+
+    const sameRunSiblings = await this.ticketFreshnessChangeIsOnlySameRunKanapWrites(
+      context,
+      action,
+      current.data,
+      options,
+    );
+    if (sameRunSiblings) {
+      action.metadata_json = {
+        ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+        same_run_freshness_override: {
+          mode: 'allow_after_same_run_sibling_writes',
+          checked_at: new Date().toISOString(),
+          current_ticket_updated_at: ticketFreshnessUpdatedAt(current.data),
+          sibling_action_request_ids: sameRunSiblings.map((sibling) => sibling.id),
+        },
+      };
+      action.updated_at = new Date();
+      await context.manager.getRepository(AiActionRequest).save(action);
+      return null;
+    }
+
+    const actionClass = approvedActionClass(action.capability_name);
+    const configuredPolicy = serviceDeskOnStalePolicy(action, actionClass);
+    const canApplyAnyway = configuredPolicy === 'apply_anyway'
+      && APPLY_ANYWAY_ACTION_CLASSES.has(actionClass)
+      && options.terminal !== true;
+    if (canApplyAnyway) {
+      action.metadata_json = {
+        ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+        stale_policy_override: {
+          mode: 'apply_anyway',
+          checked_at: new Date().toISOString(),
+          current_ticket_updated_at: ticketFreshnessUpdatedAt(current.data),
+          current_ticket_hash: ticketFreshnessHash(current.data),
+        },
+      };
+      action.updated_at = new Date();
+      await context.manager.getRepository(AiActionRequest).save(action);
+      return null;
+    }
+
+    if (configuredPolicy === 'cancel') {
+      const message = options.terminal === true
+        ? 'Terminal ticket update blocked because the ticket changed after proposal.'
+        : 'Ticket changed after this action was prepared; action was canceled.';
+      await this.actions.markExpired(context, action, message);
+      return ticketWriteGuardError<T>(message);
+    }
+
+    const message = options.terminal === true
+      ? 'Terminal ticket update blocked because the ticket changed after proposal; a fresh review was queued.'
+      : 'Ticket changed after this action was prepared; a fresh review was queued.';
+    await this.actions.markExpired(context, action, message);
+    await this.enqueueFreshReviewAfterStaleAction(context, action, current.data, 'stale_at_execute_re_review');
+    return ticketWriteGuardError<T>(message);
+  }
+
+  private async sameRunExecutedSiblingActions(
+    context: AiExecutionContextWithManager,
+    action: ProviderActionForExecution,
+  ): Promise<AiActionRequest[]> {
+    if (!action.run_id || !action.target_ref) {
+      return [];
+    }
+    const actionMetadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+    const actionWorkItemId = stringMetadataField(actionMetadata, 'agent_work_item_id');
+    const siblings = await context.manager.getRepository(AiActionRequest).find({
+      where: {
+        tenant_id: context.tenantId,
+        run_id: action.run_id,
+        target_type: action.target_type,
+        target_ref: action.target_ref,
+        provider_kind: action.provider_kind,
+        provider_key: action.provider_key,
+        status: 'executed',
+      },
+    });
+    return siblings.filter((sibling) => {
+      if (sibling.id === action.id) {
+        return false;
+      }
+      const siblingMetadata = isRecord(sibling.metadata_json) ? sibling.metadata_json : null;
+      const siblingWorkItemId = stringMetadataField(siblingMetadata, 'agent_work_item_id');
+      return !actionWorkItemId || siblingWorkItemId === actionWorkItemId;
+    });
+  }
+
+  private async ticketFreshnessChangeIsOnlySameRunKanapWrites(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    ticket: TicketRecord,
+    options: { terminal?: boolean } = {},
+  ): Promise<AiActionRequest[] | null> {
+    if (options.terminal === true) {
+      return null;
+    }
+    const siblings = await this.sameRunExecutedSiblingActions(context, action);
+    if (siblings.length === 0) {
+      return null;
+    }
+
+    const currentUpdatedAt = ticketFreshnessUpdatedAt(ticket);
+    const currentUpdatedAtMs = currentUpdatedAt ? Date.parse(currentUpdatedAt) : Number.NaN;
+    const latestSiblingMs = Math.max(...siblings.map((sibling) => {
+      const value = sibling.executed_at ?? sibling.updated_at ?? sibling.approved_at ?? sibling.created_at;
+      return value instanceof Date ? value.getTime() : Date.parse(String(value));
+    }).filter((value) => Number.isFinite(value)));
+    if (
+      Number.isFinite(currentUpdatedAtMs)
+      && Number.isFinite(latestSiblingMs)
+      && currentUpdatedAtMs > latestSiblingMs + 5 * 60 * 1000
+    ) {
+      return null;
+    }
+
+    return siblings;
+  }
+
+  private async recordPostWriteTargetBaseline(
+    context: AiExecutionContextWithManager,
+    provider: TicketingProvider,
+    action: AiActionRequest,
+  ): Promise<void> {
+    if (!this.agentQueue || !action.target_ref) {
+      return;
+    }
+    const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+    const definitionId = typeof metadata?.agent_definition_id === 'string' ? metadata.agent_definition_id : null;
+    if (!definitionId) {
+      return;
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: {
+        id: definitionId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!definition) {
+      return;
+    }
+    const ticket = await provider.getTicket(context, { ticketId: action.target_ref });
+    if (ticket.ok === false) {
+      return;
+    }
+    await this.agentQueue.upsertTargetState(context, {
+      agentDefinitionId: definition.id,
+      providerKind: action.provider_kind ?? 'ticketing',
+      providerKey: action.provider_key ?? 'glpi',
+      targetType: action.target_type ?? 'ticket',
+      targetRef: action.target_ref,
+      lastSeenExternalUpdatedAt: ticketFreshnessUpdatedAt(ticket.data),
+      lastProcessedExternalUpdatedAt: ticketFreshnessUpdatedAt(ticket.data),
+      nextReviewAt: this.agentQueue.scheduleNextReviewAt(definition),
+      lastRunId: action.run_id ?? null,
+      agentTouched: true,
+      state: {
+        post_write_ticket_hash: ticketFreshnessHash(ticket.data),
+        post_write_recorded_at: new Date().toISOString(),
+        post_write_action_request_id: action.id,
+      },
+    });
+  }
+
   private async prepareTicketClassificationUpdate(
     context: AiExecutionContextWithManager,
     rawInput: unknown,
@@ -2120,6 +2449,7 @@ export class AiCapabilityRegistry {
       return prepared;
     }
     const actionPayload = prepared.data.actionPayload;
+    const freshnessMetadata = await this.ticketFreshnessMetadata(context, provider, actionPayload.ticketId);
     const idempotencyKey = this.actions.providerActionIdempotencyKey({
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
@@ -2150,12 +2480,14 @@ export class AiCapabilityRegistry {
       },
       metadata: {
         ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        ...freshnessMetadata,
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         update_kind: 'classification',
       },
+      expiresAt: serviceDeskProposalExpiry(execution, 'classification'),
       retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
         ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
         : null,
@@ -2184,13 +2516,17 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid classification update payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketProviderActionWriteResult>(context, provider, action);
+    if (freshnessGuard) {
+      return freshnessGuard;
+    }
     const current = await provider.getTicketClassificationContext(context, { ticketId: action.action_payload_json.ticketId });
     if (current.ok === false) {
       const message = `Cannot verify ticket classification freshness before write: ${current.message}`;
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
-    if (!sameSnapshot(freshnessRecheckSnapshot(action.action_payload_json.current), freshnessRecheckSnapshot(current.data))) {
+    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(freshnessRecheckSnapshot(action.action_payload_json.current), freshnessRecheckSnapshot(current.data))) {
       const message = 'Ticket classification changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
@@ -2215,6 +2551,7 @@ export class AiCapabilityRegistry {
       },
     };
     await this.actions.markExecuted(context, action, 'executed', null);
+    await this.recordPostWriteTargetBaseline(context, provider, action);
     return withActionRequestData(result, { action_request_id: action.id });
   }
 
@@ -2238,6 +2575,7 @@ export class AiCapabilityRegistry {
       return prepared;
     }
     const actionPayload = prepared.data.actionPayload;
+    const freshnessMetadata = await this.ticketFreshnessMetadata(context, provider, actionPayload.ticketId);
     const idempotencyKey = this.actions.providerActionIdempotencyKey({
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
@@ -2269,13 +2607,14 @@ export class AiCapabilityRegistry {
       },
       metadata: {
         ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        ...freshnessMetadata,
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         update_kind: 'status',
       },
-      expiresAt: staleCleanupProposalExpiry(execution),
+      expiresAt: serviceDeskProposalExpiry(execution, 'status'),
       retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
         ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
         : null,
@@ -2304,13 +2643,19 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid status update payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketProviderActionWriteResult>(context, provider, action, {
+      terminal: action.action_payload_json.terminal === true,
+    });
+    if (freshnessGuard) {
+      return freshnessGuard;
+    }
     const current = await provider.getTicketLifecycleContext(context, { ticketId: action.action_payload_json.ticketId });
     if (current.ok === false) {
       const message = `Cannot verify ticket lifecycle freshness before write: ${current.message}`;
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
-    if (!sameSnapshot(freshnessRecheckSnapshot(action.action_payload_json.current), freshnessRecheckSnapshot(current.data))) {
+    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(freshnessRecheckSnapshot(action.action_payload_json.current), freshnessRecheckSnapshot(current.data))) {
       const message = 'Ticket lifecycle changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
@@ -2335,6 +2680,7 @@ export class AiCapabilityRegistry {
       },
     };
     await this.actions.markExecuted(context, action, 'executed', null);
+    await this.recordPostWriteTargetBaseline(context, provider, action);
     return withActionRequestData(result, { action_request_id: action.id });
   }
 
@@ -2358,6 +2704,7 @@ export class AiCapabilityRegistry {
       return prepared;
     }
     const actionPayload = prepared.data.actionPayload;
+    const freshnessMetadata = await this.ticketFreshnessMetadata(context, provider, actionPayload.ticketId);
     const idempotencyKey = this.actions.providerActionIdempotencyKey({
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
@@ -2388,12 +2735,14 @@ export class AiCapabilityRegistry {
       },
       metadata: {
         ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        ...freshnessMetadata,
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         update_kind: 'assignment',
       },
+      expiresAt: serviceDeskProposalExpiry(execution, 'assignment'),
       retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
         ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
         : null,
@@ -2422,13 +2771,17 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid assignment update payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketProviderActionWriteResult>(context, provider, action);
+    if (freshnessGuard) {
+      return freshnessGuard;
+    }
     const current = await provider.getTicketRoutingContext(context, { ticketId: action.action_payload_json.ticketId });
     if (current.ok === false) {
       const message = `Cannot verify ticket routing freshness before write: ${current.message}`;
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
-    if (!sameSnapshot(action.action_payload_json.current, current.data)) {
+    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(action.action_payload_json.current, current.data)) {
       const message = 'Ticket routing changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
@@ -2453,6 +2806,7 @@ export class AiCapabilityRegistry {
       },
     };
     await this.actions.markExecuted(context, action, 'executed', null);
+    await this.recordPostWriteTargetBaseline(context, provider, action);
     return withActionRequestData(result, { action_request_id: action.id });
   }
 
@@ -2477,6 +2831,7 @@ export class AiCapabilityRegistry {
       return prepared;
     }
     const actionPayload = prepared.data.actionPayload;
+    const freshnessMetadata = await this.ticketFreshnessMetadata(context, provider, actionPayload.ticketId);
     const idempotencyKey = this.actions.providerActionIdempotencyKey({
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
@@ -2508,12 +2863,14 @@ export class AiCapabilityRegistry {
       },
       metadata: {
         ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        ...freshnessMetadata,
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         update_kind: 'participants',
       },
+      expiresAt: serviceDeskProposalExpiry(execution, 'participant'),
       retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
         ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
         : null,
@@ -2542,13 +2899,17 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid participant update payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketProviderActionWriteResult>(context, provider, action);
+    if (freshnessGuard) {
+      return freshnessGuard;
+    }
     const current = await provider.getTicketParticipantContext(context, { ticketId: action.action_payload_json.ticketId });
     if (current.ok === false) {
       const message = `Cannot verify ticket participant freshness before write: ${current.message}`;
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
-    if (!sameSnapshot(action.action_payload_json.current, current.data)) {
+    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(action.action_payload_json.current, current.data)) {
       const message = 'Ticket participants changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
@@ -2573,6 +2934,7 @@ export class AiCapabilityRegistry {
       },
     };
     await this.actions.markExecuted(context, action, 'executed', null);
+    await this.recordPostWriteTargetBaseline(context, provider, action);
     return withActionRequestData(result, { action_request_id: action.id });
   }
 
@@ -2595,6 +2957,7 @@ export class AiCapabilityRegistry {
     }
 
     const actionPayload = prepared.data.actionPayload;
+    const freshnessMetadata = await this.ticketFreshnessMetadata(context, provider, actionPayload.ticketId);
     const idempotencyKey = this.actions.providerActionIdempotencyKey({
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
@@ -2625,12 +2988,14 @@ export class AiCapabilityRegistry {
       },
       metadata: {
         ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        ...freshnessMetadata,
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         visibility: 'internal',
       },
+      expiresAt: serviceDeskProposalExpiry(execution, 'internal_note'),
       retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
         ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
         : null,
@@ -2663,7 +3028,13 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid internal-note payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
-    const staleGuard = await this.verifyTicketHistoryStaleGuard<TicketInternalNoteWriteResult>(context, provider, action);
+    const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketInternalNoteWriteResult>(context, provider, action);
+    if (freshnessGuard) {
+      return freshnessGuard;
+    }
+    const staleGuard = actionHasApplyAnywayOverride(action)
+      ? null
+      : await this.verifyTicketHistoryStaleGuard<TicketInternalNoteWriteResult>(context, provider, action);
     if (staleGuard) {
       return staleGuard;
     }
@@ -2687,6 +3058,7 @@ export class AiCapabilityRegistry {
       },
     };
     await this.actions.markExecuted(context, action, 'executed', null);
+    await this.recordPostWriteTargetBaseline(context, provider, action);
     return result;
   }
 
@@ -2709,6 +3081,7 @@ export class AiCapabilityRegistry {
     }
 
     const actionPayload = prepared.data.actionPayload;
+    const freshnessMetadata = await this.ticketFreshnessMetadata(context, provider, actionPayload.ticketId);
     const idempotencyKey = this.actions.providerActionIdempotencyKey({
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
@@ -2739,13 +3112,14 @@ export class AiCapabilityRegistry {
       },
       metadata: {
         ...(isRecord(execution.metadata) ? execution.metadata : {}),
+        ...freshnessMetadata,
         observation_id: parsed.data.observation_id ?? null,
         recommendation_id: parsed.data.recommendation_id ?? null,
         decision_id: parsed.data.decision_id ?? null,
         evaluation_id: parsed.data.evaluation_id ?? null,
         visibility: 'public',
       },
-      expiresAt: staleCleanupProposalExpiry(execution),
+      expiresAt: serviceDeskProposalExpiry(execution, 'public_reply'),
       retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
         ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
         : null,
@@ -2778,6 +3152,10 @@ export class AiCapabilityRegistry {
       throw new BadRequestException('Action request does not contain a valid public-reply payload.');
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
+    const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketPublicReplyWriteResult>(context, provider, action);
+    if (freshnessGuard) {
+      return freshnessGuard;
+    }
     const staleGuard = await this.verifyTicketHistoryStaleGuard<TicketPublicReplyWriteResult>(context, provider, action);
     if (staleGuard) {
       return staleGuard;
@@ -2802,6 +3180,7 @@ export class AiCapabilityRegistry {
       },
     };
     await this.actions.markExecuted(context, action, 'executed', null);
+    await this.recordPostWriteTargetBaseline(context, provider, action);
     return result;
   }
 
@@ -2876,27 +3255,9 @@ export class AiCapabilityRegistry {
       currentLatestFingerprint: string | null;
     },
   ): Promise<boolean> {
-    if (!action.run_id || !action.target_ref) {
-      return false;
-    }
-    const actionMetadata = isRecord(action.metadata_json) ? action.metadata_json : null;
-    const actionWorkItemId = stringMetadataField(actionMetadata, 'agent_work_item_id');
-    const siblingActions = await context.manager.getRepository(AiActionRequest).find({
-      where: {
-        tenant_id: context.tenantId,
-        run_id: action.run_id,
-        target_type: action.target_type,
-        target_ref: action.target_ref,
-        provider_kind: action.provider_kind,
-        provider_key: action.provider_key,
-        status: 'executed',
-      },
-    });
+    const siblingActions = await this.sameRunExecutedSiblingActions(context, action);
     const allowedSiblingNoteIds = new Set<string>();
     for (const sibling of siblingActions) {
-      if (sibling.id === action.id) {
-        continue;
-      }
       if (
         sibling.capability_name !== TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY
         && sibling.capability_name !== TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY
@@ -2904,10 +3265,6 @@ export class AiCapabilityRegistry {
         continue;
       }
       const siblingMetadata = isRecord(sibling.metadata_json) ? sibling.metadata_json : null;
-      const siblingWorkItemId = stringMetadataField(siblingMetadata, 'agent_work_item_id');
-      if (actionWorkItemId && siblingWorkItemId !== actionWorkItemId) {
-        continue;
-      }
       const siblingNoteId = metadataProviderResultNoteId(siblingMetadata);
       if (siblingNoteId) {
         allowedSiblingNoteIds.add(siblingNoteId);

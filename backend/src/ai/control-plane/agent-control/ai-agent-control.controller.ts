@@ -31,6 +31,7 @@ import {
   AgentControlAgentDefinitionInput,
   AgentControlAgentStatusInput,
   AgentControlAutonomyInput,
+  AgentControlTargetingPreviewInput,
   AiAgentControlService,
 } from './ai-agent-control.service';
 
@@ -175,6 +176,30 @@ export class AiAgentControlController {
   ) {
     const context = this.buildContext(req);
     return this.runRead(context, (tenantContext) => this.control.getAgentDefinition(tenantContext, id));
+  }
+
+  @Post('agents/:id/targeting-preview')
+  async previewAgentTargeting(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: AgentControlTargetingPreviewInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.previewAgentTargeting(tenantContext, id, body ?? {}));
+  }
+
+  @Get('agents/:id/targeting-options/:field')
+  async getAgentTargetingOptions(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('field') field: string,
+    @Query('query') query?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) =>
+      this.control.getAgentTargetingOptions(tenantContext, id, field, { query, limit }),
+    );
   }
 
   @Post('agents/:id')

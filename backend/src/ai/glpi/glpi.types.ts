@@ -33,6 +33,7 @@ export type GlpiTicketListScope =
       mode?: 'new_tickets_only';
       createdAfter: string;
       maxResults: number;
+      statusValues?: string[];
       entityId?: number | null;
       categoryId?: number | null;
     }
@@ -41,11 +42,19 @@ export type GlpiTicketListScope =
       // optional last-changed (date_mod) window. Oldest-changed first.
       mode: 'all_open';
       maxResults: number;
+      statusValues?: string[];
       entityId?: number | null;
       categoryId?: number | null;
       lastChangedBefore?: string | null;
       lastChangedAfter?: string | null;
     };
+
+export type GlpiReferenceItem = {
+  id: number;
+  name: string | null;
+  completename: string | null;
+  parent_id?: number | null;
+};
 
 export type GlpiTicketFollowup = {
   id: number;

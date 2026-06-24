@@ -278,6 +278,7 @@
   },
   "settings": {
     "identity": "Identity and persona",
+    "objectiveCapabilities": "Objective and capabilities",
     "name": "Name",
     "status": "Status",
     "statuses": {
@@ -297,8 +298,56 @@
     "saved": "Saved",
     "saveFailed": "Couldn't save",
     "watching": "Watching",
+    "targeting": "Targeting",
     "watchNewTickets": "Watch new tickets",
     "watchTickets": "Watch tickets automatically",
+    "targetingPresets": {
+      "new_tickets": "New tickets",
+      "all_open": "All open",
+      "handled": "Handled by this agent"
+    },
+    "targetingBuilder": {
+      "filters": "Filters",
+      "hint": "All filters are combined. Values come from the connected ticketing system.",
+      "add": "Add filter",
+      "remove": "Remove filter",
+      "comingSoon": "Coming soon",
+      "categoryPlaceholder": "Category ID",
+      "noOptions": "No options",
+      "hours": "Hours",
+      "days": "Days",
+      "thisAgent": "This agent",
+      "replaceTitle": "Replace filters?",
+      "replaceDescription": "{{preset}} will replace the current filter set.",
+      "replace": "Replace"
+    },
+    "targetingFields": {
+      "status": "Status",
+      "priority": "Priority at least",
+      "type": "Type",
+      "category": "Category",
+      "entity": "Entity",
+      "created_at": "Created within",
+      "updated_at": "Last updated before",
+      "inactivity_age": "Inactive for at least",
+      "touched_by": "Touched by",
+      "requester": "Requester",
+      "viewer": "Watcher",
+      "assignee": "Assignee"
+    },
+    "ticketStatuses": {
+      "1": "New",
+      "2": "Assigned",
+      "3": "Planned",
+      "4": "Pending"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "very_high": "Very high",
+      "major": "Major"
+    },
     "scopeMode": "Which tickets to watch",
     "scopeModes": {
       "new_tickets_only": "New tickets",
@@ -314,12 +363,34 @@
     "entityHint": "Leave empty to include all entities.",
     "category": "Category ID",
     "categoryHint": "Leave empty to include all categories.",
+    "preview": {
+      "matches": "Matches",
+      "sample": "Sample",
+      "overlap": "Overlap",
+      "runsPerDay": "Runs/day",
+      "capped": "Preview is bounded by the configured per-check limits."
+    },
+    "predicateResolution": {
+      "pushed_down": "Provider",
+      "locally_filtered_bounded_fetch": "Bounded local",
+      "control_plane_resolved": "Control plane",
+      "unsupported": "Unsupported"
+    },
     "pace": "Pace",
+    "operatingSettings": "Operating settings",
+    "agentPriority": "Agent priority",
+    "reviewCooldown": "Review every (hours)",
+    "onConflict": "Ticket collision",
+    "conflictPolicies": {
+      "defer": "Defer",
+      "supersede": "Supersede equal priority"
+    },
     "maxTickets": "Max tickets per check",
     "maxRequests": "Max provider requests",
     "horizon": "Backfill horizon (hours)",
     "staleClosure": "Stale ticket cleanup",
     "staleClosureEnable": "Close inactive tickets",
+    "staleClosureObjectiveHint": "Use an inactive-for filter in Targeting to choose which tickets qualify. The closing note template belongs in the instructions above.",
     "staleClosureHint": "Posts a closing note and proposes closing tickets with no activity for the threshold below. Each proposal still needs your approval.",
     "staleHours": "Inactive for (hours)",
     "staleDays": "Inactive for (days)",
@@ -336,6 +407,16 @@
     "dailyRuns": "Runs per day",
     "dailyTokens": "Tokens per day",
     "dailyCost": "Cost per day (EUR)",
+    "publicReplyTtl": "Reply TTL (hours)",
+    "internalNoteTtl": "Note TTL (hours)",
+    "metadataTtl": "Update TTL (hours)",
+    "staleClosureTtl": "Stale-close TTL (days)",
+    "onStale": "If ticket changed",
+    "stalePolicies": {
+      "re_review": "Re-review",
+      "cancel": "Cancel",
+      "apply_anyway": "Apply anyway"
+    },
     "save": "Save settings",
     "knowledgeSources": "Knowledge and web sources",
     "knowledgeEnabled": "Search KANAP knowledge",
@@ -348,12 +429,23 @@
     "webHint": "When on, the agent may also search the public web. KANAP knowledge always takes precedence, and web results are cited in replies.",
     "webUnavailableHint": "Web search isn't available on this platform yet. Contact your administrator to enable it.",
     "saveKnowledge": "Save knowledge sources",
+    "capabilities": "Capabilities",
+    "capabilityGroups": {
+      "internal_note": "Internal notes",
+      "public_reply": "Requester replies",
+      "classification": "Classification",
+      "status": "Status updates",
+      "assignment": "Assignment",
+      "participant": "Participants"
+    },
     "autonomy": "Autonomy",
     "autonomyDialog": {
       "title": "Enable automatic {{actionClass}}?",
       "confirm": "Enable automatic",
       "evidence": "Based on {{decided}} decisions with {{rate}} acceptance over {{days}} days.",
-      "frame": "Automatic actions still respect the daily limits and emergency pause, and return to ask-first if acceptance drops."
+      "frame": "Automatic actions still respect the daily limits and emergency pause, and return to ask-first if acceptance drops.",
+      "overrideFrame": "This override bypasses recommendation thresholds only. Hard safety limits, freshness checks, provider support, budgets, pauses, and public-reply restrictions still apply.",
+      "reason": "Override reason"
     },
     "autonomyReasons": {
       "ACTION_CLASS_NOT_ALLOWLISTED": "This action type can't run automatically.",
@@ -369,6 +461,7 @@
     "askFirst": "Ask first",
     "turnOffAutomatic": "Turn off",
     "turnOnAutomatic": "Turn on",
+    "overrideAutomatic": "Override",
     "actionClasses": {
       "internal_note": "Internal note",
       "classification": "Classification update",

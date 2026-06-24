@@ -258,6 +258,7 @@ export type AiAgentControlAgentDefinition = {
   forbidden_capabilities_json: Record<string, unknown> | unknown[] | null;
   max_autonomy_level: string;
   default_approval_requirement: string;
+  agent_priority: number;
   trigger_policy_json: Record<string, unknown> | null;
   scope_policy_json: Record<string, unknown> | null;
   queue_policy_json: Record<string, unknown> | null;
@@ -279,6 +280,7 @@ export type AiAgentControlAgentDefinitionInput = {
   description?: string | null;
   agent_type?: string | null;
   environment?: string | null;
+  agent_priority?: number | null;
   provider_bindings_json?: Record<string, unknown> | null;
   allowed_capabilities_json?: Record<string, unknown> | unknown[] | null;
   persona_json?: Record<string, unknown> | null;
@@ -288,6 +290,12 @@ export type AiAgentControlAgentDefinitionInput = {
   queue_policy_json?: Record<string, unknown> | null;
   response_policy_json?: Record<string, unknown> | null;
   evaluation_policy_json?: Record<string, unknown> | null;
+};
+
+export type AiAgentControlRefItem = {
+  value: string;
+  label: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type AiKnowledgeLibrary = {
@@ -302,6 +310,8 @@ export type AiAgentControlAutonomyItem = {
   mode: 'ask_first' | 'automatic';
   allowlisted: boolean;
   eligible: boolean;
+  recommendationOverrideAvailable?: boolean;
+  hardReasons?: string[];
   reasons: string[];
   progress: {
     decided: number;
@@ -364,6 +374,7 @@ export type AiAgentControlTargetState = {
   target_ref: string;
   last_seen_external_updated_at: string | null;
   last_processed_external_updated_at: string | null;
+  next_review_at: string | null;
   last_run_id: string | null;
   last_public_reply_hash: string | null;
   last_internal_note_hash: string | null;
@@ -371,9 +382,30 @@ export type AiAgentControlTargetState = {
   last_assignment_hash: string | null;
   agent_touched: boolean;
   needs_followup: boolean;
+  claim_status: string;
+  claim_expires_at: string | null;
+  claim_acquired_at: string | null;
+  claim_owner_work_item_id: string | null;
+  claim_owner_run_id: string | null;
+  claim_owner_priority: number | null;
+  claim_owner_action_request_ids: string[] | null;
+  claim_metadata_json: Record<string, unknown> | null;
   state_json: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type AiAgentControlTargetingPreview = {
+  matchEstimate: number;
+  sampleSize: number;
+  capped: boolean;
+  overlapEstimate: number;
+  runsPerDayEstimate: number;
+  resolution: Array<{
+    predicate: { field: string; operator: string; value: unknown };
+    resolution: 'pushed_down' | 'locally_filtered_bounded_fetch' | 'control_plane_resolved' | 'unsupported';
+    reason: string;
+  }>;
 };
 
 export type AiAgentControlAuditEvent = {
@@ -1003,6 +1035,18 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/agents/${id}/status`, payload);
     return res.data;
   },
+  async previewAgentTargeting(id: string, payload: { scope_policy_json?: Record<string, unknown> | null }): Promise<{ preview: AiAgentControlTargetingPreview }> {
+    const res = await api.post(`/ai/admin/control-plane/agents/${id}/targeting-preview`, payload);
+    return res.data;
+  },
+  async getAgentTargetingOptions(
+    id: string,
+    field: 'status' | 'priority' | 'type' | 'category' | 'entity',
+    params: { query?: string; limit?: number } = {},
+  ): Promise<{ options: AiAgentControlRefItem[] }> {
+    const res = await api.get(`/ai/admin/control-plane/agents/${id}/targeting-options/${field}`, { params });
+    return res.data;
+  },
   async deleteAgent(id: string): Promise<{ deleted: boolean; id: string }> {
     const res = await api.delete(`/ai/admin/control-plane/agents/${id}`);
     return res.data;
@@ -1019,6 +1063,8 @@ export const aiAgentControlApi = {
     actionClass: string;
     mode: 'ask_first' | 'automatic';
     confirm?: boolean;
+    overrideAcknowledged?: boolean;
+    overrideReason?: string | null;
   }): Promise<AiAgentControlAutonomyResult> {
     const res = await api.post(`/ai/admin/control-plane/agents/${id}/autonomy`, payload);
     return res.data;

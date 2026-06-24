@@ -714,7 +714,9 @@
       },
       "attachments": {
         "browseFiles": "Browse files",
-        "dragAndDrop": "Drag and drop files here, or"
+        "dragAndDrop": "Drag and drop files here, or",
+        "dropHere": "Drop files here",
+        "title": "Attachments"
       },
       "history": {
         "actions": {

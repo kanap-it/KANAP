@@ -18,7 +18,14 @@ import {
   estimateAgentRunUsage,
   HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
   readStaleClosureConfig,
+  staleClosureCapabilityEnabled,
 } from '../agent/ai-agent-work-queue.service';
+import {
+  normalizeServiceDeskScopePolicy,
+  normalizeServiceDeskTargeting,
+  TargetingPreviewSummary,
+  ticketMatchesServiceDeskTargeting,
+} from '../agent/service-desk-targeting';
 import { AiApprovalService } from '../approval/ai-approval.service';
 import {
   CapabilityExecutionResult,
@@ -61,12 +68,20 @@ import { AiRunStep } from '../entities/ai-run-step.entity';
 import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
+import { RefItem, TicketRecord, TicketReferenceCatalogKind } from '../providers/provider.types';
 import {
   AiKnowledgeSearchPlannerService,
   KnowledgePlannerCandidate,
   KnowledgeResultInterpretation,
   KnowledgeSearchPlan,
 } from './ai-knowledge-search-planner.service';
+import {
+  AiReplySynthesisService,
+  estimateReplySynthesisUsage,
+  ReplySynthesisRejectedSource,
+  ReplySynthesisResult,
+  ReplySynthesisSource,
+} from './ai-reply-synthesis.service';
 
 export type AgentControlListRunsOptions = {
   limit?: number;
@@ -110,12 +125,15 @@ export type AgentControlGlpiTriageInput = {
   work_item_id?: string | null;
 };
 
+export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity';
+
 export type AgentControlAgentDefinitionInput = {
   agent_key?: string | null;
   name?: string | null;
   description?: string | null;
   agent_type?: string | null;
   environment?: string | null;
+  agent_priority?: number | null;
   provider_bindings_json?: Record<string, unknown> | null;
   allowed_capabilities_json?: Record<string, unknown> | unknown[] | null;
   forbidden_capabilities_json?: Record<string, unknown> | unknown[] | null;
@@ -136,6 +154,12 @@ export type AgentControlAutonomyInput = {
   actionClass?: string | null;
   mode?: AgentAutonomyMode | null;
   confirm?: boolean | null;
+  overrideAcknowledged?: boolean | null;
+  overrideReason?: string | null;
+};
+
+export type AgentControlTargetingPreviewInput = {
+  scope_policy_json?: Record<string, unknown> | null;
 };
 
 type AdapterResultLike<T> =
@@ -232,8 +256,14 @@ type KnowledgeDocumentFetchAttempt = {
 };
 
 const MAX_KNOWLEDGE_QUERY_CANDIDATES = 10;
-const MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY = 1;
+const MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY = 3;
 const MAX_PUBLIC_REPLY_CHARS = 12000;
+const MAX_INTERNAL_NOTE_CHARS = 4000;
+const MAX_SYNTHESIZED_REQUESTER_BODY_CHARS = 10500;
+const MAX_INTERNAL_SYNTHESIS_BRIEF_CHARS = 1000;
+const MAX_INTERNAL_RECOMMENDED_REPLY_CHARS = 900;
+const MAX_SYNTHESIS_NOTE_SOURCES = 6;
+const MAX_SYNTHESIS_NOTE_REJECTIONS = 6;
 const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
@@ -243,6 +273,11 @@ const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
 ];
 const AUTONOMY_ACTION_CLASSES = ['internal_note', 'classification', 'status', 'public_reply', 'assignment', 'participant'] as const;
+const AUTONOMY_RECOMMENDATION_REASON_CODES = new Set([
+  'INSUFFICIENT_DECIDED_PROPOSALS',
+  'ACCEPTANCE_RATE_TOO_LOW',
+  'OBSERVATION_WINDOW_TOO_SHORT',
+]);
 const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
   ['ticketing.ticket.get', 'A1'],
   [TICKETING_TICKET_NOTES_LIST_CAPABILITY, 'A1'],
@@ -267,12 +302,16 @@ const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
 ]);
 const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
 const STALE_CLOSURE_TRIAGE_ACTIONS = new Set(['prepare_stale_closure', 'prepare_stale_closure_reply']);
+const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity']);
+const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
+const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
+const TARGETING_OPTIONS_MAX_LIMIT = 50;
 
 // An identical earlier proposal only suppresses regeneration while it is still a live or
-// settled decision. A proposal that lapsed unreviewed (status left at 'pending' past its
-// expiry, or swept to 'expired') is gone from the operator's queue, so it must NOT keep
-// blocking a fresh proposal — otherwise a stale ticket, whose context hash never changes,
-// becomes permanently un-proposable after its first proposal expired.
+// settled decision. A proposal/action that lapsed (pending or approved past its expiry, or
+// swept to 'expired') is gone from the operator's queue or no longer executable, so it must
+// NOT keep blocking a fresh proposal — otherwise a stale ticket, whose context hash never
+// changes, becomes permanently un-proposable after its first proposal expired.
 export function proposalStillBlocksRegeneration(action: AiActionRequest, now: number): boolean {
   if (action.status === 'expired') {
     return false;
@@ -280,7 +319,7 @@ export function proposalStillBlocksRegeneration(action: AiActionRequest, now: nu
   if (!SUPPRESS_UNCHANGED_PROPOSAL_STATUSES.has(action.status)) {
     return false;
   }
-  if (action.status === 'pending' && action.expires_at) {
+  if ((action.status === 'pending' || action.status === 'approved') && action.expires_at) {
     const expiresAt = action.expires_at instanceof Date
       ? action.expires_at.getTime()
       : Date.parse(String(action.expires_at));
@@ -358,6 +397,29 @@ function toIso(value: Date | string | null | undefined): string | null {
 
 function trimmedString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function cleanTargetingOptionField(value: unknown): AgentControlTargetingOptionField {
+  const field = trimmedString(value)?.toLowerCase();
+  if (!field || !TARGETING_OPTION_FIELDS.has(field)) {
+    throw new BadRequestException('Unsupported targeting option field.');
+  }
+  return field as AgentControlTargetingOptionField;
+}
+
+function cleanTargetingOptionLimit(value: unknown): number {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
+  if (!Number.isFinite(parsed)) {
+    return 20;
+  }
+  return Math.max(1, Math.min(Math.floor(parsed), TARGETING_OPTIONS_MAX_LIMIT));
+}
+
+function cleanTargetingOptionQuery(value: unknown): string {
+  const raw = trimmedString(value);
+  return raw ? raw.slice(0, 120) : '';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -846,6 +908,14 @@ function numericMetadata(value: unknown): number {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function cleanAgentPriority(value: unknown, fallback = 100): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1000, Math.floor(numeric)));
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Per-agent retrieval-source policy, read from scope_policy_json.knowledge_sources.
@@ -990,10 +1060,17 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
   return Object.keys(persona).length > 0 ? persona : null;
 }
 
-function normalizeResponsePolicyForConfig(value: Record<string, unknown> | null): Record<string, unknown> | null {
+function normalizeResponsePolicyForConfig(
+  value: Record<string, unknown> | null,
+  scopePolicy?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
   if (!value) return null;
+  const staleFlag = typeof value.prepare_stale_closure === 'boolean'
+    ? value.prepare_stale_closure
+    : metadataObject(metadataObject(scopePolicy).stale_closure).enabled === true;
   return {
     ...value,
+    prepare_stale_closure: staleFlag,
     automatic_public_reply: false,
     automatic_ticket_updates: false,
     require_human_approval_for_writes: true,
@@ -1072,6 +1149,7 @@ function configSnapshot(definition: AiAgentDefinition): Record<string, unknown> 
     description: definition.description,
     status: definition.status,
     environment: definition.environment,
+    agent_priority: cleanAgentPriority(definition.agent_priority),
     persona_json: definition.persona_json ?? null,
     trigger_policy_json: definition.trigger_policy_json,
     scope_policy_json: definition.scope_policy_json,
@@ -1406,29 +1484,7 @@ function buildTriageNote(
   timeline: TicketTimelineEntry[],
   webResults: WebSearchResultItem[] = [],
 ): string {
-  const knowledgeLines = knowledgeItems.length > 0
-    ? knowledgeItems.map((item, index) => {
-      const ref = item.ref ?? item.id ?? `document-${index + 1}`;
-      const title = item.title ?? 'Untitled document';
-      const context = stripHeadlineTags(item.summary ?? item.snippet ?? '');
-      return `- ${ref} - ${title}${context ? `: ${context}` : ''}`;
-    })
-    : ['- No matching KANAP knowledge document was found.'];
-
-  // Web references are external and unverified: KANAP knowledge always takes precedence. They
-  // are listed below the knowledge section, clearly marked, so a technician can weigh them.
-  const webSection = webResults.length > 0
-    ? [
-      '',
-      'Web references (external, unverified — KANAP knowledge takes precedence):',
-      ...webResults.map((result) => {
-        const title = result.title || result.url;
-        return `- ${title}${result.description ? `: ${clampText(result.description, 220)}` : ''} (${result.url})`;
-      }),
-    ]
-    : [];
-
-  return [
+  return renderProviderBody([
     '[KANAP triage proposal]',
     `Ticket: GLPI #${ticket.id} - ${ticket.title}`,
     ticket.status ? `Status: ${ticket.status}` : null,
@@ -1437,19 +1493,14 @@ function buildTriageNote(
     'Ticket history considered:',
     ...timelineSummaryLines(timeline),
     '',
-    'Relevant KANAP knowledge:',
-    ...knowledgeLines,
-    ...webSection,
+    'Possible sources found (fallback mode; no article body copied):',
+    ...fallbackSourceLines(knowledgeItems, webResults, 8),
     '',
-    'Suggested internal note:',
-    knowledgeItems.length > 0
-      ? 'I found potentially relevant KANAP knowledge articles for this request. Please review the references above before responding to the requester.'
-      : webResults.length > 0
-        ? 'I did not find a matching KANAP knowledge article, but the web references above may help. Please review them before responding to the requester.'
-        : 'I did not find a matching KANAP knowledge article for this request. Please review manually before responding to the requester.',
+    'Technician brief:',
+    'AI reply synthesis was unavailable or skipped. Review the possible sources above and complete the requester answer manually before approving.',
     '',
     'No external change has been made. This note was prepared by KANAP and requires human approval before posting.',
-  ].filter((line): line is string => line !== null).join('\n').slice(0, 3900);
+  ], MAX_INTERNAL_NOTE_CHARS);
 }
 
 function ticketLooksFrench(ticket: TicketLike): boolean {
@@ -1488,79 +1539,192 @@ function normalizeKnowledgeReplyText(value: string | null | undefined): string {
     .trim();
 }
 
-function knowledgeAnswerDetails(item: KnowledgeSearchItem): string {
-  return normalizeKnowledgeReplyText(item.content_markdown)
-    || normalizeKnowledgeReplyText(item.summary)
-    || normalizeKnowledgeReplyText(item.snippet);
+function sanitizeForProvider(value: string | null | undefined, maxChars: number): string {
+  const sanitized = String(value ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, 'javascript[:]')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{4,}/g, '\n\n\n')
+    .trim();
+  if (!sanitized) return '';
+  return sanitized.length > maxChars ? `${sanitized.slice(0, maxChars - 3).trimEnd()}...` : sanitized;
 }
 
-function knowledgeLooksLikeComputingHelp(ticket: TicketLike, details: string): boolean {
-  const text = `${ticket.title} ${ticket.description ?? ''} ${details}`.toLocaleLowerCase();
-  return /\b(cpu|serveur|server|windows|linux|macos|ordinateur|computer|vpn|wifi|wi-fi|reseau|réseau|mail|email|imprimante|printer|application|logiciel|software|login|password|mot de passe|erreur|error|incident|alerte|alert|monitoring|prtg|glpi|driver|update|installation|install)\b/.test(text);
+function sanitizeInlineForProvider(value: string | null | undefined, maxChars: number): string {
+  return clampText(sanitizeForProvider(value, maxChars).replace(/\s+/g, ' '), maxChars);
 }
 
-function buildRequesterReplyFromDetails(input: {
-  isFrench: boolean;
-  sourceLabel: string;
-  details: string;
-  includeComputingAdvice: boolean;
-  latestRequesterExcerpt?: string | null;
-}): string {
-  const introLines = input.isFrench
-    ? [
-      'Bonjour,',
-      '',
-      'Nous avons trouvé une fiche de connaissance interne qui correspond à votre demande. Comme cette base n\'est pas directement accessible aux utilisateurs, voici les informations utiles complètes :',
-    ]
-    : [
-      'Hello,',
-      '',
-      'We found an internal knowledge article that matches your request. Since that knowledge base is not directly available to users, here are the full useful details:',
-    ];
-  const sourceLine = input.isFrench
-    ? `Source utilisée par le support : ${input.sourceLabel}.`
-    : `Support source used: ${input.sourceLabel}.`;
-  const requesterLine = input.latestRequesterExcerpt
-    ? input.isFrench
-      ? `Dernier message demandeur pris en compte : ${input.latestRequesterExcerpt}.`
-      : `Latest requester update considered: ${input.latestRequesterExcerpt}.`
-    : null;
-  const closingLines = input.isFrench
-    ? [
-      input.includeComputingAdvice
-        ? 'Si vous rencontrez une erreur pendant ces étapes, ajoutez le message exact, l\'heure du test et ce que vous avez déjà essayé dans le ticket afin que nous puissions reprendre rapidement.'
-        : 'Si certains éléments ne correspondent pas à votre situation, indiquez-nous où cela bloque afin que nous puissions reprendre rapidement.',
-      '',
-      'Si cela ne répond pas complètement à votre besoin, un technicien du support reprendra le ticket et complétera la réponse.',
-      '',
-      'Cordialement,',
-      'L\'équipe support',
-    ]
-    : [
-      input.includeComputingAdvice
-        ? 'If you hit an error while following these steps, please add the exact message, the test time, and what you already tried to the ticket so we can continue quickly.'
-        : 'If some details do not match your situation, please tell us where you are blocked so we can continue quickly.',
-      '',
-      'If this does not fully answer your request, a helpdesk technician will continue the review and complete the response.',
-      '',
-      'Best regards,',
-      'The support team',
-    ];
-  const intro = [...introLines, '', sourceLine, requesterLine].filter((line): line is string => line !== null).join('\n');
-  const closing = closingLines.join('\n');
-  const truncationNotice = input.isFrench
-    ? '[La fiche interne est plus longue que la limite de réponse GLPI ; le début utile a été inclus et un technicien complétera si nécessaire.]'
-    : '[The internal article is longer than the GLPI reply limit; the useful beginning is included and a technician will complete it if needed.]';
-  const detailsBudget = Math.max(500, MAX_PUBLIC_REPLY_CHARS - intro.length - closing.length - truncationNotice.length - 8);
-  const details = input.details.length > detailsBudget
-    ? `${input.details.slice(0, detailsBudget).trimEnd()}\n\n${truncationNotice}`
-    : input.details;
-  return [intro, details, closing].join('\n\n').slice(0, MAX_PUBLIC_REPLY_CHARS);
+function renderProviderBody(lines: Array<string | null>, maxChars: number): string {
+  return sanitizeForProvider(lines.filter((line): line is string => line !== null).join('\n'), maxChars);
 }
 
 function latestRequesterExcerpt(timeline: TicketTimelineEntry[]): string | null {
   const entry = [...timeline].reverse().find((candidate) => candidate.actor === 'requester_candidate');
   return entry ? clampText(entry.body, 260) : null;
+}
+
+function replyLocale(language: string | null | undefined, ticket: TicketLike): {
+  greeting: string;
+  sources: string;
+  closing: string[];
+  technicianWillConfirm: string;
+  noReliableAnswer: string;
+  possibleReferences: string;
+  possibleReferencesIntro: string;
+  latestRequester: (excerpt: string) => string;
+} {
+  const normalized = String(language ?? '').trim().toLocaleLowerCase();
+  const useFrench = normalized.startsWith('fr') || (!normalized && ticketLooksFrench(ticket));
+  if (useFrench) {
+    return {
+      greeting: 'Bonjour,',
+      sources: 'Sources :',
+      technicianWillConfirm: 'Un technicien du support vérifiera et complétera la réponse si nécessaire.',
+      noReliableAnswer: 'Nous n\'avons pas trouvé d\'éléments suffisamment fiables pour vous proposer une réponse automatique complète sur cette demande.',
+      possibleReferences: 'Références possibles :',
+      possibleReferencesIntro: 'Nous avons trouvé des références possibles, mais un technicien doit confirmer lesquelles correspondent à votre situation avant de vous donner une réponse complète.',
+      latestRequester: (excerpt) => `Dernier message demandeur pris en compte : ${excerpt}.`,
+      closing: ['Cordialement,', 'L\'équipe support'],
+    };
+  }
+  return {
+    greeting: 'Hello,',
+    sources: 'Sources:',
+    technicianWillConfirm: 'A helpdesk technician will verify and complete the answer if needed.',
+    noReliableAnswer: 'We could not find enough reliable information to propose a complete automated answer for this request.',
+    possibleReferences: 'Possible references:',
+    possibleReferencesIntro: 'We found possible references, but a technician needs to confirm which ones match your situation before giving you a complete answer.',
+    latestRequester: (excerpt) => `Latest requester update considered: ${excerpt}.`,
+    closing: ['Best regards,', 'The support team'],
+  };
+}
+
+function sourceLineFromKnowledge(item: KnowledgeSearchItem, index: number): string {
+  const ref = sanitizeInlineForProvider(item.ref ?? item.id ?? `document-${index + 1}`, 80);
+  const title = sanitizeInlineForProvider(item.title ?? 'Untitled document', 180);
+  return `- ${ref} - ${title}`;
+}
+
+function sourceLineFromWeb(item: WebSearchResultItem): string {
+  const title = sanitizeInlineForProvider(item.title || item.url, 180);
+  const url = sanitizeInlineForProvider(item.url, 500);
+  return `- ${title} (${url})`;
+}
+
+function fallbackSourceLines(
+  knowledgeItems: KnowledgeSearchItem[],
+  webResults: WebSearchResultItem[],
+  limit: number,
+): string[] {
+  const lines = [
+    ...knowledgeItems.map(sourceLineFromKnowledge),
+    ...webResults.map(sourceLineFromWeb),
+  ].slice(0, limit);
+  return lines.length > 0 ? lines : ['- No source candidate was retrieved.'];
+}
+
+function synthesisSourceLine(source: ReplySynthesisSource): string {
+  const title = sanitizeInlineForProvider(source.title, 180) || 'Untitled source';
+  if (source.kind === 'knowledge') {
+    const ref = sanitizeInlineForProvider(source.ref ?? 'knowledge', 80) || 'knowledge';
+    return `- ${ref} - ${title}`;
+  }
+  const url = source.url ? sanitizeInlineForProvider(source.url, 500) : '';
+  return `- ${title}${url ? ` (${url})` : ''}`;
+}
+
+function rejectedSynthesisSourceLine(source: ReplySynthesisRejectedSource): string {
+  return `${synthesisSourceLine(source)}: ${sanitizeInlineForProvider(source.reason, 220)}`;
+}
+
+function limitedSourceLines(lines: string[], maxLines: number, omittedLabel: string): string[] {
+  if (lines.length <= maxLines) {
+    return lines;
+  }
+  return [
+    ...lines.slice(0, maxLines),
+    `- ${lines.length - maxLines} more ${omittedLabel} omitted from this compact note.`,
+  ];
+}
+
+function renderSynthesizedRequesterReply(
+  ticket: TicketLike,
+  synthesis: ReplySynthesisResult,
+): string {
+  const locale = replyLocale(synthesis.language, ticket);
+  if (!synthesis.usable) {
+    return renderProviderBody([
+      locale.greeting,
+      '',
+      locale.noReliableAnswer,
+      '',
+      locale.technicianWillConfirm,
+      '',
+      ...locale.closing,
+    ], MAX_PUBLIC_REPLY_CHARS);
+  }
+  const sourceLines = synthesis.used_sources.map(synthesisSourceLine);
+  const requesterBody = sanitizeForProvider(synthesis.requester_reply, MAX_SYNTHESIZED_REQUESTER_BODY_CHARS);
+  return renderProviderBody([
+    locale.greeting,
+    '',
+    requesterBody,
+    '',
+    ...(sourceLines.length > 0 ? [locale.sources, ...sourceLines, ''] : []),
+    synthesis.needs_human_review ? locale.technicianWillConfirm : null,
+    synthesis.needs_human_review ? '' : null,
+    ...locale.closing,
+  ], MAX_PUBLIC_REPLY_CHARS);
+}
+
+function renderSynthesizedTriageNote(
+  ticket: TicketLike,
+  timeline: TicketTimelineEntry[],
+  synthesis: ReplySynthesisResult,
+): string {
+  const used = limitedSourceLines(synthesis.used_sources.map(synthesisSourceLine), MAX_SYNTHESIS_NOTE_SOURCES, 'used source(s)');
+  const rejected = limitedSourceLines(
+    synthesis.rejected_sources.map(rejectedSynthesisSourceLine),
+    MAX_SYNTHESIS_NOTE_REJECTIONS,
+    'rejected source(s)',
+  );
+  const technicianBrief = sanitizeForProvider(
+    synthesis.technician_brief || 'No synthesis brief was produced.',
+    MAX_INTERNAL_SYNTHESIS_BRIEF_CHARS,
+  );
+  const recommendedReply = synthesis.usable
+    ? sanitizeForProvider(synthesis.requester_reply, MAX_INTERNAL_RECOMMENDED_REPLY_CHARS)
+    : 'No reliable source-grounded answer was produced; the requester reply will ask a technician to follow up.';
+  return renderProviderBody([
+    '[KANAP triage proposal]',
+    `Ticket: GLPI #${ticket.id} - ${ticket.title}`,
+    ticket.status ? `Status: ${ticket.status}` : null,
+    ticket.priority ? `Priority: ${ticket.priority}` : null,
+    '',
+    'Ticket history considered:',
+    ...timelineSummaryLines(timeline).slice(-4),
+    '',
+    'Technician brief:',
+    technicianBrief,
+    '',
+    'Used sources:',
+    ...(used.length > 0 ? used : ['- None']),
+    '',
+    'Rejected/off-topic sources:',
+    ...(rejected.length > 0 ? rejected : ['- None recorded']),
+    '',
+    'Recommended reply to requester:',
+    recommendedReply,
+    '',
+    synthesis.needs_human_review ? 'Uncertainty: technician confirmation is recommended before approval.' : null,
+    synthesis.fallback_reason ? `Synthesis validation note: ${synthesis.fallback_reason}.` : null,
+    '',
+    'No external change has been made. This note was prepared by KANAP and requires human approval before posting.',
+  ], MAX_INTERNAL_NOTE_CHARS);
 }
 
 function buildRequesterReply(
@@ -1569,85 +1733,21 @@ function buildRequesterReply(
   timeline: TicketTimelineEntry[] = [],
   webResults: WebSearchResultItem[] = [],
 ): string {
-  const isFrench = ticketLooksFrench(ticket);
+  const locale = replyLocale(null, ticket);
   const latestRequester = latestRequesterExcerpt(timeline);
-  const bestKnowledge = knowledgeItems[0] ?? null;
-  const details = bestKnowledge ? knowledgeAnswerDetails(bestKnowledge) : '';
-  if (!bestKnowledge || !details) {
-    // No KANAP knowledge matched. When web search surfaced public resources, include them in the
-    // reply — always cited with their source URL (web may appear in public replies, but sourced).
-    // Knowledge always takes precedence, so this branch only runs when no knowledge was found.
-    const webLines = webResults
-      .slice(0, 3)
-      .map((result) => `- ${result.title || result.url} : ${result.url}`);
-    if (webLines.length > 0) {
-      return (isFrench
-        ? [
-          'Bonjour,',
-          '',
-          'Nous n\'avons pas trouvé de fiche interne correspondant exactement à votre demande, mais voici quelques ressources publiques qui pourraient vous aider :',
-          '',
-          ...webLines,
-          '',
-          'Ces liens proviennent de sources web externes ; merci de vérifier qu\'ils correspondent bien à votre situation.',
-          latestRequester ? `Dernier message demandeur pris en compte : ${latestRequester}.` : null,
-          '',
-          'Un technicien du support va également reprendre votre ticket et reviendra vers vous si nécessaire.',
-          '',
-          'Cordialement,',
-          'L\'équipe support',
-        ].filter((line): line is string => line !== null)
-        : [
-          'Hello,',
-          '',
-          'We could not find an internal article matching your request exactly, but here are a few public resources that may help:',
-          '',
-          ...webLines,
-          '',
-          'These links come from external web sources; please check that they match your situation.',
-          latestRequester ? `Latest requester update considered: ${latestRequester}.` : null,
-          '',
-          'A helpdesk technician will also review your ticket and get back to you if needed.',
-          '',
-          'Best regards,',
-          'The support team',
-        ].filter((line): line is string => line !== null)).join('\n').slice(0, MAX_PUBLIC_REPLY_CHARS);
-    }
-    return (isFrench
-      ? [
-        'Bonjour,',
-        '',
-        'Nous n\'avons pas trouvé suffisamment d\'éléments fiables pour vous proposer une réponse automatique utile et complète sur cette demande.',
-        latestRequester ? `Dernier message demandeur pris en compte : ${latestRequester}.` : null,
-        '',
-        'Un technicien du support va reprendre votre ticket prochainement et reviendra vers vous.',
-        '',
-        'Cordialement,',
-        'L\'équipe support',
-      ].filter((line): line is string => line !== null)
-      : [
-        'Hello,',
-        '',
-        'We could not find enough reliable information to propose a useful and complete automated answer for this request.',
-        latestRequester ? `Latest requester update considered: ${latestRequester}.` : null,
-        '',
-        'A helpdesk technician will review your ticket shortly and get back to you.',
-        '',
-        'Best regards,',
-        'The support team',
-      ].filter((line): line is string => line !== null)).join('\n');
-  }
-
-  const ref = bestKnowledge.ref ?? bestKnowledge.id ?? 'the related knowledge article';
-  const title = bestKnowledge.title ?? (isFrench ? 'article de connaissance pertinent' : 'relevant knowledge article');
-  const sourceLabel = `${ref} - ${title}`;
-  return buildRequesterReplyFromDetails({
-    isFrench,
-    sourceLabel,
-    details,
-    includeComputingAdvice: knowledgeLooksLikeComputingHelp(ticket, details),
-    latestRequesterExcerpt: latestRequester,
-  });
+  const sources = fallbackSourceLines(knowledgeItems, webResults, 5);
+  const hasSources = sources.some((line) => !line.includes('No source candidate'));
+  return renderProviderBody([
+    locale.greeting,
+    '',
+    hasSources ? locale.possibleReferencesIntro : locale.noReliableAnswer,
+    latestRequester ? locale.latestRequester(latestRequester) : null,
+    '',
+    ...(hasSources ? [locale.possibleReferences, ...sources, ''] : []),
+    locale.technicianWillConfirm,
+    '',
+    ...locale.closing,
+  ], MAX_PUBLIC_REPLY_CHARS);
 }
 
 function normalizedContextString(record: Record<string, unknown> | null, key: string): string | null {
@@ -2087,6 +2187,7 @@ function serializeAgentDefinition(definition: AiAgentDefinition) {
     forbidden_capabilities_json: definition.forbidden_capabilities_json,
     max_autonomy_level: definition.max_autonomy_level,
     default_approval_requirement: definition.default_approval_requirement,
+    agent_priority: cleanAgentPriority(definition.agent_priority),
     trigger_policy_json: definition.trigger_policy_json,
     scope_policy_json: definition.scope_policy_json,
     queue_policy_json: definition.queue_policy_json,
@@ -2141,6 +2242,7 @@ function serializeAgentTargetState(state: AiAgentTargetState) {
     target_ref: state.target_ref,
     last_seen_external_updated_at: toIso(state.last_seen_external_updated_at),
     last_processed_external_updated_at: toIso(state.last_processed_external_updated_at),
+    next_review_at: toIso(state.next_review_at),
     last_run_id: state.last_run_id,
     last_public_reply_hash: state.last_public_reply_hash,
     last_internal_note_hash: state.last_internal_note_hash,
@@ -2148,6 +2250,14 @@ function serializeAgentTargetState(state: AiAgentTargetState) {
     last_assignment_hash: state.last_assignment_hash,
     agent_touched: state.agent_touched,
     needs_followup: state.needs_followup,
+    claim_status: state.claim_status,
+    claim_expires_at: toIso(state.claim_expires_at),
+    claim_acquired_at: toIso(state.claim_acquired_at),
+    claim_owner_work_item_id: state.claim_owner_work_item_id,
+    claim_owner_run_id: state.claim_owner_run_id,
+    claim_owner_priority: state.claim_owner_priority,
+    claim_owner_action_request_ids: state.claim_owner_action_request_ids,
+    claim_metadata_json: state.claim_metadata_json,
     state_json: state.state_json,
     created_at: toIso(state.created_at),
     updated_at: toIso(state.updated_at),
@@ -2171,6 +2281,7 @@ function serializeAgentAuditEvent(event: AiAgentAuditEvent) {
 @Injectable()
 export class AiAgentControlService {
   private readonly logger = new Logger(AiAgentControlService.name);
+  private readonly targetingOptionsCache = new Map<string, { expiresAt: number; options: RefItem[] }>();
 
   constructor(
     private readonly diagnostics: AiReadonlyDiagnosticWorkflowService,
@@ -2180,6 +2291,7 @@ export class AiAgentControlService {
     private readonly providers: AiProviderRegistryService,
     private readonly agentQueue?: AiAgentWorkQueueService,
     private readonly knowledgePlanner?: AiKnowledgeSearchPlannerService,
+    private readonly replySynthesis?: AiReplySynthesisService,
   ) {}
 
   private async recordAgentAuditEvent(
@@ -2217,6 +2329,99 @@ export class AiAgentControlService {
       },
     });
     return rows.map((row) => row.id);
+  }
+
+  private async recordSynthesisRunStep(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      stepIndex: number;
+      status: 'completed' | 'skipped' | 'failed';
+      inputSummary: Record<string, unknown>;
+      outputSummary: Record<string, unknown>;
+      errorMessage?: string | null;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
+      tenant_id: context.tenantId,
+      run_id: input.runId,
+      step_index: input.stepIndex,
+      kind: 'synthesis',
+      status: input.status,
+      capability_name: 'answer_synthesis',
+      capability_version: '1.0.0',
+      input_summary: input.inputSummary,
+      output_summary: input.outputSummary,
+      error_message: input.errorMessage ?? null,
+      started_at: now,
+      completed_at: now,
+      created_at: now,
+    }));
+  }
+
+  private async recordSynthesisUsage(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      synthesis: ReplySynthesisResult;
+    },
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: input.runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      synthesis: {
+        input_tokens: input.synthesis.usage?.input_tokens ?? null,
+        output_tokens: input.synthesis.usage?.output_tokens ?? null,
+        estimated_tokens: input.synthesis.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      synthesis: {
+        estimated_cost_eur: input.synthesis.estimated_cost_eur,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
+  }
+
+  private async ticketTargetingEligibility(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    ticket: TicketRecord,
+    providerKey: string,
+  ): Promise<{ matched: boolean; hasInactivityAge: boolean }> {
+    const targeting = normalizeServiceDeskTargeting(definition.scope_policy_json);
+    const hasInactivityAge = targeting.predicates.some((predicate) =>
+      predicate.field === 'inactivity_age' && predicate.operator === 'gte',
+    );
+    const needsAgentTouched = targeting.predicates.some((predicate) => predicate.field === 'touched_by');
+    let agentTouched = false;
+    if (needsAgentTouched) {
+      const state = await context.manager.getRepository(AiAgentTargetState).findOne({
+        where: {
+          tenant_id: context.tenantId,
+          agent_definition_id: definition.id,
+          provider_kind: 'ticketing',
+          provider_key: providerKey,
+          target_type: 'ticket',
+          target_ref: ticket.id,
+        },
+      });
+      agentTouched = state?.agent_touched === true;
+    }
+    return {
+      matched: ticketMatchesServiceDeskTargeting(ticket, targeting, { agentTouched }),
+      hasInactivityAge,
+    };
   }
 
   private async recordAndEnforceHelpdeskRunCap(
@@ -2728,6 +2933,187 @@ export class AiAgentControlService {
     return { agent_definition: serializeAgentDefinition(definition) };
   }
 
+  async previewAgentTargeting(
+    context: AiExecutionContextWithManager,
+    id: string,
+    input: AgentControlTargetingPreviewInput = {},
+  ): Promise<{ preview: TargetingPreviewSummary }> {
+    if (!this.agentQueue) {
+      throw new ForbiddenException('Agent work queue is not available.');
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    const scopePolicy = Object.prototype.hasOwnProperty.call(input, 'scope_policy_json')
+      ? normalizeServiceDeskScopePolicy(input.scope_policy_json)
+      : normalizeServiceDeskScopePolicy(definition.scope_policy_json);
+    const previewDefinition = {
+      ...definition,
+      scope_policy_json: scopePolicy,
+    } as AiAgentDefinition;
+    const targeting = normalizeServiceDeskTargeting(scopePolicy);
+    const config = this.agentQueue.resolveScopeIngestionConfig(previewDefinition);
+    const maxResults = Math.max(1, Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle, 20));
+    const provider = await this.providers.ticketing(context, 'glpi');
+    const tickets: TicketRecord[] = [];
+    if (config.mode === 'agent_involved') {
+      const refs = await this.agentQueue.listAgentTouchedTicketRefs(context, previewDefinition, maxResults);
+      for (const ref of refs.slice(0, maxResults)) {
+        const fetched = await provider.getTicket(context, { ticketId: ref });
+        if (fetched.ok !== false) {
+          tickets.push(fetched.data);
+        }
+      }
+    } else {
+      const scope = config.mode === 'all_open'
+        ? {
+          mode: 'all_open' as const,
+          maxResults,
+          statusValues: config.statusValues,
+          entityId: config.entityId ?? null,
+          categoryId: config.categoryId ?? null,
+          lastChangedBefore: config.lastChangedBefore ?? null,
+        }
+        : {
+          mode: 'new_tickets_only' as const,
+          createdAfter: config.createdAfter ?? '',
+          maxResults,
+          statusValues: config.statusValues,
+          entityId: config.entityId ?? null,
+          categoryId: config.categoryId ?? null,
+        };
+      const listed = await provider.listTicketsForScope(context, { scope });
+      if (listed.ok === false) {
+        throw new BadRequestException(listed.message);
+      }
+      const rows = isRecord(listed.data) && Array.isArray(listed.data.tickets) ? listed.data.tickets : [];
+      tickets.push(...rows.slice(0, maxResults));
+    }
+    const matches = tickets.filter((ticket) => ticketMatchesServiceDeskTargeting(ticket, targeting, {
+      agentTouched: config.mode === 'agent_involved',
+    }));
+    const matchRefs = Array.from(new Set(matches.map((ticket) => ticket.id).filter(Boolean)));
+    const overlapStates = matchRefs.length > 0
+      ? await context.manager.getRepository(AiAgentTargetState).find({
+        where: {
+          tenant_id: context.tenantId,
+          provider_kind: 'ticketing',
+          provider_key: 'glpi',
+          target_type: 'ticket',
+          target_ref: In(matchRefs),
+        },
+      })
+      : [];
+    const overlapRefs = new Set(overlapStates
+      .filter((state) => state.agent_definition_id !== definition.id)
+      .map((state) => state.target_ref));
+    return {
+      preview: {
+        matchEstimate: matches.length,
+        sampleSize: tickets.length,
+        capped: tickets.length >= maxResults,
+        overlapEstimate: overlapRefs.size,
+        runsPerDayEstimate: Number(((matches.length * 86_400) / this.agentQueue.reviewCooldownSeconds(previewDefinition)).toFixed(2)),
+        resolution: targeting.resolution,
+      },
+    };
+  }
+
+  async getAgentTargetingOptions(
+    context: AiExecutionContextWithManager,
+    id: string,
+    fieldInput: string,
+    input: { query?: string | null; limit?: number | string | null } = {},
+  ): Promise<{ options: RefItem[] }> {
+    const field = cleanTargetingOptionField(fieldInput);
+    const limit = cleanTargetingOptionLimit(input.limit);
+    const query = cleanTargetingOptionQuery(input.query);
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: {
+        id,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    const providerBindings = metadataObject(definition.provider_bindings_json);
+    const ticketingBinding = metadataObject(providerBindings.ticketing);
+    const providerKey = stringFromMetadata(ticketingBinding.provider_key) ?? 'glpi';
+    const connectionKey = stringFromMetadata(ticketingBinding.connection_id ?? ticketingBinding.connectionId) ?? providerKey;
+    const isEnumField = field === 'status' || field === 'priority' || field === 'type';
+    const ttlMs = isEnumField ? TARGETING_ENUM_OPTIONS_TTL_MS : TARGETING_CATALOG_OPTIONS_TTL_MS;
+    const cacheQuery = isEnumField ? query.toLocaleLowerCase() : query.toLocaleLowerCase();
+    const cacheKey = [
+      context.tenantId,
+      connectionKey,
+      providerKey,
+      field,
+      cacheQuery,
+      limit,
+    ].join('|');
+    const now = Date.now();
+    const cached = this.targetingOptionsCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return {
+        options: cached.options.map((item) => ({
+          value: item.value,
+          label: item.label,
+          ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
+        })),
+      };
+    }
+
+    const provider = await this.providers.ticketing(context, providerKey);
+    let options: RefItem[];
+    if (isEnumField) {
+      const result = await provider.describeReferenceEnums(context);
+      if (result.ok === false) {
+        throw new BadRequestException(result.message);
+      }
+      const source = field === 'status'
+        ? result.data.statuses
+        : field === 'priority'
+          ? result.data.priorities
+          : result.data.types;
+      const normalizedQuery = query.toLocaleLowerCase();
+      options = source
+        .filter((item) => !normalizedQuery
+          || item.label.toLocaleLowerCase().includes(normalizedQuery)
+          || item.value.toLocaleLowerCase().includes(normalizedQuery))
+        .slice(0, limit);
+    } else {
+      const result = await provider.searchReferenceCatalog(context, {
+        kind: field as TicketReferenceCatalogKind,
+        query,
+        limit,
+      });
+      if (result.ok === false) {
+        throw new BadRequestException(result.message);
+      }
+      options = result.data.items.slice(0, limit);
+    }
+    const safeOptions = options.map((item) => ({
+      value: String(item.value),
+      label: String(item.label),
+      ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
+    }));
+    this.targetingOptionsCache.set(cacheKey, {
+      expiresAt: now + ttlMs,
+      options: safeOptions,
+    });
+    return {
+      options: safeOptions.map((item) => ({
+        value: item.value,
+        label: item.label,
+        ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
+      })),
+    };
+  }
+
   async createAgentDefinition(
     context: AiExecutionContextWithManager,
     input: AgentControlAgentDefinitionInput = {},
@@ -2760,6 +3146,8 @@ export class AiAgentControlService {
     const forbiddenCapabilities = input.forbidden_capabilities_json !== undefined
       ? (() => { throw new ForbiddenException('Forbidden capabilities are immutable from this endpoint.'); })()
       : template?.forbidden_capabilities_json ?? [];
+    const scopePolicy = normalizedPolicyObject(input.scope_policy_json, 'Scope policy') ?? template?.scope_policy_json ?? null;
+    const normalizedScopePolicy = normalizeServiceDeskScopePolicy(scopePolicy);
     const now = new Date();
     const definition = await repo.save(repo.create({
       tenant_id: context.tenantId,
@@ -2774,16 +3162,20 @@ export class AiAgentControlService {
       forbidden_capabilities_json: forbiddenCapabilities,
       max_autonomy_level: template?.max_autonomy_level ?? 'A3',
       default_approval_requirement: template?.default_approval_requirement ?? 'human_for_writes',
+      agent_priority: cleanAgentPriority(input.agent_priority, cleanAgentPriority(template?.agent_priority, 100)),
       trigger_policy_json: normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? template?.trigger_policy_json ?? null,
-      scope_policy_json: normalizedPolicyObject(input.scope_policy_json, 'Scope policy') ?? template?.scope_policy_json ?? null,
+      scope_policy_json: normalizedScopePolicy,
       queue_policy_json: normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
       response_policy_json: normalizeResponsePolicyForConfig(
         normalizedPolicyObject(input.response_policy_json, 'Response policy') ?? template?.response_policy_json ?? null,
+        normalizedScopePolicy,
       ),
       evaluation_policy_json: normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy')
         ?? template?.evaluation_policy_json
         ?? { create_pending_evaluation: true, feedback_required_for_autonomy_promotion: true },
-      persona_json: normalizePersona(input.persona_json, template?.persona_json ?? null),
+      // A new agent starts with its own (blank) persona — it does NOT inherit the
+      // template/built-in agent's mission/tone/instructions, which are identity-specific.
+      persona_json: normalizePersona(input.persona_json, null),
       config_version: 1,
       updated_by_user_id: context.userId || null,
       metadata_json: {
@@ -2833,6 +3225,9 @@ export class AiAgentControlService {
     if (Object.prototype.hasOwnProperty.call(input, 'environment')) {
       definition.environment = cleanAgentEnvironment(input.environment);
     }
+    if (Object.prototype.hasOwnProperty.call(input, 'agent_priority')) {
+      definition.agent_priority = cleanAgentPriority(input.agent_priority, cleanAgentPriority(definition.agent_priority, 100));
+    }
     if (Object.prototype.hasOwnProperty.call(input, 'provider_bindings_json')) {
       definition.provider_bindings_json = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings');
     }
@@ -2846,20 +3241,23 @@ export class AiAgentControlService {
       definition.trigger_policy_json = normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy');
     }
     if (Object.prototype.hasOwnProperty.call(input, 'scope_policy_json')) {
-      definition.scope_policy_json = normalizedPolicyObject(input.scope_policy_json, 'Scope policy');
+      definition.scope_policy_json = normalizeServiceDeskScopePolicy(normalizedPolicyObject(input.scope_policy_json, 'Scope policy'));
     }
     if (Object.prototype.hasOwnProperty.call(input, 'knowledge_sources')) {
       // Patch only the knowledge_sources sub-block, preserving the rest of scope_policy_json.
-      definition.scope_policy_json = {
+      definition.scope_policy_json = normalizeServiceDeskScopePolicy({
         ...(isRecord(definition.scope_policy_json) ? definition.scope_policy_json : {}),
         knowledge_sources: normalizeKnowledgeSources(input.knowledge_sources),
-      };
+      });
     }
     if (Object.prototype.hasOwnProperty.call(input, 'queue_policy_json')) {
       definition.queue_policy_json = normalizedPolicyObject(input.queue_policy_json, 'Queue policy');
     }
     if (Object.prototype.hasOwnProperty.call(input, 'response_policy_json')) {
-      definition.response_policy_json = normalizeResponsePolicyForConfig(normalizedPolicyObject(input.response_policy_json, 'Response policy'));
+      definition.response_policy_json = normalizeResponsePolicyForConfig(
+        normalizedPolicyObject(input.response_policy_json, 'Response policy'),
+        normalizedPolicyObject(definition.scope_policy_json, 'Scope policy'),
+      );
     }
     if (Object.prototype.hasOwnProperty.call(input, 'evaluation_policy_json')) {
       definition.evaluation_policy_json = normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy');
@@ -3015,12 +3413,15 @@ export class AiAgentControlService {
       if (openIncident) {
         reasons.push('OPEN_INCIDENT_FLAG');
       }
+      const hardReasons = reasons.filter((reason) => !AUTONOMY_RECOMMENDATION_REASON_CODES.has(reason));
       return {
         actionClass: actionClassName,
         capabilityName,
         mode: matchingPolicy && matchingPolicy.enabled && matchingPolicy.status === 'enabled' ? 'automatic' : 'ask_first',
         allowlisted: isLowRiskAutomationActionClass(actionClassName),
         eligible: reasons.length === 0,
+        recommendationOverrideAvailable: reasons.length > 0 && hardReasons.length === 0,
+        hardReasons,
         reasons,
         progress: {
           decided,
@@ -3172,10 +3573,19 @@ export class AiAgentControlService {
     }
     const rows = await this.autonomyRowsForDefinition(context, definition);
     const row = rows.find((candidate) => candidate.actionClass === actionClassName);
-    if (!row || !row.eligible) {
+    const hardReasons = row?.reasons.filter((reason) => !AUTONOMY_RECOMMENDATION_REASON_CODES.has(reason)) ?? ['ACTION_CLASS_NOT_FOUND'];
+    const overrideReason = cleanSingleLine(input.overrideReason, 500);
+    const overrideGranted = !!row
+      && !row.eligible
+      && hardReasons.length === 0
+      && input.overrideAcknowledged === true
+      && !!overrideReason;
+    if (!row || (!row.eligible && !overrideGranted)) {
       throw new ForbiddenException({
         message: 'Automatic mode is not eligible for this action class.',
         reasons: row?.reasons ?? ['ACTION_CLASS_NOT_FOUND'],
+        hardReasons,
+        recommendationOverrideAvailable: !!row && !row.eligible && hardReasons.length === 0,
         progress: row?.progress ?? null,
       });
     }
@@ -3234,6 +3644,15 @@ export class AiAgentControlService {
         granted_by_user_id: context.userId || null,
         granted_at: now.toISOString(),
         eligibility: row.progress,
+        override: overrideGranted ? {
+          acknowledged: true,
+          reason: overrideReason,
+          granted_by_user_id: context.userId || null,
+          granted_at: now.toISOString(),
+          bypassed_recommendation_reasons: row.reasons.filter((reason) => AUTONOMY_RECOMMENDATION_REASON_CODES.has(reason)),
+          hard_reasons: hardReasons,
+          eligibility_snapshot: row.progress,
+        } : null,
       },
       created_at: existingPolicy?.created_at ?? now,
       updated_at: now,
@@ -3249,6 +3668,10 @@ export class AiAgentControlService {
         policy_id: policy.id,
         policy_version: policy.policy_version,
         eligibility: row.progress,
+        override: overrideGranted ? {
+          reason: overrideReason,
+          bypassed_recommendation_reasons: row.reasons.filter((reason) => AUTONOMY_RECOMMENDATION_REASON_CODES.has(reason)),
+        } : null,
       },
     });
     return this.getAgentAutonomy(context, definition.id);
@@ -4583,23 +5006,174 @@ export class AiAgentControlService {
       }
     }
 
+    const runCapSnapshot = {
+      ticket,
+      ticket_history_entry_count: ticketTimeline.length,
+      ticket_notes: ticketNotesData.notes,
+      classification_context: classificationContext,
+      lifecycle_context: lifecycleContext,
+      routing_context: routingContext,
+      participant_context: participantContext,
+      knowledge_query_candidates: knowledgeQueryCandidates,
+      knowledge_candidate_count: mergedKnowledgeCandidates.length,
+      knowledge_results: knowledgeItems,
+      knowledge_documents: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
+      web_result_count: webSearchResults.length,
+    };
+    const synthesisLanguage = knowledgeSearchPlan.language ?? (ticketLooksFrench(ticket) ? 'fr' : 'en');
+    let replySynthesisResult: ReplySynthesisResult | null = null;
+    let synthesisFallbackReason: string | null = null;
+    let synthesisProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
+    const synthesisInputSummary = {
+      language: synthesisLanguage,
+      knowledge_source_count: enrichedKnowledgeItems.length,
+      web_source_count: webSearchResults.length,
+      model: null,
+    };
+    if (!this.replySynthesis) {
+      synthesisFallbackReason = 'synthesis_service_unavailable';
+      await this.recordSynthesisRunStep(context, {
+        runId: ticketResult.run_id,
+        stepIndex: stepIndex++,
+        status: 'skipped',
+        inputSummary: synthesisInputSummary,
+        outputSummary: { fallback_reason: synthesisFallbackReason },
+      });
+    } else if (process.env.AI_AGENT_REPLY_SYNTHESIS === '0') {
+      synthesisFallbackReason = 'synthesis_disabled_by_env';
+      await this.recordSynthesisRunStep(context, {
+        runId: ticketResult.run_id,
+        stepIndex: stepIndex++,
+        status: 'skipped',
+        inputSummary: synthesisInputSummary,
+        outputSummary: { fallback_reason: synthesisFallbackReason },
+      });
+    } else {
+      const synthesisPayload = this.replySynthesis.buildPromptPayload({
+        ticket,
+        timeline: ticketTimeline,
+        language: synthesisLanguage,
+        knowledgeDocs: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
+        webResults: webSearchResults,
+        interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+      });
+      synthesisProjection = estimateReplySynthesisUsage(synthesisPayload, this.replySynthesis.maxOutputTokens());
+      const baseUsageEstimate = estimateAgentRunUsage(runCapSnapshot);
+      const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
+      if (
+        guardrails
+        && (
+          baseUsageEstimate.estimatedTokens + synthesisProjection.estimatedTokens > guardrails.maxEstimatedTokens
+          || baseUsageEstimate.estimatedCostEur + synthesisProjection.estimatedCostEur > guardrails.maxEstimatedCostEur
+        )
+      ) {
+        synthesisFallbackReason = 'synthesis_projected_over_per_run_cap';
+        await this.recordSynthesisRunStep(context, {
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: {
+            ...synthesisInputSummary,
+            projected_tokens: synthesisProjection.estimatedTokens,
+            projected_cost_eur: synthesisProjection.estimatedCostEur,
+          },
+          outputSummary: {
+            fallback_reason: synthesisFallbackReason,
+            base_estimated_tokens: baseUsageEstimate.estimatedTokens,
+            base_estimated_cost_eur: baseUsageEstimate.estimatedCostEur,
+            cap: guardrails,
+          },
+        });
+      } else {
+        const synthesisStepIndex = stepIndex++;
+        try {
+          replySynthesisResult = await this.replySynthesis.synthesizeTicketReply(context, {
+            ticket,
+            timeline: ticketTimeline,
+            language: synthesisLanguage,
+            knowledgeDocs: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
+            webResults: webSearchResults,
+            interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+          });
+          if (replySynthesisResult.fallback_reason) {
+            synthesisFallbackReason = replySynthesisResult.fallback_reason;
+          }
+          await this.recordSynthesisUsage(context, {
+            runId: ticketResult.run_id,
+            synthesis: replySynthesisResult,
+          });
+          await this.recordSynthesisRunStep(context, {
+            runId: ticketResult.run_id,
+            stepIndex: synthesisStepIndex,
+            status: 'completed',
+            inputSummary: {
+              ...synthesisInputSummary,
+              model: replySynthesisResult.model,
+              projected_tokens: synthesisProjection?.estimatedTokens ?? null,
+              projected_cost_eur: synthesisProjection?.estimatedCostEur ?? null,
+            },
+            outputSummary: {
+              usable: replySynthesisResult.usable,
+              needs_human_review: replySynthesisResult.needs_human_review,
+              reply_length: replySynthesisResult.requester_reply.length,
+              used_source_count: replySynthesisResult.used_sources.length,
+              rejected_source_count: replySynthesisResult.rejected_sources.length,
+              tokens: replySynthesisResult.estimated_tokens,
+              cost_eur: replySynthesisResult.estimated_cost_eur,
+              latency_ms: replySynthesisResult.latency_ms,
+              fallback_reason: replySynthesisResult.fallback_reason,
+            },
+          });
+        } catch (error) {
+          synthesisFallbackReason = error instanceof Error ? `synthesis_error:${error.message.slice(0, 180)}` : 'synthesis_error';
+          await this.recordSynthesisRunStep(context, {
+            runId: ticketResult.run_id,
+            stepIndex: synthesisStepIndex,
+            status: 'failed',
+            inputSummary: {
+              ...synthesisInputSummary,
+              projected_tokens: synthesisProjection?.estimatedTokens ?? null,
+              projected_cost_eur: synthesisProjection?.estimatedCostEur ?? null,
+            },
+            outputSummary: { fallback_reason: synthesisFallbackReason },
+            errorMessage: synthesisFallbackReason,
+          });
+        }
+      }
+    }
+    const synthesisMetadata = replySynthesisResult ? {
+      synthesis_model: replySynthesisResult.model,
+      synthesis_tokens: replySynthesisResult.estimated_tokens,
+      synthesis_usage: replySynthesisResult.usage,
+      synthesis_cost_eur: replySynthesisResult.estimated_cost_eur,
+      synthesis_usable: replySynthesisResult.usable,
+      synthesis_needs_human_review: replySynthesisResult.needs_human_review,
+      synthesis_used_sources: replySynthesisResult.used_sources,
+      synthesis_rejected_sources: replySynthesisResult.rejected_sources,
+      synthesis_confidence: replySynthesisResult.confidence,
+      synthesis_language: replySynthesisResult.language,
+      synthesis_fallback_reason: synthesisFallbackReason,
+      synthesis_latency_ms: replySynthesisResult.latency_ms,
+    } : {
+      synthesis_model: null,
+      synthesis_tokens: null,
+      synthesis_usage: null,
+      synthesis_cost_eur: null,
+      synthesis_usable: false,
+      synthesis_needs_human_review: true,
+      synthesis_used_sources: [],
+      synthesis_rejected_sources: [],
+      synthesis_confidence: null,
+      synthesis_language: synthesisLanguage,
+      synthesis_fallback_reason: synthesisFallbackReason ?? 'synthesis_not_attempted',
+      synthesis_latency_ms: null,
+    };
+
     const runUsageEstimate = await this.recordAndEnforceHelpdeskRunCap(context, {
       definition: agentDefinition,
       runId: ticketResult.run_id,
       stage: 'before_proposal_preparation',
-      snapshot: {
-        ticket,
-        ticket_history_entry_count: ticketTimeline.length,
-        ticket_notes: ticketNotesData.notes,
-        classification_context: classificationContext,
-        lifecycle_context: lifecycleContext,
-        routing_context: routingContext,
-        participant_context: participantContext,
-        knowledge_query_candidates: knowledgeQueryCandidates,
-        knowledge_candidate_count: mergedKnowledgeCandidates.length,
-        knowledge_results: knowledgeItems,
-        knowledge_documents: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
-      },
+      snapshot: runCapSnapshot,
     });
 
     const now = new Date();
@@ -4635,6 +5209,7 @@ export class AiAgentControlService {
         knowledge_document_fetch_count: knowledgeDocumentAttempts.filter((attempt) => !!attempt.result).length,
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
         knowledge_result_interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+        ...synthesisMetadata,
       },
       observed_at: now,
       created_at: now,
@@ -4703,6 +5278,7 @@ export class AiAgentControlService {
           ref: item.ref ?? item.id ?? null,
           title: item.title ?? null,
         })),
+        ...synthesisMetadata,
       },
       created_at: now,
       updated_at: now,
@@ -4755,25 +5331,30 @@ export class AiAgentControlService {
     // threshold (and still open), the agent's job is to post a closing note and
     // close/solve the ticket — it skips the normal responsive-triage proposals.
     const staleClosure = readStaleClosureConfig(agentDefinition);
-    const ticketLastActivityMs = Date.parse(ticket.updatedAt ?? (ticket as { createdAt?: string }).createdAt ?? '');
-    const staleClosureActive = staleClosure.enabled
+    const staleCloseEnabled = staleClosureCapabilityEnabled(agentDefinition);
+    const targetingEligibility = staleCloseEnabled
+      ? await this.ticketTargetingEligibility(context, agentDefinition, ticket as TicketRecord, target.provider_key)
+      : { matched: false, hasInactivityAge: false };
+    const staleClosureActive = staleCloseEnabled
       && lifecycleContext?.terminal !== true
-      && Number.isFinite(ticketLastActivityMs)
-      && (Date.now() - ticketLastActivityMs) >= staleClosure.stalenessMs;
+      && targetingEligibility.hasInactivityAge
+      && targetingEligibility.matched;
     const staleActivityBucket = staleClosureActive ? (ticket.updatedAt ?? '') : '';
     const staleClosureGroup = staleClosureActive ? `stale-closure:${ticket.id}:${staleActivityBucket}` : null;
 
     // If this cleanup agent now sees the ticket as no longer eligible (e.g. fresh activity, or
     // it has become terminal), retract any standing stale-closure proposal so an operator can
     // never approve a close on a ticket that is no longer stale.
-    if (staleClosure.enabled && !staleClosureActive) {
+    if (staleCloseEnabled && !staleClosureActive) {
       await this.withdrawStaleClosureProposals(context, {
         ticketId: ticket.id,
         agentDefinitionId: stringFromMetadata(metadataObject(baseMetadata).agent_definition_id),
       });
     }
 
-    const noteBody = buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults);
+    const noteBody = replySynthesisResult
+      ? renderSynthesizedTriageNote(ticket, ticketTimeline, replySynthesisResult)
+      : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults);
     const proposal = (conversationGate.can_prepare_internal_note && !staleClosureActive)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
@@ -4800,7 +5381,9 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const requesterReplyBody = buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline, webSearchResults);
+    const requesterReplyBody = replySynthesisResult
+      ? renderSynthesizedRequesterReply(ticket, replySynthesisResult)
+      : buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline, webSearchResults);
     const publicReplyProposal = (conversationGate.can_prepare_public_reply && !staleClosureActive)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
@@ -5232,6 +5815,7 @@ export class AiAgentControlService {
           title: item.title ?? null,
           content_length: item.content_markdown?.length ?? 0,
         })),
+        synthesis: synthesisMetadata,
         internal_note_tool_execution_id: proposal?.tool_execution_id ?? null,
         public_reply_tool_execution_id: publicReplyProposal?.tool_execution_id ?? null,
         classification_update_tool_execution_id: classificationUpdateProposal?.tool_execution_id ?? null,
