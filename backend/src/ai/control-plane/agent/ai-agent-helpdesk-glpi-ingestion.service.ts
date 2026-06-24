@@ -10,19 +10,23 @@ import { AiProviderRegistryService } from '../providers/provider-registry.servic
 import { TicketRecord } from '../providers/provider.types';
 import {
   AiAgentWorkQueueService,
-  HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
   HELP_DESK_GLPI_TRIAGE_WORK_KIND,
   HelpdeskNewTicketsIngestionConfig,
 } from './ai-agent-work-queue.service';
+import { normalizeServiceDeskTargeting, ticketMatchesServiceDeskTargeting } from './service-desk-targeting';
 
 export type HelpdeskGlpiIngestionPollSummary = {
   tenantId: string;
+  agentDefinitionId?: string | null;
+  agentKey?: string | null;
   status: 'disabled' | 'paused' | 'completed' | 'failed' | 'skipped';
+  reason?: string | null;
   listed: number;
   enqueued: number;
   deduped: number;
   processed: number;
   errors: string[];
+  agents?: HelpdeskGlpiIngestionPollSummary[];
 };
 
 export type HelpdeskGlpiIngestionRunSummary = {
@@ -46,11 +50,30 @@ function parseDateMs(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizedStatusSet(values: string[] | undefined): Set<string> {
+  const source = values && values.length > 0 ? values : ['1', '2', '3', '4'];
+  return new Set(source.map((value) => String(value).trim().toLowerCase()).filter(Boolean));
+}
+
 function inScope(ticket: TicketRecord, config: HelpdeskNewTicketsIngestionConfig): boolean {
-  const createdAt = parseDateMs(ticket.createdAt);
-  const horizon = parseDateMs(config.createdAfter);
-  if (createdAt == null || horizon == null || createdAt < horizon) {
+  const statusSet = normalizedStatusSet(config.statusValues);
+  if (!statusSet.has(String(ticket.status ?? '').trim().toLowerCase())) {
     return false;
+  }
+  if (config.mode === 'all_open' || config.mode === 'agent_involved') {
+    const cutoff = parseDateMs(config.lastChangedBefore);
+    if (cutoff != null) {
+      const changed = parseDateMs(ticket.updatedAt);
+      if (changed == null || changed > cutoff) {
+        return false;
+      }
+    }
+  } else {
+    const createdAt = parseDateMs(ticket.createdAt);
+    const horizon = parseDateMs(config.createdAfter);
+    if (createdAt == null || horizon == null || createdAt < horizon) {
+      return false;
+    }
   }
   if (config.entityId && ticket.scope?.entityId !== config.entityId) {
     return false;
@@ -100,6 +123,24 @@ function scheduledPollCooldownUntil(definition: AiAgentDefinition): number | nul
     SCHEDULED_POLL_BACKOFF_MAX_MINUTES,
   );
   return lastPollMs + backoffMinutes * 60_000;
+}
+
+// Resolve the user the triage should act as. A real operator context (manual cockpit poll)
+// keeps its own scope; a scheduled/system context (empty userId) runs as the admin who
+// configured the agent so user-scoped knowledge search has a valid user to resolve.
+function triageContextForDefinition(
+  context: AiExecutionContextWithManager,
+  definition: AiAgentDefinition,
+): AiExecutionContextWithManager {
+  const currentUser = typeof context.userId === 'string' ? context.userId.trim() : '';
+  if (currentUser) {
+    return context;
+  }
+  const configuredBy = typeof definition.updated_by_user_id === 'string' ? definition.updated_by_user_id.trim() : '';
+  if (!configuredBy) {
+    return context;
+  }
+  return { ...context, userId: configuredBy };
 }
 
 @Injectable()
@@ -209,23 +250,70 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       );
       if (!lockRows[0]?.locked) {
         summary.status = 'skipped';
-        summary.errors.push('Another Helpdesk GLPI ingestion poll is already running for this tenant.');
+        summary.reason = 'Another Helpdesk GLPI ingestion poll is already running for this tenant.';
+        summary.errors.push(summary.reason);
         return summary;
       }
     }
 
-    const definition = await this.loadDefinition(context, opts.ensureDefinition);
-    if (!definition) {
+    const definitions = await this.loadDefinitions(context, opts.ensureDefinition);
+    if (definitions.length === 0) {
       summary.status = 'disabled';
+      summary.reason = 'No Helpdesk GLPI triage agent definitions exist yet for this tenant.';
       return summary;
     }
 
+    const agentSummaries: HelpdeskGlpiIngestionPollSummary[] = [];
+    for (const definition of definitions) {
+      const agentSummary = await this.pollDefinition(context, definition, opts);
+      agentSummaries.push(agentSummary);
+      summary.listed += agentSummary.listed;
+      summary.enqueued += agentSummary.enqueued;
+      summary.deduped += agentSummary.deduped;
+      summary.processed += agentSummary.processed;
+      summary.errors.push(...agentSummary.errors.map((entry) => `${definition.agent_key}: ${entry}`));
+    }
+    summary.agents = agentSummaries;
+    const activeSummaries = agentSummaries.filter((entry) => entry.status !== 'disabled' && entry.status !== 'skipped');
+    if (activeSummaries.length === 0) {
+      summary.status = agentSummaries.some((entry) => entry.status === 'skipped') ? 'skipped' : 'disabled';
+      summary.reason = agentSummaries.map((entry) => entry.reason).filter(Boolean).join(' | ') || 'No Helpdesk GLPI agent has watching enabled.';
+    } else if (activeSummaries.some((entry) => entry.status === 'failed')) {
+      summary.status = 'failed';
+      summary.reason = activeSummaries.find((entry) => entry.status === 'failed')?.reason ?? null;
+    } else if (activeSummaries.every((entry) => entry.status === 'paused')) {
+      summary.status = 'paused';
+      summary.reason = activeSummaries.map((entry) => entry.reason).filter(Boolean).join(' | ') || null;
+    } else {
+      summary.status = 'completed';
+      summary.reason = null;
+    }
+    return summary;
+  }
+
+  private async pollDefinition(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    opts: { ensureDefinition: boolean },
+  ): Promise<HelpdeskGlpiIngestionPollSummary> {
+    const summary: HelpdeskGlpiIngestionPollSummary = {
+      tenantId: context.tenantId,
+      agentDefinitionId: definition.id,
+      agentKey: definition.agent_key,
+      status: 'completed',
+      listed: 0,
+      enqueued: 0,
+      deduped: 0,
+      processed: 0,
+      errors: [],
+    };
     let config: HelpdeskNewTicketsIngestionConfig;
     try {
       this.queue.assertHelpdeskGlpiDefinitionRunnable(definition, null);
-      config = this.queue.resolveNewTicketsIngestionConfig(definition);
+      config = this.queue.resolveScopeIngestionConfig(definition);
     } catch (error) {
       summary.status = 'disabled';
+      summary.reason = error instanceof Error ? error.message : String(error);
       return summary;
     }
 
@@ -237,13 +325,15 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       const cooldownUntil = scheduledPollCooldownUntil(definition);
       if (cooldownUntil != null && Date.now() < cooldownUntil) {
         summary.status = 'skipped';
+        summary.reason = `Scheduled polling is backing off after a failed cycle until ${new Date(cooldownUntil).toISOString()}.`;
         return summary;
       }
     }
 
-    const pause = await this.queue.hasActiveEmergencyPause(context);
+    const pause = await this.queue.hasActiveEmergencyPause(context, definition.id);
     if (pause) {
       summary.status = 'paused';
+      summary.reason = `An emergency pause is active: ${pause.reason}`;
       const event = await this.queue.recordAuditEvent(context, {
         agentDefinitionId: definition.id,
         eventType: 'poller_paused_by_emergency_pause',
@@ -265,7 +355,8 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       await this.queue.assertDailyCapAvailable(context, definition);
     } catch (error) {
       summary.status = 'paused';
-      summary.errors.push(error instanceof Error ? error.message : String(error));
+      summary.reason = error instanceof Error ? error.message : String(error);
+      summary.errors.push(summary.reason);
       return summary;
     }
 
@@ -275,30 +366,93 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
         throw new ForbiddenException(`GLPI provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
       }
       const provider = await this.providers.ticketing(context, 'glpi');
-      const listed = await provider.listTicketsForScope(context, {
-        scope: {
-          mode: 'new_tickets_only',
-          createdAfter: config.createdAfter,
-          maxResults: Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle),
-          entityId: config.entityId ?? null,
-          categoryId: config.categoryId ?? null,
-        },
-      });
-      if (listed.ok === false) {
-        throw new BadRequestException(listed.message);
+      const maxResults = Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle);
+      let listedTickets: TicketRecord[];
+      if (config.mode === 'agent_involved') {
+        // Tickets this agent previously acted on (control-plane state), refetched live.
+        const refs = await this.queue.listAgentTouchedTicketRefs(context, definition, maxResults);
+        listedTickets = [];
+        for (const ref of refs) {
+          const fetched = await provider.getTicket(context, { ticketId: ref });
+          if (fetched.ok !== false) {
+            listedTickets.push(fetched.data);
+          }
+        }
+      } else {
+        const scope = config.mode === 'all_open'
+          ? {
+            mode: 'all_open' as const,
+            maxResults,
+            statusValues: config.statusValues,
+            entityId: config.entityId ?? null,
+            categoryId: config.categoryId ?? null,
+            lastChangedBefore: config.lastChangedBefore ?? null,
+          }
+          : {
+            mode: 'new_tickets_only' as const,
+            createdAfter: config.createdAfter ?? '',
+            maxResults,
+            statusValues: config.statusValues,
+            entityId: config.entityId ?? null,
+            categoryId: config.categoryId ?? null,
+          };
+        const listed = await provider.listTicketsForScope(context, { scope });
+        if (listed.ok === false) {
+          throw new BadRequestException(listed.message);
+        }
+        if (!isRecord(listed.data) || !Array.isArray(listed.data.tickets)) {
+          throw new BadRequestException('GLPI ticket list provider response was malformed.');
+        }
+        listedTickets = listed.data.tickets;
       }
-      if (!isRecord(listed.data) || !Array.isArray(listed.data.tickets)) {
-        throw new BadRequestException('GLPI ticket list provider response was malformed.');
-      }
-      const scopedTickets = listed.data.tickets.filter((ticket) => inScope(ticket, config));
-      summary.listed = listed.data.tickets.length;
+      const targeting = normalizeServiceDeskTargeting(definition.scope_policy_json);
+      const scopedTickets = listedTickets.filter((ticket) =>
+        inScope(ticket, config)
+        && ticketMatchesServiceDeskTargeting(ticket, targeting, {
+          agentTouched: config.mode === 'agent_involved',
+        }),
+      );
+      summary.listed = listedTickets.length;
       for (const ticket of scopedTickets.slice(0, config.maxTicketsPerCycle)) {
+        const readiness = await this.queue.targetReviewReadiness(context, {
+          definition,
+          ticket,
+        });
+        if (!readiness.ready) {
+          summary.deduped += 1;
+          continue;
+        }
+        const claim = await this.queue.acquireTargetClaim(context, {
+          definition,
+          targetRef: ticket.id,
+          metadata: {
+            source: 'scheduled_poller',
+            readiness_reason: readiness.reason,
+            ticket_updated_at: ticket.updatedAt ?? null,
+          },
+        });
+        if (!claim.acquired) {
+          summary.deduped += 1;
+          continue;
+        }
         const result = await this.queue.enqueueHelpdeskGlpiScopedTicket(context, {
           definition,
           ticket,
           metadata: {
             poller_created_after: config.createdAfter,
             poller_enabled_at: config.enabledAt,
+            target_readiness_reason: readiness.reason,
+            target_claim_status: claim.status,
+          },
+        });
+        await this.queue.acquireTargetClaim(context, {
+          definition,
+          targetRef: ticket.id,
+          workItemId: result.workItem.id,
+          metadata: {
+            source: 'scheduled_poller',
+            work_item_id: result.workItem.id,
+            target_readiness_reason: readiness.reason,
           },
         });
         if (result.created) {
@@ -326,14 +480,35 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
         .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
         .slice(0, config.maxTicketsPerCycle);
 
+      // Scheduled/system polls carry no operator user, so triage (which scopes knowledge
+      // search by the acting user) must run as a real user or its user lookup fails on an
+      // empty id and aborts the whole tenant transaction. Use the admin who configured the
+      // agent; a manual cockpit poll keeps the operator's own scope.
+      const triageContext = triageContextForDefinition(context, definition);
       for (const item of readyItems) {
-        await this.queue.assertDailyCapAvailable(context, definition);
         try {
-          await this.control.runGlpiTriage(context, { work_item_id: item.id });
+          await this.queue.assertDailyCapAvailable(context, definition);
+        } catch (capError) {
+          // Reaching the daily cap is a normal safety stop, not a cycle failure. Stop
+          // processing but keep the cycle healthy: detection (list + enqueue above) has
+          // already run, so scheduled watching keeps queuing new tickets every cycle
+          // instead of being parked for hours by the failure back-off. Processing
+          // resumes automatically when the daily window resets at midnight UTC.
+          summary.status = 'paused';
+          summary.reason = capError instanceof Error ? capError.message : 'Daily cap reached.';
+          break;
+        }
+        try {
+          // Isolate each triage in a savepoint so one item's DB error rolls back only that
+          // item, not the whole cycle. Without this, a single failed triage aborts the
+          // tenant transaction and takes the ticket detection (enqueue above) and the
+          // cycle's own audit/state writes down with it.
+          await this.runTriageInSavepoint(context, triageContext, item.id);
           summary.processed += 1;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           summary.errors.push(`Work item ${item.id}: ${message}`);
+          // The savepoint rollback restored a healthy transaction, so this audit write succeeds.
           await this.queue.recordAuditEvent(context, {
             agentDefinitionId: definition.id,
             workItemId: item.id,
@@ -365,6 +540,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       summary.status = 'failed';
+      summary.reason = message;
       summary.errors.push(message);
       const event = await this.queue.recordAuditEvent(context, {
         agentDefinitionId: definition.id,
@@ -386,18 +562,43 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     }
   }
 
-  private async loadDefinition(
+  // Run one work-item triage inside a SAVEPOINT so a failure rolls back only that item and
+  // leaves the surrounding cycle transaction usable. Falls back to a plain call when the
+  // manager exposes no raw query (e.g. the in-memory test manager).
+  private async runTriageInSavepoint(
+    context: AiExecutionContextWithManager,
+    triageContext: AiExecutionContextWithManager,
+    workItemId: string,
+  ): Promise<void> {
+    const query = (context.manager as { query?: (sql: string) => Promise<unknown> }).query;
+    if (typeof query !== 'function') {
+      await this.control.runGlpiTriage(triageContext, { work_item_id: workItemId });
+      return;
+    }
+    const savepoint = `triage_${workItemId.replace(/[^a-z0-9]/gi, '')}`;
+    await query.call(context.manager, `SAVEPOINT ${savepoint}`);
+    try {
+      await this.control.runGlpiTriage(triageContext, { work_item_id: workItemId });
+      await query.call(context.manager, `RELEASE SAVEPOINT ${savepoint}`);
+    } catch (error) {
+      await query.call(context.manager, `ROLLBACK TO SAVEPOINT ${savepoint}`);
+      throw error;
+    }
+  }
+
+  private async loadDefinitions(
     context: AiExecutionContextWithManager,
     ensureDefinition: boolean,
-  ): Promise<AiAgentDefinition | null> {
+  ): Promise<AiAgentDefinition[]> {
     if (ensureDefinition) {
-      return (await this.queue.ensureHelpdeskGlpiTriageDefinition(context)).definition;
+      await this.queue.ensureHelpdeskGlpiTriageDefinition(context);
     }
-    return context.manager.getRepository(AiAgentDefinition).findOne({
+    return context.manager.getRepository(AiAgentDefinition).find({
       where: {
         tenant_id: context.tenantId,
-        agent_key: HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
+        agent_type: 'helpdesk',
       },
+      order: { agent_key: 'ASC' },
     });
   }
 }

@@ -48,7 +48,6 @@ export type AiSettingsPayload = {
     mcp_key_max_lifetime_days: number | null;
     conversation_retention_days: number | null;
     web_search_enabled: boolean;
-    web_enrichment_enabled: boolean;
     glpi_enabled: boolean;
     glpi_url: string | null;
     has_glpi_user_token: boolean;
@@ -259,14 +258,85 @@ export type AiAgentControlAgentDefinition = {
   forbidden_capabilities_json: Record<string, unknown> | unknown[] | null;
   max_autonomy_level: string;
   default_approval_requirement: string;
+  agent_priority: number;
   trigger_policy_json: Record<string, unknown> | null;
   scope_policy_json: Record<string, unknown> | null;
   queue_policy_json: Record<string, unknown> | null;
   response_policy_json: Record<string, unknown> | null;
   evaluation_policy_json: Record<string, unknown> | null;
+  persona_json: Record<string, unknown> | null;
+  config_version: number;
+  updated_by_user_id: string | null;
   metadata_json: Record<string, unknown> | null;
+  // Action classes currently running automatically (enabled autonomy policies).
+  automatic_action_classes?: string[];
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type AiAgentControlAgentDefinitionInput = {
+  agent_key?: string | null;
+  name?: string | null;
+  description?: string | null;
+  agent_type?: string | null;
+  environment?: string | null;
+  agent_priority?: number | null;
+  provider_bindings_json?: Record<string, unknown> | null;
+  allowed_capabilities_json?: Record<string, unknown> | unknown[] | null;
+  persona_json?: Record<string, unknown> | null;
+  trigger_policy_json?: Record<string, unknown> | null;
+  scope_policy_json?: Record<string, unknown> | null;
+  knowledge_sources?: Record<string, unknown> | null;
+  queue_policy_json?: Record<string, unknown> | null;
+  response_policy_json?: Record<string, unknown> | null;
+  evaluation_policy_json?: Record<string, unknown> | null;
+};
+
+export type AiAgentControlRefItem = {
+  value: string;
+  label: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type AiKnowledgeLibrary = {
+  id: string;
+  name: string;
+  slug?: string | null;
+};
+
+export type AiAgentControlAutonomyItem = {
+  actionClass: string;
+  capabilityName: string | null;
+  mode: 'ask_first' | 'automatic';
+  allowlisted: boolean;
+  eligible: boolean;
+  recommendationOverrideAvailable?: boolean;
+  hardReasons?: string[];
+  reasons: string[];
+  progress: {
+    decided: number;
+    required: number;
+    acceptanceRate: number | null;
+    requiredRate: number;
+    daysActive: number;
+    requiredDays: number;
+  };
+  effectiveCeiling: string | null;
+  demotion: { at: string; reason: string } | null;
+  policy: {
+    id: string;
+    policy_key: string;
+    policy_version: number;
+    enabled: boolean;
+    status: string;
+    live_test_safety: string;
+  } | null;
+};
+
+export type AiAgentControlAutonomyResult = {
+  agent_definition: AiAgentControlAgentDefinition;
+  lowRiskAutomationAllowlist: string[];
+  items: AiAgentControlAutonomyItem[];
 };
 
 export type AiAgentControlWorkItem = {
@@ -304,6 +374,7 @@ export type AiAgentControlTargetState = {
   target_ref: string;
   last_seen_external_updated_at: string | null;
   last_processed_external_updated_at: string | null;
+  next_review_at: string | null;
   last_run_id: string | null;
   last_public_reply_hash: string | null;
   last_internal_note_hash: string | null;
@@ -311,9 +382,30 @@ export type AiAgentControlTargetState = {
   last_assignment_hash: string | null;
   agent_touched: boolean;
   needs_followup: boolean;
+  claim_status: string;
+  claim_expires_at: string | null;
+  claim_acquired_at: string | null;
+  claim_owner_work_item_id: string | null;
+  claim_owner_run_id: string | null;
+  claim_owner_priority: number | null;
+  claim_owner_action_request_ids: string[] | null;
+  claim_metadata_json: Record<string, unknown> | null;
   state_json: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type AiAgentControlTargetingPreview = {
+  matchEstimate: number;
+  sampleSize: number;
+  capped: boolean;
+  overlapEstimate: number;
+  runsPerDayEstimate: number;
+  resolution: Array<{
+    predicate: { field: string; operator: string; value: unknown };
+    resolution: 'pushed_down' | 'locally_filtered_bounded_fetch' | 'control_plane_resolved' | 'unsupported';
+    reason: string;
+  }>;
 };
 
 export type AiAgentControlAuditEvent = {
@@ -366,6 +458,7 @@ export type AiAgentControlHelpdeskSummary = {
       reachedReasons: string[];
     } | null;
   };
+  emergencyPause: AiAgentControlEmergencyPause | null;
   evaluation: {
     windowStart: string;
     windowEnd: string;
@@ -389,6 +482,8 @@ export type AiAgentControlQueueOverview = {
   counts: Record<string, number>;
   helpdesk?: {
     summary: AiAgentControlHelpdeskSummary | null;
+    summaries?: AiAgentControlHelpdeskSummary[];
+    fleet?: AiAgentControlHelpdeskSummary['evaluation'] | null;
     audit_events: AiAgentControlAuditEvent[];
   };
 };
@@ -426,8 +521,25 @@ export type AiAgentControlApproval = {
   created_at: string | null;
 };
 
+export type AiAgentControlRunStep = {
+  id: string;
+  run_id: string;
+  step_index: number;
+  kind: string;
+  status: string;
+  capability_name: string | null;
+  capability_version: string | null;
+  input_summary: Record<string, unknown> | null;
+  output_summary: Record<string, unknown> | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+};
+
 export type AiAgentControlRunDetail = {
   run: AiAgentControlRunItem;
+  run_steps: AiAgentControlRunStep[];
   tool_executions: AiAgentControlToolExecution[];
   evidence: AiAgentControlEvidence[];
   observations: AiAgentControlObservation[];
@@ -530,6 +642,13 @@ export type AiAgentControlGlpiTriageResult = {
     decision_id: string;
     evaluation_id: string;
     action_request_ids?: string[];
+    automatic_executions?: Array<{
+      action_request_id: string;
+      action_class: string;
+      status: 'executed' | 'skipped' | 'failed';
+      tool_execution_id: string | null;
+      error_message: string | null;
+    }>;
     conversation_gate?: {
       can_prepare_internal_note?: boolean;
       can_prepare_public_reply?: boolean;
@@ -582,11 +701,116 @@ export type AiAgentControlGlpiTriageResult = {
 export type AiAgentControlHelpdeskIngestionPollResult = {
   tenantId: string;
   status: string;
+  reason?: string | null;
   listed: number;
   enqueued: number;
   deduped: number;
   processed: number;
   errors: string[];
+};
+
+export type AiAgentControlEmergencyPause = {
+  id: string;
+  active: boolean;
+  scope: string | null;
+  agent_definition_id: string | null;
+  reason: string;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
+export type AiAgentControlBadgeSummary = {
+  pendingApprovals: number;
+};
+
+export type AiAgentControlActivityType = 'proposal' | 'decision' | 'execution' | 'configuration' | 'pause' | 'error';
+
+export type AiAgentControlActivityDetail = {
+  capabilityName: string | null;
+  body: string | null;
+  changes: Array<{ field: string; from: string | null; to: string | null }> | null;
+  reason: string | null;
+  rationale: string | null;
+  evidenceCount: number | null;
+};
+
+export type AiAgentControlActivityEntry = {
+  id: string;
+  at: string;
+  type: AiAgentControlActivityType;
+  agentDefinitionId: string | null;
+  agentKey: string | null;
+  targetType: string | null;
+  targetRef: string | null;
+  titleKey: string;
+  status: string | null;
+  actorUserId: string | null;
+  actionRequestId: string | null;
+  approvalId: string | null;
+  runId: string | null;
+  auditEventId: string | null;
+  capabilityName: string | null;
+  actionClass: string | null;
+  eventType: string | null;
+  severity: string | null;
+  errorMessage: string | null;
+  detail: AiAgentControlActivityDetail | null;
+};
+
+export type AiAgentControlActivityResult = {
+  items: AiAgentControlActivityEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type AiAgentControlEvaluationDailyResult = {
+  days: Array<{
+    day: string;
+    proposals: number;
+    decided: number;
+    acceptanceRate: number | null;
+    executed: number;
+    costEur: number;
+    tokens: number;
+  }>;
+};
+
+export type AiAgentControlHelpdeskIngestionSettings = {
+  agentDefinitionId: string;
+  ingestion: {
+    enabled: boolean;
+    enabledAt: string | null;
+    entityId: string | null;
+    categoryId: string | null;
+    maxTicketsPerCycle: number | null;
+    maxProviderRequestsPerCycle: number | null;
+    hardBackfillHorizonHours: number;
+    ready: boolean;
+    readyReason: string | null;
+    effectiveCreatedAfter: string | null;
+  };
+  guardrails: {
+    configured: boolean;
+    perRun: { maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+    daily: { maxAgentRuns: number | null; maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+  };
+  emergency_pause: AiAgentControlEmergencyPause | null;
+};
+
+export type AiAgentControlHelpdeskIngestionSettingsInput = {
+  ingestion: {
+    enabled: boolean;
+    entityId?: string | null;
+    categoryId?: string | null;
+    maxTicketsPerCycle?: number | null;
+    maxProviderRequestsPerCycle?: number | null;
+    hardBackfillHorizonHours?: number | null;
+  };
+  guardrails?: {
+    perRun?: { maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+    daily?: { maxAgentRuns?: number | null; maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+  };
 };
 
 export class ChatStreamRequestError extends Error {
@@ -785,6 +1009,66 @@ export const aiAdminApi = {
 };
 
 export const aiAgentControlApi = {
+  async listAgents(): Promise<{ items: AiAgentControlAgentDefinition[] }> {
+    const res = await api.get('/ai/admin/control-plane/agents');
+    return res.data;
+  },
+  async createAgent(payload: AiAgentControlAgentDefinitionInput): Promise<{ agent_definition: AiAgentControlAgentDefinition }> {
+    const res = await api.post('/ai/admin/control-plane/agents', payload);
+    return res.data;
+  },
+  async getAgent(id: string): Promise<{ agent_definition: AiAgentControlAgentDefinition }> {
+    const res = await api.get(`/ai/admin/control-plane/agents/${id}`);
+    return res.data;
+  },
+  async updateAgent(id: string, payload: AiAgentControlAgentDefinitionInput): Promise<{
+    agent_definition: AiAgentControlAgentDefinition;
+    diff: Record<string, unknown>;
+  }> {
+    const res = await api.post(`/ai/admin/control-plane/agents/${id}`, payload);
+    return res.data;
+  },
+  async updateAgentStatus(id: string, payload: { status: string }): Promise<{
+    agent_definition: AiAgentControlAgentDefinition;
+    diff: Record<string, unknown>;
+  }> {
+    const res = await api.post(`/ai/admin/control-plane/agents/${id}/status`, payload);
+    return res.data;
+  },
+  async previewAgentTargeting(id: string, payload: { scope_policy_json?: Record<string, unknown> | null }): Promise<{ preview: AiAgentControlTargetingPreview }> {
+    const res = await api.post(`/ai/admin/control-plane/agents/${id}/targeting-preview`, payload);
+    return res.data;
+  },
+  async getAgentTargetingOptions(
+    id: string,
+    field: 'status' | 'priority' | 'type' | 'category' | 'entity',
+    params: { query?: string; limit?: number } = {},
+  ): Promise<{ options: AiAgentControlRefItem[] }> {
+    const res = await api.get(`/ai/admin/control-plane/agents/${id}/targeting-options/${field}`, { params });
+    return res.data;
+  },
+  async deleteAgent(id: string): Promise<{ deleted: boolean; id: string }> {
+    const res = await api.delete(`/ai/admin/control-plane/agents/${id}`);
+    return res.data;
+  },
+  async listKnowledgeLibraries(): Promise<AiKnowledgeLibrary[]> {
+    const res = await api.get('/knowledge-libraries');
+    return Array.isArray(res.data) ? res.data : (res.data?.items ?? []);
+  },
+  async getAgentAutonomy(id: string): Promise<AiAgentControlAutonomyResult> {
+    const res = await api.get(`/ai/admin/control-plane/agents/${id}/autonomy`);
+    return res.data;
+  },
+  async setAgentAutonomy(id: string, payload: {
+    actionClass: string;
+    mode: 'ask_first' | 'automatic';
+    confirm?: boolean;
+    overrideAcknowledged?: boolean;
+    overrideReason?: string | null;
+  }): Promise<AiAgentControlAutonomyResult> {
+    const res = await api.post(`/ai/admin/control-plane/agents/${id}/autonomy`, payload);
+    return res.data;
+  },
   async listRuns(params?: { limit?: number; status?: string }): Promise<{ items: AiAgentControlRunItem[] }> {
     const res = await api.get('/ai/admin/control-plane/runs', { params });
     return res.data;
@@ -795,6 +1079,33 @@ export const aiAgentControlApi = {
   },
   async listActions(params?: { limit?: number; status?: string }): Promise<{ items: AiAgentControlActionRequest[] }> {
     const res = await api.get('/ai/admin/control-plane/actions', { params });
+    return res.data;
+  },
+  async getBadges(): Promise<AiAgentControlBadgeSummary> {
+    const res = await api.get('/ai/admin/control-plane/badges');
+    return res.data;
+  },
+  async listActivity(params?: {
+    agentDefinitionId?: string | null;
+    from?: string | null;
+    to?: string | null;
+    targetRef?: string | null;
+    types?: AiAgentControlActivityType[] | null;
+    actorUserId?: string | null;
+    status?: string | null;
+    limit?: number;
+    offset?: number;
+  }): Promise<AiAgentControlActivityResult> {
+    const res = await api.get('/ai/admin/control-plane/activity', {
+      params: {
+        ...params,
+        types: params?.types?.join(','),
+      },
+    });
+    return res.data;
+  },
+  async getHelpdeskEvaluationDaily(params?: { days?: number; agentDefinitionId?: string }): Promise<AiAgentControlEvaluationDailyResult> {
+    const res = await api.get('/ai/admin/control-plane/helpdesk/evaluation/daily', { params });
     return res.data;
   },
   async getQueueOverview(params?: { limit?: number }): Promise<AiAgentControlQueueOverview> {
@@ -827,6 +1138,37 @@ export const aiAgentControlApi = {
   },
   async pollHelpdeskGlpiIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
     const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/poll', {});
+    return res.data;
+  },
+  async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {
+    const res = await api.get('/ai/admin/control-plane/helpdesk/glpi-ingestion/settings');
+    return res.data;
+  },
+  async updateHelpdeskIngestionSettings(
+    payload: AiAgentControlHelpdeskIngestionSettingsInput,
+  ): Promise<AiAgentControlHelpdeskIngestionSettings> {
+    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/settings', payload);
+    return res.data;
+  },
+  async createHelpdeskEmergencyPause(payload: { reason: string; expires_in_minutes?: number | null }): Promise<AiAgentControlEmergencyPause> {
+    const res = await api.post('/ai/admin/control-plane/helpdesk/emergency-pause', payload);
+    return res.data;
+  },
+  async revokeHelpdeskEmergencyPause(id: string): Promise<AiAgentControlEmergencyPause> {
+    const res = await api.post(`/ai/admin/control-plane/helpdesk/emergency-pause/${id}/revoke`, {});
+    return res.data;
+  },
+  async createEmergencyPause(payload: {
+    scope: 'tenant' | 'agent';
+    agent_definition_id?: string | null;
+    reason: string;
+    expires_in_minutes?: number | null;
+  }): Promise<AiAgentControlEmergencyPause> {
+    const res = await api.post('/ai/admin/control-plane/emergency-pause', payload);
+    return res.data;
+  },
+  async revokeEmergencyPause(id: string): Promise<AiAgentControlEmergencyPause> {
+    const res = await api.post(`/ai/admin/control-plane/emergency-pause/${id}/revoke`, {});
     return res.data;
   },
   async approveAction(id: string, payload?: { execute?: boolean }): Promise<{

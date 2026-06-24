@@ -5,6 +5,7 @@ import { AiSettingsService } from '../ai-settings.service';
 import {
   GlpiConnectionOverrides,
   GlpiDocument,
+  GlpiReferenceItem,
   GlpiSession,
   GlpiTestResult,
   GlpiTicket,
@@ -21,6 +22,8 @@ const GLPI_MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 const GLPI_PAGE_SIZE = 50;
 const GLPI_MAX_INTERNAL_NOTE_CHARS = 4000;
 const GLPI_MAX_PUBLIC_REPLY_CHARS = 12000;
+
+type GlpiReferenceCatalogKind = 'category' | 'entity';
 
 type ResolvedGlpiSettings = {
   baseUrl: string;
@@ -131,6 +134,10 @@ function parseBooleanGlpiValue(value: unknown): boolean {
     return parseBooleanGlpiValue(record.id ?? record.value ?? record.name ?? null);
   }
   return false;
+}
+
+function referenceSearchItemType(kind: GlpiReferenceCatalogKind): 'ITILCategory' | 'Entity' {
+  return kind === 'category' ? 'ITILCategory' : 'Entity';
 }
 
 function normalizePlainTicketFollowup(value: string, opts?: { maxChars?: number; label?: string }): string {
@@ -292,11 +299,71 @@ export class GlpiService {
       throw new BadRequestException('GLPI did not return a session token.');
     }
 
-    return {
+    const baseSession: GlpiSession = {
       baseUrl: settings.baseUrl,
       sessionToken,
       appToken: settings.appToken,
+      agentUserId: null,
     };
+    return { ...baseSession, agentUserId: await this.resolveSessionUserId(baseSession) };
+  }
+
+  // The GLPI users_id behind the user token, used so the agent can add ITSELF (and only
+  // itself) as a ticket actor. Best-effort: a failure leaves agentUserId null and the
+  // actor-add is simply skipped — it must never break a session or a note/reply write.
+  private async resolveSessionUserId(session: GlpiSession): Promise<number | null> {
+    try {
+      const payload = await this.requestJson(
+        this.buildUrl(session.baseUrl, 'apirest.php/getFullSession'),
+        { headers: this.buildSessionHeaders(session) },
+      );
+      const sessionObject = payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>).session
+        : null;
+      const glpiId = sessionObject && typeof sessionObject === 'object'
+        ? parseNumericGlpiValue((sessionObject as Record<string, unknown>).glpiID)
+        : null;
+      return glpiId && glpiId > 0 ? glpiId : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Adds the agent's own GLPI user as a ticket actor — assignee (type 2) for a public
+  // reply, observer (type 3) for an internal note. Own-user-only and additive (never
+  // replaces a human actor); idempotent via a pre-check against existing actors.
+  async addTicketUser(
+    session: GlpiSession,
+    ticketId: number,
+    usersId: number,
+    type: 2 | 3,
+  ): Promise<{ added: boolean; alreadyPresent: boolean }> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    if (!Number.isInteger(usersId) || usersId <= 0) {
+      throw new BadRequestException('GLPI ticket actor user id must be a positive integer.');
+    }
+    if (usersId !== session.agentUserId) {
+      throw new BadRequestException('GLPI ticket actor writes are restricted to the agent\'s own user.');
+    }
+    if (type !== 2 && type !== 3) {
+      throw new BadRequestException('GLPI ticket actor type must be assignee (2) or observer (3).');
+    }
+    const role = type === 2 ? 'assigned' : 'observer';
+    const existing = await this.getTicketUsers(session, ticketId);
+    if (existing.some((association) => association.user_id === usersId && association.role === role)) {
+      return { added: false, alreadyPresent: true };
+    }
+    await this.requestJson(
+      this.buildUrl(session.baseUrl, 'apirest.php/Ticket_User'),
+      {
+        method: 'POST',
+        headers: this.buildSessionHeaders(session),
+        body: JSON.stringify({ input: { tickets_id: ticketId, users_id: usersId, type } }),
+      },
+    );
+    return { added: true, alreadyPresent: false };
   }
 
   async getTicket(
@@ -334,20 +401,61 @@ export class GlpiService {
     scope: GlpiTicketListScope,
   ): Promise<GlpiTicket[]> {
     const maxResults = Math.max(1, Math.min(Math.floor(scope.maxResults), 20));
-    if (!scope.entityId && !scope.categoryId) {
-      throw new BadRequestException('GLPI ticket list requires an entity or category scope.');
+    const isAllOpen = scope.mode === 'all_open';
+    // new_tickets_only: created-after horizon is the scope bound and must be valid.
+    const horizonMs = isAllOpen ? null : Date.parse(scope.createdAfter);
+    if (!isAllOpen && (horizonMs == null || !Number.isFinite(horizonMs))) {
+      throw new BadRequestException('GLPI ticket list requires a valid created-after horizon.');
     }
-    const horizon = formatGlpiSearchDate(scope.createdAfter);
-    const horizonMs = Date.parse(scope.createdAfter);
+    // all_open: optional last-changed (date_mod, field 19) window bounds.
+    const lastChangedBeforeMs = isAllOpen && scope.lastChangedBefore ? Date.parse(scope.lastChangedBefore) : null;
+    const lastChangedAfterMs = isAllOpen && scope.lastChangedAfter ? Date.parse(scope.lastChangedAfter) : null;
     const searchUrl = new URL(this.buildUrl(session.baseUrl, 'apirest.php/search/Ticket'));
     searchUrl.searchParams.set('range', `0-${maxResults - 1}`);
     searchUrl.searchParams.set('get_hateoas', 'false');
-    searchUrl.searchParams.set('sort', '15');
-    searchUrl.searchParams.set('order', 'DESC');
-    searchUrl.searchParams.set('criteria[0][field]', '15');
-    searchUrl.searchParams.set('criteria[0][searchtype]', 'morethan');
-    searchUrl.searchParams.set('criteria[0][value]', horizon);
-    let criteriaIndex = 1;
+    let criteriaIndex = 0;
+    if (isAllOpen) {
+      // Oldest-changed first so a cleanup agent sees the stalest tickets; field 19 = date_mod.
+      searchUrl.searchParams.set('sort', '19');
+      searchUrl.searchParams.set('order', 'ASC');
+      // Open tickets only — GLPI's status field (12) uses the "notold" meta value
+      // (not solved nor closed = New/Assigned/Planned/Pending); numeric comparisons
+      // don't work on this dropdown. Status is revalidated per ticket after fetch.
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '12');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'equals');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, 'notold');
+      criteriaIndex += 1;
+      if (lastChangedBeforeMs != null && Number.isFinite(lastChangedBeforeMs)) {
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '19');
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'lessthan');
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, formatGlpiSearchDate(scope.lastChangedBefore as string));
+        criteriaIndex += 1;
+      }
+      if (lastChangedAfterMs != null && Number.isFinite(lastChangedAfterMs)) {
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '19');
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'morethan');
+        searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, formatGlpiSearchDate(scope.lastChangedAfter as string));
+        criteriaIndex += 1;
+      }
+    } else {
+      const horizon = formatGlpiSearchDate(scope.createdAfter);
+      searchUrl.searchParams.set('sort', '15');
+      searchUrl.searchParams.set('order', 'DESC');
+      // New-ticket polling is still bounded to currently open tickets. Exact
+      // status subsets are rechecked after fetch until GLPI criteria pushdown is
+      // widened beyond the portable open-status bound.
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '12');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'equals');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, 'notold');
+      criteriaIndex += 1;
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '15');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'morethan');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, horizon);
+      criteriaIndex += 1;
+    }
     if (scope.entityId) {
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '80');
@@ -373,6 +481,12 @@ export class GlpiService {
       },
     );
     const record = this.expectRecord(payload, 'GLPI ticket search');
+    // GLPI omits the data key entirely when a search matches zero rows;
+    // that is an empty result, not a malformed response.
+    const totalCount = typeof record.totalcount === 'number' ? record.totalcount : Number(record.totalcount ?? Number.NaN);
+    if (record.data == null && (totalCount === 0 || record.count === 0)) {
+      return [];
+    }
     if (!Array.isArray(record.data)) {
       throw new BadRequestException('GLPI ticket search response was malformed.');
     }
@@ -397,9 +511,25 @@ export class GlpiService {
       }
       seen.add(ticketId);
       const ticket = await this.getTicket(session, ticketId);
-      const createdMs = parseGlpiDateMs(ticket.date);
-      if (createdMs == null || createdMs < horizonMs) {
-        continue;
+      if (isAllOpen) {
+        // Revalidate the full ticket after fetch: still open, and within the
+        // last-changed window (the search index can lag the live record).
+        const statusCode = Number(String(ticket.status ?? '').trim());
+        if (!Number.isFinite(statusCode) || statusCode < 1 || statusCode >= 5) {
+          continue;
+        }
+        const modMs = parseGlpiDateMs(ticket.updated_date ?? ticket.date);
+        if (lastChangedBeforeMs != null && (modMs == null || modMs >= lastChangedBeforeMs)) {
+          continue;
+        }
+        if (lastChangedAfterMs != null && (modMs == null || modMs <= lastChangedAfterMs)) {
+          continue;
+        }
+      } else {
+        const createdMs = parseGlpiDateMs(ticket.date);
+        if (createdMs == null || horizonMs == null || createdMs < horizonMs) {
+          continue;
+        }
       }
       if (scope.entityId && ticket.entity_id !== scope.entityId) {
         continue;
@@ -413,6 +543,58 @@ export class GlpiService {
       }
     }
     return tickets;
+  }
+
+  async searchReferenceCatalog(
+    session: GlpiSession,
+    input: { kind: GlpiReferenceCatalogKind; query?: string | null; limit: number },
+  ): Promise<GlpiReferenceItem[]> {
+    const limit = Math.max(1, Math.min(Math.floor(input.limit), 50));
+    const query = textOrNull(input.query);
+    const itemType = referenceSearchItemType(input.kind);
+    const searchUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/search/${itemType}`));
+    searchUrl.searchParams.set('range', `0-${limit - 1}`);
+    searchUrl.searchParams.set('get_hateoas', 'false');
+    searchUrl.searchParams.set('sort', '1');
+    searchUrl.searchParams.set('order', 'ASC');
+    // Common GLPI search fields: 2=id, 1=name. Some versions expose
+    // completename as a named field; the normalizer accepts both shapes.
+    ['2', '1', 'completename'].forEach((field, index) => {
+      searchUrl.searchParams.set(`forcedisplay[${index}]`, field);
+    });
+    if (query) {
+      const numericQuery = /^\d+$/.test(query);
+      searchUrl.searchParams.set('criteria[0][field]', numericQuery ? '2' : '1');
+      searchUrl.searchParams.set('criteria[0][searchtype]', numericQuery ? 'equals' : 'contains');
+      searchUrl.searchParams.set('criteria[0][value]', query);
+    }
+
+    const payload = await this.requestJson(
+      searchUrl.toString(),
+      { headers: this.buildSessionHeaders(session) },
+    );
+    const record = this.expectRecord(payload, `GLPI ${itemType} search`);
+    const totalCount = typeof record.totalcount === 'number' ? record.totalcount : Number(record.totalcount ?? Number.NaN);
+    if (record.data == null && (totalCount === 0 || record.count === 0)) {
+      return [];
+    }
+    if (!Array.isArray(record.data)) {
+      throw new BadRequestException(`GLPI ${itemType} search response was malformed.`);
+    }
+    const seen = new Set<number>();
+    const items: GlpiReferenceItem[] = [];
+    for (const row of record.data) {
+      const item = this.normalizeReferenceCatalogItem(row);
+      if (!item || seen.has(item.id)) {
+        continue;
+      }
+      seen.add(item.id);
+      items.push(item);
+      if (items.length >= limit) {
+        break;
+      }
+    }
+    return items;
   }
 
   async getTicketFollowups(
@@ -789,6 +971,37 @@ export class GlpiService {
       updated_date: normalizeGlpiDate(record.date_mod ?? record.date ?? record.date_creation),
       is_private: parseBooleanGlpiValue(record.is_private),
       image_targets: extractImageTargets(contentHtml),
+    };
+  }
+
+  private normalizeReferenceCatalogItem(payload: unknown): GlpiReferenceItem | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+    const record = payload as Record<string, unknown>;
+    const id = parsePositiveInteger(record.id ?? record['2']);
+    if (!id) {
+      return null;
+    }
+    const name = textOrNull(record.name ?? record['1'])
+      ?? stringifyGlpiValue(record.name ?? record['1'])
+      ?? null;
+    const completename = textOrNull(record.completename)
+      ?? textOrNull(record['completename'])
+      ?? stringifyGlpiValue(record.completename ?? record['completename'])
+      ?? name;
+    const parentId = parsePositiveInteger(
+      record.parent_id
+        ?? record.parentId
+        ?? record.itilcategories_id
+        ?? record.entities_id
+        ?? null,
+    );
+    return {
+      id,
+      name,
+      completename,
+      parent_id: parentId,
     };
   }
 

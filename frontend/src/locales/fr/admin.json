@@ -17,7 +17,6 @@
       "braveSearchNotConfigured": "BRAVE_SEARCH_API_KEY non configurée",
       "enableChat": "Activer le chat",
       "enableMcp": "Activer MCP",
-      "webEnrichment": "Enrichissement web",
       "webSearch": "Recherche web"
     },
     "fields": {
@@ -703,6 +702,7 @@
     },
     "resources": {
       "accounts": "Comptes",
+      "ai_agents": "Agents IA",
       "ai_chat": "Chat IA",
       "ai_mcp": "MCP IA",
       "ai_settings": "Paramètres IA",

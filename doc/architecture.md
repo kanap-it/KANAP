@@ -5,7 +5,7 @@ Metadata
 - Audience: Engineers, architects, product, operations
 - Status: current
 - Owner: TBD
-- Last Updated: 2026-02-27
+- Last Updated: 2026-06-13
 
 ## Summary
 High-level overview of the system, major components, and how data flows between them. The core runtime uses four containers: PostgreSQL 15 (`db`), NestJS on Node 20 (`api`), Vite React+TS (`web`), and a static marketing bundle (`marketing`).
@@ -96,6 +96,12 @@ flowchart LR
   - Connection-centric: `GET /connections/:id/interface-links`
   - Interface-centric (map/navigation summary): `GET /interfaces/:id/connection-links`
   Surfaced in Interface Environments (connections column + manage dialog), Interface Map side panel (linked infra connections with deep links to Connection Map), Connection workspace (Related Interfaces tab), and Connection Map side panel (linked Interfaces with deep links to Interface Map). Cross-map links now pass `rootIds` (preselected nodes) and `depth=1` to keep default views scoped.
+
+### AI Control Plane
+- The backend hosts an agentic control plane (Plaid) that governs AI-driven work over a registry of typed **capability contracts**. Each contract declares its provider kind, supported surfaces, effect (read/propose/write/...), risk level, maximum autonomy, approval strategy, and MCP exposure. A capability dispatcher validates inputs, enforces surface/approval/pause rules, executes the handler, and grades the evidence it produces: `kanap_domain` providers record evidence at `system` trust, all other providers (including external ones) at `external` trust. Today the control plane ships one agent — the Helpdesk GLPI triage agent — managed in the `/agents` workspace.
+- **Knowledge and web sources** are configured per agent (stored on the agent's scope policy), distinct from the tenant-wide AI settings. The policy controls whether the agent searches KANAP knowledge (and, if so, all readable libraries or a chosen subset — always intersected with the configuring admin's readable libraries, never widening access) and whether it searches the web. KANAP knowledge always takes precedence over web results; web results carry `external` trust, only augment gaps where no internal knowledge matched, and are cited with their source URL.
+- **`web_search`** is a governed internal capability (`provider_kind: web`, internal surface, read effect, autonomy `A1`, no approval, not exposed over MCP). Its handler reuses `BraveSearchService`, which sanitizes the query to public-only terms (stripping UUIDs, internal reference codes, emails, and internal hostnames) and refuses to run if nothing public-meaningful remains, so no tenant-internal data leaves the control plane. Dispatch is gated on platform readiness (`AI_WEB_SEARCH_READY`, set when `BRAVE_SEARCH_API_KEY` is present; mode-agnostic) and is best-effort: any failure yields no web results and triage proceeds.
+- See [plaid-architecture.md](plaid-architecture.md) for the full control-plane design (runs/steps/tool executions, capability registry, approval service, automation catalog, live-readiness harness).
 
 ## Multitenancy
 - Storage model: Single Postgres database per environment (not per-tenant DB). Tenants share tables keyed by `tenant_id`.

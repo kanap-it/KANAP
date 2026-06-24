@@ -128,7 +128,7 @@ export class RolesController {
     if (!role) throw new BadRequestException('Role not found');
     const map = await this.perms.getRolePermissionsMap(id, { manager: mg });
     // Ensure all resources present (default none)
-    const out: Record<string, 'reader'|'member'|'admin'|null> = {} as any;
+    const out: Record<string, 'reader'|'contributor'|'member'|'admin'|null> = {} as any;
     for (const r of RESOURCES) out[r] = (map as any)[r] ?? null;
     return out;
   }
@@ -148,7 +148,7 @@ export class RolesController {
       throw new BadRequestException('Built-in role permissions cannot be modified');
     }
     if (!body || typeof body !== 'object' || !body.permissions) throw new BadRequestException('permissions required');
-    const perms = body.permissions as Record<string, 'reader'|'member'|'admin'|null>;
+    const perms = body.permissions as Record<string, 'reader'|'contributor'|'member'|'admin'|null>;
     return this.perms.setRolePermissionsMap(id, perms as any, { manager: mg });
   }
 }

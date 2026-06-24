@@ -1,6 +1,7 @@
 {
   "workspaces": {
     "ai": "Plaid",
+    "agents": "Agents IA",
     "portfolio": "Portefeuille",
     "itOperations": "Cartographie SI",
     "knowledge": "Base de connaissances",
@@ -71,6 +72,12 @@
       "reporting": "Rapports",
       "contributors": "Contributeurs",
       "settings": "Paramètres"
+    },
+    "agents": {
+      "overview": "Vue d'ensemble",
+      "approvals": "Approbations",
+      "approvalsWithCount": "Approbations ({{count}})",
+      "activity": "Activité"
     },
     "admin": {
       "users": "Utilisateurs",

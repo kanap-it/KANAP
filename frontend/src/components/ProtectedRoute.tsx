@@ -55,9 +55,9 @@ export default function ProtectedRoute() {
   if (token && claims && profile) {
     const path = location.pathname;
     const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
+    const isAgentsRoute = path === '/agents' || path.startsWith('/agents/');
     const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');
     const isAdminIntegrationsRoute = path === '/admin/integrations' || path.startsWith('/admin/integrations/');
-    const isAdminAgentControlRoute = path === '/admin/agent-control' || path.startsWith('/admin/agent-control/');
     const roleNames = [
       profile.role,
       ...(profile.roles || []).map((role) => role.name),
@@ -98,7 +98,27 @@ export default function ProtectedRoute() {
         return <Navigate to="/403" replace />;
       }
     }
-    if (isAdminAiRoute || isAdminIntegrationsRoute || isAdminAgentControlRoute) {
+    if (isAgentsRoute) {
+      if (!config.features.aiSettings) {
+        return <Navigate to="/403" replace />;
+      }
+      if (aiCapabilities.isLoading || (!aiCapabilities.data && aiCapabilities.isFetching)) {
+        return (
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="100vh"
+          >
+            <CircularProgress />
+          </Box>
+        );
+      }
+      if (aiCapabilities.isError || aiCapabilities.data?.instance_features.ai_settings !== true) {
+        return <Navigate to="/403" replace />;
+      }
+    }
+    if (isAdminAiRoute || isAdminIntegrationsRoute) {
       if (!config.features.aiSettings) {
         return <Navigate to="/403" replace />;
       }
@@ -130,6 +150,7 @@ export default function ProtectedRoute() {
       billing: { resource: 'billing', level: 'reader' },
       'choose-plan': { resource: 'billing', level: 'reader' },
       ai: { resource: 'ai_settings', level: 'admin' },
+      'agent-control': { resource: 'ai_agents', level: 'reader' },
       'scheduled-tasks': { resource: 'users', level: 'admin' },
     };
     const opsAliases: Record<string, string> = { reports: 'reporting', servers: 'infrastructure', operations: 'opex' };
@@ -188,6 +209,8 @@ export default function ProtectedRoute() {
       requirement = seg ? (adminAliases[seg] || { resource: seg, level: 'reader' }) : null;
     } else if (path === '/ai' || path.startsWith('/ai/')) {
       requirement = { resource: 'ai_chat', level: 'reader' };
+    } else if (path === '/agents' || path.startsWith('/agents/')) {
+      requirement = { resource: 'ai_agents', level: 'reader' };
     } else if (path.startsWith('/ops/')) {
       const seg = path.split('/')[2] || null;
       requirement = seg ? { resource: opsAliases[seg] || seg, level: 'reader' } : null;
@@ -206,7 +229,7 @@ export default function ProtectedRoute() {
     } else {
       requirement = null; // dashboard and other root pages allowed
     }
-    if (isAdminAiRoute || isAdminAgentControlRoute) {
+    if (isAdminAiRoute) {
       if (!hasLevel('ai_settings', 'admin')) {
         return <Navigate to="/403" replace />;
       }

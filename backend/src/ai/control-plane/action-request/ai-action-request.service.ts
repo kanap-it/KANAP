@@ -62,6 +62,16 @@ function isRetryableTerminalProviderAction(action: AiActionRequest, seed: Provid
   return providerActionRetryableStatuses(seed).has(action.status);
 }
 
+function providerActionIsExpired(action: AiActionRequest, now = Date.now()): boolean {
+  if (action.status !== 'pending' || !action.expires_at) {
+    return false;
+  }
+  const expiresAt = action.expires_at instanceof Date
+    ? action.expires_at.getTime()
+    : Date.parse(String(action.expires_at));
+  return Number.isFinite(expiresAt) && expiresAt <= now;
+}
+
 function isMutationPreviewDto(value: unknown): value is AiMutationPreviewDto {
   if (!value || typeof value !== 'object') {
     return false;
@@ -291,11 +301,19 @@ export class AiActionRequestService {
         idempotency_key: candidate.idempotencyKey,
       },
     });
+    const normalizeExpiredPending = async (action: AiActionRequest | null): Promise<AiActionRequest | null> => {
+      if (!action || !providerActionIsExpired(action)) {
+        return action;
+      }
+      action.status = 'expired';
+      action.updated_at = new Date();
+      return repo.save(action);
+    };
     let candidateSeed = seed;
-    let existing = await findExisting(candidateSeed);
+    let existing = await normalizeExpiredPending(await findExisting(candidateSeed));
     while (existing && isRetryableTerminalProviderAction(existing, candidateSeed)) {
       candidateSeed = this.retryProviderActionSeed(seed, existing);
-      existing = await findExisting(candidateSeed);
+      existing = await normalizeExpiredPending(await findExisting(candidateSeed));
     }
     if (existing) {
       return this.mergeExistingProviderAction(context, existing, candidateSeed);
@@ -491,9 +509,15 @@ export class AiActionRequestService {
   async markApproved(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
+    opts?: {
+      expiresAt?: Date | null;
+    },
   ): Promise<AiActionRequest> {
     action.status = 'approved';
     action.approved_at = new Date();
+    if (opts && Object.prototype.hasOwnProperty.call(opts, 'expiresAt')) {
+      action.expires_at = opts.expiresAt ?? null;
+    }
     action.updated_at = new Date();
     return this.actionRepository(context.manager).save(action);
   }
@@ -501,10 +525,11 @@ export class AiActionRequestService {
   async markExpired(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
+    reason = 'Action request expired before approval or execution.',
   ): Promise<AiActionRequest> {
     const repo = this.actionRepository(context.manager);
     action.status = 'expired';
-    action.error_message = 'Action request expired before approval or execution.';
+    action.error_message = reason;
     action.updated_at = new Date();
     const saved = await repo.save(action);
     await this.updateLinkedEvaluation(context, saved, 'expired', saved.error_message);

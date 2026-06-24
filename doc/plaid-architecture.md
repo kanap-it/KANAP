@@ -5,7 +5,7 @@ Metadata
 - Audience: Engineers, architects, technical IT leaders
 - Status: current
 - Owner: Engineering
-- Last Updated: 2026-05-31
+- Last Updated: 2026-06-13
 
 **Related Documentation**:
 - [architecture.md](architecture.md) - Overall KANAP architecture, tenancy, RLS, and runtime model
@@ -234,6 +234,38 @@ The main durable records are:
 These tables are tenant-scoped and RLS-protected in the corresponding
 migrations.
 
+### Per-agent knowledge and web sources
+
+Each agent carries a knowledge-and-web-sources policy on its scope configuration,
+separate from the tenant-wide AI settings. The policy controls where the agent
+looks for answers when it triages work:
+
+- **KANAP knowledge** can be on or off. When on, the agent searches either every
+  knowledge library it may read or a chosen subset. A chosen subset is always
+  intersected with the libraries the agent's configuring administrator can read,
+  so scoping an agent down never widens its access. When off, the orchestrator
+  skips the knowledge search entirely and the agent relies on the model — and on
+  the web, if web search is enabled.
+- **Web search** can be on or off, independent of the chat web-search toggle. It
+  only takes effect when the platform has a web-search provider configured
+  (`AI_WEB_SEARCH_READY`, i.e. `BRAVE_SEARCH_API_KEY` is present); otherwise the
+  agent setting is inert and the corresponding UI control is disabled.
+
+When both run, **KANAP knowledge always takes precedence.** Web search runs
+through a governed internal `web_search` capability whose `provider_kind` is
+`web`, so the dispatcher grades its evidence as `external` trust — never the
+`system` trust reserved for `kanap_domain` providers — and web findings can never
+outrank internal knowledge. Web results only augment gaps: in the internal triage
+note they appear in a separate "external, unverified" section below the knowledge
+references, and in a requester-facing reply they are used only when no knowledge
+matched, and are always cited with their source URL. The `web_search` capability
+is internal-surface, read-effect, autonomy `A1`, no approval, and is not exposed
+over MCP. Its handler reuses `BraveSearchService`, which strips internal
+identifiers (UUIDs, reference codes, emails, internal hostnames) from the query
+and refuses to run if nothing public-meaningful remains, so no tenant-internal
+data leaves the control plane. Web search is best-effort: any failure yields no
+web results and triage proceeds on knowledge and the model.
+
 ## External Environment State
 
 There are three different states to keep separate:
@@ -241,7 +273,7 @@ There are three different states to keep separate:
 | Area | Current state |
 | --- | --- |
 | GLPI ticket import | Live. Plaid can import one GLPI ticket by numeric ID into one KANAP task, including public followups and inline images where possible, after preview approval. |
-| Public web search | Live when `BRAVE_SEARCH_API_KEY`, feature flags, and tenant settings enable it. Queries are sanitized to avoid sending internal identifiers. |
+| Public web search | Live when `BRAVE_SEARCH_API_KEY` is configured. Two surfaces share that readiness gate: the Plaid chat `web_search` tool (also gated by the tenant chat web-search toggle) and the per-agent control-plane `web_search` capability (gated by each agent's own web-search setting, independent of the chat toggle). Queries are sanitized to strip internal identifiers before they leave the control plane. |
 | Provider contracts | Live as capability contracts and dispatcher paths for monitoring, ticketing, virtualization, directory, and automation. |
 | In-tree provider implementations | Mock/contract implementations. Non-mock adapter configurations currently return unavailable in this control-plane build. |
 | External MCP bridge | Live as governed read-only snapshots and a mock transport for internal/scheduler/alert surfaces. Live external transports are not enabled, and external MCP bridge tools are not re-exported through KANAP MCP. |
@@ -326,6 +358,8 @@ These items are direction, not current out-of-the-box functionality:
 - `backend/src/ai/control-plane/capability/capability-contract.ts`
 - `backend/src/ai/control-plane/capability/ai-capability.registry.ts`
 - `backend/src/ai/control-plane/dispatcher/ai-capability-dispatcher.service.ts`
+- `backend/src/ai/control-plane/agent-control/ai-agent-control.service.ts`
+- `backend/src/ai/web-search/brave-search.service.ts`
 - `backend/src/ai/control-plane/action-request/ai-action-request.service.ts`
 - `backend/src/ai/control-plane/approval/ai-approval.service.ts`
 - `backend/src/ai/control-plane/evidence/ai-evidence.service.ts`

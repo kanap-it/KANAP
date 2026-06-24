@@ -49,10 +49,6 @@ export class UpdateAiSettingsDto {
 
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
-  web_enrichment_enabled?: boolean;
-
-  @ValidateIf((_, value) => value !== undefined)
-  @IsBoolean()
   glpi_enabled?: boolean;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)

@@ -8,6 +8,7 @@ import {
   AdapterEvidenceSeed,
   AdapterResult,
   ProviderContext,
+  RefItem,
   SimilarTicket,
   TicketClassificationContext,
   TicketAssignmentUpdateActionPayload,
@@ -32,6 +33,8 @@ import {
   TicketNote,
   TicketRecord,
   TicketListScope,
+  TicketReferenceCatalogKind,
+  TicketReferenceEnums,
 } from './provider.types';
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
@@ -189,9 +192,21 @@ function glpiStatusCodeForTransition(value: string): number | null {
       return 3;
     case 'pending':
       return 4;
+    case 'solved':
+      return 5;
+    case 'closed':
+      return 6;
     default:
       return null;
   }
+}
+
+// Terminal transitions (solve/close) are destructive cleanup actions: always
+// human-approved (never auto-executed — see executeAutomaticPreparedActions
+// terminal backstop) and surfaced distinctly in approvals/audit.
+function glpiTransitionIsTerminal(value: string): boolean {
+  const key = value.trim();
+  return key === 'solved' || key === 'closed';
 }
 
 function glpiStatusTransitionLabel(value: string): string {
@@ -202,6 +217,10 @@ function glpiStatusTransitionLabel(value: string): string {
       return 'Processing planned';
     case 'pending':
       return 'Pending';
+    case 'solved':
+      return 'Solved';
+    case 'closed':
+      return 'Closed';
     default:
       return value;
   }
@@ -211,20 +230,28 @@ function glpiSafeStatusTransitions(currentStatus: string | null): Array<{
   key: string;
   label: string;
   requiresApproval: true;
-  destructive: false;
+  destructive: boolean;
 }> {
   const current = glpiStatusKey(currentStatus);
+  // Already-terminal tickets are left alone.
   if (current === 'solved' || current === 'closed') {
     return [];
   }
-  return ['processing_assigned', 'processing_planned', 'pending']
-    .filter((key) => key !== current)
-    .map((key) => ({
-      key,
-      label: glpiStatusTransitionLabel(key),
-      requiresApproval: true,
-      destructive: false,
-    }));
+  const transition = (key: string, destructive: boolean) => ({
+    key,
+    label: glpiStatusTransitionLabel(key),
+    requiresApproval: true as const,
+    destructive,
+  });
+  // Non-terminal moves are safe; solve/close are destructive terminal cleanup
+  // actions, offered for proposal but always human-approved.
+  return [
+    ...['processing_assigned', 'processing_planned', 'pending']
+      .filter((key) => key !== current)
+      .map((key) => transition(key, false)),
+    transition('solved', true),
+    transition('closed', true),
+  ];
 }
 
 function glpiTypeCode(value: string | null | undefined): number | null {
@@ -312,6 +339,19 @@ function providerError<T>(
   };
 }
 
+function applicabilityError<T>(applicability: { reasonCode?: string; message?: string }): AdapterResult<T> {
+  const errorCode: AdapterErrorCode = applicability.reasonCode === 'provider_disabled'
+    ? 'disabled'
+    : applicability.reasonCode === 'missing_credentials'
+      ? 'missing_credentials'
+      : applicability.reasonCode === 'provider_not_configured'
+        ? 'not_configured'
+        : applicability.reasonCode === 'malformed_config'
+          ? 'malformed_config'
+          : 'provider_unavailable';
+  return providerError<T>(errorCode, applicability.message ?? 'GLPI provider is unavailable.', false);
+}
+
 function mapError<T>(error: unknown): AdapterResult<T> {
   const message = error instanceof Error ? error.message : String(error || 'GLPI provider request failed.');
   const normalized = message.toLowerCase();
@@ -341,8 +381,11 @@ function toTicketRecord(ticket: GlpiTicket): TicketRecord {
   return {
     id: String(ticket.id),
     title: ticket.name ?? `GLPI ticket #${ticket.id}`,
-    status: glpiStatusLabel(ticket.status),
-    priority: glpiPriorityLabel(ticket.priority),
+    // Normalized keys (not raw GLPI codes/labels) so the targeting matcher compares
+    // the same namespace the reference-data pickers store (see *ReferenceItems below).
+    status: glpiStatusKey(ticket.status) ?? glpiStatusLabel(ticket.status),
+    priority: glpiPriorityKey(ticket.priority) ?? glpiPriorityLabel(ticket.priority),
+    type: glpiTypeKey(ticket.type) ?? glpiTypeContextLabel(ticket.type),
     requester: null,
     description: stripHtml(ticket.content_html),
     createdAt,
@@ -351,6 +394,58 @@ function toTicketRecord(ticket: GlpiTicket): TicketRecord {
     scope: {
       entityId: ticket.entity_id == null ? null : String(ticket.entity_id),
       categoryId: ticket.category_id == null ? null : String(ticket.category_id),
+    },
+  };
+}
+
+function glpiStatusReferenceItems(): RefItem[] {
+  return ['1', '2', '3', '4', '5', '6'].map((code) => ({
+    value: glpiStatusKey(code) ?? code,
+    label: glpiStatusContextLabel(code) ?? code,
+    metadata: {
+      code: Number(code),
+      key: glpiStatusKey(code),
+    },
+  }));
+}
+
+function glpiPriorityReferenceItems(): RefItem[] {
+  return [1, 2, 3, 4, 5, 6].map((level) => ({
+    value: glpiPriorityKey(level) ?? String(level),
+    label: glpiPriorityContextLabel(level) ?? String(level),
+    metadata: {
+      code: level,
+      level,
+    },
+  }));
+}
+
+function glpiTypeReferenceItems(): RefItem[] {
+  return [1, 2].map((code) => ({
+    value: glpiTypeKey(code) ?? String(code),
+    label: glpiTypeContextLabel(code) ?? String(code),
+    metadata: {
+      code,
+      key: glpiTypeKey(code),
+    },
+  }));
+}
+
+function referenceCatalogItem(kind: TicketReferenceCatalogKind, item: {
+  id: number;
+  name: string | null;
+  completename: string | null;
+  parent_id?: number | null;
+}): RefItem {
+  const label = item.completename || item.name || String(item.id);
+  return {
+    value: String(item.id),
+    label,
+    metadata: {
+      kind,
+      name: item.name,
+      completename: item.completename,
+      parentId: item.parent_id ?? null,
     },
   };
 }
@@ -468,6 +563,17 @@ export class GlpiTicketingProvider implements TicketingProvider {
     }
   }
 
+  private async withAvailableSession<T>(
+    context: ProviderContext,
+    fn: (session: Awaited<ReturnType<GlpiService['initSession']>>) => Promise<AdapterResult<T>>,
+  ): Promise<AdapterResult<T>> {
+    const applicability = await this.applicability(context);
+    if (!applicability.available) {
+      return applicabilityError<T>(applicability);
+    }
+    return this.withSession(context, fn);
+  }
+
   async getTicket(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRecord>> {
     const ticketId = normalizeTicketId(input.ticketId);
     if (!ticketId) {
@@ -562,32 +668,100 @@ export class GlpiTicketingProvider implements TicketingProvider {
     input: { scope: TicketListScope },
   ): Promise<AdapterResult<{ tickets: TicketRecord[] }>> {
     const scope = input.scope;
-    if (scope.mode !== 'new_tickets_only') {
-      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'GLPI provider only supports new_tickets_only scope listing.', false);
-    }
     const entityId = scope.entityId == null ? null : normalizeTicketId(scope.entityId);
     const categoryId = scope.categoryId == null ? null : normalizeTicketId(scope.categoryId);
-    if (!entityId && !categoryId) {
-      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'GLPI new-ticket listing requires an entity or category scope.', false);
-    }
-    return this.withSession(context, async (session) => {
-      const tickets = await this.glpi.searchTicketsForScope(session, {
-        createdAfter: scope.createdAfter,
-        maxResults: scope.maxResults,
-        entityId,
-        categoryId,
-      });
-      const data = {
-        tickets: tickets.map(toTicketRecord),
-      };
-      return ok(data, [
-        evidenceSeed('ticket_scope_list', `${scope.mode}:${scope.createdAfter}`, `GLPI listed ${data.tickets.length} ticket(s) for bounded Helpdesk scope.`, {
-          mode: scope.mode,
+    if (scope.mode === 'new_tickets_only') {
+      if (!scope.createdAfter || !Number.isFinite(Date.parse(scope.createdAfter))) {
+        return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'GLPI new-ticket listing requires a valid created-after horizon.', false);
+      }
+      return this.withSession(context, async (session) => {
+        const tickets = await this.glpi.searchTicketsForScope(session, {
+          mode: 'new_tickets_only',
           createdAfter: scope.createdAfter,
           maxResults: scope.maxResults,
-          entityId: scope.entityId ?? null,
-          categoryId: scope.categoryId ?? null,
-          ticketIds: data.tickets.map((ticket) => ticket.id),
+          statusValues: scope.statusValues,
+          entityId,
+          categoryId,
+        });
+        const data = { tickets: tickets.map(toTicketRecord) };
+        return ok(data, [
+          evidenceSeed('ticket_scope_list', `${scope.mode}:${scope.createdAfter}`, `GLPI listed ${data.tickets.length} ticket(s) for bounded Helpdesk scope.`, {
+            mode: scope.mode,
+            createdAfter: scope.createdAfter,
+            statusValues: scope.statusValues ?? null,
+            maxResults: scope.maxResults,
+            entityId: scope.entityId ?? null,
+            categoryId: scope.categoryId ?? null,
+            ticketIds: data.tickets.map((ticket) => ticket.id),
+          }),
+        ]);
+      });
+    }
+    if (scope.mode === 'all_open') {
+      return this.withSession(context, async (session) => {
+        const tickets = await this.glpi.searchTicketsForScope(session, {
+          mode: 'all_open',
+          maxResults: scope.maxResults,
+          statusValues: scope.statusValues,
+          entityId,
+          categoryId,
+          lastChangedBefore: scope.lastChangedBefore ?? null,
+          lastChangedAfter: scope.lastChangedAfter ?? null,
+        });
+        const data = { tickets: tickets.map(toTicketRecord) };
+        return ok(data, [
+          evidenceSeed('ticket_scope_list', `${scope.mode}:${scope.lastChangedBefore ?? 'any'}`, `GLPI listed ${data.tickets.length} open ticket(s) for bounded Helpdesk scope.`, {
+            mode: scope.mode,
+            lastChangedBefore: scope.lastChangedBefore ?? null,
+            lastChangedAfter: scope.lastChangedAfter ?? null,
+            statusValues: scope.statusValues ?? null,
+            maxResults: scope.maxResults,
+            entityId: scope.entityId ?? null,
+            categoryId: scope.categoryId ?? null,
+            ticketIds: data.tickets.map((ticket) => ticket.id),
+          }),
+        ]);
+      });
+    }
+    return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'Unsupported GLPI scope listing mode.', false);
+  }
+
+  async describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<TicketReferenceEnums>> {
+    return this.withAvailableSession(context, async () => {
+      const data = {
+        statuses: glpiStatusReferenceItems(),
+        priorities: glpiPriorityReferenceItems(),
+        types: glpiTypeReferenceItems(),
+      };
+      return ok(data, [
+        evidenceSeed('reference_enums', 'glpi', 'Listed GLPI ticket enum reference values.', {
+          statuses: data.statuses,
+          priorities: data.priorities,
+          types: data.types,
+        }),
+      ]);
+    });
+  }
+
+  async searchReferenceCatalog(
+    context: ProviderContext,
+    input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number },
+  ): Promise<AdapterResult<{ items: RefItem[] }>> {
+    const limit = Math.max(1, Math.min(Math.floor(input.limit), 50));
+    return this.withAvailableSession(context, async (session) => {
+      const items = await this.glpi.searchReferenceCatalog(session, {
+        kind: input.kind,
+        query: input.query ?? null,
+        limit,
+      });
+      const data = { items: items.map((item) => referenceCatalogItem(input.kind, item)) };
+      const label = input.kind === 'category' ? 'categories' : 'entities';
+      return ok(data, [
+        evidenceSeed(`${input.kind}_list`, input.query?.trim() || input.kind, `Listed ${data.items.length} GLPI ${label}.`, {
+          kind: input.kind,
+          query: input.query ?? null,
+          limit,
+          items: data.items,
         }),
       ]);
     });
@@ -830,7 +1004,10 @@ export class GlpiTicketingProvider implements TicketingProvider {
       );
     }
     const transition = current.data.allowedTransitions.find((candidate) => candidate.key === input.transitionKey);
-    if (!transition || transition.destructive || current.data.terminal) {
+    // Destructive (terminal solve/close) transitions CAN be prepared/proposed —
+    // they are gated by human approval and the auto-exec terminal backstop — but a
+    // ticket that is already terminal cannot transition further.
+    if (!transition || current.data.terminal) {
       return providerError<TicketProviderActionPrepared<TicketStatusUpdateActionPayload>>('unsafe_operation', 'GLPI status transition is not allowed for this ticket.', false);
     }
     const actionPayload: TicketStatusUpdateActionPayload = {
@@ -840,6 +1017,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
       transitionKey: input.transitionKey,
       targetStatus: input.transitionKey,
       targetStatusLabel: transition.label,
+      terminal: glpiTransitionIsTerminal(input.transitionKey),
       providerFields: { status: targetStatusCode },
       reason,
     };
@@ -864,8 +1042,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
     if (!ticketId || input.actionPayload.action !== 'status_update' || typeof status !== 'number') {
       return providerError<TicketProviderActionWriteResult>('malformed_config', 'Invalid GLPI status update payload.', false);
     }
-    if (status === 1 || status === 5 || status === 6) {
-      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'GLPI new/solved/closed status writes are disabled.', false);
+    if (status === 1) {
+      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'GLPI status writes back to New are disabled.', false);
     }
     return this.withSession(context, async (session) => {
       const result = await this.glpi.updateTicketFields(session, ticketId, { status });
@@ -988,6 +1166,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
     }
     return this.withSession(context, async (session) => {
       const result = await this.glpi.addTicketFollowup(session, ticketId, input.actionPayload.body, { isPrivate: true });
+      // The agent registers itself as an OBSERVER on internal notes (non-fatal side effect).
+      const actor = await this.addAgentActor(session, ticketId, 3);
       const data: TicketInternalNoteWriteResult = {
         noteId: String(result.id),
         ticketId: String(result.ticket_id),
@@ -1001,9 +1181,31 @@ export class GlpiTicketingProvider implements TicketingProvider {
           ticketId: data.ticketId,
           isPrivate: result.is_private,
           idempotencyKey: input.idempotencyKey,
+          agentObserverAdded: actor.added,
+          ...(actor.skippedReason ? { agentObserverSkippedReason: actor.skippedReason } : {}),
         }),
       ]);
     });
+  }
+
+  // Adds the agent's own GLPI user as a ticket actor as a side effect of posting. Strictly
+  // own-user-only (enforced in GlpiService.addTicketUser), idempotent, additive, and
+  // non-fatal: a failure is reported as evidence but never fails the note/reply that
+  // already succeeded, and never routes through the disabled arbitrary-participant path.
+  private async addAgentActor(
+    session: Awaited<ReturnType<GlpiService['initSession']>>,
+    ticketId: number,
+    type: 2 | 3,
+  ): Promise<{ added: boolean; skippedReason?: string }> {
+    if (!session.agentUserId) {
+      return { added: false, skippedReason: 'agent_glpi_user_unresolved' };
+    }
+    try {
+      const result = await this.glpi.addTicketUser(session, ticketId, session.agentUserId, type);
+      return { added: result.added, skippedReason: result.alreadyPresent ? 'already_present' : undefined };
+    } catch (error) {
+      return { added: false, skippedReason: error instanceof Error ? error.message : 'actor_add_failed' };
+    }
   }
 
   async preparePublicReply(
@@ -1059,6 +1261,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
         isPrivate: false,
         allowPublic: true,
       });
+      // The agent registers itself as an ASSIGNEE on public replies (additive, non-fatal).
+      const actor = await this.addAgentActor(session, ticketId, 2);
       const data: TicketPublicReplyWriteResult = {
         noteId: String(result.id),
         ticketId: String(result.ticket_id),
@@ -1072,6 +1276,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
           ticketId: data.ticketId,
           isPrivate: result.is_private,
           idempotencyKey: input.idempotencyKey,
+          agentAssigneeAdded: actor.added,
+          ...(actor.skippedReason ? { agentAssigneeSkippedReason: actor.skippedReason } : {}),
         }),
       ]);
     });

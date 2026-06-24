@@ -1,6 +1,7 @@
 import {
   AdapterResult,
   ProviderContext,
+  RefItem,
   SimilarTicket,
   TicketClassificationContext,
   TicketClassificationUpdateActionPayload,
@@ -25,6 +26,8 @@ import {
   TicketNote,
   TicketRecord,
   TicketListScope,
+  TicketReferenceCatalogKind,
+  TicketReferenceEnums,
 } from '../provider.types';
 import {
   errorForScenario,
@@ -38,6 +41,37 @@ import {
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
 const MAX_PUBLIC_REPLY_CHARS = 12000;
+
+const MOCK_REFERENCE_ENUMS: TicketReferenceEnums = {
+  statuses: [
+    { value: 'new', label: 'New', metadata: { key: 'new', code: 1 } },
+    { value: 'assigned', label: 'Assigned', metadata: { key: 'assigned', code: 2 } },
+    { value: 'pending', label: 'Pending', metadata: { key: 'pending', code: 4 } },
+    { value: 'resolved', label: 'Resolved', metadata: { key: 'resolved', code: 5 } },
+  ],
+  priorities: [
+    { value: 'low', label: 'Low', metadata: { level: 2 } },
+    { value: 'medium', label: 'Medium', metadata: { level: 3 } },
+    { value: 'high', label: 'High', metadata: { level: 4 } },
+    { value: 'major', label: 'Major', metadata: { level: 6 } },
+  ],
+  types: [
+    { value: 'incident', label: 'Incident', metadata: { code: 1 } },
+    { value: 'request', label: 'Request', metadata: { code: 2 } },
+  ],
+};
+
+const MOCK_CATALOGS: Record<TicketReferenceCatalogKind, RefItem[]> = {
+  category: [
+    { value: 'access', label: 'IT > Access', metadata: { completename: 'IT > Access', parentId: 'it' } },
+    { value: 'vpn', label: 'IT > Access > VPN', metadata: { completename: 'IT > Access > VPN', parentId: 'access' } },
+    { value: 'finance', label: 'Finance > Requests', metadata: { completename: 'Finance > Requests', parentId: 'finance-root' } },
+  ],
+  entity: [
+    { value: 'lohr-helpdesk', label: 'LOHR > Helpdesk', metadata: { completename: 'LOHR > Helpdesk', parentId: 'lohr' } },
+    { value: 'finance', label: 'LOHR > Finance', metadata: { completename: 'LOHR > Finance', parentId: 'lohr' } },
+  ],
+};
 
 function normalizeReason(value: string): string | null {
   const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
@@ -79,6 +113,7 @@ export class MockTicketingProvider implements TicketingProvider {
       title: malicious ? `Suspicious ticket ${MALICIOUS_EXTERNAL_TEXT}` : 'CPU pressure on SAP application server',
       status: 'resolved',
       priority: 'high',
+      type: 'incident',
       requesterId: 'mock-user-operations',
       requester: 'Operations',
       description: malicious ? MALICIOUS_EXTERNAL_TEXT : 'Previous incident showed sustained CPU load during batch overlap.',
@@ -166,9 +201,6 @@ export class MockTicketingProvider implements TicketingProvider {
     if (!Number.isFinite(createdAfter)) {
       return providerError<{ tickets: TicketRecord[] }>('malformed_config', 'Scope createdAfter must be a valid timestamp.', false);
     }
-    if (!scope.entityId && !scope.categoryId) {
-      return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'Mock ticket listing requires an entity or category scope.', false);
-    }
     const maxResults = Math.max(1, Math.min(Math.floor(scope.maxResults), 20));
     const candidates: TicketRecord[] = [
       {
@@ -176,6 +208,7 @@ export class MockTicketingProvider implements TicketingProvider {
         title: 'New requester VPN access question',
         status: 'new',
         priority: 'medium',
+        type: 'request',
         requesterId: 'mock-user-requester',
         requester: 'Requester',
         description: 'Need help with VPN access.',
@@ -189,6 +222,7 @@ export class MockTicketingProvider implements TicketingProvider {
         title: 'Out-of-scope finance question',
         status: 'new',
         priority: 'low',
+        type: 'request',
         requesterId: 'mock-user-finance',
         requester: 'Finance',
         description: 'Finance-only support request.',
@@ -202,6 +236,7 @@ export class MockTicketingProvider implements TicketingProvider {
         title: 'Historical ticket that must not backfill',
         status: 'new',
         priority: 'medium',
+        type: 'request',
         requesterId: 'mock-user-requester',
         requester: 'Requester',
         description: 'Old scoped request.',
@@ -211,8 +246,12 @@ export class MockTicketingProvider implements TicketingProvider {
         scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
       },
     ];
+    const statusValues = new Set((scope.statusValues && scope.statusValues.length > 0 ? scope.statusValues : ['1', '2', '3', '4', 'new'])
+      .map((value) => String(value).trim().toLowerCase())
+      .filter(Boolean));
     const tickets = candidates
       .filter((ticket) => Date.parse(ticket.createdAt) >= createdAfter)
+      .filter((ticket) => statusValues.has(String(ticket.status ?? '').trim().toLowerCase()))
       .filter((ticket) => !scope.entityId || ticket.scope?.entityId === scope.entityId)
       .filter((ticket) => !scope.categoryId || ticket.scope?.categoryId === scope.categoryId)
       .slice(0, maxResults);
@@ -220,6 +259,40 @@ export class MockTicketingProvider implements TicketingProvider {
       evidenceSeed('ticketing:mock', 'ticket_scope_list', `${scope.mode}:${scope.createdAfter}`, `Mock listed ${tickets.length} ticket(s) for bounded scope.`, {
         scope,
         ticketIds: tickets.map((ticket) => ticket.id),
+      }),
+    ]);
+  }
+
+  async describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<TicketReferenceEnums>> {
+    void context;
+    const data = {
+      statuses: MOCK_REFERENCE_ENUMS.statuses.map((item) => ({ ...item, metadata: { ...(item.metadata ?? {}) } })),
+      priorities: MOCK_REFERENCE_ENUMS.priorities.map((item) => ({ ...item, metadata: { ...(item.metadata ?? {}) } })),
+      types: MOCK_REFERENCE_ENUMS.types.map((item) => ({ ...item, metadata: { ...(item.metadata ?? {}) } })),
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'reference_enums', 'mock', 'Mock listed ticket enum reference values.', data),
+    ]);
+  }
+
+  async searchReferenceCatalog(
+    context: ProviderContext,
+    input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number },
+  ): Promise<AdapterResult<{ items: RefItem[] }>> {
+    void context;
+    const limit = Math.max(1, Math.min(Math.floor(input.limit), 50));
+    const query = String(input.query ?? '').trim().toLowerCase();
+    const source = MOCK_CATALOGS[input.kind] ?? [];
+    const items = source
+      .filter((item) => !query || item.label.toLowerCase().includes(query) || item.value.toLowerCase().includes(query))
+      .slice(0, limit)
+      .map((item) => ({ ...item, metadata: { ...(item.metadata ?? {}) } }));
+    return ok({ items }, [
+      evidenceSeed('ticketing:mock', `${input.kind}_list`, query || input.kind, `Mock listed ${items.length} ${input.kind} option(s).`, {
+        kind: input.kind,
+        query: input.query ?? null,
+        limit,
+        items,
       }),
     ]);
   }

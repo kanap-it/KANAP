@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { In } from 'typeorm';
+import { In, Not } from 'typeorm';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import {
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
@@ -28,6 +28,14 @@ import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
 import { AiEmergencyPause } from '../entities/ai-emergency-pause.entity';
 import { AiRun } from '../entities/ai-run.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
+import {
+  deriveServiceDeskTargetingFetchConfig,
+  normalizeServiceDeskScopePolicy,
+  normalizeServiceDeskTargeting,
+  OPEN_TICKET_STATUS_VALUES,
+  TargetingPreviewSummary,
+  ticketMatchesServiceDeskTargeting,
+} from './service-desk-targeting';
 
 export const HELP_DESK_GLPI_TRIAGE_AGENT_KEY = 'helpdesk.glpi.triage';
 export const HELP_DESK_GLPI_TRIAGE_MANUAL_TRIGGER_KEY = 'manual.safe_target';
@@ -48,6 +56,17 @@ const DEFAULT_PER_RUN_COST_CAP_EUR = 1;
 const DEFAULT_DAILY_RUN_CAP = 25;
 const DEFAULT_DAILY_TOKEN_CAP = 500_000;
 const DEFAULT_DAILY_COST_CAP_EUR = 10;
+const DEFAULT_REVIEW_COOLDOWN_SECONDS = 24 * 60 * 60;
+const DEFAULT_TARGET_CLAIM_LEASE_SECONDS = 10 * 60;
+export const SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS: Record<string, number> = {
+  public_reply: 8 * 60 * 60,
+  internal_note: 24 * 60 * 60,
+  classification: 24 * 60 * 60,
+  status: 24 * 60 * 60,
+  assignment: 24 * 60 * 60,
+  participant: 24 * 60 * 60,
+  stale_closure: 7 * 24 * 60 * 60,
+};
 
 const REQUIRED_HELPDESK_TRIAGE_CAPABILITIES = [
   'ticketing.ticket.get',
@@ -68,6 +87,7 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
   { name: TICKETING_PARTICIPANT_CONTEXT_CAPABILITY, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
   { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
   { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'web_search', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
   { name: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
   { name: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
   { name: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
@@ -80,7 +100,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
@@ -88,7 +107,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
@@ -96,7 +114,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
@@ -104,7 +121,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
@@ -112,7 +128,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
   {
     name: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
@@ -120,7 +135,6 @@ const HELP_DESK_ALLOWED_CAPABILITIES = [
     effect: 'write',
     max_autonomy_level: 'A3',
     approval: 'human',
-    requires_safe_target_effect: 'sandbox_write',
   },
 ];
 
@@ -181,6 +195,25 @@ export type EnqueueManualGlpiSafeTargetResult = HelpdeskGlpiDefinitionBundle & {
   created: boolean;
 };
 
+export type TargetReviewReadiness = {
+  state: AiAgentTargetState;
+  ready: boolean;
+  changed: boolean;
+  due: boolean;
+  reason: 'first_review' | 'changed' | 'scheduled' | 'not_due';
+};
+
+export type TargetClaimAcquireResult = {
+  acquired: boolean;
+  status: 'claimed' | 'deferred' | 'superseded';
+  state: AiAgentTargetState | null;
+  ownerAgentDefinitionId?: string | null;
+  ownerPriority?: number | null;
+  ownerWorkItemId?: string | null;
+  claimExpiresAt?: string | null;
+  reason?: string | null;
+};
+
 export type AgentQueueOverview = {
   definitions: AiAgentDefinition[];
   workItems: AiAgentWorkItem[];
@@ -188,18 +221,91 @@ export type AgentQueueOverview = {
   counts: Record<string, number>;
   helpdesk: {
     summary: HelpdeskGlpiAgentSummary | null;
+    summaries: HelpdeskGlpiAgentSummary[];
+    fleet: HelpdeskGlpiAgentSummary['evaluation'] | null;
     auditEvents: AiAgentAuditEvent[];
   };
 };
 
+export type HelpdeskScopeMode = 'new_tickets_only' | 'all_open' | 'agent_involved';
+
 export type HelpdeskNewTicketsIngestionConfig = {
   enabled: true;
+  mode: HelpdeskScopeMode;
   enabledAt: string;
-  createdAfter: string;
+  // new_tickets_only: created-after horizon. null for the other modes.
+  createdAfter: string | null;
+  // all_open / agent_involved: only tickets unchanged since this cutoff (stale).
+  lastChangedBefore?: string | null;
+  statusValues: string[];
   entityId?: string | null;
   categoryId?: string | null;
   maxTicketsPerCycle: number;
   maxProviderRequestsPerCycle: number;
+};
+
+export type StaleClosureConfig = {
+  message: string;
+  action: 'closed' | 'solved';
+};
+
+// Runtime stale-ticket cleanup uses response_policy_json.prepare_stale_closure
+// as its single enablement flag. The legacy stale_closure block remains only for
+// close/solve action and closing-note compatibility.
+export function readStaleClosureConfig(definition: AiAgentDefinition): StaleClosureConfig {
+  const rawScope = policyObject(definition.scope_policy_json);
+  const scope = policyObject(normalizeServiceDeskScopePolicy(rawScope));
+  const sc = policyObject(scope.stale_closure);
+  return {
+    message: stringFromPolicy(sc.message) ?? '',
+    action: sc.action === 'solved' ? 'solved' : 'closed',
+  };
+}
+
+export function staleClosureCapabilityEnabled(definition: AiAgentDefinition): boolean {
+  const response = policyObject(definition.response_policy_json);
+  const allowed = capabilityNames(definition.allowed_capabilities_json);
+  const requiredWritesAllowed = allowed.has(TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY)
+    && allowed.has(TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY)
+    && allowed.has(TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
+    && allowed.has(TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY);
+  return response.prepare_stale_closure === true && requiredWritesAllowed;
+}
+
+export type HelpdeskGlpiIngestionSettingsInput = {
+  ingestion: {
+    enabled: boolean;
+    entityId?: string | null;
+    categoryId?: string | null;
+    maxTicketsPerCycle?: number | null;
+    maxProviderRequestsPerCycle?: number | null;
+    hardBackfillHorizonHours?: number | null;
+  };
+  guardrails?: {
+    perRun?: { maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+    daily?: { maxAgentRuns?: number | null; maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
+  };
+};
+
+export type HelpdeskGlpiIngestionSettingsView = {
+  agentDefinitionId: string;
+  ingestion: {
+    enabled: boolean;
+    enabledAt: string | null;
+    entityId: string | null;
+    categoryId: string | null;
+    maxTicketsPerCycle: number | null;
+    maxProviderRequestsPerCycle: number | null;
+    hardBackfillHorizonHours: number;
+    ready: boolean;
+    readyReason: string | null;
+    effectiveCreatedAfter: string | null;
+  };
+  guardrails: {
+    configured: boolean;
+    perRun: { maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+    daily: { maxAgentRuns: number | null; maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
+  };
 };
 
 export type HelpdeskDailyUsageSummary = {
@@ -222,11 +328,21 @@ export type HelpdeskRunGuardrailSummary = {
   maxEstimatedCostEur: number;
 };
 
+export type HelpdeskEmergencyPauseSummary = {
+  id: string;
+  active: boolean;
+  scope: string | null;
+  agent_definition_id: string | null;
+  reason: string;
+  created_at: string | null;
+  expires_at: string | null;
+};
+
 export type HelpdeskGlpiAgentSummary = {
   agentDefinitionId: string;
   ingestion: {
     enabled: boolean;
-    mode: 'disabled' | 'new_tickets_only';
+    mode: 'disabled' | HelpdeskScopeMode;
     paused: boolean;
     pauseReason: string | null;
     enabledAt: string | null;
@@ -244,6 +360,7 @@ export type HelpdeskGlpiAgentSummary = {
     perRun: HelpdeskRunGuardrailSummary | null;
     daily: HelpdeskDailyUsageSummary | null;
   };
+  emergencyPause: HelpdeskEmergencyPauseSummary | null;
   evaluation: {
     windowStart: string;
     windowEnd: string;
@@ -367,6 +484,34 @@ function numberPolicyOrNull(value: unknown, min: number, max: number): number | 
 
 function positivePolicyNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function trimmedSettingOrNull(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function settingNumberInRange(value: unknown, min: number, max: number, fallback: number, label: string): number {
+  if (value == null) {
+    return fallback;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new BadRequestException(`${label} must be a number between ${min} and ${max}.`);
+  }
+  return Math.floor(value);
+}
+
+function settingPositiveNumber(value: unknown, current: unknown, fallback: number, label: string): number {
+  if (value == null) {
+    return positivePolicyNumber(current) ?? fallback;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new BadRequestException(`${label} must be a positive number.`);
+  }
+  return value;
 }
 
 function defaultEconomicGuardrails(): Record<string, unknown> {
@@ -527,6 +672,25 @@ function activePendingAction(action: AiActionRequest, now = Date.now()): boolean
   return Number.isFinite(expiresAt) && expiresAt > now;
 }
 
+function sameNullableTime(left: unknown, right: unknown): boolean {
+  const leftDate = dateFromUnknown(left);
+  const rightDate = dateFromUnknown(right);
+  if (!leftDate && !rightDate) {
+    return true;
+  }
+  return !!leftDate && !!rightDate && leftDate.getTime() === rightDate.getTime();
+}
+
+function sameStringSet(left: unknown, right: unknown): boolean {
+  const normalize = (value: unknown) => Array.isArray(value)
+    ? value.filter((entry) => typeof entry === 'string' && entry.trim().length > 0).sort()
+    : [];
+  const leftValues = normalize(left);
+  const rightValues = normalize(right);
+  return leftValues.length === rightValues.length
+    && leftValues.every((value, index) => value === rightValues[index]);
+}
+
 function dateFromUnknown(value: unknown): Date | null {
   if (value instanceof Date && Number.isFinite(value.getTime())) {
     return value;
@@ -536,6 +700,24 @@ function dateFromUnknown(value: unknown): Date | null {
   }
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+function toIsoDate(value: unknown): string | null {
+  const date = dateFromUnknown(value);
+  return date ? date.toISOString() : null;
+}
+
+function normalizeApprovalTtlSecondsByActionClass(value: unknown): Record<string, number> {
+  const result: Record<string, number> = { ...SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS };
+  if (!isRecord(value)) {
+    return result;
+  }
+  for (const [key, raw] of Object.entries(value)) {
+    const numeric = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(numeric)) continue;
+    result[key] = Math.max(60, Math.min(30 * 24 * 60 * 60, Math.floor(numeric)));
+  }
+  return result;
 }
 
 function actionBodyHash(action: AiActionRequest | null): string | null {
@@ -612,6 +794,7 @@ export class AiAgentWorkQueueService {
         forbidden_capabilities_json: HELP_DESK_FORBIDDEN_CAPABILITIES,
         max_autonomy_level: 'A3',
         default_approval_requirement: 'human_for_writes',
+        agent_priority: 100,
         trigger_policy_json: {
           manual_safe_target: { enabled: true },
           scheduled_poll: { enabled: false },
@@ -621,26 +804,39 @@ export class AiAgentWorkQueueService {
           production_polling_enabled: false,
           automatic_writes_enabled: false,
         },
-        scope_policy_json: {
+        scope_policy_json: normalizeServiceDeskScopePolicy({
           mode: 'manual_safe_target',
           allowed_modes: ['manual_safe_target', 'new_tickets_only', 'new_plus_agent_touched', 'saved_filter'],
           provider_kind: 'ticketing',
           provider_key: 'glpi',
           target_kind: 'ticket',
           required_safe_target_effect: 'read',
-          write_requires_safe_target_effect: 'sandbox_write',
           new_tickets_only: { enabled: false },
           new_plus_agent_touched: { enabled: false },
           saved_filter: { enabled: false },
           all_matching: { enabled: false },
           freeform_live_object_ids: false,
-        },
+          knowledge_sources: {
+            knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+            web: { enabled: false },
+            precedence: 'knowledge_first',
+          },
+        }),
         queue_policy_json: {
           enabled: true,
           dedup_mode: 'active_work_item',
           lease_ttl_seconds: DEFAULT_LEASE_TTL_SECONDS,
           max_attempts: DEFAULT_MAX_ATTEMPTS,
           cooldown_seconds: DEFAULT_COOLDOWN_SECONDS,
+          review_cooldown_seconds: DEFAULT_REVIEW_COOLDOWN_SECONDS,
+          on_conflict: 'defer',
+          approval_ttl_seconds_by_action_class: { ...SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS },
+          on_stale_by_action_class: {
+            public_reply: 're_review',
+            internal_note: 're_review',
+            classification: 're_review',
+            status: 're_review',
+          },
           retry_backoff_seconds: [60, 300, 900],
           terminal_statuses: ['completed', 'skipped', 'dead_letter'],
           economic_guardrails: defaultEconomicGuardrails(),
@@ -652,6 +848,7 @@ export class AiAgentWorkQueueService {
           prepare_status_update: true,
           prepare_assignment_update: true,
           prepare_participant_update: false,
+          prepare_stale_closure: false,
           automatic_public_reply: false,
           automatic_ticket_updates: false,
           require_human_approval_for_writes: true,
@@ -660,6 +857,18 @@ export class AiAgentWorkQueueService {
           create_pending_evaluation: true,
           feedback_required_for_autonomy_promotion: true,
         },
+        persona_json: {
+          mission: 'Triage GLPI helpdesk tickets, gather supporting KANAP knowledge, and prepare safe follow-up proposals for review.',
+          tone: 'Clear, concise, and support-oriented.',
+          instructions: [
+            'Prefer internal notes when evidence is incomplete or the next step needs analyst review.',
+            'Prepare requester replies only when a newer requester message needs a direct response.',
+            'Do not broaden capabilities or execute writes from persona instructions.',
+          ],
+          escalation_text: 'Escalate to a human operator when the request is ambiguous, high-impact, or lacks reliable evidence.',
+        },
+        config_version: 1,
+        updated_by_user_id: null,
         metadata_json: {
           product_owned: true,
           phase: 11,
@@ -669,7 +878,7 @@ export class AiAgentWorkQueueService {
         created_at: new Date(),
         updated_at: new Date(),
       }));
-    } else {
+    } else if (!isRecord(definition.metadata_json) || definition.metadata_json.user_modified !== true) {
       const currentTriggerPolicy = policyObject(definition.trigger_policy_json);
       const currentScopePolicy = policyObject(definition.scope_policy_json);
       const currentQueuePolicy = policyObject(definition.queue_policy_json);
@@ -683,6 +892,10 @@ export class AiAgentWorkQueueService {
         prepare_status_update: true,
         prepare_assignment_update: true,
         prepare_participant_update: false,
+        prepare_stale_closure: isRecord(definition.response_policy_json)
+          && typeof definition.response_policy_json.prepare_stale_closure === 'boolean'
+          ? definition.response_policy_json.prepare_stale_closure
+          : policyObject(currentScopePolicy.stale_closure).enabled === true,
         automatic_public_reply: false,
         automatic_ticket_updates: false,
         require_human_approval_for_writes: true,
@@ -712,13 +925,13 @@ export class AiAgentWorkQueueService {
         provider_key: 'glpi',
         target_kind: 'ticket',
         required_safe_target_effect: 'read',
-        write_requires_safe_target_effect: 'sandbox_write',
         new_tickets_only: isRecord(currentScopePolicy.new_tickets_only) ? currentScopePolicy.new_tickets_only : { enabled: false },
         new_plus_agent_touched: { enabled: false },
         saved_filter: isRecord(currentScopePolicy.saved_filter) ? currentScopePolicy.saved_filter : { enabled: false },
         all_matching: { enabled: false },
         freeform_live_object_ids: false,
       };
+      const normalizedDesiredScopePolicy = normalizeServiceDeskScopePolicy(desiredScopePolicy);
       const desiredQueuePolicy = {
         ...currentQueuePolicy,
         enabled: currentQueuePolicy.enabled === false ? false : true,
@@ -726,6 +939,17 @@ export class AiAgentWorkQueueService {
         lease_ttl_seconds: numberFromPolicy(currentQueuePolicy.lease_ttl_seconds, DEFAULT_LEASE_TTL_SECONDS, 30, 86_400),
         max_attempts: numberFromPolicy(currentQueuePolicy.max_attempts, DEFAULT_MAX_ATTEMPTS, 1, 20),
         cooldown_seconds: numberFromPolicy(currentQueuePolicy.cooldown_seconds, DEFAULT_COOLDOWN_SECONDS, 1, 86_400),
+        review_cooldown_seconds: numberFromPolicy(currentQueuePolicy.review_cooldown_seconds, DEFAULT_REVIEW_COOLDOWN_SECONDS, 60, 30 * 24 * 60 * 60),
+        on_conflict: currentQueuePolicy.on_conflict === 'supersede' ? 'supersede' : 'defer',
+        approval_ttl_seconds_by_action_class: normalizeApprovalTtlSecondsByActionClass(currentQueuePolicy.approval_ttl_seconds_by_action_class),
+        on_stale_by_action_class: isRecord(currentQueuePolicy.on_stale_by_action_class)
+          ? currentQueuePolicy.on_stale_by_action_class
+          : {
+            public_reply: 're_review',
+            internal_note: 're_review',
+            classification: 're_review',
+            status: 're_review',
+          },
         retry_backoff_seconds: Array.isArray(currentQueuePolicy.retry_backoff_seconds)
           ? currentQueuePolicy.retry_backoff_seconds
           : [60, 300, 900],
@@ -741,7 +965,7 @@ export class AiAgentWorkQueueService {
         forbidden_capabilities_json: desiredForbiddenCapabilities,
         response_policy_json: desiredResponsePolicy,
         trigger_policy_json: desiredTriggerPolicy,
-        scope_policy_json: desiredScopePolicy,
+        scope_policy_json: normalizedDesiredScopePolicy,
         queue_policy_json: desiredQueuePolicy,
         metadata_json: desiredMetadata,
       };
@@ -849,9 +1073,9 @@ export class AiAgentWorkQueueService {
       throw new ForbiddenException('Helpdesk GLPI triage scope must target GLPI tickets.');
     }
     if (hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
-      this.resolveNewTicketsIngestionConfig(definition);
+      this.resolveScopeIngestionConfig(definition);
     } else if (triggerPolicy.production_polling_enabled === true) {
-      throw new ForbiddenException('Production polling requires the bounded new_tickets_only scheduled poll trigger.');
+      throw new ForbiddenException('Production polling requires a bounded scheduled-poll scope.');
     }
 
     const allowed = capabilityNames(definition.allowed_capabilities_json);
@@ -877,65 +1101,121 @@ export class AiAgentWorkQueueService {
   }
 
   resolveNewTicketsIngestionConfig(definition: AiAgentDefinition): HelpdeskNewTicketsIngestionConfig {
+    const config = this.resolveScopeIngestionConfig(definition);
+    if (config.mode !== 'new_tickets_only') {
+      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a created-at targeting predicate.');
+    }
+    return config;
+  }
+
+  // Resolve the configured ticket-selection scope for an agent. Canonical
+  // targeting predicates are the source of truth; legacy mode blocks remain as
+  // compatibility storage for enablement timestamps, per-cycle caps, and older
+  // agents. The provider fetch is still bounded and every candidate is locally
+  // rechecked against the complete predicate set after listing.
+  resolveScopeIngestionConfig(definition: AiAgentDefinition): HelpdeskNewTicketsIngestionConfig {
     const triggerPolicy = policyObject(definition.trigger_policy_json);
-    const scopePolicy = policyObject(definition.scope_policy_json);
+    const rawScopePolicy = policyObject(definition.scope_policy_json);
+    const scopePolicy = policyObject(normalizeServiceDeskScopePolicy(rawScopePolicy));
+    const targeting = normalizeServiceDeskTargeting(scopePolicy);
+    const derivedScope = deriveServiceDeskTargetingFetchConfig(targeting);
+    const rawHasTargeting = isRecord(rawScopePolicy.targeting) && Array.isArray(rawScopePolicy.targeting.predicates);
+
     if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion is disabled for this agent definition.');
+      throw new ForbiddenException('Automatic GLPI ticket watching is turned off. Enable it in the agent settings.');
     }
     if (triggerPolicy.automatic_writes_enabled === true) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion cannot run with automatic writes enabled.');
+      throw new ForbiddenException('Helpdesk GLPI ingestion cannot run with automatic writes enabled.');
     }
     if (hasEnabledFlag(scopePolicy, 'all_matching') || scopePolicy.freeform_live_object_ids === true) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a bounded scope.');
+      throw new ForbiddenException('Helpdesk GLPI ingestion requires a bounded scope.');
     }
 
+    const mode = derivedScope.mode;
+    const modeBlock = nestedPolicy(scopePolicy, mode);
+    const legacyMode = stringFromPolicy(scopePolicy.mode);
+    const legacyBlock = legacyMode ? nestedPolicy(scopePolicy, legacyMode) : {};
     const newTicketsOnly = nestedPolicy(scopePolicy, 'new_tickets_only');
-    if (newTicketsOnly.enabled !== true) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires new_tickets_only.enabled=true.');
+    const allOpen = nestedPolicy(scopePolicy, 'all_open');
+    const agentInvolved = nestedPolicy(scopePolicy, 'agent_involved');
+    const candidateBlocks = [modeBlock, legacyBlock, newTicketsOnly, allOpen, agentInvolved];
+    const configBlock = candidateBlocks.find((block) =>
+      block.enabled === true
+      || block.max_tickets_per_cycle != null
+      || block.max_provider_requests_per_cycle != null,
+    ) ?? {};
+    const explicitActiveBlock = [modeBlock, legacyBlock].find((block) => block.enabled === true);
+    if (
+      explicitActiveBlock
+      && (
+        !numberPolicyOrNull(explicitActiveBlock.max_tickets_per_cycle, 1, 20)
+        || !numberPolicyOrNull(explicitActiveBlock.max_provider_requests_per_cycle, 1, 100)
+      )
+    ) {
+      throw new ForbiddenException('This ticket-selection mode requires explicit per-cycle ticket and provider-request limits.');
     }
-    const enabledAt = isoFromPolicy(newTicketsOnly.enabled_at);
-    if (!enabledAt) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a valid enablement timestamp.');
-    }
-    const entityId = stringFromPolicy(newTicketsOnly.entity_id ?? newTicketsOnly.entityId);
-    const categoryId = stringFromPolicy(newTicketsOnly.category_id ?? newTicketsOnly.categoryId);
-    if (!entityId && !categoryId) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a tenant-scoped GLPI entity or category.');
-    }
-    const maxTicketsPerCycle = numberPolicyOrNull(
-      newTicketsOnly.max_tickets_per_cycle,
-      1,
-      20,
-    );
-    const maxProviderRequestsPerCycle = numberPolicyOrNull(
-      newTicketsOnly.max_provider_requests_per_cycle,
-      1,
-      100,
-    );
-    if (!maxTicketsPerCycle || !maxProviderRequestsPerCycle) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires explicit per-cycle ticket and provider-request limits.');
-    }
-    const horizonHours = numberPolicyOrNull(
-      newTicketsOnly.hard_backfill_horizon_hours,
-      1,
-      24 * 30,
-    ) ?? DEFAULT_BACKFILL_HORIZON_HOURS;
-    const enabledAtMs = Date.parse(enabledAt);
-    const horizonMs = Date.now() - horizonHours * 60 * 60 * 1000;
-    const createdAfter = new Date(Math.max(enabledAtMs, horizonMs)).toISOString();
+    const enabledAt = isoFromPolicy(configBlock.enabled_at)
+      ?? isoFromPolicy(newTicketsOnly.enabled_at)
+      ?? isoFromPolicy(allOpen.enabled_at)
+      ?? isoFromPolicy(agentInvolved.enabled_at)
+      ?? new Date().toISOString();
+    const maxTicketsPerCycle = numberPolicyOrNull(configBlock.max_tickets_per_cycle, 1, 20)
+      ?? DEFAULT_NEW_TICKET_MAX_PER_CYCLE;
+    const maxProviderRequestsPerCycle = numberPolicyOrNull(configBlock.max_provider_requests_per_cycle, 1, 100)
+      ?? DEFAULT_NEW_TICKET_RATE_LIMIT_PER_CYCLE;
     if (!runGuardrailsFromDefinition(definition) || !dailyGuardrailCapsFromDefinition(definition)) {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires configured economic guardrails.');
+      throw new ForbiddenException('Helpdesk GLPI ingestion requires configured economic guardrails.');
     }
+
+    const horizonHours = derivedScope.createdAfterRelativeHours
+      ?? numberPolicyOrNull(newTicketsOnly.hard_backfill_horizon_hours, 1, 24 * 30)
+      ?? DEFAULT_BACKFILL_HORIZON_HOURS;
+    const createdAfter = mode === 'new_tickets_only'
+      ? derivedScope.createdAfter ?? new Date(Date.now() - horizonHours * 60 * 60 * 1000).toISOString()
+      : null;
+    const lastChangedBefore = derivedScope.lastChangedBefore;
+    const entityId = derivedScope.entityId
+      ?? (!rawHasTargeting ? stringFromPolicy(configBlock.entity_id ?? configBlock.entityId) : null);
+    const categoryId = derivedScope.categoryId
+      ?? (!rawHasTargeting ? stringFromPolicy(configBlock.category_id ?? configBlock.categoryId) : null);
 
     return {
       enabled: true,
+      mode,
       enabledAt,
       createdAfter,
+      lastChangedBefore,
+      statusValues: derivedScope.statusValues,
       entityId,
       categoryId,
       maxTicketsPerCycle,
       maxProviderRequestsPerCycle,
     };
+  }
+
+  // Ticket refs this agent previously acted on (agent_touched target states),
+  // oldest-updated first. Backs the `agent_involved` scope mode — control-plane
+  // state, kept out of the GLPI provider.
+  async listAgentTouchedTicketRefs(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.targetStateRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: definition.id,
+        provider_kind: 'ticketing',
+        provider_key: 'glpi',
+        target_type: 'ticket',
+        agent_touched: true,
+      },
+      order: { updated_at: 'ASC' },
+      take: Math.max(1, Math.min(Math.floor(limit), 20)),
+    });
+    return rows
+      .map((row) => row.target_ref)
+      .filter((ref): ref is string => typeof ref === 'string' && ref.trim().length > 0);
   }
 
   runGuardrails(definition: AiAgentDefinition): HelpdeskRunGuardrailSummary {
@@ -944,6 +1224,186 @@ export class AiAgentWorkQueueService {
       throw new ForbiddenException('Helpdesk GLPI triage run guardrails are not configured.');
     }
     return guardrails;
+  }
+
+  async getHelpdeskGlpiIngestionSettings(
+    context: AiExecutionContextWithManager,
+  ): Promise<HelpdeskGlpiIngestionSettingsView> {
+    const { definition } = await this.ensureHelpdeskGlpiTriageDefinition(context);
+    return this.buildIngestionSettingsView(definition);
+  }
+
+  async updateHelpdeskGlpiIngestionSettings(
+    context: AiExecutionContextWithManager,
+    input: HelpdeskGlpiIngestionSettingsInput,
+  ): Promise<HelpdeskGlpiIngestionSettingsView> {
+    const { definition } = await this.ensureHelpdeskGlpiTriageDefinition(context);
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    const scopePolicy = policyObject(definition.scope_policy_json);
+    const queuePolicy = policyObject(definition.queue_policy_json);
+    const currentIngestion = nestedPolicy(scopePolicy, 'new_tickets_only');
+    const wasEnabled = hasEnabledFlag(triggerPolicy, 'scheduled_poll') && currentIngestion.enabled === true;
+
+    const ingestionInput = input?.ingestion;
+    if (!isRecord(ingestionInput) || typeof ingestionInput.enabled !== 'boolean') {
+      throw new BadRequestException('Ingestion settings require an explicit enabled flag.');
+    }
+    const enabled = ingestionInput.enabled === true;
+    const entityId = trimmedSettingOrNull(ingestionInput.entityId);
+    const categoryId = trimmedSettingOrNull(ingestionInput.categoryId);
+    const maxTicketsPerCycle = settingNumberInRange(
+      ingestionInput.maxTicketsPerCycle, 1, 20, DEFAULT_NEW_TICKET_MAX_PER_CYCLE, 'Max tickets per cycle');
+    const maxProviderRequestsPerCycle = settingNumberInRange(
+      ingestionInput.maxProviderRequestsPerCycle, 1, 100, DEFAULT_NEW_TICKET_RATE_LIMIT_PER_CYCLE, 'Max provider requests per cycle');
+    const hardBackfillHorizonHours = settingNumberInRange(
+      ingestionInput.hardBackfillHorizonHours, 1, 24 * 30, DEFAULT_BACKFILL_HORIZON_HOURS, 'Backfill horizon hours');
+
+    const currentGuardrails = nestedPolicy(queuePolicy, 'economic_guardrails');
+    const currentPerRun = policyObject(currentGuardrails.per_run);
+    const currentDaily = policyObject(currentGuardrails.daily);
+    const guardrailsInput = isRecord(input?.guardrails) ? input.guardrails : {};
+    const perRunInput = policyObject((guardrailsInput as Record<string, unknown>).perRun);
+    const dailyInput = policyObject((guardrailsInput as Record<string, unknown>).daily);
+    const nextGuardrails = {
+      configured: true,
+      per_run: {
+        max_estimated_tokens: settingPositiveNumber(
+          perRunInput.maxEstimatedTokens, currentPerRun.max_estimated_tokens, DEFAULT_PER_RUN_TOKEN_CAP, 'Per-run token cap'),
+        max_estimated_cost_eur: settingPositiveNumber(
+          perRunInput.maxEstimatedCostEur, currentPerRun.max_estimated_cost_eur, DEFAULT_PER_RUN_COST_CAP_EUR, 'Per-run cost cap'),
+      },
+      daily: {
+        max_agent_runs: settingPositiveNumber(
+          dailyInput.maxAgentRuns, currentDaily.max_agent_runs, DEFAULT_DAILY_RUN_CAP, 'Daily run cap'),
+        max_estimated_tokens: settingPositiveNumber(
+          dailyInput.maxEstimatedTokens, currentDaily.max_estimated_tokens, DEFAULT_DAILY_TOKEN_CAP, 'Daily token cap'),
+        max_estimated_cost_eur: settingPositiveNumber(
+          dailyInput.maxEstimatedCostEur, currentDaily.max_estimated_cost_eur, DEFAULT_DAILY_COST_CAP_EUR, 'Daily cost cap'),
+      },
+    };
+
+    // enabled_at is informational (audit/UI) since the catch-up window became
+    // an absolute lookback; re-enabling still refreshes it for traceability.
+    const enabledAt = enabled
+      ? (wasEnabled ? isoFromPolicy(currentIngestion.enabled_at) ?? new Date().toISOString() : new Date().toISOString())
+      : isoFromPolicy(currentIngestion.enabled_at);
+
+    definition.trigger_policy_json = {
+      ...triggerPolicy,
+      scheduled_poll: {
+        ...(isRecord(triggerPolicy.scheduled_poll) ? triggerPolicy.scheduled_poll : {}),
+        enabled,
+      },
+      production_polling_enabled: enabled,
+      // Never operator-editable from this path.
+      automatic_writes_enabled: false,
+    };
+    const targetingPredicates: Array<{ field: string; operator: 'eq' | 'in' | 'gte'; value: unknown }> = [
+      { field: 'created_at', operator: 'gte', value: { relative_hours: hardBackfillHorizonHours } },
+      { field: 'status', operator: 'in', value: OPEN_TICKET_STATUS_VALUES },
+    ];
+    if (entityId) {
+      targetingPredicates.push({ field: 'entity', operator: 'eq', value: entityId });
+    }
+    if (categoryId) {
+      targetingPredicates.push({ field: 'category', operator: 'eq', value: categoryId });
+    }
+
+    definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+      ...scopePolicy,
+      mode: 'new_tickets_only',
+      targeting: {
+        schema_version: 1,
+        combinator: 'and',
+        predicates: targetingPredicates,
+      },
+      new_tickets_only: {
+        enabled,
+        enabled_at: enabledAt,
+        entity_id: entityId,
+        category_id: categoryId,
+        max_tickets_per_cycle: maxTicketsPerCycle,
+        max_provider_requests_per_cycle: maxProviderRequestsPerCycle,
+        hard_backfill_horizon_hours: hardBackfillHorizonHours,
+      },
+    });
+    definition.queue_policy_json = {
+      ...queuePolicy,
+      economic_guardrails: nextGuardrails,
+    };
+    definition.updated_at = new Date();
+    const saved = await this.definitionRepo(context).save(definition);
+
+    await this.recordAuditEvent(context, {
+      agentDefinitionId: saved.id,
+      eventType: 'ingestion_settings_updated',
+      severity: 'info',
+      message: enabled
+        ? 'Helpdesk GLPI ingestion settings updated; bounded new-ticket ingestion is enabled.'
+        : 'Helpdesk GLPI ingestion settings updated; ingestion is disabled.',
+      metadata: {
+        enabled,
+        entity_id: entityId,
+        category_id: categoryId,
+        max_tickets_per_cycle: maxTicketsPerCycle,
+        max_provider_requests_per_cycle: maxProviderRequestsPerCycle,
+        hard_backfill_horizon_hours: hardBackfillHorizonHours,
+        economic_guardrails: nextGuardrails,
+      },
+    });
+
+    return this.buildIngestionSettingsView(saved);
+  }
+
+  private buildIngestionSettingsView(definition: AiAgentDefinition): HelpdeskGlpiIngestionSettingsView {
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    const scopePolicy = policyObject(normalizeServiceDeskScopePolicy(definition.scope_policy_json));
+    const queuePolicy = policyObject(definition.queue_policy_json);
+    const ingestion = nestedPolicy(scopePolicy, 'new_tickets_only');
+    const guardrails = nestedPolicy(queuePolicy, 'economic_guardrails');
+    const perRun = policyObject(guardrails.per_run);
+    const daily = policyObject(guardrails.daily);
+
+    let ready = true;
+    let readyReason: string | null = null;
+    let effectiveCreatedAfter: string | null = null;
+    try {
+      this.assertHelpdeskGlpiDefinitionRunnable(definition, null);
+      const config = this.resolveScopeIngestionConfig(definition);
+      effectiveCreatedAfter = config.createdAfter;
+    } catch (error) {
+      ready = false;
+      readyReason = error instanceof Error ? error.message : String(error);
+    }
+
+    return {
+      agentDefinitionId: definition.id,
+      ingestion: {
+        enabled: hasEnabledFlag(triggerPolicy, 'scheduled_poll') && ingestion.enabled === true,
+        enabledAt: isoFromPolicy(ingestion.enabled_at),
+        entityId: stringFromPolicy(ingestion.entity_id ?? ingestion.entityId),
+        categoryId: stringFromPolicy(ingestion.category_id ?? ingestion.categoryId),
+        maxTicketsPerCycle: numberPolicyOrNull(ingestion.max_tickets_per_cycle, 1, 20),
+        maxProviderRequestsPerCycle: numberPolicyOrNull(ingestion.max_provider_requests_per_cycle, 1, 100),
+        hardBackfillHorizonHours: numberPolicyOrNull(ingestion.hard_backfill_horizon_hours, 1, 24 * 30)
+          ?? DEFAULT_BACKFILL_HORIZON_HOURS,
+        ready,
+        readyReason,
+        effectiveCreatedAfter,
+      },
+      guardrails: {
+        configured: guardrails.configured === true,
+        perRun: {
+          maxEstimatedTokens: positivePolicyNumber(perRun.max_estimated_tokens),
+          maxEstimatedCostEur: positivePolicyNumber(perRun.max_estimated_cost_eur),
+        },
+        daily: {
+          maxAgentRuns: positivePolicyNumber(daily.max_agent_runs),
+          maxEstimatedTokens: positivePolicyNumber(daily.max_estimated_tokens),
+          maxEstimatedCostEur: positivePolicyNumber(daily.max_estimated_cost_eur),
+        },
+      },
+    };
   }
 
   workItemDedupKey(input: {
@@ -966,6 +1426,26 @@ export class AiAgentWorkQueueService {
 
   private queuePolicyNumber(definition: AiAgentDefinition, key: string, fallback: number, min: number, max: number): number {
     return numberFromPolicy(policyObject(definition.queue_policy_json)[key], fallback, min, max);
+  }
+
+  agentPriority(definition: AiAgentDefinition): number {
+    return numberFromPolicy(definition.agent_priority, 100, 0, 1000);
+  }
+
+  reviewCooldownSeconds(definition: AiAgentDefinition): number {
+    return this.queuePolicyNumber(definition, 'review_cooldown_seconds', DEFAULT_REVIEW_COOLDOWN_SECONDS, 60, 30 * 24 * 60 * 60);
+  }
+
+  private targetClaimLeaseSeconds(definition: AiAgentDefinition): number {
+    return this.queuePolicyNumber(definition, 'claim_lease_seconds', DEFAULT_TARGET_CLAIM_LEASE_SECONDS, 30, 24 * 60 * 60);
+  }
+
+  private onConflict(definition: AiAgentDefinition): 'defer' | 'supersede' {
+    return policyObject(definition.queue_policy_json).on_conflict === 'supersede' ? 'supersede' : 'defer';
+  }
+
+  scheduleNextReviewAt(definition: AiAgentDefinition, now = new Date()): Date {
+    return new Date(now.getTime() + this.reviewCooldownSeconds(definition) * 1000);
   }
 
   private retryCooldownSeconds(definition: AiAgentDefinition, attemptCount: number): number {
@@ -991,6 +1471,7 @@ export class AiAgentWorkQueueService {
       workItem.leased_until = null;
       workItem.updated_at = new Date();
       await this.workItemRepo(context).save(workItem);
+      await this.releaseWorkItemTargetClaim(context, workItem, 'waiting_approval_without_actions_resolved');
       return null;
     }
     const linked = await this.actionRepo(context).find({
@@ -1005,9 +1486,37 @@ export class AiAgentWorkQueueService {
       workItem.leased_until = null;
       workItem.updated_at = new Date();
       await this.workItemRepo(context).save(workItem);
+      await this.releaseWorkItemTargetClaim(context, workItem, 'waiting_approval_actions_terminal');
       return null;
     }
     return workItem;
+  }
+
+  async resolveWaitingApprovalForActionRequest(
+    context: AiExecutionContextWithManager,
+    actionRequestId: string,
+  ): Promise<AiAgentWorkItem | null> {
+    const action = await this.actionRepo(context).findOne({
+      where: {
+        tenant_id: context.tenantId,
+        id: actionRequestId,
+      },
+    });
+    const metadata = action && isRecord(action.metadata_json) ? action.metadata_json : {};
+    const workItemId = typeof metadata.agent_work_item_id === 'string' ? metadata.agent_work_item_id : null;
+    if (!workItemId) {
+      return null;
+    }
+    const workItem = await this.workItemRepo(context).findOne({
+      where: {
+        tenant_id: context.tenantId,
+        id: workItemId,
+      },
+    });
+    if (!workItem) {
+      return null;
+    }
+    return this.refreshResolvedWaitingApproval(context, workItem);
   }
 
   private async findActiveWorkItem(
@@ -1119,7 +1628,7 @@ export class AiAgentWorkQueueService {
     },
   ): Promise<{ workItem: AiAgentWorkItem; created: boolean }> {
     this.assertHelpdeskGlpiDefinitionRunnable(input.definition, null);
-    this.resolveNewTicketsIngestionConfig(input.definition);
+    this.resolveScopeIngestionConfig(input.definition);
     const targetRef = normalizedTargetRef(input.ticket.id);
     const dedupKey = this.workItemDedupKey({
       agentDefinitionId: input.definition.id,
@@ -1218,6 +1727,31 @@ export class AiAgentWorkQueueService {
     });
     if (!definition) {
       throw new ForbiddenException('Agent work item has no tenant-scoped definition.');
+    }
+    if (
+      workItem.source_provider_kind === 'ticketing'
+      && workItem.source_provider_key === 'glpi'
+      && workItem.source_object_type === 'ticket'
+      && workItem.source_object_ref
+    ) {
+      const claim = await this.acquireTargetClaim(context, {
+        definition,
+        targetRef: workItem.source_object_ref,
+        workItemId: workItem.id,
+        metadata: {
+          source: 'work_item_acquire',
+          lease_owner: options.leaseOwner,
+        },
+        now,
+      });
+      if (!claim.acquired) {
+        workItem.status = 'failed';
+        workItem.last_error = `Target deferred by active claim: ${claim.reason ?? 'claim_conflict'}`;
+        workItem.next_attempt_at = claim.claimExpiresAt ? dateFromUnknown(claim.claimExpiresAt) : new Date(now.getTime() + DEFAULT_COOLDOWN_SECONDS * 1000);
+        workItem.updated_at = now;
+        await repo.save(workItem);
+        throw new ForbiddenException('Agent work item target is currently claimed by another agent.');
+      }
     }
 
     const ttlSeconds = this.queuePolicyNumber(definition, 'lease_ttl_seconds', DEFAULT_LEASE_TTL_SECONDS, 30, 86_400);
@@ -1326,11 +1860,20 @@ export class AiAgentWorkQueueService {
       targetRef: string;
       lastSeenExternalUpdatedAt?: Date | string | null;
       lastProcessedExternalUpdatedAt?: Date | string | null;
+      nextReviewAt?: Date | string | null;
       lastRunId?: string | null;
       internalNoteHash?: string | null;
       publicReplyHash?: string | null;
       agentTouched?: boolean;
       needsFollowup?: boolean;
+      claimStatus?: 'none' | 'claimed' | null;
+      claimExpiresAt?: Date | string | null;
+      claimAcquiredAt?: Date | string | null;
+      claimOwnerWorkItemId?: string | null;
+      claimOwnerRunId?: string | null;
+      claimOwnerPriority?: number | null;
+      claimOwnerActionRequestIds?: string[] | null;
+      claimMetadata?: Record<string, unknown> | null;
       state?: Record<string, unknown> | null;
     },
   ): Promise<AiAgentTargetState> {
@@ -1357,6 +1900,7 @@ export class AiAgentWorkQueueService {
         target_ref: targetRef,
         last_seen_external_updated_at: null,
         last_processed_external_updated_at: null,
+        next_review_at: null,
         last_run_id: null,
         last_public_reply_hash: null,
         last_internal_note_hash: null,
@@ -1364,6 +1908,14 @@ export class AiAgentWorkQueueService {
         last_assignment_hash: null,
         agent_touched: false,
         needs_followup: false,
+        claim_status: 'none',
+        claim_expires_at: null,
+        claim_acquired_at: null,
+        claim_owner_work_item_id: null,
+        claim_owner_run_id: null,
+        claim_owner_priority: null,
+        claim_owner_action_request_ids: null,
+        claim_metadata_json: null,
         state_json: null,
         created_at: now,
         updated_at: now,
@@ -1372,17 +1924,519 @@ export class AiAgentWorkQueueService {
 
     state.last_seen_external_updated_at = dateFromUnknown(input.lastSeenExternalUpdatedAt) ?? state.last_seen_external_updated_at;
     state.last_processed_external_updated_at = dateFromUnknown(input.lastProcessedExternalUpdatedAt) ?? state.last_processed_external_updated_at;
+    if (Object.prototype.hasOwnProperty.call(input, 'nextReviewAt')) {
+      state.next_review_at = dateFromUnknown(input.nextReviewAt) ?? null;
+    }
     state.last_run_id = input.lastRunId ?? state.last_run_id ?? null;
     state.last_internal_note_hash = input.internalNoteHash ?? state.last_internal_note_hash ?? null;
     state.last_public_reply_hash = input.publicReplyHash ?? state.last_public_reply_hash ?? null;
     state.agent_touched = input.agentTouched ?? state.agent_touched;
     state.needs_followup = input.needsFollowup ?? state.needs_followup;
+    if (input.claimStatus === 'none') {
+      state.claim_status = 'none';
+      state.claim_expires_at = null;
+      state.claim_acquired_at = null;
+      state.claim_owner_work_item_id = null;
+      state.claim_owner_run_id = null;
+      state.claim_owner_priority = null;
+      state.claim_owner_action_request_ids = null;
+      state.claim_metadata_json = input.claimMetadata ?? null;
+    } else if (input.claimStatus === 'claimed') {
+      state.claim_status = 'claimed';
+      state.claim_expires_at = dateFromUnknown(input.claimExpiresAt) ?? state.claim_expires_at;
+      state.claim_acquired_at = dateFromUnknown(input.claimAcquiredAt) ?? state.claim_acquired_at ?? now;
+      state.claim_owner_work_item_id = input.claimOwnerWorkItemId ?? state.claim_owner_work_item_id ?? null;
+      state.claim_owner_run_id = input.claimOwnerRunId ?? state.claim_owner_run_id ?? null;
+      state.claim_owner_priority = typeof input.claimOwnerPriority === 'number'
+        ? numberFromPolicy(input.claimOwnerPriority, 100, 0, 1000)
+        : state.claim_owner_priority;
+      if (Array.isArray(input.claimOwnerActionRequestIds)) {
+        state.claim_owner_action_request_ids = Array.from(new Set(input.claimOwnerActionRequestIds.filter((id) => typeof id === 'string' && id.trim().length > 0)));
+      }
+      state.claim_metadata_json = {
+        ...(isRecord(state.claim_metadata_json) ? state.claim_metadata_json : {}),
+        ...(input.claimMetadata ?? {}),
+      };
+    }
     state.state_json = {
       ...(isRecord(state.state_json) ? state.state_json : {}),
       ...(input.state ?? {}),
     };
     state.updated_at = now;
     return repo.save(state);
+  }
+
+  async targetReviewReadiness(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      ticket: { id: string; updatedAt?: string | null; updated_at?: string | null; createdAt?: string | null };
+      now?: Date;
+    },
+  ): Promise<TargetReviewReadiness> {
+    const now = input.now ?? new Date();
+    const targetRef = normalizedTargetRef(input.ticket.id);
+    const repo = this.targetStateRepo(context);
+    const existing = await repo.findOne({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: input.definition.id,
+        provider_kind: 'ticketing',
+        provider_key: 'glpi',
+        target_type: 'ticket',
+        target_ref: targetRef,
+      },
+    });
+    const externalUpdatedAt = dateFromUnknown(input.ticket.updatedAt ?? input.ticket.updated_at ?? input.ticket.createdAt);
+    const processedAt = dateFromUnknown(existing?.last_processed_external_updated_at);
+    const nextReviewAt = dateFromUnknown(existing?.next_review_at);
+    const changed = !!externalUpdatedAt && (!processedAt || externalUpdatedAt.getTime() > processedAt.getTime());
+    const due = !nextReviewAt || nextReviewAt.getTime() <= now.getTime();
+    const ready = !existing || changed || due;
+    const state = await this.upsertTargetState(context, {
+      agentDefinitionId: input.definition.id,
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      targetType: 'ticket',
+      targetRef,
+      lastSeenExternalUpdatedAt: externalUpdatedAt,
+      state: {
+        latest_readiness_checked_at: now.toISOString(),
+        latest_readiness_reason: !existing ? 'first_review' : changed ? 'changed' : due ? 'scheduled' : 'not_due',
+      },
+    });
+    return {
+      state,
+      ready,
+      changed,
+      due,
+      reason: !existing ? 'first_review' : changed ? 'changed' : due ? 'scheduled' : 'not_due',
+    };
+  }
+
+  private claimActive(state: AiAgentTargetState, now = new Date()): boolean {
+    if (state.claim_status !== 'claimed') {
+      return false;
+    }
+    const expiresAt = dateFromUnknown(state.claim_expires_at);
+    return !expiresAt || expiresAt.getTime() > now.getTime();
+  }
+
+  private async activeClaimsForTarget(
+    context: AiExecutionContextWithManager,
+    input: {
+      providerKind: string;
+      providerKey: string;
+      targetType: string;
+      targetRef: string;
+      now?: Date;
+    },
+  ): Promise<AiAgentTargetState[]> {
+    const now = input.now ?? new Date();
+    const rows = await this.targetStateRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        provider_kind: input.providerKind,
+        provider_key: input.providerKey,
+        target_type: input.targetType,
+        target_ref: normalizedTargetRef(input.targetRef),
+        claim_status: 'claimed',
+      },
+    });
+    return rows.filter((row) => this.claimActive(row, now));
+  }
+
+  private async expireClaimOwnerActions(
+    context: AiExecutionContextWithManager,
+    state: AiAgentTargetState,
+    reason: string,
+    now = new Date(),
+    knownActions?: AiActionRequest[],
+  ): Promise<number> {
+    const ids = Array.isArray(state.claim_owner_action_request_ids)
+      ? state.claim_owner_action_request_ids.filter((id) => typeof id === 'string' && id.trim().length > 0)
+      : [];
+    if (ids.length === 0) {
+      return 0;
+    }
+    const actions = knownActions ?? await this.actionRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        id: In(Array.from(new Set(ids))),
+      },
+    });
+    const toSave: AiActionRequest[] = [];
+    for (const action of actions) {
+      if (!activePendingAction(action, now.getTime())) {
+        continue;
+      }
+      action.status = 'expired';
+      action.error_message = reason;
+      action.updated_at = now;
+      action.metadata_json = {
+        ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+        expired_reason: reason,
+        expired_at: now.toISOString(),
+        claim_state_id: state.id,
+      };
+      toSave.push(action);
+    }
+    if (toSave.length > 0) {
+      await this.actionRepo(context).save(toSave);
+    }
+    return toSave.length;
+  }
+
+  async releaseTargetClaim(
+    context: AiExecutionContextWithManager,
+    input: {
+      agentDefinitionId: string;
+      providerKind: string;
+      providerKey: string;
+      targetType: string;
+      targetRef: string;
+      reason: string;
+      onlyWorkItemId?: string | null;
+      expectedClaimExpiresAt?: Date | string | null;
+      expectedClaimOwnerActionRequestIds?: string[] | null;
+      now?: Date;
+    },
+  ): Promise<AiAgentTargetState | null> {
+    const repo = this.targetStateRepo(context);
+    const targetRef = normalizedTargetRef(input.targetRef);
+    const state = await repo.findOne({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: input.agentDefinitionId,
+        provider_kind: input.providerKind,
+        provider_key: input.providerKey,
+        target_type: input.targetType,
+        target_ref: targetRef,
+      },
+    });
+    if (!state || state.claim_status !== 'claimed') {
+      return state;
+    }
+    if (input.onlyWorkItemId && state.claim_owner_work_item_id && state.claim_owner_work_item_id !== input.onlyWorkItemId) {
+      return state;
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'expectedClaimExpiresAt')
+      && !sameNullableTime(state.claim_expires_at, input.expectedClaimExpiresAt)) {
+      return state;
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'expectedClaimOwnerActionRequestIds')
+      && !sameStringSet(state.claim_owner_action_request_ids, input.expectedClaimOwnerActionRequestIds)) {
+      return state;
+    }
+    state.claim_status = 'none';
+    state.claim_expires_at = null;
+    state.claim_acquired_at = null;
+    state.claim_owner_work_item_id = null;
+    state.claim_owner_run_id = null;
+    state.claim_owner_priority = null;
+    state.claim_owner_action_request_ids = null;
+    state.claim_metadata_json = {
+      ...(isRecord(state.claim_metadata_json) ? state.claim_metadata_json : {}),
+      released_reason: input.reason,
+      released_at: (input.now ?? new Date()).toISOString(),
+    };
+    state.updated_at = input.now ?? new Date();
+    return repo.save(state);
+  }
+
+  async releaseWorkItemTargetClaim(
+    context: AiExecutionContextWithManager,
+    workItem: AiAgentWorkItem,
+    reason: string,
+  ): Promise<AiAgentTargetState | null> {
+    if (!workItem.source_provider_kind || !workItem.source_provider_key || !workItem.source_object_type || !workItem.source_object_ref) {
+      return null;
+    }
+    return this.releaseTargetClaim(context, {
+      agentDefinitionId: workItem.agent_definition_id,
+      providerKind: workItem.source_provider_kind,
+      providerKey: workItem.source_provider_key,
+      targetType: workItem.source_object_type,
+      targetRef: workItem.source_object_ref,
+      reason,
+      onlyWorkItemId: workItem.id,
+    });
+  }
+
+  async reconcileTargetClaims(
+    context: AiExecutionContextWithManager,
+    input: {
+      limit?: number;
+      now?: Date;
+      providerKind?: string;
+      providerKey?: string;
+      targetType?: string;
+      targetRef?: string;
+    } = {},
+  ): Promise<{ scanned: number; released: number; expiredActions: number }> {
+    const now = input.now ?? new Date();
+    const repo = this.targetStateRepo(context);
+    const rows = (await repo.find({
+      where: {
+        tenant_id: context.tenantId,
+        ...(input.providerKind ? { provider_kind: input.providerKind } : {}),
+        ...(input.providerKey ? { provider_key: input.providerKey } : {}),
+        ...(input.targetType ? { target_type: input.targetType } : {}),
+        ...(input.targetRef ? { target_ref: normalizedTargetRef(input.targetRef) } : {}),
+        claim_status: 'claimed',
+      },
+      order: { updated_at: 'ASC' },
+      take: Math.max(1, Math.min(Math.floor(input.limit ?? 100), 500)),
+    }));
+    const blockedAgentDefinitionIds = await this.lifecycleBlockedAgentDefinitionIds(
+      context,
+      rows.map((state) => state.agent_definition_id),
+      { now },
+    );
+    const allActionIds = Array.from(new Set(rows.flatMap((state) => Array.isArray(state.claim_owner_action_request_ids)
+      ? state.claim_owner_action_request_ids.filter((id) => typeof id === 'string' && id.trim().length > 0)
+      : [])));
+    const actionsById = new Map<string, AiActionRequest>();
+    if (allActionIds.length > 0) {
+      const actions = await this.actionRepo(context).find({
+        where: { tenant_id: context.tenantId, id: In(allActionIds) },
+      });
+      for (const action of actions) {
+        actionsById.set(action.id, action);
+      }
+    }
+    const workItemIds = Array.from(new Set(rows
+      .map((state) => state.claim_owner_work_item_id)
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
+    const workItemsById = new Map<string, AiAgentWorkItem>();
+    if (workItemIds.length > 0) {
+      const workItems = await this.workItemRepo(context).find({
+        where: { tenant_id: context.tenantId, id: In(workItemIds) },
+      });
+      for (const workItem of workItems) {
+        workItemsById.set(workItem.id, workItem);
+      }
+    }
+    let released = 0;
+    let expiredActions = 0;
+    for (const state of rows) {
+      if (blockedAgentDefinitionIds.has(state.agent_definition_id)) {
+        continue;
+      }
+      let releaseReason: string | null = null;
+      const expiresAt = dateFromUnknown(state.claim_expires_at);
+      if (expiresAt && expiresAt.getTime() <= now.getTime()) {
+        releaseReason = 'claim_lease_expired';
+      }
+
+      const actionIds = Array.isArray(state.claim_owner_action_request_ids)
+        ? state.claim_owner_action_request_ids.filter((id) => typeof id === 'string' && id.trim().length > 0)
+        : [];
+      const ownerActions = actionIds.map((id) => actionsById.get(id)).filter((action): action is AiActionRequest => !!action);
+      if (!releaseReason && actionIds.length > 0) {
+        if (ownerActions.length === 0 || ownerActions.every((action) => !activePendingAction(action, now.getTime()))) {
+          releaseReason = 'claim_owner_actions_terminal';
+        }
+      }
+
+      if (!releaseReason && state.claim_owner_work_item_id) {
+        const workItem = workItemsById.get(state.claim_owner_work_item_id) ?? null;
+        if (workItem && TERMINAL_WORK_ITEM_STATUSES.has(workItem.status)) {
+          releaseReason = 'claim_owner_work_item_terminal';
+        }
+      }
+
+      if (!releaseReason) {
+        continue;
+      }
+      if (releaseReason === 'claim_lease_expired') {
+        expiredActions += await this.expireClaimOwnerActions(context, state, 'Claim lease expired before the proposal was reviewed.', now, ownerActions);
+      }
+      const releasedState = await this.releaseTargetClaim(context, {
+        agentDefinitionId: state.agent_definition_id,
+        providerKind: state.provider_kind,
+        providerKey: state.provider_key,
+        targetType: state.target_type,
+        targetRef: state.target_ref,
+        reason: releaseReason,
+        expectedClaimExpiresAt: state.claim_expires_at,
+        expectedClaimOwnerActionRequestIds: state.claim_owner_action_request_ids,
+        now,
+      });
+      if (releasedState?.claim_status === 'none') {
+        released += 1;
+      }
+    }
+    return { scanned: rows.length, released, expiredActions };
+  }
+
+  async acquireTargetClaim(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      providerKind?: string;
+      providerKey?: string;
+      targetType?: string;
+      targetRef: string;
+      workItemId?: string | null;
+      runId?: string | null;
+      metadata?: Record<string, unknown> | null;
+      now?: Date;
+    },
+  ): Promise<TargetClaimAcquireResult> {
+    const now = input.now ?? new Date();
+    const providerKind = input.providerKind ?? 'ticketing';
+    const providerKey = input.providerKey ?? 'glpi';
+    const targetType = input.targetType ?? 'ticket';
+    const targetRef = normalizedTargetRef(input.targetRef);
+    await this.reconcileTargetClaims(context, {
+      providerKind,
+      providerKey,
+      targetType,
+      targetRef,
+      now,
+      limit: 50,
+    });
+
+    const newPriority = this.agentPriority(input.definition);
+    const activeClaims = await this.activeClaimsForTarget(context, {
+      providerKind,
+      providerKey,
+      targetType,
+      targetRef,
+      now,
+    });
+    const foreignClaims = activeClaims.filter((claim) => claim.agent_definition_id !== input.definition.id);
+    if (foreignClaims.length > 0) {
+      const strongest = [...foreignClaims].sort((left, right) => (right.claim_owner_priority ?? 100) - (left.claim_owner_priority ?? 100))[0];
+      const ownerPriority = strongest.claim_owner_priority ?? 100;
+      const shouldSupersede = newPriority > ownerPriority || (newPriority === ownerPriority && this.onConflict(input.definition) === 'supersede');
+      if (!shouldSupersede) {
+        return {
+          acquired: false,
+          status: 'deferred',
+          state: strongest,
+          ownerAgentDefinitionId: strongest.agent_definition_id,
+          ownerPriority,
+          ownerWorkItemId: strongest.claim_owner_work_item_id,
+          claimExpiresAt: toIsoDate(strongest.claim_expires_at),
+          reason: newPriority < ownerPriority ? 'lower_priority_claim_active' : 'equal_priority_claim_active',
+        };
+      }
+      for (const claim of foreignClaims) {
+        await this.expireClaimOwnerActions(context, claim, 'Claim was superseded by a higher-priority or superseding agent.', now);
+        await this.releaseTargetClaim(context, {
+          agentDefinitionId: claim.agent_definition_id,
+          providerKind,
+          providerKey,
+          targetType,
+          targetRef,
+          reason: 'claim_superseded',
+          now,
+        });
+      }
+    }
+
+    try {
+      const state = await this.upsertTargetState(context, {
+        agentDefinitionId: input.definition.id,
+        providerKind,
+        providerKey,
+        targetType,
+        targetRef,
+        claimStatus: 'claimed',
+        claimExpiresAt: new Date(now.getTime() + this.targetClaimLeaseSeconds(input.definition) * 1000),
+        claimAcquiredAt: now,
+        claimOwnerWorkItemId: input.workItemId ?? null,
+        claimOwnerRunId: input.runId ?? null,
+        claimOwnerPriority: newPriority,
+        claimMetadata: {
+          ...(input.metadata ?? {}),
+          acquired_at: now.toISOString(),
+        },
+      });
+      return {
+        acquired: true,
+        status: foreignClaims.length > 0 ? 'superseded' : 'claimed',
+        state,
+        ownerAgentDefinitionId: input.definition.id,
+        ownerPriority: newPriority,
+        ownerWorkItemId: input.workItemId ?? null,
+        claimExpiresAt: toIsoDate(state.claim_expires_at),
+      };
+    } catch (error) {
+      const code = (error as { code?: string; driverError?: { code?: string } })?.code
+        ?? (error as { driverError?: { code?: string } })?.driverError?.code;
+      if (code !== '23505') {
+        throw error;
+      }
+      const claims = await this.activeClaimsForTarget(context, {
+        providerKind,
+        providerKey,
+        targetType,
+        targetRef,
+        now,
+      });
+      const owner = claims.find((claim) => claim.agent_definition_id !== input.definition.id) ?? claims[0] ?? null;
+      return {
+        acquired: false,
+        status: 'deferred',
+        state: owner,
+        ownerAgentDefinitionId: owner?.agent_definition_id ?? null,
+        ownerPriority: owner?.claim_owner_priority ?? null,
+        ownerWorkItemId: owner?.claim_owner_work_item_id ?? null,
+        claimExpiresAt: owner ? toIsoDate(owner.claim_expires_at) : null,
+        reason: 'concurrent_claim_conflict',
+      };
+    }
+  }
+
+  async holdTargetClaimForPendingProposals(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      workItem: AiAgentWorkItem;
+      actionRequestIds: string[];
+      runId?: string | null;
+      now?: Date;
+    },
+  ): Promise<AiAgentTargetState | null> {
+    const ids = Array.from(new Set(input.actionRequestIds.filter((id) => typeof id === 'string' && id.trim().length > 0)));
+    if (!input.workItem.source_object_ref) {
+      return null;
+    }
+    const now = input.now ?? new Date();
+    const actions = ids.length > 0
+      ? await this.actionRepo(context).find({
+        where: {
+          tenant_id: context.tenantId,
+          id: In(ids),
+        },
+      })
+      : [];
+    const active = actions.filter((action) => activePendingAction(action, now.getTime()));
+    const maxExpiry = active
+      .map((action) => dateFromUnknown(action.expires_at))
+      .filter((date): date is Date => !!date)
+      .sort((left, right) => right.getTime() - left.getTime())[0] ?? null;
+    const claimExpiry = maxExpiry ?? new Date(now.getTime() + this.reviewCooldownSeconds(input.definition) * 1000);
+    return this.upsertTargetState(context, {
+      agentDefinitionId: input.definition.id,
+      providerKind: input.workItem.source_provider_kind,
+      providerKey: input.workItem.source_provider_key,
+      targetType: input.workItem.source_object_type,
+      targetRef: input.workItem.source_object_ref,
+      claimStatus: 'claimed',
+      claimExpiresAt: claimExpiry,
+      claimOwnerWorkItemId: input.workItem.id,
+      claimOwnerRunId: input.runId ?? input.workItem.last_run_id ?? null,
+      claimOwnerPriority: this.agentPriority(input.definition),
+      claimOwnerActionRequestIds: active.map((action) => action.id),
+      claimMetadata: {
+        held_for_pending_proposals_at: now.toISOString(),
+        pending_action_count: active.length,
+      },
+    });
   }
 
   async recordManualGlpiTriageOutcome(
@@ -1422,6 +2476,7 @@ export class AiAgentWorkQueueService {
       targetRef: input.ticket.id,
       lastSeenExternalUpdatedAt: externalUpdatedAt,
       lastProcessedExternalUpdatedAt: externalUpdatedAt,
+      nextReviewAt: this.scheduleNextReviewAt(input.definition),
       lastRunId: input.runId,
       internalNoteHash: actionBodyHash(internalAction),
       publicReplyHash: actionBodyHash(publicAction),
@@ -1436,7 +2491,8 @@ export class AiAgentWorkQueueService {
       },
     });
 
-    const workItem = uniqueActionIds.length > 0
+    const hasActivePendingActions = actions.some(activePendingAction);
+    const workItem = hasActivePendingActions
       ? await this.markWaitingApproval(context, input.workItem, {
         runId: input.runId,
         actionRequestIds: uniqueActionIds,
@@ -1455,6 +2511,17 @@ export class AiAgentWorkQueueService {
           ...(input.metadata ?? {}),
         },
       });
+
+    if (hasActivePendingActions) {
+      await this.holdTargetClaimForPendingProposals(context, {
+        definition: input.definition,
+        workItem,
+        actionRequestIds: uniqueActionIds,
+        runId: input.runId,
+      });
+    } else {
+      await this.releaseWorkItemTargetClaim(context, workItem, 'review_completed_without_pending_proposals');
+    }
 
     return { workItem, targetState };
   }
@@ -1483,13 +2550,20 @@ export class AiAgentWorkQueueService {
     }));
   }
 
-  async hasActiveEmergencyPause(context: AiExecutionContextWithManager): Promise<AiEmergencyPause | null> {
-    const pauses = await this.pauseRepo(context).find({
-      where: {
-        tenant_id: context.tenantId,
-        active: true,
-      },
-    });
+  async hasActiveEmergencyPause(
+    context: AiExecutionContextWithManager,
+    agentDefinitionId: string | null = null,
+  ): Promise<AiEmergencyPause | null> {
+    const query = this.pauseRepo(context).createQueryBuilder('pause')
+      .where('(pause.tenant_id = :tenantId OR pause.tenant_id IS NULL)', { tenantId: context.tenantId })
+      .andWhere('pause.active = true')
+      .orderBy('pause.created_at', 'DESC');
+    if (agentDefinitionId) {
+      query.andWhere('(pause.agent_definition_id IS NULL OR pause.agent_definition_id = :agentDefinitionId)', { agentDefinitionId });
+    } else {
+      query.andWhere('pause.agent_definition_id IS NULL');
+    }
+    const pauses = await query.getMany();
     const now = Date.now();
     return pauses.find((pause) => {
       const expiresAt = dateFromUnknown(pause.expires_at);
@@ -1543,6 +2617,38 @@ export class AiAgentWorkQueueService {
     };
   }
 
+  async lifecycleBlockedAgentDefinitionIds(
+    context: AiExecutionContextWithManager,
+    agentDefinitionIds: string[],
+    opts: { now?: Date } = {},
+  ): Promise<Set<string>> {
+    const ids = Array.from(new Set(agentDefinitionIds.filter((id) => typeof id === 'string' && id.trim().length > 0)));
+    const blocked = new Set<string>();
+    if (ids.length === 0) {
+      return blocked;
+    }
+    const definitions = await this.definitionRepo(context).find({
+      where: { tenant_id: context.tenantId, id: In(ids) },
+    });
+    for (const definition of definitions) {
+      const pause = await this.hasActiveEmergencyPause(context, definition.id);
+      if (pause) {
+        blocked.add(definition.id);
+        continue;
+      }
+      try {
+        const daily = await this.dailyUsageSummary(context, definition, opts.now ?? new Date());
+        if (daily.reached) {
+          blocked.add(definition.id);
+        }
+      } catch {
+        // Missing guardrails means there is no configured daily cap to honor for
+        // no-provider lifecycle cleanup; ingestion still enforces guardrails.
+      }
+    }
+    return blocked;
+  }
+
   async assertDailyCapAvailable(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
@@ -1590,6 +2696,19 @@ export class AiAgentWorkQueueService {
     definition: AiAgentDefinition,
     now = new Date(),
   ): Promise<HelpdeskGlpiAgentSummary['evaluation']> {
+    return this.computeHelpdeskEvaluation(context, [definition.id], now);
+  }
+
+  // Pooled evaluation metrics across one or more agent definitions. Per-agent
+  // callers pass a single id; the fleet header passes every helpdesk agent id so
+  // acceptance and cost-per-ticket are pooled from raw data, not averaged ratios.
+  private async computeHelpdeskEvaluation(
+    context: AiExecutionContextWithManager,
+    definitionIds: string[],
+    now = new Date(),
+  ): Promise<HelpdeskGlpiAgentSummary['evaluation']> {
+    const idSet = new Set(definitionIds);
+    const inScope = (id: string | null): boolean => id != null && idSet.has(id);
     const windowEnd = now;
     const windowStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const [actions, runs, targetStates] = await Promise.all([
@@ -1605,16 +2724,18 @@ export class AiAgentWorkQueueService {
           tenant_id: context.tenantId,
         },
       }),
-      this.targetStateRepo(context).find({
-        where: {
-          tenant_id: context.tenantId,
-          agent_definition_id: definition.id,
-        },
-      }),
+      definitionIds.length > 0
+        ? this.targetStateRepo(context).find({
+          where: {
+            tenant_id: context.tenantId,
+            agent_definition_id: In(definitionIds),
+          },
+        })
+        : Promise.resolve([]),
     ]);
     const relevantActions = actions.filter((action) =>
       HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name)
-      && definitionIdFromMetadata(action.metadata_json) === definition.id
+      && inScope(definitionIdFromMetadata(action.metadata_json))
       && isWithinWindow(action.created_at, windowStart, windowEnd),
     );
     const proposalsByActionClass: Record<string, number> = {};
@@ -1643,7 +2764,7 @@ export class AiAgentWorkQueueService {
     }
 
     const relevantRuns = runs.filter((run) =>
-      definitionIdFromMetadata(run.metadata_json) === definition.id
+      inScope(definitionIdFromMetadata(run.metadata_json))
       && isWithinWindow(run.created_at ?? run.started_at, windowStart, windowEnd),
     );
     const usage = { tokens: 0, cost: 0 };
@@ -1683,21 +2804,32 @@ export class AiAgentWorkQueueService {
   ): Promise<HelpdeskGlpiAgentSummary> {
     let ingestionConfig: HelpdeskNewTicketsIngestionConfig | null = null;
     try {
-      ingestionConfig = this.resolveNewTicketsIngestionConfig(definition);
+      ingestionConfig = this.resolveScopeIngestionConfig(definition);
     } catch {
       ingestionConfig = null;
     }
     const ingestionState = policyObject(policyObject(definition.metadata_json).helpdesk_ingestion_state);
+    const metadataPauseReason = stringFromPolicy(ingestionState.reason);
+    const activePause = await this.hasActiveEmergencyPause(context, definition.id);
     const daily = dailyGuardrailCapsFromDefinition(definition)
       ? await this.dailyUsageSummary(context, definition)
       : null;
+    const emergencyPause = activePause ? {
+      id: activePause.id,
+      active: activePause.active,
+      scope: activePause.scope ?? null,
+      agent_definition_id: activePause.agent_definition_id ?? null,
+      reason: activePause.reason,
+      created_at: activePause.created_at ? new Date(activePause.created_at).toISOString() : null,
+      expires_at: activePause.expires_at ? new Date(activePause.expires_at).toISOString() : null,
+    } : null;
     return {
       agentDefinitionId: definition.id,
       ingestion: {
         enabled: !!ingestionConfig,
-        mode: ingestionConfig ? 'new_tickets_only' : 'disabled',
-        paused: stringFromPolicy(ingestionState.status) === 'paused',
-        pauseReason: stringFromPolicy(ingestionState.reason),
+        mode: ingestionConfig ? ingestionConfig.mode : 'disabled',
+        paused: stringFromPolicy(ingestionState.status) === 'paused' || !!emergencyPause,
+        pauseReason: emergencyPause?.reason ?? metadataPauseReason,
         enabledAt: ingestionConfig?.enabledAt ?? null,
         createdAfter: ingestionConfig?.createdAfter ?? null,
         entityId: ingestionConfig?.entityId ?? null,
@@ -1713,6 +2845,7 @@ export class AiAgentWorkQueueService {
         perRun: runGuardrailsFromDefinition(definition),
         daily,
       },
+      emergencyPause,
       evaluation: await this.helpdeskEvaluationSummary(context, definition),
     };
   }
@@ -1747,39 +2880,58 @@ export class AiAgentWorkQueueService {
       acc[item.status] = (acc[item.status] ?? 0) + 1;
       return acc;
     }, {});
-    const helpdeskDefinition = definitions.find((definition) => definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY) ?? null;
-    const auditEvents = helpdeskDefinition
-      ? (await this.auditRepo(context).find({
-        where: {
-          tenant_id: context.tenantId,
-          agent_definition_id: helpdeskDefinition.id,
-        },
-      }))
-        .sort((left, right) => {
-          const leftTime = left.created_at instanceof Date ? left.created_at.getTime() : Date.parse(String(left.created_at ?? ''));
-          const rightTime = right.created_at instanceof Date ? right.created_at.getTime() : Date.parse(String(right.created_at ?? ''));
-          return rightTime - leftTime;
-        })
-        .slice(0, 10)
-      : [];
+    const helpdeskDefinitions = definitions.filter((definition) => definition.agent_type === 'helpdesk');
+    const helpdeskDefinition = helpdeskDefinitions.find((definition) => definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY)
+      ?? helpdeskDefinitions[0]
+      ?? null;
+    const helpdeskDefinitionIds = helpdeskDefinitions.map((definition) => definition.id);
+    // Scope, order, and limit in SQL instead of loading every tenant audit event and
+    // filtering/sorting in memory (which scaled with total history, not the 20 returned).
+    const auditEvents = helpdeskDefinitionIds.length === 0
+      ? []
+      : await this.auditRepo(context).find({
+        where: { tenant_id: context.tenantId, agent_definition_id: In(helpdeskDefinitionIds) },
+        order: { created_at: 'DESC' },
+        take: 20,
+      });
+    const helpdeskSummaries = await Promise.all(helpdeskDefinitions.map((definition) => this.helpdeskSummary(context, definition)));
+    // Fleet header aggregate: pooled across every helpdesk agent so it represents
+    // the whole fleet, not the built-in agent's summary used as a proxy.
+    const fleet = helpdeskDefinitionIds.length > 0
+      ? await this.computeHelpdeskEvaluation(context, helpdeskDefinitionIds)
+      : null;
     return {
       definitions,
       workItems,
       targetStates,
       counts,
       helpdesk: {
-        summary: helpdeskDefinition ? await this.helpdeskSummary(context, helpdeskDefinition) : null,
+        summary: helpdeskDefinition
+          ? helpdeskSummaries.find((summary) => summary.agentDefinitionId === helpdeskDefinition.id) ?? null
+          : null,
+        summaries: helpdeskSummaries,
+        fleet,
         auditEvents,
       },
     };
   }
 
   agentExecutionMetadata(definition: AiAgentDefinition, workItem: AiAgentWorkItem): Record<string, unknown> {
+    const queuePolicy = policyObject(definition.queue_policy_json);
     return {
       agent_definition_id: definition.id,
       agent_key: definition.agent_key,
       agent_type: definition.agent_type,
       agent_environment: definition.environment,
+      agent_config_version: definition.config_version ?? 1,
+      agent_updated_by_user_id: definition.updated_by_user_id ?? null,
+      agent_priority: this.agentPriority(definition),
+      review_cooldown_seconds: this.reviewCooldownSeconds(definition),
+      on_conflict: this.onConflict(definition),
+      approval_ttl_seconds_by_action_class: normalizeApprovalTtlSecondsByActionClass(queuePolicy.approval_ttl_seconds_by_action_class),
+      on_stale_by_action_class: isRecord(queuePolicy.on_stale_by_action_class)
+        ? queuePolicy.on_stale_by_action_class
+        : null,
       agent_work_item_id: workItem.id,
       agent_work_kind: workItem.work_kind,
       agent_work_status: workItem.status,

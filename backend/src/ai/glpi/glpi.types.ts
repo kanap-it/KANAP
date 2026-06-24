@@ -8,6 +8,9 @@ export type GlpiSession = {
   baseUrl: string;
   sessionToken: string;
   appToken: string | null;
+  // GLPI users_id of the account owning the user token (the "agent" identity).
+  // Resolved from getFullSession; null when it could not be determined.
+  agentUserId?: number | null;
 };
 
 export type GlpiTicket = {
@@ -25,11 +28,32 @@ export type GlpiTicket = {
   glpi_url: string;
 };
 
-export type GlpiTicketListScope = {
-  createdAfter: string;
-  maxResults: number;
-  entityId?: number | null;
-  categoryId?: number | null;
+export type GlpiTicketListScope =
+  | {
+      mode?: 'new_tickets_only';
+      createdAfter: string;
+      maxResults: number;
+      statusValues?: string[];
+      entityId?: number | null;
+      categoryId?: number | null;
+    }
+  | {
+      // All currently-open tickets (status 1-4), bounded by per-cycle caps and an
+      // optional last-changed (date_mod) window. Oldest-changed first.
+      mode: 'all_open';
+      maxResults: number;
+      statusValues?: string[];
+      entityId?: number | null;
+      categoryId?: number | null;
+      lastChangedBefore?: string | null;
+      lastChangedAfter?: string | null;
+    };
+
+export type GlpiReferenceItem = {
+  id: number;
+  name: string | null;
+  completename: string | null;
+  parent_id?: number | null;
 };
 
 export type GlpiTicketFollowup = {

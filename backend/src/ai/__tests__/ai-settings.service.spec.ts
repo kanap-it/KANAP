@@ -17,7 +17,6 @@ function createMockSettings(overrides?: Partial<AiSettings>): AiSettings {
     mcp_key_max_lifetime_days: null,
     conversation_retention_days: null,
     web_search_enabled: false,
-    web_enrichment_enabled: false,
     glpi_enabled: false,
     glpi_url: null,
     glpi_user_token_encrypted: null,
@@ -90,41 +89,6 @@ async function testAcceptsWebSearchWhenEnvVarPresent() {
   }
 }
 
-async function testEnrichmentWithoutSearchThrows() {
-  const original = Features.AI_WEB_SEARCH_READY;
-  try {
-    (Features as any).AI_WEB_SEARCH_READY = true;
-    const service = createService(createMockSettings({ web_search_enabled: false }));
-
-    await assert.rejects(
-      () => service.update('tenant-1', { web_enrichment_enabled: true }),
-      (error: any) => {
-        const msg = error.message || error.response?.message || '';
-        return msg.includes('web search') || msg.includes('Web enrichment');
-      },
-    );
-  } finally {
-    (Features as any).AI_WEB_SEARCH_READY = original;
-  }
-}
-
-async function testDisablingSearchCascadesEnrichment() {
-  const original = Features.AI_WEB_SEARCH_READY;
-  try {
-    (Features as any).AI_WEB_SEARCH_READY = true;
-    const service = createService(createMockSettings({
-      web_search_enabled: true,
-      web_enrichment_enabled: true,
-    }));
-
-    const result = await service.update('tenant-1', { web_search_enabled: false });
-    assert.equal(result.web_search_enabled, false);
-    assert.equal(result.web_enrichment_enabled, false);
-  } finally {
-    (Features as any).AI_WEB_SEARCH_READY = original;
-  }
-}
-
 async function testUnrelatedSaveDoesNotBlockWhenEnvVarRemoved() {
   const original = Features.AI_WEB_SEARCH_READY;
   try {
@@ -132,7 +96,6 @@ async function testUnrelatedSaveDoesNotBlockWhenEnvVarRemoved() {
     (Features as any).AI_WEB_SEARCH_READY = false;
     const service = createService(createMockSettings({
       web_search_enabled: true,
-      web_enrichment_enabled: true,
     }));
 
     // Changing an unrelated field should not fail
@@ -202,8 +165,6 @@ async function testGlpiUrlNormalizesApiEndpointToBaseUrl() {
 async function run() {
   await testRejectsWebSearchWhenEnvVarAbsent();
   await testAcceptsWebSearchWhenEnvVarPresent();
-  await testEnrichmentWithoutSearchThrows();
-  await testDisablingSearchCascadesEnrichment();
   await testUnrelatedSaveDoesNotBlockWhenEnvVarRemoved();
   await testEnablingGlpiRequiresUrlAndToken();
   await testGlpiSecretsAreStoredEncryptedAndHiddenInView();

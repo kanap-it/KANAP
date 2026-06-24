@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiMutationPreview } from '../ai-mutation-preview.entity';
 import { AiActionRequestService } from './action-request/ai-action-request.service';
+import { AiAgentApprovalLifecycleSweeperService } from './agent/ai-agent-approval-lifecycle-sweeper.service';
 import { AiAgentWorkQueueService } from './agent/ai-agent-work-queue.service';
 import { AiApprovalService } from './approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from './automation/ai-automation-job-catalog.service';
@@ -80,6 +81,7 @@ import { AiTenantSecretResolverService } from './providers/tenant-secret-resolve
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentApprovalLifecycleSweeperService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
@@ -102,6 +104,7 @@ import { AiTenantSecretResolverService } from './providers/tenant-secret-resolve
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentApprovalLifecycleSweeperService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,

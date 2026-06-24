@@ -65,7 +65,10 @@ import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
 import { AiActionRequestService } from './control-plane/action-request/ai-action-request.service';
 import { AiAgentControlController } from './control-plane/agent-control/ai-agent-control.controller';
 import { AiAgentControlService } from './control-plane/agent-control/ai-agent-control.service';
+import { AiAgentLlmClient } from './control-plane/agent-control/ai-agent-llm-client';
 import { AiKnowledgeSearchPlannerService } from './control-plane/agent-control/ai-knowledge-search-planner.service';
+import { AiReplySynthesisService } from './control-plane/agent-control/ai-reply-synthesis.service';
+import { AiAgentApprovalLifecycleSweeperService } from './control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import { AiAgentHelpdeskGlpiIngestionService } from './control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
 import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
 import { AiApprovalService } from './control-plane/approval/ai-approval.service';
@@ -266,6 +269,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentApprovalLifecycleSweeperService,
     AiAgentHelpdeskGlpiIngestionService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
@@ -288,7 +292,9 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiTenantSecretResolverService,
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
+    AiAgentLlmClient,
     AiKnowledgeSearchPlannerService,
+    AiReplySynthesisService,
     AiAgentControlService,
     BraveSearchService,
     McpApiKeyAuthGuard,
@@ -313,6 +319,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityRegistry,
     AiCapabilityDispatcherService,
     AiEvidenceService,
+    AiAgentApprovalLifecycleSweeperService,
     AiAgentHelpdeskGlpiIngestionService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
@@ -335,7 +342,9 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiTenantSecretResolverService,
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
+    AiAgentLlmClient,
     AiKnowledgeSearchPlannerService,
+    AiReplySynthesisService,
     AiAgentControlService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,

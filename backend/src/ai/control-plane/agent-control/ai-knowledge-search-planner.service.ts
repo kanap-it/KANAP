@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
-import { AiSecretCipherService } from '../../ai-secret-cipher.service';
-import { AiSettingsService } from '../../ai-settings.service';
-import { PlatformAiConfigService } from '../../platform/platform-ai-config.service';
-import { AiProviderRegistry } from '../../providers/ai-provider-registry.service';
-import { AiProviderAdapter, AiStreamEvent } from '../../providers/ai-provider.types';
+import { AiAgentLlmClient, stripJsonFence } from './ai-agent-llm-client';
 
 export type KnowledgePlannerTicket = {
   id: string;
@@ -56,15 +52,6 @@ export type KnowledgeResultInterpretation = {
   warnings: string[];
 };
 
-type ProviderRuntime = {
-  source: 'builtin' | 'custom';
-  provider: AiProviderAdapter;
-  providerId: string;
-  model: string;
-  apiKey: string | null;
-  endpointUrl: string | null;
-};
-
 const MAX_PLAN_QUERIES = 10;
 const MAX_QUERY_CHARS = 120;
 const MAX_TERMS = 10;
@@ -90,11 +77,6 @@ const ResultInterpretationSchema = z.object({
   confidence: z.number().min(0).max(1).nullable().optional(),
   rationale: z.string().trim().max(420).nullable().optional(),
 });
-
-function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
-  const parsed = Number.parseInt(String(value ?? '').trim(), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
 
 function normalizeText(value: unknown): string {
   return String(value ?? '')
@@ -132,18 +114,6 @@ function uniqueStrings(values: Array<string | null | undefined>, max = 50): stri
 function boundedConfidence(value: number | null | undefined): number | null {
   if (!Number.isFinite(value ?? NaN)) return null;
   return Math.max(0, Math.min(1, Number(value)));
-}
-
-function stripJsonFence(value: string): string {
-  const trimmed = value.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  if (fenced) return fenced[1].trim();
-  const firstBrace = trimmed.indexOf('{');
-  const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return trimmed.slice(firstBrace, lastBrace + 1);
-  }
-  return trimmed;
 }
 
 function extractTermsFromLatestMessage(latestRequesterMessage: string | null): {
@@ -274,10 +244,7 @@ export class AiKnowledgeSearchPlannerService {
   private readonly logger = new Logger(AiKnowledgeSearchPlannerService.name);
 
   constructor(
-    private readonly settings: AiSettingsService,
-    private readonly cipher: AiSecretCipherService,
-    private readonly providerRegistry: AiProviderRegistry,
-    private readonly platformAiConfig: PlatformAiConfigService,
+    private readonly llmClient: AiAgentLlmClient,
   ) {}
 
   async planKnowledgeSearch(
@@ -293,9 +260,7 @@ export class AiKnowledgeSearchPlannerService {
     }
 
     try {
-      const runtime = await this.resolveRuntime(context);
-      if (!runtime) return fallback;
-      const payload = await this.callJsonModel(runtime, {
+      const result = await this.llmClient.callJsonModel(context, {
         systemPrompt: [
           'You plan internal KANAP knowledge-base searches for a helpdesk triage agent.',
           'Return only compact JSON matching the requested schema.',
@@ -333,8 +298,11 @@ export class AiKnowledgeSearchPlannerService {
           })),
         },
         maxTokens: 1200,
+        timeoutEnvName: 'AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS',
+        defaultTimeoutMs: DEFAULT_LLM_TIMEOUT_MS,
       });
-      const parsed = SearchPlanSchema.parse(JSON.parse(stripJsonFence(payload)));
+      if (!result) return fallback;
+      const parsed = SearchPlanSchema.parse(JSON.parse(stripJsonFence(result.text)));
       const queries = normalizeQueries([
         ...(parsed.queries ?? []).slice(0, 5),
         ...fallback.queries,
@@ -349,7 +317,7 @@ export class AiKnowledgeSearchPlannerService {
         queries,
         rationale: parsed.rationale ?? null,
         confidence: boundedConfidence(parsed.confidence),
-        model: `${runtime.providerId}:${runtime.model}`,
+        model: `${result.runtime.providerId}:${result.runtime.model}`,
         warnings: fallback.warnings,
       };
     } catch (error) {
@@ -378,9 +346,7 @@ export class AiKnowledgeSearchPlannerService {
     }
 
     try {
-      const runtime = await this.resolveRuntime(context);
-      if (!runtime) return fallback;
-      const payload = await this.callJsonModel(runtime, {
+      const result = await this.llmClient.callJsonModel(context, {
         systemPrompt: [
           'You interpret internal KANAP knowledge search results for a helpdesk triage agent.',
           'Return only compact JSON matching the requested schema.',
@@ -421,8 +387,11 @@ export class AiKnowledgeSearchPlannerService {
           })),
         },
         maxTokens: 1200,
+        timeoutEnvName: 'AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS',
+        defaultTimeoutMs: DEFAULT_LLM_TIMEOUT_MS,
       });
-      const parsed = ResultInterpretationSchema.parse(JSON.parse(stripJsonFence(payload)));
+      if (!result) return fallback;
+      const parsed = ResultInterpretationSchema.parse(JSON.parse(stripJsonFence(result.text)));
       const knownRefs = new Set(input.candidates.map(candidateRef).filter((ref): ref is string => !!ref));
       const selectedRefs = uniqueStrings(parsed.selected_refs, 3).filter((ref) => knownRefs.has(ref));
       const rejected = (parsed.rejected ?? [])
@@ -435,7 +404,7 @@ export class AiKnowledgeSearchPlannerService {
         needs_human_review: parsed.needs_human_review ?? selectedRefs.length === 0,
         confidence: boundedConfidence(parsed.confidence),
         rationale: parsed.rationale ?? null,
-        model: `${runtime.providerId}:${runtime.model}`,
+        model: `${result.runtime.providerId}:${result.runtime.model}`,
         warnings: fallback.warnings,
       };
     } catch (error) {
@@ -521,92 +490,4 @@ export class AiKnowledgeSearchPlannerService {
     };
   }
 
-  private async resolveRuntime(context: AiExecutionContextWithManager): Promise<ProviderRuntime | null> {
-    const settings = await this.settings.get(context.tenantId, { manager: context.manager });
-    const source = this.settings.getEffectiveProviderSource(settings);
-    if (source === 'builtin') {
-      const runtime = await this.platformAiConfig.getRuntimeConfig();
-      const provider = this.providerRegistry.get(runtime.provider);
-      if (!provider) return null;
-      return {
-        source,
-        provider,
-        providerId: runtime.provider,
-        model: runtime.model,
-        apiKey: runtime.apiKey,
-        endpointUrl: runtime.endpoint_url,
-      };
-    }
-
-    if (!settings.llm_provider || !settings.llm_model || !settings.llm_api_key_encrypted) {
-      return null;
-    }
-    const provider = this.providerRegistry.get(settings.llm_provider);
-    if (!provider) return null;
-    return {
-      source,
-      provider,
-      providerId: settings.llm_provider,
-      model: settings.llm_model,
-      apiKey: this.cipher.decrypt(settings.llm_api_key_encrypted),
-      endpointUrl: settings.llm_endpoint_url,
-    };
-  }
-
-  private async callJsonModel(
-    runtime: ProviderRuntime,
-    input: {
-      systemPrompt: string;
-      userPayload: Record<string, unknown>;
-      maxTokens: number;
-    },
-  ): Promise<string> {
-    const timeoutMs = parsePositiveIntEnv(process.env.AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS, DEFAULT_LLM_TIMEOUT_MS);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    let text = '';
-    try {
-      const stream = runtime.provider.createStream({
-        providerId: runtime.providerId as any,
-        model: runtime.model,
-        apiKey: runtime.apiKey,
-        endpointUrl: runtime.endpointUrl,
-        systemPrompt: input.systemPrompt,
-        messages: [{
-          role: 'user',
-          content: JSON.stringify(input.userPayload),
-        }],
-        tools: [],
-        maxTokens: input.maxTokens,
-        timeoutMs,
-        maxRetries: 1,
-        signal: controller.signal,
-      });
-
-      for await (const event of stream) {
-        this.collectModelEvent(event, (delta) => {
-          text += delta;
-        });
-      }
-    } finally {
-      clearTimeout(timer);
-    }
-    const normalized = text.trim();
-    if (!normalized) {
-      throw new Error('Model returned empty JSON.');
-    }
-    return normalized;
-  }
-
-  private collectModelEvent(event: AiStreamEvent, onText: (text: string) => void): void {
-    switch (event.type) {
-      case 'text_delta':
-        onText(event.text);
-        break;
-      case 'error':
-        throw new Error(event.message || 'Model stream returned an error.');
-      default:
-        break;
-    }
-  }
 }

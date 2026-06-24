@@ -40,9 +40,6 @@ export class AiSettings {
   web_search_enabled!: boolean;
 
   @Column('boolean', { default: false })
-  web_enrichment_enabled!: boolean;
-
-  @Column('boolean', { default: false })
   glpi_enabled!: boolean;
 
   @Column('text', { nullable: true })

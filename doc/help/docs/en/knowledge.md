@@ -49,6 +49,8 @@ In a restricted library:
 
 Use restricted libraries for sensitive content (security procedures, HR documents, executive material) where you want fine-grained access control inside Knowledge instead of relying only on global roles.
 
+Restricted libraries also bound what an AI agent can read. When an administrator scopes an agent to a chosen set of libraries in its **Knowledge and web sources** settings, that choice is combined with the libraries the configuring administrator can already read — an agent never sees more than the person who set it up. A restricted library the administrator cannot access stays invisible to the agent as well.
+
 ### Folders
 
 Folders organize documents inside a library. They are not cosmetic: they shape how users browse the library and how teams maintain a shared structure over time.

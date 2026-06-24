@@ -65,7 +65,6 @@ type AiSettingsForm = {
   mcp_key_max_lifetime_days: string | number;
   conversation_retention_days: string | number;
   web_search_enabled: boolean;
-  web_enrichment_enabled: boolean;
   glpi_enabled: boolean;
   glpi_url: string;
   glpi_user_token: string;
@@ -83,7 +82,6 @@ const EMPTY_FORM: AiSettingsForm = {
   mcp_key_max_lifetime_days: '',
   conversation_retention_days: '',
   web_search_enabled: false,
-  web_enrichment_enabled: false,
   glpi_enabled: false,
   glpi_url: '',
   glpi_user_token: '',
@@ -120,7 +118,6 @@ function buildSettingsForm(settings: AiSettingsPayload['settings']): AiSettingsF
     mcp_key_max_lifetime_days: settings.mcp_key_max_lifetime_days ?? '',
     conversation_retention_days: settings.conversation_retention_days ?? '',
     web_search_enabled: settings.web_search_enabled,
-    web_enrichment_enabled: settings.web_enrichment_enabled,
     glpi_enabled: settings.glpi_enabled,
     glpi_url: settings.glpi_url || '',
     glpi_user_token: '',
@@ -161,9 +158,6 @@ function buildSettingsUpdatePayload(
 
   if (form.web_search_enabled !== settings.web_search_enabled) {
     payload.web_search_enabled = form.web_search_enabled;
-  }
-  if (form.web_enrichment_enabled !== settings.web_enrichment_enabled) {
-    payload.web_enrichment_enabled = form.web_enrichment_enabled;
   }
 
   if (form.glpi_enabled !== settings.glpi_enabled) {
@@ -768,7 +762,6 @@ export default function AdminAiPage() {
                                   setForm((prev) => ({
                                     ...prev,
                                     web_search_enabled: checked,
-                                    ...(checked ? {} : { web_enrichment_enabled: false }),
                                   }));
                                   if (checked) {
                                     setWebSearchTestResult(null);
@@ -781,16 +774,6 @@ export default function AdminAiPage() {
                           />
                         </span>
                       </Tooltip>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={form.web_enrichment_enabled}
-                            disabled={!form.web_search_enabled}
-                            onChange={(event) => setForm((prev) => ({ ...prev, web_enrichment_enabled: event.target.checked }))}
-                          />
-                        }
-                        label={t('aiAdmin.features.webEnrichment')}
-                      />
                     </Stack>
 
                     {webSearchTestResult ? (

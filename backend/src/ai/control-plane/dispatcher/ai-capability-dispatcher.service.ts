@@ -140,6 +140,11 @@ function asMetadata(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function stringMetadata(value: Record<string, unknown> | null, key: string): string | null {
+  const raw = value?.[key];
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null;
+}
+
 @Injectable()
 export class AiCapabilityDispatcherService {
   private readonly ajv = new Ajv({
@@ -456,7 +461,8 @@ export class AiCapabilityDispatcherService {
         throw new BadRequestException('Capability is not exposed through MCP.');
       }
       this.validateCapabilityInput(contract, input.input);
-      await this.pause.assertNotPaused(context, contract);
+      const agentDefinitionId = stringMetadata(metadata, 'agent_definition_id');
+      await this.pause.assertNotPaused(context, contract, { agentDefinitionId });
 
       const handlerExecution = {
         runId: run.id,
@@ -472,7 +478,7 @@ export class AiCapabilityDispatcherService {
       if (toolExecution.action_request_id || toolExecution.approval_id) {
         await toolRepo.save(toolExecution);
       }
-      await this.pause.assertNotPaused(context, contract);
+      await this.pause.assertNotPaused(context, contract, { agentDefinitionId });
 
       const rawOutput = await handler(context, input.input, handlerExecution);
       const output = this.evidence.redact(rawOutput, contract.redaction_policy.fields) as T;

@@ -49,6 +49,8 @@ In einer eingeschränkten Bibliothek:
 
 Verwenden Sie eingeschränkte Bibliotheken für sensible Inhalte (Sicherheitsverfahren, HR-Dokumente, Führungskräftematerial), bei denen Sie eine feinkörnige Zugriffskontrolle innerhalb der Wissensdatenbank wünschen, anstatt sich nur auf globale Rollen zu verlassen.
 
+Eingeschränkte Bibliotheken begrenzen auch, was ein KI-Agent lesen kann. Wenn ein Administrator einen Agenten in dessen Einstellungen **Wissens- und Webquellen** auf eine ausgewählte Gruppe von Bibliotheken beschränkt, wird diese Auswahl mit den Bibliotheken kombiniert, die der konfigurierende Administrator bereits lesen kann – ein Agent sieht nie mehr als die Person, die ihn eingerichtet hat. Eine eingeschränkte Bibliothek, auf die der Administrator keinen Zugriff hat, bleibt auch für den Agenten unsichtbar.
+
 ### Ordner
 
 Ordner organisieren Dokumente innerhalb einer Bibliothek. Sie sind nicht kosmetisch: Sie prägen, wie Benutzer die Bibliothek durchsuchen und wie Teams im Laufe der Zeit eine gemeinsame Struktur pflegen.

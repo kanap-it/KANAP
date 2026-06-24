@@ -44,6 +44,9 @@ export class AiAgentDefinition {
   @Column('text')
   default_approval_requirement!: string;
 
+  @Column('int', { default: 100 })
+  agent_priority!: number;
+
   @Column('jsonb', { nullable: true })
   trigger_policy_json!: Record<string, unknown> | null;
 
@@ -58,6 +61,15 @@ export class AiAgentDefinition {
 
   @Column('jsonb', { nullable: true })
   evaluation_policy_json!: Record<string, unknown> | null;
+
+  @Column('jsonb', { nullable: true })
+  persona_json!: Record<string, unknown> | null;
+
+  @Column('int', { default: 1 })
+  config_version!: number;
+
+  @Column('uuid', { nullable: true })
+  updated_by_user_id!: string | null;
 
   @Column('jsonb', { nullable: true })
   metadata_json!: Record<string, unknown> | null;

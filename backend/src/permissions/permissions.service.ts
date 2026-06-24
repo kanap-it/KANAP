@@ -47,6 +47,7 @@ export const RESOURCES = [
   'portfolio_settings',
   'ai_chat',
   'ai_mcp',
+  'ai_agents',
   'ai_settings',
 ] as const;
 

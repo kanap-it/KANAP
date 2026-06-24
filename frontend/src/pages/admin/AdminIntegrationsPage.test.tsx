@@ -53,7 +53,6 @@ describe('AdminIntegrationsPage', () => {
                 mcp_key_max_lifetime_days: 30,
                 conversation_retention_days: 14,
                 web_search_enabled: true,
-                web_enrichment_enabled: true,
                 glpi_enabled: true,
                 glpi_url: 'https://glpi.internal/',
                 has_glpi_user_token: true,
