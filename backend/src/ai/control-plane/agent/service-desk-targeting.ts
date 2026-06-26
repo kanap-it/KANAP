@@ -170,15 +170,6 @@ function legacyPredicates(scopePolicy: Record<string, unknown>): ServiceDeskTarg
   }
   if (mode === 'all_open' || mode === 'agent_involved') {
     predicates.push({ field: 'status', operator: 'in', value: OPEN_TICKET_STATUS_VALUES });
-    const staleClosure = nestedPolicy(scopePolicy, 'stale_closure');
-    if (staleClosure.enabled === true) {
-      const hours = numberValue(staleClosure.staleness_hours) ?? 0;
-      const days = numberValue(staleClosure.staleness_days) ?? 0;
-      const seconds = Math.max(0, Math.floor((hours + days * 24) * 3600));
-      if (seconds > 0) {
-        predicates.push({ field: 'inactivity_age', operator: 'gte', value: { seconds } });
-      }
-    }
     predicates.push(...scopeBlockPredicates(scopePolicy, mode));
     return dedupePredicates(predicates);
   }

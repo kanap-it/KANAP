@@ -77,7 +77,8 @@
       "overview": "Vue d'ensemble",
       "approvals": "Approbations",
       "approvalsWithCount": "Approbations ({{count}})",
-      "activity": "Activité"
+      "activity": "Activité",
+      "sharedContext": "Contexte partagé"
     },
     "admin": {
       "users": "Utilisateurs",

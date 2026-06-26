@@ -32,6 +32,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import HistoryIcon from '@mui/icons-material/History';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import BrushIcon from '@mui/icons-material/Brush';
@@ -182,6 +183,7 @@ export default function Layout() {
       level: 'reader',
     },
     { to: '/agents/activity', label: t('nav:sidebar.agents.activity'), icon: <HistoryIcon />, resource: 'ai_agents' },
+    { to: '/agents/shared-context', label: t('nav:sidebar.agents.sharedContext'), icon: <MenuBookIcon />, resource: 'ai_agents', level: 'admin' },
   ];
 
   const tenantAdminNav: NavEntry[] = [

@@ -15,10 +15,9 @@ import {
 import {
   AgentQueueLiveTargetLike,
   AiAgentWorkQueueService,
+  DEFAULT_APPROVAL_TTL_SECONDS,
   estimateAgentRunUsage,
   HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
-  readStaleClosureConfig,
-  staleClosureCapabilityEnabled,
 } from '../agent/ai-agent-work-queue.service';
 import {
   normalizeServiceDeskScopePolicy,
@@ -70,6 +69,16 @@ import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.s
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
 import { RefItem, TicketRecord, TicketReferenceCatalogKind } from '../providers/provider.types';
 import {
+  AiAgentPromptCompilerService,
+  CompiledAgentProfile,
+  CompiledGuidance,
+  compileSystemPrompt,
+  guidanceHash,
+  RUNTIME_SAFETY_FLOOR_INTERPRETER,
+  RUNTIME_SAFETY_FLOOR_PLANNER,
+  RUNTIME_SAFETY_FLOOR_SYNTHESIS,
+} from './ai-agent-prompt-compiler.service';
+import {
   AiKnowledgeSearchPlannerService,
   KnowledgePlannerCandidate,
   KnowledgeResultInterpretation,
@@ -82,6 +91,11 @@ import {
   ReplySynthesisResult,
   ReplySynthesisSource,
 } from './ai-reply-synthesis.service';
+import {
+  AiSharedContextProfileService,
+  SharedContextProfileInput,
+  SharedContextResolution,
+} from './ai-shared-context-profile.service';
 
 export type AgentControlListRunsOptions = {
   limit?: number;
@@ -287,6 +301,10 @@ const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
   [TICKETING_PARTICIPANT_CONTEXT_CAPABILITY, 'A1'],
   ['search_knowledge', 'A1'],
   ['get_document', 'A1'],
+  // Provisioned onto every helpdesk agent by HELP_DESK_ALLOWED_CAPABILITIES (work-queue service).
+  // Must be listed here or config saves round-tripping the capability are rejected. Read-only/A1;
+  // the run loop no-ops it unless both the per-agent toggle and platform web search are enabled.
+  ['web_search', 'A1'],
   [TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, 'A2'],
   [TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, 'A2'],
   [TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, 'A2'],
@@ -301,7 +319,7 @@ const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
   [TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, 'A3'],
 ]);
 const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
-const STALE_CLOSURE_TRIAGE_ACTIONS = new Set(['prepare_stale_closure', 'prepare_stale_closure_reply']);
+const CLOSE_TRIAGE_ACTIONS = new Set(['prepare_close', 'prepare_close_reply']);
 const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
@@ -1041,36 +1059,66 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
   if (!isRecord(value)) {
     throw new BadRequestException('Persona must be a structured object.');
   }
+  const base = isRecord(fallback) ? { ...fallback } : {};
+  delete base.tone;
+  delete base.escalation_text;
+  delete base.escalationText;
   const mission = cleanSingleLine(value.mission, 500);
-  const tone = cleanSingleLine(value.tone, 300);
-  const escalationText = cleanSingleLine(value.escalation_text ?? value.escalationText, 500);
-  const instructions = Array.isArray(value.instructions)
+  const outputStyleInput = isRecord(value.output_style) ? value.output_style : {};
+  const fallbackOutputStyle = isRecord(base.output_style) ? base.output_style : {};
+  const tone = cleanSingleLine(outputStyleInput.tone ?? value.tone ?? fallbackOutputStyle.tone, 300);
+  const language = cleanSingleLine(outputStyleInput.language ?? fallbackOutputStyle.language, 24);
+  if (language && language !== 'auto' && !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(language)) {
+    throw new BadRequestException('Unsupported output style language.');
+  }
+  const outputStyle = {
+    ...(tone ? { tone } : {}),
+    ...(language ? { language } : {}),
+  };
+  const escalationGuidance = cleanSingleLine(value.escalation_guidance ?? value.escalation_text ?? value.escalationText ?? base.escalation_guidance, 500);
+  const instructionsSource = Object.prototype.hasOwnProperty.call(value, 'instructions')
     ? value.instructions
+    : base.instructions;
+  const instructions = Array.isArray(instructionsSource)
+    ? instructionsSource
       .map((entry) => cleanSingleLine(entry, 500))
       .filter((entry): entry is string => !!entry)
       .slice(0, 12)
     : [];
+  const sharedContextInput = Object.prototype.hasOwnProperty.call(value, 'shared_context')
+    ? value.shared_context
+    : base.shared_context;
+  const sharedContextRecord = isRecord(sharedContextInput) ? sharedContextInput : {};
+  const sharedContextEnabled = sharedContextRecord.enabled === true;
+  const sharedContextProfileId = cleanSingleLine(sharedContextRecord.profile_id, 80);
+  if (sharedContextProfileId && !UUID_RE.test(sharedContextProfileId)) {
+    throw new BadRequestException('Shared context profile id must be a UUID.');
+  }
+  const sharedContext = sharedContextEnabled || sharedContextProfileId
+    ? {
+      enabled: sharedContextEnabled,
+      profile_id: sharedContextProfileId ?? null,
+    }
+    : null;
   const persona = {
-    ...(fallback ?? {}),
+    ...base,
     ...(mission ? { mission } : {}),
-    ...(tone ? { tone } : {}),
     instructions,
-    ...(escalationText ? { escalation_text: escalationText } : {}),
+    ...(Object.keys(outputStyle).length > 0 ? { output_style: outputStyle } : {}),
+    ...(escalationGuidance ? { escalation_guidance: escalationGuidance } : {}),
+    ...(sharedContext ? { shared_context: sharedContext } : {}),
   };
+  if (Object.keys(outputStyle).length === 0) delete persona.output_style;
+  if (!sharedContext) delete persona.shared_context;
   return Object.keys(persona).length > 0 ? persona : null;
 }
 
 function normalizeResponsePolicyForConfig(
   value: Record<string, unknown> | null,
-  scopePolicy?: Record<string, unknown> | null,
 ): Record<string, unknown> | null {
   if (!value) return null;
-  const staleFlag = typeof value.prepare_stale_closure === 'boolean'
-    ? value.prepare_stale_closure
-    : metadataObject(metadataObject(scopePolicy).stale_closure).enabled === true;
   return {
     ...value,
-    prepare_stale_closure: staleFlag,
     automatic_public_reply: false,
     automatic_ticket_updates: false,
     require_human_approval_for_writes: true,
@@ -1801,6 +1849,31 @@ function buildStatusUpdateProposal(
   };
 }
 
+// Closing an inactive ticket is routine status work, not a configured action: pick the terminal
+// transition the provider exposes, preferring 'solved' over 'closed'. Defaults to 'solved' when
+// the lifecycle context does not enumerate transitions.
+function preferredTerminalTransition(lifecycle: Record<string, unknown> | null): string {
+  const transitions = Array.isArray(lifecycle?.allowedTransitions)
+    ? lifecycle.allowedTransitions.filter(isRecord)
+    : [];
+  if (transitions.some((transition) => transition.key === 'solved')) return 'solved';
+  if (transitions.some((transition) => transition.key === 'closed')) return 'closed';
+  return 'solved';
+}
+
+// Agent-composed requester-facing reply that accompanies a routine close, so the requester is
+// told the ticket is being closed for inactivity and how to reopen it. Composed per ticket
+// (language-aware) rather than read from a setting.
+function buildClosingReply(ticket: TicketLike): string {
+  return ticketLooksFrench(ticket)
+    ? 'Bonjour,\n\nCe ticket est resté sans activité et va être clôturé. '
+      + 'Si votre demande n\'est pas résolue, répondez à ce message et nous le rouvrirons.\n\n'
+      + 'Cordialement,\nLe support'
+    : 'Hello,\n\nThis ticket has been inactive and is being closed. '
+      + 'If your request is not yet resolved, simply reply to this message and we will reopen it.\n\n'
+      + 'Kind regards,\nSupport';
+}
+
 function proposalHash(value: unknown): string {
   return hashStableJson(value);
 }
@@ -2292,7 +2365,51 @@ export class AiAgentControlService {
     private readonly agentQueue?: AiAgentWorkQueueService,
     private readonly knowledgePlanner?: AiKnowledgeSearchPlannerService,
     private readonly replySynthesis?: AiReplySynthesisService,
+    private readonly promptCompiler?: AiAgentPromptCompilerService,
+    private readonly sharedContextProfiles?: AiSharedContextProfileService,
   ) {}
+
+  private agentPromptCompiler(): AiAgentPromptCompilerService {
+    return this.promptCompiler ?? new AiAgentPromptCompilerService();
+  }
+
+  private async compileAgentPromptRuntime(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition | null,
+  ): Promise<{
+    profile: CompiledAgentProfile;
+    sharedContextResolution: SharedContextResolution;
+    plannerGuidance: CompiledGuidance;
+    interpreterGuidance: CompiledGuidance;
+    synthesisGuidance: CompiledGuidance;
+    promptProfileSummary: Record<string, unknown>;
+  }> {
+    const sharedContextResolution = this.sharedContextProfiles
+      ? await this.sharedContextProfiles.resolveForAgent(context, definition)
+      : { resolved: false, reason: 'not_configured' as const, requested_profile_id: null, context: null };
+    const compiler = this.agentPromptCompiler();
+    const profile = compiler.compile(definition?.persona_json ?? null, sharedContextResolution.context);
+    const plannerGuidance = compiler.sliceFor(profile, 'planner');
+    const interpreterGuidance = compiler.sliceFor(profile, 'interpreter');
+    const synthesisGuidance = compiler.sliceFor(profile, 'synthesis');
+    const promptProfileSummary = {
+      prompt_profile_version: definition?.config_version ?? null,
+      shared_context_profile_id: sharedContextResolution.context?.profile_id ?? sharedContextResolution.requested_profile_id,
+      shared_context_version: sharedContextResolution.context?.version ?? null,
+      shared_context_resolved: sharedContextResolution.resolved,
+      shared_context_resolution_reason: sharedContextResolution.reason,
+      guidance_hash: guidanceHash(synthesisGuidance),
+      bounds_applied: synthesisGuidance.bounds_applied,
+    };
+    return {
+      profile,
+      sharedContextResolution,
+      plannerGuidance,
+      interpreterGuidance,
+      synthesisGuidance,
+      promptProfileSummary,
+    };
+  }
 
   private async recordAgentAuditEvent(
     context: AiExecutionContextWithManager,
@@ -2531,12 +2648,12 @@ export class AiAgentControlService {
     return `unchanged_${matching.status}_proposal:${matching.id}`;
   }
 
-  // Safety: a standing stale-closure proposal (note/close) must not survive a ticket that is
-  // no longer eligible for cleanup — e.g. a requester replied, so it is no longer stale. When
-  // a cleanup agent re-polls such a ticket, withdraw its live stale-closure proposals so no
-  // operator can approve a close on a freshly-active ticket. Scoped to this agent's own
-  // proposals for this ticket; returns the number withdrawn.
-  private async withdrawStaleClosureProposals(
+  // Safety: a standing close proposal (closing reply/close) must not survive a ticket that is no
+  // longer eligible to close — e.g. a requester replied, so it is active again. When the agent
+  // re-polls such a ticket, withdraw its live close proposals so no operator can approve a close
+  // on a freshly-active ticket. Scoped to this agent's own proposals for this ticket; returns
+  // the number withdrawn.
+  private async withdrawCloseProposals(
     context: AiExecutionContextWithManager,
     input: { ticketId: string; agentDefinitionId: string | null },
   ): Promise<number> {
@@ -2558,7 +2675,7 @@ export class AiAgentControlService {
     let withdrawn = 0;
     for (const action of candidates) {
       const triageAction = actionMetadataString(action, 'triage_action');
-      if (!triageAction || !STALE_CLOSURE_TRIAGE_ACTIONS.has(triageAction)) {
+      if (!triageAction || !CLOSE_TRIAGE_ACTIONS.has(triageAction)) {
         continue;
       }
       if (input.agentDefinitionId
@@ -2569,7 +2686,7 @@ export class AiAgentControlService {
       action.updated_at = now;
       action.metadata_json = {
         ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
-        withdrawn_reason: 'ticket_no_longer_stale',
+        withdrawn_reason: 'ticket_no_longer_eligible_to_close',
         withdrawn_at: now.toISOString(),
       };
       await context.manager.getRepository(AiActionRequest).save(action);
@@ -2933,6 +3050,65 @@ export class AiAgentControlService {
     return { agent_definition: serializeAgentDefinition(definition) };
   }
 
+  async listSharedContextProfiles(context: AiExecutionContextWithManager) {
+    if (!this.sharedContextProfiles) {
+      throw new ForbiddenException('Shared context profiles are not available.');
+    }
+    return this.sharedContextProfiles.list(context);
+  }
+
+  async createSharedContextProfile(context: AiExecutionContextWithManager, input: SharedContextProfileInput = {}) {
+    if (!this.sharedContextProfiles) {
+      throw new ForbiddenException('Shared context profiles are not available.');
+    }
+    return this.sharedContextProfiles.create(context, input);
+  }
+
+  async updateSharedContextProfile(context: AiExecutionContextWithManager, id: string, input: SharedContextProfileInput = {}) {
+    if (!this.sharedContextProfiles) {
+      throw new ForbiddenException('Shared context profiles are not available.');
+    }
+    return this.sharedContextProfiles.update(context, id, input);
+  }
+
+  async archiveSharedContextProfile(context: AiExecutionContextWithManager, id: string) {
+    if (!this.sharedContextProfiles) {
+      throw new ForbiddenException('Shared context profiles are not available.');
+    }
+    return this.sharedContextProfiles.archive(context, id);
+  }
+
+  async getAgentEffectivePrompt(context: AiExecutionContextWithManager, id: string) {
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    const runtime = await this.compileAgentPromptRuntime(context, definition);
+    const compiler = this.agentPromptCompiler();
+    return {
+      agent_definition_id: definition.id,
+      prompt_profile: runtime.promptProfileSummary,
+      shared_context_resolved: runtime.sharedContextResolution.resolved,
+      shared_context_resolution_reason: runtime.sharedContextResolution.reason,
+      tasks: {
+        planner: {
+          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_PLANNER, runtime.plannerGuidance),
+          guidance_json: compiler.guidancePayload(runtime.plannerGuidance),
+        },
+        interpreter: {
+          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_INTERPRETER, runtime.interpreterGuidance),
+          guidance_json: compiler.guidancePayload(runtime.interpreterGuidance),
+        },
+        synthesis: {
+          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_SYNTHESIS, runtime.synthesisGuidance),
+          guidance_json: compiler.guidancePayload(runtime.synthesisGuidance),
+        },
+      },
+    };
+  }
+
   async previewAgentTargeting(
     context: AiExecutionContextWithManager,
     id: string,
@@ -3168,7 +3344,6 @@ export class AiAgentControlService {
       queue_policy_json: normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
       response_policy_json: normalizeResponsePolicyForConfig(
         normalizedPolicyObject(input.response_policy_json, 'Response policy') ?? template?.response_policy_json ?? null,
-        normalizedScopePolicy,
       ),
       evaluation_policy_json: normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy')
         ?? template?.evaluation_policy_json
@@ -3256,7 +3431,6 @@ export class AiAgentControlService {
     if (Object.prototype.hasOwnProperty.call(input, 'response_policy_json')) {
       definition.response_policy_json = normalizeResponsePolicyForConfig(
         normalizedPolicyObject(input.response_policy_json, 'Response policy'),
-        normalizedPolicyObject(definition.scope_policy_json, 'Scope policy'),
       );
     }
     if (Object.prototype.hasOwnProperty.call(input, 'evaluation_policy_json')) {
@@ -4656,7 +4830,17 @@ export class AiAgentControlService {
       });
       agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
     }
+    const promptRuntime = await this.compileAgentPromptRuntime(context, agentDefinition);
 
+    // One approval window for the whole run: compute a single expiry anchor here and stamp it on
+    // every proposal this run prepares, so all proposals for the ticket expire together rather
+    // than each action class lapsing on its own clock.
+    const runApprovalTtlSeconds = typeof agentMetadata.approval_ttl_seconds === 'number'
+      && Number.isFinite(agentMetadata.approval_ttl_seconds)
+      && agentMetadata.approval_ttl_seconds > 0
+      ? agentMetadata.approval_ttl_seconds
+      : DEFAULT_APPROVAL_TTL_SECONDS;
+    const proposalExpiresAt = new Date(Date.now() + runApprovalTtlSeconds * 1000).toISOString();
     const baseMetadata = {
       uat_workflow: 'agent_control_center_glpi_triage',
       source: 'admin_ui',
@@ -4666,6 +4850,7 @@ export class AiAgentControlService {
       safety_label: target.safety_label,
       work_item_created: workItemCreated,
       ...agentMetadata,
+      proposal_expires_at: proposalExpiresAt,
     };
     try {
       const applicability = await this.providers.getApplicability(context, 'ticketing', 'glpi');
@@ -4854,6 +5039,7 @@ export class AiAgentControlService {
         ? await this.knowledgePlanner.planKnowledgeSearch(context, {
           ticket,
           timeline: ticketTimeline,
+          profile: promptRuntime.plannerGuidance,
         })
         : buildFallbackKnowledgeSearchPlan(ticket, ticketTimeline, deterministicKnowledgeQueries);
       knowledgeSearchPlan = {
@@ -4903,6 +5089,7 @@ export class AiAgentControlService {
           ticket,
           timeline: ticketTimeline,
           candidates: plannerCandidatesFromKnowledge(mergedKnowledgeCandidates),
+          profile: promptRuntime.interpreterGuidance,
         })
         : buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, mergedKnowledgeCandidates);
       selectedKnowledgeItems = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
@@ -5029,6 +5216,7 @@ export class AiAgentControlService {
       knowledge_source_count: enrichedKnowledgeItems.length,
       web_source_count: webSearchResults.length,
       model: null,
+      prompt_profile: promptRuntime.promptProfileSummary,
     };
     if (!this.replySynthesis) {
       synthesisFallbackReason = 'synthesis_service_unavailable';
@@ -5056,8 +5244,12 @@ export class AiAgentControlService {
         knowledgeDocs: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
         webResults: webSearchResults,
         interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+        profile: promptRuntime.synthesisGuidance,
       });
-      synthesisProjection = estimateReplySynthesisUsage(synthesisPayload, this.replySynthesis.maxOutputTokens());
+      synthesisProjection = estimateReplySynthesisUsage({
+        systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_SYNTHESIS, promptRuntime.synthesisGuidance),
+        userPayload: synthesisPayload,
+      }, this.replySynthesis.maxOutputTokens());
       const baseUsageEstimate = estimateAgentRunUsage(runCapSnapshot);
       const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
       if (
@@ -5094,6 +5286,7 @@ export class AiAgentControlService {
             knowledgeDocs: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
             webResults: webSearchResults,
             interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+            profile: promptRuntime.synthesisGuidance,
           });
           if (replySynthesisResult.fallback_reason) {
             synthesisFallbackReason = replySynthesisResult.fallback_reason;
@@ -5327,26 +5520,29 @@ export class AiAgentControlService {
       updated_at: now,
     }));
 
-    // Stale-ticket cleanup: when configured and the ticket is past the inactivity
-    // threshold (and still open), the agent's job is to post a closing note and
-    // close/solve the ticket — it skips the normal responsive-triage proposals.
-    const staleClosure = readStaleClosureConfig(agentDefinition);
-    const staleCloseEnabled = staleClosureCapabilityEnabled(agentDefinition);
-    const targetingEligibility = staleCloseEnabled
+    // Closing an inactive ticket is ordinary routine work driven by targeting — not a dedicated
+    // feature. When the agent's targeting includes an inactivity_age filter and a ticket matches
+    // it (and the agent can write status + replies, and the ticket is still open), the agent
+    // proposes a closing reply + a terminal status transition instead of the normal responsive
+    // proposals. It shares the same single approval window as any other proposal.
+    const closeWriteCapable = definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY);
+    const targetingEligibility = closeWriteCapable
       ? await this.ticketTargetingEligibility(context, agentDefinition, ticket as TicketRecord, target.provider_key)
       : { matched: false, hasInactivityAge: false };
-    const staleClosureActive = staleCloseEnabled
+    const closeActive = closeWriteCapable
       && lifecycleContext?.terminal !== true
       && targetingEligibility.hasInactivityAge
       && targetingEligibility.matched;
-    const staleActivityBucket = staleClosureActive ? (ticket.updatedAt ?? '') : '';
-    const staleClosureGroup = staleClosureActive ? `stale-closure:${ticket.id}:${staleActivityBucket}` : null;
+    const closeActivityBucket = closeActive ? (ticket.updatedAt ?? '') : '';
+    const closeGroup = closeActive ? `ticket-close:${ticket.id}:${closeActivityBucket}` : null;
+    const closeTransitionKey = closeActive ? preferredTerminalTransition(lifecycleContext) : null;
 
-    // If this cleanup agent now sees the ticket as no longer eligible (e.g. fresh activity, or
-    // it has become terminal), retract any standing stale-closure proposal so an operator can
-    // never approve a close on a ticket that is no longer stale.
-    if (staleCloseEnabled && !staleClosureActive) {
-      await this.withdrawStaleClosureProposals(context, {
+    // If the ticket is no longer eligible to close (fresh activity, or it has become terminal),
+    // retract any standing close proposal so an operator can never approve a close on a ticket
+    // that is active again.
+    if (closeWriteCapable && !closeActive) {
+      await this.withdrawCloseProposals(context, {
         ticketId: ticket.id,
         agentDefinitionId: stringFromMetadata(metadataObject(baseMetadata).agent_definition_id),
       });
@@ -5355,7 +5551,7 @@ export class AiAgentControlService {
     const noteBody = replySynthesisResult
       ? renderSynthesizedTriageNote(ticket, ticketTimeline, replySynthesisResult)
       : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults);
-    const proposal = (conversationGate.can_prepare_internal_note && !staleClosureActive)
+    const proposal = (conversationGate.can_prepare_internal_note && !closeActive)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
         input: {
@@ -5384,7 +5580,7 @@ export class AiAgentControlService {
     const requesterReplyBody = replySynthesisResult
       ? renderSynthesizedRequesterReply(ticket, replySynthesisResult)
       : buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline, webSearchResults);
-    const publicReplyProposal = (conversationGate.can_prepare_public_reply && !staleClosureActive)
+    const publicReplyProposal = (conversationGate.can_prepare_public_reply && !closeActive)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
         input: {
@@ -5410,7 +5606,7 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const classificationUpdateInput = staleClosureActive ? null : buildClassificationUpdateProposal(ticket, classificationContext);
+    const classificationUpdateInput = closeActive ? null : buildClassificationUpdateProposal(ticket, classificationContext);
     const classificationProposalHash = classificationUpdateInput
       ? proposalHash({
         action: 'classification_update',
@@ -5459,7 +5655,7 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const statusUpdateInput = staleClosureActive ? null : buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply);
+    const statusUpdateInput = closeActive ? null : buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply);
     const statusProposalHash = statusUpdateInput
       ? proposalHash({
         action: 'status_update',
@@ -5508,7 +5704,7 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const assignmentUpdateInput = staleClosureActive ? null : buildAssignmentUpdateProposal(routingContext);
+    const assignmentUpdateInput = closeActive ? null : buildAssignmentUpdateProposal(routingContext);
     const assignmentUpdateProposal = assignmentUpdateInput
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
@@ -5536,28 +5732,29 @@ export class AiAgentControlService {
       })
       : null;
 
-    // Stale-closure proposals: a closing note + a terminal close/solve, deduped so a
-    // still-stale ticket isn't re-proposed each cycle. Both carry the shared group +
-    // destructive/high-risk flags so approvals and audit present them as a pair, not
-    // an ordinary status move.
-    const staleReplyBody = staleClosure.message.trim() || 'This ticket has been inactive and is being closed for cleanup.';
-    const staleReplyProposalHash = staleClosureActive ? proposalHash({ action: 'stale_closure_reply', body: staleReplyBody }) : null;
-    const staleContextHash = staleClosureActive ? proposalHash({ ticket: ticket.id, bucket: staleActivityBucket }) : null;
-    const staleReplySuppression = staleClosureActive && staleReplyProposalHash && staleContextHash
+    // Routine close proposals: a closing reply + a terminal solve/close, deduped so a still-
+    // inactive ticket isn't re-proposed each cycle. Both carry the shared group + terminal/high-
+    // risk flags so approvals and audit present them as a pair, and the close is always
+    // human-approved (isTerminalStatusAction blocks auto-execution). They share the run's single
+    // approval window like every other proposal.
+    const closeReplyBody = buildClosingReply(ticket);
+    const closeReplyProposalHash = closeActive ? proposalHash({ action: 'close_reply', body: closeReplyBody }) : null;
+    const closeContextHash = closeActive ? proposalHash({ ticket: ticket.id, bucket: closeActivityBucket }) : null;
+    const closeReplySuppression = closeActive && closeReplyProposalHash && closeContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
         targetRef: ticket.id,
-        proposalHash: staleReplyProposalHash,
-        contextHash: staleContextHash,
+        proposalHash: closeReplyProposalHash,
+        contextHash: closeContextHash,
       })
       : null;
-    const staleReplyProposal = staleClosureActive && !staleReplySuppression
+    const closeReplyProposal = closeActive && !closeReplySuppression
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
         input: {
           provider_key: target.provider_key,
           ticket_id: ticket.id,
-          reply_body: staleReplyBody,
+          reply_body: closeReplyBody,
           evidence_ids: allEvidenceIds,
           observation_id: observation.id,
           recommendation_id: recommendation.id,
@@ -5571,31 +5768,31 @@ export class AiAgentControlService {
           stepIndex: stepIndex++,
           metadata: {
             ...baseMetadata,
-            triage_action: 'prepare_stale_closure_reply',
-            stale_closure_group: staleClosureGroup,
-            proposal_hash: staleReplyProposalHash,
-            proposal_context_hash: staleContextHash,
+            triage_action: 'prepare_close_reply',
+            close_group: closeGroup,
+            proposal_hash: closeReplyProposalHash,
+            proposal_context_hash: closeContextHash,
           },
         },
       })
       : null;
-    const staleCloseProposalHash = staleClosureActive ? proposalHash({ action: 'stale_closure', transition: staleClosure.action }) : null;
-    const staleCloseSuppression = staleClosureActive && staleCloseProposalHash && staleContextHash
+    const closeProposalHash = closeActive ? proposalHash({ action: 'close', transition: closeTransitionKey }) : null;
+    const closeSuppression = closeActive && closeProposalHash && closeContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
         targetRef: ticket.id,
-        proposalHash: staleCloseProposalHash,
-        contextHash: staleContextHash,
+        proposalHash: closeProposalHash,
+        contextHash: closeContextHash,
       })
       : null;
-    const staleCloseProposal = staleClosureActive && !staleCloseSuppression
+    const closeProposal = closeActive && closeTransitionKey && !closeSuppression
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
         input: {
           provider_key: target.provider_key,
           ticket_id: ticket.id,
-          transition_key: staleClosure.action,
-          reason: `Closing stale ticket after a posted cleanup note (${staleClosure.action}).`,
+          transition_key: closeTransitionKey,
+          reason: `Closing inactive ticket after a posted closing reply (${closeTransitionKey}).`,
           evidence_ids: allEvidenceIds,
           observation_id: observation.id,
           recommendation_id: recommendation.id,
@@ -5609,13 +5806,13 @@ export class AiAgentControlService {
           stepIndex: stepIndex++,
           metadata: {
             ...baseMetadata,
-            triage_action: 'prepare_stale_closure',
-            stale_closure_group: staleClosureGroup,
+            triage_action: 'prepare_close',
+            close_group: closeGroup,
             terminal: true,
             destructive: true,
             risk: 'high',
-            proposal_hash: staleCloseProposalHash,
-            proposal_context_hash: staleContextHash,
+            proposal_hash: closeProposalHash,
+            proposal_context_hash: closeContextHash,
           },
         },
       })
@@ -5627,17 +5824,17 @@ export class AiAgentControlService {
       ...(classificationUpdateProposal ? actionRequestIdsFromCapabilityOutput(classificationUpdateProposal.output) : []),
       ...(statusUpdateProposal ? actionRequestIdsFromCapabilityOutput(statusUpdateProposal.output) : []),
       ...(assignmentUpdateProposal ? actionRequestIdsFromCapabilityOutput(assignmentUpdateProposal.output) : []),
-      ...(staleReplyProposal ? actionRequestIdsFromCapabilityOutput(staleReplyProposal.output) : []),
-      ...(staleCloseProposal ? actionRequestIdsFromCapabilityOutput(staleCloseProposal.output) : []),
+      ...(closeReplyProposal ? actionRequestIdsFromCapabilityOutput(closeReplyProposal.output) : []),
+      ...(closeProposal ? actionRequestIdsFromCapabilityOutput(closeProposal.output) : []),
     ]));
     const expectedPreparedActionCount = [
-      conversationGate.can_prepare_internal_note && !staleClosureActive,
-      conversationGate.can_prepare_public_reply && !staleClosureActive,
+      conversationGate.can_prepare_internal_note && !closeActive,
+      conversationGate.can_prepare_public_reply && !closeActive,
       !!classificationUpdateProposal && adapterData(classificationUpdateProposal.output) != null,
       !!statusUpdateProposal && adapterData(statusUpdateProposal.output) != null,
       !!assignmentUpdateProposal && adapterData(assignmentUpdateProposal.output) != null,
-      !!staleReplyProposal && adapterData(staleReplyProposal.output) != null,
-      !!staleCloseProposal && adapterData(staleCloseProposal.output) != null,
+      !!closeReplyProposal && adapterData(closeReplyProposal.output) != null,
+      !!closeProposal && adapterData(closeProposal.output) != null,
     ].filter(Boolean).length;
     const recoveredPreparedActionIds = directPreparedActionIds.length >= expectedPreparedActionCount
       ? []

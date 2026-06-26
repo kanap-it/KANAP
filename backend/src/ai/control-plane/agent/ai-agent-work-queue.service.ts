@@ -58,15 +58,13 @@ const DEFAULT_DAILY_TOKEN_CAP = 500_000;
 const DEFAULT_DAILY_COST_CAP_EUR = 10;
 const DEFAULT_REVIEW_COOLDOWN_SECONDS = 24 * 60 * 60;
 const DEFAULT_TARGET_CLAIM_LEASE_SECONDS = 10 * 60;
-export const SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS: Record<string, number> = {
-  public_reply: 8 * 60 * 60,
-  internal_note: 24 * 60 * 60,
-  classification: 24 * 60 * 60,
-  status: 24 * 60 * 60,
-  assignment: 24 * 60 * 60,
-  participant: 24 * 60 * 60,
-  stale_closure: 7 * 24 * 60 * 60,
-};
+// A single approval window applies to every proposal an agent prepares, so all proposals for
+// one ticket (prepared in the same run) become applicable together and expire together. There
+// is no per-action-class TTL: a status change to closed/solved is ordinary routine work and
+// shares the same window as any reply or note.
+export const DEFAULT_APPROVAL_TTL_SECONDS = 24 * 60 * 60;
+export const MIN_APPROVAL_TTL_SECONDS = 60;
+export const MAX_APPROVAL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 const REQUIRED_HELPDESK_TRIAGE_CAPABILITIES = [
   'ticketing.ticket.get',
@@ -243,34 +241,6 @@ export type HelpdeskNewTicketsIngestionConfig = {
   maxTicketsPerCycle: number;
   maxProviderRequestsPerCycle: number;
 };
-
-export type StaleClosureConfig = {
-  message: string;
-  action: 'closed' | 'solved';
-};
-
-// Runtime stale-ticket cleanup uses response_policy_json.prepare_stale_closure
-// as its single enablement flag. The legacy stale_closure block remains only for
-// close/solve action and closing-note compatibility.
-export function readStaleClosureConfig(definition: AiAgentDefinition): StaleClosureConfig {
-  const rawScope = policyObject(definition.scope_policy_json);
-  const scope = policyObject(normalizeServiceDeskScopePolicy(rawScope));
-  const sc = policyObject(scope.stale_closure);
-  return {
-    message: stringFromPolicy(sc.message) ?? '',
-    action: sc.action === 'solved' ? 'solved' : 'closed',
-  };
-}
-
-export function staleClosureCapabilityEnabled(definition: AiAgentDefinition): boolean {
-  const response = policyObject(definition.response_policy_json);
-  const allowed = capabilityNames(definition.allowed_capabilities_json);
-  const requiredWritesAllowed = allowed.has(TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY)
-    && allowed.has(TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY)
-    && allowed.has(TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
-    && allowed.has(TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY);
-  return response.prepare_stale_closure === true && requiredWritesAllowed;
-}
 
 export type HelpdeskGlpiIngestionSettingsInput = {
   ingestion: {
@@ -707,17 +677,31 @@ function toIsoDate(value: unknown): string | null {
   return date ? date.toISOString() : null;
 }
 
-function normalizeApprovalTtlSecondsByActionClass(value: unknown): Record<string, number> {
-  const result: Record<string, number> = { ...SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS };
-  if (!isRecord(value)) {
-    return result;
+function clampApprovalTtlSeconds(value: number): number {
+  return Math.max(MIN_APPROVAL_TTL_SECONDS, Math.min(MAX_APPROVAL_TTL_SECONDS, Math.floor(value)));
+}
+
+// Resolve the agent's single approval window from queue policy. Prefers the new
+// approval_ttl_seconds; falls back to the longest entry of the legacy per-action-class map
+// (so migrating an existing agent never shortens any proposal's window); else the default.
+function normalizeApprovalTtlSeconds(queuePolicy: unknown): number {
+  const policy = isRecord(queuePolicy) ? queuePolicy : {};
+  const direct = typeof policy.approval_ttl_seconds === 'number'
+    ? policy.approval_ttl_seconds
+    : Number(policy.approval_ttl_seconds);
+  if (Number.isFinite(direct) && direct > 0) {
+    return clampApprovalTtlSeconds(direct);
   }
-  for (const [key, raw] of Object.entries(value)) {
-    const numeric = typeof raw === 'number' ? raw : Number(raw);
-    if (!Number.isFinite(numeric)) continue;
-    result[key] = Math.max(60, Math.min(30 * 24 * 60 * 60, Math.floor(numeric)));
+  const legacy = policy.approval_ttl_seconds_by_action_class;
+  if (isRecord(legacy)) {
+    const seconds = Object.values(legacy)
+      .map((raw) => (typeof raw === 'number' ? raw : Number(raw)))
+      .filter((raw): raw is number => Number.isFinite(raw) && raw > 0);
+    if (seconds.length > 0) {
+      return clampApprovalTtlSeconds(Math.max(...seconds));
+    }
   }
-  return result;
+  return DEFAULT_APPROVAL_TTL_SECONDS;
 }
 
 function actionBodyHash(action: AiActionRequest | null): string | null {
@@ -830,7 +814,7 @@ export class AiAgentWorkQueueService {
           cooldown_seconds: DEFAULT_COOLDOWN_SECONDS,
           review_cooldown_seconds: DEFAULT_REVIEW_COOLDOWN_SECONDS,
           on_conflict: 'defer',
-          approval_ttl_seconds_by_action_class: { ...SERVICE_DESK_APPROVAL_TTL_SECONDS_BY_ACTION_CLASS },
+          approval_ttl_seconds: DEFAULT_APPROVAL_TTL_SECONDS,
           on_stale_by_action_class: {
             public_reply: 're_review',
             internal_note: 're_review',
@@ -848,7 +832,6 @@ export class AiAgentWorkQueueService {
           prepare_status_update: true,
           prepare_assignment_update: true,
           prepare_participant_update: false,
-          prepare_stale_closure: false,
           automatic_public_reply: false,
           automatic_ticket_updates: false,
           require_human_approval_for_writes: true,
@@ -892,10 +875,6 @@ export class AiAgentWorkQueueService {
         prepare_status_update: true,
         prepare_assignment_update: true,
         prepare_participant_update: false,
-        prepare_stale_closure: isRecord(definition.response_policy_json)
-          && typeof definition.response_policy_json.prepare_stale_closure === 'boolean'
-          ? definition.response_policy_json.prepare_stale_closure
-          : policyObject(currentScopePolicy.stale_closure).enabled === true,
         automatic_public_reply: false,
         automatic_ticket_updates: false,
         require_human_approval_for_writes: true,
@@ -932,8 +911,9 @@ export class AiAgentWorkQueueService {
         freeform_live_object_ids: false,
       };
       const normalizedDesiredScopePolicy = normalizeServiceDeskScopePolicy(desiredScopePolicy);
+      const { approval_ttl_seconds_by_action_class: _legacyApprovalTtl, ...currentQueuePolicyRest } = currentQueuePolicy;
       const desiredQueuePolicy = {
-        ...currentQueuePolicy,
+        ...currentQueuePolicyRest,
         enabled: currentQueuePolicy.enabled === false ? false : true,
         dedup_mode: currentQueuePolicy.dedup_mode ?? 'active_work_item',
         lease_ttl_seconds: numberFromPolicy(currentQueuePolicy.lease_ttl_seconds, DEFAULT_LEASE_TTL_SECONDS, 30, 86_400),
@@ -941,7 +921,7 @@ export class AiAgentWorkQueueService {
         cooldown_seconds: numberFromPolicy(currentQueuePolicy.cooldown_seconds, DEFAULT_COOLDOWN_SECONDS, 1, 86_400),
         review_cooldown_seconds: numberFromPolicy(currentQueuePolicy.review_cooldown_seconds, DEFAULT_REVIEW_COOLDOWN_SECONDS, 60, 30 * 24 * 60 * 60),
         on_conflict: currentQueuePolicy.on_conflict === 'supersede' ? 'supersede' : 'defer',
-        approval_ttl_seconds_by_action_class: normalizeApprovalTtlSecondsByActionClass(currentQueuePolicy.approval_ttl_seconds_by_action_class),
+        approval_ttl_seconds: normalizeApprovalTtlSeconds(currentQueuePolicy),
         on_stale_by_action_class: isRecord(currentQueuePolicy.on_stale_by_action_class)
           ? currentQueuePolicy.on_stale_by_action_class
           : {
@@ -2928,7 +2908,7 @@ export class AiAgentWorkQueueService {
       agent_priority: this.agentPriority(definition),
       review_cooldown_seconds: this.reviewCooldownSeconds(definition),
       on_conflict: this.onConflict(definition),
-      approval_ttl_seconds_by_action_class: normalizeApprovalTtlSecondsByActionClass(queuePolicy.approval_ttl_seconds_by_action_class),
+      approval_ttl_seconds: normalizeApprovalTtlSeconds(queuePolicy),
       on_stale_by_action_class: isRecord(queuePolicy.on_stale_by_action_class)
         ? queuePolicy.on_stale_by_action_class
         : null,

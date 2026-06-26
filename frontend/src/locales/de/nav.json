@@ -77,7 +77,8 @@
       "overview": "Übersicht",
       "approvals": "Freigaben",
       "approvalsWithCount": "Freigaben ({{count}})",
-      "activity": "Aktivität"
+      "activity": "Aktivität",
+      "sharedContext": "Gemeinsamer Kontext"
     },
     "admin": {
       "users": "Benutzer",
