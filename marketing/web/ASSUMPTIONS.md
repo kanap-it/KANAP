@@ -9,10 +9,11 @@ Format: **Decision**, **Why**, **Alternative if you disagree**.
 
 ## Global
 
-### A-1. Positioning triad
-**Decision:** Three pillars on the homepage and throughout: **Practitioner-built · Simple & powerful · Open source**. "Radically affordable" is retired as a headline claim. Affordability is mentioned factually on `/offer` but is not a pillar.
-**Why:** Direct from your answers. Open source is now the lead differentiator.
-**Alternative:** Keep "Radically affordable" somewhere visible (e.g. as a tagline under the hero).
+### A-1. Positioning triad — SUPERSEDED 2026-06-26 by the agentic refonte (plan §1.2 / §11)
+**Decision (current):** Three pillars are now **The whole IT department in one system · Agents that take work off your team · Open source, self-hosted, yours to extend.** "Practitioner-built" and "Simple & powerful" drop to supporting copy; they are no longer top-level pillars.
+**Retired:** the old pillars **Practitioner-built · Simple & powerful · Open source** ("Radically affordable" had already been retired as a headline claim; affordability stays factual on `/offer`).
+**Why:** The agentic layer is now the headline strength, and the breadth-in-one-system claim leads. Decisions locked in `REFONTE-AGENTIC.md` §10.
+**Alternative:** Revert to the practitioner/simple/open-source triad if the agent hook tests worse than the practitioner story.
 
 ### A-2. License framing
 **Decision:** AGPL v3 (taken from the old site's JSON-LD). Mentioned on `/offer`, `/on-premise`, `/security`, footer.
@@ -27,10 +28,10 @@ Format: **Decision**, **Why**, **Alternative if you disagree**.
 **Decision:** `https://app.kanap.net` (sign-in target), `https://doc.kanap.net` (docs).
 **Why:** Current production subdomains referenced in the existing site.
 
-### A-5. Plaid (AI assistant)
-**Decision:** Mentioned by name as "Plaid, the built-in AI assistant" on `/features/ai` and on the homepage module strip. Positioned as MCP-capable.
-**Why:** The old site's meta description explicitly names Plaid. Keeping brand continuity.
-**Alternative:** Different positioning for the AI surface.
+### A-5. Plaid (AI assistant) — EXTENDED 2026-06-26 (plan §11)
+**Decision:** KANAP now presents **two AI surfaces over one record**: **Plaid** is the interaction layer (a person asks questions and makes changes in plain language) and **Agents** are the action layer (autonomous work over the same record, under measured trust). Plaid is still named on `/features/ai` and the homepage module strip and is still positioned as MCP-capable; the `/features/ai` page is reframed as the human-driven counterpart to Agents, and the two cross-link ("ask versus act").
+**Why:** The agent runtime is real and is the headline strength; the site must show both surfaces without conflating them.
+**Alternative:** Collapse both under a single "AI" page if the two-surface split confuses visitors.
 
 ### A-6. Trust strip placeholder
 **Decision:** Homepage has an empty "Used by IT teams worldwide" slot with a soft "share your story" link to `/contact`, not hidden. Logos are placeholder SVGs I can swap out when you have them.
@@ -43,13 +44,11 @@ Format: **Decision**, **Why**, **Alternative if you disagree**.
 
 ## Pricing
 
-### A-8. Cloud pricing values — RESOLVED from old site
-**Decision:** Starter €49/mo (or €490/yr — 2 months free) · up to 5 contributors · 500 Plaid msg/mo.
-Standard €149/mo (or €1,490/yr) · up to 25 contributors · 1,500 Plaid msg/mo.
-Max €249/mo (or €2,490/yr) · unlimited contributors · 2,500 Plaid msg/mo.
-All plans include: all features, cloud hosting, auto updates, unlimited read-only users, BYOK for Plaid, free 60-min activation session, priority email support, 20% consulting discount.
-**Why:** Pulled verbatim from `marketing/site/offer.html`.
-**Note:** The GTC legal doc (sales.html) still refers to only Free/Starter/Standard tiers; it's out of sync with the offer page. Flagging — you may want to update the GTC before launch.
+### A-8. Cloud pricing values — SUPERSEDED 2026-06-26 (plan §6.10 / §10.3 / §11)
+**Decision (current):** A **single Hosted KANAP plan at €249/mo or €2,490/yr**. The old Starter / Standard / Max tiers (and any other) are obsolete; every reference is purged from copy. Hosted includes all features, agents included (BYO LLM key), cloud hosting, auto updates, isolated data, support.
+**Retired:** Starter €49/mo · Standard €149/mo · Max €249/mo with per-tier contributor and Plaid-message caps.
+**Why:** Pricing settled to one clear hosted plan alongside the free self-hosted product. Locked in `REFONTE-AGENTIC.md` §10.3.
+**Open item (counsel):** the GTC legal doc still lists Free/Starter/Standard and must be reconciled to the single plan before launch. This is the only pricing item left.
 
 ### A-9. Support-contract pricing — RESOLVED
 **Decision:** Self-Hosted Support: €2,490/yr, annual billing only. Includes all features, unlimited contributors, priority email support, 20% consulting discount, BYOK for Plaid.
@@ -70,6 +69,7 @@ All plans include: all features, cloud hosting, auto updates, unlimited read-onl
 
 ### A-11. New pages scope
 Built in phases: `/changelog`, `/security`, `/on-premise`. Confirmed in chat.
+**Extended 2026-06-26:** add `/features/agents` (+ `/fr`, `/de`, `/es` variants) to the sitemap. It is a new top section of the Features area, reachable from the Features dropdown and the footer Product group. See A-36.
 
 ### A-12. Legal pages
 **Decision:** I ported the content from the old `/privacy`, `/terms`, `/sales`, `/legal` pages into the new shell verbatim, with only minor typographic cleanup. Did not rewrite legal copy.
@@ -170,30 +170,58 @@ Built in phases: `/changelog`, `/security`, `/on-premise`. Confirmed in chat.
 ## Known open items — for your review
 
 ### Content / business decisions
-1. Confirm cloud pricing (A-8) — I used the old site's €49/€149/€249 tiers; confirm or update the TypeScript files in `src/content/offer/`
+1. Pricing settled (A-8 superseded) — single Hosted KANAP plan at €249/mo or €2,490/yr; old tiers purged. Confirm the offer TypeScript files in `src/content/offer/` read this way after the Phase 2 pass.
 2. Self-Hosted Support pricing (A-9) — I kept €2,490/yr; confirm or update
-3. **GTC legal document mentions only Free/Starter/Standard tiers** — it's out of sync with the Starter/Standard/Max structure on the offer page. Your lawyer should probably reconcile this before you push pricing to prod
-4. Real testimonials (A-6) — the homepage has a placeholder "trust strip" pointing to `/contact` for stories. Fill it in when you have any
-5. Per-page OG images (A-22) — I reuse the old `og-image.png` sitewide. Consider per-page OG for `/offer`, `/features/*`, `/security`
-6. Module accent colour decision (A-25) — currently monochrome. Worth revisiting on the `/features` hub for visual distinction?
+3. **GTC legal document still lists Free/Starter/Standard tiers** — out of sync with the single Hosted plan. Counsel should reconcile the GTC to one plan before pricing goes to prod. This is the only open pricing item.
+4. **Connector / agent lead-capture funnel** — "Ask for a connector" links to `/contact` from the Agents page, the connector/transparency block, and Contact. This is a conversion path alongside the trial funnel. Confirm where these leads should land (shared inbox vs. dedicated form) before launch.
+5. Real testimonials (A-6) — the homepage has a placeholder "trust strip" pointing to `/contact` for stories. Fill it in when you have any
+6. Per-page OG images (A-22) — I reuse the old `og-image.png` sitewide. Consider per-page OG for `/offer`, `/features/*`, `/security`, and especially a tailored OG for `/features/agents`
+7. Module accent colour decision (A-25) — currently monochrome. Worth revisiting on the `/features` hub for visual distinction?
 
 ### Infrastructure / deployment
-7. Set `PUBLIC_TURNSTILE_SITE_KEY` in the build env before production for `/trial/start` (form works without it locally but should have it on for real traffic)
-8. Set `PUBLIC_GA_ID` to the GA4 measurement ID if you want analytics — snippet is wired, just add the env var
-9. Font self-hosting (A-29) — currently Google Fonts. Swap to `@fontsource-variable/inter` + `@fontsource-variable/jetbrains-mono` before prod for privacy/perf
-10. Delete or archive old `marketing/site/` — no longer built or served, kept for reference
+8. Set `PUBLIC_TURNSTILE_SITE_KEY` in the build env before production for `/trial/start` (form works without it locally but should have it on for real traffic)
+9. Set `PUBLIC_GA_ID` to the GA4 measurement ID if you want analytics — snippet is wired, just add the env var
+10. Font self-hosting (A-29) — currently Google Fonts. Swap to `@fontsource-variable/inter` + `@fontsource-variable/jetbrains-mono` before prod for privacy/perf
+11. Delete or archive old `marketing/site/` — no longer built or served, kept for reference
 
 ### Translations
-11. **Legal pages (privacy, terms, sales, legal) are English-only.** FR/DE/ES routes render the same English text with a "currently available in English only" banner. Professional legal translation required before these can be binding in other jurisdictions
-12. **FR content was written by me.** DE and ES for homepage/offer/on-premise were also hand-written by me. Feature pages + secondary pages (FAQ, security, changelog, contact) DE/ES were generated by a translation agent using the FR files as a reference. Review the Spanish and German feature copy before prod; the translations are reasonable but a native reviewer will catch nuance
+12. **Legal pages (privacy, terms, sales, legal) are English-only.** FR/DE/ES routes render the same English text with a "currently available in English only" banner. Professional legal translation required before these can be binding in other jurisdictions
+13. **FR content was written by me.** DE and ES for homepage/offer/on-premise were also hand-written by me. Feature pages + secondary pages (FAQ, security, changelog, contact) DE/ES were generated by a translation agent using the FR files as a reference. Review the Spanish and German feature copy before prod; the translations are reasonable but a native reviewer will catch nuance
+14. **Agentic refonte is EN-first (A-37).** The new `/features/agents` page renders EN in all locales (fr/de/es re-export en), and the rewritten home/Plaid copy lands in `*/en.ts` only, so FR/DE/ES temporarily show the pre-refonte positioning. Run `/extract` then `/translate` before launch so all locales tell the new story.
 
 ### Changes from the old site
-13. URL rename `/features/it-ops` → `/features/it-landscape` (A-33). 301 redirect is already configured in `nginx.conf`. No action needed on your side — this is done.
-14. `/activate.html` is gone; replaced by `/trial/activate`. 301 redirect in place.
-15. The modal-on-offer trial form is now a real page at `/trial/start`. Old offer-page-scroll-to-modal anchors will no longer work — update any external links.
-16. Trial funnel added two new pages: `/trial/check-email` and `/trial/expired`. These didn't exist in the old flow. The backend contract (POST `/api/public/start-trial`, POST `/api/public/activate-trial`) is unchanged.
+15. URL rename `/features/it-ops` → `/features/it-landscape` (A-33). 301 redirect is already configured in `nginx.conf`. No action needed on your side — this is done.
+16. `/activate.html` is gone; replaced by `/trial/activate`. 301 redirect in place.
+17. The modal-on-offer trial form is now a real page at `/trial/start`. Old offer-page-scroll-to-modal anchors will no longer work — update any external links.
+18. Trial funnel added two new pages: `/trial/check-email` and `/trial/expired`. These didn't exist in the old flow. The backend contract (POST `/api/public/start-trial`, POST `/api/public/activate-trial`) is unchanged.
 
 ### A-33. IT Ops URL rename
 **Decision:** Module is labeled "IT Landscape" (per the old site copy). URL moves from `/features/it-ops` to `/features/it-landscape` — cleaner match with the label.
 **Why:** Old site inconsistency (label "IT Landscape" at URL `/features/it-ops.html`).
 **Action for you:** Add a 301 from `/features/it-ops` to `/features/it-landscape` at the nginx/edge level before launch. Noted in phase 8.
+
+---
+
+## Agentic refonte (added 2026-06-26)
+
+These entries come from `REFONTE-AGENTIC.md` (decisions locked §10). They govern the repositioning of the whole site around the agentic vision.
+
+### A-34. Three-layer model is the site's organizing principle
+**Decision:** The site is structured around three layers, named descriptively, never as a punchy slogan: **the record** (KANAP holds the full picture of the IT department), **the interaction** (Plaid works it in plain language), **the action** (agents act on the same record under measured trust). The model appears on the home, organizes the Features dropdown, and frames the Features hub. Agents are the newest and most visible layer, not the whole product; the two layers beneath are what make KANAP a platform rather than one more agent tool.
+**Why:** Keeps the breadth from being drowned by the agent hook while still leading with agents.
+**Alternative:** A flat "list of features" framing if the layer model reads as too abstract.
+
+### A-35. Voice / anti-slop rules and the locked vocabulary are binding for all copy
+**Decision:** All copy, all locales, follows `REFONTE-AGENTIC.md` §2 (voice) and §3 (vocabulary). In short: one plain declarative sentence per headline; no em-dashes, no two-beat period-split headlines, no parallel antithesis, no negation pivots, no prose triads, no buzzwords (seamless, effortless, powerful, robust, unlock, leverage, supercharge, revolutionize, cutting-edge), no colon-subtitle or "Meet KANAP"/"Imagine" openers. One word per concept: **agent**, **autonomy / autonomy level** (describe it, do not name the scale), **connector**, **the record / your IT data**, **isolation between customers** (say "your data is isolated"), **approval / review**, **sources the agent used**, **runs on your servers**.
+**Why:** Coherence and to avoid machine-written cadence. The current `/features/ai` title (a negation pivot) and the home "Everything connected. Always under control." (a two-beat split) are rewritten under this rule.
+**Alternative:** Relax specific rules per page if they make a headline awkward.
+
+### A-36. Features dropdown is a flat list, Agents first; no top-level Agents nav item
+**Decision:** The Features dropdown is a flat list in this order: **Agents, Plaid, IT landscape, Budget management, Portfolio management, Knowledge.** Agents leads so the hook is visible at the point of navigation. The six top-level nav items are unchanged (no separate top-level "Agents" item, which would tip the site back toward agent-only). The `nav.featuresAi` label is normalized to "Plaid" (it previously carried a redundant "· AI assistant" suffix no other item had). The footer Product group gains an **Agents** link, and the footer tagline changes to "The open-source platform your IT department runs on. Self-host it, or let us run it."
+**Why:** Plan §5.2 / §6.15. The grouped-by-layer dropdown was considered and dropped as not worth the build.
+**Alternative:** Group the dropdown by layer if the flat list gets long.
+
+### A-37. EN-first rollout; FR/DE/ES of changed pages are temporarily stale
+**Decision:** This refonte writes EN copy only. New/rewritten copy lands in `*/en.ts`; the new `/features/agents` content ships as four files where `fr/de/es` re-export `en` (so the build stays green and the page renders EN until translated). New `HomeContent` narrative bands are **optional** fields, so the existing FR/DE/ES home files still type-check and keep their current copy; those locales render the pre-refonte home (and pre-refonte Plaid copy) until the translation pass runs. No page is broken, but FR/DE/ES are intentionally inconsistent with the new EN positioning in the interim.
+**Why:** The plan is EN-first (§7); translation is a later phase (`/extract` then `/translate`, FR hand-checked, DE/ES machine-then-native-reviewed). Avoids destroying existing translations before they are regenerated from the new EN.
+**Action for you:** Run the translation pass before launch so FR/DE/ES match the new EN story.
