@@ -304,6 +304,45 @@ export type AiKnowledgeLibrary = {
   slug?: string | null;
 };
 
+export type AiSharedContextProfile = {
+  id: string;
+  profile_key: string;
+  name: string;
+  description: string | null;
+  content_json: { lines?: string[] } | Record<string, unknown> | null;
+  status: string;
+  config_version: number;
+  updated_by_user_id: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AiSharedContextProfileInput = {
+  profile_key?: string | null;
+  name?: string | null;
+  description?: string | null;
+  content_json?: { lines?: string[] } | Record<string, unknown> | null;
+  lines?: string[] | null;
+};
+
+export type AiAgentEffectivePromptTask = {
+  system_prompt: string;
+  guidance_json: Record<string, unknown>;
+};
+
+export type AiAgentEffectivePrompt = {
+  agent_definition_id: string;
+  prompt_profile: Record<string, unknown>;
+  shared_context_resolved: boolean;
+  shared_context_resolution_reason: string | null;
+  tasks: {
+    planner: AiAgentEffectivePromptTask;
+    interpreter: AiAgentEffectivePromptTask;
+    synthesis: AiAgentEffectivePromptTask;
+  };
+};
+
 export type AiAgentControlAutonomyItem = {
   actionClass: string;
   capabilityName: string | null;
@@ -1049,6 +1088,26 @@ export const aiAgentControlApi = {
   },
   async deleteAgent(id: string): Promise<{ deleted: boolean; id: string }> {
     const res = await api.delete(`/ai/admin/control-plane/agents/${id}`);
+    return res.data;
+  },
+  async getEffectivePrompt(id: string): Promise<AiAgentEffectivePrompt> {
+    const res = await api.get(`/ai/admin/control-plane/agents/${id}/effective-prompt`);
+    return res.data;
+  },
+  async listSharedContextProfiles(): Promise<{ items: AiSharedContextProfile[] }> {
+    const res = await api.get('/ai/admin/control-plane/shared-context-profiles');
+    return res.data;
+  },
+  async createSharedContextProfile(payload: AiSharedContextProfileInput): Promise<{ profile: AiSharedContextProfile }> {
+    const res = await api.post('/ai/admin/control-plane/shared-context-profiles', payload);
+    return res.data;
+  },
+  async updateSharedContextProfile(id: string, payload: AiSharedContextProfileInput): Promise<{ profile: AiSharedContextProfile }> {
+    const res = await api.post(`/ai/admin/control-plane/shared-context-profiles/${id}`, payload);
+    return res.data;
+  },
+  async archiveSharedContextProfile(id: string): Promise<{ profile: AiSharedContextProfile }> {
+    const res = await api.post(`/ai/admin/control-plane/shared-context-profiles/${id}/archive`);
     return res.data;
   },
   async listKnowledgeLibraries(): Promise<AiKnowledgeLibrary[]> {

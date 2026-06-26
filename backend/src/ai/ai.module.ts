@@ -64,10 +64,12 @@ import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
 import { AiActionRequestService } from './control-plane/action-request/ai-action-request.service';
 import { AiAgentControlController } from './control-plane/agent-control/ai-agent-control.controller';
+import { AiAgentPromptCompilerService } from './control-plane/agent-control/ai-agent-prompt-compiler.service';
 import { AiAgentControlService } from './control-plane/agent-control/ai-agent-control.service';
 import { AiAgentLlmClient } from './control-plane/agent-control/ai-agent-llm-client';
 import { AiKnowledgeSearchPlannerService } from './control-plane/agent-control/ai-knowledge-search-planner.service';
 import { AiReplySynthesisService } from './control-plane/agent-control/ai-reply-synthesis.service';
+import { AiSharedContextProfileService } from './control-plane/agent-control/ai-shared-context-profile.service';
 import { AiAgentApprovalLifecycleSweeperService } from './control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import { AiAgentHelpdeskGlpiIngestionService } from './control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
 import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
@@ -98,6 +100,7 @@ import { AiObservation } from './control-plane/entities/ai-observation.entity';
 import { AiRecommendation } from './control-plane/entities/ai-recommendation.entity';
 import { AiRun } from './control-plane/entities/ai-run.entity';
 import { AiRunStep } from './control-plane/entities/ai-run-step.entity';
+import { AiSharedContextProfile } from './control-plane/entities/ai-shared-context-profile.entity';
 import { AiToolExecution } from './control-plane/entities/ai-tool-execution.entity';
 import { AiEvidenceService } from './control-plane/evidence/ai-evidence.service';
 import { AiLiveContractHarnessService } from './control-plane/live-readiness/ai-live-contract-harness.service';
@@ -163,6 +166,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
       AiToolExecution,
       AiEvidence,
       AiAgentDefinition,
+      AiSharedContextProfile,
       AiAgentTrigger,
       AiAgentWorkItem,
       AiAgentTargetState,
@@ -293,6 +297,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
     AiAgentLlmClient,
+    AiAgentPromptCompilerService,
+    AiSharedContextProfileService,
     AiKnowledgeSearchPlannerService,
     AiReplySynthesisService,
     AiAgentControlService,
@@ -343,6 +349,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
     AiAgentLlmClient,
+    AiAgentPromptCompilerService,
+    AiSharedContextProfileService,
     AiKnowledgeSearchPlannerService,
     AiReplySynthesisService,
     AiAgentControlService,

@@ -4,8 +4,6 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { AiActionRequestService } from '../control-plane/action-request/ai-action-request.service';
 import {
   AiAgentWorkQueueService,
-  readStaleClosureConfig,
-  staleClosureCapabilityEnabled,
 } from '../control-plane/agent/ai-agent-work-queue.service';
 import { AGENT_AUTONOMY_POLICY_SOURCE } from '../control-plane/agent/ai-agent-autonomy';
 import { AiApprovalService } from '../control-plane/approval/ai-approval.service';
@@ -3111,22 +3109,22 @@ async function testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay() {
   );
 }
 
-async function testServiceDeskProposalExpiryMergesPartialTtlConfig() {
+async function testServiceDeskProposalExpiryHonorsSingleApprovalWindow() {
   const { dispatcher, context, stores } = createRealProviderDispatcher();
   const started = Date.now();
   const prepared = await dispatcher.execute(context, {
     capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
     input: {
       ticket_id: 'mock-ticket-1001',
-      reply_body: 'Requester reply with default service-desk review window.',
+      reply_body: 'Requester reply with the agent single approval window.',
       provider_key: 'mock',
     },
     execution: {
       surface: 'internal',
       metadata: {
-        approval_ttl_seconds_by_action_class: {
-          internal_note: 60 * 60,
-        },
+        // A single approval window now governs every action class — the registry no longer
+        // reads a per-action-class map, so the proposal expires on this one window.
+        approval_ttl_seconds: 8 * 60 * 60,
       },
     },
   });
@@ -4794,12 +4792,15 @@ async function enableHelpdeskAllOpenStaleClosure(
     },
     all_matching: { enabled: false },
     freeform_live_object_ids: false,
-    stale_closure: {
-      enabled: true,
-      action: 'closed',
-      message: 'Merci, au revoir',
-      staleness_hours: 72,
-      staleness_days: 0,
+    // Closing inactive tickets is now ordinary targeting-driven work: the operator adds an
+    // explicit inactivity_age predicate instead of a dedicated stale_closure block.
+    targeting: {
+      schema_version: 1,
+      combinator: 'and',
+      predicates: [
+        { field: 'status', operator: 'in', value: ['open', '1', '2', '3', '4'] },
+        { field: 'inactivity_age', operator: 'gte', value: { seconds: 72 * 3600 } },
+      ],
     },
   });
   definition.queue_policy_json = {
@@ -4810,10 +4811,6 @@ async function enableHelpdeskAllOpenStaleClosure(
       daily: { max_agent_runs: 25, max_estimated_tokens: 500_000, max_estimated_cost_eur: 10 },
     },
   };
-  definition.response_policy_json = {
-    ...(definition.response_policy_json ?? {}),
-    prepare_stale_closure: true,
-  };
   definition.metadata_json = {
     ...(definition.metadata_json ?? {}),
     user_modified: true,
@@ -4823,9 +4820,9 @@ async function enableHelpdeskAllOpenStaleClosure(
   return context.manager.getRepository(AiAgentDefinition).save(definition);
 }
 
-// Regression: an all_open + stale-closure agent must resolve its scope (not the
-// new-tickets resolver), list via the all_open provider scope, and enqueue stale
-// open tickets without throwing (the enqueue path previously hard-called the
+// Regression: an all_open agent whose targeting includes an inactivity_age predicate must
+// resolve its scope (not the new-tickets resolver), list via the all_open provider scope, and
+// enqueue inactive open tickets without throwing (the enqueue path previously hard-called the
 // new-tickets resolver and failed for all_open).
 async function testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets() {
   const { manager, stores } = createMemoryManager();
@@ -4833,11 +4830,11 @@ async function testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets() {
   const queue = new AiAgentWorkQueueService();
   const definition = await enableHelpdeskAllOpenStaleClosure(context, queue);
 
-  // Scope resolution selects all_open with a last-changed (stale) cutoff, not new-tickets.
+  // Scope resolution selects all_open with a last-changed cutoff derived from inactivity_age, not new-tickets.
   const config = queue.resolveScopeIngestionConfig(definition);
   assert.equal(config.mode, 'all_open');
   assert.equal(config.createdAfter, null);
-  assert.ok(config.lastChangedBefore, 'all_open + stale closure must set a last-changed cutoff');
+  assert.ok(config.lastChangedBefore, 'all_open + inactivity_age targeting must set a last-changed cutoff');
 
   // Enqueue must not throw for all_open (it used to call the new-tickets resolver).
   const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, {
@@ -4920,21 +4917,21 @@ async function testStaleClosureWithdrawalOnReactivation() {
     capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
     status: 'pending',
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    metadata_json: { triage_action: 'prepare_stale_closure', agent_definition_id: 'agent-1' },
+    metadata_json: { triage_action: 'prepare_close', agent_definition_id: 'agent-1' },
     ...overrides,
   }));
 
   const staleClose = await seed({});
   const staleReply = await seed({
     capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
-    metadata_json: { triage_action: 'prepare_stale_closure_reply', agent_definition_id: 'agent-1' },
+    metadata_json: { triage_action: 'prepare_close_reply', agent_definition_id: 'agent-1' },
   });
-  // Must be left alone: a responsive (non-stale) proposal, another agent's stale proposal, and another ticket.
+  // Must be left alone: a responsive (non-close) proposal, another agent's close proposal, and another ticket.
   const responsive = await seed({ metadata_json: { triage_action: 'prepare_status_update', agent_definition_id: 'agent-1' } });
-  const otherAgent = await seed({ metadata_json: { triage_action: 'prepare_stale_closure', agent_definition_id: 'agent-2' } });
+  const otherAgent = await seed({ metadata_json: { triage_action: 'prepare_close', agent_definition_id: 'agent-2' } });
   const otherTicket = await seed({ target_ref: 'ticket-99' });
 
-  const withdrawn = await (service as any).withdrawStaleClosureProposals(context, {
+  const withdrawn = await (service as any).withdrawCloseProposals(context, {
     ticketId: 'ticket-42',
     agentDefinitionId: 'agent-1',
   });
@@ -4942,7 +4939,7 @@ async function testStaleClosureWithdrawalOnReactivation() {
 
   const byId = (id: string) => (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === id);
   assert.equal(byId(staleClose.id).status, 'expired');
-  assert.equal(byId(staleClose.id).metadata_json.withdrawn_reason, 'ticket_no_longer_stale');
+  assert.equal(byId(staleClose.id).metadata_json.withdrawn_reason, 'ticket_no_longer_eligible_to_close');
   assert.equal(byId(staleReply.id).status, 'expired');
   assert.equal(byId(responsive.id).status, 'pending');
   assert.equal(byId(otherAgent.id).status, 'pending');
@@ -4977,11 +4974,9 @@ function testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig() {
   };
 
   const normalized = normalizeServiceDeskScopePolicy(legacyScope) as any;
-  assert.equal(normalized.stale_closure.message, 'Merci, au revoir');
   assert.equal(normalized.knowledge_sources.web.enabled, true);
   assert.equal(normalized.targeting.combinator, 'and');
   assert.equal(normalized.targeting.predicates.some((predicate: any) => predicate.field === 'touched_by' && predicate.value === 'self'), true);
-  assert.equal(normalized.targeting.predicates.some((predicate: any) => predicate.field === 'inactivity_age'), true);
   assert.equal(
     normalized.targeting.resolution.find((entry: any) => entry.predicate.field === 'touched_by')?.resolution,
     'control_plane_resolved',
@@ -5142,6 +5137,9 @@ async function testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast(
   }, priorityTargeting), false);
 }
 
+// Closing inactive tickets is now derived purely from targeting: an explicit inactivity_age
+// predicate drives the fetch cutoff (and, downstream, the close gate). A leftover legacy
+// stale_closure scope block is inert — it can neither add a cutoff nor enable closing.
 async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -5151,10 +5149,8 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
     maxProviderRequestsPerCycle: 3,
   });
   const baseScope = definition.scope_policy_json as Record<string, unknown>;
-  definition.response_policy_json = {
-    ...(definition.response_policy_json ?? {}),
-    prepare_stale_closure: true,
-  };
+
+  // An explicit inactivity_age predicate derives an all_open last-changed cutoff at the threshold.
   definition.scope_policy_json = normalizeServiceDeskScopePolicy({
     ...baseScope,
     mode: 'all_open',
@@ -5172,23 +5168,14 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
         { field: 'inactivity_age', operator: 'gte', value: { seconds: 24 * 3600 } },
       ],
     },
-    stale_closure: {
-      enabled: true,
-      action: 'solved',
-      message: 'Closing dormant ticket.',
-      staleness_hours: 72,
-      staleness_days: 0,
-    },
   });
-
-  const runtime = readStaleClosureConfig(definition);
-  assert.equal(staleClosureCapabilityEnabled(definition), true);
-  assert.equal(runtime.action, 'solved');
-  assert.equal(runtime.message, 'Closing dormant ticket.');
   const scoped = queue.resolveScopeIngestionConfig(definition);
+  assert.equal(scoped.mode, 'all_open');
   assert.ok(scoped.lastChangedBefore);
   assert.ok(Math.abs(Date.parse(scoped.lastChangedBefore ?? '') - (Date.now() - 24 * 3600 * 1000)) < 5 * 60 * 1000);
 
+  // Drop the inactivity_age predicate but leave a legacy stale_closure block in place: the block
+  // is inert and must not reintroduce a fetch cutoff.
   definition.scope_policy_json = normalizeServiceDeskScopePolicy({
     ...(definition.scope_policy_json as Record<string, unknown>),
     targeting: {
@@ -5196,10 +5183,21 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
       combinator: 'and',
       predicates: [{ field: 'status', operator: 'in', value: ['1', '2', '3', '4'] }],
     },
+    stale_closure: {
+      enabled: true,
+      action: 'closed',
+      message: 'Legacy close.',
+      staleness_hours: 72,
+      staleness_days: 0,
+    },
   });
-  assert.equal(staleClosureCapabilityEnabled(definition), true, 'response policy remains the only stale-close enablement flag');
-  assert.equal(queue.resolveScopeIngestionConfig(definition).lastChangedBefore, null, 'hidden stale_closure cannot add a fetch cutoff when targeting omits inactivity');
+  assert.equal(
+    queue.resolveScopeIngestionConfig(definition).lastChangedBefore,
+    null,
+    'a legacy stale_closure block must not add a fetch cutoff when targeting omits inactivity_age',
+  );
 
+  // Restoring the inactivity_age predicate (at a tighter threshold) restores the cutoff.
   definition.scope_policy_json = normalizeServiceDeskScopePolicy({
     ...(definition.scope_policy_json as Record<string, unknown>),
     targeting: {
@@ -5211,88 +5209,57 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
       ],
     },
   });
-  definition.response_policy_json = {
-    ...(definition.response_policy_json ?? {}),
-    prepare_stale_closure: false,
-  };
-  assert.equal(staleClosureCapabilityEnabled(definition), false, 'canonical targeting requires the response-policy stale-close flag');
-
-  definition.scope_policy_json = normalizeServiceDeskScopePolicy({
-    ...baseScope,
-    mode: 'all_open',
-    all_open: {
-      enabled: true,
-      enabled_at: '2026-06-09T08:00:00.000Z',
-      max_tickets_per_cycle: 5,
-      max_provider_requests_per_cycle: 10,
-    },
-    stale_closure: {
-      enabled: true,
-      action: 'closed',
-      message: 'Legacy close.',
-      staleness_hours: 48,
-      staleness_days: 0,
-    },
-  });
-  definition.response_policy_json = {
-    ...(definition.response_policy_json ?? {}),
-    prepare_stale_closure: true,
-  };
-  const legacyRuntime = readStaleClosureConfig(definition);
-  assert.equal(staleClosureCapabilityEnabled(definition), true, 'legacy stale_closure action/message remains read-compatible after flag migration');
-  assert.equal(legacyRuntime.action, 'closed');
-  assert.equal(legacyRuntime.message, 'Legacy close.');
-  assert.equal(queue.resolveScopeIngestionConfig(definition).lastChangedBefore !== null, true);
+  const tightened = queue.resolveScopeIngestionConfig(definition);
+  assert.ok(tightened.lastChangedBefore);
+  assert.ok(Math.abs(Date.parse(tightened.lastChangedBefore ?? '') - (Date.now() - 12 * 3600 * 1000)) < 5 * 60 * 1000);
 }
 
+// The close gate is driven entirely by targeting: an inactivity_age predicate the operator adds
+// PLUS the status + public-reply prepare capabilities (always held by a runnable helpdesk agent).
+// A ticket closes only when it actually matches the inactivity threshold; without an inactivity_age
+// predicate, or below the threshold, the agent falls back to ordinary responsive proposals.
 async function testPhase136StaleClosureCloseGateUsesTargetingOnly() {
-  const staleActionCount = (calls: Array<{ triageAction: string | null }>, action: string) =>
+  const closeActionCount = (calls: Array<{ triageAction: string | null }>, action: string) =>
     calls.filter((call) => call.triageAction === action).length;
 
+  // Inactivity threshold 24h, ticket inactive 48h → matches → close (reply + terminal status).
   const eligibleAt24h = await runQueuedStaleClosureTriage({
     targetingSeconds: 24 * 3600,
-    hiddenStalenessHours: 72,
     ticketAgeHours: 48,
   });
   assert.equal(
-    staleActionCount(eligibleAt24h.calls, 'prepare_stale_closure'),
+    closeActionCount(eligibleAt24h.calls, 'prepare_close'),
     1,
-    '48h inactive ticket must close when targeting threshold is 24h even if hidden stale_closure says 72h',
+    '48h inactive ticket must close when the targeting inactivity threshold is 24h',
   );
-  assert.equal(staleActionCount(eligibleAt24h.calls, 'prepare_stale_closure_reply'), 1);
+  assert.equal(closeActionCount(eligibleAt24h.calls, 'prepare_close_reply'), 1);
+  // A close suppresses the ordinary responsive proposals.
+  assert.equal(closeActionCount(eligibleAt24h.calls, 'prepare_public_reply'), 0);
+  assert.equal(closeActionCount(eligibleAt24h.calls, 'prepare_internal_note'), 0);
 
+  // Inactivity threshold 72h, ticket inactive only 48h → does not match → no close.
   const ineligibleAt72h = await runQueuedStaleClosureTriage({
     targetingSeconds: 72 * 3600,
-    hiddenStalenessHours: 1,
     ticketAgeHours: 48,
   });
   assert.equal(
-    staleActionCount(ineligibleAt72h.calls, 'prepare_stale_closure'),
+    closeActionCount(ineligibleAt72h.calls, 'prepare_close'),
     0,
-    '48h inactive ticket must not close when targeting threshold is 72h even if hidden stale_closure says 1h',
+    '48h inactive ticket must not close when the targeting inactivity threshold is 72h',
   );
-  assert.equal(staleActionCount(ineligibleAt72h.calls, 'prepare_stale_closure_reply'), 0);
+  assert.equal(closeActionCount(ineligibleAt72h.calls, 'prepare_close_reply'), 0);
 
+  // No inactivity_age predicate at all → closing is never proposed (ordinary triage instead).
   const noInactivityPredicate = await runQueuedStaleClosureTriage({
     targetingSeconds: null,
-    hiddenStalenessHours: 1,
     ticketAgeHours: 48,
   });
   assert.equal(
-    staleActionCount(noInactivityPredicate.calls, 'prepare_stale_closure'),
+    closeActionCount(noInactivityPredicate.calls, 'prepare_close'),
     0,
-    'stale-close capability must not close when targeting omits inactivity_age',
+    'the agent must not close when targeting omits an inactivity_age predicate',
   );
-  assert.equal(staleActionCount(noInactivityPredicate.calls, 'prepare_stale_closure_reply'), 0);
-
-  const legacyConfig = await runQueuedStaleClosureTriage({
-    targetingSeconds: null,
-    hiddenStalenessHours: 48,
-    ticketAgeHours: 49,
-    legacyScope: true,
-  });
-  assert.equal(staleActionCount(legacyConfig.calls, 'prepare_stale_closure'), 1);
-  assert.equal(staleActionCount(legacyConfig.calls, 'prepare_stale_closure_reply'), 1);
+  assert.equal(closeActionCount(noInactivityPredicate.calls, 'prepare_close_reply'), 0);
 }
 
 async function testPhase137TargetingOptionsAreProviderScopedAndCached() {
@@ -7338,6 +7305,34 @@ async function testAgentConfigRejectsCapabilityBeyondFrame() {
   );
 }
 
+async function testAgentConfigAcceptsAllProvisionedHelpdeskCapabilities() {
+  // Regression: the work-queue provisioning list (HELP_DESK_ALLOWED_CAPABILITIES) and the config
+  // validator's possible-capability set (HELPDESK_POSSIBLE_CAPABILITY_CAPS) must stay in sync.
+  // web_search shipped in the former but was missing from the latter, so every helpdesk agent was
+  // provisioned with a capability its own config-save endpoint rejected with
+  // "Capability web_search is not available for this agent type." — making the agent unsavable
+  // regardless of whether platform web search was enabled.
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const { queue, definition } = await seedAgentDefinitionForAutonomy(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+
+  const provisioned = Array.isArray(definition.allowed_capabilities_json)
+    ? definition.allowed_capabilities_json
+    : [];
+  const provisionedNames = provisioned.map((entry: any) => (typeof entry === 'string' ? entry : entry?.name));
+  // Guard the specific regression: web_search is provisioned, so it must be accepted on save.
+  assert.ok(provisionedNames.includes('web_search'), 'helpdesk agent should be provisioned with web_search');
+
+  // Round-tripping the agent's own provisioned capability frame back through the config endpoint
+  // must succeed — the validator can never reject a capability the product itself seeds.
+  await assert.doesNotReject(
+    () => service.updateAgentDefinition(context, definition.id, {
+      allowed_capabilities_json: provisioned,
+    }),
+  );
+}
+
 async function testDisabledAutonomyPolicyRoutesActionBackToHuman() {
   // B6-5: demotion disables the agent-autonomy policy; a disabled policy must not auto-approve,
   // so the next action of that class routes back to human approval.
@@ -7652,6 +7647,10 @@ function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input
   capabilityName: string;
   body: string;
   visibility: 'internal' | 'public';
+  // When the triage run stamps a single approval window on the proposal, the mock honors it the
+  // way the real capability registry would, so expiry-convergence assertions remain faithful.
+  expiresAt?: Date;
+  metadata?: Record<string, unknown> | null;
 }) {
   const repo = context.manager.getRepository(AiActionRequest);
   const now = new Date();
@@ -7682,12 +7681,12 @@ function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input
     input_hash: `${input.id}-hash`,
     input_summary: null,
     evidence_ids: null,
-    expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+    expires_at: input.expiresAt ?? new Date(now.getTime() + 30 * 60 * 1000),
     approved_at: null,
     rejected_at: null,
     executed_at: null,
     error_message: null,
-    metadata_json: null,
+    metadata_json: input.metadata ?? null,
     created_at: now,
     updated_at: now,
   }));
@@ -7699,6 +7698,7 @@ function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>,
   toolExecutionId: string;
   transitionKey: string;
   metadata?: Record<string, unknown> | null;
+  expiresAt?: Date;
 }) {
   const repo = context.manager.getRepository(AiActionRequest);
   const now = new Date();
@@ -7730,7 +7730,7 @@ function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>,
     input_hash: `${input.id}-hash`,
     input_summary: null,
     evidence_ids: null,
-    expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+    expires_at: input.expiresAt ?? new Date(now.getTime() + 30 * 60 * 1000),
     approved_at: null,
     rejected_at: null,
     executed_at: null,
@@ -7748,6 +7748,7 @@ function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext
   capabilityName: string;
   action: string;
   metadata?: Record<string, unknown> | null;
+  expiresAt?: Date;
 }) {
   const repo = context.manager.getRepository(AiActionRequest);
   const now = new Date();
@@ -7771,14 +7772,14 @@ function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext
       ticketId: '4',
       action: input.action,
       proposed: {},
-      reason: 'Prepared by the stale-closure test harness.',
+      reason: 'Prepared by the close-triage test harness.',
     },
     provider_kind: 'ticketing',
     provider_key: 'glpi',
     input_hash: `${input.id}-hash`,
     input_summary: null,
     evidence_ids: null,
-    expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+    expires_at: input.expiresAt ?? new Date(now.getTime() + 30 * 60 * 1000),
     approved_at: null,
     rejected_at: null,
     executed_at: null,
@@ -7789,12 +7790,13 @@ function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext
   }));
 }
 
+// Drives a full queued GLPI triage run. Closing is now ordinary targeting-driven status work:
+// when targeting carries an inactivity_age gte predicate and the ticket matches it, the run
+// prepares a close (reply + terminal status); otherwise it produces ordinary responsive proposals.
 async function runQueuedStaleClosureTriage(input: {
   targetingSeconds: number | null;
-  hiddenStalenessHours: number;
   ticketAgeHours: number;
-  responseEnabled?: boolean;
-  legacyScope?: boolean;
+  approvalTtlSeconds?: number;
 }) {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
@@ -7821,23 +7823,18 @@ async function runQueuedStaleClosureTriage(input: {
       max_provider_requests_per_cycle: 3,
     },
     new_tickets_only: { enabled: false },
-    ...(input.legacyScope ? {} : { targeting: {
+    targeting: {
       schema_version: 1,
       combinator: 'and',
       predicates,
-    } }),
-    stale_closure: {
-      enabled: true,
-      action: 'closed',
-      message: 'Closing inactive ticket.',
-      staleness_hours: input.hiddenStalenessHours,
-      staleness_days: 0,
     },
   });
-  definition.response_policy_json = {
-    ...(definition.response_policy_json ?? {}),
-    prepare_stale_closure: input.responseEnabled !== false,
-  };
+  if (input.approvalTtlSeconds != null) {
+    definition.queue_policy_json = {
+      ...(definition.queue_policy_json as Record<string, unknown> ?? {}),
+      approval_ttl_seconds: input.approvalTtlSeconds,
+    };
+  }
   await context.manager.getRepository(AiAgentDefinition).save(definition);
   const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, {
     definition,
@@ -7857,6 +7854,12 @@ async function runQueuedStaleClosureTriage(input: {
         ? request.execution.metadata.triage_action
         : null;
       calls.push({ capabilityName: request.capabilityName, triageAction });
+      // Honor the run's single approval window the way the real capability registry would: every
+      // proposal carries the same proposal_expires_at anchor, so all prepared actions expire together.
+      const anchor = typeof request.execution?.metadata?.proposal_expires_at === 'string'
+        ? new Date(request.execution.metadata.proposal_expires_at)
+        : null;
+      const expiresAt = anchor && Number.isFinite(anchor.getTime()) ? anchor : undefined;
       toolIndex += 1;
       const toolExecutionId = `stale-tool-${toolIndex}`;
       if (request.capabilityName === 'ticketing.ticket.get') {
@@ -7937,6 +7940,8 @@ async function runQueuedStaleClosureTriage(input: {
           capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           body: request.input.note_body,
           visibility: 'internal',
+          expiresAt,
+          metadata: request.execution?.metadata ?? null,
         });
         return {
           run_id: 'run-stale-closure',
@@ -7946,7 +7951,7 @@ async function runQueuedStaleClosureTriage(input: {
         };
       }
       if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
-        const id = triageAction === 'prepare_stale_closure_reply' ? 'stale-reply-action' : `stale-public-${toolIndex}`;
+        const id = triageAction === 'prepare_close_reply' ? 'stale-reply-action' : `stale-public-${toolIndex}`;
         await savePreparedGlpiAction(context, {
           id,
           runId: 'run-stale-closure',
@@ -7954,6 +7959,8 @@ async function runQueuedStaleClosureTriage(input: {
           capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
           body: request.input.reply_body,
           visibility: 'public',
+          expiresAt,
+          metadata: request.execution?.metadata ?? null,
         });
         return {
           run_id: 'run-stale-closure',
@@ -7977,6 +7984,7 @@ async function runQueuedStaleClosureTriage(input: {
           capabilityName: advanced.approved,
           action: advanced.action,
           metadata: request.execution?.metadata ?? null,
+          expiresAt,
         });
         return {
           run_id: 'run-stale-closure',
@@ -7986,13 +7994,14 @@ async function runQueuedStaleClosureTriage(input: {
         };
       }
       if (request.capabilityName === TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY) {
-        const id = triageAction === 'prepare_stale_closure' ? 'stale-close-action' : `stale-status-${toolIndex}`;
+        const id = triageAction === 'prepare_close' ? 'stale-close-action' : `stale-status-${toolIndex}`;
         await savePreparedGlpiStatusAction(context, {
           id,
           runId: 'run-stale-closure',
           toolExecutionId,
           transitionKey: request.input.transition_key,
           metadata: request.execution?.metadata ?? null,
+          expiresAt,
         });
         return {
           run_id: 'run-stale-closure',
@@ -8018,6 +8027,57 @@ async function runQueuedStaleClosureTriage(input: {
 
   const result = await service.runGlpiTriage(context, { work_item_id: enqueued.workItem.id });
   return { calls, result, stores };
+}
+
+// Core regression for the single-approval-window fix: a triage run computes ONE expiry anchor and
+// stamps it on every proposal, so a ticket's public reply and its other prepared actions expire
+// together. Previously each action class had its own clock (public_reply ~8h, status ~24h), so a
+// reviewer could approve one half of a coordinated response after the other had already lapsed.
+async function testGlpiTriageProposalsShareOneApprovalWindow() {
+  const approvalTtlSeconds = 3 * 60 * 60; // distinct from the 24h default, to prove the window tracks the agent config
+  const startedAt = Date.now();
+  // targetingSeconds: null → ordinary responsive triage (internal note + requester reply), which
+  // yields at least two prepared proposals for the one ticket.
+  const { stores } = await runQueuedStaleClosureTriage({
+    targetingSeconds: null,
+    ticketAgeHours: 2,
+    approvalTtlSeconds,
+  });
+  const endedAt = Date.now();
+
+  const prepared = (stores.get(AiActionRequest.name) ?? []).filter(
+    (action: AiActionRequest) => action.run_id === 'run-stale-closure' && action.status === 'pending',
+  );
+  assert.ok(prepared.length >= 2, `expected at least two prepared proposals, got ${prepared.length}`);
+
+  // Every prepared action request shares the IDENTICAL expiry — one approval window for the run.
+  const distinctExpiries = new Set(prepared.map((action: AiActionRequest) => action.expires_at?.getTime()));
+  assert.equal(distinctExpiries.size, 1, 'all proposals from one triage run must share a single expires_at');
+  // And every action carries the same proposal_expires_at anchor in its metadata.
+  const distinctAnchors = new Set(
+    prepared.map((action: AiActionRequest) => (isRecordLike(action.metadata_json) ? action.metadata_json.proposal_expires_at : undefined)),
+  );
+  assert.equal(distinctAnchors.size, 1, 'all proposals from one triage run must share a single proposal_expires_at anchor');
+
+  // That window is now + the agent's configured approval_ttl_seconds. The run computed its "now"
+  // somewhere between the start and end of the call, so the shared expiry must land in
+  // [start + ttl, end + ttl] (tiny rounding slack), which both proves it tracks the configured
+  // window and rules out the generic 30-minute mock default.
+  const sharedExpiry = prepared[0].expires_at?.getTime();
+  assert.ok(typeof sharedExpiry === 'number');
+  const ttlMs = approvalTtlSeconds * 1000;
+  assert.ok(
+    (sharedExpiry as number) >= startedAt + ttlMs - 1_000,
+    `shared expiry ${sharedExpiry} should be >= now + approval_ttl_seconds (${startedAt + ttlMs})`,
+  );
+  assert.ok(
+    (sharedExpiry as number) <= endedAt + ttlMs + 1_000,
+    `shared expiry ${sharedExpiry} should be <= now + approval_ttl_seconds (${endedAt + ttlMs})`,
+  );
+}
+
+function isRecordLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function createGlpiConversationGateTriageService(input: {
@@ -8388,6 +8448,41 @@ async function testReplySynthesisServiceFiltersSourcesAndDowngradesUngroundedAns
   assert.equal(ungrounded.requester_reply, '');
   assert.deepEqual(ungrounded.used_sources, []);
   assert.equal(ungrounded.fallback_reason, 'invalid_or_ungrounded_synthesis');
+
+  const contextLeakService = new AiReplySynthesisService({
+    callJsonModel: async () => ({
+      text: JSON.stringify({
+        language: 'fr',
+        usable: true,
+        needs_human_review: false,
+        requester_reply: 'Most users run Windows 11 managed laptops.',
+        technician_brief: 'Le modèle a repris le contexte opérationnel.',
+        used_sources: [{ kind: 'knowledge', ref: 'DOC-1', url: null, title: 'Procédure voyage' }],
+        rejected_sources: [],
+        confidence: 0.7,
+      }),
+      runtime: { providerId: 'test-provider', model: 'test-model' },
+      usage: null,
+      latencyMs: 4,
+    }),
+  } as any);
+
+  const leaked = await contextLeakService.synthesizeTicketReply(context, {
+    ...baseInput,
+    profile: {
+      task: 'synthesis',
+      operating_context: {
+        profile_id: randomUUID(),
+        name: 'Default IT environment',
+        lines: ['Most users run Windows 11 managed laptops.'],
+      },
+      bounds_applied: [],
+    },
+  });
+
+  assert.equal(leaked.usable, false);
+  assert.equal(leaked.requester_reply, '');
+  assert.equal(leaked.fallback_reason, 'operating_context_leak');
 }
 
 async function testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument() {
@@ -9814,7 +9909,7 @@ async function run() {
   await testPrepareInternalNoteCreatesProviderActionRequest();
   await testAdvancedTicketUpdateActionRequestsExecuteThroughDispatcher();
   await testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay();
-  await testServiceDeskProposalExpiryMergesPartialTtlConfig();
+  await testServiceDeskProposalExpiryHonorsSingleApprovalWindow();
   await testApprovedTicketWriteFailsWhenTicketHistoryChangedAfterPreparation();
   await testApprovedTicketWriteAllowsUnchangedTicketHistoryGuard();
   await testApprovedPairedTicketWritesAllowSameRunKanapHistoryChange();
@@ -9860,6 +9955,7 @@ async function run() {
   await testAgentControlActivityTimelineAndDailyMetrics();
   await testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdits();
   await testAgentConfigRejectsCapabilityBeyondFrame();
+  await testAgentConfigAcceptsAllProvisionedHelpdeskCapabilities();
   await testDeleteAgentDefinitionBlocksBuiltinAndRemovesCustom();
   await testAgentAutonomyGrantRequiresEligibilityAndAllowlist();
   await testDisabledAutonomyPolicyRoutesActionBackToHuman();
@@ -9873,6 +9969,7 @@ async function run() {
   await testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument();
   await testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb();
   await testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange();
+  await testGlpiTriageProposalsShareOneApprovalWindow();
   await testApprovalPolicyResolverDeniesByDefaultDisabledDraftAndMalformedPolicies();
   await testApprovalPolicyResolverScopeEvidenceAndEvaluationDenials();
   await testApprovalPolicyResolverMockOnlyAndStrictCeilings();

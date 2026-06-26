@@ -34,6 +34,7 @@ import {
   AgentControlTargetingPreviewInput,
   AiAgentControlService,
 } from './ai-agent-control.service';
+import { SharedContextProfileInput } from './ai-shared-context-profile.service';
 
 function parseLimit(value: unknown, fallback: number): number {
   if (typeof value !== 'string' || value.trim().length === 0) return fallback;
@@ -150,6 +151,40 @@ export class AiAgentControlController {
     return this.runTransaction(context, 'admin', (tenantContext) => this.control.createAgentDefinition(tenantContext, body ?? {}));
   }
 
+  @Get('shared-context-profiles')
+  async listSharedContextProfiles(@Req() req: any) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.listSharedContextProfiles(tenantContext));
+  }
+
+  @Post('shared-context-profiles')
+  async createSharedContextProfile(
+    @Req() req: any,
+    @Body() body: SharedContextProfileInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.createSharedContextProfile(tenantContext, body ?? {}));
+  }
+
+  @Post('shared-context-profiles/:id')
+  async updateSharedContextProfile(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: SharedContextProfileInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.updateSharedContextProfile(tenantContext, id, body ?? {}));
+  }
+
+  @Post('shared-context-profiles/:id/archive')
+  async archiveSharedContextProfile(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'admin', (tenantContext) => this.control.archiveSharedContextProfile(tenantContext, id));
+  }
+
   @Get('agents/:id/autonomy')
   async getAgentAutonomy(
     @Req() req: any,
@@ -176,6 +211,15 @@ export class AiAgentControlController {
   ) {
     const context = this.buildContext(req);
     return this.runRead(context, (tenantContext) => this.control.getAgentDefinition(tenantContext, id));
+  }
+
+  @Get('agents/:id/effective-prompt')
+  async getAgentEffectivePrompt(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.getAgentEffectivePrompt(tenantContext, id));
   }
 
   @Post('agents/:id/targeting-preview')

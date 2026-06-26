@@ -101,6 +101,7 @@ import AgentsOverviewPage from './pages/agents/AgentsOverviewPage';
 import AgentsApprovalsPage from './pages/agents/AgentsApprovalsPage';
 import AgentsActivityPage from './pages/agents/AgentsActivityPage';
 import AgentWorkspacePage from './pages/agents/AgentWorkspacePage';
+import SharedContextProfilesPage from './pages/agents/SharedContextProfilesPage';
 import AdminAiPage from './pages/admin/AdminAiPage';
 import AdminIntegrationsPage from './pages/admin/AdminIntegrationsPage';
 import AdminPlatformAiPage from './pages/admin/AdminPlatformAiPage';
@@ -343,6 +344,7 @@ function AppRoutes() {
           <Route path="/agents" element={<AgentsOverviewPage />} />
           <Route path="/agents/approvals" element={<AgentsApprovalsPage />} />
           <Route path="/agents/activity" element={<AgentsActivityPage />} />
+          <Route path="/agents/shared-context" element={<SharedContextProfilesPage />} />
           <Route path="/agents/:agentKey" element={<AgentWorkspacePage />} />
           {/* Knowledge Center */}
           <Route path="/knowledge" element={<KnowledgePage />} />

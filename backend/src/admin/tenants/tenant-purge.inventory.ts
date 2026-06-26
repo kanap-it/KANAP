@@ -76,6 +76,7 @@ export const TENANT_PURGE_TABLES = [
   'ai_agent_work_items',
   'ai_agent_triggers',
   'ai_agent_definitions',
+  'ai_shared_context_profiles',
   'ai_evaluations',
   'ai_decisions',
   'ai_recommendations',

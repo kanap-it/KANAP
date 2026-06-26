@@ -1,25 +1,23 @@
 import React from 'react';
-import { Alert, Autocomplete, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, IconButton, ListItemText, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { Alert, Box, Button, Chip, CircularProgress, FormControlLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useTheme } from '@mui/material/styles';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
-import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 import {
   aiAgentControlApi,
   type AiAgentControlAgentDefinition,
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlHelpdeskIngestionSettingsInput,
-  type AiAgentControlRefItem,
+  type AiAgentControlQueueOverview,
+  type AiSharedContextProfile,
 } from '../../ai/aiApi';
 import { useAuth } from '../../auth/AuthContext';
 import { useFeatures } from '../../config/FeaturesContext';
@@ -39,39 +37,40 @@ import {
   Section,
   statusLabel,
 } from '../../components/agents/agentControlPrimitives';
+import {
+  actionLinkButtonSx,
+  buildFilter,
+  categoryFromFilters,
+  createdHorizonHoursFromFilters,
+  DEFAULT_APPROVAL_TTL_HOURS,
+  DEFAULT_DAILY_COST,
+  DEFAULT_DAILY_RUNS,
+  DEFAULT_DAILY_TOKENS,
+  DEFAULT_HORIZON_HOURS,
+  DEFAULT_MAX_REQUESTS,
+  DEFAULT_MAX_TICKETS,
+  DEFAULT_PER_RUN_COST,
+  DEFAULT_PER_RUN_TOKENS,
+  DEFAULT_REVIEW_COOLDOWN_HOURS,
+  entityFromFilters,
+  filtersFromScope,
+  HelpdeskTargetingFilterBuilder,
+  modeFromFilters,
+  openStatusValues,
+  statusFilterValues,
+  TARGETING_OPTIONS_STALE_TIME_MS,
+  targetingPredicatesFromFilters,
+  targetingPresetFilters,
+  type TargetingFilter,
+  type TargetingPresetKey,
+} from '../../components/agents/helpdeskTargeting';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-import { getDotColor } from '../../utils/statusColors';
 import AgentsApprovalsPage from './AgentsApprovalsPage';
 import AgentsActivityPage from './AgentsActivityPage';
 import { useAgentControlData } from './useAgentControlData';
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
-const DEFAULT_MAX_TICKETS = 5;
-const DEFAULT_MAX_REQUESTS = 10;
-const DEFAULT_HORIZON_HOURS = 24;
-const DEFAULT_PER_RUN_TOKENS = 40000;
-const DEFAULT_PER_RUN_COST = 1;
-const DEFAULT_DAILY_RUNS = 25;
-const DEFAULT_DAILY_TOKENS = 500000;
-const DEFAULT_DAILY_COST = 10;
-const DEFAULT_REVIEW_COOLDOWN_HOURS = 24;
-const DEFAULT_PUBLIC_REPLY_TTL_HOURS = 8;
-const DEFAULT_APPROVAL_TTL_HOURS = 24;
-const DEFAULT_STALE_CLOSURE_TTL_DAYS = 7;
-const actionLinkButtonSx = {
-  minWidth: 0,
-  px: 0,
-  py: 0.25,
-  color: 'kanap.teal',
-  fontSize: 12,
-  fontWeight: 400,
-  textTransform: 'none',
-  '&:hover': {
-    backgroundColor: 'transparent',
-    textDecoration: 'underline',
-  },
-};
 
 function numberField(value: string): number | null {
   const trimmed = value.trim();
@@ -108,12 +107,6 @@ function hoursString(seconds: unknown, fallbackHours: number): string {
   return typeof seconds === 'number' && Number.isFinite(seconds)
     ? String(Math.max(1, Math.round(seconds / 3600)))
     : String(fallbackHours);
-}
-
-function daysString(seconds: unknown, fallbackDays: number): string {
-  return typeof seconds === 'number' && Number.isFinite(seconds)
-    ? String(Math.max(1, Math.round(seconds / 86400)))
-    : String(fallbackDays);
 }
 
 function capabilityEntryName(entry: unknown): string | null {
@@ -160,47 +153,31 @@ function allowedCapabilitiesWithGroup(definition: AiAgentControlAgentDefinition,
   ];
 }
 
-function staleClosureResponseEnabled(definition: AiAgentControlAgentDefinition): boolean {
-  const response = policyObject(definition.response_policy_json);
-  if (typeof response.prepare_stale_closure === 'boolean') {
-    return response.prepare_stale_closure;
-  }
-  return policyObject(policyObject(definition.scope_policy_json).stale_closure).enabled === true;
-}
-
-function allowedCapabilitiesWithStaleClosurePrereqs(definition: AiAgentControlAgentDefinition, enabled: boolean): unknown[] {
-  const existing = capabilityEntries(definition.allowed_capabilities_json);
-  if (!enabled) {
-    return existing;
-  }
-  let allowed = existing;
-  for (const groupKey of ['public_reply', 'status']) {
-    allowed = allowedCapabilitiesWithGroup({ ...definition, allowed_capabilities_json: allowed }, groupKey, true);
-  }
-  return allowed;
-}
-
 function SettingsField({ label, hint, children }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
   return <PropertyRow label={label} helperText={hint}>{children}</PropertyRow>;
 }
 
-const DEFAULT_STALE_HOURS = 72;
+const agentDescriptionFieldSx = [
+  longFormSurfaceFieldSx,
+  {
+    maxWidth: 'none',
+    '& .MuiInputBase-root': {
+      minHeight: 96,
+    },
+  },
+] as const;
+
+const agentPersonaFieldSx = [
+  longFormSurfaceFieldSx,
+  {
+    maxWidth: 'none',
+    '& .MuiInputBase-root': {
+      minHeight: 84,
+    },
+  },
+] as const;
+
 const SCOPE_MODES = ['new_tickets_only', 'all_open', 'agent_involved'] as const;
-
-type TargetingPresetKey = 'new_tickets' | 'all_open' | 'handled';
-type TargetingFilterField = 'status' | 'priority' | 'type' | 'category' | 'entity' | 'created_at' | 'updated_at' | 'inactivity_age' | 'touched_by';
-type TargetingFilterUnit = 'hours' | 'days';
-type TargetingPredicateOperator = 'eq' | 'in' | 'gte' | 'lte' | 'not';
-type TargetingPredicate = { field: string; operator: TargetingPredicateOperator; value: unknown };
-
-type TargetingFilter = {
-  id: string;
-  field: TargetingFilterField;
-  value: string | string[];
-  label?: string;
-  amount: string;
-  unit: TargetingFilterUnit;
-};
 
 type HelpdeskSettingsForm = {
   enabled: boolean;
@@ -214,241 +191,14 @@ type HelpdeskSettingsForm = {
   maxTickets: string;
   maxRequests: string;
   horizonHours: string;
-  staleEnabled: boolean;
-  staleAction: string;
-  staleMessage: string;
   perRunTokens: string;
   perRunCost: string;
   dailyRuns: string;
   dailyTokens: string;
   dailyCost: string;
-  publicReplyTtlHours: string;
-  internalNoteTtlHours: string;
-  metadataTtlHours: string;
-  staleClosureTtlDays: string;
+  approvalTtlHours: string;
   onStale: string;
 };
-
-function targetingFilterId(field: string): string {
-  return `${field}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function buildFilter(
-  field: TargetingFilterField,
-  value: string | string[] = '',
-  amount = '24',
-  unit: TargetingFilterUnit = 'hours',
-  label?: string,
-): TargetingFilter {
-  return { id: targetingFilterId(field), field, value, label, amount, unit };
-}
-
-function relativeAmountFromHours(hours: number): { amount: string; unit: TargetingFilterUnit } {
-  if (hours >= 24 && hours % 24 === 0) {
-    return { amount: String(hours / 24), unit: 'days' };
-  }
-  return { amount: String(Math.max(1, Math.round(hours))), unit: 'hours' };
-}
-
-function secondsFromFilter(filter: TargetingFilter): number | null {
-  const amount = numberField(filter.amount);
-  if (!amount) return null;
-  return Math.floor(amount * (filter.unit === 'days' ? 86400 : 3600));
-}
-
-function relativeHoursFromFilter(filter: TargetingFilter): number | null {
-  const seconds = secondsFromFilter(filter);
-  return seconds == null ? null : Math.max(1, Math.round(seconds / 3600));
-}
-
-function statusFilterValues(value: unknown): string[] {
-  const rawValues = Array.isArray(value) ? value : [value];
-  return Array.from(new Set(rawValues.map((entry) => String(entry ?? '').trim()).filter(Boolean)));
-}
-
-function targetingPresetFilters(
-  preset: TargetingPresetKey,
-  horizonHours = DEFAULT_HORIZON_HOURS,
-  statusValues: string[] = [],
-): TargetingFilter[] {
-  const status = buildFilter('status', statusValues);
-  if (preset === 'new_tickets') {
-    const relative = relativeAmountFromHours(horizonHours);
-    return [buildFilter('created_at', '', relative.amount, relative.unit), status];
-  }
-  if (preset === 'handled') {
-    return [buildFilter('touched_by', 'self'), status];
-  }
-  return [status];
-}
-
-function modeFromFilters(filters: TargetingFilter[]): string {
-  if (filters.some((filter) => filter.field === 'touched_by')) {
-    return 'agent_involved';
-  }
-  if (filters.some((filter) => filter.field === 'created_at')) {
-    return 'new_tickets_only';
-  }
-  return 'all_open';
-}
-
-function categoryFromFilters(filters: TargetingFilter[]): string {
-  const filter = filters.find((candidate) => candidate.field === 'category');
-  return typeof filter?.value === 'string' ? filter.value.trim() : '';
-}
-
-function entityFromFilters(filters: TargetingFilter[]): string {
-  const filter = filters.find((candidate) => candidate.field === 'entity');
-  return typeof filter?.value === 'string' ? filter.value.trim() : '';
-}
-
-function createdHorizonHoursFromFilters(filters: TargetingFilter[], fallback: string): number {
-  const created = filters.find((filter) => filter.field === 'created_at');
-  return created ? relativeHoursFromFilter(created) ?? positiveNumber(fallback, DEFAULT_HORIZON_HOURS) : positiveNumber(fallback, DEFAULT_HORIZON_HOURS);
-}
-
-function targetingPredicatesFromForm(form: HelpdeskSettingsForm): TargetingPredicate[] {
-  const predicates: TargetingPredicate[] = [];
-  for (const filter of form.filters) {
-    if (filter.field === 'status') {
-      const values = statusFilterValues(filter.value);
-      if (values.length > 0) predicates.push({ field: 'status', operator: 'in', value: values });
-      continue;
-    }
-    if (filter.field === 'priority') {
-      const value = typeof filter.value === 'string' ? filter.value.trim() : '';
-      if (value) predicates.push({ field: 'priority', operator: 'gte', value });
-      continue;
-    }
-    if (filter.field === 'category') {
-      const value = typeof filter.value === 'string' ? filter.value.trim() : '';
-      if (value) predicates.push({ field: 'category', operator: 'eq', value });
-      continue;
-    }
-    if (filter.field === 'entity') {
-      const value = typeof filter.value === 'string' ? filter.value.trim() : '';
-      if (value) predicates.push({ field: 'entity', operator: 'eq', value });
-      continue;
-    }
-    if (filter.field === 'type') {
-      const value = typeof filter.value === 'string' ? filter.value.trim() : '';
-      if (value) predicates.push({ field: 'type', operator: 'eq', value });
-      continue;
-    }
-    if (filter.field === 'created_at') {
-      const relativeHours = relativeHoursFromFilter(filter);
-      if (relativeHours != null) predicates.push({ field: 'created_at', operator: 'gte', value: { relative_hours: relativeHours } });
-      continue;
-    }
-    if (filter.field === 'updated_at') {
-      const relativeHours = relativeHoursFromFilter(filter);
-      if (relativeHours != null) predicates.push({ field: 'updated_at', operator: 'lte', value: { relative_hours: relativeHours } });
-      continue;
-    }
-    if (filter.field === 'inactivity_age') {
-      const seconds = secondsFromFilter(filter);
-      if (seconds != null) predicates.push({ field: 'inactivity_age', operator: 'gte', value: { seconds } });
-      continue;
-    }
-    if (filter.field === 'touched_by') {
-      predicates.push({ field: 'touched_by', operator: 'eq', value: 'self' });
-    }
-  }
-  const seen = new Set<string>();
-  return predicates.filter((predicate) => {
-    const key = JSON.stringify(predicate);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function filtersFromScope(scope: Record<string, unknown>, mode: string): {
-  filters: TargetingFilter[];
-  entityId: string;
-  categoryId: string;
-  horizonHours: string;
-} {
-  const filters: TargetingFilter[] = [];
-  let entityId = '';
-  let categoryId = '';
-  let horizonHours = DEFAULT_HORIZON_HOURS;
-  const targeting = policyObject(scope.targeting);
-  const predicates = Array.isArray(targeting.predicates) ? targeting.predicates.filter(isRecord) : [];
-  for (const predicate of predicates) {
-    const field = stringValue(predicate.field);
-    const operator = stringValue(predicate.operator);
-    if (field === 'status' && (operator === 'in' || operator === 'eq')) {
-      const values = statusFilterValues(predicate.value);
-      if (values.length > 0) filters.push(buildFilter('status', values));
-      continue;
-    }
-    if (field === 'priority' && (operator === 'gte' || operator === 'eq')) {
-      filters.push(buildFilter('priority', stringValue(predicate.value) || 'high'));
-      continue;
-    }
-    if (field === 'type' && operator === 'eq') {
-      const type = stringValue(predicate.value);
-      if (type) filters.push(buildFilter('type', type));
-      continue;
-    }
-    if (field === 'category' && operator === 'eq') {
-      categoryId = stringValue(predicate.value);
-      if (categoryId) filters.push(buildFilter('category', categoryId));
-      continue;
-    }
-    if (field === 'entity' && operator === 'eq') {
-      entityId = stringValue(predicate.value);
-      if (entityId) filters.push(buildFilter('entity', entityId));
-      continue;
-    }
-    if (field === 'created_at' && operator === 'gte') {
-      const value = policyObject(predicate.value);
-      const hours = typeof value.relative_hours === 'number' ? value.relative_hours : DEFAULT_HORIZON_HOURS;
-      const relative = relativeAmountFromHours(hours);
-      horizonHours = hours;
-      filters.push(buildFilter('created_at', '', relative.amount, relative.unit));
-      continue;
-    }
-    if (field === 'updated_at' && operator === 'lte') {
-      const value = policyObject(predicate.value);
-      const hours = typeof value.relative_hours === 'number' ? value.relative_hours : 24;
-      const relative = relativeAmountFromHours(hours);
-      filters.push(buildFilter('updated_at', '', relative.amount, relative.unit));
-      continue;
-    }
-    if (field === 'inactivity_age' && operator === 'gte') {
-      const seconds = typeof policyObject(predicate.value).seconds === 'number'
-        ? policyObject(predicate.value).seconds as number
-        : typeof predicate.value === 'number' ? predicate.value : DEFAULT_STALE_HOURS * 3600;
-      const relative = relativeAmountFromHours(Math.max(1, Math.round(seconds / 3600)));
-      filters.push(buildFilter('inactivity_age', '', relative.amount, relative.unit));
-      continue;
-    }
-    if (field === 'touched_by' && operator === 'eq' && stringValue(predicate.value) === 'self') {
-      filters.push(buildFilter('touched_by', 'self'));
-    }
-  }
-  if (filters.length === 0) {
-    if (mode === 'all_open') {
-      filters.push(...targetingPresetFilters('all_open'));
-    } else if (mode === 'agent_involved') {
-      filters.push(...targetingPresetFilters('handled'));
-    } else {
-      const ingestion = nestedPolicy(scope, 'new_tickets_only');
-      horizonHours = typeof ingestion.hard_backfill_horizon_hours === 'number'
-        ? ingestion.hard_backfill_horizon_hours
-        : DEFAULT_HORIZON_HOURS;
-      filters.push(...targetingPresetFilters('new_tickets', horizonHours));
-    }
-  }
-  return {
-    filters,
-    entityId,
-    categoryId,
-    horizonHours: String(horizonHours),
-  };
-}
 
 const HELPDESK_CAPABILITY_GROUPS = [
   { key: 'internal_note', names: ['ticketing.ticket.internal_note.prepare', 'ticketing.ticket.internal_note.add_approved'] },
@@ -467,10 +217,19 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
   const ingestion = nestedPolicy(scope, 'new_tickets_only');
   const activeBlock = nestedPolicy(scope, mode);
   const targetingState = filtersFromScope(scope, mode);
-  const stale = policyObject(scope.stale_closure);
   const queue = policyObject(definition.queue_policy_json);
-  const approvalTtls = policyObject(queue.approval_ttl_seconds_by_action_class);
   const onStale = policyObject(queue.on_stale_by_action_class);
+  // Single approval window. Falls back to the longest entry of the legacy per-action-class map
+  // so an existing agent's window is never shortened on migration, else the default.
+  const directApprovalTtl = Number(queue.approval_ttl_seconds);
+  const legacyApprovalTtls = Object.values(policyObject(queue.approval_ttl_seconds_by_action_class))
+    .map(Number)
+    .filter((seconds) => Number.isFinite(seconds) && seconds > 0);
+  const approvalTtlSeconds = Number.isFinite(directApprovalTtl) && directApprovalTtl > 0
+    ? directApprovalTtl
+    : legacyApprovalTtls.length > 0
+      ? Math.max(...legacyApprovalTtls)
+      : DEFAULT_APPROVAL_TTL_HOURS * 3600;
   const guardrails = nestedPolicy(definition.queue_policy_json, 'economic_guardrails');
   const perRun = policyObject(guardrails.per_run);
   const daily = policyObject(guardrails.daily);
@@ -486,18 +245,12 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
     maxTickets: numberString(activeBlock.max_tickets_per_cycle ?? ingestion.max_tickets_per_cycle, DEFAULT_MAX_TICKETS),
     maxRequests: numberString(activeBlock.max_provider_requests_per_cycle ?? ingestion.max_provider_requests_per_cycle, DEFAULT_MAX_REQUESTS),
     horizonHours: targetingState.horizonHours || numberString(ingestion.hard_backfill_horizon_hours, DEFAULT_HORIZON_HOURS),
-    staleEnabled: staleClosureResponseEnabled(definition),
-    staleAction: stale.action === 'solved' ? 'solved' : 'closed',
-    staleMessage: stringValue(stale.message),
     perRunTokens: numberString(perRun.max_estimated_tokens, DEFAULT_PER_RUN_TOKENS),
     perRunCost: numberString(perRun.max_estimated_cost_eur, DEFAULT_PER_RUN_COST),
     dailyRuns: numberString(daily.max_agent_runs, DEFAULT_DAILY_RUNS),
     dailyTokens: numberString(daily.max_estimated_tokens, DEFAULT_DAILY_TOKENS),
     dailyCost: numberString(daily.max_estimated_cost_eur, DEFAULT_DAILY_COST),
-    publicReplyTtlHours: hoursString(approvalTtls.public_reply, DEFAULT_PUBLIC_REPLY_TTL_HOURS),
-    internalNoteTtlHours: hoursString(approvalTtls.internal_note, DEFAULT_APPROVAL_TTL_HOURS),
-    metadataTtlHours: hoursString(approvalTtls.classification ?? approvalTtls.status, DEFAULT_APPROVAL_TTL_HOURS),
-    staleClosureTtlDays: daysString(approvalTtls.stale_closure, DEFAULT_STALE_CLOSURE_TTL_DAYS),
+    approvalTtlHours: hoursString(approvalTtlSeconds, DEFAULT_APPROVAL_TTL_HOURS),
     onStale: ['re_review', 'cancel', 'apply_anyway'].includes(stringValue(onStale.internal_note)) ? stringValue(onStale.internal_note) : 're_review',
   };
 }
@@ -511,7 +264,7 @@ function helpdeskDefinitionSettingsPayload(
   const queue = policyObject(definition.queue_policy_json);
   const response = policyObject(definition.response_policy_json);
   const ingestion = nestedPolicy(scope, 'new_tickets_only');
-  const predicates = targetingPredicatesFromForm(form);
+  const predicates = targetingPredicatesFromFilters(form.filters);
   const mode = modeFromFilters(form.filters);
   const categoryId = categoryFromFilters(form.filters) || form.categoryId.trim();
   const entityId = entityFromFilters(form.filters) || form.entityId.trim();
@@ -530,10 +283,10 @@ function helpdeskDefinitionSettingsPayload(
   };
   return {
     agent_priority: positiveNumber(form.agentPriority, 100),
-    allowed_capabilities_json: allowedCapabilitiesWithStaleClosurePrereqs(definition, form.staleEnabled),
+    allowed_capabilities_json: capabilityEntries(definition.allowed_capabilities_json),
     response_policy_json: {
       ...response,
-      prepare_stale_closure: form.staleEnabled,
+      prepare_stale_closure: undefined,
       automatic_public_reply: false,
       automatic_ticket_updates: false,
       require_human_approval_for_writes: true,
@@ -573,25 +326,15 @@ function helpdeskDefinitionSettingsPayload(
       saved_filter: { enabled: false },
       all_matching: { enabled: false },
       freeform_live_object_ids: false,
-      stale_closure: {
-        action: form.staleAction === 'solved' ? 'solved' : 'closed',
-        message: form.staleMessage,
-      },
+      stale_closure: undefined,
     },
     queue_policy_json: {
       ...queue,
       enabled: true,
       review_cooldown_seconds: positiveNumber(form.reviewCooldownHours, DEFAULT_REVIEW_COOLDOWN_HOURS) * 3600,
       on_conflict: form.onConflict === 'supersede' ? 'supersede' : 'defer',
-      approval_ttl_seconds_by_action_class: {
-        public_reply: positiveNumber(form.publicReplyTtlHours, DEFAULT_PUBLIC_REPLY_TTL_HOURS) * 3600,
-        internal_note: positiveNumber(form.internalNoteTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
-        classification: positiveNumber(form.metadataTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
-        status: positiveNumber(form.metadataTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
-        assignment: positiveNumber(form.metadataTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
-        participant: positiveNumber(form.metadataTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
-        stale_closure: positiveNumber(form.staleClosureTtlDays, DEFAULT_STALE_CLOSURE_TTL_DAYS) * 86400,
-      },
+      approval_ttl_seconds: positiveNumber(form.approvalTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
+      approval_ttl_seconds_by_action_class: undefined,
       on_stale_by_action_class: {
         public_reply: form.onStale === 'cancel' ? 'cancel' : 're_review',
         internal_note: ['re_review', 'cancel', 'apply_anyway'].includes(form.onStale) ? form.onStale : 're_review',
@@ -808,6 +551,34 @@ function personaText(definition: AiAgentControlAgentDefinition, key: string): st
   return typeof value === 'string' ? value : '';
 }
 
+function personaNestedText(definition: AiAgentControlAgentDefinition, objectKey: string, key: string): string {
+  const value = definition.persona_json?.[objectKey];
+  if (!isRecord(value)) return '';
+  return stringValue(value[key]);
+}
+
+function personaEscalationGuidance(definition: AiAgentControlAgentDefinition): string {
+  return personaText(definition, 'escalation_guidance') || personaText(definition, 'escalation_text');
+}
+
+function personaSharedContext(definition: AiAgentControlAgentDefinition): { enabled: boolean; profileId: string | null } {
+  const value = definition.persona_json?.shared_context;
+  const shared = isRecord(value) ? value : {};
+  const profileId = stringValue(shared.profile_id).trim();
+  return {
+    enabled: shared.enabled === true,
+    profileId: profileId || null,
+  };
+}
+
+function sharedContextProfileLines(profile: AiSharedContextProfile | null | undefined): string[] {
+  const content = profile?.content_json;
+  if (isRecord(content) && Array.isArray(content.lines)) {
+    return content.lines.filter((line): line is string => typeof line === 'string' && line.trim().length > 0);
+  }
+  return [];
+}
+
 function knowledgeFormFromDefinition(definition: AiAgentControlAgentDefinition): {
   enabled: boolean; allLibraries: boolean; libraryIds: string[]; webEnabled: boolean;
 } {
@@ -825,328 +596,20 @@ function knowledgeFormFromDefinition(definition: AiAgentControlAgentDefinition):
   };
 }
 
-const TARGETING_OPTIONS_STALE_TIME_MS = 30_000;
-const AVAILABLE_TARGETING_FIELDS: TargetingFilterField[] = ['status', 'priority', 'type', 'category', 'entity', 'created_at', 'updated_at', 'inactivity_age'];
-
-function optionMetadataString(option: AiAgentControlRefItem, key: string): string {
-  const value = option.metadata?.[key];
-  return typeof value === 'string' ? value : '';
-}
-
-function optionMetadataNumber(option: AiAgentControlRefItem, key: string): number | null {
-  const value = option.metadata?.[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function optionLabel(options: AiAgentControlRefItem[], value: string): string {
-  return options.find((option) => option.value === value)?.label ?? value;
-}
-
-function statusOptionSemanticColor(option: AiAgentControlRefItem): string {
-  const key = optionMetadataString(option, 'key').toLowerCase();
-  const code = optionMetadataNumber(option, 'code');
-  if (key.includes('pending') || code === 4) return 'warning';
-  if (key.includes('processing') || key.includes('assigned') || code === 2 || code === 3) return 'info';
-  if (key.includes('solved') || key.includes('resolved') || code === 5) return 'success';
-  return 'default';
-}
-
-function statusOptionIsOpen(option: AiAgentControlRefItem): boolean {
-  const key = optionMetadataString(option, 'key').toLowerCase();
-  const label = option.label.toLowerCase();
-  const code = optionMetadataNumber(option, 'code') ?? Number(option.value);
-  if (Number.isFinite(code) && code >= 5) return false;
-  return !(key.includes('solved') || key.includes('closed') || key.includes('resolved') || label.includes('solved') || label.includes('closed') || label.includes('resolved'));
-}
-
-function openStatusValues(options: AiAgentControlRefItem[]): string[] {
-  return options.filter(statusOptionIsOpen).map((option) => option.value);
-}
-
-function prioritySemanticColor(option: AiAgentControlRefItem): string {
-  const level = optionMetadataNumber(option, 'level') ?? optionMetadataNumber(option, 'code');
-  if (level != null && level >= 5) return 'error';
-  if (level != null && level >= 4) return 'warning';
-  return 'default';
-}
-
-function DotOptionLabel({ color, label }: { color: string; label: React.ReactNode }) {
-  const theme = useTheme();
-  const dotColor = getDotColor(color, theme.palette.mode);
-  return (
-    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
-      <Typography variant="body2" sx={{ color: dotColor, minWidth: 0 }}>{label}</Typography>
-    </Stack>
-  );
-}
-
-function defaultFilterForField(
-  field: TargetingFilterField,
-  options: { statuses?: AiAgentControlRefItem[]; priorities?: AiAgentControlRefItem[]; types?: AiAgentControlRefItem[] } = {},
-): TargetingFilter {
-  if (field === 'status') return buildFilter('status', openStatusValues(options.statuses ?? []));
-  if (field === 'priority') {
-    const priority = options.priorities?.find((option) => (optionMetadataNumber(option, 'level') ?? 0) >= 4) ?? options.priorities?.[0];
-    return buildFilter('priority', priority?.value ?? '');
-  }
-  if (field === 'type') return buildFilter('type', options.types?.[0]?.value ?? '');
-  if (field === 'created_at') return buildFilter('created_at', '', '3', 'days');
-  if (field === 'updated_at') return buildFilter('updated_at', '', '1', 'days');
-  if (field === 'inactivity_age') return buildFilter('inactivity_age', '', '3', 'days');
-  if (field === 'touched_by') return buildFilter('touched_by', 'self');
-  return buildFilter(field, '');
-}
-
-function ReferenceCatalogAutocomplete({
-  agentId,
-  field,
-  value,
-  label,
-  onChange,
-}: {
-  agentId: string;
-  field: 'category' | 'entity';
-  value: string;
-  label?: string;
-  onChange: (next: { value: string; label?: string }) => void;
-}) {
-  const { t } = useTranslation(['agents']);
-  const [inputValue, setInputValue] = React.useState(label || value);
-  React.useEffect(() => {
-    setInputValue(label || value);
-  }, [label, value]);
-  const lookupQuery = inputValue.trim() || value.trim();
-  const optionsQuery = useQuery({
-    queryKey: ['ai-agent-targeting-options', agentId, field, lookupQuery],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, field, { query: lookupQuery || undefined, limit: 20 }),
-    enabled: !!agentId,
-    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
-  });
-  const options = optionsQuery.data?.options ?? [];
-  const selected = value
-    ? options.find((option) => option.value === value) ?? { value, label: label || value }
-    : null;
-  return (
-    <Autocomplete<AiAgentControlRefItem, false, false, false>
-      size="small"
-      options={options}
-      value={selected}
-      inputValue={inputValue}
-      loading={optionsQuery.isFetching}
-      filterOptions={(items) => items}
-      getOptionLabel={(option) => option.label}
-      isOptionEqualToValue={(option, candidate) => option.value === candidate.value}
-      noOptionsText={t('settings.targetingBuilder.noOptions')}
-      onInputChange={(_event, next) => setInputValue(next)}
-      onChange={(_event, option) => {
-        onChange(option ? { value: option.value, label: option.label } : { value: '', label: '' });
-      }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          size="small"
-          variant="standard"
-          placeholder={t(`settings.targetingFields.${field}`)}
-          InputProps={{ ...params.InputProps, disableUnderline: true }}
-          sx={editableFieldValueSx}
-        />
-      )}
-    />
-  );
-}
-
-function TargetingFilterBuilder({
-  agentId,
-  filters,
-  onChange,
-}: {
-  agentId: string;
-  filters: TargetingFilter[];
-  onChange: (filters: TargetingFilter[]) => void;
-}) {
-  const { t } = useTranslation(['agents']);
-  const statusOptionsQuery = useQuery({
-    queryKey: ['ai-agent-targeting-options', agentId, 'status', ''],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, 'status', { limit: 50 }),
-    enabled: !!agentId,
-    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
-  });
-  const priorityOptionsQuery = useQuery({
-    queryKey: ['ai-agent-targeting-options', agentId, 'priority', ''],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, 'priority', { limit: 50 }),
-    enabled: !!agentId,
-    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
-  });
-  const typeOptionsQuery = useQuery({
-    queryKey: ['ai-agent-targeting-options', agentId, 'type', ''],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, 'type', { limit: 50 }),
-    enabled: !!agentId,
-    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
-  });
-  const statusOptions = statusOptionsQuery.data?.options ?? [];
-  const priorityOptions = priorityOptionsQuery.data?.options ?? [];
-  const typeOptions = typeOptionsQuery.data?.options ?? [];
-  const optionSets = React.useMemo(() => ({
-    statuses: statusOptions,
-    priorities: priorityOptions,
-    types: typeOptions,
-  }), [priorityOptions, statusOptions, typeOptions]);
-  const updateFilter = (id: string, patch: Partial<TargetingFilter>) => {
-    onChange(filters.map((filter) => (filter.id === id ? { ...filter, ...patch } : filter)));
-  };
-  const replaceField = (id: string, field: TargetingFilterField) => {
-    onChange(filters.map((filter) => (filter.id === id ? defaultFilterForField(field, optionSets) : filter)));
-  };
-  const removeFilter = (id: string) => onChange(filters.filter((filter) => filter.id !== id));
-  const addFilter = () => onChange([...filters, defaultFilterForField('status', optionSets)]);
-
-  return (
-    <Stack spacing={1}>
-      {filters.map((filter) => (
-        <Box
-          key={filter.id}
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr 1fr auto', md: '220px minmax(0, 1fr) auto' },
-            gap: 1,
-            alignItems: 'center',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            pb: 1,
-          }}
-        >
-          <Select
-            variant="standard"
-            value={filter.field}
-            onChange={(event) => replaceField(filter.id, event.target.value as TargetingFilterField)}
-            sx={drawerSelectSx}
-          >
-            {AVAILABLE_TARGETING_FIELDS.map((field) => (
-              <MenuItem key={field} value={field} sx={drawerMenuItemSx}>
-                {t(`settings.targetingFields.${field}`)}
-              </MenuItem>
-            ))}
-            <MenuItem value="touched_by" sx={drawerMenuItemSx}>
-              {t('settings.targetingFields.touched_by')}
-            </MenuItem>
-          </Select>
-
-          {filter.field === 'status' && (
-            <Select
-              multiple
-              variant="standard"
-              value={Array.isArray(filter.value) ? filter.value : []}
-              renderValue={(selected) => (selected as string[]).map((value) => optionLabel(statusOptions, value)).join(', ')}
-              onChange={(event) => {
-                const value = event.target.value;
-                updateFilter(filter.id, { value: typeof value === 'string' ? value.split(',') : value as string[] });
-              }}
-              sx={drawerSelectSx}
-            >
-              {statusOptions.map((status) => (
-                <MenuItem key={status.value} value={status.value} sx={drawerMenuItemSx}>
-                  <Checkbox size="small" checked={Array.isArray(filter.value) && filter.value.includes(status.value)} />
-                  <ListItemText primary={<DotOptionLabel color={statusOptionSemanticColor(status)} label={status.label} />} />
-                </MenuItem>
-              ))}
-            </Select>
-          )}
-
-          {filter.field === 'priority' && (
-            <Select
-              variant="standard"
-              value={typeof filter.value === 'string' ? filter.value : ''}
-              onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-              sx={drawerSelectSx}
-            >
-              {priorityOptions.map((priority) => (
-                <MenuItem key={priority.value} value={priority.value} sx={drawerMenuItemSx}>
-                  <DotOptionLabel color={prioritySemanticColor(priority)} label={priority.label} />
-                </MenuItem>
-              ))}
-            </Select>
-          )}
-
-          {filter.field === 'type' && (
-            <Select
-              variant="standard"
-              value={typeof filter.value === 'string' ? filter.value : ''}
-              onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-              sx={drawerSelectSx}
-            >
-              {typeOptions.map((type) => (
-                <MenuItem key={type.value} value={type.value} sx={drawerMenuItemSx}>
-                  {type.label}
-                </MenuItem>
-              ))}
-            </Select>
-          )}
-
-          {filter.field === 'category' && (
-            <ReferenceCatalogAutocomplete
-              agentId={agentId}
-              field="category"
-              value={typeof filter.value === 'string' ? filter.value : ''}
-              label={filter.label}
-              onChange={(next) => updateFilter(filter.id, next)}
-            />
-          )}
-
-          {filter.field === 'entity' && (
-            <ReferenceCatalogAutocomplete
-              agentId={agentId}
-              field="entity"
-              value={typeof filter.value === 'string' ? filter.value : ''}
-              label={filter.label}
-              onChange={(next) => updateFilter(filter.id, next)}
-            />
-          )}
-
-          {(filter.field === 'created_at' || filter.field === 'updated_at' || filter.field === 'inactivity_age') && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TextField
-                size="small"
-                variant="standard"
-                type="number"
-                value={filter.amount}
-                InputProps={{ disableUnderline: true, inputProps: { min: 1 } }}
-                sx={[editableFieldValueSx, { maxWidth: 92 }]}
-                onChange={(event) => updateFilter(filter.id, { amount: event.target.value })}
-              />
-              <Select
-                variant="standard"
-                value={filter.unit}
-                onChange={(event) => updateFilter(filter.id, { unit: event.target.value as TargetingFilterUnit })}
-                sx={[drawerSelectSx, { maxWidth: 120 }]}
-              >
-                <MenuItem value="hours" sx={drawerMenuItemSx}>{t('settings.targetingBuilder.hours')}</MenuItem>
-                <MenuItem value="days" sx={drawerMenuItemSx}>{t('settings.targetingBuilder.days')}</MenuItem>
-              </Select>
-            </Stack>
-          )}
-
-          {filter.field === 'touched_by' && (
-            <Typography variant="body2" color="text.secondary">{t('settings.targetingBuilder.thisAgent')}</Typography>
-          )}
-
-          <Tooltip title={t('settings.targetingBuilder.remove')}>
-            <IconButton size="small" onClick={() => removeFilter(filter.id)} aria-label={t('settings.targetingBuilder.remove')}>
-              <DeleteOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ))}
-      <Button size="small" variant="text" startIcon={<AddIcon />} onClick={addFilter} sx={[actionLinkButtonSx, { alignSelf: 'flex-start' }]}>
-        {t('settings.targetingBuilder.add')}
-      </Button>
-    </Stack>
-  );
-}
-
 function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition }) {
   const { t } = useTranslation(['agents']);
   const data = useAgentControlData();
+  const queryClient = useQueryClient();
+  // Autosave persists each change, then patches the cached agent definition in place
+  // instead of invalidating the whole workspace query set. This keeps the definition
+  // (and the config-version-keyed effective-prompt preview) fresh without refetching
+  // the queue/settings queries that drive the page, so a save no longer redraws it.
+  const applySavedDefinition = React.useCallback((saved: AiAgentControlAgentDefinition) => {
+    queryClient.setQueryData<AiAgentControlQueueOverview>(['ai-agent-control-queue'], (old) => {
+      if (!old?.definitions) return old;
+      return { ...old, definitions: old.definitions.map((item) => (item.id === saved.id ? saved : item)) };
+    });
+  }, [queryClient]);
   const settings = data.settingsQuery.data;
   const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_AGENT_KEY;
   const isHelpdesk = definition.agent_type === 'helpdesk';
@@ -1165,15 +628,22 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   } | null>(null);
   const [overrideReason, setOverrideReason] = React.useState('');
   const [pendingPreset, setPendingPreset] = React.useState<TargetingPresetKey | null>(null);
+  const sharedContext = personaSharedContext(definition);
   const [agentForm, setAgentForm] = React.useState({
     name: definition.name,
     description: definition.description ?? '',
     status: definition.status,
     mission: personaText(definition, 'mission'),
-    tone: personaText(definition, 'tone'),
+    outputStyleTone: personaNestedText(definition, 'output_style', 'tone') || personaText(definition, 'tone'),
+    outputStyleLanguage: personaNestedText(definition, 'output_style', 'language') || 'auto',
     instructions: personaText(definition, 'instructions'),
-    escalation: personaText(definition, 'escalation_text'),
+    escalationGuidance: personaEscalationGuidance(definition),
+    sharedContextEnabled: sharedContext.enabled,
+    sharedContextProfileId: sharedContext.profileId,
   });
+  const [sharedContextDialogOpen, setSharedContextDialogOpen] = React.useState(false);
+  const [sharedContextDraftName, setSharedContextDraftName] = React.useState('');
+  const [sharedContextDraftLines, setSharedContextDraftLines] = React.useState('');
   const [form, setForm] = React.useState<HelpdeskSettingsForm>(() => settingsFormFromDefinition(definition));
   const [knowledgeForm, setKnowledgeForm] = React.useState(() => knowledgeFormFromDefinition(definition));
   const [capabilityForm, setCapabilityForm] = React.useState<Record<string, boolean>>(() => capabilityEnabledState(definition));
@@ -1183,6 +653,19 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     queryFn: () => aiAgentControlApi.listKnowledgeLibraries(),
     enabled: knowledgeForm.enabled,
     staleTime: 60_000,
+  });
+  const sharedContextProfilesQuery = useQuery({
+    queryKey: ['ai-agent-shared-context-profiles'],
+    queryFn: () => aiAgentControlApi.listSharedContextProfiles(),
+    staleTime: 60_000,
+  });
+  const effectivePromptQuery = useQuery({
+    queryKey: ['ai-agent-effective-prompt', definition.id, definition.config_version],
+    queryFn: () => aiAgentControlApi.getEffectivePrompt(definition.id),
+    staleTime: 30_000,
+    // Keep showing the previous compiled prompt while the next version loads, so the
+    // preview updates seamlessly after a save instead of flashing a loading state.
+    placeholderData: (previousData) => previousData,
   });
   const previewScopeJson = React.useMemo(() => {
     if (!isHelpdesk) return '';
@@ -1259,9 +742,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
         maxTickets: settings.ingestion.maxTicketsPerCycle != null ? String(settings.ingestion.maxTicketsPerCycle) : String(DEFAULT_MAX_TICKETS),
         maxRequests: settings.ingestion.maxProviderRequestsPerCycle != null ? String(settings.ingestion.maxProviderRequestsPerCycle) : String(DEFAULT_MAX_REQUESTS),
         horizonHours: String(builtInHorizon),
-        staleEnabled: false,
-        staleAction: 'closed',
-        staleMessage: '',
         perRunTokens: settings.guardrails.perRun.maxEstimatedTokens != null ? String(settings.guardrails.perRun.maxEstimatedTokens) : String(DEFAULT_PER_RUN_TOKENS),
         perRunCost: settings.guardrails.perRun.maxEstimatedCostEur != null ? String(settings.guardrails.perRun.maxEstimatedCostEur) : String(DEFAULT_PER_RUN_COST),
         dailyRuns: settings.guardrails.daily.maxAgentRuns != null ? String(settings.guardrails.daily.maxAgentRuns) : String(DEFAULT_DAILY_RUNS),
@@ -1287,22 +767,56 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
 
   const persistIdentity = React.useCallback(async () => {
     const current = agentFormRef.current;
-    await aiAgentControlApi.updateAgent(definition.id, {
+    const res = await aiAgentControlApi.updateAgent(definition.id, {
       name: current.name,
       description: current.description || null,
       persona_json: {
         mission: current.mission,
-        tone: current.tone,
         instructions: current.instructions.split('\n').map((line) => line.trim()).filter(Boolean),
-        escalation_text: current.escalation,
+        output_style: {
+          tone: current.outputStyleTone,
+          language: current.outputStyleLanguage,
+        },
+        escalation_guidance: current.escalationGuidance,
+        shared_context: {
+          enabled: current.sharedContextEnabled,
+          profile_id: current.sharedContextProfileId,
+        },
       },
     });
+    let saved = res.agent_definition;
     if (current.status !== savedStatusRef.current) {
-      await aiAgentControlApi.updateAgentStatus(definition.id, { status: current.status });
+      const statusRes = await aiAgentControlApi.updateAgentStatus(definition.id, { status: current.status });
+      saved = statusRes.agent_definition;
       savedStatusRef.current = current.status;
     }
-    await data.invalidate();
-  }, [definition.id, data]);
+    applySavedDefinition(saved);
+  }, [definition.id, applySavedDefinition]);
+
+  const createSharedContextProfileMutation = useMutation({
+    mutationFn: (payload: { name: string; lines: string[] }) => aiAgentControlApi.createSharedContextProfile({
+      name: payload.name,
+      lines: payload.lines,
+    }),
+    onSuccess: async (result) => {
+      await sharedContextProfilesQuery.refetch();
+      const profileId = result.profile.id;
+      setAgentForm((current) => {
+        const next = {
+          ...current,
+          sharedContextEnabled: true,
+          sharedContextProfileId: profileId,
+        };
+        agentFormRef.current = next;
+        return next;
+      });
+      setSharedContextDialogOpen(false);
+      setSharedContextDraftName('');
+      setSharedContextDraftLines('');
+      identityAutosave.schedule(persistIdentity);
+    },
+    onError: onSaveError,
+  });
 
   const persistSettings = React.useCallback(async () => {
     const current = formRef.current;
@@ -1330,14 +844,15 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     const definitionPayload = helpdeskDefinitionSettingsPayload(definition, current);
     if (isBuiltInHelpdesk) {
       await aiAgentControlApi.updateHelpdeskIngestionSettings(payload);
+      await queryClient.invalidateQueries({ queryKey: ['ai-agent-helpdesk-settings'] });
     }
-    await aiAgentControlApi.updateAgent(definition.id, definitionPayload);
-    await data.invalidate();
-  }, [definition, isBuiltInHelpdesk, data]);
+    const res = await aiAgentControlApi.updateAgent(definition.id, definitionPayload);
+    applySavedDefinition(res.agent_definition);
+  }, [definition, isBuiltInHelpdesk, applySavedDefinition, queryClient]);
 
   const persistKnowledge = React.useCallback(async () => {
     const current = knowledgeFormRef.current;
-    await aiAgentControlApi.updateAgent(definition.id, {
+    const res = await aiAgentControlApi.updateAgent(definition.id, {
       knowledge_sources: {
         knowledge: {
           enabled: current.enabled,
@@ -1347,22 +862,27 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
         web: { enabled: current.webEnabled },
       },
     });
-    await data.invalidate();
-  }, [definition.id, data]);
+    applySavedDefinition(res.agent_definition);
+  }, [definition.id, applySavedDefinition]);
 
   const persistCapabilities = React.useCallback(async () => {
     let allowed: unknown[] = capabilityEntries(definition.allowed_capabilities_json);
     for (const [groupKey, enabled] of Object.entries(capabilityFormRef.current)) {
       allowed = allowedCapabilitiesWithGroup({ ...definition, allowed_capabilities_json: allowed }, groupKey, enabled);
     }
-    await aiAgentControlApi.updateAgent(definition.id, {
+    const res = await aiAgentControlApi.updateAgent(definition.id, {
       allowed_capabilities_json: allowed,
     });
-    await data.invalidate();
-  }, [definition, data]);
+    applySavedDefinition(res.agent_definition);
+    await queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy', definition.id] });
+  }, [definition, applySavedDefinition, queryClient]);
 
-  const updateAgent = (field: keyof typeof agentForm, value: string) => {
+  const updateAgent = <K extends keyof typeof agentForm>(field: K, value: typeof agentForm[K]) => {
     setAgentForm((current) => ({ ...current, [field]: value }));
+    identityAutosave.schedule(persistIdentity);
+  };
+  const updateAgentPatch = (patch: Partial<typeof agentForm>) => {
+    setAgentForm((current) => ({ ...current, ...patch }));
     identityAutosave.schedule(persistIdentity);
   };
   const update = <K extends keyof HelpdeskSettingsForm>(field: K, value: HelpdeskSettingsForm[K]) => {
@@ -1398,6 +918,16 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     setCapabilityForm((current) => ({ ...current, [groupKey]: enabled }));
     capabilitiesAutosave.schedule(persistCapabilities);
   };
+  const sharedContextProfiles = (sharedContextProfilesQuery.data?.items ?? []).filter((profile) => profile.status === 'active');
+  const selectedSharedContextProfile = sharedContextProfiles.find((profile) => profile.id === agentForm.sharedContextProfileId) ?? null;
+  const selectedSharedContextLines = sharedContextProfileLines(selectedSharedContextProfile);
+  const effectivePromptText = effectivePromptQuery.data?.tasks?.synthesis?.system_prompt ?? '';
+  const handleCreateSharedContextProfile = () => {
+    const name = sharedContextDraftName.trim();
+    const lines = sharedContextDraftLines.split('\n').map((line) => line.trim()).filter(Boolean);
+    if (!name || lines.length === 0) return;
+    createSharedContextProfileMutation.mutate({ name, lines });
+  };
 
   return (
     <Stack spacing={2}>
@@ -1413,12 +943,176 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
               </Select>
             </SettingsField>
           </Box>
-          <SettingsField label={t('settings.description')}><TextField size="small" value={agentForm.description} onChange={(event) => updateAgent('description', event.target.value)} /></SettingsField>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.mission')}><TextField size="small" multiline minRows={3} value={agentForm.mission} onChange={(event) => updateAgent('mission', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.tone')}><TextField size="small" multiline minRows={3} value={agentForm.tone} onChange={(event) => updateAgent('tone', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.instructions')} hint={t('settings.instructionsHint')}><TextField size="small" multiline minRows={4} value={agentForm.instructions} onChange={(event) => updateAgent('instructions', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.escalation')}><TextField size="small" multiline minRows={4} value={agentForm.escalation} onChange={(event) => updateAgent('escalation', event.target.value)} /></SettingsField>
+          <SettingsField label={t('settings.description')}>
+            <TextField
+              size="small"
+              variant="standard"
+              multiline
+              minRows={3}
+              value={agentForm.description}
+              InputProps={{ disableUnderline: true }}
+              sx={agentDescriptionFieldSx}
+              onChange={(event) => updateAgent('description', event.target.value)}
+            />
+          </SettingsField>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' },
+              gap: { xs: 2, lg: 3 },
+              alignItems: 'start',
+            }}
+          >
+            <Stack spacing={2}>
+            <SettingsField label={t('settings.mission')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={2}
+                maxRows={8}
+                value={agentForm.mission}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => updateAgent('mission', event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.instructions')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={3}
+                maxRows={20}
+                value={agentForm.instructions}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => updateAgent('instructions', event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.outputStyle')}>
+              <TextField
+                size="small"
+                variant="standard"
+                value={agentForm.outputStyleTone}
+                placeholder={t('settings.outputStyleTonePlaceholder')}
+                InputProps={{ disableUnderline: true }}
+                sx={editableFieldValueSx}
+                onChange={(event) => updateAgent('outputStyleTone', event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.replyLanguage')}>
+              <Select
+                variant="standard"
+                disableUnderline
+                value={agentForm.outputStyleLanguage}
+                sx={drawerSelectSx}
+                onChange={(event) => updateAgent('outputStyleLanguage', event.target.value)}
+              >
+                {['auto', 'fr', 'en', 'de', 'es'].map((value) => (
+                  <MenuItem key={value} value={value} sx={drawerMenuItemSx}>{t(`settings.outputStyleLanguageOptions.${value}`)}</MenuItem>
+                ))}
+              </Select>
+            </SettingsField>
+            <SettingsField label={t('settings.escalationGuidance')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={2}
+                maxRows={10}
+                value={agentForm.escalationGuidance}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => updateAgent('escalationGuidance', event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.sharedContext')} hint={t('settings.sharedContextHint')}>
+              <Stack spacing={1}>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      checked={agentForm.sharedContextEnabled}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        updateAgentPatch({
+                          sharedContextEnabled: checked,
+                          sharedContextProfileId: checked && !agentForm.sharedContextProfileId && sharedContextProfiles[0]
+                            ? sharedContextProfiles[0].id
+                            : agentForm.sharedContextProfileId,
+                        });
+                      }}
+                    />
+                  )}
+                  label={t('settings.sharedContextEnabled')}
+                />
+                <Select
+                  variant="standard"
+                  disableUnderline
+                  value={agentForm.sharedContextProfileId ?? ''}
+                  displayEmpty
+                  disabled={!agentForm.sharedContextEnabled || sharedContextProfiles.length === 0}
+                  sx={drawerSelectSx}
+                  onChange={(event) => updateAgent('sharedContextProfileId', event.target.value || null)}
+                >
+                  <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.sharedContextNoProfile')}</MenuItem>
+                  {sharedContextProfiles.map((profile) => (
+                    <MenuItem key={profile.id} value={profile.id} sx={drawerMenuItemSx}>{profile.name}</MenuItem>
+                  ))}
+                </Select>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <Button size="small" variant="text" sx={actionLinkButtonSx} onClick={() => setSharedContextDialogOpen(true)}>
+                    {`+ ${t('settings.sharedContextCreate')}`}
+                  </Button>
+                </Box>
+                <Box
+                  sx={(theme) => ({
+                    minHeight: 72,
+                    maxHeight: 150,
+                    overflow: 'auto',
+                    border: `1px solid ${theme.palette.kanap.border.default}`,
+                    borderRadius: 1,
+                    bgcolor: theme.palette.kanap.bg.composer,
+                    px: 1,
+                    py: 0.75,
+                    fontSize: 13,
+                    color: theme.palette.kanap.text.primary,
+                    whiteSpace: 'pre-wrap',
+                  })}
+                >
+                  {selectedSharedContextLines.length > 0
+                    ? selectedSharedContextLines.join('\n')
+                    : t('settings.sharedContextEmptyPreview')}
+                </Box>
+              </Stack>
+            </SettingsField>
+            </Stack>
+            <Box sx={{ position: { lg: 'sticky' }, top: { lg: 16 }, alignSelf: 'start' }}>
+            <SettingsField label={t('settings.effectivePrompt')} hint={t('settings.effectivePromptHint')}>
+              <Box
+                component="pre"
+                sx={(theme) => ({
+                  m: 0,
+                  minHeight: 320,
+                  maxHeight: { xs: 360, lg: 'calc(100vh - 200px)' },
+                  overflow: 'auto',
+                  border: `1px solid ${theme.palette.kanap.border.default}`,
+                  borderRadius: 1,
+                  bgcolor: theme.palette.kanap.bg.composer,
+                  color: theme.palette.kanap.text.primary,
+                  fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+                  fontSize: 12,
+                  lineHeight: 1.55,
+                  p: 1,
+                  whiteSpace: 'pre-wrap',
+                })}
+              >
+                {effectivePromptQuery.isLoading
+                  ? t('settings.effectivePromptLoading')
+                  : effectivePromptText || t('settings.effectivePromptEmpty')}
+              </Box>
+            </SettingsField>
+            </Box>
           </Box>
           {isHelpdesk && (
             <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.5 }}>
@@ -1434,26 +1128,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
                     label={t(`settings.capabilityGroups.${group.key}`, { defaultValue: humanize(group.key) })}
                   />
                 ))}
-              </Box>
-              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between">
-                  <FormControlLabel
-                    control={<Switch checked={form.staleEnabled} onChange={(event) => update('staleEnabled', event.target.checked)} />}
-                    label={t('settings.staleClosureEnable')}
-                  />
-                  {form.staleEnabled && (
-                    <Select
-                      variant="standard"
-                      value={form.staleAction}
-                      onChange={(event) => update('staleAction', event.target.value)}
-                      sx={[drawerSelectSx, { maxWidth: 220 }]}
-                    >
-                      <MenuItem value="closed" sx={drawerMenuItemSx}>{t('settings.staleActions.closed')}</MenuItem>
-                      <MenuItem value="solved" sx={drawerMenuItemSx}>{t('settings.staleActions.solved')}</MenuItem>
-                    </Select>
-                  )}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">{t('settings.staleClosureObjectiveHint')}</Typography>
               </Box>
             </Box>
           )}
@@ -1472,7 +1146,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
             ))}
           </Stack>
           <SettingsField label={t('settings.targetingBuilder.filters')} hint={t('settings.targetingBuilder.hint')}>
-            <TargetingFilterBuilder agentId={definition.id} filters={form.filters} onChange={updateFilters} />
+            <HelpdeskTargetingFilterBuilder agentId={definition.id} filters={form.filters} onChange={updateFilters} />
           </SettingsField>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
             <MetricBlock label={t('settings.preview.matches')} value={targetingPreviewQuery.isFetching ? '…' : formatNumber(targetingPreviewQuery.data?.preview.matchEstimate ?? 0)} />
@@ -1505,11 +1179,8 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
             <SettingsField label={t('settings.maxTickets')}><TextField size="small" value={form.maxTickets} onChange={(event) => update('maxTickets', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.maxRequests')}><TextField size="small" value={form.maxRequests} onChange={(event) => update('maxRequests', event.target.value)} /></SettingsField>
           </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.publicReplyTtl')}><TextField size="small" value={form.publicReplyTtlHours} onChange={(event) => update('publicReplyTtlHours', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.internalNoteTtl')}><TextField size="small" value={form.internalNoteTtlHours} onChange={(event) => update('internalNoteTtlHours', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.metadataTtl')}><TextField size="small" value={form.metadataTtlHours} onChange={(event) => update('metadataTtlHours', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.staleClosureTtl')}><TextField size="small" value={form.staleClosureTtlDays} onChange={(event) => update('staleClosureTtlDays', event.target.value)} /></SettingsField>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label={t('settings.approvalTtl')} hint={t('settings.approvalTtlHint')}><TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.onStale')}>
               <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={drawerSelectSx}>
                 <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
@@ -1644,6 +1315,45 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
               preset: t(`settings.targetingPresets.${pendingPreset}`),
             })}
           </Typography>
+        </KanapDialog>
+      )}
+
+      {sharedContextDialogOpen && (
+        <KanapDialog
+          open={sharedContextDialogOpen}
+          title={t('settings.sharedContextDialog.title')}
+          onClose={() => setSharedContextDialogOpen(false)}
+          onSave={handleCreateSharedContextProfile}
+          saveLabel={t('settings.sharedContextDialog.create')}
+          saveDisabled={sharedContextDraftName.trim().length === 0 || sharedContextDraftLines.split('\n').map((line) => line.trim()).filter(Boolean).length === 0}
+          saveLoading={createSharedContextProfileMutation.isPending}
+        >
+          <Stack spacing={1.5}>
+            <SettingsField label={t('settings.sharedContextDialog.name')}>
+              <TextField
+                size="small"
+                variant="standard"
+                value={sharedContextDraftName}
+                placeholder={t('settings.sharedContextDialog.namePlaceholder')}
+                InputProps={{ disableUnderline: true }}
+                sx={editableFieldValueSx}
+                onChange={(event) => setSharedContextDraftName(event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.sharedContextDialog.lines')} hint={t('settings.sharedContextDialog.linesHint')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={6}
+                value={sharedContextDraftLines}
+                placeholder={t('settings.sharedContextDialog.linesPlaceholder')}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => setSharedContextDraftLines(event.target.value)}
+              />
+            </SettingsField>
+          </Stack>
         </KanapDialog>
       )}
 
