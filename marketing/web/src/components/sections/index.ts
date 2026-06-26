@@ -8,6 +8,7 @@ export { default as PageHeader } from './PageHeader.astro';
 export { default as PillarGrid } from './PillarGrid.astro';
 export { default as FeatureGrid } from './FeatureGrid.astro';
 export { default as SplitSection } from './SplitSection.astro';
+export { default as StoryBand } from './StoryBand.astro';
 export { default as ScreenshotFrame } from './ScreenshotFrame.astro';
 export { default as CTABand } from './CTABand.astro';
 export { default as TrustStrip } from './TrustStrip.astro';

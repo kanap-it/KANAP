@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'The open source IT governance platform',
+    title: 'Open-source IT platform with autonomous AI agents',
     description:
-      'Budget, enterprise architecture, portfolio and knowledge in one AI-powered platform. Built by a CIO. Open source under AGPL v3. Self-host free or choose hosted KANAP.',
+      "KANAP holds your IT department's full record, from applications and budgets to projects and documentation. Plaid works it in plain language, and autonomous agents take on the repetitive load. Open source under AGPL v3, self-host free or hosted.",
   },
 
   hero: {
-    eyebrow: 'Bring clarity to your IT department',
-    title: 'The open source IT governance platform.',
-    lead: 'Budget, architecture, portfolio and knowledge in one platform, with Plaid, the built-in AI assistant.\nSelf-host it for free, or let us run it for you.',
+    eyebrow: 'Open-source · self-hosted · built to extend',
+    title: 'Open-source AI agents that take over your repetitive IT work.',
+    lead: "KANAP holds your IT department's full picture, from applications and servers to budgets and projects. Plaid lets anyone work with it in plain language, and agents now act on it to take the repetitive load off your team. Open-source and self-hosted.",
     primaryCta: 'Deploy free',
     secondaryCta: 'Try hosted cloud',
     trialNote: 'AGPL v3 · full source on GitHub · Docker install · no feature paywall.',
@@ -18,28 +18,78 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Why KANAP',
-    title: 'Built different.',
+    title: 'What makes KANAP different.',
     items: [
       {
-        title: 'Practitioner-built',
-        body: 'Designed by a seasoned IT veteran with real experience across industries. It solves actual IT department problems, not generic collaboration problems.',
+        title: 'The whole IT department in one system.',
+        body: 'Applications, infrastructure, budgets, projects and documentation live in one record instead of ten disconnected tools.',
       },
       {
-        title: 'Simple & powerful',
-        body: 'Zero complexity theatre. Powerful enough to solve hard problems. Simple enough for your team to adopt today.',
+        title: 'Agents that take work off your team.',
+        body: 'Autonomous agents handle the repetitive load and earn more independence as they prove themselves on real tasks.',
       },
       {
-        title: 'Truly open source',
-        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no feature paywall, no freemium trap.',
+        title: 'Open source, self-hosted, yours to extend.',
+        body: 'Full source under AGPL v3. Run it on your own servers, and write your own agents and connectors.',
       },
     ],
   },
 
-  modules: {
-    eyebrow: 'Complete IT toolbox',
-    title: 'Built for every IT role.\nUse the whole platform, or one tile at a time.',
+  layers: {
+    eyebrow: 'How it fits together',
+    title: 'A complete platform for the IT department.',
     intro:
-      'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with an AI assistant that reads across all of it.',
+      'KANAP is built in three layers that work on the same information, so each one makes the others more useful.',
+    items: [
+      {
+        title: 'The record',
+        body: 'KANAP holds the full picture of your IT department: applications and infrastructure, budgets, projects and documentation. One place instead of ten tools.',
+      },
+      {
+        title: 'The interaction',
+        body: 'Plaid lets anyone on your team work with the record in plain language, asking questions and making changes without learning where everything lives.',
+      },
+      {
+        title: 'The action',
+        body: 'Agents act on the same record, picking up repetitive work and carrying it out under the autonomy you grant them.',
+      },
+    ],
+    outro: 'Each part is useful by itself, and they get stronger together.',
+  },
+
+  story: [
+    {
+      title: 'Agents with a real system underneath them.',
+      body: `Most agents only see the ticket in front of them. A KANAP agent reads the application a problem affects, who owns it and what it costs, the project it belongs to, and the documentation you wrote about it.
+That depth is what makes its answers about your environment instead of guesses, and what makes its work worth trusting.`,
+    },
+    {
+      title: 'Agents that earn their independence.',
+      body: `An agent starts supervised. KANAP measures how often it gets things right, and you grant it more autonomy as the track record holds.
+Every repetitive task it takes over is one your team stops doing by hand.`,
+    },
+    {
+      title: 'Autonomy you can trust.',
+      body: 'An agent acts within limits you set, and you can see and stop what it does at any time. That is what makes it sound to hand an agent real work.',
+      bullets: [
+        'Every action is recorded in the same audit trail as the rest of KANAP.',
+        'Each agent is scoped to the operations you allow, with no raw database or shell access.',
+        'Answers cite the records and documents the agent drew from.',
+        'You can pause any agent immediately.',
+      ],
+    },
+    {
+      title: 'Built to run on your whole stack.',
+      body: `One runtime drives the work, kept separate from how it talks to any given tool. A service-desk connector ships first, to prove the model on real tickets.
+The same runtime is built to drive monitoring, virtualization, directory services, anything behind a connector. The code is open, so you can write your own.`,
+    },
+  ],
+
+  modules: {
+    eyebrow: 'What it covers',
+    title: 'The record your team and your agents work from.',
+    intro:
+      'KANAP covers what an IT department needs to run, from the first budget line to the last retired application. Your team works across all of it in plain language, and your agents act on the same data.',
     items: [
       {
         slug: '/features/budget',
@@ -97,7 +147,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, AI assistant',
         blurb:
-          'For every role, not just the AI-curious. Ask in plain language; get structured answers across every module. The shortest path between an IT question and the data that answers it.',
+          'For every role, not just the AI-curious. Ask in plain language, get structured answers across every module. The shortest path between an IT question and the data that answers it.',
         bullets: [
           'Natural-language queries across every module',
           'Document and task actions with preview',
@@ -107,9 +157,22 @@ const content: HomeContent = {
         ctaLabel: 'Learn more',
       },
       {
+        slug: '/features/agents',
+        title: 'Agents',
+        blurb:
+          'For teams buried in repetitive tickets. An agent reads each task against your IT data and either proposes an action or carries it out, under the autonomy you set. One service-desk connector runs in production today, and the runtime is built to extend.',
+        bullets: [
+          'Reasons over your real IT record',
+          'Starts supervised, earns more autonomy',
+          'Every action recorded and reversible',
+          'Open runtime, write your own connector',
+        ],
+        ctaLabel: 'Learn more',
+      },
+      {
         title: 'Adopt at your pace',
         blurb:
-          'Every core module is fully operational on its own. Start where it hurts most — budget, landscape, portfolio, knowledge — and add the rest when you\'re ready. The platform pays off more as you adopt more, but you never need all five to get value.',
+          "Every core module is fully operational on its own. Start where it hurts most, whether that's budget, landscape, portfolio or knowledge, and add the rest when you're ready. The platform pays off more as you adopt more, but you never need the whole thing to get value.",
         bullets: [
           'Each module fully usable standalone',
           'No forced sequence or full-platform migration',
@@ -122,9 +185,9 @@ const content: HomeContent = {
 
   crossCutting: {
     eyebrow: 'Enterprise ready',
-    title: 'Everything connected.\nAlways under control.',
+    title: 'One connected system, under your control.',
     intro:
-      'Five modules working from the same data, creating the governance layer IT departments actually need.',
+      'The modules work from the same data, which is what gives an IT department real governance. It is also what lets an agent act without putting your environment at risk.',
     items: [
       {
         title: 'Reporting & dashboards',
@@ -140,11 +203,15 @@ const content: HomeContent = {
       },
       {
         title: 'Complete audit trail',
-        body: 'Every change tracked. Know who changed what, when, with full before/after history.',
+        body: 'Every change tracked. Know who changed what, when, with full before and after history.',
       },
       {
         title: 'Unified task management',
         body: 'Assign tasks across OPEX, CAPEX, contracts, and projects. One backlog across the platform.',
+      },
+      {
+        title: 'Agent activity log',
+        body: 'Every agent action recorded in the same audit trail, scoped to what you allowed, and exportable for your SIEM.',
       },
       {
         title: 'SSO via Microsoft Entra ID',
@@ -153,10 +220,28 @@ const content: HomeContent = {
     ],
   },
 
+  openSource: {
+    eyebrow: 'Open source',
+    title: 'Open by default.',
+    body: `Full source on GitHub under AGPL v3, installed with Docker, with no feature behind a paywall. You can read every line, run it on your own servers, and write your own agents and connectors on top of it.
+If KANAP grows, it grows because the people running IT chose to build on it.`,
+    bullets: [
+      'Full source on GitHub under AGPL v3',
+      'Docker install, no feature paywall',
+      'Write your own agents and connectors',
+      'Bring your own LLM key for Plaid and agents',
+    ],
+  },
+
+  vision: {
+    eyebrow: 'Where this goes',
+    title: 'Toward an AI-augmented IT department.',
+    body: 'The direction is an IT department where agents quietly carry the repetitive load so your team can spend its time on the work that needs real judgment, all of it running on software you own and can read end to end.',
+  },
+
   cta: {
-    title: 'Ready to run IT from one open source system?',
-    body:
-      'Deploy KANAP yourself for free, or try the hosted version if you want us to operate it.\nSame product. Same features. Your choice.',
+    title: 'Run your IT department on a system you own.',
+    body: 'Deploy KANAP yourself for free, or have us host it. The product and every feature are the same, agents included.',
     primary: 'Deploy free',
     secondary: 'Try hosted cloud',
   },

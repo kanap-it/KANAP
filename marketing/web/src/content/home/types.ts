@@ -19,6 +19,29 @@ export interface CrossCuttingFeature {
   body: string;
 }
 
+/**
+ * Narrative band — a prose section (title + one or more paragraphs, optional
+ * supporting points). Used for the agentic story sections on the home.
+ * `body` may contain `\n` to split into paragraphs.
+ */
+export interface StoryBand {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  bullets?: string[];
+}
+
+/** The three-layer model section (record / interaction / action). */
+export interface LayersSection {
+  eyebrow: string;
+  title: string;
+  intro: string;
+  /** The three layers, named descriptively. */
+  items: Pillar[];
+  /** Closing line below the layer cards. */
+  outro: string;
+}
+
 export interface HomeContent {
   meta: {
     title: string;
@@ -37,6 +60,15 @@ export interface HomeContent {
     title: string;
     items: Pillar[];
   };
+  /**
+   * Agentic narrative bands. Optional so locale files written before the
+   * refonte still type-check; those locales render the pre-refonte home
+   * until the translation pass adds these sections.
+   */
+  layers?: LayersSection;
+  story?: StoryBand[];
+  openSource?: StoryBand;
+  vision?: StoryBand;
   modules: {
     eyebrow: string;
     title: string;
