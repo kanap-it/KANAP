@@ -47,6 +47,21 @@ export const FEATURE_SCREENSHOTS = {
   ],
 } as const;
 
+/**
+ * Agents page screenshots (plan §8). TODO: capture from the live agent UI
+ * (no mockups) and drop the PNGs in public/screenshots/, then fill this
+ * array in section order. Until then the Agents page renders ScreenshotFrame
+ * placeholders, so the layout is stable and the gap is visible.
+ *
+ * Needed, in section order:
+ *   1. The autonomy setting for an agent
+ *   2. An agent proposal: classification, drafted action, and the sources used
+ *   3. The agent settings (persona, targeting) for "one runtime, any tool"
+ *   4. The agent activity / audit record
+ *   5. An agent working a queue (the task list view)
+ */
+export const AGENT_SCREENSHOTS: readonly (string | undefined)[] = [];
+
 export type FeatureScreenshotSlug = keyof typeof FEATURE_SCREENSHOTS;
 
 export function getFeatureSlugFromPath(pathname: string): FeatureScreenshotSlug | null {
