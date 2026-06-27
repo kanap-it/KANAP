@@ -47,7 +47,7 @@ Format: **Decision**, **Why**, **Alternative if you disagree**.
 **Decision (current):** A **single Hosted KANAP plan at €249/mo or €2,490/yr**. The old Starter / Standard / Max tiers (and any other) are obsolete; every reference is purged from copy. Hosted includes all features, agents included (BYO LLM key), cloud hosting, auto updates, isolated data, support.
 **Retired:** Starter €49/mo · Standard €149/mo · Max €249/mo with per-tier contributor and Plaid-message caps.
 **Why:** Pricing settled to one clear hosted plan alongside the free self-hosted product. Locked in `REFONTE-AGENTIC.md` §10.3.
-**Open item (counsel):** the GTC legal doc still lists Free/Starter/Standard and must be reconciled to the single plan before launch. This is the only pricing item left.
+**Reconciliation status (2026-06-27):** the live GTC (`content/legal/en.ts` `sales`) is already tier-agnostic, Article 4 references "multiple plans described on the pricing page" with no tier names, so it needs no refonte rewrite. The obsolete Free/Starter/Standard copy lived only in the old `marketing/site/sales.html`, which has been deleted. A general counsel review of the GTC remains a standing legal item, not a refonte blocker.
 
 ### A-9. Support-contract pricing — RESOLVED
 **Decision:** Self-Hosted Support: €2,490/yr, annual billing only. Includes all features, unlimited contributors, priority email support, 20% consulting discount, BYOK for Plaid.
@@ -120,7 +120,7 @@ Built in phases: `/changelog`, `/security`, `/on-premise`. Confirmed in chat.
 **Why:** Matches/extends the old site's structured data.
 
 ### A-22. OG images
-**Decision:** Kept the old `og-image.png` as default. Per-page OG images can be added later as `/og/{slug}.png`. No per-page OG yet — `ASSUMPTION: one default OG image for all pages` until you provide tailored ones.
+**Decision:** Default `og-image.png` for all pages, with **per-page OG now supported** (2026-06-27): `BaseLayout` takes an optional `ogImage` prop, and `scripts/og.mjs` renders branded 1200×630 cards into `public/og/<name>.png` (puppeteer-core + system chromium, same setup as `shoot.mjs`). The first tailored card, `public/og/agents.png`, is wired on `/features/agents`. Add more pages to the `CARDS` map in `scripts/og.mjs` and pass `ogImage` from the page.
 
 ### A-23. Canonical domain
 **Decision:** `https://kanap.net` (matches old site's `site` config).
@@ -171,10 +171,10 @@ Built in phases: `/changelog`, `/security`, `/on-premise`. Confirmed in chat.
 ### Content / business decisions
 1. Pricing settled (A-8 superseded) — single Hosted KANAP plan at €249/mo or €2,490/yr; old tiers purged. Confirm the offer TypeScript files in `src/content/offer/` read this way after the Phase 2 pass.
 2. Self-Hosted Support pricing (A-9) — I kept €2,490/yr; confirm or update
-3. **GTC legal document still lists Free/Starter/Standard tiers** — out of sync with the single Hosted plan. Counsel should reconcile the GTC to one plan before pricing goes to prod. This is the only open pricing item.
+3. ~~GTC legal document lists Free/Starter/Standard tiers~~ — RESOLVED 2026-06-27: the live GTC is already tier-agnostic (Article 4 points to the pricing page, no tier names); obsolete tier copy lived only in the deleted `marketing/site/`. A general counsel review of the GTC stays a standing item.
 4. **Connector / agent lead-capture funnel** — "Ask for a connector" links to `/contact` from the Agents page, the connector/transparency block, and Contact. This is a conversion path alongside the trial funnel. Confirm where these leads should land (shared inbox vs. dedicated form) before launch.
 5. Real testimonials (A-6) — the homepage has a placeholder "trust strip" pointing to `/contact` for stories. Fill it in when you have any
-6. Per-page OG images (A-22) — I reuse the old `og-image.png` sitewide. Consider per-page OG for `/offer`, `/features/*`, `/security`, and especially a tailored OG for `/features/agents`
+6. Per-page OG images (A-22) — per-page OG is now wired and `/features/agents` has its own card (`scripts/og.mjs` → `public/og/agents.png`). Still using the default elsewhere; add cards for `/offer`, other `/features/*`, `/security` when wanted.
 7. Module accent colour decision (A-25) — currently monochrome. Worth revisiting on the `/features` hub for visual distinction?
 
 ### Infrastructure / deployment
