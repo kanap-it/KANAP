@@ -4,12 +4,12 @@ const content: FeaturesHubContent = {
   meta: {
     title: 'Wie IT-Teams KANAP wirklich nutzen',
     description:
-      'Fünf Szenarien aus dem IT-Alltag — CIO, Architekt, PMO, Support, IT-Lead. Sehen Sie, wie die Module sich kombinieren, nicht nur, was jedes für sich tut.',
+      'Sechs Szenarien von den Menschen, die IT täglich am Laufen halten, vom CIO über den Support bis zur IT-Betriebsleitung. Sehen Sie, wie die Module sich kombinieren und wie Agenten jetzt die wiederkehrende Last übernehmen.',
   },
   header: {
     eyebrow: 'Nach Rolle',
     title: 'Wie IT-Teams KANAP wirklich nutzen.',
-    lead: 'Fünf Szenarien von Menschen, die IT täglich am Laufen halten. Echte Probleme, echte Abläufe, echte Ergebnisse. Sehen Sie, wie die Module sich kombinieren, nicht nur, was jedes für sich tut.',
+    lead: 'Sechs Szenarien von Menschen, die IT täglich am Laufen halten. Sie greifen auf einen zentralen Datenbestand zu, bearbeiten ihn über Plaid in Alltagssprache und übergeben die wiederkehrenden Teile jetzt einem Agenten. Sehen Sie, wie die Module sich kombinieren, nicht nur, was jedes für sich tut.',
   },
   modulesUsedLabel: 'Module kombiniert',
   personas: [
@@ -40,7 +40,7 @@ const content: FeaturesHubContent = {
     },
     {
       role: 'PMO-Leitung / IT-Projektmanager',
-      headline: 'Quartalsplanung mit echten Kapazitätszahlen.',
+      headline: 'Planen Sie das Quartal mit Kapazitätszahlen.',
       body:
         'Zwanzig eingehende Anfragen, acht Teams, ein Quartal. Bewerten Sie jede Anfrage anhand gewichteter Kriterien und erstellen Sie eine kapazitätsbewusste Roadmap. Engpässe sind sichtbar, bevor Sie zusagen. Termine sind kein Wunschdenken. Sie sind Mathematik. Im Steering Committee erklären Sie, warum dieses Projekt in Q3 statt Q1 liegt: Kapazität im Plattform-Team.',
       outcome: 'Sagen Sie Termine zu, die Sie wirklich verteidigen können.',
@@ -54,18 +54,19 @@ const content: FeaturesHubContent = {
       role: 'IT-Operations / Support',
       headline: 'Die Ursache in Sekunden finden, nicht in Stunden.',
       body:
-        'Die Auftragsverwaltung in der Produktion ist langsam. Sie fragen Plaid: „Welche Apps nutzen die order-management-API?" Fünf Sekunden später, eine Liste. „Welche davon wurden diese Woche aktualisiert?" Eine. „Wer ist verantwortlich?" E-Mail und Teams. Vom Symptom zur Verantwortlichkeit, ohne fünf Tools zu öffnen.',
-      outcome: 'Behandeln Sie Vorfälle aus einem Ort. Schlafen Sie besser.',
+        'Die Auftragsverwaltung in der Produktion ist langsam. Sie fragen Plaid: „Welche Apps nutzen die order-management-API?" Fünf Sekunden später, eine Liste. „Welche davon wurden diese Woche aktualisiert?" Eine. „Wer ist verantwortlich?" E-Mail und Teams. Vom Symptom zur Verantwortlichkeit, ohne fünf Tools zu öffnen. Die First-Line-Tickets, die sich jede Woche wiederholen, gehen jetzt an einen Agenten, sodass Ihr Team nur das übernimmt, was einen Menschen braucht.',
+      outcome: 'Lösen Sie Vorfälle von einem Ort aus, während ein Agent die wiederkehrenden Tickets abarbeitet.',
       modules: [
         { slug: 'it-landscape', label: 'IT-Landschaft' },
         { slug: 'knowledge', label: 'Wissen' },
         { slug: 'ai', label: 'Plaid' },
+        { slug: 'agents', label: 'Agenten' },
       ],
       shotAlt: 'Plaid beantwortet eine Ursachenforschung mit strukturierten Ergebnissen',
     },
     {
       role: 'IT-Lead / Infrastruktur-Leitung',
-      headline: 'Was abschalten, was verlängern, was zusammenführen.',
+      headline: 'Finden Sie, was abzuschalten, zu verlängern und zusammenzuführen ist.',
       body:
         'Wie viele SaaS-Anwendungen bezahlen wir? Welche überlappen? Wer ist Eigentümer, wenn es um Verhandlungen geht? Jede Anwendung trägt ihre OPEX-Zeile, ihren Vertrag, ihr Verlängerungsdatum, ihre Datenklassifizierung. Sortieren nach Kosten, Überlappung, Nutzung. Führen Sie das Gespräch mit der Finanzabteilung mit Fakten vor sich.',
       outcome: 'Verlängern Sie nicht mehr, was niemand nutzt.',
@@ -75,6 +76,19 @@ const content: FeaturesHubContent = {
         { slug: 'knowledge', label: 'Wissen' },
       ],
       shotAlt: 'Anwendungsportfolio nach OPEX sortiert mit Verlängerungsdaten',
+    },
+    {
+      role: 'IT-Betriebsleitung',
+      headline: 'Übergeben Sie die wiederkehrenden Tickets einem Agenten.',
+      body:
+        'Ihre First-Line-Queue ist jede Woche voll mit denselben Anfragen: Zugangs-Resets, wiederkehrende Vorfälle, Routine-Triage. Ein Agent übernimmt jede einzelne, liest sie gegen Ihre IT-Daten und schlägt die Lösung vor oder führt sie aus, unter der Autonomie, die Sie festlegen. Er arbeitet zunächst beaufsichtigt und gewinnt mehr Eigenständigkeit, solange seine Bilanz hält. Ihre Leute verbringen ihren Tag nicht mehr mit der wiederkehrenden Last.',
+      outcome: 'Ihr Team verbringt seine Zeit mit den schwierigen Problemen, während der Agent die Routine abarbeitet.',
+      modules: [
+        { slug: 'agents', label: 'Agenten' },
+        { slug: 'it-landscape', label: 'IT-Landschaft' },
+        { slug: 'knowledge', label: 'Wissen' },
+      ],
+      shotAlt: 'Ein Agent, der eine Queue von First-Line-Tickets bearbeitet',
     },
   ],
   cta: {

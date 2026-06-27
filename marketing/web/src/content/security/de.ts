@@ -4,13 +4,13 @@ const content: SecurityContent = {
   meta: {
     title: 'Sicherheit',
     description:
-      'Wie KANAP Ihre Daten schützt: Row-Level Security, Verschlüsselung, RBAC, Audit-Trail, SSO und Open-Source-Transparenz. Self-Hosting oder Cloud.',
+      'Wie KANAP Ihre Daten schützt: Row-Level Security, Verschlüsselung, RBAC, Audit-Trail, Agenten-Governance, SSO und Open-Source-Transparenz. Self-Hosting oder Cloud.',
   },
   header: {
     eyebrow: 'Sicherheit',
     title: 'Sicherheit, die Ihre Daten respektiert.',
     lead:
-      'Governance-taugliche Kontrollen vom ersten Tag an. Dieselbe Plattform läuft in unserer Cloud und auf Ihren eigenen Servern, mit derselben Isolation, Verschlüsselung und Auditierbarkeit.',
+      'Governance-taugliche Kontrollen vom ersten Tag an. Dieselbe Plattform läuft in unserer Cloud und auf Ihren eigenen Servern, mit derselben Isolation, Verschlüsselung, Auditierbarkeit und Governance darüber, was Agenten tun dürfen.',
   },
   overview: {
     title: 'Prinzipien',
@@ -77,8 +77,22 @@ const content: SecurityContent = {
       'Zeitleiste pro Entity (Aufgaben, Projekte, Dokumente usw.)',
       'Nutzeraktionen mit Zeitstempeln und IP-Metadaten geloggt',
       'Login- und Admin-Aktionen in einem separaten Audit-Feed',
+      'Agentenaktionen im selben Trail protokolliert, mit den Quellen, die jeder Agent genutzt hat',
       'CSV-Export für die SIEM-Ingestion',
       'Immutable Append-only-Struktur, Zeilen werden hinzugefügt, nie umgeschrieben',
+    ],
+  },
+  agentGovernance: {
+    title: 'Agenten-Governance',
+    body:
+      'Agenten handeln unter denselben Kontrollen wie alles andere, plus Grenzen, die für autonome Arbeit gelten. Jede Agentenaktion wird protokolliert und auf das beschränkt, was Sie erlaubt haben, und Sie können einen Agenten jederzeit stoppen. Autonomie wird von Ihnen gewährt und an der Bilanz des Agenten gemessen, nicht vorausgesetzt.',
+    bullets: [
+      'Agenten handeln nur über definierte Operationen, ohne direkten Datenbank- oder Shell-Zugriff',
+      'Jeder Agent auf das beschränkt, was Sie erlauben, unter demselben RBAC wie das UI',
+      'Jede Agentenaktion im selben Audit-Trail protokolliert, exportierbar für Ihr SIEM',
+      'Antworten tragen die Quellen, die der Agent genutzt hat, sodass eine Entscheidung geprüft werden kann',
+      'Jeden Agenten sofort pausieren, einzeln oder alle zusammen',
+      'Ausgabenlimits pro Agent halten die Betriebskosten begrenzt',
     ],
   },
   deployment: {

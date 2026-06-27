@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Interaktive Architekturkarten',
-      body: 'Zwei D3-basierte Visualisierungen helfen beim schnellen Verständnis Ihrer Architektur. Filtern Sie nach Umgebung, Lebenszyklus oder bestimmten Root-Knoten. Export als SVG oder PNG für die Dokumentation.',
+      body: 'Zwei D3-basierte Visualisierungen helfen beim schnellen Verständnis Ihrer Architektur. Filtern Sie nach Umgebung, Lebenszyklus oder bestimmten Root-Knoten. Export als SVG oder PNG für die Dokumentation. Diese Landschaft ist auch die Karte, die Ihre Agenten lesen, um zu wissen, welche Anwendung ein Problem betrifft, wer sie verantwortet und wie kritisch sie ist.',
       bullets: [
         'Schnittstellenkarte: Apps als Knoten, Interfaces als Kanten',
         'Verbindungskarte: Server und Netzwerkkonnektivität',
@@ -73,6 +73,8 @@ const content: FeatureContent = {
   crossLinks: {
     label: 'Andere Module entdecken',
     links: [
+      { label: 'Agenten', href: '/features/agents' },
+      { label: 'Plaid, KI-Assistent', href: '/features/ai' },
       { label: 'Budget-Management', href: '/features/budget' },
       { label: 'Portfolio-Management', href: '/features/portfolio' },
       { label: 'Wissen', href: '/features/knowledge' },

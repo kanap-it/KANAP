@@ -4,13 +4,13 @@ const content: HomeContent = {
   meta: {
     title: 'La plateforme de gouvernance IT open source',
     description:
-      'Budget, architecture d\'entreprise, portefeuille et connaissance dans une plateforme dotée d\'une IA. Conçue par un DSI. Open source sous AGPL v3. Auto-hébergement gratuit ou KANAP hébergé.',
+      "Budget, architecture d'entreprise, portefeuille et connaissance dans une seule plateforme. Plaid la pilote en langage naturel et des agents IA prennent en charge la charge répétitive. Open source sous AGPL v3. Auto-hébergement gratuit, ou choisissez KANAP hébergé.",
   },
 
   hero: {
     eyebrow: 'Mettez de la clarté dans votre DSI',
     title: 'La plateforme de gouvernance IT open source.',
-    lead: 'Budget, architecture, portefeuille et connaissance dans une seule plateforme, avec Plaid, l\'assistant IA intégré.\nAuto-hébergez-la gratuitement, ou laissez-nous l\'opérer pour vous.',
+    lead: "Budget, architecture, portefeuille et connaissance dans une seule plateforme. Plaid permet à votre équipe de la piloter en langage naturel, et des agents IA prennent en charge le travail répétitif.\nAuto-hébergez-la gratuitement, ou laissez-nous l'opérer pour vous.",
     primaryCta: 'Déployer gratuitement',
     secondaryCta: 'Essayer le cloud hébergé',
     trialNote: 'AGPL v3 · code source complet sur GitHub · installation Docker · aucun paywall fonctionnel.',
@@ -18,28 +18,62 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Pourquoi KANAP',
-    title: 'Pensée autrement.',
+    title: 'Ce qui distingue KANAP.',
     items: [
       {
         title: 'Conçue par des praticiens',
-        body: 'Pensée par un vétéran de l\'IT avec une vraie expérience multisectorielle. Elle résout les vrais problèmes des DSI, pas des problèmes génériques de collaboration.',
+        body: "Conçue par un vétéran de l'IT doté d'une vraie expérience multisectorielle. Elle résout les vrais problèmes des DSI, pas des problèmes génériques de collaboration.",
       },
       {
         title: 'Simple et puissante',
-        body: 'Zéro complexité inutile. Assez puissante pour les problèmes difficiles. Assez simple pour être adoptée dès aujourd\'hui.',
+        body: "Zéro complexité inutile. Assez puissante pour résoudre les problèmes difficiles. Assez simple pour que votre équipe l'adopte dès aujourd'hui.",
       },
       {
         title: 'Véritablement open source',
-        body: 'AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement, aucun paywall fonctionnel, aucun piège freemium.',
+        body: "AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement propriétaire, aucun paywall fonctionnel, aucun piège freemium.",
+      },
+      {
+        title: 'Toute la DSI dans un seul système.',
+        body: "Applications, infrastructure, budgets, projets et documentation vivent dans un seul référentiel au lieu de dix outils déconnectés.",
+      },
+      {
+        title: 'Des agents qui déchargent votre équipe.',
+        body: "Des agents autonomes prennent en charge la charge répétitive et gagnent en indépendance à mesure qu'ils font leurs preuves sur des tâches réelles.",
+      },
+      {
+        title: 'Adoptez à votre rythme',
+        body: "Chaque module est pleinement utilisable seul. Commencez là où ça fait le plus mal et ajoutez le reste quand vous serez prêt, sans migration globale de la plateforme.",
       },
     ],
   },
 
+  layers: {
+    eyebrow: "Comment tout s'articule",
+    title: 'Une plateforme complète pour la DSI.',
+    intro:
+      "KANAP est construite en trois couches qui travaillent sur la même information, de sorte que chacune rend les autres plus utiles.",
+    items: [
+      {
+        title: 'Le référentiel',
+        body: "KANAP détient l'image complète de votre DSI : applications et infrastructure, budgets, projets et documentation. Un seul endroit au lieu de dix outils.",
+      },
+      {
+        title: "L'interaction",
+        body: "Plaid permet à chacun dans votre équipe de travailler avec le référentiel en langage naturel, de poser des questions et d'effectuer des changements sans avoir à apprendre où se trouve chaque chose.",
+      },
+      {
+        title: "L'action",
+        body: "Les agents agissent sur le même référentiel, prennent en charge le travail répétitif et l'exécutent selon l'autonomie que vous leur accordez.",
+      },
+    ],
+    outro: "Chaque partie est utile en elle-même, et l'ensemble se renforce mutuellement.",
+  },
+
   modules: {
     eyebrow: 'Boîte à outils IT complète',
-    title: 'Pensée pour chaque rôle IT.\nPlateforme entière, ou tuile par tuile.',
+    title: 'Pensée pour chaque rôle IT.',
     intro:
-      'KANAP couvre tout ce qu\'une DSI doit maîtriser, de la première ligne de budget à la dernière application retirée, avec un assistant IA qui lit transversalement toutes vos données.',
+      "KANAP couvre le territoire essentiel dont toute DSI a besoin pour fonctionner, de la première ligne de budget à la dernière application retirée, avec Plaid pour tout parcourir en langage naturel et des agents qui prennent en charge la charge répétitive.",
     items: [
       {
         slug: '/features/budget',
@@ -48,7 +82,7 @@ const content: HomeContent = {
           'Pour les DSI et leurs partenaires finance. Planification pluriannuelle, allocations intelligentes, refacturation prête pour la direction. Défendez le budget IT avec des chiffres que votre directeur financier validera.',
         bullets: [
           'Planification budgétaire pluriannuelle',
-          'Six méthodes d\'allocation',
+          "Six méthodes d'allocation",
           'Multi-devises avec taux Banque mondiale',
           'Rapports de refacturation exécutifs',
         ],
@@ -58,12 +92,12 @@ const content: HomeContent = {
         slug: '/features/it-landscape',
         title: 'Paysage IT',
         blurb:
-          'Pour les architectes, responsables d\'application et équipes infrastructure. Documentez applications, interfaces et serveurs. Visualisez le SI d\'un coup d\'œil, planifiez les changements avec leurs dépendances sous les yeux.',
+          "Pour les architectes, responsables d'application et équipes infrastructure. Documentez applications, interfaces et serveurs. Visualisez le SI d'un coup d'œil, planifiez les changements avec leurs dépendances sous les yeux.",
         bullets: [
           'Portefeuille applicatif avec instances par environnement',
           'Documentation des interfaces avec middleware 3 segments',
           'Registre des serveurs et infrastructures',
-          'Cartes d\'interfaces et de connexions interactives',
+          "Cartes d'interfaces et de connexions interactives",
         ],
         ctaLabel: 'En savoir plus',
       },
@@ -75,7 +109,7 @@ const content: HomeContent = {
         bullets: [
           'Scoring des demandes avec critères pondérés',
           'Planification automatique de la feuille de route',
-          'Analyse des goulots et de l\'occupation',
+          "Analyse des goulots et de l'occupation",
           'Suivi du cycle de vie projet',
         ],
         ctaLabel: 'En savoir plus',
@@ -84,7 +118,7 @@ const content: HomeContent = {
         slug: '/features/knowledge',
         title: 'Connaissance',
         blurb:
-          'Pour tout le monde, et particulièrement le support et les opérations. Éditeur markdown, bibliothèques, flux de revue. Runbooks, décisions et notes d\'architecture connectés aux applications et projets qu\'ils décrivent.',
+          "Pour tout le monde, et particulièrement le support et les opérations. Éditeur markdown, bibliothèques, flux de revue. Runbooks, décisions et notes d'architecture connectés aux applications et projets qu'ils décrivent.",
         bullets: [
           'Éditeur markdown avec flux de revue',
           'Bibliothèques, dossiers, types de documents',
@@ -97,7 +131,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, Assistant IA',
         blurb:
-          'Pour chaque rôle, pas seulement les passionnés d\'IA. Posez vos questions en langage naturel ; obtenez des réponses structurées sur tous les modules. Le chemin le plus court entre une question IT et la donnée qui y répond.',
+          "Pour chaque rôle, pas seulement les passionnés d'IA. Posez vos questions en langage naturel ; obtenez des réponses structurées sur tous les modules. Le chemin le plus court entre une question IT et la donnée qui y répond.",
         bullets: [
           'Requêtes en langage naturel sur tous les modules',
           'Actions sur documents et tâches avec aperçu',
@@ -107,31 +141,33 @@ const content: HomeContent = {
         ctaLabel: 'En savoir plus',
       },
       {
-        title: 'Adoptez à votre rythme',
+        slug: '/features/agents',
+        title: 'Agents',
         blurb:
-          'Chaque module est pleinement opérationnel par lui-même. Commencez là où ça fait mal — budget, paysage, portefeuille, connaissance — et ajoutez le reste quand vous serez prêt. La plateforme rend de plus en plus à mesure que vous l\'adoptez, mais vous n\'avez jamais besoin des cinq pour en tirer de la valeur.',
+          "Pour les équipes submergées par les tickets répétitifs. Un agent lit chaque tâche au regard de vos données IT et, soit propose une action, soit l'exécute, selon l'autonomie que vous définissez. Un connecteur de centre de services tourne en production aujourd'hui, et le runtime est conçu pour être étendu.",
         bullets: [
-          'Chaque module pleinement utilisable seul',
-          'Aucune séquence imposée, aucune migration globale',
-          'La valeur transverse se cumule au fil de l\'adoption',
-          'Remplacez un outil aujourd\'hui, consolidez quand vous voudrez',
+          'Raisonne sur votre référentiel IT réel',
+          'Démarre supervisé, gagne en autonomie',
+          'Chaque action enregistrée et réversible',
+          'Runtime ouvert, écrivez votre propre connecteur',
         ],
+        ctaLabel: 'En savoir plus',
       },
     ],
   },
 
   crossCutting: {
-    eyebrow: 'Pensé pour l\'entreprise',
-    title: 'Tout connecté.\nToujours maîtrisé.',
+    eyebrow: "Pensé pour l'entreprise",
+    title: 'Un seul système connecté, sous votre contrôle.',
     intro:
-      'Cinq modules travaillent sur les mêmes données, créant la couche de gouvernance dont une DSI a réellement besoin.',
+      "Les modules travaillent à partir des mêmes données, ce qui donne à une DSI une véritable gouvernance. C'est aussi ce qui permet à un agent d'agir sans mettre votre environnement en danger.",
     items: [
       {
         title: 'Reporting & tableaux de bord',
         body: 'Tableaux de bord orientés direction, analyses de tendance, exports CSV et PNG.',
       },
       {
-        title: 'Contrôle d\'accès par rôle',
+        title: "Contrôle d'accès par rôle",
         body: 'Permissions fines par module. Niveaux lecteur, gestionnaire, administrateur.',
       },
       {
@@ -139,8 +175,8 @@ const content: HomeContent = {
         body: 'Liez les coûts aux applications, les applications aux projets, les projets aux budgets, la connaissance à tout.',
       },
       {
-        title: 'Piste d\'audit complète',
-        body: 'Chaque changement tracé. Qui a changé quoi, quand, avec l\'historique avant/après complet.',
+        title: "Journal d'audit complet",
+        body: "Chaque changement tracé, y compris les actions effectuées par les agents. Sachez qui a changé quoi, quand, avec l'historique complet avant et après.",
       },
       {
         title: 'Gestion unifiée des tâches',
@@ -148,15 +184,20 @@ const content: HomeContent = {
       },
       {
         title: 'SSO via Microsoft Entra ID',
-        body: 'Authentification unique pour l\'entreprise. Un seul identifiant pour toute l\'organisation.',
+        body: "Authentification unique pour l'entreprise. Un seul identifiant pour toute l'organisation.",
       },
     ],
   },
 
+  vision: {
+    eyebrow: 'Là où cela mène',
+    title: "Vers une DSI augmentée par l'IA.",
+    body: "La direction prise est celle d'une DSI où les agents portent discrètement la charge répétitive pour que votre équipe consacre son temps au travail qui exige un vrai jugement, le tout fonctionnant sur un logiciel que vous possédez et que vous pouvez lire de bout en bout.",
+  },
+
   cta: {
-    title: 'Prêt à piloter votre DSI depuis un système open source ?',
-    body:
-      'Déployez KANAP vous-même gratuitement, ou essayez la version hébergée si vous voulez nous confier l\'exploitation.\nMême produit. Même fonctionnalités. Votre choix.',
+    title: 'Pilotez votre DSI sur un système qui vous appartient.',
+    body: "Déployez KANAP vous-même gratuitement, ou confiez-nous l'hébergement. Le produit et chaque fonctionnalité sont identiques, agents compris.",
     primary: 'Déployer gratuitement',
     secondary: 'Essayer le cloud hébergé',
   },

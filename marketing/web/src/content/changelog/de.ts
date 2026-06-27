@@ -20,6 +20,40 @@ const content: ChangelogContent = {
   },
   entries: [
     {
+      date: '2026-06-26',
+      title: 'Agenten-Personas und geteilter Kontext.',
+      summary:
+        'Agenten können jetzt eine Persona erhalten, ihre Mission, wie sie antworten sollen und wann sie eskalieren, und sie greifen auf mandantenweiten geteilten Kontext zu, sodass jeder Agent vom selben Hintergrundwissen über Ihre Organisation ausgeht.',
+      sections: [
+        {
+          label: 'Ausgeliefert',
+          items: [
+            'Persona pro Agent: Mission, Anweisungen, Antwortstil und Eskalationsregeln',
+            'Mandantenweite Profile mit geteiltem Kontext, auf die jeder Agent zugreifen kann',
+            'Vorschau des effektiven Prompts, damit Sie genau sehen, was einem Agenten gesagt wird',
+            'Eine eigene Seite zur Verwaltung des geteilten Kontexts',
+          ],
+        },
+      ],
+    },
+    {
+      date: '2026-06-24',
+      title: 'Autonome Agenten, live an einem echten Service Desk.',
+      summary:
+        'Die autonome Agenten-Runtime hat ihre erste Produktionsiteration ausgeliefert. Ein Agent bearbeitet jetzt einen echten Service Desk, liest jedes Ticket gegen Ihre IT-Daten, entwirft eine quellenbelegte Antwort und handelt unter der Autonomie, die Sie gewähren.',
+      sections: [
+        {
+          label: 'Ausgeliefert',
+          items: [
+            'Autonome Agenten-Runtime mit gemessener Autonomie pro Agent',
+            'Erster Konnektor: ein Live-Service-Desk-Agent, der echte Tickets bearbeitet',
+            'KI-verfasste Antworten, fundiert in Ihren eigenen Datensätzen, mit Quellenangaben',
+            'Freigabe und Prüfung, solange ein Agent noch Autonomie erarbeitet, vollständiger Audit-Trail',
+          ],
+        },
+      ],
+    },
+    {
       date: '2026-04-24',
       title: 'Neue Marketing-Site.',
       summary:

@@ -4,13 +4,13 @@ const content: HomeContent = {
   meta: {
     title: 'Die Open-Source-Plattform für IT-Governance',
     description:
-      'Budget, Unternehmensarchitektur, Portfolio und Wissen in einer KI-gestützten Plattform. Entwickelt von einem CIO. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
+      'Budget, Unternehmensarchitektur, Portfolio und Wissen in einer Plattform. Plaid bearbeitet alles in Alltagssprache, und KI-Agenten übernehmen die wiederkehrende Last. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
   },
 
   hero: {
-    eyebrow: 'Bringen Sie Klarheit in Ihre IT',
+    eyebrow: 'Bringen Sie Klarheit in Ihre IT-Abteilung',
     title: 'Die Open-Source-Plattform für IT-Governance.',
-    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform, mit Plaid, dem integrierten KI-Assistenten.\nKostenlos selbst hosten oder von uns betreiben lassen.',
+    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform. Plaid lässt Ihr Team alles in Alltagssprache bearbeiten, und KI-Agenten übernehmen die wiederkehrende Arbeit.\nKostenlos selbst hosten oder von uns betreiben lassen.',
     primaryCta: 'Kostenlos bereitstellen',
     secondaryCta: 'Hosted Cloud testen',
     trialNote: 'AGPL v3 · kompletter Quellcode auf GitHub · Docker-Installation · keine Feature-Paywall.',
@@ -18,34 +18,68 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Warum KANAP',
-    title: 'Anders gedacht.',
+    title: 'Was KANAP unterscheidet.',
     items: [
       {
         title: 'Von Praktikern entwickelt',
-        body: 'Konzipiert von einem erfahrenen IT-Veteranen mit echter branchenübergreifender Erfahrung. Löst reale Probleme der IT. Passt in jede Branche.',
+        body: 'Konzipiert von einem erfahrenen IT-Veteranen mit echter branchenübergreifender Erfahrung. Es löst reale Probleme der IT-Abteilung, nicht generische Kollaborationsprobleme.',
       },
       {
-        title: 'Einfach & leistungsstark',
-        body: 'Null Komplexitätstheater. Stark genug für schwierige Probleme. Einfach genug, dass Ihr Team sie heute einführen kann.',
+        title: 'Einfach und stark',
+        body: 'Kein Komplexitätstheater. Stark genug für schwierige Probleme. Einfach genug, dass Ihr Team es heute einführt.',
       },
       {
         title: 'Wirklich Open Source',
-        body: 'AGPL v3. Vollständiger Quellcode auf GitHub. Frei zum Selbsthosten, offen für Beiträge. Kein Vendor-Lock-in, kein Bait-and-Switch, kein Freemium-Pricing.',
+        body: 'AGPL v3. Vollständiger Quellcode auf GitHub. Frei zum Selbsthosten, offen für Beiträge. Kein Vendor-Lock-in, keine Feature-Paywall, keine Freemium-Falle.',
+      },
+      {
+        title: 'Die ganze IT-Abteilung in einem System.',
+        body: 'Anwendungen, Infrastruktur, Budgets, Projekte und Dokumentation liegen in einem zentralen Datenbestand statt in zehn unverbundenen Tools.',
+      },
+      {
+        title: 'Agenten, die Ihr Team entlasten.',
+        body: 'Autonome Agenten übernehmen die wiederkehrende Last und gewinnen mehr Eigenständigkeit, je mehr sie sich an realen Aufgaben beweisen.',
+      },
+      {
+        title: 'In Ihrem Tempo einführen',
+        body: 'Jedes Modul ist allein voll nutzbar. Beginnen Sie dort, wo es am meisten weh tut, und ergänzen Sie den Rest, wenn Sie soweit sind, ohne Komplettmigration.',
       },
     ],
   },
 
+  layers: {
+    eyebrow: 'Wie alles zusammenpasst',
+    title: 'Eine komplette Plattform für die IT-Abteilung.',
+    intro:
+      'KANAP ist in drei Schichten aufgebaut, die auf denselben Informationen arbeiten, sodass jede die anderen nützlicher macht.',
+    items: [
+      {
+        title: 'Der zentrale Datenbestand',
+        body: 'KANAP hält das vollständige Bild Ihrer IT-Abteilung: Anwendungen und Infrastruktur, Budgets, Projekte und Dokumentation. Ein Ort statt zehn Tools.',
+      },
+      {
+        title: 'Die Interaktion',
+        body: 'Plaid lässt jeden in Ihrem Team in Alltagssprache mit dem zentralen Datenbestand arbeiten, Fragen stellen und Änderungen vornehmen, ohne erst zu lernen, wo alles liegt.',
+      },
+      {
+        title: 'Die Aktion',
+        body: 'Agenten handeln auf demselben Datenbestand, übernehmen wiederkehrende Arbeit und führen sie unter der Autonomie aus, die Sie ihnen gewähren.',
+      },
+    ],
+    outro: 'Jeder Teil ist für sich nützlich, und zusammen werden sie stärker.',
+  },
+
   modules: {
     eyebrow: 'Komplettes IT-Toolkit',
-    title: 'Für jede IT-Rolle gemacht.\nGanze Plattform, oder Kachel für Kachel.',
+    title: 'Für jede IT-Rolle gemacht.',
     intro:
-      'KANAP deckt alles ab, was eine IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit einem KI-Assistenten, der alles quer liest.',
+      'KANAP deckt das Kernterrain ab, das jede IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit Plaid, um alles in Alltagssprache zu bearbeiten, und Agenten, die die wiederkehrende Last übernehmen.',
     items: [
       {
         slug: '/features/budget',
         title: 'Budget-Management',
         blurb:
-          'Für CIOs und Finanzpartner. Mehrjährige Planung, intelligente Verteilung, Chargeback-Berichte, die der Geschäftsführung passen. Verteidigen Sie das IT-Budget mit Zahlen, denen Ihr CFO vertraut.',
+          'Für CIOs und Finanzpartner. Mehrjährige Planung, intelligente Verteilung, Chargeback für die Geschäftsführung. Verteidigen Sie das IT-Budget mit Zahlen, denen Ihr CFO vertraut.',
         bullets: [
           'Mehrjährige Budgetplanung',
           'Sechs Verteilungsmethoden',
@@ -71,7 +105,7 @@ const content: HomeContent = {
         slug: '/features/portfolio',
         title: 'Portfolio-Management',
         blurb:
-          'Für Projektleiter und IT-Leads. Bewerten Sie die Nachfrage, simulieren Sie kapazitätsbewusste Roadmaps, setzen Sie Termine, ohne die Daumen zu drücken.',
+          'Für Projektleiter und IT-Leads. Bewerten Sie die Nachfrage, simulieren Sie kapazitätsbewusste Roadmaps, sagen Sie Termine zu, ohne die Daumen zu drücken.',
         bullets: [
           'Anfrage-Scoring mit gewichteten Kriterien',
           'Automatische Roadmap-Planung',
@@ -97,7 +131,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, KI-Assistent',
         blurb:
-          'Für jede Rolle, nicht nur für KI-Begeisterte. Fragen Sie in Alltagssprache, bekommen Sie strukturierte Antworten über alle Module hinweg. Der kürzeste Weg zwischen einer IT-Frage und der Antwort, die in den Daten liegt.',
+          'Für jede Rolle, nicht nur für KI-Begeisterte. Fragen Sie in Alltagssprache, bekommen Sie strukturierte Antworten über alle Module hinweg. Der kürzeste Weg zwischen einer IT-Frage und den Daten, die sie beantworten.',
         bullets: [
           'Natürlichsprachliche Abfragen über alle Module',
           'Dokument- und Aufgabenaktionen mit Vorschau',
@@ -107,28 +141,30 @@ const content: HomeContent = {
         ctaLabel: 'Mehr erfahren',
       },
       {
-        title: 'In Ihrem Tempo einführen',
+        slug: '/features/agents',
+        title: 'Agenten',
         blurb:
-          'Jedes Kernmodul ist allein voll einsatzfähig. Beginnen Sie dort, wo es heute am meisten weh tut — Budget, Landschaft, Portfolio, Wissen — und ergänzen Sie den Rest, wenn Sie soweit sind. Die Plattform liefert mehr Wert, je mehr Sie einführen, aber Sie brauchen nie alle fünf, um Wert zu schöpfen.',
+          'Für Teams, die in wiederkehrenden Tickets versinken. Ein Agent liest jede Aufgabe gegen Ihre IT-Daten und schlägt entweder eine Aktion vor oder führt sie aus, unter der Autonomie, die Sie festlegen. Ein Service-Desk-Konnektor läuft heute in Produktion, und die Runtime ist auf Erweiterung ausgelegt.',
         bullets: [
-          'Jedes Modul vollständig allein nutzbar',
-          'Keine erzwungene Reihenfolge, keine Komplettmigration',
-          'Modulübergreifender Wert wächst mit der Adoption',
-          'Heute ein Tool ersetzen, später konsolidieren',
+          'Schließt anhand Ihres realen IT-Datenbestands',
+          'Startet beaufsichtigt, gewinnt mehr Autonomie',
+          'Jede Aktion protokolliert und umkehrbar',
+          'Offene Runtime, schreiben Sie Ihren eigenen Konnektor',
         ],
+        ctaLabel: 'Mehr erfahren',
       },
     ],
   },
 
   crossCutting: {
     eyebrow: 'Enterprise-ready',
-    title: 'Alles verbunden.\nImmer unter Kontrolle.',
+    title: 'Ein verbundenes System unter Ihrer Kontrolle.',
     intro:
-      'Fünf Module arbeiten auf derselben Datenbasis und bauen so die Governance-Schicht, die IT-Abteilungen tatsächlich brauchen.',
+      'Die Module arbeiten auf denselben Daten, und genau das gibt einer IT-Abteilung echte Governance. Genau das lässt auch einen Agenten handeln, ohne Ihre Umgebung zu gefährden.',
     items: [
       {
         title: 'Reporting & Dashboards',
-        body: 'Dashboards für die Geschäftsführung, Trendanalysen, CSV- und PNG-Exporte.',
+        body: 'Dashboards für die Geschäftsführung, Trendanalysen, Exporte nach CSV und PNG.',
       },
       {
         title: 'Rollenbasierte Zugriffskontrolle',
@@ -140,11 +176,11 @@ const content: HomeContent = {
       },
       {
         title: 'Vollständiger Audit-Trail',
-        body: 'Jede Änderung protokolliert. Wer hat wann was geändert, mit vollständiger Vorher-Nachher-Historie.',
+        body: 'Jede Änderung protokolliert, auch die Aktionen der Agenten. Wer hat wann was geändert, mit vollständiger Vorher-Nachher-Historie.',
       },
       {
         title: 'Einheitliches Aufgabenmanagement',
-        body: 'Aufgaben auf OPEX, CAPEX, Verträgen und Projekten. Ein Backlog über die ganze Plattform.',
+        body: 'Aufgaben über OPEX, CAPEX, Verträge und Projekte hinweg zuweisen. Ein Backlog über die ganze Plattform.',
       },
       {
         title: 'SSO über Microsoft Entra ID',
@@ -153,10 +189,15 @@ const content: HomeContent = {
     ],
   },
 
+  vision: {
+    eyebrow: 'Wohin das führt',
+    title: 'Hin zu einer KI-gestützten IT-Abteilung.',
+    body: 'Die Richtung ist eine IT-Abteilung, in der Agenten die wiederkehrende Last unauffällig tragen, damit Ihr Team seine Zeit für die Arbeit nutzt, die echtes Urteilsvermögen erfordert, und all das läuft auf Software, die Ihnen gehört und die Sie von Anfang bis Ende lesen können.',
+  },
+
   cta: {
-    title: 'Bereit, Ihre IT aus einem Open-Source-System zu steuern?',
-    body:
-      'Stellen Sie KANAP kostenlos selbst bereit oder testen Sie die gehostete Version, wenn wir den Betrieb übernehmen sollen.\nDasselbe Produkt. Dieselben Funktionen. Ihre Wahl.',
+    title: 'Steuern Sie Ihre IT-Abteilung mit einem System, das Ihnen gehört.',
+    body: 'Stellen Sie KANAP kostenlos selbst bereit oder lassen Sie es von uns hosten. Das Produkt und jede Funktion sind identisch, Agenten inklusive.',
     primary: 'Kostenlos bereitstellen',
     secondary: 'Hosted Cloud testen',
   },

@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Cartes d\'architecture interactives',
-      body: 'Deux visualisations D3 vous permettent de comprendre votre architecture d\'un coup d\'œil. Filtrez par environnement, cycle de vie ou nœuds racines. Export SVG ou PNG.',
+      body: "Deux visualisations D3 vous permettent de comprendre votre architecture d'un coup d'œil. Filtrez par environnement, cycle de vie ou nœuds racines. Export SVG ou PNG. Ce paysage est aussi la carte que lisent vos agents, pour savoir quelle application un problème touche, qui en est responsable et son degré de criticité.",
       bullets: [
         'Carte des interfaces : applications comme nœuds, interfaces comme arêtes',
         'Carte des connexions : serveurs et connectivité réseau',
@@ -71,8 +71,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explorez les autres modules',
+    label: 'Explorez la plateforme',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, Assistant IA', href: '/features/ai' },
       { label: 'Gestion du budget', href: '/features/budget' },
       { label: 'Gestion de portefeuille', href: '/features/portfolio' },
       { label: 'Connaissance', href: '/features/knowledge' },

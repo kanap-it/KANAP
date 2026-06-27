@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Chargeback-Berichte für die Geschäftsführung',
-      body: 'Erstellen Sie vorstandsreife Chargeback-Berichte mit Kostenverteilung nach Gesellschaft und Abteilung. Drill-Down vom Gesamtbetrag einer Gesellschaft bis zum einzelnen Kostenposten, mit voller Transparenz über die verwendeten Allokationsmethoden.',
+      body: 'Erstellen Sie vorstandsreife Chargeback-Berichte mit Kostenverteilung nach Gesellschaft und Abteilung. Drill-Down vom Gesamtbetrag einer Gesellschaft bis zum einzelnen Kostenposten, mit voller Transparenz über die verwendeten Allokationsmethoden. Plaid beantwortet Budgetfragen heute in Alltagssprache, und mit wachsender Zahl an Konnektoren werden auch Agenten auf diesen Daten handeln.',
       bullets: [
         'Globaler Chargeback-Bericht nach Gesellschaft',
         'Berichte je Gesellschaft nach Abteilung',
@@ -73,6 +73,8 @@ const content: FeatureContent = {
   crossLinks: {
     label: 'Andere Module entdecken',
     links: [
+      { label: 'Agenten', href: '/features/agents' },
+      { label: 'Plaid, KI-Assistent', href: '/features/ai' },
       { label: 'IT-Landschaft', href: '/features/it-landscape' },
       { label: 'Portfolio-Management', href: '/features/portfolio' },
       { label: 'Wissen', href: '/features/knowledge' },

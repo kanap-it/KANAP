@@ -50,13 +50,13 @@ const content: FeatureContent = {
     },
     {
       title: 'Documentation connectée',
-      body: 'Liez les documents aux applications, actifs, projets, demandes et tâches. Accès aux documents gérés depuis d\'autres workspaces. Distinction lié / apparenté pour une traçabilité fine.',
+      body: "Liez les documents aux applications, actifs, projets, demandes et tâches. Accès aux documents gérés depuis d'autres workspaces. Distinction lié / apparenté pour une traçabilité fine. La base de connaissances est aussi ce que citent vos agents : la source dont un agent se sert, et ce vers quoi il pointe lorsqu'il répond.",
       bullets: [
         'Relations avec applications, actifs, projets, demandes, tâches',
         'Documents gérés accessibles depuis d\'autres workspaces',
         'Distinction lié / apparenté',
         'Navigation bidirectionnelle entre documents et entités',
-        'Piste d\'audit complète des changements de relations',
+        "Journal d'audit complet des changements de relations",
       ],
       shotAlt: 'Document avec panneau latéral d\'entités liées',
     },
@@ -71,8 +71,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explorez les autres modules',
+    label: 'Explorez la plateforme',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, Assistant IA', href: '/features/ai' },
       { label: 'Gestion du budget', href: '/features/budget' },
       { label: 'Paysage IT', href: '/features/it-landscape' },
       { label: 'Gestion de portefeuille', href: '/features/portfolio' },

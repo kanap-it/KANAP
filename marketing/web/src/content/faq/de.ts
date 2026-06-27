@@ -4,13 +4,13 @@ const content: FaqContent = {
   meta: {
     title: 'FAQ',
     description:
-      'Häufige Fragen zu KANAP: Preise, Lizenz, Self-Hosting, Hosted Cloud, Plaid, Support und Abrechnung.',
+      'Häufige Fragen zu KANAP: Preise, Lizenz, Self-Hosting, Hosted Cloud, Plaid, Agenten, Support und Abrechnung.',
   },
   header: {
     eyebrow: 'FAQ',
     title: 'Häufige Fragen.',
     lead:
-      'Alles, was Sie über KANAP wissen müssen, Lizenz, Preise, Hosting und Plaid. Wenn Sie Ihre Antwort nicht finden, schreiben Sie uns.',
+      'Alles, was Sie über KANAP wissen müssen, Lizenz, Preise, Hosting, Plaid und Agenten. Wenn Sie Ihre Antwort nicht finden, schreiben Sie uns.',
   },
   groups: [
     {
@@ -91,6 +91,43 @@ const content: FaqContent = {
         {
           q: 'Wie kann ich Plaid steuern?',
           a: 'Auf Plattformebene kann Plaid vollständig deaktiviert, im Lesemodus oder im Lese-Schreib-Modus (mit Vorschau und Bestätigung für alle Änderungen) aktiviert werden. Websuche und MCP lassen sich separat aktivieren oder deaktivieren. Auf Benutzerebene steuern Sie über rollenbasierte Berechtigungen, wer welche Plaid-Funktion nutzt. RBAC wird immer durchgesetzt, Plaid sieht nie mehr, als der Nutzer sehen darf.',
+        },
+      ],
+    },
+    {
+      label: 'Agenten (KI-Automatisierung)',
+      items: [
+        {
+          q: 'Sind die Agenten autonom?',
+          a: 'Ja, von Grund auf. Ein Agent startet beaufsichtigt: Er schlägt Aktionen vor, und Sie prüfen sie. Während KANAP misst, wie oft er richtig liegt, gewähren Sie ihm mehr Autonomie, bis er Routinearbeit selbstständig erledigt und nur das eskaliert, was einen Menschen braucht. Sie entscheiden, wie weit das geht.',
+        },
+        {
+          q: 'Wie steuere ich, was ein Agent tun darf?',
+          a: 'Sie legen die Autonomiestufe jedes Agenten fest und beschränken ihn auf die Operationen, die Sie erlauben. Agenten handeln nur über definierte Operationen, ohne direkten Datenbank- oder Shell-Zugriff. Jede Aktion wird protokolliert, Sie können jeden Agenten sofort pausieren, und Sie können begrenzen, was ein Agent für das LLM ausgibt.',
+        },
+        {
+          q: 'Kann ich einem Agenten echte Arbeit anvertrauen?',
+          a: 'Genau dafür sind die Kontrollen da. Ein Agent schließt anhand Ihrer eigenen IT-Daten, statt zu raten, nennt die genutzten Quellen und protokolliert jede Aktion im selben Audit-Trail wie der Rest von KANAP. Er gewinnt Autonomie, indem er sich an realen Aufgaben beweist, und Sie können ihn jederzeit stoppen.',
+        },
+        {
+          q: 'Mit welchen Tools arbeiten Agenten heute?',
+          a: 'Heute ein Service Desk. Ein autonomer Agent bearbeitet einen echten Service Desk in Produktion, und genau das beweist das Modell. Die Runtime ist darauf ausgelegt, andere Systeme zu steuern, Monitoring, Virtualisierung, Verzeichnisdienste und mehr, jeweils hinter einem Konnektor.',
+        },
+        {
+          q: 'Kann ich meinen eigenen Agenten oder Konnektor schreiben?',
+          a: 'Ja. Der Code ist offen, und die Schlussfolgerung eines Agenten ist getrennt von der Art, wie er mit einem bestimmten Tool spricht. Sie können einen Konnektor für das System schreiben, das Sie brauchen, oder die Arbeitsweise eines Agenten verändern, weil Sie den vollständigen Quellcode haben. Wenn Sie lieber möchten, dass wir einen Konnektor bauen, kontaktieren Sie uns.',
+        },
+        {
+          q: 'Sind Agenten in der kostenlosen Open-Source-Version enthalten?',
+          a: 'Ja. Agenten sind Teil des Open-Source-Produkts unter AGPL v3, ohne KI-Feature-Gate. Sie bringen Ihren eigenen LLM-Schlüssel mit, dasselbe Modell wie bei Plaid. Hosten Sie die komplette Plattform kostenlos selbst, Agenten inklusive.',
+        },
+        {
+          q: 'Was kostet der Betrieb von Agenten?',
+          a: 'Agenten nutzen ein LLM, also bringen Sie Ihren eigenen Schlüssel mit und zahlen Ihren Anbieter für das, was sie verbrauchen. KANAP selbst ist kostenlos selbst hostbar. Mit einem Ausgabenlimit pro Agent halten Sie die Kosten planbar.',
+        },
+        {
+          q: 'Bleiben Agentenaktionen auf meinen eigenen Servern?',
+          a: 'Bei einer selbstgehosteten Installation ja. Die Schlussfolgerungen und Aktionen der Agenten laufen in Ihrer eigenen Installation, und Ihre Tickets und Dokumente verlassen sie nie. Der einzige externe Aufruf geht an den LLM-Anbieter, den Sie wählen.',
         },
       ],
     },

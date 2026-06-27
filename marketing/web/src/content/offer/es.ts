@@ -4,20 +4,21 @@ const content: OfferContent = {
   meta: {
     title: 'Precios',
     description:
-      'Gratis y de código abierto. Autoalojamiento sin límites, soporte cuando lo necesites o KANAP alojado. Todas las funcionalidades en todos los planes. AGPL v3.',
+      'Gratis y open source. Autoaloje sin límites, añada soporte cuando lo necesite o elija KANAP alojado. Todas las funcionalidades en cada plan, agentes incluidos. AGPL v3.',
   },
 
   header: {
     eyebrow: 'Precios simples y transparentes',
-    title: 'Gratis y de código abierto.\nAutoaloja, o déjanos gestionarla.',
-    lead: 'Todas las funcionalidades en cada plan. Sin restricciones, sin impuesto por usuario, sin bloqueo. Solo pagas por las operaciones y el soporte que no quieres llevar tú.',
+    title: 'Gratis y open source.\nAutoaloje, o déjenos operarlo.',
+    lead: 'Todas las funcionalidades en cada plan. Sin feature gates, sin tasa por asiento, sin bloqueo. Pague solo por las operaciones y el soporte que no quiere llevar usted mismo.',
   },
 
+  /* -------------------- Self-hosted (primary) -------------------- */
   selfHosted: {
-    eyebrow: 'Elige tu camino',
+    eyebrow: 'Elija su camino',
     title: 'El mismo producto.\nTres formas de ejecutarlo.',
     intro:
-      'Empieza con la plataforma open source completa. Añade soporte de producción cuando la soberanía importe, o elige KANAP alojado si quieres que operemos la plataforma.',
+      'Empiece con la plataforma open source completa. Añada soporte de producción cuando la soberanía importe, o elija KANAP alojado cuando quiera que operemos por usted.',
     plans: [
       {
         name: 'Autoalojado',
@@ -27,15 +28,17 @@ const content: OfferContent = {
         period: '',
         features: [
           'Funcionalidad completa, sin límites',
-          'Plaid incluido, con tu propia clave LLM',
-          'Tus datos permanecen en tu infraestructura',
-          'Despliegue Docker Compose en minutos',
-          'Open source bajo licencia AGPL v3',
+          'Plaid y agentes incluidos, sin feature gate de IA',
+          'Su propia clave LLM para Plaid y agentes',
+          'Sus datos permanecen en su infraestructura',
+          'Despliegue con Docker Compose en minutos',
+          'Open source bajo AGPL v3',
           'Soporte comunitario vía GitHub issues',
         ],
         ctaLabel: 'Desplegar desde GitHub',
         ctaHref: 'https://github.com/kanap-it/kanap',
         ctaVariant: 'primary',
+        note: 'Plaid y los agentes usan un LLM, así que usted aporta su propia clave y paga a su proveedor por el uso. Limite el gasto por agente para mantener previsible el coste de operación.',
       },
       {
         name: 'Soporte autoalojado',
@@ -45,12 +48,12 @@ const content: OfferContent = {
         period: '/año',
         subPrice: 'Facturación anual',
         features: [
-          'Todo lo incluido en Autoalojado',
-          'Tus datos permanecen en tu infraestructura',
+          'Todo lo de Autoalojado',
+          'Sus datos permanecen en su infraestructura',
           'Soporte por email prioritario',
           'Asistencia de instalación y actualización',
           'Línea directa con el equipo para problemas de producción',
-          'Sesión inicial de 60 min con un experto KANAP',
+          'Sesión inicial de 60 min con un experto de KANAP',
           '20 % de descuento en consultoría',
         ],
         ctaLabel: 'Suscribirse',
@@ -61,18 +64,19 @@ const content: OfferContent = {
   },
 
   openSourceBanner: {
-    title: 'Realmente código abierto, AGPL v3',
+    title: 'Realmente open source, AGPL v3',
     body:
-      'Todo el código fuente de KANAP está en GitHub. Léelo, audítalo, amplíalo, contribuye. AGPL v3 garantiza que el código siga abierto, para todos. Sin forks propietarios, sin bloqueo.',
+      'Todo el código fuente de KANAP está en GitHub. Léalo, audítelo, amplíelo, contribuya de vuelta. AGPL v3 garantiza que el código siga abierto, para todos. Sin forks propietarios, sin bloqueo.',
     linkLabel: 'Leer la licencia',
     linkHref: 'https://www.gnu.org/licenses/agpl-3.0.html',
   },
 
+  /* -------------------- Cloud hosted (secondary) -------------------- */
   cloud: {
-    eyebrow: 'Nube · si prefieres que lo gestionemos',
+    eyebrow: 'Nube alojada · si prefiere que lo operemos nosotros',
     title: 'La misma plataforma, operada por nosotros.',
     intro:
-      'KANAP alojado es la misma plataforma open source, operada por nosotros: hosting, actualizaciones, copias de seguridad, soporte prioritario y una sesión inicial de 60 min. Prueba de 14 días, sin tarjeta.',
+      'KANAP alojado es la misma plataforma open source, operada por nosotros: alojamiento, actualizaciones, copias de seguridad, soporte prioritario y una sesión inicial de 60 minutos. Prueba de 14 días, sin tarjeta de crédito.',
     plans: [
       {
         name: 'KANAP alojado',
@@ -82,11 +86,12 @@ const content: OfferContent = {
         period: '/mes',
         subPrice: 'o 2 490 €/año (2 meses gratis)',
         features: [
-          'Todo lo incluido en Autoalojado',
-          'Alojamos, actualizamos y respaldamos KANAP por ti',
-          'Hosting en la UE para equipos europeos',
-          '2 500 mensajes Plaid/mes incluidos, o tu propia clave sin límite',
-          'Sesión inicial de 60 min con un experto KANAP',
+          'Todo lo de Autoalojado',
+          'Alojamos, actualizamos y respaldamos KANAP por usted',
+          'Alojamiento en la UE para equipos europeos',
+          '2 500 mensajes Plaid/mes incluidos, o su propia clave, sin límite',
+          'Agentes incluidos, con su propia clave LLM',
+          'Sesión inicial de 60 min con un experto de KANAP',
           'Soporte por email prioritario',
           '20 % de descuento en consultoría',
         ],
@@ -99,45 +104,45 @@ const content: OfferContent = {
 
   howToChoose: {
     title: 'Cómo elegir',
-    intro: 'Elige según quién lleva las operaciones. Todos los planes incluyen todas las funcionalidades del producto.',
+    intro: 'Elija según quién lleva las operaciones. Todos los planes incluyen todas las funcionalidades del producto.',
     items: [
       {
         title: 'Autoalojado · gratis',
-        body: 'Tienes capacidad de TI y quieres el control total. La mejor relación calidad-precio, sin ataduras. Soporte comunitario.',
+        body: 'Tiene capacidad de TI y quiere el control total. La mejor relación calidad-precio, sin ataduras. Soporte comunitario.',
       },
       {
         title: 'Autoalojado · con soporte',
-        body: 'Necesitas el modelo autoalojado por soberanía, cumplimiento o privacidad, pero quieres soporte de producción y una línea directa para incidencias.',
+        body: 'Necesita el modelo de despliegue autoalojado por soberanía, cumplimiento o privacidad, pero quiere soporte de producción y una línea directa para incidencias.',
       },
       {
-        title: 'Hosting cloud',
-        body: 'Quieres el camino más corto al valor sin operar infraestructura. El mismo producto, operado por KANAP.',
+        title: 'Nube alojada',
+        body: 'Quiere el camino más rápido al valor sin operar infraestructura. El mismo producto, operado por KANAP.',
       },
     ],
   },
 
   services: {
-    title: 'Ayuda experta, cuando la quieras',
-    intro: 'KANAP está diseñado para adopción self-service. Si quieres ir más rápido, las ofertas de pago incluyen soporte prioritario y 20 % de descuento en consultoría.',
+    title: 'Ayuda experta, cuando la quiera',
+    intro: 'KANAP está diseñado para una adopción autoservicio. Si quiere ir más rápido, los planes de pago incluyen soporte prioritario y un 20 % de descuento en consultoría.',
     support: {
       title: 'Soporte prioritario',
       subtitle: 'Incluido con cualquier plan de pago',
-      body: 'Mantenemos todo funcionando. Personas reales, tiempos razonables, sin teatro de SLA.',
+      body: 'Manténgalo funcionando con fluidez. Personas reales, tiempos de respuesta razonables, sin teatro de SLA.',
       items: [
         'Bugs, errores, caídas, problemas de acceso',
-        'Ayuda con la instalación on-premise',
-        'Preguntas "¿es el comportamiento esperado?"',
+        'Ayuda con la instalación on-prem',
+        'Preguntas «¿es el comportamiento esperado?»',
         'Aclaraciones rápidas',
       ],
     },
     consulting: {
       title: 'Consultoría',
-      subtitle: 'De pago · 20 % de descuento para suscriptores',
-      body: 'Ayuda opcional para sacar más valor de KANAP: llamadas programadas, trabajo profundo, advisory.',
+      subtitle: 'De pago · los suscriptores obtienen un 20 % de descuento',
+      body: 'Ayuda opcional para sacar más valor de KANAP: llamadas programadas, trabajo más profundo, asesoramiento.',
       items: [
         'Instalación, configuración, onboarding, formación',
-        'Diseño de flujos y buenas prácticas',
-        'Advisory CIO sobre tu modelo de gobernanza de TI',
+        'Diseño de flujos de trabajo y buenas prácticas',
+        'Asesoramiento a CIO sobre su modelo de gobernanza de TI',
         'Cualquier cosa que requiera una llamada programada',
       ],
     },
@@ -145,7 +150,7 @@ const content: OfferContent = {
 
   rates: {
     title: 'Tarifas de consultoría opcional',
-    intro: 'Precios transparentes para equipos que quieren ayuda experta. Los suscriptores siempre tienen 20 % de descuento.',
+    intro: 'Precios transparentes para equipos que quieren ayuda experta. Los suscriptores siempre obtienen un 20 % de descuento.',
     headings: {
       duration: 'Duración',
       useCases: 'Casos de uso',
@@ -155,7 +160,7 @@ const content: OfferContent = {
     rows: [
       {
         duration: '1 hora',
-        useCases: 'Troubleshooting, preguntas concretas, consejo rápido',
+        useCases: 'Resolución de problemas, preguntas concretas, consejo rápido',
         rate: '190 €',
         subscriber: '150 €',
       },
@@ -167,50 +172,50 @@ const content: OfferContent = {
       },
       {
         duration: 'Jornada completa (8h)',
-        useCases: 'Formación de equipos grandes, consultoría profunda, advisory CIO',
+        useCases: 'Formación de equipos grandes, consultoría en profundidad, asesoramiento a CIO',
         rate: '1 250 €',
         subscriber: '1 000 €',
       },
     ],
-    note: 'Tarifas por sesión, sin IVA. Gastos de viaje facturados aparte si se requiere presencia.',
+    note: 'Las tarifas son por sesión y no incluyen VAT. Los gastos de viaje se facturan aparte si se requiere presencia.',
   },
 
   supportInvoice: {
-    title: 'Solicitar factura',
+    title: 'Solicite su factura',
     eyebrow: 'Soporte autoalojado',
     body:
-      'Crearemos tu factura anual de Soporte autoalojado y la enviaremos a tu email de facturación. Tras el pago, tendrás acceso a los servicios de soporte profesional.',
+      'Crearemos su factura anual de Soporte autoalojado y la enviaremos a su email de facturación. Tras el pago, obtiene acceso a los servicios de soporte profesional.',
     companyLabel: 'Nombre de la empresa',
     contactLabel: 'Nombre del contacto',
     billingEmailLabel: 'Email de facturación',
     countryLabel: 'País',
     optionalSummary: 'Datos de facturación opcionales',
-    vatLabel: 'NIF-IVA',
+    vatLabel: 'VAT ID',
     address1Label: 'Dirección línea 1',
     address2Label: 'Dirección línea 2',
     cityLabel: 'Ciudad',
     postalCodeLabel: 'Código postal',
     captchaLabel: 'Verificación de seguridad',
     submitLabel: 'Solicitar factura',
-    submittingLabel: 'Preparando solicitud de factura...',
-    successWithLink: 'Solicitud de factura enviada. La hemos enviado a tu email de facturación.',
+    submittingLabel: 'Preparando la solicitud de factura...',
+    successWithLink: 'Solicitud de factura enviada. La hemos enviado a su email de facturación.',
     successLinkLabel: 'Abrir factura',
-    successNoLink: 'Solicitud de factura enviada. Revisa tu email de facturación.',
-    errorGeneric: 'No pudimos enviar la solicitud de factura. Inténtalo de nuevo o contacta con support@kanap.net.',
-    errorRequired: 'Completa todos los campos obligatorios.',
+    successNoLink: 'Solicitud de factura enviada. Revise su email de facturación para ver los detalles de la factura.',
+    errorGeneric: 'No pudimos enviar su solicitud de factura. Inténtelo de nuevo o contacte con support@kanap.net.',
+    errorRequired: 'Complete todos los campos obligatorios.',
     closeLabel: 'Cerrar formulario',
   },
 
   faqTeaser: {
     title: 'Preguntas frecuentes',
-    body: 'Licencia, autoalojamiento, cloud, Plaid, soporte y facturación. Todas las respuestas.',
+    body: 'Licencia, autoalojamiento, nube, Plaid, soporte y facturación. Todo respondido.',
     ctaLabel: 'Leer las FAQ',
   },
 
   cta: {
     title: '¿Listo para empezar?',
     body:
-      'Despliega KANAP tú mismo gratis, o prueba la versión alojada si quieres que la operemos nosotros.',
+      'Despliegue KANAP usted mismo gratis, o pruebe la versión alojada si quiere que la operemos nosotros.',
     primary: 'Desplegar gratis',
     secondary: 'Probar nube alojada',
   },

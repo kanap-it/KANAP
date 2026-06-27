@@ -4,12 +4,12 @@ const content: FeatureContent = {
   meta: {
     title: 'Plaid, Assistant IA pour la gouvernance IT',
     description:
-      'Interrogez Plaid sur vos données IT. Créez des documents, mettez à jour des tâches, connectez n\'importe quel outil IA via MCP. Usage inclus sur le cloud hébergé.',
+      "Interrogez Plaid sur vos données IT. Créez des documents, mettez à jour des tâches, connectez n'importe quel outil IA via MCP. Usage inclus sur le cloud hébergé. Open source.",
   },
   header: {
     eyebrow: 'Plaid · Assistant IA',
-    title: 'Pas un chatbot.\nUn vrai assistant pour l\'IT.',
-    lead: 'Demandez n\'importe quoi sur votre budget, vos applications, vos projets, votre documentation. Plaid comprend vos données, agit, et se connecte à n\'importe quel outil IA d\'entreprise via MCP.',
+    title: 'Posez à KANAP toutes vos questions sur votre IT.',
+    lead: "Plaid répond sur votre budget, vos applications, vos projets et votre documentation, et effectue des changements quand vous le demandez. Chaque écriture vous est montrée avant son exécution. Utilisez-le dans KANAP, ou connectez-le à vos propres outils IA via MCP.",
   },
   sections: [
     {
@@ -24,18 +24,18 @@ const content: FeatureContent = {
       shotAlt: 'Plaid répondant à une requête transverse',
     },
     {
-      title: 'Passez à l\'action avec aperçu',
-      body: 'Plaid ne fait pas que lire, il écrit. Créez de la documentation, rédigez des briefs projet, gérez des tâches. Chaque écriture est prévisualisée avant application.',
+      title: "Passez à l'action avec aperçu",
+      body: "Plaid écrit autant qu'il lit. Il peut créer et mettre à jour du contenu pour vous, et chaque écriture est prévisualisée avant son application.",
       bullets: [
         'Création et édition de documents en markdown',
         'Rédaction de briefs et de résumés projet',
         'Mise à jour de tâches : statut, affectataires, commentaires',
         'Aperçu des changements avant application',
       ],
-      shotAlt: 'Plaid montrant un aperçu de mises à jour',
+      shotAlt: 'Plaid montrant un aperçu de mises à jour de tâches',
     },
     {
-      title: 'MCP, utilisez KANAP depuis n\'importe quel outil IA',
+      title: "MCP, utilisez KANAP depuis n'importe quel outil IA",
       body: 'KANAP expose un serveur MCP (Model Context Protocol) complet. Connectez Claude Desktop, Cursor, Windsurf ou tout client compatible, et interrogez vos données de gouvernance IT sans quitter votre flux.',
       bullets: [
         'Protocole MCP standard, compatible avec tout client',
@@ -43,7 +43,7 @@ const content: FeatureContent = {
         'Mêmes requêtes et actions que le chat intégré',
         'Conservez vos flux IA existants, ajoutez le contexte KANAP',
       ],
-      shotAlt: 'Configuration MCP avec scoping de clé',
+      shotAlt: 'Configuration MCP avec scoping de clé API',
     },
     {
       title: 'Contrôle et conformité totaux',
@@ -63,13 +63,15 @@ const content: FeatureContent = {
     items: [
       { title: '« Où en est le projet Atlas ? »', body: 'Plaid récupère le projet, ses tâches, sa timeline, son équipe, et fournit un brief de statut avec bloqueurs et jalons à venir.' },
       { title: '« Liste les applications AWS sans propriétaire »', body: 'Requête structurée sur votre paysage IT. Résultats filtrés et triés depuis des données live.' },
-      { title: '« Rédige une politique de sécurité d\'accès distant »', body: 'Plaid crée un nouveau document dans votre base, avec métadonnées et contenu markdown corrects.' },
+      { title: "« Rédige une politique de sécurité d'accès distant »", body: 'Plaid crée un nouveau document dans votre base, avec métadonnées et contenu markdown corrects.' },
       { title: '« Quels contrats expirent dans 90 jours ? »', body: 'Réponse instantanée avec noms de fournisseurs, montants et dates de renouvellement.' },
     ],
   },
   crossLinks: {
-    label: 'Explorez les autres modules',
+    label: 'Explorez la plateforme',
     links: [
+      { label: 'Agents, pour le travail qui tourne tout seul', href: '/features/agents' },
+      { label: 'Sécurité', href: '/security' },
       { label: 'Gestion du budget', href: '/features/budget' },
       { label: 'Paysage IT', href: '/features/it-landscape' },
       { label: 'Gestion de portefeuille', href: '/features/portfolio' },
@@ -77,7 +79,7 @@ const content: FeatureContent = {
     ],
   },
   cta: {
-    title: 'La gouvernance IT augmentée par l\'IA commence ici.',
+    title: "La gouvernance IT augmentée par l'IA commence ici.",
     body: 'Plaid est inclus dans chaque workspace KANAP, avec un usage généreux sur le cloud hébergé. Auto-hébergement gratuit, ou cloud hébergé.',
     primary: 'Essai gratuit',
     secondary: 'Nous contacter',
