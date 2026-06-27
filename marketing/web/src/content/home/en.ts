@@ -176,15 +176,11 @@ const content: HomeContent = {
       },
       {
         title: 'Complete audit trail',
-        body: 'Every change tracked. Know who changed what, when, with full before and after history.',
+        body: 'Every change tracked, including the actions taken by agents. Know who changed what, when, with full before and after history.',
       },
       {
         title: 'Unified task management',
         body: 'Assign tasks across OPEX, CAPEX, contracts, and projects. One backlog across the platform.',
-      },
-      {
-        title: 'Agent activity log',
-        body: 'Every agent action recorded in the same audit trail, scoped to what you allowed, and exportable for your SIEM.',
       },
       {
         title: 'SSO via Microsoft Entra ID',

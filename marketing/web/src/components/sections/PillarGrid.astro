@@ -17,9 +17,14 @@ interface Props {
   title?: string;
   intro?: string;
   pillars: Pillar[];
+  /**
+   * Force a fixed column count (responsive) instead of the default auto-fit.
+   * Use when the item count should lay out as a clean grid, e.g. 6 → 3×2.
+   */
+  columns?: 2 | 3;
 }
 
-const { eyebrow, title, intro, pillars } = Astro.props;
+const { eyebrow, title, intro, pillars, columns } = Astro.props;
 ---
 
 <div class="mk-pillars">
@@ -31,7 +36,7 @@ const { eyebrow, title, intro, pillars } = Astro.props;
     </header>
   )}
 
-  <div class="mk-pillars__grid">
+  <div class:list={['mk-pillars__grid', columns && `mk-pillars__grid--${columns}`]}>
     {pillars.map((p) => (
       <article class="mk-pillar">
         <h3 class="mk-pillar__title">{p.title}</h3>
@@ -62,6 +67,25 @@ const { eyebrow, title, intro, pillars } = Astro.props;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 24px;
+  }
+
+  /* Fixed column counts (opt-in) so item counts lay out cleanly, e.g. 6 → 3×2. */
+  .mk-pillars__grid--2,
+  .mk-pillars__grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 640px) {
+    .mk-pillars__grid--2,
+    .mk-pillars__grid--3 {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .mk-pillars__grid--3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
   .mk-pillar {
