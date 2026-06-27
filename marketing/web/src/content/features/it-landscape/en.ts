@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Interactive architecture maps',
-      body: 'Two D3-powered visualisations help you understand your architecture at a glance. Filter by environment, lifecycle or specific root nodes. Export to SVG or PNG for documentation.',
+      body: 'Two D3-powered visualisations help you understand your architecture at a glance. Filter by environment, lifecycle or specific root nodes. Export to SVG or PNG for documentation. This landscape is also the map your agents read, to know which application a problem touches, who owns it, and how critical it is.',
       bullets: [
         'Interface map: apps as nodes, interfaces as edges',
         'Connection map: servers and network connectivity',
@@ -71,8 +71,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explore other modules',
+    label: 'Explore the platform',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, AI assistant', href: '/features/ai' },
       { label: 'Budget management', href: '/features/budget' },
       { label: 'Portfolio management', href: '/features/portfolio' },
       { label: 'Knowledge', href: '/features/knowledge' },

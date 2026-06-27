@@ -1,0 +1,152 @@
+---
+/**
+ * AgentsPage — the /features/agents deep-dive.
+ *
+ * Same shape as a feature deep-dive (header, alternating split sections,
+ * "more" grid, cross-links) plus two things a standard feature page does
+ * not have: a transparency / connector lead-capture band, and a Deploy-free
+ * CTA that points to GitHub. Screenshots are placeholders until the live
+ * agent UI is captured (AGENT_SCREENSHOTS, plan §8).
+ */
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  Section,
+  PageHeader,
+  SplitSection,
+  ScreenshotFrame,
+  FeatureGrid,
+  CTABand,
+} from './sections';
+import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import { getAgentsContent } from '../content/resolve';
+import { AGENT_SCREENSHOTS } from '../content/screenshots';
+
+const locale = getLocaleFromUrl(Astro.url);
+const content = getAgentsContent(locale);
+const t = content.transparency;
+---
+
+<BaseLayout title={content.meta.title} description={content.meta.description} ogImage="/og/agents.png">
+  <PageHeader
+    eyebrow={content.header.eyebrow}
+    title={content.header.title}
+    lead={content.header.lead}
+  />
+
+  {content.sections.map((section, i) => (
+    <Section tone={i % 2 === 0 ? 'default' : 'sunken'}>
+      <SplitSection
+        title={section.title}
+        body={section.body}
+        bullets={section.bullets}
+        reverse={i % 2 === 1}
+      >
+        <Fragment slot="visual">
+          <ScreenshotFrame src={AGENT_SCREENSHOTS[i]} alt={section.shotAlt} />
+        </Fragment>
+      </SplitSection>
+    </Section>
+  ))}
+
+  <Section tone="default">
+    <FeatureGrid
+      title={content.more.title}
+      items={content.more.items.map((m) => ({ title: m.title, blurb: m.body }))}
+      columns={2}
+    />
+  </Section>
+
+  <Section tone="sunken">
+    <div class="mk-agents-band">
+      <span class="mk-eyebrow">{t.eyebrow}</span>
+      <h2 class="mk-agents-band__title">{t.title}</h2>
+      <p class="mk-agents-band__body">{t.body}</p>
+      <a href={localePath(locale, t.ctaHref)} class="mk-btn mk-btn--primary mk-agents-band__cta">
+        {t.ctaLabel}
+      </a>
+    </div>
+  </Section>
+
+  <Section tone="default" compact>
+    <nav class="mk-cross" aria-label={content.crossLinks.label}>
+      <p class="mk-eyebrow mk-cross__label">{content.crossLinks.label}</p>
+      <ul class="mk-cross__links">
+        {content.crossLinks.links.map((link) => (
+          <li>
+            <a href={localePath(locale, link.href)}>{link.label} →</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </Section>
+
+  <Section tone="sunken" compact>
+    <CTABand
+      title={content.cta.title}
+      body={content.cta.body}
+      primaryHref="https://github.com/kanap-it/kanap"
+      primaryLabel={content.cta.primary}
+      secondaryHref={localePath(locale, '/contact')}
+      secondaryLabel={content.cta.secondary}
+    />
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-agents-band {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    max-width: 680px;
+  }
+
+  .mk-agents-band__title {
+    font-size: clamp(24px, 2.6vw, 30px);
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .mk-agents-band__body {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+  }
+
+  .mk-agents-band__cta {
+    margin-top: 6px;
+  }
+
+  .mk-cross {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: flex-start;
+  }
+
+  .mk-cross__label {
+    margin: 0;
+  }
+
+  .mk-cross__links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 28px;
+  }
+
+  .mk-cross__links a {
+    font-size: 14px;
+    color: var(--kanap-teal);
+    font-weight: 500;
+  }
+
+  .mk-cross__links a:hover {
+    color: var(--kanap-text-primary);
+  }
+</style>

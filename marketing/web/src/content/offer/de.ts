@@ -4,7 +4,7 @@ const content: OfferContent = {
   meta: {
     title: 'Preise',
     description:
-      'Kostenlos und Open Source. Selbsthosting ohne Limits, Support bei Bedarf oder Hosted KANAP. Alle Funktionen in jedem Plan. AGPL v3.',
+      'Kostenlos und Open Source. Selbsthosting ohne Limits, Support bei Bedarf oder Hosted KANAP. Alle Funktionen in jedem Plan, Agenten inklusive. AGPL v3.',
   },
 
   header: {
@@ -27,7 +27,8 @@ const content: OfferContent = {
         period: '',
         features: [
           'Voller Funktionsumfang, keine Limits',
-          'Plaid enthalten, mit Ihrem eigenen LLM-Schlüssel',
+          'Plaid und Agenten enthalten, kein KI-Feature-Gate',
+          'Ihr eigener LLM-Schlüssel für Plaid und Agenten',
           'Ihre Daten bleiben auf Ihrer Infrastruktur',
           'Docker-Compose-Deployment in Minuten',
           'Open Source unter AGPL v3',
@@ -36,6 +37,7 @@ const content: OfferContent = {
         ctaLabel: 'Von GitHub bereitstellen',
         ctaHref: 'https://github.com/kanap-it/kanap',
         ctaVariant: 'primary',
+        note: 'Plaid und Agenten nutzen ein LLM, also bringen Sie Ihren eigenen Schlüssel mit und zahlen Ihren Anbieter für die Nutzung. Begrenzen Sie die Ausgaben pro Agent, um die Betriebskosten planbar zu halten.',
       },
       {
         name: 'Self-Hosted Support',
@@ -86,6 +88,7 @@ const content: OfferContent = {
           'Wir hosten, aktualisieren und sichern KANAP für Sie',
           'EU-Hosting für europäische Teams',
           '2.500 Plaid-Nachrichten/Mon enthalten oder eigener Schlüssel ohne Limit',
+          'Agenten enthalten, mit Ihrem eigenen LLM-Schlüssel',
           '60-min Kickoff-Call mit einem KANAP-Experten',
           'Prioritärer E-Mail-Support',
           '20 % Rabatt auf Beratung',

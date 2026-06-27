@@ -4,7 +4,7 @@ const content: OfferContent = {
   meta: {
     title: 'Tarifs',
     description:
-      'Gratuit et open source. Auto-hébergement sans limite, support si vous en avez besoin, ou KANAP hébergé. Toutes les fonctionnalités sur tous les plans. AGPL v3.',
+      'Gratuit et open source. Auto-hébergement sans limite, support si vous en avez besoin, ou KANAP hébergé. Toutes les fonctionnalités sur tous les plans, agents inclus. AGPL v3.',
   },
 
   header: {
@@ -27,7 +27,8 @@ const content: OfferContent = {
         period: '',
         features: [
           'Toutes les fonctionnalités, sans plafond',
-          'Plaid inclus, avec votre propre clé LLM',
+          "Plaid et agents inclus, sans verrou fonctionnel sur l'IA",
+          'Apportez votre propre clé LLM pour Plaid et les agents',
           'Vos données restent sur votre infrastructure',
           'Déploiement Docker Compose en quelques minutes',
           'Open source sous licence AGPL v3',
@@ -36,6 +37,7 @@ const content: OfferContent = {
         ctaLabel: 'Déployer depuis GitHub',
         ctaHref: 'https://github.com/kanap-it/kanap',
         ctaVariant: 'primary',
+        note: "Plaid et les agents utilisent un LLM, vous apportez donc votre propre clé et payez votre fournisseur pour l'usage. Plafonnez la dépense par agent pour garder un coût de fonctionnement prévisible.",
       },
       {
         name: 'Support auto-hébergé',
@@ -86,6 +88,7 @@ const content: OfferContent = {
           'Nous hébergeons, mettons à jour et sauvegardons KANAP pour vous',
           'Hébergement UE pour les équipes européennes',
           '2 500 messages Plaid/mois inclus, ou votre propre clé en illimité',
+          'Agents inclus, avec votre propre clé LLM',
           'Session de cadrage 60 min avec un expert KANAP',
           'Support email prioritaire',
           '20 % de remise sur le conseil',

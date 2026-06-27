@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Automatische Roadmap-Planung',
-      body: 'Erzeugen Sie Lieferszenarien aus Restaufwand, Abhängigkeiten und Mitarbeiterkapazität. Sehen Sie Engpässe und Auslastung, bevor Sie Termine in laufende Projekte übernehmen.',
+      body: 'Erzeugen Sie Lieferszenarien aus Restaufwand, Abhängigkeiten und Mitarbeiterkapazität. Sehen Sie Engpässe und Auslastung, bevor Sie Termine in laufende Projekte übernehmen. Diese Scoring- und Roadmap-Daten gehören zu dem, woraus ein Agent schließt, wenn er zugehörige Arbeit übernimmt.',
       bullets: [
         'Wochenweise, kapazitätsbewusste Planung aus echten Aufwandszuweisungen',
         'Standard-Scope: Warteliste, Geplant, In Arbeit, Im Test',
@@ -74,6 +74,8 @@ const content: FeatureContent = {
   crossLinks: {
     label: 'Andere Module entdecken',
     links: [
+      { label: 'Agenten', href: '/features/agents' },
+      { label: 'Plaid, KI-Assistent', href: '/features/ai' },
       { label: 'Budget-Management', href: '/features/budget' },
       { label: 'IT-Landschaft', href: '/features/it-landscape' },
       { label: 'Wissen', href: '/features/knowledge' },

@@ -1,13 +1,14 @@
 {
-  "site.title": "KANAP — Gestión de TI de código abierto",
+  "site.title": "KANAP · gestión de TI open source",
   "site.description": "Plataforma de código abierto para gestión de presupuesto, portafolio, operaciones y conocimiento de TI. Autoaloja o déjanos gestionarla.",
 
   "nav.features": "Funcionalidades",
+  "nav.featuresAgents": "Agentes",
   "nav.featuresBudget": "Gestión de presupuesto",
   "nav.featuresItLandscape": "Paisaje de TI",
   "nav.featuresPortfolio": "Gestión de portafolio",
   "nav.featuresKnowledge": "Conocimiento",
-  "nav.featuresAi": "Plaid · Asistente de IA",
+  "nav.featuresAi": "Plaid",
   "nav.onPremise": "Autoalojado",
   "nav.offer": "Precios",
   "nav.security": "Seguridad",
@@ -25,7 +26,7 @@
 
   "locale.switch": "Cambiar idioma",
 
-  "footer.tagline": "Gestión de TI de código abierto. Autoaloja o déjanos gestionarla.",
+  "footer.tagline": "La plataforma open source sobre la que funciona su departamento de TI. Autoalójela, o déjenos operarla.",
   "footer.product": "Producto",
   "footer.resources": "Recursos",
   "footer.legal": "Legal",

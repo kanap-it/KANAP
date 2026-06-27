@@ -4,7 +4,7 @@ const content: OnPremContent = {
   meta: {
     title: 'Auto-héberger KANAP, l\'approche prioritaire',
     description:
-      'Exécutez KANAP sur votre infrastructure, sous AGPL v3. Plateforme complète, utilisateurs illimités, vos données ne quittent jamais votre environnement. Déploiement en quelques minutes avec Docker Compose.',
+      'Exécutez KANAP sur votre infrastructure, sous AGPL v3. Plateforme complète incluant les agents IA, utilisateurs illimités, vos données ne quittent jamais votre environnement. Déploiement en quelques minutes avec Docker Compose.',
   },
 
   header: {
@@ -25,11 +25,11 @@ const content: OnPremContent = {
     pillars: [
       {
         title: 'Vos données restent à la maison',
-        body: 'Budgets, contrats fournisseurs, paysage IT, tout. Sur vos serveurs, dans votre réseau. Aucun sous-traitant à qui confier vos données de gouvernance.',
+        body: "Budgets, contrats fournisseurs, paysage IT, tout. Sur vos serveurs, dans votre réseau. Aucun sous-traitant à qui confier vos données de gouvernance. Le raisonnement et les actions des agents s'y exécutent aussi, ce qui compte quand un auditeur pose la question.",
       },
       {
         title: 'Aucune taxe par utilisateur',
-        body: 'Utilisateurs illimités, workspaces illimités, usage Plaid illimité avec votre clé LLM. Déployez à toute la DSI sans calculatrice.',
+        body: 'Utilisateurs illimités, workspaces illimités, Plaid et agents avec votre propre clé LLM. Déployez à toute la DSI sans calculatrice.',
       },
       {
         title: 'Prêt pour la conformité',
@@ -68,7 +68,7 @@ const content: OnPremContent = {
     eyebrow: 'Installation en quelques minutes',
     title: 'Une seule invite.\nQuinze minutes.',
     intro:
-      'Un agent IA de codage lit notre documentation, installe toutes les dépendances et configure toute la pile — Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt — sur un serveur Ubuntu vierge. Vous collez une invite, vous validez chaque étape, vous vous connectez.',
+      "Un agent IA de codage lit notre documentation, installe toutes les dépendances et configure toute la pile (Docker, PostgreSQL 16, MinIO, nginx, Let's Encrypt) sur un serveur Ubuntu vierge. Vous collez une invite, vous validez chaque étape, vous vous connectez.",
     steps: [
       {
         title: 'Préparer un serveur vierge',
@@ -81,7 +81,7 @@ const content: OnPremContent = {
       },
       {
         title: 'Coller l\'invite d\'installation',
-        body: 'Ouvrez votre agent et collez le modèle d\'invite depuis notre documentation — renseignez votre nom de domaine, votre email admin et (en option) votre transport email (Resend ou SMTP). L\'agent lit les pages d\'installation référencées, installe Docker, PostgreSQL 16 avec les extensions requises, MinIO, nginx et certbot, clone KANAP dans /opt/kanap, génère des identifiants robustes, construit les images et démarre les conteneurs. Il configure aussi TLS et son renouvellement automatique. L\'agent demande votre confirmation avant chaque commande.',
+        body: "Ouvrez votre agent et collez le modèle d'invite depuis notre documentation, renseignez votre nom de domaine, votre email admin et (en option) votre transport email (Resend ou SMTP). L'agent lit les pages d'installation référencées, installe Docker, PostgreSQL 16 avec les extensions requises, MinIO, nginx et certbot, clone KANAP dans /opt/kanap, génère des identifiants robustes, construit les images et démarre les conteneurs. Il configure aussi TLS et son renouvellement automatique. L'agent demande votre confirmation avant chaque commande.",
       },
       {
         title: 'Se connecter et durcir',
@@ -138,8 +138,8 @@ const content: OnPremContent = {
         body: 'Le SSO entreprise fait partie de la plateforme, pas d\'un upsell. Configurable via la console admin.',
       },
       {
-        title: 'Plaid, à votre façon',
-        body: 'Clé LLM perso, OpenAI, Anthropic, Ollama, ou tout endpoint compatible OpenAI. Vos prompts ne quittent jamais le fournisseur choisi.',
+        title: 'Plaid et agents, à votre façon',
+        body: "Apportez votre propre clé LLM pour Plaid comme pour vos agents, OpenAI, Anthropic, Ollama, ou tout endpoint compatible OpenAI. Le raisonnement et les actions des agents s'exécutent au sein de votre propre déploiement, et la seule chose qui sort est le prompt que vous envoyez au fournisseur que vous avez choisi.",
       },
     ],
   },

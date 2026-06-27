@@ -45,6 +45,10 @@ import aiEn from './features/ai/en';
 import aiFr from './features/ai/fr';
 import aiDe from './features/ai/de';
 import aiEs from './features/ai/es';
+import agentsEn from './features/agents/en';
+import agentsFr from './features/agents/fr';
+import agentsDe from './features/agents/de';
+import agentsEs from './features/agents/es';
 import hubEn from './features-hub/en';
 import hubFr from './features-hub/fr';
 import hubDe from './features-hub/de';
@@ -77,7 +81,7 @@ import legalEn from './legal/en';
 import type { HomeContent } from './home/types';
 import type { OfferContent } from './offer/types';
 import type { OnPremContent } from './onpremise/types';
-import type { FeatureContent, FeaturesHubContent } from './features/types';
+import type { FeatureContent, FeaturesHubContent, AgentsContent } from './features/types';
 import type { TrialContent } from './trial/types';
 import type { FaqContent } from './faq/types';
 import type { SecurityContent } from './security/types';
@@ -137,6 +141,24 @@ const FEATURE_MAP: Record<FeatureSlug, Record<Locale, FeatureContent>> = {
 
 export function getFeatureContent(slug: FeatureSlug, locale: Locale): FeatureContent {
   return FEATURE_MAP[slug][locale] ?? FEATURE_MAP[slug][DEFAULT_LOCALE];
+}
+
+/* ---------------- Agents page ---------------- */
+/*
+ * The Agents page is richer than a standard feature deep-dive (it adds a
+ * transparency / connector lead-capture block and a Deploy-free CTA), so it
+ * has its own content type and resolver and is rendered by AgentsPage.astro.
+ * EN-first: fr/de/es re-export en until the translation pass (A-37).
+ */
+const AGENTS: Record<Locale, AgentsContent> = {
+  en: agentsEn,
+  fr: agentsFr,
+  de: agentsDe,
+  es: agentsEs,
+};
+
+export function getAgentsContent(locale: Locale): AgentsContent {
+  return AGENTS[locale] ?? AGENTS[DEFAULT_LOCALE];
 }
 
 /* ---------------- Features hub ---------------- */

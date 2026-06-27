@@ -42,6 +42,25 @@ export interface FeatureContent {
   };
 }
 
+/**
+ * Agents page content — a feature deep-dive plus a transparency / connector
+ * lead-capture block. Same section/more/crossLink/cta shape as other feature
+ * pages, rendered by a dedicated AgentsPage component (Deploy-free CTA to
+ * GitHub, plus the transparency block).
+ */
+export interface AgentsTransparency {
+  eyebrow: string;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  /** Relative, locale-prefixed at render (the connector lead funnel). */
+  ctaHref: string;
+}
+
+export interface AgentsContent extends FeatureContent {
+  transparency: AgentsTransparency;
+}
+
 /** Hub page (features landing) — role-based scenarios. */
 
 export interface PersonaModuleRef {

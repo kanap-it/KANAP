@@ -4,29 +4,29 @@ const content: FeatureContent = {
   meta: {
     title: 'Gestión de presupuesto',
     description:
-      'Planificación presupuestaria plurianual, seis métodos de asignación, multidivisa con tasas del Banco Mundial, repercusión ejecutiva. Código abierto. Autoalojamiento gratuito o nube alojada.',
+      'Planificación presupuestaria plurianual de TI, seis métodos de asignación, multidivisa con tasas del Banco Mundial, repercusión para dirección. Open source. Autoaloje gratis o elija la nube alojada.',
   },
   header: {
     eyebrow: 'Gestión de presupuesto',
-    title: 'Controla tu presupuesto de TI con visibilidad total.',
-    lead: 'Planificación plurianual, asignación inteligente de costes, informes de repercusión listos para dirección. Sigue OPEX y CAPEX a través de empresas y departamentos.',
+    title: 'Domine su presupuesto de TI con visibilidad total.',
+    lead: 'Planificación plurianual, asignación inteligente de costes, informes de repercusión listos para dirección. Siga OPEX y CAPEX entre empresas y departamentos.',
   },
   sections: [
     {
       title: 'Planificación presupuestaria plurianual',
-      body: 'Planifica tu presupuesto de TI a lo largo de varios años con columnas dinámicas para Presupuesto, Revisión, Seguimiento y Aterrizaje. OPEX y CAPEX en una vista unificada.',
+      body: 'Planifique su presupuesto de TI a lo largo de varios años con columnas dinámicas para Presupuesto, Revisión, Seguimiento y Aterrizaje. Siga OPEX y CAPEX en una vista unificada.',
       bullets: [
         'Seguimiento de OPEX y CAPEX en grids dedicados',
         'Columnas dinámicas Presupuesto / Revisión / Seguimiento / Aterrizaje por año',
         'Comparativas interanuales y análisis de tendencia',
         'Copias masivas entre años presupuestarios',
-        'Flujos freeze / unfreeze para la gobernanza',
+        'Flujos de freeze / unfreeze para la gobernanza',
       ],
       shotAlt: 'Grid presupuestario plurianual con columnas dinámicas',
     },
     {
       title: 'Asignación inteligente de costes',
-      body: 'Distribuye los costes de TI entre empresas y departamentos con seis métodos de asignación. El sistema recalcula las asignaciones cuando cambian las métricas, con transparencia total y pista de auditoría.',
+      body: 'Distribuya los costes de TI entre empresas y departamentos con seis métodos de asignación distintos. El sistema recalcula las asignaciones cuando cambian las métricas, con transparencia total y registro de auditoría.',
       bullets: [
         'Asignación por plantilla',
         'Asignación por usuarios de TI',
@@ -38,24 +38,24 @@ const content: FeatureContent = {
     },
     {
       title: 'Multidivisa con tasas en vivo',
-      body: 'Trabaja en varias divisas y consolida en una divisa canónica. KANAP obtiene tasas en tiempo real de la API del Banco Mundial y las congela al bloquear una versión del presupuesto.',
+      body: 'Trabaje con varias divisas y consolide en una única divisa canónica. KANAP obtiene tasas en vivo de la API del Banco Mundial y congela instantáneas de tasas cuando usted bloquea una versión del presupuesto.',
       bullets: [
         'Divisa de reporting única para todos los agregados',
         'Tasas FX automáticas del Banco Mundial',
-        'Snapshots de tasas congelados al bloquear el presupuesto',
+        'Instantáneas de tasas congeladas al bloquear el presupuesto',
         'Lista de divisas permitidas configurable',
         'Tasas históricas para ejercicios pasados',
       ],
       shotAlt: 'Ajustes de divisa con tasas del Banco Mundial',
     },
     {
-      title: 'Informes de repercusión ejecutivos',
-      body: 'Genera informes de repercusión listos para comité de dirección con la distribución de costes de TI por empresa y departamento. Drill-down desde los totales de empresa hasta cada partida individual, con total transparencia sobre los métodos de asignación empleados.',
+      title: 'Informes de repercusión para dirección',
+      body: 'Genere informes de repercusión listos para el comité de dirección con la distribución de costes de TI por empresa y departamento. Profundice desde los totales de empresa hasta cada partida individual, con total transparencia sobre los métodos de asignación empleados. Hoy Plaid responde preguntas de presupuesto en lenguaje natural y, a medida que crecen los conectores, los agentes también actuarán sobre estos datos.',
       bullets: [
         'Informe de repercusión global por empresa',
         'Informes por empresa desglosados por departamento',
-        'Detalle de asignaciones línea a línea',
-        'KPIs y cuota sobre el total',
+        'Desgloses de asignación línea a línea',
+        'Métricas KPI y cuota sobre el total',
         'Exportación CSV y descarga de gráficos',
       ],
       shotAlt: 'Informe de repercusión con drill-down',
@@ -64,25 +64,27 @@ const content: FeatureContent = {
   more: {
     title: 'Más en presupuesto',
     items: [
-      { title: 'Gestión de tareas', body: 'Asigna tareas de seguimiento a los ítems OPEX y CAPEX. Controla fechas de vencimiento y avance.' },
-      { title: 'Enlace de contratos', body: 'Vincula partidas de gasto a contratos. Sigue fechas de renovación y plazos de cancelación.' },
-      { title: 'Plan de cuentas', body: 'Mapea costes a tu estructura contable. Planes de cuentas por país y globales.' },
+      { title: 'Gestión de tareas', body: 'Asigne tareas de seguimiento a los ítems OPEX y CAPEX. Controle fechas de vencimiento y avance.' },
+      { title: 'Enlace de contratos', body: 'Vincule partidas de gasto a contratos. Siga fechas de renovación y plazos de cancelación.' },
+      { title: 'Plan de cuentas', body: 'Mapee costes a su estructura contable. Planes de cuentas por país y globales.' },
       { title: 'Higiene de datos', body: 'Los chips del panel señalan responsables ausentes, empresas pagadoras y discrepancias de plan de cuentas.' },
     ],
   },
   crossLinks: {
-    label: 'Explora otros módulos',
+    label: 'Explore la plataforma',
     links: [
+      { label: 'Agentes', href: '/features/agents' },
+      { label: 'Plaid, asistente de IA', href: '/features/ai' },
       { label: 'Paisaje de TI', href: '/features/it-landscape' },
       { label: 'Gestión de portafolio', href: '/features/portfolio' },
       { label: 'Conocimiento', href: '/features/knowledge' },
     ],
   },
   cta: {
-    title: '¿Listo para dominar tu presupuesto de TI?',
-    body: 'Autoaloja gratis o prueba la nube alojada. Todas las funcionalidades en todos los planes.',
+    title: '¿Listo para dominar su presupuesto de TI?',
+    body: 'Autoaloje gratis o pruebe la nube alojada. Todas las funcionalidades en cada plan.',
     primary: 'Empezar prueba gratuita',
-    secondary: 'Habla con nosotros',
+    secondary: 'Hablar con nosotros',
   },
 };
 

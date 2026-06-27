@@ -3,7 +3,9 @@
  * HomePage — full marketing homepage.
  *
  * Assembled from section primitives + content pulled from src/content/home
- * for the current locale.
+ * for the current locale. The agentic narrative bands (layers / story /
+ * openSource / vision) are optional in HomeContent: locales that have not
+ * been retranslated yet simply skip them and render the core sections.
  */
 
 import BaseLayout from '../layouts/BaseLayout.astro';
@@ -12,6 +14,7 @@ import {
   Section,
   PillarGrid,
   FeatureGrid,
+  StoryBand,
   TrustStrip,
   CTABand,
 } from './sections';
@@ -26,8 +29,8 @@ const content = getHomeContent(locale);
 const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, '');
 
 // Feature cards: prefix module slugs with locale.
-// The 6th tile ("Adopt at your pace") has no slug — it's a non-linking
-// info card, so we skip the href when slug is missing.
+// The "Adopt at your pace" tile has no slug — it's a non-linking info card,
+// so we skip the href when slug is missing.
 const moduleItems = content.modules.items.map((m) => ({
   title: m.title,
   blurb: m.blurb,
@@ -79,10 +82,24 @@ const crossItems = content.crossCutting.items.map((i) => ({
       eyebrow={content.pillars.eyebrow}
       title={content.pillars.title}
       pillars={content.pillars.items}
+      columns={3}
     />
   </Section>
 
-  <Section tone="default">
+  {content.layers && (
+    <Section tone="default">
+      <PillarGrid
+        eyebrow={content.layers.eyebrow}
+        title={content.layers.title}
+        intro={content.layers.intro}
+        pillars={content.layers.items}
+        columns={3}
+      />
+      <p class="mk-home__layers-outro">{content.layers.outro}</p>
+    </Section>
+  )}
+
+  <Section tone="sunken">
     <FeatureGrid
       eyebrow={content.modules.eyebrow}
       title={content.modules.title}
@@ -92,7 +109,7 @@ const crossItems = content.crossCutting.items.map((i) => ({
     />
   </Section>
 
-  <Section tone="sunken">
+  <Section tone="default">
     <FeatureGrid
       eyebrow={content.crossCutting.eyebrow}
       title={content.crossCutting.title}
@@ -101,6 +118,17 @@ const crossItems = content.crossCutting.items.map((i) => ({
       columns={2}
     />
   </Section>
+
+  {content.vision && (
+    <Section tone="sunken">
+      <StoryBand
+        eyebrow={content.vision.eyebrow}
+        title={content.vision.title}
+        body={content.vision.body}
+        align="center"
+      />
+    </Section>
+  )}
 
   <Section tone="default" compact>
     <CTABand
@@ -118,5 +146,13 @@ const crossItems = content.crossCutting.items.map((i) => ({
   .mk-home__trial-note {
     margin-top: 6px;
     color: var(--kanap-text-tertiary);
+  }
+
+  .mk-home__layers-outro {
+    margin: 28px 0 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--kanap-text-primary);
+    max-width: 640px;
   }
 </style>

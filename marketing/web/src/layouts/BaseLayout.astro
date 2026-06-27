@@ -36,9 +36,11 @@ interface Props {
   canonical?: string;
   /** Path without locale prefix (used to emit hreflang links). */
   pathWithoutLocale?: string;
+  /** Per-page OG/Twitter image path. Defaults to the site-wide card. */
+  ogImage?: string;
 }
 
-const { title, description, canonical, pathWithoutLocale } = Astro.props;
+const { title, description, canonical, pathWithoutLocale, ogImage } = Astro.props;
 
 const locale: Locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(locale);
@@ -48,6 +50,7 @@ const siteDescription = t('site.description');
 const finalTitle = title ? `${title} · KANAP` : siteTitle;
 const finalDescription = description ?? siteDescription;
 const finalCanonical = canonical ?? Astro.url.href;
+const ogImageUrl = new URL(ogImage ?? '/og-image.png', Astro.site ?? 'https://kanap.net').href;
 
 const alternates = LOCALES.map((l) => ({
   locale: l,
@@ -83,12 +86,12 @@ const alternates = LOCALES.map((l) => ({
     <meta property="og:title" content={finalTitle} />
     <meta property="og:description" content={finalDescription} />
     <meta property="og:locale" content={locale} />
-    <meta property="og:image" content={new URL('/og-image.png', Astro.site ?? 'https://kanap.net').href} />
+    <meta property="og:image" content={ogImageUrl} />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={finalTitle} />
     <meta name="twitter:description" content={finalDescription} />
-    <meta name="twitter:image" content={new URL('/og-image.png', Astro.site ?? 'https://kanap.net').href} />
+    <meta name="twitter:image" content={ogImageUrl} />
 
     <!-- No-flash theme init: must run before first paint -->
     <script is:inline>

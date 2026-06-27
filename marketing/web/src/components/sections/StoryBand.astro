@@ -1,0 +1,102 @@
+---
+/**
+ * StoryBand — a prose narrative section (eyebrow + heading + paragraphs,
+ * with an optional list of supporting points).
+ *
+ * Used for the agentic story sections on the homepage, where the copy is
+ * the message and there is no screenshot. `align="center"` is used for the
+ * closing vision band. `body` may contain `\n` to split into paragraphs.
+ */
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  bullets?: string[];
+  align?: 'start' | 'center';
+}
+
+const { eyebrow, title, body, bullets, align = 'start' } = Astro.props;
+const paragraphs = body.split('\n').map((p) => p.trim()).filter(Boolean);
+---
+
+<div class:list={['mk-band', `mk-band--${align}`]}>
+  {eyebrow && <span class="mk-eyebrow">{eyebrow}</span>}
+  <h2 class="mk-band__title">{title}</h2>
+  {paragraphs.map((p) => <p class="mk-band__body">{p}</p>)}
+  {bullets && bullets.length > 0 && (
+    <ul class="mk-band__points">
+      {bullets.map((b) => <li>{b}</li>)}
+    </ul>
+  )}
+</div>
+
+<style>
+  .mk-band {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 760px;
+  }
+
+  .mk-band--center {
+    align-items: center;
+    text-align: center;
+    margin-inline: auto;
+    max-width: 720px;
+  }
+
+  .mk-band__title {
+    font-size: clamp(26px, 3vw, 34px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .mk-band__body {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--kanap-text-secondary);
+    margin: 0;
+    max-width: 680px;
+  }
+
+  .mk-band--center .mk-band__body {
+    font-size: clamp(18px, 2vw, 21px);
+    color: var(--kanap-text-primary);
+    line-height: 1.5;
+  }
+
+  .mk-band__points {
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px 32px;
+  }
+
+  @media (min-width: 720px) {
+    .mk-band__points {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .mk-band__points li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-band__points li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 12px;
+    height: 1px;
+    background: var(--kanap-text-tertiary);
+  }
+</style>

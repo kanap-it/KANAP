@@ -1,13 +1,14 @@
 {
-  "site.title": "KANAP — Open source IT management",
+  "site.title": "KANAP · open source IT management",
   "site.description": "Open source platform for IT budget, portfolio, operations and knowledge management. Self-host it, or let us run it.",
 
   "nav.features": "Features",
+  "nav.featuresAgents": "Agents",
   "nav.featuresBudget": "Budget management",
   "nav.featuresItLandscape": "IT landscape",
   "nav.featuresPortfolio": "Portfolio management",
   "nav.featuresKnowledge": "Knowledge",
-  "nav.featuresAi": "Plaid · AI assistant",
+  "nav.featuresAi": "Plaid",
   "nav.onPremise": "Self-host",
   "nav.offer": "Pricing",
   "nav.security": "Security",
@@ -25,7 +26,7 @@
 
   "locale.switch": "Switch language",
 
-  "footer.tagline": "Open source IT management. Self-host or let us run it.",
+  "footer.tagline": "The open-source platform your IT department runs on. Self-host it, or let us run it.",
   "footer.product": "Product",
   "footer.resources": "Resources",
   "footer.legal": "Legal",

@@ -26,7 +26,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Allocation intelligente des coûts',
-      body: 'Répartissez les coûts IT entre sociétés et départements avec six méthodes d\'allocation. Recalcul automatique quand les métriques changent, transparence complète, piste d\'audit.',
+      body: "Répartissez les coûts IT entre sociétés et départements avec six méthodes d'allocation. Recalcul automatique quand les métriques changent, transparence complète, journal d'audit.",
       bullets: [
         'Allocation par effectif',
         'Allocation par utilisateurs IT',
@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Rapports de refacturation exécutifs',
-      body: 'Rapports de refacturation prêts pour le comité de direction montrant la répartition des coûts IT par société et département. Drill-down jusqu\'aux items individuels avec transparence sur les méthodes.',
+      body: "Rapports de refacturation prêts pour le comité de direction montrant la répartition des coûts IT par société et département. Drill-down jusqu'aux items individuels avec transparence sur les méthodes. Plaid répond aujourd'hui aux questions de budget en langage naturel et, à mesure que les connecteurs se multiplient, les agents agiront aussi sur ces données.",
       bullets: [
         'Rapport global par société',
         'Rapports société par département',
@@ -71,8 +71,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explorez les autres modules',
+    label: 'Explorez la plateforme',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, Assistant IA', href: '/features/ai' },
       { label: 'Paysage IT', href: '/features/it-landscape' },
       { label: 'Gestion de portefeuille', href: '/features/portfolio' },
       { label: 'Connaissance', href: '/features/knowledge' },

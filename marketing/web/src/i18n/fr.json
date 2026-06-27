@@ -1,13 +1,14 @@
 {
-  "site.title": "KANAP — Gestion IT open source",
+  "site.title": "KANAP · gestion IT open source",
   "site.description": "Plateforme open source pour la gestion du budget, du portefeuille, des opérations et de la connaissance IT. Auto-hébergez-la, ou laissez-nous la gérer.",
 
   "nav.features": "Fonctionnalités",
+  "nav.featuresAgents": "Agents",
   "nav.featuresBudget": "Gestion du budget",
   "nav.featuresItLandscape": "Paysage IT",
   "nav.featuresPortfolio": "Gestion de portefeuille",
   "nav.featuresKnowledge": "Connaissance",
-  "nav.featuresAi": "Plaid · Assistant IA",
+  "nav.featuresAi": "Plaid",
   "nav.onPremise": "Auto-hébergement",
   "nav.offer": "Tarifs",
   "nav.security": "Sécurité",
@@ -25,7 +26,7 @@
 
   "locale.switch": "Changer de langue",
 
-  "footer.tagline": "Gestion IT open source. Auto-hébergez-la, ou laissez-nous la gérer.",
+  "footer.tagline": "La plateforme open source sur laquelle tourne votre DSI. Auto-hébergez-la, ou laissez-nous la gérer.",
   "footer.product": "Produit",
   "footer.resources": "Ressources",
   "footer.legal": "Mentions légales",

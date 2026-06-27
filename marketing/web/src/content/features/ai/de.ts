@@ -4,12 +4,12 @@ const content: FeatureContent = {
   meta: {
     title: 'Plaid, KI-Assistent für IT-Governance',
     description:
-      'Fragen Sie Plaid zu Ihren IT-Daten. Dokumente erstellen, Aufgaben aktualisieren, beliebiges KI-Tool per MCP anbinden. Nutzung in Hosted Cloud enthalten enthalten. Open Source.',
+      'Fragen Sie Plaid zu Ihren IT-Daten. Dokumente erstellen, Aufgaben aktualisieren, beliebiges KI-Tool per MCP anbinden. Nutzung in Hosted Cloud enthalten. Open Source.',
   },
   header: {
     eyebrow: 'Plaid · KI-Assistent',
-    title: 'Kein Chatbot. Ein echter Assistent für die IT.',
-    lead: 'Fragen Sie alles zu Ihrem Budget, Ihren Anwendungen, Projekten oder Ihrer Dokumentation. Plaid versteht Ihre Daten, handelt, und lässt sich via MCP an jedes Enterprise-KI-Tool anschließen.',
+    title: 'Fragen Sie KANAP alles über Ihre IT.',
+    lead: 'Plaid antwortet über Ihr Budget, Ihre Anwendungen, Projekte und Dokumentation hinweg und nimmt Änderungen vor, wenn Sie darum bitten. Jeder Schreibvorgang wird Ihnen gezeigt, bevor er ausgeführt wird. Nutzen Sie es in KANAP oder binden Sie es über MCP an Ihre eigenen KI-Tools an.',
   },
   sections: [
     {
@@ -25,7 +25,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Aktionen mit Vorschau',
-      body: 'Plaid liest nicht nur, er schreibt. Dokumentation erstellen, Projekt-Briefings verfassen, Aufgaben verwalten. Jede Schreiboperation wird vorab angezeigt, bevor sie angewendet wird.',
+      body: 'Plaid liest nicht nur, er schreibt auch. Er kann Inhalte für Sie erstellen und aktualisieren, und jede Schreiboperation wird vor der Anwendung in der Vorschau gezeigt.',
       bullets: [
         'Dokumente mit Markdown erstellen und bearbeiten',
         'Projekt-Briefings und Zusammenfassungen verfassen',
@@ -70,6 +70,8 @@ const content: FeatureContent = {
   crossLinks: {
     label: 'Andere Module entdecken',
     links: [
+      { label: 'Agenten, für Arbeit, die von selbst läuft', href: '/features/agents' },
+      { label: 'Sicherheit', href: '/security' },
       { label: 'Budget-Management', href: '/features/budget' },
       { label: 'IT-Landschaft', href: '/features/it-landscape' },
       { label: 'Portfolio-Management', href: '/features/portfolio' },
@@ -78,7 +80,7 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'KI-gestützte IT-Governance beginnt hier.',
-    body: 'Plaid ist in jedem KANAP-Workspace enthalten, mit großzügiger Nutzung in Hosted Cloud. Self-Hosting kostenlos, oder Hosted Cloud.',
+    body: 'Plaid ist in jedem KANAP-Workspace enthalten, mit großzügiger Nutzung in Hosted Cloud. Kostenlos selbst hosten oder Hosted Cloud testen.',
     primary: 'Testversion starten',
     secondary: 'Sprechen Sie mit uns',
   },

@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Planification automatique de la feuille de route',
-      body: 'Générez des scénarios de livraison à partir de l\'effort restant, des dépendances et de la capacité des contributeurs. Goulots et occupation visibles avant application aux projets.',
+      body: "Générez des scénarios de livraison à partir de l'effort restant, des dépendances et de la capacité des contributeurs. Goulots et occupation visibles avant application aux projets. Ces données de scoring et de feuille de route font partie de ce sur quoi un agent raisonne lorsqu'il prend en charge un travail associé.",
       bullets: [
         'Planification hebdomadaire tenant compte de la capacité réelle',
         'Périmètre : file d\'attente, planifiés, en cours, en test',
@@ -72,8 +72,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explorez les autres modules',
+    label: 'Explorez la plateforme',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, Assistant IA', href: '/features/ai' },
       { label: 'Gestion du budget', href: '/features/budget' },
       { label: 'Paysage IT', href: '/features/it-landscape' },
       { label: 'Connaissance', href: '/features/knowledge' },

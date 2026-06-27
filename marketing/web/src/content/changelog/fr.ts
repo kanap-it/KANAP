@@ -20,6 +20,40 @@ const content: ChangelogContent = {
   },
   entries: [
     {
+      date: '2026-06-26',
+      title: "Personas d'agents et contexte partagé.",
+      summary:
+        "Les agents peuvent désormais recevoir un persona, leur mission, la façon dont ils doivent répondre et quand escalader, et ils s'appuient sur un contexte partagé à l'échelle du tenant pour que chaque agent travaille à partir du même fond de connaissances sur votre organisation.",
+      sections: [
+        {
+          label: 'Livré',
+          items: [
+            "Persona par agent : mission, instructions, style de réponse et règles d'escalade",
+            "Profils de contexte partagé à l'échelle du tenant, sur lesquels chaque agent peut s'appuyer",
+            "Aperçu du prompt effectif, pour voir exactement ce qui est dit à un agent",
+            'Une page dédiée à la gestion du contexte partagé',
+          ],
+        },
+      ],
+    },
+    {
+      date: '2026-06-24',
+      title: 'Agents autonomes, en service sur un vrai centre de services.',
+      summary:
+        "Le runtime d'agents autonomes a livré sa première itération en production. Un agent traite désormais un vrai centre de services, lit chaque ticket au regard de vos données IT, rédige une réponse citant ses sources et agit selon l'autonomie que vous accordez.",
+      sections: [
+        {
+          label: 'Livré',
+          items: [
+            "Runtime d'agents autonomes avec une autonomie mesurée, par agent",
+            'Premier connecteur : un agent de centre de services en service, traitant de vrais tickets',
+            "Réponses composées par l'IA, ancrées dans vos propres enregistrements, avec les sources citées",
+            "Validation et revue tant qu'un agent gagne encore en autonomie, journal d'audit complet",
+          ],
+        },
+      ],
+    },
+    {
       date: '2026-04-24',
       title: 'Nouveau site marketing.',
       summary:

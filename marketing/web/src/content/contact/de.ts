@@ -9,12 +9,13 @@ const content: ContactContent = {
   header: {
     eyebrow: 'Kontakt',
     title: 'Wir freuen uns, von Ihnen zu hören.',
-    lead: 'Demo, Deployment-Frage, Einkauf, Partnerschaft — was immer Sie hierherführt, wir lesen jede Nachricht.',
+    lead: 'Demo, Deployment-Frage, Einkauf oder Partnerschaft, was immer Sie hierherführt, wir lesen jede Nachricht.',
   },
   responsePromise: 'Antwort innerhalb eines Werktags',
   highlightsLabel: 'Wobei wir helfen können',
   highlights: [
     'Produkt-Demos und Onboarding-Unterstützung',
+    'Konnektor- und Agentenanfragen (sagen Sie uns, an welchem System ein Agent arbeiten soll)',
     'Einkaufs- und Abrechnungskoordination',
     'Beratung zu Self-Hosting-Installation und Upgrades',
     'Partnerschafts- und Integrationsanfragen',
@@ -25,7 +26,7 @@ const content: ContactContent = {
     companyLabel: 'Unternehmen',
     messageLabel: 'Wie können wir helfen?',
     messagePlaceholder: 'Erzählen Sie kurz, was Sie suchen.',
-    captchaLabel: 'Sicherheitspruefung',
+    captchaLabel: 'Sicherheitsprüfung',
     submitLabel: 'Nachricht senden',
     submitting: 'Wird gesendet…',
     successTitle: 'Nachricht gesendet.',

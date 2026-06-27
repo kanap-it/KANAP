@@ -4,7 +4,7 @@ const content: OfferContent = {
   meta: {
     title: 'Pricing',
     description:
-      'Free and open source. Self-host without limits, add support when you need it, or choose hosted KANAP. All features on every plan. AGPL v3.',
+      'Free and open source. Self-host without limits, add support when you need it, or choose hosted KANAP. Every feature on every plan, agents included. AGPL v3.',
   },
 
   header: {
@@ -28,7 +28,8 @@ const content: OfferContent = {
         period: '',
         features: [
           'Full feature set, no caps',
-          'Plaid included, bring your own LLM key',
+          'Plaid and agents included, no AI feature gate',
+          'Bring your own LLM key for Plaid and agents',
           'Your data stays on your infrastructure',
           'Deploy with Docker Compose in minutes',
           'Open source under AGPL v3',
@@ -37,6 +38,7 @@ const content: OfferContent = {
         ctaLabel: 'Deploy from GitHub',
         ctaHref: 'https://github.com/kanap-it/kanap',
         ctaVariant: 'primary',
+        note: 'Plaid and agents use an LLM, so you bring your own key and pay your provider for usage. Cap per-agent spend to keep running cost predictable.',
       },
       {
         name: 'Self-hosted support',
@@ -88,6 +90,7 @@ const content: OfferContent = {
           'We host, update, and back up KANAP for you',
           'EU hosting for European teams',
           '2,500 Plaid messages/mo included, or bring your own key, unlimited',
+          'Agents included, with your own LLM key',
           '60-min kickoff call with a KANAP expert',
           'Priority email support',
           '20% consulting discount',

@@ -4,7 +4,7 @@ const content: OnPremContent = {
   meta: {
     title: 'KANAP selbst hosten, die bevorzugte Option',
     description:
-      'Betreiben Sie KANAP auf Ihrer eigenen Infrastruktur, unter AGPL v3. Komplette Plattform, unbegrenzte Nutzer, Ihre Daten verlassen nie Ihre Umgebung. Deployment in Minuten mit Docker Compose.',
+      'Betreiben Sie KANAP auf Ihrer eigenen Infrastruktur, unter AGPL v3. Komplette Plattform inklusive KI-Agenten, unbegrenzte Nutzer, Ihre Daten verlassen nie Ihre Umgebung. Deployment in Minuten mit Docker Compose.',
   },
 
   header: {
@@ -21,15 +21,15 @@ const content: OnPremContent = {
     eyebrow: 'Warum selbst hosten',
     title: 'Kontrolle, Compliance und keine Haken.',
     intro:
-      'Self-Hosting ist keine abgespeckte Variante. Es ist die komplette Plattform mit vollem Funktionsumfang, kostenlos. Das sind die Gründe, aus denen Teams zuerst dafür entscheiden.',
+      'Self-Hosting ist keine abgespeckte Variante. Es ist die komplette Plattform mit vollem Funktionsumfang, kostenlos. Das sind die Gründe, aus denen Teams sich zuerst dafür entscheiden.',
     pillars: [
       {
         title: 'Ihre Daten bleiben zu Hause',
-        body: 'Budgets, Lieferantenverträge, IT-Landschaft, alles. Auf Ihren Servern, in Ihrem Netz. Kein Dritt-Datenverarbeiter, dem Sie Ihre Governance-Daten anvertrauen müssen.',
+        body: 'Budgets, Lieferantenverträge, IT-Landschaft, alles. Auf Ihren Servern, in Ihrem Netz. Kein Dritt-Datenverarbeiter, dem Sie Ihre Governance-Daten anvertrauen müssen. Auch die Schlussfolgerungen und Aktionen der Agenten laufen dort, was zählt, wenn ein Prüfer fragt.',
       },
       {
         title: 'Keine Platzsteuer',
-        body: 'Unbegrenzte Nutzer, unbegrenzte Workspaces, unbegrenzte Plaid-Nutzung mit eigenem LLM-Schlüssel. Gesamtabteilungs-Rollout ohne Pricing-Tabelle.',
+        body: 'Unbegrenzte Nutzer, unbegrenzte Workspaces, Plaid und Agenten mit Ihrem eigenen LLM-Schlüssel. Rollout an die gesamte Abteilung ohne Preislisten-Tabelle.',
       },
       {
         title: 'Compliance-ready',
@@ -68,11 +68,11 @@ const content: OnPremContent = {
     eyebrow: 'In Minuten installiert',
     title: 'Ein Prompt.\nFünfzehn Minuten.',
     intro:
-      'Ein KI-Coding-Agent liest unsere Dokumentation, installiert alle Abhängigkeiten und konfiguriert den gesamten Stack — Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt — auf einem frischen Ubuntu-Server. Sie fügen einen Prompt ein, bestätigen die Schritte und melden sich an.',
+      "Ein KI-Coding-Agent liest unsere Dokumentation, installiert alle Abhängigkeiten und konfiguriert den gesamten Stack (Docker, PostgreSQL 16, MinIO, nginx, Let's Encrypt) auf einem frischen Ubuntu-Server. Sie fügen einen Prompt ein, bestätigen die Schritte und melden sich an.",
     steps: [
       {
         title: 'Frischen Server vorbereiten',
-        body: 'Ein frisch bereitgestellter Ubuntu 24.04 LTS Host mit sudo-Zugriff, ein DNS-A-Record, der Ihren Hostnamen darauf zeigt, und ausgehender Internetzugang für Pakete und Let\'s Encrypt. Installieren Sie Ihren KI-Coding-Agenten auf dem Server (Claude Code, Codex oder ähnliches).',
+        body: "Ein frisch bereitgestellter Ubuntu 24.04 LTS Host mit sudo-Zugriff, ein DNS-A-Record, der Ihren Hostnamen darauf zeigt, und ausgehender Internetzugang für Pakete und Let's Encrypt. Installieren Sie Ihren KI-Coding-Agenten auf dem Server (Claude Code, Codex oder ähnliches).",
       },
       {
         title: 'Temporär passwortloses sudo aktivieren',
@@ -81,7 +81,7 @@ const content: OnPremContent = {
       },
       {
         title: 'Den Install-Prompt einfügen',
-        body: 'Öffnen Sie Ihren Agenten und fügen Sie die Prompt-Vorlage aus der Doku ein — tragen Sie Hostname, Admin-E-Mail und (optional) Ihren E-Mail-Transport (Resend oder SMTP) ein. Der Agent liest die verlinkten Installationsseiten, installiert Docker, PostgreSQL 16 mit den nötigen Erweiterungen, MinIO, nginx und certbot, klont KANAP nach /opt/kanap, generiert starke Zugangsdaten, baut die Images und startet die Container. Er richtet auch TLS und automatische Erneuerung ein. Vor jedem Befehl fragt der Agent zur Bestätigung.',
+        body: 'Öffnen Sie Ihren Agenten und fügen Sie die Prompt-Vorlage aus der Doku ein, tragen Sie dann Hostname, Admin-E-Mail und (optional) Ihren E-Mail-Transport (Resend oder SMTP) ein. Der Agent liest die verlinkten Installationsseiten, installiert Docker, PostgreSQL 16 mit den nötigen Erweiterungen, MinIO, nginx und certbot, klont KANAP nach /opt/kanap, generiert starke Zugangsdaten, baut die Images und startet die Container. Er richtet auch TLS und automatische Erneuerung ein. Vor jedem Befehl fragt der Agent zur Bestätigung.',
       },
       {
         title: 'Anmelden und absichern',
@@ -138,8 +138,8 @@ const content: OnPremContent = {
         body: 'Enterprise-SSO ist Teil der Plattform, kein Upsell. Konfiguration über die Admin-Konsole.',
       },
       {
-        title: 'Plaid nach Ihren Regeln',
-        body: 'Eigener LLM-Schlüssel, OpenAI, Anthropic, Ollama oder OpenAI-kompatibler Endpoint. Ihre Prompts verlassen nie den gewählten Anbieter.',
+        title: 'Plaid und Agenten nach Ihren Regeln',
+        body: 'Ihr eigener LLM-Schlüssel für Plaid und Ihre Agenten, OpenAI, Anthropic, Ollama oder ein beliebiger OpenAI-kompatibler Endpoint. Die Schlussfolgerungen und Aktionen der Agenten laufen in Ihrer eigenen Installation, und das Einzige, was sie verlässt, ist der Prompt, den Sie an den von Ihnen gewählten Anbieter senden.',
       },
     ],
   },

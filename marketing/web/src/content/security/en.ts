@@ -4,12 +4,12 @@ const content: SecurityContent = {
   meta: {
     title: 'Security',
     description:
-      'How KANAP protects your data: row-level security, encryption, RBAC, audit trail, SSO, and open source transparency. Self-host or cloud.',
+      'How KANAP protects your data: row-level security, encryption, RBAC, audit trail, agent governance, SSO, and open source transparency. Self-host or cloud.',
   },
   header: {
     eyebrow: 'Security',
     title: 'Security that respects your data.',
-    lead: 'Governance-grade controls from day one. The same platform runs on our cloud and on your own servers, with the same isolation, encryption, and auditability.',
+    lead: 'Governance-grade controls from day one. The same platform runs on our cloud and on your own servers, with the same isolation, encryption, auditability, and governance over what agents may do.',
   },
   overview: {
     title: 'Principles',
@@ -76,8 +76,22 @@ const content: SecurityContent = {
       'Per-entity activity timeline (tasks, projects, documents, etc.)',
       'User actions logged with timestamps and IP metadata',
       'Login and admin actions surfaced in a separate audit feed',
+      'Agent actions logged in the same trail, with the sources each agent used',
       'Exportable to CSV for SIEM ingestion',
       'Immutable append-only structure, rows are added, never rewritten',
+    ],
+  },
+  agentGovernance: {
+    title: 'Agent governance',
+    body:
+      'Agents act under the same controls as everything else, plus limits specific to autonomous work. Every agent action is recorded and scoped to what you allowed, and you can stop an agent at any moment. Autonomy is granted by you and measured against the agent\'s track record, not assumed.',
+    bullets: [
+      'Agents act only through defined operations, with no raw database or shell access',
+      'Each agent scoped to what you allow, under the same RBAC as the UI',
+      'Every agent action recorded in the same audit trail, exportable for your SIEM',
+      'Answers carry the sources the agent used, so a decision can be checked',
+      'Pause any agent immediately, one at a time or across the board',
+      'Per-agent spend caps keep running cost bounded',
     ],
   },
   deployment: {

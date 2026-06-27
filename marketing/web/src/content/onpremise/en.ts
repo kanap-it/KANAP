@@ -4,7 +4,7 @@ const content: OnPremContent = {
   meta: {
     title: 'Self-host KANAP, the first-class citizen',
     description:
-      'Run KANAP on your own infrastructure, under AGPL v3. Full platform, unlimited users, your data never leaves your environment. Deploy in minutes with Docker Compose.',
+      'Run KANAP on your own infrastructure, under AGPL v3. Full platform including AI agents, unlimited users, your data never leaves your environment. Deploy in minutes with Docker Compose.',
   },
 
   header: {
@@ -25,11 +25,11 @@ const content: OnPremContent = {
     pillars: [
       {
         title: 'Your data stays put',
-        body: 'Budget figures, supplier contracts, IT landscape, everything. On your servers, in your network. No third-party data processor to trust with your governance data.',
+        body: 'Budget figures, supplier contracts, IT landscape, everything. On your servers, in your network. No third-party data processor to trust with your governance data. Agent reasoning and actions run there too, which matters when an auditor asks.',
       },
       {
         title: 'No per-seat tax',
-        body: 'Unlimited users, unlimited workspaces, unlimited Plaid usage with your own LLM key. Roll it out to the entire department without a pricing page spreadsheet.',
+        body: 'Unlimited users, unlimited workspaces, Plaid and agents with your own LLM key. Roll it out to the entire department without a pricing page spreadsheet.',
       },
       {
         title: 'Compliance-ready',
@@ -68,7 +68,7 @@ const content: OnPremContent = {
     eyebrow: 'Install in minutes',
     title: 'One prompt.\nFifteen minutes.',
     intro:
-      'A coding AI agent reads our documentation, installs every dependency, and configures the whole stack — Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt — on a clean Ubuntu server. You paste one prompt; you confirm steps; you log in.',
+      'A coding AI agent reads our documentation, installs every dependency, and configures the whole stack (Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt) on a clean Ubuntu server. You paste one prompt, confirm the steps, and log in.',
     steps: [
       {
         title: 'Prepare a clean server',
@@ -81,7 +81,7 @@ const content: OnPremContent = {
       },
       {
         title: 'Paste the install prompt',
-        body: 'Open your agent and paste the prompt template from our docs — fill in your hostname, admin email and (optionally) your email transport (Resend or SMTP). The agent reads the linked install pages, installs Docker, PostgreSQL 16 with the required extensions, MinIO, nginx and certbot, clones KANAP into /opt/kanap, generates strong credentials, builds the images and starts the containers. It also wires up TLS and auto-renewal. The agent asks for confirmation before running each command.',
+        body: 'Open your agent and paste the prompt template from our docs, then fill in your hostname, admin email and (optionally) your email transport (Resend or SMTP). The agent reads the linked install pages, installs Docker, PostgreSQL 16 with the required extensions, MinIO, nginx and certbot, clones KANAP into /opt/kanap, generates strong credentials, builds the images and starts the containers. It also wires up TLS and auto-renewal. The agent asks for confirmation before running each command.',
       },
       {
         title: 'Sign in and harden',
@@ -138,8 +138,8 @@ const content: OnPremContent = {
         body: 'Enterprise SSO is part of the core platform, not an upsell. Wire it up through the admin console.',
       },
       {
-        title: 'Plaid, your way',
-        body: 'Bring your own LLM key, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint. Your prompts never leave your chosen provider.',
+        title: 'Plaid and agents, your way',
+        body: 'Bring your own LLM key for both Plaid and your agents, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint. Agent reasoning and actions run inside your own deployment, and the only thing that leaves is the prompt you send to the provider you chose.',
       },
     ],
   },

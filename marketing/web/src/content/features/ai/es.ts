@@ -2,21 +2,21 @@ import type { FeatureContent } from '../types';
 
 const content: FeatureContent = {
   meta: {
-    title: 'Plaid, Asistente de IA para gobernanza de TI',
+    title: 'Plaid, asistente de IA para la gobernanza de TI',
     description:
-      'Pregúntale a Plaid sobre tus datos de TI. Crea documentos, actualiza tareas, conecta cualquier herramienta de IA vía MCP. Uso incluido en nube alojada. Código abierto.',
+      'Pregúntele a Plaid sobre sus datos de TI. Cree documentos, actualice tareas, conecte cualquier herramienta de IA vía MCP. Uso incluido en nube alojada. Open source.',
   },
   header: {
     eyebrow: 'Plaid · asistente de IA',
-    title: 'No es un chatbot. Un asistente real para TI.',
-    lead: 'Pregunta lo que quieras sobre tu presupuesto, aplicaciones, proyectos o documentación. Plaid entiende tus datos, actúa y se conecta a cualquier herramienta de IA empresarial vía MCP.',
+    title: 'Pregúntele a KANAP lo que sea sobre su TI.',
+    lead: 'Plaid responde sobre su presupuesto, sus aplicaciones, sus proyectos y su documentación, y aplica cambios cuando usted se lo pide. Cada escritura se le muestra antes de ejecutarse. Úselo dentro de KANAP, o conéctelo a sus propias herramientas de IA a través de MCP.',
   },
   sections: [
     {
-      title: 'Busca y consulta todo',
-      body: 'Pregúntale a Plaid sobre tus aplicaciones, servidores, contratos, partidas presupuestarias, proyectos, tareas o documentos. Obtén respuestas instantáneas con datos estructurados, no resúmenes vagos.',
+      title: 'Busque y consulte todo',
+      body: 'Pregúntele a Plaid sobre sus aplicaciones, servidores, contratos, partidas presupuestarias, proyectos, tareas o documentos. Obtenga respuestas instantáneas con datos estructurados, no resúmenes vagos.',
       bullets: [
-        'Búsqueda transversal entre entidades de todos los módulos',
+        'Búsqueda entre entidades en todos los módulos',
         'Consultas estructuradas con filtros y ordenación',
         'Agregaciones y estadísticas',
         'Búsqueda de texto completo en la base de conocimiento',
@@ -24,33 +24,33 @@ const content: FeatureContent = {
       shotAlt: 'Plaid respondiendo a una consulta entre módulos',
     },
     {
-      title: 'Actúa con vista previa',
-      body: 'Plaid no solo lee, también escribe. Crea documentación, redacta briefings de proyecto y gestiona tareas. Cada operación de escritura se previsualiza antes de aplicarse.',
+      title: 'Actúe con vista previa',
+      body: 'Plaid no solo lee, también escribe. Puede crear y actualizar contenido por usted, y cada operación de escritura se previsualiza antes de aplicarse.',
       bullets: [
-        'Crea y edita documentos con markdown',
-        'Redacta briefings y resúmenes de proyecto',
-        'Actualiza tareas: estado, asignaciones, comentarios',
-        'Previsualiza los cambios antes de aplicarlos',
+        'Cree y edite documentos con markdown',
+        'Redacte briefings y resúmenes de proyecto',
+        'Actualice tareas: estado, asignaciones, comentarios',
+        'Previsualice los cambios antes de aplicarlos',
       ],
       shotAlt: 'Plaid mostrando una vista previa de actualizaciones de tareas',
     },
     {
-      title: 'MCP, usa KANAP desde cualquier herramienta de IA',
-      body: 'KANAP expone un servidor MCP (Model Context Protocol) completo. Conecta Claude Desktop, Cursor, Windsurf o cualquier herramienta compatible con MCP, y consulta tus datos de gobernanza de TI sin salir de tu flujo de trabajo.',
+      title: 'MCP, use KANAP desde cualquier herramienta de IA',
+      body: 'KANAP expone un servidor MCP (Model Context Protocol) completo. Conecte Claude Desktop, Cursor, Windsurf o cualquier herramienta compatible con MCP, y consulte sus datos de gobernanza de TI sin salir de su flujo de trabajo.',
       bullets: [
         'Protocolo MCP estándar, funciona con cualquier cliente compatible',
-        'Autenticación segura con clave API y scoping granular',
+        'Autenticación segura con clave API y alcance granular',
         'Las mismas consultas y acciones que el chat integrado',
-        'Conserva tus flujos de IA actuales y añade el contexto de KANAP',
+        'Conserve sus flujos de IA actuales y añada el contexto de KANAP',
       ],
-      shotAlt: 'Configuración MCP con scoping de clave API',
+      shotAlt: 'Configuración MCP con alcance de clave API',
     },
     {
       title: 'Control y cumplimiento totales',
-      body: 'Plaid respeta las reglas de tu organización. Cada acción se rige por los permisos del usuario. Los administradores tienen control total sobre lo que Plaid puede y no puede hacer.',
+      body: 'Plaid respeta las reglas de su organización. Cada acción se rige por los permisos del usuario. Los administradores tienen control total sobre lo que Plaid puede y no puede hacer.',
       bullets: [
         'Respeto pleno de los permisos del usuario en cada consulta',
-        'Claves API seguras con scoping granular de MCP',
+        'Claves API seguras con alcance granular de MCP',
         'La búsqueda web se puede activar o desactivar de forma independiente',
         'Vista previa y confirmación para todas las operaciones de escritura',
         'Modo solo lectura disponible para despliegues prudentes',
@@ -59,17 +59,19 @@ const content: FeatureContent = {
     },
   ],
   more: {
-    title: 'Lo que puedes preguntarle a Plaid',
+    title: 'Lo que puede preguntarle a Plaid',
     items: [
-      { title: '«¿Cuál es el estado del Proyecto Atlas?»', body: 'Plaid recupera el proyecto, sus tareas, el cronograma y el equipo, y te entrega un briefing de estado conciso con bloqueos y próximos hitos.' },
-      { title: '«Lista aplicaciones en AWS sin responsable»', body: 'Consulta estructurada sobre tu paisaje de TI. Resultados filtrados y ordenados a partir de datos en vivo.' },
-      { title: '«Redacta una política de seguridad de acceso remoto»', body: 'Plaid crea un nuevo documento en tu base de conocimiento, con metadatos correctos y contenido markdown.' },
-      { title: '«¿Qué contratos expiran en 90 días?»', body: 'Respuesta inmediata con nombres de proveedores, importes y fechas de renovación. Sin navegar por paneles.' },
+      { title: '«¿Cuál es el estado del Proyecto Atlas?»', body: 'Plaid recupera el proyecto, sus tareas, el cronograma y el equipo, y le entrega un briefing de estado conciso con bloqueos y próximos hitos.' },
+      { title: '«Lista las aplicaciones en AWS sin responsable»', body: 'Consulta estructurada sobre su paisaje de TI. Resultados filtrados y ordenados a partir de datos en vivo.' },
+      { title: '«Redacta una política de seguridad de acceso remoto»', body: 'Plaid crea un nuevo documento en su base de conocimiento, con metadatos correctos y contenido markdown.' },
+      { title: '«¿Qué contratos expiran en 90 días?»', body: 'Respuesta instantánea con nombres de proveedores, importes y fechas de renovación. Sin navegar por paneles.' },
     ],
   },
   crossLinks: {
-    label: 'Explora otros módulos',
+    label: 'Explore la plataforma',
     links: [
+      { label: 'Agentes, para el trabajo que se ejecuta solo', href: '/features/agents' },
+      { label: 'Seguridad', href: '/security' },
       { label: 'Gestión de presupuesto', href: '/features/budget' },
       { label: 'Paisaje de TI', href: '/features/it-landscape' },
       { label: 'Gestión de portafolio', href: '/features/portfolio' },
@@ -78,9 +80,9 @@ const content: FeatureContent = {
   },
   cta: {
     title: 'La gobernanza de TI con IA empieza aquí.',
-    body: 'Plaid está incluido en cada workspace de KANAP, con un uso generoso en la nube alojada. Autoalojamiento gratuito, o nube alojada.',
+    body: 'Plaid está incluido en cada workspace de KANAP, con un uso generoso en la nube alojada. Autoaloje gratis, o pruebe la nube alojada.',
     primary: 'Empezar prueba gratuita',
-    secondary: 'Habla con nosotros',
+    secondary: 'Hablar con nosotros',
   },
 };
 

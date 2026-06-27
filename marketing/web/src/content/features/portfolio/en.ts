@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Automatic roadmap scheduling',
-      body: 'Generate delivery scenarios from remaining effort, dependencies and contributor capacity. See bottlenecks and occupation before applying dates to live projects.',
+      body: 'Generate delivery scenarios from remaining effort, dependencies and contributor capacity. See bottlenecks and occupation before applying dates to live projects. This scoring and roadmap data is part of what an agent reasons over when it picks up related work.',
       bullets: [
         'Weekly capacity-aware scheduling from real effort allocations',
         'Default scope covers Waiting List, Planned, In progress, In testing',
@@ -72,8 +72,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explore other modules',
+    label: 'Explore the platform',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, AI assistant', href: '/features/ai' },
       { label: 'Budget management', href: '/features/budget' },
       { label: 'IT landscape', href: '/features/it-landscape' },
       { label: 'Knowledge', href: '/features/knowledge' },

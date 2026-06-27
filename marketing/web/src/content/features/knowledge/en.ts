@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Connected documentation',
-      body: 'Link documents to applications, assets, projects, requests and tasks. Access managed documents from other workspaces and distinguish between linked and related content for full traceability.',
+      body: 'Link documents to applications, assets, projects, requests and tasks. Access managed documents from other workspaces and distinguish between linked and related content for full traceability. The knowledge base is also what your agents quote: the source an agent draws from, and what it points to when it answers.',
       bullets: [
         'Relations to applications, assets, projects, requests, tasks',
         'Managed documents accessible from other workspaces',
@@ -71,8 +71,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explore other modules',
+    label: 'Explore the platform',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, AI assistant', href: '/features/ai' },
       { label: 'Budget management', href: '/features/budget' },
       { label: 'IT landscape', href: '/features/it-landscape' },
       { label: 'Portfolio management', href: '/features/portfolio' },

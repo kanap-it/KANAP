@@ -4,13 +4,13 @@ const content: FaqContent = {
   meta: {
     title: 'FAQ',
     description:
-      'Questions fréquentes sur les tarifs, la licence, l\'auto-hébergement, le cloud hébergé, Plaid, le support et la facturation KANAP.',
+      "Questions fréquentes sur les tarifs, la licence, l'auto-hébergement, le cloud hébergé, Plaid, les agents, le support et la facturation KANAP.",
   },
   header: {
     eyebrow: 'FAQ',
     title: 'Questions fréquentes.',
     lead:
-      'Tout ce que vous devez savoir sur KANAP, licence, tarifs, hébergement et Plaid. Si vous ne trouvez pas votre réponse, écrivez-nous.',
+      'Tout ce que vous devez savoir sur KANAP, licence, tarifs, hébergement, Plaid et les agents. Si vous ne trouvez pas votre réponse, écrivez-nous.',
   },
   groups: [
     {
@@ -91,6 +91,43 @@ const content: FaqContent = {
         {
           q: 'Comment puis-je contrôler Plaid ?',
           a: 'Au niveau plateforme, Plaid peut être totalement désactivé, activé en lecture seule, ou activé en lecture-écriture (avec aperçu et confirmation pour toutes les modifications). La recherche web et MCP s\'activent ou se désactivent séparément. Au niveau utilisateur, vous contrôlez qui accède à quelle fonctionnalité Plaid via les permissions par rôle. Le RBAC est toujours appliqué, Plaid ne voit jamais plus que ce qui est permis à l\'utilisateur.',
+        },
+      ],
+    },
+    {
+      label: 'Agents (automatisation IA)',
+      items: [
+        {
+          q: 'Les agents sont-ils autonomes ?',
+          a: "Oui, par conception. Un agent démarre supervisé : il propose des actions et vous les passez en revue. À mesure que KANAP mesure la fréquence à laquelle il voit juste, vous lui accordez plus d'autonomie, jusqu'à ce qu'il traite le travail courant seul et ne remonte que ce qui exige une personne. Vous décidez jusqu'où cela va.",
+        },
+        {
+          q: "Comment contrôler ce qu'un agent peut faire ?",
+          a: "Vous définissez le niveau d'autonomie de chaque agent et le limitez aux opérations que vous autorisez. Les agents n'agissent qu'à travers des opérations définies, sans accès direct à la base de données ni au shell. Chaque action est enregistrée, vous pouvez mettre n'importe quel agent en pause immédiatement, et vous pouvez plafonner ce qu'un agent dépense pour le LLM.",
+        },
+        {
+          q: 'Puis-je confier un vrai travail à un agent ?',
+          a: "C'est précisément le rôle des contrôles. Un agent raisonne sur vos propres données IT plutôt que de deviner, cite les sources qu'il a utilisées et enregistre chaque action dans le même journal d'audit que le reste de KANAP. Il gagne en autonomie en faisant ses preuves sur des tâches réelles, et vous pouvez l'arrêter à tout moment.",
+        },
+        {
+          q: "Avec quels outils les agents travaillent-ils aujourd'hui ?",
+          a: "Aujourd'hui, un centre de services. Un agent autonome traite un vrai centre de services en production, ce qui valide le modèle. Le runtime est conçu pour piloter d'autres systèmes, supervision, virtualisation, annuaires et plus encore, chacun derrière un connecteur.",
+        },
+        {
+          q: 'Puis-je écrire mon propre agent ou connecteur ?',
+          a: "Oui. Le code est ouvert, et le raisonnement d'un agent est tenu séparé de la façon dont il dialogue avec un outil donné. Vous pouvez écrire un connecteur pour le système dont vous avez besoin, ou modifier le fonctionnement d'un agent, puisque vous disposez de tout le code source. Si vous préférez que nous construisions un connecteur, contactez-nous.",
+        },
+        {
+          q: 'Les agents sont-ils inclus dans la version open source gratuite ?',
+          a: "Oui. Les agents font partie du produit open source sous AGPL v3, sans verrou fonctionnel sur l'IA. Vous apportez votre propre clé LLM, comme avec Plaid. Auto-hébergez toute la plateforme gratuitement, agents compris.",
+        },
+        {
+          q: "Combien coûte l'exécution des agents ?",
+          a: "Les agents utilisent un LLM, vous apportez donc votre propre clé et payez votre fournisseur pour ce qu'ils consomment. KANAP en lui-même est gratuit à auto-héberger. Vous gardez le coût prévisible avec un plafond de dépense par agent.",
+        },
+        {
+          q: 'Les actions des agents restent-elles sur mes propres serveurs ?',
+          a: "Sur un déploiement auto-hébergé, oui. Le raisonnement et les actions de l'agent se déroulent au sein de votre propre déploiement, et vos tickets et documents n'en sortent jamais. Le seul appel externe va au fournisseur LLM que vous choisissez.",
         },
       ],
     },

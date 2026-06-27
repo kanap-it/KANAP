@@ -4,13 +4,13 @@ const content: HomeContent = {
   meta: {
     title: 'The open source IT governance platform',
     description:
-      'Budget, enterprise architecture, portfolio and knowledge in one AI-powered platform. Built by a CIO. Open source under AGPL v3. Self-host free or choose hosted KANAP.',
+      'Budget, enterprise architecture, portfolio and knowledge in one platform. Plaid works it in plain language and AI agents take on the repetitive load. Open source under AGPL v3. Self-host free, or choose hosted KANAP.',
   },
 
   hero: {
     eyebrow: 'Bring clarity to your IT department',
     title: 'The open source IT governance platform.',
-    lead: 'Budget, architecture, portfolio and knowledge in one platform, with Plaid, the built-in AI assistant.\nSelf-host it for free, or let us run it for you.',
+    lead: 'Budget, architecture, portfolio and knowledge in one platform. Plaid lets your team work it in plain language, and AI agents take on the repetitive work.\nSelf-host it for free, or let us run it for you.',
     primaryCta: 'Deploy free',
     secondaryCta: 'Try hosted cloud',
     trialNote: 'AGPL v3 · full source on GitHub · Docker install · no feature paywall.',
@@ -18,7 +18,7 @@ const content: HomeContent = {
 
   pillars: {
     eyebrow: 'Why KANAP',
-    title: 'Built different.',
+    title: 'What makes KANAP different.',
     items: [
       {
         title: 'Practitioner-built',
@@ -32,14 +32,48 @@ const content: HomeContent = {
         title: 'Truly open source',
         body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no feature paywall, no freemium trap.',
       },
+      {
+        title: 'The whole IT department in one system.',
+        body: 'Applications, infrastructure, budgets, projects and documentation live in one record instead of ten disconnected tools.',
+      },
+      {
+        title: 'Agents that take work off your team.',
+        body: 'Autonomous agents handle the repetitive load and earn more independence as they prove themselves on real tasks.',
+      },
+      {
+        title: 'Adopt at your pace',
+        body: 'Every module is fully usable on its own. Start where it hurts most and add the rest when you are ready, with no full-platform migration.',
+      },
     ],
+  },
+
+  layers: {
+    eyebrow: 'How it fits together',
+    title: 'A complete platform for the IT department.',
+    intro:
+      'KANAP is built in three layers that work on the same information, so each one makes the others more useful.',
+    items: [
+      {
+        title: 'The record',
+        body: 'KANAP holds the full picture of your IT department: applications and infrastructure, budgets, projects and documentation. One place instead of ten tools.',
+      },
+      {
+        title: 'The interaction',
+        body: 'Plaid lets anyone on your team work with the record in plain language, asking questions and making changes without learning where everything lives.',
+      },
+      {
+        title: 'The action',
+        body: 'Agents act on the same record, picking up repetitive work and carrying it out under the autonomy you grant them.',
+      },
+    ],
+    outro: 'Each part is useful by itself, and they get stronger together.',
   },
 
   modules: {
     eyebrow: 'Complete IT toolbox',
-    title: 'Built for every IT role.\nUse the whole platform, or one tile at a time.',
+    title: 'Built for every IT role.',
     intro:
-      'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with an AI assistant that reads across all of it.',
+      'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with Plaid to work across it in plain language and agents that take on the repetitive load.',
     items: [
       {
         slug: '/features/budget',
@@ -97,7 +131,7 @@ const content: HomeContent = {
         slug: '/features/ai',
         title: 'Plaid, AI assistant',
         blurb:
-          'For every role, not just the AI-curious. Ask in plain language; get structured answers across every module. The shortest path between an IT question and the data that answers it.',
+          'For every role, not just the AI-curious. Ask in plain language, get structured answers across every module. The shortest path between an IT question and the data that answers it.',
         bullets: [
           'Natural-language queries across every module',
           'Document and task actions with preview',
@@ -107,24 +141,26 @@ const content: HomeContent = {
         ctaLabel: 'Learn more',
       },
       {
-        title: 'Adopt at your pace',
+        slug: '/features/agents',
+        title: 'Agents',
         blurb:
-          'Every core module is fully operational on its own. Start where it hurts most — budget, landscape, portfolio, knowledge — and add the rest when you\'re ready. The platform pays off more as you adopt more, but you never need all five to get value.',
+          'For teams buried in repetitive tickets. An agent reads each task against your IT data and either proposes an action or carries it out, under the autonomy you set. One service-desk connector runs in production today, and the runtime is built to extend.',
         bullets: [
-          'Each module fully usable standalone',
-          'No forced sequence or full-platform migration',
-          'Cross-module value compounds as you adopt',
-          'Replace one tool today, consolidate when ready',
+          'Reasons over your real IT record',
+          'Starts supervised, earns more autonomy',
+          'Every action recorded and reversible',
+          'Open runtime, write your own connector',
         ],
+        ctaLabel: 'Learn more',
       },
     ],
   },
 
   crossCutting: {
     eyebrow: 'Enterprise ready',
-    title: 'Everything connected.\nAlways under control.',
+    title: 'One connected system, under your control.',
     intro:
-      'Five modules working from the same data, creating the governance layer IT departments actually need.',
+      'The modules work from the same data, which is what gives an IT department real governance. It is also what lets an agent act without putting your environment at risk.',
     items: [
       {
         title: 'Reporting & dashboards',
@@ -140,7 +176,7 @@ const content: HomeContent = {
       },
       {
         title: 'Complete audit trail',
-        body: 'Every change tracked. Know who changed what, when, with full before/after history.',
+        body: 'Every change tracked, including the actions taken by agents. Know who changed what, when, with full before and after history.',
       },
       {
         title: 'Unified task management',
@@ -153,10 +189,15 @@ const content: HomeContent = {
     ],
   },
 
+  vision: {
+    eyebrow: 'Where this goes',
+    title: 'Toward an AI-augmented IT department.',
+    body: 'The direction is an IT department where agents quietly carry the repetitive load so your team can spend its time on the work that needs real judgment, all of it running on software you own and can read end to end.',
+  },
+
   cta: {
-    title: 'Ready to run IT from one open source system?',
-    body:
-      'Deploy KANAP yourself for free, or try the hosted version if you want us to operate it.\nSame product. Same features. Your choice.',
+    title: 'Run your IT department on a system you own.',
+    body: 'Deploy KANAP yourself for free, or have us host it. The product and every feature are the same, agents included.',
     primary: 'Deploy free',
     secondary: 'Try hosted cloud',
   },
