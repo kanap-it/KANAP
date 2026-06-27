@@ -9,11 +9,10 @@ Format: **Decision**, **Why**, **Alternative if you disagree**.
 
 ## Global
 
-### A-1. Positioning triad — SUPERSEDED 2026-06-26 by the agentic refonte (plan §1.2 / §11)
-**Decision (current):** Three pillars are now **The whole IT department in one system · Agents that take work off your team · Open source, self-hosted, yours to extend.** "Practitioner-built" and "Simple & powerful" drop to supporting copy; they are no longer top-level pillars.
-**Retired:** the old pillars **Practitioner-built · Simple & powerful · Open source** ("Radically affordable" had already been retired as a headline claim; affordability stays factual on `/offer`).
-**Why:** The agentic layer is now the headline strength, and the breadth-in-one-system claim leads. Decisions locked in `REFONTE-AGENTIC.md` §10.
-**Alternative:** Revert to the practitioner/simple/open-source triad if the agent hook tests worse than the practitioner story.
+### A-1. Positioning pillars — REVISED 2026-06-27 (review of the agentic refonte)
+**Decision (current):** Five pillars on the home, in this order: the three originals (**Practitioner-built · Simple & powerful · Truly open source**) plus two new ones (**The whole IT department in one system · Agents that take work off your team**). The plan §1.2 proposed *replacing* the originals with a new triad; in review we chose to keep the originals and add the breadth + agents angle instead. The would-be third new pillar ("Open source, self-hosted, yours to extend") was dropped as redundant with "Truly open source".
+**Why:** Extend the existing home rather than replace it. The home keeps the platform's identity; the deep agent narrative lives on `/features/agents`, not the home. ("Radically affordable" remains retired as a headline claim; affordability stays factual on `/offer`.)
+**Alternative:** Trim back to a single positioning triad if five pillars read as too many.
 
 ### A-2. License framing
 **Decision:** AGPL v3 (taken from the old site's JSON-LD). Mentioned on `/offer`, `/on-premise`, `/security`, footer.
