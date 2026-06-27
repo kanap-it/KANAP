@@ -40,6 +40,10 @@ const content: HomeContent = {
         title: 'Agents that take work off your team.',
         body: 'Autonomous agents handle the repetitive load and earn more independence as they prove themselves on real tasks.',
       },
+      {
+        title: 'Adopt at your pace',
+        body: 'Every module is fully usable on its own. Start where it hurts most and add the rest when you are ready, with no full-platform migration.',
+      },
     ],
   },
 
@@ -148,17 +152,6 @@ const content: HomeContent = {
           'Open runtime, write your own connector',
         ],
         ctaLabel: 'Learn more',
-      },
-      {
-        title: 'Adopt at your pace',
-        blurb:
-          "Every core module is fully operational on its own. Start where it hurts most, whether that's budget, landscape, portfolio or knowledge, and add the rest when you're ready. The platform pays off more as you adopt more, but you never need the whole thing to get value.",
-        bullets: [
-          'Each module fully usable standalone',
-          'No forced sequence or full-platform migration',
-          'Cross-module value compounds as you adopt',
-          'Replace one tool today, consolidate when ready',
-        ],
       },
     ],
   },
