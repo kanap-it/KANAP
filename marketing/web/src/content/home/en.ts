@@ -10,7 +10,7 @@ const content: HomeContent = {
   hero: {
     eyebrow: 'Bring clarity to your IT department',
     title: 'The open source IT governance platform.',
-    lead: 'Budget, architecture, portfolio and knowledge in one platform. Plaid lets your team work it in plain language, and AI agents now take on the repetitive work.\nSelf-host it for free, or let us run it for you.',
+    lead: 'Budget, architecture, portfolio and knowledge in one platform. Plaid lets your team work it in plain language, and AI agents take on the repetitive work.\nSelf-host it for free, or let us run it for you.',
     primaryCta: 'Deploy free',
     secondaryCta: 'Try hosted cloud',
     trialNote: 'AGPL v3 · full source on GitHub · Docker install · no feature paywall.',

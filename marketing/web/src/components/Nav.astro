@@ -18,12 +18,15 @@ import LocaleSwitcher from './LocaleSwitcher.astro';
 const locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(locale);
 
+// Flat dropdown, Agents first so the hook is visible at the point of
+// navigation (plan §5.2).
 const featureItems = [
-  { href: localePath(locale, '/features/budget'), label: t('nav.featuresBudget') },
+  { href: localePath(locale, '/features/agents'), label: t('nav.featuresAgents') },
+  { href: localePath(locale, '/features/ai'), label: t('nav.featuresAi') },
   { href: localePath(locale, '/features/it-landscape'), label: t('nav.featuresItLandscape') },
+  { href: localePath(locale, '/features/budget'), label: t('nav.featuresBudget') },
   { href: localePath(locale, '/features/portfolio'), label: t('nav.featuresPortfolio') },
   { href: localePath(locale, '/features/knowledge'), label: t('nav.featuresKnowledge') },
-  { href: localePath(locale, '/features/ai'), label: t('nav.featuresAi') },
 ];
 
 const navLinks = [

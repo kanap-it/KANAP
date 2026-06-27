@@ -8,8 +8,8 @@ const content: FeatureContent = {
   },
   header: {
     eyebrow: 'Plaid · AI assistant',
-    title: 'Not a chatbot.\nA real assistant for IT.',
-    lead: 'Ask anything about your budget, applications, projects or documentation. Plaid understands your data, takes action, and connects to any enterprise AI tool via MCP.',
+    title: 'Ask KANAP anything about your IT.',
+    lead: 'Plaid answers across your budget, applications, projects and documentation, and makes changes when you ask. Every write is shown to you before it runs. Use it inside KANAP, or connect it to your own AI tools over MCP.',
   },
   sections: [
     {
@@ -25,7 +25,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Take action with preview',
-      body: 'Plaid doesn\'t just read, it writes. Create documentation, write project briefs, manage tasks. Every write operation is previewed before it applies.',
+      body: 'Plaid writes as well as reads. It can create and update content for you, and every write operation is previewed before it applies.',
       bullets: [
         'Create and edit documents with markdown',
         'Write project briefs and summaries',
@@ -68,8 +68,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explore other modules',
+    label: 'Explore the platform',
     links: [
+      { label: 'Agents, for work that runs on its own', href: '/features/agents' },
+      { label: 'Security', href: '/security' },
       { label: 'Budget management', href: '/features/budget' },
       { label: 'IT landscape', href: '/features/it-landscape' },
       { label: 'Portfolio management', href: '/features/portfolio' },
