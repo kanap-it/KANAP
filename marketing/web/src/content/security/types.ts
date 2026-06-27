@@ -35,6 +35,16 @@ export interface SecurityContent {
     body: string;
     bullets: string[];
   };
+  /**
+   * Agent governance section. Optional so locale files written before the
+   * agentic refonte still type-check; rendered after the audit section when
+   * present (EN-first, fr/de/es add it in the translation pass).
+   */
+  agentGovernance?: {
+    title: string;
+    body: string;
+    bullets: string[];
+  };
   deployment: {
     title: string;
     body: string;

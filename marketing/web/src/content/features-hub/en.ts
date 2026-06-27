@@ -4,12 +4,12 @@ const content: FeaturesHubContent = {
   meta: {
     title: 'How IT teams actually use KANAP',
     description:
-      'Five scenarios from the people who run IT every day — CIO, architect, PMO, support, IT lead. See how the modules combine, not just what each one does separately.',
+      'Six scenarios from the people who run IT every day, from the CIO to support to the IT operations lead. See how the modules combine, and how agents now take on the repetitive load.',
   },
   header: {
     eyebrow: 'By role',
     title: 'How IT teams actually use KANAP.',
-    lead: 'Five scenarios from people who run IT every day. Real pain, real flows, real outcomes. See how the modules combine, not just what each does separately.',
+    lead: 'Six scenarios from people who run IT every day. They draw on one record, work it through Plaid in plain language, and now hand the repetitive parts to an agent. See how the modules combine, not just what each does separately.',
   },
   modulesUsedLabel: 'Modules combined',
   personas: [
@@ -54,12 +54,13 @@ const content: FeaturesHubContent = {
       role: 'IT operations / support',
       headline: 'Find the root cause in seconds, not hours.',
       body:
-        "Production order management is slow. You ask Plaid: \"Which apps consume the order-management API?\" Five seconds later, a list. \"Which of those have been updated this week?\" One match. \"Who owns it?\" Email and Teams handle. From symptom to ownership without opening five tools.",
-      outcome: 'Resolve incidents from one place. Sleep better.',
+        "Production order management is slow. You ask Plaid: \"Which apps consume the order-management API?\" Five seconds later, a list. \"Which of those have been updated this week?\" One match. \"Who owns it?\" Email and Teams handle. From symptom to ownership without opening five tools. The first-line tickets that repeat every week go to an agent now, so your team only picks up what needs a person.",
+      outcome: 'Resolve incidents from one place, while an agent clears the repetitive tickets.',
       modules: [
         { slug: 'it-landscape', label: 'IT landscape' },
         { slug: 'knowledge', label: 'Knowledge' },
         { slug: 'ai', label: 'Plaid' },
+        { slug: 'agents', label: 'Agents' },
       ],
       shotAlt: 'Plaid answering an incident-investigation query with structured results',
     },
@@ -75,6 +76,19 @@ const content: FeaturesHubContent = {
         { slug: 'knowledge', label: 'Knowledge' },
       ],
       shotAlt: 'Application portfolio sorted by OPEX cost with renewal dates',
+    },
+    {
+      role: 'IT operations lead',
+      headline: 'Hand the repetitive tickets to an agent.',
+      body:
+        'Your first-line queue is full of the same requests every week: access resets, recurring incidents, routine triage. An agent picks each one up, reads it against your IT data, and proposes or carries out the fix under the autonomy you set. It works supervised at first and earns more independence as its track record holds. Your people stop spending their day on the repetitive load.',
+      outcome: 'Your team spends its time on the hard problems while the agent clears the routine ones.',
+      modules: [
+        { slug: 'agents', label: 'Agents' },
+        { slug: 'it-landscape', label: 'IT landscape' },
+        { slug: 'knowledge', label: 'Knowledge' },
+      ],
+      shotAlt: 'An agent working a queue of first-line tickets',
     },
   ],
   cta: {

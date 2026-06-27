@@ -3,12 +3,12 @@ import type { FaqContent } from './types';
 const content: FaqContent = {
   meta: {
     title: 'FAQ',
-    description: 'Common questions about KANAP pricing, licensing, self-hosting, hosted cloud, Plaid, support and billing.',
+    description: 'Common questions about KANAP pricing, licensing, self-hosting, hosted cloud, Plaid, agents, support and billing.',
   },
   header: {
     eyebrow: 'FAQ',
     title: 'Common questions.',
-    lead: 'Everything you need to know about KANAP, licensing, pricing, hosting, and Plaid. If you don\'t find your answer, write to us.',
+    lead: 'Everything you need to know about KANAP, licensing, pricing, hosting, Plaid and agents. If you don\'t find your answer, write to us.',
   },
   groups: [
     {
@@ -89,6 +89,43 @@ const content: FaqContent = {
         {
           q: 'How can I control Plaid?',
           a: 'At platform level, Plaid can be fully disabled, enabled in read-only mode, or enabled in read-write mode (with preview and confirmation for all changes). Web search and MCP can be enabled or disabled separately. At user level, you control who has access to which Plaid feature through role-based permissions. RBAC is always enforced, Plaid never sees more than the user is allowed to.',
+        },
+      ],
+    },
+    {
+      label: 'Agents (AI automation)',
+      items: [
+        {
+          q: 'Are the agents autonomous?',
+          a: 'Yes, by design. An agent starts supervised: it proposes actions and you review them. As KANAP measures how often it gets things right, you grant it more autonomy, until it handles routine work on its own and only escalates what needs a person. You decide how far that goes.',
+        },
+        {
+          q: 'How do I control what an agent can do?',
+          a: 'You set each agent\'s autonomy level and scope it to the operations you allow. Agents act only through defined operations, with no raw database or shell access. Every action is recorded, you can pause any agent immediately, and you can cap what an agent spends on the LLM.',
+        },
+        {
+          q: 'Can I trust an agent with real work?',
+          a: 'That is what the controls are for. An agent reasons over your own IT data rather than guessing, cites the sources it used, and records every action in the same audit trail as the rest of KANAP. It earns autonomy by proving itself on real tasks, and you can stop it at any time.',
+        },
+        {
+          q: 'Which tools do agents work with today?',
+          a: 'Today, a service desk. One autonomous agent works a real service desk in production, which is what proves the model. The runtime is built to drive other systems, monitoring, virtualization, directory services and more, each behind a connector.',
+        },
+        {
+          q: 'Can I write my own agent or connector?',
+          a: 'Yes. The code is open, and an agent\'s reasoning is kept separate from how it talks to any given tool. You can write a connector for the system you need, or change how an agent works, because you have the full source. If you would rather we build a connector, contact us.',
+        },
+        {
+          q: 'Are agents included in the free open-source version?',
+          a: 'Yes. Agents are part of the open-source product under AGPL v3, with no AI feature gate. You bring your own LLM key, the same model as Plaid. Self-host the full platform for free, agents included.',
+        },
+        {
+          q: 'What does it cost to run agents?',
+          a: 'Agents use an LLM, so you bring your own key and pay your provider for what they use. KANAP itself is free to self-host. You keep cost predictable with a per-agent spend cap.',
+        },
+        {
+          q: 'Do agent actions stay on my own servers?',
+          a: 'On a self-hosted deployment, yes. Agent reasoning and actions happen inside your own deployment, and your tickets and documents never leave it. The only external call is to the LLM provider you choose.',
         },
       ],
     },

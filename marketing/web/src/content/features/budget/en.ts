@@ -50,7 +50,7 @@ const content: FeatureContent = {
     },
     {
       title: 'Executive chargeback reports',
-      body: 'Generate board-ready chargeback reports showing IT cost distribution by company and department. Drill down from company totals to individual cost items with full transparency on allocation methods used.',
+      body: 'Generate board-ready chargeback reports showing IT cost distribution by company and department. Drill down from company totals to individual cost items with full transparency on allocation methods used. Plaid answers budget questions in plain language today, and as connectors grow, agents will act on this data too.',
       bullets: [
         'Global chargeback report by company',
         'Company-level reports by department',
@@ -71,8 +71,10 @@ const content: FeatureContent = {
     ],
   },
   crossLinks: {
-    label: 'Explore other modules',
+    label: 'Explore the platform',
     links: [
+      { label: 'Agents', href: '/features/agents' },
+      { label: 'Plaid, AI assistant', href: '/features/ai' },
       { label: 'IT landscape', href: '/features/it-landscape' },
       { label: 'Portfolio management', href: '/features/portfolio' },
       { label: 'Knowledge', href: '/features/knowledge' },
