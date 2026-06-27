@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'Open-source IT platform with autonomous AI agents',
+    title: 'The open source IT governance platform',
     description:
-      "KANAP holds your IT department's full record, from applications and budgets to projects and documentation. Plaid works it in plain language, and autonomous agents take on the repetitive load. Open source under AGPL v3, self-host free or hosted.",
+      'Budget, enterprise architecture, portfolio and knowledge in one platform. Plaid works it in plain language and AI agents take on the repetitive load. Open source under AGPL v3. Self-host free, or choose hosted KANAP.',
   },
 
   hero: {
-    eyebrow: 'Open-source · self-hosted · built to extend',
-    title: 'Open-source AI agents that take over your repetitive IT work.',
-    lead: "KANAP holds your IT department's full picture, from applications and servers to budgets and projects. Plaid lets anyone work with it in plain language, and agents now act on it to take the repetitive load off your team. Open-source and self-hosted.",
+    eyebrow: 'Bring clarity to your IT department',
+    title: 'The open source IT governance platform.',
+    lead: 'Budget, architecture, portfolio and knowledge in one platform. Plaid lets your team work it in plain language, and AI agents now take on the repetitive work.\nSelf-host it for free, or let us run it for you.',
     primaryCta: 'Deploy free',
     secondaryCta: 'Try hosted cloud',
     trialNote: 'AGPL v3 · full source on GitHub · Docker install · no feature paywall.',
@@ -21,16 +21,24 @@ const content: HomeContent = {
     title: 'What makes KANAP different.',
     items: [
       {
+        title: 'Practitioner-built',
+        body: 'Designed by a seasoned IT veteran with real experience across industries. It solves actual IT department problems, not generic collaboration problems.',
+      },
+      {
+        title: 'Simple & powerful',
+        body: 'Zero complexity theatre. Powerful enough to solve hard problems. Simple enough for your team to adopt today.',
+      },
+      {
+        title: 'Truly open source',
+        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no feature paywall, no freemium trap.',
+      },
+      {
         title: 'The whole IT department in one system.',
         body: 'Applications, infrastructure, budgets, projects and documentation live in one record instead of ten disconnected tools.',
       },
       {
         title: 'Agents that take work off your team.',
         body: 'Autonomous agents handle the repetitive load and earn more independence as they prove themselves on real tasks.',
-      },
-      {
-        title: 'Open source, self-hosted, yours to extend.',
-        body: 'Full source under AGPL v3. Run it on your own servers, and write your own agents and connectors.',
       },
     ],
   },
@@ -57,39 +65,11 @@ const content: HomeContent = {
     outro: 'Each part is useful by itself, and they get stronger together.',
   },
 
-  story: [
-    {
-      title: 'Agents with a real system underneath them.',
-      body: `Most agents only see the ticket in front of them. A KANAP agent reads the application a problem affects, who owns it and what it costs, the project it belongs to, and the documentation you wrote about it.
-That depth is what makes its answers about your environment instead of guesses, and what makes its work worth trusting.`,
-    },
-    {
-      title: 'Agents that earn their independence.',
-      body: `An agent starts supervised. KANAP measures how often it gets things right, and you grant it more autonomy as the track record holds.
-Every repetitive task it takes over is one your team stops doing by hand.`,
-    },
-    {
-      title: 'Autonomy you can trust.',
-      body: 'An agent acts within limits you set, and you can see and stop what it does at any time. That is what makes it sound to hand an agent real work.',
-      bullets: [
-        'Every action is recorded in the same audit trail as the rest of KANAP.',
-        'Each agent is scoped to the operations you allow, with no raw database or shell access.',
-        'Answers cite the records and documents the agent drew from.',
-        'You can pause any agent immediately.',
-      ],
-    },
-    {
-      title: 'Built to run on your whole stack.',
-      body: `One runtime drives the work, kept separate from how it talks to any given tool. A service-desk connector ships first, to prove the model on real tickets.
-The same runtime is built to drive monitoring, virtualization, directory services, anything behind a connector. The code is open, so you can write your own.`,
-    },
-  ],
-
   modules: {
-    eyebrow: 'What it covers',
-    title: 'The record your team and your agents work from.',
+    eyebrow: 'Complete IT toolbox',
+    title: 'Built for every IT role.',
     intro:
-      'KANAP covers what an IT department needs to run, from the first budget line to the last retired application. Your team works across all of it in plain language, and your agents act on the same data.',
+      'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with Plaid to work across it in plain language and agents that take on the repetitive load.',
     items: [
       {
         slug: '/features/budget',
@@ -217,19 +197,6 @@ The same runtime is built to drive monitoring, virtualization, directory service
         title: 'SSO via Microsoft Entra ID',
         body: 'Enterprise single sign-on. One login for your entire organisation.',
       },
-    ],
-  },
-
-  openSource: {
-    eyebrow: 'Open source',
-    title: 'Open by default.',
-    body: `Full source on GitHub under AGPL v3, installed with Docker, with no feature behind a paywall. You can read every line, run it on your own servers, and write your own agents and connectors on top of it.
-If KANAP grows, it grows because the people running IT chose to build on it.`,
-    bullets: [
-      'Full source on GitHub under AGPL v3',
-      'Docker install, no feature paywall',
-      'Write your own agents and connectors',
-      'Bring your own LLM key for Plaid and agents',
     ],
   },
 

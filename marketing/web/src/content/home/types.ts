@@ -61,13 +61,11 @@ export interface HomeContent {
     items: Pillar[];
   };
   /**
-   * Agentic narrative bands. Optional so locale files written before the
-   * refonte still type-check; those locales render the pre-refonte home
+   * Agentic additions to the home. Optional so locale files written before
+   * the refonte still type-check; those locales render the pre-refonte home
    * until the translation pass adds these sections.
    */
   layers?: LayersSection;
-  story?: StoryBand[];
-  openSource?: StoryBand;
   vision?: StoryBand;
   modules: {
     eyebrow: string;
