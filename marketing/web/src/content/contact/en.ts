@@ -15,6 +15,7 @@ const content: ContactContent = {
   highlightsLabel: 'What we can help with',
   highlights: [
     'Product demos and onboarding guidance',
+    'Connector and agent requests (tell us which system you need an agent to work)',
     'Procurement and billing coordination',
     'Self-hosting install and upgrade advice',
     'Partnership and integration inquiries',
