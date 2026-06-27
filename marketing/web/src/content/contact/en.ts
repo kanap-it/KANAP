@@ -9,7 +9,7 @@ const content: ContactContent = {
   header: {
     eyebrow: 'Contact',
     title: 'We\'d love to hear from you.',
-    lead: 'Demo, deployment question, procurement, partnership — whatever brings you here, we read every message.',
+    lead: 'Demo, deployment question, procurement or partnership, whatever brings you here, we read every message.',
   },
   responsePromise: 'Reply within one business day',
   highlightsLabel: 'What we can help with',

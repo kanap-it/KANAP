@@ -68,7 +68,7 @@ const content: OnPremContent = {
     eyebrow: 'Install in minutes',
     title: 'One prompt.\nFifteen minutes.',
     intro:
-      'A coding AI agent reads our documentation, installs every dependency, and configures the whole stack — Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt — on a clean Ubuntu server. You paste one prompt; you confirm steps; you log in.',
+      'A coding AI agent reads our documentation, installs every dependency, and configures the whole stack (Docker, PostgreSQL 16, MinIO, nginx, Let\'s Encrypt) on a clean Ubuntu server. You paste one prompt, confirm the steps, and log in.',
     steps: [
       {
         title: 'Prepare a clean server',
@@ -81,7 +81,7 @@ const content: OnPremContent = {
       },
       {
         title: 'Paste the install prompt',
-        body: 'Open your agent and paste the prompt template from our docs — fill in your hostname, admin email and (optionally) your email transport (Resend or SMTP). The agent reads the linked install pages, installs Docker, PostgreSQL 16 with the required extensions, MinIO, nginx and certbot, clones KANAP into /opt/kanap, generates strong credentials, builds the images and starts the containers. It also wires up TLS and auto-renewal. The agent asks for confirmation before running each command.',
+        body: 'Open your agent and paste the prompt template from our docs, then fill in your hostname, admin email and (optionally) your email transport (Resend or SMTP). The agent reads the linked install pages, installs Docker, PostgreSQL 16 with the required extensions, MinIO, nginx and certbot, clones KANAP into /opt/kanap, generates strong credentials, builds the images and starts the containers. It also wires up TLS and auto-renewal. The agent asks for confirmation before running each command.',
       },
       {
         title: 'Sign in and harden',
