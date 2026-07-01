@@ -409,6 +409,10 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
       })
       : [];
     const actionById = new Map(batchActions.map((action) => [action.id, action]));
+    // A paused agent's queued executions are frozen, not attempted: letting them
+    // reach the dispatcher's pause gate would burn retry attempts and dead-letter
+    // approved work during an incident pause.
+    const pausedAgentIds = new Map<string, boolean>();
     let executed = 0;
     for (const actionRequestIds of batches.values()) {
       const batchActionsForIds = actionRequestIds
@@ -426,6 +430,21 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
           && (executionAttempts(action) >= QUEUED_EXECUTION_MAX_ATTEMPTS || queuedExecutionBackoffActive(action, now));
       });
       if (blocked) {
+        continue;
+      }
+      let agentPaused = false;
+      for (const action of batchActionsForIds) {
+        const agentDefinitionId = actionAgentDefinitionId(action);
+        if (!agentDefinitionId) continue;
+        if (!pausedAgentIds.has(agentDefinitionId)) {
+          pausedAgentIds.set(agentDefinitionId, !!(await this.queue.hasActiveEmergencyPause(context, agentDefinitionId)));
+        }
+        if (pausedAgentIds.get(agentDefinitionId)) {
+          agentPaused = true;
+          break;
+        }
+      }
+      if (agentPaused) {
         continue;
       }
       const result = await this.control.executeApprovedActionRequestsBulk(context, { action_request_ids: actionRequestIds });

@@ -8025,6 +8025,81 @@ async function testQueuedApprovedExecutionReclaimsStaleExecutingAction() {
   assert.equal(actionApprovedBatchContext(saved).execution_claim_id, null);
 }
 
+async function testQueuedApprovedExecutionFrozenWhileAgentPaused() {
+  const queue = new AiAgentWorkQueueService();
+  const pausedAgentId = '00000000-0000-4000-8000-00000000a9e7';
+  const ticket = {
+    id: 'paused-agent-ticket',
+    status: 'new',
+    priority: 'medium',
+    title: 'Paused agent ticket',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  let providerCalls = 0;
+  const provider = {
+    getTicket: async () => ({ ok: true, data: ticket, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [] }, evidence: [] }),
+    addInternalNote: async () => {
+      providerCalls += 1;
+      return { ok: true, data: { noteId: 'paused-agent-note' }, evidence: [] };
+    },
+  };
+  const { dispatcher, context, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const service = new AiAgentControlService({} as any, approvals, dispatcher, {} as any, {} as any, queue);
+  const actionRepo = context.manager.getRepository(AiActionRequest);
+  const action = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: ticket.id,
+    idempotencyKey: 'paused-agent-action',
+    metadata: { agent_definition_id: pausedAgentId },
+    actionPayload: {
+      ticketId: ticket.id,
+      visibility: 'internal',
+      body: 'Paused agent note.',
+      bodyFormat: 'plain_text',
+    },
+  }));
+  await service.approveActionRequestsBulk(context, {
+    action_request_ids: [action.id],
+    execute: false,
+  }, { queueExecution: true });
+  const approvedAction = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  approvedAction.expires_at = new Date(Date.now() + 3 * 24 * 60 * 60_000);
+  await actionRepo.save(approvedAction);
+  const pauseRepo = context.manager.getRepository(AiEmergencyPause);
+  const pause = await pauseRepo.save(pauseRepo.create({
+    tenant_id: context.tenantId,
+    scope: 'agent',
+    agent_definition_id: pausedAgentId,
+    capability_name: null,
+    category: null,
+    effect: null,
+    active: true,
+    reason: 'Incident freeze',
+    actor_user_id: null,
+    actor_label: null,
+    expires_at: null,
+    revoked_at: null,
+    created_at: new Date(),
+  }));
+
+  const sweeper = new AiAgentApprovalLifecycleSweeperService(null, null, queue, actions, service);
+  await sweeper.sweepTenant(context, { limit: 25, now: new Date() });
+  let saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  // Frozen, not attempted: no provider call, no burned retry attempt.
+  assert.equal(providerCalls, 0);
+  assert.equal(saved.status, 'approved');
+  assert.equal(actionApprovedBatchContext(saved).execution_attempts ?? 0, 0);
+
+  pause.active = false;
+  await pauseRepo.save(pause);
+  await sweeper.sweepTenant(context, { limit: 25, now: new Date() });
+  saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  assert.equal(providerCalls, 1);
+  assert.equal(saved.status, 'executed');
+}
+
 async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList() {
   {
     const { manager, stores } = createMemoryManager();
@@ -12383,6 +12458,7 @@ async function run() {
   await testQueuedApprovedExecutionClaimIsAtomic();
   await testQueuedApprovedExecutionFailureBackoffAndDeadLetter();
   await testQueuedApprovedExecutionReclaimsStaleExecutingAction();
+  await testQueuedApprovedExecutionFrozenWhileAgentPaused();
   await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
   await testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls();
   await testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent();
