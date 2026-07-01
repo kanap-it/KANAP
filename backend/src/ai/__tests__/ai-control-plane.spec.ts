@@ -10714,7 +10714,7 @@ async function testGlpiTriageFallbackFailsClosedWhenSynthesisFails() {
             action_payload_json: { ticketId: '47', visibility: 'internal', body: request.input.note_body, bodyFormat: 'plain_text' },
             provider_kind: 'ticketing', provider_key: 'glpi', input_hash: 'internal-action-47-hash', input_summary: null,
             evidence_ids: null, expires_at: new Date(now.getTime() + 30 * 60 * 1000), approved_at: null, rejected_at: null,
-            executed_at: null, error_message: null, metadata_json: null, created_at: now, updated_at: now,
+            executed_at: null, error_message: null, metadata_json: request.execution?.metadata ?? null, created_at: now, updated_at: now,
           }));
           return ok({ summary: 'Prepared internal note.', action_request_id: 'internal-action-47' });
         }
@@ -10760,6 +10760,10 @@ async function testGlpiTriageFallbackFailsClosedWhenSynthesisFails() {
   assert.equal(capabilityNames.includes(TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY), false);
   assert.equal(result.work_item.status, 'waiting_approval');
   assert.match(internalNoteBody, /KANAP triage proposal/);
+  const savedInternalAction = (await manager.getRepository(AiActionRequest).find()).find((action: AiActionRequest) => action.id === 'internal-action-47');
+  assert.ok(savedInternalAction);
+  assert.equal(savedInternalAction.metadata_json?.synthesis_usable, false);
+  assert.match(String(savedInternalAction.metadata_json?.synthesis_fallback_reason ?? ''), /^synthesis_error/);
   // #3: DOC-165 was retrieved (deterministic interpreter, no LLM validation) → it is NOT zeroed;
   // it is listed in the fallback note as an unvalidated candidate for the technician.
   assert.match(internalNoteBody, /DOC-165[\s\S]*\[unvalidated candidate\]/);
@@ -10801,11 +10805,11 @@ async function testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis() {
         case 'get_document':
           return { run_id: 'run-glpi-49', step_id: `step-${calls.length}`, tool_execution_id: toolExecutionId, output: { id: 'doc-165', ref: 'DOC-165', title: 'Recette du Burnt Cheesecake', summary: 'Dessert.', status: 'published', content_markdown: '# Burnt Cheesecake\n\nMélanger, cuire.', updated_at: '2026-06-07T08:00:00.000Z' } };
         case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
-          await savePreparedGlpiAction(_context as any, { id: 'internal-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, body: request.input.note_body, visibility: 'internal' });
+          await savePreparedGlpiAction(_context as any, { id: 'internal-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, body: request.input.note_body, visibility: 'internal', metadata: request.execution?.metadata ?? null });
           return ok({ summary: 'Prepared internal note.', action_request_id: 'internal-49' });
         case TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY:
           publicReplyBody = request.input.reply_body;
-          await savePreparedGlpiAction(_context as any, { id: 'public-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, body: request.input.reply_body, visibility: 'public' });
+          await savePreparedGlpiAction(_context as any, { id: 'public-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, body: request.input.reply_body, visibility: 'public', metadata: request.execution?.metadata ?? null });
           return ok({ summary: 'Prepared public reply.', action_request_id: 'public-49' });
         default:
           return { run_id: 'run-glpi-49', step_id: `step-${calls.length}`, tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: false } };
@@ -10868,6 +10872,10 @@ async function testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis() {
   // (c) usable synthesis grounded on it → public reply prepared with the synthesized body.
   assert.equal(calls.some((c) => c.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), true);
   assert.match(publicReplyBody, /Burnt Cheesecake/);
+  const savedPublicAction = (await manager.getRepository(AiActionRequest).find()).find((action: AiActionRequest) => action.id === 'public-49');
+  assert.ok(savedPublicAction);
+  assert.equal(savedPublicAction.metadata_json?.synthesis_usable, true);
+  assert.equal(savedPublicAction.metadata_json?.synthesis_fallback_reason, null);
 }
 
 async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {

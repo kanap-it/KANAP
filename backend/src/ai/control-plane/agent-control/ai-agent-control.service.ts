@@ -7112,6 +7112,10 @@ export class AiAgentControlService {
     if (plannerInternalNoteSuppression) {
       plannerSuppressionReasons.internal_note = plannerInternalNoteSuppression;
     }
+    const synthesisActionMetadata = {
+      synthesis_usable: synthesisMetadata.synthesis_usable === true,
+      synthesis_fallback_reason: stringFromMetadata(synthesisMetadata.synthesis_fallback_reason),
+    };
     const proposal = ((fallbackPrepareInternalNote || plannerInternalNote) && !plannerInternalNoteSuppression)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
@@ -7131,6 +7135,7 @@ export class AiAgentControlService {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           metadata: {
+            ...synthesisActionMetadata,
             ...(plannerInternalNote
               ? plannerMetadata(
                 plannerInternalNote,
@@ -7189,6 +7194,7 @@ export class AiAgentControlService {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           metadata: {
+            ...synthesisActionMetadata,
             ...(plannerRequesterReply
               ? plannerMetadata(
                 plannerRequesterReply,

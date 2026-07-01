@@ -1,6 +1,8 @@
 import React from 'react';
-import { Box, Button, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, Button, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { useTranslation } from 'react-i18next';
 import KanapDialog from '../design/KanapDialog';
 import { type AutosaveStatus } from '../../hooks/useAutosave';
@@ -46,6 +48,9 @@ export type TicketWorkGroupLifecycle = 'needs_decision' | 'in_progress' | 'needs
 
 export type TicketWorkGroup = {
   key: string;
+  providerKind: string | null;
+  providerKey: string | null;
+  targetType: string | null;
   targetRef: string;
   workItem: AiAgentControlWorkItem | null;
   workItems: AiAgentControlWorkItem[];
@@ -90,6 +95,60 @@ export function humanize(value: string | null | undefined): string {
 export function statusLabel(status: string | null | undefined): string {
   if (!status) return agentText('common.notSet', 'Not set');
   return agentText(`status.${status}`, humanize(status));
+}
+
+export function targetTypeLabel(targetType: string | null | undefined): string {
+  if (!targetType) return agentText('common.notSet', 'Not set');
+  return agentText(`targetTypes.${targetType}`, humanize(targetType));
+}
+
+export function targetRefLabel(targetRef: string | null | undefined): string {
+  const trimmed = typeof targetRef === 'string' ? targetRef.trim() : '';
+  return trimmed ? `#${trimmed}` : agentText('common.notSet', 'Not set');
+}
+
+export function targetLabelText(targetType: string | null | undefined, targetRef: string | null | undefined): string {
+  return `${targetTypeLabel(targetType)} ${targetRefLabel(targetRef)}`;
+}
+
+export function TargetLabel({
+  targetType,
+  targetRef,
+  size = 'normal',
+}: {
+  targetType: string | null | undefined;
+  targetRef: string | null | undefined;
+  size?: 'normal' | 'dense';
+}) {
+  const ref = targetRefLabel(targetRef);
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="baseline" sx={{ minWidth: 0 }}>
+      <Typography
+        component="span"
+        sx={(theme) => ({
+          color: theme.palette.kanap.text.secondary,
+          fontSize: size === 'dense' ? 13 : 14,
+          fontWeight: 400,
+          minWidth: 0,
+        })}
+      >
+        {targetTypeLabel(targetType)}
+      </Typography>
+      <Typography
+        component="span"
+        sx={(theme) => ({
+          color: theme.palette.kanap.text.secondary,
+          fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+          fontSize: size === 'dense' ? 11 : 12,
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 400,
+          whiteSpace: 'nowrap',
+        })}
+      >
+        {ref}
+      </Typography>
+    </Stack>
+  );
 }
 
 // Shared lifecycle-state key for an agent (fleet card + monitor header), resolved to a
@@ -350,32 +409,67 @@ export function buildTicketGroups(
   const usedActionIds = new Set<string>();
   const drafts = new Map<string, {
     key: string;
+    providerKind: string | null;
+    providerKey: string | null;
+    targetType: string | null;
     targetRef: string;
     workItems: AiAgentControlWorkItem[];
     targetState: AiAgentControlTargetState | null;
   }>();
 
-  const ensureDraft = (key: string, targetRef: string) => {
+  const ensureDraft = (
+    key: string,
+    targetRef: string,
+    providerKind: string | null | undefined,
+    providerKey: string | null | undefined,
+    targetType: string | null | undefined,
+  ) => {
     const existing = drafts.get(key);
     if (existing) return existing;
-    const draft = { key, targetRef, workItems: [], targetState: null };
+    const draft = {
+      key,
+      providerKind: providerKind ?? null,
+      providerKey: providerKey ?? null,
+      targetType: targetType ?? null,
+      targetRef,
+      workItems: [],
+      targetState: null,
+    };
     drafts.set(key, draft);
     return draft;
   };
 
   for (const workItem of overview?.work_items ?? []) {
     if (agentDefinitionId && workItem.agent_definition_id !== agentDefinitionId) continue;
-    ensureDraft(targetGroupKeyFromWorkItem(workItem), workItem.source_object_ref).workItems.push(workItem);
+    ensureDraft(
+      targetGroupKeyFromWorkItem(workItem),
+      workItem.source_object_ref,
+      workItem.source_provider_kind,
+      workItem.source_provider_key,
+      workItem.source_object_type,
+    ).workItems.push(workItem);
   }
 
   for (const state of overview?.target_states ?? []) {
     if (agentDefinitionId && state.agent_definition_id !== agentDefinitionId) continue;
-    const draft = ensureDraft(targetGroupKeyFromTargetState(state), state.target_ref);
+    const draft = ensureDraft(
+      targetGroupKeyFromTargetState(state),
+      state.target_ref,
+      state.provider_kind,
+      state.provider_key,
+      state.target_type,
+    );
     draft.targetState = state;
   }
 
   for (const action of scopedActions) {
-    ensureDraft(targetGroupKeyFromAction(action), actionTargetRef(action));
+    ensureDraft(
+      targetGroupKeyFromAction(action),
+      actionTargetRef(action),
+      action.provider_kind,
+      action.provider_key,
+      action.target_type,
+    );
   }
 
   const groups: TicketWorkGroup[] = [];
@@ -421,6 +515,9 @@ export function buildTicketGroups(
 
     groups.push({
       key: draft.key,
+      providerKind: workItem?.source_provider_kind ?? targetState?.provider_kind ?? draft.providerKind,
+      providerKey: workItem?.source_provider_key ?? targetState?.provider_key ?? draft.providerKey,
+      targetType: workItem?.source_object_type ?? targetState?.target_type ?? draft.targetType,
       targetRef,
       workItem,
       workItems: sortedWorkItems,
@@ -449,22 +546,99 @@ export function StatusText({ status }: { status: string }) {
   const dotColor = getDotColor(statusColor(status), theme.palette.mode);
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
-      <Typography variant="body2" sx={{ color: dotColor, minWidth: 0 }}>
+      <Box aria-hidden sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
+      <Typography sx={{ color: dotColor, fontSize: 13, fontWeight: 500, lineHeight: 1.35, minWidth: 0 }}>
         {statusLabel(status)}
       </Typography>
     </Stack>
   );
 }
 
-export function Section({ title, actions, children, id }: { title: string; actions?: React.ReactNode; children: React.ReactNode; id?: string }) {
-  return (
-    <Box id={id} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper', minWidth: 0 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider', gap: 1 }}>
-        <Typography variant="subtitle2" fontWeight={500}>{title}</Typography>
-        {actions}
+export function Section({
+  title,
+  actions,
+  children,
+  id,
+  caption,
+  collapsible = false,
+  open = true,
+  onToggle,
+  count,
+}: {
+  title: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+  caption?: React.ReactNode;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  count?: number;
+}) {
+  const header = (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ gap: 1, minWidth: 0, width: '100%' }}>
+      <Stack direction="row" spacing={1} alignItems="baseline" sx={{ minWidth: 0 }}>
+        {collapsible && (
+          <IconButton
+            aria-label={open ? agentText('approvals.collapseSection', 'Collapse section') : agentText('approvals.expandSection', 'Expand section')}
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle?.();
+            }}
+            sx={{ p: 0.25, color: 'kanap.text.secondary' }}
+          >
+            {open ? <KeyboardArrowDownIcon sx={{ fontSize: 17 }} /> : <KeyboardArrowRightIcon sx={{ fontSize: 17 }} />}
+          </IconButton>
+        )}
+        <Typography sx={(theme) => ({ color: theme.palette.kanap.text.primary, fontSize: 16, fontWeight: 500, lineHeight: 1.35 })}>
+          {title}
+        </Typography>
+        {typeof count === 'number' && (
+          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500, lineHeight: 1.35 })}>
+            {count}
+          </Typography>
+        )}
+        {caption ? (
+          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500, lineHeight: 1.35 })}>
+            {caption}
+          </Typography>
+        ) : null}
       </Stack>
-      <Box sx={{ minWidth: 0 }}>{children}</Box>
+      {actions}
+    </Stack>
+  );
+  return (
+    <Box id={id} sx={{ border: '1px solid', borderColor: 'kanap.border.default', borderRadius: 1, bgcolor: 'kanap.bg.primary', minWidth: 0 }}>
+      {collapsible ? (
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onToggle?.();
+            }
+          }}
+          sx={{
+            px: 1.5,
+            py: 0.8,
+            borderBottom: open ? '1px solid' : 'none',
+            borderColor: 'kanap.border.default',
+            borderRadius: open ? '6px 6px 0 0' : '6px',
+            cursor: 'pointer',
+            '&:hover': { bgcolor: 'kanap.bg.hover' },
+          }}
+        >
+          {header}
+        </Box>
+      ) : (
+        <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'kanap.border.default' }}>
+          {header}
+        </Box>
+      )}
+      {open && <Box sx={{ minWidth: 0 }}>{children}</Box>}
     </Box>
   );
 }

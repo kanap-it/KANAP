@@ -12,7 +12,7 @@ import {
   type AiAgentControlActivityType,
   type AiAgentControlRunDetail,
 } from '../../ai/aiApi';
-import { EmptyState, formatDateTime, humanize, Section, StatusText } from '../../components/agents/agentControlPrimitives';
+import { EmptyState, formatDateTime, humanize, Section, StatusText, TargetLabel } from '../../components/agents/agentControlPrimitives';
 import { useLocale } from '../../i18n/useLocale';
 
 function JsonPreview({ value, emptyLabel }: { value: unknown; emptyLabel: string }) {
@@ -269,7 +269,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
                           {entry.actionClass && <Chip size="small" variant="outlined" label={t(`settings.actionClasses.${entry.actionClass}`, { defaultValue: humanize(entry.actionClass) })} />}
                           {entry.status && <StatusText status={entry.status} />}
                           {entry.agentKey && <Chip size="small" variant="outlined" label={entry.agentKey} />}
-                          {entry.targetRef && <Chip size="small" variant="outlined" label={`GLPI #${entry.targetRef}`} />}
+                          {entry.targetRef && <TargetLabel targetType={entry.targetType} targetRef={entry.targetRef} size="dense" />}
                         </Stack>
                         <Typography variant="body2" sx={{ mt: 0.75 }}>
                           {t(`activity.titles.${entry.titleKey}`, { defaultValue: humanize(entry.titleKey) })}
