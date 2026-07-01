@@ -1,6 +1,9 @@
 import {
   AdapterResult,
   ProviderContext,
+  ProviderActionExecutionReadiness,
+  ProviderActionExecutionReadinessAction,
+  ProviderActionPlannerProfile,
   RefItem,
   SimilarTicket,
   TicketClassificationContext,
@@ -42,6 +45,19 @@ import {
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
 const MAX_PUBLIC_REPLY_CHARS = 12000;
+const MOCK_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
+  domain_preamble: 'Select bounded approval-gated mock ticketing actions.',
+  action_vocabulary: [
+    'mock_internal_note',
+    'mock_requester_reply',
+    'mock_status_update',
+  ],
+  validation_notes: [
+    'Use mock_internal_note for operator-only audit notes.',
+    'Use mock_requester_reply only when a bounded requester-facing answer is appropriate.',
+    'Use mock_status_update only when the mock lifecycle context exposes an allowed transition.',
+  ],
+};
 
 const MOCK_REFERENCE_ENUMS: TicketReferenceEnums = {
   statuses: [
@@ -91,6 +107,7 @@ function noteBodyIsUnsafe(value: string): boolean {
 export class MockTicketingProvider implements TicketingProvider {
   readonly kind = 'ticketing' as const;
   readonly providerKey = 'mock';
+  readonly actionPlannerProfile = MOCK_ACTION_PLANNER_PROFILE;
 
   async health(context: ProviderContext) {
     void context;
@@ -100,6 +117,17 @@ export class MockTicketingProvider implements TicketingProvider {
   async applicability(context: ProviderContext) {
     void context;
     return mockApplicability();
+  }
+
+  async executionReadinessForActions(
+    context: ProviderContext,
+    input: { actions: ProviderActionExecutionReadinessAction[] },
+  ): Promise<ProviderActionExecutionReadiness[]> {
+    void context;
+    return input.actions.map((action) => ({
+      action_request_id: action.id,
+      blocked_reason: null,
+    }));
   }
 
   async getTicket(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRecord>> {

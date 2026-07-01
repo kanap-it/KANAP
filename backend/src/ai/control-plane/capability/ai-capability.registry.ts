@@ -105,6 +105,14 @@ const InternalWebSearchInputSchema = z.object({
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
 const MAX_PUBLIC_REPLY_CHARS = 12000;
+const TICKETING_EXECUTION_PHASES = {
+  classification: 10,
+  internal_note: 20,
+  public_reply: 30,
+  assignment: 40,
+  participant: 50,
+  status: 60,
+} as const;
 const GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES = ['expired', 'failed', 'rejected', 'executed'];
 type ProviderActionForExecution = Awaited<ReturnType<AiActionRequestService['findProviderActionForExecution']>>;
 
@@ -580,6 +588,7 @@ function ticketingInternalNotePrepareContract(): CapabilityContract {
     business_resources: ['tickets'],
     timeout_seconds: 30,
     retry_policy: { automatic_retry: false, max_attempts: 1 },
+    execution_phase: TICKETING_EXECUTION_PHASES.internal_note,
     idempotency: { mode: 'idempotent', key_fields: ['provider_key', 'ticket_id', 'note_body'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
@@ -622,6 +631,7 @@ function ticketingInternalNoteAddApprovedContract(): CapabilityContract {
     business_resources: ['tickets'],
     timeout_seconds: 60,
     retry_policy: { automatic_retry: false, max_attempts: 1 },
+    execution_phase: TICKETING_EXECUTION_PHASES.internal_note,
     idempotency: { mode: 'idempotent', key_fields: ['action_request_id'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
@@ -675,6 +685,7 @@ function ticketingPublicReplyPrepareContract(): CapabilityContract {
     business_resources: ['tickets'],
     timeout_seconds: 30,
     retry_policy: { automatic_retry: false, max_attempts: 1 },
+    execution_phase: TICKETING_EXECUTION_PHASES.public_reply,
     idempotency: { mode: 'idempotent', key_fields: ['provider_key', 'ticket_id', 'reply_body'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
@@ -717,6 +728,7 @@ function ticketingPublicReplyAddApprovedContract(): CapabilityContract {
     business_resources: ['tickets'],
     timeout_seconds: 60,
     retry_policy: { automatic_retry: false, max_attempts: 1 },
+    execution_phase: TICKETING_EXECUTION_PHASES.public_reply,
     idempotency: { mode: 'idempotent', key_fields: ['action_request_id'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
@@ -732,6 +744,7 @@ function ticketingProviderUpdatePrepareContract(input: {
   description: string;
   riskLevel: 'low' | 'medium';
   input_schema: Record<string, unknown>;
+  executionPhase: number;
 }): CapabilityContract {
   return CapabilityContractSchema.parse({
     name: input.name,
@@ -757,6 +770,7 @@ function ticketingProviderUpdatePrepareContract(input: {
     business_resources: ['tickets'],
     timeout_seconds: 30,
     retry_policy: { automatic_retry: false, max_attempts: 1 },
+    execution_phase: input.executionPhase,
     idempotency: { mode: 'idempotent', key_fields: ['provider_key', 'ticket_id'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
@@ -771,6 +785,7 @@ function ticketingProviderUpdateApprovedContract(input: {
   name: string;
   description: string;
   riskLevel: 'medium' | 'high';
+  executionPhase: number;
 }): CapabilityContract {
   return CapabilityContractSchema.parse({
     name: input.name,
@@ -803,6 +818,7 @@ function ticketingProviderUpdateApprovedContract(input: {
     business_resources: ['tickets'],
     timeout_seconds: 60,
     retry_policy: { automatic_retry: false, max_attempts: 1 },
+    execution_phase: input.executionPhase,
     idempotency: { mode: 'idempotent', key_fields: ['action_request_id'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
@@ -1213,6 +1229,7 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       name: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
       description: 'Prepare an approval-gated ticket classification update action request.',
       riskLevel: 'low',
+      executionPhase: TICKETING_EXECUTION_PHASES.classification,
       input_schema: {
         type: 'object',
         properties: {
@@ -1245,11 +1262,13 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       name: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
       description: 'Update ticket classification after a durable approval.',
       riskLevel: 'medium',
+      executionPhase: TICKETING_EXECUTION_PHASES.classification,
     }),
     ticketingProviderUpdatePrepareContract({
       name: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
       description: 'Prepare an approval-gated ticket lifecycle/status update action request.',
       riskLevel: 'medium',
+      executionPhase: TICKETING_EXECUTION_PHASES.status,
       input_schema: {
         type: 'object',
         properties: {
@@ -1271,11 +1290,13 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
       description: 'Update ticket status after a durable approval.',
       riskLevel: 'high',
+      executionPhase: TICKETING_EXECUTION_PHASES.status,
     }),
     ticketingProviderUpdatePrepareContract({
       name: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
       description: 'Prepare an approval-gated ticket assignment/routing update action request.',
       riskLevel: 'medium',
+      executionPhase: TICKETING_EXECUTION_PHASES.assignment,
       input_schema: {
         type: 'object',
         properties: {
@@ -1306,11 +1327,13 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       name: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
       description: 'Update ticket assignment after a durable approval.',
       riskLevel: 'high',
+      executionPhase: TICKETING_EXECUTION_PHASES.assignment,
     }),
     ticketingProviderUpdatePrepareContract({
       name: TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
       description: 'Prepare an approval-gated ticket participant update action request.',
       riskLevel: 'medium',
+      executionPhase: TICKETING_EXECUTION_PHASES.participant,
       input_schema: {
         type: 'object',
         properties: {
@@ -1347,6 +1370,7 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       name: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
       description: 'Update ticket participants after a durable approval.',
       riskLevel: 'high',
+      executionPhase: TICKETING_EXECUTION_PHASES.participant,
     }),
     providerReadContract({
       name: 'directory.user.context',

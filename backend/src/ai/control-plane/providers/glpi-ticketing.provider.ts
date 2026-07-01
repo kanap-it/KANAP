@@ -4,10 +4,21 @@ import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
 import { GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
 import {
+  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+} from '../capability/capability-contract';
+import {
   AdapterErrorCode,
   AdapterEvidenceSeed,
   AdapterResult,
   ProviderContext,
+  ProviderActionExecutionReadiness,
+  ProviderActionExecutionReadinessAction,
+  ProviderActionPlannerProfile,
   RefItem,
   SimilarTicket,
   TicketClassificationContext,
@@ -41,6 +52,36 @@ import {
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
 const MAX_PUBLIC_REPLY_CHARS = 12000;
+const GLPI_APPROVED_WRITE_CAPABILITIES = new Set([
+  TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+]);
+
+const GLPI_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
+  domain_preamble: 'Select bounded approval-gated GLPI triage actions.',
+  action_vocabulary: [
+    'internal_note',
+    'requester_reply',
+    'status_update',
+    'classification_update',
+    'assignment_update',
+    'participant_update',
+  ],
+  validation_notes: [
+    'For requester_reply sourced_answer, do not provide a body; the backend will use sourced synthesis.',
+    'For requester_reply administrative close notices, set reply_kind=administrative and administrative_intent=close_reply.',
+    'For close instructions, propose BOTH the administrative requester_reply and a status_update when a terminal transition is allowed.',
+    'If no source appears sufficient for a sourced answer, prefer internal_note over requester_reply sourced_answer.',
+    'If an exact public message is configured, use verbatim_ref from verbatim_candidates; do not copy ticket text as verbatim.',
+    'For status_update, transition_key must exactly match one key in allowed_status_transitions.',
+    'Only propose terminal status transitions when close_eligibility.matched is true, has_inactivity_age is true, terminal is false, and terminal_status_transition_keys is non-empty.',
+    'Do not propose classification, assignment, or participant updates unless they are in owned_action_types.',
+  ],
+};
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -542,6 +583,7 @@ function associationLabel(value: GlpiTicketUserAssociation): string {
 export class GlpiTicketingProvider implements TicketingProvider {
   readonly kind = 'ticketing' as const;
   readonly providerKey = 'glpi';
+  readonly actionPlannerProfile = GLPI_ACTION_PLANNER_PROFILE;
 
   constructor(
     private readonly settings: AiSettingsService,
@@ -587,6 +629,21 @@ export class GlpiTicketingProvider implements TicketingProvider {
       };
     }
     return { available: true };
+  }
+
+  async executionReadinessForActions(
+    context: ProviderContext,
+    input: { actions: ProviderActionExecutionReadinessAction[] },
+  ): Promise<ProviderActionExecutionReadiness[]> {
+    void context;
+    return input.actions.map((action) => {
+      const isGlpiWrite = GLPI_APPROVED_WRITE_CAPABILITIES.has(action.capability_name);
+      const targetRef = typeof action.target_ref === 'string' ? action.target_ref.trim() : '';
+      return {
+        action_request_id: action.id,
+        blocked_reason: isGlpiWrite && !targetRef ? 'GLPI action has no ticket target.' : null,
+      };
+    });
   }
 
   private async withSession<T>(

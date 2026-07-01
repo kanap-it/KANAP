@@ -48,6 +48,7 @@ import {
   TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../capability/capability-contract';
+import { AiCapabilityRegistry, providerCapabilityContracts } from '../capability/ai-capability.registry';
 import { AiCapabilityDispatcherService } from '../dispatcher/ai-capability-dispatcher.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../diagnostics/ai-readonly-diagnostic-workflow.service';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
@@ -70,6 +71,8 @@ import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
 import {
+  ProviderActionExecutionReadiness,
+  ProviderActionPlannerProfile,
   RefItem,
   TicketAttachmentReadResult,
   TicketAttachmentRef,
@@ -93,7 +96,6 @@ import {
   ActionPlannerPromptInput,
   AiAgentActionPlannerService,
   estimateActionPlannerUsage,
-  PHASE_1_PLANNER_OWNED_ACTION_TYPES,
   PlannerAction,
   PlannerActionType,
 } from './ai-agent-action-planner.service';
@@ -338,14 +340,13 @@ const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
   TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
 ];
-const HELPDESK_BULK_APPROVE_ACTION_ORDER = new Map<string, number>([
-  [TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY, 10],
-  [TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, 20],
-  [TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, 30],
-  [TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY, 40],
-  [TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, 50],
-  [TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY, 60],
-]);
+const DEFAULT_BULK_EXECUTION_PHASE = 999;
+const STATIC_CAPABILITY_EXECUTION_PHASES = new Map(
+  providerCapabilityContracts().map((contract) => [
+    `${contract.name}:${contract.version}`,
+    contract.execution_phase ?? DEFAULT_BULK_EXECUTION_PHASE,
+  ]),
+);
 const AUTONOMY_ACTION_CLASSES = ['internal_note', 'classification', 'status', 'public_reply', 'assignment', 'participant'] as const;
 const AUTONOMY_RECOMMENDATION_REASON_CODES = new Set([
   'INSUFFICIENT_DECIDED_PROPOSALS',
@@ -380,11 +381,16 @@ const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
 ]);
 const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
 const CLOSE_TRIAGE_ACTIONS = new Set(['prepare_close', 'prepare_close_reply']);
+const PHASE_1_PLANNER_OWNED_ACTION_TYPES = [
+  'internal_note',
+  'requester_reply',
+  'status_update',
+] as const satisfies readonly PlannerActionType[];
 const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>(PHASE_1_PLANNER_OWNED_ACTION_TYPES);
 const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed']);
 const MIN_KNOWLEDGE_RELEVANCE_SCORE = 0.00001;
 const MIN_KNOWLEDGE_LEXICAL_OVERLAP = 1;
-const ACTION_TYPE_CAPABILITY_TABLE: Record<PlannerActionType, { prepare: string; approved: string }> = {
+const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: string } | undefined> = {
   internal_note: {
     prepare: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
     approved: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
@@ -2370,12 +2376,22 @@ function actionMetadataString(action: AiActionRequest, field: string): string | 
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
-function bulkApproveOrder(action: AiActionRequest): number {
-  return HELPDESK_BULK_APPROVE_ACTION_ORDER.get(action.capability_name) ?? 999;
+function capabilityPhaseKey(action: Pick<AiActionRequest, 'capability_name' | 'capability_version'>): string {
+  return `${action.capability_name}:${action.capability_version}`;
 }
 
-function bulkApproveActionSort(left: AiActionRequest, right: AiActionRequest): number {
-  const orderDiff = bulkApproveOrder(left) - bulkApproveOrder(right);
+function bulkApproveOrder(action: AiActionRequest, executionPhases?: Map<string, number>): number {
+  return executionPhases?.get(action.id)
+    ?? STATIC_CAPABILITY_EXECUTION_PHASES.get(capabilityPhaseKey(action))
+    ?? DEFAULT_BULK_EXECUTION_PHASE;
+}
+
+function bulkApproveActionSort(
+  left: AiActionRequest,
+  right: AiActionRequest,
+  executionPhases?: Map<string, number>,
+): number {
+  const orderDiff = bulkApproveOrder(left, executionPhases) - bulkApproveOrder(right, executionPhases);
   if (orderDiff !== 0) return orderDiff;
   const leftTime = actionSortTime(left);
   const rightTime = actionSortTime(right);
@@ -2852,7 +2868,27 @@ export class AiAgentControlService {
     private readonly actionPlanner?: AiAgentActionPlannerService,
     private readonly ticketNeedBuilder?: AiTicketNeedRepresentationService,
     private readonly ticketEvidenceExtractor?: AiTicketEvidenceExtractionService,
+    private readonly capabilities?: AiCapabilityRegistry,
   ) {}
+
+  private async actionPlannerProfileForProvider(
+    context: AiExecutionContextWithManager,
+    providerKind: string,
+    providerKey: string,
+  ): Promise<ProviderActionPlannerProfile | null> {
+    const providerLookup = (this.providers as unknown as {
+      provider?: (ctx: AiExecutionContextWithManager, kind: any, key: string) => Promise<{ actionPlannerProfile?: ProviderActionPlannerProfile }>;
+    }).provider;
+    if (typeof providerLookup !== 'function') {
+      return null;
+    }
+    try {
+      const provider = await providerLookup.call(this.providers, context, providerKind, providerKey);
+      return provider?.actionPlannerProfile ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   private agentPromptCompiler(): AiAgentPromptCompilerService {
     return this.promptCompiler ?? new AiAgentPromptCompilerService();
@@ -3266,6 +3302,9 @@ export class AiAgentControlService {
     context: AiExecutionContextWithManager,
     input: {
       capabilityName: string;
+      providerKind: string;
+      providerKey: string;
+      targetType: string;
       targetRef: string;
       proposalHash: string;
       contextHash: string;
@@ -3274,9 +3313,9 @@ export class AiAgentControlService {
     const actions = await context.manager.getRepository(AiActionRequest).find({
       where: {
         tenant_id: context.tenantId,
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
-        target_type: 'ticket',
+        provider_kind: input.providerKind,
+        provider_key: input.providerKey,
+        target_type: input.targetType,
         target_ref: input.targetRef,
         capability_name: input.capabilityName,
       },
@@ -3300,7 +3339,10 @@ export class AiAgentControlService {
   private async withdrawSupersededPlannerProposals(
     context: AiExecutionContextWithManager,
     input: {
-      ticketId: string;
+      providerKind: string;
+      providerKey: string;
+      targetType: string;
+      targetRef: string;
       agentDefinitionId: string | null;
       currentPlannerActionKeys?: Set<string> | null;
       currentGuidanceHash?: string | null;
@@ -3310,10 +3352,10 @@ export class AiAgentControlService {
     const candidates = await context.manager.getRepository(AiActionRequest).find({
       where: {
         tenant_id: context.tenantId,
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
-        target_type: 'ticket',
-        target_ref: input.ticketId,
+        provider_kind: input.providerKind,
+        provider_key: input.providerKey,
+        target_type: input.targetType,
+        target_ref: input.targetRef,
         status: 'pending',
         capability_name: In([
           TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
@@ -3449,25 +3491,96 @@ export class AiAgentControlService {
     return updated;
   }
 
-  // Helpdesk GLPI writes are gated by durable human approval plus the
-  // stale-state recheck at execution time. The earlier UAT-only requirement
-  // for a sandbox_write safe target per ticket was removed on 2026-06-12:
-  // proposals are reviewed one by one, so the per-ticket allowlist added
-  // friction without adding safety.
+  private async providerExecutionReadinessForActions(
+    context: AiExecutionContextWithManager,
+    actions: AiActionRequest[],
+  ): Promise<Map<string, ProviderActionExecutionReadiness>> {
+    const result = new Map<string, ProviderActionExecutionReadiness>();
+    const providerLookup = (this.providers as unknown as {
+      provider?: (ctx: AiExecutionContextWithManager, kind: any, key: string) => Promise<{
+        executionReadinessForActions?: (
+          ctx: AiExecutionContextWithManager,
+          input: { actions: any[] },
+        ) => Promise<ProviderActionExecutionReadiness[]>;
+      }>;
+    }).provider;
+    if (typeof providerLookup !== 'function') {
+      return result;
+    }
+    const groups = new Map<string, AiActionRequest[]>();
+    for (const action of actions) {
+      const providerKind = trimmedString(action.provider_kind);
+      const providerKey = trimmedString(action.provider_key);
+      if (!providerKind || !providerKey) {
+        continue;
+      }
+      const key = `${providerKind}:${providerKey}`;
+      groups.set(key, [...(groups.get(key) ?? []), action]);
+    }
+    for (const group of groups.values()) {
+      const first = group[0];
+      const providerKind = trimmedString(first.provider_kind);
+      const providerKey = trimmedString(first.provider_key);
+      if (!providerKind || !providerKey) {
+        continue;
+      }
+      try {
+        const provider = await providerLookup.call(this.providers, context, providerKind, providerKey);
+        if (typeof provider.executionReadinessForActions !== 'function') {
+          continue;
+        }
+        const readiness = await provider.executionReadinessForActions(context, {
+          actions: group.map((action) => ({
+            id: action.id,
+            tenant_id: action.tenant_id,
+            provider_kind: action.provider_kind,
+            provider_key: action.provider_key,
+            target_type: action.target_type,
+            target_id: action.target_id,
+            target_ref: action.target_ref,
+            capability_name: action.capability_name,
+            capability_version: action.capability_version,
+            status: action.status,
+            action_payload_json: action.action_payload_json,
+            metadata_json: action.metadata_json,
+          })),
+        });
+        for (const item of readiness) {
+          result.set(item.action_request_id, item);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || 'Provider readiness check failed.');
+        for (const action of group) {
+          result.set(action.id, {
+            action_request_id: action.id,
+            blocked_reason: `Provider readiness check failed: ${message}`,
+          });
+        }
+      }
+    }
+    return result;
+  }
+
   private async assertActionSafeForUiExecution(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
   ): Promise<void> {
-    if (
-      action.provider_kind !== 'ticketing'
-      || action.provider_key !== 'glpi'
-      || !HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name)
-    ) {
-      return;
+    if (action.tenant_id !== context.tenantId) {
+      throw new ForbiddenException('Action request does not belong to this tenant.');
     }
-    const targetRef = trimmedString(action.target_ref);
-    if (!targetRef) {
-      throw new ForbiddenException('GLPI action has no ticket target.');
+    if (!['pending', 'approved', APPROVED_ACTION_EXECUTING_STATUS, 'executed'].includes(action.status)) {
+      throw new ForbiddenException(`Action is ${action.status}.`);
+    }
+    if (action.expires_at && action.expires_at <= new Date()) {
+      throw new ForbiddenException('Action request is expired.');
+    }
+    if ((action.provider_kind && !action.provider_key) || (!action.provider_kind && action.provider_key)) {
+      throw new ForbiddenException('Action request provider identity is incomplete.');
+    }
+    const providerReadiness = await this.providerExecutionReadinessForActions(context, [action]);
+    const blockedReason = providerReadiness.get(action.id)?.blocked_reason ?? null;
+    if (blockedReason) {
+      throw new ForbiddenException(blockedReason);
     }
   }
 
@@ -3475,34 +3588,36 @@ export class AiAgentControlService {
     context: AiExecutionContextWithManager,
     actions: AiActionRequest[],
   ): Promise<Map<string, ActionExecutionReadiness>> {
-    void context;
     const now = Date.now();
+    const providerReadiness = await this.providerExecutionReadinessForActions(context, actions);
     const result = new Map<string, ActionExecutionReadiness>();
     for (const action of actions) {
-      const isHelpdeskGlpiWrite = action.provider_kind === 'ticketing'
-        && action.provider_key === 'glpi'
-        && HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name);
-      const targetRef = trimmedString(action.target_ref);
       const expiresAt = action.expires_at instanceof Date
         ? action.expires_at.getTime()
         : Date.parse(String(action.expires_at ?? ''));
       const expired = Number.isFinite(expiresAt) && expiresAt <= now;
       const activeDecisionStatus = action.status === 'pending' || action.status === 'approved';
+      const providerBlockedReason = providerReadiness.get(action.id)?.blocked_reason ?? null;
       let blockedReason: string | null = null;
-      if (!activeDecisionStatus) {
+      if (action.tenant_id !== context.tenantId) {
+        blockedReason = 'Action request does not belong to this tenant.';
+      } else if (!activeDecisionStatus) {
         blockedReason = `Action is ${action.status}.`;
       } else if (expired) {
         blockedReason = 'Action request is expired.';
-      } else if (isHelpdeskGlpiWrite && !targetRef) {
-        blockedReason = 'GLPI action has no ticket target.';
+      } else if ((action.provider_kind && !action.provider_key) || (!action.provider_kind && action.provider_key)) {
+        blockedReason = 'Action request provider identity is incomplete.';
+      } else if (providerBlockedReason) {
+        blockedReason = providerBlockedReason;
       }
+      const providerSpecific = providerReadiness.get(action.id);
 
       result.set(action.id, {
         can_execute: blockedReason === null,
         can_reject: activeDecisionStatus && !expired,
         blocked_reason: blockedReason,
-        requires_sandbox_write_target: false,
-        sandbox_write_target_ref: null,
+        requires_sandbox_write_target: providerSpecific?.requires_sandbox_write_target ?? false,
+        sandbox_write_target_ref: providerSpecific?.sandbox_write_target_ref ?? null,
       });
     }
     return result;
@@ -5672,9 +5787,9 @@ export class AiAgentControlService {
     const priorTargetActions = await context.manager.getRepository(AiActionRequest).find({
       where: {
         tenant_id: context.tenantId,
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
-        target_type: 'ticket',
+        provider_kind: target.provider_kind,
+        provider_key: target.provider_key,
+        target_type: target.target_kind,
         target_ref: ticket.id,
         capability_name: In([
           TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
@@ -6390,6 +6505,11 @@ export class AiAgentControlService {
     let actionPlannerResult: ActionPlannerResult | null = null;
     let actionPlannerFallbackReason: string | null = null;
     let actionPlannerProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
+    const providerActionPlannerProfile = await this.actionPlannerProfileForProvider(
+      context,
+      target.provider_kind,
+      target.provider_key,
+    );
     const actionPlannerInput = {
       ticket,
       timeline: ticketTimeline,
@@ -6410,6 +6530,7 @@ export class AiAgentControlService {
       web_summary: plannerWebSummary(webSearchResults, webSearchStatus, webSearchQuery),
       granted_capabilities: allowedCapabilityNames(agentDefinition),
       owned_action_types: [...PHASE_1_PLANNER_OWNED_ACTION_TYPES],
+      provider_profile: providerActionPlannerProfile,
       verbatim_candidates: promptRuntime.profile.verbatim_candidates,
       profile: promptRuntime.actionPlannerGuidance,
     };
@@ -6476,6 +6597,10 @@ export class AiAgentControlService {
         }
         seenPlannerActions.add(actionKey);
         const capabilityNames = ACTION_TYPE_CAPABILITY_TABLE[actionType];
+        if (!capabilityNames) {
+          markPlannerSkipped(actionType, 'action_type_not_mapped_to_capability');
+          continue;
+        }
         if (!agentDefinition || !definitionAllowsCapability(agentDefinition, capabilityNames.prepare)) {
           markPlannerSkipped(actionType, 'prepare_capability_not_granted');
           continue;
@@ -6727,9 +6852,15 @@ export class AiAgentControlService {
       downgraded_actions: plannerDowngradedActions,
       skipped_actions: plannerSkippedActions,
     };
+    const proposalScope = {
+      providerKind: target.provider_kind,
+      providerKey: target.provider_key,
+      targetType: target.target_kind,
+      targetRef: ticket.id,
+    };
     const effectivePlannerActionKeys = new Set(effectivePlannerActions.map((entry) => entry.plannerActionKey));
     await this.withdrawSupersededPlannerProposals(context, {
-      ticketId: ticket.id,
+      ...proposalScope,
       agentDefinitionId: stringFromMetadata(metadataObject(baseMetadata).agent_definition_id),
       currentPlannerActionKeys: actionPlannerResult ? effectivePlannerActionKeys : null,
       currentGuidanceHash: actionPlannerGuidanceHash,
@@ -6973,7 +7104,7 @@ export class AiAgentControlService {
     const plannerInternalNoteSuppression = plannerInternalNote && plannerInternalNoteProposalHash && plannerInternalNoteContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
+        ...proposalScope,
         proposalHash: plannerInternalNoteProposalHash,
         contextHash: plannerInternalNoteContextHash,
       })
@@ -7031,7 +7162,7 @@ export class AiAgentControlService {
     const plannerRequesterReplySuppression = plannerRequesterReply && plannerRequesterReplyProposalHash && plannerRequesterReplyContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
+        ...proposalScope,
         proposalHash: plannerRequesterReplyProposalHash,
         contextHash: plannerRequesterReplyContextHash,
       })
@@ -7091,7 +7222,7 @@ export class AiAgentControlService {
     const classificationSuppressionReason = classificationUpdateInput && classificationProposalHash && classificationContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
+        ...proposalScope,
         proposalHash: classificationProposalHash,
         contextHash: classificationContextHash,
       })
@@ -7134,7 +7265,7 @@ export class AiAgentControlService {
     const plannerStatusSuppression = plannerStatusUpdate && plannerStatusProposalHash && plannerStatusContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
+        ...proposalScope,
         proposalHash: plannerStatusProposalHash,
         contextHash: plannerStatusContextHash,
       })
@@ -7157,7 +7288,7 @@ export class AiAgentControlService {
     const statusSuppressionReason = statusUpdateInput && statusProposalHash && statusContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
+        ...proposalScope,
         proposalHash: statusProposalHash,
         contextHash: statusContextHash,
       })
@@ -7631,6 +7762,33 @@ export class AiAgentControlService {
     return stamped;
   }
 
+  private async bulkExecutionPhases(
+    context: AiExecutionContextWithManager,
+    actions: AiActionRequest[],
+  ): Promise<Map<string, number>> {
+    const byCapability = new Map<string, number>();
+    const byAction = new Map<string, number>();
+    for (const action of actions) {
+      const key = capabilityPhaseKey(action);
+      if (!byCapability.has(key)) {
+        let phase = STATIC_CAPABILITY_EXECUTION_PHASES.get(key) ?? DEFAULT_BULK_EXECUTION_PHASE;
+        if (this.capabilities) {
+          try {
+            const resolved = await this.capabilities.resolve(context, action.capability_name, action.capability_version);
+            if (typeof resolved.contract.execution_phase === 'number' && Number.isFinite(resolved.contract.execution_phase)) {
+              phase = resolved.contract.execution_phase;
+            }
+          } catch {
+            // Unknown dynamic capabilities keep the default phase and then sort by created_at.
+          }
+        }
+        byCapability.set(key, phase);
+      }
+      byAction.set(action.id, byCapability.get(key) ?? DEFAULT_BULK_EXECUTION_PHASE);
+    }
+    return byAction;
+  }
+
   private bulkApproveReason(action: AiActionRequest, execution: unknown, fallback: string | null): string | null {
     if (action.error_message) {
       return action.error_message;
@@ -7682,16 +7840,19 @@ export class AiAgentControlService {
       throw new BadRequestException('Bulk approval only supports actions for one target.');
     }
 
+    const executionPhases = await this.bulkExecutionPhases(context, found);
     const runnable = found
       .filter((action) => ['approved', 'executed'].includes(action.status))
-      .sort(bulkApproveActionSort);
+      .sort((left, right) => bulkApproveActionSort(left, right, executionPhases));
     if (runnable.length === 0) {
       return { orderedIds: [], requested: requestedIds.length };
     }
 
     const stamped = await this.stampBulkApprovalContext(context, runnable);
     const stampedById = new Map(stamped.map((action) => [action.id, action]));
-    const ordered = runnable.map((action) => stampedById.get(action.id) ?? action).sort(bulkApproveActionSort);
+    const ordered = runnable
+      .map((action) => stampedById.get(action.id) ?? action)
+      .sort((left, right) => bulkApproveActionSort(left, right, executionPhases));
     return { orderedIds: ordered.map((action) => action.id), requested: requestedIds.length };
   }
 
@@ -7960,16 +8121,19 @@ export class AiAgentControlService {
       throw new BadRequestException('Bulk approval only supports actions for one target.');
     }
 
+    const executionPhases = await this.bulkExecutionPhases(context, found);
     const runnable = found
       .filter((action) => ['pending', 'approved', 'executed'].includes(action.status))
-      .sort(bulkApproveActionSort);
+      .sort((left, right) => bulkApproveActionSort(left, right, executionPhases));
     if (runnable.length === 0) {
       throw new BadRequestException('No executable action requests were provided.');
     }
 
     const stamped = await this.stampBulkApprovalContext(context, runnable, options);
     const stampedById = new Map(stamped.map((action) => [action.id, action]));
-    const ordered = runnable.map((action) => stampedById.get(action.id) ?? action).sort(bulkApproveActionSort);
+    const ordered = runnable
+      .map((action) => stampedById.get(action.id) ?? action)
+      .sort((left, right) => bulkApproveActionSort(left, right, executionPhases));
     const results: Array<{
       action_request_id: string;
       ok: boolean;

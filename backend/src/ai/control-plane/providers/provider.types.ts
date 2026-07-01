@@ -532,11 +532,44 @@ export type AutomationJobOutputResult = {
   truncated: boolean;
 };
 
+export type ProviderActionPlannerProfile = {
+  domain_preamble: string;
+  action_vocabulary: readonly string[];
+  validation_notes?: readonly string[];
+};
+
+export type ProviderActionExecutionReadinessAction = {
+  id: string;
+  tenant_id: string;
+  provider_kind: string | null;
+  provider_key: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  target_ref: string | null;
+  capability_name: string;
+  capability_version: string;
+  status: string;
+  action_payload_json?: unknown;
+  metadata_json?: unknown;
+};
+
+export type ProviderActionExecutionReadiness = {
+  action_request_id: string;
+  blocked_reason: string | null;
+  requires_sandbox_write_target?: boolean;
+  sandbox_write_target_ref?: string | null;
+};
+
 export interface ProviderBase {
   readonly kind: ProviderKind;
   readonly providerKey: string;
+  readonly actionPlannerProfile?: ProviderActionPlannerProfile;
   health(context: ProviderContext): Promise<AdapterHealthResult>;
   applicability(context: ProviderContext): Promise<CapabilityApplicability>;
+  executionReadinessForActions?(
+    context: ProviderContext,
+    input: { actions: ProviderActionExecutionReadinessAction[] },
+  ): Promise<ProviderActionExecutionReadiness[]>;
 }
 
 export interface TicketingProvider extends ProviderBase {

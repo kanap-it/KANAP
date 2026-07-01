@@ -117,6 +117,7 @@ export const CapabilityContractSchema = z.object({
   business_resources: z.array(z.string().trim().min(1)).default([]),
   timeout_seconds: z.number().int().min(1).max(1800),
   retry_policy: CapabilityRetryPolicySchema,
+  execution_phase: z.number().int().optional(),
   idempotency: CapabilityIdempotencySchema,
   rollback: z.object({
     supported: z.boolean(),

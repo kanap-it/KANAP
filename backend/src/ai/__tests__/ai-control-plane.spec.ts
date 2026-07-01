@@ -46,6 +46,7 @@ import {
   AiAgentPromptCompilerService,
   RUNTIME_SAFETY_FLOOR_ACTION_PLANNER,
 } from '../control-plane/agent-control/ai-agent-prompt-compiler.service';
+import { AiAgentActionPlannerService } from '../control-plane/agent-control/ai-agent-action-planner.service';
 import { AiAgentLlmClient } from '../control-plane/agent-control/ai-agent-llm-client';
 import { AiKnowledgeSearchPlannerService } from '../control-plane/agent-control/ai-knowledge-search-planner.service';
 import { AiReplySynthesisService } from '../control-plane/agent-control/ai-reply-synthesis.service';
@@ -5712,7 +5713,10 @@ async function testStaleClosureWithdrawalOnReactivation() {
   const otherTicket = await seed({ target_ref: 'ticket-99' });
 
   const withdrawn = await (service as any).withdrawSupersededPlannerProposals(context, {
-    ticketId: 'ticket-42',
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'ticket-42',
     agentDefinitionId: 'agent-1',
     closeNoLongerEligible: true,
   });
@@ -5725,6 +5729,252 @@ async function testStaleClosureWithdrawalOnReactivation() {
   assert.equal(byId(responsive.id).status, 'pending');
   assert.equal(byId(otherAgent.id).status, 'pending');
   assert.equal(byId(otherTicket.id).status, 'pending');
+}
+
+async function testBulkApproveOrdersByCapabilityExecutionPhase() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const repo = manager.getRepository(AiActionRequest);
+  const now = Date.now();
+  const seed = (input: { capabilityName: string; createdAt: Date }) => repo.save(repo.create({
+    id: randomUUID(),
+    tenant_id: context.tenantId,
+    run_id: 'phase-run',
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: input.capabilityName,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'approved',
+    target_type: 'alert',
+    target_id: null,
+    target_ref: 'alert-1',
+    idempotency_key: `${input.capabilityName}-key`,
+    action_payload_json: { action: input.capabilityName },
+    provider_kind: 'monitoring',
+    provider_key: 'mock',
+    input_hash: `${input.capabilityName}-hash`,
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: new Date(now + 60_000),
+    approved_at: new Date(now - 1_000),
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: null,
+    created_at: input.createdAt,
+    updated_at: input.createdAt,
+  }));
+  const lateByPhase = await seed({ capabilityName: 'custom.phase.late', createdAt: new Date(now - 10_000) });
+  const earlyByPhase = await seed({ capabilityName: 'custom.phase.early', createdAt: new Date(now) });
+  const capabilities = {
+    resolve: async (_context: unknown, capabilityName: string) => ({
+      contract: {
+        execution_phase: capabilityName === 'custom.phase.early' ? 5 : 80,
+      },
+    }),
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    capabilities as any,
+  );
+
+  const plan = await service.planApprovedBulkExecution(context, {
+    action_request_ids: [lateByPhase.id, earlyByPhase.id],
+  });
+
+  assert.deepEqual(plan.orderedIds, [earlyByPhase.id, lateByPhase.id]);
+}
+
+async function testSuppressionAndWithdrawalUseProviderScope() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any);
+  const repo = manager.getRepository(AiActionRequest);
+  const now = new Date();
+  const seed = (overrides: Record<string, any>) => repo.save(repo.create({
+    id: randomUUID(),
+    tenant_id: context.tenantId,
+    run_id: 'scope-run',
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: 'scope-ticket',
+    idempotency_key: randomUUID(),
+    action_payload_json: { ticketId: 'scope-ticket', visibility: 'public', body: 'Same proposal.', bodyFormat: 'plain_text' },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: randomUUID(),
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: new Date(Date.now() + 60_000),
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: { proposal_hash: 'same-proposal', proposal_context_hash: 'same-context' },
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  }));
+
+  const glpi = await seed({});
+  const mockBefore = await (service as any).unchangedProposalSuppressionReason(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    providerKind: 'ticketing',
+    providerKey: 'mock',
+    targetType: 'ticket',
+    targetRef: 'scope-ticket',
+    proposalHash: 'same-proposal',
+    contextHash: 'same-context',
+  });
+  assert.equal(mockBefore, null);
+
+  const mock = await seed({ provider_key: 'mock' });
+  const mockAfter = await (service as any).unchangedProposalSuppressionReason(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    providerKind: 'ticketing',
+    providerKey: 'mock',
+    targetType: 'ticket',
+    targetRef: 'scope-ticket',
+    proposalHash: 'same-proposal',
+    contextHash: 'same-context',
+  });
+  assert.match(mockAfter ?? '', new RegExp(mock.id));
+
+  const glpiAfter = await (service as any).unchangedProposalSuppressionReason(context, {
+    capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'scope-ticket',
+    proposalHash: 'same-proposal',
+    contextHash: 'same-context',
+  });
+  assert.match(glpiAfter ?? '', new RegExp(glpi.id));
+
+  const glpiClose = await seed({
+    target_ref: 'withdraw-scope-ticket',
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    provider_key: 'glpi',
+    metadata_json: { triage_action: 'prepare_close', agent_definition_id: 'agent-scope' },
+  });
+  const mockClose = await seed({
+    target_ref: 'withdraw-scope-ticket',
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    provider_key: 'mock',
+    metadata_json: { triage_action: 'prepare_close', agent_definition_id: 'agent-scope' },
+  });
+
+  const withdrawn = await (service as any).withdrawSupersededPlannerProposals(context, {
+    providerKind: 'ticketing',
+    providerKey: 'mock',
+    targetType: 'ticket',
+    targetRef: 'withdraw-scope-ticket',
+    agentDefinitionId: 'agent-scope',
+    closeNoLongerEligible: true,
+  });
+  assert.equal(withdrawn, 1);
+  const byId = (id: string) => (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === id);
+  assert.equal(byId(mockClose.id).status, 'expired');
+  assert.equal(byId(glpiClose.id).status, 'pending');
+}
+
+function testActionPlannerConsumesProviderProfile() {
+  const service = new AiAgentActionPlannerService({} as any);
+  const provider = new MockTicketingProvider();
+  const payload = service.buildPromptPayload({
+    ticket: { id: 'mock-1', title: 'Mock ticket' },
+    timeline: [],
+    contexts: {
+      classification: null,
+      lifecycle: null,
+      routing: null,
+      participants: null,
+    },
+    gates: {},
+    close_eligibility: { matched: false, has_inactivity_age: false, terminal: false },
+    granted_capabilities: [],
+    owned_action_types: ['mock_internal_note', 'mock_status_update'],
+    provider_profile: provider.actionPlannerProfile,
+    verbatim_candidates: [],
+    profile: null,
+  }) as any;
+
+  assert.equal(payload.task, 'Select bounded approval-gated mock ticketing actions.');
+  assert.equal(payload.schema.actions[0].action_type, 'mock_internal_note|mock_requester_reply|mock_status_update');
+  assert.deepEqual(payload.provider_profile.action_vocabulary, provider.actionPlannerProfile.action_vocabulary);
+  assert.match((payload.rules as string[]).join('\n'), /mock_internal_note/);
+}
+
+async function testUiExecutionSafetyUsesProviderReadiness() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const providers = {
+    provider: async (_context: unknown, _kind: string, providerKey: string) => ({
+      executionReadinessForActions: async (_ctx: unknown, input: { actions: AiActionRequest[] }) =>
+        input.actions.map((action) => ({
+          action_request_id: action.id,
+          blocked_reason: providerKey === 'glpi' && !action.target_ref
+            ? 'GLPI action has no ticket target.'
+            : null,
+        })),
+    }),
+  };
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, providers as any);
+  const base = {
+    id: randomUUID(),
+    tenant_id: context.tenantId,
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: null,
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    action_payload_json: null,
+    expires_at: new Date(Date.now() + 60_000),
+    metadata_json: null,
+  } as AiActionRequest;
+  const glpiMissingTarget = Object.assign(new AiActionRequest(), base);
+  const nonGlpiMissingTarget = Object.assign(new AiActionRequest(), {
+    ...base,
+    id: randomUUID(),
+    provider_key: 'mock',
+  });
+
+  const readiness = await (service as any).executionReadinessForActions(context, [glpiMissingTarget, nonGlpiMissingTarget]);
+  assert.equal(readiness.get(glpiMissingTarget.id).blocked_reason, 'GLPI action has no ticket target.');
+  assert.equal(readiness.get(nonGlpiMissingTarget.id).can_execute, true);
+
+  await assert.rejects(
+    () => (service as any).assertActionSafeForUiExecution(context, glpiMissingTarget),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+  await (service as any).assertActionSafeForUiExecution(context, nonGlpiMissingTarget);
 }
 
 function testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig() {
@@ -12048,6 +12298,10 @@ async function run() {
   await testVisionEvidenceProducesExactCodeNeedAndKeepsInjectionUntrusted();
   await testTicketImageExtractionSkipsUnsupportedAndOversizedImages();
   await testStaleClosureWithdrawalOnReactivation();
+  await testBulkApproveOrdersByCapabilityExecutionPhase();
+  await testSuppressionAndWithdrawalUseProviderScope();
+  testActionPlannerConsumesProviderProfile();
+  await testUiExecutionSafetyUsesProviderReadiness();
   testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig();
   await testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast();
   await testPhase136StaleClosureDerivesFromTargetingAndCapability();
