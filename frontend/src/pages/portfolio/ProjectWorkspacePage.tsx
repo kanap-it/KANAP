@@ -400,6 +400,9 @@ export default function ProjectWorkspacePage() {
     setSaveError(null);
     try {
       await api.patch(`/portfolio/projects/${id}`, patch);
+      queryClient.setQueriesData({ queryKey: ['portfolio-project', id] }, (old: any) => (
+        old ? { ...old, ...patch } : old
+      ));
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
     } catch (error) {
       setSaveError(getApiErrorMessage(error, t, t('portfolio:workspace.project.messages.savePanelFailed')));
@@ -1089,7 +1092,7 @@ export default function ProjectWorkspacePage() {
               onRefetch={refetch}
               onRefetchBusinessAlloc={refetchBusinessAlloc}
               onRefetchItAlloc={refetchItAlloc}
-              onUpdate={update}
+              onUpdate={(patch) => { void persistPanelPatch(patch); }}
               profileId={profile?.id}
               projectId={id}
               taskTimeEntries={taskTimeEntries}

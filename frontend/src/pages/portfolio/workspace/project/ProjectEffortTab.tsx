@@ -341,8 +341,8 @@ type AllocationBlockProps = {
   estimatedEffort: number;
   estimatedEffortValue: string;
   label: string;
+  onCommitEstimatedEffort: (value: string) => void;
   onEdit: () => void;
-  onEstimatedEffortChange: (value: string) => void;
   onReset: () => void;
   t: TFunction;
 };
@@ -353,14 +353,41 @@ function AllocationBlock({
   estimatedEffort,
   estimatedEffortValue,
   label,
+  onCommitEstimatedEffort,
   onEdit,
-  onEstimatedEffortChange,
   onReset,
   t,
 }: AllocationBlockProps) {
+  const [inputValue, setInputValue] = React.useState(estimatedEffortValue);
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const allocations = data?.allocations ?? [];
   const mode = data?.mode ?? 'auto';
   const hasOrphans = allocations.some((allocation) => allocation.is_orphaned);
+
+  React.useEffect(() => {
+    setInputValue(estimatedEffortValue);
+  }, [estimatedEffortValue]);
+
+  const handleCommitEstimatedEffort = React.useCallback(() => {
+    const trimmedValue = inputValue.trim();
+    if (trimmedValue === '') {
+      if (estimatedEffortValue !== '') {
+        onCommitEstimatedEffort(trimmedValue);
+      }
+      return;
+    }
+
+    const next = Number(trimmedValue);
+    if (!Number.isFinite(next) || next < 0) {
+      setInputValue(estimatedEffortValue);
+      return;
+    }
+
+    const current = estimatedEffortValue === '' ? null : Number(estimatedEffortValue);
+    if (current !== next) {
+      onCommitEstimatedEffort(trimmedValue);
+    }
+  }, [estimatedEffortValue, inputValue, onCommitEstimatedEffort]);
 
   return (
     <Box className="kanap-alloc-block">
@@ -368,13 +395,21 @@ function AllocationBlock({
         <Box component="span" className="kanap-alloc-title">{label}</Box>
         <Box component="span" className="kanap-alloc-total">
           <input
+            ref={inputRef}
             className="kanap-alloc-effort-input"
             type="number"
             min={0}
             step={1}
-            value={estimatedEffortValue}
+            value={inputValue}
             disabled={!canManage}
-            onChange={(event) => onEstimatedEffortChange(event.target.value)}
+            onChange={(event) => setInputValue(event.target.value)}
+            onBlur={handleCommitEstimatedEffort}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                inputRef.current?.blur();
+              }
+            }}
             aria-label={`${label} estimated effort in MD`}
           />
           <Box component="span">MD</Box>
@@ -610,6 +645,7 @@ export default function ProjectEffortTab({
                   value={progress}
                   onChange={(_, value) => setProgress(value as number)}
                   onChangeCommitted={(_, value) => onUpdate({ execution_progress: value as number })}
+                  disabled={!canManage}
                   min={0}
                   max={100}
                   step={5}
@@ -648,7 +684,7 @@ export default function ProjectEffortTab({
                 estimatedEffortValue={estItInputValue}
                 label="IT"
                 onEdit={() => setItAllocationDialogOpen(true)}
-                onEstimatedEffortChange={(value) => {
+                onCommitEstimatedEffort={(value) => {
                   if (value === '') {
                     onUpdate({ estimated_effort_it: null });
                     return;
@@ -676,7 +712,7 @@ export default function ProjectEffortTab({
                 estimatedEffortValue={estBusinessInputValue}
                 label="Business"
                 onEdit={() => setBusinessAllocationDialogOpen(true)}
-                onEstimatedEffortChange={(value) => {
+                onCommitEstimatedEffort={(value) => {
                   if (value === '') {
                     onUpdate({ estimated_effort_business: null });
                     return;
