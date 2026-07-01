@@ -169,6 +169,8 @@
     "rejectAll": "Rechazar todo",
     "rejectAllTitle": "Rechazar todas las propuestas",
     "rejectAllConfirm": "Rechazar {{count}} propuestas para {{target}}. Permanecerán en la auditoría y no se ejecutarán.",
+    "reasonLabel": "Motivo",
+    "reasonPlaceholder": "Nota opcional para la auditoría",
     "trace": "Traza",
     "agentCheck": "Comprobación del agente",
     "agentWorking": "Agente trabajando…",

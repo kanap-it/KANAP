@@ -1255,7 +1255,7 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/emergency-pause/${id}/revoke`, {});
     return res.data;
   },
-  async approveAction(id: string, payload?: { execute?: boolean }): Promise<{
+  async approveAction(id: string, payload?: { execute?: boolean; reason?: string | null }): Promise<{
     action: AiAgentControlActionRequest;
     approval: AiAgentControlApproval;
     execution: unknown;
@@ -1265,7 +1265,7 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/actions/${id}/approve`, payload ?? { execute: true });
     return res.data;
   },
-  async approveActionsBulk(payload: { action_request_ids: string[]; execute?: boolean }): Promise<AiAgentControlBulkApproveResult> {
+  async approveActionsBulk(payload: { action_request_ids: string[]; execute?: boolean; reason?: string | null }): Promise<AiAgentControlBulkApproveResult> {
     const res = await api.post('/ai/admin/control-plane/actions/approve', payload);
     return res.data;
   },

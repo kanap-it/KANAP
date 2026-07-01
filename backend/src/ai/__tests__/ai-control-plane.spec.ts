@@ -3737,6 +3737,59 @@ async function testApproveActionRequestExtendsNearExpiredExecutionWindow() {
   assert.equal(result.approval.expires_at.getTime(), savedAction.expires_at.getTime());
 }
 
+async function testAgentControlApprovalReasonsPersistOperatorNotes() {
+  const { context, stores, actions, approvals } = createRealProviderDispatcher();
+  const service = new AiAgentControlService({} as any, approvals, {} as any, {} as any, {} as any);
+  const approvalsFor = (actionId: string) => (stores.get(AiApproval.name) ?? [])
+    .filter((row: AiApproval) => row.action_request_id === actionId);
+
+  const explicitApprove = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'approval-reason-1',
+    idempotencyKey: 'approval-reason-explicit',
+  }));
+  await service.approveActionRequest(context, explicitApprove.id, {
+    execute: false,
+    reason: '  Approved after validating the customer impact.  ',
+  });
+  assert.equal(approvalsFor(explicitApprove.id).at(-1)?.reason, 'Approved after validating the customer impact.');
+
+  const defaultApprove = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'approval-reason-2',
+    idempotencyKey: 'approval-reason-default',
+  }));
+  await service.approveActionRequest(context, defaultApprove.id, { execute: false });
+  assert.equal(approvalsFor(defaultApprove.id).at(-1)?.reason, 'Approved from Agent Control Center.');
+
+  const bulkFirst = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'approval-reason-bulk',
+    idempotencyKey: 'approval-reason-bulk-1',
+  }));
+  const bulkSecond = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'approval-reason-bulk',
+    idempotencyKey: 'approval-reason-bulk-2',
+    actionPayload: {
+      ticketId: 'approval-reason-bulk',
+      visibility: 'internal',
+      body: 'Second internal provider action note.',
+      bodyFormat: 'plain_text',
+    },
+  }));
+  await service.approveActionRequestsBulk(context, {
+    action_request_ids: [bulkFirst.id, bulkSecond.id],
+    execute: false,
+    reason: 'Approved as a consistent batch.',
+  });
+  assert.equal(approvalsFor(bulkFirst.id).at(-1)?.reason, 'Approved as a consistent batch.');
+  assert.equal(approvalsFor(bulkSecond.id).at(-1)?.reason, 'Approved as a consistent batch.');
+
+  const explicitReject = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'approval-reason-reject',
+    idempotencyKey: 'approval-reason-reject',
+  }));
+  await service.rejectActionRequest(context, explicitReject.id, '  Rejecting because the ticket changed externally.  ');
+  assert.equal(approvalsFor(explicitReject.id).at(-1)?.reason, 'Rejecting because the ticket changed externally.');
+}
+
 async function testCreateOrEnsureProviderActionCanRetryExecutedWhenRequested() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
@@ -8472,7 +8525,7 @@ async function testAgentControlActivityTimelineAndDailyMetrics() {
     actor_label: null,
     input_hash: 'activity-hash',
     evidence_ids: null,
-    reason: null,
+    reason: 'Approved after reviewing the proposed requester reply.',
     matched_policy_id: null,
     matched_policy_version: null,
     decision_json: null,
@@ -8524,6 +8577,8 @@ async function testAgentControlActivityTimelineAndDailyMetrics() {
   assert.equal(titleKeys.has('run_failed'), true);
   assert.equal(activity.items.every((entry) => entry.agentKey === bundle.definition.agent_key), true);
   assert.equal(activity.items.some((entry: any) => 'action_payload_json' in entry), false);
+  const approvedDecision = activity.items.find((entry) => entry.titleKey === 'decision_approved');
+  assert.equal(approvedDecision?.detail?.rationale, 'Approved after reviewing the proposed requester reply.');
 
   const errors = await service.listActivity(context, {
     agentDefinitionId: bundle.definition.id,
@@ -12279,6 +12334,7 @@ async function run() {
   await testCreateOrEnsureProviderActionIsIdempotent();
   await testCreateOrEnsureProviderActionRetriesExpiredPending();
   await testApproveActionRequestExtendsNearExpiredExecutionWindow();
+  await testAgentControlApprovalReasonsPersistOperatorNotes();
   await testCreateOrEnsureProviderActionCanRetryExecutedWhenRequested();
   await testEmergencyPauseBlocksTicketingWriteExecution();
   await testAutomationDryRunPrepareApprovedLaunchAndReads();

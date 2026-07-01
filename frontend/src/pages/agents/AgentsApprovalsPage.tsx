@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Box, Button, CircularProgress, Divider, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
@@ -7,6 +7,8 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import KanapDialog from '../../components/design/KanapDialog';
+import { PropertyRow } from '../../components/design';
+import { dialogBorderedFieldSx } from '../../theme/formSx';
 import {
   ActionButtons,
   actionBody,
@@ -296,6 +298,43 @@ function groupTargetText(group: TicketWorkGroup): string {
   return targetLabelText(group.targetType, group.targetRef);
 }
 
+function ApprovalReasonField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation(['agents']);
+  return (
+    <PropertyRow label={t('approvals.reasonLabel')}>
+      <TextField
+        fullWidth
+        multiline
+        minRows={2}
+        maxRows={4}
+        size="small"
+        variant="standard"
+        value={value}
+        placeholder={t('approvals.reasonPlaceholder')}
+        InputProps={{ disableUnderline: true }}
+        inputProps={{ maxLength: 500 }}
+        sx={[
+          dialogBorderedFieldSx,
+          {
+            width: '100%',
+            '& .MuiInputBase-input': {
+              fontSize: 13,
+              lineHeight: 1.45,
+            },
+          },
+        ]}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </PropertyRow>
+  );
+}
+
 function DecisionGroup({
   group,
   locale,
@@ -474,7 +513,9 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const locale = useLocale();
   const data = useAgentControlData();
   const [rejectGroup, setRejectGroup] = React.useState<TicketWorkGroup | null>(null);
+  const [rejectReason, setRejectReason] = React.useState('');
   const [terminalApproval, setTerminalApproval] = React.useState<TerminalApprovalRequest>(null);
+  const [terminalApprovalReason, setTerminalApprovalReason] = React.useState('');
   const [finishedOpen, setFinishedOpen] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(FINISHED_OPEN_STORAGE_KEY) === 'true';
@@ -485,6 +526,12 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
       window.localStorage.setItem(FINISHED_OPEN_STORAGE_KEY, String(finishedOpen));
     }
   }, [finishedOpen]);
+  React.useEffect(() => {
+    if (rejectGroup) setRejectReason('');
+  }, [rejectGroup]);
+  React.useEffect(() => {
+    if (terminalApproval) setTerminalApprovalReason('');
+  }, [terminalApproval]);
 
   const agentDefinition = React.useMemo(() => (
     agentKey ? data.queueQuery.data?.definitions.find((definition) => definition.agent_key === agentKey) ?? null : null
@@ -502,11 +549,11 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const hiddenFinishedCount = Math.max(0, finishedRows.length - visibleFinishedRows.length);
   const loading = data.queueQuery.isLoading || data.actionsQuery.isLoading;
 
-  const approveAll = (group: TicketWorkGroup) => {
-    data.approveAllMutation.mutate({ key: group.key, actions: group.pendingActions });
+  const approveAll = (group: TicketWorkGroup, reason?: string | null) => {
+    data.approveAllMutation.mutate({ key: group.key, actions: group.pendingActions, reason });
   };
-  const rejectAll = (group: TicketWorkGroup) => {
-    data.rejectAllMutation.mutate({ key: group.key, actions: group.pendingActions }, {
+  const rejectAll = (group: TicketWorkGroup, reason?: string | null) => {
+    data.rejectAllMutation.mutate({ key: group.key, actions: group.pendingActions, reason }, {
       onSettled: () => setRejectGroup(null),
     });
   };
@@ -515,7 +562,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
       setTerminalApproval({ group, actions: [action], mode: 'single' });
       return;
     }
-    data.approveMutation.mutate(action);
+    data.approveMutation.mutate({ action });
   };
   const handleApproveAll = (group: TicketWorkGroup) => {
     const executableActions = group.pendingActions.filter(actionCanExecute);
@@ -530,11 +577,11 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
     if (terminalApproval.mode === 'single') {
       const [action] = terminalApproval.actions;
       if (action) {
-        data.approveMutation.mutate(action, { onSettled: () => setTerminalApproval(null) });
+        data.approveMutation.mutate({ action, reason: terminalApprovalReason }, { onSettled: () => setTerminalApproval(null) });
       }
       return;
     }
-    data.approveAllMutation.mutate({ key: terminalApproval.group.key, actions: terminalApproval.actions }, {
+    data.approveAllMutation.mutate({ key: terminalApproval.group.key, actions: terminalApproval.actions, reason: terminalApprovalReason }, {
       onSettled: () => setTerminalApproval(null),
     });
   };
@@ -571,7 +618,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
                   busyTicketKey={data.busyTicketKey}
                   busyActionId={data.busyActionId}
                   onApprove={handleApprove}
-                  onReject={(action) => data.rejectMutation.mutate(action)}
+                  onReject={(action) => data.rejectMutation.mutate({ action })}
                   onApproveAll={handleApproveAll}
                   onRejectAll={setRejectGroup}
                 />
@@ -629,17 +676,20 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
           open={!!rejectGroup}
           title={t('approvals.rejectAllTitle')}
           onClose={() => setRejectGroup(null)}
-          onSave={() => { if (rejectGroup) rejectAll(rejectGroup); }}
+          onSave={() => { if (rejectGroup) rejectAll(rejectGroup, rejectReason); }}
           saveLabel={t('approvals.rejectAll')}
           saveColor="error"
           saveLoading={!!rejectGroup && data.busyTicketKey === rejectGroup.key}
         >
-          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: 13, fontWeight: 400 })}>
-            {t('approvals.rejectAllConfirm', {
-              count: rejectGroup?.pendingActions.filter(actionCanReject).length ?? 0,
-              target: rejectGroup ? groupTargetText(rejectGroup) : '',
-            })}
-          </Typography>
+          <Stack spacing={1.25}>
+            <Typography sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: 13, fontWeight: 400 })}>
+              {t('approvals.rejectAllConfirm', {
+                count: rejectGroup?.pendingActions.filter(actionCanReject).length ?? 0,
+                target: rejectGroup ? groupTargetText(rejectGroup) : '',
+              })}
+            </Typography>
+            <ApprovalReasonField value={rejectReason} onChange={setRejectReason} />
+          </Stack>
         </KanapDialog>
 
         <KanapDialog
@@ -675,6 +725,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
                 ))}
               </Stack>
             )}
+            <ApprovalReasonField value={terminalApprovalReason} onChange={setTerminalApprovalReason} />
           </Stack>
         </KanapDialog>
       </Stack>

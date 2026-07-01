@@ -169,6 +169,8 @@
     "rejectAll": "Alle ablehnen",
     "rejectAllTitle": "Alle Vorschläge ablehnen",
     "rejectAllConfirm": "{{count}} Vorschläge für {{target}} ablehnen. Sie bleiben im Audit und werden nicht ausgeführt.",
+    "reasonLabel": "Grund",
+    "reasonPlaceholder": "Optionale Notiz für den Audit-Trail",
     "trace": "Trace",
     "agentCheck": "Agentenprüfung",
     "agentWorking": "Agent arbeitet…",

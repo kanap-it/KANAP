@@ -18,6 +18,8 @@ const IDLE_POLL_INTERVAL_MS = 30_000;
 const KNOWN_EXECUTION_MODES = new Set(['queued', 'background', 'approve_only', 'synchronous']);
 
 export type OptimisticActionDecision = 'approved' | 'rejected';
+type ActionDecisionInput = { action: AiAgentControlActionRequest; reason?: string | null };
+type BulkDecisionInput = { key: string; actions: AiAgentControlActionRequest[]; reason?: string | null };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -126,6 +128,11 @@ function knownExecutionMode(mode: string | undefined): boolean {
   return !!mode && KNOWN_EXECUTION_MODES.has(mode);
 }
 
+function optionalDecisionReason(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 500) : undefined;
+}
+
 export function useAgentControlData() {
   const { t } = useTranslation(['agents']);
   const queryClient = useQueryClient();
@@ -195,8 +202,12 @@ export function useAgentControlData() {
   }, [queryClient]);
 
   const approveMutation = useMutation({
-    mutationFn: (action: AiAgentControlActionRequest) => aiAgentControlApi.approveAction(action.id, { execute: true }),
-    onMutate: (action) => {
+    mutationFn: (input: ActionDecisionInput) => aiAgentControlApi.approveAction(input.action.id, {
+      execute: true,
+      reason: optionalDecisionReason(input.reason),
+    }),
+    onMutate: (input) => {
+      const { action } = input;
       setBusyActionId(action.id);
       setError(null);
       setMessage(null);
@@ -219,10 +230,11 @@ export function useAgentControlData() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (action: AiAgentControlActionRequest) => aiAgentControlApi.rejectAction(action.id, {
-      reason: t('messages.rejectedFromAgents'),
+    mutationFn: (input: ActionDecisionInput) => aiAgentControlApi.rejectAction(input.action.id, {
+      reason: optionalDecisionReason(input.reason) ?? t('messages.rejectedFromAgents'),
     }),
-    onMutate: (action) => {
+    onMutate: (input) => {
+      const { action } = input;
       setBusyActionId(action.id);
       setError(null);
       setMessage(null);
@@ -241,7 +253,7 @@ export function useAgentControlData() {
   });
 
   const approveAllMutation = useMutation({
-    mutationFn: async (input: { key: string; actions: AiAgentControlActionRequest[] }) => {
+    mutationFn: async (input: BulkDecisionInput) => {
       const executable = input.actions.filter((action) => action.execution_readiness?.can_execute ?? ['pending', 'approved'].includes(action.status));
       if (executable.length === 0) {
         return { mode: 'none' as const, executed: 0, queued: 0, needsReview: 0, failedActionIds: [] };
@@ -249,6 +261,7 @@ export function useAgentControlData() {
       const result = await aiAgentControlApi.approveActionsBulk({
         action_request_ids: executable.map((action) => action.id),
         execute: true,
+        reason: optionalDecisionReason(input.reason),
       });
       if (result.execution_mode === 'queued' || result.execution_mode === 'background') {
         const queued = result.summary.queued ?? result.results.filter((item) => ['approved', 'executing'].includes(item.action.status)).length;
@@ -321,10 +334,11 @@ export function useAgentControlData() {
   });
 
   const rejectAllMutation = useMutation({
-    mutationFn: async (input: { key: string; actions: AiAgentControlActionRequest[] }) => {
+    mutationFn: async (input: BulkDecisionInput) => {
       const rejectable = input.actions.filter(actionCanReject);
+      const reason = optionalDecisionReason(input.reason) ?? t('messages.rejectedFromAgents');
       const results = await Promise.allSettled(rejectable.map((action) => aiAgentControlApi.rejectAction(action.id, {
-        reason: t('messages.rejectedFromAgents'),
+        reason,
       })));
       const rejected = results.filter((result) => result.status === 'fulfilled').length;
       const failedActionIds = rejectable

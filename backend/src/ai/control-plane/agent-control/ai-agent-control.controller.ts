@@ -58,12 +58,27 @@ function parseActivityTypes(value: unknown): AgentControlActivityType[] | null {
 }
 
 type AgentControlAccess = 'read' | 'operate' | 'admin';
+const MAX_APPROVAL_REASON_CHARS = 500;
+
 type EmergencyPauseBody = {
   scope?: 'tenant' | 'agent' | null;
   agent_definition_id?: string | null;
   reason?: string;
   expires_in_minutes?: number | null;
 };
+type AgentControlDecisionInput = {
+  execute?: boolean | null;
+  reason?: string | null;
+};
+
+function normalizeApprovalReason(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.length > MAX_APPROVAL_REASON_CHARS
+    ? trimmed.slice(0, MAX_APPROVAL_REASON_CHARS)
+    : trimmed;
+}
 
 @Controller('ai/admin/control-plane')
 @UseGuards(JwtAuthGuard)
@@ -673,10 +688,12 @@ export class AiAgentControlController {
   ) {
     const context = this.buildContext(req);
     const shouldExecute = body?.execute !== false;
+    const reason = normalizeApprovalReason(body?.reason);
     const result = await this.runTransaction(context, 'operate', (tenantContext) =>
       this.control.approveActionRequestsBulk(tenantContext, {
         ...body,
         execute: false,
+        reason,
       }, { queueExecution: shouldExecute }));
     if (shouldExecute) {
       this.scheduleApprovedActionExecution(context, result.results
@@ -691,12 +708,14 @@ export class AiAgentControlController {
   async approveAction(
     @Req() req: any,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: { execute?: boolean | null } = {},
+    @Body() body: AgentControlDecisionInput = {},
   ) {
     const context = this.buildContext(req);
     const shouldExecute = body?.execute !== false;
+    const reason = normalizeApprovalReason(body?.reason);
     const result = await this.runTransaction(context, 'operate', (tenantContext) => this.control.approveActionRequest(tenantContext, id, {
       execute: false,
+      reason,
     }));
     if (shouldExecute) {
       this.scheduleApprovedActionExecution(context, [result.action.id]);
@@ -714,10 +733,11 @@ export class AiAgentControlController {
     @Body() body: { reason?: string | null } = {},
   ) {
     const context = this.buildContext(req);
+    const reason = normalizeApprovalReason(body?.reason);
     return this.runTransaction(context, 'operate', (tenantContext) => this.control.rejectActionRequest(
       tenantContext,
       id,
-      body?.reason ?? null,
+      reason,
     ));
   }
 }

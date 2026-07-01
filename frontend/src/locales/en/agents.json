@@ -169,6 +169,8 @@
     "rejectAll": "Reject all",
     "rejectAllTitle": "Reject all proposals",
     "rejectAllConfirm": "Reject {{count}} proposals for {{target}}. They will stay in the audit trail and will not be executed.",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Optional note for the audit trail",
     "trace": "Trace",
     "agentCheck": "Agent check",
     "agentWorking": "Agent working…",

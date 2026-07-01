@@ -211,6 +211,7 @@ export type AgentControlTargetingPreviewInput = {
 export type AgentControlBulkApproveInput = {
   action_request_ids?: string[] | null;
   execute?: boolean | null;
+  reason?: string | null;
 };
 
 type AgentControlBulkApproveOptions = {
@@ -511,6 +512,12 @@ function toIso(value: Date | string | null | undefined): string | null {
 
 function trimmedString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function approvalDecisionReason(value: unknown, fallback: string): string {
+  const trimmed = trimmedString(value);
+  if (!trimmed) return fallback;
+  return trimmed.length > 500 ? trimmed.slice(0, 500) : trimmed;
 }
 
 function cleanTargetingOptionField(value: unknown): AgentControlTargetingOptionField {
@@ -7665,7 +7672,7 @@ export class AiAgentControlService {
   async approveActionRequest(
     context: AiExecutionContextWithManager,
     actionRequestId: string,
-    options: { execute?: boolean | null } = {},
+    options: { execute?: boolean | null; reason?: string | null } = {},
   ) {
     if (options.execute !== false) {
       const pendingAction = await context.manager.getRepository(AiActionRequest).findOne({
@@ -7679,7 +7686,7 @@ export class AiAgentControlService {
 
     const approved = await this.approvals.approveActionRequest(context, actionRequestId, {
       source: 'human_ui',
-      reason: 'Approved from Agent Control Center.',
+      reason: approvalDecisionReason(options.reason, 'Approved from Agent Control Center.'),
       actorLabel: null,
     });
 
@@ -8160,7 +8167,7 @@ export class AiAgentControlService {
         if (action.status !== 'executed') {
           const approved = await this.approvals.approveActionRequest(context, action.id, {
             source: 'human_ui',
-            reason: 'Approved from Agent Control Center bulk approval.',
+            reason: approvalDecisionReason(input.reason, 'Approved from Agent Control Center bulk approval.'),
             actorLabel: null,
           });
           approvals.push(serializeApproval(approved.approval));
@@ -8241,7 +8248,7 @@ export class AiAgentControlService {
     const rejected = await this.approvals.rejectActionRequest(
       context,
       actionRequestId,
-      trimmedString(reason) ?? 'Rejected from Agent Control Center.',
+      approvalDecisionReason(reason, 'Rejected from Agent Control Center.'),
     );
     const freshAction = await context.manager.getRepository(AiActionRequest).findOne({
       where: { id: actionRequestId, tenant_id: context.tenantId },

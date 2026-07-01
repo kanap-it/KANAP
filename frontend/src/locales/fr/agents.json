@@ -169,6 +169,8 @@
     "rejectAll": "Tout rejeter",
     "rejectAllTitle": "Rejeter toutes les propositions",
     "rejectAllConfirm": "Rejeter {{count}} propositions pour {{target}}. Elles resteront dans l'audit et ne seront pas exécutées.",
+    "reasonLabel": "Motif",
+    "reasonPlaceholder": "Note facultative pour l'audit",
     "trace": "Trace",
     "agentCheck": "Contrôle agent",
     "agentWorking": "Agent au travail…",
