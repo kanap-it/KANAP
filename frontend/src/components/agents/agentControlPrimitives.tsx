@@ -35,6 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: 'success',
   completed: 'success',
   dead_letter: 'error',
+  executing: 'info',
   executed: 'success',
   failed: 'error',
   leased: 'info',
@@ -222,10 +223,12 @@ export function actionUpdatesBody(actions: AiAgentControlActionRequest[]): strin
 }
 
 export function actionCanReject(action: AiAgentControlActionRequest): boolean {
+  if (action.status === 'executing') return false;
   return action.execution_readiness?.can_reject ?? (action.status === 'pending' || action.status === 'approved');
 }
 
 export function actionCanExecute(action: AiAgentControlActionRequest): boolean {
+  if (action.status === 'executing') return false;
   return action.execution_readiness?.can_execute ?? (action.status === 'pending' || action.status === 'approved');
 }
 
@@ -235,6 +238,10 @@ export function actionBlockedReason(action: AiAgentControlActionRequest): string
 
 function activeWorkItemStatus(status: string | null | undefined): boolean {
   return ['queued', 'leased', 'running', 'waiting_approval', 'failed', 'dead_letter'].includes(status ?? '');
+}
+
+function activeActionStatus(status: string | null | undefined): boolean {
+  return ['pending', 'approved', 'executing'].includes(status ?? '');
 }
 
 function isHelpdeskProposalAction(action: AiAgentControlActionRequest): boolean {
@@ -345,7 +352,7 @@ export function buildTicketGroups(
       latestRunId: latestRunId ?? actions[0]?.run_id ?? null,
       queueStatus: workItem?.status ?? 'pending',
       updatedAt: workItem?.updated_at ?? targetState?.updated_at ?? actions[0]?.updated_at ?? actions[0]?.created_at ?? null,
-      active: activeWorkItemStatus(workItem?.status) || actions.some((action) => actionCanReject(action)),
+      active: activeWorkItemStatus(workItem?.status) || actions.some((action) => activeActionStatus(action.status)),
     });
   }
 

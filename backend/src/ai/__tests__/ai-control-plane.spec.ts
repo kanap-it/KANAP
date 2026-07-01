@@ -293,6 +293,20 @@ function createMemoryManager() {
         }
         return { affected };
       },
+      update: async (criteria: any, patch: any) => {
+        let affected = 0;
+        for (let index = 0; index < rows.length; index += 1) {
+          if (!matchesWhere(rows[index], criteria ?? {})) {
+            continue;
+          }
+          rows[index] = {
+            ...rows[index],
+            ...patch,
+          };
+          affected += 1;
+        }
+        return { affected };
+      },
       createQueryBuilder: (_alias: string) => {
         const filters: Array<{ condition: string; params?: Record<string, any> }> = [];
         let order: { field: string; direction: 'ASC' | 'DESC' } | null = null;
@@ -624,6 +638,15 @@ function providerActionSeed(overrides?: Record<string, any>) {
     idempotencyKey: 'provider-action-idempotency-key',
     ...(overrides ?? {}),
   };
+}
+
+function testRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function actionApprovedBatchContext(action: AiActionRequest): Record<string, any> {
+  const metadata = testRecord(action.metadata_json) ? action.metadata_json : {};
+  return testRecord(metadata.approved_batch_context) ? metadata.approved_batch_context as Record<string, any> : {};
 }
 
 async function seedAutomationJob(context: any, overrides?: Record<string, any>) {
@@ -7491,6 +7514,213 @@ async function testBulkApprovePreservesExternalFreshnessReReview() {
   );
 }
 
+async function testQueuedApprovedExecutionClaimIsAtomic() {
+  const queue = new AiAgentWorkQueueService();
+  const ticket = {
+    id: 'atomic-claim-ticket',
+    status: 'new',
+    priority: 'medium',
+    title: 'Atomic claim ticket',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  let providerWrites = 0;
+  let releaseProvider!: () => void;
+  let providerStarted!: () => void;
+  const providerStartedPromise = new Promise<void>((resolve) => {
+    providerStarted = resolve;
+  });
+  const releaseProviderPromise = new Promise<void>((resolve) => {
+    releaseProvider = resolve;
+  });
+  const provider = {
+    getTicket: async () => ({ ok: true, data: ticket, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [] }, evidence: [] }),
+    addInternalNote: async () => {
+      providerWrites += 1;
+      providerStarted();
+      await releaseProviderPromise;
+      return {
+        ok: true,
+        data: {
+          noteId: 'atomic-claim-note',
+          ticketId: ticket.id,
+          summary: 'Internal note added.',
+          idempotencyKey: 'atomic-claim-note',
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+  };
+  const { dispatcher, context, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const service = new AiAgentControlService({} as any, approvals, dispatcher, {} as any, {} as any, queue);
+  const action = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: ticket.id,
+    idempotencyKey: 'atomic-claim-action',
+    actionPayload: {
+      ticketId: ticket.id,
+      visibility: 'internal',
+      body: 'Atomic claim note.',
+      bodyFormat: 'plain_text',
+    },
+  }));
+  await approvals.approveActionRequest(context, action.id, { source: 'human_ui', reason: 'unit test approval' });
+
+  const first = service.executeSingleApprovedAction(context, action.id);
+  await providerStartedPromise;
+  const second = await service.executeSingleApprovedAction(context, action.id);
+  assert.equal(providerWrites, 1);
+  assert.equal(second.ok, false);
+  assert.equal(second.status, 'executing');
+  assert.match(second.reason ?? '', /already being executed/);
+  releaseProvider();
+  const firstResult = await first;
+  assert.equal(firstResult.ok, true);
+  assert.equal(firstResult.status, 'executed');
+  assert.equal(providerWrites, 1);
+}
+
+async function testQueuedApprovedExecutionFailureBackoffAndDeadLetter() {
+  const queue = new AiAgentWorkQueueService();
+  const ticket = {
+    id: 'retry-dead-letter-ticket',
+    status: 'new',
+    priority: 'medium',
+    title: 'Retry dead letter ticket',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  let providerCalls = 0;
+  const provider = {
+    getTicket: async () => ({ ok: true, data: ticket, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [] }, evidence: [] }),
+    addInternalNote: async () => {
+      providerCalls += 1;
+      throw new Error('persistent provider failure');
+    },
+  };
+  const { dispatcher, context, stores, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const service = new AiAgentControlService({} as any, approvals, dispatcher, {} as any, {} as any, queue);
+  const actionRepo = context.manager.getRepository(AiActionRequest);
+  const action = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: ticket.id,
+    idempotencyKey: 'retry-dead-letter-action',
+    actionPayload: {
+      ticketId: ticket.id,
+      visibility: 'internal',
+      body: 'Retry dead letter note.',
+      bodyFormat: 'plain_text',
+    },
+  }));
+  await service.approveActionRequestsBulk(context, {
+    action_request_ids: [action.id],
+    execute: false,
+  }, { queueExecution: true });
+  const approvedAction = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  approvedAction.expires_at = new Date(Date.now() + 3 * 24 * 60 * 60_000);
+  await actionRepo.save(approvedAction);
+
+  const sweeper = new AiAgentApprovalLifecycleSweeperService(null, null, queue, actions, service);
+  const base = new Date();
+  await sweeper.sweepTenant(context, { limit: 25, now: base });
+  let saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  assert.equal(providerCalls, 1);
+  assert.equal(saved.status, 'approved');
+  assert.equal(saved.error_message, 'persistent provider failure');
+  assert.equal(actionApprovedBatchContext(saved).execution_attempts, 1);
+
+  await sweeper.sweepTenant(context, { limit: 25, now: new Date(base.getTime() + 10 * 60_000) });
+  saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  assert.equal(providerCalls, 1);
+  assert.equal(saved.status, 'approved');
+  assert.equal(actionApprovedBatchContext(saved).execution_attempts, 1);
+
+  for (const minutes of [31, 92, 213, 454]) {
+    await sweeper.sweepTenant(context, { limit: 25, now: new Date(base.getTime() + minutes * 60_000) });
+  }
+  saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  assert.equal(providerCalls, 5);
+  assert.equal(saved.status, 'approved');
+  assert.equal(actionApprovedBatchContext(saved).execution_attempts, 5);
+
+  await sweeper.sweepTenant(context, { limit: 25, now: new Date(base.getTime() + 455 * 60_000) });
+  saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  assert.equal(saved.status, 'expired');
+  assert.equal(saved.error_message, 'queued_execution_dead_letter');
+  assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event: AiAgentAuditEvent) =>
+    event.event_type === 'queued_execution_dead_letter'
+    && event.severity === 'error'
+    && event.metadata_json?.action_request_id === action.id), true);
+
+  await sweeper.sweepTenant(context, { limit: 25, now: new Date(base.getTime() + 700 * 60_000) });
+  assert.equal(providerCalls, 5);
+}
+
+async function testQueuedApprovedExecutionReclaimsStaleExecutingAction() {
+  const queue = new AiAgentWorkQueueService();
+  let providerCalls = 0;
+  const provider = {
+    getTicket: async () => ({ ok: true, data: {
+      id: 'stale-executing-ticket',
+      status: 'new',
+      priority: 'medium',
+      title: 'Stale executing ticket',
+      createdAt: '2026-06-10T09:00:00.000Z',
+      updatedAt: '2026-06-10T10:00:00.000Z',
+      scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+    }, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [] }, evidence: [] }),
+    addInternalNote: async () => {
+      providerCalls += 1;
+      return { ok: true, data: { noteId: 'unexpected', ticketId: 'stale-executing-ticket', summary: 'Unexpected.', idempotencyKey: 'unexpected', alreadyApplied: false }, evidence: [] };
+    },
+  };
+  const { dispatcher, context, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const service = new AiAgentControlService({} as any, approvals, dispatcher, {} as any, {} as any, queue);
+  const actionRepo = context.manager.getRepository(AiActionRequest);
+  const action = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    targetRef: 'stale-executing-ticket',
+    idempotencyKey: 'stale-executing-action',
+    actionPayload: {
+      ticketId: 'stale-executing-ticket',
+      visibility: 'internal',
+      body: 'Stale executing note.',
+      bodyFormat: 'plain_text',
+    },
+  }));
+  await service.approveActionRequestsBulk(context, {
+    action_request_ids: [action.id],
+    execute: false,
+  }, { queueExecution: true });
+  const now = new Date();
+  const approvedAction = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  approvedAction.status = 'executing';
+  approvedAction.expires_at = new Date(Date.now() + 3 * 24 * 60 * 60_000);
+  approvedAction.metadata_json = {
+    ...(approvedAction.metadata_json ?? {}),
+    approved_batch_context: {
+      ...actionApprovedBatchContext(approvedAction),
+      execution_claim_id: 'stale-claim',
+      execution_claimed_at: new Date(now.getTime() - 11 * 60_000).toISOString(),
+    },
+  };
+  approvedAction.updated_at = new Date(now.getTime() - 11 * 60_000);
+  await actionRepo.save(approvedAction);
+
+  const sweeper = new AiAgentApprovalLifecycleSweeperService(null, null, queue, actions, service);
+  const summary = await sweeper.sweepTenant(context, { limit: 25, now });
+  const saved = await actionRepo.findOne({ where: { id: action.id, tenant_id: context.tenantId } });
+  assert.equal(summary.queuedExecutionsExecuted, 0);
+  assert.equal(providerCalls, 0);
+  assert.equal(saved.status, 'approved');
+  assert.equal(saved.error_message, 'Queued execution claim was abandoned before completion.');
+  assert.equal(actionApprovedBatchContext(saved).execution_attempts, 1);
+  assert.equal(actionApprovedBatchContext(saved).execution_claim_id, null);
+}
+
 async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList() {
   {
     const { manager, stores } = createMemoryManager();
@@ -11587,6 +11817,9 @@ async function run() {
   await testPhase135StaleExecuteReReviewAndTerminalFreshnessInvariant();
   await testSameRunApproveAllSiblingWritesDoNotBlockEachOther();
   await testBulkApprovePreservesExternalFreshnessReReview();
+  await testQueuedApprovedExecutionClaimIsAtomic();
+  await testQueuedApprovedExecutionFailureBackoffAndDeadLetter();
+  await testQueuedApprovedExecutionReclaimsStaleExecutingAction();
   await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
   await testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls();
   await testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent();

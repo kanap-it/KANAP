@@ -142,6 +142,31 @@ export class AiAgentControlController {
     await this.policy.assertAgentRead(context, manager);
   }
 
+  private async recordBackgroundExecutionError(
+    context: AiExecutionContext,
+    input: {
+      eventType: string;
+      message: string;
+      metadata: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    try {
+      await this.tenantExecutor.runWithContext(context, async (tenantContext) => {
+        await this.workQueue.recordAuditEvent(tenantContext, {
+          eventType: input.eventType,
+          severity: 'error',
+          message: input.message,
+          metadata: input.metadata,
+        });
+      });
+    } catch (error) {
+      this.logger.error(
+        `Background approved action audit failed: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
   private scheduleApprovedActionExecution(context: AiExecutionContext, actionRequestIds: string[]) {
     const ids = Array.from(new Set(actionRequestIds.filter((id) => typeof id === 'string' && id.length > 0)));
     if (ids.length === 0) {
@@ -166,18 +191,35 @@ export class AiAgentControlController {
               batchIds: orderedIds,
               stepIndex: index,
             });
-          }).catch((error) => {
+          }).catch(async (error) => {
+            const message = `Background approved action execution failed for ${actionRequestId}: ${error instanceof Error ? error.message : String(error)}`;
             this.logger.error(
-              `Background approved action execution failed for ${actionRequestId}: ${error instanceof Error ? error.message : String(error)}`,
+              message,
               error instanceof Error ? error.stack : undefined,
             );
+            await this.recordBackgroundExecutionError(context, {
+              eventType: 'approved_action_background_execution_failed',
+              message,
+              metadata: {
+                action_request_id: actionRequestId,
+                batch_action_request_ids: orderedIds,
+              },
+            });
           });
         }
-      })().catch((error) => {
+      })().catch(async (error) => {
+        const message = `Background approved action scheduling failed for ${ids.join(', ')}: ${error instanceof Error ? error.message : String(error)}`;
         this.logger.error(
-          `Background approved action scheduling failed for ${ids.join(', ')}: ${error instanceof Error ? error.message : String(error)}`,
+          message,
           error instanceof Error ? error.stack : undefined,
         );
+        await this.recordBackgroundExecutionError(context, {
+          eventType: 'approved_action_background_scheduling_failed',
+          message,
+          metadata: {
+            action_request_ids: ids,
+          },
+        });
       });
     });
   }

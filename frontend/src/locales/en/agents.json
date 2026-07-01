@@ -64,6 +64,7 @@
     "skipped": "Skipped",
     "pending": "Waiting for approval",
     "approved": "Approved",
+    "executing": "Executing",
     "executed": "Done",
     "rejected": "Rejected",
     "expired": "Expired",

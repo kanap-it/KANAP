@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FindOptionsWhere, In } from 'typeorm';
 import { Features } from '../../../config/features';
@@ -326,6 +327,7 @@ const MAX_INTERNAL_SYNTHESIS_BRIEF_CHARS = 1000;
 const MAX_INTERNAL_RECOMMENDED_REPLY_CHARS = 900;
 const MAX_SYNTHESIS_NOTE_SOURCES = 6;
 const MAX_SYNTHESIS_NOTE_REJECTIONS = 6;
+const APPROVED_ACTION_EXECUTING_STATUS = 'executing';
 const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
@@ -1162,6 +1164,50 @@ function metadataObject(value: unknown): Record<string, unknown> {
 
 function definitionIdFromMetadata(value: unknown): string | null {
   return stringFromMetadata(metadataObject(value).agent_definition_id);
+}
+
+function numberFromMetadata(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+}
+
+function withApprovedBatchContext(
+  metadata: unknown,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const existing = metadataObject(metadata);
+  const batch = metadataObject(existing.approved_batch_context);
+  return {
+    ...existing,
+    approved_batch_context: {
+      ...batch,
+      ...patch,
+    },
+  };
+}
+
+function approvedBatchExecutionAttempts(action: AiActionRequest): number {
+  const metadata = metadataObject(action.metadata_json);
+  const batch = metadataObject(metadata.approved_batch_context);
+  return numberFromMetadata(batch.execution_attempts);
+}
+
+function actionExecutionSkipReason(action: AiActionRequest | null): string | null {
+  if (!action) {
+    return 'Action request was not claimed for execution.';
+  }
+  if (action.status === 'executed') {
+    return null;
+  }
+  if (action.status === APPROVED_ACTION_EXECUTING_STATUS) {
+    return 'Action request is already being executed.';
+  }
+  if (action.error_message) {
+    return action.error_message;
+  }
+  if (action.status === 'approved') {
+    return 'Action request was not claimed for execution.';
+  }
+  return `Action is ${action.status}.`;
 }
 
 function actionClass(action: Pick<AiActionRequest, 'metadata_json' | 'capability_name'>): string {
@@ -7331,6 +7377,118 @@ export class AiAgentControlService {
   // Execute a single approved action. Designed to run inside its OWN transaction
   // (one per action) so row locks on the ticket work item / target state release
   // between slow GLPI writes and never block the queue-overview reconciliation.
+  private async actionExecutionResult(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    execution: unknown,
+    failure: string | null,
+  ): Promise<{
+    action_request_id: string;
+    ok: boolean;
+    status: string;
+    reason: string | null;
+    action: ReturnType<typeof serializeActionRequest>;
+    execution: unknown;
+  }> {
+    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, action.id);
+    const readiness = await this.executionReadinessForActions(context, [action]);
+    const ok = action.status === 'executed';
+    return {
+      action_request_id: action.id,
+      ok,
+      status: action.status,
+      reason: ok ? null : this.bulkApproveReason(action, execution, failure),
+      action: serializeActionRequest(action, readiness.get(action.id)),
+      execution,
+    };
+  }
+
+  private async skippedActionExecutionResult(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+  ): Promise<{
+    action_request_id: string;
+    ok: boolean;
+    status: string;
+    reason: string | null;
+    action: ReturnType<typeof serializeActionRequest>;
+    execution: unknown;
+  }> {
+    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, action.id);
+    const readiness = await this.executionReadinessForActions(context, [action]);
+    const ok = action.status === 'executed';
+    return {
+      action_request_id: action.id,
+      ok,
+      status: action.status,
+      reason: ok ? null : actionExecutionSkipReason(action),
+      action: serializeActionRequest(action, readiness.get(action.id)),
+      execution: null,
+    };
+  }
+
+  private async claimApprovedActionForExecution(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+  ): Promise<{ action: AiActionRequest; claimId: string } | null> {
+    if (action.status !== 'approved') {
+      return null;
+    }
+    const repo = context.manager.getRepository(AiActionRequest);
+    const now = new Date();
+    const claimId = randomUUID();
+    const result = await repo.update({
+      id: action.id,
+      tenant_id: context.tenantId,
+      status: 'approved',
+    }, {
+      status: APPROVED_ACTION_EXECUTING_STATUS,
+      error_message: null,
+      metadata_json: withApprovedBatchContext(action.metadata_json, {
+        execution_claim_id: claimId,
+        execution_claimed_at: now.toISOString(),
+      }),
+      updated_at: now,
+    });
+    if ((result.affected ?? 0) !== 1) {
+      return null;
+    }
+    const claimed = await repo.findOne({
+      where: { id: action.id, tenant_id: context.tenantId },
+    });
+    if (!claimed || claimed.status !== APPROVED_ACTION_EXECUTING_STATUS) {
+      return null;
+    }
+    return { action: claimed, claimId };
+  }
+
+  private async persistApprovedActionExecutionFailure(
+    context: AiExecutionContextWithManager,
+    actionRequestId: string,
+    message: string,
+  ): Promise<AiActionRequest | null> {
+    const repo = context.manager.getRepository(AiActionRequest);
+    const action = await repo.findOne({
+      where: { id: actionRequestId, tenant_id: context.tenantId },
+    });
+    if (!action || ['executed', 'expired', 'rejected'].includes(action.status)) {
+      return action;
+    }
+    const now = new Date();
+    const errorMessage = message.slice(0, 4000);
+    action.status = 'approved';
+    action.error_message = errorMessage;
+    action.metadata_json = withApprovedBatchContext(action.metadata_json, {
+      execution_attempts: approvedBatchExecutionAttempts(action) + 1,
+      last_attempt_at: now.toISOString(),
+      last_execution_error: errorMessage,
+      execution_claim_id: null,
+      execution_claimed_at: null,
+    });
+    action.updated_at = now;
+    return repo.save(action);
+  }
+
   async executeSingleApprovedAction(
     context: AiExecutionContextWithManager,
     actionRequestId: string,
@@ -7350,52 +7508,60 @@ export class AiAgentControlService {
     if (!action) {
       throw new NotFoundException('Action request not found.');
     }
+    if (action.status !== 'approved') {
+      return this.skippedActionExecutionResult(context, action);
+    }
+
+    const claimed = await this.claimApprovedActionForExecution(context, action);
+    if (!claimed) {
+      const fresh = await repo.findOne({
+        where: { id: action.id, tenant_id: context.tenantId },
+      });
+      return this.skippedActionExecutionResult(context, fresh ?? action);
+    }
 
     let execution: unknown = null;
     let failure: string | null = null;
     try {
-      if (action.status !== 'executed') {
-        await this.assertActionSafeForUiExecution(context, action);
-        const agentDefinitionId = definitionIdFromMetadata(action.metadata_json);
-        const batchIds = options.batchIds && options.batchIds.length > 0 ? options.batchIds : [action.id];
-        execution = await this.dispatcher.execute(context, {
-          capabilityName: action.capability_name,
-          capabilityVersion: action.capability_version,
-          input: { action_request_id: action.id },
-          execution: {
-            surface: 'internal',
-            trigger_kind: 'internal',
-            runId: action.run_id,
-            stepIndex: 200 + (options.stepIndex ?? 0),
-            metadata: {
-              uat_workflow: 'agent_control_center_bulk_async_execution',
-              source: 'admin_ui',
-              action_request_id: action.id,
-              bulk_action_request_ids: batchIds,
-              ...(agentDefinitionId ? { agent_definition_id: agentDefinitionId } : {}),
-            },
+      await this.assertActionSafeForUiExecution(context, claimed.action);
+      const agentDefinitionId = definitionIdFromMetadata(claimed.action.metadata_json);
+      const batchIds = options.batchIds && options.batchIds.length > 0 ? options.batchIds : [claimed.action.id];
+      execution = await this.dispatcher.execute(context, {
+        capabilityName: claimed.action.capability_name,
+        capabilityVersion: claimed.action.capability_version,
+        input: { action_request_id: claimed.action.id },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: claimed.action.run_id,
+          stepIndex: 200 + (options.stepIndex ?? 0),
+          metadata: {
+            uat_workflow: 'agent_control_center_bulk_async_execution',
+            source: 'admin_ui',
+            action_request_id: claimed.action.id,
+            bulk_action_request_ids: batchIds,
+            action_execution_claim_id: claimed.claimId,
+            ...(agentDefinitionId ? { agent_definition_id: agentDefinitionId } : {}),
           },
-        });
-      }
+        },
+      });
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
     }
 
     const freshAction = await repo.findOne({
-      where: { id: action.id, tenant_id: context.tenantId },
+      where: { id: claimed.action.id, tenant_id: context.tenantId },
     });
-    const responseAction = freshAction ?? action;
-    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, responseAction.id);
-    const readiness = await this.executionReadinessForActions(context, [responseAction]);
-    const ok = responseAction.status === 'executed';
-    return {
-      action_request_id: responseAction.id,
-      ok,
-      status: responseAction.status,
-      reason: ok ? null : this.bulkApproveReason(responseAction, execution, failure),
-      action: serializeActionRequest(responseAction, readiness.get(responseAction.id)),
-      execution,
-    };
+    let responseAction = freshAction ?? claimed.action;
+    if (!failure && ['failed', APPROVED_ACTION_EXECUTING_STATUS].includes(responseAction.status)) {
+      failure = this.bulkApproveReason(responseAction, execution, null)
+        ?? 'Action execution did not complete successfully.';
+    }
+    if (failure) {
+      responseAction = await this.persistApprovedActionExecutionFailure(context, claimed.action.id, failure)
+        ?? responseAction;
+    }
+    return this.actionExecutionResult(context, responseAction, execution, failure);
   }
 
   async executeApprovedActionRequestsBulk(

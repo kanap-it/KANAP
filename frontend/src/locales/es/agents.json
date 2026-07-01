@@ -64,6 +64,7 @@
     "skipped": "Omitido",
     "pending": "Esperando aprobación",
     "approved": "Aprobado",
+    "executing": "En ejecución",
     "executed": "Hecho",
     "rejected": "Rechazado",
     "expired": "Caducado",

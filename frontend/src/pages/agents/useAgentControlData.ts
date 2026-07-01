@@ -100,7 +100,7 @@ export function useAgentControlData() {
         execute: true,
       });
       if (result.execution_mode === 'queued') {
-        const queued = result.summary.queued ?? result.results.filter((item) => item.action.status === 'approved').length;
+        const queued = result.summary.queued ?? result.results.filter((item) => ['approved', 'executing'].includes(item.action.status)).length;
         return { mode: 'queued' as const, executed: result.summary.executed, queued, needsReview: result.summary.needs_review };
       }
       const executed = result.results.filter((item) => item.action.status === 'executed' || item.ok).length;

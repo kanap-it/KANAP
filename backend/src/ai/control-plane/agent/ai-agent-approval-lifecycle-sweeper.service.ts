@@ -8,6 +8,11 @@ import { AiAgentControlService } from '../agent-control/ai-agent-control.service
 import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiAgentWorkQueueService } from './ai-agent-work-queue.service';
 
+const APPROVED_ACTION_EXECUTING_STATUS = 'executing';
+const QUEUED_EXECUTION_MAX_ATTEMPTS = 5;
+const QUEUED_EXECUTION_STALE_CLAIM_MS = 10 * 60 * 1000;
+const QUEUED_EXECUTION_BACKOFF_MINUTES = [30, 60, 120, 240];
+
 export type AgentApprovalLifecycleSweepSummary = {
   tenantId: string;
   expiredActions: number;
@@ -41,6 +46,80 @@ function actionAgentDefinitionId(action: AiActionRequest): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function metadataObject(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function numberFromMetadata(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+}
+
+function approvedBatchContext(action: AiActionRequest): Record<string, unknown> {
+  const metadata = metadataObject(action.metadata_json);
+  return metadataObject(metadata.approved_batch_context);
+}
+
+function withApprovedBatchContext(
+  metadata: unknown,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const existing = metadataObject(metadata);
+  const batch = metadataObject(existing.approved_batch_context);
+  return {
+    ...existing,
+    approved_batch_context: {
+      ...batch,
+      ...patch,
+    },
+  };
+}
+
+function executionAttempts(action: AiActionRequest): number {
+  return numberFromMetadata(approvedBatchContext(action).execution_attempts);
+}
+
+function dateFromMetadata(value: unknown): Date | null {
+  if (!value) {
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function lastExecutionAttemptAt(action: AiActionRequest): Date | null {
+  return dateFromMetadata(approvedBatchContext(action).last_attempt_at);
+}
+
+function executionClaimedAt(action: AiActionRequest): Date | null {
+  return dateFromMetadata(approvedBatchContext(action).execution_claimed_at)
+    ?? dateFromMetadata(action.updated_at);
+}
+
+function queuedExecutionBackoffMs(attempts: number): number {
+  if (attempts <= 0) {
+    return 0;
+  }
+  const minutes = QUEUED_EXECUTION_BACKOFF_MINUTES[Math.min(attempts, QUEUED_EXECUTION_BACKOFF_MINUTES.length) - 1];
+  return minutes * 60 * 1000;
+}
+
+function queuedExecutionBackoffActive(action: AiActionRequest, now: Date): boolean {
+  const attempts = executionAttempts(action);
+  const lastAttemptAt = lastExecutionAttemptAt(action);
+  if (attempts <= 0 || !lastAttemptAt) {
+    return false;
+  }
+  return lastAttemptAt.getTime() + queuedExecutionBackoffMs(attempts) > now.getTime();
+}
+
+function staleExecutingClaim(action: AiActionRequest, now: Date): boolean {
+  if (action.status !== APPROVED_ACTION_EXECUTING_STATUS) {
+    return false;
+  }
+  const claimedAt = executionClaimedAt(action);
+  return !!claimedAt && claimedAt.getTime() + QUEUED_EXECUTION_STALE_CLAIM_MS <= now.getTime();
 }
 
 function queuedExecutionBatch(action: AiActionRequest): { batchId: string; actionRequestIds: string[] } | null {
@@ -217,7 +296,7 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
     }
 
     try {
-      const queuedExecutions = await this.executeQueuedApprovedActions(context, { limit });
+      const queuedExecutions = await this.executeQueuedApprovedActions(context, { limit, now });
       summary.queuedExecutionsScanned = queuedExecutions.scanned;
       summary.queuedExecutionsExecuted = queuedExecutions.executed;
       summary.queuedExecutionsNeedsReview = queuedExecutions.needsReview;
@@ -256,21 +335,60 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
 
   private async executeQueuedApprovedActions(
     context: AiExecutionContextWithManager,
-    opts: { limit: number },
+    opts: { limit: number; now: Date },
   ): Promise<{ scanned: number; executed: number; needsReview: number }> {
     if (!this.control) {
       return { scanned: 0, executed: 0, needsReview: 0 };
     }
+    const now = opts.now;
+    const repo = context.manager.getRepository(AiActionRequest);
     const candidates = await context.manager.getRepository(AiActionRequest).find({
       where: {
         tenant_id: context.tenantId,
-        status: 'approved',
+        status: In(['approved', APPROVED_ACTION_EXECUTING_STATUS]),
       },
       order: { updated_at: 'ASC', created_at: 'ASC' },
       take: Math.max(opts.limit, Math.min(opts.limit * 5, 500)),
     });
+    let needsReview = 0;
+    for (const candidate of candidates) {
+      if (candidate.status !== APPROVED_ACTION_EXECUTING_STATUS) {
+        continue;
+      }
+      if (!staleExecutingClaim(candidate, now)) {
+        continue;
+      }
+      candidate.status = 'approved';
+      candidate.error_message = 'Queued execution claim was abandoned before completion.';
+      candidate.metadata_json = withApprovedBatchContext(candidate.metadata_json, {
+        execution_attempts: executionAttempts(candidate) + 1,
+        last_attempt_at: now.toISOString(),
+        last_execution_error: candidate.error_message,
+        execution_claim_id: null,
+        execution_claimed_at: null,
+      });
+      candidate.updated_at = now;
+      if (executionAttempts(candidate) >= QUEUED_EXECUTION_MAX_ATTEMPTS) {
+        await this.deadLetterQueuedExecution(context, candidate, executionAttempts(candidate), now);
+        needsReview += 1;
+      } else {
+        await repo.save(candidate);
+      }
+    }
+
     const batches = new Map<string, string[]>();
     for (const candidate of candidates) {
+      if (candidate.status !== 'approved') {
+        continue;
+      }
+      if (executionAttempts(candidate) >= QUEUED_EXECUTION_MAX_ATTEMPTS) {
+        await this.deadLetterQueuedExecution(context, candidate, executionAttempts(candidate), now);
+        needsReview += 1;
+        continue;
+      }
+      if (queuedExecutionBackoffActive(candidate, now)) {
+        continue;
+      }
       const batch = queuedExecutionBatch(candidate);
       if (!batch || batches.has(batch.batchId)) {
         continue;
@@ -281,9 +399,35 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
       }
     }
 
+    const batchActionIds = Array.from(new Set(Array.from(batches.values()).flat()));
+    const batchActions = batchActionIds.length > 0
+      ? await repo.find({
+        where: {
+          tenant_id: context.tenantId,
+          id: In(batchActionIds),
+        },
+      })
+      : [];
+    const actionById = new Map(batchActions.map((action) => [action.id, action]));
     let executed = 0;
-    let needsReview = 0;
     for (const actionRequestIds of batches.values()) {
+      const batchActionsForIds = actionRequestIds
+        .map((id) => actionById.get(id))
+        .filter((action): action is AiActionRequest => !!action);
+      const hasQueuedApprovedAction = batchActionsForIds.some((action) => action.status === 'approved');
+      if (!hasQueuedApprovedAction) {
+        continue;
+      }
+      const blocked = batchActionsForIds.some((action) => {
+        if (action.status === APPROVED_ACTION_EXECUTING_STATUS) {
+          return true;
+        }
+        return action.status === 'approved'
+          && (executionAttempts(action) >= QUEUED_EXECUTION_MAX_ATTEMPTS || queuedExecutionBackoffActive(action, now));
+      });
+      if (blocked) {
+        continue;
+      }
       const result = await this.control.executeApprovedActionRequestsBulk(context, { action_request_ids: actionRequestIds });
       executed += result.summary.executed;
       needsReview += result.summary.needs_review;
@@ -293,5 +437,38 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
       executed,
       needsReview,
     };
+  }
+
+  private async deadLetterQueuedExecution(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    attempts: number,
+    now: Date,
+  ): Promise<void> {
+    if (action.status === 'expired') {
+      return;
+    }
+    action.metadata_json = withApprovedBatchContext(action.metadata_json, {
+      execution_attempts: attempts,
+      last_attempt_at: now.toISOString(),
+      last_execution_error: approvedBatchContext(action).last_execution_error ?? 'Queued execution retry limit reached.',
+      execution_claim_id: null,
+      execution_claimed_at: null,
+      dead_lettered_at: now.toISOString(),
+      dead_letter_reason: 'queued_execution_dead_letter',
+    });
+    action.updated_at = now;
+    await this.actions.markExpired(context, action, 'queued_execution_dead_letter');
+    await this.queue.recordAuditEvent(context, {
+      agentDefinitionId: actionAgentDefinitionId(action),
+      eventType: 'queued_execution_dead_letter',
+      severity: 'error',
+      message: 'Queued approved action execution reached the retry limit and was expired.',
+      metadata: {
+        action_request_id: action.id,
+        execution_attempts: attempts,
+        reason: 'queued_execution_dead_letter',
+      },
+    });
   }
 }
