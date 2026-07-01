@@ -36,6 +36,7 @@ import {
   TICKETING_ROUTING_CONTEXT_CAPABILITY,
   TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
   TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../control-plane/capability/capability-contract';
 import { AiCapabilityRegistry, providerCapabilityContracts } from '../control-plane/capability/ai-capability.registry';
@@ -8880,6 +8881,31 @@ function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input
   }));
 }
 
+function seedMockAiRun(context: ReturnType<typeof createContext>, runId: string) {
+  const repo = context.manager.getRepository(AiRun);
+  const now = new Date();
+  return repo.save(repo.create({
+    id: runId,
+    tenant_id: context.tenantId,
+    user_id: context.userId,
+    conversation_id: null,
+    request_id: null,
+    ai_api_key_id: null,
+    invocation_channel: 'internal',
+    trigger_kind: 'internal',
+    status: 'running',
+    input_summary: null,
+    output_summary: null,
+    usage_json: null,
+    cost_json: null,
+    metadata_json: null,
+    started_at: now,
+    completed_at: null,
+    created_at: now,
+    updated_at: now,
+  }));
+}
+
 function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>, input: {
   id: string;
   runId: string;
@@ -10165,6 +10191,225 @@ async function testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument() {
   assert.match(internalNoteBody, /Possible sources found/);
   assert.match(internalNoteBody, /Recette du Pâté de Campagne/);
   assert.doesNotMatch(internalNoteBody, /500 g de gorge de porc/);
+}
+
+async function runWp2LlmAccountingTriage(input: { perRunTokenCap?: number } = {}) {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  bundle.definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+    ...(bundle.definition.scope_policy_json as Record<string, unknown>),
+    knowledge_sources: {
+      knowledge: { enabled: false, all_libraries: true, library_ids: [] },
+      web: { enabled: false },
+      precedence: 'knowledge_first',
+    },
+  });
+  if (input.perRunTokenCap != null) {
+    bundle.definition.queue_policy_json = {
+      ...(bundle.definition.queue_policy_json as Record<string, unknown> ?? {}),
+      economic_guardrails: {
+        configured: true,
+        per_run: {
+          max_estimated_tokens: input.perRunTokenCap,
+          max_estimated_cost_eur: 1,
+        },
+        daily: {
+          max_agent_runs: 25,
+          max_estimated_tokens: 500_000,
+          max_estimated_cost_eur: 10,
+        },
+      },
+    };
+  }
+  await manager.getRepository(AiAgentDefinition).save(bundle.definition);
+
+  const runId = 'run-wp2-llm-accounting';
+  let runSeeded = false;
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({ capabilityName: request.capabilityName, input: request.input });
+      const toolExecutionId = `wp2-tool-${calls.length}`;
+      const ok = (data: unknown) => ({
+        run_id: runId,
+        step_id: `wp2-step-${calls.length}`,
+        tool_execution_id: toolExecutionId,
+        output: { ok: true, data, evidence: [] },
+      });
+      switch (request.capabilityName) {
+        case 'ticketing.ticket.get':
+          if (!runSeeded) {
+            runSeeded = true;
+            await seedMockAiRun(context, runId);
+          }
+          return ok({
+            id: '4',
+            title: 'Erreur Oracle',
+            status: 'open',
+            priority: '3',
+            description: 'Impossible de me connecter.',
+            attachments: [{
+              id: 'screen-1',
+              kind: 'image',
+              source: 'ticket_description',
+              target: '/front/document.send.php?docid=9001',
+              filename: 'oracle.png',
+              mimeType: 'image/png',
+              sizeBytes: 120,
+            }],
+          });
+        case TICKETING_TICKET_NOTES_LIST_CAPABILITY:
+          return ok({ notes: [] });
+        case TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY:
+          return ok({ type: 'Request', priority: 'Medium', urgency: 'Medium' });
+        case TICKETING_LIFECYCLE_CONTEXT_CAPABILITY:
+          return ok({ terminal: false, status: 'open', allowedTransitions: [] });
+        case TICKETING_ROUTING_CONTEXT_CAPABILITY:
+        case TICKETING_PARTICIPANT_CONTEXT_CAPABILITY:
+          return ok({});
+        case TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY:
+          return ok({
+            attachment: {
+              id: 'screen-1',
+              kind: 'image',
+              source: 'ticket_description',
+              target: '/front/document.send.php?docid=9001',
+            },
+            filename: 'oracle.png',
+            mimeType: 'image/png',
+            sizeBytes: 120,
+            base64Data: Buffer.from('image').toString('base64'),
+          });
+        case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
+          await savePreparedGlpiAction(context, {
+            id: 'wp2-internal-action',
+            runId,
+            toolExecutionId,
+            capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+            body: request.input.note_body,
+            visibility: 'internal',
+          });
+          return ok({ summary: 'Prepared internal note.', action_request_id: 'wp2-internal-action' });
+        default:
+          return {
+            run_id: runId,
+            step_id: `wp2-step-${calls.length}`,
+            tool_execution_id: toolExecutionId,
+            output: { items: [], total: 0, returned: 0, truncated: false, complete: true },
+          };
+      }
+    },
+  };
+
+  let visionCalls = 0;
+  let needCalls = 0;
+  const llmClient = {
+    resolveRuntime: async () => VISION_TEST_RUNTIME,
+    callStructuredJsonModel: async (_context: unknown, request: any) => {
+      if (request.taskName === 'ticket_image_evidence_extraction') {
+        visionCalls += 1;
+        return structuredJsonSuccess({
+          verbatim_text: ['ORA-28000 account locked'],
+          error_codes: ['ORA-28000'],
+          ui_labels: ['Connexion'],
+          screen: 'Login',
+          visible_app: 'Oracle',
+          language: 'en',
+          summary: 'Oracle login screen shows ORA-28000.',
+          confidence: 0.9,
+          warnings: [],
+        }, { providerId: 'openai', model: 'vision-wp2', usage: { input_tokens: 111, output_tokens: 22 }, latencyMs: 9 });
+      }
+      if (request.taskName === 'ticket_need_representation') {
+        needCalls += 1;
+        return structuredJsonSuccess({
+          intent: 'résoudre le blocage de connexion Oracle ORA-28000',
+          language: 'fr',
+          entities: { applications: ['Oracle'], modules: [], screens: ['Login'], equipment: [], services: [] },
+          symptoms: ['compte verrouillé'],
+          exact_codes: [{ value: 'ORA-28000', kind: 'error_code', source: 'screenshot' }],
+          actions_attempted: [],
+          context: {},
+          constraints: { positive: ['connexion Oracle'], negative: [] },
+          evidence_refs: ['screen-1'],
+          warnings: [],
+          confidence: 0.86,
+        }, { providerId: 'openai', model: 'need-wp2', usage: { input_tokens: 333, output_tokens: 44 }, latencyMs: 13 });
+      }
+      throw new Error(`Unexpected LLM task ${request.taskName}`);
+    },
+  };
+  const evidenceExtractor = new AiTicketEvidenceExtractionService(
+    llmClient as any,
+    { get: async () => ({ llm_supports_vision: true }) } as any,
+  );
+  const needBuilder = new AiTicketNeedRepresentationService(llmClient as any);
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    { requireSingleEnabledTarget: async () => glpiReadSafeTarget() } as any,
+    { getApplicability: async () => ({ available: true }) } as any,
+    queue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    needBuilder,
+    evidenceExtractor,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  return { calls, context, result, stores, visionCalls, needCalls, runId };
+}
+
+async function testGlpiTriageChargesNeedRepresentationAndEvidenceUsage() {
+  const { stores, visionCalls, needCalls, runId, result } = await runWp2LlmAccountingTriage();
+
+  assert.equal(visionCalls, 1);
+  assert.equal(needCalls, 1);
+  const run = (stores.get(AiRun.name) ?? []).find((candidate: AiRun) => candidate.id === runId);
+  assert.ok(run);
+  assert.deepEqual((run.usage_json as any).evidence_extraction, {
+    input_tokens: 111,
+    output_tokens: 22,
+    estimated_tokens: 133,
+  });
+  assert.deepEqual((run.usage_json as any).need_representation, {
+    input_tokens: 333,
+    output_tokens: 44,
+    estimated_tokens: 377,
+  });
+  assert.equal((run.cost_json as any).evidence_extraction.estimated_cost_eur, 0.000266);
+  assert.equal((run.cost_json as any).need_representation.estimated_cost_eur, 0.000754);
+  const steps = stores.get(AiRunStep.name) ?? [];
+  assert.equal(steps.some((step: AiRunStep) => step.kind === 'evidence_extraction' && step.status === 'completed'), true);
+  assert.equal(steps.some((step: AiRunStep) => step.kind === 'need_representation' && step.status === 'completed'), true);
+  assert.equal((result.diagnostic.knowledge_need_representation as any).usage.input_tokens, 333);
+  assert.equal((result.diagnostic.ticket_image_extraction as any).usage.output_tokens, 22);
+}
+
+async function testGlpiTriageSkipsNeedRepresentationAndEvidenceWhenProjectedOverCap() {
+  const { stores, visionCalls, needCalls, runId, result } = await runWp2LlmAccountingTriage({ perRunTokenCap: 5200 });
+
+  assert.equal(visionCalls, 0);
+  assert.equal(needCalls, 0);
+  const run = (stores.get(AiRun.name) ?? []).find((candidate: AiRun) => candidate.id === runId);
+  assert.ok(run);
+  assert.equal(Object.prototype.hasOwnProperty.call(run.usage_json as any, 'evidence_extraction'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(run.usage_json as any, 'need_representation'), false);
+  const evidenceStep = (stores.get(AiRunStep.name) ?? []).find((step: AiRunStep) => step.kind === 'evidence_extraction');
+  const needStep = (stores.get(AiRunStep.name) ?? []).find((step: AiRunStep) => step.kind === 'need_representation');
+  assert.equal(evidenceStep?.status, 'skipped');
+  assert.equal((evidenceStep?.output_summary as any).skipped_reason, 'vision_projected_over_per_run_cap');
+  assert.equal(needStep?.status, 'skipped');
+  assert.equal((needStep?.output_summary as any).fallback_reason, 'need_representation_projected_over_per_run_cap');
+  assert.equal((result.diagnostic.ticket_image_extraction as any).skipped_reason, 'vision_projected_over_per_run_cap');
+  assert.match((result.diagnostic.knowledge_need_representation as any).warnings.join('\n'), /projected over/i);
 }
 
 // #47 exact: the action planner is unavailable (deterministic fallback) AND reply synthesis
@@ -11840,6 +12085,8 @@ async function run() {
   await testGlpiTriageUsesProviderNoteTimeToBlockRepeatFollowups();
   await testReplySynthesisServiceFiltersSourcesAndDowngradesUngroundedAnswers();
   await testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument();
+  await testGlpiTriageChargesNeedRepresentationAndEvidenceUsage();
+  await testGlpiTriageSkipsNeedRepresentationAndEvidenceWhenProjectedOverCap();
   await testGlpiTriageFallbackFailsClosedWhenSynthesisFails();
   await testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis();
   await testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb();

@@ -194,7 +194,8 @@ function lifecycleTransitionSummaries(lifecycle: unknown): Array<{
 }
 
 function estimateTokens(value: unknown): number {
-  return Math.ceil(JSON.stringify(value).length / 4);
+  // Keep the margin aligned with synthesis: multilingual text and JSON overhead undercount at /4.
+  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
 }
 
 export function estimateActionPlannerUsage(input: {

@@ -182,7 +182,8 @@ function operatingContextLeakDetected(input: {
 }
 
 function estimateTokens(value: unknown): number {
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 4));
+  // French/German text plus JSON overhead underestimates token counts with the old /4 heuristic.
+  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
 }
 
 export function estimateReplySynthesisUsage(input: unknown, maxOutputTokens = MAX_SYNTHESIS_OUTPUT_TOKENS): {

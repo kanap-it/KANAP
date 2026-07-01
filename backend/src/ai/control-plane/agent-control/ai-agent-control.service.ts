@@ -117,10 +117,12 @@ import {
 } from './ai-shared-context-profile.service';
 import {
   AiTicketEvidenceExtractionService,
+  estimateTicketEvidenceExtractionUsage,
   TicketEvidenceExtractionResult,
 } from './ai-ticket-evidence-extraction.service';
 import {
   AiTicketNeedRepresentationService,
+  estimateTicketNeedRepresentationUsage,
   TicketNeedRepresentationBuildResult,
 } from './ai-ticket-need-representation.service';
 import { KnowledgeQueryDerivation } from './ai-ticket-need-representation.types';
@@ -1100,6 +1102,10 @@ function serializeKnowledgeNeedRepresentation(result: TicketNeedRepresentationBu
   return {
     source: result.source,
     model: result.model,
+    usage: result.usage,
+    estimated_tokens: result.estimated_tokens,
+    estimated_cost_eur: result.estimated_cost_eur,
+    latency_ms: result.latency_ms,
     warnings: result.warnings,
     need: result.need,
   };
@@ -1123,6 +1129,11 @@ function serializeTicketImageExtraction(result: TicketEvidenceExtractionResult):
     evidence: result.evidence,
     warnings: result.warnings,
     skipped_reason: result.skippedReason,
+    model: result.model,
+    usage: result.usage,
+    estimated_tokens: result.estimated_tokens,
+    estimated_cost_eur: result.estimated_cost_eur,
+    latency_ms: result.latency_ms,
   };
 }
 
@@ -2955,6 +2966,64 @@ export class AiAgentControlService {
     }));
   }
 
+  private async recordNeedRepresentationRunStep(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      stepIndex: number;
+      status: 'completed' | 'skipped' | 'failed';
+      inputSummary: Record<string, unknown>;
+      outputSummary: Record<string, unknown>;
+      errorMessage?: string | null;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
+      tenant_id: context.tenantId,
+      run_id: input.runId,
+      step_index: input.stepIndex,
+      kind: 'need_representation',
+      status: input.status,
+      capability_name: 'ticket_need_representation',
+      capability_version: '1.0.0',
+      input_summary: input.inputSummary,
+      output_summary: input.outputSummary,
+      error_message: input.errorMessage ?? null,
+      started_at: now,
+      completed_at: now,
+      created_at: now,
+    }));
+  }
+
+  private async recordEvidenceExtractionRunStep(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      stepIndex: number;
+      status: 'completed' | 'skipped' | 'failed';
+      inputSummary: Record<string, unknown>;
+      outputSummary: Record<string, unknown>;
+      errorMessage?: string | null;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
+      tenant_id: context.tenantId,
+      run_id: input.runId,
+      step_index: input.stepIndex,
+      kind: 'evidence_extraction',
+      status: input.status,
+      capability_name: 'ticket_image_evidence_extraction',
+      capability_version: '1.0.0',
+      input_summary: input.inputSummary,
+      output_summary: input.outputSummary,
+      error_message: input.errorMessage ?? null,
+      started_at: now,
+      completed_at: now,
+      created_at: now,
+    }));
+  }
+
   private async recordSynthesisUsage(
     context: AiExecutionContextWithManager,
     input: {
@@ -2982,6 +3051,72 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       synthesis: {
         estimated_cost_eur: input.synthesis.estimated_cost_eur,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
+  }
+
+  private async recordNeedRepresentationUsage(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      needRepresentation: TicketNeedRepresentationBuildResult;
+    },
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: input.runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      need_representation: {
+        input_tokens: input.needRepresentation.usage?.input_tokens ?? null,
+        output_tokens: input.needRepresentation.usage?.output_tokens ?? null,
+        estimated_tokens: input.needRepresentation.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      need_representation: {
+        estimated_cost_eur: input.needRepresentation.estimated_cost_eur,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
+  }
+
+  private async recordEvidenceExtractionUsage(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      evidenceExtraction: TicketEvidenceExtractionResult;
+    },
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: input.runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      evidence_extraction: {
+        input_tokens: input.evidenceExtraction.usage?.input_tokens ?? null,
+        output_tokens: input.evidenceExtraction.usage?.output_tokens ?? null,
+        estimated_tokens: input.evidenceExtraction.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      evidence_extraction: {
+        estimated_cost_eur: input.evidenceExtraction.estimated_cost_eur,
       },
     };
     run.updated_at = new Date();
@@ -5567,48 +5702,149 @@ export class AiAgentControlService {
       ].filter((entry) => typeof entry === 'string' && entry.trim().length > 0).join('\n\n'),
     };
 
-    const ticketImageExtraction: TicketEvidenceExtractionResult = this.ticketEvidenceExtractor
-      ? await this.ticketEvidenceExtractor.extractImageEvidence(context, {
+    const preKnowledgeRunCapSnapshot = {
+      ticket,
+      ticket_history_entry_count: ticketTimeline.length,
+      ticket_notes: ticketNotesData.notes,
+      classification_context: classificationContext,
+      lifecycle_context: lifecycleContext,
+      routing_context: routingContext,
+      participant_context: participantContext,
+    };
+    const preKnowledgeGuardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
+    const plannerSystemPrompt = compileSystemPrompt(RUNTIME_SAFETY_FLOOR_PLANNER, promptRuntime.plannerGuidance);
+    let ticketImageExtraction: TicketEvidenceExtractionResult = {
+      attachmentRefs: [
+        ...(ticket.attachments ?? []),
+        ...ticketNotesData.notes.flatMap((note) => note.attachments ?? []),
+      ],
+      evidence: [],
+      warnings: [],
+      skippedReason: null,
+      model: null,
+      usage: null,
+      estimated_tokens: 0,
+      estimated_cost_eur: 0,
+      latency_ms: 0,
+    };
+    if (this.ticketEvidenceExtractor) {
+      const evidenceProjection = estimateTicketEvidenceExtractionUsage({
+        systemPrompt: plannerSystemPrompt,
         ticket,
         notes: ticketNotesData.notes,
-        profile: promptRuntime.plannerGuidance,
-        readAttachment: async (ref) => {
-          const result = await this.dispatcher.execute<AdapterResultLike<TicketAttachmentReadResult>>(context, {
-            capabilityName: TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
-            input: {
-              provider_key: target.provider_key,
-              ticket_id: target.external_ref,
-              target: ref.target,
-              source: ref.source,
-              ...(ref.sourceNoteId ? { source_note_id: ref.sourceNoteId } : {}),
-            },
-            execution: {
-              surface: 'internal',
-              trigger_kind: 'internal',
-              runId: ticketResult.run_id,
-              stepIndex: stepIndex++,
-              metadata: {
-                ...baseMetadata,
-                triage_action: 'read_ticket_attachment',
-                attachment_id: ref.id,
-                attachment_source: ref.source,
-                attachment_source_note_id: ref.sourceNoteId ?? null,
-              },
+        maxImages: this.ticketEvidenceExtractor.maxImageCount(),
+      }, this.ticketEvidenceExtractor.maxOutputTokens());
+      const evidenceInputSummary = {
+        attachment_count: evidenceProjection.attachmentCount,
+        projected_image_call_count: evidenceProjection.imageCallCount,
+        projected_tokens: evidenceProjection.estimatedTokens,
+        projected_cost_eur: evidenceProjection.estimatedCostEur,
+        prompt_profile: promptRuntime.promptProfileSummary,
+      };
+      const evidenceBaseUsageEstimate = estimateAgentRunUsage(preKnowledgeRunCapSnapshot);
+      if (
+        evidenceProjection.imageCallCount > 0
+        && preKnowledgeGuardrails
+        && (
+          evidenceBaseUsageEstimate.estimatedTokens + evidenceProjection.estimatedTokens > preKnowledgeGuardrails.maxEstimatedTokens
+          || evidenceBaseUsageEstimate.estimatedCostEur + evidenceProjection.estimatedCostEur > preKnowledgeGuardrails.maxEstimatedCostEur
+        )
+      ) {
+        ticketImageExtraction = {
+          ...ticketImageExtraction,
+          warnings: [`${evidenceProjection.attachmentCount} screenshot(s) not analyzed: projected over the per-run LLM usage cap.`],
+          skippedReason: 'vision_projected_over_per_run_cap',
+        };
+        await this.recordEvidenceExtractionRunStep(context, {
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: evidenceInputSummary,
+          outputSummary: {
+            skipped_reason: ticketImageExtraction.skippedReason,
+            base_estimated_tokens: evidenceBaseUsageEstimate.estimatedTokens,
+            base_estimated_cost_eur: evidenceBaseUsageEstimate.estimatedCostEur,
+            cap: preKnowledgeGuardrails,
+          },
+        });
+      } else {
+        const evidenceStepIndex = evidenceProjection.attachmentCount > 0 ? stepIndex++ : null;
+        try {
+          ticketImageExtraction = await this.ticketEvidenceExtractor.extractImageEvidence(context, {
+            ticket,
+            notes: ticketNotesData.notes,
+            profile: promptRuntime.plannerGuidance,
+            readAttachment: async (ref) => {
+              const result = await this.dispatcher.execute<AdapterResultLike<TicketAttachmentReadResult>>(context, {
+                capabilityName: TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
+                input: {
+                  provider_key: target.provider_key,
+                  ticket_id: target.external_ref,
+                  target: ref.target,
+                  source: ref.source,
+                  ...(ref.sourceNoteId ? { source_note_id: ref.sourceNoteId } : {}),
+                },
+                execution: {
+                  surface: 'internal',
+                  trigger_kind: 'internal',
+                  runId: ticketResult.run_id,
+                  stepIndex: stepIndex++,
+                  metadata: {
+                    ...baseMetadata,
+                    triage_action: 'read_ticket_attachment',
+                    attachment_id: ref.id,
+                    attachment_source: ref.source,
+                    attachment_source_note_id: ref.sourceNoteId ?? null,
+                  },
+                },
+              });
+              allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
+              return adapterData<TicketAttachmentReadResult>(result.output);
             },
           });
-          allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
-          return adapterData<TicketAttachmentReadResult>(result.output);
-        },
-      })
-      : {
-        attachmentRefs: [
-          ...(ticket.attachments ?? []),
-          ...ticketNotesData.notes.flatMap((note) => note.attachments ?? []),
-        ],
-        evidence: [],
-        warnings: [],
-        skippedReason: null,
-    };
+          if (ticketImageExtraction.estimated_tokens > 0) {
+            await this.recordEvidenceExtractionUsage(context, {
+              runId: ticketResult.run_id,
+              evidenceExtraction: ticketImageExtraction,
+            });
+          }
+          if (evidenceStepIndex != null) {
+            await this.recordEvidenceExtractionRunStep(context, {
+              runId: ticketResult.run_id,
+              stepIndex: evidenceStepIndex,
+              status: ticketImageExtraction.skippedReason && ticketImageExtraction.estimated_tokens === 0 ? 'skipped' : 'completed',
+              inputSummary: evidenceInputSummary,
+              outputSummary: {
+                evidence_count: ticketImageExtraction.evidence.length,
+                warning_count: ticketImageExtraction.warnings.length,
+                skipped_reason: ticketImageExtraction.skippedReason,
+                model: ticketImageExtraction.model,
+                tokens: ticketImageExtraction.estimated_tokens,
+                cost_eur: ticketImageExtraction.estimated_cost_eur,
+                latency_ms: ticketImageExtraction.latency_ms,
+              },
+            });
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error || 'vision extraction failed');
+          ticketImageExtraction = {
+            ...ticketImageExtraction,
+            warnings: [`${ticketImageExtraction.attachmentRefs.length} screenshot(s) not analyzed: ${message.slice(0, 180)}.`],
+            skippedReason: 'vision_call_error',
+          };
+          if (evidenceStepIndex != null) {
+            await this.recordEvidenceExtractionRunStep(context, {
+              runId: ticketResult.run_id,
+              stepIndex: evidenceStepIndex,
+              status: 'failed',
+              inputSummary: evidenceInputSummary,
+              outputSummary: { skipped_reason: ticketImageExtraction.skippedReason },
+              errorMessage: message,
+            });
+          }
+        }
+      }
+    }
 
     let knowledgeNeedRepresentation: TicketNeedRepresentationBuildResult | null = null;
     const fallbackPreferenceTerms = extractKnowledgePreferenceTerms(ticketTimeline).positiveTerms;
@@ -5627,12 +5863,93 @@ export class AiAgentControlService {
       warnings: ['Legacy lexical query derivation used because the ticket need builder is not available.'],
     };
     if (this.ticketNeedBuilder) {
-      knowledgeNeedRepresentation = await this.ticketNeedBuilder.buildNeedRepresentation(context, {
+      const needInput = {
         ticket,
         timeline: ticketTimeline,
         imageEvidence: ticketImageExtraction.evidence,
         profile: promptRuntime.plannerGuidance,
+      };
+      const needPayload = this.ticketNeedBuilder.buildPromptPayload(needInput);
+      const needProjection = estimateTicketNeedRepresentationUsage({
+        systemPrompt: plannerSystemPrompt,
+        userPayload: needPayload,
+      }, this.ticketNeedBuilder.maxOutputTokens());
+      const needInputSummary = {
+        image_evidence_count: ticketImageExtraction.evidence.length,
+        projected_tokens: needProjection.estimatedTokens,
+        projected_cost_eur: needProjection.estimatedCostEur,
+        prompt_profile: promptRuntime.promptProfileSummary,
+      };
+      const needBaseUsageEstimate = estimateAgentRunUsage({
+        ...preKnowledgeRunCapSnapshot,
+        ticket_image_extraction: serializeTicketImageExtraction(ticketImageExtraction),
       });
+      if (
+        process.env.AI_AGENT_NEED_BUILDER_LLM !== '0'
+        && preKnowledgeGuardrails
+        && (
+          needBaseUsageEstimate.estimatedTokens + needProjection.estimatedTokens > preKnowledgeGuardrails.maxEstimatedTokens
+          || needBaseUsageEstimate.estimatedCostEur + needProjection.estimatedCostEur > preKnowledgeGuardrails.maxEstimatedCostEur
+        )
+      ) {
+        knowledgeNeedRepresentation = this.ticketNeedBuilder.buildDeterministicNeedRepresentation(needInput, [
+          'Need builder skipped: projected over the per-run LLM usage cap.',
+        ]);
+        await this.recordNeedRepresentationRunStep(context, {
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: needInputSummary,
+          outputSummary: {
+            fallback_reason: 'need_representation_projected_over_per_run_cap',
+            base_estimated_tokens: needBaseUsageEstimate.estimatedTokens,
+            base_estimated_cost_eur: needBaseUsageEstimate.estimatedCostEur,
+            cap: preKnowledgeGuardrails,
+          },
+        });
+      } else {
+        const needStepIndex = process.env.AI_AGENT_NEED_BUILDER_LLM === '0' ? null : stepIndex++;
+        try {
+          knowledgeNeedRepresentation = await this.ticketNeedBuilder.buildNeedRepresentation(context, needInput);
+          if (knowledgeNeedRepresentation.estimated_tokens > 0) {
+            await this.recordNeedRepresentationUsage(context, {
+              runId: ticketResult.run_id,
+              needRepresentation: knowledgeNeedRepresentation,
+            });
+          }
+          if (needStepIndex != null) {
+            await this.recordNeedRepresentationRunStep(context, {
+              runId: ticketResult.run_id,
+              stepIndex: needStepIndex,
+              status: knowledgeNeedRepresentation.estimated_tokens > 0 ? 'completed' : 'skipped',
+              inputSummary: needInputSummary,
+              outputSummary: {
+                source: knowledgeNeedRepresentation.source,
+                warning_count: knowledgeNeedRepresentation.warnings.length,
+                model: knowledgeNeedRepresentation.model,
+                tokens: knowledgeNeedRepresentation.estimated_tokens,
+                cost_eur: knowledgeNeedRepresentation.estimated_cost_eur,
+                latency_ms: knowledgeNeedRepresentation.latency_ms,
+              },
+            });
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error || 'Need representation failed.');
+          knowledgeNeedRepresentation = this.ticketNeedBuilder.buildDeterministicNeedRepresentation(needInput, [
+            `Need builder unavailable: ${message.slice(0, 220)}`,
+          ]);
+          if (needStepIndex != null) {
+            await this.recordNeedRepresentationRunStep(context, {
+              runId: ticketResult.run_id,
+              stepIndex: needStepIndex,
+              status: 'failed',
+              inputSummary: needInputSummary,
+              outputSummary: { fallback_reason: 'need_representation_error' },
+              errorMessage: message,
+            });
+          }
+        }
+      }
       knowledgeQueryDerivation = this.ticketNeedBuilder.deriveKnowledgeQueries({
         need: knowledgeNeedRepresentation.need,
         fallbackTitle: ticket.title,
@@ -5876,6 +6193,9 @@ export class AiAgentControlService {
       lifecycle_context: lifecycleContext,
       routing_context: routingContext,
       participant_context: participantContext,
+      ticket_image_extraction: serializeTicketImageExtraction(ticketImageExtraction),
+      knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
+      knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
       knowledge_query_candidates: knowledgeQueryCandidates,
       knowledge_candidate_count: mergedKnowledgeCandidates.length,
       knowledge_low_relevance_count: knowledgeLowRelevance.length,
@@ -7130,6 +7450,7 @@ export class AiAgentControlService {
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
         knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
         knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
+        ticket_image_extraction: serializeTicketImageExtraction(ticketImageExtraction),
         ticket_image_evidence: ticketImageExtraction.evidence,
         ticket_image_evidence_warnings: ticketImageExtraction.warnings,
         ticket_image_evidence_skipped_reason: ticketImageExtraction.skippedReason,
