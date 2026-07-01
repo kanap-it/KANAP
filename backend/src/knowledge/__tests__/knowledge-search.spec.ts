@@ -20,6 +20,7 @@ import { DocumentVersion } from '../document-version.entity';
 import { Document } from '../document.entity';
 import { IntegratedDocumentBinding } from '../integrated-document-binding.entity';
 import { KnowledgeService } from '../knowledge.service';
+import { bilingualDocumentTsQueryAnyTermSql, normalizeDocumentAnyTermQuery } from '../../common/document-search-tsquery';
 
 async function setCurrentTenant(runner: any, tenantId: string) {
   await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
@@ -355,6 +356,76 @@ async function testKnowledgeSearchHandlesStopWordOnlyQuery() {
   );
 }
 
+function testAnyTermTsQueryDoesNotBroadenNegation() {
+  const sql = bilingualDocumentTsQueryAnyTermSql('$1');
+  assert.match(sql, /replace\(/);
+  assert.match(sql, /'&', '\|'/);
+  assert.match(sql, /LIKE '%!%'/);
+}
+
+function testAnyTermQueryNormalizationDropsWeakWords() {
+  assert.equal(
+    normalizeDocumentAnyTermQuery('pour faire plaisir à mes collègues. De préférence une recette du Sud, c\'est l\'été'),
+    'plaisir collegues preference recette sud ete',
+  );
+  assert.equal(normalizeDocumentAnyTermQuery('des'), 'des');
+}
+
+async function testKnowledgeSearchAnyTermModeFindsStrongPartialMatch() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+
+  try {
+    const service = createKnowledgeService(runner.manager);
+    const [targetDoc, weakDoc, exactDecoy, unrelatedDoc] = await seedSearchFixture(runner, [
+      {
+        title: 'Administration SQL Server',
+        summary: 'Activation du Query Store',
+        contentPlain: '4. Activation du Query Store dans SQL Server. Ouvrir les propriétés de la base et activer Query Store.',
+      },
+      {
+        title: 'New server inventory',
+        summary: 'Server setup',
+        contentPlain: 'Ajouter un nouveau serveur dans le parc.',
+      },
+      {
+        title: 'Guide activer query store SQL Server',
+        summary: 'Document minimal',
+        contentPlain: 'Stub temporaire contenant tous les mots de la requête.',
+      },
+      {
+        title: 'Plaid settings',
+        summary: 'Agent workspace',
+        contentPlain: 'Configuration des agents.',
+      },
+    ]);
+
+    const anyResult = await service.search(
+      { q: 'activer query store SQL Server guide', limit: 10, offset: 0, matchMode: 'any' },
+      { manager: runner.manager },
+    );
+    const anyIds = anyResult.items.map((item: any) => item.id);
+    assert.equal(anyIds.includes(targetDoc), true);
+    assert.equal(anyIds.includes(weakDoc), true);
+    assert.equal(anyIds.includes(unrelatedDoc), false);
+    const targetScore = Number(anyResult.items.find((item: any) => item.id === targetDoc)?.score ?? 0);
+    const weakScore = Number(anyResult.items.find((item: any) => item.id === weakDoc)?.score ?? 0);
+    assert.equal(targetScore > weakScore, true);
+
+    const andResult = await service.search(
+      { q: 'activer query store SQL Server guide', limit: 10, offset: 0 },
+      { manager: runner.manager },
+    );
+    const andIds = andResult.items.map((item: any) => item.id);
+    assert.equal(andIds.includes(exactDecoy), true);
+    assert.equal(andIds.includes(targetDoc), false);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function testLinkOptionsSearchesBeyondInitialPage() {
   const runner = dataSource.createQueryRunner();
   await runner.connect();
@@ -438,6 +509,9 @@ async function run() {
     await testKnowledgeSearchStillMatchesItemReference();
     await testKnowledgeSearchIlikeFallbackCatchesNonLexemeMatches();
     await testKnowledgeSearchHandlesStopWordOnlyQuery();
+    testAnyTermTsQueryDoesNotBroadenNegation();
+    testAnyTermQueryNormalizationDropsWeakWords();
+    await testKnowledgeSearchAnyTermModeFindsStrongPartialMatch();
     await testLinkOptionsSearchesBeyondInitialPage();
   } finally {
     await dataSource.destroy();

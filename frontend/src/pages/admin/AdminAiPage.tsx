@@ -65,6 +65,7 @@ type AiSettingsForm = {
   mcp_key_max_lifetime_days: string | number;
   conversation_retention_days: string | number;
   web_search_enabled: boolean;
+  llm_supports_vision: boolean;
   glpi_enabled: boolean;
   glpi_url: string;
   glpi_user_token: string;
@@ -82,6 +83,7 @@ const EMPTY_FORM: AiSettingsForm = {
   mcp_key_max_lifetime_days: '',
   conversation_retention_days: '',
   web_search_enabled: false,
+  llm_supports_vision: true,
   glpi_enabled: false,
   glpi_url: '',
   glpi_user_token: '',
@@ -118,6 +120,7 @@ function buildSettingsForm(settings: AiSettingsPayload['settings']): AiSettingsF
     mcp_key_max_lifetime_days: settings.mcp_key_max_lifetime_days ?? '',
     conversation_retention_days: settings.conversation_retention_days ?? '',
     web_search_enabled: settings.web_search_enabled,
+    llm_supports_vision: settings.llm_supports_vision ?? true,
     glpi_enabled: settings.glpi_enabled,
     glpi_url: settings.glpi_url || '',
     glpi_user_token: '',
@@ -158,6 +161,10 @@ function buildSettingsUpdatePayload(
 
   if (form.web_search_enabled !== settings.web_search_enabled) {
     payload.web_search_enabled = form.web_search_enabled;
+  }
+
+  if (form.llm_supports_vision !== settings.llm_supports_vision) {
+    payload.llm_supports_vision = form.llm_supports_vision;
   }
 
   if (form.glpi_enabled !== settings.glpi_enabled) {
@@ -726,6 +733,19 @@ export default function AdminAiPage() {
                         ) : null}
                       </>
                     )}
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.llm_supports_vision}
+                          onChange={(event) => setForm((prev) => ({ ...prev, llm_supports_vision: event.target.checked }))}
+                        />
+                      }
+                      label={t('aiAdmin.provider.fields.multimodal')}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: -1, ml: 4, display: 'block' }}>
+                      {t('aiAdmin.provider.multimodalHelper')}
+                    </Typography>
 
                     <Divider />
 

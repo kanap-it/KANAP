@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { In } from 'typeorm';
 import { z } from 'zod';
 import { KnowledgeService } from '../../../knowledge/knowledge.service';
 import { BraveSearchResult, BraveSearchService } from '../../web-search/brave-search.service';
@@ -56,6 +57,7 @@ import {
   TICKETING_ROUTING_CONTEXT_CAPABILITY,
   TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
   TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from './capability-contract';
 import {
@@ -499,6 +501,7 @@ function providerReadContract(input: {
   provider_kind: CapabilityProviderKind;
   input_schema: Record<string, unknown>;
   business_resources: string[];
+  redaction_policy?: { fields: string[] };
 }): CapabilityContract {
   return CapabilityContractSchema.parse({
     name: input.name,
@@ -527,7 +530,7 @@ function providerReadContract(input: {
     idempotency: { mode: 'idempotent', key_fields: ['provider_key'] },
     rollback: { supported: false },
     cost: { estimated_unit_cost: null, metered: false },
-    redaction_policy: { fields: [] },
+    redaction_policy: input.redaction_policy ?? { fields: [] },
     mcp_exposure: { enabled: false, read_only: false },
     live_test_safety: 'live_read',
     compatibility: { ai_tool_name: null },
@@ -1118,6 +1121,31 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       },
     }),
     providerReadContract({
+      name: TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
+      description: 'Read one ticket attachment through a ticketing provider adapter.',
+      category: 'provider_ticketing',
+      provider_kind: 'ticketing',
+      business_resources: ['tickets', 'attachments'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          ticket_id: { type: 'string', minLength: 1 },
+          target: { type: 'string', minLength: 1 },
+          source: { type: 'string', enum: ['ticket_description', 'ticket_note'] },
+          source_note_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['ticket_id', 'target'],
+        additionalProperties: false,
+      },
+      // No redaction_policy on base64Data: this read capability MUST return the image bytes to the
+      // caller (the vision extractor needs them), and the dispatcher returns the redacted output —
+      // so redacting base64Data here would break vision. Persisted evidence stays byte-free via the
+      // provider's adapter evidence seed (see GlpiTicketingProvider.readTicketAttachment), which is
+      // the actual control. The previous `{ fields: ['base64Data'] }` was a no-op (nested path
+      // `data.base64Data` never matched the leaf field) and is intentionally removed.
+    }),
+    providerReadContract({
       name: TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
       description: 'Read normalized ticket classification context through a ticketing provider adapter.',
       category: 'provider_ticketing',
@@ -1669,6 +1697,13 @@ function metadataProviderResultNoteId(value: unknown): string | null {
   return stringMetadataField(providerResult, 'note_id');
 }
 
+function approvedBatchActionRequestIds(value: unknown): string[] {
+  const metadata = isRecord(value) ? value : null;
+  const batch = isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
+  const rawIds = Array.isArray(batch?.action_request_ids) ? batch.action_request_ids : [];
+  return rawIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+}
+
 function ticketNoteTime(note: TicketNote): number | null {
   const value = note.updatedAt ?? note.createdAt;
   if (!value) {
@@ -1926,6 +1961,7 @@ export class AiCapabilityRegistry {
         q: parsed.data.query,
         offset: parsed.data.offset,
         limit: parsed.data.limit,
+        matchMode: 'any',
         ...(parsed.data.library_ids && parsed.data.library_ids.length > 0 ? { library_ids: parsed.data.library_ids } : {}),
       },
       { manager: context.manager, userId: context.userId },
@@ -1938,6 +1974,9 @@ export class AiCapabilityRegistry {
         summary: item.summary ?? null,
         status: item.status,
         snippet: item.snippet ?? null,
+        score: Number.isFinite(Number(item.score ?? item.rank))
+          ? Number(item.score ?? item.rank)
+          : null,
         library: {
           id: item.library_id ?? null,
           name: item.library_name ?? null,
@@ -2113,6 +2152,15 @@ export class AiCapabilityRegistry {
         const provider = await this.providers.ticketing(context, providerKey(rawInput));
         return provider.listTicketNotes(context, { ticketId: stringField(rawInput, 'ticket_id') });
       }
+      case TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY: {
+        const provider = await this.providers.ticketing(context, providerKey(rawInput));
+        return provider.readTicketAttachment(context, {
+          ticketId: stringField(rawInput, 'ticket_id'),
+          target: stringField(rawInput, 'target'),
+          source: optionalStringField(rawInput, 'source') as any,
+          sourceNoteId: optionalStringField(rawInput, 'source_note_id'),
+        });
+      }
       case TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY: {
         const provider = await this.providers.ticketing(context, providerKey(rawInput));
         return provider.getTicketClassificationContext(context, { ticketId: stringField(rawInput, 'ticket_id') });
@@ -2259,7 +2307,6 @@ export class AiCapabilityRegistry {
       context,
       action,
       current.data,
-      options,
     );
     if (sameRunSiblings) {
       action.metadata_json = {
@@ -2346,11 +2393,7 @@ export class AiCapabilityRegistry {
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
     ticket: TicketRecord,
-    options: { terminal?: boolean } = {},
   ): Promise<AiActionRequest[] | null> {
-    if (options.terminal === true) {
-      return null;
-    }
     const siblings = await this.sameRunExecutedSiblingActions(context, action);
     if (siblings.length === 0) {
       return null;
@@ -2373,12 +2416,60 @@ export class AiCapabilityRegistry {
     return siblings;
   }
 
+  private async refreshApprovedBatchSiblingBaselines(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    ticket: TicketRecord,
+  ): Promise<void> {
+    const batchIds = approvedBatchActionRequestIds(action.metadata_json)
+      .filter((id) => id !== action.id);
+    if (batchIds.length === 0) {
+      return;
+    }
+    const repo = context.manager.getRepository(AiActionRequest);
+    const siblings = await repo.find({
+      where: {
+        tenant_id: context.tenantId,
+        id: In(batchIds),
+        status: In(['pending', 'approved']),
+      },
+    });
+    if (siblings.length === 0) {
+      return;
+    }
+    const updatedAt = ticketFreshnessUpdatedAt(ticket);
+    const hash = ticketFreshnessHash(ticket);
+    const now = new Date();
+    for (const sibling of siblings) {
+      sibling.metadata_json = {
+        ...(isRecord(sibling.metadata_json) ? sibling.metadata_json : {}),
+        proposal_ticket_updated_at: updatedAt,
+        proposal_ticket_hash: hash,
+        approved_batch_baseline_refresh: {
+          source_action_request_id: action.id,
+          refreshed_at: now.toISOString(),
+          ticket_updated_at: updatedAt,
+        },
+      };
+      sibling.updated_at = now;
+      await repo.save(sibling);
+    }
+  }
+
   private async recordPostWriteTargetBaseline(
     context: AiExecutionContextWithManager,
     provider: TicketingProvider,
     action: AiActionRequest,
   ): Promise<void> {
-    if (!this.agentQueue || !action.target_ref) {
+    if (!action.target_ref) {
+      return;
+    }
+    const ticket = await provider.getTicket(context, { ticketId: action.target_ref });
+    if (ticket.ok === false) {
+      return;
+    }
+    await this.refreshApprovedBatchSiblingBaselines(context, action, ticket.data);
+    if (!this.agentQueue) {
       return;
     }
     const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
@@ -2393,10 +2484,6 @@ export class AiCapabilityRegistry {
       },
     });
     if (!definition) {
-      return;
-    }
-    const ticket = await provider.getTicket(context, { ticketId: action.target_ref });
-    if (ticket.ok === false) {
       return;
     }
     await this.agentQueue.upsertTargetState(context, {

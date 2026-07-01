@@ -208,6 +208,11 @@ export class AnthropicAiProviderAdapter implements AiProviderAdapter {
           input_tokens: finalMessage.usage?.input_tokens ?? 0,
           output_tokens: finalMessage.usage?.output_tokens ?? 0,
         },
+        // Normalise Anthropic's stop_reason to the OpenAI-style finish_reason the
+        // structured-JSON helper inspects: a max_tokens stop is a length truncation.
+        finish_reason: finalMessage.stop_reason === 'max_tokens'
+          ? 'length'
+          : (finalMessage.stop_reason ?? undefined),
       };
     } catch (error) {
       if (params.signal?.aborted || isAbortError(error)) {

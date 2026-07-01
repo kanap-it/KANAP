@@ -39,6 +39,12 @@ export class AiSettings {
   @Column('boolean', { default: false })
   web_search_enabled!: boolean;
 
+  // Whether the tenant's default LLM (shared with Plaid chat) can analyze images. Drives
+  // best-effort screenshot evidence extraction for agents. Default TRUE ("multimodal by
+  // default"); turn off in the admin GUI for a known text-only model to skip the wasted call.
+  @Column('boolean', { default: true })
+  llm_supports_vision!: boolean;
+
   @Column('boolean', { default: false })
   glpi_enabled!: boolean;
 

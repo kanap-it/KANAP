@@ -1069,22 +1069,26 @@ async function testGetEntityCommentsDelegatesToEntityTools() {
 }
 
 async function testSearchKnowledgeMapsStableDto() {
+  const calls: unknown[] = [];
   const registry = createRegistry({
     knowledge: {
-      search: async () => ({
-        total: 1,
-        items: [{
-          id: 'doc-1',
-          item_number: 14,
-          title: 'AI Guide',
-          summary: 'Tenant-safe knowledge',
-          status: 'published',
-          snippet: 'Stable DTO snippet',
-          library_id: 'lib-1',
-          library_name: 'Operations',
-          updated_at: '2026-03-16T08:00:00.000Z',
-        }],
-      }),
+      search: async (query: unknown) => {
+        calls.push(query);
+        return {
+          total: 1,
+          items: [{
+            id: 'doc-1',
+            item_number: 14,
+            title: 'AI Guide',
+            summary: 'Tenant-safe knowledge',
+            status: 'published',
+            snippet: 'Stable DTO snippet',
+            library_id: 'lib-1',
+            library_name: 'Operations',
+            updated_at: '2026-03-16T08:00:00.000Z',
+          }],
+        };
+      },
     },
     policy: {
       listReadableEntityTypes: async () => ['documents'],
@@ -1100,6 +1104,7 @@ async function testSearchKnowledgeMapsStableDto() {
   assert.equal(result.items[0].ref, 'DOC-14');
   assert.equal(result.items[0].library.name, 'Operations');
   assert.equal(result.complete, false);
+  assert.equal((calls[0] as any).matchMode, 'any');
 }
 
 async function testSearchKnowledgeAppliesDefaultLimit() {
@@ -1121,6 +1126,7 @@ async function testSearchKnowledgeAppliesDefaultLimit() {
     q: 'runbook',
     offset: 0,
     limit: 20,
+    matchMode: 'any',
   }]);
 }
 

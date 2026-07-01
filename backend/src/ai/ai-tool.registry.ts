@@ -434,7 +434,7 @@ export class AiToolRegistry {
           execute: async (context, input) => {
             await this.policy.assertKnowledgeReadAccess(context, context.manager);
             const result = await this.knowledge.search(
-              { q: input.query, offset: input.offset, limit: input.limit },
+              { q: input.query, offset: input.offset, limit: input.limit, matchMode: 'any' },
               { manager: context.manager, userId: context.userId },
             );
             return {
@@ -445,6 +445,9 @@ export class AiToolRegistry {
                 summary: item.summary ?? null,
                 status: item.status,
                 snippet: item.snippet ?? null,
+                score: Number.isFinite(Number(item.score ?? item.rank))
+                  ? Number(item.score ?? item.rank)
+                  : null,
                 library: {
                   id: item.library_id ?? null,
                   name: item.library_name ?? null,

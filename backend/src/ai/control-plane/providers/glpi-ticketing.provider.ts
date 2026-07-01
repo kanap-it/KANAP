@@ -30,6 +30,8 @@ import {
   TicketRoutingTarget,
   TicketStatusUpdateActionPayload,
   TicketingProvider,
+  TicketAttachmentReadResult,
+  TicketAttachmentRef,
   TicketNote,
   TicketRecord,
   TicketListScope,
@@ -373,6 +375,39 @@ function mapError<T>(error: unknown): AdapterResult<T> {
   return providerError<T>('provider_unavailable', message, true);
 }
 
+function attachmentIdFromTarget(target: string, source: TicketAttachmentRef['source'], sourceNoteId: string | null, index: number): string | null {
+  const docId = String(target || '').match(/[?&]docid=(\d+)/i)?.[1]
+    ?? String(target || '').match(/\/Document\/(\d+)/i)?.[1]
+    ?? null;
+  if (docId) return docId;
+  return sourceNoteId ? `${sourceNoteId}:${index + 1}` : `${source}:${index + 1}`;
+}
+
+function filenameFromTarget(target: string): string | null {
+  const clean = String(target || '').split(/[?#]/)[0] ?? '';
+  const last = clean.split('/').filter(Boolean).pop();
+  return last || null;
+}
+
+function toTicketAttachmentRef(
+  target: string,
+  source: TicketAttachmentRef['source'],
+  opts: { sourceNoteId?: string | null; sourceUri?: string | null; index: number },
+): TicketAttachmentRef {
+  return {
+    id: attachmentIdFromTarget(target, source, opts.sourceNoteId ?? null, opts.index),
+    kind: 'image',
+    source,
+    sourceNoteId: opts.sourceNoteId ?? null,
+    target,
+    sourceUri: opts.sourceUri ?? null,
+    filename: filenameFromTarget(target),
+    mimeType: null,
+    sizeBytes: null,
+    altText: null,
+  };
+}
+
 function toTicketRecord(ticket: GlpiTicket): TicketRecord {
   // No nowIso() fallback: an undated ticket must fail the ingestion horizon
   // check (parseDateMs('') -> null -> out of scope) instead of appearing new.
@@ -395,6 +430,10 @@ function toTicketRecord(ticket: GlpiTicket): TicketRecord {
       entityId: ticket.entity_id == null ? null : String(ticket.entity_id),
       categoryId: ticket.category_id == null ? null : String(ticket.category_id),
     },
+    attachments: ticket.image_targets.map((target, index) => toTicketAttachmentRef(target, 'ticket_description', {
+      sourceUri: ticket.glpi_url,
+      index,
+    })),
   };
 }
 
@@ -488,6 +527,10 @@ function toTicketNote(note: GlpiTicketFollowup, requesterUserIds: Set<number>): 
       updatedAt,
       stableTextHash(body),
     ].join(':'),
+    attachments: note.image_targets.map((target, index) => toTicketAttachmentRef(target, 'ticket_note', {
+      sourceNoteId: String(note.id),
+      index,
+    })),
   };
 }
 
@@ -660,6 +703,49 @@ export class GlpiTicketingProvider implements TicketingProvider {
           })),
         }),
       ], requesterUserIds.size > 0 ? undefined : ['glpi_requester_user_not_available_for_note_classification']);
+    });
+  }
+
+  async readTicketAttachment(
+    context: ProviderContext,
+    input: { ticketId: string; target: string; source?: TicketAttachmentRef['source'] | null; sourceNoteId?: string | null },
+  ): Promise<AdapterResult<TicketAttachmentReadResult>> {
+    const ticketId = normalizeTicketId(input.ticketId);
+    if (!ticketId) {
+      return providerError<TicketAttachmentReadResult>('malformed_config', 'GLPI ticket id must be a positive integer.', false);
+    }
+    const target = String(input.target || '').trim();
+    if (!target) {
+      return providerError<TicketAttachmentReadResult>('malformed_config', 'GLPI attachment target is required.', false);
+    }
+    const source = input.source === 'ticket_note' ? 'ticket_note' : 'ticket_description';
+    return this.withSession(context, async (session) => {
+      const document = await this.glpi.fetchDocument(session, target);
+      const attachment = toTicketAttachmentRef(target, source, {
+        sourceNoteId: input.sourceNoteId ?? null,
+        index: 0,
+      });
+      attachment.filename = document.filename;
+      attachment.mimeType = document.mimeType;
+      attachment.sizeBytes = document.buffer.length;
+      const data: TicketAttachmentReadResult = {
+        attachment,
+        filename: document.filename,
+        mimeType: document.mimeType,
+        sizeBytes: document.buffer.length,
+        base64Data: document.buffer.toString('base64'),
+      };
+      return ok(data, [
+        evidenceSeed('ticket_attachment', attachment.id ?? target, `GLPI ticket ${ticketId} attachment ${attachment.id ?? target}.`, {
+          ticketId,
+          attachment: {
+            ...attachment,
+            sizeBytes: document.buffer.length,
+            mimeType: document.mimeType,
+            filename: document.filename,
+          },
+        }),
+      ]);
     });
   }
 

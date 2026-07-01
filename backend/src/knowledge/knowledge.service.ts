@@ -19,7 +19,7 @@ import { ItemNumberService } from '../common/item-number.service';
 import { DocumentImportService, ImportedDocumentResult } from '../common/document-import.service';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { markdownToSearchText } from '../common/markdown-search-text';
-import { bilingualDocumentTsQuerySql } from '../common/document-search-tsquery';
+import { bilingualDocumentTsQueryAnyTermSql, bilingualDocumentTsQuerySql, normalizeDocumentAnyTermQuery } from '../common/document-search-tsquery';
 import { DocumentExportService } from '../common/document-export.service';
 import { BulkDeleteResult } from '../common/delete.types';
 import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
@@ -5121,11 +5121,19 @@ export class KnowledgeService {
       return { items: [], total: 0, offset, limit, truncated: false };
     }
 
-    const params: Array<string | number | string[]> = [search.term, `%${search.term}%`];
+    const matchMode = query?.matchMode === 'any' ? 'any' : 'and';
+    const tsQueryTerm = matchMode === 'any' ? normalizeDocumentAnyTermQuery(search.term) : search.term;
+    const params: Array<string | number | string[]> = [tsQueryTerm, `%${search.term}%`];
+    const tsQuerySql = matchMode === 'any'
+      ? bilingualDocumentTsQueryAnyTermSql('$1')
+      : bilingualDocumentTsQuerySql('$1');
+    const rankSql = `ts_rank_cd(d.search_vector, ${tsQuerySql})`;
     // No content_markdown ILIKE here: it forces a seq scan over the largest
     // column and content_plain carries the same visible text.
     const searchClauses = [
-      `d.search_vector @@ ${bilingualDocumentTsQuerySql('$1')}`,
+      matchMode === 'any'
+        ? `(d.search_vector @@ ${tsQuerySql} AND ${rankSql} > 0)`
+        : `d.search_vector @@ ${tsQuerySql}`,
       `d.title ILIKE $2`,
       `COALESCE(d.summary, '') ILIKE $2`,
       `COALESCE(d.content_plain, '') ILIKE $2`,
@@ -5163,8 +5171,8 @@ export class KnowledgeService {
               dl.name AS library_name,
               CASE WHEN d.title ILIKE $2 THEN 1 ELSE 0 END AS title_match,
               COUNT(*) OVER()::int AS total_count,
-              ts_rank_cd(d.search_vector, ${bilingualDocumentTsQuerySql('$1')}) AS rank,
-              ts_headline('kanap_fr', coalesce(d.content_plain, ''), ${bilingualDocumentTsQuerySql('$1')},
+              ${rankSql} AS rank,
+              ts_headline('kanap_fr', coalesce(d.content_plain, ''), ${tsQuerySql},
                 'MaxFragments=2, MinWords=8, MaxWords=20') AS snippet
        FROM documents d
        LEFT JOIN document_libraries dl ON dl.id = d.library_id AND dl.tenant_id = d.tenant_id
@@ -5240,6 +5248,7 @@ export class KnowledgeService {
       items: rows.map((row: any) => ({
         ...row,
         item_ref: `DOC-${row.item_number}`,
+        score: Number(row.rank ?? row.score ?? 0),
       })),
       total,
       offset,

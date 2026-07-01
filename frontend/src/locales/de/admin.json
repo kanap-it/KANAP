@@ -123,8 +123,10 @@
         "apiKey": "API-Schlüssel",
         "endpointUrl": "Endpunkt-URL",
         "model": "Modell",
+        "multimodal": "Multimodales LLM",
         "provider": "Anbieter"
       },
+      "multimodalHelper": "Aktivieren, wenn das Standardmodell Bilder analysieren kann (z. B. Ticket-Screenshots). Deaktivieren, wenn das Modell nur Text unterstützt.",
       "builtinUsage": {
         "cta": "Use your own API keys for unlimited usage.",
         "description": "Built-in usage is shared across chat and MCP requests for this tenant.",

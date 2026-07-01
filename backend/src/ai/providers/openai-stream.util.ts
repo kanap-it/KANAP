@@ -344,7 +344,7 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
           };
           return;
         }
-        yield { type: 'done', usage: toUsage(chunk.usage) };
+        yield { type: 'done', usage: toUsage(chunk.usage), finish_reason: 'length' };
         emittedDone = true;
         continue;
       }
@@ -370,6 +370,7 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
         yield {
           type: 'done',
           usage: toUsage(chunk.usage),
+          finish_reason: choice.finish_reason,
         };
         emittedDone = true;
       }

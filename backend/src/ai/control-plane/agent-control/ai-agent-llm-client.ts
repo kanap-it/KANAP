@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiSecretCipherService } from '../../ai-secret-cipher.service';
 import { AiSettingsService } from '../../ai-settings.service';
 import { PlatformAiConfigService } from '../../platform/platform-ai-config.service';
 import { AiProviderRegistry } from '../../providers/ai-provider-registry.service';
-import { AiProviderAdapter, AiProviderId, AiStreamEvent } from '../../providers/ai-provider.types';
+import { AiProviderAdapter, AiProviderId, AiProviderImageAttachment, AiStreamEvent } from '../../providers/ai-provider.types';
 
 export type AgentLlmRuntime = {
   source: 'builtin' | 'custom';
@@ -20,7 +21,59 @@ export type AgentJsonModelResult = {
   runtime: AgentLlmRuntime;
   usage: { input_tokens: number; output_tokens: number } | null;
   latencyMs: number;
+  // Provider finish reason for the completion ('length' = truncated at max_tokens,
+  // 'stop' = natural end, etc.). null when the provider did not report one.
+  finishReason: string | null;
 };
+
+export type AgentStructuredJsonFailureKind = 'empty_body' | 'invalid_json' | 'schema_invalid' | 'truncated';
+
+export type AgentStructuredJsonFailure = {
+  kind: AgentStructuredJsonFailureKind;
+  message: string;
+};
+
+export type AgentStructuredJsonAttempt = {
+  attempt: number;
+  text: string | null;
+  usage: AgentJsonModelResult['usage'];
+  latencyMs: number;
+  failure: AgentStructuredJsonFailure | null;
+};
+
+export type AgentStructuredJsonMetadata = {
+  taskName: string;
+  retry_attempted: boolean;
+  json_parse_failed: boolean;
+  json_retry_attempted: boolean;
+  json_retry_failed: boolean;
+  attempts: AgentStructuredJsonAttempt[];
+  failure: AgentStructuredJsonFailure | null;
+};
+
+export type AgentStructuredJsonModelSuccess<T> = {
+  ok: true;
+  value: T;
+  text: string;
+  runtime: AgentLlmRuntime;
+  usage: AgentJsonModelResult['usage'];
+  latencyMs: number;
+  metadata: AgentStructuredJsonMetadata;
+};
+
+export type AgentStructuredJsonModelFailure = {
+  ok: false;
+  value: null;
+  text: string | null;
+  runtime: AgentLlmRuntime | null;
+  usage: AgentJsonModelResult['usage'];
+  latencyMs: number;
+  metadata: AgentStructuredJsonMetadata;
+};
+
+export type AgentStructuredJsonModelResult<T> =
+  | AgentStructuredJsonModelSuccess<T>
+  | AgentStructuredJsonModelFailure;
 
 export function stripJsonFence(value: string): string {
   const trimmed = value.trim();
@@ -37,6 +90,64 @@ export function stripJsonFence(value: string): string {
 function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(String(value ?? '').trim(), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function aggregateUsage(
+  left: AgentJsonModelResult['usage'],
+  right: AgentJsonModelResult['usage'],
+): AgentJsonModelResult['usage'] {
+  if (!left) return right;
+  if (!right) return left;
+  return {
+    input_tokens: left.input_tokens + right.input_tokens,
+    output_tokens: left.output_tokens + right.output_tokens,
+  };
+}
+
+function formatStructuredJsonError(error: unknown): AgentStructuredJsonFailure {
+  if (error instanceof SyntaxError) {
+    return { kind: 'invalid_json', message: error.message };
+  }
+  if (error instanceof z.ZodError) {
+    return { kind: 'schema_invalid', message: error.issues.slice(0, 4).map((issue) => issue.message).join('; ') };
+  }
+  return { kind: 'invalid_json', message: error instanceof Error ? error.message : String(error || 'Invalid JSON.') };
+}
+
+function parseStructuredJson<T>(text: string, schema: z.ZodType<T>): { value: T } | { failure: AgentStructuredJsonFailure } {
+  const normalized = stripJsonFence(text);
+  if (!normalized.trim()) {
+    return { failure: { kind: 'empty_body', message: 'Model returned an empty JSON body.' } };
+  }
+  try {
+    return { value: schema.parse(JSON.parse(normalized)) };
+  } catch (error) {
+    return { failure: formatStructuredJsonError(error) };
+  }
+}
+
+// When a parse fails AND the provider reported finish_reason=length, the real cause is
+// max_tokens truncation (the model never got to emit/close its JSON), not a malformed
+// response — relabel it explicitly so logs and audit metadata name the actual problem
+// and operators know to raise the token budget rather than chase a "bad model" ghost.
+function annotateTruncation<T>(
+  parsed: { value: T } | { failure: AgentStructuredJsonFailure },
+  finishReason: string | null,
+  maxTokens: number,
+  taskName: string,
+): { value: T } | { failure: AgentStructuredJsonFailure } {
+  if ('value' in parsed || finishReason !== 'length') {
+    return parsed;
+  }
+  if (parsed.failure.kind !== 'empty_body' && parsed.failure.kind !== 'invalid_json') {
+    return parsed;
+  }
+  return {
+    failure: {
+      kind: 'truncated',
+      message: `Model output truncated at max_tokens=${maxTokens} (finish_reason=length) for task "${taskName}"; increase the token budget for this call.`,
+    },
+  };
 }
 
 @Injectable()
@@ -85,12 +196,14 @@ export class AiAgentLlmClient {
     input: {
       systemPrompt: string;
       userPayload: Record<string, unknown>;
+      runtime?: AgentLlmRuntime | null;
+      images?: AiProviderImageAttachment[] | null;
       maxTokens: number;
       timeoutEnvName: string;
       defaultTimeoutMs: number;
     },
   ): Promise<AgentJsonModelResult | null> {
-    const runtime = await this.resolveRuntime(context);
+    const runtime = input.runtime === undefined ? await this.resolveRuntime(context) : input.runtime;
     if (!runtime) return null;
 
     const timeoutMs = parsePositiveIntEnv(process.env[input.timeoutEnvName], input.defaultTimeoutMs);
@@ -99,6 +212,7 @@ export class AiAgentLlmClient {
     const started = Date.now();
     let text = '';
     let usage: AgentJsonModelResult['usage'] = null;
+    let finishReason: string | null = null;
     try {
       const stream = runtime.provider.createStream({
         providerId: runtime.providerId as AiProviderId,
@@ -109,6 +223,7 @@ export class AiAgentLlmClient {
         messages: [{
           role: 'user',
           content: JSON.stringify(input.userPayload),
+          images: input.images ?? null,
         }],
         tools: [],
         maxTokens: input.maxTokens,
@@ -124,6 +239,7 @@ export class AiAgentLlmClient {
             break;
           case 'done':
             usage = event.usage ?? usage;
+            finishReason = event.finish_reason ?? finishReason;
             break;
           case 'error':
             throw new Error(event.message || 'Model stream returned an error.');
@@ -134,15 +250,126 @@ export class AiAgentLlmClient {
     } finally {
       clearTimeout(timer);
     }
-    const normalized = text.trim();
-    if (!normalized) {
-      throw new Error('Model returned empty JSON.');
-    }
     return {
-      text: normalized,
+      text: text.trim(),
       runtime,
       usage,
       latencyMs: Date.now() - started,
+      finishReason,
+    };
+  }
+
+  async callStructuredJsonModel<T>(
+    context: AiExecutionContextWithManager,
+    input: {
+      taskName: string;
+      systemPrompt: string;
+      userPayload: Record<string, unknown>;
+      schema: z.ZodType<T>;
+      runtime?: AgentLlmRuntime | null;
+      images?: AiProviderImageAttachment[] | null;
+      maxTokens: number;
+      // Optional env var to override maxTokens at runtime (e.g. when a verbose/reasoning
+      // model truncates with finish_reason=length). Falls back to maxTokens when unset.
+      maxTokensEnvName?: string;
+      timeoutEnvName: string;
+      defaultTimeoutMs: number;
+    },
+  ): Promise<AgentStructuredJsonModelResult<T> | null> {
+    const attempts: AgentStructuredJsonAttempt[] = [];
+    let usage: AgentJsonModelResult['usage'] = null;
+    let totalLatencyMs = 0;
+    let runtime: AgentLlmRuntime | null = null;
+    let text: string | null = null;
+    let lastFailure: AgentStructuredJsonFailure | null = null;
+    const effectiveMaxTokens = input.maxTokensEnvName
+      ? parsePositiveIntEnv(process.env[input.maxTokensEnvName], input.maxTokens)
+      : input.maxTokens;
+
+    for (let index = 0; index < 2; index += 1) {
+      const attempt = index + 1;
+      const response = await this.callJsonModel(context, {
+        systemPrompt: input.systemPrompt,
+        userPayload: attempt === 1
+          ? input.userPayload
+          : {
+            ...input.userPayload,
+            repair_instruction: 'return only JSON matching the schema, no prose, no markdown',
+            previous_format_error: lastFailure,
+          },
+        maxTokens: effectiveMaxTokens,
+        runtime: input.runtime,
+        images: input.images,
+        timeoutEnvName: input.timeoutEnvName,
+        defaultTimeoutMs: input.defaultTimeoutMs,
+      });
+      if (!response) {
+        return null;
+      }
+      runtime = response.runtime;
+      text = response.text;
+      usage = aggregateUsage(usage, response.usage);
+      totalLatencyMs += response.latencyMs;
+
+      const parsed = annotateTruncation(
+        parseStructuredJson(response.text, input.schema),
+        response.finishReason,
+        effectiveMaxTokens,
+        input.taskName,
+      );
+      if ('value' in parsed) {
+        attempts.push({
+          attempt,
+          text: response.text,
+          usage: response.usage,
+          latencyMs: response.latencyMs,
+          failure: null,
+        });
+        return {
+          ok: true,
+          value: parsed.value,
+          text: response.text,
+          runtime: response.runtime,
+          usage,
+          latencyMs: totalLatencyMs,
+          metadata: {
+            taskName: input.taskName,
+            retry_attempted: attempt > 1,
+            json_parse_failed: attempts.some((entry) => !!entry.failure),
+            json_retry_attempted: attempt > 1,
+            json_retry_failed: false,
+            attempts,
+            failure: null,
+          },
+        };
+      }
+
+      lastFailure = parsed.failure;
+      attempts.push({
+        attempt,
+        text: response.text,
+        usage: response.usage,
+        latencyMs: response.latencyMs,
+        failure: parsed.failure,
+      });
+    }
+
+    return {
+      ok: false,
+      value: null,
+      text,
+      runtime,
+      usage,
+      latencyMs: totalLatencyMs,
+      metadata: {
+        taskName: input.taskName,
+        retry_attempted: attempts.length > 1,
+        json_parse_failed: attempts.some((entry) => !!entry.failure),
+        json_retry_attempted: attempts.length > 1,
+        json_retry_failed: true,
+        attempts,
+        failure: lastFailure,
+      },
     };
   }
 }

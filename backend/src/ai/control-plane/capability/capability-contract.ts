@@ -6,6 +6,7 @@ export const TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY = 'ticketing.ticket
 export const TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY = 'ticketing.ticket.public_reply.prepare';
 export const TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY = 'ticketing.ticket.public_reply.add_approved';
 export const TICKETING_TICKET_NOTES_LIST_CAPABILITY = 'ticketing.ticket.notes.list';
+export const TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY = 'ticketing.ticket.attachment.read';
 export const TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY = 'ticketing.ticket.classification_context.get';
 export const TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY = 'ticketing.ticket.classification_update.prepare';
 export const TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY = 'ticketing.ticket.classification_update.approved';

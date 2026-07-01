@@ -87,6 +87,7 @@ class UnavailableTicketingProvider extends UnavailableProvider implements Ticket
   async getTicket() { return this.unavailable<any>(); }
   async searchSimilarTickets() { return this.unavailable<any>(); }
   async listTicketNotes() { return this.unavailable<any>(); }
+  async readTicketAttachment() { return this.unavailable<any>(); }
   async listTicketsForScope() { return this.unavailable<any>(); }
   async describeReferenceEnums() { return this.unavailable<any>(); }
   async searchReferenceCatalog() { return this.unavailable<any>(); }

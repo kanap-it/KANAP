@@ -44,6 +44,7 @@ import {
   TICKETING_ROUTING_CONTEXT_CAPABILITY,
   TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
   TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+  TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../capability/capability-contract';
 import { AiCapabilityDispatcherService } from '../dispatcher/ai-capability-dispatcher.service';
@@ -67,17 +68,34 @@ import { AiRunStep } from '../entities/ai-run-step.entity';
 import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
-import { RefItem, TicketRecord, TicketReferenceCatalogKind } from '../providers/provider.types';
+import {
+  RefItem,
+  TicketAttachmentReadResult,
+  TicketAttachmentRef,
+  TicketRecord,
+  TicketReferenceCatalogKind,
+} from '../providers/provider.types';
 import {
   AiAgentPromptCompilerService,
   CompiledAgentProfile,
   CompiledGuidance,
   compileSystemPrompt,
   guidanceHash,
+  RUNTIME_SAFETY_FLOOR_ACTION_PLANNER,
   RUNTIME_SAFETY_FLOOR_INTERPRETER,
   RUNTIME_SAFETY_FLOOR_PLANNER,
   RUNTIME_SAFETY_FLOOR_SYNTHESIS,
+  VerbatimCandidate,
 } from './ai-agent-prompt-compiler.service';
+import {
+  ActionPlannerResult,
+  ActionPlannerPromptInput,
+  AiAgentActionPlannerService,
+  estimateActionPlannerUsage,
+  PHASE_1_PLANNER_OWNED_ACTION_TYPES,
+  PlannerAction,
+  PlannerActionType,
+} from './ai-agent-action-planner.service';
 import {
   AiKnowledgeSearchPlannerService,
   KnowledgePlannerCandidate,
@@ -96,6 +114,15 @@ import {
   SharedContextProfileInput,
   SharedContextResolution,
 } from './ai-shared-context-profile.service';
+import {
+  AiTicketEvidenceExtractionService,
+  TicketEvidenceExtractionResult,
+} from './ai-ticket-evidence-extraction.service';
+import {
+  AiTicketNeedRepresentationService,
+  TicketNeedRepresentationBuildResult,
+} from './ai-ticket-need-representation.service';
+import { KnowledgeQueryDerivation } from './ai-ticket-need-representation.types';
 
 export type AgentControlListRunsOptions = {
   limit?: number;
@@ -176,6 +203,15 @@ export type AgentControlTargetingPreviewInput = {
   scope_policy_json?: Record<string, unknown> | null;
 };
 
+export type AgentControlBulkApproveInput = {
+  action_request_ids?: string[] | null;
+  execute?: boolean | null;
+};
+
+type AgentControlBulkApproveOptions = {
+  queueExecution?: boolean;
+};
+
 type AdapterResultLike<T> =
   | { ok: true; data: T; evidence?: unknown[]; warnings?: string[] }
   | { ok: false; errorCode: string; message: string; retryable: boolean; evidence?: unknown[] };
@@ -188,6 +224,7 @@ type TicketLike = {
   description?: string | null;
   updatedAt?: string | null;
   updated_at?: string | null;
+  attachments?: TicketAttachmentRef[];
 };
 
 type TicketNoteLike = {
@@ -200,6 +237,7 @@ type TicketNoteLike = {
   createdAt: string;
   updatedAt?: string | null;
   updateFingerprint?: string | null;
+  attachments?: TicketAttachmentRef[];
 };
 
 type TicketTimelineEntry = {
@@ -218,8 +256,12 @@ type TicketTimelineEntry = {
 type ConversationActionGate = {
   can_prepare_internal_note: boolean;
   can_prepare_public_reply: boolean;
+  can_prepare_sourced_answer: boolean;
+  can_prepare_administrative_close_reply: boolean;
   internal_note_reason: string;
   public_reply_reason: string;
+  sourced_answer_reason: string;
+  administrative_close_reply_reason: string;
   latest_requester_message_at: string | null;
   latest_requester_message_id: string | null;
   last_agent_internal_note_at: string | null;
@@ -244,6 +286,11 @@ type KnowledgeSearchItem = {
   content_markdown?: string | null;
   status?: string | null;
   updated_at?: string | null;
+  score?: number | null;
+  // 'selected' = validated by the LLM interpreter; 'unvalidated' = retrieved but not validated
+  // (LLM-fallback path), handed to synthesis as a candidate to judge. Set when presenting items
+  // for the reply; absent for raw search/merge candidates. See applyKnowledgeInterpretation (#3).
+  validation_status?: 'selected' | 'unvalidated' | null;
 };
 
 type KnowledgeSearchAttempt = {
@@ -260,6 +307,7 @@ type WebSearchResultItem = {
 
 type MergedKnowledgeCandidate = KnowledgeSearchItem & {
   search_queries: string[];
+  match_count?: number;
 };
 
 type KnowledgeDocumentFetchAttempt = {
@@ -286,6 +334,14 @@ const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
   TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
 ];
+const HELPDESK_BULK_APPROVE_ACTION_ORDER = new Map<string, number>([
+  [TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY, 10],
+  [TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, 20],
+  [TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, 30],
+  [TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY, 40],
+  [TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, 50],
+  [TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY, 60],
+]);
 const AUTONOMY_ACTION_CLASSES = ['internal_note', 'classification', 'status', 'public_reply', 'assignment', 'participant'] as const;
 const AUTONOMY_RECOMMENDATION_REASON_CODES = new Set([
   'INSUFFICIENT_DECIDED_PROPOSALS',
@@ -320,6 +376,36 @@ const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
 ]);
 const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
 const CLOSE_TRIAGE_ACTIONS = new Set(['prepare_close', 'prepare_close_reply']);
+const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>(PHASE_1_PLANNER_OWNED_ACTION_TYPES);
+const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed']);
+const MIN_KNOWLEDGE_RELEVANCE_SCORE = 0.00001;
+const MIN_KNOWLEDGE_LEXICAL_OVERLAP = 1;
+const ACTION_TYPE_CAPABILITY_TABLE: Record<PlannerActionType, { prepare: string; approved: string }> = {
+  internal_note: {
+    prepare: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    approved: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+  },
+  requester_reply: {
+    prepare: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
+    approved: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  },
+  status_update: {
+    prepare: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+    approved: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+  },
+  classification_update: {
+    prepare: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
+    approved: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  },
+  assignment_update: {
+    prepare: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
+    approved: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  },
+  participant_update: {
+    prepare: TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
+    approved: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+  },
+};
 const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
@@ -537,7 +623,7 @@ function extractKnowledgePhrases(value: string): string[] {
   return phrases;
 }
 
-function extractKnowledgeTokens(value: string): string[] {
+function extractKnowledgeTokens(value: string, maxTokens = 8): string[] {
   const normalized = normalizeKnowledgeText(value)
     .toLocaleLowerCase()
     .replace(/[^\p{L}\p{N}'-]+/gu, ' ');
@@ -555,7 +641,7 @@ function extractKnowledgeTokens(value: string): string[] {
       }
       seen.add(cleaned);
       tokens.push(cleaned);
-      if (tokens.length >= 8) {
+      if (tokens.length >= maxTokens) {
         return tokens;
       }
     }
@@ -579,7 +665,6 @@ function buildKnowledgeQueryCandidates(ticket: TicketLike): string[] {
   const tokens = extractKnowledgeTokens(sourceText);
   return uniqueKnowledgeCandidates([
     ...extractKnowledgePhrases(sourceText),
-    ...buildSemanticKnowledgeFallbacks(sourceText),
     tokens.slice(0, 4).join(' '),
     tokens.slice(0, 6).join(' '),
     ticket.title,
@@ -587,32 +672,39 @@ function buildKnowledgeQueryCandidates(ticket: TicketLike): string[] {
   ]);
 }
 
-function stripKnowledgeAccents(value: string): string {
-  return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+function buildShortKnowledgeQueryCandidates(ticket: TicketLike): string[] {
+  const sourceText = [
+    ticket.title,
+    ticket.description,
+  ].filter((entry) => !!entry).join(' ');
+  const tokens = extractKnowledgeTokens(sourceText, 24);
+  return uniqueKnowledgeCandidates([
+    ...extractKnowledgePhrases(sourceText),
+    tokens.slice(0, 4).join(' '),
+    tokens.slice(0, 6).join(' '),
+    tokens.slice(-4).join(' '),
+    tokens.slice(-6).join(' '),
+    extractKnowledgeTokens(ticket.title ?? '').slice(0, 5).join(' '),
+  ]);
 }
 
-function buildSemanticKnowledgeFallbacks(value: string): string[] {
-  const normalized = stripKnowledgeAccents(normalizeKnowledgeText(value)).toLocaleLowerCase();
-  const candidates: string[] = [];
-  const asksRecipe = /\brecette\b/.test(normalized);
-  const asksSweet = /\b(sucre|sucree|sucr|sweet)\b/.test(normalized);
-  const asksDessert = /\b(dessert|gateau|cake|cheesecake)\b/.test(normalized);
+function buildWebSearchQueryCandidates(
+  ticket: TicketLike,
+  timeline: TicketTimelineEntry[],
+  knowledgeCandidates: string[],
+): string[] {
+  return uniqueKnowledgeCandidates([
+    latestRequesterBody(timeline) ?? '',
+    ticket.description ?? '',
+    buildKnowledgeQuery(ticket),
+    ...knowledgeCandidates,
+    ...buildKnowledgeQueryCandidates(ticket),
+    ticket.title ?? '',
+  ]);
+}
 
-  if (asksRecipe && asksSweet) {
-    candidates.push('recette sucrée', 'recette sucre', 'recette dessert', 'dessert sucré', 'sucre', 'dessert');
-  } else if (asksSweet) {
-    candidates.push('sucre', 'dessert sucré', 'dessert');
-  }
-  if (asksRecipe && asksDessert) {
-    candidates.push('recette dessert', 'recette gâteau', 'dessert');
-  }
-  if (asksRecipe) {
-    candidates.push('recette');
-  }
-  return candidates.flatMap((candidate) => {
-    const stripped = stripKnowledgeAccents(candidate);
-    return stripped === candidate ? [candidate] : [candidate, stripped];
-  });
+function stripKnowledgeAccents(value: string): string {
+  return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function latestRequesterBody(timeline: TicketTimelineEntry[]): string | null {
@@ -625,16 +717,10 @@ function extractKnowledgePreferenceTerms(timeline: TicketTimelineEntry[]): {
   negativeTerms: string[];
 } {
   const latest = latestRequesterBody(timeline) ?? '';
-  const normalized = stripKnowledgeAccents(latest).toLocaleLowerCase();
   const positiveTerms: string[] = [];
   const negativeTerms: string[] = [];
 
-  if (/\b(sucre|sucree|sucr|sweet)\b/.test(normalized)) {
-    positiveTerms.push('sucré', 'sucre', 'dessert', 'gâteau');
-  }
-  if (/\b(dessert|gateau|cake|cheesecake)\b/.test(normalized)) {
-    positiveTerms.push('dessert', 'gâteau', 'cake');
-  }
+  positiveTerms.push(...extractKnowledgeTokens(latest, 16));
 
   const negativePattern = /\b(?:je\s+n[' ]?aime\s+pas|j[' ]?aime\s+pas|pas|sans|eviter|éviter|avoid|not)\s+(?:le|la|les|du|de|des|un|une|the|a|an)?\s*([\p{L}\p{N}' -]{3,50})/giu;
   let match: RegExpExecArray | null;
@@ -659,12 +745,13 @@ function buildFallbackKnowledgeSearchPlan(
   const preferences = extractKnowledgePreferenceTerms(timeline);
   return {
     source: 'deterministic',
+    need: null,
     intent: latestRequesterBody(timeline) ?? ticket.title,
     language: ticketLooksFrench(ticket) ? 'fr' : null,
     positive_terms: preferences.positiveTerms,
     negative_terms: preferences.negativeTerms,
     queries,
-    rationale: 'Deterministic fallback extracted requester keywords and semantic search fallbacks.',
+    rationale: 'Deterministic fallback extracted requester lexical keywords.',
     confidence: null,
     model: null,
     warnings: [],
@@ -674,6 +761,10 @@ function buildFallbackKnowledgeSearchPlan(
 function knowledgeItemsFromOutput(value: unknown): KnowledgeSearchItem[] {
   const record = isRecord(value) ? value : null;
   const items = Array.isArray(record?.items) ? record.items : [];
+  const numericScore = (item: Record<string, unknown>): number | null => {
+    const numeric = Number(item.score ?? item.rank);
+    return Number.isFinite(numeric) ? numeric : null;
+  };
   return items
     .filter(isRecord)
     .slice(0, 5)
@@ -686,6 +777,7 @@ function knowledgeItemsFromOutput(value: unknown): KnowledgeSearchItem[] {
       content_markdown: typeof item.content_markdown === 'string' ? item.content_markdown : null,
       status: typeof item.status === 'string' ? item.status : null,
       updated_at: typeof item.updated_at === 'string' ? item.updated_at : null,
+      score: numericScore(item),
     }));
 }
 
@@ -739,6 +831,7 @@ function knowledgeDocumentFromOutput(searchItem: KnowledgeSearchItem, value: unk
     status: typeof value.status === 'string' ? value.status : searchItem.status ?? null,
     updated_at: typeof value.updated_at === 'string' ? value.updated_at : searchItem.updated_at ?? null,
     content_markdown: typeof value.content_markdown === 'string' ? value.content_markdown : searchItem.content_markdown ?? null,
+    score: searchItem.score ?? null,
   };
 }
 
@@ -749,6 +842,10 @@ function knowledgeDocumentRef(item: KnowledgeSearchItem): string | null {
 function knowledgeCandidateKey(item: KnowledgeSearchItem): string | null {
   const ref = knowledgeDocumentRef(item);
   return ref ? ref.toLocaleLowerCase() : null;
+}
+
+function knowledgeScoreSortValue(value: number | null | undefined): number {
+  return Number.isFinite(Number(value)) ? Number(value) : Number.NEGATIVE_INFINITY;
 }
 
 function mergeKnowledgeAttempts(attempts: KnowledgeSearchAttempt[]): MergedKnowledgeCandidate[] {
@@ -765,6 +862,8 @@ function mergeKnowledgeAttempts(attempts: KnowledgeSearchAttempt[]): MergedKnowl
         existing.content_markdown = existing.content_markdown ?? item.content_markdown ?? null;
         existing.status = existing.status ?? item.status ?? null;
         existing.updated_at = existing.updated_at ?? item.updated_at ?? null;
+        const nextScore = Math.max(knowledgeScoreSortValue(existing.score), knowledgeScoreSortValue(item.score));
+        existing.score = nextScore === Number.NEGATIVE_INFINITY ? null : nextScore;
       } else {
         byKey.set(key, {
           ...item,
@@ -773,7 +872,18 @@ function mergeKnowledgeAttempts(attempts: KnowledgeSearchAttempt[]): MergedKnowl
       }
     }
   }
-  return Array.from(byKey.values());
+  return Array.from(byKey.values())
+    .map((candidate) => ({
+      ...candidate,
+      match_count: candidate.search_queries.length,
+    }))
+    .sort((left, right) => {
+      const scoreDelta = knowledgeScoreSortValue(right.score) - knowledgeScoreSortValue(left.score);
+      if (scoreDelta !== 0) return scoreDelta;
+      const matchDelta = (right.match_count ?? right.search_queries.length) - (left.match_count ?? left.search_queries.length);
+      if (matchDelta !== 0) return matchDelta;
+      return String(left.title ?? left.ref ?? left.id ?? '').localeCompare(String(right.title ?? right.ref ?? right.id ?? ''));
+    });
 }
 
 function plannerCandidatesFromKnowledge(candidates: MergedKnowledgeCandidate[]): KnowledgePlannerCandidate[] {
@@ -784,34 +894,139 @@ function plannerCandidatesFromKnowledge(candidates: MergedKnowledgeCandidate[]):
     snippet: candidate.snippet ?? null,
     status: candidate.status ?? null,
     search_queries: candidate.search_queries,
+    match_count: candidate.match_count ?? candidate.search_queries.length,
+    score: candidate.score ?? null,
   }));
 }
 
+// #3 — non-destructive interpreter. `selected` means VALIDATED BY THE LLM INTERPRETER; a lexical
+// heuristic is never a validation. When the interpreter cannot validate (LLM fallback, or LLM
+// returned no usable selection), the retrieved, non-rejected candidates are returned as
+// `unvalidated` — never zeroed (regression #47, where DOC-165 was retrieved but discarded). They
+// are handed to synthesis as candidates to judge and surfaced for human review; they never count
+// as selected sources, and #4 keeps any public reply behind a usable synthesis. `rejected`
+// (interpretation rejections / negative-term conflicts) is always excluded from both.
 function applyKnowledgeInterpretation(
   candidates: MergedKnowledgeCandidate[],
   interpretation: KnowledgeResultInterpretation,
-): KnowledgeSearchItem[] {
+): { selected: KnowledgeSearchItem[]; unvalidated: KnowledgeSearchItem[] } {
   if (candidates.length === 0) {
-    return [];
+    return { selected: [], unvalidated: [] };
   }
-  const selected = new Set(interpretation.selected_refs.map((ref) => ref.toLocaleLowerCase()));
   const rejected = new Set(interpretation.rejected.map((entry) => entry.ref.toLocaleLowerCase()));
-  if (selected.size > 0) {
-    const selectedItems = candidates.filter((candidate) => {
-      const ref = knowledgeDocumentRef(candidate);
-      return !!ref && selected.has(ref.toLocaleLowerCase());
-    });
-    if (selectedItems.length > 0) {
-      return selectedItems;
-    }
-  }
-  if (interpretation.needs_human_review) {
-    return [];
-  }
-  return candidates.filter((candidate) => {
+  const notRejected = candidates.filter((candidate) => {
     const ref = knowledgeDocumentRef(candidate);
     return !ref || !rejected.has(ref.toLocaleLowerCase());
   });
+  if (interpretation.source === 'llm') {
+    const selectedRefs = new Set(interpretation.selected_refs.map((ref) => ref.toLocaleLowerCase()));
+    if (selectedRefs.size > 0) {
+      const selectedItems = notRejected.filter((candidate) => {
+        const ref = knowledgeDocumentRef(candidate);
+        return !!ref && selectedRefs.has(ref.toLocaleLowerCase());
+      });
+      if (selectedItems.length > 0) {
+        return { selected: selectedItems, unvalidated: [] };
+      }
+    }
+  }
+  // No LLM validation: keep the retrieved candidates as unvalidated (already score-sorted by
+  // mergeKnowledgeAttempts). Never return [] when candidates exist.
+  return { selected: [], unvalidated: notRejected };
+}
+
+function knowledgeRelevanceTerms(ticket: TicketLike): string[] {
+  return extractKnowledgeTokens(buildKnowledgeQuery(ticket))
+    .filter((token) => token.length >= 4);
+}
+
+function knowledgeItemLexicalOverlap(item: KnowledgeSearchItem, terms: string[]): number {
+  if (terms.length === 0) return 0;
+  const text = stripKnowledgeAccents(normalizeKnowledgeText([
+    item.title,
+    item.summary,
+    item.snippet,
+    item.content_markdown,
+  ].filter(Boolean).join(' '))).toLocaleLowerCase();
+  return terms.filter((term) => text.includes(stripKnowledgeAccents(term).toLocaleLowerCase())).length;
+}
+
+function filterKnowledgeItemsByRelevance(
+  ticket: TicketLike,
+  items: KnowledgeSearchItem[],
+): {
+  items: KnowledgeSearchItem[];
+  dropped: Array<{ ref: string | null; title: string | null; score: number | null; lexical_overlap: number; reason: string }>;
+} {
+  if (items.length === 0) {
+    return { items, dropped: [] };
+  }
+  const terms = knowledgeRelevanceTerms(ticket);
+  if (terms.length === 0) {
+    return { items, dropped: [] };
+  }
+  const kept: KnowledgeSearchItem[] = [];
+  const dropped: Array<{ ref: string | null; title: string | null; score: number | null; lexical_overlap: number; reason: string }> = [];
+  for (const item of items) {
+    const score = typeof item.score === 'number' && Number.isFinite(item.score) ? item.score : null;
+    const lexicalOverlap = knowledgeItemLexicalOverlap(item, terms);
+    if ((score != null && score >= MIN_KNOWLEDGE_RELEVANCE_SCORE) || lexicalOverlap >= MIN_KNOWLEDGE_LEXICAL_OVERLAP) {
+      kept.push(item);
+      continue;
+    }
+    dropped.push({
+      ref: knowledgeDocumentRef(item),
+      title: item.title ?? null,
+      score,
+      lexical_overlap: lexicalOverlap,
+      reason: 'below_relevance_threshold',
+    });
+  }
+  return { items: kept, dropped };
+}
+
+function plannerKnowledgeSummary(
+  items: KnowledgeSearchItem[],
+  lowRelevanceCount: number,
+  interpretation: KnowledgeResultInterpretation,
+  plan: KnowledgeSearchPlan,
+  queryDerivation: KnowledgeQueryDerivation,
+): NonNullable<ActionPlannerPromptInput['knowledge_summary']> {
+  return {
+    // count = validated (interpreter-selected) sources; unvalidated_count = retrieved-but-
+    // unvalidated candidates the planner may still attempt a sourced answer on (synthesis judges).
+    count: items.filter((item) => item.validation_status !== 'unvalidated').length,
+    unvalidated_count: items.filter((item) => item.validation_status === 'unvalidated').length,
+    low_relevance_count: lowRelevanceCount,
+    items: items.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY).map((item) => ({
+      ref: knowledgeDocumentRef(item),
+      title: item.title ?? null,
+      score: item.score ?? null,
+      validation_status: item.validation_status ?? 'selected',
+      search_queries: Array.isArray((item as MergedKnowledgeCandidate).search_queries)
+        ? (item as MergedKnowledgeCandidate).search_queries.slice(0, 4)
+        : [],
+    })),
+    interpretation: serializeKnowledgeInterpretation(interpretation),
+    need: plan.need ? { ...plan.need } : null,
+    query_derivation: serializeKnowledgeQueryDerivation(queryDerivation),
+  };
+}
+
+function plannerWebSummary(
+  items: WebSearchResultItem[],
+  status: string,
+  query: string | null,
+): NonNullable<ActionPlannerPromptInput['web_summary']> {
+  return {
+    count: items.length,
+    status,
+    query,
+    items: items.slice(0, 5).map((item) => ({
+      title: item.title || item.url,
+      url: item.url,
+    })),
+  };
 }
 
 function buildFallbackKnowledgeInterpretation(
@@ -851,6 +1066,7 @@ function buildFallbackKnowledgeInterpretation(
     source: 'deterministic',
     selected_refs: selectedRefs,
     rejected,
+    facet_match: null,
     needs_human_review: selectedRefs.length === 0,
     confidence: selectedRefs.length > 0 ? 0.58 : 0.34,
     rationale: selectedRefs.length > 0
@@ -864,6 +1080,7 @@ function buildFallbackKnowledgeInterpretation(
 function serializeKnowledgeSearchPlan(plan: KnowledgeSearchPlan): Record<string, unknown> {
   return {
     source: plan.source,
+    need: plan.need,
     intent: plan.intent,
     language: plan.language,
     positive_terms: plan.positive_terms,
@@ -876,11 +1093,43 @@ function serializeKnowledgeSearchPlan(plan: KnowledgeSearchPlan): Record<string,
   };
 }
 
+function serializeKnowledgeNeedRepresentation(result: TicketNeedRepresentationBuildResult | null): Record<string, unknown> | null {
+  if (!result) return null;
+  return {
+    source: result.source,
+    model: result.model,
+    warnings: result.warnings,
+    need: result.need,
+  };
+}
+
+function serializeKnowledgeQueryDerivation(derivation: KnowledgeQueryDerivation): Record<string, unknown> {
+  return {
+    source: derivation.source,
+    queries: derivation.queries,
+    exact_queries: derivation.exact_queries,
+    facet_queries: derivation.facet_queries,
+    fallback_queries: derivation.fallback_queries,
+    dropped_queries: derivation.dropped_queries,
+    warnings: derivation.warnings,
+  };
+}
+
+function serializeTicketImageExtraction(result: TicketEvidenceExtractionResult): Record<string, unknown> {
+  return {
+    attachment_refs: result.attachmentRefs,
+    evidence: result.evidence,
+    warnings: result.warnings,
+    skipped_reason: result.skippedReason,
+  };
+}
+
 function serializeKnowledgeInterpretation(interpretation: KnowledgeResultInterpretation): Record<string, unknown> {
   return {
     source: interpretation.source,
     selected_refs: interpretation.selected_refs,
     rejected: interpretation.rejected,
+    facet_match: interpretation.facet_match ?? null,
     needs_human_review: interpretation.needs_human_review,
     confidence: interpretation.confidence,
     rationale: interpretation.rationale,
@@ -1191,6 +1440,160 @@ function definitionAllowsCapability(definition: AiAgentDefinition, capabilityNam
   });
 }
 
+function allowedCapabilityNames(definition: AiAgentDefinition | null): string[] {
+  if (!definition) return [];
+  const capabilities = Array.isArray(definition.allowed_capabilities_json)
+    ? definition.allowed_capabilities_json
+    : isRecord(definition.allowed_capabilities_json) && Array.isArray(definition.allowed_capabilities_json.capabilities)
+      ? definition.allowed_capabilities_json.capabilities
+      : [];
+  return capabilities
+    .map(capabilityNameFromEntry)
+    .filter((entry): entry is string => !!entry);
+}
+
+function lifecycleAllowedTransitions(lifecycle: Record<string, unknown> | null): Record<string, unknown>[] {
+  return Array.isArray(lifecycle?.allowedTransitions)
+    ? lifecycle.allowedTransitions.filter(isRecord)
+    : [];
+}
+
+function lifecycleTransitionKey(transition: Record<string, unknown> | null | undefined): string | null {
+  return typeof transition?.key === 'string' && transition.key.trim().length > 0
+    ? transition.key.trim()
+    : null;
+}
+
+function normalizePlannerStatusTransitionKey(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const compact = stripKnowledgeAccents(raw)
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+  const aliases: Record<string, string> = {
+    close: 'closed',
+    closing: 'closed',
+    closed: 'closed',
+    closeticket: 'closed',
+    ferme: 'closed',
+    fermer: 'closed',
+    cloture: 'closed',
+    cloturer: 'closed',
+    clotureticket: 'closed',
+    solve: 'solved',
+    solved: 'solved',
+    resolve: 'solved',
+    resolved: 'solved',
+    resoudre: 'solved',
+    resolu: 'solved',
+    pending: 'pending',
+    wait: 'pending',
+    waiting: 'pending',
+    attente: 'pending',
+    pendinguser: 'pending_user',
+    processingassigned: 'processing_assigned',
+    processingplanned: 'processing_planned',
+    escalatedl2: 'escalated_l2',
+  };
+  return aliases[compact] ?? raw.toLocaleLowerCase().replace(/\s+/g, '_');
+}
+
+function lifecycleTransitionByKey(lifecycle: Record<string, unknown> | null, key: string): Record<string, unknown> | null {
+  const normalizedKey = normalizePlannerStatusTransitionKey(key);
+  if (!normalizedKey) return null;
+  return lifecycleAllowedTransitions(lifecycle).find((transition) => lifecycleTransitionKey(transition) === normalizedKey) ?? null;
+}
+
+function preferredTerminalLifecycleTransition(lifecycle: Record<string, unknown> | null): Record<string, unknown> | null {
+  const transitions = lifecycleAllowedTransitions(lifecycle);
+  return transitions.find((transition) => lifecycleTransitionKey(transition) === 'solved')
+    ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'closed')
+    ?? transitions.find((transition) => {
+      const key = lifecycleTransitionKey(transition);
+      return !!key && PLANNER_TERMINAL_TRANSITIONS.has(key);
+    })
+    ?? null;
+}
+
+function plannerStatusTransitionIsTerminal(key: string | null): boolean {
+  return !!key && PLANNER_TERMINAL_TRANSITIONS.has(key);
+}
+
+function resolvePlannerStatusTransition(
+  lifecycle: Record<string, unknown> | null,
+  action: PlannerAction,
+  closeEligible: boolean,
+): { transition: Record<string, unknown> | null; key: string | null; resolution: string | null } {
+  const normalizedKey = normalizePlannerStatusTransitionKey(action.transition_key);
+  if (!normalizedKey) {
+    return { transition: null, key: null, resolution: null };
+  }
+  const directTransition = lifecycleTransitionByKey(lifecycle, normalizedKey);
+  const directKey = lifecycleTransitionKey(directTransition);
+  if (directTransition && directKey) {
+    return {
+      transition: directTransition,
+      key: directKey,
+      resolution: directKey === action.transition_key ? null : 'transition_key_normalized',
+    };
+  }
+  if (closeEligible && plannerStatusTransitionIsTerminal(normalizedKey)) {
+    const terminalTransition = preferredTerminalLifecycleTransition(lifecycle);
+    const terminalKey = lifecycleTransitionKey(terminalTransition);
+    if (terminalTransition && terminalKey) {
+      return {
+        transition: terminalTransition,
+        key: terminalKey,
+        resolution: 'terminal_transition_substituted',
+      };
+    }
+  }
+  return { transition: null, key: normalizedKey, resolution: null };
+}
+
+function plannerActionKindKey(action: PlannerAction): string {
+  if (action.action_type === 'requester_reply') {
+    return `${action.action_type}:${action.reply_kind ?? 'unspecified'}:${action.administrative_intent ?? 'none'}:${action.verbatim_ref ?? 'draft'}`;
+  }
+  if (action.action_type === 'status_update') {
+    return `${action.action_type}:${action.transition_key ?? 'unspecified'}`;
+  }
+  return action.action_type;
+}
+
+// Resolve the planner's verbatim_ref against the trusted candidate set. Tolerant of an
+// LLM that fumbles the ref token: falls back to a case-insensitive ref match, then to
+// normalized-text equality (the natural failure mode is the model echoing the message
+// text instead of the ref). Still strictly bounded to configured candidates — no ticket
+// text can leak in, so the verbatim guarantee holds.
+function resolveVerbatimCandidate(candidates: VerbatimCandidate[], ref: string): VerbatimCandidate | null {
+  const exact = candidates.find((candidate) => candidate.ref === ref);
+  if (exact) return exact;
+  const wanted = ref.trim().toLocaleLowerCase();
+  const byRefInsensitive = candidates.find((candidate) => candidate.ref.toLocaleLowerCase() === wanted);
+  if (byRefInsensitive) return byRefInsensitive;
+  // Tolerate a corrupted ref token (e.g. "verbatim_1-xyz" or a stale hash suffix): match by
+  // the leading verbatim index. This is still strictly an index into the trusted candidate
+  // set, so no ticket text can resolve here.
+  const indexMatch = wanted.match(/^verbatim[_-]?(\d+)/);
+  if (indexMatch) {
+    const candidate = candidates[Number(indexMatch[1]) - 1];
+    if (candidate) return candidate;
+  }
+  // Last resort: the model echoed the message text instead of the ref.
+  const wantedText = ref.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+  return candidates.find((candidate) => candidate.normalized.toLocaleLowerCase() === wantedText) ?? null;
+}
+
+function plannerActionKey(action: PlannerAction, guidanceHashValue: string): string {
+  return proposalHash({
+    action_type: action.action_type,
+    kind: plannerActionKindKey(action),
+    guidance_hash: guidanceHashValue,
+  });
+}
+
 function configSnapshot(definition: AiAgentDefinition): Record<string, unknown> {
   return {
     name: definition.name,
@@ -1491,8 +1894,12 @@ function evaluateConversationGate(
   return {
     can_prepare_internal_note: internalDecision.allowed,
     can_prepare_public_reply: publicDecision.allowed,
+    can_prepare_sourced_answer: publicDecision.allowed,
+    can_prepare_administrative_close_reply: true,
     internal_note_reason: internalDecision.reason,
     public_reply_reason: publicDecision.reason,
+    sourced_answer_reason: publicDecision.reason,
+    administrative_close_reply_reason: 'administrative_close_reply_dedup_guarded',
     latest_requester_message_at: isoFromTime(latestRequester?.time ?? null),
     latest_requester_message_id: latestRequester?.entry.id ?? null,
     last_agent_internal_note_at: isoFromTime(actionConversationTimeOrNull(lastInternal, notes)),
@@ -1531,7 +1938,16 @@ function buildTriageNote(
   knowledgeItems: KnowledgeSearchItem[],
   timeline: TicketTimelineEntry[],
   webResults: WebSearchResultItem[] = [],
+  // When the planner deliberately escalates internally (no requester reply prepared), the note
+  // states the agent's escalation rationale instead of the "synthesis unavailable, complete
+  // manually" boilerplate — that boilerplate is only honest when synthesis was actually expected
+  // and failed. An escalation also does not present the (insufficient) candidate sources as "found".
+  escalation: { reason: string | null } | null = null,
 ): string {
+  const technicianBrief = escalation
+    ? (escalation.reason?.trim()
+      || 'The agent escalated this ticket internally; no requester reply was prepared.')
+    : 'AI reply synthesis was unavailable or skipped. Review the possible sources above and complete the requester answer manually before approving.';
   return renderProviderBody([
     '[KANAP triage proposal]',
     `Ticket: GLPI #${ticket.id} - ${ticket.title}`,
@@ -1541,11 +1957,15 @@ function buildTriageNote(
     'Ticket history considered:',
     ...timelineSummaryLines(timeline),
     '',
-    'Possible sources found (fallback mode; no article body copied):',
-    ...fallbackSourceLines(knowledgeItems, webResults, 8),
-    '',
+    ...(escalation
+      ? []
+      : [
+        'Possible sources found (fallback mode; no article body copied):',
+        ...fallbackSourceLines(knowledgeItems, webResults, 8),
+        '',
+      ]),
     'Technician brief:',
-    'AI reply synthesis was unavailable or skipped. Review the possible sources above and complete the requester answer manually before approving.',
+    technicianBrief,
     '',
     'No external change has been made. This note was prepared by KANAP and requires human approval before posting.',
   ], MAX_INTERNAL_NOTE_CHARS);
@@ -1555,6 +1975,23 @@ function ticketLooksFrench(ticket: TicketLike): boolean {
   const text = `${ticket.title} ${ticket.description ?? ''}`.toLocaleLowerCase();
   return /[àâçéèêëîïôùûüÿœæ]/i.test(text)
     || /\b(bonjour|besoin|merci|recette|vous|pouvez|aider|demande|incident)\b/.test(text);
+}
+
+function configuredReplyLanguage(definition: AiAgentDefinition | null): string | null {
+  const persona = isRecord(definition?.persona_json) ? definition.persona_json : {};
+  const outputStyle = isRecord(persona.output_style) ? persona.output_style : {};
+  const language = typeof outputStyle.language === 'string' ? outputStyle.language.trim().toLowerCase() : '';
+  return ['fr', 'en', 'de', 'es'].includes(language) ? language : null;
+}
+
+function resolveReplyLanguage(
+  definition: AiAgentDefinition | null,
+  ticket: TicketLike,
+  knowledgeLanguage: string | null | undefined,
+): string {
+  return configuredReplyLanguage(definition)
+    ?? knowledgeLanguage
+    ?? (ticketLooksFrench(ticket) ? 'fr' : 'en');
 }
 
 function normalizeKnowledgeReplyText(value: string | null | undefined): string {
@@ -1654,7 +2091,10 @@ function replyLocale(language: string | null | undefined, ticket: TicketLike): {
 function sourceLineFromKnowledge(item: KnowledgeSearchItem, index: number): string {
   const ref = sanitizeInlineForProvider(item.ref ?? item.id ?? `document-${index + 1}`, 80);
   const title = sanitizeInlineForProvider(item.title ?? 'Untitled document', 180);
-  return `- ${ref} - ${title}`;
+  // Be explicit when a candidate was retrieved but not validated by the interpreter, so the
+  // technician knows it still needs a relevance check (it never grounded an automated reply).
+  const suffix = item.validation_status === 'unvalidated' ? ' [unvalidated candidate]' : '';
+  return `- ${ref} - ${title}${suffix}`;
 }
 
 function sourceLineFromWeb(item: WebSearchResultItem): string {
@@ -1783,15 +2223,12 @@ function buildRequesterReply(
 ): string {
   const locale = replyLocale(null, ticket);
   const latestRequester = latestRequesterExcerpt(timeline);
-  const sources = fallbackSourceLines(knowledgeItems, webResults, 5);
-  const hasSources = sources.some((line) => !line.includes('No source candidate'));
   return renderProviderBody([
     locale.greeting,
     '',
-    hasSources ? locale.possibleReferencesIntro : locale.noReliableAnswer,
+    locale.noReliableAnswer,
     latestRequester ? locale.latestRequester(latestRequester) : null,
     '',
-    ...(hasSources ? [locale.possibleReferences, ...sources, ''] : []),
     locale.technicianWillConfirm,
     '',
     ...locale.closing,
@@ -1849,31 +2286,6 @@ function buildStatusUpdateProposal(
   };
 }
 
-// Closing an inactive ticket is routine status work, not a configured action: pick the terminal
-// transition the provider exposes, preferring 'solved' over 'closed'. Defaults to 'solved' when
-// the lifecycle context does not enumerate transitions.
-function preferredTerminalTransition(lifecycle: Record<string, unknown> | null): string {
-  const transitions = Array.isArray(lifecycle?.allowedTransitions)
-    ? lifecycle.allowedTransitions.filter(isRecord)
-    : [];
-  if (transitions.some((transition) => transition.key === 'solved')) return 'solved';
-  if (transitions.some((transition) => transition.key === 'closed')) return 'closed';
-  return 'solved';
-}
-
-// Agent-composed requester-facing reply that accompanies a routine close, so the requester is
-// told the ticket is being closed for inactivity and how to reopen it. Composed per ticket
-// (language-aware) rather than read from a setting.
-function buildClosingReply(ticket: TicketLike): string {
-  return ticketLooksFrench(ticket)
-    ? 'Bonjour,\n\nCe ticket est resté sans activité et va être clôturé. '
-      + 'Si votre demande n\'est pas résolue, répondez à ce message et nous le rouvrirons.\n\n'
-      + 'Cordialement,\nLe support'
-    : 'Hello,\n\nThis ticket has been inactive and is being closed. '
-      + 'If your request is not yet resolved, simply reply to this message and we will reopen it.\n\n'
-      + 'Kind regards,\nSupport';
-}
-
 function proposalHash(value: unknown): string {
   return hashStableJson(value);
 }
@@ -1899,6 +2311,19 @@ function actionMetadataString(action: AiActionRequest, field: string): string | 
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
   const value = metadata?.[field];
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function bulkApproveOrder(action: AiActionRequest): number {
+  return HELPDESK_BULK_APPROVE_ACTION_ORDER.get(action.capability_name) ?? 999;
+}
+
+function bulkApproveActionSort(left: AiActionRequest, right: AiActionRequest): number {
+  const orderDiff = bulkApproveOrder(left) - bulkApproveOrder(right);
+  if (orderDiff !== 0) return orderDiff;
+  const leftTime = actionSortTime(left);
+  const rightTime = actionSortTime(right);
+  if (leftTime !== rightTime) return leftTime - rightTime;
+  return left.id.localeCompare(right.id);
 }
 
 function buildAssignmentUpdateProposal(
@@ -2367,6 +2792,9 @@ export class AiAgentControlService {
     private readonly replySynthesis?: AiReplySynthesisService,
     private readonly promptCompiler?: AiAgentPromptCompilerService,
     private readonly sharedContextProfiles?: AiSharedContextProfileService,
+    private readonly actionPlanner?: AiAgentActionPlannerService,
+    private readonly ticketNeedBuilder?: AiTicketNeedRepresentationService,
+    private readonly ticketEvidenceExtractor?: AiTicketEvidenceExtractionService,
   ) {}
 
   private agentPromptCompiler(): AiAgentPromptCompilerService {
@@ -2382,6 +2810,7 @@ export class AiAgentControlService {
     plannerGuidance: CompiledGuidance;
     interpreterGuidance: CompiledGuidance;
     synthesisGuidance: CompiledGuidance;
+    actionPlannerGuidance: CompiledGuidance;
     promptProfileSummary: Record<string, unknown>;
   }> {
     const sharedContextResolution = this.sharedContextProfiles
@@ -2392,6 +2821,7 @@ export class AiAgentControlService {
     const plannerGuidance = compiler.sliceFor(profile, 'planner');
     const interpreterGuidance = compiler.sliceFor(profile, 'interpreter');
     const synthesisGuidance = compiler.sliceFor(profile, 'synthesis');
+    const actionPlannerGuidance = compiler.sliceFor(profile, 'action_planner');
     const promptProfileSummary = {
       prompt_profile_version: definition?.config_version ?? null,
       shared_context_profile_id: sharedContextResolution.context?.profile_id ?? sharedContextResolution.requested_profile_id,
@@ -2399,6 +2829,7 @@ export class AiAgentControlService {
       shared_context_resolved: sharedContextResolution.resolved,
       shared_context_resolution_reason: sharedContextResolution.reason,
       guidance_hash: guidanceHash(synthesisGuidance),
+      action_planner_guidance_hash: guidanceHash(actionPlannerGuidance),
       bounds_applied: synthesisGuidance.bounds_applied,
     };
     return {
@@ -2407,6 +2838,7 @@ export class AiAgentControlService {
       plannerGuidance,
       interpreterGuidance,
       synthesisGuidance,
+      actionPlannerGuidance,
       promptProfileSummary,
     };
   }
@@ -2504,6 +2936,39 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       synthesis: {
         estimated_cost_eur: input.synthesis.estimated_cost_eur,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
+  }
+
+  private async recordActionPlannerUsage(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      planner: ActionPlannerResult;
+    },
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: input.runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      action_planner: {
+        input_tokens: input.planner.usage?.input_tokens ?? null,
+        output_tokens: input.planner.usage?.output_tokens ?? null,
+        estimated_tokens: input.planner.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      action_planner: {
+        estimated_cost_eur: input.planner.estimated_cost_eur,
       },
     };
     run.updated_at = new Date();
@@ -2648,14 +3113,18 @@ export class AiAgentControlService {
     return `unchanged_${matching.status}_proposal:${matching.id}`;
   }
 
-  // Safety: a standing close proposal (closing reply/close) must not survive a ticket that is no
-  // longer eligible to close — e.g. a requester replied, so it is active again. When the agent
-  // re-polls such a ticket, withdraw its live close proposals so no operator can approve a close
-  // on a freshly-active ticket. Scoped to this agent's own proposals for this ticket; returns
-  // the number withdrawn.
-  private async withdrawCloseProposals(
+  // Safety: planner proposals must not survive a newer plan/profile or a ticket that is no longer
+  // eligible for the planned close. Scoped to this agent's proposals for this ticket; returns the
+  // number withdrawn.
+  private async withdrawSupersededPlannerProposals(
     context: AiExecutionContextWithManager,
-    input: { ticketId: string; agentDefinitionId: string | null },
+    input: {
+      ticketId: string;
+      agentDefinitionId: string | null;
+      currentPlannerActionKeys?: Set<string> | null;
+      currentGuidanceHash?: string | null;
+      closeNoLongerEligible?: boolean;
+    },
   ): Promise<number> {
     const candidates = await context.manager.getRepository(AiActionRequest).find({
       where: {
@@ -2666,6 +3135,7 @@ export class AiAgentControlService {
         target_ref: input.ticketId,
         status: 'pending',
         capability_name: In([
+          TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
           TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
         ]),
@@ -2674,19 +3144,47 @@ export class AiAgentControlService {
     const now = new Date();
     let withdrawn = 0;
     for (const action of candidates) {
+      const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
       const triageAction = actionMetadataString(action, 'triage_action');
-      if (!triageAction || !CLOSE_TRIAGE_ACTIONS.has(triageAction)) {
+      const plannerAction = metadata.source === 'action_planner' || metadata.planner_action === true;
+      const legacyCloseAction = !!triageAction && CLOSE_TRIAGE_ACTIONS.has(triageAction);
+      if (!plannerAction && !legacyCloseAction) {
         continue;
       }
       if (input.agentDefinitionId
         && actionMetadataString(action, 'agent_definition_id') !== input.agentDefinitionId) {
         continue;
       }
+      const plannerKey = actionMetadataString(action, 'planner_action_key');
+      const guidanceHashValue = actionMetadataString(action, 'action_planner_guidance_hash');
+      let withdrawnReason: string | null = null;
+      if (input.closeNoLongerEligible && (
+        legacyCloseAction
+        || triageAction === 'planner_prepare_administrative_close_reply'
+        || triageAction === 'planner_prepare_terminal_status'
+      )) {
+        withdrawnReason = 'no_longer_eligible';
+      } else if (
+        input.currentGuidanceHash
+        && guidanceHashValue
+        && guidanceHashValue !== input.currentGuidanceHash
+      ) {
+        withdrawnReason = 'superseded_by_new_guidance';
+      } else if (
+        input.currentPlannerActionKeys
+        && plannerKey
+        && !input.currentPlannerActionKeys.has(plannerKey)
+      ) {
+        withdrawnReason = 'superseded_by_new_plan';
+      }
+      if (!withdrawnReason) {
+        continue;
+      }
       action.status = 'expired';
       action.updated_at = now;
       action.metadata_json = {
-        ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
-        withdrawn_reason: 'ticket_no_longer_eligible_to_close',
+        ...metadata,
+        withdrawn_reason: withdrawnReason,
         withdrawn_at: now.toISOString(),
       };
       await context.manager.getRepository(AiActionRequest).save(action);
@@ -3093,6 +3591,10 @@ export class AiAgentControlService {
       shared_context_resolved: runtime.sharedContextResolution.resolved,
       shared_context_resolution_reason: runtime.sharedContextResolution.reason,
       tasks: {
+        action_planner: {
+          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_ACTION_PLANNER, runtime.actionPlannerGuidance),
+          guidance_json: compiler.guidancePayload(runtime.actionPlannerGuidance),
+        },
         planner: {
           system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_PLANNER, runtime.plannerGuidance),
           guidance_json: compiler.guidancePayload(runtime.plannerGuidance),
@@ -5019,7 +5521,79 @@ export class AiAgentControlService {
       ].filter((entry) => typeof entry === 'string' && entry.trim().length > 0).join('\n\n'),
     };
 
-    const deterministicKnowledgeQueries = buildKnowledgeQueryCandidates(ticketForKnowledge);
+    const ticketImageExtraction: TicketEvidenceExtractionResult = this.ticketEvidenceExtractor
+      ? await this.ticketEvidenceExtractor.extractImageEvidence(context, {
+        ticket,
+        notes: ticketNotesData.notes,
+        profile: promptRuntime.plannerGuidance,
+        readAttachment: async (ref) => {
+          const result = await this.dispatcher.execute<AdapterResultLike<TicketAttachmentReadResult>>(context, {
+            capabilityName: TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
+            input: {
+              provider_key: target.provider_key,
+              ticket_id: target.external_ref,
+              target: ref.target,
+              source: ref.source,
+              ...(ref.sourceNoteId ? { source_note_id: ref.sourceNoteId } : {}),
+            },
+            execution: {
+              surface: 'internal',
+              trigger_kind: 'internal',
+              runId: ticketResult.run_id,
+              stepIndex: stepIndex++,
+              metadata: {
+                ...baseMetadata,
+                triage_action: 'read_ticket_attachment',
+                attachment_id: ref.id,
+                attachment_source: ref.source,
+                attachment_source_note_id: ref.sourceNoteId ?? null,
+              },
+            },
+          });
+          allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
+          return adapterData<TicketAttachmentReadResult>(result.output);
+        },
+      })
+      : {
+        attachmentRefs: [
+          ...(ticket.attachments ?? []),
+          ...ticketNotesData.notes.flatMap((note) => note.attachments ?? []),
+        ],
+        evidence: [],
+        warnings: [],
+        skippedReason: null,
+    };
+
+    let knowledgeNeedRepresentation: TicketNeedRepresentationBuildResult | null = null;
+    const fallbackPreferenceTerms = extractKnowledgePreferenceTerms(ticketTimeline).positiveTerms;
+    const shortFallbackKnowledgeQueries = uniqueKnowledgeCandidates([
+      ...fallbackPreferenceTerms,
+      fallbackPreferenceTerms.slice(0, 4).join(' '),
+      ...buildShortKnowledgeQueryCandidates(ticketForKnowledge),
+    ]);
+    let knowledgeQueryDerivation: KnowledgeQueryDerivation = {
+      source: 'deterministic_fallback',
+      queries: shortFallbackKnowledgeQueries,
+      exact_queries: [],
+      facet_queries: [],
+      fallback_queries: shortFallbackKnowledgeQueries,
+      dropped_queries: [],
+      warnings: ['Legacy lexical query derivation used because the ticket need builder is not available.'],
+    };
+    if (this.ticketNeedBuilder) {
+      knowledgeNeedRepresentation = await this.ticketNeedBuilder.buildNeedRepresentation(context, {
+        ticket,
+        timeline: ticketTimeline,
+        imageEvidence: ticketImageExtraction.evidence,
+        profile: promptRuntime.plannerGuidance,
+      });
+      knowledgeQueryDerivation = this.ticketNeedBuilder.deriveKnowledgeQueries({
+        need: knowledgeNeedRepresentation.need,
+        fallbackTitle: ticket.title,
+        fallbackDescription: ticket.description,
+      });
+    }
+    const deterministicKnowledgeQueries = knowledgeQueryDerivation.queries;
     const knowledgeSources = readAgentKnowledgeSources(agentDefinition);
     let knowledgeSearchPlan: KnowledgeSearchPlan;
     let knowledgeQueryCandidates: string[];
@@ -5027,6 +5601,8 @@ export class AiAgentControlService {
     let mergedKnowledgeCandidates: MergedKnowledgeCandidate[] = [];
     let knowledgeInterpretation: KnowledgeResultInterpretation;
     let selectedKnowledgeItems: KnowledgeSearchItem[] = [];
+    let unvalidatedKnowledgeItems: KnowledgeSearchItem[] = [];
+    let knowledgeLowRelevance: Array<{ ref: string | null; title: string | null; score: number | null; lexical_overlap: number; reason: string }> = [];
     if (!knowledgeSources.knowledgeEnabled) {
       // Knowledge search is disabled for this agent — gather no KANAP knowledge so the
       // triage relies on the LLM (and web, when enabled). The plan/interpretation are kept
@@ -5035,7 +5611,30 @@ export class AiAgentControlService {
       knowledgeQueryCandidates = [];
       knowledgeInterpretation = buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, []);
     } else {
-      const plannedKnowledgeSearch = this.knowledgePlanner
+      const plannedKnowledgeSearch = this.ticketNeedBuilder && knowledgeNeedRepresentation
+        ? {
+          source: knowledgeNeedRepresentation.source,
+          need: knowledgeNeedRepresentation.need,
+          intent: knowledgeNeedRepresentation.need.intent,
+          language: knowledgeNeedRepresentation.need.language,
+          positive_terms: uniqueKnowledgeCandidates([
+            ...knowledgeNeedRepresentation.need.symptoms,
+            ...knowledgeNeedRepresentation.need.constraints.positive,
+            ...knowledgeNeedRepresentation.need.entities.applications,
+            ...knowledgeNeedRepresentation.need.entities.modules,
+          ]),
+          negative_terms: uniqueKnowledgeCandidates(knowledgeNeedRepresentation.need.constraints.negative),
+          queries: deterministicKnowledgeQueries,
+          rationale: 'Derived from TicketNeedRepresentation facets.',
+          confidence: knowledgeNeedRepresentation.need.confidence,
+          model: knowledgeNeedRepresentation.model,
+          warnings: uniqueKnowledgeCandidates([
+            ...knowledgeNeedRepresentation.need.warnings,
+            ...knowledgeNeedRepresentation.warnings,
+            ...knowledgeQueryDerivation.warnings,
+          ]),
+        } satisfies KnowledgeSearchPlan
+        : this.knowledgePlanner
         ? await this.knowledgePlanner.planKnowledgeSearch(context, {
           ticket,
           timeline: ticketTimeline,
@@ -5044,10 +5643,12 @@ export class AiAgentControlService {
         : buildFallbackKnowledgeSearchPlan(ticket, ticketTimeline, deterministicKnowledgeQueries);
       knowledgeSearchPlan = {
         ...plannedKnowledgeSearch,
-        queries: uniqueKnowledgeCandidates([
-          ...plannedKnowledgeSearch.queries,
-          ...deterministicKnowledgeQueries,
-        ]),
+        queries: this.ticketNeedBuilder
+          ? uniqueKnowledgeCandidates(plannedKnowledgeSearch.queries)
+          : uniqueKnowledgeCandidates([
+            ...plannedKnowledgeSearch.queries,
+            ...deterministicKnowledgeQueries,
+          ]),
       };
       knowledgeQueryCandidates = knowledgeSearchPlan.queries;
       for (const [candidateIndex, knowledgeQuery] of knowledgeQueryCandidates.entries()) {
@@ -5055,7 +5656,7 @@ export class AiAgentControlService {
           capabilityName: 'search_knowledge',
           input: {
             query: knowledgeQuery,
-            limit: 5,
+            limit: 10,
             offset: 0,
             // Restrict to the agent's configured libraries (intersected with the agent
             // user's accessible libraries by the search service); omit = all accessible.
@@ -5092,15 +5693,37 @@ export class AiAgentControlService {
           profile: promptRuntime.interpreterGuidance,
         })
         : buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, mergedKnowledgeCandidates);
-      selectedKnowledgeItems = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
+      const appliedInterpretation = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
+      selectedKnowledgeItems = appliedInterpretation.selected;
+      unvalidatedKnowledgeItems = appliedInterpretation.unvalidated;
+      // Relevance is judged by the LLM interpreter (which docs to select) and by synthesis
+      // (explicit off-topic rejection), NOT by a crude score/lexical heuristic: a relevant
+      // internal doc (e.g. a recipe) and an off-topic one can both have ts_rank 0 and zero
+      // lexical overlap, so the heuristic cannot tell them apart. We therefore only FLAG
+      // low-relevance items for observability — we never drop presented docs before synthesis,
+      // otherwise a genuinely relevant internal source gets discarded (regression #33).
+      knowledgeLowRelevance = filterKnowledgeItemsByRelevance(
+        ticketForKnowledge,
+        [...selectedKnowledgeItems, ...unvalidatedKnowledgeItems],
+      ).dropped;
+      if (knowledgeLowRelevance.length > 0) {
+        this.logger.debug(`Flagged ${knowledgeLowRelevance.length} low-relevance knowledge candidate(s) (kept for synthesis) for GLPI ticket ${ticket.id}.`);
+      }
     }
-    const selectedKnowledgeRefs = new Set(
-      selectedKnowledgeItems.map((item) => knowledgeDocumentRef(item)?.toLocaleLowerCase()).filter((ref): ref is string => !!ref),
+    // Present LLM-validated selections first, then unvalidated candidates, tagged so synthesis
+    // and the triage note can distinguish them. selected/unvalidated are mutually exclusive
+    // (applyKnowledgeInterpretation returns one or the other), so a simple concat + cap is safe.
+    const knowledgeItems: KnowledgeSearchItem[] = [
+      ...selectedKnowledgeItems.map((item) => ({ ...item, validation_status: 'selected' as const })),
+      ...unvalidatedKnowledgeItems.map((item) => ({ ...item, validation_status: 'unvalidated' as const })),
+    ].slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY);
+    const presentedKnowledgeRefs = new Set(
+      knowledgeItems.map((item) => knowledgeDocumentRef(item)?.toLocaleLowerCase()).filter((ref): ref is string => !!ref),
     );
     const selectedKnowledgeAttempt = knowledgeAttempts.find((attempt) =>
       attempt.items.some((item) => {
         const ref = knowledgeDocumentRef(item);
-        return !!ref && selectedKnowledgeRefs.has(ref.toLocaleLowerCase());
+        return !!ref && presentedKnowledgeRefs.has(ref.toLocaleLowerCase());
       }),
     ) ?? knowledgeAttempts.find((attempt) => attempt.items.length > 0)
       ?? knowledgeAttempts[knowledgeAttempts.length - 1];
@@ -5110,7 +5733,6 @@ export class AiAgentControlService {
     // simply no knowledge tool result to reference, so triage must still proceed
     // rather than fail the whole work item.
     const knowledgeResult = selectedKnowledgeAttempt?.result ?? null;
-    const knowledgeItems = selectedKnowledgeItems;
     const enrichedKnowledgeItems = [...knowledgeItems];
     const knowledgeDocumentAttempts: KnowledgeDocumentFetchAttempt[] = [];
     for (const [documentIndex, item] of knowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY).entries()) {
@@ -5162,13 +5784,15 @@ export class AiAgentControlService {
     // terms (internal refs stripped) and throws if nothing public-meaningful remains; we treat any
     // failure as "no web results" so triage still proceeds on knowledge + the LLM.
     let webSearchResults: WebSearchResultItem[] = [];
+    let webSearchStatus: string = knowledgeSources.webEnabled ? 'disabled_by_platform' : 'disabled_by_agent';
+    let webSearchQuery: string | null = null;
+    let webSearchError: string | null = null;
+    const webQueryCandidates = knowledgeSources.webEnabled && Features.AI_WEB_SEARCH_READY
+      ? buildWebSearchQueryCandidates(ticketForKnowledge, ticketTimeline, knowledgeQueryCandidates)
+      : [];
     if (knowledgeSources.webEnabled && Features.AI_WEB_SEARCH_READY) {
-      const webQueryCandidates = (knowledgeQueryCandidates.length > 0
-        ? knowledgeQueryCandidates
-        : deterministicKnowledgeQueries)
-        .map((candidate) => candidate.trim())
-        .filter((candidate) => candidate.length > 0);
       const webQuery = webQueryCandidates[0] ?? trimmedString(ticket.title) ?? '';
+      webSearchQuery = webQuery || null;
       if (webQuery) {
         try {
           const webResult = await this.dispatcher.execute<Record<string, unknown>>(context, {
@@ -5187,9 +5811,14 @@ export class AiAgentControlService {
           });
           allEvidenceIds.push(...await this.evidenceIdsForTool(context, webResult.tool_execution_id));
           webSearchResults = webSearchItemsFromOutput(webResult.output);
+          webSearchStatus = 'executed';
         } catch (error) {
-          this.logger.warn(`Web search skipped for GLPI ticket ${ticket.id}: ${error instanceof Error ? error.message : String(error)}`);
+          webSearchStatus = 'failed';
+          webSearchError = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`Web search skipped for GLPI ticket ${ticket.id}: ${webSearchError}`);
         }
+      } else {
+        webSearchStatus = 'skipped_empty_query';
       }
     }
 
@@ -5203,11 +5832,13 @@ export class AiAgentControlService {
       participant_context: participantContext,
       knowledge_query_candidates: knowledgeQueryCandidates,
       knowledge_candidate_count: mergedKnowledgeCandidates.length,
+      knowledge_low_relevance_count: knowledgeLowRelevance.length,
       knowledge_results: knowledgeItems,
       knowledge_documents: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
       web_result_count: webSearchResults.length,
+      web_search_status: webSearchStatus,
     };
-    const synthesisLanguage = knowledgeSearchPlan.language ?? (ticketLooksFrench(ticket) ? 'fr' : 'en');
+    const synthesisLanguage = resolveReplyLanguage(agentDefinition, ticket, knowledgeSearchPlan.language);
     let replySynthesisResult: ReplySynthesisResult | null = null;
     let synthesisFallbackReason: string | null = null;
     let synthesisProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
@@ -5218,25 +5849,32 @@ export class AiAgentControlService {
       model: null,
       prompt_profile: promptRuntime.promptProfileSummary,
     };
-    if (!this.replySynthesis) {
-      synthesisFallbackReason = 'synthesis_service_unavailable';
-      await this.recordSynthesisRunStep(context, {
-        runId: ticketResult.run_id,
-        stepIndex: stepIndex++,
-        status: 'skipped',
-        inputSummary: synthesisInputSummary,
-        outputSummary: { fallback_reason: synthesisFallbackReason },
-      });
-    } else if (process.env.AI_AGENT_REPLY_SYNTHESIS === '0') {
-      synthesisFallbackReason = 'synthesis_disabled_by_env';
-      await this.recordSynthesisRunStep(context, {
-        runId: ticketResult.run_id,
-        stepIndex: stepIndex++,
-        status: 'skipped',
-        inputSummary: synthesisInputSummary,
-        outputSummary: { fallback_reason: synthesisFallbackReason },
-      });
-    } else {
+    const runReplySynthesis = async (): Promise<void> => {
+      if (replySynthesisResult || synthesisFallbackReason) {
+        return;
+      }
+      if (!this.replySynthesis) {
+        synthesisFallbackReason = 'synthesis_service_unavailable';
+        await this.recordSynthesisRunStep(context, {
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: synthesisInputSummary,
+          outputSummary: { fallback_reason: synthesisFallbackReason },
+        });
+        return;
+      }
+      if (process.env.AI_AGENT_REPLY_SYNTHESIS === '0') {
+        synthesisFallbackReason = 'synthesis_disabled_by_env';
+        await this.recordSynthesisRunStep(context, {
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: synthesisInputSummary,
+          outputSummary: { fallback_reason: synthesisFallbackReason },
+        });
+        return;
+      }
       const synthesisPayload = this.replySynthesis.buildPromptPayload({
         ticket,
         timeline: ticketTimeline,
@@ -5333,8 +5971,8 @@ export class AiAgentControlService {
           });
         }
       }
-    }
-    const synthesisMetadata = replySynthesisResult ? {
+    };
+    const buildSynthesisMetadata = () => replySynthesisResult ? {
       synthesis_model: replySynthesisResult.model,
       synthesis_tokens: replySynthesisResult.estimated_tokens,
       synthesis_usage: replySynthesisResult.usage,
@@ -5369,6 +6007,369 @@ export class AiAgentControlService {
       snapshot: runCapSnapshot,
     });
 
+    const actionPlannerGuidanceHash = guidanceHash(promptRuntime.actionPlannerGuidance);
+    const closeWriteCapable = !!agentDefinition
+      && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY);
+    const targetingEligibility = closeWriteCapable
+      ? await this.ticketTargetingEligibility(context, agentDefinition, ticket as TicketRecord, target.provider_key)
+      : { matched: false, hasInactivityAge: false };
+    const closeEligible = closeWriteCapable
+      && lifecycleContext?.terminal !== true
+      && targetingEligibility.hasInactivityAge
+      && targetingEligibility.matched;
+
+    let actionPlannerResult: ActionPlannerResult | null = null;
+    let actionPlannerFallbackReason: string | null = null;
+    let actionPlannerProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
+    const actionPlannerInput = {
+      ticket,
+      timeline: ticketTimeline,
+      contexts: {
+        classification: classificationContext,
+        lifecycle: lifecycleContext,
+        routing: routingContext,
+        participants: participantContext,
+      },
+      gates: conversationGate as unknown as Record<string, unknown>,
+      close_eligibility: {
+        matched: closeEligible,
+        has_inactivity_age: targetingEligibility.hasInactivityAge,
+        terminal: lifecycleContext?.terminal === true,
+      },
+      reply_language: synthesisLanguage,
+      knowledge_summary: plannerKnowledgeSummary(knowledgeItems, knowledgeLowRelevance.length, knowledgeInterpretation, knowledgeSearchPlan, knowledgeQueryDerivation),
+      web_summary: plannerWebSummary(webSearchResults, webSearchStatus, webSearchQuery),
+      granted_capabilities: allowedCapabilityNames(agentDefinition),
+      owned_action_types: [...PHASE_1_PLANNER_OWNED_ACTION_TYPES],
+      verbatim_candidates: promptRuntime.profile.verbatim_candidates,
+      profile: promptRuntime.actionPlannerGuidance,
+    };
+    if (!this.actionPlanner) {
+      actionPlannerFallbackReason = 'action_planner_service_unavailable';
+    } else if (!agentDefinition) {
+      actionPlannerFallbackReason = 'action_planner_no_agent_definition';
+    } else if (process.env.AI_AGENT_ACTION_PLANNER === '0') {
+      actionPlannerFallbackReason = 'action_planner_disabled_by_env';
+    } else {
+      const actionPlannerPayload = this.actionPlanner.buildPromptPayload(actionPlannerInput);
+      actionPlannerProjection = estimateActionPlannerUsage({
+        systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_ACTION_PLANNER, promptRuntime.actionPlannerGuidance),
+        userPayload: actionPlannerPayload,
+      }, this.actionPlanner.maxOutputTokens());
+      const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
+      if (
+        guardrails
+        && (
+          runUsageEstimate.estimatedTokens + actionPlannerProjection.estimatedTokens > guardrails.maxEstimatedTokens
+          || runUsageEstimate.estimatedCostEur + actionPlannerProjection.estimatedCostEur > guardrails.maxEstimatedCostEur
+        )
+      ) {
+        actionPlannerFallbackReason = 'action_planner_projected_over_per_run_cap';
+      } else {
+        actionPlannerResult = await this.actionPlanner.planActions(context, actionPlannerInput);
+        if (actionPlannerResult) {
+          await this.recordActionPlannerUsage(context, {
+            runId: ticketResult.run_id,
+            planner: actionPlannerResult,
+          });
+        } else {
+          actionPlannerFallbackReason = 'action_planner_unavailable_or_invalid';
+        }
+      }
+    }
+
+    const plannerFallbackActive = actionPlannerResult == null;
+    const verbatimCandidates = promptRuntime.profile.verbatim_candidates;
+    const plannerAuthorizedActions: Array<{
+      action: PlannerAction;
+      plannerActionKey: string;
+      replyBody: string | null;
+      terminal: boolean;
+    }> = [];
+    const plannerSkippedActions: Record<string, string> = {};
+    const markPlannerSkipped = (actionType: PlannerActionType, reason: string) => {
+      if (!plannerSkippedActions[actionType]) {
+        plannerSkippedActions[actionType] = reason;
+      }
+    };
+    if (actionPlannerResult) {
+      const seenPlannerActions = new Set<string>();
+      for (const action of actionPlannerResult.actions) {
+        const actionType = action.action_type;
+        const actionKey = plannerActionKindKey(action);
+        if (!PLANNER_OWNED_ACTION_TYPES.has(actionType)) {
+          markPlannerSkipped(actionType, 'action_type_not_owned_in_phase_1');
+          continue;
+        }
+        if (seenPlannerActions.has(actionKey)) {
+          markPlannerSkipped(actionType, 'duplicate_planner_action');
+          continue;
+        }
+        seenPlannerActions.add(actionKey);
+        const capabilityNames = ACTION_TYPE_CAPABILITY_TABLE[actionType];
+        if (!agentDefinition || !definitionAllowsCapability(agentDefinition, capabilityNames.prepare)) {
+          markPlannerSkipped(actionType, 'prepare_capability_not_granted');
+          continue;
+        }
+        if (!definitionAllowsCapability(agentDefinition, capabilityNames.approved)) {
+          markPlannerSkipped(actionType, 'approved_capability_not_granted');
+          continue;
+        }
+        let authorizedAction = action;
+        let replyBody: string | null = null;
+        let terminal = false;
+        if (actionType === 'internal_note') {
+          if (!conversationGate.can_prepare_internal_note) {
+            markPlannerSkipped(actionType, conversationGate.internal_note_reason);
+            continue;
+          }
+        } else if (actionType === 'requester_reply') {
+          const replyKind = action.reply_kind;
+          if (replyKind !== 'sourced_answer' && replyKind !== 'administrative') {
+            markPlannerSkipped(actionType, 'missing_or_invalid_reply_kind');
+            continue;
+          }
+          if (replyKind === 'sourced_answer' && !conversationGate.can_prepare_sourced_answer) {
+            markPlannerSkipped(actionType, conversationGate.sourced_answer_reason);
+            continue;
+          }
+          if (replyKind === 'administrative') {
+            const isCloseReply = action.administrative_intent === 'close_reply';
+            if (isCloseReply) {
+              if (!conversationGate.can_prepare_administrative_close_reply) {
+                markPlannerSkipped(actionType, conversationGate.administrative_close_reply_reason);
+                continue;
+              }
+              if (!closeEligible) {
+                markPlannerSkipped(actionType, 'ticket_not_eligible_for_administrative_close_reply');
+                continue;
+              }
+            } else if (!conversationGate.can_prepare_public_reply) {
+              markPlannerSkipped(actionType, conversationGate.public_reply_reason);
+              continue;
+            }
+            if (action.verbatim_ref) {
+              const candidate = resolveVerbatimCandidate(verbatimCandidates, action.verbatim_ref);
+              if (!candidate) {
+                markPlannerSkipped(actionType, 'verbatim_ref_not_found_in_trusted_config');
+                continue;
+              }
+              replyBody = candidate.text.replace(/\r\n/g, '\n').trim();
+            } else {
+              // No ref, but the model may have written the configured exact message
+              // straight into body: snap to the trusted candidate so the verbatim
+              // guarantee still holds. Otherwise treat body as a free administrative draft.
+              const bodyAsCandidate = action.body
+                ? resolveVerbatimCandidate(verbatimCandidates, action.body)
+                : null;
+              replyBody = bodyAsCandidate
+                ? bodyAsCandidate.text.replace(/\r\n/g, '\n').trim()
+                : sanitizeForProvider(action.body, MAX_SYNTHESIZED_REQUESTER_BODY_CHARS);
+            }
+            if (!replyBody) {
+              markPlannerSkipped(actionType, 'administrative_reply_body_missing');
+              continue;
+            }
+          }
+        } else if (actionType === 'status_update') {
+          const resolvedTransition = resolvePlannerStatusTransition(lifecycleContext, action, closeEligible);
+          if (!resolvedTransition.key) {
+            markPlannerSkipped(actionType, 'missing_transition_key');
+            continue;
+          }
+          if (!resolvedTransition.transition || lifecycleContext?.terminal === true) {
+            markPlannerSkipped(actionType, 'transition_not_allowed');
+            continue;
+          }
+          terminal = plannerStatusTransitionIsTerminal(resolvedTransition.key);
+          if (terminal && !closeEligible) {
+            markPlannerSkipped(actionType, 'terminal_transition_requires_close_eligibility');
+            continue;
+          }
+          authorizedAction = {
+            ...action,
+            transition_key: resolvedTransition.key,
+            ...(resolvedTransition.resolution ? { transition_resolution: resolvedTransition.resolution } : {}),
+          } as PlannerAction;
+        }
+        plannerAuthorizedActions.push({
+          action: authorizedAction,
+          plannerActionKey: plannerActionKey(authorizedAction, actionPlannerGuidanceHash),
+          replyBody,
+          terminal,
+        });
+      }
+    }
+    for (const actionType of PHASE_1_PLANNER_OWNED_ACTION_TYPES) {
+      if (
+        actionPlannerResult
+        && !plannerAuthorizedActions.some((entry) => entry.action.action_type === actionType)
+        && !plannerSkippedActions[actionType]
+      ) {
+        plannerSkippedActions[actionType] = 'not_selected_by_action_planner';
+      }
+    }
+    const plannerActionSummaries = plannerAuthorizedActions.map((entry) => ({
+      action_type: entry.action.action_type,
+      key: entry.plannerActionKey,
+      reply_kind: entry.action.reply_kind ?? null,
+      administrative_intent: entry.action.administrative_intent ?? null,
+      transition_key: entry.action.transition_key ?? null,
+      transition_resolution: isRecord(entry.action) && typeof entry.action.transition_resolution === 'string'
+        ? entry.action.transition_resolution
+        : null,
+      terminal: entry.terminal,
+      reason: entry.action.reason,
+    }));
+    const plannerPlannedActionSummaries = (actionPlannerResult?.actions ?? []).map((action) => ({
+      action_type: action.action_type,
+      reply_kind: action.reply_kind ?? null,
+      administrative_intent: action.administrative_intent ?? null,
+      transition_key: action.transition_key ?? null,
+      verbatim_ref: action.verbatim_ref ?? null,
+      body_present: typeof action.body === 'string' && action.body.trim().length > 0,
+      reason: action.reason,
+    }));
+    const actionPlannerMetadata = {
+      enabled: process.env.AI_AGENT_ACTION_PLANNER !== '0',
+      owned_action_types: [...PHASE_1_PLANNER_OWNED_ACTION_TYPES],
+      used: actionPlannerResult != null,
+      fallback_reason: actionPlannerFallbackReason,
+      model: actionPlannerResult?.model ?? null,
+      projected_tokens: actionPlannerProjection?.estimatedTokens ?? null,
+      projected_cost_eur: actionPlannerProjection?.estimatedCostEur ?? null,
+      tokens: actionPlannerResult?.estimated_tokens ?? null,
+      cost_eur: actionPlannerResult?.estimated_cost_eur ?? null,
+      latency_ms: actionPlannerResult?.latency_ms ?? null,
+      guidance_hash: actionPlannerGuidanceHash,
+      rationale: actionPlannerResult?.rationale ?? null,
+      confidence: actionPlannerResult?.confidence ?? null,
+      planned_actions: plannerPlannedActionSummaries,
+      authorized_actions: plannerActionSummaries,
+      skipped_actions: plannerSkippedActions,
+    };
+    const fallbackPrepareInternalNote = plannerFallbackActive && conversationGate.can_prepare_internal_note;
+    // Drives whether we ATTEMPT synthesis below — the actual external prepare is gated on a usable
+    // result (fallbackPublicReplyUsable), computed once synthesis has run.
+    const fallbackPreparePublicReply = plannerFallbackActive && conversationGate.can_prepare_public_reply;
+    const fallbackStatusUpdateProposal = plannerFallbackActive
+      ? buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply)
+      : null;
+    const classificationUpdateInput = buildClassificationUpdateProposal(ticket, classificationContext);
+    const assignmentUpdateInput = buildAssignmentUpdateProposal(routingContext);
+
+    const plannerNeedsSourcedSynthesis = plannerAuthorizedActions.some((entry) =>
+      entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'sourced_answer',
+    );
+    if (plannerNeedsSourcedSynthesis || fallbackPreparePublicReply) {
+      await runReplySynthesis();
+    }
+    const synthesisMetadata = buildSynthesisMetadata();
+    // Fail closed (#47): in the legacy fallback (action planner unavailable), only prepare the
+    // EXTERNAL requester reply and the pending transition when synthesis actually produced a
+    // usable, grounded answer. A failed / skipped / truncated synthesis must never ship a generic
+    // "no reliable answer" public reply, nor move the ticket to pending as if we were waiting on
+    // the requester — the internal note alone carries the escalation for a technician to complete.
+    const fallbackPublicReplyUsable = fallbackPreparePublicReply && replySynthesisResult?.usable === true;
+    const fallbackStatusUpdateInput = fallbackPublicReplyUsable ? fallbackStatusUpdateProposal : null;
+
+    let effectivePlannerActions = [...plannerAuthorizedActions];
+    const plannerDowngradedActions: Record<string, string> = {};
+    const sourcedReplyAction = effectivePlannerActions.find((entry) =>
+      entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'sourced_answer',
+    ) ?? null;
+    if (sourcedReplyAction && (!replySynthesisResult || !replySynthesisResult.usable)) {
+      const downgradeReason = synthesisFallbackReason
+        ?? replySynthesisResult?.fallback_reason
+        ?? 'synthesis_unavailable_or_unusable';
+      plannerDowngradedActions.requester_reply = downgradeReason;
+      plannerSkippedActions.requester_reply = downgradeReason;
+      effectivePlannerActions = effectivePlannerActions.filter((entry) => entry !== sourcedReplyAction);
+      effectivePlannerActions = effectivePlannerActions.filter((entry) => {
+        if (entry.action.action_type !== 'status_update') {
+          return true;
+        }
+        const transitionKey = normalizePlannerStatusTransitionKey(entry.action.transition_key);
+        if (transitionKey !== 'pending') {
+          return true;
+        }
+        const statusDowngradeReason = `pending_requires_usable_requester_reply: ${downgradeReason}`;
+        plannerDowngradedActions.status_update = statusDowngradeReason;
+        plannerSkippedActions.status_update = statusDowngradeReason;
+        return false;
+      });
+      const hasInternalNote = effectivePlannerActions.some((entry) => entry.action.action_type === 'internal_note');
+      const canPrepareDowngradeInternalNote = !!agentDefinition
+        && conversationGate.can_prepare_internal_note
+        && definitionAllowsCapability(agentDefinition, TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY)
+        && definitionAllowsCapability(agentDefinition, TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY);
+      if (!hasInternalNote && canPrepareDowngradeInternalNote) {
+        delete plannerSkippedActions.internal_note;
+        const downgradeAction: PlannerAction = {
+          action_type: 'internal_note',
+          reason: `Escalate internally because sourced reply synthesis was not usable: ${downgradeReason}.`,
+        };
+        effectivePlannerActions.push({
+          action: downgradeAction,
+          plannerActionKey: `downgrade:${sourcedReplyAction.plannerActionKey}:internal_note`,
+          replyBody: null,
+          terminal: false,
+        });
+      }
+    }
+    // Internal-note body: a usable synthesis renders the full triage note; otherwise, if the planner
+    // deliberately escalated internally (no requester reply prepared), the note carries the agent's
+    // escalation rationale instead of the "synthesis unavailable, complete manually" boilerplate
+    // (which is only honest in genuine fallback mode). Snake_case gate tokens are filtered out.
+    const effectiveInternalNoteAction = effectivePlannerActions.find((entry) => entry.action.action_type === 'internal_note') ?? null;
+    const hasEffectiveRequesterReply = effectivePlannerActions.some((entry) => entry.action.action_type === 'requester_reply');
+    // An internal escalation = the planner ran, prepared an internal note, and NO requester reply
+    // is being prepared (either never selected, #35, or downgraded after unusable synthesis, #37).
+    const isPlannerEscalation = !!actionPlannerResult && !!effectiveInternalNoteAction && !hasEffectiveRequesterReply;
+    const isProseReason = (value: string): boolean => value.length > 0 && !/^[a-z0-9_]+$/.test(value);
+    const escalationReason = isPlannerEscalation
+      ? ([actionPlannerResult.rationale, effectiveInternalNoteAction.action.reason]
+        .map((reason) => (reason ?? '').trim())
+        .filter(isProseReason)
+        .filter((reason, index, all) => all.indexOf(reason) === index)
+        .join(' — ') || null)
+      : null;
+    const noteBody = isPlannerEscalation
+      ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { reason: escalationReason })
+      : (replySynthesisResult
+        ? renderSynthesizedTriageNote(ticket, ticketTimeline, replySynthesisResult)
+        : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, null));
+
+    const effectivePlannerActionSummaries = effectivePlannerActions.map((entry) => ({
+      action_type: entry.action.action_type,
+      key: entry.plannerActionKey,
+      reply_kind: entry.action.reply_kind ?? null,
+      administrative_intent: entry.action.administrative_intent ?? null,
+      transition_key: entry.action.transition_key ?? null,
+      transition_resolution: isRecord(entry.action) && typeof entry.action.transition_resolution === 'string'
+        ? entry.action.transition_resolution
+        : null,
+      terminal: entry.terminal,
+      reason: entry.action.reason,
+    }));
+    const actionPlannerMetadataForAudit = {
+      ...actionPlannerMetadata,
+      effective_actions: effectivePlannerActionSummaries,
+      downgraded_actions: plannerDowngradedActions,
+      skipped_actions: plannerSkippedActions,
+    };
+    const effectivePlannerActionKeys = new Set(effectivePlannerActions.map((entry) => entry.plannerActionKey));
+    await this.withdrawSupersededPlannerProposals(context, {
+      ticketId: ticket.id,
+      agentDefinitionId: stringFromMetadata(metadataObject(baseMetadata).agent_definition_id),
+      currentPlannerActionKeys: actionPlannerResult ? effectivePlannerActionKeys : null,
+      currentGuidanceHash: actionPlannerGuidanceHash,
+      closeNoLongerEligible: !closeEligible,
+    });
+
     const now = new Date();
     const observationRepo = context.manager.getRepository(AiObservation);
     const observation = await observationRepo.save(observationRepo.create({
@@ -5392,9 +6393,22 @@ export class AiAgentControlService {
         lifecycle_context: lifecycleContext,
         routing_context: routingContext,
         participant_context: participantContext,
+        knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
+        knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
+        ticket_image_evidence: ticketImageExtraction.evidence,
+        ticket_image_evidence_warnings: ticketImageExtraction.warnings,
+        ticket_image_evidence_skipped_reason: ticketImageExtraction.skippedReason,
+        ticket_attachment_refs: ticketImageExtraction.attachmentRefs,
         run_usage_estimate: runUsageEstimate,
         knowledge_result_count: knowledgeItems.length,
+        knowledge_low_relevance_count: knowledgeLowRelevance.length,
+        knowledge_low_relevance: knowledgeLowRelevance,
         web_search_enabled: knowledgeSources.webEnabled === true,
+        web_search_ready: Features.AI_WEB_SEARCH_READY,
+        web_search_status: webSearchStatus,
+        web_search_query: webSearchQuery,
+        web_search_query_candidates: webQueryCandidates,
+        web_search_error: webSearchError,
         web_result_count: webSearchResults.length,
         knowledge_candidate_count: mergedKnowledgeCandidates.length,
         knowledge_query: selectedKnowledgeAttempt?.query ?? null,
@@ -5402,6 +6416,7 @@ export class AiAgentControlService {
         knowledge_document_fetch_count: knowledgeDocumentAttempts.filter((attempt) => !!attempt.result).length,
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
         knowledge_result_interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+        action_planner: actionPlannerMetadataForAudit,
         ...synthesisMetadata,
       },
       observed_at: now,
@@ -5410,8 +6425,11 @@ export class AiAgentControlService {
     }));
 
     const expectedActionLabels = [
-      conversationGate.can_prepare_internal_note ? 'internal note' : null,
-      conversationGate.can_prepare_public_reply ? 'requester reply' : null,
+      fallbackPrepareInternalNote || effectivePlannerActions.some((entry) => entry.action.action_type === 'internal_note') ? 'internal note' : null,
+      fallbackPublicReplyUsable || effectivePlannerActions.some((entry) => entry.action.action_type === 'requester_reply') ? 'requester reply' : null,
+      fallbackStatusUpdateInput || effectivePlannerActions.some((entry) => entry.action.action_type === 'status_update') ? 'status update' : null,
+      classificationUpdateInput ? 'classification update' : null,
+      assignmentUpdateInput ? 'assignment update' : null,
     ].filter((label): label is string => !!label);
     const anyActionEligible = expectedActionLabels.length > 0;
     const recommendationRepo = context.manager.getRepository(AiRecommendation);
@@ -5419,14 +6437,14 @@ export class AiAgentControlService {
       tenant_id: context.tenantId,
       run_id: ticketResult.run_id,
       observation_id: observation.id,
-      recommendation_type: 'glpi_internal_note',
+      recommendation_type: 'glpi_triage_actions',
       status: anyActionEligible ? 'proposed' : 'skipped',
       summary: anyActionEligible
         ? `Prepare ${expectedActionLabels.join(' and ')} with the related KANAP knowledge and ticket history context.`
-        : 'Do not prepare a GLPI follow-up yet; no newer requester message was found after the last KANAP action.',
+        : 'Do not prepare a GLPI action; the action planner/builders found no eligible action for this run.',
       rationale: anyActionEligible
-        ? 'The workflow read the GLPI ticket history, searched the KANAP knowledge base, and prepared only conversation-eligible human-approved follow-up proposals.'
-        : 'The workflow read the GLPI ticket history and found that KANAP has already acted since the latest requester message.',
+        ? 'The workflow read the GLPI ticket history, searched the KANAP knowledge base, authorized the instruction-driven plan for owned actions, and kept non-owned deterministic builders unchanged.'
+        : 'The workflow read the GLPI ticket history and no owned planner action or non-owned deterministic builder produced an eligible proposal.',
       confidence: knowledgeItems.length > 0 ? 0.72 : 0.46,
       proposed_action_class: 'ticket_triage_followups',
       max_autonomy_level: 'A2',
@@ -5440,6 +6458,12 @@ export class AiAgentControlService {
         lifecycle_context: lifecycleContext,
         routing_context: routingContext,
         participant_context: participantContext,
+        knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
+        knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
+        ticket_image_evidence: ticketImageExtraction.evidence,
+        ticket_image_evidence_warnings: ticketImageExtraction.warnings,
+        ticket_image_evidence_skipped_reason: ticketImageExtraction.skippedReason,
+        ticket_attachment_refs: ticketImageExtraction.attachmentRefs,
         run_usage_estimate: runUsageEstimate,
         ticket_history: ticketTimeline.map((entry) => ({
           id: entry.id,
@@ -5458,9 +6482,11 @@ export class AiAgentControlService {
         knowledge_candidates: mergedKnowledgeCandidates.map((item) => ({
           ref: item.ref ?? item.id ?? null,
           title: item.title ?? null,
+          score: item.score ?? null,
           search_queries: item.search_queries,
         })),
         knowledge_result_interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+        knowledge_low_relevance: knowledgeLowRelevance,
         knowledge_document_fetches: knowledgeDocumentAttempts.map((attempt) => ({
           document_id: attempt.document_id,
           tool_execution_id: attempt.result?.tool_execution_id ?? null,
@@ -5470,7 +6496,9 @@ export class AiAgentControlService {
         knowledge_results: knowledgeItems.map((item) => ({
           ref: item.ref ?? item.id ?? null,
           title: item.title ?? null,
+          score: item.score ?? null,
         })),
+        action_planner: actionPlannerMetadataForAudit,
         ...synthesisMetadata,
       },
       created_at: now,
@@ -5486,17 +6514,19 @@ export class AiAgentControlService {
       status: anyActionEligible ? 'pending_human_approval' : 'skipped',
       reason: anyActionEligible
         ? `Prepared ${expectedActionLabels.join(' and ')} action request(s); no write will occur without explicit approval.`
-        : 'Skipped GLPI follow-up preparation until a newer requester message appears.',
+        : 'Skipped GLPI action preparation because no eligible planner or builder action was selected.',
       evidence_ids: allEvidenceIds,
       policy_result_json: {
         autonomy_level: 'A2',
         approval_required: anyActionEligible,
+        action_planner_used: actionPlannerResult != null,
       },
       metadata_json: {
         ...agentMetadata,
         provider_key: target.provider_key,
         target_key: target.target_key,
         conversation_gate: conversationGate,
+        action_planner: actionPlannerMetadataForAudit,
       },
       created_at: now,
       updated_at: now,
@@ -5509,7 +6539,7 @@ export class AiAgentControlService {
       recommendation_id: recommendation.id,
       decision_id: decision.id,
       status: anyActionEligible ? 'pending' : 'completed',
-      outcome: anyActionEligible ? null : 'no_action_waiting_for_requester_update',
+      outcome: anyActionEligible ? null : 'no_eligible_action_selected',
       scores_json: null,
       feedback_json: null,
       metadata_json: {
@@ -5520,38 +6550,72 @@ export class AiAgentControlService {
       updated_at: now,
     }));
 
-    // Closing an inactive ticket is ordinary routine work driven by targeting — not a dedicated
-    // feature. When the agent's targeting includes an inactivity_age filter and a ticket matches
-    // it (and the agent can write status + replies, and the ticket is still open), the agent
-    // proposes a closing reply + a terminal status transition instead of the normal responsive
-    // proposals. It shares the same single approval window as any other proposal.
-    const closeWriteCapable = definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
-      && definitionAllowsCapability(agentDefinition, TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY);
-    const targetingEligibility = closeWriteCapable
-      ? await this.ticketTargetingEligibility(context, agentDefinition, ticket as TicketRecord, target.provider_key)
-      : { matched: false, hasInactivityAge: false };
-    const closeActive = closeWriteCapable
-      && lifecycleContext?.terminal !== true
-      && targetingEligibility.hasInactivityAge
-      && targetingEligibility.matched;
-    const closeActivityBucket = closeActive ? (ticket.updatedAt ?? '') : '';
-    const closeGroup = closeActive ? `ticket-close:${ticket.id}:${closeActivityBucket}` : null;
-    const closeTransitionKey = closeActive ? preferredTerminalTransition(lifecycleContext) : null;
-
-    // If the ticket is no longer eligible to close (fresh activity, or it has become terminal),
-    // retract any standing close proposal so an operator can never approve a close on a ticket
-    // that is active again.
-    if (closeWriteCapable && !closeActive) {
-      await this.withdrawCloseProposals(context, {
-        ticketId: ticket.id,
-        agentDefinitionId: stringFromMetadata(metadataObject(baseMetadata).agent_definition_id),
-      });
+    const plannerInternalNote = effectivePlannerActions.find((entry) => entry.action.action_type === 'internal_note') ?? null;
+    const plannerRequesterReply = effectivePlannerActions.find((entry) => entry.action.action_type === 'requester_reply') ?? null;
+    const plannerStatusUpdate = effectivePlannerActions.find((entry) => entry.action.action_type === 'status_update') ?? null;
+    const plannerStatusTransitionKey = plannerStatusUpdate && typeof plannerStatusUpdate.action.transition_key === 'string'
+      ? plannerStatusUpdate.action.transition_key
+      : null;
+    const plannerSuppressionReasons: Record<string, string> = {};
+    const plannerProposalContextHash = (entry: { action: PlannerAction; terminal: boolean }): string => proposalHash({
+      action_type: entry.action.action_type,
+      ticket: ticket.id,
+      updated_at: ticket.updatedAt ?? ticket.updated_at ?? null,
+      latest_requester_message_fingerprint: conversationGate.latest_requester_message_fingerprint,
+      latest_ticket_note_fingerprint: conversationGate.latest_ticket_note_fingerprint,
+      close_bucket: entry.terminal || entry.action.administrative_intent === 'close_reply'
+        ? (ticket.updatedAt ?? ticket.updated_at ?? null)
+        : null,
+    });
+    const plannerProposalHashFor = (entry: { action: PlannerAction; plannerActionKey: string; replyBody: string | null; terminal: boolean }): string => proposalHash({
+      action_type: entry.action.action_type,
+      planner_action_key: entry.plannerActionKey,
+      guidance_hash: actionPlannerGuidanceHash,
+      reply_kind: entry.action.reply_kind ?? null,
+      administrative_intent: entry.action.administrative_intent ?? null,
+      verbatim_ref: entry.action.verbatim_ref ?? null,
+      body_fingerprint: entry.replyBody ? proposalHash({ body: entry.replyBody }) : null,
+      transition_key: entry.action.transition_key ?? null,
+      terminal: entry.terminal,
+    });
+    const plannerMetadata = (
+      entry: { action: PlannerAction; plannerActionKey: string; terminal: boolean },
+      proposalHashValue: string | null,
+      contextHashValue: string | null,
+      triageAction: string,
+    ): Record<string, unknown> => ({
+      ...baseMetadata,
+      source: 'action_planner',
+      planner_action: true,
+      planner_action_key: entry.plannerActionKey,
+      action_planner_guidance_hash: actionPlannerGuidanceHash,
+      planner_reason: entry.action.reason,
+      planner_reply_kind: entry.action.reply_kind ?? null,
+      planner_administrative_intent: entry.action.administrative_intent ?? null,
+      triage_action: triageAction,
+      conversation_gate: conversationGate,
+      proposal_hash: proposalHashValue,
+      proposal_context_hash: contextHashValue,
+      ...(entry.terminal ? { terminal: true, destructive: true, risk: 'high' } : {}),
+    });
+    const plannerInternalNoteProposalHash = plannerInternalNote
+      ? plannerProposalHashFor({ ...plannerInternalNote, replyBody: noteBody })
+      : null;
+    const plannerInternalNoteContextHash = plannerInternalNote
+      ? plannerProposalContextHash(plannerInternalNote)
+      : null;
+    const plannerInternalNoteSuppression = plannerInternalNote && plannerInternalNoteProposalHash && plannerInternalNoteContextHash
+      ? await this.unchangedProposalSuppressionReason(context, {
+        capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+        targetRef: ticket.id,
+        proposalHash: plannerInternalNoteProposalHash,
+        contextHash: plannerInternalNoteContextHash,
+      })
+      : null;
+    if (plannerInternalNoteSuppression) {
+      plannerSuppressionReasons.internal_note = plannerInternalNoteSuppression;
     }
-
-    const noteBody = replySynthesisResult
-      ? renderSynthesizedTriageNote(ticket, ticketTimeline, replySynthesisResult)
-      : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults);
-    const proposal = (conversationGate.can_prepare_internal_note && !closeActive)
+    const proposal = ((fallbackPrepareInternalNote || plannerInternalNote) && !plannerInternalNoteSuppression)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
         input: {
@@ -5570,9 +6634,18 @@ export class AiAgentControlService {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           metadata: {
-            ...baseMetadata,
-            triage_action: 'prepare_internal_note',
-            conversation_gate: conversationGate,
+            ...(plannerInternalNote
+              ? plannerMetadata(
+                plannerInternalNote,
+                plannerInternalNoteProposalHash,
+                plannerInternalNoteContextHash,
+                'planner_prepare_internal_note',
+              )
+              : {
+                ...baseMetadata,
+                triage_action: 'prepare_internal_note',
+                conversation_gate: conversationGate,
+              }),
           },
         },
       })
@@ -5580,13 +6653,33 @@ export class AiAgentControlService {
     const requesterReplyBody = replySynthesisResult
       ? renderSynthesizedRequesterReply(ticket, replySynthesisResult)
       : buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline, webSearchResults);
-    const publicReplyProposal = (conversationGate.can_prepare_public_reply && !closeActive)
+    const plannerRequesterReplyBody = plannerRequesterReply
+      ? plannerRequesterReply.replyBody ?? requesterReplyBody
+      : null;
+    const plannerRequesterReplyProposalHash = plannerRequesterReply && plannerRequesterReplyBody
+      ? plannerProposalHashFor({ ...plannerRequesterReply, replyBody: plannerRequesterReplyBody })
+      : null;
+    const plannerRequesterReplyContextHash = plannerRequesterReply
+      ? plannerProposalContextHash(plannerRequesterReply)
+      : null;
+    const plannerRequesterReplySuppression = plannerRequesterReply && plannerRequesterReplyProposalHash && plannerRequesterReplyContextHash
+      ? await this.unchangedProposalSuppressionReason(context, {
+        capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+        targetRef: ticket.id,
+        proposalHash: plannerRequesterReplyProposalHash,
+        contextHash: plannerRequesterReplyContextHash,
+      })
+      : null;
+    if (plannerRequesterReplySuppression) {
+      plannerSuppressionReasons.requester_reply = plannerRequesterReplySuppression;
+    }
+    const publicReplyProposal = ((fallbackPublicReplyUsable || plannerRequesterReply) && !plannerRequesterReplySuppression)
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
         input: {
           provider_key: target.provider_key,
           ticket_id: ticket.id,
-          reply_body: requesterReplyBody,
+          reply_body: plannerRequesterReplyBody ?? requesterReplyBody,
           evidence_ids: allEvidenceIds,
           observation_id: observation.id,
           recommendation_id: recommendation.id,
@@ -5599,14 +6692,24 @@ export class AiAgentControlService {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           metadata: {
-            ...baseMetadata,
-            triage_action: 'prepare_public_reply',
-            conversation_gate: conversationGate,
+            ...(plannerRequesterReply
+              ? plannerMetadata(
+                plannerRequesterReply,
+                plannerRequesterReplyProposalHash,
+                plannerRequesterReplyContextHash,
+                plannerRequesterReply.action.administrative_intent === 'close_reply'
+                  ? 'planner_prepare_administrative_close_reply'
+                  : 'planner_prepare_public_reply',
+              )
+              : {
+                ...baseMetadata,
+                triage_action: 'prepare_public_reply',
+                conversation_gate: conversationGate,
+              }),
           },
         },
       })
       : null;
-    const classificationUpdateInput = closeActive ? null : buildClassificationUpdateProposal(ticket, classificationContext);
     const classificationProposalHash = classificationUpdateInput
       ? proposalHash({
         action: 'classification_update',
@@ -5655,7 +6758,24 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const statusUpdateInput = closeActive ? null : buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply);
+    const statusUpdateInput = fallbackStatusUpdateInput;
+    const plannerStatusProposalHash = plannerStatusUpdate
+      ? plannerProposalHashFor({ ...plannerStatusUpdate, replyBody: null })
+      : null;
+    const plannerStatusContextHash = plannerStatusUpdate
+      ? plannerProposalContextHash(plannerStatusUpdate)
+      : null;
+    const plannerStatusSuppression = plannerStatusUpdate && plannerStatusProposalHash && plannerStatusContextHash
+      ? await this.unchangedProposalSuppressionReason(context, {
+        capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+        targetRef: ticket.id,
+        proposalHash: plannerStatusProposalHash,
+        contextHash: plannerStatusContextHash,
+      })
+      : null;
+    if (plannerStatusSuppression) {
+      plannerSuppressionReasons.status_update = plannerStatusSuppression;
+    }
     const statusProposalHash = statusUpdateInput
       ? proposalHash({
         action: 'status_update',
@@ -5676,7 +6796,34 @@ export class AiAgentControlService {
         contextHash: statusContextHash,
       })
       : null;
-    const statusUpdateProposal = statusUpdateInput && !statusSuppressionReason
+    const statusUpdateProposal = plannerStatusUpdate && plannerStatusTransitionKey && !plannerStatusSuppression
+      ? await this.dispatcher.execute(context, {
+        capabilityName: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
+        input: {
+          provider_key: target.provider_key,
+          ticket_id: ticket.id,
+          transition_key: plannerStatusTransitionKey,
+          reason: plannerStatusUpdate.action.reason,
+          evidence_ids: allEvidenceIds,
+          observation_id: observation.id,
+          recommendation_id: recommendation.id,
+          decision_id: decision.id,
+          evaluation_id: evaluation.id,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: ticketResult.run_id,
+          stepIndex: stepIndex++,
+          metadata: plannerMetadata(
+            plannerStatusUpdate,
+            plannerStatusProposalHash,
+            plannerStatusContextHash,
+            plannerStatusUpdate.terminal ? 'planner_prepare_terminal_status' : 'planner_prepare_status_update',
+          ),
+        },
+      })
+      : statusUpdateInput && !statusSuppressionReason
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
         input: {
@@ -5704,7 +6851,6 @@ export class AiAgentControlService {
         },
       })
       : null;
-    const assignmentUpdateInput = closeActive ? null : buildAssignmentUpdateProposal(routingContext);
     const assignmentUpdateProposal = assignmentUpdateInput
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
@@ -5732,91 +6878,15 @@ export class AiAgentControlService {
       })
       : null;
 
-    // Routine close proposals: a closing reply + a terminal solve/close, deduped so a still-
-    // inactive ticket isn't re-proposed each cycle. Both carry the shared group + terminal/high-
-    // risk flags so approvals and audit present them as a pair, and the close is always
-    // human-approved (isTerminalStatusAction blocks auto-execution). They share the run's single
-    // approval window like every other proposal.
-    const closeReplyBody = buildClosingReply(ticket);
-    const closeReplyProposalHash = closeActive ? proposalHash({ action: 'close_reply', body: closeReplyBody }) : null;
-    const closeContextHash = closeActive ? proposalHash({ ticket: ticket.id, bucket: closeActivityBucket }) : null;
-    const closeReplySuppression = closeActive && closeReplyProposalHash && closeContextHash
-      ? await this.unchangedProposalSuppressionReason(context, {
-        capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
-        proposalHash: closeReplyProposalHash,
-        contextHash: closeContextHash,
-      })
-      : null;
-    const closeReplyProposal = closeActive && !closeReplySuppression
-      ? await this.dispatcher.execute(context, {
-        capabilityName: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
-        input: {
-          provider_key: target.provider_key,
-          ticket_id: ticket.id,
-          reply_body: closeReplyBody,
-          evidence_ids: allEvidenceIds,
-          observation_id: observation.id,
-          recommendation_id: recommendation.id,
-          decision_id: decision.id,
-          evaluation_id: evaluation.id,
-        },
-        execution: {
-          surface: 'internal',
-          trigger_kind: 'internal',
-          runId: ticketResult.run_id,
-          stepIndex: stepIndex++,
-          metadata: {
-            ...baseMetadata,
-            triage_action: 'prepare_close_reply',
-            close_group: closeGroup,
-            proposal_hash: closeReplyProposalHash,
-            proposal_context_hash: closeContextHash,
-          },
-        },
-      })
-      : null;
-    const closeProposalHash = closeActive ? proposalHash({ action: 'close', transition: closeTransitionKey }) : null;
-    const closeSuppression = closeActive && closeProposalHash && closeContextHash
-      ? await this.unchangedProposalSuppressionReason(context, {
-        capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-        targetRef: ticket.id,
-        proposalHash: closeProposalHash,
-        contextHash: closeContextHash,
-      })
-      : null;
-    const closeProposal = closeActive && closeTransitionKey && !closeSuppression
-      ? await this.dispatcher.execute(context, {
-        capabilityName: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
-        input: {
-          provider_key: target.provider_key,
-          ticket_id: ticket.id,
-          transition_key: closeTransitionKey,
-          reason: `Closing inactive ticket after a posted closing reply (${closeTransitionKey}).`,
-          evidence_ids: allEvidenceIds,
-          observation_id: observation.id,
-          recommendation_id: recommendation.id,
-          decision_id: decision.id,
-          evaluation_id: evaluation.id,
-        },
-        execution: {
-          surface: 'internal',
-          trigger_kind: 'internal',
-          runId: ticketResult.run_id,
-          stepIndex: stepIndex++,
-          metadata: {
-            ...baseMetadata,
-            triage_action: 'prepare_close',
-            close_group: closeGroup,
-            terminal: true,
-            destructive: true,
-            risk: 'high',
-            proposal_hash: closeProposalHash,
-            proposal_context_hash: closeContextHash,
-          },
-        },
-      })
-      : null;
+    const plannerSkippedActionsWithSuppression = {
+      ...plannerSkippedActions,
+      ...plannerSuppressionReasons,
+    };
+    const actionPlannerOutcomeMetadata = {
+      ...actionPlannerMetadataForAudit,
+      skipped_actions: plannerSkippedActionsWithSuppression,
+      suppression_reasons: plannerSuppressionReasons,
+    };
 
     const directPreparedActionIds = Array.from(new Set([
       ...(proposal ? actionRequestIdsFromCapabilityOutput(proposal.output) : []),
@@ -5824,17 +6894,13 @@ export class AiAgentControlService {
       ...(classificationUpdateProposal ? actionRequestIdsFromCapabilityOutput(classificationUpdateProposal.output) : []),
       ...(statusUpdateProposal ? actionRequestIdsFromCapabilityOutput(statusUpdateProposal.output) : []),
       ...(assignmentUpdateProposal ? actionRequestIdsFromCapabilityOutput(assignmentUpdateProposal.output) : []),
-      ...(closeReplyProposal ? actionRequestIdsFromCapabilityOutput(closeReplyProposal.output) : []),
-      ...(closeProposal ? actionRequestIdsFromCapabilityOutput(closeProposal.output) : []),
     ]));
     const expectedPreparedActionCount = [
-      conversationGate.can_prepare_internal_note && !closeActive,
-      conversationGate.can_prepare_public_reply && !closeActive,
+      !!proposal && adapterData(proposal.output) != null,
+      !!publicReplyProposal && adapterData(publicReplyProposal.output) != null,
       !!classificationUpdateProposal && adapterData(classificationUpdateProposal.output) != null,
       !!statusUpdateProposal && adapterData(statusUpdateProposal.output) != null,
       !!assignmentUpdateProposal && adapterData(assignmentUpdateProposal.output) != null,
-      !!closeReplyProposal && adapterData(closeReplyProposal.output) != null,
-      !!closeProposal && adapterData(closeProposal.output) != null,
     ].filter(Boolean).length;
     const recoveredPreparedActionIds = directPreparedActionIds.length >= expectedPreparedActionCount
       ? []
@@ -5909,28 +6975,67 @@ export class AiAgentControlService {
             tool_execution_id: attempt.result.tool_execution_id,
           })),
           knowledge_candidate_count: mergedKnowledgeCandidates.length,
+          knowledge_low_relevance_count: knowledgeLowRelevance.length,
           knowledge_result_interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
           knowledge_candidates: mergedKnowledgeCandidates.map((item) => ({
             ref: item.ref ?? item.id ?? null,
             title: item.title ?? null,
+            score: item.score ?? null,
             search_queries: item.search_queries,
           })),
+          knowledge_low_relevance: knowledgeLowRelevance,
           conversation_gate: conversationGate,
           classification_context: classificationContext,
           lifecycle_context: lifecycleContext,
           routing_context: routingContext,
           participant_context: participantContext,
+          knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
+          knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
+          ticket_image_evidence: ticketImageExtraction.evidence,
+          ticket_image_evidence_warnings: ticketImageExtraction.warnings,
+          ticket_image_evidence_skipped_reason: ticketImageExtraction.skippedReason,
+          ticket_attachment_refs: ticketImageExtraction.attachmentRefs,
           run_usage_estimate: runUsageEstimate,
           automatic_executions: automaticExecution.executions,
           ticket_history_entry_count: ticketTimeline.length,
+          action_planner: actionPlannerOutcomeMetadata,
           phase11_proposals: {
+            planner_owned: {
+              internal_note: plannerInternalNote ? {
+                proposal_hash: plannerInternalNoteProposalHash,
+                proposal_context_hash: plannerInternalNoteContextHash,
+                suppression_reason: plannerInternalNoteSuppression,
+              } : null,
+              requester_reply: plannerRequesterReply ? {
+                reply_kind: plannerRequesterReply.action.reply_kind ?? null,
+                administrative_intent: plannerRequesterReply.action.administrative_intent ?? null,
+                proposal_hash: plannerRequesterReplyProposalHash,
+                proposal_context_hash: plannerRequesterReplyContextHash,
+                suppression_reason: plannerRequesterReplySuppression,
+              } : null,
+              status_update: plannerStatusUpdate ? {
+                transition_key: plannerStatusTransitionKey,
+                terminal: plannerStatusUpdate.terminal,
+                proposal_hash: plannerStatusProposalHash,
+                proposal_context_hash: plannerStatusContextHash,
+                suppression_reason: plannerStatusSuppression,
+              } : null,
+            },
             classification: classificationUpdateInput ? {
               ...classificationUpdateInput,
               proposal_hash: classificationProposalHash,
               proposal_context_hash: classificationContextHash,
               suppression_reason: classificationSuppressionReason,
             } : null,
-            status: statusUpdateInput ? {
+            status: plannerStatusUpdate ? {
+              source: 'action_planner',
+              transitionKey: plannerStatusTransitionKey,
+              reason: plannerStatusUpdate.action.reason,
+              terminal: plannerStatusUpdate.terminal,
+              proposal_hash: plannerStatusProposalHash,
+              proposal_context_hash: plannerStatusContextHash,
+              suppression_reason: plannerStatusSuppression,
+            } : statusUpdateInput ? {
               ...statusUpdateInput,
               proposal_hash: statusProposalHash,
               proposal_context_hash: statusContextHash,
@@ -5939,10 +7044,14 @@ export class AiAgentControlService {
             assignment: assignmentUpdateInput,
           },
           skipped_actions: {
-            internal_note: conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason,
-            public_reply: conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason,
+            internal_note: plannerSkippedActionsWithSuppression.internal_note
+              ?? (conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason),
+            public_reply: plannerSkippedActionsWithSuppression.requester_reply
+              ?? (conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason),
             classification: classificationSuppressionReason ?? (classificationUpdateInput ? null : 'no_safe_classification_change'),
-            status: statusSuppressionReason ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
+            status: plannerSkippedActionsWithSuppression.status_update
+              ?? statusSuppressionReason
+              ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
             assignment: assignmentUpdateInput ? null : 'no_supported_assignment_target',
             participants: 'provider_participant_update_not_prepared',
           },
@@ -5973,6 +7082,12 @@ export class AiAgentControlService {
         knowledge_query: selectedKnowledgeAttempt?.query ?? null,
         knowledge_query_candidates: knowledgeQueryCandidates,
         knowledge_search_plan: serializeKnowledgeSearchPlan(knowledgeSearchPlan),
+        knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
+        knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
+        ticket_image_evidence: ticketImageExtraction.evidence,
+        ticket_image_evidence_warnings: ticketImageExtraction.warnings,
+        ticket_image_evidence_skipped_reason: ticketImageExtraction.skippedReason,
+        ticket_attachment_refs: ticketImageExtraction.attachmentRefs,
         knowledge_query_attempts: knowledgeAttempts.map((attempt) => ({
           query: attempt.query,
           result_count: attempt.items.length,
@@ -5981,9 +7096,11 @@ export class AiAgentControlService {
         knowledge_candidates: mergedKnowledgeCandidates.map((item) => ({
           ref: item.ref ?? item.id ?? null,
           title: item.title ?? null,
+          score: item.score ?? null,
           search_queries: item.search_queries,
         })),
         knowledge_result_interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
+        knowledge_low_relevance: knowledgeLowRelevance,
         evidence_ids: allEvidenceIds,
         observation_id: observation.id,
         recommendation_id: recommendation.id,
@@ -5997,19 +7114,26 @@ export class AiAgentControlService {
         participant_context: participantContext,
         run_usage_estimate: runUsageEstimate,
         automatic_executions: automaticExecution.executions,
+        action_planner: actionPlannerOutcomeMetadata,
         skipped_actions: {
-          internal_note: conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason,
-          public_reply: conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason,
+          internal_note: plannerSkippedActionsWithSuppression.internal_note
+            ?? (conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason),
+          public_reply: plannerSkippedActionsWithSuppression.requester_reply
+            ?? (conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason),
           classification: classificationSuppressionReason ?? (classificationUpdateInput ? null : 'no_safe_classification_change'),
-          status: statusSuppressionReason ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
+          status: plannerSkippedActionsWithSuppression.status_update
+            ?? statusSuppressionReason
+            ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
           assignment: assignmentUpdateInput ? null : 'no_supported_assignment_target',
           participants: 'provider_participant_update_not_prepared',
         },
         ticket_history_entry_count: ticketTimeline.length,
         knowledge_results: knowledgeItems,
+        knowledge_low_relevance_count: knowledgeLowRelevance.length,
         knowledge_documents: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY).map((item) => ({
           ref: item.ref ?? item.id ?? null,
           title: item.title ?? null,
+          score: item.score ?? null,
           content_length: item.content_markdown?.length ?? 0,
         })),
         synthesis: synthesisMetadata,
@@ -6096,6 +7220,359 @@ export class AiAgentControlService {
       approval: serializeApproval(approved.approval),
       execution,
       detail: detailRunId ? await this.getRunDetail(context, detailRunId) : null,
+    };
+  }
+
+  private async stampBulkApprovalContext(
+    context: AiExecutionContextWithManager,
+    actions: AiActionRequest[],
+    options: AgentControlBulkApproveOptions = {},
+  ): Promise<AiActionRequest[]> {
+    const actionRequestIds = actions.map((action) => action.id);
+    const batchId = hashStableJson({
+      tenant_id: context.tenantId,
+      action_request_ids: actionRequestIds,
+    });
+    const now = new Date();
+    const repo = context.manager.getRepository(AiActionRequest);
+    const stamped: AiActionRequest[] = [];
+    for (const action of actions) {
+      const existingMetadata = isRecord(action.metadata_json) ? action.metadata_json : {};
+      const existingBatch = isRecord(existingMetadata.approved_batch_context)
+        ? existingMetadata.approved_batch_context
+        : {};
+      action.metadata_json = {
+        ...existingMetadata,
+        approved_batch_context: {
+          ...existingBatch,
+          batch_id: batchId,
+          action_request_ids: actionRequestIds,
+          target_type: action.target_type ?? null,
+          target_ref: action.target_ref ?? null,
+          stamped_at: typeof existingBatch.stamped_at === 'string' ? existingBatch.stamped_at : now.toISOString(),
+          ...(options.queueExecution
+            ? {
+              execution_queued: true,
+              execution_queued_at: now.toISOString(),
+            }
+            : {}),
+        },
+      };
+      action.updated_at = now;
+      stamped.push(await repo.save(action));
+    }
+    return stamped;
+  }
+
+  private bulkApproveReason(action: AiActionRequest, execution: unknown, fallback: string | null): string | null {
+    if (action.error_message) {
+      return action.error_message;
+    }
+    const output = isRecord(execution) ? execution.output : null;
+    if (isRecord(output) && output.ok === false && typeof output.message === 'string') {
+      return output.message;
+    }
+    return fallback;
+  }
+
+  // Resolve the validated, batch-stamped, ordered execution plan for an approved
+  // bulk. Stamping (approved_batch_context) is committed here so each action can
+  // later execute in its own transaction and still see its siblings' baselines.
+  async planApprovedBulkExecution(
+    context: AiExecutionContextWithManager,
+    input: AgentControlBulkApproveInput,
+  ): Promise<{ orderedIds: string[]; requested: number }> {
+    const requestedIds = Array.from(new Set((input.action_request_ids ?? [])
+      .map((id) => trimmedString(id))
+      .filter((id): id is string => !!id)));
+    if (requestedIds.length === 0) {
+      throw new BadRequestException('At least one action request id is required.');
+    }
+    if (requestedIds.length > 20) {
+      throw new BadRequestException('Bulk approval is limited to 20 action requests.');
+    }
+
+    const repo = context.manager.getRepository(AiActionRequest);
+    const found = await repo.find({
+      where: {
+        id: In(requestedIds),
+        tenant_id: context.tenantId,
+      },
+    });
+    const byId = new Map(found.map((action) => [action.id, action]));
+    const missingIds = requestedIds.filter((id) => !byId.has(id));
+    if (missingIds.length > 0) {
+      throw new NotFoundException('One or more action requests were not found.');
+    }
+
+    const first = found[0];
+    const sameTarget = found.every((action) =>
+      action.provider_kind === first.provider_kind
+      && action.provider_key === first.provider_key
+      && action.target_type === first.target_type
+      && action.target_ref === first.target_ref);
+    if (!sameTarget) {
+      throw new BadRequestException('Bulk approval only supports actions for one target.');
+    }
+
+    const runnable = found
+      .filter((action) => ['approved', 'executed'].includes(action.status))
+      .sort(bulkApproveActionSort);
+    if (runnable.length === 0) {
+      return { orderedIds: [], requested: requestedIds.length };
+    }
+
+    const stamped = await this.stampBulkApprovalContext(context, runnable);
+    const stampedById = new Map(stamped.map((action) => [action.id, action]));
+    const ordered = runnable.map((action) => stampedById.get(action.id) ?? action).sort(bulkApproveActionSort);
+    return { orderedIds: ordered.map((action) => action.id), requested: requestedIds.length };
+  }
+
+  // Execute a single approved action. Designed to run inside its OWN transaction
+  // (one per action) so row locks on the ticket work item / target state release
+  // between slow GLPI writes and never block the queue-overview reconciliation.
+  async executeSingleApprovedAction(
+    context: AiExecutionContextWithManager,
+    actionRequestId: string,
+    options: { batchIds?: string[]; stepIndex?: number } = {},
+  ): Promise<{
+    action_request_id: string;
+    ok: boolean;
+    status: string;
+    reason: string | null;
+    action: ReturnType<typeof serializeActionRequest>;
+    execution: unknown;
+  }> {
+    const repo = context.manager.getRepository(AiActionRequest);
+    const action = await repo.findOne({
+      where: { id: actionRequestId, tenant_id: context.tenantId },
+    });
+    if (!action) {
+      throw new NotFoundException('Action request not found.');
+    }
+
+    let execution: unknown = null;
+    let failure: string | null = null;
+    try {
+      if (action.status !== 'executed') {
+        await this.assertActionSafeForUiExecution(context, action);
+        const agentDefinitionId = definitionIdFromMetadata(action.metadata_json);
+        const batchIds = options.batchIds && options.batchIds.length > 0 ? options.batchIds : [action.id];
+        execution = await this.dispatcher.execute(context, {
+          capabilityName: action.capability_name,
+          capabilityVersion: action.capability_version,
+          input: { action_request_id: action.id },
+          execution: {
+            surface: 'internal',
+            trigger_kind: 'internal',
+            runId: action.run_id,
+            stepIndex: 200 + (options.stepIndex ?? 0),
+            metadata: {
+              uat_workflow: 'agent_control_center_bulk_async_execution',
+              source: 'admin_ui',
+              action_request_id: action.id,
+              bulk_action_request_ids: batchIds,
+              ...(agentDefinitionId ? { agent_definition_id: agentDefinitionId } : {}),
+            },
+          },
+        });
+      }
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+    }
+
+    const freshAction = await repo.findOne({
+      where: { id: action.id, tenant_id: context.tenantId },
+    });
+    const responseAction = freshAction ?? action;
+    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, responseAction.id);
+    const readiness = await this.executionReadinessForActions(context, [responseAction]);
+    const ok = responseAction.status === 'executed';
+    return {
+      action_request_id: responseAction.id,
+      ok,
+      status: responseAction.status,
+      reason: ok ? null : this.bulkApproveReason(responseAction, execution, failure),
+      action: serializeActionRequest(responseAction, readiness.get(responseAction.id)),
+      execution,
+    };
+  }
+
+  async executeApprovedActionRequestsBulk(
+    context: AiExecutionContextWithManager,
+    input: AgentControlBulkApproveInput,
+  ) {
+    const { orderedIds, requested } = await this.planApprovedBulkExecution(context, input);
+    const results: Array<{
+      action_request_id: string;
+      ok: boolean;
+      status: string;
+      reason: string | null;
+      action: ReturnType<typeof serializeActionRequest>;
+      execution: unknown;
+    }> = [];
+
+    for (let index = 0; index < orderedIds.length; index += 1) {
+      results.push(await this.executeSingleApprovedAction(context, orderedIds[index], {
+        batchIds: orderedIds,
+        stepIndex: index,
+      }));
+    }
+
+    const executed = results.filter((result) => result.ok).length;
+    return {
+      results,
+      approvals: [],
+      execution_mode: 'background',
+      summary: {
+        requested,
+        processed: results.length,
+        approved: results.filter((result) => result.status === 'approved' || result.status === 'executed').length,
+        queued: 0,
+        executed,
+        needs_review: results.length === 0 ? requested : results.length - executed,
+      },
+    };
+  }
+
+  async approveActionRequestsBulk(
+    context: AiExecutionContextWithManager,
+    input: AgentControlBulkApproveInput,
+    options: AgentControlBulkApproveOptions = {},
+  ) {
+    const requestedIds = Array.from(new Set((input.action_request_ids ?? [])
+      .map((id) => trimmedString(id))
+      .filter((id): id is string => !!id)));
+    if (requestedIds.length === 0) {
+      throw new BadRequestException('At least one action request id is required.');
+    }
+    if (requestedIds.length > 20) {
+      throw new BadRequestException('Bulk approval is limited to 20 action requests.');
+    }
+
+    const repo = context.manager.getRepository(AiActionRequest);
+    const found = await repo.find({
+      where: {
+        id: In(requestedIds),
+        tenant_id: context.tenantId,
+      },
+    });
+    const byId = new Map(found.map((action) => [action.id, action]));
+    const missingIds = requestedIds.filter((id) => !byId.has(id));
+    if (missingIds.length > 0) {
+      throw new NotFoundException('One or more action requests were not found.');
+    }
+
+    const first = found[0];
+    const sameTarget = found.every((action) =>
+      action.provider_kind === first.provider_kind
+      && action.provider_key === first.provider_key
+      && action.target_type === first.target_type
+      && action.target_ref === first.target_ref);
+    if (!sameTarget) {
+      throw new BadRequestException('Bulk approval only supports actions for one target.');
+    }
+
+    const runnable = found
+      .filter((action) => ['pending', 'approved', 'executed'].includes(action.status))
+      .sort(bulkApproveActionSort);
+    if (runnable.length === 0) {
+      throw new BadRequestException('No executable action requests were provided.');
+    }
+
+    const stamped = await this.stampBulkApprovalContext(context, runnable, options);
+    const stampedById = new Map(stamped.map((action) => [action.id, action]));
+    const ordered = runnable.map((action) => stampedById.get(action.id) ?? action).sort(bulkApproveActionSort);
+    const results: Array<{
+      action_request_id: string;
+      ok: boolean;
+      status: string;
+      reason: string | null;
+      action: ReturnType<typeof serializeActionRequest>;
+      execution: unknown;
+    }> = [];
+    const approvals: Array<ReturnType<typeof serializeApproval>> = [];
+
+    for (const action of ordered) {
+      let execution: unknown = null;
+      let failure: string | null = null;
+      let responseAction = action;
+      try {
+        await this.assertActionSafeForUiExecution(context, action);
+        let approvedAction = action;
+        if (action.status !== 'executed') {
+          const approved = await this.approvals.approveActionRequest(context, action.id, {
+            source: 'human_ui',
+            reason: 'Approved from Agent Control Center bulk approval.',
+            actorLabel: null,
+          });
+          approvals.push(serializeApproval(approved.approval));
+          approvedAction = approved.action;
+        }
+
+        if (input.execute !== false && approvedAction.status !== 'executed') {
+          const agentDefinitionId = definitionIdFromMetadata(approvedAction.metadata_json);
+          execution = await this.dispatcher.execute(context, {
+            capabilityName: approvedAction.capability_name,
+            capabilityVersion: approvedAction.capability_version,
+            input: { action_request_id: approvedAction.id },
+            execution: {
+              surface: 'internal',
+              trigger_kind: 'internal',
+              runId: approvedAction.run_id,
+              stepIndex: 200 + results.length,
+              metadata: {
+                uat_workflow: 'agent_control_center_bulk_approved_execution',
+                source: 'admin_ui',
+                action_request_id: approvedAction.id,
+                bulk_action_request_ids: ordered.map((candidate) => candidate.id),
+                ...(agentDefinitionId ? { agent_definition_id: agentDefinitionId } : {}),
+              },
+            },
+          });
+        }
+      } catch (error) {
+        failure = error instanceof Error ? error.message : String(error);
+      }
+
+      const freshAction = await repo.findOne({
+        where: { id: action.id, tenant_id: context.tenantId },
+      });
+      responseAction = freshAction ?? responseAction;
+      await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, responseAction.id);
+      const readiness = await this.executionReadinessForActions(context, [responseAction]);
+      const ok = input.execute === false
+        ? responseAction.status === 'approved' || responseAction.status === 'executed'
+        : responseAction.status === 'executed';
+      results.push({
+        action_request_id: responseAction.id,
+        ok,
+        status: responseAction.status,
+        reason: ok ? null : this.bulkApproveReason(responseAction, execution, failure),
+        action: serializeActionRequest(responseAction, readiness.get(responseAction.id)),
+        execution,
+      });
+    }
+
+    const approved = results.filter((result) => result.status === 'approved' || result.status === 'executed').length;
+    const queued = options.queueExecution
+      ? results.filter((result) => result.status === 'approved').length
+      : 0;
+    const executed = results.filter((result) => result.status === 'executed' && result.ok).length;
+    const successful = results.filter((result) => result.ok).length;
+    const needsReview = results.length - successful;
+    return {
+      results,
+      approvals,
+      execution_mode: options.queueExecution ? 'queued' : input.execute === false ? 'approve_only' : 'synchronous',
+      summary: {
+        requested: requestedIds.length,
+        processed: results.length,
+        approved,
+        queued,
+        executed,
+        needs_review: needsReview,
+      },
     };
   }
 

@@ -17,6 +17,7 @@ function createMockSettings(overrides?: Partial<AiSettings>): AiSettings {
     mcp_key_max_lifetime_days: null,
     conversation_retention_days: null,
     web_search_enabled: false,
+    llm_supports_vision: true,
     glpi_enabled: false,
     glpi_url: null,
     glpi_user_token_encrypted: null,

@@ -1499,6 +1499,29 @@ export class AiAgentWorkQueueService {
     return this.refreshResolvedWaitingApproval(context, workItem);
   }
 
+  async reconcileWaitingApprovalWorkItems(
+    context: AiExecutionContextWithManager,
+    opts: { limit?: number } = {},
+  ): Promise<{ scanned: number; resolved: number }> {
+    const limit = Math.max(1, Math.min(Math.floor(opts.limit ?? 100), 500));
+    const workItems = await this.workItemRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        status: 'waiting_approval',
+      },
+      order: { updated_at: 'ASC' },
+      take: limit,
+    });
+    let resolved = 0;
+    for (const workItem of workItems) {
+      const refreshed = await this.refreshResolvedWaitingApproval(context, workItem);
+      if (refreshed === null) {
+        resolved += 1;
+      }
+    }
+    return { scanned: workItems.length, resolved };
+  }
+
   private async findActiveWorkItem(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,

@@ -63,13 +63,16 @@ import { AiToolRegistry } from './ai-tool.registry';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { McpApiKeyHashService } from './auth/mcp-api-key-hash.service';
 import { AiActionRequestService } from './control-plane/action-request/ai-action-request.service';
+import { AiAgentActionPlannerService } from './control-plane/agent-control/ai-agent-action-planner.service';
 import { AiAgentControlController } from './control-plane/agent-control/ai-agent-control.controller';
 import { AiAgentPromptCompilerService } from './control-plane/agent-control/ai-agent-prompt-compiler.service';
 import { AiAgentControlService } from './control-plane/agent-control/ai-agent-control.service';
 import { AiAgentLlmClient } from './control-plane/agent-control/ai-agent-llm-client';
+import { AiTicketEvidenceExtractionService } from './control-plane/agent-control/ai-ticket-evidence-extraction.service';
 import { AiKnowledgeSearchPlannerService } from './control-plane/agent-control/ai-knowledge-search-planner.service';
 import { AiReplySynthesisService } from './control-plane/agent-control/ai-reply-synthesis.service';
 import { AiSharedContextProfileService } from './control-plane/agent-control/ai-shared-context-profile.service';
+import { AiTicketNeedRepresentationService } from './control-plane/agent-control/ai-ticket-need-representation.service';
 import { AiAgentApprovalLifecycleSweeperService } from './control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import { AiAgentHelpdeskGlpiIngestionService } from './control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
 import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
@@ -297,9 +300,12 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
     AiAgentLlmClient,
+    AiAgentActionPlannerService,
     AiAgentPromptCompilerService,
     AiSharedContextProfileService,
+    AiTicketEvidenceExtractionService,
     AiKnowledgeSearchPlannerService,
+    AiTicketNeedRepresentationService,
     AiReplySynthesisService,
     AiAgentControlService,
     BraveSearchService,
@@ -349,9 +355,12 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
     AiAgentLlmClient,
+    AiAgentActionPlannerService,
     AiAgentPromptCompilerService,
     AiSharedContextProfileService,
+    AiTicketEvidenceExtractionService,
     AiKnowledgeSearchPlannerService,
+    AiTicketNeedRepresentationService,
     AiReplySynthesisService,
     AiAgentControlService,
     McpApiKeyAuthGuard,

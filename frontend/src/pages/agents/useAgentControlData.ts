@@ -7,7 +7,7 @@ import {
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlHelpdeskIngestionSettingsInput,
 } from '../../ai/aiApi';
-import { statusLabel } from '../../components/agents/agentControlPrimitives';
+import { actionCanReject, statusLabel } from '../../components/agents/agentControlPrimitives';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 export function useAgentControlData() {
@@ -92,21 +92,62 @@ export function useAgentControlData() {
   const approveAllMutation = useMutation({
     mutationFn: async (input: { key: string; actions: AiAgentControlActionRequest[] }) => {
       const executable = input.actions.filter((action) => action.execution_readiness?.can_execute ?? ['pending', 'approved'].includes(action.status));
-      for (const action of executable) {
-        await aiAgentControlApi.approveAction(action.id, { execute: true });
+      if (executable.length === 0) {
+        return { mode: 'none' as const, executed: 0, queued: 0, needsReview: 0 };
       }
-      return executable.length;
+      const result = await aiAgentControlApi.approveActionsBulk({
+        action_request_ids: executable.map((action) => action.id),
+        execute: true,
+      });
+      if (result.execution_mode === 'queued') {
+        const queued = result.summary.queued ?? result.results.filter((item) => item.action.status === 'approved').length;
+        return { mode: 'queued' as const, executed: result.summary.executed, queued, needsReview: result.summary.needs_review };
+      }
+      const executed = result.results.filter((item) => item.action.status === 'executed' || item.ok).length;
+      return { mode: 'synchronous' as const, executed, queued: 0, needsReview: result.results.length - executed };
     },
     onMutate: (input) => {
       setBusyTicketKey(input.key);
       setError(null);
       setMessage(null);
     },
-    onSuccess: async (count) => {
-      setMessage(t('messages.approvedMany', { count }));
-      await invalidate();
+    onSuccess: (result) => {
+      setMessage(result.mode === 'queued'
+        ? t('messages.approvedManyQueued', { count: result.queued, review: result.needsReview })
+        : t('messages.approvedMany', { count: result.executed, review: result.needsReview }));
+      // Refresh in the background — never block the button/modal dismissal on the
+      // refetch, so a stalled queue-overview GET cannot freeze the UI.
+      void invalidate();
     },
     onError: (err) => setError(getApiErrorMessage(err, t, t('messages.approveManyFailed'))),
+    onSettled: () => setBusyTicketKey(null),
+  });
+
+  const rejectAllMutation = useMutation({
+    mutationFn: async (input: { key: string; actions: AiAgentControlActionRequest[] }) => {
+      const rejectable = input.actions.filter(actionCanReject);
+      const results = await Promise.allSettled(rejectable.map((action) => aiAgentControlApi.rejectAction(action.id, {
+        reason: t('messages.rejectedFromAgents'),
+      })));
+      const rejected = results.filter((result) => result.status === 'fulfilled').length;
+      return { rejected, failed: results.length - rejected };
+    },
+    onMutate: (input) => {
+      setBusyTicketKey(input.key);
+      setError(null);
+      setMessage(null);
+    },
+    onSuccess: (result) => {
+      if (result.failed > 0) {
+        setError(t('messages.rejectManyFailed', { count: result.rejected, failed: result.failed }));
+      } else {
+        setMessage(t('messages.rejectedMany', { count: result.rejected }));
+      }
+      // Fire-and-forget: the modal close + busy reset must not wait on the refetch,
+      // otherwise a slow/stalled GET keeps the confirmation dialog spinner frozen.
+      void invalidate();
+    },
+    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.rejectManyFailed'))),
     onSettled: () => setBusyTicketKey(null),
   });
 
@@ -227,6 +268,7 @@ export function useAgentControlData() {
     message,
     pollMutation,
     queueQuery,
+    rejectAllMutation,
     rejectMutation,
     revokePauseMutation,
     setError,

@@ -71,6 +71,8 @@ import { useAgentControlData } from './useAgentControlData';
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
+type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis';
+const EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
 
 function numberField(value: string): number | null {
   const trimmed = value.trim();
@@ -644,6 +646,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const [sharedContextDialogOpen, setSharedContextDialogOpen] = React.useState(false);
   const [sharedContextDraftName, setSharedContextDraftName] = React.useState('');
   const [sharedContextDraftLines, setSharedContextDraftLines] = React.useState('');
+  const [effectivePromptTask, setEffectivePromptTask] = React.useState<EffectivePromptTaskKey>('action_planner');
   const [form, setForm] = React.useState<HelpdeskSettingsForm>(() => settingsFormFromDefinition(definition));
   const [knowledgeForm, setKnowledgeForm] = React.useState(() => knowledgeFormFromDefinition(definition));
   const [capabilityForm, setCapabilityForm] = React.useState<Record<string, boolean>>(() => capabilityEnabledState(definition));
@@ -921,7 +924,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const sharedContextProfiles = (sharedContextProfilesQuery.data?.items ?? []).filter((profile) => profile.status === 'active');
   const selectedSharedContextProfile = sharedContextProfiles.find((profile) => profile.id === agentForm.sharedContextProfileId) ?? null;
   const selectedSharedContextLines = sharedContextProfileLines(selectedSharedContextProfile);
-  const effectivePromptText = effectivePromptQuery.data?.tasks?.synthesis?.system_prompt ?? '';
+  const effectivePromptText = effectivePromptQuery.data?.tasks?.[effectivePromptTask]?.system_prompt ?? '';
   const handleCreateSharedContextProfile = () => {
     const name = sharedContextDraftName.trim();
     const lines = sharedContextDraftLines.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -1088,7 +1091,25 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
             </SettingsField>
             </Stack>
             <Box sx={{ position: { lg: 'sticky' }, top: { lg: 16 }, alignSelf: 'start' }}>
-            <SettingsField label={t('settings.effectivePrompt')} hint={t('settings.effectivePromptHint')}>
+            <SettingsField
+              label={(
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+                  <Typography variant="caption" color="text.secondary">{t('settings.effectivePrompt')}</Typography>
+                  <Select
+                    variant="standard"
+                    disableUnderline
+                    value={effectivePromptTask}
+                    onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
+                    sx={[drawerSelectSx, { minWidth: 150 }]}
+                  >
+                    {EFFECTIVE_PROMPT_TASKS.map((task) => (
+                      <MenuItem key={task} value={task} sx={drawerMenuItemSx}>{t(`settings.effectivePromptTasks.${task}`)}</MenuItem>
+                    ))}
+                  </Select>
+                </Stack>
+              )}
+              hint={t('settings.effectivePromptHint')}
+            >
               <Box
                 component="pre"
                 sx={(theme) => ({

@@ -23,6 +23,7 @@ import {
   TicketStatusUpdateActionPayload,
   TicketRoutingContext,
   TicketingProvider,
+  TicketAttachmentReadResult,
   TicketNote,
   TicketRecord,
   TicketListScope,
@@ -185,6 +186,39 @@ export class MockTicketingProvider implements TicketingProvider {
     ];
     return ok({ notes }, [
       evidenceSeed('ticketing:mock', 'ticket_notes', input.ticketId, `Ticket ${input.ticketId} notes.`, { notes }),
+    ]);
+  }
+
+  async readTicketAttachment(
+    context: ProviderContext,
+    input: { ticketId: string; target: string },
+  ): Promise<AdapterResult<TicketAttachmentReadResult>> {
+    void context;
+    const scenario = errorForScenario<TicketAttachmentReadResult>(input.ticketId);
+    if (scenario) {
+      return scenario;
+    }
+    const data: TicketAttachmentReadResult = {
+      attachment: {
+        id: 'mock-attachment-1',
+        kind: 'image',
+        source: 'ticket_description',
+        target: input.target,
+        sourceUri: null,
+        filename: 'mock-ticket-image.png',
+        mimeType: 'image/png',
+        sizeBytes: 10,
+        altText: null,
+      },
+      filename: 'mock-ticket-image.png',
+      mimeType: 'image/png',
+      sizeBytes: 10,
+      base64Data: Buffer.from('mock-image').toString('base64'),
+    };
+    return ok(data, [
+      evidenceSeed('ticketing:mock', 'ticket_attachment', input.ticketId, `Ticket ${input.ticketId} attachment.`, {
+        attachment: { ...data.attachment, sizeBytes: data.sizeBytes, mimeType: data.mimeType },
+      }),
     ]);
   }
 

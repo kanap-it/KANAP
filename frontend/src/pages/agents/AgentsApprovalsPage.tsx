@@ -6,10 +6,12 @@ import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
+import KanapDialog from '../../components/design/KanapDialog';
 import {
   ActionButtons,
   actionBody,
   actionCanExecute,
+  actionCanReject,
   actionIsTerminalStatus,
   actionLabel,
   actionUpdateSummary,
@@ -77,6 +79,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const { t } = useTranslation(['agents']);
   const locale = useLocale();
   const data = useAgentControlData();
+  const [rejectGroup, setRejectGroup] = React.useState<TicketWorkGroup | null>(null);
   const agentDefinition = React.useMemo(() => (
     agentKey ? data.queueQuery.data?.definitions.find((definition) => definition.agent_key === agentKey) ?? null : null
   ), [agentKey, data.queueQuery.data]);
@@ -90,6 +93,11 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
 
   const approveAll = (group: TicketWorkGroup) => {
     data.approveAllMutation.mutate({ key: group.key, actions: group.pendingActions });
+  };
+  const rejectAll = (group: TicketWorkGroup) => {
+    data.rejectAllMutation.mutate({ key: group.key, actions: group.pendingActions }, {
+      onSettled: () => setRejectGroup(null),
+    });
   };
 
   return (
@@ -112,6 +120,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
             <Stack divider={<Divider flexItem />}>
               {groups.map((group) => {
                 const executableCount = group.pendingActions.filter(actionCanExecute).length;
+                const rejectableCount = group.pendingActions.filter(actionCanReject).length;
                 return (
                   <Box key={group.key} sx={{ p: 1.5 }}>
                     <Stack spacing={1.25}>
@@ -130,6 +139,11 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
                           {executableCount > 1 && (
                             <Button size="small" variant="outlined" disabled={data.busyTicketKey === group.key} onClick={() => approveAll(group)}>
                               {t('approvals.approveAll')}
+                            </Button>
+                          )}
+                          {rejectableCount > 1 && (
+                            <Button size="small" variant="outlined" color="error" disabled={data.busyTicketKey === group.key} onClick={() => setRejectGroup(group)}>
+                              {t('approvals.rejectAll')}
                             </Button>
                           )}
                           {group.latestRunId && (
@@ -158,6 +172,19 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
             </Stack>
           )}
         </Section>
+        <KanapDialog
+          open={!!rejectGroup}
+          title={t('approvals.rejectAllTitle')}
+          onClose={() => setRejectGroup(null)}
+          onSave={() => { if (rejectGroup) rejectAll(rejectGroup); }}
+          saveLabel={t('approvals.rejectAll')}
+          saveColor="error"
+          saveLoading={!!rejectGroup && data.busyTicketKey === rejectGroup.key}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t('approvals.rejectAllConfirm', { count: rejectGroup?.pendingActions.filter(actionCanReject).length ?? 0, ticket: rejectGroup?.targetRef ?? '' })}
+          </Typography>
+        </KanapDialog>
         {grouped.orphanActions.length > 0 && !agentKey && (
           <Section title={t('approvals.unlinked')}>
             <Stack spacing={1} sx={{ p: 1.5 }}>
