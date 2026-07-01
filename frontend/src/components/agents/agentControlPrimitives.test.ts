@@ -1,0 +1,216 @@
+import { describe, expect, it } from 'vitest';
+import {
+  buildTicketGroups,
+} from './agentControlPrimitives';
+import {
+  applyOptimisticDecisionOverlay,
+  hasAgentControlInFlight,
+  pruneConfirmedOptimisticDecisions,
+  withOptimisticDecisionIds,
+  withoutOptimisticDecisionIds,
+} from '../../pages/agents/useAgentControlData';
+import {
+  type AiAgentControlActionRequest,
+  type AiAgentControlQueueOverview,
+  type AiAgentControlWorkItem,
+} from '../../ai/aiApi';
+
+const now = '2026-07-01T10:00:00.000Z';
+const nowMs = Date.parse(now);
+const future = '2999-01-01T00:00:00.000Z';
+
+function action(overrides: Partial<AiAgentControlActionRequest> = {}): AiAgentControlActionRequest {
+  return {
+    id: 'action-1',
+    run_id: 'run-1',
+    tool_execution_id: null,
+    capability_name: 'ticketing.ticket.internal_note.add_approved',
+    capability_version: '1',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '1001',
+    action_payload_json: null,
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: future,
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: null,
+    metadata_json: null,
+    execution_readiness: null,
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  };
+}
+
+function workItem(overrides: Partial<AiAgentControlWorkItem> = {}): AiAgentControlWorkItem {
+  return {
+    id: 'work-item-1',
+    agent_definition_id: 'agent-a',
+    trigger_id: null,
+    source_provider_kind: 'ticketing',
+    source_provider_key: 'glpi',
+    source_object_type: 'ticket',
+    source_object_ref: '1001',
+    source_object_updated_at: null,
+    work_kind: 'triage',
+    status: 'waiting_approval',
+    priority: 0,
+    dedup_key: 'ticketing:glpi:ticket:1001',
+    lease_owner: null,
+    leased_until: null,
+    attempt_count: 0,
+    max_attempts: 3,
+    next_attempt_at: null,
+    last_run_id: 'latest-run',
+    last_action_request_ids: null,
+    last_error: null,
+    metadata_json: null,
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  };
+}
+
+function overview(overrides: Partial<AiAgentControlQueueOverview> = {}): AiAgentControlQueueOverview {
+  return {
+    definitions: [],
+    work_items: [],
+    target_states: [],
+    action_requests: [],
+    counts: {},
+    ...overrides,
+  };
+}
+
+describe('buildTicketGroups', () => {
+  it('groups a pending action whose ticket has no work item instead of orphaning it', () => {
+    const result = buildTicketGroups(overview(), [
+      action({ id: 'action-out-of-slice', target_ref: '4711' }),
+    ], null, nowMs);
+
+    expect(result.orphanActions).toEqual([]);
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0]).toMatchObject({
+      key: 'ticketing:glpi:ticket:4711',
+      targetRef: '4711',
+      workItem: null,
+      queueStatus: 'unknown',
+      lifecycle: 'needs_decision',
+    });
+    expect(result.groups[0].pendingActions.map((item) => item.id)).toEqual(['action-out-of-slice']);
+  });
+
+  it('attaches a pending action from an older run to its ticket group by target key', () => {
+    const result = buildTicketGroups(overview({
+      work_items: [workItem({ source_object_ref: '42', last_run_id: 'latest-run' })],
+    }), [
+      action({ id: 'older-run-action', run_id: 'older-run', target_ref: '42' }),
+    ], null, nowMs);
+
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].key).toBe('ticketing:glpi:ticket:42');
+    expect(result.groups[0].pendingActions.map((item) => item.id)).toEqual(['older-run-action']);
+    expect(result.groups[0].lifecycle).toBe('needs_decision');
+  });
+
+  it('does not mark a waiting_approval work item as needs_decision when all actions are decided', () => {
+    const approved = action({ id: 'approved-action', status: 'approved', target_ref: '77', expires_at: null });
+    const rejected = action({ id: 'rejected-action', status: 'rejected', target_ref: '77', expires_at: null });
+    const result = buildTicketGroups(overview({
+      work_items: [workItem({
+        source_object_ref: '77',
+        status: 'waiting_approval',
+        last_action_request_ids: ['approved-action', 'rejected-action'],
+      })],
+    }), [approved, rejected], null, nowMs);
+
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].pendingActions.map((item) => item.status)).toEqual(['approved', 'rejected']);
+    expect(result.groups[0].lifecycle).toBe('finished');
+  });
+
+  it('does not attach cross-agent actions when agentDefinitionId is set', () => {
+    const result = buildTicketGroups(overview({
+      work_items: [workItem({ source_object_ref: '99', agent_definition_id: 'agent-a' })],
+    }), [
+      action({
+        id: 'other-agent-action',
+        target_ref: '99',
+        metadata_json: { agent_definition_id: 'agent-b' },
+      }),
+    ], 'agent-a', nowMs);
+
+    expect(result.orphanActions).toEqual([]);
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].pendingActions).toEqual([]);
+  });
+
+  it('groups non-ticketing provider actions by their own target key', () => {
+    const result = buildTicketGroups(overview(), [
+      action({
+        id: 'monitoring-action',
+        capability_name: 'monitoring.alert.acknowledge.approved',
+        provider_kind: 'monitoring',
+        provider_key: 'prometheus',
+        target_type: 'alert',
+        target_ref: 'alert-1',
+      }),
+    ], null, nowMs);
+
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].key).toBe('monitoring:prometheus:alert:alert-1');
+    expect(result.groups[0].targetRef).toBe('alert-1');
+    expect(result.groups[0].pendingActions.map((item) => item.id)).toEqual(['monitoring-action']);
+  });
+
+  it('always returns an empty orphanActions list', () => {
+    const result = buildTicketGroups(overview({
+      work_items: [workItem({ source_object_ref: 'in-slice' })],
+    }), [
+      action({ id: 'out-of-slice-action', target_ref: 'out-of-slice' }),
+    ], null, nowMs);
+
+    expect(result.orphanActions).toEqual([]);
+  });
+});
+
+describe('agent control polling and optimistic overlay helpers', () => {
+  it('detects in-flight actions and leased or running work items', () => {
+    expect(hasAgentControlInFlight({ actions: [action({ status: 'executing' })] })).toBe(true);
+    expect(hasAgentControlInFlight({
+      actions: [action({
+        status: 'approved',
+        executed_at: null,
+        metadata_json: { approved_batch_context: { execution_queued: true } },
+      })],
+    })).toBe(true);
+    expect(hasAgentControlInFlight({
+      overview: overview({ work_items: [workItem({ status: 'leased' })] }),
+      actions: [],
+    })).toBe(true);
+    expect(hasAgentControlInFlight({
+      overview: overview({ work_items: [workItem({ status: 'waiting_approval' })] }),
+      actions: [action({ status: 'pending' })],
+    })).toBe(false);
+  });
+
+  it('applies, prunes, and rolls back optimistic decisions', () => {
+    const base = action({ id: 'optimistic-action', status: 'pending' });
+    const approvedOverlay = withOptimisticDecisionIds(new Map(), [base.id], 'approved');
+    const overlaid = applyOptimisticDecisionOverlay([base], approvedOverlay);
+
+    expect(overlaid[0].status).toBe('approved');
+    expect(overlaid[0].metadata_json?.approved_batch_context).toMatchObject({ execution_queued: true });
+
+    expect(pruneConfirmedOptimisticDecisions(approvedOverlay, [base]).has(base.id)).toBe(true);
+    expect(pruneConfirmedOptimisticDecisions(approvedOverlay, [{ ...base, status: 'executing' }]).has(base.id)).toBe(false);
+    expect(withoutOptimisticDecisionIds(approvedOverlay, [base.id]).has(base.id)).toBe(false);
+  });
+});

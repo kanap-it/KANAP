@@ -6,9 +6,125 @@ import {
   type AiAgentControlActionRequest,
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlHelpdeskIngestionSettingsInput,
+  type AiAgentControlQueueOverview,
 } from '../../ai/aiApi';
 import { actionCanReject, statusLabel } from '../../components/agents/agentControlPrimitives';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+
+const QUEUE_QUERY_KEY = ['ai-agent-control-queue'] as const;
+const ACTIONS_QUERY_KEY = ['ai-agent-control-actions', 'all'] as const;
+const FAST_POLL_INTERVAL_MS = 5_000;
+const IDLE_POLL_INTERVAL_MS = 30_000;
+const KNOWN_EXECUTION_MODES = new Set(['queued', 'background', 'approve_only', 'synchronous']);
+
+export type OptimisticActionDecision = 'approved' | 'rejected';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function approvedBatchContext(action: AiAgentControlActionRequest): Record<string, unknown> | null {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+  const batch = isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
+  return batch;
+}
+
+function actionHasQueuedExecution(action: AiAgentControlActionRequest): boolean {
+  return action.status === 'approved'
+    && approvedBatchContext(action)?.execution_queued === true
+    && !action.executed_at;
+}
+
+function serverConfirmsOptimisticDecision(action: AiAgentControlActionRequest): boolean {
+  if (['approved', 'rejected', 'executing', 'executed', 'expired'].includes(action.status)) return true;
+  return !!action.approved_at || !!action.rejected_at || !!action.executed_at;
+}
+
+export function hasAgentControlInFlight(input: {
+  overview?: AiAgentControlQueueOverview | null;
+  actions?: readonly AiAgentControlActionRequest[] | null;
+}): boolean {
+  const actions = [
+    ...(input.actions ?? []),
+    ...(input.overview?.action_requests ?? []),
+  ];
+  if (actions.some((action) => action.status === 'executing' || actionHasQueuedExecution(action))) return true;
+  return (input.overview?.work_items ?? []).some((workItem) => ['leased', 'running'].includes(workItem.status));
+}
+
+export function applyOptimisticDecisionOverlay(
+  actions: readonly AiAgentControlActionRequest[],
+  decisions: ReadonlyMap<string, OptimisticActionDecision>,
+): AiAgentControlActionRequest[] {
+  if (decisions.size === 0) return [...actions];
+  return actions.map((action) => {
+    const decision = decisions.get(action.id);
+    if (!decision) return action;
+    if (decision === 'rejected') {
+      return { ...action, status: 'rejected' };
+    }
+    const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
+    const batch = isRecord(metadata.approved_batch_context) ? metadata.approved_batch_context : {};
+    return {
+      ...action,
+      status: 'approved',
+      metadata_json: {
+        ...metadata,
+        approved_batch_context: {
+          ...batch,
+          execution_queued: true,
+        },
+      },
+    };
+  });
+}
+
+export function withOptimisticDecisionIds(
+  decisions: ReadonlyMap<string, OptimisticActionDecision>,
+  actionIds: readonly string[],
+  decision: OptimisticActionDecision,
+): Map<string, OptimisticActionDecision> {
+  const next = new Map(decisions);
+  for (const actionId of actionIds) next.set(actionId, decision);
+  return next;
+}
+
+export function withoutOptimisticDecisionIds(
+  decisions: ReadonlyMap<string, OptimisticActionDecision>,
+  actionIds: readonly string[],
+): Map<string, OptimisticActionDecision> {
+  const next = new Map(decisions);
+  for (const actionId of actionIds) next.delete(actionId);
+  return next;
+}
+
+export function pruneConfirmedOptimisticDecisions(
+  decisions: ReadonlyMap<string, OptimisticActionDecision>,
+  serverActions: readonly AiAgentControlActionRequest[],
+): Map<string, OptimisticActionDecision> {
+  const next = new Map(decisions);
+  for (const action of serverActions) {
+    if (next.has(action.id) && serverConfirmsOptimisticDecision(action)) {
+      next.delete(action.id);
+    }
+  }
+  return next;
+}
+
+function sameDecisionMap(
+  left: ReadonlyMap<string, OptimisticActionDecision>,
+  right: ReadonlyMap<string, OptimisticActionDecision>,
+): boolean {
+  if (left.size !== right.size) return false;
+  for (const [key, value] of left.entries()) {
+    if (right.get(key) !== value) return false;
+  }
+  return true;
+}
+
+function knownExecutionMode(mode: string | undefined): boolean {
+  return !!mode && KNOWN_EXECUTION_MODES.has(mode);
+}
 
 export function useAgentControlData() {
   const { t } = useTranslation(['agents']);
@@ -17,16 +133,37 @@ export function useAgentControlData() {
   const [busyTicketKey, setBusyTicketKey] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [optimisticDecisions, setOptimisticDecisions] = React.useState<Map<string, OptimisticActionDecision>>(() => new Map());
+
+  const addOptimisticDecisions = React.useCallback((actionIds: readonly string[], decision: OptimisticActionDecision) => {
+    setOptimisticDecisions((current) => withOptimisticDecisionIds(current, actionIds, decision));
+  }, []);
+
+  const removeOptimisticDecisions = React.useCallback((actionIds: readonly string[]) => {
+    setOptimisticDecisions((current) => withoutOptimisticDecisionIds(current, actionIds));
+  }, []);
+
+  const refetchInterval = React.useCallback(() => {
+    const overview = queryClient.getQueryData<AiAgentControlQueueOverview>(QUEUE_QUERY_KEY) ?? null;
+    const actions = queryClient.getQueryData<{ items: AiAgentControlActionRequest[] }>(ACTIONS_QUERY_KEY)?.items ?? [];
+    const overlaidOverview = overview
+      ? { ...overview, action_requests: applyOptimisticDecisionOverlay(overview.action_requests ?? [], optimisticDecisions) }
+      : null;
+    const overlaidActions = applyOptimisticDecisionOverlay(actions, optimisticDecisions);
+    if (hasAgentControlInFlight({ overview: overlaidOverview, actions: overlaidActions })) return FAST_POLL_INTERVAL_MS;
+    if (Array.from(optimisticDecisions.values()).some((decision) => decision === 'approved')) return FAST_POLL_INTERVAL_MS;
+    return IDLE_POLL_INTERVAL_MS;
+  }, [optimisticDecisions, queryClient]);
 
   const queueQuery = useQuery({
-    queryKey: ['ai-agent-control-queue'],
+    queryKey: QUEUE_QUERY_KEY,
     queryFn: () => aiAgentControlApi.getQueueOverview({ limit: 100 }),
-    refetchInterval: 30_000,
+    refetchInterval,
   });
   const actionsQuery = useQuery({
-    queryKey: ['ai-agent-control-actions', 'pending'],
-    queryFn: () => aiAgentControlApi.listActions({ limit: 100, status: 'pending' }),
-    refetchInterval: 30_000,
+    queryKey: ACTIONS_QUERY_KEY,
+    queryFn: () => aiAgentControlApi.listActions({ limit: 100, status: 'all' }),
+    refetchInterval,
   });
   const badgesQuery = useQuery({
     queryKey: ['ai-agent-control-badges'],
@@ -45,7 +182,7 @@ export function useAgentControlData() {
 
   const invalidate = React.useCallback(async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['ai-agent-control-queue'] }),
+      queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-actions'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-badges'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-activity'] }),
@@ -63,12 +200,21 @@ export function useAgentControlData() {
       setBusyActionId(action.id);
       setError(null);
       setMessage(null);
+      addOptimisticDecisions([action.id], 'approved');
+      return { actionIds: [action.id] };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      if (!knownExecutionMode(result.execution_mode)) {
+        await invalidate();
+        return;
+      }
       setMessage(t('messages.approved'));
       await invalidate();
     },
-    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.approveFailed'))),
+    onError: (err, _action, context) => {
+      removeOptimisticDecisions(context?.actionIds ?? []);
+      setError(getApiErrorMessage(err, t, t('messages.approveFailed')));
+    },
     onSettled: () => setBusyActionId(null),
   });
 
@@ -80,12 +226,17 @@ export function useAgentControlData() {
       setBusyActionId(action.id);
       setError(null);
       setMessage(null);
+      addOptimisticDecisions([action.id], 'rejected');
+      return { actionIds: [action.id] };
     },
     onSuccess: async () => {
       setMessage(t('messages.rejected'));
       await invalidate();
     },
-    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.rejectFailed'))),
+    onError: (err, _action, context) => {
+      removeOptimisticDecisions(context?.actionIds ?? []);
+      setError(getApiErrorMessage(err, t, t('messages.rejectFailed')));
+    },
     onSettled: () => setBusyActionId(null),
   });
 
@@ -93,33 +244,79 @@ export function useAgentControlData() {
     mutationFn: async (input: { key: string; actions: AiAgentControlActionRequest[] }) => {
       const executable = input.actions.filter((action) => action.execution_readiness?.can_execute ?? ['pending', 'approved'].includes(action.status));
       if (executable.length === 0) {
-        return { mode: 'none' as const, executed: 0, queued: 0, needsReview: 0 };
+        return { mode: 'none' as const, executed: 0, queued: 0, needsReview: 0, failedActionIds: [] };
       }
       const result = await aiAgentControlApi.approveActionsBulk({
         action_request_ids: executable.map((action) => action.id),
         execute: true,
       });
-      if (result.execution_mode === 'queued') {
+      if (result.execution_mode === 'queued' || result.execution_mode === 'background') {
         const queued = result.summary.queued ?? result.results.filter((item) => ['approved', 'executing'].includes(item.action.status)).length;
-        return { mode: 'queued' as const, executed: result.summary.executed, queued, needsReview: result.summary.needs_review };
+        return {
+          mode: result.execution_mode,
+          executed: result.summary.executed,
+          queued,
+          needsReview: result.summary.needs_review,
+          failedActionIds: result.results.filter((item) => !item.ok && !serverConfirmsOptimisticDecision(item.action)).map((item) => item.action.id),
+        };
+      }
+      if (result.execution_mode === 'approve_only') {
+        const approved = result.summary.approved ?? result.results.filter((item) => ['approved', 'executed'].includes(item.action.status)).length;
+        return {
+          mode: 'approve_only' as const,
+          executed: approved,
+          queued: 0,
+          needsReview: result.summary.needs_review,
+          failedActionIds: result.results.filter((item) => !item.ok && !serverConfirmsOptimisticDecision(item.action)).map((item) => item.action.id),
+        };
+      }
+      if (result.execution_mode !== 'synchronous') {
+        return {
+          mode: 'unknown' as const,
+          executed: result.summary.executed,
+          queued: result.summary.queued ?? 0,
+          needsReview: result.summary.needs_review,
+          failedActionIds: result.results.filter((item) => !item.ok && !serverConfirmsOptimisticDecision(item.action)).map((item) => item.action.id),
+        };
       }
       const executed = result.results.filter((item) => item.action.status === 'executed' || item.ok).length;
-      return { mode: 'synchronous' as const, executed, queued: 0, needsReview: result.results.length - executed };
+      return {
+        mode: 'synchronous' as const,
+        executed,
+        queued: 0,
+        needsReview: result.results.length - executed,
+        failedActionIds: result.results.filter((item) => !item.ok && !serverConfirmsOptimisticDecision(item.action)).map((item) => item.action.id),
+      };
     },
     onMutate: (input) => {
       setBusyTicketKey(input.key);
       setError(null);
       setMessage(null);
+      const executable = input.actions.filter((action) => action.execution_readiness?.can_execute ?? ['pending', 'approved'].includes(action.status));
+      const actionIds = executable.map((action) => action.id);
+      addOptimisticDecisions(actionIds, 'approved');
+      return { actionIds };
     },
     onSuccess: (result) => {
+      if (result.failedActionIds.length > 0) {
+        removeOptimisticDecisions(result.failedActionIds);
+      }
+      if (result.mode === 'unknown') {
+        void invalidate();
+        return;
+      }
       setMessage(result.mode === 'queued'
+        || result.mode === 'background'
         ? t('messages.approvedManyQueued', { count: result.queued, review: result.needsReview })
         : t('messages.approvedMany', { count: result.executed, review: result.needsReview }));
       // Refresh in the background — never block the button/modal dismissal on the
       // refetch, so a stalled queue-overview GET cannot freeze the UI.
       void invalidate();
     },
-    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.approveManyFailed'))),
+    onError: (err, _input, context) => {
+      removeOptimisticDecisions(context?.actionIds ?? []);
+      setError(getApiErrorMessage(err, t, t('messages.approveManyFailed')));
+    },
     onSettled: () => setBusyTicketKey(null),
   });
 
@@ -130,14 +327,23 @@ export function useAgentControlData() {
         reason: t('messages.rejectedFromAgents'),
       })));
       const rejected = results.filter((result) => result.status === 'fulfilled').length;
-      return { rejected, failed: results.length - rejected };
+      const failedActionIds = rejectable
+        .filter((_, index) => results[index]?.status === 'rejected')
+        .map((action) => action.id);
+      return { rejected, failed: results.length - rejected, failedActionIds };
     },
     onMutate: (input) => {
       setBusyTicketKey(input.key);
       setError(null);
       setMessage(null);
+      const actionIds = input.actions.filter(actionCanReject).map((action) => action.id);
+      addOptimisticDecisions(actionIds, 'rejected');
+      return { actionIds };
     },
     onSuccess: (result) => {
+      if (result.failedActionIds.length > 0) {
+        removeOptimisticDecisions(result.failedActionIds);
+      }
       if (result.failed > 0) {
         setError(t('messages.rejectManyFailed', { count: result.rejected, failed: result.failed }));
       } else {
@@ -147,7 +353,10 @@ export function useAgentControlData() {
       // otherwise a slow/stalled GET keeps the confirmation dialog spinner frozen.
       void invalidate();
     },
-    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.rejectManyFailed'))),
+    onError: (err, _input, context) => {
+      removeOptimisticDecisions(context?.actionIds ?? []);
+      setError(getApiErrorMessage(err, t, t('messages.rejectManyFailed')));
+    },
     onSettled: () => setBusyTicketKey(null),
   });
 
@@ -245,12 +454,24 @@ export function useAgentControlData() {
     onError: (err) => setError(getApiErrorMessage(err, t, t('messages.pauseRevokeFailed'))),
   });
 
-  const actionPool = React.useMemo(() => {
+  const serverActionPool = React.useMemo(() => {
     const byId = new Map<string, AiAgentControlActionRequest>();
     for (const action of queueQuery.data?.action_requests ?? []) byId.set(action.id, action);
     for (const action of actionsQuery.data?.items ?? []) byId.set(action.id, action);
     return Array.from(byId.values());
   }, [actionsQuery.data, queueQuery.data]);
+
+  React.useEffect(() => {
+    setOptimisticDecisions((current) => {
+      const next = pruneConfirmedOptimisticDecisions(current, serverActionPool);
+      return sameDecisionMap(current, next) ? current : next;
+    });
+  }, [serverActionPool]);
+
+  const actionPool = React.useMemo(
+    () => applyOptimisticDecisionOverlay(serverActionPool, optimisticDecisions),
+    [optimisticDecisions, serverActionPool],
+  );
 
   return {
     actionPool,

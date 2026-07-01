@@ -86,10 +86,10 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   // Scope the grouping to this agent so a ticket shared with another agent never
   // surfaces the other agent's proposals here.
   const grouped = React.useMemo(
-    () => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, agentDefinition?.id ?? null),
+    () => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, agentDefinition?.id ?? null, Date.now()),
     [agentDefinition?.id, data.actionPool, data.queueQuery.data],
   );
-  const groups = React.useMemo(() => grouped.groups.filter((group) => group.active), [grouped.groups]);
+  const groups = React.useMemo(() => grouped.groups.filter((group) => group.lifecycle === 'needs_decision'), [grouped.groups]);
 
   const approveAll = (group: TicketWorkGroup) => {
     data.approveAllMutation.mutate({ key: group.key, actions: group.pendingActions });

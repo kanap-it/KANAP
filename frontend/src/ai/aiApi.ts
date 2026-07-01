@@ -591,6 +591,8 @@ export type AiAgentControlRunDetail = {
   approvals: AiAgentControlApproval[];
 };
 
+export type AiAgentControlExecutionMode = 'queued' | 'approve_only' | 'synchronous' | 'background' | (string & {});
+
 export type AiAgentControlBulkApproveResult = {
   results: Array<{
     action_request_id: string;
@@ -601,7 +603,7 @@ export type AiAgentControlBulkApproveResult = {
     execution: unknown;
   }>;
   approvals: AiAgentControlApproval[];
-  execution_mode?: 'queued' | 'approve_only' | 'synchronous' | 'background' | string;
+  execution_mode?: AiAgentControlExecutionMode;
   summary: {
     requested: number;
     processed: number;
@@ -1258,6 +1260,7 @@ export const aiAgentControlApi = {
     approval: AiAgentControlApproval;
     execution: unknown;
     detail: AiAgentControlRunDetail | null;
+    execution_mode?: AiAgentControlExecutionMode;
   }> {
     const res = await api.post(`/ai/admin/control-plane/actions/${id}/approve`, payload ?? { execute: true });
     return res.data;

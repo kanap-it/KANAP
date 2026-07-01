@@ -379,7 +379,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   // The agent does not run while it is draft/disabled — offer a Start that flips
   // it to enabled. Archived agents are restored deliberately from settings.
   const canStart = !!definition && definition.status !== 'enabled' && definition.status !== 'archived';
-  const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null), [data.actionPool, data.queueQuery.data, definition?.id]);
+  const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null, Date.now()), [data.actionPool, data.queueQuery.data, definition?.id]);
   const agentGroups = grouped.groups;
   const pendingApprovalCount = agentGroups.reduce((sum, group) => sum + group.pendingActions.filter((action) => action.status === 'pending').length, 0);
 
