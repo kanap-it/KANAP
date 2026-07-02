@@ -165,6 +165,7 @@ function synthesisFallbackInfo(action: AiAgentControlActionRequest, t: ReturnTyp
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
   if (metadata?.synthesis_usable !== false) return null;
   const { key, detail } = splitFallbackReason(stringValue(metadata.synthesis_fallback_reason));
+  if (metadata?.planner_reply_kind === 'administrative' && key === 'synthesis_not_attempted') return null;
   const known = FALLBACK_REASON_KEYS.has(key);
   return {
     label: t(`approvals.fallbackReasons.${known ? key : 'unknown'}`, {
