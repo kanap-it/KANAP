@@ -211,6 +211,7 @@ export type AiKnowledgeSearchResultDto = {
   summary: string | null;
   status: string;
   snippet: string | null;
+  score: number | null;
   library: {
     id: string | null;
     name: string | null;

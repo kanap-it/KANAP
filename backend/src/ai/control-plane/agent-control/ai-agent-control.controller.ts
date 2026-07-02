@@ -4,6 +4,9 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
   Param,
   ParseUUIDPipe,
   Post,
@@ -31,6 +34,7 @@ import {
   AgentControlAgentDefinitionInput,
   AgentControlAgentStatusInput,
   AgentControlAutonomyInput,
+  AgentControlBulkApproveInput,
   AgentControlTargetingPreviewInput,
   AiAgentControlService,
 } from './ai-agent-control.service';
@@ -54,17 +58,34 @@ function parseActivityTypes(value: unknown): AgentControlActivityType[] | null {
 }
 
 type AgentControlAccess = 'read' | 'operate' | 'admin';
+const MAX_APPROVAL_REASON_CHARS = 500;
+
 type EmergencyPauseBody = {
   scope?: 'tenant' | 'agent' | null;
   agent_definition_id?: string | null;
   reason?: string;
   expires_in_minutes?: number | null;
 };
+type AgentControlDecisionInput = {
+  execute?: boolean | null;
+  reason?: string | null;
+};
+
+function normalizeApprovalReason(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.length > MAX_APPROVAL_REASON_CHARS
+    ? trimmed.slice(0, MAX_APPROVAL_REASON_CHARS)
+    : trimmed;
+}
 
 @Controller('ai/admin/control-plane')
 @UseGuards(JwtAuthGuard)
 @SkipTenantTransaction()
 export class AiAgentControlController {
+  private readonly logger = new Logger(AiAgentControlController.name);
+
   constructor(
     private readonly tenantExecutor: AiTenantExecutionService,
     private readonly policy: AiPolicyService,
@@ -134,6 +155,88 @@ export class AiAgentControlController {
       return;
     }
     await this.policy.assertAgentRead(context, manager);
+  }
+
+  private async recordBackgroundExecutionError(
+    context: AiExecutionContext,
+    input: {
+      eventType: string;
+      message: string;
+      metadata: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    try {
+      await this.tenantExecutor.runWithContext(context, async (tenantContext) => {
+        await this.workQueue.recordAuditEvent(tenantContext, {
+          eventType: input.eventType,
+          severity: 'error',
+          message: input.message,
+          metadata: input.metadata,
+        });
+      });
+    } catch (error) {
+      this.logger.error(
+        `Background approved action audit failed: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  private scheduleApprovedActionExecution(context: AiExecutionContext, actionRequestIds: string[]) {
+    const ids = Array.from(new Set(actionRequestIds.filter((id) => typeof id === 'string' && id.length > 0)));
+    if (ids.length === 0) {
+      return;
+    }
+    setImmediate(() => {
+      void (async () => {
+        // Resolve the ordered, batch-stamped plan in one short transaction.
+        const orderedIds = await this.tenantExecutor.runWithContext(context, async (tenantContext) => {
+          await this.assertAccess(context, tenantContext.manager, 'operate');
+          const plan = await this.control.planApprovedBulkExecution(tenantContext, { action_request_ids: ids });
+          return plan.orderedIds;
+        });
+        // Execute each approved action in its OWN transaction so row locks on the
+        // ticket work item / target state release between (slow) GLPI writes and
+        // never block the queue-overview reconciliation that the UI polls.
+        for (let index = 0; index < orderedIds.length; index += 1) {
+          const actionRequestId = orderedIds[index];
+          await this.tenantExecutor.runWithContext(context, async (tenantContext) => {
+            await this.assertAccess(context, tenantContext.manager, 'operate');
+            await this.control.executeSingleApprovedAction(tenantContext, actionRequestId, {
+              batchIds: orderedIds,
+              stepIndex: index,
+            });
+          }).catch(async (error) => {
+            const message = `Background approved action execution failed for ${actionRequestId}: ${error instanceof Error ? error.message : String(error)}`;
+            this.logger.error(
+              message,
+              error instanceof Error ? error.stack : undefined,
+            );
+            await this.recordBackgroundExecutionError(context, {
+              eventType: 'approved_action_background_execution_failed',
+              message,
+              metadata: {
+                action_request_id: actionRequestId,
+                batch_action_request_ids: orderedIds,
+              },
+            });
+          });
+        }
+      })().catch(async (error) => {
+        const message = `Background approved action scheduling failed for ${ids.join(', ')}: ${error instanceof Error ? error.message : String(error)}`;
+        this.logger.error(
+          message,
+          error instanceof Error ? error.stack : undefined,
+        );
+        await this.recordBackgroundExecutionError(context, {
+          eventType: 'approved_action_background_scheduling_failed',
+          message,
+          metadata: {
+            action_request_ids: ids,
+          },
+        });
+      });
+    });
   }
 
   @Get('agents')
@@ -577,16 +680,50 @@ export class AiAgentControlController {
     });
   }
 
+  @Post('actions/approve')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async approveActionsBulk(
+    @Req() req: any,
+    @Body() body: AgentControlBulkApproveInput = {},
+  ) {
+    const context = this.buildContext(req);
+    const shouldExecute = body?.execute !== false;
+    const reason = normalizeApprovalReason(body?.reason);
+    const result = await this.runTransaction(context, 'operate', (tenantContext) =>
+      this.control.approveActionRequestsBulk(tenantContext, {
+        ...body,
+        execute: false,
+        reason,
+      }, { queueExecution: shouldExecute }));
+    if (shouldExecute) {
+      this.scheduleApprovedActionExecution(context, result.results
+        .filter((item) => item.status === 'approved' || item.action.status === 'approved')
+        .map((item) => item.action_request_id));
+    }
+    return result;
+  }
+
   @Post('actions/:id/approve')
+  @HttpCode(HttpStatus.ACCEPTED)
   async approveAction(
     @Req() req: any,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: { execute?: boolean | null } = {},
+    @Body() body: AgentControlDecisionInput = {},
   ) {
     const context = this.buildContext(req);
-    return this.runTransaction(context, 'operate', (tenantContext) => this.control.approveActionRequest(tenantContext, id, {
-      execute: body?.execute,
+    const shouldExecute = body?.execute !== false;
+    const reason = normalizeApprovalReason(body?.reason);
+    const result = await this.runTransaction(context, 'operate', (tenantContext) => this.control.approveActionRequest(tenantContext, id, {
+      execute: false,
+      reason,
     }));
+    if (shouldExecute) {
+      this.scheduleApprovedActionExecution(context, [result.action.id]);
+    }
+    return {
+      ...result,
+      execution_mode: shouldExecute ? 'queued' : 'approve_only',
+    };
   }
 
   @Post('actions/:id/reject')
@@ -596,10 +733,11 @@ export class AiAgentControlController {
     @Body() body: { reason?: string | null } = {},
   ) {
     const context = this.buildContext(req);
+    const reason = normalizeApprovalReason(body?.reason);
     return this.runTransaction(context, 'operate', (tenantContext) => this.control.rejectActionRequest(
       tenantContext,
       id,
-      body?.reason ?? null,
+      reason,
     ));
   }
 }

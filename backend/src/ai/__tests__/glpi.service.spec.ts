@@ -126,6 +126,71 @@ async function testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls() {
   }
 }
 
+async function testFetchDocumentRejectsCrossOriginTargets() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  let called = false;
+
+  try {
+    global.fetch = (async () => {
+      called = true;
+      return new Response('unexpected');
+    }) as typeof fetch;
+
+    await assert.rejects(
+      () => service.fetchDocument(
+        {
+          baseUrl: 'https://glpi.internal/helpdesk/',
+          sessionToken: 'session-token',
+          appToken: 'app-token',
+        },
+        'https://evil.example/front/document.send.php?docid=9',
+      ),
+      (error: any) => error instanceof BadRequestException,
+    );
+    assert.equal(called, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testGetTicketExtractsDescriptionImageTargets() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+
+  try {
+    global.fetch = (async () => new Response(JSON.stringify({
+      id: 77,
+      name: 'Screenshot in description',
+      content: '<p>See screenshot</p><img src="/front/document.send.php?docid=991&amp;itemtype=Ticket" />',
+      status: '1',
+      priority: 3,
+      urgency: '3',
+      type: 1,
+      entities_id: 1,
+      itilcategories_id: 2,
+      date: '2026-01-05 09:00:00',
+      date_mod: '2026-01-05 09:10:00',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch;
+
+    const ticket = await service.getTicket(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      77,
+    );
+
+    assert.deepEqual(ticket.image_targets, ['/front/document.send.php?docid=991&itemtype=Ticket']);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function testGetTicketFollowupsPaginatesAndNormalizesNewestFirst() {
   const service = createService('https://glpi.internal/helpdesk');
   const originalFetch = global.fetch;
@@ -723,6 +788,8 @@ async function run() {
   await testInitSessionExplainsHtmlResponse();
   await testInitSessionNormalizesApiEndpointBaseUrl();
   await testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls();
+  await testFetchDocumentRejectsCrossOriginTargets();
+  await testGetTicketExtractsDescriptionImageTargets();
   await testGetTicketFollowupsPaginatesAndNormalizesNewestFirst();
   await testGetTicketUsersNormalizesRoles();
   await testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored();

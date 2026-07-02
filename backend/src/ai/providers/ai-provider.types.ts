@@ -48,9 +48,8 @@ export type AiProviderMessage = {
    */
   reasoning_content?: string | null;
   /**
-   * Image attachments for multimodal models. Only honored by providers that advertise
-   * multimodal support (currently Anthropic). Other providers ignore the field and send
-   * text-only messages — this keeps the type flexible without breaking existing adapters.
+   * Image attachments for explicitly configured multimodal models. Callers must not send
+   * images unless a vision-capable runtime has been selected.
    */
   images?: AiProviderImageAttachment[] | null;
   tool_calls?: AiProviderToolCall[] | null;
@@ -101,7 +100,7 @@ export type AiStreamEvent =
   | { type: 'tool_call_delta'; id: string; arguments: string }
   | { type: 'tool_call_end'; id: string }
   | { type: 'debug_trace'; name: AiProviderDebugTraceName; tool_name?: string | null }
-  | { type: 'done'; usage?: { input_tokens: number; output_tokens: number } }
+  | { type: 'done'; usage?: { input_tokens: number; output_tokens: number }; finish_reason?: string }
   | { type: 'error'; message: string };
 
 export interface AiProviderAdapter {

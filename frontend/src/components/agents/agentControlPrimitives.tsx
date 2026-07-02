@@ -1,6 +1,8 @@
 import React from 'react';
-import { Box, Button, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, Button, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { useTranslation } from 'react-i18next';
 import KanapDialog from '../design/KanapDialog';
 import { type AutosaveStatus } from '../../hooks/useAutosave';
@@ -22,19 +24,11 @@ export const STATUS_UPDATE_CAPABILITY = 'ticketing.ticket.status_update.approved
 export const ASSIGNMENT_UPDATE_CAPABILITY = 'ticketing.ticket.assignment_update.approved';
 export const PARTICIPANT_UPDATE_CAPABILITY = 'ticketing.ticket.participant_update.approved';
 
-const HELPDESK_PROPOSAL_CAPABILITIES = new Set([
-  INTERNAL_NOTE_CAPABILITY,
-  PUBLIC_REPLY_CAPABILITY,
-  CLASSIFICATION_UPDATE_CAPABILITY,
-  STATUS_UPDATE_CAPABILITY,
-  ASSIGNMENT_UPDATE_CAPABILITY,
-  PARTICIPANT_UPDATE_CAPABILITY,
-]);
-
 const STATUS_COLORS: Record<string, string> = {
   approved: 'success',
   completed: 'success',
   dead_letter: 'error',
+  executing: 'info',
   executed: 'success',
   failed: 'error',
   leased: 'info',
@@ -50,8 +44,13 @@ const STATUS_COLORS: Record<string, string> = {
   waiting_approval: 'warning',
 };
 
+export type TicketWorkGroupLifecycle = 'needs_decision' | 'in_progress' | 'needs_attention' | 'finished';
+
 export type TicketWorkGroup = {
   key: string;
+  providerKind: string | null;
+  providerKey: string | null;
+  targetType: string | null;
   targetRef: string;
   workItem: AiAgentControlWorkItem | null;
   workItems: AiAgentControlWorkItem[];
@@ -61,7 +60,7 @@ export type TicketWorkGroup = {
   latestRunId: string | null;
   queueStatus: string;
   updatedAt: string | null;
-  active: boolean;
+  lifecycle: TicketWorkGroupLifecycle;
 };
 
 export type TicketGroupBuildResult = {
@@ -96,6 +95,60 @@ export function humanize(value: string | null | undefined): string {
 export function statusLabel(status: string | null | undefined): string {
   if (!status) return agentText('common.notSet', 'Not set');
   return agentText(`status.${status}`, humanize(status));
+}
+
+export function targetTypeLabel(targetType: string | null | undefined): string {
+  if (!targetType) return agentText('common.notSet', 'Not set');
+  return agentText(`targetTypes.${targetType}`, humanize(targetType));
+}
+
+export function targetRefLabel(targetRef: string | null | undefined): string {
+  const trimmed = typeof targetRef === 'string' ? targetRef.trim() : '';
+  return trimmed ? `#${trimmed}` : agentText('common.notSet', 'Not set');
+}
+
+export function targetLabelText(targetType: string | null | undefined, targetRef: string | null | undefined): string {
+  return `${targetTypeLabel(targetType)} ${targetRefLabel(targetRef)}`;
+}
+
+export function TargetLabel({
+  targetType,
+  targetRef,
+  size = 'normal',
+}: {
+  targetType: string | null | undefined;
+  targetRef: string | null | undefined;
+  size?: 'normal' | 'dense';
+}) {
+  const ref = targetRefLabel(targetRef);
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="baseline" sx={{ minWidth: 0 }}>
+      <Typography
+        component="span"
+        sx={(theme) => ({
+          color: theme.palette.kanap.text.secondary,
+          fontSize: size === 'dense' ? 13 : 14,
+          fontWeight: 400,
+          minWidth: 0,
+        })}
+      >
+        {targetTypeLabel(targetType)}
+      </Typography>
+      <Typography
+        component="span"
+        sx={(theme) => ({
+          color: theme.palette.kanap.text.secondary,
+          fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+          fontSize: size === 'dense' ? 11 : 12,
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 400,
+          whiteSpace: 'nowrap',
+        })}
+      >
+        {ref}
+      </Typography>
+    </Stack>
+  );
 }
 
 // Shared lifecycle-state key for an agent (fleet card + monitor header), resolved to a
@@ -222,10 +275,12 @@ export function actionUpdatesBody(actions: AiAgentControlActionRequest[]): strin
 }
 
 export function actionCanReject(action: AiAgentControlActionRequest): boolean {
+  if (action.status === 'executing') return false;
   return action.execution_readiness?.can_reject ?? (action.status === 'pending' || action.status === 'approved');
 }
 
 export function actionCanExecute(action: AiAgentControlActionRequest): boolean {
+  if (action.status === 'executing') return false;
   return action.execution_readiness?.can_execute ?? (action.status === 'pending' || action.status === 'approved');
 }
 
@@ -233,23 +288,86 @@ export function actionBlockedReason(action: AiAgentControlActionRequest): string
   return action.execution_readiness?.blocked_reason ?? null;
 }
 
-function activeWorkItemStatus(status: string | null | undefined): boolean {
-  return ['queued', 'leased', 'running', 'waiting_approval', 'failed', 'dead_letter'].includes(status ?? '');
+function actionTargetRef(action: AiAgentControlActionRequest): string {
+  return action.target_ref ?? action.target_id ?? action.id;
 }
 
-function isHelpdeskProposalAction(action: AiAgentControlActionRequest): boolean {
-  return HELPDESK_PROPOSAL_CAPABILITIES.has(action.capability_name);
+function targetGroupKeyFromParts(
+  providerKind: string | null | undefined,
+  providerKey: string | null | undefined,
+  targetType: string | null | undefined,
+  targetRef: string | null | undefined,
+): string {
+  return `${providerKind ?? 'unknown'}:${providerKey ?? 'unknown'}:${targetType ?? 'unknown'}:${targetRef ?? 'unknown'}`;
 }
 
-function actionMatchesTicketReview(
-  action: AiAgentControlActionRequest,
-  input: { targetRef: string; workItemId: string | null; runId: string | null },
-): boolean {
-  if (!isHelpdeskProposalAction(action)) return false;
-  if (action.target_ref !== input.targetRef && action.target_id !== input.targetRef) return false;
+function targetGroupKeyFromWorkItem(workItem: AiAgentControlWorkItem): string {
+  return targetGroupKeyFromParts(
+    workItem.source_provider_kind,
+    workItem.source_provider_key,
+    workItem.source_object_type,
+    workItem.source_object_ref,
+  );
+}
+
+function targetGroupKeyFromTargetState(state: AiAgentControlTargetState): string {
+  return targetGroupKeyFromParts(
+    state.provider_kind,
+    state.provider_key,
+    state.target_type,
+    state.target_ref,
+  );
+}
+
+function targetGroupKeyFromAction(action: AiAgentControlActionRequest): string {
+  return targetGroupKeyFromParts(
+    action.provider_kind,
+    action.provider_key,
+    action.target_type,
+    actionTargetRef(action),
+  );
+}
+
+function workItemInProgress(status: string | null | undefined): boolean {
+  return ['queued', 'leased', 'running'].includes(status ?? '');
+}
+
+function actionPendingNonExpired(action: AiAgentControlActionRequest, nowMs: number): boolean {
+  if (action.status !== 'pending') return false;
+  if (!action.expires_at) return true;
+  const expiresAt = Date.parse(action.expires_at);
+  return Number.isFinite(expiresAt) && expiresAt > nowMs;
+}
+
+function approvedBatchContext(action: AiAgentControlActionRequest): Record<string, unknown> | null {
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
-  if (input.workItemId && metadata?.agent_work_item_id === input.workItemId) return true;
-  return !!input.runId && action.run_id === input.runId;
+  return isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
+}
+
+function actionInProgress(action: AiAgentControlActionRequest): boolean {
+  return action.status === 'executing'
+    || (action.status === 'approved' && approvedBatchContext(action)?.execution_queued === true && !action.executed_at);
+}
+
+function actionNeedsAttention(action: AiAgentControlActionRequest): boolean {
+  if (action.status === 'approved' && !!action.error_message) return true;
+  return action.status === 'expired' && !!approvedBatchContext(action)?.dead_letter_reason;
+}
+
+function groupLifecycle(
+  workItems: AiAgentControlWorkItem[],
+  actions: AiAgentControlActionRequest[],
+  nowMs: number,
+): TicketWorkGroupLifecycle {
+  if (actions.some((action) => actionPendingNonExpired(action, nowMs))) return 'needs_decision';
+  if (actions.some(actionInProgress) || workItems.some((workItem) => workItemInProgress(workItem.status))) return 'in_progress';
+  if (
+    actions.some(actionNeedsAttention)
+    || workItems.some((workItem) => ['failed', 'dead_letter'].includes(workItem.status))
+  ) {
+    return 'needs_attention';
+  }
+  return 'finished';
 }
 
 function workItemSortWeight(status: string | null | undefined): number {
@@ -274,18 +392,12 @@ function workItemSortTime(workItem: AiAgentControlWorkItem): number {
 export function buildTicketGroups(
   overview: AiAgentControlQueueOverview | null,
   actionRequests: AiAgentControlActionRequest[],
-  agentDefinitionId?: string | null,
+  agentDefinitionId: string | null,
+  nowMs: number,
 ): TicketGroupBuildResult {
-  const targetStates = overview?.target_states ?? [];
-  const stateByTarget = new Map<string, AiAgentControlTargetState>();
-  for (const state of targetStates) {
-    stateByTarget.set(`${state.provider_kind}:${state.provider_key}:${state.target_type}:${state.target_ref}`, state);
-  }
-
   // Agent scoping: a ticket touched by several agents must not bleed one agent's
   // proposals into another's view. Keep only this agent's work items, and drop
-  // actions explicitly tagged for a different agent (untagged actions are kept and
-  // attach only via this agent's work-item/run linkage). See agentic-control-plane #1 (Approvals).
+  // actions explicitly tagged for a different agent. See agentic-control-plane #1 (Approvals).
   const scopedActions = agentDefinitionId
     ? actionRequests.filter((action) => {
       const owner = actionAgentDefinitionId(action);
@@ -295,57 +407,127 @@ export function buildTicketGroups(
 
   const actionById = new Map(scopedActions.map((action) => [action.id, action]));
   const usedActionIds = new Set<string>();
-  const workItemsByTarget = new Map<string, AiAgentControlWorkItem[]>();
+  const drafts = new Map<string, {
+    key: string;
+    providerKind: string | null;
+    providerKey: string | null;
+    targetType: string | null;
+    targetRef: string;
+    workItems: AiAgentControlWorkItem[];
+    targetState: AiAgentControlTargetState | null;
+  }>();
+
+  const ensureDraft = (
+    key: string,
+    targetRef: string,
+    providerKind: string | null | undefined,
+    providerKey: string | null | undefined,
+    targetType: string | null | undefined,
+  ) => {
+    const existing = drafts.get(key);
+    if (existing) return existing;
+    const draft = {
+      key,
+      providerKind: providerKind ?? null,
+      providerKey: providerKey ?? null,
+      targetType: targetType ?? null,
+      targetRef,
+      workItems: [],
+      targetState: null,
+    };
+    drafts.set(key, draft);
+    return draft;
+  };
+
   for (const workItem of overview?.work_items ?? []) {
     if (agentDefinitionId && workItem.agent_definition_id !== agentDefinitionId) continue;
-    const key = `${workItem.source_provider_kind}:${workItem.source_provider_key}:${workItem.source_object_type}:${workItem.source_object_ref}`;
-    const items = workItemsByTarget.get(key) ?? [];
-    items.push(workItem);
-    workItemsByTarget.set(key, items);
+    ensureDraft(
+      targetGroupKeyFromWorkItem(workItem),
+      workItem.source_object_ref,
+      workItem.source_provider_kind,
+      workItem.source_provider_key,
+      workItem.source_object_type,
+    ).workItems.push(workItem);
+  }
+
+  for (const state of overview?.target_states ?? []) {
+    if (agentDefinitionId && state.agent_definition_id !== agentDefinitionId) continue;
+    const draft = ensureDraft(
+      targetGroupKeyFromTargetState(state),
+      state.target_ref,
+      state.provider_kind,
+      state.provider_key,
+      state.target_type,
+    );
+    draft.targetState = state;
+  }
+
+  for (const action of scopedActions) {
+    ensureDraft(
+      targetGroupKeyFromAction(action),
+      actionTargetRef(action),
+      action.provider_kind,
+      action.provider_key,
+      action.target_type,
+    );
   }
 
   const groups: TicketWorkGroup[] = [];
-  for (const [stateKey, workItems] of workItemsByTarget.entries()) {
-    const sortedWorkItems = [...workItems].sort((left, right) => {
+  for (const draft of drafts.values()) {
+    const sortedWorkItems = [...draft.workItems].sort((left, right) => {
       const statusDiff = workItemSortWeight(left.status) - workItemSortWeight(right.status);
       if (statusDiff !== 0) return statusDiff;
       return workItemSortTime(right) - workItemSortTime(left);
     });
-    const workItem = sortedWorkItems.find((item) => activeWorkItemStatus(item.status)) ?? sortedWorkItems[0] ?? null;
-    const targetState = stateByTarget.get(stateKey) ?? null;
-    const targetRef = workItem?.source_object_ref ?? targetState?.target_ref ?? 'unknown';
+    const workItem = sortedWorkItems[0] ?? null;
+    const targetState = draft.targetState;
+    const targetRef = workItem?.source_object_ref ?? targetState?.target_ref ?? draft.targetRef;
     const latestRunId = workItem?.last_run_id ?? targetState?.last_run_id ?? null;
     const stateJson = isRecord(targetState?.state_json) ? targetState.state_json : null;
     const stateActionIds = Array.isArray(stateJson?.latest_action_request_ids)
       ? stateJson.latest_action_request_ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
       : [];
-    const actionIds = new Set<string>([
+    const claimActionIds = targetState?.claim_owner_action_request_ids ?? [];
+    const actionIds = new Set<string>();
+    const actions: AiAgentControlActionRequest[] = [];
+    const addAction = (action: AiAgentControlActionRequest) => {
+      if (actionIds.has(action.id) || usedActionIds.has(action.id)) return;
+      actions.push(action);
+      actionIds.add(action.id);
+      usedActionIds.add(action.id);
+    };
+
+    for (const id of [
       ...(workItem?.last_action_request_ids ?? []),
-      ...(workItem?.last_action_request_ids?.length ? [] : stateActionIds),
-    ]);
-    const actions = Array.from(actionIds)
-      .map((id) => actionById.get(id) ?? null)
-      .filter((action): action is AiAgentControlActionRequest => !!action);
-    for (const action of scopedActions) {
-      if (actionIds.has(action.id)) continue;
-      if (actionMatchesTicketReview(action, { targetRef, workItemId: workItem?.id ?? null, runId: latestRunId })) {
-        actions.push(action);
-        actionIds.add(action.id);
-      }
+      ...sortedWorkItems.flatMap((item) => item.id === workItem?.id ? [] : item.last_action_request_ids ?? []),
+      ...stateActionIds,
+      ...claimActionIds,
+    ]) {
+      const action = actionById.get(id);
+      if (action) addAction(action);
     }
-    actions.forEach((action) => usedActionIds.add(action.id));
+
+    for (const action of scopedActions) {
+      if (targetGroupKeyFromAction(action) === draft.key) addAction(action);
+    }
+
+    if (sortedWorkItems.length === 0 && !targetState && actions.length === 0) continue;
+
     groups.push({
-      key: stateKey,
+      key: draft.key,
+      providerKind: workItem?.source_provider_kind ?? targetState?.provider_kind ?? draft.providerKind,
+      providerKey: workItem?.source_provider_key ?? targetState?.provider_key ?? draft.providerKey,
+      targetType: workItem?.source_object_type ?? targetState?.target_type ?? draft.targetType,
       targetRef,
       workItem,
       workItems: sortedWorkItems,
-      historyWorkItems: sortedWorkItems.filter((item) => item.id !== workItem?.id),
+      historyWorkItems: workItem ? sortedWorkItems.filter((item) => item.id !== workItem.id) : sortedWorkItems,
       targetState,
       pendingActions: actions,
       latestRunId: latestRunId ?? actions[0]?.run_id ?? null,
-      queueStatus: workItem?.status ?? 'pending',
+      queueStatus: workItem?.status ?? 'unknown',
       updatedAt: workItem?.updated_at ?? targetState?.updated_at ?? actions[0]?.updated_at ?? actions[0]?.created_at ?? null,
-      active: activeWorkItemStatus(workItem?.status) || actions.some((action) => actionCanReject(action)),
+      lifecycle: groupLifecycle(sortedWorkItems, actions, nowMs),
     });
   }
 
@@ -356,8 +538,7 @@ export function buildTicketGroups(
     const rightTime = Date.parse(right.updatedAt ?? '');
     return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
   });
-  const orphanActions = scopedActions.filter((action) => !usedActionIds.has(action.id));
-  return { groups: sortedGroups, orphanActions };
+  return { groups: sortedGroups, orphanActions: [] };
 }
 
 export function StatusText({ status }: { status: string }) {
@@ -365,22 +546,99 @@ export function StatusText({ status }: { status: string }) {
   const dotColor = getDotColor(statusColor(status), theme.palette.mode);
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
-      <Typography variant="body2" sx={{ color: dotColor, minWidth: 0 }}>
+      <Box aria-hidden sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
+      <Typography sx={{ color: dotColor, fontSize: 13, fontWeight: 500, lineHeight: 1.35, minWidth: 0 }}>
         {statusLabel(status)}
       </Typography>
     </Stack>
   );
 }
 
-export function Section({ title, actions, children, id }: { title: string; actions?: React.ReactNode; children: React.ReactNode; id?: string }) {
-  return (
-    <Box id={id} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper', minWidth: 0 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'divider', gap: 1 }}>
-        <Typography variant="subtitle2" fontWeight={500}>{title}</Typography>
-        {actions}
+export function Section({
+  title,
+  actions,
+  children,
+  id,
+  caption,
+  collapsible = false,
+  open = true,
+  onToggle,
+  count,
+}: {
+  title: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+  caption?: React.ReactNode;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  count?: number;
+}) {
+  const header = (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ gap: 1, minWidth: 0, width: '100%' }}>
+      <Stack direction="row" spacing={1} alignItems="baseline" sx={{ minWidth: 0 }}>
+        {collapsible && (
+          <IconButton
+            aria-label={open ? agentText('approvals.collapseSection', 'Collapse section') : agentText('approvals.expandSection', 'Expand section')}
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle?.();
+            }}
+            sx={{ p: 0.25, color: 'kanap.text.secondary' }}
+          >
+            {open ? <KeyboardArrowDownIcon sx={{ fontSize: 17 }} /> : <KeyboardArrowRightIcon sx={{ fontSize: 17 }} />}
+          </IconButton>
+        )}
+        <Typography sx={(theme) => ({ color: theme.palette.kanap.text.primary, fontSize: 16, fontWeight: 500, lineHeight: 1.35 })}>
+          {title}
+        </Typography>
+        {typeof count === 'number' && (
+          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500, lineHeight: 1.35 })}>
+            {count}
+          </Typography>
+        )}
+        {caption ? (
+          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500, lineHeight: 1.35 })}>
+            {caption}
+          </Typography>
+        ) : null}
       </Stack>
-      <Box sx={{ minWidth: 0 }}>{children}</Box>
+      {actions}
+    </Stack>
+  );
+  return (
+    <Box id={id} sx={{ border: '1px solid', borderColor: 'kanap.border.default', borderRadius: 1, bgcolor: 'kanap.bg.primary', minWidth: 0 }}>
+      {collapsible ? (
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onToggle?.();
+            }
+          }}
+          sx={{
+            px: 1.5,
+            py: 0.8,
+            borderBottom: open ? '1px solid' : 'none',
+            borderColor: 'kanap.border.default',
+            borderRadius: open ? '6px 6px 0 0' : '6px',
+            cursor: 'pointer',
+            '&:hover': { bgcolor: 'kanap.bg.hover' },
+          }}
+        >
+          {header}
+        </Box>
+      ) : (
+        <Box sx={{ px: 1.5, py: 1, borderBottom: '1px solid', borderColor: 'kanap.border.default' }}>
+          {header}
+        </Box>
+      )}
+      {open && <Box sx={{ minWidth: 0 }}>{children}</Box>}
     </Box>
   );
 }

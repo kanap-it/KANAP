@@ -393,6 +393,7 @@ export class GlpiService {
       date: normalizeGlpiDate(record.date ?? record.date_creation ?? null),
       updated_date: normalizeGlpiDate(record.date_mod ?? record.date ?? record.date_creation ?? null),
       glpi_url: this.buildUrl(session.baseUrl, `front/ticket.form.php?id=${resolvedTicketId}`),
+      image_targets: extractImageTargets(textOrNull(record.content)),
     };
   }
 

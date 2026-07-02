@@ -11,6 +11,7 @@ import { PolicyDecisionRecord } from '../policy/policy-decision.types';
 
 const DEFAULT_APPROVAL_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_APPROVED_ACTION_EXECUTION_TTL_MS = 30 * 60 * 1000;
+const APPROVED_ACTION_EXECUTING_STATUS = 'executing';
 
 export type AiApprovalSource = 'human_chat' | 'human_ui' | 'teams' | 'policy' | 'system';
 
@@ -27,6 +28,22 @@ function approvalExpiryForAction(action: AiActionRequest, now = new Date()): Dat
     : minimum;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function executionClaimId(action: AiActionRequest): string | null {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+  const batch = isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
+  const value = batch?.execution_claim_id;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function executionMetadataClaimId(execution?: Partial<CapabilityExecutionContext> | null): string | null {
+  const value = execution?.metadata?.action_execution_claim_id;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
 @Injectable()
 export class AiApprovalService {
   constructor(
@@ -39,6 +56,31 @@ export class AiApprovalService {
 
   private repo(context: AiExecutionContextWithManager) {
     return context.manager.getRepository(AiApproval);
+  }
+
+  private async findDurableApproval(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+  ): Promise<AiApproval> {
+    const approval = await this.repo(context).findOne({
+      where: {
+        tenant_id: context.tenantId,
+        action_request_id: action.id,
+        capability_name: action.capability_name,
+        capability_version: action.capability_version,
+        input_hash: action.input_hash,
+        status: 'approved',
+        expires_at: MoreThan(new Date()),
+      },
+      order: { decided_at: 'DESC', created_at: 'DESC' },
+    });
+    if (!approval) {
+      throw new ForbiddenException('A valid durable approval is required before execution.');
+    }
+    if (approval.action_request_id !== action.id || approval.input_hash !== action.input_hash) {
+      throw new ForbiddenException('Approval does not match the action request scope.');
+    }
+    return approval;
   }
 
   async approvePreviewFromChat(
@@ -239,25 +281,7 @@ export class AiApprovalService {
     if (action.status !== 'approved') {
       throw new ForbiddenException('Action request must be approved before execution.');
     }
-    const approval = await this.repo(context).findOne({
-      where: {
-        tenant_id: context.tenantId,
-        action_request_id: action.id,
-        capability_name: action.capability_name,
-        capability_version: action.capability_version,
-        input_hash: action.input_hash,
-        status: 'approved',
-        expires_at: MoreThan(new Date()),
-      },
-      order: { decided_at: 'DESC', created_at: 'DESC' },
-    });
-    if (!approval) {
-      throw new ForbiddenException('A valid durable approval is required before execution.');
-    }
-    if (approval.action_request_id !== action.id || approval.input_hash !== action.input_hash) {
-      throw new ForbiddenException('Approval does not match the action request scope.');
-    }
-    return approval;
+    return this.findDurableApproval(context, action);
   }
 
   private async approveActionRequestByPolicy(
@@ -298,6 +322,13 @@ export class AiApprovalService {
     try {
       return await this.resolveApprovedAction(context, action);
     } catch (error) {
+      if (
+        action.status === APPROVED_ACTION_EXECUTING_STATUS
+        && executionClaimId(action)
+        && executionClaimId(action) === executionMetadataClaimId(execution)
+      ) {
+        return this.findDurableApproval(context, action);
+      }
       if (action.status !== 'pending' || !this.policyResolver) {
         throw error;
       }

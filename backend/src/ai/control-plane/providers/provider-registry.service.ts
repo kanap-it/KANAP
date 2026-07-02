@@ -87,6 +87,7 @@ class UnavailableTicketingProvider extends UnavailableProvider implements Ticket
   async getTicket() { return this.unavailable<any>(); }
   async searchSimilarTickets() { return this.unavailable<any>(); }
   async listTicketNotes() { return this.unavailable<any>(); }
+  async readTicketAttachment() { return this.unavailable<any>(); }
   async listTicketsForScope() { return this.unavailable<any>(); }
   async describeReferenceEnums() { return this.unavailable<any>(); }
   async searchReferenceCatalog() { return this.unavailable<any>(); }
@@ -249,6 +250,29 @@ export class AiProviderRegistryService {
     return applicability.available
       ? this.mockTicketing
       : new UnavailableTicketingProvider('ticketing', providerKey, applicability);
+  }
+
+  async provider(
+    context: AiExecutionContextWithManager,
+    providerKind: ProviderKind,
+    providerKey = 'mock',
+  ): Promise<ProviderBase> {
+    switch (providerKind) {
+      case 'ticketing':
+        return this.ticketing(context, providerKey);
+      case 'monitoring':
+        return this.monitoring(context, providerKey);
+      case 'virtualization':
+        return this.virtualization(context, providerKey);
+      case 'directory':
+        return this.directory(context, providerKey);
+      case 'communication':
+        return this.communication(context, providerKey);
+      case 'automation':
+        return this.automation(context, providerKey);
+      case 'kanap_domain':
+        return this.kanapDomain(context, providerKey);
+    }
   }
 
   async monitoring(context: AiExecutionContextWithManager, providerKey = 'mock'): Promise<MonitoringProvider> {

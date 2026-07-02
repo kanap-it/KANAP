@@ -123,8 +123,10 @@
         "apiKey": "API Key",
         "endpointUrl": "Endpoint URL",
         "model": "Model",
+        "multimodal": "Multimodal LLM",
         "provider": "Provider"
       },
+      "multimodalHelper": "Enable if the default model can analyze images (e.g. ticket screenshots). Turn off if the model is text-only.",
       "builtinUsage": {
         "cta": "Use your own API keys for unlimited usage.",
         "description": "Built-in usage is shared across chat and MCP requests for this tenant.",

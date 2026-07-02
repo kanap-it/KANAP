@@ -123,8 +123,10 @@
         "apiKey": "Clé API",
         "endpointUrl": "URL du point d'accès",
         "model": "Modèle",
+        "multimodal": "LLM multimodal",
         "provider": "Fournisseur"
       },
+      "multimodalHelper": "Activez si le modèle par défaut peut analyser des images (ex. captures d'écran de tickets). Désactivez si le modèle est uniquement textuel.",
       "builtinUsage": {
         "cta": "Use your own API keys for unlimited usage.",
         "description": "Built-in usage is shared across chat and MCP requests for this tenant.",

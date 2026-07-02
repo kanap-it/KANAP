@@ -17,6 +17,10 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 export const api = axios.create({
   baseURL,
   withCredentials: true,
+  // Hard ceiling so a stalled origin can never freeze the UI indefinitely (the
+  // production proxy already cuts at ~100s / 524). Deliberately long-running
+  // endpoints (agent poll/triage) override this per request.
+  timeout: 120_000,
 });
 
 let refreshPromise: Promise<RefreshResponse | null> | null = null;

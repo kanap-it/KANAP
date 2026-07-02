@@ -4,10 +4,21 @@ import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
 import { GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
 import {
+  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+} from '../capability/capability-contract';
+import {
   AdapterErrorCode,
   AdapterEvidenceSeed,
   AdapterResult,
   ProviderContext,
+  ProviderActionExecutionReadiness,
+  ProviderActionExecutionReadinessAction,
+  ProviderActionPlannerProfile,
   RefItem,
   SimilarTicket,
   TicketClassificationContext,
@@ -30,6 +41,8 @@ import {
   TicketRoutingTarget,
   TicketStatusUpdateActionPayload,
   TicketingProvider,
+  TicketAttachmentReadResult,
+  TicketAttachmentRef,
   TicketNote,
   TicketRecord,
   TicketListScope,
@@ -39,6 +52,36 @@ import {
 
 const MAX_INTERNAL_NOTE_CHARS = 4000;
 const MAX_PUBLIC_REPLY_CHARS = 12000;
+const GLPI_APPROVED_WRITE_CAPABILITIES = new Set([
+  TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+]);
+
+const GLPI_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
+  domain_preamble: 'Select bounded approval-gated GLPI triage actions.',
+  action_vocabulary: [
+    'internal_note',
+    'requester_reply',
+    'status_update',
+    'classification_update',
+    'assignment_update',
+    'participant_update',
+  ],
+  validation_notes: [
+    'For requester_reply sourced_answer, do not provide a body; the backend will use sourced synthesis.',
+    'For requester_reply administrative close notices, set reply_kind=administrative and administrative_intent=close_reply.',
+    'For close instructions, propose BOTH the administrative requester_reply and a status_update when a terminal transition is allowed.',
+    'If no source appears sufficient for a sourced answer, prefer internal_note over requester_reply sourced_answer.',
+    'If an exact public message is configured, use verbatim_ref from verbatim_candidates; do not copy ticket text as verbatim.',
+    'For status_update, transition_key must exactly match one key in allowed_status_transitions.',
+    'Only propose terminal status transitions when close_eligibility.matched is true, has_inactivity_age is true, terminal is false, and terminal_status_transition_keys is non-empty.',
+    'Do not propose classification, assignment, or participant updates unless they are in owned_action_types.',
+  ],
+};
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -373,6 +416,39 @@ function mapError<T>(error: unknown): AdapterResult<T> {
   return providerError<T>('provider_unavailable', message, true);
 }
 
+function attachmentIdFromTarget(target: string, source: TicketAttachmentRef['source'], sourceNoteId: string | null, index: number): string | null {
+  const docId = String(target || '').match(/[?&]docid=(\d+)/i)?.[1]
+    ?? String(target || '').match(/\/Document\/(\d+)/i)?.[1]
+    ?? null;
+  if (docId) return docId;
+  return sourceNoteId ? `${sourceNoteId}:${index + 1}` : `${source}:${index + 1}`;
+}
+
+function filenameFromTarget(target: string): string | null {
+  const clean = String(target || '').split(/[?#]/)[0] ?? '';
+  const last = clean.split('/').filter(Boolean).pop();
+  return last || null;
+}
+
+function toTicketAttachmentRef(
+  target: string,
+  source: TicketAttachmentRef['source'],
+  opts: { sourceNoteId?: string | null; sourceUri?: string | null; index: number },
+): TicketAttachmentRef {
+  return {
+    id: attachmentIdFromTarget(target, source, opts.sourceNoteId ?? null, opts.index),
+    kind: 'image',
+    source,
+    sourceNoteId: opts.sourceNoteId ?? null,
+    target,
+    sourceUri: opts.sourceUri ?? null,
+    filename: filenameFromTarget(target),
+    mimeType: null,
+    sizeBytes: null,
+    altText: null,
+  };
+}
+
 function toTicketRecord(ticket: GlpiTicket): TicketRecord {
   // No nowIso() fallback: an undated ticket must fail the ingestion horizon
   // check (parseDateMs('') -> null -> out of scope) instead of appearing new.
@@ -395,6 +471,10 @@ function toTicketRecord(ticket: GlpiTicket): TicketRecord {
       entityId: ticket.entity_id == null ? null : String(ticket.entity_id),
       categoryId: ticket.category_id == null ? null : String(ticket.category_id),
     },
+    attachments: ticket.image_targets.map((target, index) => toTicketAttachmentRef(target, 'ticket_description', {
+      sourceUri: ticket.glpi_url,
+      index,
+    })),
   };
 }
 
@@ -488,6 +568,10 @@ function toTicketNote(note: GlpiTicketFollowup, requesterUserIds: Set<number>): 
       updatedAt,
       stableTextHash(body),
     ].join(':'),
+    attachments: note.image_targets.map((target, index) => toTicketAttachmentRef(target, 'ticket_note', {
+      sourceNoteId: String(note.id),
+      index,
+    })),
   };
 }
 
@@ -499,6 +583,7 @@ function associationLabel(value: GlpiTicketUserAssociation): string {
 export class GlpiTicketingProvider implements TicketingProvider {
   readonly kind = 'ticketing' as const;
   readonly providerKey = 'glpi';
+  readonly actionPlannerProfile = GLPI_ACTION_PLANNER_PROFILE;
 
   constructor(
     private readonly settings: AiSettingsService,
@@ -544,6 +629,21 @@ export class GlpiTicketingProvider implements TicketingProvider {
       };
     }
     return { available: true };
+  }
+
+  async executionReadinessForActions(
+    context: ProviderContext,
+    input: { actions: ProviderActionExecutionReadinessAction[] },
+  ): Promise<ProviderActionExecutionReadiness[]> {
+    void context;
+    return input.actions.map((action) => {
+      const isGlpiWrite = GLPI_APPROVED_WRITE_CAPABILITIES.has(action.capability_name);
+      const targetRef = typeof action.target_ref === 'string' ? action.target_ref.trim() : '';
+      return {
+        action_request_id: action.id,
+        blocked_reason: isGlpiWrite && !targetRef ? 'GLPI action has no ticket target.' : null,
+      };
+    });
   }
 
   private async withSession<T>(
@@ -660,6 +760,49 @@ export class GlpiTicketingProvider implements TicketingProvider {
           })),
         }),
       ], requesterUserIds.size > 0 ? undefined : ['glpi_requester_user_not_available_for_note_classification']);
+    });
+  }
+
+  async readTicketAttachment(
+    context: ProviderContext,
+    input: { ticketId: string; target: string; source?: TicketAttachmentRef['source'] | null; sourceNoteId?: string | null },
+  ): Promise<AdapterResult<TicketAttachmentReadResult>> {
+    const ticketId = normalizeTicketId(input.ticketId);
+    if (!ticketId) {
+      return providerError<TicketAttachmentReadResult>('malformed_config', 'GLPI ticket id must be a positive integer.', false);
+    }
+    const target = String(input.target || '').trim();
+    if (!target) {
+      return providerError<TicketAttachmentReadResult>('malformed_config', 'GLPI attachment target is required.', false);
+    }
+    const source = input.source === 'ticket_note' ? 'ticket_note' : 'ticket_description';
+    return this.withSession(context, async (session) => {
+      const document = await this.glpi.fetchDocument(session, target);
+      const attachment = toTicketAttachmentRef(target, source, {
+        sourceNoteId: input.sourceNoteId ?? null,
+        index: 0,
+      });
+      attachment.filename = document.filename;
+      attachment.mimeType = document.mimeType;
+      attachment.sizeBytes = document.buffer.length;
+      const data: TicketAttachmentReadResult = {
+        attachment,
+        filename: document.filename,
+        mimeType: document.mimeType,
+        sizeBytes: document.buffer.length,
+        base64Data: document.buffer.toString('base64'),
+      };
+      return ok(data, [
+        evidenceSeed('ticket_attachment', attachment.id ?? target, `GLPI ticket ${ticketId} attachment ${attachment.id ?? target}.`, {
+          ticketId,
+          attachment: {
+            ...attachment,
+            sizeBytes: document.buffer.length,
+            mimeType: document.mimeType,
+            filename: document.filename,
+          },
+        }),
+      ]);
     });
   }
 

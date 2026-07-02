@@ -49,6 +49,10 @@ export class UpdateAiSettingsDto {
 
   @ValidateIf((_, value) => value !== undefined)
   @IsBoolean()
+  llm_supports_vision?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
   glpi_enabled?: boolean;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)

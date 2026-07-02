@@ -48,6 +48,7 @@ export type AiSettingsPayload = {
     mcp_key_max_lifetime_days: number | null;
     conversation_retention_days: number | null;
     web_search_enabled: boolean;
+    llm_supports_vision: boolean;
     glpi_enabled: boolean;
     glpi_url: string | null;
     has_glpi_user_token: boolean;
@@ -337,6 +338,7 @@ export type AiAgentEffectivePrompt = {
   shared_context_resolved: boolean;
   shared_context_resolution_reason: string | null;
   tasks: {
+    action_planner: AiAgentEffectivePromptTask;
     planner: AiAgentEffectivePromptTask;
     interpreter: AiAgentEffectivePromptTask;
     synthesis: AiAgentEffectivePromptTask;
@@ -587,6 +589,29 @@ export type AiAgentControlRunDetail = {
   evaluations: AiAgentControlEvaluation[];
   action_requests: AiAgentControlActionRequest[];
   approvals: AiAgentControlApproval[];
+};
+
+export type AiAgentControlExecutionMode = 'queued' | 'approve_only' | 'synchronous' | 'background' | (string & {});
+
+export type AiAgentControlBulkApproveResult = {
+  results: Array<{
+    action_request_id: string;
+    ok: boolean;
+    status: string;
+    reason: string | null;
+    action: AiAgentControlActionRequest;
+    execution: unknown;
+  }>;
+  approvals: AiAgentControlApproval[];
+  execution_mode?: AiAgentControlExecutionMode;
+  summary: {
+    requested: number;
+    processed: number;
+    approved?: number;
+    queued?: number;
+    executed: number;
+    needs_review: number;
+  };
 };
 
 export type AiAgentControlMockTriageResult = {
@@ -1180,7 +1205,7 @@ export const aiAgentControlApi = {
     ticket_id?: string;
     include_directory?: boolean;
   }): Promise<AiAgentControlMockTriageResult> {
-    const res = await api.post('/ai/admin/control-plane/uat/mock-triage', payload ?? {});
+    const res = await api.post('/ai/admin/control-plane/uat/mock-triage', payload ?? {}, { timeout: 600_000 });
     return res.data;
   },
   async listGlpiReadTargets(): Promise<AiAgentControlGlpiReadTargetsResult> {
@@ -1192,11 +1217,11 @@ export const aiAgentControlApi = {
     return res.data;
   },
   async runGlpiTriage(payload?: { target_key?: string }): Promise<AiAgentControlGlpiTriageResult> {
-    const res = await api.post('/ai/admin/control-plane/uat/glpi-triage', payload ?? {});
+    const res = await api.post('/ai/admin/control-plane/uat/glpi-triage', payload ?? {}, { timeout: 600_000 });
     return res.data;
   },
   async pollHelpdeskGlpiIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
-    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/poll', {});
+    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/poll', {}, { timeout: 600_000 });
     return res.data;
   },
   async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {
@@ -1230,13 +1255,18 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/emergency-pause/${id}/revoke`, {});
     return res.data;
   },
-  async approveAction(id: string, payload?: { execute?: boolean }): Promise<{
+  async approveAction(id: string, payload?: { execute?: boolean; reason?: string | null }): Promise<{
     action: AiAgentControlActionRequest;
     approval: AiAgentControlApproval;
     execution: unknown;
     detail: AiAgentControlRunDetail | null;
+    execution_mode?: AiAgentControlExecutionMode;
   }> {
     const res = await api.post(`/ai/admin/control-plane/actions/${id}/approve`, payload ?? { execute: true });
+    return res.data;
+  },
+  async approveActionsBulk(payload: { action_request_ids: string[]; execute?: boolean; reason?: string | null }): Promise<AiAgentControlBulkApproveResult> {
+    const res = await api.post('/ai/admin/control-plane/actions/approve', payload);
     return res.data;
   },
   async rejectAction(id: string, payload?: { reason?: string }): Promise<{

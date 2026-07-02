@@ -107,6 +107,28 @@ export type TicketRecord = {
     entityId?: string | null;
     categoryId?: string | null;
   } | null;
+  attachments?: TicketAttachmentRef[];
+};
+
+export type TicketAttachmentRef = {
+  id: string | null;
+  kind: 'image' | 'file';
+  source: 'ticket_description' | 'ticket_note';
+  sourceNoteId?: string | null;
+  target: string;
+  sourceUri?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  altText?: string | null;
+};
+
+export type TicketAttachmentReadResult = {
+  attachment: TicketAttachmentRef;
+  filename: string | null;
+  mimeType: string;
+  sizeBytes: number;
+  base64Data: string;
 };
 
 export type RefItem = {
@@ -157,6 +179,7 @@ export type TicketNote = {
   createdAt: string;
   updatedAt?: string | null;
   updateFingerprint?: string | null;
+  attachments?: TicketAttachmentRef[];
 };
 
 export type TicketUserAssociation = {
@@ -509,17 +532,51 @@ export type AutomationJobOutputResult = {
   truncated: boolean;
 };
 
+export type ProviderActionPlannerProfile = {
+  domain_preamble: string;
+  action_vocabulary: readonly string[];
+  validation_notes?: readonly string[];
+};
+
+export type ProviderActionExecutionReadinessAction = {
+  id: string;
+  tenant_id: string;
+  provider_kind: string | null;
+  provider_key: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  target_ref: string | null;
+  capability_name: string;
+  capability_version: string;
+  status: string;
+  action_payload_json?: unknown;
+  metadata_json?: unknown;
+};
+
+export type ProviderActionExecutionReadiness = {
+  action_request_id: string;
+  blocked_reason: string | null;
+  requires_sandbox_write_target?: boolean;
+  sandbox_write_target_ref?: string | null;
+};
+
 export interface ProviderBase {
   readonly kind: ProviderKind;
   readonly providerKey: string;
+  readonly actionPlannerProfile?: ProviderActionPlannerProfile;
   health(context: ProviderContext): Promise<AdapterHealthResult>;
   applicability(context: ProviderContext): Promise<CapabilityApplicability>;
+  executionReadinessForActions?(
+    context: ProviderContext,
+    input: { actions: ProviderActionExecutionReadinessAction[] },
+  ): Promise<ProviderActionExecutionReadiness[]>;
 }
 
 export interface TicketingProvider extends ProviderBase {
   getTicket(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRecord>>;
   searchSimilarTickets(context: ProviderContext, input: { query: string; ticketId?: string | null; limit?: number | null }): Promise<AdapterResult<{ tickets: SimilarTicket[] }>>;
   listTicketNotes(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<{ notes: TicketNote[] }>>;
+  readTicketAttachment(context: ProviderContext, input: { ticketId: string; target: string; source?: TicketAttachmentRef['source'] | null; sourceNoteId?: string | null }): Promise<AdapterResult<TicketAttachmentReadResult>>;
   listTicketsForScope(context: ProviderContext, input: { scope: TicketListScope }): Promise<AdapterResult<{ tickets: TicketRecord[] }>>;
   describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<TicketReferenceEnums>>;
   searchReferenceCatalog(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number }): Promise<AdapterResult<{ items: RefItem[] }>>;

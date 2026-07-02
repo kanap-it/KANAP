@@ -169,7 +169,7 @@ async function testCompletedNativeToolCallIsEmitted() {
     { type: 'tool_call_start', id: 'tc-1', name: 'search_all' },
     { type: 'tool_call_delta', id: 'tc-1', arguments: '{"query":"crm"}' },
     { type: 'tool_call_end', id: 'tc-1' },
-    { type: 'done', usage: undefined },
+    { type: 'done', usage: undefined, finish_reason: 'tool_calls' },
   ]);
   assert.equal(state.requests[0].parallel_tool_calls, false);
 }
@@ -201,7 +201,7 @@ async function testReasoningContentDeltasAreEmittedButNotText() {
   assert.deepEqual(events, [
     { type: 'reasoning_delta', text: 'private reasoning' },
     { type: 'text_delta', text: 'public answer' },
-    { type: 'done', usage: undefined },
+    { type: 'done', usage: undefined, finish_reason: 'stop' },
   ]);
 }
 

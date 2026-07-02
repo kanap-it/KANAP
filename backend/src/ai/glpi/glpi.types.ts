@@ -26,6 +26,7 @@ export type GlpiTicket = {
   date?: string | null;
   updated_date?: string | null;
   glpi_url: string;
+  image_targets: string[];
 };
 
 export type GlpiTicketListScope =
