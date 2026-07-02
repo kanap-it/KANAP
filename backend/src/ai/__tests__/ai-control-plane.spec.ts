@@ -6168,6 +6168,61 @@ function testActionPlannerConsumesProviderProfile() {
   assert.match((payload.rules as string[]).join('\n'), /mock_internal_note/);
 }
 
+function testActionPlannerPayloadIncludesImageEvidence() {
+  const service = new AiAgentActionPlannerService({} as any);
+  const baseInput = {
+    ticket: { id: 'mock-vision-1', title: 'Cannot connect' },
+    timeline: [],
+    contexts: {
+      classification: null,
+      lifecycle: null,
+      routing: null,
+      participants: null,
+    },
+    gates: {},
+    close_eligibility: { matched: false, has_inactivity_age: false, terminal: false },
+    granted_capabilities: [],
+    owned_action_types: ['mock_internal_note'],
+    provider_profile: null,
+    verbatim_candidates: [],
+    profile: null,
+  };
+  const payload = service.buildPromptPayload({
+    ...baseInput,
+    image_evidence: [{
+      attachment_ref: 'attachment:screenshot-1',
+      source: 'ticket_description' as const,
+      verbatim_text: Array.from({ length: 14 }, (_, index) => index === 1 ? 'A'.repeat(420) : `visible screenshot text ${index}`),
+      error_codes: Array.from({ length: 26 }, (_, index) => `ERR-${index}`),
+      ui_labels: Array.from({ length: 26 }, (_, index) => `label ${index}`),
+      screen: 'VPN sign-in error dialog',
+      visible_app: 'VPN client',
+      language: 'en',
+      summary: 'The screenshot shows a VPN sign-in dialog with an access denied error.',
+      confidence: 0.84,
+      warnings: ['possible OCR noise'],
+    }],
+  }) as any;
+  const evidence = payload.image_evidence as any[];
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0].attachment_ref, 'attachment:screenshot-1');
+  assert.equal(evidence[0].screen, 'VPN sign-in error dialog');
+  assert.equal(evidence[0].visible_app, 'VPN client');
+  assert.equal(evidence[0].summary, 'The screenshot shows a VPN sign-in dialog with an access denied error.');
+  assert.deepEqual(evidence[0].error_codes.slice(0, 2), ['ERR-0', 'ERR-1']);
+  assert.equal(evidence[0].error_codes.length, 24);
+  assert.equal(evidence[0].ui_labels.length, 24);
+  assert.equal(evidence[0].verbatim_text.length, 12);
+  assert.equal(evidence[0].verbatim_text[1].length <= 320, true);
+  assert.equal(evidence[0].confidence, 0.84);
+  assert.equal(Object.prototype.hasOwnProperty.call(evidence[0], 'source'), false);
+  assert.match((payload.rules as string[]).join('\n'), /image_evidence is text extracted from the requester screenshot attachments/);
+  assert.match((payload.rules as string[]).join('\n'), /do not judge the request as lacking detail/i);
+
+  const emptyPayload = service.buildPromptPayload(baseInput) as any;
+  assert.deepEqual(emptyPayload.image_evidence, []);
+}
+
 async function testUiExecutionSafetyUsesProviderReadiness() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -11543,6 +11598,57 @@ function testSynthesisPromptCarriesValidationStatus() {
   assert.match((payload.rules as string[]).join('\n'), /validation_status="unvalidated"/);
 }
 
+function testSynthesisPayloadIncludesScreenshotEvidence() {
+  const service = new AiReplySynthesisService({} as any);
+  const baseInput = {
+    ticket: {
+      id: 'vision-47',
+      title: 'Access denied',
+      description: 'See screenshot.',
+      status: 'open',
+      priority: 'medium',
+    },
+    timeline: [],
+    language: 'en',
+    knowledgeDocs: [],
+    webResults: [],
+    interpretation: null,
+    profile: null,
+  };
+  const payload = service.buildPromptPayload({
+    ...baseInput,
+    imageEvidence: [{
+      attachment_ref: 'attachment:screenshot-2',
+      source: 'ticket_note' as const,
+      verbatim_text: Array.from({ length: 14 }, (_, index) => index === 0 ? 'B'.repeat(420) : `dialog text ${index}`),
+      error_codes: ['ERR_ACCESS_DENIED'],
+      ui_labels: Array.from({ length: 26 }, (_, index) => `button ${index}`),
+      screen: 'Administrative permissions modal',
+      visible_app: 'Identity portal',
+      language: 'en',
+      summary: 'The requester is blocked by an access denied modal while opening the identity portal.',
+      confidence: 0.91,
+      warnings: [],
+    }],
+  }) as any;
+  const evidence = payload.screenshot_evidence as any[];
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0].attachment_ref, 'attachment:screenshot-2');
+  assert.equal(evidence[0].screen, 'Administrative permissions modal');
+  assert.equal(evidence[0].visible_app, 'Identity portal');
+  assert.deepEqual(evidence[0].error_codes, ['ERR_ACCESS_DENIED']);
+  assert.equal(evidence[0].ui_labels.length, 24);
+  assert.equal(evidence[0].verbatim_text.length, 12);
+  assert.equal(evidence[0].verbatim_text[0].length <= 320, true);
+  assert.equal(evidence[0].confidence, 0.91);
+  assert.equal(Object.prototype.hasOwnProperty.call(evidence[0], 'source'), false);
+  assert.match((payload.rules as string[]).join('\n'), /screenshot_evidence describes the requester screenshots/);
+  assert.match((payload.rules as string[]).join('\n'), /never list it in used_sources or rejected_sources/);
+
+  const emptyPayload = service.buildPromptPayload(baseInput) as any;
+  assert.deepEqual(emptyPayload.screenshot_evidence, []);
+}
+
 async function testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHonorsLanguage() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -12629,6 +12735,7 @@ async function run() {
   await testBulkApproveOrdersByCapabilityExecutionPhase();
   await testSuppressionAndWithdrawalUseProviderScope();
   testActionPlannerConsumesProviderProfile();
+  testActionPlannerPayloadIncludesImageEvidence();
   await testUiExecutionSafetyUsesProviderReadiness();
   testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig();
   await testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast();
@@ -12675,6 +12782,7 @@ async function run() {
   await testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb();
   testSynthesisPromptPrefersInternalKnowledgeSources();
   testSynthesisPromptCarriesValidationStatus();
+  testSynthesisPayloadIncludesScreenshotEvidence();
   await testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHonorsLanguage();
   await testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange();
   await testGlpiTriageProposalsShareOneApprovalWindow();
