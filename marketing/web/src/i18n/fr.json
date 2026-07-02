@@ -1,6 +1,6 @@
 {
-  "site.title": "KANAP · gestion IT open source",
-  "site.description": "Plateforme open source pour la gestion du budget, du portefeuille, des opérations et de la connaissance IT. Auto-hébergez-la, ou laissez-nous la gérer.",
+  "site.title": "KANAP · la plateforme open source de votre DSI",
+  "site.description": "Un seul référentiel pour vos applications, infrastructures, budgets, projets et documentation, avec Plaid et des agents IA qui y travaillent. Auto-hébergez-la, ou laissez-nous la gérer.",
 
   "nav.features": "Fonctionnalités",
   "nav.featuresAgents": "Agents",

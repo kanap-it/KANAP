@@ -84,8 +84,8 @@ const content: FeatureContent = {
   cta: {
     title: 'Ready to take control of your project funnel?',
     body: 'Self-host for free, or try hosted cloud. All features on every plan.',
-    primary: 'Start free trial',
-    secondary: 'Talk to us',
+    primary: 'Deploy free',
+    secondary: 'Try hosted cloud',
   },
 };
 

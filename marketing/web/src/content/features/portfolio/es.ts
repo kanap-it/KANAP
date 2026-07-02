@@ -84,8 +84,8 @@ const content: FeatureContent = {
   cta: {
     title: '¿Listo para tomar el control de su embudo de proyectos?',
     body: 'Autoaloje gratis o pruebe la nube alojada. Todas las funcionalidades en cada plan.',
-    primary: 'Empezar prueba gratuita',
-    secondary: 'Hablar con nosotros',
+    primary: 'Desplegar gratis',
+    secondary: 'Probar nube alojada',
   },
 };
 

@@ -99,6 +99,17 @@ const crossItems = content.crossCutting.items.map((i) => ({
     </Section>
   )}
 
+  {content.story?.map((band, i) => (
+    <Section tone={i % 2 === 0 ? 'sunken' : 'default'}>
+      <StoryBand
+        eyebrow={band.eyebrow}
+        title={band.title}
+        body={band.body}
+        bullets={band.bullets}
+      />
+    </Section>
+  ))}
+
   <Section tone="sunken">
     <FeatureGrid
       eyebrow={content.modules.eyebrow}
@@ -119,8 +130,19 @@ const crossItems = content.crossCutting.items.map((i) => ({
     />
   </Section>
 
-  {content.vision && (
+  {content.openSource && (
     <Section tone="sunken">
+      <StoryBand
+        eyebrow={content.openSource.eyebrow}
+        title={content.openSource.title}
+        body={content.openSource.body}
+        bullets={content.openSource.bullets}
+      />
+    </Section>
+  )}
+
+  {content.vision && (
+    <Section tone="default">
       <StoryBand
         eyebrow={content.vision.eyebrow}
         title={content.vision.title}
@@ -130,7 +152,7 @@ const crossItems = content.crossCutting.items.map((i) => ({
     </Section>
   )}
 
-  <Section tone="default" compact>
+  <Section tone="sunken" compact>
     <CTABand
       title={content.cta.title}
       body={content.cta.body}

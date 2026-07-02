@@ -66,6 +66,10 @@ export interface HomeContent {
    * until the translation pass adds these sections.
    */
   layers?: LayersSection;
+  /** The agentic narrative bands (differentiator, autonomy, governance, portability). */
+  story?: StoryBand[];
+  /** The community pillar band ("Open by default"). */
+  openSource?: StoryBand;
   vision?: StoryBand;
   modules: {
     eyebrow: string;

@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'Die Open-Source-Plattform für IT-Governance',
+    title: 'Open-Source-KI-Agenten für Ihre IT-Abteilung',
     description:
-      'Budget, Unternehmensarchitektur, Portfolio und Wissen in einer Plattform. Plaid bearbeitet alles in Alltagssprache, und KI-Agenten übernehmen die wiederkehrende Last. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
+      'KI-Agenten, verankert im vollständigen Bild Ihrer IT: Anwendungen, Infrastruktur, Budgets, Projekte und Dokumentation. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
   },
 
   hero: {
-    eyebrow: 'Bringen Sie Klarheit in Ihre IT-Abteilung',
-    title: 'Die Open-Source-Plattform für IT-Governance.',
-    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform. Plaid lässt Ihr Team alles in Alltagssprache bearbeiten, und KI-Agenten übernehmen die wiederkehrende Arbeit.\nKostenlos selbst hosten oder von uns betreiben lassen.',
+    eyebrow: 'Open Source · selbst gehostet · auf Erweiterung ausgelegt',
+    title: 'Open-Source-KI-Agenten, die Ihre wiederkehrende IT-Arbeit übernehmen.',
+    lead: 'KANAP hält das vollständige Bild Ihrer IT-Abteilung, von Anwendungen und Servern bis zu Budgets und Projekten. Plaid lässt jeden in Alltagssprache damit arbeiten, und Agenten handeln jetzt auf dieser Grundlage, um Ihrem Team die wiederkehrende Last abzunehmen.\nKostenlos selbst hosten oder von uns betreiben lassen.',
     primaryCta: 'Kostenlos bereitstellen',
     secondaryCta: 'Hosted Cloud testen',
     trialNote: 'AGPL v3 · kompletter Quellcode auf GitHub · Docker-Installation · keine Feature-Paywall.',
@@ -21,18 +21,6 @@ const content: HomeContent = {
     title: 'Was KANAP unterscheidet.',
     items: [
       {
-        title: 'Von Praktikern entwickelt',
-        body: 'Konzipiert von einem erfahrenen IT-Veteranen mit echter branchenübergreifender Erfahrung. Es löst reale Probleme der IT-Abteilung, nicht generische Kollaborationsprobleme.',
-      },
-      {
-        title: 'Einfach und stark',
-        body: 'Kein Komplexitätstheater. Stark genug für schwierige Probleme. Einfach genug, dass Ihr Team es heute einführt.',
-      },
-      {
-        title: 'Wirklich Open Source',
-        body: 'AGPL v3. Vollständiger Quellcode auf GitHub. Frei zum Selbsthosten, offen für Beiträge. Kein Vendor-Lock-in, keine Feature-Paywall, keine Freemium-Falle.',
-      },
-      {
         title: 'Die ganze IT-Abteilung in einem System.',
         body: 'Anwendungen, Infrastruktur, Budgets, Projekte und Dokumentation liegen in einem zentralen Datenbestand statt in zehn unverbundenen Tools.',
       },
@@ -41,8 +29,8 @@ const content: HomeContent = {
         body: 'Autonome Agenten übernehmen die wiederkehrende Last und gewinnen mehr Eigenständigkeit, je mehr sie sich an realen Aufgaben beweisen.',
       },
       {
-        title: 'In Ihrem Tempo einführen',
-        body: 'Jedes Modul ist allein voll nutzbar. Beginnen Sie dort, wo es am meisten weh tut, und ergänzen Sie den Rest, wenn Sie soweit sind, ohne Komplettmigration.',
+        title: 'Open Source, selbst gehostet, von Ihnen erweiterbar.',
+        body: 'Vollständiger Quellcode unter AGPL v3. Betreiben Sie es auf Ihren eigenen Servern, behalten Sie jede Funktion und schreiben Sie Ihre eigenen Agenten und Konnektoren.',
       },
     ],
   },
@@ -69,11 +57,36 @@ const content: HomeContent = {
     outro: 'Jeder Teil ist für sich nützlich, und zusammen werden sie stärker.',
   },
 
+  story: [
+    {
+      title: 'Agenten mit einem echten System darunter.',
+      body: 'Die meisten Agenten sehen nur das Ticket vor sich. Ein KANAP-Agent liest die betroffene Anwendung, wer sie verantwortet, was sie kostet, zu welchem Projekt sie gehört und die Dokumentation, die Ihr Team darüber geschrieben hat. Zu jedem Vorschlag nennt er die Quellen, die er genutzt hat. Diese Tiefe macht seine Arbeit vertrauenswürdig.',
+    },
+    {
+      title: 'Agenten, die sich ihre Eigenständigkeit verdienen.',
+      body: 'Ein Agent startet beaufsichtigt: Er schlägt vor, Sie genehmigen. KANAP misst, wie oft seine Vorschläge Bestand haben, und Sie gewähren mehr Autonomie, während die Erfolgsbilanz wächst. Jede wiederkehrende Aufgabe, die er übernimmt, ist eine Aufgabe, die Ihr Team nicht mehr von Hand erledigt.',
+    },
+    {
+      title: 'Autonomie, der Sie vertrauen können.',
+      body: 'Autonomie lässt sich gefahrlos gewähren, wenn nichts im Verborgenen geschieht. Genau das macht es vertretbar, einem Agenten echte Arbeit zu übergeben.',
+      bullets: [
+        'Jede Aktion wird protokolliert, mit vollständiger Vorher-Nachher-Historie',
+        'Agenten handeln nur über die Operationen, die Sie erlaubt haben',
+        'Jeder Vorschlag nennt die Quellen, auf die er sich stützt',
+        'Sie können jeden Agenten sofort pausieren',
+      ],
+    },
+    {
+      title: 'Gebaut für Ihren gesamten Stack.',
+      body: 'Eine Runtime treibt jeden Agenten an, und die Entscheidungslogik ist vom Tool getrennt, mit dem sie spricht. Ein Service-Desk-Konnektor kam zuerst und arbeitet heute eine Produktionswarteschlange ab. Dieselbe Runtime ist darauf ausgelegt, Monitoring, Virtualisierung, Ihr Verzeichnis und alles anzusteuern, was hinter einem Konnektor liegt. Der Code ist offen, Sie können also Ihren eigenen schreiben.',
+    },
+  ],
+
   modules: {
     eyebrow: 'Komplettes IT-Toolkit',
     title: 'Für jede IT-Rolle gemacht.',
     intro:
-      'KANAP deckt das Kernterrain ab, das jede IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit Plaid, um alles in Alltagssprache zu bearbeiten, und Agenten, die die wiederkehrende Last übernehmen.',
+      'KANAP deckt das Kernterrain ab, das jede IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit Plaid, um alles in Alltagssprache zu bearbeiten, und Agenten, die die wiederkehrende Last übernehmen. Jedes Modul ist für sich allein voll nutzbar, Sie können also dort anfangen, wo es am meisten weh tut, und den Rest ergänzen, wenn Sie soweit sind.',
     items: [
       {
         slug: '/features/budget',
@@ -187,6 +200,12 @@ const content: HomeContent = {
         body: 'Enterprise Single Sign-On. Ein Login für Ihre gesamte Organisation.',
       },
     ],
+  },
+
+  openSource: {
+    eyebrow: 'Community',
+    title: 'Offen von Haus aus.',
+    body: 'KANAP steht unter AGPL v3, mit dem vollständigen Quellcode auf GitHub. Installieren Sie es mit Docker, behalten Sie jede Funktion und zahlen Sie nichts pro Arbeitsplatz. Agenten und Plaid gehören zum kostenlosen Produkt und laufen mit Ihrem eigenen LLM-Schlüssel. Wenn KANAP wächst, dann weil die Menschen, die IT betreiben, sich entschieden haben, darauf aufzubauen.',
   },
 
   vision: {

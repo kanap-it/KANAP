@@ -81,8 +81,8 @@ const content: FeatureContent = {
   cta: {
     title: 'KI-gestützte IT-Governance beginnt hier.',
     body: 'Plaid ist in jedem KANAP-Workspace enthalten, mit großzügiger Nutzung in Hosted Cloud. Kostenlos selbst hosten oder Hosted Cloud testen.',
-    primary: 'Testversion starten',
-    secondary: 'Sprechen Sie mit uns',
+    primary: 'Kostenlos bereitstellen',
+    secondary: 'Hosted Cloud testen',
   },
 };
 

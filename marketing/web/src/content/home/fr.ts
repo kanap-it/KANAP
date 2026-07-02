@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'La plateforme de gouvernance IT open source',
+    title: 'Des agents IA open source pour votre DSI',
     description:
-      "Budget, architecture d'entreprise, portefeuille et connaissance dans une seule plateforme. Plaid la pilote en langage naturel et des agents IA prennent en charge la charge répétitive. Open source sous AGPL v3. Auto-hébergement gratuit, ou choisissez KANAP hébergé.",
+      "Des agents IA ancrés dans l'image complète de votre IT : applications, infrastructure, budgets, projets et documentation. Open source sous AGPL v3. Auto-hébergement gratuit, ou choisissez KANAP hébergé.",
   },
 
   hero: {
-    eyebrow: 'Mettez de la clarté dans votre DSI',
-    title: 'La plateforme de gouvernance IT open source.',
-    lead: "Budget, architecture, portefeuille et connaissance dans une seule plateforme. Plaid permet à votre équipe de la piloter en langage naturel, et des agents IA prennent en charge le travail répétitif.\nAuto-hébergez-la gratuitement, ou laissez-nous l'opérer pour vous.",
+    eyebrow: 'Open source · auto-hébergée · conçue pour être étendue',
+    title: 'Des agents IA open source qui prennent en charge votre travail IT répétitif.',
+    lead: "KANAP détient l'image complète de votre DSI, des applications et serveurs jusqu'aux budgets et projets. Plaid permet à chacun d'y travailler en langage naturel, et des agents agissent désormais sur ce référentiel pour décharger votre équipe du travail répétitif.\nAuto-hébergez-la gratuitement, ou laissez-nous l'opérer pour vous.",
     primaryCta: 'Déployer gratuitement',
     secondaryCta: 'Essayer le cloud hébergé',
     trialNote: 'AGPL v3 · code source complet sur GitHub · installation Docker · aucun paywall fonctionnel.',
@@ -21,28 +21,16 @@ const content: HomeContent = {
     title: 'Ce qui distingue KANAP.',
     items: [
       {
-        title: 'Conçue par des praticiens',
-        body: "Conçue par un vétéran de l'IT doté d'une vraie expérience multisectorielle. Elle résout les vrais problèmes des DSI, pas des problèmes génériques de collaboration.",
-      },
-      {
-        title: 'Simple et puissante',
-        body: "Zéro complexité inutile. Assez puissante pour résoudre les problèmes difficiles. Assez simple pour que votre équipe l'adopte dès aujourd'hui.",
-      },
-      {
-        title: 'Véritablement open source',
-        body: "AGPL v3. Tout le code source sur GitHub. Libre à auto-héberger, ouverte aux contributions. Aucun enfermement propriétaire, aucun paywall fonctionnel, aucun piège freemium.",
-      },
-      {
         title: 'Toute la DSI dans un seul système.',
         body: "Applications, infrastructure, budgets, projets et documentation vivent dans un seul référentiel au lieu de dix outils déconnectés.",
       },
       {
         title: 'Des agents qui déchargent votre équipe.',
-        body: "Des agents autonomes prennent en charge la charge répétitive et gagnent en indépendance à mesure qu'ils font leurs preuves sur des tâches réelles.",
+        body: "Des agents autonomes absorbent la charge répétitive et gagnent en indépendance à mesure qu'ils font leurs preuves sur des tâches réelles.",
       },
       {
-        title: 'Adoptez à votre rythme',
-        body: "Chaque module est pleinement utilisable seul. Commencez là où ça fait le plus mal et ajoutez le reste quand vous serez prêt, sans migration globale de la plateforme.",
+        title: "Open source, auto-hébergée, à vous de l'étendre.",
+        body: "Code source complet sous AGPL v3. Faites-la tourner sur vos propres serveurs, conservez chaque fonctionnalité et écrivez vos propres agents et connecteurs.",
       },
     ],
   },
@@ -69,11 +57,36 @@ const content: HomeContent = {
     outro: "Chaque partie est utile en elle-même, et l'ensemble se renforce mutuellement.",
   },
 
+  story: [
+    {
+      title: 'Des agents adossés à un vrai système.',
+      body: "La plupart des agents ne voient que le ticket qu'ils ont sous les yeux. Un agent KANAP lit l'application concernée, qui en est responsable, ce qu'elle coûte, à quel projet elle appartient, et la documentation que votre équipe a écrite à son sujet. Il cite les sources utilisées avec chaque proposition. C'est cette profondeur qui rend son travail digne de confiance.",
+    },
+    {
+      title: 'Des agents qui gagnent leur indépendance.',
+      body: "Un agent démarre supervisé : il propose, vous approuvez. KANAP mesure la fréquence à laquelle ses propositions tiennent la route, et vous lui accordez plus d'autonomie à mesure que son historique se construit. Chaque tâche répétitive qu'il reprend est une tâche que votre équipe cesse de faire à la main.",
+    },
+    {
+      title: 'Une autonomie digne de confiance.',
+      body: "L'autonomie s'accorde sans risque quand rien ne se passe hors de votre vue. C'est ce qui permet de confier sereinement un vrai travail à un agent.",
+      bullets: [
+        "Chaque action est enregistrée, avec l'historique complet avant et après",
+        "Les agents n'agissent qu'à travers les opérations que vous avez autorisées",
+        "Chaque proposition cite les sources sur lesquelles elle s'appuie",
+        "Vous pouvez mettre en pause n'importe quel agent immédiatement",
+      ],
+    },
+    {
+      title: 'Conçue pour opérer sur tout votre SI.',
+      body: "Un seul runtime pilote tous les agents, et la logique de décision est séparée de l'outil auquel elle parle. Un connecteur de centre de services est arrivé en premier et traite aujourd'hui une file de production. Le même runtime est conçu pour piloter la supervision, la virtualisation, votre annuaire, tout ce qui se trouve derrière un connecteur. Le code est ouvert, vous pouvez donc écrire le vôtre.",
+    },
+  ],
+
   modules: {
     eyebrow: 'Boîte à outils IT complète',
     title: 'Pensée pour chaque rôle IT.',
     intro:
-      "KANAP couvre le territoire essentiel dont toute DSI a besoin pour fonctionner, de la première ligne de budget à la dernière application retirée, avec Plaid pour tout parcourir en langage naturel et des agents qui prennent en charge la charge répétitive.",
+      "KANAP couvre le territoire essentiel dont toute DSI a besoin pour fonctionner, de la première ligne de budget à la dernière application retirée, avec Plaid pour tout parcourir en langage naturel et des agents qui prennent en charge la charge répétitive. Chaque module est pleinement utilisable seul, vous pouvez donc commencer là où ça fait le plus mal et ajouter le reste quand vous serez prêt.",
     items: [
       {
         slug: '/features/budget',
@@ -187,6 +200,12 @@ const content: HomeContent = {
         body: "Authentification unique pour l'entreprise. Un seul identifiant pour toute l'organisation.",
       },
     ],
+  },
+
+  openSource: {
+    eyebrow: 'Communauté',
+    title: 'Ouverte par défaut.',
+    body: "KANAP est sous AGPL v3, avec le code source complet sur GitHub. Installez-la avec Docker, conservez chaque fonctionnalité, sans rien payer par utilisateur. Les agents et Plaid font partie du produit gratuit et fonctionnent avec votre propre clé LLM. Si KANAP grandit, c'est parce que les gens qui font tourner l'IT ont choisi de construire dessus.",
   },
 
   vision: {

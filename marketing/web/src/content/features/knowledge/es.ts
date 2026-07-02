@@ -83,8 +83,8 @@ const content: FeatureContent = {
   cta: {
     title: '¿Listo para gobernar su documentación de TI?',
     body: 'Autoaloje gratis o pruebe la nube alojada. Todas las funcionalidades en cada plan.',
-    primary: 'Empezar prueba gratuita',
-    secondary: 'Hablar con nosotros',
+    primary: 'Desplegar gratis',
+    secondary: 'Probar nube alojada',
   },
 };
 

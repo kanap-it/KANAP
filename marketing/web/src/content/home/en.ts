@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'The open source IT governance platform',
+    title: 'Open-source AI agents for your IT department',
     description:
-      'Budget, enterprise architecture, portfolio and knowledge in one platform. Plaid works it in plain language and AI agents take on the repetitive load. Open source under AGPL v3. Self-host free, or choose hosted KANAP.',
+      'AI agents grounded in the full picture of your IT: applications, infrastructure, budgets, projects and documentation. Open source under AGPL v3. Self-host free, or choose hosted KANAP.',
   },
 
   hero: {
-    eyebrow: 'Bring clarity to your IT department',
-    title: 'The open source IT governance platform.',
-    lead: 'Budget, architecture, portfolio and knowledge in one platform. Plaid lets your team work it in plain language, and AI agents take on the repetitive work.\nSelf-host it for free, or let us run it for you.',
+    eyebrow: 'Open-source · self-hosted · built to extend',
+    title: 'Open-source AI agents that take over your repetitive IT work.',
+    lead: "KANAP holds your IT department's full picture, from applications and servers to budgets and projects. Plaid lets anyone work with it in plain language, and agents now act on it to take the repetitive load off your team.\nSelf-host it for free, or let us run it for you.",
     primaryCta: 'Deploy free',
     secondaryCta: 'Try hosted cloud',
     trialNote: 'AGPL v3 · full source on GitHub · Docker install · no feature paywall.',
@@ -21,18 +21,6 @@ const content: HomeContent = {
     title: 'What makes KANAP different.',
     items: [
       {
-        title: 'Practitioner-built',
-        body: 'Designed by a seasoned IT veteran with real experience across industries. It solves actual IT department problems, not generic collaboration problems.',
-      },
-      {
-        title: 'Simple & powerful',
-        body: 'Zero complexity theatre. Powerful enough to solve hard problems. Simple enough for your team to adopt today.',
-      },
-      {
-        title: 'Truly open source',
-        body: 'AGPL v3. Full source on GitHub. Free to self-host, open to contributions. No vendor lock-in, no feature paywall, no freemium trap.',
-      },
-      {
         title: 'The whole IT department in one system.',
         body: 'Applications, infrastructure, budgets, projects and documentation live in one record instead of ten disconnected tools.',
       },
@@ -41,8 +29,8 @@ const content: HomeContent = {
         body: 'Autonomous agents handle the repetitive load and earn more independence as they prove themselves on real tasks.',
       },
       {
-        title: 'Adopt at your pace',
-        body: 'Every module is fully usable on its own. Start where it hurts most and add the rest when you are ready, with no full-platform migration.',
+        title: 'Open source, self-hosted, yours to extend.',
+        body: 'Full source under AGPL v3. Run it on your own servers, keep every feature, and write your own agents and connectors.',
       },
     ],
   },
@@ -69,11 +57,36 @@ const content: HomeContent = {
     outro: 'Each part is useful by itself, and they get stronger together.',
   },
 
+  story: [
+    {
+      title: 'Agents with a real system underneath them.',
+      body: 'Most agents only see the ticket in front of them. A KANAP agent reads the affected application, who owns it, what it costs, which project it belongs to, and the documentation your team wrote about it. It lists the sources it used with every proposal. That depth is what makes its work worth trusting.',
+    },
+    {
+      title: 'Agents that earn their independence.',
+      body: 'An agent starts supervised: it proposes, you approve. KANAP measures how often its proposals hold up, and you grant more autonomy as the track record builds. Every repetitive task it takes over is one your team stops doing by hand.',
+    },
+    {
+      title: 'Autonomy you can trust.',
+      body: 'Autonomy is safe to grant when nothing happens out of sight. That is what makes it sound to hand an agent real work.',
+      bullets: [
+        'Every action is recorded, with full before and after history',
+        'Agents act only through the operations you allowed',
+        'Every proposal lists the sources it drew from',
+        'You can pause any agent immediately',
+      ],
+    },
+    {
+      title: 'Built to run on your whole stack.',
+      body: 'One runtime drives every agent, and the decision logic is separate from the tool it talks to. A service-desk connector shipped first and works a production queue today. The same runtime is designed to drive monitoring, virtualization, your directory, anything that sits behind a connector. The code is open, so you can write your own.',
+    },
+  ],
+
   modules: {
     eyebrow: 'Complete IT toolbox',
     title: 'Built for every IT role.',
     intro:
-      'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with Plaid to work across it in plain language and agents that take on the repetitive load.',
+      'KANAP covers the core territory every IT department needs to run, from the first budget line to the last retired application, with Plaid to work across it in plain language and agents that take on the repetitive load. Every module is fully usable on its own, so you can start where it hurts most and add the rest when you are ready.',
     items: [
       {
         slug: '/features/budget',
@@ -187,6 +200,12 @@ const content: HomeContent = {
         body: 'Enterprise single sign-on. One login for your entire organisation.',
       },
     ],
+  },
+
+  openSource: {
+    eyebrow: 'Community',
+    title: 'Open by default.',
+    body: 'KANAP is AGPL v3 with the full source on GitHub. Install it with Docker, keep every feature, and pay no seat tax. Agents and Plaid are part of the free product, running with your own LLM key. If KANAP grows, it grows because the people running IT chose to build on it.',
   },
 
   vision: {

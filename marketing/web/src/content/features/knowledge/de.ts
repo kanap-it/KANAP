@@ -83,8 +83,8 @@ const content: FeatureContent = {
   cta: {
     title: 'Bereit, Ihre IT-Dokumentation zu steuern?',
     body: 'Hosten Sie kostenlos selbst oder testen Sie Hosted Cloud. Alle Funktionen in jedem Plan.',
-    primary: 'Testversion starten',
-    secondary: 'Sprechen Sie mit uns',
+    primary: 'Kostenlos bereitstellen',
+    secondary: 'Hosted Cloud testen',
   },
 };
 
