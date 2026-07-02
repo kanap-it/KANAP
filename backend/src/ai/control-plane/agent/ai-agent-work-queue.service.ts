@@ -607,19 +607,6 @@ function definitionIdFromMetadata(value: unknown): string | null {
   return stringFromPolicy(metadata.agent_definition_id);
 }
 
-function estimateTokens(value: unknown): number {
-  const text = JSON.stringify(value ?? {});
-  return Math.max(1, Math.ceil(text.length / 4));
-}
-
-export function estimateAgentRunUsage(value: unknown): { estimatedTokens: number; estimatedCostEur: number } {
-  const estimatedTokens = estimateTokens(value);
-  return {
-    estimatedTokens,
-    estimatedCostEur: Number((estimatedTokens * 0.000002).toFixed(6)),
-  };
-}
-
 function normalizedTargetRef(value: string): string {
   const normalized = value.trim();
   if (!normalized || normalized.includes('*')) {

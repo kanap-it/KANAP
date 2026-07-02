@@ -17,7 +17,6 @@ import {
   AgentQueueLiveTargetLike,
   AiAgentWorkQueueService,
   DEFAULT_APPROVAL_TTL_SECONDS,
-  estimateAgentRunUsage,
   HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
 } from '../agent/ai-agent-work-queue.service';
 import {
@@ -169,6 +168,11 @@ export type AgentControlGlpiReadInput = {
 export type AgentControlGlpiTriageInput = {
   target_key?: string | null;
   work_item_id?: string | null;
+};
+
+type RunLlmUsageEstimate = {
+  estimatedTokens: number;
+  estimatedCostEur: number;
 };
 
 export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity';
@@ -1090,6 +1094,10 @@ function buildFallbackKnowledgeInterpretation(
       ? 'Deterministic ranking selected candidates that matched positive search terms and avoided explicit negative terms.'
       : 'No deterministic candidate satisfied the requester constraints.',
     model: null,
+    usage: null,
+    estimated_tokens: 0,
+    estimated_cost_eur: 0,
+    latency_ms: null,
     warnings: [],
   };
 }
@@ -1160,6 +1168,10 @@ function serializeKnowledgeInterpretation(interpretation: KnowledgeResultInterpr
     confidence: interpretation.confidence,
     rationale: interpretation.rationale,
     model: interpretation.model,
+    usage: interpretation.usage,
+    estimated_tokens: interpretation.estimated_tokens,
+    estimated_cost_eur: interpretation.estimated_cost_eur,
+    latency_ms: interpretation.latency_ms,
     warnings: interpretation.warnings,
   };
 }
@@ -3133,6 +3145,39 @@ export class AiAgentControlService {
     await repo.save(run);
   }
 
+  private async recordKnowledgeInterpretationUsage(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      interpretation: KnowledgeResultInterpretation;
+    },
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: input.runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      knowledge_interpretation: {
+        input_tokens: input.interpretation.usage?.input_tokens ?? null,
+        output_tokens: input.interpretation.usage?.output_tokens ?? null,
+        estimated_tokens: input.interpretation.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      knowledge_interpretation: {
+        estimated_cost_eur: input.interpretation.estimated_cost_eur,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
+  }
+
   private async recordEvidenceExtractionUsage(
     context: AiExecutionContextWithManager,
     input: {
@@ -3236,14 +3281,17 @@ export class AiAgentControlService {
       definition: AiAgentDefinition | null;
       runId: string;
       stage: string;
-      snapshot: unknown;
+      usage: RunLlmUsageEstimate;
     },
-  ): Promise<{ estimatedTokens: number; estimatedCostEur: number }> {
+  ): Promise<RunLlmUsageEstimate> {
+    const usage = {
+      estimatedTokens: Math.max(0, Math.round(Number(input.usage.estimatedTokens) || 0)),
+      estimatedCostEur: Number(Math.max(0, Number(input.usage.estimatedCostEur) || 0).toFixed(6)),
+    };
     if (!this.agentQueue || !input.definition) {
-      return estimateAgentRunUsage(input.snapshot);
+      return usage;
     }
     const guardrails = this.agentQueue.runGuardrails(input.definition);
-    const usage = estimateAgentRunUsage(input.snapshot);
     const repo = context.manager.getRepository(AiRun);
     const run = await repo.findOne({
       where: {
@@ -5665,6 +5713,24 @@ export class AiAgentControlService {
 
       let stepIndex = 1;
       const allEvidenceIds: string[] = [];
+      const runLlmUsageLedger: RunLlmUsageEstimate = {
+        estimatedTokens: 0,
+        estimatedCostEur: 0,
+      };
+      const currentRunLlmUsage = (): RunLlmUsageEstimate => ({
+        estimatedTokens: runLlmUsageLedger.estimatedTokens,
+        estimatedCostEur: runLlmUsageLedger.estimatedCostEur,
+      });
+      const chargeRunLlmUsage = (usage: { estimated_tokens?: number | null; estimated_cost_eur?: number | null } | null | undefined) => {
+        const estimatedTokens = Number(usage?.estimated_tokens ?? 0);
+        const estimatedCostEur = Number(usage?.estimated_cost_eur ?? 0);
+        if (Number.isFinite(estimatedTokens) && estimatedTokens > 0) {
+          runLlmUsageLedger.estimatedTokens += Math.round(estimatedTokens);
+        }
+        if (Number.isFinite(estimatedCostEur) && estimatedCostEur > 0) {
+          runLlmUsageLedger.estimatedCostEur = Number((runLlmUsageLedger.estimatedCostEur + estimatedCostEur).toFixed(6));
+        }
+      };
 
       const ticketResult = await this.dispatcher.execute<AdapterResultLike<TicketLike>>(context, {
         capabilityName: 'ticketing.ticket.get',
@@ -5824,15 +5890,6 @@ export class AiAgentControlService {
       ].filter((entry) => typeof entry === 'string' && entry.trim().length > 0).join('\n\n'),
     };
 
-    const preKnowledgeRunCapSnapshot = {
-      ticket,
-      ticket_history_entry_count: ticketTimeline.length,
-      ticket_notes: ticketNotesData.notes,
-      classification_context: classificationContext,
-      lifecycle_context: lifecycleContext,
-      routing_context: routingContext,
-      participant_context: participantContext,
-    };
     const preKnowledgeGuardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
     const plannerSystemPrompt = compileSystemPrompt(RUNTIME_SAFETY_FLOOR_PLANNER, promptRuntime.plannerGuidance);
     let ticketImageExtraction: TicketEvidenceExtractionResult = {
@@ -5863,7 +5920,7 @@ export class AiAgentControlService {
         projected_cost_eur: evidenceProjection.estimatedCostEur,
         prompt_profile: promptRuntime.promptProfileSummary,
       };
-      const evidenceBaseUsageEstimate = estimateAgentRunUsage(preKnowledgeRunCapSnapshot);
+      const evidenceBaseUsageEstimate = currentRunLlmUsage();
       if (
         evidenceProjection.imageCallCount > 0
         && preKnowledgeGuardrails
@@ -5929,6 +5986,7 @@ export class AiAgentControlService {
               runId: ticketResult.run_id,
               evidenceExtraction: ticketImageExtraction,
             });
+            chargeRunLlmUsage(ticketImageExtraction);
           }
           if (evidenceStepIndex != null) {
             await this.recordEvidenceExtractionRunStep(context, {
@@ -6002,10 +6060,7 @@ export class AiAgentControlService {
         projected_cost_eur: needProjection.estimatedCostEur,
         prompt_profile: promptRuntime.promptProfileSummary,
       };
-      const needBaseUsageEstimate = estimateAgentRunUsage({
-        ...preKnowledgeRunCapSnapshot,
-        ticket_image_extraction: serializeTicketImageExtraction(ticketImageExtraction),
-      });
+      const needBaseUsageEstimate = currentRunLlmUsage();
       if (
         process.env.AI_AGENT_NEED_BUILDER_LLM !== '0'
         && preKnowledgeGuardrails
@@ -6038,6 +6093,7 @@ export class AiAgentControlService {
               runId: ticketResult.run_id,
               needRepresentation: knowledgeNeedRepresentation,
             });
+            chargeRunLlmUsage(knowledgeNeedRepresentation);
           }
           if (needStepIndex != null) {
             await this.recordNeedRepresentationRunStep(context, {
@@ -6178,6 +6234,13 @@ export class AiAgentControlService {
           profile: promptRuntime.interpreterGuidance,
         })
         : buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, mergedKnowledgeCandidates);
+      if (knowledgeInterpretation.estimated_tokens > 0) {
+        await this.recordKnowledgeInterpretationUsage(context, {
+          runId: ticketResult.run_id,
+          interpretation: knowledgeInterpretation,
+        });
+        chargeRunLlmUsage(knowledgeInterpretation);
+      }
       const appliedInterpretation = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
       selectedKnowledgeItems = appliedInterpretation.selected;
       unvalidatedKnowledgeItems = appliedInterpretation.unvalidated;
@@ -6307,25 +6370,6 @@ export class AiAgentControlService {
       }
     }
 
-    const runCapSnapshot = {
-      ticket,
-      ticket_history_entry_count: ticketTimeline.length,
-      ticket_notes: ticketNotesData.notes,
-      classification_context: classificationContext,
-      lifecycle_context: lifecycleContext,
-      routing_context: routingContext,
-      participant_context: participantContext,
-      ticket_image_extraction: serializeTicketImageExtraction(ticketImageExtraction),
-      knowledge_need_representation: serializeKnowledgeNeedRepresentation(knowledgeNeedRepresentation),
-      knowledge_query_derivation: serializeKnowledgeQueryDerivation(knowledgeQueryDerivation),
-      knowledge_query_candidates: knowledgeQueryCandidates,
-      knowledge_candidate_count: mergedKnowledgeCandidates.length,
-      knowledge_low_relevance_count: knowledgeLowRelevance.length,
-      knowledge_results: knowledgeItems,
-      knowledge_documents: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
-      web_result_count: webSearchResults.length,
-      web_search_status: webSearchStatus,
-    };
     const synthesisLanguage = resolveReplyLanguage(agentDefinition, ticket, knowledgeSearchPlan.language);
     let replySynthesisResult: ReplySynthesisResult | null = null;
     let synthesisFallbackReason: string | null = null;
@@ -6376,7 +6420,7 @@ export class AiAgentControlService {
         systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_SYNTHESIS, promptRuntime.synthesisGuidance),
         userPayload: synthesisPayload,
       }, this.replySynthesis.maxOutputTokens());
-      const baseUsageEstimate = estimateAgentRunUsage(runCapSnapshot);
+      const baseUsageEstimate = currentRunLlmUsage();
       const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
       if (
         guardrails
@@ -6421,6 +6465,7 @@ export class AiAgentControlService {
             runId: ticketResult.run_id,
             synthesis: replySynthesisResult,
           });
+          chargeRunLlmUsage(replySynthesisResult);
           await this.recordSynthesisRunStep(context, {
             runId: ticketResult.run_id,
             stepIndex: synthesisStepIndex,
@@ -6488,13 +6533,6 @@ export class AiAgentControlService {
       synthesis_latency_ms: null,
     };
 
-    const runUsageEstimate = await this.recordAndEnforceHelpdeskRunCap(context, {
-      definition: agentDefinition,
-      runId: ticketResult.run_id,
-      stage: 'before_proposal_preparation',
-      snapshot: runCapSnapshot,
-    });
-
     const actionPlannerGuidanceHash = guidanceHash(promptRuntime.actionPlannerGuidance);
     const closeWriteCapable = !!agentDefinition
       && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
@@ -6553,12 +6591,13 @@ export class AiAgentControlService {
         systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_ACTION_PLANNER, promptRuntime.actionPlannerGuidance),
         userPayload: actionPlannerPayload,
       }, this.actionPlanner.maxOutputTokens());
+      const actionPlannerBaseUsageEstimate = currentRunLlmUsage();
       const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
       if (
         guardrails
         && (
-          runUsageEstimate.estimatedTokens + actionPlannerProjection.estimatedTokens > guardrails.maxEstimatedTokens
-          || runUsageEstimate.estimatedCostEur + actionPlannerProjection.estimatedCostEur > guardrails.maxEstimatedCostEur
+          actionPlannerBaseUsageEstimate.estimatedTokens + actionPlannerProjection.estimatedTokens > guardrails.maxEstimatedTokens
+          || actionPlannerBaseUsageEstimate.estimatedCostEur + actionPlannerProjection.estimatedCostEur > guardrails.maxEstimatedCostEur
         )
       ) {
         actionPlannerFallbackReason = 'action_planner_projected_over_per_run_cap';
@@ -6569,6 +6608,7 @@ export class AiAgentControlService {
             runId: ticketResult.run_id,
             planner: actionPlannerResult,
           });
+          chargeRunLlmUsage(actionPlannerResult);
         } else {
           actionPlannerFallbackReason = 'action_planner_unavailable_or_invalid';
         }
@@ -6765,6 +6805,12 @@ export class AiAgentControlService {
     if (plannerNeedsSourcedSynthesis || fallbackPreparePublicReply) {
       await runReplySynthesis();
     }
+    const runUsageEstimate = await this.recordAndEnforceHelpdeskRunCap(context, {
+      definition: agentDefinition,
+      runId: ticketResult.run_id,
+      stage: 'before_proposal_preparation',
+      usage: currentRunLlmUsage(),
+    });
     const synthesisMetadata = buildSynthesisMetadata();
     // Fail closed (#47): in the legacy fallback (action planner unavailable), only prepare the
     // EXTERNAL requester reply and the pending transition when synthesis actually produced a
