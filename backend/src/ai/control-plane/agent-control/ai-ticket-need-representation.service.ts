@@ -62,40 +62,205 @@ const EVIDENCE_SOURCE_VALUES = [
   'screenshot',
 ] as const;
 
-const NeedSchema = z.object({
-  intent: z.string().trim().min(1).max(320).nullable().optional(),
-  language: z.string().trim().min(2).max(24).nullable().optional(),
-  entities: z.object({
-    applications: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    modules: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    screens: z.array(z.string().trim().min(1).max(120)).max(MAX_FIELD_ITEMS).optional(),
-    equipment: z.array(z.string().trim().min(1).max(120)).max(MAX_FIELD_ITEMS).optional(),
-    services: z.array(z.string().trim().min(1).max(120)).max(MAX_FIELD_ITEMS).optional(),
-  }).optional(),
-  symptoms: z.array(z.string().trim().min(1).max(140)).max(MAX_FIELD_ITEMS).optional(),
-  exact_codes: z.array(z.object({
-    value: z.string().trim().min(1).max(120),
-    kind: z.enum(EXACT_CODE_KIND_VALUES).optional(),
-    source: z.enum(EVIDENCE_SOURCE_VALUES).optional(),
-  })).max(MAX_EXACT_CODES).optional(),
-  actions_attempted: z.array(z.string().trim().min(1).max(140)).max(MAX_FIELD_ITEMS).optional(),
-  context: z.object({
-    environment: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    version: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    site: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    role: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    os: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    browser: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-    network: z.array(z.string().trim().min(1).max(80)).max(MAX_FIELD_ITEMS).optional(),
-  }).optional(),
-  constraints: z.object({
-    positive: z.array(z.string().trim().min(1).max(120)).max(MAX_FIELD_ITEMS).optional(),
-    negative: z.array(z.string().trim().min(1).max(120)).max(MAX_FIELD_ITEMS).optional(),
-  }).optional(),
-  evidence_refs: z.array(z.string().trim().min(1).max(160)).max(48).optional(),
-  warnings: z.array(z.string().trim().min(1).max(220)).max(24).optional(),
-  confidence: z.number().min(0).max(1).nullable().optional(),
-});
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function schemaText(value: unknown, maxLength: number): string | null {
+  let raw: string | null = null;
+  if (typeof value === 'string') {
+    raw = value;
+  } else if (typeof value === 'number' || typeof value === 'boolean') {
+    raw = String(value);
+  } else if (Array.isArray(value)) {
+    raw = value.map((entry) => schemaText(entry, maxLength)).filter(Boolean).join(' ');
+  } else if (isRecord(value)) {
+    for (const key of ['value', 'code', 'ref', 'text', 'name', 'title', 'body', 'summary', 'label', 'id']) {
+      const text = schemaText(value[key], maxLength);
+      if (text) {
+        raw = text;
+        break;
+      }
+    }
+  }
+  const normalized = String(raw ?? '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function schemaKey(value: unknown): string {
+  return String(schemaText(value, 120) ?? '')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/^ticket\s*[:/.-]\s*/i, 'ticket_')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function normalizeExactCodeKind(value: unknown): TicketNeedExactCodeKind {
+  const key = schemaKey(value);
+  if ((EXACT_CODE_KIND_VALUES as readonly string[]).includes(key)) {
+    return key as TicketNeedExactCodeKind;
+  }
+  if (['error', 'errorcode', 'error_codes'].includes(key)) return 'error_code';
+  if (['http', 'http_code', 'httpstatus'].includes(key)) return 'http_status';
+  if (['sap', 'sapcode'].includes(key)) return 'sap_code';
+  if (['job', 'jobname'].includes(key)) return 'job_name';
+  if (['host', 'host_name'].includes(key)) return 'hostname';
+  if (['doc', 'document', 'document_reference', 'documentref'].includes(key)) return 'document_ref';
+  return 'other';
+}
+
+function normalizeEvidenceSource(value: unknown): TicketNeedEvidenceSource {
+  const key = schemaKey(value);
+  if ((EVIDENCE_SOURCE_VALUES as readonly string[]).includes(key)) {
+    return key as TicketNeedEvidenceSource;
+  }
+  if (['ticket_title', 'title'].includes(key)) return 'ticket_title';
+  if (['ticket_description', 'description', 'body'].includes(key)) return 'ticket_description';
+  if (['ticket_note', 'note', 'comment', 'followup'].includes(key)) return 'ticket_note';
+  if (key.includes('screenshot') || key.includes('image') || key.includes('attachment')) return 'screenshot';
+  return 'ticket_description';
+}
+
+function schemaStringArray(value: unknown, maxItems: number, maxLength: number): string[] {
+  const values = Array.isArray(value)
+    ? value.flatMap((entry) => schemaStringArray(entry, 1, maxLength))
+    : isRecord(value)
+      ? Object.values(value).flatMap((entry) => schemaStringArray(entry, 1, maxLength))
+      : [schemaText(value, maxLength)].filter((entry): entry is string => !!entry);
+  return values.slice(0, maxItems);
+}
+
+function stringArraySchema(maxItems: number, maxLength: number) {
+  return z.preprocess(
+    (value) => schemaStringArray(value, maxItems, maxLength),
+    z.array(z.string().trim().min(1).max(maxLength)).max(maxItems).catch([]),
+  ).optional();
+}
+
+function nullableTextSchema(maxLength: number, minLength = 1) {
+  return z.preprocess(
+    (value) => schemaText(value, maxLength),
+    z.string().trim().min(minLength).max(maxLength).nullable().catch(null),
+  ).optional();
+}
+
+function objectOrWrapped(value: unknown, fallbackField: string, maxLength: number): Record<string, unknown> {
+  if (isRecord(value)) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const record = value.find(isRecord);
+    if (record) {
+      return record;
+    }
+  }
+  const values = schemaStringArray(value, MAX_FIELD_ITEMS, maxLength);
+  return values.length > 0 ? { [fallbackField]: values } : {};
+}
+
+function coerceExactCodeEntry(value: unknown): Record<string, unknown> | null {
+  if (isRecord(value)) {
+    const codeValue = schemaText(value.value ?? value.code ?? value.ref ?? value.text ?? value.name, 120);
+    return codeValue ? { ...value, value: codeValue } : null;
+  }
+  if (Array.isArray(value)) {
+    const record = value.find(isRecord);
+    if (record) {
+      return coerceExactCodeEntry(record);
+    }
+    const joined = schemaStringArray(value, MAX_FIELD_ITEMS, 120).join(' ');
+    return joined ? { value: joined } : null;
+  }
+  const text = schemaText(value, 120);
+  return text ? { value: text } : null;
+}
+
+function exactCodeEntries(value: unknown): unknown[] {
+  const entries = Array.isArray(value) ? value : value == null ? [] : [value];
+  return entries
+    .map(coerceExactCodeEntry)
+    .filter((entry): entry is Record<string, unknown> => !!entry)
+    .slice(0, MAX_EXACT_CODES);
+}
+
+function confidenceValue(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  const text = schemaText(value, 24);
+  if (!text) return null;
+  const percent = text.match(/^(\d+(?:\.\d+)?)\s*%$/);
+  const parsed = Number.parseFloat(percent ? percent[1] : text);
+  if (!Number.isFinite(parsed)) return null;
+  return percent ? parsed / 100 : parsed;
+}
+
+const NeedSchema = z.preprocess(
+  (value) => {
+    if (isRecord(value)) {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      const record = value.find(isRecord);
+      if (record) {
+        return record;
+      }
+    }
+    const intent = schemaText(value, 320);
+    return intent ? { intent } : value;
+  },
+  z.object({
+    intent: nullableTextSchema(320),
+    language: nullableTextSchema(24, 2),
+    entities: z.preprocess(
+      (value) => objectOrWrapped(value, 'services', 120),
+      z.object({
+        applications: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        modules: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        screens: stringArraySchema(MAX_FIELD_ITEMS, 120),
+        equipment: stringArraySchema(MAX_FIELD_ITEMS, 120),
+        services: stringArraySchema(MAX_FIELD_ITEMS, 120),
+      }).catch({}),
+    ).optional(),
+    symptoms: stringArraySchema(MAX_FIELD_ITEMS, 140),
+    exact_codes: z.preprocess(
+      exactCodeEntries,
+      z.array(z.object({
+        value: z.string().trim().min(1).max(120),
+        kind: z.preprocess(normalizeExactCodeKind, z.enum(EXACT_CODE_KIND_VALUES).catch('other')).optional(),
+        source: z.preprocess(normalizeEvidenceSource, z.enum(EVIDENCE_SOURCE_VALUES).catch('ticket_description')).optional(),
+      })).max(MAX_EXACT_CODES).catch([]),
+    ).optional(),
+    actions_attempted: stringArraySchema(MAX_FIELD_ITEMS, 140),
+    context: z.preprocess(
+      (value) => objectOrWrapped(value, 'environment', 80),
+      z.object({
+        environment: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        version: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        site: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        role: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        os: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        browser: stringArraySchema(MAX_FIELD_ITEMS, 80),
+        network: stringArraySchema(MAX_FIELD_ITEMS, 80),
+      }).catch({}),
+    ).optional(),
+    constraints: z.preprocess(
+      (value) => objectOrWrapped(value, 'positive', 120),
+      z.object({
+        positive: stringArraySchema(MAX_FIELD_ITEMS, 120),
+        negative: stringArraySchema(MAX_FIELD_ITEMS, 120),
+      }).catch({}),
+    ).optional(),
+    evidence_refs: stringArraySchema(48, 160),
+    warnings: stringArraySchema(24, 220),
+    confidence: z.preprocess(confidenceValue, z.number().min(0).max(1).nullable().catch(null)).optional(),
+  }),
+);
 
 type ParsedNeed = z.infer<typeof NeedSchema>;
 

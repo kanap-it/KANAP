@@ -15,6 +15,7 @@
     "rejectedMany": "{{count}} propuestas rechazadas.",
     "rejectManyFailed": "{{count}} rechazadas, {{failed}} no se pudieron rechazar.",
     "pollComplete": "Comprobación completa: {{status}}. {{processed}} procesados, {{enqueued}} en cola.",
+    "pollCompleteWithReason": "Comprobación completa: {{status}}. {{processed}} procesados, {{enqueued}} en cola — {{reason}}",
     "pollFailed": "No se pudieron comprobar los tickets.",
     "settingsSaved": "Configuración guardada.",
     "settingsFailed": "No se pudo guardar la configuración.",

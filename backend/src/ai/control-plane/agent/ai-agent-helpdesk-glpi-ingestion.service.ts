@@ -94,6 +94,19 @@ function workItemReady(item: AiAgentWorkItem, now: Date): boolean {
 
 const SCHEDULED_POLL_BACKOFF_BASE_MINUTES = 5;
 const SCHEDULED_POLL_BACKOFF_MAX_MINUTES = 360;
+const DEFAULT_INGESTION_PROCESS_BUDGET_MS = 210_000;
+
+type HelpdeskGlpiDefinitionPollState = {
+  definition: AiAgentDefinition;
+  summary: HelpdeskGlpiIngestionPollSummary;
+  config: HelpdeskNewTicketsIngestionConfig | null;
+  finalizeCycle: boolean;
+};
+
+function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 function ingestionState(definition: AiAgentDefinition): Record<string, unknown> | null {
   const metadata = definition.metadata_json;
@@ -228,6 +241,10 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     context: AiExecutionContextWithManager,
     opts: { ensureDefinition: boolean },
   ): Promise<HelpdeskGlpiIngestionPollSummary> {
+    const processingDeadlineMs = Date.now() + parsePositiveIntEnv(
+      process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS,
+      DEFAULT_INGESTION_PROCESS_BUDGET_MS,
+    );
     const summary: HelpdeskGlpiIngestionPollSummary = {
       tenantId: context.tenantId,
       status: 'completed',
@@ -263,17 +280,66 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       return summary;
     }
 
-    const agentSummaries: HelpdeskGlpiIngestionPollSummary[] = [];
+    const pollStates: HelpdeskGlpiDefinitionPollState[] = [];
+    // Pass 1 is detection only and always runs for every definition before
+    // inline triage starts. This keeps ticket discovery/enqueue latency bounded
+    // even when a previous definition has slow LLM work waiting in the queue.
     for (const definition of definitions) {
-      const agentSummary = await this.pollDefinition(context, definition, opts);
-      agentSummaries.push(agentSummary);
-      summary.listed += agentSummary.listed;
-      summary.enqueued += agentSummary.enqueued;
-      summary.deduped += agentSummary.deduped;
-      summary.processed += agentSummary.processed;
-      summary.errors.push(...agentSummary.errors.map((entry) => `${definition.agent_key}: ${entry}`));
+      pollStates.push(await this.detectDefinition(context, definition, opts));
     }
+
+    let processingBudgetReason: string | null = null;
+    // Pass 2 processes queued triage work under one shared per-cycle deadline.
+    // When the deadline is reached, queued work is left for the next cron tick
+    // and the cycle remains healthy because detection already completed.
+    for (let index = 0; index < pollStates.length; index += 1) {
+      const state = pollStates[index];
+      if (processingBudgetReason || !state.finalizeCycle || !state.config) {
+        continue;
+      }
+      try {
+        const result = await this.processDefinitionReadyItems(
+          context,
+          state.definition,
+          state.config,
+          state.summary,
+          processingDeadlineMs,
+        );
+        if (result.budgetReached) {
+          const futureRemaining = await this.countReadyItemsForStates(context, pollStates.slice(index + 1));
+          const remaining = result.remainingReadyItems
+            + futureRemaining.reduce((sum, entry) => sum + entry.count, 0);
+          processingBudgetReason = `Processing time budget reached; ${remaining} item(s) remain queued for the next cycle.`;
+          if (result.remainingReadyItems > 0 && state.summary.status === 'completed') {
+            state.summary.reason = processingBudgetReason;
+          }
+          for (const entry of futureRemaining) {
+            if (entry.count > 0 && entry.state.summary.status === 'completed') {
+              entry.state.summary.reason = processingBudgetReason;
+            }
+          }
+        }
+      } catch (error) {
+        state.finalizeCycle = false;
+        await this.failDefinitionPoll(context, state.definition, state.summary, error);
+      }
+    }
+
+    for (const state of pollStates) {
+      if (state.finalizeCycle) {
+        await this.completeDefinitionPoll(context, state.definition, state.summary);
+      }
+    }
+
+    const agentSummaries = pollStates.map((state) => state.summary);
     summary.agents = agentSummaries;
+    summary.listed = agentSummaries.reduce((sum, entry) => sum + entry.listed, 0);
+    summary.enqueued = agentSummaries.reduce((sum, entry) => sum + entry.enqueued, 0);
+    summary.deduped = agentSummaries.reduce((sum, entry) => sum + entry.deduped, 0);
+    summary.processed = agentSummaries.reduce((sum, entry) => sum + entry.processed, 0);
+    summary.errors = pollStates.flatMap((state) =>
+      state.summary.errors.map((entry) => `${state.definition.agent_key}: ${entry}`),
+    );
     const activeSummaries = agentSummaries.filter((entry) => entry.status !== 'disabled' && entry.status !== 'skipped');
     if (activeSummaries.length === 0) {
       summary.status = agentSummaries.some((entry) => entry.status === 'skipped') ? 'skipped' : 'disabled';
@@ -286,16 +352,16 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       summary.reason = activeSummaries.map((entry) => entry.reason).filter(Boolean).join(' | ') || null;
     } else {
       summary.status = 'completed';
-      summary.reason = null;
+      summary.reason = processingBudgetReason;
     }
     return summary;
   }
 
-  private async pollDefinition(
+  private async detectDefinition(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
     opts: { ensureDefinition: boolean },
-  ): Promise<HelpdeskGlpiIngestionPollSummary> {
+  ): Promise<HelpdeskGlpiDefinitionPollState> {
     const summary: HelpdeskGlpiIngestionPollSummary = {
       tenantId: context.tenantId,
       agentDefinitionId: definition.id,
@@ -314,7 +380,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     } catch (error) {
       summary.status = 'disabled';
       summary.reason = error instanceof Error ? error.message : String(error);
-      return summary;
+      return { definition, summary, config: null, finalizeCycle: false };
     }
 
     // Scheduled polls back off after failed cycles (5 min doubling, capped at
@@ -326,7 +392,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       if (cooldownUntil != null && Date.now() < cooldownUntil) {
         summary.status = 'skipped';
         summary.reason = `Scheduled polling is backing off after a failed cycle until ${new Date(cooldownUntil).toISOString()}.`;
-        return summary;
+        return { definition, summary, config: null, finalizeCycle: false };
       }
     }
 
@@ -348,7 +414,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
         last_poll_status: 'paused',
         last_audit_event_id: event.id,
       });
-      return summary;
+      return { definition, summary, config: null, finalizeCycle: false };
     }
 
     try {
@@ -357,7 +423,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       summary.status = 'paused';
       summary.reason = error instanceof Error ? error.message : String(error);
       summary.errors.push(summary.reason);
-      return summary;
+      return { definition, summary, config: null, finalizeCycle: false };
     }
 
     try {
@@ -461,105 +527,160 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
           summary.deduped += 1;
         }
       }
-
-      // Narrowed to the active statuses so the fetch stays bounded by the
-      // live queue depth instead of every work item ever processed.
-      const now = new Date();
-      const readyItems = (await context.manager.getRepository(AiAgentWorkItem).find({
-        where: {
-          tenant_id: context.tenantId,
-          agent_definition_id: definition.id,
-          status: In(['queued', 'failed']),
-          source_provider_kind: 'ticketing',
-          source_provider_key: 'glpi',
-          source_object_type: 'ticket',
-          work_kind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
-        },
-      }))
-        .filter((item) => workItemReady(item, now))
-        .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
-        .slice(0, config.maxTicketsPerCycle);
-
-      // Scheduled/system polls carry no operator user, so triage (which scopes knowledge
-      // search by the acting user) must run as a real user or its user lookup fails on an
-      // empty id and aborts the whole tenant transaction. Use the admin who configured the
-      // agent; a manual cockpit poll keeps the operator's own scope.
-      const triageContext = triageContextForDefinition(context, definition);
-      for (const item of readyItems) {
-        try {
-          await this.queue.assertDailyCapAvailable(context, definition);
-        } catch (capError) {
-          // Reaching the daily cap is a normal safety stop, not a cycle failure. Stop
-          // processing but keep the cycle healthy: detection (list + enqueue above) has
-          // already run, so scheduled watching keeps queuing new tickets every cycle
-          // instead of being parked for hours by the failure back-off. Processing
-          // resumes automatically when the daily window resets at midnight UTC.
-          summary.status = 'paused';
-          summary.reason = capError instanceof Error ? capError.message : 'Daily cap reached.';
-          break;
-        }
-        try {
-          // Isolate each triage in a savepoint so one item's DB error rolls back only that
-          // item, not the whole cycle. Without this, a single failed triage aborts the
-          // tenant transaction and takes the ticket detection (enqueue above) and the
-          // cycle's own audit/state writes down with it.
-          await this.runTriageInSavepoint(context, triageContext, item.id);
-          summary.processed += 1;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          summary.errors.push(`Work item ${item.id}: ${message}`);
-          // The savepoint rollback restored a healthy transaction, so this audit write succeeds.
-          await this.queue.recordAuditEvent(context, {
-            agentDefinitionId: definition.id,
-            workItemId: item.id,
-            eventType: 'work_item_processing_failed',
-            severity: 'error',
-            message: 'Helpdesk GLPI queued ticket triage failed.',
-            metadata: { error: message },
-          });
-        }
-      }
-
-      const event = await this.queue.recordAuditEvent(context, {
-        agentDefinitionId: definition.id,
-        eventType: 'poller_cycle_completed',
-        severity: 'info',
-        message: 'Helpdesk GLPI new-ticket ingestion cycle completed.',
-        metadata: summary,
-      });
-      await this.queue.updateHelpdeskIngestionState(context, definition, {
-        status: 'active',
-        reason: null,
-        failure_streak: 0,
-        last_poll_at: new Date().toISOString(),
-        last_poll_status: 'completed',
-        last_audit_event_id: event.id,
-        last_poll_summary: summary,
-      });
-      return summary;
+      return { definition, summary, config, finalizeCycle: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      summary.status = 'failed';
-      summary.reason = message;
-      summary.errors.push(message);
-      const event = await this.queue.recordAuditEvent(context, {
-        agentDefinitionId: definition.id,
-        eventType: 'poller_cycle_failed',
-        severity: 'error',
-        message: 'Helpdesk GLPI new-ticket ingestion failed closed.',
-        metadata: { error: message },
-      });
-      await this.queue.updateHelpdeskIngestionState(context, definition, {
-        status: 'paused',
-        reason: 'poller_failure',
-        failure_streak: failureStreak(definition) + 1,
-        last_poll_at: new Date().toISOString(),
-        last_poll_status: 'failed',
-        last_audit_event_id: event.id,
-        last_error: message,
-      });
-      return summary;
+      await this.failDefinitionPoll(context, definition, summary, error);
+      return { definition, summary, config: null, finalizeCycle: false };
     }
+  }
+
+  private async processDefinitionReadyItems(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    config: HelpdeskNewTicketsIngestionConfig,
+    summary: HelpdeskGlpiIngestionPollSummary,
+    processingDeadlineMs: number,
+  ): Promise<{ budgetReached: boolean; remainingReadyItems: number }> {
+    const readyItems = await this.listReadyItems(context, definition, config);
+
+    // Scheduled/system polls carry no operator user, so triage (which scopes knowledge
+    // search by the acting user) must run as a real user or its user lookup fails on an
+    // empty id and aborts the whole tenant transaction. Use the admin who configured the
+    // agent; a manual cockpit poll keeps the operator's own scope.
+    const triageContext = triageContextForDefinition(context, definition);
+    for (let index = 0; index < readyItems.length; index += 1) {
+      const item = readyItems[index];
+      if (Date.now() >= processingDeadlineMs) {
+        return { budgetReached: true, remainingReadyItems: readyItems.length - index };
+      }
+      try {
+        await this.queue.assertDailyCapAvailable(context, definition);
+      } catch (capError) {
+        // Reaching the daily cap is a normal safety stop, not a cycle failure. Stop
+        // processing but keep the cycle healthy: detection (list + enqueue in pass 1) has
+        // already run, so scheduled watching keeps queuing new tickets every cycle
+        // instead of being parked for hours by the failure back-off. Processing
+        // resumes automatically when the daily window resets at midnight UTC.
+        summary.status = 'paused';
+        summary.reason = capError instanceof Error ? capError.message : 'Daily cap reached.';
+        break;
+      }
+      try {
+        // Isolate each triage in a savepoint so one item's DB error rolls back only that
+        // item, not the whole cycle. Without this, a single failed triage aborts the
+        // tenant transaction and takes the ticket detection (enqueue in pass 1) and the
+        // cycle's own audit/state writes down with it.
+        await this.runTriageInSavepoint(context, triageContext, item.id);
+        summary.processed += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        summary.errors.push(`Work item ${item.id}: ${message}`);
+        // The savepoint rollback restored a healthy transaction, so this audit write succeeds.
+        await this.queue.recordAuditEvent(context, {
+          agentDefinitionId: definition.id,
+          workItemId: item.id,
+          eventType: 'work_item_processing_failed',
+          severity: 'error',
+          message: 'Helpdesk GLPI queued ticket triage failed.',
+          metadata: { error: message },
+        });
+      }
+    }
+    return { budgetReached: false, remainingReadyItems: 0 };
+  }
+
+  private async listReadyItems(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    config: HelpdeskNewTicketsIngestionConfig,
+  ): Promise<AiAgentWorkItem[]> {
+    // Narrowed to the active statuses so the fetch stays bounded by the
+    // live queue depth instead of every work item ever processed.
+    const now = new Date();
+    return (await context.manager.getRepository(AiAgentWorkItem).find({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: definition.id,
+        status: In(['queued', 'failed']),
+        source_provider_kind: 'ticketing',
+        source_provider_key: 'glpi',
+        source_object_type: 'ticket',
+        work_kind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+      },
+    }))
+      .filter((item) => workItemReady(item, now))
+      .sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
+      .slice(0, config.maxTicketsPerCycle);
+  }
+
+  private async countReadyItemsForStates(
+    context: AiExecutionContextWithManager,
+    states: HelpdeskGlpiDefinitionPollState[],
+  ): Promise<Array<{ state: HelpdeskGlpiDefinitionPollState; count: number }>> {
+    const counts: Array<{ state: HelpdeskGlpiDefinitionPollState; count: number }> = [];
+    for (const state of states) {
+      if (!state.finalizeCycle || !state.config || state.summary.status !== 'completed') {
+        continue;
+      }
+      counts.push({
+        state,
+        count: (await this.listReadyItems(context, state.definition, state.config)).length,
+      });
+    }
+    return counts;
+  }
+
+  private async completeDefinitionPoll(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    summary: HelpdeskGlpiIngestionPollSummary,
+  ): Promise<void> {
+    const event = await this.queue.recordAuditEvent(context, {
+      agentDefinitionId: definition.id,
+      eventType: 'poller_cycle_completed',
+      severity: 'info',
+      message: 'Helpdesk GLPI new-ticket ingestion cycle completed.',
+      metadata: summary,
+    });
+    await this.queue.updateHelpdeskIngestionState(context, definition, {
+      status: 'active',
+      reason: null,
+      failure_streak: 0,
+      last_poll_at: new Date().toISOString(),
+      last_poll_status: 'completed',
+      last_audit_event_id: event.id,
+      last_poll_summary: summary,
+    });
+  }
+
+  private async failDefinitionPoll(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    summary: HelpdeskGlpiIngestionPollSummary,
+    error: unknown,
+  ): Promise<void> {
+    const message = error instanceof Error ? error.message : String(error);
+    summary.status = 'failed';
+    summary.reason = message;
+    if (!summary.errors.includes(message)) {
+      summary.errors.push(message);
+    }
+    const event = await this.queue.recordAuditEvent(context, {
+      agentDefinitionId: definition.id,
+      eventType: 'poller_cycle_failed',
+      severity: 'error',
+      message: 'Helpdesk GLPI new-ticket ingestion failed closed.',
+      metadata: { error: message },
+    });
+    await this.queue.updateHelpdeskIngestionState(context, definition, {
+      status: 'paused',
+      reason: 'poller_failure',
+      failure_streak: failureStreak(definition) + 1,
+      last_poll_at: new Date().toISOString(),
+      last_poll_status: 'failed',
+      last_audit_event_id: event.id,
+      last_error: message,
+    });
   }
 
   // Run one work-item triage inside a SAVEPOINT so a failure rolls back only that item and

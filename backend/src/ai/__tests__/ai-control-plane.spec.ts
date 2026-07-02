@@ -4920,6 +4920,124 @@ async function testHelpdeskGlpiIngestionPollsMultipleHelpdeskDefinitions() {
   assert.equal(workItems.some((item) => item.agent_definition_id === secondDefinition.id && item.source_object_ref === 'ticket-payroll'), true);
 }
 
+async function testHelpdeskGlpiIngestionBudgetStopsProcessingAfterDetectionPass() {
+  const previousBudget = process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS;
+  process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS = '60';
+  try {
+    const { manager, stores } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const primaryDefinition = await enableHelpdeskNewTicketsOnly(context, queue, {
+      categoryId: 'access',
+      hardBackfillHorizonHours: 72,
+      maxTicketsPerCycle: 5,
+    });
+    const definitionRepo = manager.getRepository(AiAgentDefinition);
+    const secondDefinition = await definitionRepo.save(definitionRepo.create({
+      ...primaryDefinition,
+      id: randomUUID(),
+      agent_key: 'helpdesk.glpi.triage.payroll',
+      name: 'Payroll helpdesk triage agent',
+      scope_policy_json: {
+        ...(primaryDefinition.scope_policy_json ?? {}),
+        new_tickets_only: {
+          ...((primaryDefinition.scope_policy_json as any)?.new_tickets_only ?? {}),
+          category_id: 'payroll',
+        },
+      },
+      metadata_json: {
+        ...(primaryDefinition.metadata_json ?? {}),
+        user_modified: true,
+      },
+      created_at: new Date(),
+      updated_at: new Date(),
+    }));
+    const nowMs = Date.now();
+    const hoursAgo = (hours: number) => new Date(nowMs - hours * 60 * 60 * 1000).toISOString();
+    const listScopes: any[] = [];
+    const processed: string[] = [];
+    const service = createHelpdeskIngestionService({
+      queue,
+      processedWorkItemIds: processed,
+      provider: {
+        listTicketsForScope: async (_context: unknown, input: any) => {
+          listScopes.push(input.scope);
+          const categoryId = input.scope.categoryId;
+          const tickets = categoryId === 'payroll'
+            ? [{ id: 'ticket-payroll', title: 'Payroll ticket', status: 'new' }]
+            : [
+              { id: 'ticket-access-1', title: 'Access ticket 1', status: 'new' },
+              { id: 'ticket-access-2', title: 'Access ticket 2', status: 'new' },
+            ];
+          return {
+            ok: true,
+            data: {
+              tickets: tickets.map((ticket) => ({
+                ...ticket,
+                createdAt: hoursAgo(1),
+                updatedAt: hoursAgo(1),
+                scope: { entityId: 'lohr-helpdesk', categoryId },
+              })),
+            },
+            evidence: [],
+          };
+        },
+      },
+      onRunWorkItem: async (runContext, workItem) => {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        workItem.status = 'waiting_approval';
+        workItem.updated_at = new Date();
+        await runContext.manager.getRepository(AiAgentWorkItem).save(workItem);
+      },
+    });
+
+    const result = await service.pollTenant(context);
+    assert.equal(result.status, 'completed');
+    assert.equal(result.enqueued, 3);
+    assert.equal(result.processed, 1);
+    const budgetReasonPattern = /Processing time budget reached; 2 item\(s\) remain queued for the next cycle\./;
+    assert.match(result.reason ?? '', budgetReasonPattern);
+    assert.equal(result.agents?.length, 2);
+    const primarySummary = result.agents?.find((entry) => entry.agentDefinitionId === primaryDefinition.id);
+    const secondSummary = result.agents?.find((entry) => entry.agentDefinitionId === secondDefinition.id);
+    assert.equal(primarySummary?.status, 'completed');
+    assert.match(primarySummary?.reason ?? '', budgetReasonPattern);
+    assert.equal(secondSummary?.status, 'completed');
+    assert.match(secondSummary?.reason ?? '', budgetReasonPattern);
+    assert.deepEqual(listScopes.map((scope) => scope.categoryId).sort(), ['access', 'payroll']);
+
+    const workItems = stores.get(AiAgentWorkItem.name) ?? [];
+    assert.deepEqual(
+      workItems
+        .filter((item) => item.status === 'queued')
+        .map((item) => item.source_object_ref)
+        .sort(),
+      ['ticket-access-2', 'ticket-payroll'],
+    );
+    const auditEvents = stores.get(AiAgentAuditEvent.name) ?? [];
+    assert.equal(auditEvents.some((event) => event.event_type === 'poller_cycle_failed'), false);
+    assert.equal(auditEvents.filter((event) => event.event_type === 'poller_cycle_completed').length, 2);
+    for (const definition of [primaryDefinition, secondDefinition]) {
+      const stored = (stores.get(AiAgentDefinition.name) ?? []).find((entry) => entry.id === definition.id);
+      const ingestionState = stored?.metadata_json?.helpdesk_ingestion_state;
+      assert.equal(ingestionState?.last_poll_status, 'completed');
+      assert.equal(ingestionState?.failure_streak ?? 0, 0);
+    }
+
+    process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS = '100000';
+    const listCallsBeforeScheduledPoll = listScopes.length;
+    const scheduledResult = await (service as any).pollTenantContext(context, { ensureDefinition: false });
+    assert.notEqual(scheduledResult.status, 'skipped');
+    assert.equal(listScopes.length > listCallsBeforeScheduledPoll, true);
+  } finally {
+    if (previousBudget == null) {
+      delete process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS;
+    } else {
+      process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS = previousBudget;
+    }
+  }
+}
+
 async function enableHelpdeskAllOpenStaleClosure(
   context: AiExecutionContextWithManager,
   queue: AiAgentWorkQueueService,
@@ -5541,6 +5659,75 @@ async function testTicketNeedBuilderDerivesShortFacetedQueries() {
   assert.equal(derivation.queries.some((query) => query.length > 120), false);
   assert.equal(derivation.queries.some((query) => /pour faire plaisir a mes collegues/i.test(query)), false);
   assert.equal(derivation.queries.some((query) => /cheesecake|basque/i.test(query)), false);
+}
+
+async function testTicketNeedBuilderNormalizesMalformedStructuredPayloads() {
+  const context = createContext({} as any);
+  let calls = 0;
+  const malformedPayload = [{
+    intent: ['Corriger le blocage SAP'],
+    language: 'fr',
+    entities: [{ applications: 'SAP', modules: ['MM'] }],
+    symptoms: 'HTTP 500 sur la feature package reference',
+    exact_codes: [
+      { value: 'PKG-123', kind: 'package reference', source: 'screenshot_evidence' },
+      { value: 'Feature X', kind: 'feature', source: 'ticket:title' },
+      ['ERR-42', 'visible in screenshot'],
+      'ORA-28000',
+    ],
+    actions_attempted: { first: 'Redemarrage du navigateur' },
+    context: 'production',
+    constraints: ['ne pas redemarrer le serveur'],
+    evidence_refs: { screenshot: 'screen-1' },
+    warnings: 'Expected object, received array; Expected object, received string',
+    confidence: '82%',
+  }];
+  const needBuilder = new AiTicketNeedRepresentationService({
+    callStructuredJsonModel: async (_context: any, input: any) => {
+      calls += 1;
+      const parsed = input.schema.parse(malformedPayload);
+      return structuredJsonSuccess(parsed, { providerId: 'test', model: 'need-builder' });
+    },
+  } as any);
+
+  const built = await needBuilder.buildNeedRepresentation(context, {
+    ticket: {
+      id: '44',
+      title: 'SAP bloque',
+      description: 'HTTP 500 sur la feature package reference',
+    },
+    timeline: [{
+      id: 'ticket-description',
+      actor: 'requester_candidate',
+      visibility: 'public',
+      body: 'HTTP 500 sur la feature package reference',
+      createdAt: '2026-06-27T20:20:43.000Z',
+    }],
+  });
+
+  assert.equal(calls, 1);
+  assert.equal(built.source, 'llm');
+  assert.equal(built.warnings.some((warning) => /repaired|fallback/i.test(warning)), false);
+  assert.equal(built.need.entities.applications.includes('SAP'), true);
+  assert.equal(built.need.entities.modules.includes('MM'), true);
+  assert.equal(built.need.symptoms.includes('HTTP 500 sur la feature package reference'), true);
+  assert.equal(built.need.actions_attempted.includes('Redemarrage du navigateur'), true);
+  assert.equal(built.need.context.environment.includes('production'), true);
+  assert.equal(built.need.constraints.positive.includes('ne pas redemarrer le serveur'), true);
+  assert.equal(built.need.evidence_refs.includes('screen-1'), true);
+  assert.equal(built.need.confidence, 0.82);
+  assert.equal(built.need.exact_codes.some((code) =>
+    code.value === 'PKG-123' && code.kind === 'other' && code.source === 'screenshot',
+  ), true);
+  assert.equal(built.need.exact_codes.some((code) =>
+    code.value === 'Feature X' && code.kind === 'other' && code.source === 'ticket_title',
+  ), true);
+  assert.equal(built.need.exact_codes.some((code) =>
+    code.value === 'ERR-42 visible in screenshot' && code.kind === 'other' && code.source === 'ticket_description',
+  ), true);
+  assert.equal(built.need.exact_codes.some((code) =>
+    code.value === 'ORA-28000' && code.kind === 'other' && code.source === 'ticket_description',
+  ), true);
 }
 
 const VISION_TEST_RUNTIME = {
@@ -12422,6 +12609,7 @@ async function run() {
   await testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState();
   await testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsolation();
   await testHelpdeskGlpiIngestionPollsMultipleHelpdeskDefinitions();
+  await testHelpdeskGlpiIngestionBudgetStopsProcessingAfterDetectionPass();
   await testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets();
   testStaleProposalSuppressionIgnoresExpired();
   testActionPlannerPromptCompilerIncludesVerbatimCandidates();
@@ -12432,6 +12620,7 @@ async function run() {
   await testKnowledgeInterpreterPayloadIsScoreRanked();
   await testKnowledgeInterpreterFallbackKeepsRequesterNeedAbovePlannerNoise();
   await testTicketNeedBuilderDerivesShortFacetedQueries();
+  await testTicketNeedBuilderNormalizesMalformedStructuredPayloads();
   await testTicketImageExtractionDegradesWhenVisionCallFails();
   await testTicketImageExtractionSkipsWhenVisionDisabledBySetting();
   await testVisionEvidenceProducesExactCodeNeedAndKeepsInjectionUntrusted();

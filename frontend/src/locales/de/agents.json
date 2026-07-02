@@ -15,6 +15,7 @@
     "rejectedMany": "{{count}} Vorschläge abgelehnt.",
     "rejectManyFailed": "{{count}} abgelehnt, {{failed}} konnten nicht abgelehnt werden.",
     "pollComplete": "Prüfung abgeschlossen: {{status}}. {{processed}} verarbeitet, {{enqueued}} eingereiht.",
+    "pollCompleteWithReason": "Prüfung abgeschlossen: {{status}}. {{processed}} verarbeitet, {{enqueued}} eingereiht — {{reason}}",
     "pollFailed": "Tickets konnten nicht geprüft werden.",
     "settingsSaved": "Einstellungen gespeichert.",
     "settingsFailed": "Einstellungen konnten nicht gespeichert werden.",
