@@ -15,6 +15,7 @@
     "rejectedMany": "{{count}} propositions rejetées.",
     "rejectManyFailed": "{{count}} rejetées, {{failed}} n'ont pas pu être rejetées.",
     "pollComplete": "Contrôle terminé : {{status}}. {{processed}} traités, {{enqueued}} mis en file.",
+    "pollCompleteWithReason": "Contrôle terminé : {{status}}. {{processed}} traités, {{enqueued}} mis en file — {{reason}}",
     "pollFailed": "Impossible de contrôler les tickets.",
     "settingsSaved": "Paramètres enregistrés.",
     "settingsFailed": "Impossible d'enregistrer les paramètres.",

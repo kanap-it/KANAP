@@ -381,7 +381,13 @@ export function useAgentControlData() {
       setMessage(null);
     },
     onSuccess: async (result) => {
-      setMessage(t('messages.pollComplete', { status: statusLabel(result.status), enqueued: result.enqueued, processed: result.processed }));
+      const messageKey = result.reason ? 'messages.pollCompleteWithReason' : 'messages.pollComplete';
+      setMessage(t(messageKey, {
+        status: statusLabel(result.status),
+        enqueued: result.enqueued,
+        processed: result.processed,
+        reason: result.reason,
+      }));
       await invalidate();
     },
     onError: (err) => setError(getApiErrorMessage(err, t, t('messages.pollFailed'))),

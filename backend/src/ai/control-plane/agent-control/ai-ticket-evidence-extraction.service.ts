@@ -34,17 +34,96 @@ const DEFAULT_MAX_IMAGES = 5;
 const DEFAULT_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-const VisionEvidenceSchema = z.object({
-  verbatim_text: z.array(z.string().trim().min(1).max(500)).max(80).optional(),
-  error_codes: z.array(z.string().trim().min(1).max(120)).max(32).optional(),
-  ui_labels: z.array(z.string().trim().min(1).max(160)).max(64).optional(),
-  screen: z.string().trim().min(1).max(160).nullable().optional(),
-  visible_app: z.string().trim().min(1).max(120).nullable().optional(),
-  language: z.string().trim().min(2).max(24).nullable().optional(),
-  summary: z.string().trim().min(1).max(600).nullable().optional(),
-  confidence: z.number().min(0).max(1).nullable().optional(),
-  warnings: z.array(z.string().trim().min(1).max(240)).max(24).optional(),
-});
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function schemaText(value: unknown, maxLength: number): string | null {
+  let raw: string | null = null;
+  if (typeof value === 'string') {
+    raw = value;
+  } else if (typeof value === 'number' || typeof value === 'boolean') {
+    raw = String(value);
+  } else if (Array.isArray(value)) {
+    raw = value.map((entry) => schemaText(entry, maxLength)).filter(Boolean).join(' ');
+  } else if (isRecord(value)) {
+    for (const key of ['value', 'code', 'ref', 'text', 'name', 'title', 'body', 'summary', 'label', 'id']) {
+      const text = schemaText(value[key], maxLength);
+      if (text) {
+        raw = text;
+        break;
+      }
+    }
+  }
+  const normalized = String(raw ?? '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function schemaStringArray(value: unknown, maxItems: number, maxLength: number): string[] {
+  const values = Array.isArray(value)
+    ? value.flatMap((entry) => schemaStringArray(entry, 1, maxLength))
+    : isRecord(value)
+      ? Object.values(value).flatMap((entry) => schemaStringArray(entry, 1, maxLength))
+      : [schemaText(value, maxLength)].filter((entry): entry is string => !!entry);
+  return values.slice(0, maxItems);
+}
+
+function stringArraySchema(maxItems: number, maxLength: number) {
+  return z.preprocess(
+    (value) => schemaStringArray(value, maxItems, maxLength),
+    z.array(z.string().trim().min(1).max(maxLength)).max(maxItems).catch([]),
+  ).optional();
+}
+
+function nullableTextSchema(maxLength: number, minLength = 1) {
+  return z.preprocess(
+    (value) => schemaText(value, maxLength),
+    z.string().trim().min(minLength).max(maxLength).nullable().catch(null),
+  ).optional();
+}
+
+function confidenceValue(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  const text = schemaText(value, 24);
+  if (!text) return null;
+  const percent = text.match(/^(\d+(?:\.\d+)?)\s*%$/);
+  const parsed = Number.parseFloat(percent ? percent[1] : text);
+  if (!Number.isFinite(parsed)) return null;
+  return percent ? parsed / 100 : parsed;
+}
+
+const VisionEvidenceSchema = z.preprocess(
+  (value) => {
+    if (isRecord(value)) {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      const record = value.find(isRecord);
+      if (record) {
+        return record;
+      }
+    }
+    const summary = schemaText(value, 600);
+    return summary ? { summary } : value;
+  },
+  z.object({
+    verbatim_text: stringArraySchema(80, 500),
+    error_codes: stringArraySchema(32, 120),
+    ui_labels: stringArraySchema(64, 160),
+    screen: nullableTextSchema(160),
+    visible_app: nullableTextSchema(120),
+    language: nullableTextSchema(24, 2),
+    summary: nullableTextSchema(600),
+    confidence: z.preprocess(confidenceValue, z.number().min(0).max(1).nullable().catch(null)).optional(),
+    warnings: stringArraySchema(24, 240),
+  }),
+);
 
 type ParsedVisionEvidence = z.infer<typeof VisionEvidenceSchema>;
 

@@ -15,6 +15,7 @@
     "rejectedMany": "{{count}} proposals rejected.",
     "rejectManyFailed": "{{count}} rejected, {{failed}} could not be rejected.",
     "pollComplete": "Check complete: {{status}}. {{processed}} processed, {{enqueued}} queued.",
+    "pollCompleteWithReason": "Check complete: {{status}}. {{processed}} processed, {{enqueued}} queued — {{reason}}",
     "pollFailed": "Could not check for tickets.",
     "settingsSaved": "Settings saved.",
     "settingsFailed": "Could not save settings.",
