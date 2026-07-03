@@ -65,6 +65,10 @@ export type KnowledgeResultInterpretation = {
   confidence: number | null;
   rationale: string | null;
   model: string | null;
+  usage: { input_tokens: number; output_tokens: number } | null;
+  estimated_tokens: number;
+  estimated_cost_eur: number;
+  latency_ms: number | null;
   warnings: string[];
 };
 
@@ -73,6 +77,7 @@ const MAX_QUERY_CHARS = 120;
 const MAX_TERMS = 10;
 const MAX_INTERPRETER_CANDIDATES = 16;
 const DEFAULT_LLM_TIMEOUT_MS = 30_000;
+const TOKEN_COST_EUR = 0.000002;
 // Generous output budgets so verbose / reasoning models do not truncate the JSON
 // (finish_reason=length). Override per deployment via the *_MAX_TOKENS env vars.
 const MAX_KNOWLEDGE_PLANNER_OUTPUT_TOKENS = 4000;
@@ -147,6 +152,11 @@ function uniqueStrings(values: Array<string | null | undefined>, max = 50): stri
 function boundedConfidence(value: number | null | undefined): number | null {
   if (!Number.isFinite(value ?? NaN)) return null;
   return Math.max(0, Math.min(1, Number(value)));
+}
+
+function estimateTokens(value: unknown): number {
+  // Keep the margin aligned with the other agentic LLM stages.
+  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
 }
 
 function extractTermsFromLatestMessage(latestRequesterMessage: string | null): {
@@ -458,56 +468,57 @@ export class AiKnowledgeSearchPlannerService {
       return fallback;
     }
     const rankedCandidates = sortPlannerCandidates(input.candidates);
+    const userPayload = {
+      task: 'Select relevant knowledge documents from retrieved candidates.',
+      schema: {
+        selected_refs: ['document refs to use, max 3'],
+        rejected: [{ ref: 'document ref', reason: 'short audit reason' }],
+        facet_match: {
+          same_application: 'true when selected docs match the requested app/module',
+          same_symptom: 'true when selected docs match the requested symptom/outcome',
+          same_error_code: 'true when selected docs match an exact requested code/ref',
+          doc_type_fit: 'procedure | reference | spec | recipe | unknown',
+        },
+        needs_human_review: 'true when no reliable candidate exists or confidence is low',
+        confidence: '0..1',
+        rationale: 'one short audit sentence, no hidden reasoning',
+      },
+      search_plan: {
+        intent: input.plan.intent,
+        positive_terms: input.plan.positive_terms,
+        negative_terms: input.plan.negative_terms,
+        queries: input.plan.queries,
+        need: input.plan.need,
+      },
+      ticket: {
+        title: input.ticket.title,
+        description: compact(input.ticket.description, 500),
+        latest_requester_message: compact(latestRequesterMessage(input.timeline), 700),
+        previous_agent_answer: compact(previousAgentAnswer(input.timeline), 700),
+      },
+      candidates: rankedCandidates.slice(0, MAX_INTERPRETER_CANDIDATES).map((candidate) => ({
+        ref: candidate.ref,
+        title: candidate.title,
+        summary: compact(candidate.summary, 280),
+        snippet: compact(candidate.snippet, 280),
+        status: candidate.status,
+        search_queries: candidate.search_queries.slice(0, 4),
+        match_count: candidate.match_count ?? candidate.search_queries.length,
+        score: candidate.score ?? null,
+      })),
+      ranking_notes: [
+        '`score` is the lexical relevance rank; treat it as a strong signal, but judge final relevance from the content.',
+        '`match_count` is the number of generated/planned queries that retrieved the document.',
+        'Exact-code, same-application, and same-symptom facet matches are strong validation signals.',
+        'Reject documents whose type conflicts with the requester need instead of selecting a generic high-score candidate.',
+      ],
+    };
 
     try {
       const result = await this.llmClient.callStructuredJsonModel(context, {
         taskName: 'knowledge_result_interpretation',
         systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_INTERPRETER, input.profile),
-        userPayload: {
-          task: 'Select relevant knowledge documents from retrieved candidates.',
-          schema: {
-            selected_refs: ['document refs to use, max 3'],
-            rejected: [{ ref: 'document ref', reason: 'short audit reason' }],
-            facet_match: {
-              same_application: 'true when selected docs match the requested app/module',
-              same_symptom: 'true when selected docs match the requested symptom/outcome',
-              same_error_code: 'true when selected docs match an exact requested code/ref',
-              doc_type_fit: 'procedure | reference | spec | recipe | unknown',
-            },
-            needs_human_review: 'true when no reliable candidate exists or confidence is low',
-            confidence: '0..1',
-            rationale: 'one short audit sentence, no hidden reasoning',
-          },
-          search_plan: {
-            intent: input.plan.intent,
-            positive_terms: input.plan.positive_terms,
-            negative_terms: input.plan.negative_terms,
-            queries: input.plan.queries,
-            need: input.plan.need,
-          },
-          ticket: {
-            title: input.ticket.title,
-            description: compact(input.ticket.description, 500),
-            latest_requester_message: compact(latestRequesterMessage(input.timeline), 700),
-            previous_agent_answer: compact(previousAgentAnswer(input.timeline), 700),
-          },
-          candidates: rankedCandidates.slice(0, MAX_INTERPRETER_CANDIDATES).map((candidate) => ({
-            ref: candidate.ref,
-            title: candidate.title,
-            summary: compact(candidate.summary, 280),
-            snippet: compact(candidate.snippet, 280),
-            status: candidate.status,
-            search_queries: candidate.search_queries.slice(0, 4),
-            match_count: candidate.match_count ?? candidate.search_queries.length,
-            score: candidate.score ?? null,
-          })),
-          ranking_notes: [
-            '`score` is the lexical relevance rank; treat it as a strong signal, but judge final relevance from the content.',
-            '`match_count` is the number of generated/planned queries that retrieved the document.',
-            'Exact-code, same-application, and same-symptom facet matches are strong validation signals.',
-            'Reject documents whose type conflicts with the requester need instead of selecting a generic high-score candidate.',
-          ],
-        },
+        userPayload,
         maxTokens: MAX_KNOWLEDGE_INTERPRETER_OUTPUT_TOKENS,
         maxTokensEnvName: 'AI_AGENT_KNOWLEDGE_INTERPRETER_MAX_TOKENS',
         timeoutEnvName: 'AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS',
@@ -515,12 +526,23 @@ export class AiKnowledgeSearchPlannerService {
         schema: ResultInterpretationSchema,
       });
       if (!result) return fallback;
+      const actualTokens = result.usage
+        ? result.usage.input_tokens + result.usage.output_tokens
+        : estimateTokens(userPayload) + estimateTokens(result.text);
+      const usageFields = {
+        model: result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : null,
+        usage: result.usage,
+        estimated_tokens: actualTokens,
+        estimated_cost_eur: Number((actualTokens * TOKEN_COST_EUR).toFixed(6)),
+        latency_ms: result.latencyMs,
+      };
       if (!result.ok) {
         const message = result.metadata.failure?.message ?? 'invalid structured JSON';
         this.logger.warn(`Knowledge result LLM interpreter fallback: ${message}`);
         return {
           ...fallback,
           source: 'llm_fallback',
+          ...usageFields,
           warnings: [...fallback.warnings, `LLM interpreter JSON invalid: ${message.slice(0, 220)}`],
         };
       }
@@ -538,7 +560,7 @@ export class AiKnowledgeSearchPlannerService {
         needs_human_review: parsed.needs_human_review ?? selectedRefs.length === 0,
         confidence: boundedConfidence(parsed.confidence),
         rationale: parsed.rationale ?? null,
-        model: `${result.runtime.providerId}:${result.runtime.model}`,
+        ...usageFields,
         warnings: result.metadata.retry_attempted
           ? [...fallback.warnings, 'LLM interpreter JSON was repaired after one retry.']
           : fallback.warnings,
@@ -646,6 +668,10 @@ export class AiKnowledgeSearchPlannerService {
           ? 'Deterministic fallback found no candidate with enough lexical evidence for the requester need.'
           : 'No deterministic candidate satisfied the requester constraints.',
       model: null,
+      usage: null,
+      estimated_tokens: 0,
+      estimated_cost_eur: 0,
+      latency_ms: null,
       warnings: weakBestCandidate ? ['Deterministic fallback withheld weak lexical candidates for human review.'] : [],
     };
   }

@@ -11016,7 +11016,7 @@ async function testGlpiTriageChargesNeedRepresentationAndEvidenceUsage() {
 }
 
 async function testGlpiTriageSkipsNeedRepresentationAndEvidenceWhenProjectedOverCap() {
-  const { stores, visionCalls, needCalls, runId, result } = await runWp2LlmAccountingTriage({ perRunTokenCap: 5200 });
+  const { stores, visionCalls, needCalls, runId, result } = await runWp2LlmAccountingTriage({ perRunTokenCap: 1000 });
 
   assert.equal(visionCalls, 0);
   assert.equal(needCalls, 0);
@@ -11032,6 +11032,248 @@ async function testGlpiTriageSkipsNeedRepresentationAndEvidenceWhenProjectedOver
   assert.equal((needStep?.output_summary as any).fallback_reason, 'need_representation_projected_over_per_run_cap');
   assert.equal((result.diagnostic.ticket_image_extraction as any).skipped_reason, 'vision_projected_over_per_run_cap');
   assert.match((result.diagnostic.knowledge_need_representation as any).warnings.join('\n'), /projected over/i);
+}
+
+async function testGlpiTriageLargeKnowledgeDocumentsDoNotConsumeRunCap() {
+  const previousActionPlanner = process.env.AI_AGENT_ACTION_PLANNER;
+  const previousReplySynthesis = process.env.AI_AGENT_REPLY_SYNTHESIS;
+  const previousKnowledgePlanner = process.env.AI_AGENT_KNOWLEDGE_LLM_PLANNER;
+  const previousNeedBuilder = process.env.AI_AGENT_NEED_BUILDER_LLM;
+  delete process.env.AI_AGENT_ACTION_PLANNER;
+  delete process.env.AI_AGENT_REPLY_SYNTHESIS;
+  delete process.env.AI_AGENT_KNOWLEDGE_LLM_PLANNER;
+  process.env.AI_AGENT_NEED_BUILDER_LLM = '0';
+
+  try {
+    const { manager, stores } = createMemoryManager();
+    const context = createContext(manager);
+    const queue = new AiAgentWorkQueueService();
+    const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+    bundle.definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+      ...(bundle.definition.scope_policy_json as Record<string, unknown>),
+      knowledge_sources: {
+        knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+        web: { enabled: false },
+        precedence: 'knowledge_first',
+      },
+    });
+    bundle.definition.queue_policy_json = {
+      ...(bundle.definition.queue_policy_json as Record<string, unknown> ?? {}),
+      economic_guardrails: {
+        configured: true,
+        per_run: { max_estimated_tokens: 40_000, max_estimated_cost_eur: 1 },
+        daily: { max_agent_runs: 25, max_estimated_tokens: 500_000, max_estimated_cost_eur: 10 },
+      },
+    };
+    await manager.getRepository(AiAgentDefinition).save(bundle.definition);
+
+    const runId = 'run-large-knowledge-ledger';
+    const docs = [1, 2, 3].map((index) => ({
+      id: `doc-live-${index}`,
+      ref: `DOC-LIVE-${index}`,
+      title: `Large internal document ${index}`,
+      summary: `Summary ${index}`,
+      snippet: `Procedure snippet ${index}`,
+      status: 'published',
+      content_markdown: [
+        `# Large internal document ${index}`,
+        `VPN remediation section ${index}.`,
+        'Full internal procedure body. '.repeat(1600),
+      ].join('\n'),
+      updated_at: '2026-06-07T08:00:00.000Z',
+    }));
+    let runSeeded = false;
+    let plannerCalled = false;
+    let synthesisCalled = false;
+    const calls: Array<{ capabilityName: string; input: any }> = [];
+    const dispatcher = {
+      execute: async (_context: unknown, request: any) => {
+        calls.push({ capabilityName: request.capabilityName, input: request.input });
+        const toolExecutionId = `large-doc-tool-${calls.length}`;
+        const ok = (data: unknown) => ({
+          run_id: runId,
+          step_id: `large-doc-step-${calls.length}`,
+          tool_execution_id: toolExecutionId,
+          output: { ok: true, data, evidence: [] },
+        });
+        switch (request.capabilityName) {
+          case 'ticketing.ticket.get':
+            if (!runSeeded) {
+              runSeeded = true;
+              await seedMockAiRun(context, runId);
+            }
+            return ok({
+              id: '4',
+              title: 'Acces VPN impossible',
+              status: 'processing_assigned',
+              priority: 'medium',
+              description: 'Le VPN refuse la connexion depuis ce matin.',
+            });
+          case TICKETING_TICKET_NOTES_LIST_CAPABILITY:
+            return ok({ notes: [] });
+          case TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY:
+            return ok({ type: 'Incident', priority: 'Medium', urgency: 'Medium' });
+          case TICKETING_LIFECYCLE_CONTEXT_CAPABILITY:
+            return ok({ terminal: false, status: 'Processing assigned', allowedTransitions: [] });
+          case TICKETING_ROUTING_CONTEXT_CAPABILITY:
+          case TICKETING_PARTICIPANT_CONTEXT_CAPABILITY:
+            return ok({});
+          case 'search_knowledge':
+            return {
+              run_id: runId,
+              step_id: `large-doc-step-${calls.length}`,
+              tool_execution_id: toolExecutionId,
+              output: { items: docs.map(({ content_markdown, ...doc }) => doc), total: docs.length, returned: docs.length, truncated: false, complete: true },
+            };
+          case 'get_document': {
+            const doc = docs.find((candidate) => candidate.ref === request.input.document_id || candidate.id === request.input.document_id);
+            return {
+              run_id: runId,
+              step_id: `large-doc-step-${calls.length}`,
+              tool_execution_id: toolExecutionId,
+              output: doc ?? null,
+            };
+          }
+          case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
+            await savePreparedGlpiAction(context, {
+              id: 'large-doc-internal-action',
+              runId,
+              toolExecutionId,
+              capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+              body: request.input.note_body,
+              visibility: 'internal',
+              metadata: request.execution?.metadata ?? null,
+            });
+            return ok({ summary: 'Prepared internal note.', action_request_id: 'large-doc-internal-action' });
+          case TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY:
+            await savePreparedGlpiAction(context, {
+              id: 'large-doc-public-action',
+              runId,
+              toolExecutionId,
+              capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+              body: request.input.reply_body,
+              visibility: 'public',
+              metadata: request.execution?.metadata ?? null,
+            });
+            return ok({ summary: 'Prepared public reply.', action_request_id: 'large-doc-public-action' });
+          default:
+            throw new Error(`Unexpected capability ${request.capabilityName}`);
+        }
+      },
+    };
+    const knowledgePlanner = new AiKnowledgeSearchPlannerService({
+      callStructuredJsonModel: async (_context: unknown, request: any) => {
+        assert.equal(request.taskName, 'knowledge_result_interpretation');
+        return structuredJsonSuccess({
+          selected_refs: docs.map((doc) => doc.ref),
+          rejected: [],
+          needs_human_review: false,
+          confidence: 0.82,
+          rationale: 'Relevant VPN candidates selected.',
+        }, { providerId: 'test', model: 'knowledge-interpreter', usage: { input_tokens: 210, output_tokens: 90 }, latencyMs: 6 });
+      },
+    } as any);
+    const synthesis = {
+      buildPromptPayload: (input: any) => ({
+        prompt: 'large knowledge synthesis',
+        docs: input.knowledgeDocs.map((doc: any) => ({
+          ref: doc.ref,
+          content: String(doc.content_markdown ?? '').slice(0, 3800),
+        })),
+      }),
+      maxOutputTokens: () => 8000,
+      synthesizeTicketReply: async (_ctx: unknown, input: any) => {
+        synthesisCalled = true;
+        assert.equal(input.knowledgeDocs.length, 3);
+        assert.equal(input.knowledgeDocs.every((doc: any) => String(doc.content_markdown ?? '').length > 40_000), true);
+        return {
+          language: 'fr',
+          usable: true,
+          needs_human_review: false,
+          requester_reply: 'Suivez la procédure VPN interne DOC-LIVE-1 puis relancez le client VPN.',
+          technician_brief: 'Réponse fondée sur la procédure VPN interne.',
+          used_sources: [{ kind: 'knowledge', ref: 'DOC-LIVE-1', url: null, title: 'Large internal document 1' }],
+          rejected_sources: [
+            { kind: 'knowledge', ref: 'DOC-LIVE-2', url: null, title: 'Large internal document 2', reason: 'Moins spécifique.' },
+            { kind: 'knowledge', ref: 'DOC-LIVE-3', url: null, title: 'Large internal document 3', reason: 'Moins spécifique.' },
+          ],
+          confidence: 0.79,
+          model: 'test:synthesis',
+          usage: { input_tokens: 600, output_tokens: 300 },
+          estimated_tokens: 900,
+          estimated_cost_eur: 0.0018,
+          latency_ms: 8,
+          fallback_reason: null,
+        };
+      },
+    };
+    const actionPlanner = {
+      maxOutputTokens: () => 12_000,
+      buildPromptPayload: (plannerInput: any) => ({ prompt: 'large knowledge planner', knowledge_summary: plannerInput.knowledge_summary }),
+      planActions: async () => {
+        plannerCalled = true;
+        return {
+          source: 'llm',
+          actions: [
+            { action_type: 'internal_note', reason: 'Record the selected knowledge and proposed reply.' },
+            { action_type: 'requester_reply', reply_kind: 'sourced_answer', reason: 'Answer from the selected internal source.' },
+          ],
+          rationale: 'Prepare a sourced requester reply.',
+          confidence: 0.88,
+          model: 'test:planner',
+          usage: { input_tokens: 500, output_tokens: 200 },
+          estimated_tokens: 700,
+          estimated_cost_eur: 0.0014,
+          latency_ms: 5,
+        };
+      },
+    };
+    const service = new AiAgentControlService(
+      {} as any,
+      {} as any,
+      dispatcher as any,
+      { requireSingleEnabledTarget: async () => glpiReadSafeTarget() } as any,
+      { getApplicability: async () => ({ available: true }) } as any,
+      queue,
+      knowledgePlanner,
+      synthesis as any,
+      undefined,
+      undefined,
+      actionPlanner as any,
+      new AiTicketNeedRepresentationService({} as any),
+    ) as any;
+    service.getRunDetail = async () => ({ action_requests: [] });
+
+    const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+    const run = (stores.get(AiRun.name) ?? []).find((candidate: AiRun) => candidate.id === runId);
+    assert.ok(run);
+    const runUsageTokens = (run.usage_json as any).estimated_tokens;
+    assert.equal(plannerCalled, true);
+    assert.equal(synthesisCalled, true);
+    assert.equal(calls.filter((call) => call.capabilityName === 'get_document').length, 3);
+    assert.notEqual((result.diagnostic.action_planner as any).fallback_reason, 'action_planner_projected_over_per_run_cap');
+    assert.notEqual((result.diagnostic.synthesis as any).synthesis_fallback_reason, 'synthesis_projected_over_per_run_cap');
+    assert.deepEqual((run.usage_json as any).knowledge_interpretation, {
+      input_tokens: 210,
+      output_tokens: 90,
+      estimated_tokens: 300,
+    });
+    assert.equal(runUsageTokens, 1900);
+    assert.equal((run.cost_json as any).estimated_cost_eur, 0.0038);
+    assert.equal((result.diagnostic.run_usage_estimate as any).estimatedTokens, 1900);
+    assert.equal((result.work_item.metadata_json as any).run_usage_estimate.estimatedTokens, 1900);
+    assert.equal(runUsageTokens < 15_000, true);
+    assert.equal(runUsageTokens > 30_000, false);
+  } finally {
+    if (previousActionPlanner == null) delete process.env.AI_AGENT_ACTION_PLANNER;
+    else process.env.AI_AGENT_ACTION_PLANNER = previousActionPlanner;
+    if (previousReplySynthesis == null) delete process.env.AI_AGENT_REPLY_SYNTHESIS;
+    else process.env.AI_AGENT_REPLY_SYNTHESIS = previousReplySynthesis;
+    if (previousKnowledgePlanner == null) delete process.env.AI_AGENT_KNOWLEDGE_LLM_PLANNER;
+    else process.env.AI_AGENT_KNOWLEDGE_LLM_PLANNER = previousKnowledgePlanner;
+    if (previousNeedBuilder == null) delete process.env.AI_AGENT_NEED_BUILDER_LLM;
+    else process.env.AI_AGENT_NEED_BUILDER_LLM = previousNeedBuilder;
+  }
 }
 
 // #47 exact: the action planner is unavailable (deterministic fallback) AND reply synthesis
@@ -12777,6 +13019,7 @@ async function run() {
   await testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument();
   await testGlpiTriageChargesNeedRepresentationAndEvidenceUsage();
   await testGlpiTriageSkipsNeedRepresentationAndEvidenceWhenProjectedOverCap();
+  await testGlpiTriageLargeKnowledgeDocumentsDoNotConsumeRunCap();
   await testGlpiTriageFallbackFailsClosedWhenSynthesisFails();
   await testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis();
   await testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb();
