@@ -136,7 +136,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Beratung',
       subtitle: 'Kostenpflichtig · 20 % Rabatt für Abonnenten',
-      body: 'Optionale Hilfe, um mehr Wert aus KANAP zu ziehen: geplante Calls, tiefergehende Arbeit, Advisory.',
+      body: 'Optionale Hilfe, um mehr Wert aus KANAP zu ziehen: geplante Calls, tiefergehende Arbeit, Advisory. Tarife: 190 € pro Stunde, 690 € pro halbem Tag, 1.250 € pro Tag, zzgl. MwSt.',
       items: [
         'Einrichtung, Konfiguration, Onboarding, Schulung',
         'Workflow-Design und Best Practices',
@@ -146,36 +146,29 @@ const content: OfferContent = {
     },
   },
 
-  rates: {
-    title: 'Optionale Beratungstarife',
-    intro: 'Transparente Preise für Teams, die Expertenhilfe möchten. Abonnenten erhalten immer 20 % Rabatt.',
-    headings: {
-      duration: 'Dauer',
-      useCases: 'Anwendungsfälle',
-      rate: 'Tarif',
-      subscriber: 'Abonnent',
+  pilot: {
+    eyebrow: 'Begleiteter Pilot',
+    title: 'Der schnellste Weg zu einem arbeitenden Agenten.',
+    intro:
+      'Ein Engagement zum Festpreis, das Ihr Team von der Installation zu einem Agenten führt, der Ihren echten Service Desk bearbeitet. Sie sehen jeden seiner Vorschläge, und Sie entscheiden, was er sich verdienen darf.',
+    plan: {
+      name: 'Begleiteter Pilot',
+      badge: 'Festpreis',
+      target: 'Von der Installation zu einem kalibrierten Agenten auf Ihrer echten Warteschlange',
+      price: '2.900 €',
+      subPrice: 'einmaliges Engagement · selbst gehostet oder Hosted Cloud · zzgl. MwSt.',
+      features: [
+        'Installation auf Ihren Servern oder Einrichtung in der Hosted Cloud',
+        'GLPI verbunden und Ihr erster Agent konfiguriert',
+        'Persona und Targeting auf Ihre Warteschlange abgestimmt',
+        'Vier Wochen Kalibrierung an der Seite Ihrer Techniker',
+        'Übergabe mit Autonomie-Empfehlungen',
+      ],
+      ctaLabel: 'Sprechen Sie mit uns',
+      ctaHref: '/contact',
+      ctaVariant: 'primary',
+      note: 'Den Rahmen stecken wir vorab gemeinsam in einem 30-minütigen Gespräch ab.',
     },
-    rows: [
-      {
-        duration: '1 Stunde',
-        useCases: 'Troubleshooting, spezifische Fragen, schneller Rat',
-        rate: '190 €',
-        subscriber: '150 €',
-      },
-      {
-        duration: 'Halber Tag (4h)',
-        useCases: 'Onboarding, Schulung, Konfigurationsworkshop',
-        rate: '690 €',
-        subscriber: '550 €',
-      },
-      {
-        duration: 'Ganzer Tag (8h)',
-        useCases: 'Großteam-Schulung, ausführliche Beratung, CIO-Advisory',
-        rate: '1.250 €',
-        subscriber: '1.000 €',
-      },
-    ],
-    note: 'Tarife pro Session, zzgl. MwSt. Reisekosten werden separat berechnet, falls vor Ort nötig.',
   },
 
   supportInvoice: {

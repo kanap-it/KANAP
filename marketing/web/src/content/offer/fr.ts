@@ -136,7 +136,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Conseil',
       subtitle: 'Payant · 20 % de remise pour les abonnés',
-      body: 'Aide optionnelle pour tirer plus de valeur de KANAP : appels programmés, travail approfondi, advisory.',
+      body: 'Aide optionnelle pour tirer plus de valeur de KANAP : appels programmés, travail approfondi, advisory. Tarifs : 190 € l\'heure, 690 € la demi-journée, 1 250 € la journée, hors TVA.',
       items: [
         'Installation, configuration, onboarding, formation',
         'Conception de workflows et bonnes pratiques',
@@ -146,36 +146,29 @@ const content: OfferContent = {
     },
   },
 
-  rates: {
-    title: 'Tarifs conseil optionnel',
-    intro: 'Tarification transparente pour les équipes qui veulent une aide experte. Les abonnés ont toujours 20 % de remise.',
-    headings: {
-      duration: 'Durée',
-      useCases: 'Cas d\'usage',
-      rate: 'Tarif',
-      subscriber: 'Abonné',
+  pilot: {
+    eyebrow: 'Pilote accompagné',
+    title: 'Le chemin le plus court vers un agent au travail.',
+    intro:
+      'Un engagement à prix fixe qui mène votre équipe de l\'installation à un agent qui travaille votre vrai centre de services. Vous voyez chacune de ses propositions, et vous décidez de ce qu\'il gagne le droit de faire.',
+    plan: {
+      name: 'Pilote accompagné',
+      badge: 'Prix fixe',
+      target: 'De l\'installation à un agent calibré sur votre vraie file',
+      price: '2 900 €',
+      subPrice: 'engagement unique · auto-hébergé ou cloud hébergé · hors TVA',
+      features: [
+        'Installation sur vos serveurs, ou mise en place hébergée',
+        'GLPI connecté et votre premier agent configuré',
+        'Persona et ciblage réglés sur votre file',
+        'Quatre semaines de calibration aux côtés de vos techniciens',
+        'Bilan de fin avec recommandations d\'autonomie',
+      ],
+      ctaLabel: 'Parlez-nous',
+      ctaHref: '/contact',
+      ctaVariant: 'primary',
+      note: 'Nous le cadrons ensemble lors d\'un appel de 30 minutes.',
     },
-    rows: [
-      {
-        duration: '1 heure',
-        useCases: 'Dépannage, questions ciblées, conseil rapide',
-        rate: '190 €',
-        subscriber: '150 €',
-      },
-      {
-        duration: 'Demi-journée (4h)',
-        useCases: 'Onboarding, formation, atelier de configuration',
-        rate: '690 €',
-        subscriber: '550 €',
-      },
-      {
-        duration: 'Journée (8h)',
-        useCases: 'Formation grande équipe, conseil approfondi, advisory CIO',
-        rate: '1 250 €',
-        subscriber: '1 000 €',
-      },
-    ],
-    note: 'Tarifs par session, hors TVA. Frais de déplacement facturés en sus si présence sur site.',
   },
 
   supportInvoice: {

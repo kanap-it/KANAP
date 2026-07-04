@@ -27,11 +27,12 @@ export interface ServiceCard {
   items: string[];
 }
 
-export interface ConsultingRow {
-  duration: string;
-  useCases: string;
-  rate: string;
-  subscriber: string;
+/** The fixed-price "Guided pilot" engagement block. */
+export interface PilotSection {
+  eyebrow: string;
+  title: string;
+  intro: string;
+  plan: OfferPlan;
 }
 
 export interface OfferContent {
@@ -73,18 +74,7 @@ export interface OfferContent {
     support: ServiceCard;
     consulting: ServiceCard;
   };
-  rates: {
-    title: string;
-    intro: string;
-    headings: {
-      duration: string;
-      useCases: string;
-      rate: string;
-      subscriber: string;
-    };
-    rows: ConsultingRow[];
-    note: string;
-  };
+  pilot: PilotSection;
   supportInvoice: {
     title: string;
     eyebrow: string;

@@ -138,7 +138,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Consultoría',
       subtitle: 'De pago · los suscriptores obtienen un 20 % de descuento',
-      body: 'Ayuda opcional para sacar más valor de KANAP: llamadas programadas, trabajo más profundo, asesoramiento.',
+      body: 'Ayuda opcional para sacar más valor de KANAP: llamadas programadas, trabajo más profundo, asesoramiento. Tarifas: 190 € la hora, 690 € la media jornada, 1 250 € la jornada, sin IVA.',
       items: [
         'Instalación, configuración, onboarding, formación',
         'Diseño de flujos de trabajo y buenas prácticas',
@@ -148,36 +148,29 @@ const content: OfferContent = {
     },
   },
 
-  rates: {
-    title: 'Tarifas de consultoría opcional',
-    intro: 'Precios transparentes para equipos que quieren ayuda experta. Los suscriptores siempre obtienen un 20 % de descuento.',
-    headings: {
-      duration: 'Duración',
-      useCases: 'Casos de uso',
-      rate: 'Tarifa',
-      subscriber: 'Suscriptor',
+  pilot: {
+    eyebrow: 'Piloto guiado',
+    title: 'El camino más corto hacia un agente en marcha.',
+    intro:
+      'Un compromiso a precio fijo que lleva a su equipo de la instalación a un agente trabajando su mesa de servicio real. Usted ve cada una de sus propuestas y decide qué se gana el derecho a hacer.',
+    plan: {
+      name: 'Piloto guiado',
+      badge: 'Precio fijo',
+      target: 'De la instalación a un agente calibrado en su cola real',
+      price: '2 900 €',
+      subPrice: 'compromiso único · autoalojado o nube alojada · sin IVA',
+      features: [
+        'Instalación en sus servidores, o puesta en marcha alojada',
+        'GLPI conectado y su primer agente configurado',
+        'Persona y segmentación ajustadas a su cola',
+        'Cuatro semanas de calibración junto a sus técnicos',
+        'Entrega con recomendaciones de autonomía',
+      ],
+      ctaLabel: 'Hable con nosotros',
+      ctaHref: '/contact',
+      ctaVariant: 'primary',
+      note: 'Lo definimos juntos en una llamada de 30 minutos.',
     },
-    rows: [
-      {
-        duration: '1 hora',
-        useCases: 'Resolución de problemas, preguntas concretas, consejo rápido',
-        rate: '190 €',
-        subscriber: '150 €',
-      },
-      {
-        duration: 'Media jornada (4h)',
-        useCases: 'Onboarding, formación, taller de configuración',
-        rate: '690 €',
-        subscriber: '550 €',
-      },
-      {
-        duration: 'Jornada completa (8h)',
-        useCases: 'Formación de equipos grandes, consultoría en profundidad, asesoramiento a CIO',
-        rate: '1 250 €',
-        subscriber: '1 000 €',
-      },
-    ],
-    note: 'Las tarifas son por sesión y no incluyen VAT. Los gastos de viaje se facturan aparte si se requiere presencia.',
   },
 
   supportInvoice: {

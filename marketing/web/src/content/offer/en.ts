@@ -138,7 +138,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Consulting',
       subtitle: 'Paid · subscribers get 20% off',
-      body: 'Optional help to get more value from KANAP: scheduled calls, deeper work, advisory.',
+      body: 'Optional help to get more value from KANAP: scheduled calls, deeper work, advisory. Rates: €190 an hour, €690 a half day, €1,250 a day, VAT excluded.',
       items: [
         'Setup, configuration, onboarding, training',
         'Workflow design and best practices',
@@ -148,36 +148,29 @@ const content: OfferContent = {
     },
   },
 
-  rates: {
-    title: 'Optional consulting rates',
-    intro: 'Transparent pricing for teams that want expert help. Subscribers always get 20% off.',
-    headings: {
-      duration: 'Duration',
-      useCases: 'Use cases',
-      rate: 'Rate',
-      subscriber: 'Subscriber',
+  pilot: {
+    eyebrow: 'Guided pilot',
+    title: 'The fastest path to a working agent.',
+    intro:
+      'One fixed-price engagement that takes your team from installation to an agent working your real service desk. You see every proposal it makes, and you decide what it earns the right to do.',
+    plan: {
+      name: 'Guided pilot',
+      badge: 'Fixed price',
+      target: 'From installation to a calibrated agent on your real queue',
+      price: '€2,900',
+      subPrice: 'one engagement · self-hosted or hosted cloud · VAT excluded',
+      features: [
+        'Installation on your servers, or hosted setup',
+        'GLPI connected and your first agent configured',
+        'Persona and targeting tuned to your queue',
+        'Four weeks of calibration alongside your technicians',
+        'Handover with autonomy recommendations',
+      ],
+      ctaLabel: 'Talk to us',
+      ctaHref: '/contact',
+      ctaVariant: 'primary',
+      note: 'We scope it together on a 30-minute call first.',
     },
-    rows: [
-      {
-        duration: '1 hour',
-        useCases: 'Troubleshooting, specific questions, quick advice',
-        rate: '€190',
-        subscriber: '€150',
-      },
-      {
-        duration: 'Half day (4h)',
-        useCases: 'Onboarding, training, configuration workshop',
-        rate: '€690',
-        subscriber: '€550',
-      },
-      {
-        duration: 'Full day (8h)',
-        useCases: 'Large team training, in-depth consulting, CIO advisory',
-        rate: '€1,250',
-        subscriber: '€1,000',
-      },
-    ],
-    note: 'Rates are per session and exclusive of VAT. Travel costs billed separately if on-site is required.',
   },
 
   supportInvoice: {
