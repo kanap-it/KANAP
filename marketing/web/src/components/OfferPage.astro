@@ -92,7 +92,7 @@ function resolveHref(href: string): string {
     </div>
   </Section>
 
-  {/* ---------- Support vs Consulting ---------- */}
+  {/* ---------- Expert help: support, consulting, guided pilot ---------- */}
   <Section tone="default">
     <div class="mk-services">
       <header class="mk-services__head">
@@ -112,38 +112,23 @@ function resolveHref(href: string): string {
             </ul>
           </article>
         ))}
+        <article class="mk-services__card">
+          <header>
+            <h3>{content.pilot.title}</h3>
+            <p class="mk-small">{content.pilot.subtitle}</p>
+          </header>
+          <p>{content.pilot.body}</p>
+          <ul>
+            {content.pilot.items.map((i) => <li>{i}</li>)}
+          </ul>
+          <div class="mk-services__cta">
+            <a href={resolveHref(content.pilot.ctaHref)} class="mk-btn mk-btn--primary">
+              {content.pilot.ctaLabel}
+            </a>
+            <p class="mk-small">{content.pilot.note}</p>
+          </div>
+        </article>
       </div>
-    </div>
-  </Section>
-
-  {/* ---------- Consulting rates ---------- */}
-  <Section tone="sunken">
-    <div class="mk-rates">
-      <h2 class="mk-rates__title">{content.rates.title}</h2>
-      <p class="mk-lead mk-rates__intro">{content.rates.intro}</p>
-      <div class="mk-rates__tablewrap">
-        <table class="mk-rates__table">
-          <thead>
-            <tr>
-              <th>{content.rates.headings.duration}</th>
-              <th>{content.rates.headings.useCases}</th>
-              <th>{content.rates.headings.rate}</th>
-              <th>{content.rates.headings.subscriber}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {content.rates.rows.map((row) => (
-              <tr>
-                <td>{row.duration}</td>
-                <td>{row.useCases}</td>
-                <td>{row.rate}</td>
-                <td class="mk-rates__sub">{row.subscriber}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p class="mk-small mk-rates__note">{content.rates.note}</p>
     </div>
   </Section>
 
@@ -604,56 +589,18 @@ function resolveHref(href: string): string {
     background: var(--kanap-text-tertiary);
   }
 
-  /* Rates table */
-  .mk-rates__title {
-    margin: 0 0 12px;
+  /* Guided pilot card CTA — pinned to the card bottom */
+  .mk-services__cta {
+    margin-top: auto;
+    padding-top: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
-  .mk-rates__intro {
-    margin-bottom: 32px;
-    max-width: 640px;
-  }
-
-  .mk-rates__tablewrap {
-    border: 1px solid var(--kanap-border-default);
-    border-radius: var(--kanap-radius-composer);
-    overflow-x: auto;
-    background: var(--kanap-bg-primary);
-  }
-
-  .mk-rates__table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-  }
-
-  .mk-rates__table thead th {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--kanap-text-secondary);
-    text-align: left;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--kanap-border-default);
-    background: var(--kanap-bg-page);
-  }
-
-  .mk-rates__table tbody tr + tr td {
-    border-top: 1px solid var(--kanap-border-soft);
-  }
-
-  .mk-rates__table td {
-    padding: 14px 18px;
-    color: var(--kanap-text-secondary);
-    vertical-align: top;
-  }
-
-  .mk-rates__sub {
-    color: var(--kanap-teal);
-    font-weight: 500;
-  }
-
-  .mk-rates__note {
-    margin-top: 14px;
+  .mk-services__cta p {
+    margin: 0;
     color: var(--kanap-text-tertiary);
   }
 

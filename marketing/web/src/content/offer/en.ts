@@ -138,7 +138,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Consulting',
       subtitle: 'Paid · subscribers get 20% off',
-      body: 'Optional help to get more value from KANAP: scheduled calls, deeper work, advisory.',
+      body: 'Optional help to get more value from KANAP: scheduled calls, deeper work, advisory. Rates: €190 an hour, €690 a half day, €1,250 a day, VAT excluded.',
       items: [
         'Setup, configuration, onboarding, training',
         'Workflow design and best practices',
@@ -148,36 +148,19 @@ const content: OfferContent = {
     },
   },
 
-  rates: {
-    title: 'Optional consulting rates',
-    intro: 'Transparent pricing for teams that want expert help. Subscribers always get 20% off.',
-    headings: {
-      duration: 'Duration',
-      useCases: 'Use cases',
-      rate: 'Rate',
-      subscriber: 'Subscriber',
-    },
-    rows: [
-      {
-        duration: '1 hour',
-        useCases: 'Troubleshooting, specific questions, quick advice',
-        rate: '€190',
-        subscriber: '€150',
-      },
-      {
-        duration: 'Half day (4h)',
-        useCases: 'Onboarding, training, configuration workshop',
-        rate: '€690',
-        subscriber: '€550',
-      },
-      {
-        duration: 'Full day (8h)',
-        useCases: 'Large team training, in-depth consulting, CIO advisory',
-        rate: '€1,250',
-        subscriber: '€1,000',
-      },
+  pilot: {
+    title: 'Guided pilot',
+    subtitle: '€2,900 fixed · VAT excluded',
+    body: 'One engagement that launches your team on KANAP: we set it up with you, bring your data in, train your people, and leave your first agent at work.',
+    items: [
+      'Installation on your servers, or hosted setup',
+      'We help you import your first key data',
+      'Team training and onboarding',
+      'Your first agent configured',
     ],
-    note: 'Rates are per session and exclusive of VAT. Travel costs billed separately if on-site is required.',
+    ctaLabel: 'Talk to us',
+    ctaHref: '/contact',
+    note: 'We scope it together on a 30-minute call first.',
   },
 
   supportInvoice: {

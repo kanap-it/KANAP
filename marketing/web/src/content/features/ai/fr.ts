@@ -81,8 +81,8 @@ const content: FeatureContent = {
   cta: {
     title: "La gouvernance IT augmentée par l'IA commence ici.",
     body: 'Plaid est inclus dans chaque workspace KANAP, avec un usage généreux sur le cloud hébergé. Auto-hébergement gratuit, ou cloud hébergé.',
-    primary: 'Essai gratuit',
-    secondary: 'Nous contacter',
+    primary: 'Déployer gratuitement',
+    secondary: 'Essayer le cloud hébergé',
   },
 };
 

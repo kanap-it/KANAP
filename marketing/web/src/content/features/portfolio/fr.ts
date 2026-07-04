@@ -84,8 +84,8 @@ const content: FeatureContent = {
   cta: {
     title: 'Prêt à maîtriser votre pipeline projet ?',
     body: 'Auto-hébergez gratuitement, ou essayez le cloud hébergé.',
-    primary: 'Essai gratuit',
-    secondary: 'Nous contacter',
+    primary: 'Déployer gratuitement',
+    secondary: 'Essayer le cloud hébergé',
   },
 };
 

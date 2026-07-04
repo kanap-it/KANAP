@@ -81,8 +81,8 @@ const content: FeatureContent = {
   cta: {
     title: 'La gobernanza de TI con IA empieza aquí.',
     body: 'Plaid está incluido en cada workspace de KANAP, con un uso generoso en la nube alojada. Autoaloje gratis, o pruebe la nube alojada.',
-    primary: 'Empezar prueba gratuita',
-    secondary: 'Hablar con nosotros',
+    primary: 'Desplegar gratis',
+    secondary: 'Probar nube alojada',
   },
 };
 

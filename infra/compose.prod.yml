@@ -33,6 +33,9 @@ services:
     build:
       context: ../marketing
       dockerfile: Dockerfile
+      args:
+        # Cloudflare Web Analytics beacon token; empty disables analytics.
+        PUBLIC_CF_ANALYTICS_TOKEN: ${PUBLIC_CF_ANALYTICS_TOKEN:-}
     ports:
       - "127.0.0.1:8082:80"
     restart: unless-stopped

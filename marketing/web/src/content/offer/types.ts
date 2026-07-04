@@ -27,11 +27,11 @@ export interface ServiceCard {
   items: string[];
 }
 
-export interface ConsultingRow {
-  duration: string;
-  useCases: string;
-  rate: string;
-  subscriber: string;
+/** The fixed-price "Guided pilot" card, third block of the services section. */
+export interface PilotCard extends ServiceCard {
+  ctaLabel: string;
+  ctaHref: string;
+  note: string;
 }
 
 export interface OfferContent {
@@ -73,18 +73,7 @@ export interface OfferContent {
     support: ServiceCard;
     consulting: ServiceCard;
   };
-  rates: {
-    title: string;
-    intro: string;
-    headings: {
-      duration: string;
-      useCases: string;
-      rate: string;
-      subscriber: string;
-    };
-    rows: ConsultingRow[];
-    note: string;
-  };
+  pilot: PilotCard;
   supportInvoice: {
     title: string;
     eyebrow: string;

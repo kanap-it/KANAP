@@ -95,8 +95,8 @@ const content: FeaturesHubContent = {
     title: 'Ready to see your role on the platform?',
     body:
       'Start free with self-hosting, or try the hosted cloud.\nAll features on every plan, cloud or self-hosted.',
-    primary: 'Start free trial',
-    secondary: 'Deploy from GitHub',
+    primary: 'Deploy free',
+    secondary: 'Try hosted cloud',
   },
 };
 

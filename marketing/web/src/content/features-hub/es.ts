@@ -95,8 +95,8 @@ const content: FeaturesHubContent = {
     title: '¿Listo para ver su rol en la plataforma?',
     body:
       'Empiece gratis con autoalojamiento, o pruebe la nube alojada.\nTodas las funcionalidades en cada plan, en la nube o autoalojado.',
-    primary: 'Empezar prueba gratuita',
-    secondary: 'Desplegar desde GitHub',
+    primary: 'Desplegar gratis',
+    secondary: 'Probar nube alojada',
   },
 };
 

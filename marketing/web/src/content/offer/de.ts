@@ -136,7 +136,7 @@ const content: OfferContent = {
     consulting: {
       title: 'Beratung',
       subtitle: 'Kostenpflichtig · 20 % Rabatt für Abonnenten',
-      body: 'Optionale Hilfe, um mehr Wert aus KANAP zu ziehen: geplante Calls, tiefergehende Arbeit, Advisory.',
+      body: 'Optionale Hilfe, um mehr Wert aus KANAP zu ziehen: geplante Calls, tiefergehende Arbeit, Advisory. Tarife: 190 € pro Stunde, 690 € pro halbem Tag, 1.250 € pro Tag, zzgl. MwSt.',
       items: [
         'Einrichtung, Konfiguration, Onboarding, Schulung',
         'Workflow-Design und Best Practices',
@@ -146,36 +146,19 @@ const content: OfferContent = {
     },
   },
 
-  rates: {
-    title: 'Optionale Beratungstarife',
-    intro: 'Transparente Preise für Teams, die Expertenhilfe möchten. Abonnenten erhalten immer 20 % Rabatt.',
-    headings: {
-      duration: 'Dauer',
-      useCases: 'Anwendungsfälle',
-      rate: 'Tarif',
-      subscriber: 'Abonnent',
-    },
-    rows: [
-      {
-        duration: '1 Stunde',
-        useCases: 'Troubleshooting, spezifische Fragen, schneller Rat',
-        rate: '190 €',
-        subscriber: '150 €',
-      },
-      {
-        duration: 'Halber Tag (4h)',
-        useCases: 'Onboarding, Schulung, Konfigurationsworkshop',
-        rate: '690 €',
-        subscriber: '550 €',
-      },
-      {
-        duration: 'Ganzer Tag (8h)',
-        useCases: 'Großteam-Schulung, ausführliche Beratung, CIO-Advisory',
-        rate: '1.250 €',
-        subscriber: '1.000 €',
-      },
+  pilot: {
+    title: 'Begleiteter Pilot',
+    subtitle: '2.900 € Festpreis · zzgl. MwSt.',
+    body: 'Ein Engagement, das Ihr Team auf KANAP startet: Wir richten die Plattform mit Ihnen ein, importieren Ihre Daten, schulen Ihr Team, und am Ende arbeitet Ihr erster Agent.',
+    items: [
+      'Installation auf Ihren Servern oder Einrichtung in der Hosted Cloud',
+      'Wir helfen beim Import Ihrer ersten Schlüsseldaten',
+      'Schulung und Onboarding Ihres Teams',
+      'Ihr erster Agent konfiguriert',
     ],
-    note: 'Tarife pro Session, zzgl. MwSt. Reisekosten werden separat berechnet, falls vor Ort nötig.',
+    ctaLabel: 'Sprechen Sie mit uns',
+    ctaHref: '/contact',
+    note: 'Den Rahmen stecken wir vorab gemeinsam in einem 30-minütigen Gespräch ab.',
   },
 
   supportInvoice: {

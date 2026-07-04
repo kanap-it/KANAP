@@ -22,6 +22,11 @@ RUN npm ci --no-audit --no-fund
 # Copy the rest of the Astro project
 COPY web/ ./
 
+# Cloudflare Web Analytics beacon token (cookieless analytics).
+# Astro inlines PUBLIC_* env at build time; leave unset to build without analytics.
+ARG PUBLIC_CF_ANALYTICS_TOKEN=
+ENV PUBLIC_CF_ANALYTICS_TOKEN=${PUBLIC_CF_ANALYTICS_TOKEN}
+
 # Produce /app/dist/
 RUN npm run build
 
