@@ -177,12 +177,6 @@ const content: HomeContent = {
     ],
   },
 
-  openSource: {
-    eyebrow: 'Communauté',
-    title: 'Ouverte par défaut.',
-    body: "KANAP est sous AGPL v3, avec le code source complet sur GitHub. Installez-la avec Docker, conservez chaque fonctionnalité, sans rien payer par utilisateur. Les agents et Plaid font partie du produit gratuit et fonctionnent avec votre propre clé LLM. Si KANAP grandit, c'est parce que les gens qui font tourner l'IT ont choisi de construire dessus.",
-  },
-
   vision: {
     eyebrow: 'Là où cela mène',
     title: "Vers une DSI augmentée par l'IA.",

@@ -3,9 +3,9 @@
  * HomePage — full marketing homepage.
  *
  * Assembled from section primitives + content pulled from src/content/home
- * for the current locale. The agentic narrative bands (layers / story /
- * openSource / vision) are optional in HomeContent: locales that have not
- * been retranslated yet simply skip them and render the core sections.
+ * for the current locale. The agentic bands (layers / vision) are optional
+ * in HomeContent: locales that have not been retranslated yet simply skip
+ * them and render the core sections.
  */
 
 import BaseLayout from '../layouts/BaseLayout.astro';
@@ -99,17 +99,6 @@ const crossItems = content.crossCutting.items.map((i) => ({
     </Section>
   )}
 
-  {content.story?.map((band, i) => (
-    <Section tone={i % 2 === 0 ? 'sunken' : 'default'}>
-      <StoryBand
-        eyebrow={band.eyebrow}
-        title={band.title}
-        body={band.body}
-        bullets={band.bullets}
-      />
-    </Section>
-  ))}
-
   <Section tone="sunken">
     <FeatureGrid
       eyebrow={content.modules.eyebrow}
@@ -130,19 +119,8 @@ const crossItems = content.crossCutting.items.map((i) => ({
     />
   </Section>
 
-  {content.openSource && (
-    <Section tone="sunken">
-      <StoryBand
-        eyebrow={content.openSource.eyebrow}
-        title={content.openSource.title}
-        body={content.openSource.body}
-        bullets={content.openSource.bullets}
-      />
-    </Section>
-  )}
-
   {content.vision && (
-    <Section tone="default">
+    <Section tone="sunken">
       <StoryBand
         eyebrow={content.vision.eyebrow}
         title={content.vision.title}
@@ -152,7 +130,7 @@ const crossItems = content.crossCutting.items.map((i) => ({
     </Section>
   )}
 
-  <Section tone="sunken" compact>
+  <Section tone="default" compact>
     <CTABand
       title={content.cta.title}
       body={content.cta.body}

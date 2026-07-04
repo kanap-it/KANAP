@@ -177,12 +177,6 @@ const content: HomeContent = {
     ],
   },
 
-  openSource: {
-    eyebrow: 'Community',
-    title: 'Open by default.',
-    body: 'KANAP is AGPL v3 with the full source on GitHub. Install it with Docker, keep every feature, and pay no seat tax. Agents and Plaid are part of the free product, running with your own LLM key. If KANAP grows, it grows because the people running IT chose to build on it.',
-  },
-
   vision: {
     eyebrow: 'Where this goes',
     title: 'Toward an AI-augmented IT department.',

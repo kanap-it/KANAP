@@ -177,12 +177,6 @@ const content: HomeContent = {
     ],
   },
 
-  openSource: {
-    eyebrow: 'Community',
-    title: 'Offen von Haus aus.',
-    body: 'KANAP steht unter AGPL v3, mit dem vollständigen Quellcode auf GitHub. Installieren Sie es mit Docker, behalten Sie jede Funktion und zahlen Sie nichts pro Arbeitsplatz. Agenten und Plaid gehören zum kostenlosen Produkt und laufen mit Ihrem eigenen LLM-Schlüssel. Wenn KANAP wächst, dann weil die Menschen, die IT betreiben, sich entschieden haben, darauf aufzubauen.',
-  },
-
   vision: {
     eyebrow: 'Wohin das führt',
     title: 'Hin zu einer KI-gestützten IT-Abteilung.',
