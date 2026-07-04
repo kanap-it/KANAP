@@ -9,7 +9,7 @@ const content: HomeContent = {
 
   hero: {
     eyebrow: 'Open-source · self-hosted · built to extend',
-    title: 'Open-source AI agents that take over your repetitive IT work.',
+    title: 'AI agents that take over your repetitive work.',
     lead: "KANAP holds your IT department's full picture, from applications and servers to budgets and projects. Plaid lets anyone work with it in plain language, and agents now act on it to take the repetitive load off your team.\nSelf-host it for free, or let us run it for you.",
     primaryCta: 'Deploy free',
     secondaryCta: 'Try hosted cloud',
@@ -56,31 +56,6 @@ const content: HomeContent = {
     ],
     outro: 'Each part is useful by itself, and they get stronger together.',
   },
-
-  story: [
-    {
-      title: 'Agents with a real system underneath them.',
-      body: 'Most agents only see the ticket in front of them. A KANAP agent reads the affected application, who owns it, what it costs, which project it belongs to, and the documentation your team wrote about it. It lists the sources it used with every proposal. That depth is what makes its work worth trusting.',
-    },
-    {
-      title: 'Agents that earn their independence.',
-      body: 'An agent starts supervised: it proposes, you approve. KANAP measures how often its proposals hold up, and you grant more autonomy as the track record builds. Every repetitive task it takes over is one your team stops doing by hand.',
-    },
-    {
-      title: 'Autonomy you can trust.',
-      body: 'Autonomy is safe to grant when nothing happens out of sight. That is what makes it sound to hand an agent real work.',
-      bullets: [
-        'Every action is recorded, with full before and after history',
-        'Agents act only through the operations you allowed',
-        'Every proposal lists the sources it drew from',
-        'You can pause any agent immediately',
-      ],
-    },
-    {
-      title: 'Built to run on your whole stack.',
-      body: 'One runtime drives every agent, and the decision logic is separate from the tool it talks to. A service-desk connector shipped first and works a production queue today. The same runtime is designed to drive monitoring, virtualization, your directory, anything that sits behind a connector. The code is open, so you can write your own.',
-    },
-  ],
 
   modules: {
     eyebrow: 'Complete IT toolbox',

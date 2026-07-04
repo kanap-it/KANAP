@@ -9,7 +9,7 @@ const content: HomeContent = {
 
   hero: {
     eyebrow: 'Open source · autoalojada · pensada para ampliarse',
-    title: 'Agentes de IA open source que asumen su trabajo de TI repetitivo.',
+    title: 'Agentes de IA que asumen su trabajo repetitivo.',
     lead: 'KANAP guarda la imagen completa de su departamento de TI, desde las aplicaciones y los servidores hasta los presupuestos y los proyectos. Plaid permite a cualquiera trabajarla en lenguaje natural, y ahora los agentes actúan sobre ese repositorio para quitar a su equipo la carga repetitiva.\nAutoalójela gratis o déjenos operarla por usted.',
     primaryCta: 'Desplegar gratis',
     secondaryCta: 'Probar nube alojada',
@@ -56,31 +56,6 @@ const content: HomeContent = {
     ],
     outro: 'Cada parte es útil por sí sola, y juntas se refuerzan.',
   },
-
-  story: [
-    {
-      title: 'Agentes con un sistema real debajo.',
-      body: 'La mayoría de los agentes solo ven el ticket que tienen delante. Un agente de KANAP lee la aplicación afectada, quién es su responsable, cuánto cuesta, a qué proyecto pertenece y la documentación que su equipo escribió sobre ella. Con cada propuesta enumera las fuentes que usó. Esa profundidad es lo que hace que su trabajo merezca confianza.',
-    },
-    {
-      title: 'Agentes que se ganan su independencia.',
-      body: 'Un agente empieza supervisado: propone y usted aprueba. KANAP mide con qué frecuencia sus propuestas se sostienen, y usted le concede más autonomía a medida que el historial se consolida. Cada tarea repetitiva que asume es una tarea que su equipo deja de hacer a mano.',
-    },
-    {
-      title: 'Autonomía en la que puede confiar.',
-      body: 'Conceder autonomía es seguro cuando nada ocurre fuera de su vista. Eso es lo que hace razonable encargar a un agente trabajo real.',
-      bullets: [
-        'Cada acción queda registrada, con historial completo de antes y después',
-        'Los agentes actúan solo a través de las operaciones que usted permitió',
-        'Cada propuesta enumera las fuentes en las que se basó',
-        'Puede pausar cualquier agente de inmediato',
-      ],
-    },
-    {
-      title: 'Pensado para funcionar sobre todo su stack.',
-      body: 'Un solo runtime impulsa a todos los agentes, y la lógica de decisión está separada de la herramienta con la que habla. Un conector de mesa de servicio salió primero y hoy trabaja una cola de producción. El mismo runtime está diseñado para manejar la monitorización, la virtualización, su directorio, cualquier cosa que esté detrás de un conector. El código es abierto, así que puede escribir el suyo.',
-    },
-  ],
 
   modules: {
     eyebrow: 'Caja de herramientas de TI completa',

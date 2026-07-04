@@ -9,7 +9,7 @@ const content: HomeContent = {
 
   hero: {
     eyebrow: 'Open source · auto-hébergée · conçue pour être étendue',
-    title: 'Des agents IA open source qui prennent en charge votre travail IT répétitif.',
+    title: 'Des agents IA qui prennent en charge votre travail répétitif.',
     lead: "KANAP détient l'image complète de votre DSI, des applications et serveurs jusqu'aux budgets et projets. Plaid permet à chacun d'y travailler en langage naturel, et des agents agissent désormais sur ce référentiel pour décharger votre équipe du travail répétitif.\nAuto-hébergez-la gratuitement, ou laissez-nous l'opérer pour vous.",
     primaryCta: 'Déployer gratuitement',
     secondaryCta: 'Essayer le cloud hébergé',
@@ -56,31 +56,6 @@ const content: HomeContent = {
     ],
     outro: "Chaque partie est utile en elle-même, et l'ensemble se renforce mutuellement.",
   },
-
-  story: [
-    {
-      title: 'Des agents adossés à un vrai système.',
-      body: "La plupart des agents ne voient que le ticket qu'ils ont sous les yeux. Un agent KANAP lit l'application concernée, qui en est responsable, ce qu'elle coûte, à quel projet elle appartient, et la documentation que votre équipe a écrite à son sujet. Il cite les sources utilisées avec chaque proposition. C'est cette profondeur qui rend son travail digne de confiance.",
-    },
-    {
-      title: 'Des agents qui gagnent leur indépendance.',
-      body: "Un agent démarre supervisé : il propose, vous approuvez. KANAP mesure la fréquence à laquelle ses propositions tiennent la route, et vous lui accordez plus d'autonomie à mesure que son historique se construit. Chaque tâche répétitive qu'il reprend est une tâche que votre équipe cesse de faire à la main.",
-    },
-    {
-      title: 'Une autonomie digne de confiance.',
-      body: "L'autonomie s'accorde sans risque quand rien ne se passe hors de votre vue. C'est ce qui permet de confier sereinement un vrai travail à un agent.",
-      bullets: [
-        "Chaque action est enregistrée, avec l'historique complet avant et après",
-        "Les agents n'agissent qu'à travers les opérations que vous avez autorisées",
-        "Chaque proposition cite les sources sur lesquelles elle s'appuie",
-        "Vous pouvez mettre en pause n'importe quel agent immédiatement",
-      ],
-    },
-    {
-      title: 'Conçue pour opérer sur tout votre SI.',
-      body: "Un seul runtime pilote tous les agents, et la logique de décision est séparée de l'outil auquel elle parle. Un connecteur de centre de services est arrivé en premier et traite aujourd'hui une file de production. Le même runtime est conçu pour piloter la supervision, la virtualisation, votre annuaire, tout ce qui se trouve derrière un connecteur. Le code est ouvert, vous pouvez donc écrire le vôtre.",
-    },
-  ],
 
   modules: {
     eyebrow: 'Boîte à outils IT complète',

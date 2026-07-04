@@ -9,7 +9,7 @@ const content: HomeContent = {
 
   hero: {
     eyebrow: 'Open Source · selbst gehostet · auf Erweiterung ausgelegt',
-    title: 'Open-Source-KI-Agenten, die Ihre wiederkehrende IT-Arbeit übernehmen.',
+    title: 'KI-Agenten, die Ihre wiederkehrende Arbeit übernehmen.',
     lead: 'KANAP hält das vollständige Bild Ihrer IT-Abteilung, von Anwendungen und Servern bis zu Budgets und Projekten. Plaid lässt jeden in Alltagssprache damit arbeiten, und Agenten handeln jetzt auf dieser Grundlage, um Ihrem Team die wiederkehrende Last abzunehmen.\nKostenlos selbst hosten oder von uns betreiben lassen.',
     primaryCta: 'Kostenlos bereitstellen',
     secondaryCta: 'Hosted Cloud testen',
@@ -56,31 +56,6 @@ const content: HomeContent = {
     ],
     outro: 'Jeder Teil ist für sich nützlich, und zusammen werden sie stärker.',
   },
-
-  story: [
-    {
-      title: 'Agenten mit einem echten System darunter.',
-      body: 'Die meisten Agenten sehen nur das Ticket vor sich. Ein KANAP-Agent liest die betroffene Anwendung, wer sie verantwortet, was sie kostet, zu welchem Projekt sie gehört und die Dokumentation, die Ihr Team darüber geschrieben hat. Zu jedem Vorschlag nennt er die Quellen, die er genutzt hat. Diese Tiefe macht seine Arbeit vertrauenswürdig.',
-    },
-    {
-      title: 'Agenten, die sich ihre Eigenständigkeit verdienen.',
-      body: 'Ein Agent startet beaufsichtigt: Er schlägt vor, Sie genehmigen. KANAP misst, wie oft seine Vorschläge Bestand haben, und Sie gewähren mehr Autonomie, während die Erfolgsbilanz wächst. Jede wiederkehrende Aufgabe, die er übernimmt, ist eine Aufgabe, die Ihr Team nicht mehr von Hand erledigt.',
-    },
-    {
-      title: 'Autonomie, der Sie vertrauen können.',
-      body: 'Autonomie lässt sich gefahrlos gewähren, wenn nichts im Verborgenen geschieht. Genau das macht es vertretbar, einem Agenten echte Arbeit zu übergeben.',
-      bullets: [
-        'Jede Aktion wird protokolliert, mit vollständiger Vorher-Nachher-Historie',
-        'Agenten handeln nur über die Operationen, die Sie erlaubt haben',
-        'Jeder Vorschlag nennt die Quellen, auf die er sich stützt',
-        'Sie können jeden Agenten sofort pausieren',
-      ],
-    },
-    {
-      title: 'Gebaut für Ihren gesamten Stack.',
-      body: 'Eine Runtime treibt jeden Agenten an, und die Entscheidungslogik ist vom Tool getrennt, mit dem sie spricht. Ein Service-Desk-Konnektor kam zuerst und arbeitet heute eine Produktionswarteschlange ab. Dieselbe Runtime ist darauf ausgelegt, Monitoring, Virtualisierung, Ihr Verzeichnis und alles anzusteuern, was hinter einem Konnektor liegt. Der Code ist offen, Sie können also Ihren eigenen schreiben.',
-    },
-  ],
 
   modules: {
     eyebrow: 'Komplettes IT-Toolkit',
