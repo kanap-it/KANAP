@@ -149,28 +149,18 @@ const content: OfferContent = {
   },
 
   pilot: {
-    eyebrow: 'Guided pilot',
-    title: 'The fastest path to a working agent.',
-    intro:
-      'One fixed-price engagement that takes your team from installation to an agent working your real service desk. You see every proposal it makes, and you decide what it earns the right to do.',
-    plan: {
-      name: 'Guided pilot',
-      badge: 'Fixed price',
-      target: 'From installation to a calibrated agent on your real queue',
-      price: '€2,900',
-      subPrice: 'one engagement · self-hosted or hosted cloud · VAT excluded',
-      features: [
-        'Installation on your servers, or hosted setup',
-        'GLPI connected and your first agent configured',
-        'Persona and targeting tuned to your queue',
-        'Four weeks of calibration alongside your technicians',
-        'Handover with autonomy recommendations',
-      ],
-      ctaLabel: 'Talk to us',
-      ctaHref: '/contact',
-      ctaVariant: 'primary',
-      note: 'We scope it together on a 30-minute call first.',
-    },
+    title: 'Guided pilot',
+    subtitle: '€2,900 fixed · VAT excluded',
+    body: 'One engagement that launches your team on KANAP: we set it up with you, bring your data in, train your people, and leave your first agent at work.',
+    items: [
+      'Installation on your servers, or hosted setup',
+      'We help you import your first key data',
+      'Team training and onboarding',
+      'Your first agent configured',
+    ],
+    ctaLabel: 'Talk to us',
+    ctaHref: '/contact',
+    note: 'We scope it together on a 30-minute call first.',
   },
 
   supportInvoice: {

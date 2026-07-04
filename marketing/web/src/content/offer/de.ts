@@ -147,28 +147,18 @@ const content: OfferContent = {
   },
 
   pilot: {
-    eyebrow: 'Begleiteter Pilot',
-    title: 'Der schnellste Weg zu einem arbeitenden Agenten.',
-    intro:
-      'Ein Engagement zum Festpreis, das Ihr Team von der Installation zu einem Agenten führt, der Ihren echten Service Desk bearbeitet. Sie sehen jeden seiner Vorschläge, und Sie entscheiden, was er sich verdienen darf.',
-    plan: {
-      name: 'Begleiteter Pilot',
-      badge: 'Festpreis',
-      target: 'Von der Installation zu einem kalibrierten Agenten auf Ihrer echten Warteschlange',
-      price: '2.900 €',
-      subPrice: 'einmaliges Engagement · selbst gehostet oder Hosted Cloud · zzgl. MwSt.',
-      features: [
-        'Installation auf Ihren Servern oder Einrichtung in der Hosted Cloud',
-        'GLPI verbunden und Ihr erster Agent konfiguriert',
-        'Persona und Targeting auf Ihre Warteschlange abgestimmt',
-        'Vier Wochen Kalibrierung an der Seite Ihrer Techniker',
-        'Übergabe mit Autonomie-Empfehlungen',
-      ],
-      ctaLabel: 'Sprechen Sie mit uns',
-      ctaHref: '/contact',
-      ctaVariant: 'primary',
-      note: 'Den Rahmen stecken wir vorab gemeinsam in einem 30-minütigen Gespräch ab.',
-    },
+    title: 'Begleiteter Pilot',
+    subtitle: '2.900 € Festpreis · zzgl. MwSt.',
+    body: 'Ein Engagement, das Ihr Team auf KANAP startet: Wir richten die Plattform mit Ihnen ein, importieren Ihre Daten, schulen Ihr Team, und am Ende arbeitet Ihr erster Agent.',
+    items: [
+      'Installation auf Ihren Servern oder Einrichtung in der Hosted Cloud',
+      'Wir helfen beim Import Ihrer ersten Schlüsseldaten',
+      'Schulung und Onboarding Ihres Teams',
+      'Ihr erster Agent konfiguriert',
+    ],
+    ctaLabel: 'Sprechen Sie mit uns',
+    ctaHref: '/contact',
+    note: 'Den Rahmen stecken wir vorab gemeinsam in einem 30-minütigen Gespräch ab.',
   },
 
   supportInvoice: {

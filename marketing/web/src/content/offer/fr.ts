@@ -147,28 +147,18 @@ const content: OfferContent = {
   },
 
   pilot: {
-    eyebrow: 'Pilote accompagné',
-    title: 'Le chemin le plus court vers un agent au travail.',
-    intro:
-      'Un engagement à prix fixe qui mène votre équipe de l\'installation à un agent qui travaille votre vrai centre de services. Vous voyez chacune de ses propositions, et vous décidez de ce qu\'il gagne le droit de faire.',
-    plan: {
-      name: 'Pilote accompagné',
-      badge: 'Prix fixe',
-      target: 'De l\'installation à un agent calibré sur votre vraie file',
-      price: '2 900 €',
-      subPrice: 'engagement unique · auto-hébergé ou cloud hébergé · hors TVA',
-      features: [
-        'Installation sur vos serveurs, ou mise en place hébergée',
-        'GLPI connecté et votre premier agent configuré',
-        'Persona et ciblage réglés sur votre file',
-        'Quatre semaines de calibration aux côtés de vos techniciens',
-        'Bilan de fin avec recommandations d\'autonomie',
-      ],
-      ctaLabel: 'Parlez-nous',
-      ctaHref: '/contact',
-      ctaVariant: 'primary',
-      note: 'Nous le cadrons ensemble lors d\'un appel de 30 minutes.',
-    },
+    title: 'Pilote accompagné',
+    subtitle: '2 900 € forfait · hors TVA',
+    body: 'Un engagement qui lance votre équipe sur KANAP : nous l\'installons avec vous, importons vos données, formons vos équipes et laissons votre premier agent au travail.',
+    items: [
+      'Installation sur vos serveurs, ou mise en place hébergée',
+      'Nous vous aidons à importer vos premières données clés',
+      'Formation et onboarding de votre équipe',
+      'Votre premier agent configuré',
+    ],
+    ctaLabel: 'Parlez-nous',
+    ctaHref: '/contact',
+    note: 'Nous le cadrons ensemble lors d\'un appel de 30 minutes.',
   },
 
   supportInvoice: {

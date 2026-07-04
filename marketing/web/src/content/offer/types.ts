@@ -27,12 +27,11 @@ export interface ServiceCard {
   items: string[];
 }
 
-/** The fixed-price "Guided pilot" engagement block. */
-export interface PilotSection {
-  eyebrow: string;
-  title: string;
-  intro: string;
-  plan: OfferPlan;
+/** The fixed-price "Guided pilot" card, third block of the services section. */
+export interface PilotCard extends ServiceCard {
+  ctaLabel: string;
+  ctaHref: string;
+  note: string;
 }
 
 export interface OfferContent {
@@ -74,7 +73,7 @@ export interface OfferContent {
     support: ServiceCard;
     consulting: ServiceCard;
   };
-  pilot: PilotSection;
+  pilot: PilotCard;
   supportInvoice: {
     title: string;
     eyebrow: string;

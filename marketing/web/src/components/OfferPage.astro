@@ -92,7 +92,7 @@ function resolveHref(href: string): string {
     </div>
   </Section>
 
-  {/* ---------- Support vs Consulting ---------- */}
+  {/* ---------- Expert help: support, consulting, guided pilot ---------- */}
   <Section tone="default">
     <div class="mk-services">
       <header class="mk-services__head">
@@ -112,31 +112,23 @@ function resolveHref(href: string): string {
             </ul>
           </article>
         ))}
+        <article class="mk-services__card">
+          <header>
+            <h3>{content.pilot.title}</h3>
+            <p class="mk-small">{content.pilot.subtitle}</p>
+          </header>
+          <p>{content.pilot.body}</p>
+          <ul>
+            {content.pilot.items.map((i) => <li>{i}</li>)}
+          </ul>
+          <div class="mk-services__cta">
+            <a href={resolveHref(content.pilot.ctaHref)} class="mk-btn mk-btn--primary">
+              {content.pilot.ctaLabel}
+            </a>
+            <p class="mk-small">{content.pilot.note}</p>
+          </div>
+        </article>
       </div>
-    </div>
-  </Section>
-
-  {/* ---------- Guided pilot ---------- */}
-  <Section tone="sunken">
-    <header class="mk-offer-head">
-      <span class="mk-eyebrow">{content.pilot.eyebrow}</span>
-      <h2 class="mk-offer-head__title">{content.pilot.title}</h2>
-      <p class="mk-lead mk-offer-head__intro">{content.pilot.intro}</p>
-    </header>
-    <div class="mk-pilot-card">
-      <PricingCard
-        name={content.pilot.plan.name}
-        badge={content.pilot.plan.badge}
-        target={content.pilot.plan.target}
-        price={content.pilot.plan.price}
-        period={content.pilot.plan.period}
-        subPrice={content.pilot.plan.subPrice}
-        features={content.pilot.plan.features}
-        ctaLabel={content.pilot.plan.ctaLabel}
-        ctaHref={resolveHref(content.pilot.plan.ctaHref)}
-        ctaVariant={content.pilot.plan.ctaVariant}
-        note={content.pilot.plan.note}
-      />
     </div>
   </Section>
 
@@ -597,9 +589,19 @@ function resolveHref(href: string): string {
     background: var(--kanap-text-tertiary);
   }
 
-  /* Guided pilot — single centered plan card */
-  .mk-pilot-card {
-    max-width: 420px;
+  /* Guided pilot card CTA — pinned to the card bottom */
+  .mk-services__cta {
+    margin-top: auto;
+    padding-top: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .mk-services__cta p {
+    margin: 0;
+    color: var(--kanap-text-tertiary);
   }
 
   .mk-support-modal[hidden] {

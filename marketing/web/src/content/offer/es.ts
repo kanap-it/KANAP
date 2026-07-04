@@ -149,28 +149,18 @@ const content: OfferContent = {
   },
 
   pilot: {
-    eyebrow: 'Piloto guiado',
-    title: 'El camino más corto hacia un agente en marcha.',
-    intro:
-      'Un compromiso a precio fijo que lleva a su equipo de la instalación a un agente trabajando su mesa de servicio real. Usted ve cada una de sus propuestas y decide qué se gana el derecho a hacer.',
-    plan: {
-      name: 'Piloto guiado',
-      badge: 'Precio fijo',
-      target: 'De la instalación a un agente calibrado en su cola real',
-      price: '2 900 €',
-      subPrice: 'compromiso único · autoalojado o nube alojada · sin IVA',
-      features: [
-        'Instalación en sus servidores, o puesta en marcha alojada',
-        'GLPI conectado y su primer agente configurado',
-        'Persona y segmentación ajustadas a su cola',
-        'Cuatro semanas de calibración junto a sus técnicos',
-        'Entrega con recomendaciones de autonomía',
-      ],
-      ctaLabel: 'Hable con nosotros',
-      ctaHref: '/contact',
-      ctaVariant: 'primary',
-      note: 'Lo definimos juntos en una llamada de 30 minutos.',
-    },
+    title: 'Piloto guiado',
+    subtitle: '2 900 € precio fijo · sin IVA',
+    body: 'Un compromiso que pone a su equipo en marcha con KANAP: la instalamos con usted, traemos sus datos, formamos a su gente y su primer agente queda trabajando.',
+    items: [
+      'Instalación en sus servidores, o puesta en marcha alojada',
+      'Le ayudamos a importar sus primeros datos clave',
+      'Formación y onboarding de su equipo',
+      'Su primer agente configurado',
+    ],
+    ctaLabel: 'Hable con nosotros',
+    ctaHref: '/contact',
+    note: 'Lo definimos juntos en una llamada de 30 minutos.',
   },
 
   supportInvoice: {
