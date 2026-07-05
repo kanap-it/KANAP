@@ -50,6 +50,7 @@ import {
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../capability/capability-contract';
 import { AiCapabilityRegistry, providerCapabilityContracts } from '../capability/ai-capability.registry';
+import { AiAgentBuiltinQuotaService } from '../agent/ai-agent-builtin-quota.service';
 import { AiCapabilityDispatcherService } from '../dispatcher/ai-capability-dispatcher.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../diagnostics/ai-readonly-diagnostic-workflow.service';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
@@ -2942,6 +2943,7 @@ export class AiAgentControlService {
     private readonly ticketNeedBuilder?: AiTicketNeedRepresentationService,
     private readonly ticketEvidenceExtractor?: AiTicketEvidenceExtractionService,
     private readonly capabilities?: AiCapabilityRegistry,
+    private readonly builtinQuota?: AiAgentBuiltinQuotaService,
   ) {}
 
   private async actionPlannerProfileForProvider(
@@ -5909,6 +5911,9 @@ export class AiAgentControlService {
       if (!applicability.available) {
         throw new ForbiddenException(`Ticketing provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
       }
+      // On the built-in provider, one triage run consumes one included message (same
+      // unit as a chat message), reserved before any provider or LLM work happens.
+      await this.builtinQuota?.reserveRun(context);
 
       let stepIndex = 1;
       const allEvidenceIds: string[] = [];

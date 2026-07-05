@@ -4,6 +4,7 @@ import { ScheduledTasksService } from '../../../admin/scheduled-tasks/scheduled-
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { withTenantExecution } from '../../../common/tenant-runner';
 import { AiAgentControlService } from '../agent-control/ai-agent-control.service';
+import { AiAgentBuiltinQuotaService } from './ai-agent-builtin-quota.service';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
@@ -169,6 +170,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
     private readonly providers: AiProviderRegistryService,
     private readonly queue: AiAgentWorkQueueService,
     private readonly control: AiAgentControlService,
+    private readonly builtinQuota?: AiAgentBuiltinQuotaService,
   ) {}
 
   onModuleInit() {
@@ -561,6 +563,10 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
       }
       try {
         await this.queue.assertDailyCapAvailable(context, definition);
+        // Same treatment for an exhausted built-in free-message quota: detection keeps
+        // enqueueing (no LLM cost), queued items wait, and processing resumes when the
+        // monthly volume resets. Gated here (not at cycle setup) on purpose.
+        await this.builtinQuota?.assertQuotaAvailable(context);
       } catch (capError) {
         // Reaching the daily cap is a normal safety stop, not a cycle failure. Stop
         // processing but keep the cycle healthy: detection (list + enqueue in pass 1) has
