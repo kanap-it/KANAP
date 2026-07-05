@@ -121,16 +121,12 @@ const alternates = LOCALES.map((l) => ({
       </>
     )}
 
-    <!-- Cloudflare Web Analytics: cookieless, so no consent banner is required (CNIL/GDPR).
-         Enabled by setting PUBLIC_CF_ANALYTICS_TOKEN at build time. -->
-    {import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN && (
-      <script
-        is:inline
-        defer
-        src="https://static.cloudflareinsights.com/beacon.min.js"
-        data-cf-beacon={JSON.stringify({ token: import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN })}
-      ></script>
-    )}
+{/* Cloudflare Web Analytics: cookieless (no consent banner required, CNIL/GDPR) and
+    injected automatically at the Cloudflare edge (zone RUM set to "Enable"). No script
+    tag here on purpose: the edge injector skips pages that already carry its analytics
+    script, and the manual-snippet ingestion endpoint is defunct. The CSP in nginx.conf
+    allows the injected script's host; its data POST is same-origin (answered by the
+    edge). This JSX comment is stripped from the built HTML. */}
   </head>
   <body>
     <a href="#main" class="mk-skip">Skip to content</a>
