@@ -17,6 +17,7 @@ import { AuthService } from '../auth/auth.service';
 import { StatusState } from '../common/status';
 import { RateLimitGuard } from '../common/rate-limit.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
+import { withTenant } from '../common/tenant-runner';
 import { TurnstileService } from './turnstile.service';
 import { Subscription, SubscriptionStatus } from '../billing/subscription.entity';
 import { TRIAL_PERIOD_DAYS } from '../billing/plans.config';
@@ -536,7 +537,9 @@ export class PublicController {
     const host = this.sanitizeForwardedHost((req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || '');
     const proto = this.normalizeForwardedProto((req.headers['x-forwarded-proto'] as string) || req.protocol || 'http');
     const tenantUrl = this.computeTenantUrl(proto, host, signup.slug);
-    const resetToken = this.auth.createPasswordResetToken({ id: owner.id, email: owner.email, tenant_id: tenant.id });
+    const resetToken = await withTenant(this.dataSource, tenant.id, (manager) =>
+      this.auth.createPasswordResetToken({ id: owner.id, email: owner.email, tenant_id: tenant.id }, manager),
+    );
 
     return { tenant_url: tenantUrl, reset_token: resetToken };
   }
