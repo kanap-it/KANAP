@@ -164,7 +164,8 @@
     "emptyAttention": "Keine Agentenarbeit benötigt Aufmerksamkeit.",
     "emptyFinished": "Keine kürzlich abgeschlossenen Aktionen.",
     "loading": "Freigaben werden geladen.",
-    "proposalCount": "{{count}} Vorschläge",
+    "proposalCount_one": "{{count}} Vorschlag",
+    "proposalCount_other": "{{count}} Vorschläge",
     "updated": "Aktualisiert {{value}}",
     "approveAll": "Alle freigeben",
     "rejectAll": "Alle ablehnen",
@@ -576,6 +577,10 @@
     "reason": "Grund",
     "execute": "Ausführen",
     "approve": "Freigeben",
-    "reject": "Ablehnen"
+    "reject": "Ablehnen",
+    "assignmentUpdate": "Zuweisung aktualisieren",
+    "assignee": "Zugewiesen an",
+    "unassigned": "Nicht zugewiesen",
+    "participantUpdate": "Teilnehmer aktualisieren"
   }
 }

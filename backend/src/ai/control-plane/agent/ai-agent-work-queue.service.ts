@@ -2057,7 +2057,7 @@ export class AiAgentWorkQueueService {
     });
     const now = new Date();
     if (!state) {
-      state = repo.create({
+      const defaults = {
         tenant_id: context.tenantId,
         agent_definition_id: input.agentDefinitionId,
         provider_kind: input.providerKind,
@@ -2074,7 +2074,7 @@ export class AiAgentWorkQueueService {
         last_assignment_hash: null,
         agent_touched: false,
         needs_followup: false,
-        claim_status: 'none',
+        claim_status: 'none' as const,
         claim_expires_at: null,
         claim_acquired_at: null,
         claim_owner_work_item_id: null,
@@ -2085,7 +2085,30 @@ export class AiAgentWorkQueueService {
         state_json: null,
         created_at: now,
         updated_at: now,
-      });
+      };
+      // Insert with ON CONFLICT DO NOTHING, then re-read: a long poll cycle can
+      // race the inline run that creates the same target state, and a plain
+      // insert would abort the surrounding transaction and fail the cycle
+      // closed. (Test stubs without an insert query builder use plain create.)
+      const insertBuilder = repo.createQueryBuilder?.('target_state') as { insert?: () => any } | undefined;
+      if (typeof insertBuilder?.insert === 'function') {
+        await insertBuilder.insert().values(defaults).orIgnore().execute();
+        state = await repo.findOne({
+          where: {
+            tenant_id: context.tenantId,
+            agent_definition_id: input.agentDefinitionId,
+            provider_kind: input.providerKind,
+            provider_key: input.providerKey,
+            target_type: input.targetType,
+            target_ref: targetRef,
+          },
+        });
+        if (!state) {
+          throw new Error(`Failed to create agent target state for ${input.providerKind}/${input.providerKey}/${targetRef}`);
+        }
+      } else {
+        state = repo.create(defaults);
+      }
     }
 
     state.last_seen_external_updated_at = dateFromUnknown(input.lastSeenExternalUpdatedAt) ?? state.last_seen_external_updated_at;
