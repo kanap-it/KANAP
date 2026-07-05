@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
+import { withTenant } from '../../common/tenant-runner';
 import { AiBuiltinUsage } from './ai-builtin-usage.entity';
 import { PlatformAiPlanLimit } from './platform-ai-plan-limit.entity';
 
@@ -103,6 +104,19 @@ export class AiBuiltinUsageService {
       }, HttpStatus.TOO_MANY_REQUESTS);
     }
     return nextCount;
+  }
+
+  // Reserve on a dedicated transaction that commits immediately. Callers holding a
+  // long-lived transaction (agent runs span their LLM calls) must NOT reserve through
+  // their own manager: the ON CONFLICT UPDATE locks the tenant's monthly usage row
+  // until commit, and every chat message of that tenant reserves on the same row —
+  // Plaid would hang for the whole agent run. The reservation therefore sticks even
+  // if the caller's transaction rolls back, matching chat semantics (chat reserves
+  // and commits before streaming).
+  async reserveMessageDetached(tenantId: string, limit: number): Promise<number> {
+    return withTenant(this.dataSource, tenantId, (manager) =>
+      this.reserveMessage(tenantId, limit, manager),
+    );
   }
 
   async getUsageForAllTenants(yearMonth = getYearMonth()): Promise<BuiltinUsageAdminRow[]> {

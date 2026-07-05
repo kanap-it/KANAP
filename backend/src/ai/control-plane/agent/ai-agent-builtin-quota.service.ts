@@ -32,6 +32,9 @@ export class AiAgentBuiltinQuotaService {
   async reserveRun(context: AiExecutionContextWithManager): Promise<void> {
     if (!(await this.usesBuiltinProvider(context))) return;
     const limit = await this.builtinUsage.getMonthlyLimit(context.manager);
-    await this.builtinUsage.reserveMessage(context.tenantId, limit, context.manager);
+    // Detached on purpose: agent runs execute inside a transaction that stays open
+    // across their LLM calls; reserving through context.manager would keep the
+    // tenant's usage row locked for the whole run and stall every Plaid message.
+    await this.builtinUsage.reserveMessageDetached(context.tenantId, limit);
   }
 }

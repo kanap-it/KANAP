@@ -5893,7 +5893,7 @@ async function testAgentRunsConsumeBuiltinFreeMessageQuota() {
     {
       getCurrentUsage: async () => ({ count, limit, year_month: '2026-07', reset_date: '' }),
       getMonthlyLimit: async () => limit,
-      reserveMessage: async (tenantId: string) => {
+      reserveMessageDetached: async (tenantId: string) => {
         reserved.push(tenantId);
         return count + 1;
       },
