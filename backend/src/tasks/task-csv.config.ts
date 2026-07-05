@@ -246,7 +246,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     // Viewers - explicit columns matching Apps/Assets pattern
     {
       csvColumn: 'viewer_email_1',
-      entityProperty: 'viewer_ids',
+      entityProperty: '_viewer_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -267,7 +267,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'viewer_email_2',
-      entityProperty: 'viewer_ids',
+      entityProperty: '_viewer_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -288,7 +288,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'viewer_email_3',
-      entityProperty: 'viewer_ids',
+      entityProperty: '_viewer_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -309,7 +309,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'viewer_email_4',
-      entityProperty: 'viewer_ids',
+      entityProperty: '_viewer_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -331,7 +331,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     // Owners - explicit columns matching Apps/Assets pattern
     {
       csvColumn: 'owner_email_1',
-      entityProperty: 'owner_ids',
+      entityProperty: '_owner_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -352,7 +352,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'owner_email_2',
-      entityProperty: 'owner_ids',
+      entityProperty: '_owner_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -373,7 +373,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'owner_email_3',
-      entityProperty: 'owner_ids',
+      entityProperty: '_owner_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -394,7 +394,7 @@ export const taskCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'owner_email_4',
-      entityProperty: 'owner_ids',
+      entityProperty: '_owner_emails',
       type: CsvFieldType.COMPUTED,
       exportable: true,
       importable: true,
@@ -596,6 +596,48 @@ export const taskCsvConfig: CsvEntityConfig = {
       }
     }
 
+    // Re-scope phase_id: the generic FK resolver matches phase names
+    // tenant-wide, so a repeated name ("Design", "Build") can resolve to
+    // another project's phase. Re-anchor each phase to the task's project.
+    const phaseEntities = entities.filter(
+      (e) => e.phase_id && e.related_object_type === 'project' && e.related_object_id,
+    );
+    if (phaseEntities.length > 0) {
+      const phaseIds = [...new Set(phaseEntities.map((e) => e.phase_id))];
+      const phaseRows = await context.manager.query(
+        `SELECT id, name, project_id FROM portfolio_project_phases WHERE tenant_id = $1 AND id = ANY($2)`,
+        [context.tenantId, phaseIds],
+      );
+      const phaseById = new Map<string, any>(phaseRows.map((p: any) => [p.id, p]));
+      const misScoped = phaseEntities.filter((e) => {
+        const phase = phaseById.get(e.phase_id);
+        return phase && phase.project_id !== e.related_object_id;
+      });
+      if (misScoped.length > 0) {
+        const projectIds = [...new Set(misScoped.map((e) => e.related_object_id))];
+        const names = [...new Set(misScoped.map((e) => String(phaseById.get(e.phase_id).name).toLowerCase()))];
+        const scopedRows = await context.manager.query(
+          `SELECT id, name, project_id FROM portfolio_project_phases WHERE tenant_id = $1 AND project_id = ANY($2) AND LOWER(name) = ANY($3)`,
+          [context.tenantId, projectIds, names],
+        );
+        const scopedByKey = new Map<string, string>(
+          scopedRows.map((p: any) => [`${p.project_id}|${String(p.name).toLowerCase()}`, p.id]),
+        );
+        for (const entity of misScoped) {
+          const phaseName = String(phaseById.get(entity.phase_id).name);
+          const scopedId = scopedByKey.get(`${entity.related_object_id}|${phaseName.toLowerCase()}`);
+          if (scopedId) {
+            entity.phase_id = scopedId;
+          } else {
+            throw new Error(
+              `Phase "${phaseName}" does not exist in the project of task "${entity.title}". ` +
+              `Create the phase in that project first, or clear the phase_name column.`,
+            );
+          }
+        }
+      }
+    }
+
     // Final validation: linked tasks require related_object_id
     // Standalone tasks (no related_object_type) are allowed
     for (const entity of entities) {
@@ -611,6 +653,13 @@ export const taskCsvConfig: CsvEntityConfig = {
       }
 
       // Standalone tasks are valid - no type and no id
+    }
+
+    // Viewer/owner emails are handled by TasksCsvService.handleViewerOwnerImport
+    // after the main import; drop the temp props so they never reach save/audit.
+    for (const entity of entities) {
+      delete entity._viewer_emails;
+      delete entity._owner_emails;
     }
 
     // Assign item_numbers to new entities

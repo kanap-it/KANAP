@@ -27,7 +27,7 @@ import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetEx
 import { PasswordResetToken } from '../auth/password-reset-token.entity';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
-import { neutralizeCsvFormulaValue } from '../common/csv/csv-export.service';
+import { denormalizeCsvFormulaValue, neutralizeCsvFormulaValue } from '../common/csv/csv-export.service';
 
 const SUPPORTED_USER_LOCALES = ['en', 'fr', 'de', 'es'] as const;
 const SELF_SERVICE_FIELDS = ['first_name', 'last_name', 'job_title', 'business_phone', 'mobile_phone', 'locale'] as const;
@@ -638,7 +638,14 @@ export class UsersService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => {
+          // Strip the protective apostrophe exportCsv prepends to formula-like
+          // values so export -> import round-trips cleanly.
+          for (const key of Object.keys(row)) {
+            row[key] = denormalizeCsvFormulaValue(row[key]);
+          }
+          rows.push(row);
+        })
         .on('end', () => resolve());
     });
     if (!headerOk) {

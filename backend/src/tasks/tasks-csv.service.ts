@@ -182,17 +182,54 @@ export class TasksCsvService {
       userByEmail.set(String(u.email).toLowerCase(), u.id);
     }
 
+    // Table mapping for resolving related_object_name (mirrors taskCsvConfig.beforeCommit)
+    const relatedTableMap: Record<string, { table: string; nameColumn: string }> = {
+      project: { table: 'portfolio_projects', nameColumn: 'name' },
+      spend_item: { table: 'spend_items', nameColumn: 'product_name' },
+      contract: { table: 'contracts', nameColumn: 'name' },
+      capex_item: { table: 'capex_items', nameColumn: 'description' },
+    };
+    const normalizeType = (raw: string): string => {
+      const t = raw.trim().toLowerCase().replace(/\s+/g, '_');
+      if (t === 'capex') return 'capex_item';
+      if (t === 'spend') return 'spend_item';
+      return t;
+    };
+    const relatedIdCache = new Map<string, string | null>();
+    const resolveRelatedId = async (row: Record<string, string>): Promise<string | null> => {
+      const explicit = (row['related_object_id'] || '').trim();
+      if (explicit) return explicit;
+      const type = normalizeType(row['related_object_type'] || '');
+      const name = (row['related_object_name'] || '').trim();
+      const mapping = relatedTableMap[type];
+      if (!mapping || !name) return null;
+      const cacheKey = `${type}||${name.toLowerCase()}`;
+      if (!relatedIdCache.has(cacheKey)) {
+        const found = await manager.query(
+          `SELECT id FROM ${mapping.table} WHERE tenant_id = $1 AND LOWER(${mapping.nameColumn}) = LOWER($2) LIMIT 1`,
+          [tenantId, name],
+        );
+        relatedIdCache.set(cacheKey, found.length ? found[0].id : null);
+      }
+      return relatedIdCache.get(cacheKey) ?? null;
+    };
+
     // Process each row
     for (const row of rows) {
       const taskTitle = (row['title'] || '').trim();
-      const relatedObjectId = (row['related_object_id'] || '').trim();
-      if (!taskTitle || !relatedObjectId) continue;
+      if (!taskTitle) continue;
+      const relatedObjectId = await resolveRelatedId(row);
 
-      // Find task by upsert key (title + related_object_id)
-      const taskRows = await manager.query(
-        `SELECT id, viewer_ids, owner_ids FROM tasks WHERE tenant_id = $1 AND LOWER(title) = LOWER($2) AND related_object_id = $3 LIMIT 1`,
-        [tenantId, taskTitle, relatedObjectId],
-      );
+      // Find task by upsert key (title + related object; standalone tasks have none)
+      const taskRows = relatedObjectId
+        ? await manager.query(
+            `SELECT id, viewer_ids, owner_ids FROM tasks WHERE tenant_id = $1 AND LOWER(title) = LOWER($2) AND related_object_id = $3 LIMIT 1`,
+            [tenantId, taskTitle, relatedObjectId],
+          )
+        : await manager.query(
+            `SELECT id, viewer_ids, owner_ids FROM tasks WHERE tenant_id = $1 AND LOWER(title) = LOWER($2) AND related_object_id IS NULL LIMIT 1`,
+            [tenantId, taskTitle],
+          );
       if (taskRows.length === 0) continue;
       const task = taskRows[0];
 

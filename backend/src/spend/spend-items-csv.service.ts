@@ -398,7 +398,7 @@ export class SpendItemsCsvService {
         supplierId = s ? s.id : null;
       }
       const exists = await mg.getRepository(SpendItem).findOne({ where: { product_name: item.product_name, supplier_id: supplierId as any } as any });
-      if (exists) continue; else inserted += 1;
+      if (exists) updated += 1; else inserted += 1;
     }
     if (dryRun) return { ok: true, dryRun: true, total: rows.length, inserted, updated, errors: [] };
 
@@ -414,7 +414,6 @@ export class SpendItemsCsvService {
         supplierId = s ? s.id : null;
       }
       const exists = await mg.getRepository(SpendItem).findOne({ where: { product_name: item.product_name, supplier_id: supplierId as any } as any });
-      if (exists) continue;
       const company = item.company_name ? companiesByName.get(item.company_name.toLowerCase()) : null;
       let accountId: string | null = null;
       if (item.account_number != null) {
@@ -432,42 +431,40 @@ export class SpendItemsCsvService {
         errors.push({ row: item.rowNumber, message: `Owner business email '${item.owner_business_email}' not found` });
         continue;
       }
-      const created = await this.createSpendItem({
-        manager: mg,
-        body: {
-          product_name: item.product_name,
-          description: item.description ?? null,
-          supplier_id: supplierId,
-          paying_company_id: company ? company.id : null,
-          account_id: accountId,
-          currency: item.currency,
-          effective_start: item.effective_start,
-          effective_end: item.effective_end ?? null,
-          status: item.status,
-          disabled_at: item.disabled_at,
-          analytics_category_id: analyticsCategory ? analyticsCategory.id : null,
-          owner_it_id: ownerIt ? ownerIt.id : null,
-          owner_business_id: ownerBiz ? ownerBiz.id : null,
-          notes: item.notes ?? null,
-        },
-        userId,
-        tenantId,
-      });
+      const body = {
+        product_name: item.product_name,
+        description: item.description ?? null,
+        supplier_id: supplierId,
+        paying_company_id: company ? company.id : null,
+        account_id: accountId,
+        currency: item.currency,
+        effective_start: item.effective_start,
+        effective_end: item.effective_end ?? null,
+        status: item.status,
+        disabled_at: item.disabled_at,
+        analytics_category_id: analyticsCategory ? analyticsCategory.id : null,
+        owner_it_id: ownerIt ? ownerIt.id : null,
+        owner_business_id: ownerBiz ? ownerBiz.id : null,
+        notes: item.notes ?? null,
+      };
+      const target = exists
+        ? await this.updateSpendItem({ manager: mg, existing: exists, body, userId })
+        : await this.createSpendItem({ manager: mg, body, userId, tenantId });
       const years = [Y - 1, Y, Y + 1];
       for (const yr of years) {
         const totals = (item.totals as any)[yr] || {};
         const hasAny = Object.values(totals).some((v: any) => v != null && !isNaN(Number(v)));
         if (!hasAny) continue;
-        let version = await mg.getRepository(SpendVersion).findOne({ where: { spend_item_id: created.id, budget_year: yr as any } as any });
+        let version = await mg.getRepository(SpendVersion).findOne({ where: { spend_item_id: target.id, budget_year: yr as any } as any });
         if (!version) {
           const versionPartial = {
-            spend_item_id: created.id,
+            spend_item_id: target.id,
             budget_year: yr as any,
             version_name: `Auto ${yr}`,
             input_grain: 'annual' as any,
             is_approved: false,
             as_of_date: `${yr}-01-01`,
-            tenant_id: created.tenant_id,
+            tenant_id: target.tenant_id,
           };
           version = mg.getRepository(SpendVersion).create(versionPartial);
           version = await mg.getRepository(SpendVersion).save(version);
@@ -531,6 +528,23 @@ export class SpendItemsCsvService {
     });
     const saved = await repo.save(entity);
     await this.audit.log({ table: 'spend_items', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager });
+    return saved;
+  }
+
+  private async updateSpendItem({ manager, existing, body, userId }: { manager: EntityManager; existing: SpendItem; body: SpendItemUpsertDto; userId?: string | null }) {
+    const repo = manager.getRepository(SpendItem);
+    const before = { ...existing };
+    const { status: statusInput, disabled_at, ...rest } = body;
+    const lifecycle = resolveLifecycleState({
+      currentDisabledAt: existing.disabled_at,
+      nextStatus: statusInput,
+      nextDisabledAt: disabled_at,
+    });
+    Object.assign(existing, rest);
+    existing.status = lifecycle.status;
+    existing.disabled_at = lifecycle.disabled_at;
+    const saved = await repo.save(existing);
+    await this.audit.log({ table: 'spend_items', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager });
     return saved;
   }
 

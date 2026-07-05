@@ -1167,7 +1167,7 @@ export class CapexItemsService {
   csvHeaders() {
     return [
       'item_number','description','ppe_type','investment_type','priority','currency','effective_start','effective_end','status','disabled_at','notes','company_name',
-      'owner_it_id','owner_business_id','analytics_category_id',
+      'owner_it_email','owner_business_email','analytics_category',
       'y_minus1_budget','y_minus1_landing','y_budget','y_follow_up','y_landing','y_revision','y_plus1_budget','y_plus1_revision','y_plus2_budget'
     ];
   }
@@ -1187,11 +1187,18 @@ export class CapexItemsService {
     const { items } = await this.summary({ page: 1, limit: 100000, sort: 'created_at:DESC' }, opts);
 
     // Get company names for items that have company_id
+    const mgExport = opts?.manager ?? this.repo.manager;
     const companyIds = items.map((it: any) => it.paying_company_id).filter(Boolean);
-    const companies = companyIds.length > 0 
-      ? await opts?.manager?.getRepository(Company).find({ where: { id: In(companyIds) } }) ?? []
+    const companies = companyIds.length > 0
+      ? await mgExport.getRepository(Company).find({ where: { id: In(companyIds) } })
       : [];
     const companiesById = new Map(companies.map(c => [c.id, c.name]));
+    const ownerIds = Array.from(new Set(items.flatMap((it: any) => [it.owner_it_id, it.owner_business_id]).filter(Boolean))) as string[];
+    const owners = ownerIds.length > 0 ? await mgExport.getRepository(User).find({ where: { id: In(ownerIds) } }) : [];
+    const ownerEmailById = new Map(owners.map((u) => [u.id, u.email]));
+    const categoryIds = Array.from(new Set(items.map((it: any) => it.analytics_category_id).filter(Boolean))) as string[];
+    const categories = categoryIds.length > 0 ? await mgExport.getRepository(AnalyticsCategory).find({ where: { id: In(categoryIds) } }) : [];
+    const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
 
     const { format } = await import('@fast-csv/format');
     const toIsoDate = (value: unknown): string => {
@@ -1233,9 +1240,9 @@ export class CapexItemsService {
           disabled_at: (it as any).disabled_at ? toIsoDate((it as any).disabled_at) : '',
           notes: (it as any).notes ?? '',
           company_name: (it as any).paying_company_id ? (companiesById.get((it as any).paying_company_id) ?? '') : '',
-          owner_it_id: (it as any).owner_it_id ?? '',
-          owner_business_id: (it as any).owner_business_id ?? '',
-          analytics_category_id: (it as any).analytics_category_id ?? '',
+          owner_it_email: (it as any).owner_it_id ? (ownerEmailById.get((it as any).owner_it_id) ?? '') : '',
+          owner_business_email: (it as any).owner_business_id ? (ownerEmailById.get((it as any).owner_business_id) ?? '') : '',
+          analytics_category: (it as any).analytics_category_id ? (categoryNameById.get((it as any).analytics_category_id) ?? '') : '',
           y_minus1_budget: tMinus1.budget,
           y_minus1_landing: tMinus1.landing,
           y_budget: tY.budget,
@@ -1311,23 +1318,22 @@ export class CapexItemsService {
       errors.push({ row: line, message: `${field} must be a valid date in YYYY-MM-DD format` });
       return fallback;
     };
-    const normalizeUuidField = (
-      raw: unknown,
-      { field, line }: { field: string; line: number },
-    ): string | null => {
-      const str = raw == null ? '' : raw.toString().trim();
-      if (str === '') return null;
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) return str;
-      errors.push({ row: line, message: `${field} must be a UUID` });
-      return null;
+    const userCache = new Map<string, User | null>();
+    const findUserByEmail = async (email: string): Promise<User | null> => {
+      const key = email.toLowerCase();
+      if (userCache.has(key)) return userCache.get(key) ?? null;
+      const user = await mg.getRepository(User).createQueryBuilder('u').where('LOWER(u.email) = LOWER(:email)', { email }).getOne();
+      userCache.set(key, user ?? null);
+      return user ?? null;
     };
 
     const normalized: Array<{
+      item_number: number | null;
       description: string; ppe_type: string; investment_type: string; priority: string; currency: string; effective_start: string; effective_end: string | null; status: StatusState; disabled_at: Date | null; notes: string | null;
       paying_company_id: string | null;
       owner_it_id: string | null;
       owner_business_id: string | null;
-      analytics_category_id: string | null;
+      analytics_category_name: string | null;
       totals: { [year: number]: { planned?: number; actual?: number; expected_landing?: number; committed?: number } };
     }> = [];
 
@@ -1357,10 +1363,32 @@ export class CapexItemsService {
       }
       const notes = ((r['notes'] ?? '').toString().trim()) || null;
       const company_name = (r['company_name'] ?? '').toString().trim();
-      const owner_it_id = normalizeUuidField(r['owner_it_id'], { field: 'owner_it_id', line });
-      const owner_business_id = normalizeUuidField(r['owner_business_id'], { field: 'owner_business_id', line });
-      const analytics_category_id = normalizeUuidField(r['analytics_category_id'], { field: 'analytics_category_id', line });
-      
+      const itemNumberRaw = (r['item_number'] ?? '').toString().trim();
+      let item_number: number | null = null;
+      if (itemNumberRaw !== '') {
+        const parsedNumber = Number(itemNumberRaw.replace(/^CPX-?/i, ''));
+        if (!Number.isInteger(parsedNumber) || parsedNumber <= 0) {
+          errors.push({ row: line, message: `item_number '${itemNumberRaw}' is invalid` });
+        } else {
+          item_number = parsedNumber;
+        }
+      }
+      const ownerItEmail = (r['owner_it_email'] ?? '').toString().trim();
+      const ownerBizEmail = (r['owner_business_email'] ?? '').toString().trim();
+      let owner_it_id: string | null = null;
+      if (ownerItEmail) {
+        const user = await findUserByEmail(ownerItEmail);
+        if (user) owner_it_id = user.id;
+        else errors.push({ row: line, message: `Owner IT email '${ownerItEmail}' not found` });
+      }
+      let owner_business_id: string | null = null;
+      if (ownerBizEmail) {
+        const user = await findUserByEmail(ownerBizEmail);
+        if (user) owner_business_id = user.id;
+        else errors.push({ row: line, message: `Owner business email '${ownerBizEmail}' not found` });
+      }
+      const analytics_category_name = ((r['analytics_category'] ?? '').toString().trim()) || null;
+
       // Resolve company name to ID
       let paying_company_id: string | null = null;
       if (company_name) {
@@ -1391,6 +1419,7 @@ export class CapexItemsService {
       const tPlus2 = { planned: parseAmount((r['y_plus2_budget'] ?? '').toString()) };
       const totals: any = {}; totals[Y - 1] = tMinus1; totals[Y] = tY; totals[Y + 1] = tPlus1; totals[Y + 2] = tPlus2;
       normalized.push({
+        item_number,
         description,
         ppe_type,
         investment_type,
@@ -1404,30 +1433,61 @@ export class CapexItemsService {
         paying_company_id,
         owner_it_id,
         owner_business_id,
-        analytics_category_id,
+        analytics_category_name,
         totals,
       });
     }
     if (errors.length > 0) return { ok: false, dryRun, total: rows.length, inserted: 0, updated: 0, errors };
 
-    // Deduplicate by description (first wins)
+    // Deduplicate by item_number when provided, else by description (first wins)
     const uniqueMap = new Map<string, typeof normalized[number]>();
-    for (const item of normalized) { const key = item.description.toLowerCase(); if (!uniqueMap.has(key)) uniqueMap.set(key, item); }
+    for (const item of normalized) {
+      const key = item.item_number != null ? `#${item.item_number}` : item.description.toLowerCase();
+      if (!uniqueMap.has(key)) uniqueMap.set(key, item);
+    }
     const unique = Array.from(uniqueMap.values());
 
-    // Count inserts; skip existing items with same description
+    // Existing items match by item_number when provided, else by description
+    const findExisting = async (item: typeof normalized[number]): Promise<CapexItem | null> => {
+      if (item.item_number != null) {
+        return mg.getRepository(CapexItem).findOne({ where: { item_number: item.item_number as any } });
+      }
+      return mg.getRepository(CapexItem).findOne({ where: { description: item.description } });
+    };
+
     let inserted = 0; let updated = 0;
     for (const item of unique) {
-      const exists = await mg.getRepository(CapexItem).findOne({ where: { description: item.description } });
-      if (exists) continue; else inserted += 1;
+      const exists = await findExisting(item);
+      if (item.item_number != null && !exists) {
+        errors.push({ row: 0, message: `item_number '${item.item_number}' does not match any CAPEX item` });
+        continue;
+      }
+      if (exists) updated += 1; else inserted += 1;
     }
+    if (errors.length > 0) return { ok: false, dryRun, total: rows.length, inserted: 0, updated: 0, errors };
     if (dryRun) return { ok: true, dryRun: true, total: rows.length, inserted, updated, errors: [] };
+
+    const categoryCache = new Map<string, AnalyticsCategory | null>();
+    const ensureCategory = async (name: string | null): Promise<AnalyticsCategory | null> => {
+      if (!name) return null;
+      const key = name.toLowerCase();
+      if (categoryCache.has(key)) return categoryCache.get(key) ?? null;
+      const repo = mg.getRepository(AnalyticsCategory);
+      let category = await repo.createQueryBuilder('cat').where('LOWER(cat.name) = LOWER(:name)', { name }).getOne();
+      if (!category) {
+        category = repo.create({ name, status: StatusState.ENABLED });
+        category = await repo.save(category);
+        await this.audit.log({ table: 'analytics_categories', recordId: category.id, action: 'create', before: null, after: category, userId }, { manager: mg });
+      }
+      categoryCache.set(key, category ?? null);
+      return category ?? null;
+    };
 
     let processed = 0;
     for (const item of unique) {
-      const exists = await mg.getRepository(CapexItem).findOne({ where: { description: item.description } });
-      if (exists) continue;
-      const created = await this.create({
+      const exists = await findExisting(item);
+      const analyticsCategory = await ensureCategory(item.analytics_category_name);
+      const payload = {
         description: item.description,
         ppe_type: item.ppe_type as any,
         investment_type: item.investment_type as any,
@@ -1441,24 +1501,27 @@ export class CapexItemsService {
         paying_company_id: item.paying_company_id,
         owner_it_id: item.owner_it_id,
         owner_business_id: item.owner_business_id,
-        analytics_category_id: item.analytics_category_id,
-      } as any, userId ?? undefined, { manager: mg });
+        analytics_category_id: analyticsCategory ? analyticsCategory.id : null,
+      };
+      const target = exists
+        ? await this.update(exists.id, payload as any, userId ?? undefined, { manager: mg })
+        : await this.create(payload as any, userId ?? undefined, { manager: mg });
 
       const years = [Y - 1, Y, Y + 1, Y + 2];
       for (const yr of years) {
         const totals = (item.totals as any)[yr] || {};
         const hasAny = Object.values(totals).some((v: any) => v != null && !isNaN(Number(v)));
         if (!hasAny) continue;
-        let version = await mg.getRepository(CapexVersion).findOne({ where: { capex_item_id: created.id, budget_year: yr as any } as any });
+        let version = await mg.getRepository(CapexVersion).findOne({ where: { capex_item_id: target.id, budget_year: yr as any } as any });
         if (!version) {
           const versionPartial: DeepPartial<CapexVersion> = {
-            capex_item_id: created.id,
+            capex_item_id: target.id,
             budget_year: yr as any,
             version_name: `Auto ${yr}`,
             input_grain: 'annual' as any,
             is_approved: false,
             as_of_date: `${yr}-01-01`,
-            tenant_id: created.tenant_id,
+            tenant_id: target.tenant_id,
             allocation_method: 'default' as any,
           };
           version = mg.getRepository(CapexVersion).create(versionPartial);

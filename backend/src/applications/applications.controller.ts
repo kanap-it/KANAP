@@ -208,61 +208,6 @@ export class ApplicationsController {
   }
 
   @UseGuards(PermissionGuard)
-  @RequireLevel('applications', 'admin')
-  @Get('export/v2')
-  async exportCsvV2(
-    @Query('scope') scope: 'template' | 'data' = 'data',
-    @Query('fields') fields: string | undefined,
-    @Query('preset') preset: string | undefined,
-    @Query('lifecycle') lifecycle: string | undefined,
-    @Query('criticality') criticality: string | undefined,
-    @Query('status') status: string | undefined,
-    @Res() res: Response,
-    @Tenant() ctx: TenantRequest,
-  ): Promise<void> {
-    const result = await this.csvSvc.export({
-      manager: ctx.manager,
-      tenantId: ctx.tenantId,
-      scope,
-      fields: fields ? fields.split(',').map((f) => f.trim()) : undefined,
-      preset,
-      lifecycle,
-      criticality,
-      status,
-    });
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', contentDisposition(result.filename));
-    res.send(result.content);
-  }
-
-  @UseGuards(PermissionGuard)
-  @RequireLevel('applications', 'admin')
-  @Post('import/v2')
-  @UseInterceptors(FileInterceptor('file', csvImportMulterOptions))
-  async importCsvV2(
-    @UploadedFile() file: Express.Multer.File,
-    @Query('dryRun') dryRun: string = 'true',
-    @Query('mode') mode: 'replace' | 'enrich' = 'enrich',
-    @Query('operation') operation: 'upsert' | 'update_only' | 'insert_only' = 'upsert',
-    @Tenant() ctx: TenantRequest,
-  ) {
-    return this.csvSvc.import(
-      file,
-      {
-        dryRun: dryRun !== 'false',
-        mode,
-        operation,
-      },
-      {
-        manager: ctx.manager,
-        tenantId: ctx.tenantId,
-        userId: ctx.userId,
-      },
-    );
-  }
-
-  @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get(':id')
   async get(

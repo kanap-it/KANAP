@@ -401,6 +401,30 @@ async function testCaseInsensitiveEnumMatching() {
   assert.equal(result.inserted, 3);
 }
 
+async function testFormulaApostropheIsStrippedOnImport() {
+  const resolver = new CsvResolverService();
+  const validators = new CsvJsonValidators();
+  const service = new CsvImportService(resolver, validators);
+  const config = createTestConfig();
+
+  // Export neutralizes formula-like values by prefixing an apostrophe;
+  // import must strip it back so export -> import round-trips cleanly.
+  const csv = `id;title;description;status;due_date;priority
+;'=SUM(A1:A2);'+plus prefix;open;;`;
+
+  const manager = createMockManager({ tasks: [] });
+  const result = await service.import(config, createMockFile(csv), { ...defaultParams, dryRun: false }, {
+    manager,
+    tenantId: 't1',
+  });
+
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  const savedTask = manager.getSaved().find((e: any) => e.title);
+  assert.ok(savedTask, 'a task entity was saved');
+  assert.equal(savedTask.title, '=SUM(A1:A2)');
+  assert.equal(savedTask.description, '+plus prefix');
+}
+
 // ===== Run tests =====
 
 (async () => {
@@ -418,6 +442,7 @@ async function testCaseInsensitiveEnumMatching() {
   await testInsertOnlyOperationSkipsUpdates();
   await testMissingHeaderError();
   await testCaseInsensitiveEnumMatching();
+  await testFormulaApostropheIsStrippedOnImport();
 
   console.log('CSV import service tests passed.');
 })().catch((err) => {

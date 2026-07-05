@@ -21,6 +21,20 @@ export function neutralizeCsvFormulaValue(value: string): string {
 }
 
 /**
+ * Reverse of neutralizeCsvFormulaValue: strips the protective apostrophe an
+ * export added in front of a formula-like value, so export -> import
+ * round-trips cleanly. Only strips when the remainder would be re-neutralized
+ * to the exact same string (i.e. the apostrophe is ours, not user data).
+ */
+export function denormalizeCsvFormulaValue(value: string): string {
+  const text = String(value ?? '');
+  if (text.startsWith("'") && neutralizeCsvFormulaValue(text.slice(1)) === text) {
+    return text.slice(1);
+  }
+  return text;
+}
+
+/**
  * Export options
  */
 export interface CsvExportOptions {
