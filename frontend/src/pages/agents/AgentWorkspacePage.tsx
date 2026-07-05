@@ -4,6 +4,7 @@ import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -375,7 +376,6 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
   const summary = resolveAgentSummary(data.queueQuery.data, agentKey);
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
-  const isBuiltInHelpdesk = definition?.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
   // Run state vs emergency pause are distinct axes. An agent-scoped pause can be
   // lifted from here; a tenant/global pause is managed from the fleet overview.
   const agentPause = summary?.emergencyPause ?? null;
@@ -398,7 +398,11 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
       if (!data.ticketingProviderKey) {
         throw new Error(t('monitor.providerMissing'));
       }
-      return aiAgentControlApi.runTicketingTriage({ provider_key: data.ticketingProviderKey, target_key: targetKey });
+      return aiAgentControlApi.runTicketingTriage({
+        provider_key: data.ticketingProviderKey,
+        target_key: targetKey,
+        agent_definition_id: definition?.id,
+      });
     },
     onSuccess: async () => {
       data.setMessage(t('monitor.testStarted'));
@@ -434,6 +438,9 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
                 {canAdmin && canStart && (
                   <Button size="small" variant="contained" startIcon={<PlayArrowIcon />} onClick={() => definition && data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'enabled' })} disabled={data.updateAgentStatusMutation.isPending}>{t('monitor.start')}</Button>
                 )}
+                {canAdmin && definition?.status === 'enabled' && (
+                  <Button size="small" variant="outlined" startIcon={<StopCircleOutlinedIcon />} onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })} disabled={data.updateAgentStatusMutation.isPending}>{t('monitor.disable')}</Button>
+                )}
                 <Button size="small" color="error" variant="outlined" startIcon={<PauseCircleOutlineIcon />} onClick={() => setPauseDialogOpen(true)}>{t('pause.agent')}</Button>
               </>
             )}
@@ -468,20 +475,18 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
         </Box>
       </Section>
 
-      {isBuiltInHelpdesk && (
-        <Section title={t('monitor.testTicket')}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <Select variant="standard" value={targetKey} onChange={(event) => setTargetKey(event.target.value)} sx={[drawerSelectSx, { minWidth: 260 }]}>
-              {(data.targetsQuery.data?.items ?? []).map((target) => (
-                <MenuItem key={target.target_key} value={target.target_key} sx={drawerMenuItemSx}>{target.safety_label} / {target.external_ref}</MenuItem>
-              ))}
-            </Select>
-            <Button size="small" variant="contained" startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey || triageMutation.isPending} onClick={() => triageMutation.mutate()}>
-              {t('monitor.runTest')}
-            </Button>
-          </Stack>
-        </Section>
-      )}
+      <Section title={t('monitor.testTicket')}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
+          <Select variant="standard" value={targetKey} onChange={(event) => setTargetKey(event.target.value)} sx={[drawerSelectSx, { minWidth: 260 }]}>
+            {(data.targetsQuery.data?.items ?? []).map((target) => (
+              <MenuItem key={target.target_key} value={target.target_key} sx={drawerMenuItemSx}>{target.safety_label} / {target.external_ref}</MenuItem>
+            ))}
+          </Select>
+          <Button size="small" variant="contained" startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey || triageMutation.isPending || !definition} onClick={() => triageMutation.mutate()}>
+            {t('monitor.runTest')}
+          </Button>
+        </Stack>
+      </Section>
 
       <Box>
         <Typography variant="subtitle2" fontWeight={500} sx={{ mb: 1 }}>{t('monitor.recentActivity')}</Typography>

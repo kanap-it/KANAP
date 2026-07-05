@@ -1218,7 +1218,7 @@ export const aiAgentControlApi = {
     const res = await api.post('/ai/admin/control-plane/uat/ticketing-read', payload);
     return res.data;
   },
-  async runTicketingTriage(payload: { work_item_id?: string; provider_key?: string; target_key?: string }): Promise<AiAgentControlTicketingTriageResult> {
+  async runTicketingTriage(payload: { work_item_id?: string; provider_key?: string; target_key?: string; agent_definition_id?: string }): Promise<AiAgentControlTicketingTriageResult> {
     const res = await api.post('/ai/admin/control-plane/uat/ticketing-triage', payload, { timeout: 600_000 });
     return res.data;
   },

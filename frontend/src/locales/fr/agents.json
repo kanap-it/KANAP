@@ -278,6 +278,7 @@
   },
   "monitor": {
     "start": "Démarrer l'agent",
+    "disable": "Désactiver",
     "testStarted": "Exécution de test démarrée.",
     "testFailed": "Impossible de démarrer l'exécution de test.",
     "providerMissing": "Cet agent n'a pas de fournisseur de tickets associé.",

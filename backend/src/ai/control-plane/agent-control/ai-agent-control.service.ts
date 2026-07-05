@@ -172,6 +172,9 @@ export type AgentControlTicketingTriageInput = {
   work_item_id?: string | null;
   provider_key?: string | null;
   target_key?: string | null;
+  // Which agent a manual "test on a ticket" run should exercise. Without it the
+  // built-in Helpdesk agent runs (legacy behavior).
+  agent_definition_id?: string | null;
 };
 
 type RunLlmUsageEstimate = {
@@ -5698,6 +5701,7 @@ export class AiAgentControlService {
     return this.runHelpdeskTicketingTriage(context, {
       provider_key: providerKey,
       target_key: input.target_key,
+      agent_definition_id: input.agent_definition_id,
     }, TICKETING_TRIAGE_RUN_OPTIONS);
   }
 
@@ -5789,18 +5793,56 @@ export class AiAgentControlService {
     }
 
     if (!workItemId && this.agentQueue) {
-      const enqueue = options.manualEnqueueMode === 'glpi'
-        ? this.agentQueue.enqueueManualGlpiSafeTarget.bind(this.agentQueue)
-        : this.agentQueue.enqueueManualTicketingSafeTarget.bind(this.agentQueue);
-      const enqueued = await enqueue(context, serializeLiveTarget(target), {
-        source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
-      });
-      agentDefinition = enqueued.definition;
-      workItemCreated = enqueued.created;
-      leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
-        leaseOwner: `agent-control-center:${context.userId || 'system'}`,
-      });
-      agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      const requestedDefinitionId = trimmedString(input.agent_definition_id);
+      let requestedDefinition: AiAgentDefinition | null = null;
+      if (requestedDefinitionId) {
+        requestedDefinition = await context.manager.getRepository(AiAgentDefinition).findOne({
+          where: { id: requestedDefinitionId, tenant_id: context.tenantId },
+        });
+        if (!requestedDefinition) {
+          throw new NotFoundException('Agent definition not found.');
+        }
+      }
+      if (requestedDefinition && requestedDefinition.agent_key !== HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
+        // Manual test of a specific (custom) agent: enqueue against that agent's own
+        // binding so the run exercises its configuration, not the built-in's. If an
+        // active work item already exists for this ticket, it is reused and re-run.
+        const binding = requireTicketingBinding(requestedDefinition, 'Manual ticket triage requires a ticketing provider binding.');
+        if (binding.providerKind !== target.provider_kind || binding.providerKey !== target.provider_key) {
+          throw new BadRequestException('Manual ticket triage target provider does not match the agent ticketing binding.');
+        }
+        const enqueued = await this.agentQueue.enqueueTicketingScopedTicket(context, {
+          definition: requestedDefinition,
+          ticket: { id: String(target.external_ref) },
+          metadata: {
+            source: 'manual_safe_target',
+            target_id: target.id,
+            target_key: target.target_key,
+            target_environment: target.environment,
+            target_safety_label: target.safety_label,
+            source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
+          },
+        });
+        agentDefinition = requestedDefinition;
+        workItemCreated = enqueued.created;
+        leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
+          leaseOwner: `agent-control-center:${context.userId || 'system'}`,
+        });
+        agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      } else {
+        const enqueue = options.manualEnqueueMode === 'glpi'
+          ? this.agentQueue.enqueueManualGlpiSafeTarget.bind(this.agentQueue)
+          : this.agentQueue.enqueueManualTicketingSafeTarget.bind(this.agentQueue);
+        const enqueued = await enqueue(context, serializeLiveTarget(target), {
+          source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
+        });
+        agentDefinition = enqueued.definition;
+        workItemCreated = enqueued.created;
+        leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
+          leaseOwner: `agent-control-center:${context.userId || 'system'}`,
+        });
+        agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      }
     }
     const promptRuntime = await this.compileAgentPromptRuntime(context, agentDefinition);
 

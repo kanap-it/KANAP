@@ -278,6 +278,7 @@
   },
   "monitor": {
     "start": "Agent starten",
+    "disable": "Deaktivieren",
     "testStarted": "Testlauf gestartet.",
     "testFailed": "Testlauf konnte nicht gestartet werden.",
     "providerMissing": "Für diesen Agenten ist kein Ticketing-Anbieter gebunden.",

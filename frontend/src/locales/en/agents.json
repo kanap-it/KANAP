@@ -278,6 +278,7 @@
   },
   "monitor": {
     "start": "Start agent",
+    "disable": "Disable",
     "testStarted": "Test run started.",
     "testFailed": "Could not start the test run.",
     "providerMissing": "This agent has no ticketing provider binding.",
