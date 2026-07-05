@@ -33,11 +33,8 @@ services:
     build:
       context: ../marketing
       dockerfile: Dockerfile
-      args:
-        # Cloudflare Web Analytics beacon token (public by design — it ships in the
-        # page HTML anyway). Baked in as the default so a plain rebuild keeps
-        # analytics alive; the env var still overrides. Empty disables analytics.
-        PUBLIC_CF_ANALYTICS_TOKEN: ${PUBLIC_CF_ANALYTICS_TOKEN:-cf4ee198ead546848b510462d27b9849}
+      # Web analytics needs no build config: the Cloudflare edge injects the beacon
+      # (zone RUM "Enable") — see BaseLayout.astro for why there is no snippet in-app.
     ports:
       - "127.0.0.1:8082:80"
     restart: unless-stopped
