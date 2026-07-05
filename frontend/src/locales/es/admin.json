@@ -102,7 +102,9 @@
       "windows": {
         "currentMonth": "Mes actual",
         "last30Days": "Últimos 30 días"
-      }
+      },
+      "agentMessages": "Mensajes de los agentes (este mes)",
+      "agentsTotal": "Todos los agentes"
     },
     "provider": {
       "apiKey": {

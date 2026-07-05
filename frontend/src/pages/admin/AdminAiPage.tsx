@@ -366,6 +366,27 @@ function renderOverviewSection(overviewQuery: {
                 </Table>
               </Stack>
 
+              {(overviewQuery.data.agents ?? []).length > 0 && (
+                <Stack spacing={1}>
+                  <Typography variant="subtitle1">{t('aiAdmin.overview.agentMessages')}</Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+                    <MetricCard
+                      label={t('aiAdmin.overview.agentsTotal')}
+                      value={formatNumber(overviewQuery.data.agents.reduce((sum, agent) => sum + agent.messages_current_month, 0), locale)}
+                      caption={`${t('aiAdmin.overview.windows.last30Days')}: ${formatNumber(overviewQuery.data.agents.reduce((sum, agent) => sum + agent.messages_last_30_days, 0), locale)}`}
+                    />
+                    {overviewQuery.data.agents.map((agent) => (
+                      <MetricCard
+                        key={agent.agent_definition_id}
+                        label={agent.name}
+                        value={formatNumber(agent.messages_current_month, locale)}
+                        caption={`${t('aiAdmin.overview.windows.last30Days')}: ${formatNumber(agent.messages_last_30_days, locale)}`}
+                      />
+                    ))}
+                  </Box>
+                </Stack>
+              )}
+
             </>
           ) : null}
         </Stack>

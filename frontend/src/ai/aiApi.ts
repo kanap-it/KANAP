@@ -98,6 +98,12 @@ export type AiAdminOverview = {
     model: string | null;
     updated_at: string;
   }>;
+  agents: Array<{
+    agent_definition_id: string;
+    name: string;
+    messages_current_month: number;
+    messages_last_30_days: number;
+  }>;
 };
 
 export type AiAgentControlRunItem = {
