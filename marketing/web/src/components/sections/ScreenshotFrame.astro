@@ -29,7 +29,7 @@ const showPlaceholder = placeholder || !src;
         <span class="mk-shot__placeholder-text">Screenshot: {alt}</span>
       </div>
     ) : (
-      <>
+      <button type="button" class="mk-shot__zoom" aria-haspopup="dialog" aria-label={alt}>
         {srcDark ? (
           <>
             <img src={src} alt={alt} width={width} height={height} class="mk-shot__img mk-shot__img--light" loading="lazy" decoding="async" />
@@ -38,11 +38,81 @@ const showPlaceholder = placeholder || !src;
         ) : (
           <img src={src} alt={alt} width={width} height={height} class="mk-shot__img" loading="lazy" decoding="async" />
         )}
-      </>
+      </button>
     )}
   </div>
   {caption && <figcaption class="mk-shot__caption">{caption}</figcaption>}
 </figure>
+
+<script>
+  // One shared lightbox for every ScreenshotFrame on the page: click a shot to
+  // open it full-viewport, click anywhere (or press Escape) to close.
+  function ensureLightbox(): HTMLDialogElement {
+    let dialog = document.querySelector<HTMLDialogElement>('dialog.mk-lightbox');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.className = 'mk-lightbox';
+      const img = document.createElement('img');
+      img.className = 'mk-lightbox__img';
+      dialog.appendChild(img);
+      dialog.addEventListener('click', () => dialog?.close());
+      document.body.appendChild(dialog);
+    }
+    return dialog;
+  }
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target instanceof Element ? event.target.closest('.mk-shot__zoom') : null;
+    if (!trigger) return;
+    const visible = Array.from(trigger.querySelectorAll<HTMLImageElement>('img'))
+      .find((img) => getComputedStyle(img).display !== 'none');
+    if (!visible) return;
+    const dialog = ensureLightbox();
+    const zoomed = dialog.querySelector<HTMLImageElement>('.mk-lightbox__img');
+    if (!zoomed) return;
+    zoomed.src = visible.currentSrc || visible.src;
+    zoomed.alt = visible.alt;
+    dialog.showModal();
+  });
+</script>
+
+<style is:global>
+  .mk-lightbox {
+    padding: 0;
+    border: none;
+    background: transparent;
+    max-width: none;
+    max-height: none;
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+
+  .mk-lightbox[open] {
+    display: flex;
+  }
+
+  body:has(.mk-lightbox[open]) {
+    overflow: hidden;
+  }
+
+  .mk-lightbox::backdrop {
+    background: rgba(15, 23, 32, 0.82);
+  }
+
+  .mk-lightbox__img {
+    max-width: min(1440px, 94vw);
+    max-height: 92vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+    background: #fff;
+  }
+</style>
 
 <style>
   .mk-shot {
@@ -66,6 +136,16 @@ const showPlaceholder = placeholder || !src;
 
   :root[data-theme='dark'] .mk-shot__frame:hover {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .mk-shot__zoom {
+    display: block;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    cursor: zoom-in;
   }
 
   .mk-shot__img {
