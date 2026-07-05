@@ -70,3 +70,11 @@ ai-assistant.md	frontend/src/ai/**/*.tsx
 ai-settings.md	frontend/src/pages/admin/AdminAiPage.tsx
 integrations.md	frontend/src/pages/admin/AdminIntegrationsPage.tsx
 scheduled-tasks.md	frontend/src/pages/admin/ScheduledTasksPage.tsx
+agents-overview.md	frontend/src/pages/agents/AgentsOverviewPage.tsx
+agents-overview.md	frontend/src/components/agents/**/*.tsx
+agents-workspace.md	frontend/src/pages/agents/AgentWorkspacePage.tsx
+agents-workspace.md	frontend/src/pages/agents/useAgentControlData.ts
+agents-approvals.md	frontend/src/pages/agents/AgentsApprovalsPage.tsx
+agents-activity.md	frontend/src/pages/agents/AgentsActivityPage.tsx
+agents-shared-context.md	frontend/src/pages/agents/SharedContextProfilesPage.tsx
+agents-overview.md	frontend/src/components/agents/*.tsx

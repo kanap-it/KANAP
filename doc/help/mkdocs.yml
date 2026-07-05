@@ -152,6 +152,11 @@ plugins:
             "Plaid Settings": "Paramètres Plaid"
             Integrations: Intégrations
             "Scheduled Tasks": "Tâches planifiées"
+            "AI Agents": "Agents IA"
+            "Agent workspace": "Espace de l'agent"
+            Approvals: Approbations
+            Activity: Activité
+            "Shared context": "Contexte partagé"
         - locale: de
           name: Deutsch
           build: true
@@ -218,6 +223,11 @@ plugins:
             "Plaid Settings": "Plaid-Einstellungen"
             Integrations: Integrationen
             "Scheduled Tasks": "Geplante Aufgaben"
+            "AI Agents": "KI-Agenten"
+            "Agent workspace": "Agent-Arbeitsbereich"
+            Approvals: Freigaben
+            Activity: Aktivität
+            "Shared context": "Gemeinsamer Kontext"
         - locale: es
           name: "Español"
           build: true
@@ -284,6 +294,11 @@ plugins:
             "Plaid Settings": "Configuración de Plaid"
             Integrations: Integraciones
             "Scheduled Tasks": "Tareas programadas"
+            "AI Agents": "Agentes IA"
+            "Agent workspace": "Espacio del agente"
+            Approvals: Aprobaciones
+            Activity: Actividad
+            "Shared context": "Contexto compartido"
   - search
 
 nav:
@@ -344,6 +359,13 @@ nav:
 
   - Plaid:
     - Plaid: ai-assistant.md
+
+  - AI Agents:
+    - Overview: agents-overview.md
+    - Agent workspace: agents-workspace.md
+    - Approvals: agents-approvals.md
+    - Activity: agents-activity.md
+    - Shared context: agents-shared-context.md
 
   - Administration:
     - Admin & Users: admin.md

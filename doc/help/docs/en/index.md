@@ -84,11 +84,26 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 - [Business Processes](business-processes.md) - Document business process hierarchy
 - [Analytics Dimensions](analytics.md) - Set up reporting dimensions
 
+### Plaid
+
+- [Plaid](ai-assistant.md) - Ask questions in plain language across your KANAP data
+
+### AI Agents
+
+- [Overview](agents-overview.md) - Supervise the agents that watch your service desk
+- [Agent workspace](agents-workspace.md) - Monitor, tune, and configure a single agent
+- [Approvals](agents-approvals.md) - Review and approve proposed ticket replies and updates
+- [Activity](agents-activity.md) - The audit timeline of everything agents did
+- [Shared context](agents-shared-context.md) - Reusable background guidance for your agents
+
 ### Administration
 
 - [Admin & Users](admin.md) - Manage users, roles, authentication, and audit logs
 - [Branding](branding.md) - Customize your tenant logo and light/dark primary colors
 - [Audit Log](admin.md#audit-log) - Review tenant change history with filters and detail view
+- [Plaid Settings](ai-settings.md) - Configure the AI provider, features, retention, and MCP keys
+- [Integrations](integrations.md) - Connect GLPI for ticket import and for agents
+- [Scheduled Tasks](scheduled-tasks.md) - Review and manage recurring background jobs
 - [Master Data Administration](master-data-operations.md) - Freeze and copy master data
 - [Operations Dashboard](operations-dashboard.md) - Overview and quick actions
 

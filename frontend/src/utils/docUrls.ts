@@ -95,6 +95,13 @@ const routeToDocSlug: [RegExp, string][] = [
   // AI Assistant
   [/^\/ai/, 'ai-assistant'],
 
+  // AI Agents (specific sub-pages first, then the per-agent workspace, then the bare overview)
+  [/^\/agents\/approvals/, 'agents-approvals'],
+  [/^\/agents\/activity/, 'agents-activity'],
+  [/^\/agents\/shared-context/, 'agents-shared-context'],
+  [/^\/agents\/[^/]+/, 'agents-workspace'],
+  [/^\/agents/, 'agents-overview'],
+
   [/^\/settings/, 'fast-track/getting-started'],
 ];
 

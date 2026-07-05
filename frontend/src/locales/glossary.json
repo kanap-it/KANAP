@@ -108,5 +108,27 @@
     "owner": { "fr": "responsable", "de": "Verantwortlicher", "es": "responsable", "note": "Entity owner (IT/business)" },
     "audit log": { "fr": "journal d'audit", "de": "Audit-Protokoll", "es": "registro de auditoría", "note": "Activity/audit trail" },
     "permission": { "fr": "autorisation", "de": "Berechtigung", "es": "permiso", "note": "Access control" }
+  },
+
+  "ai_agents": {
+    "_note": "AI Agents (control plane) — automated helpers that watch the service desk. Match the app's agents.json labels.",
+    "AI agent": { "fr": "agent IA", "de": "KI-Agent", "es": "agente IA", "note": "Automated helper that watches tickets and proposes/handles work" },
+    "ticket": { "fr": "ticket", "de": "Ticket", "es": "ticket", "note": "Service-desk ticket the agent works on" },
+    "requester": { "fr": "demandeur", "de": "Anfragender", "es": "solicitante", "note": "Person who opened the ticket" },
+    "requester reply": { "fr": "réponse au demandeur", "de": "Antwort an den Anfragenden", "es": "respuesta al solicitante", "note": "Agent action: public reply on the ticket" },
+    "internal note": { "fr": "note interne", "de": "interne Notiz", "es": "nota interna", "note": "Agent action: private note on the ticket" },
+    "service desk": { "fr": "centre de services", "de": "Service-Desk", "es": "centro de servicios", "note": "The connected ticketing system (GLPI today)" },
+    "watching": { "fr": "surveillance", "de": "Überwachung", "es": "vigilancia", "note": "The agent monitoring tickets" },
+    "check": { "fr": "contrôle", "de": "Prüfung", "es": "comprobación", "note": "One watch pass (runs every 5 minutes)" },
+    "proposal": { "fr": "proposition", "de": "Vorschlag", "es": "propuesta", "note": "A ticket action the agent proposes for approval" },
+    "agent approval": { "fr": "approbation", "de": "Freigabe", "es": "aprobación", "note": "Approving an agent proposal — distinct from document approval" },
+    "shared context": { "fr": "contexte partagé", "de": "Gemeinsamer Kontext", "es": "contexto compartido", "note": "Reusable background-guidance profile" },
+    "mission": { "fr": "mission", "de": "Mission", "es": "misión", "note": "The agent's stated purpose (persona)" },
+    "output style": { "fr": "style de réponse", "de": "Ausgabestil", "es": "estilo de respuesta", "note": "Tone/format of the agent's replies" },
+    "escalation": { "fr": "escalade", "de": "Eskalation", "es": "escalado", "note": "Guidance for when to hand a ticket to a human" },
+    "automatic mode": { "fr": "mode automatique", "de": "Automatischer Modus", "es": "modo automático", "note": "An action type the agent performs without asking first" },
+    "ask first": { "fr": "demander d'abord", "de": "Zuerst fragen", "es": "preguntar primero", "note": "Default: agent proposes and waits for approval" },
+    "emergency pause": { "fr": "pause d'urgence", "de": "Notfall-Pause", "es": "pausa de emergencia", "note": "Tenant-wide halt of all agents" },
+    "acceptance": { "fr": "taux d'acceptation", "de": "Akzeptanzrate", "es": "tasa de aceptación", "note": "Share of proposals approved (performance metric)" }
   }
 }

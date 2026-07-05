@@ -1,145 +1,148 @@
 # Plaid
 
-Plaid est l'assistant de chat intégré à KANAP. Il est connecté aux mêmes données que vous manipulez déjà -- applications, actifs, projets, demandes, tâches, contrats, documents de connaissances et données de référence -- afin que vous puissiez poser des questions en langage naturel au lieu de cliquer sur plusieurs écrans pour trouver une réponse.
+Plaid est l'assistant conversationnel intégré de KANAP. Il est connecté aux mêmes données que celles que vous manipulez déjà — applications, actifs, projets, demandes, tâches, contrats, documents de la base de connaissances et master data — afin que vous puissiez poser des questions en langage naturel au lieu de naviguer entre plusieurs écrans pour trouver une réponse.
 
-Plaid ne remplace pas le reste de l'application. C'est un moyen plus rapide de résumer un contexte, de localiser des enregistrements, de rédiger du texte ou de préparer des modifications. Les opérations sensibles sont toujours présentées sous forme d'aperçus que vous devez approuver avant que quoi que ce soit ne soit réécrit dans KANAP.
+Plaid ne remplace pas le reste de l'application. C'est un moyen plus rapide de synthétiser le contexte, de localiser des enregistrements, de rédiger du texte ou de préparer des modifications. Les opérations sensibles sont toujours présentées sous forme d'aperçus que vous devez approuver avant que quoi que ce soit ne soit écrit dans KANAP.
+
+!!! note "Plaid ou les Agents IA"
+    Plaid est l'assistant interactif que **vous** pilotez : vous demandez, il répond et vous approuvez une modification à la fois. Les **Agents IA** sont différents — ce sont des assistants autonomes qui surveillent votre centre de services et proposent ou traitent eux-mêmes le travail sur les tickets, dans les limites d'approbation que vous définissez. Voir [Agents IA — Vue d'ensemble](agents-overview.md).
 
 ## Où le trouver
 
-- Espace de travail : **Plaid** (navigation principale)
+- Espace de travail : **Plaid** (barre de navigation supérieure)
 - Route : `/ai`
-- Autorisation : `ai_chat:reader` vous permet d'ouvrir l'espace de travail de chat et de démarrer des conversations
-- Indicateur de fonctionnalité : nécessite que la surface de chat soit activée sur votre instance. Si elle est désactivée, l'espace de travail affiche une notification au lieu de l'interface de chat.
+- Autorisation : `ai_chat:reader` permet d'ouvrir l'espace de chat et de démarrer des conversations
+- Indicateur de fonctionnalité : nécessite que l'interface de chat soit activée sur votre instance. Si elle est désactivée, l'espace de travail affiche un avis à la place de l'interface de chat.
 
-L'espace de travail est également accessible aux administrateurs disposant de `ai_chat:admin`, qui peuvent voir et modérer tout ce que font les utilisateurs réguliers.
+L'espace de travail est également accessible aux administrateurs disposant de `ai_chat:admin`, qui peuvent voir et modérer tout ce que font les utilisateurs standard.
 
 ## Démarrer une conversation
 
-Lorsque vous ouvrez Plaid pour la première fois, vous arrivez sur un écran d'accueil avec :
+Lorsque vous ouvrez Plaid pour la première fois, vous arrivez sur un écran d'accueil comportant :
 
-- Un court slogan (« Plaid est prêt ») et une description de ce que vous pouvez demander
-- Une section **Essayez de demander** avec des exemples de prompts cliquables à envoyer
-- La zone de saisie en bas, prête à recevoir votre premier message
+- Une courte accroche (« Plaid est prêt ») et une description de ce que vous pouvez demander
+- Une section **Pour démarrer** avec des exemples de requêtes sur lesquels cliquer pour les envoyer
+- Le composeur en bas, prêt à recevoir votre premier message
 
-Cliquez sur n'importe quelle suggestion pour l'envoyer directement, ou -- pour les prompts contenant un espace réservé `@` -- déposer la suggestion dans la zone de saisie pour la compléter.
+Cliquez sur une suggestion pour l'envoyer directement ou — pour les requêtes contenant un espace réservé `@` — l'insérer dans le composeur afin de la compléter.
 
-Tapez un message et appuyez sur **Entrée** pour l'envoyer. **Maj+Entrée** insère un saut de ligne. Le bouton d'envoi est désactivé tant qu'il n'y a rien à envoyer et se transforme en bouton **Stop** rouge pendant que Plaid répond.
+Saisissez un message et appuyez sur **Entrée** pour l'envoyer. **Maj+Entrée** insère un retour à la ligne. Le bouton d'envoi est désactivé lorsqu'il n'y a rien à envoyer et se transforme en bouton rouge **Arrêter** pendant que Plaid répond.
 
 ## La liste des conversations
 
-La barre latérale gauche liste vos conversations passées. Utilisez l'icône menu en haut à gauche de la zone de chat pour la réduire ou la développer.
+La barre latérale de gauche répertorie vos conversations passées. Utilisez l'icône de menu en haut à gauche de la zone de chat pour la réduire ou la développer.
 
 La liste contient :
 
 - Un bouton **Nouvelle conversation** en haut
 - Un champ de recherche qui apparaît dès que vous avez au moins une conversation
-- Les conversations regroupées par date : **Aujourd'hui**, **Hier**, **7 derniers jours**, **Plus anciennes**
+- Les conversations regroupées par date : **Aujourd'hui**, **Hier**, **7 derniers jours**, **Plus ancien**
 
-Chaque ligne affiche le titre de la conversation (ou **Sans titre** lorsqu'aucun n'a été défini). Survolez ou ciblez une ligne pour révéler :
+Chaque ligne affiche le titre de la conversation (ou **Sans titre** si aucun n'a encore été défini). Survolez une ligne ou placez-y le focus pour faire apparaître :
 
-- Une icône crayon -- **Renommer** la conversation. Double-cliquez sur le titre pour faire la même chose.
-- Une icône poubelle -- **Archiver** la conversation. Les conversations archivées disparaissent de la liste. Si vous archivez la conversation actuellement ouverte, Plaid bascule sur un nouveau chat vide.
+- Une icône crayon — **Renommer** la conversation. Double-cliquez sur le titre pour faire de même.
+- Une icône corbeille — **Archiver** la conversation. Les conversations archivées disparaissent de la liste. Si vous archivez la conversation actuellement ouverte, Plaid bascule vers un nouveau chat vide.
 
-La recherche filtre la liste par titre au fur et à mesure que vous tapez. Le renommage et l'archivage sont enregistrés immédiatement.
+La recherche filtre la liste par titre au fur et à mesure de votre saisie. Le renommage et l'archivage sont enregistrés immédiatement.
 
 ## Rédiger un message
 
-La zone de saisie est le point de contrôle principal de l'espace de travail. Elle prend en charge :
+Le composeur est le point de contrôle principal de l'espace de travail. Il prend en charge :
 
-- Du texte multi-lignes jusqu'à 10 lignes visibles avant défilement
-- Des pièces jointes images en ligne (PNG, JPG, GIF, WEBP)
-- Des `@`-mentions d'enregistrements KANAP
-- Un rappel des raccourcis clavier (« Entrée pour envoyer · Maj+Entrée pour saut de ligne »)
+- Le texte multiligne jusqu'à 10 lignes visibles avant défilement
+- Les pièces jointes image inline (PNG, JPG, GIF, WEBP)
+- Les mentions `@` d'enregistrements KANAP
+- Un rappel de raccourci clavier (« Entrée pour envoyer · Maj+Entrée retour à la ligne »)
 
 ### Joindre des images
 
 Vous pouvez ajouter des images de trois manières :
 
-- Cliquer sur l'icône trombone et sélectionner les fichiers depuis votre ordinateur
-- Glisser-déposer des fichiers images sur la zone de saisie (une superposition d'indication confirme la cible de dépôt)
-- Coller une image directement depuis le presse-papiers
+- Cliquez sur l'icône trombone et sélectionnez des fichiers sur votre ordinateur
+- Glissez-déposez des fichiers image sur le composeur (une superposition indicative confirme la zone de dépôt)
+- Collez une image directement depuis le presse-papiers
 
-Chaque image en attente apparaît sous forme de miniature au-dessus du texte. Cliquez sur le petit **X** d'une miniature pour la supprimer. Il existe une limite de pièces jointes par message ; une fois atteinte, le trombone est désactivé jusqu'à ce que vous supprimiez ou envoyiez les pièces jointes en cours.
+Chaque image en attente apparaît sous forme de miniature au-dessus du texte. Cliquez sur le petit **X** d'une miniature pour la retirer. Le nombre de pièces jointes par message est limité ; une fois cette limite atteinte, le trombone est désactivé jusqu'à ce que vous retiriez ou envoyiez les pièces jointes en cours.
 
-Les images sont téléversées avec votre message afin que Plaid puisse les décrire, les comparer ou en extraire des détails.
+Les images sont importées avec votre message afin que Plaid puisse les décrire, les comparer ou en extraire des détails.
 
 ### Mentionner des enregistrements avec `@`
 
-Taper `@` ouvre le **sélecteur de mentions** au-dessus de la zone de saisie. Il vous permet de référencer n'importe quel enregistrement KANAP auquel vous avez accès, avec deux modes complémentaires :
+La saisie de `@` ouvre le **sélecteur de mentions** au-dessus du composeur. Il vous permet de référencer n'importe quel enregistrement KANAP auquel vous avez accès, selon deux modes complémentaires :
 
-- **Préfixe par jeton de type** : codes courts qui correspondent à une seule famille d'entités. Exemples :
-  - `@T-5` -- tâche avec la référence T-5
-  - `@DOC` -- documents de connaissances récents
-  - `@APP backup` -- applications correspondant à « backup »
+- **Préfixe de type** : des codes courts qui correspondent à une seule famille d'entités. Exemples :
+  - `@T-5` — la tâche portant la référence T-5
+  - `@DOC` — les documents récents de la base de connaissances
+  - `@APP backup` — les applications correspondant à « backup »
   - `@PRJ`, `@REQ`, `@AST`, `@CONN`, `@INT`, `@LOC`, `@CTR`, `@CPX`, `@COMP`, `@CONT`, `@DEPT`, `@SUP`, `@BP`
-- **Texte libre** : tout le reste (`@payroll`, `@server-2`) lance une recherche multi-types triée par pertinence.
+- **Texte libre** : tout le reste (`@payroll`, `@server-2`) lance une recherche multi-types classée par pertinence.
 
-Utilisez les flèches pour parcourir les suggestions, **Entrée** ou **Tab** pour confirmer, **Échap** pour fermer le sélecteur. Les résultats sont regroupés par type d'entité (Connaissances, Tâches, Projets, Applications, Actifs, Contrats, etc.) afin que vous puissiez identifier d'un coup d'œil quel type d'enregistrement vous êtes sur le point d'insérer.
+Utilisez les touches fléchées pour parcourir les suggestions, **Entrée** ou **Tab** pour confirmer, **Échap** pour fermer le sélecteur. Les résultats sont regroupés par type d'entité (Base de connaissances, Tâches, Projets, Applications, Actifs, Contrats, etc.) afin que vous sachiez d'un coup d'œil quel type d'enregistrement vous vous apprêtez à insérer.
 
-Lorsque vous confirmez une suggestion, la zone de saisie continue d'afficher un libellé lisible (`@DOC-152`, `@SAP S/4HANA`). Lors de l'envoi du message, chaque mention est développée en un véritable lien que Plaid peut suivre vers l'enregistrement source.
+Lorsque vous confirmez une suggestion, le composeur continue d'afficher un libellé lisible (`@DOC-152`, `@SAP S/4HANA`). À l'envoi du message, chaque mention est transformée en un véritable lien que Plaid peut suivre jusqu'à l'enregistrement source.
 
 ### Modifier ou régénérer un message
 
-Survolez l'un de vos messages précédents pour obtenir les actions au niveau du message :
+Survolez n'importe lequel de vos messages précédents pour accéder aux actions au niveau du message :
 
-- **Copier** -- copier le texte du message dans le presse-papiers
-- **Modifier** -- rouvrir le message dans un éditeur en ligne ; l'enregistrement envoie la nouvelle version et tronque tout ce qui suivait (la conversation est rejouée à partir de ce point)
-- **Régénérer** (sur les réponses de l'assistant) -- demander à Plaid de produire une autre réponse au même prompt
+- **Copier** — copie le texte du message dans le presse-papiers
+- **Modifier** — rouvre le message dans un éditeur inline ; l'enregistrement envoie la nouvelle version et supprime tout ce qui suivait (la conversation est relancée à partir de ce point)
+- **Régénérer** (sur les réponses de l'assistant) — demande à Plaid de produire une autre réponse à la même requête
 
-Modifier est le bon outil lorsque vous réalisez que votre question précédente n'était pas claire. Régénérer est le bon outil lorsque la question était bonne mais pas la réponse.
+La modification est l'outil adapté lorsque vous constatez que votre question précédente manquait de clarté. La régénération est l'outil adapté lorsque la question était bonne mais pas la réponse.
 
 ## Comment Plaid répond
 
 Plaid diffuse sa réponse caractère par caractère. Pendant la diffusion :
 
-- La zone de saisie reste utilisable pour préparer un suivi
-- Le bouton d'envoi affiche une icône **Stop** rouge -- cliquer dessus annule la réponse en cours
+- Le composeur reste utilisable afin que vous puissiez préparer une relance
+- Le bouton d'envoi affiche une icône rouge **Arrêter** — cliquer dessus annule la réponse en cours
 - Un petit indicateur « Utilisation des outils… » apparaît lorsque Plaid effectue une recherche dans KANAP, récupère un document ou exécute un autre appel d'outil
-- Le nombre et le type d'outils utilisés sont résumés sous la réponse une fois celle-ci terminée
+- Le nombre et le type d'outils utilisés sont récapitulés sous la réponse une fois celle-ci terminée
 
-Lorsque le flux se termine, le focus revient sur la zone de saisie afin que vous puissiez poursuivre la conversation sans avoir à atteindre la souris.
+Lorsque la diffusion se termine, le focus revient automatiquement sur le composeur afin que vous puissiez poursuivre la conversation sans avoir à utiliser la souris.
 
 ### Appels d'outils
 
-Plaid utilise un petit ensemble d'outils internes pour répondre aux questions : `Search all`, `Search knowledge`, `Get document`, `Get entity context`, et quelques autres. Chaque appel d'outil apparaît sous forme de ligne compacte sous le message (« used Search all · 8 results »). Vous n'avez généralement pas besoin de lire les détails des outils, mais ils sont là si vous voulez voir exactement sur quels enregistrements la réponse était basée.
+Plaid utilise un petit ensemble d'outils internes pour répondre aux questions : `Search all`, `Search knowledge`, `Get document`, `Get entity context` et quelques autres. Chaque appel d'outil apparaît sous forme de ligne compacte sous le message (« a utilisé Search all · 8 résultats »). Vous n'avez généralement pas besoin de lire les détails de l'outil, mais ils sont là si vous voulez voir exactement sur quels enregistrements la réponse s'est appuyée.
 
 ## Artefacts et aperçus
 
-Certaines réponses sont accompagnées de matériel supplémentaire qui ne s'intègre pas naturellement dans le fil de discussion. KANAP appelle ces éléments des **artefacts**.
+Certaines réponses s'accompagnent de contenu supplémentaire qui ne trouve pas naturellement sa place dans le fil de discussion. KANAP les appelle des **artefacts**.
 
 Cas courants :
 
 - Un long bloc de texte ou de markdown que Plaid a préparé pour vous
-- Un comparatif côte à côte **Avant / Après** d'un enregistrement que Plaid souhaite mettre à jour
-- Un brouillon d'import ou un jeu de modifications nécessitant votre validation
+- Une comparaison côte à côte **Avant / Après** d'un enregistrement que Plaid souhaite mettre à jour
+- Un brouillon d'import ou un ensemble de modifications nécessitant votre validation
 
-Les artefacts s'ouvrent dans un panneau latéral à droite de l'espace de travail. Le panneau peut être basculé en cliquant sur le bouton de l'onglet **Artefacts** au bord droit de l'écran.
+Les artefacts s'ouvrent dans un panneau latéral à droite de l'espace de travail. Le panneau peut être ouvert ou fermé en cliquant sur le bouton d'onglet **Artefacts** sur le bord droit de l'écran.
 
 Le panneau s'ouvre automatiquement lorsque :
 
-- Un long aperçu arrive pendant une réponse en streaming
-- Un aperçu en attente nécessite votre décision (ceux-ci ouvrent toujours le panneau, car vous devez agir)
+- Un long aperçu arrive pendant une réponse en cours de diffusion
+- Un aperçu en attente nécessite votre décision (ceux-ci ouvrent toujours le panneau, car vous devez agir dessus)
 
-Pour les aperçus de modifications en attente, le panneau propose deux boutons :
+Pour les aperçus de modification en attente, le panneau propose deux boutons :
 
-- **Approuver** -- confirme la modification et permet à Plaid de l'appliquer
-- **Rejeter** -- annule la modification. Plaid acquitte le rejet et continue la conversation.
+- **Approuver** — confirme la modification et permet à Plaid de l'appliquer
+- **Rejeter** — annule la modification. Plaid prend acte du rejet et poursuit la conversation.
 
-Aucune modification de données KANAP n'est appliquée silencieusement. L'aperçu est le garde-fou.
+Rien de ce qui modifie les données de KANAP n'est appliqué en silence. L'aperçu est le point de contrôle.
 
 ## Indicateurs d'utilisation
 
-Au-dessus de la zone de saisie, deux petits indicateurs vous aident à rester conscient des coûts et des limites :
+Au-dessus du composeur, deux petits indicateurs vous aident à garder à l'esprit les coûts et les limites :
 
-- **Utilisation intégrée** : lorsque votre tenant utilise le fournisseur Plaid AI intégré (au lieu de votre propre clé API), cela indique combien de messages restent dans le mois en cours et la date de réinitialisation du quota. Lorsque la limite est atteinte, la zone de saisie est désactivée et un texte d'aide invite les administrateurs à passer à un fournisseur personnalisé.
-- **Utilisation de tokens** : une barre fine avec compteurs de tokens en entrée/sortie pour la conversation en cours, plus la taille de la dernière requête. Les conversations longues deviennent plus coûteuses au fil du temps ; la barre rend ce coût visible afin que vous puissiez décider quand démarrer un nouveau fil.
+- **Utilisation intégrée** : lorsque votre tenant utilise le fournisseur d'IA Plaid intégré (au lieu de votre propre clé API), cet indicateur montre combien de messages restent pour le mois en cours ainsi que la date de réinitialisation du quota. Lorsque la limite est atteinte, le composeur est désactivé et un texte d'aide invite les administrateurs à basculer vers un fournisseur personnalisé.
+- **Utilisation des tokens** : une fine barre avec des compteurs de tokens en entrée/sortie pour la conversation en cours, ainsi que la taille de la dernière requête. Les longues conversations deviennent plus coûteuses avec le temps ; la barre rend ce coût visible afin que vous puissiez décider quand démarrer un nouveau fil.
 
-La barre d'utilisation des tokens n'apparaît qu'une fois que la conversation a au moins un échange.
+La barre d'utilisation des tokens n'apparaît qu'une fois que la conversation compte au moins un échange.
 
 ## Conseils
 
-- **Utilisez les préfixes pour la précision** : `@T-`, `@DOC-`, `@PRJ-`, `@REQ-` correspondent directement aux références natives KANAP. Ce sont les moyens les plus rapides de pointer Plaid vers un enregistrement spécifique et ils survivent au copier-coller car ils sont identiques à ce que vous voyez ailleurs dans l'application.
-- **Démarrez une nouvelle conversation par sujet** : garder des questions sans rapport dans des conversations distinctes réduit la fenêtre de contexte, accélère les réponses et diminue la facture en tokens. La liste des conversations est regroupée par date pour que vous puissiez les retrouver facilement.
-- **Approuvez et rejetez délibérément** : les aperçus sont la seule chose qui se trouve entre Plaid et vos données en production. Prenez la seconde supplémentaire pour lire le diff avant de cliquer sur **Approuver**.
-- **Arrêtez plutôt que d'attendre** : si Plaid prend la mauvaise direction en plein streaming, appuyez sur le bouton **Stop** plutôt que d'attendre la fin. Vous économiserez des tokens et votre message de suivi pourra corriger le tir.
-- **Déposez les images directement** : faire glisser une capture d'écran sur la zone de saisie est plus rapide que le sélecteur de fichiers, et coller depuis le presse-papiers fonctionne aussi. Utilisez-le pour décrire un problème d'interface ou demander à Plaid de lire un graphique.
+- **Utilisez les préfixes pour plus de précision** : `@T-`, `@DOC-`, `@PRJ-`, `@REQ-` correspondent directement aux références natives de KANAP. C'est le moyen le plus rapide de diriger Plaid vers un enregistrement précis et ils résistent au copier-coller car ils sont identiques à ce que vous voyez ailleurs dans l'application.
+- **Démarrez une nouvelle conversation par sujet** : garder des questions sans rapport dans des conversations distinctes réduit la fenêtre de contexte, accélère les réponses et allège la facture de tokens. La liste des conversations est regroupée par date, ce qui vous permet de les retrouver facilement.
+- **Approuvez et rejetez en connaissance de cause** : les aperçus sont la seule barrière entre Plaid et vos données en production. Prenez la seconde nécessaire pour lire la comparaison avant de cliquer sur **Approuver**.
+- **Arrêtez plutôt que d'attendre** : si Plaid s'engage sur une mauvaise voie en cours de diffusion, cliquez sur le bouton **Arrêter** plutôt que d'attendre la fin. Vous économiserez des tokens et votre message suivant pourra corriger le tir.
+- **Déposez les images directement** : glisser une capture d'écran sur le composeur est plus rapide que le sélecteur de fichiers, et le collage depuis le presse-papiers fonctionne également. Utilisez cette méthode pour décrire un problème d'interface ou demander à Plaid de lire un graphique.
