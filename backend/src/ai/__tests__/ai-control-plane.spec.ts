@@ -12531,6 +12531,195 @@ async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {
   }
 }
 
+// A planner-authored ADMINISTRATIVE reply skips synthesis by design. The internal note must then
+// carry the planner's rationale as the technician brief — not the "AI reply synthesis was
+// unavailable or skipped" boilerplate, which falsely reads as a failure and tells the technician
+// to write a requester answer that already exists (observed on lohr tickets #63/#64).
+async function testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const previousWebReady = Features.AI_WEB_SEARCH_READY;
+  (Features as any).AI_WEB_SEARCH_READY = true;
+  const queue = new AiAgentWorkQueueService();
+  const definitionBundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  definitionBundle.definition.scope_policy_json = {
+    ...(definitionBundle.definition.scope_policy_json ?? {}),
+    knowledge_sources: {
+      knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+      web: { enabled: true },
+      precedence: 'knowledge_first',
+    },
+  };
+  await manager.getRepository(AiAgentDefinition).save(definitionBundle.definition);
+  const liveTarget = glpiReadSafeTarget();
+  let publicReplyBody = '';
+  let internalNoteBody = '';
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      toolIndex += 1;
+      const toolExecutionId = `admin-reply-tool-${toolIndex}`;
+      switch (request.capabilityName) {
+        case 'ticketing.ticket.get':
+          return {
+            run_id: 'run-admin-reply',
+            step_id: 'step-ticket',
+            tool_execution_id: toolExecutionId,
+            output: {
+              ok: true,
+              data: {
+                id: '64',
+                title: 'Mon app ne se lance pas',
+                status: 'processing_assigned',
+                priority: 'medium',
+                description: 'Je clique ici et il ne se passe rien. Je dois faire quoi ?',
+              },
+              evidence: [],
+            },
+          };
+        case TICKETING_TICKET_NOTES_LIST_CAPABILITY:
+          return { run_id: 'run-admin-reply', step_id: 'step-notes', tool_execution_id: toolExecutionId, output: { ok: true, data: { notes: [] }, evidence: [] } };
+        case TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY:
+          return { run_id: 'run-admin-reply', step_id: 'step-classification', tool_execution_id: toolExecutionId, output: { ok: true, data: { type: 'Incident', priority: 'Medium', urgency: 'Medium' }, evidence: [] } };
+        case TICKETING_LIFECYCLE_CONTEXT_CAPABILITY:
+          return { run_id: 'run-admin-reply', step_id: 'step-lifecycle', tool_execution_id: toolExecutionId, output: { ok: true, data: { allowedTransitions: [] }, evidence: [] } };
+        case TICKETING_ROUTING_CONTEXT_CAPABILITY:
+          return { run_id: 'run-admin-reply', step_id: 'step-routing', tool_execution_id: toolExecutionId, output: { ok: true, data: {}, evidence: [] } };
+        case TICKETING_PARTICIPANT_CONTEXT_CAPABILITY:
+          return { run_id: 'run-admin-reply', step_id: 'step-participants', tool_execution_id: toolExecutionId, output: { ok: true, data: {}, evidence: [] } };
+        case 'search_knowledge':
+          return {
+            run_id: 'run-admin-reply',
+            step_id: 'step-search',
+            tool_execution_id: toolExecutionId,
+            output: {
+              items: [{
+                id: 'doc-64',
+                ref: 'DOC-64',
+                title: 'AI plan',
+                summary: 'Planning notes.',
+                snippet: 'Planning notes.',
+                status: 'draft',
+                updated_at: '2026-06-01T08:00:00.000Z',
+              }],
+              total: 1,
+              returned: 1,
+              truncated: false,
+              complete: false,
+            },
+          };
+        case 'get_document':
+          return {
+            run_id: 'run-admin-reply',
+            step_id: 'step-document',
+            tool_execution_id: toolExecutionId,
+            output: { id: 'doc-64', ref: 'DOC-64', title: 'AI plan', summary: 'Planning notes.', status: 'draft', content_markdown: 'Planning notes.', updated_at: '2026-06-01T08:00:00.000Z' },
+          };
+        case 'web_search':
+          return {
+            run_id: 'run-admin-reply',
+            step_id: 'step-web',
+            tool_execution_id: toolExecutionId,
+            output: { items: [{ title: 'Rien ne se passe au clic', url: 'https://example.test/clic', description: 'Diagnostic clics.' }], total: null, returned: 1, truncated: false, complete: false },
+          };
+        case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
+          internalNoteBody = request.input.note_body;
+          await savePreparedTicketingAction(context, {
+            id: 'admin-reply-internal-action',
+            runId: 'run-admin-reply',
+            toolExecutionId,
+            capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+            body: request.input.note_body,
+            visibility: 'internal',
+            providerKey: 'glpi',
+          });
+          return { run_id: 'run-admin-reply', step_id: 'step-internal', tool_execution_id: toolExecutionId, output: { ok: true, data: { action_request_id: 'admin-reply-internal-action' }, evidence: [] } };
+        case TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY:
+          publicReplyBody = request.input.reply_body;
+          await savePreparedTicketingAction(context, {
+            id: 'admin-reply-public-action',
+            runId: 'run-admin-reply',
+            toolExecutionId,
+            capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+            body: request.input.reply_body,
+            visibility: 'public',
+            providerKey: 'glpi',
+          });
+          return { run_id: 'run-admin-reply', step_id: 'step-public', tool_execution_id: toolExecutionId, output: { ok: true, data: { action_request_id: 'admin-reply-public-action' }, evidence: [] } };
+        default:
+          throw new Error(`Unexpected capability ${request.capabilityName}`);
+      }
+    },
+  };
+  const synthesis = {
+    buildPromptPayload: () => ({ prompt: 'unused' }),
+    maxOutputTokens: () => 1200,
+    synthesizeTicketReply: async () => {
+      throw new Error('Synthesis must not run for a planner-authored administrative reply.');
+    },
+  };
+  const actionPlanner = {
+    maxOutputTokens: () => 1600,
+    buildPromptPayload: (plannerInput: any) => plannerInput,
+    planActions: async () => ({
+      source: 'llm',
+      actions: [
+        {
+          action_type: 'internal_note',
+          reason: 'Documenter la demande pour le technicien.',
+        },
+        {
+          action_type: 'requester_reply',
+          reply_kind: 'administrative',
+          reason: 'Accuser réception; aucune source fiable ne couvre le problème de lancement.',
+          body: 'Bonjour, votre demande concernant l\'application a bien été reçue. Nous analysons le problème et revenons vers vous rapidement.',
+        },
+      ],
+      rationale: 'Réponse administrative en attendant un diagnostic technicien.',
+      confidence: 0.8,
+      model: 'test:planner',
+      usage: { input_tokens: 12, output_tokens: 8 },
+      estimated_tokens: 20,
+      estimated_cost_eur: 0.00004,
+      latency_ms: 1,
+    }),
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {
+      requireSingleEnabledTarget: async () => liveTarget,
+    } as any,
+    {
+      getApplicability: async () => ({ available: true }),
+    } as any,
+    queue,
+    undefined,
+    synthesis as any,
+    undefined,
+    undefined,
+    actionPlanner as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  try {
+    const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+
+    assert.match(publicReplyBody, /votre demande concernant l'application a bien été reçue/);
+    // The brief carries the planner's own reasoning, never the synthesis-failure boilerplate.
+    assert.doesNotMatch(internalNoteBody, /AI reply synthesis was unavailable or skipped/);
+    assert.doesNotMatch(internalNoteBody, /Possible sources found \(fallback mode/);
+    assert.match(internalNoteBody, /Technician brief:/);
+    assert.match(internalNoteBody, /Réponse administrative en attendant un diagnostic technicien\./);
+    assert.match(internalNoteBody, /Candidate sources reviewed \(not used by the administrative reply/);
+    assert.equal((result.diagnostic.synthesis as any).synthesis_usable, false);
+    assert.equal((result.diagnostic.synthesis as any).synthesis_fallback_reason, 'synthesis_not_attempted');
+  } finally {
+    (Features as any).AI_WEB_SEARCH_READY = previousWebReady;
+  }
+}
+
 // Fix B (regression #33): the synthesis prompt must genuinely prefer relevant internal KANAP
 // knowledge over web sources (not only on conflict), and must not equate a low search rank with
 // off-topic — a relevant internal doc (e.g. a recipe) can have ts_rank 0.
@@ -13790,6 +13979,7 @@ async function run() {
   await testGlpiTriageFallbackFailsClosedWhenSynthesisFails();
   await testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis();
   await testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb();
+  await testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale();
   testSynthesisPromptPrefersInternalKnowledgeSources();
   testSynthesisPromptCarriesValidationStatus();
   testSynthesisPayloadIncludesScreenshotEvidence();

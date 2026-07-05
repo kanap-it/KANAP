@@ -2063,15 +2063,19 @@ function buildTriageNote(
   knowledgeItems: KnowledgeSearchItem[],
   timeline: TicketTimelineEntry[],
   webResults: WebSearchResultItem[] = [],
-  // When the planner deliberately escalates internally (no requester reply prepared), the note
-  // states the agent's escalation rationale instead of the "synthesis unavailable, complete
-  // manually" boilerplate — that boilerplate is only honest when synthesis was actually expected
-  // and failed. An escalation also does not present the (insufficient) candidate sources as "found".
-  escalation: { reason: string | null } | null = null,
+  // When the planner deliberately handled the ticket itself — an internal escalation (no
+  // requester reply prepared) or a planner-authored administrative reply — the note states the
+  // agent's rationale. The "synthesis unavailable, complete manually" boilerplate is only honest
+  // when a knowledge-sourced answer was actually expected and failed. An escalation does not
+  // present the (insufficient) candidate sources as "found"; an administrative reply keeps them
+  // as context but labels them as unused.
+  plannerOutcome: { kind: 'escalation' | 'administrative_reply'; reason: string | null } | null = null,
 ): string {
-  const technicianBrief = escalation
-    ? (escalation.reason?.trim()
-      || 'The agent escalated this ticket internally; no requester reply was prepared.')
+  const technicianBrief = plannerOutcome
+    ? (plannerOutcome.reason?.trim()
+      || (plannerOutcome.kind === 'administrative_reply'
+        ? 'The agent answered with an administrative reply (see the proposed requester reply on this ticket); no knowledge-sourced answer was required.'
+        : 'The agent escalated this ticket internally; no requester reply was prepared.'))
     : 'AI reply synthesis was unavailable or skipped. Review the possible sources above and complete the requester answer manually before approving.';
   return renderProviderBody([
     '[KANAP triage proposal]',
@@ -2082,10 +2086,12 @@ function buildTriageNote(
     'Ticket history considered:',
     ...timelineSummaryLines(timeline),
     '',
-    ...(escalation
+    ...(plannerOutcome?.kind === 'escalation'
       ? []
       : [
-        'Possible sources found (fallback mode; no article body copied):',
+        plannerOutcome?.kind === 'administrative_reply'
+          ? 'Candidate sources reviewed (not used by the administrative reply; no article body copied):'
+          : 'Possible sources found (fallback mode; no article body copied):',
         ...fallbackSourceLines(knowledgeItems, webResults, 8),
         '',
       ]),
@@ -7028,28 +7034,44 @@ export class AiAgentControlService {
         });
       }
     }
-    // Internal-note body: a usable synthesis renders the full triage note; otherwise, if the planner
-    // deliberately escalated internally (no requester reply prepared), the note carries the agent's
-    // escalation rationale instead of the "synthesis unavailable, complete manually" boilerplate
-    // (which is only honest in genuine fallback mode). Snake_case gate tokens are filtered out.
+    // Internal-note body: a usable synthesis renders the full triage note; otherwise, if the
+    // planner deliberately handled the ticket itself — an internal escalation (no requester reply
+    // prepared) or a planner-authored administrative reply (synthesis skipped by design) — the note
+    // carries the agent's rationale instead of the "synthesis unavailable, complete manually"
+    // boilerplate (which is only honest when a sourced answer was expected and failed).
+    // Snake_case gate tokens are filtered out.
     const effectiveInternalNoteAction = effectivePlannerActions.find((entry) => entry.action.action_type === 'internal_note') ?? null;
     const hasEffectiveRequesterReply = effectivePlannerActions.some((entry) => entry.action.action_type === 'requester_reply');
+    const effectiveAdministrativeReplyAction = effectivePlannerActions.find((entry) =>
+      entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'administrative') ?? null;
     // An internal escalation = the planner ran, prepared an internal note, and NO requester reply
     // is being prepared (either never selected, #35, or downgraded after unusable synthesis, #37).
     const isPlannerEscalation = !!actionPlannerResult && !!effectiveInternalNoteAction && !hasEffectiveRequesterReply;
+    const isPlannerAdministrativeReply = !!actionPlannerResult && !!effectiveInternalNoteAction && !!effectiveAdministrativeReplyAction;
     const isProseReason = (value: string): boolean => value.length > 0 && !/^[a-z0-9_]+$/.test(value);
-    const escalationReason = isPlannerEscalation
-      ? ([actionPlannerResult.rationale, effectiveInternalNoteAction.action.reason]
+    const plannerReasonProse = (reasons: Array<string | null | undefined>): string | null =>
+      reasons
         .map((reason) => (reason ?? '').trim())
         .filter(isProseReason)
         .filter((reason, index, all) => all.indexOf(reason) === index)
-        .join(' — ') || null)
+        .join(' — ') || null;
+    const escalationReason = isPlannerEscalation
+      ? plannerReasonProse([actionPlannerResult.rationale, effectiveInternalNoteAction.action.reason])
+      : null;
+    const administrativeReason = isPlannerAdministrativeReply
+      ? plannerReasonProse([
+        actionPlannerResult.rationale,
+        effectiveAdministrativeReplyAction.action.reason,
+        effectiveInternalNoteAction.action.reason,
+      ])
       : null;
     const noteBody = isPlannerEscalation
-      ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { reason: escalationReason })
+      ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { kind: 'escalation', reason: escalationReason })
       : (replySynthesisResult
         ? renderSynthesizedTriageNote(ticket, ticketTimeline, replySynthesisResult)
-        : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, null));
+        : (isPlannerAdministrativeReply
+          ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { kind: 'administrative_reply', reason: administrativeReason })
+          : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, null)));
 
     const effectivePlannerActionSummaries = effectivePlannerActions.map((entry) => ({
       action_type: entry.action.action_type,
