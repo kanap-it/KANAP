@@ -72,12 +72,15 @@ export class AiAdminOverviewService {
       [tenantId],
     );
 
+    // message_count deliberately counts only user-sent messages — the unit the free
+    // volume charges — not every persisted row (assistant replies and tool results
+    // would triple the number and make it impossible to relate to the quota).
     const currentMonthRows = await manager.query(
       `
       SELECT
         COALESCE(SUM(COALESCE((usage_json->>'input_tokens')::bigint, 0)), 0)::bigint AS input_tokens,
         COALESCE(SUM(COALESCE((usage_json->>'output_tokens')::bigint, 0)), 0)::bigint AS output_tokens,
-        COUNT(*)::bigint AS message_count
+        COUNT(*) FILTER (WHERE role = 'user')::bigint AS message_count
       FROM ai_messages
       WHERE tenant_id = $1
         AND created_at >= date_trunc('month', now())
@@ -90,7 +93,7 @@ export class AiAdminOverviewService {
       SELECT
         COALESCE(SUM(COALESCE((usage_json->>'input_tokens')::bigint, 0)), 0)::bigint AS input_tokens,
         COALESCE(SUM(COALESCE((usage_json->>'output_tokens')::bigint, 0)), 0)::bigint AS output_tokens,
-        COUNT(*)::bigint AS message_count
+        COUNT(*) FILTER (WHERE role = 'user')::bigint AS message_count
       FROM ai_messages
       WHERE tenant_id = $1
         AND created_at >= now() - interval '30 days'

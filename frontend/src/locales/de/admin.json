@@ -85,12 +85,12 @@
     "overview": {
       "columns": {
         "inputTokens": "Eingabe-Tokens",
-        "messages": "Nachrichten",
+        "messages": "Benutzernachrichten",
         "outputTokens": "Ausgabe-Tokens",
         "totalTokens": "Tokens gesamt",
         "window": "Zeitfenster"
       },
-      "description": "Nur Chat-Nutzung. Token-Summen werden aus `ai_messages.usage_json` aggregiert.",
+      "description": "Unterhaltungen, Token-Verbrauch und KI-Nachrichten dieser Organisation. Eine Nachricht ist eine Frage an Plaid oder ein von einem Agenten geprüftes Ticket — die Einheit, die das enthaltene Monatsvolumen zählt.",
       "metrics": {
         "activeConversations30d": "Aktive Gespräche (30T)",
         "activeConversations7d": "Aktive Gespräche (7T)",

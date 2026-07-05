@@ -85,12 +85,12 @@
     "overview": {
       "columns": {
         "inputTokens": "Tokens de entrada",
-        "messages": "Mensajes",
+        "messages": "Mensajes de usuario",
         "outputTokens": "Tokens de salida",
         "totalTokens": "Tokens totales",
         "window": "Ventana"
       },
-      "description": "Solo uso de chat. Los totales de tokens se agregan desde `ai_messages.usage_json`.",
+      "description": "Conversaciones, consumo de tokens y mensajes de IA de esta organización. Un mensaje es una pregunta enviada a Plaid o un ticket revisado por un agente: la unidad que cuenta el volumen mensual incluido.",
       "metrics": {
         "activeConversations30d": "Conversaciones activas (30d)",
         "activeConversations7d": "Conversaciones activas (7d)",

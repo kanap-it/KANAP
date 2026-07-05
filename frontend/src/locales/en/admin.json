@@ -85,12 +85,12 @@
     "overview": {
       "columns": {
         "inputTokens": "Input tokens",
-        "messages": "Messages",
+        "messages": "User messages",
         "outputTokens": "Output tokens",
         "totalTokens": "Total tokens",
         "window": "Window"
       },
-      "description": "Chat usage only. Token totals are aggregated from persisted `ai_messages.usage_json`.",
+      "description": "Conversations, token usage and AI messages for this organization. A message is one question sent to Plaid or one ticket reviewed by an agent — the unit the included monthly volume counts.",
       "metrics": {
         "activeConversations30d": "Active conversations (30d)",
         "activeConversations7d": "Active conversations (7d)",
