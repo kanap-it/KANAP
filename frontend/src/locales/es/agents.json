@@ -302,6 +302,7 @@
     "tokensToday": "Tokens hoy",
     "costToday": "Coste hoy",
     "testTicket": "Probar en un ticket",
+    "ticketNumberPlaceholder": "Número de ticket (p. ej. 64)",
     "runTest": "Ejecutar prueba",
     "recentActivity": "Actividad reciente"
   },

@@ -555,6 +555,15 @@ function trimmedString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
+// Operator input for a manual agent run on a ticket: '64', '#64' and 'ticket:64' are all
+// accepted. Wildcards are rejected up front (the work-item table forbids them by constraint).
+function manualTicketRef(value: unknown): string | null {
+  const raw = trimmedString(value) ?? '';
+  const stripped = raw.replace(/^ticket:/i, '').replace(/^#/, '').trim();
+  if (!stripped || stripped.includes('*')) return null;
+  return stripped;
+}
+
 function approvalDecisionReason(value: unknown, fallback: string): string {
   const trimmed = trimmedString(value);
   if (!trimmed) return fallback;
@@ -5729,6 +5738,7 @@ export class AiAgentControlService {
     const workItemId = trimmedString(input.work_item_id);
     let target: AiLiveTestTarget | AgentQueueLiveTargetLike;
     let agentDefinition: AiAgentDefinition | null = null;
+    let requestedDefinition: AiAgentDefinition | null = null;
     let leasedWorkItem: AiAgentWorkItem | null = null;
     let workItemCreated = false;
     let agentMetadata: Record<string, unknown> = {};
@@ -5789,18 +5799,7 @@ export class AiAgentControlService {
       if (!providerKey) {
         throw new BadRequestException('provider_key is required for manual ticketing triage.');
       }
-      target = await this.liveTargets.requireSingleEnabledTarget(context, {
-        providerKind: 'ticketing',
-        providerKey,
-        allowedEffect: 'read',
-        targetKind: 'ticket',
-        targetKey: trimmedString(input.target_key),
-      });
-    }
-
-    if (!workItemId && this.agentQueue) {
       const requestedDefinitionId = trimmedString(input.agent_definition_id);
-      let requestedDefinition: AiAgentDefinition | null = null;
       if (requestedDefinitionId) {
         requestedDefinition = await context.manager.getRepository(AiAgentDefinition).findOne({
           where: { id: requestedDefinitionId, tenant_id: context.tenantId },
@@ -5809,14 +5808,48 @@ export class AiAgentControlService {
           throw new NotFoundException('Agent definition not found.');
         }
       }
+      if (requestedDefinition) {
+        // Agent-scoped manual run: the operator names the agent and a ticket number, and the
+        // target is built from the agent's own provider binding. The UAT live-test-target
+        // registry (a hand-curated allowlist of a few tickets) is deliberately bypassed — the
+        // scheduled poll already reaches any ticket the targeting matches, so a manual
+        // read-and-propose run on an operator-chosen ticket is no broader.
+        const binding = requireTicketingBinding(requestedDefinition, 'Manual ticket triage requires a ticketing provider binding.');
+        if (binding.providerKind !== 'ticketing' || binding.providerKey !== providerKey) {
+          throw new BadRequestException('Manual ticket triage provider does not match the agent ticketing binding.');
+        }
+        const ticketRef = manualTicketRef(input.target_key);
+        if (!ticketRef) {
+          throw new BadRequestException('A ticket number is required to run an agent on a ticket.');
+        }
+        target = {
+          id: `manual-agent-test:${requestedDefinition.id}:${ticketRef}`,
+          provider_kind: binding.providerKind,
+          provider_key: binding.providerKey,
+          environment: requestedDefinition.environment,
+          target_kind: 'ticket',
+          target_key: `ticket:${ticketRef}`,
+          external_ref: ticketRef,
+          allowed_effect: 'read',
+          safety_label: 'manual_agent_test',
+          enabled: true,
+        };
+      } else {
+        target = await this.liveTargets.requireSingleEnabledTarget(context, {
+          providerKind: 'ticketing',
+          providerKey,
+          allowedEffect: 'read',
+          targetKind: 'ticket',
+          targetKey: trimmedString(input.target_key),
+        });
+      }
+    }
+
+    if (!workItemId && this.agentQueue) {
       if (requestedDefinition && requestedDefinition.agent_key !== HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
         // Manual test of a specific (custom) agent: enqueue against that agent's own
         // binding so the run exercises its configuration, not the built-in's. If an
         // active work item already exists for this ticket, it is reused and re-run.
-        const binding = requireTicketingBinding(requestedDefinition, 'Manual ticket triage requires a ticketing provider binding.');
-        if (binding.providerKind !== target.provider_kind || binding.providerKey !== target.provider_key) {
-          throw new BadRequestException('Manual ticket triage target provider does not match the agent ticketing binding.');
-        }
         const enqueued = await this.agentQueue.enqueueTicketingScopedTicket(context, {
           definition: requestedDefinition,
           ticket: { id: String(target.external_ref) },

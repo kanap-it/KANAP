@@ -12551,9 +12551,9 @@ async function testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale() {
     },
   };
   await manager.getRepository(AiAgentDefinition).save(definitionBundle.definition);
-  const liveTarget = glpiReadSafeTarget();
   let publicReplyBody = '';
   let internalNoteBody = '';
+  let requestedTicketId: string | null = null;
   let toolIndex = 0;
   const dispatcher = {
     execute: async (_context: unknown, request: any) => {
@@ -12561,6 +12561,7 @@ async function testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale() {
       const toolExecutionId = `admin-reply-tool-${toolIndex}`;
       switch (request.capabilityName) {
         case 'ticketing.ticket.get':
+          requestedTicketId = String(request.input?.ticket_id ?? '');
           return {
             run_id: 'run-admin-reply',
             step_id: 'step-ticket',
@@ -12689,7 +12690,11 @@ async function testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale() {
     {} as any,
     dispatcher as any,
     {
-      requireSingleEnabledTarget: async () => liveTarget,
+      // The manual agent run names its ticket directly from the agent binding — the UAT
+      // live-test-target registry must never be consulted on this path.
+      requireSingleEnabledTarget: async () => {
+        throw new Error('The live-test-target registry must not gate agent-scoped manual runs.');
+      },
     } as any,
     {
       getApplicability: async () => ({ available: true }),
@@ -12704,8 +12709,13 @@ async function testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale() {
   service.getRunDetail = async () => ({ action_requests: [] });
 
   try {
-    const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+    const result = await service.runTicketingTriage(context, {
+      provider_key: 'glpi',
+      target_key: '#64',
+      agent_definition_id: definitionBundle.definition.id,
+    });
 
+    assert.equal(requestedTicketId, '64');
     assert.match(publicReplyBody, /votre demande concernant l'application a bien été reçue/);
     // The brief carries the planner's own reasoning, never the synthesis-failure boilerplate.
     assert.doesNotMatch(internalNoteBody, /AI reply synthesis was unavailable or skipped/);

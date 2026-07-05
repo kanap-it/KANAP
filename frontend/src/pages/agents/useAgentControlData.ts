@@ -186,13 +186,6 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     queryKey: ['ai-agent-helpdesk-settings'],
     queryFn: () => aiAgentControlApi.getHelpdeskIngestionSettings(),
   });
-  const targetsQuery = useQuery({
-    queryKey: ['ai-agent-control-ticketing-read-targets', ticketingProviderKey],
-    queryFn: () => aiAgentControlApi.listTicketingReadTargets(ticketingProviderKey ?? ''),
-    enabled: !!ticketingProviderKey,
-    refetchInterval: 60_000,
-  });
-
   const invalidate = React.useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY }),
@@ -522,7 +515,6 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     setMessage,
     setAutonomyMutation,
     settingsQuery,
-    targetsQuery,
     ticketingProviderKey,
     updateAgentMutation,
     updateAgentStatusMutation,

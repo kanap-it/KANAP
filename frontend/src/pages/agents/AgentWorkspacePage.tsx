@@ -388,11 +388,6 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const agentGroups = grouped.groups;
   const pendingApprovalCount = agentGroups.reduce((sum, group) => sum + group.pendingActions.filter((action) => action.status === 'pending').length, 0);
 
-  React.useEffect(() => {
-    const first = data.targetsQuery.data?.items?.[0]?.target_key ?? '';
-    if (!targetKey && first) setTargetKey(first);
-  }, [data.targetsQuery.data, targetKey]);
-
   const triageMutation = useMutation({
     mutationFn: () => {
       if (!data.ticketingProviderKey) {
@@ -400,7 +395,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
       }
       return aiAgentControlApi.runTicketingTriage({
         provider_key: data.ticketingProviderKey,
-        target_key: targetKey,
+        target_key: targetKey.trim(),
         agent_definition_id: definition?.id,
       });
     },
@@ -477,12 +472,18 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
 
       <Section title={t('monitor.testTicket')}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
-          <Select variant="standard" value={targetKey} onChange={(event) => setTargetKey(event.target.value)} sx={[drawerSelectSx, { minWidth: 260 }]}>
-            {(data.targetsQuery.data?.items ?? []).map((target) => (
-              <MenuItem key={target.target_key} value={target.target_key} sx={drawerMenuItemSx}>{target.safety_label} / {target.external_ref}</MenuItem>
-            ))}
-          </Select>
-          <Button size="small" variant="contained" startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey || triageMutation.isPending || !definition} onClick={() => triageMutation.mutate()}>
+          <TextField
+            variant="standard"
+            size="small"
+            value={targetKey}
+            onChange={(event) => setTargetKey(event.target.value)}
+            placeholder={t('monitor.ticketNumberPlaceholder')}
+            sx={{ minWidth: 220 }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && targetKey.trim() && !triageMutation.isPending) triageMutation.mutate();
+            }}
+          />
+          <Button size="small" variant="contained" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }} startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey.trim() || triageMutation.isPending || !definition} onClick={() => triageMutation.mutate()}>
             {t('monitor.runTest')}
           </Button>
         </Stack>
