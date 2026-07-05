@@ -104,7 +104,10 @@ export type ActionPlannerPromptInput = {
   profile?: CompiledGuidance | null;
 };
 
-const DEFAULT_LLM_TIMEOUT_MS = 45_000;
+// Reasoning models regularly need 45s+ on large planner prompts; a too-tight cap
+// aborts the stream mid-JSON and degrades the run to deterministic fallback actions.
+// Override per deployment via AI_AGENT_ACTION_PLANNER_TIMEOUT_MS.
+const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 // Raised well above the old 1600 so verbose / reasoning models do not truncate the
 // JSON (finish_reason=length). Override per deployment via AI_AGENT_ACTION_PLANNER_MAX_TOKENS.
 const MAX_ACTION_PLANNER_OUTPUT_TOKENS = 6000;

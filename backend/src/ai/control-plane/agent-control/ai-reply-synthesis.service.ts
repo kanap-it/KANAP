@@ -71,7 +71,11 @@ export type ReplySynthesisResult = {
   fallback_reason: string | null;
 };
 
-const DEFAULT_LLM_TIMEOUT_MS = 45_000;
+// Reasoning models (e.g. MiniMax M2) regularly spend 45s+ thinking before emitting the
+// JSON on 10-15k-token synthesis prompts; the old 45s cap aborted roughly half of all
+// first attempts. This is a background stage, not interactive chat — allow the tail.
+// Override per deployment via AI_AGENT_REPLY_SYNTHESIS_TIMEOUT_MS.
+const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 const MAX_SYNTHESIS_REQUESTER_REPLY_CHARS = 10500;
 const MAX_SOURCE_CONTENT_CHARS = 3800;
 // Raised well above the old 1800 so verbose / reasoning models do not truncate the
@@ -314,7 +318,11 @@ export class AiReplySynthesisService {
       throw new Error('No LLM runtime is configured for reply synthesis.');
     }
     if (!response.ok) {
-      const message = response.metadata.failure?.message ?? 'invalid structured JSON';
+      const failure = response.metadata.failure;
+      const message = failure?.message ?? 'invalid structured JSON';
+      if (failure?.kind === 'timeout') {
+        throw new Error(`Reply synthesis timed out: ${message}`);
+      }
       throw new Error(`Reply synthesis returned invalid JSON: ${message}`);
     }
     const parsed = response.value;

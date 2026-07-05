@@ -5791,6 +5791,7 @@ function createStructuredJsonTestClient(responses: Array<{
   usage?: { input_tokens: number; output_tokens: number } | null;
   latencyMs?: number;
   finishReason?: string | null;
+  timedOut?: boolean;
 }>) {
   const client = Object.create(AiAgentLlmClient.prototype) as AiAgentLlmClient;
   const calls: any[] = [];
@@ -5812,6 +5813,8 @@ function createStructuredJsonTestClient(responses: Array<{
       usage: response.usage ?? null,
       latencyMs: response.latencyMs ?? 1,
       finishReason: response.finishReason ?? null,
+      timedOut: response.timedOut ?? false,
+      timeoutMs: 1000,
     };
   };
   return { client, calls };
@@ -5925,6 +5928,42 @@ async function testStructuredJsonHelperLabelsTruncationAndHonoursMaxTokensEnv() 
       if (previous === undefined) delete process.env[envName];
       else process.env[envName] = previous;
     }
+  }
+}
+
+async function testStructuredJsonHelperClassifiesTimeoutsHonestly() {
+  const context = createContext(createMemoryManager().manager);
+
+  // A timed-out call streamed no (or partial) text before the abort. It must be
+  // reported as kind 'timeout' with an actionable message — never mislabelled as an
+  // empty/malformed model response — and the retry must NOT carry a format-repair
+  // instruction (the model made no format mistake).
+  {
+    const { client, calls } = createStructuredJsonTestClient([
+      { text: '', timedOut: true },
+      { text: '{"ok":true,"value":"slow', timedOut: true },
+    ]);
+    const result = await callStructuredJsonTestHelper(client, context);
+    assert.equal(result?.ok, false);
+    assert.equal(result?.metadata.failure?.kind, 'timeout');
+    assert.equal(result?.metadata.failure?.message.includes('timed out after 1000ms'), true);
+    assert.equal(result?.metadata.failure?.message.includes('AI_AGENT_UNIT_TEST_TIMEOUT_MS'), true);
+    assert.equal(result?.metadata.attempts[0].failure?.kind, 'timeout');
+    assert.equal(result?.metadata.attempts[1].failure?.kind, 'timeout');
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[1].userPayload, 'repair_instruction'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[1].userPayload, 'previous_format_error'), false);
+  }
+
+  // A first-attempt timeout still recovers when the retry completes in time.
+  {
+    const { client } = createStructuredJsonTestClient([
+      { text: '', timedOut: true },
+      { text: '{"ok":true,"value":"recovered-after-timeout"}', finishReason: 'stop' },
+    ]);
+    const result = await callStructuredJsonTestHelper(client, context);
+    assert.equal(result?.ok, true);
+    assert.equal(result?.metadata.attempts[0].failure?.kind, 'timeout');
+    assert.deepEqual(result?.ok ? result.value : null, { ok: true, value: 'recovered-after-timeout' });
   }
 }
 
@@ -13690,6 +13729,7 @@ async function run() {
   testActionPlannerPromptCompilerIncludesVerbatimCandidates();
   await testStructuredJsonHelperRetriesEmptyInvalidAndSchemaInvalid();
   await testStructuredJsonHelperLabelsTruncationAndHonoursMaxTokensEnv();
+  await testStructuredJsonHelperClassifiesTimeoutsHonestly();
   await testStructuredJsonHelperDoesNotRetryValidJson();
   await testStructuredJsonDoubleInvalidFallsBackThroughKnowledgePlanner();
   await testKnowledgeInterpreterPayloadIsScoreRanked();
