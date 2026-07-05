@@ -10,12 +10,13 @@ import { AiProviderRegistryService } from '../providers/provider-registry.servic
 import { TicketRecord } from '../providers/provider.types';
 import {
   AiAgentWorkQueueService,
-  HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+  HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
   HelpdeskNewTicketsIngestionConfig,
 } from './ai-agent-work-queue.service';
-import { normalizeServiceDeskTargeting, ticketMatchesServiceDeskTargeting } from './service-desk-targeting';
+import { OPEN_TICKET_STATUS_VALUES, normalizeServiceDeskTargeting, ticketMatchesServiceDeskTargeting } from './service-desk-targeting';
+import { requireTicketingBinding } from './ticketing-binding';
 
-export type HelpdeskGlpiIngestionPollSummary = {
+export type HelpdeskTicketingIngestionPollSummary = {
   tenantId: string;
   agentDefinitionId?: string | null;
   agentKey?: string | null;
@@ -26,10 +27,10 @@ export type HelpdeskGlpiIngestionPollSummary = {
   deduped: number;
   processed: number;
   errors: string[];
-  agents?: HelpdeskGlpiIngestionPollSummary[];
+  agents?: HelpdeskTicketingIngestionPollSummary[];
 };
 
-export type HelpdeskGlpiIngestionRunSummary = {
+export type HelpdeskTicketingIngestionRunSummary = {
   tenantsProcessed: number;
   tenantsSkipped: number;
   ticketsListed: number;
@@ -51,7 +52,7 @@ function parseDateMs(value: unknown): number | null {
 }
 
 function normalizedStatusSet(values: string[] | undefined): Set<string> {
-  const source = values && values.length > 0 ? values : ['1', '2', '3', '4'];
+  const source = values && values.length > 0 ? values : OPEN_TICKET_STATUS_VALUES;
   return new Set(source.map((value) => String(value).trim().toLowerCase()).filter(Boolean));
 }
 
@@ -95,10 +96,12 @@ function workItemReady(item: AiAgentWorkItem, now: Date): boolean {
 const SCHEDULED_POLL_BACKOFF_BASE_MINUTES = 5;
 const SCHEDULED_POLL_BACKOFF_MAX_MINUTES = 360;
 const DEFAULT_INGESTION_PROCESS_BUDGET_MS = 210_000;
+export const HELP_DESK_TICKETING_INGESTION_TASK_NAME = 'ai-helpdesk-glpi-new-ticket-ingestion';
+const HELP_DESK_TICKETING_INGESTION_LOCK_PREFIX = 'ai-helpdesk-glpi-ingestion';
 
-type HelpdeskGlpiDefinitionPollState = {
+type HelpdeskTicketingDefinitionPollState = {
   definition: AiAgentDefinition;
-  summary: HelpdeskGlpiIngestionPollSummary;
+  summary: HelpdeskTicketingIngestionPollSummary;
   config: HelpdeskNewTicketsIngestionConfig | null;
   finalizeCycle: boolean;
 };
@@ -157,8 +160,8 @@ function triageContextForDefinition(
 }
 
 @Injectable()
-export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
-  private readonly logger = new Logger(AiAgentHelpdeskGlpiIngestionService.name);
+export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
+  private readonly logger = new Logger(AiAgentHelpdeskTicketingIngestionService.name);
 
   constructor(
     private readonly dataSource: DataSource,
@@ -170,15 +173,15 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
 
   onModuleInit() {
     this.scheduledTasks.register({
-      name: 'ai-helpdesk-glpi-new-ticket-ingestion',
-      description: 'Polls explicitly scoped GLPI new-ticket queues for the Helpdesk shadow-mode agent',
+      name: HELP_DESK_TICKETING_INGESTION_TASK_NAME,
+      description: 'Polls explicitly scoped ticketing new-ticket queues for the Helpdesk shadow-mode agent',
       defaultCron: '*/5 * * * *',
       handler: () => this.run(),
     });
   }
 
-  async run(opts?: { manager?: EntityManager }): Promise<HelpdeskGlpiIngestionRunSummary> {
-    const summary: HelpdeskGlpiIngestionRunSummary = {
+  async run(opts?: { manager?: EntityManager }): Promise<HelpdeskTicketingIngestionRunSummary> {
+    const summary: HelpdeskTicketingIngestionRunSummary = {
       tenantsProcessed: 0,
       tenantsSkipped: 0,
       ticketsListed: 0,
@@ -212,12 +215,12 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     }
 
     this.logger.log(
-      `[ai-helpdesk-glpi-new-ticket-ingestion] Done: ${summary.tenantsProcessed} tenants, ${summary.ticketsEnqueued} enqueued, ${summary.ticketsProcessed} processed`,
+      `[${HELP_DESK_TICKETING_INGESTION_TASK_NAME}] Done: ${summary.tenantsProcessed} tenants, ${summary.ticketsEnqueued} enqueued, ${summary.ticketsProcessed} processed`,
     );
     return summary;
   }
 
-  async pollTenant(context: AiExecutionContextWithManager): Promise<HelpdeskGlpiIngestionPollSummary> {
+  async pollTenant(context: AiExecutionContextWithManager): Promise<HelpdeskTicketingIngestionPollSummary> {
     return this.pollTenantContext(context, { ensureDefinition: true });
   }
 
@@ -225,7 +228,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     manager: EntityManager,
     tenantId: string,
     opts: { ensureDefinition: boolean },
-  ): Promise<HelpdeskGlpiIngestionPollSummary> {
+  ): Promise<HelpdeskTicketingIngestionPollSummary> {
     await manager.query('SELECT set_config(\'app.current_tenant\', $1, true)', [tenantId]);
     return this.pollTenantContext({
       tenantId,
@@ -240,12 +243,12 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
   private async pollTenantContext(
     context: AiExecutionContextWithManager,
     opts: { ensureDefinition: boolean },
-  ): Promise<HelpdeskGlpiIngestionPollSummary> {
+  ): Promise<HelpdeskTicketingIngestionPollSummary> {
     const processingDeadlineMs = Date.now() + parsePositiveIntEnv(
       process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS,
       DEFAULT_INGESTION_PROCESS_BUDGET_MS,
     );
-    const summary: HelpdeskGlpiIngestionPollSummary = {
+    const summary: HelpdeskTicketingIngestionPollSummary = {
       tenantId: context.tenantId,
       status: 'completed',
       listed: 0,
@@ -263,11 +266,11 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       const lockRows = await managerQuery.call(
         context.manager,
         'SELECT pg_try_advisory_xact_lock(hashtext($1)) AS locked',
-        [`ai-helpdesk-glpi-ingestion:${context.tenantId}`],
+        [`${HELP_DESK_TICKETING_INGESTION_LOCK_PREFIX}:${context.tenantId}`],
       );
       if (!lockRows[0]?.locked) {
         summary.status = 'skipped';
-        summary.reason = 'Another Helpdesk GLPI ingestion poll is already running for this tenant.';
+        summary.reason = 'Another helpdesk ticket ingestion poll is already running for this tenant.';
         summary.errors.push(summary.reason);
         return summary;
       }
@@ -276,11 +279,11 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     const definitions = await this.loadDefinitions(context, opts.ensureDefinition);
     if (definitions.length === 0) {
       summary.status = 'disabled';
-      summary.reason = 'No Helpdesk GLPI triage agent definitions exist yet for this tenant.';
+      summary.reason = 'No helpdesk ticket triage agent definitions exist yet for this tenant.';
       return summary;
     }
 
-    const pollStates: HelpdeskGlpiDefinitionPollState[] = [];
+    const pollStates: HelpdeskTicketingDefinitionPollState[] = [];
     // Pass 1 is detection only and always runs for every definition before
     // inline triage starts. This keeps ticket discovery/enqueue latency bounded
     // even when a previous definition has slow LLM work waiting in the queue.
@@ -343,7 +346,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     const activeSummaries = agentSummaries.filter((entry) => entry.status !== 'disabled' && entry.status !== 'skipped');
     if (activeSummaries.length === 0) {
       summary.status = agentSummaries.some((entry) => entry.status === 'skipped') ? 'skipped' : 'disabled';
-      summary.reason = agentSummaries.map((entry) => entry.reason).filter(Boolean).join(' | ') || 'No Helpdesk GLPI agent has watching enabled.';
+      summary.reason = agentSummaries.map((entry) => entry.reason).filter(Boolean).join(' | ') || 'No helpdesk ticket agent has watching enabled.';
     } else if (activeSummaries.some((entry) => entry.status === 'failed')) {
       summary.status = 'failed';
       summary.reason = activeSummaries.find((entry) => entry.status === 'failed')?.reason ?? null;
@@ -361,8 +364,8 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
     opts: { ensureDefinition: boolean },
-  ): Promise<HelpdeskGlpiDefinitionPollState> {
-    const summary: HelpdeskGlpiIngestionPollSummary = {
+  ): Promise<HelpdeskTicketingDefinitionPollState> {
+    const summary: HelpdeskTicketingIngestionPollSummary = {
       tenantId: context.tenantId,
       agentDefinitionId: definition.id,
       agentKey: definition.agent_key,
@@ -375,7 +378,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     };
     let config: HelpdeskNewTicketsIngestionConfig;
     try {
-      this.queue.assertHelpdeskGlpiDefinitionRunnable(definition, null);
+      this.queue.assertHelpdeskTicketingDefinitionRunnable(definition, null);
       config = this.queue.resolveScopeIngestionConfig(definition);
     } catch (error) {
       summary.status = 'disabled';
@@ -384,9 +387,9 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     }
 
     // Scheduled polls back off after failed cycles (5 min doubling, capped at
-    // 6 h) so a down GLPI is not hammered every cron tick. Manual cockpit
-    // polls (ensureDefinition=true) bypass the cooldown on purpose: an
-    // operator retry is an explicit decision.
+    // 6 h) so a down ticketing provider is not hammered every cron tick.
+    // Manual cockpit polls (ensureDefinition=true) bypass the cooldown on
+    // purpose: an operator retry is an explicit decision.
     if (!opts.ensureDefinition) {
       const cooldownUntil = scheduledPollCooldownUntil(definition);
       if (cooldownUntil != null && Date.now() < cooldownUntil) {
@@ -404,7 +407,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
         agentDefinitionId: definition.id,
         eventType: 'poller_paused_by_emergency_pause',
         severity: 'warning',
-        message: `Helpdesk GLPI ingestion skipped because an emergency pause is active: ${pause.reason}`,
+        message: `Helpdesk ticket ingestion skipped because an emergency pause is active: ${pause.reason}`,
         metadata: { pause_id: pause.id },
       });
       await this.queue.updateHelpdeskIngestionState(context, definition, {
@@ -426,12 +429,13 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       return { definition, summary, config: null, finalizeCycle: false };
     }
 
+    const binding = requireTicketingBinding(definition);
     try {
-      const applicability = await this.providers.getApplicability(context, 'ticketing', 'glpi');
+      const applicability = await this.providers.getApplicability(context, binding.providerKind, binding.providerKey);
       if (!applicability.available) {
-        throw new ForbiddenException(`GLPI provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
+        throw new ForbiddenException(`Ticketing provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
       }
-      const provider = await this.providers.ticketing(context, 'glpi');
+      const provider = await this.providers.ticketing(context, binding.providerKey);
       const maxResults = Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle);
       let listedTickets: TicketRecord[];
       if (config.mode === 'agent_involved') {
@@ -467,7 +471,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
           throw new BadRequestException(listed.message);
         }
         if (!isRecord(listed.data) || !Array.isArray(listed.data.tickets)) {
-          throw new BadRequestException('GLPI ticket list provider response was malformed.');
+          throw new BadRequestException('Ticket list provider response was malformed.');
         }
         listedTickets = listed.data.tickets;
       }
@@ -501,9 +505,11 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
           summary.deduped += 1;
           continue;
         }
-        const result = await this.queue.enqueueHelpdeskGlpiScopedTicket(context, {
+        const result = await this.queue.enqueueTicketingScopedTicket(context, {
           definition,
           ticket,
+          providerKind: binding.providerKind,
+          providerKey: binding.providerKey,
           metadata: {
             poller_created_after: config.createdAfter,
             poller_enabled_at: config.enabledAt,
@@ -538,7 +544,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
     config: HelpdeskNewTicketsIngestionConfig,
-    summary: HelpdeskGlpiIngestionPollSummary,
+    summary: HelpdeskTicketingIngestionPollSummary,
     processingDeadlineMs: number,
   ): Promise<{ budgetReached: boolean; remainingReadyItems: number }> {
     const readyItems = await this.listReadyItems(context, definition, config);
@@ -581,7 +587,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
           workItemId: item.id,
           eventType: 'work_item_processing_failed',
           severity: 'error',
-          message: 'Helpdesk GLPI queued ticket triage failed.',
+          message: 'Helpdesk ticket queued triage failed.',
           metadata: { error: message },
         });
       }
@@ -597,15 +603,16 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     // Narrowed to the active statuses so the fetch stays bounded by the
     // live queue depth instead of every work item ever processed.
     const now = new Date();
+    const binding = requireTicketingBinding(definition);
     return (await context.manager.getRepository(AiAgentWorkItem).find({
       where: {
         tenant_id: context.tenantId,
         agent_definition_id: definition.id,
         status: In(['queued', 'failed']),
-        source_provider_kind: 'ticketing',
-        source_provider_key: 'glpi',
+        source_provider_kind: binding.providerKind,
+        source_provider_key: binding.providerKey,
         source_object_type: 'ticket',
-        work_kind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+        work_kind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
       },
     }))
       .filter((item) => workItemReady(item, now))
@@ -615,9 +622,9 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
 
   private async countReadyItemsForStates(
     context: AiExecutionContextWithManager,
-    states: HelpdeskGlpiDefinitionPollState[],
-  ): Promise<Array<{ state: HelpdeskGlpiDefinitionPollState; count: number }>> {
-    const counts: Array<{ state: HelpdeskGlpiDefinitionPollState; count: number }> = [];
+    states: HelpdeskTicketingDefinitionPollState[],
+  ): Promise<Array<{ state: HelpdeskTicketingDefinitionPollState; count: number }>> {
+    const counts: Array<{ state: HelpdeskTicketingDefinitionPollState; count: number }> = [];
     for (const state of states) {
       if (!state.finalizeCycle || !state.config || state.summary.status !== 'completed') {
         continue;
@@ -633,13 +640,13 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
   private async completeDefinitionPoll(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
-    summary: HelpdeskGlpiIngestionPollSummary,
+    summary: HelpdeskTicketingIngestionPollSummary,
   ): Promise<void> {
     const event = await this.queue.recordAuditEvent(context, {
       agentDefinitionId: definition.id,
       eventType: 'poller_cycle_completed',
       severity: 'info',
-      message: 'Helpdesk GLPI new-ticket ingestion cycle completed.',
+      message: 'Helpdesk ticket new-ticket ingestion cycle completed.',
       metadata: summary,
     });
     await this.queue.updateHelpdeskIngestionState(context, definition, {
@@ -656,7 +663,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
   private async failDefinitionPoll(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
-    summary: HelpdeskGlpiIngestionPollSummary,
+    summary: HelpdeskTicketingIngestionPollSummary,
     error: unknown,
   ): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
@@ -669,7 +676,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
       agentDefinitionId: definition.id,
       eventType: 'poller_cycle_failed',
       severity: 'error',
-      message: 'Helpdesk GLPI new-ticket ingestion failed closed.',
+      message: 'Helpdesk ticket new-ticket ingestion failed closed.',
       metadata: { error: message },
     });
     await this.queue.updateHelpdeskIngestionState(context, definition, {
@@ -693,13 +700,13 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
   ): Promise<void> {
     const query = (context.manager as { query?: (sql: string) => Promise<unknown> }).query;
     if (typeof query !== 'function') {
-      await this.control.runGlpiTriage(triageContext, { work_item_id: workItemId });
+      await this.control.runTicketingTriage(triageContext, { work_item_id: workItemId });
       return;
     }
     const savepoint = `triage_${workItemId.replace(/[^a-z0-9]/gi, '')}`;
     await query.call(context.manager, `SAVEPOINT ${savepoint}`);
     try {
-      await this.control.runGlpiTriage(triageContext, { work_item_id: workItemId });
+      await this.control.runTicketingTriage(triageContext, { work_item_id: workItemId });
       await query.call(context.manager, `RELEASE SAVEPOINT ${savepoint}`);
     } catch (error) {
       await query.call(context.manager, `ROLLBACK TO SAVEPOINT ${savepoint}`);
@@ -712,7 +719,7 @@ export class AiAgentHelpdeskGlpiIngestionService implements OnModuleInit {
     ensureDefinition: boolean,
   ): Promise<AiAgentDefinition[]> {
     if (ensureDefinition) {
-      await this.queue.ensureHelpdeskGlpiTriageDefinition(context);
+      await this.queue.ensureHelpdeskTicketingTriageDefinition(context);
     }
     return context.manager.getRepository(AiAgentDefinition).find({
       where: {

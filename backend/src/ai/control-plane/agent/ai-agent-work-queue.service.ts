@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { In, Not } from 'typeorm';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { AiSettings } from '../../ai-settings.entity';
 import {
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
   TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
@@ -28,6 +29,8 @@ import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
 import { AiEmergencyPause } from '../entities/ai-emergency-pause.entity';
 import { AiRun } from '../entities/ai-run.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
+import { AiAdapterConfig } from '../providers/adapter-config.entity';
+import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
 import {
   deriveServiceDeskTargetingFetchConfig,
   normalizeServiceDeskScopePolicy,
@@ -36,11 +39,13 @@ import {
   TargetingPreviewSummary,
   ticketMatchesServiceDeskTargeting,
 } from './service-desk-targeting';
+import { requireTicketingBinding, resolveTicketingBinding } from './ticketing-binding';
 
-export const HELP_DESK_GLPI_TRIAGE_AGENT_KEY = 'helpdesk.glpi.triage';
-export const HELP_DESK_GLPI_TRIAGE_MANUAL_TRIGGER_KEY = 'manual.safe_target';
-export const HELP_DESK_GLPI_TRIAGE_NEW_TICKETS_TRIGGER_KEY = 'scheduled.new_tickets_only';
-export const HELP_DESK_GLPI_TRIAGE_WORK_KIND = 'ticket_triage';
+export const HELP_DESK_TICKETING_TRIAGE_AGENT_KEY = 'helpdesk.glpi.triage';
+
+export const HELP_DESK_TICKETING_TRIAGE_MANUAL_TRIGGER_KEY = 'manual.safe_target';
+export const HELP_DESK_TICKETING_TRIAGE_NEW_TICKETS_TRIGGER_KEY = 'scheduled.new_tickets_only';
+export const HELP_DESK_TICKETING_TRIAGE_WORK_KIND = 'ticket_triage';
 
 const ACTIVE_WORK_ITEM_STATUSES = new Set(['queued', 'leased', 'running', 'waiting_approval', 'failed']);
 const TERMINAL_WORK_ITEM_STATUSES = new Set(['completed', 'skipped', 'dead_letter']);
@@ -183,12 +188,12 @@ export type AgentQueueLiveTargetLike = {
   enabled: boolean;
 };
 
-export type HelpdeskGlpiDefinitionBundle = {
+export type HelpdeskTicketingDefinitionBundle = {
   definition: AiAgentDefinition;
   trigger: AiAgentTrigger;
 };
 
-export type EnqueueManualGlpiSafeTargetResult = HelpdeskGlpiDefinitionBundle & {
+export type EnqueueManualTicketingSafeTargetResult = HelpdeskTicketingDefinitionBundle & {
   workItem: AiAgentWorkItem;
   created: boolean;
 };
@@ -218,9 +223,9 @@ export type AgentQueueOverview = {
   targetStates: AiAgentTargetState[];
   counts: Record<string, number>;
   helpdesk: {
-    summary: HelpdeskGlpiAgentSummary | null;
-    summaries: HelpdeskGlpiAgentSummary[];
-    fleet: HelpdeskGlpiAgentSummary['evaluation'] | null;
+    summary: HelpdeskTicketingAgentSummary | null;
+    summaries: HelpdeskTicketingAgentSummary[];
+    fleet: HelpdeskTicketingAgentSummary['evaluation'] | null;
     auditEvents: AiAgentAuditEvent[];
   };
 };
@@ -242,7 +247,7 @@ export type HelpdeskNewTicketsIngestionConfig = {
   maxProviderRequestsPerCycle: number;
 };
 
-export type HelpdeskGlpiIngestionSettingsInput = {
+export type HelpdeskTicketingIngestionSettingsInput = {
   ingestion: {
     enabled: boolean;
     entityId?: string | null;
@@ -257,7 +262,7 @@ export type HelpdeskGlpiIngestionSettingsInput = {
   };
 };
 
-export type HelpdeskGlpiIngestionSettingsView = {
+export type HelpdeskTicketingIngestionSettingsView = {
   agentDefinitionId: string;
   ingestion: {
     enabled: boolean;
@@ -308,7 +313,7 @@ export type HelpdeskEmergencyPauseSummary = {
   expires_at: string | null;
 };
 
-export type HelpdeskGlpiAgentSummary = {
+export type HelpdeskTicketingAgentSummary = {
   agentDefinitionId: string;
   ingestion: {
     enabled: boolean;
@@ -699,6 +704,8 @@ function actionBodyHash(action: AiActionRequest | null): string | null {
 
 @Injectable()
 export class AiAgentWorkQueueService {
+  private readonly logger = new Logger(AiAgentWorkQueueService.name);
+
   private definitionRepo(context: AiExecutionContextWithManager) {
     return context.manager.getRepository(AiAgentDefinition);
   }
@@ -731,9 +738,40 @@ export class AiAgentWorkQueueService {
     return context.manager.getRepository(AiEmergencyPause);
   }
 
-  async ensureHelpdeskGlpiTriageDefinition(
+  private async defaultTicketingProviderKeyForNewDefinition(context: AiExecutionContextWithManager): Promise<string> {
+    try {
+      // Legacy GLPI settings are the authoritative signal for existing tenants:
+      // a tenant with working glpi_* credentials must seed a GLPI-bound agent
+      // even when an unrelated ticketing adapter config (e.g. a mock UAT row)
+      // also exists. Same predicate as the import-tool gate in ai-tool.registry.
+      const settings = await context.manager.getRepository(AiSettings).findOne({
+        where: { tenant_id: context.tenantId },
+      });
+      if (settings?.glpi_enabled === true && settings.glpi_url && settings.glpi_user_token_encrypted) {
+        return LEGACY_GLPI_TICKETING_PROVIDER_KEY;
+      }
+      const configs = await context.manager.getRepository(AiAdapterConfig).find({
+        where: {
+          tenant_id: context.tenantId,
+          provider_kind: 'ticketing',
+          enabled: true,
+        },
+      });
+      const providerKeys = Array.from(new Set(configs
+        .map((config) => typeof config.provider_key === 'string' ? config.provider_key.trim() : '')
+        .filter(Boolean)));
+      return providerKeys.length === 1 ? providerKeys[0] : LEGACY_GLPI_TICKETING_PROVIDER_KEY;
+    } catch (error) {
+      this.logger.warn(
+        `Ticketing provider lookup failed while seeding a helpdesk definition; falling back to the legacy default: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return LEGACY_GLPI_TICKETING_PROVIDER_KEY;
+    }
+  }
+
+  async ensureHelpdeskTicketingTriageDefinition(
     context: AiExecutionContextWithManager,
-  ): Promise<HelpdeskGlpiDefinitionBundle> {
+  ): Promise<HelpdeskTicketingDefinitionBundle> {
     if (!context.tenantId) {
       throw new ForbiddenException('Tenant context is required for agent definitions.');
     }
@@ -743,22 +781,23 @@ export class AiAgentWorkQueueService {
     let definition = await definitionRepo.findOne({
       where: {
         tenant_id: context.tenantId,
-        agent_key: HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
+        agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
       },
     });
     if (!definition) {
+      const defaultTicketingProviderKey = await this.defaultTicketingProviderKeyForNewDefinition(context);
       definition = await definitionRepo.save(definitionRepo.create({
         tenant_id: context.tenantId,
-        agent_key: HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
-        name: 'Helpdesk GLPI triage agent',
-        description: 'Reads a configured GLPI safe target, searches KANAP knowledge, and prepares approval-gated helpdesk follow-up proposals.',
+        agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
+        name: 'Helpdesk ticket triage agent',
+        description: 'Reads a configured ticketing safe target, searches KANAP knowledge, and prepares approval-gated helpdesk follow-up proposals.',
         agent_type: 'helpdesk',
         status: 'enabled',
         environment: 'sandbox',
         provider_bindings_json: {
           ticketing: {
             provider_kind: 'ticketing',
-            provider_key: 'glpi',
+            provider_key: defaultTicketingProviderKey,
           },
         },
         allowed_capabilities_json: HELP_DESK_ALLOWED_CAPABILITIES,
@@ -779,7 +818,7 @@ export class AiAgentWorkQueueService {
           mode: 'manual_safe_target',
           allowed_modes: ['manual_safe_target', 'new_tickets_only', 'new_plus_agent_touched', 'saved_filter'],
           provider_kind: 'ticketing',
-          provider_key: 'glpi',
+          provider_key: defaultTicketingProviderKey,
           target_kind: 'ticket',
           required_safe_target_effect: 'read',
           new_tickets_only: { enabled: false },
@@ -828,7 +867,7 @@ export class AiAgentWorkQueueService {
           feedback_required_for_autonomy_promotion: true,
         },
         persona_json: {
-          mission: 'Triage GLPI helpdesk tickets, gather supporting KANAP knowledge, and prepare safe follow-up proposals for review.',
+          mission: 'Triage helpdesk tickets, gather supporting KANAP knowledge, and prepare safe follow-up proposals for review.',
           tone: 'Clear, concise, and support-oriented.',
           instructions: [
             'Prefer internal notes when evidence is incomplete or the next step needs analyst review.',
@@ -852,6 +891,12 @@ export class AiAgentWorkQueueService {
       const currentTriggerPolicy = policyObject(definition.trigger_policy_json);
       const currentScopePolicy = policyObject(definition.scope_policy_json);
       const currentQueuePolicy = policyObject(definition.queue_policy_json);
+      const currentTicketingBinding = resolveTicketingBinding(definition);
+      const desiredTicketingProviderKind = currentTicketingBinding?.providerKind ?? 'ticketing';
+      const desiredTicketingProviderKey = currentTicketingBinding?.providerKey
+        ?? await this.defaultTicketingProviderKeyForNewDefinition(context);
+      const currentProviderBindings = isRecord(definition.provider_bindings_json) ? definition.provider_bindings_json : {};
+      const currentTicketingProviderBinding = isRecord(currentProviderBindings.ticketing) ? currentProviderBindings.ticketing : {};
       const boundedPollingExplicitlyEnabled = hasEnabledFlag(currentTriggerPolicy, 'scheduled_poll')
         && hasEnabledFlag(currentScopePolicy, 'new_tickets_only');
       const desiredResponsePolicy = {
@@ -887,8 +932,8 @@ export class AiAgentWorkQueueService {
         ...currentScopePolicy,
         mode: stringFromPolicy(currentScopePolicy.mode) ?? 'manual_safe_target',
         allowed_modes: ['manual_safe_target', 'new_tickets_only', 'new_plus_agent_touched', 'saved_filter'],
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
+        provider_kind: desiredTicketingProviderKind,
+        provider_key: desiredTicketingProviderKey,
         target_kind: 'ticket',
         required_safe_target_effect: 'read',
         new_tickets_only: isRecord(currentScopePolicy.new_tickets_only) ? currentScopePolicy.new_tickets_only : { enabled: false },
@@ -925,9 +970,21 @@ export class AiAgentWorkQueueService {
           : ['completed', 'skipped', 'dead_letter'],
         economic_guardrails: mergeEconomicGuardrails(currentQueuePolicy.economic_guardrails),
       };
+      const desiredProviderBindings = {
+        ...currentProviderBindings,
+        ticketing: {
+          ...currentTicketingProviderBinding,
+          provider_kind: desiredTicketingProviderKind,
+          provider_key: desiredTicketingProviderKey,
+          connection_id: typeof currentTicketingProviderBinding.connection_id === 'string' && currentTicketingProviderBinding.connection_id.trim()
+            ? currentTicketingProviderBinding.connection_id.trim()
+            : desiredTicketingProviderKey,
+        },
+      };
       const desiredAllowedCapabilities = mergeProductOwnedAllowedCapabilities(definition.allowed_capabilities_json);
       const desiredForbiddenCapabilities = pruneProductOwnedForbiddenCapabilityConflicts(definition.forbidden_capabilities_json);
       const next = {
+        provider_bindings_json: desiredProviderBindings,
         allowed_capabilities_json: desiredAllowedCapabilities,
         forbidden_capabilities_json: desiredForbiddenCapabilities,
         response_policy_json: desiredResponsePolicy,
@@ -937,7 +994,8 @@ export class AiAgentWorkQueueService {
         metadata_json: desiredMetadata,
       };
       if (
-        hashStableJson(definition.allowed_capabilities_json) !== hashStableJson(next.allowed_capabilities_json)
+        hashStableJson(definition.provider_bindings_json) !== hashStableJson(next.provider_bindings_json)
+        || hashStableJson(definition.allowed_capabilities_json) !== hashStableJson(next.allowed_capabilities_json)
         || hashStableJson(definition.forbidden_capabilities_json) !== hashStableJson(next.forbidden_capabilities_json)
         || hashStableJson(definition.response_policy_json) !== hashStableJson(next.response_policy_json)
         || hashStableJson(definition.trigger_policy_json) !== hashStableJson(next.trigger_policy_json)
@@ -945,6 +1003,7 @@ export class AiAgentWorkQueueService {
         || hashStableJson(definition.queue_policy_json) !== hashStableJson(next.queue_policy_json)
         || hashStableJson(definition.metadata_json) !== hashStableJson(next.metadata_json)
       ) {
+        definition.provider_bindings_json = next.provider_bindings_json;
         definition.allowed_capabilities_json = next.allowed_capabilities_json;
         definition.forbidden_capabilities_json = next.forbidden_capabilities_json;
         definition.response_policy_json = next.response_policy_json;
@@ -957,18 +1016,19 @@ export class AiAgentWorkQueueService {
       }
     }
 
+    const definitionTicketingBinding = requireTicketingBinding(definition);
     let trigger = await triggerRepo.findOne({
       where: {
         tenant_id: context.tenantId,
         agent_definition_id: definition.id,
-        trigger_key: HELP_DESK_GLPI_TRIAGE_MANUAL_TRIGGER_KEY,
+        trigger_key: HELP_DESK_TICKETING_TRIAGE_MANUAL_TRIGGER_KEY,
       },
     });
     if (!trigger) {
       trigger = await triggerRepo.save(triggerRepo.create({
         tenant_id: context.tenantId,
         agent_definition_id: definition.id,
-        trigger_key: HELP_DESK_GLPI_TRIAGE_MANUAL_TRIGGER_KEY,
+        trigger_key: HELP_DESK_TICKETING_TRIAGE_MANUAL_TRIGGER_KEY,
         trigger_kind: 'manual',
         status: 'enabled',
         enabled: true,
@@ -978,8 +1038,8 @@ export class AiAgentWorkQueueService {
         },
         scope_policy_json: {
           mode: 'manual_safe_target',
-          provider_kind: 'ticketing',
-          provider_key: 'glpi',
+          provider_kind: definitionTicketingBinding.providerKind,
+          provider_key: definitionTicketingBinding.providerKey,
           target_kind: 'ticket',
           allowed_effect: 'read',
         },
@@ -990,39 +1050,57 @@ export class AiAgentWorkQueueService {
         created_at: new Date(),
         updated_at: new Date(),
       }));
+    } else {
+      const triggerScope = policyObject(trigger.scope_policy_json);
+      const desiredTriggerScope = {
+        ...triggerScope,
+        provider_kind: definitionTicketingBinding.providerKind,
+        provider_key: definitionTicketingBinding.providerKey,
+        target_kind: 'ticket',
+      };
+      if (hashStableJson(trigger.scope_policy_json) !== hashStableJson(desiredTriggerScope)) {
+        trigger.scope_policy_json = desiredTriggerScope;
+        trigger.updated_at = new Date();
+        trigger = await triggerRepo.save(trigger);
+      }
     }
 
     return { definition, trigger };
   }
 
-  assertHelpdeskGlpiDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
+  async ensureHelpdeskGlpiTriageDefinition(
+    context: AiExecutionContextWithManager,
+  ): Promise<HelpdeskTicketingDefinitionBundle> {
+    return this.ensureHelpdeskTicketingTriageDefinition(context);
+  }
+
+  assertHelpdeskTicketingDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
     if (definition.status !== 'enabled') {
-      throw new ForbiddenException('Helpdesk GLPI triage agent definition is not enabled.');
+      throw new ForbiddenException('Helpdesk ticket triage agent definition is not enabled.');
     }
     if (definition.agent_type !== 'helpdesk') {
-      throw new ForbiddenException('Helpdesk GLPI triage agent definition has an invalid type.');
+      throw new ForbiddenException('Helpdesk ticket triage agent definition has an invalid type.');
     }
     if (!['sandbox', 'lab', 'mock', 'staging'].includes(definition.environment)) {
-      throw new ForbiddenException('Helpdesk GLPI triage is limited to non-production environments in Phase 11.');
+      throw new ForbiddenException('Helpdesk ticket triage is limited to non-production environments in Phase 11.');
     }
     if (definition.max_autonomy_level !== 'A2' && definition.max_autonomy_level !== 'A3') {
-      throw new ForbiddenException('Helpdesk GLPI triage cannot widen autonomy beyond A3 in Phase 11.');
+      throw new ForbiddenException('Helpdesk ticket triage cannot widen autonomy beyond A3 in Phase 11.');
     }
 
-    const bindings = policyObject(definition.provider_bindings_json);
-    const ticketing = policyObject(bindings.ticketing);
-    if (ticketing.provider_key !== 'glpi' || ticketing.provider_kind !== 'ticketing') {
-      throw new ForbiddenException('Helpdesk GLPI triage requires the ticketing:glpi provider binding.');
+    const binding = resolveTicketingBinding(definition);
+    if (!binding) {
+      throw new ForbiddenException('Helpdesk ticket triage requires a ticketing provider binding.');
     }
 
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const scopePolicy = policyObject(definition.scope_policy_json);
     const queuePolicy = policyObject(definition.queue_policy_json);
     if (queuePolicy.enabled === false) {
-      throw new ForbiddenException('Helpdesk GLPI triage queue policy is disabled.');
+      throw new ForbiddenException('Helpdesk ticket triage queue policy is disabled.');
     }
     if (!hasEnabledFlag(triggerPolicy, 'manual_safe_target')) {
-      throw new ForbiddenException('Helpdesk GLPI triage requires the manual safe-target trigger.');
+      throw new ForbiddenException('Helpdesk ticket triage requires the manual safe-target trigger.');
     }
     if (hasEnabledFlag(triggerPolicy, 'provider_webhook') || hasEnabledFlag(triggerPolicy, 'ticket_update')) {
       throw new ForbiddenException('Provider webhook and ticket-update triggers are not enabled in Phase 11.');
@@ -1034,10 +1112,10 @@ export class AiAgentWorkQueueService {
       throw new ForbiddenException('Broad or free-form live object scopes are not allowed in Phase 11.');
     }
     if (scopePolicy.mode !== 'manual_safe_target' && !jsonArray(scopePolicy.allowed_modes).includes('manual_safe_target')) {
-      throw new ForbiddenException('Helpdesk GLPI triage scope must allow manual safe targets.');
+      throw new ForbiddenException('Helpdesk ticket triage scope must allow manual safe targets.');
     }
-    if (scopePolicy.provider_kind !== 'ticketing' || scopePolicy.provider_key !== 'glpi' || scopePolicy.target_kind !== 'ticket') {
-      throw new ForbiddenException('Helpdesk GLPI triage scope must target GLPI tickets.');
+    if (scopePolicy.provider_kind !== binding.providerKind || scopePolicy.provider_key !== binding.providerKey || scopePolicy.target_kind !== 'ticket') {
+      throw new ForbiddenException('Helpdesk ticket triage scope must target the bound ticketing provider.');
     }
     if (hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
       this.resolveScopeIngestionConfig(definition);
@@ -1049,28 +1127,32 @@ export class AiAgentWorkQueueService {
     const forbidden = capabilityNames(definition.forbidden_capabilities_json);
     for (const required of REQUIRED_HELPDESK_TRIAGE_CAPABILITIES) {
       if (!allowed.has(required)) {
-        throw new ForbiddenException(`Helpdesk GLPI triage definition does not allow required capability ${required}.`);
+        throw new ForbiddenException(`Helpdesk ticket triage definition does not allow required capability ${required}.`);
       }
       if (forbidden.has(required) || forbidden.has('*')) {
-        throw new ForbiddenException(`Helpdesk GLPI triage definition forbids required capability ${required}.`);
+        throw new ForbiddenException(`Helpdesk ticket triage definition forbids required capability ${required}.`);
       }
     }
 
     if (trigger) {
       if (trigger.trigger_kind !== 'manual' || trigger.enabled !== true || trigger.status !== 'enabled') {
-        throw new ForbiddenException('Helpdesk GLPI triage manual trigger is not enabled.');
+        throw new ForbiddenException('Helpdesk ticket triage manual trigger is not enabled.');
       }
       const triggerScope = policyObject(trigger.scope_policy_json);
-      if (triggerScope.provider_kind !== 'ticketing' || triggerScope.provider_key !== 'glpi' || triggerScope.target_kind !== 'ticket') {
-        throw new ForbiddenException('Helpdesk GLPI triage manual trigger scope is invalid.');
+      if (triggerScope.provider_kind !== binding.providerKind || triggerScope.provider_key !== binding.providerKey || triggerScope.target_kind !== 'ticket') {
+        throw new ForbiddenException('Helpdesk ticket triage manual trigger scope is invalid.');
       }
     }
+  }
+
+  assertHelpdeskGlpiDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
+    this.assertHelpdeskTicketingDefinitionRunnable(definition, trigger);
   }
 
   resolveNewTicketsIngestionConfig(definition: AiAgentDefinition): HelpdeskNewTicketsIngestionConfig {
     const config = this.resolveScopeIngestionConfig(definition);
     if (config.mode !== 'new_tickets_only') {
-      throw new ForbiddenException('Helpdesk GLPI new-ticket ingestion requires a created-at targeting predicate.');
+      throw new ForbiddenException('Helpdesk ticket new-ticket ingestion requires a created-at targeting predicate.');
     }
     return config;
   }
@@ -1089,13 +1171,13 @@ export class AiAgentWorkQueueService {
     const rawHasTargeting = isRecord(rawScopePolicy.targeting) && Array.isArray(rawScopePolicy.targeting.predicates);
 
     if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
-      throw new ForbiddenException('Automatic GLPI ticket watching is turned off. Enable it in the agent settings.');
+      throw new ForbiddenException('Automatic ticket watching is turned off. Enable it in the agent settings.');
     }
     if (triggerPolicy.automatic_writes_enabled === true) {
-      throw new ForbiddenException('Helpdesk GLPI ingestion cannot run with automatic writes enabled.');
+      throw new ForbiddenException('Helpdesk ticket ingestion cannot run with automatic writes enabled.');
     }
     if (hasEnabledFlag(scopePolicy, 'all_matching') || scopePolicy.freeform_live_object_ids === true) {
-      throw new ForbiddenException('Helpdesk GLPI ingestion requires a bounded scope.');
+      throw new ForbiddenException('Helpdesk ticket ingestion requires a bounded scope.');
     }
 
     const mode = derivedScope.mode;
@@ -1131,7 +1213,7 @@ export class AiAgentWorkQueueService {
     const maxProviderRequestsPerCycle = numberPolicyOrNull(configBlock.max_provider_requests_per_cycle, 1, 100)
       ?? DEFAULT_NEW_TICKET_RATE_LIMIT_PER_CYCLE;
     if (!runGuardrailsFromDefinition(definition) || !dailyGuardrailCapsFromDefinition(definition)) {
-      throw new ForbiddenException('Helpdesk GLPI ingestion requires configured economic guardrails.');
+      throw new ForbiddenException('Helpdesk ticket ingestion requires configured economic guardrails.');
     }
 
     const horizonHours = derivedScope.createdAfterRelativeHours
@@ -1162,18 +1244,19 @@ export class AiAgentWorkQueueService {
 
   // Ticket refs this agent previously acted on (agent_touched target states),
   // oldest-updated first. Backs the `agent_involved` scope mode — control-plane
-  // state, kept out of the GLPI provider.
+  // state, kept out of ticketing providers.
   async listAgentTouchedTicketRefs(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
     limit: number,
   ): Promise<string[]> {
+    const binding = requireTicketingBinding(definition);
     const rows = await this.targetStateRepo(context).find({
       where: {
         tenant_id: context.tenantId,
         agent_definition_id: definition.id,
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
+        provider_kind: binding.providerKind,
+        provider_key: binding.providerKey,
         target_type: 'ticket',
         agent_touched: true,
       },
@@ -1188,23 +1271,29 @@ export class AiAgentWorkQueueService {
   runGuardrails(definition: AiAgentDefinition): HelpdeskRunGuardrailSummary {
     const guardrails = runGuardrailsFromDefinition(definition);
     if (!guardrails) {
-      throw new ForbiddenException('Helpdesk GLPI triage run guardrails are not configured.');
+      throw new ForbiddenException('Helpdesk ticket triage run guardrails are not configured.');
     }
     return guardrails;
   }
 
-  async getHelpdeskGlpiIngestionSettings(
+  async getHelpdeskTicketingIngestionSettings(
     context: AiExecutionContextWithManager,
-  ): Promise<HelpdeskGlpiIngestionSettingsView> {
-    const { definition } = await this.ensureHelpdeskGlpiTriageDefinition(context);
+  ): Promise<HelpdeskTicketingIngestionSettingsView> {
+    const { definition } = await this.ensureHelpdeskTicketingTriageDefinition(context);
     return this.buildIngestionSettingsView(definition);
   }
 
-  async updateHelpdeskGlpiIngestionSettings(
+  async getHelpdeskGlpiIngestionSettings(
     context: AiExecutionContextWithManager,
-    input: HelpdeskGlpiIngestionSettingsInput,
-  ): Promise<HelpdeskGlpiIngestionSettingsView> {
-    const { definition } = await this.ensureHelpdeskGlpiTriageDefinition(context);
+  ): Promise<HelpdeskTicketingIngestionSettingsView> {
+    return this.getHelpdeskTicketingIngestionSettings(context);
+  }
+
+  async updateHelpdeskTicketingIngestionSettings(
+    context: AiExecutionContextWithManager,
+    input: HelpdeskTicketingIngestionSettingsInput,
+  ): Promise<HelpdeskTicketingIngestionSettingsView> {
+    const { definition } = await this.ensureHelpdeskTicketingTriageDefinition(context);
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const scopePolicy = policyObject(definition.scope_policy_json);
     const queuePolicy = policyObject(definition.queue_policy_json);
@@ -1306,8 +1395,8 @@ export class AiAgentWorkQueueService {
       eventType: 'ingestion_settings_updated',
       severity: 'info',
       message: enabled
-        ? 'Helpdesk GLPI ingestion settings updated; bounded new-ticket ingestion is enabled.'
-        : 'Helpdesk GLPI ingestion settings updated; ingestion is disabled.',
+        ? 'Helpdesk ticket ingestion settings updated; bounded new-ticket ingestion is enabled.'
+        : 'Helpdesk ticket ingestion settings updated; ingestion is disabled.',
       metadata: {
         enabled,
         entity_id: entityId,
@@ -1322,7 +1411,14 @@ export class AiAgentWorkQueueService {
     return this.buildIngestionSettingsView(saved);
   }
 
-  private buildIngestionSettingsView(definition: AiAgentDefinition): HelpdeskGlpiIngestionSettingsView {
+  async updateHelpdeskGlpiIngestionSettings(
+    context: AiExecutionContextWithManager,
+    input: HelpdeskTicketingIngestionSettingsInput,
+  ): Promise<HelpdeskTicketingIngestionSettingsView> {
+    return this.updateHelpdeskTicketingIngestionSettings(context, input);
+  }
+
+  private buildIngestionSettingsView(definition: AiAgentDefinition): HelpdeskTicketingIngestionSettingsView {
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const scopePolicy = policyObject(normalizeServiceDeskScopePolicy(definition.scope_policy_json));
     const queuePolicy = policyObject(definition.queue_policy_json);
@@ -1335,7 +1431,7 @@ export class AiAgentWorkQueueService {
     let readyReason: string | null = null;
     let effectiveCreatedAfter: string | null = null;
     try {
-      this.assertHelpdeskGlpiDefinitionRunnable(definition, null);
+      this.assertHelpdeskTicketingDefinitionRunnable(definition, null);
       const config = this.resolveScopeIngestionConfig(definition);
       effectiveCreatedAfter = config.createdAfter;
     } catch (error) {
@@ -1530,22 +1626,23 @@ export class AiAgentWorkQueueService {
     return existing ? this.refreshResolvedWaitingApproval(context, existing) : null;
   }
 
-  async enqueueManualGlpiSafeTarget(
+  async enqueueManualTicketingSafeTarget(
     context: AiExecutionContextWithManager,
     target: AgentQueueLiveTargetLike,
     metadata: Record<string, unknown> = {},
-  ): Promise<EnqueueManualGlpiSafeTargetResult> {
-    const bundle = await this.ensureHelpdeskGlpiTriageDefinition(context);
-    this.assertHelpdeskGlpiDefinitionRunnable(bundle.definition, bundle.trigger);
+  ): Promise<EnqueueManualTicketingSafeTargetResult> {
+    const bundle = await this.ensureHelpdeskTicketingTriageDefinition(context);
+    this.assertHelpdeskTicketingDefinitionRunnable(bundle.definition, bundle.trigger);
+    const binding = requireTicketingBinding(bundle.definition);
 
     if (
-      target.provider_kind !== 'ticketing'
-      || target.provider_key !== 'glpi'
+      target.provider_kind !== binding.providerKind
+      || target.provider_key !== binding.providerKey
       || target.target_kind !== 'ticket'
       || target.allowed_effect !== 'read'
       || target.enabled !== true
     ) {
-      throw new ForbiddenException('Manual Helpdesk GLPI triage requires an enabled read-only GLPI ticket safe target.');
+      throw new ForbiddenException('Manual helpdesk ticket triage requires an enabled read-only ticketing safe target matching the agent provider binding.');
     }
 
     const targetRef = normalizedTargetRef(target.external_ref);
@@ -1555,7 +1652,7 @@ export class AiAgentWorkQueueService {
       providerKey: target.provider_key,
       objectType: target.target_kind,
       objectRef: targetRef,
-      workKind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+      workKind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
     });
     const existing = await this.findActiveWorkItem(context, bundle.definition, dedupKey);
     if (existing) {
@@ -1573,7 +1670,7 @@ export class AiAgentWorkQueueService {
       source_object_type: target.target_kind,
       source_object_ref: targetRef,
       source_object_updated_at: null,
-      work_kind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+      work_kind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
       status: 'queued',
       priority: 100,
       dedup_key: dedupKey,
@@ -1600,7 +1697,18 @@ export class AiAgentWorkQueueService {
     return { ...bundle, workItem, created: true };
   }
 
-  async enqueueHelpdeskGlpiScopedTicket(
+  async enqueueManualGlpiSafeTarget(
+    context: AiExecutionContextWithManager,
+    target: AgentQueueLiveTargetLike,
+    metadata: Record<string, unknown> = {},
+  ): Promise<EnqueueManualTicketingSafeTargetResult> {
+    if (target.provider_kind !== 'ticketing' || target.provider_key !== LEGACY_GLPI_TICKETING_PROVIDER_KEY) {
+      throw new ForbiddenException('Manual Helpdesk GLPI triage requires an enabled read-only GLPI ticket safe target.');
+    }
+    return this.enqueueManualTicketingSafeTarget(context, target, metadata);
+  }
+
+  async enqueueTicketingScopedTicket(
     context: AiExecutionContextWithManager,
     input: {
       definition: AiAgentDefinition;
@@ -1614,19 +1722,27 @@ export class AiAgentWorkQueueService {
           categoryId?: string | null;
         } | null;
       };
+      providerKind?: string | null;
+      providerKey?: string | null;
       metadata?: Record<string, unknown> | null;
     },
   ): Promise<{ workItem: AiAgentWorkItem; created: boolean }> {
-    this.assertHelpdeskGlpiDefinitionRunnable(input.definition, null);
+    this.assertHelpdeskTicketingDefinitionRunnable(input.definition, null);
     this.resolveScopeIngestionConfig(input.definition);
+    const binding = requireTicketingBinding(input.definition);
+    const providerKind = input.providerKind ?? binding.providerKind;
+    const providerKey = input.providerKey ?? binding.providerKey;
+    if (providerKind !== binding.providerKind || providerKey !== binding.providerKey) {
+      throw new ForbiddenException('Ticketing work item source must match the bound ticketing provider.');
+    }
     const targetRef = normalizedTargetRef(input.ticket.id);
     const dedupKey = this.workItemDedupKey({
       agentDefinitionId: input.definition.id,
-      providerKind: 'ticketing',
-      providerKey: 'glpi',
+      providerKind,
+      providerKey,
       objectType: 'ticket',
       objectRef: targetRef,
-      workKind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+      workKind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
     });
     const existing = await this.findActiveWorkItem(context, input.definition, dedupKey);
     if (existing) {
@@ -1639,12 +1755,12 @@ export class AiAgentWorkQueueService {
       tenant_id: context.tenantId,
       agent_definition_id: input.definition.id,
       trigger_id: null,
-      source_provider_kind: 'ticketing',
-      source_provider_key: 'glpi',
+      source_provider_kind: providerKind,
+      source_provider_key: providerKey,
       source_object_type: 'ticket',
       source_object_ref: targetRef,
       source_object_updated_at: dateFromUnknown(input.ticket.updatedAt ?? input.ticket.updated_at ?? input.ticket.createdAt),
-      work_kind: HELP_DESK_GLPI_TRIAGE_WORK_KIND,
+      work_kind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
       status: 'queued',
       priority: 100,
       dedup_key: dedupKey,
@@ -1720,12 +1836,15 @@ export class AiAgentWorkQueueService {
     }
     if (
       workItem.source_provider_kind === 'ticketing'
-      && workItem.source_provider_key === 'glpi'
+      && workItem.source_provider_key
       && workItem.source_object_type === 'ticket'
       && workItem.source_object_ref
     ) {
       const claim = await this.acquireTargetClaim(context, {
         definition,
+        providerKind: workItem.source_provider_kind,
+        providerKey: workItem.source_provider_key,
+        targetType: workItem.source_object_type,
         targetRef: workItem.source_object_ref,
         workItemId: workItem.id,
         metadata: {
@@ -1965,14 +2084,15 @@ export class AiAgentWorkQueueService {
     },
   ): Promise<TargetReviewReadiness> {
     const now = input.now ?? new Date();
+    const binding = requireTicketingBinding(input.definition);
     const targetRef = normalizedTargetRef(input.ticket.id);
     const repo = this.targetStateRepo(context);
     const existing = await repo.findOne({
       where: {
         tenant_id: context.tenantId,
         agent_definition_id: input.definition.id,
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
+        provider_kind: binding.providerKind,
+        provider_key: binding.providerKey,
         target_type: 'ticket',
         target_ref: targetRef,
       },
@@ -1985,8 +2105,8 @@ export class AiAgentWorkQueueService {
     const ready = !existing || changed || due;
     const state = await this.upsertTargetState(context, {
       agentDefinitionId: input.definition.id,
-      providerKind: 'ticketing',
-      providerKey: 'glpi',
+      providerKind: binding.providerKind,
+      providerKey: binding.providerKey,
       targetType: 'ticket',
       targetRef,
       lastSeenExternalUpdatedAt: externalUpdatedAt,
@@ -2275,8 +2395,14 @@ export class AiAgentWorkQueueService {
     },
   ): Promise<TargetClaimAcquireResult> {
     const now = input.now ?? new Date();
-    const providerKind = input.providerKind ?? 'ticketing';
-    const providerKey = input.providerKey ?? 'glpi';
+    const fallbackBinding = !input.providerKind || !input.providerKey
+      ? requireTicketingBinding(input.definition)
+      : null;
+    const providerKind = input.providerKind ?? fallbackBinding?.providerKind ?? 'ticketing';
+    const providerKey = input.providerKey ?? fallbackBinding?.providerKey;
+    if (!providerKey) {
+      throw new BadRequestException('Target claim requires a provider key.');
+    }
     const targetType = input.targetType ?? 'ticket';
     const targetRef = normalizedTargetRef(input.targetRef);
     await this.reconcileTargetClaims(context, {
@@ -2429,7 +2555,7 @@ export class AiAgentWorkQueueService {
     });
   }
 
-  async recordManualGlpiTriageOutcome(
+  async recordManualTicketingTriageOutcome(
     context: AiExecutionContextWithManager,
     input: {
       definition: AiAgentDefinition;
@@ -2460,10 +2586,10 @@ export class AiAgentWorkQueueService {
 
     const targetState = await this.upsertTargetState(context, {
       agentDefinitionId: input.definition.id,
-      providerKind: 'ticketing',
-      providerKey: 'glpi',
-      targetType: 'ticket',
-      targetRef: input.ticket.id,
+      providerKind: input.workItem.source_provider_kind,
+      providerKey: input.workItem.source_provider_key,
+      targetType: input.workItem.source_object_type,
+      targetRef: input.workItem.source_object_ref,
       lastSeenExternalUpdatedAt: externalUpdatedAt,
       lastProcessedExternalUpdatedAt: externalUpdatedAt,
       nextReviewAt: this.scheduleNextReviewAt(input.definition),
@@ -2514,6 +2640,25 @@ export class AiAgentWorkQueueService {
     }
 
     return { workItem, targetState };
+  }
+
+  async recordManualGlpiTriageOutcome(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      workItem: AiAgentWorkItem;
+      runId: string;
+      actionRequestIds: string[];
+      ticket: {
+        id: string;
+        updatedAt?: string | null;
+        updated_at?: string | null;
+      };
+      knowledgeResultCount: number;
+      metadata?: Record<string, unknown> | null;
+    },
+  ): Promise<{ workItem: AiAgentWorkItem; targetState: AiAgentTargetState }> {
+    return this.recordManualTicketingTriageOutcome(context, input);
   }
 
   async recordAuditEvent(
@@ -2568,7 +2713,7 @@ export class AiAgentWorkQueueService {
   ): Promise<HelpdeskDailyUsageSummary> {
     const caps = dailyGuardrailCapsFromDefinition(definition);
     if (!caps) {
-      throw new ForbiddenException('Helpdesk GLPI daily guardrails are not configured.');
+      throw new ForbiddenException('Helpdesk ticket daily guardrails are not configured.');
     }
     const windowStart = midnightUtc(now);
     const windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);
@@ -2649,7 +2794,7 @@ export class AiAgentWorkQueueService {
         agentDefinitionId: definition.id,
         eventType: 'daily_cap_reached',
         severity: 'warning',
-        message: 'Helpdesk GLPI ingestion paused because the tenant daily agent run cap was reached.',
+        message: 'Agent ingestion paused because the tenant daily agent run cap was reached.',
         metadata: {
           daily_usage: summary,
         },
@@ -2659,7 +2804,7 @@ export class AiAgentWorkQueueService {
         reason: summary.reachedReasons.join(','),
         daily_usage: summary,
       });
-      throw new ForbiddenException('Helpdesk GLPI ingestion is paused because the tenant daily cap has been reached.');
+      throw new ForbiddenException('Agent ingestion is paused because the tenant daily cap has been reached.');
     }
     return summary;
   }
@@ -2685,7 +2830,7 @@ export class AiAgentWorkQueueService {
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
     now = new Date(),
-  ): Promise<HelpdeskGlpiAgentSummary['evaluation']> {
+  ): Promise<HelpdeskTicketingAgentSummary['evaluation']> {
     return this.computeHelpdeskEvaluation(context, [definition.id], now);
   }
 
@@ -2696,7 +2841,7 @@ export class AiAgentWorkQueueService {
     context: AiExecutionContextWithManager,
     definitionIds: string[],
     now = new Date(),
-  ): Promise<HelpdeskGlpiAgentSummary['evaluation']> {
+  ): Promise<HelpdeskTicketingAgentSummary['evaluation']> {
     const idSet = new Set(definitionIds);
     const inScope = (id: string | null): boolean => id != null && idSet.has(id);
     const windowEnd = now;
@@ -2706,7 +2851,6 @@ export class AiAgentWorkQueueService {
         where: {
           tenant_id: context.tenantId,
           provider_kind: 'ticketing',
-          provider_key: 'glpi',
         },
       }),
       this.runRepo(context).find({
@@ -2791,7 +2935,7 @@ export class AiAgentWorkQueueService {
   private async helpdeskSummary(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
-  ): Promise<HelpdeskGlpiAgentSummary> {
+  ): Promise<HelpdeskTicketingAgentSummary> {
     let ingestionConfig: HelpdeskNewTicketsIngestionConfig | null = null;
     try {
       ingestionConfig = this.resolveScopeIngestionConfig(definition);
@@ -2844,7 +2988,7 @@ export class AiAgentWorkQueueService {
     context: AiExecutionContextWithManager,
     options: { limit?: number } = {},
   ): Promise<AgentQueueOverview> {
-    await this.ensureHelpdeskGlpiTriageDefinition(context);
+    await this.ensureHelpdeskTicketingTriageDefinition(context);
     const limit = Math.max(1, Math.min(100, Math.floor(options.limit ?? 50)));
     const definitions = (await this.definitionRepo(context).find({ where: { tenant_id: context.tenantId } }))
       .sort((left, right) => left.agent_key.localeCompare(right.agent_key));
@@ -2871,7 +3015,7 @@ export class AiAgentWorkQueueService {
       return acc;
     }, {});
     const helpdeskDefinitions = definitions.filter((definition) => definition.agent_type === 'helpdesk');
-    const helpdeskDefinition = helpdeskDefinitions.find((definition) => definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY)
+    const helpdeskDefinition = helpdeskDefinitions.find((definition) => definition.agent_key === HELP_DESK_TICKETING_TRIAGE_AGENT_KEY)
       ?? helpdeskDefinitions[0]
       ?? null;
     const helpdeskDefinitionIds = helpdeskDefinitions.map((definition) => definition.id);

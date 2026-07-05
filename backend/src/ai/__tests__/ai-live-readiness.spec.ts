@@ -2,6 +2,10 @@ import * as assert from 'node:assert/strict';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AiActionRequestService } from '../control-plane/action-request/ai-action-request.service';
 import { AiCapabilityRegistry, providerCapabilityContracts } from '../control-plane/capability/ai-capability.registry';
+import {
+  TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+  TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+} from '../control-plane/capability/capability-contract';
 import { AiActionRequest } from '../control-plane/entities/ai-action-request.entity';
 import { AiAdapterConfig } from '../control-plane/providers/adapter-config.entity';
 import { AiAdapterConfigService } from '../control-plane/providers/adapter-config.service';
@@ -77,8 +81,8 @@ async function testTenantSecretResolverFailureModesAndDescriptors() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const resolver = new AiTenantSecretResolverService();
-  const envName = tenantEnvironmentSecretEnvName({ tenantId: context.tenantId, key: 'glpi_unit_secret' });
-  const otherTenantEnvName = tenantEnvironmentSecretEnvName({ tenantId: 'tenant-2', key: 'glpi_unit_secret' });
+  const envName = tenantEnvironmentSecretEnvName({ tenantId: context.tenantId, key: 'ticketing_unit_secret' });
+  const otherTenantEnvName = tenantEnvironmentSecretEnvName({ tenantId: 'tenant-2', key: 'ticketing_unit_secret' });
 
   assert.equal(resolver.resolve(context, { kind: 'none' }).hasSecret(), false);
   assert.throws(
@@ -141,19 +145,19 @@ async function testTenantSecretResolverFailureModesAndDescriptors() {
 
   const secretEnvName = tenantSecretRefEnvName({
     tenantId: context.tenantId,
-    ref: `tenant/${context.tenantId}/glpi`,
+    ref: `tenant/${context.tenantId}/ticketing`,
   });
   const secretResolved = resolver.resolve(context, {
     kind: 'secret_ref',
-    ref: `tenant/${context.tenantId}/glpi`,
+    ref: `tenant/${context.tenantId}/ticketing`,
   }, {
-    [secretEnvName]: 'glpi-secret-value',
+    [secretEnvName]: 'ticketing-secret-value',
   });
-  assert.equal(secretResolved.reveal(), 'glpi-secret-value');
-  assert.doesNotMatch(JSON.stringify(secretResolved), /glpi-secret-value/);
+  assert.equal(secretResolved.reveal(), 'ticketing-secret-value');
+  assert.doesNotMatch(JSON.stringify(secretResolved), /ticketing-secret-value/);
   assert.throws(
-    () => resolver.resolve(context, { kind: 'secret_ref', ref: 'tenant/tenant-2/glpi' }, {
-      [secretEnvName]: 'glpi-secret-value',
+    () => resolver.resolve(context, { kind: 'secret_ref', ref: 'tenant/tenant-2/ticketing' }, {
+      [secretEnvName]: 'ticketing-secret-value',
     }),
     (error: unknown) => error instanceof ForbiddenException,
   );
@@ -184,11 +188,11 @@ async function testNoResolvedSecretPersistenceByDefault() {
     capabilityVersion: '1.0.0',
     effect: 'write',
     providerKind: 'ticketing',
-    providerKey: 'glpi-sandbox',
+    providerKey: 'ticketing-sandbox',
     targetType: 'ticket',
-    targetRef: 'GLPI-1',
+    targetRef: 'TICKET-1',
     actionPayload: {
-      ticketId: 'GLPI-1',
+      ticketId: 'TICKET-1',
       visibility: 'internal',
       body: 'private note',
       bodyFormat: 'plain_text',
@@ -211,8 +215,8 @@ async function testSafeLiveTargetValidationAndLookup() {
       providerKey: '*',
       environment: 'sandbox',
       targetKind: 'ticket',
-      targetKey: 'glpi-ticket',
-      externalRef: 'GLPI-1',
+      targetKey: 'ticket-read',
+      externalRef: 'TICKET-1',
       allowedEffect: 'read',
       safetyLabel: 'read_only',
     }),
@@ -221,11 +225,11 @@ async function testSafeLiveTargetValidationAndLookup() {
   await assert.rejects(
     () => service.saveTarget(context, {
       providerKind: 'ticketing',
-      providerKey: 'glpi',
+      providerKey: 'ticketing-sandbox',
       environment: 'production',
       targetKind: 'ticket',
-      targetKey: 'glpi-ticket',
-      externalRef: 'GLPI-1',
+      targetKey: 'ticket-sandbox-write',
+      externalRef: 'TICKET-1',
       allowedEffect: 'sandbox_write',
       safetyLabel: 'sandbox_only',
     }),
@@ -234,11 +238,11 @@ async function testSafeLiveTargetValidationAndLookup() {
   await assert.rejects(
     () => service.saveTarget(context, {
       providerKind: 'ticketing',
-      providerKey: 'glpi',
+      providerKey: 'ticketing-sandbox',
       environment: 'sandbox',
       targetKind: 'ticket',
       targetKey: 'secret-target',
-      externalRef: 'GLPI-1',
+      externalRef: 'TICKET-1',
       allowedEffect: 'read',
       safetyLabel: 'read_only',
       metadata: { api_token: 'secret' },
@@ -264,11 +268,11 @@ async function testSafeLiveTargetValidationAndLookup() {
 
   const disabled = await service.saveTarget(context, {
     providerKind: 'ticketing',
-    providerKey: 'glpi-sandbox',
+    providerKey: 'ticketing-sandbox',
     environment: 'sandbox',
     targetKind: 'ticket',
-    targetKey: 'glpi-ticket-read',
-    externalRef: 'GLPI-1',
+    targetKey: 'ticket-read',
+    externalRef: 'TICKET-1',
     allowedEffect: 'read',
     safetyLabel: 'read_only',
   });
@@ -284,11 +288,11 @@ async function testSafeLiveTargetValidationAndLookup() {
 
   const enabled = await service.saveTarget(context, {
     providerKind: 'ticketing',
-    providerKey: 'glpi-sandbox',
+    providerKey: 'ticketing-sandbox',
     environment: 'sandbox',
     targetKind: 'ticket',
-    targetKey: 'glpi-ticket-read',
-    externalRef: 'GLPI-1',
+    targetKey: 'ticket-read',
+    externalRef: 'TICKET-1',
     allowedEffect: 'read',
     safetyLabel: 'read_only',
     enabled: true,
@@ -302,11 +306,11 @@ async function testSafeLiveTargetValidationAndLookup() {
 
   await service.saveTarget(context, {
     providerKind: 'ticketing',
-    providerKey: 'glpi-sandbox',
+    providerKey: 'ticketing-sandbox',
     environment: 'sandbox',
     targetKind: 'ticket',
     targetKey: 'expired-ticket',
-    externalRef: 'GLPI-2',
+    externalRef: 'TICKET-2',
     allowedEffect: 'read',
     safetyLabel: 'read_only',
     enabled: true,
@@ -382,27 +386,27 @@ async function testLiveContractHarnessSkipsAndFailsClosed() {
     {} as any,
   );
 
-  const skipped = await harness.readiness(context, 'glpi_read', {});
+  const skipped = await harness.readiness(context, 'ticketing_read', {});
   assert.equal(skipped.status, 'skipped');
 
-  const missingTenant = await harness.readiness(context, 'glpi_read', {
+  const missingTenant = await harness.readiness(context, 'ticketing_read', {
     KANAP_LIVE_CONTRACT_TESTS: '1',
-    KANAP_GLPI_LIVE_READ: '1',
+    KANAP_TICKETING_LIVE_READ: '1',
   });
   assert.equal(missingTenant.status, 'failed');
   assert.match(missingTenant.reason, /KANAP_LIVE_TENANT_SLUG/);
-  const wrongTenant = await harness.readiness(context, 'glpi_read', {
+  const wrongTenant = await harness.readiness(context, 'ticketing_read', {
     KANAP_LIVE_CONTRACT_TESTS: '1',
     KANAP_LIVE_TENANT_SLUG: 'tenant-two',
-    KANAP_GLPI_LIVE_READ: '1',
+    KANAP_TICKETING_LIVE_READ: '1',
   });
   assert.equal(wrongTenant.status, 'failed');
   assert.match(wrongTenant.reason, /does not match/);
 
-  const missingTarget = await harness.readiness(context, 'glpi_read', {
+  const missingTarget = await harness.readiness(context, 'ticketing_read', {
     KANAP_LIVE_CONTRACT_TESTS: '1',
     KANAP_LIVE_TENANT_SLUG: 'tenant-one',
-    KANAP_GLPI_LIVE_READ: '1',
+    KANAP_TICKETING_LIVE_READ: '1',
   });
   assert.equal(missingTarget.status, 'failed');
   assert.match(missingTarget.reason, /safe live-test target/);
@@ -412,26 +416,97 @@ async function testLiveContractHarnessSkipsAndFailsClosed() {
     providerKey: 'mock',
     environment: 'sandbox',
     targetKind: 'ticket',
-    targetKey: 'glpi-ticket-read',
-    externalRef: 'GLPI-1',
+    targetKey: 'ticket-read',
+    externalRef: 'TICKET-1',
     allowedEffect: 'read',
     safetyLabel: 'read_only',
     enabled: true,
   });
-  const ready = await harness.readiness(context, 'glpi_read', {
+  const ready = await harness.readiness(context, 'ticketing_read', {
+    KANAP_LIVE_CONTRACT_TESTS: '1',
+    KANAP_LIVE_TENANT_SLUG: 'tenant-one',
+    KANAP_TICKETING_LIVE_READ: '1',
+  });
+  assert.equal(ready.status, 'ready');
+  const legacyReady = await harness.readiness(context, 'glpi_read', {
     KANAP_LIVE_CONTRACT_TESTS: '1',
     KANAP_LIVE_TENANT_SLUG: 'tenant-one',
     KANAP_GLPI_LIVE_READ: '1',
   });
-  assert.equal(ready.status, 'ready');
+  assert.equal(legacyReady.status, 'ready');
   await assert.rejects(
-    () => harness.run(context, 'glpi_read', {
+    () => harness.run(context, 'ticketing_read', {
       KANAP_LIVE_CONTRACT_TESTS: '1',
       KANAP_LIVE_TENANT_SLUG: 'tenant-one',
-      KANAP_GLPI_LIVE_READ: '1',
+      KANAP_TICKETING_LIVE_READ: '1',
     }),
     (error: unknown) => error instanceof ForbiddenException,
   );
+}
+
+async function testTicketingSandboxWriteLiveContractUsesNeutralScenario() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const targets = new AiLiveTestTargetService({} as any);
+  await targets.saveTarget(context, {
+    providerKind: 'ticketing',
+    providerKey: 'ticketing-sandbox',
+    environment: 'sandbox',
+    targetKind: 'ticket',
+    targetKey: 'ticket-sandbox-write',
+    externalRef: 'TICKET-1',
+    allowedEffect: 'sandbox_write',
+    safetyLabel: 'sandbox_only',
+    metadata: { note_body: 'neutral sandbox note' },
+    enabled: true,
+  });
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  const approvals: string[] = [];
+  const harness = new AiLiveContractHarnessService(
+    targets,
+    { getApplicability: async () => ({ available: true }) } as any,
+    {
+      execute: async (_context: unknown, request: any) => {
+        calls.push({ capabilityName: request.capabilityName, input: request.input });
+        if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+          return {
+            run_id: 'run-live-sandbox',
+            step_id: 'step-prepare',
+            tool_execution_id: 'tool-prepare',
+            output: { ok: true, data: { action_request_id: 'action-live-sandbox' }, evidence: [] },
+          };
+        }
+        return {
+          run_id: 'run-live-sandbox',
+          step_id: 'step-approved',
+          tool_execution_id: 'tool-approved',
+          output: { ok: true, data: { action_request_id: request.input.action_request_id }, evidence: [] },
+        };
+      },
+    } as any,
+    {
+      approveActionRequest: async (_context: unknown, actionRequestId: string) => {
+        approvals.push(actionRequestId);
+        return { id: 'approval-live-sandbox' };
+      },
+    } as any,
+  );
+
+  const result = await harness.run(context, 'ticketing_sandbox_write', {
+    KANAP_LIVE_CONTRACT_TESTS: '1',
+    KANAP_LIVE_TENANT_SLUG: 'tenant-one',
+    KANAP_TICKETING_LIVE_SANDBOX_WRITE: '1',
+  }) as any;
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].capabilityName, TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY);
+  assert.equal(calls[0].input.provider_key, 'ticketing-sandbox');
+  assert.equal(calls[0].input.ticket_id, 'TICKET-1');
+  assert.equal(calls[0].input.note_body, 'neutral sandbox note');
+  assert.deepEqual(approvals, ['action-live-sandbox']);
+  assert.equal(calls[1].capabilityName, TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY);
+  assert.equal(calls[1].input.action_request_id, 'action-live-sandbox');
+  assert.equal(result.output.ok, true);
 }
 
 function testLiveReadinessDoesNotCreateMcpCapabilities() {
@@ -461,6 +536,7 @@ async function run() {
   await testSafeLiveTargetValidationAndLookup();
   await testProviderRegistryResolvesCredentialsBeforeAdapterReadiness();
   await testLiveContractHarnessSkipsAndFailsClosed();
+  await testTicketingSandboxWriteLiveContractUsesNeutralScenario();
   testLiveReadinessDoesNotCreateMcpCapabilities();
 }
 

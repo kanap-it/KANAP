@@ -650,7 +650,7 @@ export type AiAgentControlLiveTarget = {
   updated_at: string | null;
 };
 
-export type AiAgentControlGlpiReadTargetsResult = {
+export type AiAgentControlTicketingReadTargetsResult = {
   provider: {
     provider_kind: string;
     provider_key: string;
@@ -662,7 +662,7 @@ export type AiAgentControlGlpiReadTargetsResult = {
   ready: boolean;
 };
 
-export type AiAgentControlGlpiReadResult = {
+export type AiAgentControlTicketingReadResult = {
   target: AiAgentControlLiveTarget;
   result: {
     run_id: string;
@@ -673,7 +673,7 @@ export type AiAgentControlGlpiReadResult = {
   detail: AiAgentControlRunDetail;
 };
 
-export type AiAgentControlGlpiTriageResult = {
+export type AiAgentControlTicketingTriageResult = {
   target: AiAgentControlLiveTarget;
   agent_definition: AiAgentControlAgentDefinition | null;
   work_item: AiAgentControlWorkItem | null;
@@ -1208,30 +1208,32 @@ export const aiAgentControlApi = {
     const res = await api.post('/ai/admin/control-plane/uat/mock-triage', payload ?? {}, { timeout: 600_000 });
     return res.data;
   },
-  async listGlpiReadTargets(): Promise<AiAgentControlGlpiReadTargetsResult> {
-    const res = await api.get('/ai/admin/control-plane/uat/glpi-read/targets');
+  async listTicketingReadTargets(providerKey: string): Promise<AiAgentControlTicketingReadTargetsResult> {
+    const res = await api.get('/ai/admin/control-plane/uat/ticketing-read/targets', {
+      params: { provider_key: providerKey },
+    });
     return res.data;
   },
-  async runGlpiRead(payload?: { target_key?: string }): Promise<AiAgentControlGlpiReadResult> {
-    const res = await api.post('/ai/admin/control-plane/uat/glpi-read', payload ?? {});
+  async runTicketingRead(payload: { provider_key: string; target_key?: string }): Promise<AiAgentControlTicketingReadResult> {
+    const res = await api.post('/ai/admin/control-plane/uat/ticketing-read', payload);
     return res.data;
   },
-  async runGlpiTriage(payload?: { target_key?: string }): Promise<AiAgentControlGlpiTriageResult> {
-    const res = await api.post('/ai/admin/control-plane/uat/glpi-triage', payload ?? {}, { timeout: 600_000 });
+  async runTicketingTriage(payload: { work_item_id?: string; provider_key?: string; target_key?: string; agent_definition_id?: string }): Promise<AiAgentControlTicketingTriageResult> {
+    const res = await api.post('/ai/admin/control-plane/uat/ticketing-triage', payload, { timeout: 600_000 });
     return res.data;
   },
-  async pollHelpdeskGlpiIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
-    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/poll', {}, { timeout: 600_000 });
+  async pollHelpdeskTicketingIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
+    const res = await api.post('/ai/admin/control-plane/helpdesk/ticketing-ingestion/poll', {}, { timeout: 600_000 });
     return res.data;
   },
   async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {
-    const res = await api.get('/ai/admin/control-plane/helpdesk/glpi-ingestion/settings');
+    const res = await api.get('/ai/admin/control-plane/helpdesk/ticketing-ingestion/settings');
     return res.data;
   },
   async updateHelpdeskIngestionSettings(
     payload: AiAgentControlHelpdeskIngestionSettingsInput,
   ): Promise<AiAgentControlHelpdeskIngestionSettings> {
-    const res = await api.post('/ai/admin/control-plane/helpdesk/glpi-ingestion/settings', payload);
+    const res = await api.post('/ai/admin/control-plane/helpdesk/ticketing-ingestion/settings', payload);
     return res.data;
   },
   async createHelpdeskEmergencyPause(payload: { reason: string; expires_in_minutes?: number | null }): Promise<AiAgentControlEmergencyPause> {

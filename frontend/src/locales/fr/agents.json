@@ -278,8 +278,10 @@
   },
   "monitor": {
     "start": "Démarrer l'agent",
+    "disable": "Désactiver",
     "testStarted": "Exécution de test démarrée.",
     "testFailed": "Impossible de démarrer l'exécution de test.",
+    "providerMissing": "Cet agent n'a pas de fournisseur de tickets associé.",
     "status": "Statut",
     "checkNow": "Contrôler maintenant",
     "lifecycle": "Cycle de vie",
@@ -300,6 +302,7 @@
     "tokensToday": "Tokens du jour",
     "costToday": "Coût du jour",
     "testTicket": "Tester sur un ticket",
+    "ticketNumberPlaceholder": "Numéro de ticket (ex. 64)",
     "runTest": "Lancer le test",
     "recentActivity": "Activité récente"
   },

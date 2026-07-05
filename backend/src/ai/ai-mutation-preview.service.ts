@@ -20,6 +20,7 @@ import { AiMutationPlan } from './ai-mutation-plan.entity';
 import { AiMutationPlanStep } from './ai-mutation-plan-step.entity';
 import { AiMutationPreview } from './ai-mutation-preview.entity';
 import { AiPolicyService } from './ai-policy.service';
+import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './control-plane/providers/provider-constants';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
 import { AiPreparedMutationPreview } from './mutation/ai-mutation-operation.types';
 
@@ -52,6 +53,22 @@ function toIso(value: Date | null | undefined): string | null {
 
 function cloneJsonRecord(value: Record<string, unknown> | null): Record<string, unknown> | null {
   return value == null ? null : JSON.parse(JSON.stringify(value));
+}
+
+function normalizePlanOperationForCompatibility(
+  toolName: string,
+  input: Record<string, unknown>,
+): { toolName: string; input: Record<string, unknown> } {
+  if (toolName !== 'import_glpi_ticket') {
+    return { toolName, input };
+  }
+  return {
+    toolName: 'import_ticket',
+    input: {
+      ...input,
+      provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
+    },
+  };
 }
 
 function stableStringify(value: unknown): string {
@@ -495,14 +512,17 @@ export class AiMutationPreviewService {
         stepKey = `${stepKey}_${index + 1}`;
       }
 
-      const toolName = String(operation.tool_name || '').trim();
+      const rawToolName = String(operation.tool_name || '').trim();
       const dependsOn = Array.isArray(operation.depends_on)
         ? operation.depends_on
           .map((value) => this.normalizePlanStepKey(value, ''))
           .filter(Boolean)
           .map((value) => keyAliases.get(value) ?? value)
         : [];
-      const stepInput = this.clonePlanInput(operation.input ?? {});
+      let stepInput = this.clonePlanInput(operation.input ?? {});
+      const normalizedOperation = normalizePlanOperationForCompatibility(rawToolName, stepInput);
+      const toolName = normalizedOperation.toolName;
+      stepInput = normalizedOperation.input;
       const operationSignature = this.planOperationSignature(toolName, stepInput, dependsOn);
       const existingStepKey = operationSignatures.get(operationSignature);
       if (existingStepKey) {

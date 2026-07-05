@@ -276,7 +276,7 @@ describe('ChatMessageList', () => {
           {
             id: 'assistant-1',
             role: 'assistant',
-            content: 'Created [T-115](/portfolio/tasks/task-115) from GLPI ticket #59925.',
+            content: 'Created [T-115](/portfolio/tasks/task-115) from ticket #59925.',
           },
         ]}
         previews={[]}
@@ -392,16 +392,16 @@ describe('ChatMessageList', () => {
     expect(container.textContent || '').toContain('activity.debugTrace.names.provider_first_tool_delta');
   });
 
-  it('replaces pending GLPI preview images with a placeholder message', () => {
+  it('replaces pending ticket import preview images with a placeholder message', () => {
     const preview = {
       preview_id: 'preview-1',
-      tool_name: 'import_glpi_ticket' as const,
+      tool_name: 'import_ticket' as const,
       status: 'pending' as const,
       target: {
         entity_type: 'tasks',
         entity_id: null,
         ref: null,
-        title: 'GLPI import',
+        title: 'Ticket import',
       },
       changes: {
         description: {
@@ -413,7 +413,7 @@ describe('ChatMessageList', () => {
       },
       requires_confirmation: true,
       actions: ['approve', 'reject'] as Array<'approve' | 'reject'>,
-      summary: 'Import GLPI ticket.',
+      summary: 'Import ticket.',
       error_message: null,
       conversation_id: 'conversation-1',
       created_at: '2026-03-28T17:00:00.000Z',
@@ -433,7 +433,7 @@ describe('ChatMessageList', () => {
             toolResults: [
               {
                 id: 'tool-1',
-                name: 'import_glpi_ticket',
+                name: 'import_ticket',
                 result: preview,
               },
             ],

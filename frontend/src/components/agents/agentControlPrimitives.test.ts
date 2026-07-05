@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildTicketGroups,
+  ticketingProviderKeyForDefinition,
 } from './agentControlPrimitives';
 import {
   applyOptimisticDecisionOverlay,
@@ -33,7 +34,7 @@ function action(overrides: Partial<AiAgentControlActionRequest> = {}): AiAgentCo
     target_ref: '1001',
     action_payload_json: null,
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: 'mock',
     input_summary: null,
     evidence_ids: null,
     expires_at: future,
@@ -55,14 +56,14 @@ function workItem(overrides: Partial<AiAgentControlWorkItem> = {}): AiAgentContr
     agent_definition_id: 'agent-a',
     trigger_id: null,
     source_provider_kind: 'ticketing',
-    source_provider_key: 'glpi',
+    source_provider_key: 'mock',
     source_object_type: 'ticket',
     source_object_ref: '1001',
     source_object_updated_at: null,
     work_kind: 'triage',
     status: 'waiting_approval',
     priority: 0,
-    dedup_key: 'ticketing:glpi:ticket:1001',
+    dedup_key: 'ticketing:mock:ticket:1001',
     lease_owner: null,
     leased_until: null,
     attempt_count: 0,
@@ -98,7 +99,7 @@ describe('buildTicketGroups', () => {
     expect(result.orphanActions).toEqual([]);
     expect(result.groups).toHaveLength(1);
     expect(result.groups[0]).toMatchObject({
-      key: 'ticketing:glpi:ticket:4711',
+      key: 'ticketing:mock:ticket:4711',
       targetRef: '4711',
       workItem: null,
       queueStatus: 'unknown',
@@ -115,7 +116,7 @@ describe('buildTicketGroups', () => {
     ], null, nowMs);
 
     expect(result.groups).toHaveLength(1);
-    expect(result.groups[0].key).toBe('ticketing:glpi:ticket:42');
+    expect(result.groups[0].key).toBe('ticketing:mock:ticket:42');
     expect(result.groups[0].pendingActions.map((item) => item.id)).toEqual(['older-run-action']);
     expect(result.groups[0].lifecycle).toBe('needs_decision');
   });
@@ -178,6 +179,48 @@ describe('buildTicketGroups', () => {
     ], null, nowMs);
 
     expect(result.orphanActions).toEqual([]);
+  });
+});
+
+describe('ticketingProviderKeyForDefinition', () => {
+  it('uses the explicit ticketing provider binding first', () => {
+    expect(ticketingProviderKeyForDefinition({
+      provider_bindings_json: {
+        ticketing: {
+          provider_kind: 'ticketing',
+          provider_key: 'mock',
+        },
+      },
+      scope_policy_json: {
+        provider_kind: 'ticketing',
+        provider_key: 'legacy-ticketing',
+      },
+    })).toBe('mock');
+  });
+
+  it('falls back to the ticketing scope provider for legacy definitions', () => {
+    expect(ticketingProviderKeyForDefinition({
+      provider_bindings_json: null,
+      scope_policy_json: {
+        provider_kind: 'ticketing',
+        provider_key: 'prod-ticketing',
+      },
+    })).toBe('prod-ticketing');
+  });
+
+  it('returns null for non-ticketing definitions', () => {
+    expect(ticketingProviderKeyForDefinition({
+      provider_bindings_json: {
+        ticketing: {
+          provider_kind: 'monitoring',
+          provider_key: 'prometheus',
+        },
+      },
+      scope_policy_json: {
+        provider_kind: 'monitoring',
+        provider_key: 'prometheus',
+      },
+    })).toBeNull();
   });
 });
 

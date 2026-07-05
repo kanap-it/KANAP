@@ -165,7 +165,10 @@ function synthesisFallbackInfo(action: AiAgentControlActionRequest, t: ReturnTyp
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
   if (metadata?.synthesis_usable !== false) return null;
   const { key, detail } = splitFallbackReason(stringValue(metadata.synthesis_fallback_reason));
-  if (metadata?.planner_reply_kind === 'administrative' && key === 'synthesis_not_attempted') return null;
+  // 'synthesis_not_attempted' means the planner deliberately did not commission a sourced
+  // answer (administrative reply or internal escalation) — nothing failed, so no warning.
+  // Genuine failures carry their own reasons (synthesis_error:…, *_over_per_run_cap, …).
+  if (key === 'synthesis_not_attempted') return null;
   const known = FALLBACK_REASON_KEYS.has(key);
   return {
     label: t(`approvals.fallbackReasons.${known ? key : 'unknown'}`, {
@@ -439,7 +442,9 @@ function buildInProgressRows(groups: TicketWorkGroup[], t: ReturnType<typeof use
         capabilityLabel: t('approvals.agentCheck'),
         targetType: workItem.source_object_type ?? group.targetType,
         targetRef: workItem.source_object_ref ?? group.targetRef,
-        detail: t('approvals.agentWorking'),
+        // "Agent working…" only when the agent actually holds the item; a queued item's
+        // status chip already reads "Waiting to start" and must not be contradicted.
+        detail: ['leased', 'running'].includes(workItem.status) ? t('approvals.agentWorking') : null,
         time: workItem.updated_at ?? workItem.created_at,
       }));
     return [...actionRows, ...workRows];

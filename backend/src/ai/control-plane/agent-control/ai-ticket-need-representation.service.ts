@@ -30,7 +30,9 @@ export type TicketNeedRepresentationBuildResult = {
   warnings: string[];
 };
 
-const DEFAULT_LLM_TIMEOUT_MS = 30_000;
+// Background stage: give reasoning models room to think before emitting JSON.
+// Override per deployment via AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS.
+const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 const MAX_NEED_BUILDER_OUTPUT_TOKENS = 5000;
 const TOKEN_COST_EUR = 0.000002;
 const MAX_DERIVED_QUERIES = 10;

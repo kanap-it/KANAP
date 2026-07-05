@@ -24,9 +24,14 @@ export type AgentJsonModelResult = {
   // Provider finish reason for the completion ('length' = truncated at max_tokens,
   // 'stop' = natural end, etc.). null when the provider did not report one.
   finishReason: string | null;
+  // True when the per-call timeout aborted the stream before the model finished.
+  // Provider adapters end the stream silently on abort, so without this flag a
+  // timeout is indistinguishable from a genuine empty/partial model response.
+  timedOut: boolean;
+  timeoutMs: number;
 };
 
-export type AgentStructuredJsonFailureKind = 'empty_body' | 'invalid_json' | 'schema_invalid' | 'truncated';
+export type AgentStructuredJsonFailureKind = 'empty_body' | 'invalid_json' | 'schema_invalid' | 'truncated' | 'timeout';
 
 export type AgentStructuredJsonFailure = {
   kind: AgentStructuredJsonFailureKind;
@@ -247,6 +252,12 @@ export class AiAgentLlmClient {
             break;
         }
       }
+    } catch (error) {
+      // A timeout abort can surface as a throw (abort during request setup) instead of
+      // a silent stream end; report it as a timeout rather than a model error.
+      if (!controller.signal.aborted) {
+        throw error;
+      }
     } finally {
       clearTimeout(timer);
     }
@@ -256,6 +267,8 @@ export class AiAgentLlmClient {
       usage,
       latencyMs: Date.now() - started,
       finishReason,
+      timedOut: controller.signal.aborted,
+      timeoutMs,
     };
   }
 
@@ -288,15 +301,19 @@ export class AiAgentLlmClient {
 
     for (let index = 0; index < 2; index += 1) {
       const attempt = index + 1;
+      // After a timeout the model never produced a complete answer, so there is no
+      // format to repair — resend the original payload instead of telling the model
+      // (wrongly) that its previous output was malformed.
+      const repairPayload = attempt === 1 || lastFailure?.kind === 'timeout'
+        ? input.userPayload
+        : {
+          ...input.userPayload,
+          repair_instruction: 'return only JSON matching the schema, no prose, no markdown',
+          previous_format_error: lastFailure,
+        };
       const response = await this.callJsonModel(context, {
         systemPrompt: input.systemPrompt,
-        userPayload: attempt === 1
-          ? input.userPayload
-          : {
-            ...input.userPayload,
-            repair_instruction: 'return only JSON matching the schema, no prose, no markdown',
-            previous_format_error: lastFailure,
-          },
+        userPayload: repairPayload,
         maxTokens: effectiveMaxTokens,
         runtime: input.runtime,
         images: input.images,
@@ -311,12 +328,22 @@ export class AiAgentLlmClient {
       usage = aggregateUsage(usage, response.usage);
       totalLatencyMs += response.latencyMs;
 
-      const parsed = annotateTruncation(
-        parseStructuredJson(response.text, input.schema),
-        response.finishReason,
-        effectiveMaxTokens,
-        input.taskName,
-      );
+      // A timed-out call yields whatever partial text had streamed before the abort
+      // (often nothing while a reasoning model is still thinking). Parsing it would
+      // mislabel the timeout as an empty/malformed model response — classify honestly.
+      const parsed: { value: T } | { failure: AgentStructuredJsonFailure } = response.timedOut
+        ? {
+          failure: {
+            kind: 'timeout',
+            message: `LLM call timed out after ${response.timeoutMs}ms for task "${input.taskName}" before completing its output; increase ${input.timeoutEnvName} to allow more time.`,
+          },
+        }
+        : annotateTruncation(
+          parseStructuredJson(response.text, input.schema),
+          response.finishReason,
+          effectiveMaxTokens,
+          input.taskName,
+        );
       if ('value' in parsed) {
         attempts.push({
           attempt,

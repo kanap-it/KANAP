@@ -278,8 +278,10 @@
   },
   "monitor": {
     "start": "Agent starten",
+    "disable": "Deaktivieren",
     "testStarted": "Testlauf gestartet.",
     "testFailed": "Testlauf konnte nicht gestartet werden.",
+    "providerMissing": "Für diesen Agenten ist kein Ticketing-Anbieter gebunden.",
     "status": "Status",
     "checkNow": "Jetzt prüfen",
     "lifecycle": "Lebenszyklus",
@@ -300,6 +302,7 @@
     "tokensToday": "Tokens heute",
     "costToday": "Kosten heute",
     "testTicket": "An einem Ticket testen",
+    "ticketNumberPlaceholder": "Ticketnummer (z. B. 64)",
     "runTest": "Test starten",
     "recentActivity": "Aktuelle Aktivität"
   },

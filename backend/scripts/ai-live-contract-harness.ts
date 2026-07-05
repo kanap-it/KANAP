@@ -28,7 +28,7 @@ function usage(): string {
     '  KANAP_LIVE_CONTRACT_TESTS=1',
     '  KANAP_LIVE_TENANT_SLUG=<tenant-slug>',
     '  KANAP_LIVE_USER_ID=<enabled tenant user uuid> (optional; auto-resolves for --run)',
-    '  provider gate for the scenario, for example KANAP_GLPI_LIVE_READ=1',
+    '  provider gate for the scenario, for example KANAP_TICKETING_LIVE_READ=1',
   ].join('\n');
 }
 

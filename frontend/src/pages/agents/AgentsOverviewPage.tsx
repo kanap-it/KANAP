@@ -32,8 +32,9 @@ import {
   EmptyState,
   formatNumber,
   formatPercent,
-  HELP_DESK_AGENT_KEY,
+  HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
+  LEGACY_GLPI_TICKETING_PROVIDER_KEY,
   lifecycleStatusKey,
   MetricBlock,
   ReasonDialog,
@@ -75,7 +76,7 @@ type NewAgentWizardForm = {
   name: string;
   description: string;
   agentType: 'helpdesk';
-  providerKey: 'glpi';
+  providerKey: typeof LEGACY_GLPI_TICKETING_PROVIDER_KEY;
   watchEnabled: boolean;
   filters: TargetingFilter[];
   agentPriority: string;
@@ -98,7 +99,7 @@ function defaultWizardForm(t: (key: string) => string, statusValues: string[] = 
     name: t('overview.newAgentDefaultName'),
     description: t('overview.newAgentDescription'),
     agentType: 'helpdesk',
-    providerKey: 'glpi',
+    providerKey: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
     watchEnabled: false,
     filters: targetingPresetFilters('new_tickets', DEFAULT_HORIZON_HOURS, statusValues),
     agentPriority: '100',
@@ -349,7 +350,7 @@ export default function AgentsOverviewPage() {
     setWizardForm((current) => ({ ...current, [field]: value }));
   };
   const helpdeskTemplateDefinition = React.useMemo(
-    () => definitions.find((definition) => definition.agent_key === HELP_DESK_AGENT_KEY)
+    () => definitions.find((definition) => definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY)
       ?? definitions.find((definition) => definition.agent_type === 'helpdesk')
       ?? null,
     [definitions],
@@ -518,7 +519,7 @@ export default function AgentsOverviewPage() {
                             </Box>
                             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
                               <StatusText status={t(`lifecycle.${label}`)} />
-                              {canAdmin && definition.agent_key !== HELP_DESK_AGENT_KEY && (
+                              {canAdmin && definition.agent_key !== HELP_DESK_TICKETING_AGENT_KEY && (
                                 <Tooltip title={t('overview.deleteAgent')}>
                                   <IconButton
                                     size="small"
@@ -645,7 +646,7 @@ export default function AgentsOverviewPage() {
                   onChange={(event) => updateWizard('providerKey', event.target.value as NewAgentWizardForm['providerKey'])}
                   sx={drawerSelectSx}
                 >
-                  <MenuItem value="glpi" sx={drawerMenuItemSx}>GLPI</MenuItem>
+                  <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
                 </Select>
               </PropertyRow>
               <Button type="button" size="small" variant="action" onClick={() => navigate('/admin/integrations')} sx={{ alignSelf: 'flex-start' }}>

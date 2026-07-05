@@ -17,8 +17,10 @@ import {
   AgentQueueLiveTargetLike,
   AiAgentWorkQueueService,
   DEFAULT_APPROVAL_TTL_SECONDS,
-  HELP_DESK_GLPI_TRIAGE_AGENT_KEY,
+  HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
 } from '../agent/ai-agent-work-queue.service';
+import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
+import { requireTicketingBinding } from '../agent/ticketing-binding';
 import {
   normalizeServiceDeskScopePolicy,
   normalizeServiceDeskTargeting,
@@ -161,18 +163,53 @@ export type AgentControlMockTriageInput = {
   note_body?: string | null;
 };
 
-export type AgentControlGlpiReadInput = {
+export type AgentControlTicketingReadInput = {
+  provider_key?: string | null;
   target_key?: string | null;
 };
 
-export type AgentControlGlpiTriageInput = {
-  target_key?: string | null;
+export type AgentControlTicketingTriageInput = {
   work_item_id?: string | null;
+  provider_key?: string | null;
+  target_key?: string | null;
+  // Which agent a manual "test on a ticket" run should exercise. Without it the
+  // built-in Helpdesk agent runs (legacy behavior).
+  agent_definition_id?: string | null;
 };
 
 type RunLlmUsageEstimate = {
   estimatedTokens: number;
   estimatedCostEur: number;
+};
+
+type HelpdeskTicketingTriageRunOptions = {
+  workflow?: string;
+  sourceEndpoint?: string;
+  manualEnqueueMode?: 'glpi' | 'ticketing';
+  observationType?: string;
+  recommendationType?: string;
+  evaluationType?: string;
+  proposalEvaluationType?: string;
+};
+
+const TICKETING_TRIAGE_RUN_OPTIONS: Required<HelpdeskTicketingTriageRunOptions> = {
+  workflow: 'agent_control_center_ticketing_triage',
+  sourceEndpoint: 'uat/ticketing-triage',
+  manualEnqueueMode: 'ticketing',
+  observationType: 'ticketing_ticket_triage',
+  recommendationType: 'ticketing_triage_actions',
+  evaluationType: 'ticketing_triage_uat',
+  proposalEvaluationType: 'ticketing_triage_proposal',
+};
+
+const LEGACY_GLPI_TRIAGE_RUN_OPTIONS: Required<HelpdeskTicketingTriageRunOptions> = {
+  workflow: 'agent_control_center_glpi_triage',
+  sourceEndpoint: 'uat/glpi-triage',
+  manualEnqueueMode: 'glpi',
+  observationType: 'glpi_ticket_triage',
+  recommendationType: 'glpi_triage_actions',
+  evaluationType: 'glpi_triage_uat',
+  proposalEvaluationType: 'glpi_triage_proposal',
 };
 
 export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity';
@@ -255,7 +292,7 @@ type TicketTimelineEntry = {
   kind: 'description' | 'followup';
   visibility: 'public' | 'internal';
   actor: 'requester_candidate' | 'kanap_agent' | 'support_or_unknown';
-  actorSource: 'glpi_requester_user' | 'glpi_support_user' | 'kanap_marker' | 'public_non_kanap_followup' | 'initial_ticket';
+  actorSource: 'provider_requester_user' | 'provider_support_user' | 'kanap_marker' | 'public_non_kanap_followup' | 'initial_ticket';
   actorId: string | null;
   body: string;
   createdAt: string | null;
@@ -278,7 +315,7 @@ type ConversationActionGate = {
   last_agent_internal_note_action_id: string | null;
   last_agent_public_reply_at: string | null;
   last_agent_public_reply_action_id: string | null;
-  requester_classification_confidence: 'glpi_requester_user' | 'initial_ticket' | 'public_non_kanap_followup' | 'none';
+  requester_classification_confidence: 'provider_requester_user' | 'initial_ticket' | 'public_non_kanap_followup' | 'none';
   ticket_history_entry_count: number;
   latest_ticket_note_id: string | null;
   latest_ticket_note_at: string | null;
@@ -392,7 +429,7 @@ const PHASE_1_PLANNER_OWNED_ACTION_TYPES = [
   'status_update',
 ] as const satisfies readonly PlannerActionType[];
 const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>(PHASE_1_PLANNER_OWNED_ACTION_TYPES);
-const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed']);
+const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed', 'resolved']);
 const MIN_KNOWLEDGE_RELEVANCE_SCORE = 0.00001;
 const MIN_KNOWLEDGE_LEXICAL_OVERLAP = 1;
 const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: string } | undefined> = {
@@ -516,6 +553,15 @@ function toIso(value: Date | string | null | undefined): string | null {
 
 function trimmedString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+// Operator input for a manual agent run on a ticket: '64', '#64' and 'ticket:64' are all
+// accepted. Wildcards are rejected up front (the work-item table forbids them by constraint).
+function manualTicketRef(value: unknown): string | null {
+  const raw = trimmedString(value) ?? '';
+  const stripped = raw.replace(/^ticket:/i, '').replace(/^#/, '').trim();
+  if (!stripped || stripped.includes('*')) return null;
+  return stripped;
 }
 
 function approvalDecisionReason(value: unknown, fallback: string): string {
@@ -1565,10 +1611,10 @@ function normalizePlannerStatusTransitionKey(value: unknown): string | null {
     clotureticket: 'closed',
     solve: 'solved',
     solved: 'solved',
-    resolve: 'solved',
-    resolved: 'solved',
-    resoudre: 'solved',
-    resolu: 'solved',
+    resolve: 'resolved',
+    resolved: 'resolved',
+    resoudre: 'resolved',
+    resolu: 'resolved',
     pending: 'pending',
     wait: 'pending',
     waiting: 'pending',
@@ -1587,10 +1633,16 @@ function lifecycleTransitionByKey(lifecycle: Record<string, unknown> | null, key
   return lifecycleAllowedTransitions(lifecycle).find((transition) => lifecycleTransitionKey(transition) === normalizedKey) ?? null;
 }
 
+function lifecycleTransitionIsTerminal(transition: Record<string, unknown> | null | undefined): boolean {
+  return transition?.terminal === true;
+}
+
 function preferredTerminalLifecycleTransition(lifecycle: Record<string, unknown> | null): Record<string, unknown> | null {
   const transitions = lifecycleAllowedTransitions(lifecycle);
-  return transitions.find((transition) => lifecycleTransitionKey(transition) === 'solved')
+  return transitions.find(lifecycleTransitionIsTerminal)
+    ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'solved')
     ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'closed')
+    ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'resolved')
     ?? transitions.find((transition) => {
       const key = lifecycleTransitionKey(transition);
       return !!key && PLANNER_TERMINAL_TRANSITIONS.has(key);
@@ -1917,9 +1969,9 @@ function buildTicketTimeline(
     const actorSource: TicketTimelineEntry['actorSource'] = markedKanap
       ? 'kanap_marker'
       : note.authorRole === 'requester'
-        ? 'glpi_requester_user'
+        ? 'provider_requester_user'
         : note.visibility === 'internal' || note.authorRole === 'support'
-          ? 'glpi_support_user'
+          ? 'provider_support_user'
           : 'public_non_kanap_followup';
     const createdTime = parseTime(note.createdAt);
     const updatedTime = ticketNoteTime(note);
@@ -1989,7 +2041,7 @@ function evaluateConversationGate(
     last_agent_public_reply_at: isoFromTime(actionConversationTimeOrNull(lastPublic, notes)),
     last_agent_public_reply_action_id: lastPublic?.id ?? null,
     requester_classification_confidence: latestRequester
-      ? latestRequester.entry.actorSource === 'glpi_requester_user' ? 'glpi_requester_user' : 'public_non_kanap_followup'
+      ? latestRequester.entry.actorSource === 'provider_requester_user' ? 'provider_requester_user' : 'public_non_kanap_followup'
       : (lastInternal || lastPublic) ? 'none' : 'initial_ticket',
     ticket_history_entry_count: notes.length,
     latest_ticket_note_id: latestNote?.id ?? null,
@@ -2002,7 +2054,7 @@ function evaluateConversationGate(
 
 function timelineSummaryLines(timeline: TicketTimelineEntry[]): string[] {
   if (timeline.length === 0) {
-    return ['- No GLPI ticket history entries were available.'];
+    return ['- No ticket history entries were available.'];
   }
   return timeline.slice(-8).map((entry) => {
     const at = entry.createdAt ? entry.createdAt.slice(0, 19).replace('T', ' ') : 'initial ticket';
@@ -2020,29 +2072,35 @@ function buildTriageNote(
   knowledgeItems: KnowledgeSearchItem[],
   timeline: TicketTimelineEntry[],
   webResults: WebSearchResultItem[] = [],
-  // When the planner deliberately escalates internally (no requester reply prepared), the note
-  // states the agent's escalation rationale instead of the "synthesis unavailable, complete
-  // manually" boilerplate — that boilerplate is only honest when synthesis was actually expected
-  // and failed. An escalation also does not present the (insufficient) candidate sources as "found".
-  escalation: { reason: string | null } | null = null,
+  // When the planner deliberately handled the ticket itself — an internal escalation (no
+  // requester reply prepared) or a planner-authored administrative reply — the note states the
+  // agent's rationale. The "synthesis unavailable, complete manually" boilerplate is only honest
+  // when a knowledge-sourced answer was actually expected and failed. An escalation does not
+  // present the (insufficient) candidate sources as "found"; an administrative reply keeps them
+  // as context but labels them as unused.
+  plannerOutcome: { kind: 'escalation' | 'administrative_reply'; reason: string | null } | null = null,
 ): string {
-  const technicianBrief = escalation
-    ? (escalation.reason?.trim()
-      || 'The agent escalated this ticket internally; no requester reply was prepared.')
+  const technicianBrief = plannerOutcome
+    ? (plannerOutcome.reason?.trim()
+      || (plannerOutcome.kind === 'administrative_reply'
+        ? 'The agent answered with an administrative reply (see the proposed requester reply on this ticket); no knowledge-sourced answer was required.'
+        : 'The agent escalated this ticket internally; no requester reply was prepared.'))
     : 'AI reply synthesis was unavailable or skipped. Review the possible sources above and complete the requester answer manually before approving.';
   return renderProviderBody([
     '[KANAP triage proposal]',
-    `Ticket: GLPI #${ticket.id} - ${ticket.title}`,
+    `Ticket #${ticket.id} - ${ticket.title}`,
     ticket.status ? `Status: ${ticket.status}` : null,
     ticket.priority ? `Priority: ${ticket.priority}` : null,
     '',
     'Ticket history considered:',
     ...timelineSummaryLines(timeline),
     '',
-    ...(escalation
+    ...(plannerOutcome?.kind === 'escalation'
       ? []
       : [
-        'Possible sources found (fallback mode; no article body copied):',
+        plannerOutcome?.kind === 'administrative_reply'
+          ? 'Candidate sources reviewed (not used by the administrative reply; no article body copied):'
+          : 'Possible sources found (fallback mode; no article body copied):',
         ...fallbackSourceLines(knowledgeItems, webResults, 8),
         '',
       ]),
@@ -2271,7 +2329,7 @@ function renderSynthesizedTriageNote(
     : 'No reliable source-grounded answer was produced; the requester reply will ask a technician to follow up.';
   return renderProviderBody([
     '[KANAP triage proposal]',
-    `Ticket: GLPI #${ticket.id} - ${ticket.title}`,
+    `Ticket #${ticket.id} - ${ticket.title}`,
     ticket.status ? `Status: ${ticket.status}` : null,
     ticket.priority ? `Priority: ${ticket.priority}` : null,
     '',
@@ -2344,7 +2402,7 @@ function buildClassificationUpdateProposal(
   }
   return {
     proposed,
-    reason: `Normalize GLPI ticket ${ticket.id} classification fields that are missing or not mapped before helpdesk processing.`,
+    reason: `Normalize ticket ${ticket.id} classification fields that are missing or not mapped before helpdesk processing.`,
   };
 }
 
@@ -2374,19 +2432,16 @@ function proposalHash(value: unknown): string {
 
 // Terminal ticket transitions (solve/close) are destructive cleanup actions. Even
 // though they reuse the status_update capability (action class 'status', which is
-// in the low-risk automation allowlist), they must NEVER auto-execute — closure is
-// always human-approved. Detect them by the prepared payload (transition key or the
-// GLPI status code 5/6) so the auto-exec path can hard-skip them.
+// in the low-risk automation allowlist), they must NEVER auto-execute. New
+// provider payloads stamp the neutral terminal flag; transitionKey remains a
+// legacy persisted-row backstop.
 function isTerminalStatusAction(action: AiActionRequest): boolean {
   if (!action.capability_name.includes('status_update')) return false;
   const payload = isRecord(action.action_payload_json) ? action.action_payload_json : null;
   if (!payload) return false;
   if (payload.terminal === true) return true;
   const transitionKey = typeof payload.transitionKey === 'string' ? payload.transitionKey : null;
-  if (transitionKey === 'solved' || transitionKey === 'closed') return true;
-  const fields = isRecord(payload.providerFields) ? payload.providerFields : null;
-  const status = fields ? fields.status : null;
-  return status === 5 || status === 6;
+  return transitionKey != null && PLANNER_TERMINAL_TRANSITIONS.has(transitionKey);
 }
 
 function actionMetadataString(action: AiActionRequest, field: string): string | null {
@@ -3323,7 +3378,7 @@ export class AiAgentControlService {
       if (run) {
         run.status = 'failed';
         run.output_summary = {
-          error: 'Helpdesk GLPI triage exceeded the configured per-run economic cap.',
+          error: 'Agent run exceeded the configured per-run economic cap.',
           reason: 'per_run_guardrail_exceeded',
           estimated_tokens: usage.estimatedTokens,
           estimated_cost_eur: usage.estimatedCostEur,
@@ -3337,7 +3392,7 @@ export class AiAgentControlService {
         agentDefinitionId: input.definition.id,
         eventType: 'per_run_cap_exceeded',
         severity: 'warning',
-        message: 'Helpdesk GLPI triage run failed because the per-run economic cap was exceeded.',
+        message: 'Agent run failed because the per-run economic cap was exceeded.',
         metadata: {
           run_id: input.runId,
           stage: input.stage,
@@ -3345,7 +3400,7 @@ export class AiAgentControlService {
           cap: guardrails,
         },
       });
-      throw new ForbiddenException('Helpdesk GLPI triage exceeded the configured per-run economic cap.');
+      throw new ForbiddenException('Agent run exceeded the configured per-run economic cap.');
     }
     if (run) {
       await repo.save(run);
@@ -3471,7 +3526,7 @@ export class AiAgentControlService {
     return withdrawn;
   }
 
-  private async recoverPreparedGlpiActionIds(
+  private async recoverPreparedTicketingActionIds(
     context: AiExecutionContextWithManager,
     input: { runId: string; targetRef: string },
   ): Promise<string[]> {
@@ -3495,6 +3550,7 @@ export class AiAgentControlService {
       decisionId: string;
       actions: AiActionRequest[];
       agentMetadata: Record<string, unknown>;
+      evaluationType?: string;
     },
   ): Promise<AiActionRequest[]> {
     const actionRepo = context.manager.getRepository(AiActionRequest);
@@ -3527,7 +3583,7 @@ export class AiAgentControlService {
           feedback_json: null,
           metadata_json: {
             ...input.agentMetadata,
-            evaluation_type: 'glpi_triage_proposal',
+            evaluation_type: input.evaluationType ?? TICKETING_TRIAGE_RUN_OPTIONS.proposalEvaluationType,
             action_request_id: action.id,
             action_class: action.capability_name,
             target_ref: action.target_ref ?? null,
@@ -3877,7 +3933,7 @@ export class AiAgentControlService {
 
   async listAgentDefinitions(context: AiExecutionContextWithManager) {
     if (this.agentQueue) {
-      await this.agentQueue.ensureHelpdeskGlpiTriageDefinition(context);
+      await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
     }
     const items = await context.manager.getRepository(AiAgentDefinition).find({
       where: { tenant_id: context.tenantId },
@@ -3888,7 +3944,7 @@ export class AiAgentControlService {
 
   async getAgentDefinition(context: AiExecutionContextWithManager, id: string) {
     if (this.agentQueue) {
-      await this.agentQueue.ensureHelpdeskGlpiTriageDefinition(context);
+      await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
     }
     const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
       where: { id, tenant_id: context.tenantId },
@@ -3986,7 +4042,8 @@ export class AiAgentControlService {
     const targeting = normalizeServiceDeskTargeting(scopePolicy);
     const config = this.agentQueue.resolveScopeIngestionConfig(previewDefinition);
     const maxResults = Math.max(1, Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle, 20));
-    const provider = await this.providers.ticketing(context, 'glpi');
+    const ticketingBinding = requireTicketingBinding(definition);
+    const provider = await this.providers.ticketing(context, ticketingBinding.providerKey);
     const tickets: TicketRecord[] = [];
     if (config.mode === 'agent_involved') {
       const refs = await this.agentQueue.listAgentTouchedTicketRefs(context, previewDefinition, maxResults);
@@ -4029,8 +4086,8 @@ export class AiAgentControlService {
       ? await context.manager.getRepository(AiAgentTargetState).find({
         where: {
           tenant_id: context.tenantId,
-          provider_kind: 'ticketing',
-          provider_key: 'glpi',
+          provider_kind: ticketingBinding.providerKind,
+          provider_key: ticketingBinding.providerKey,
           target_type: 'ticket',
           target_ref: In(matchRefs),
         },
@@ -4069,10 +4126,9 @@ export class AiAgentControlService {
     if (!definition) {
       throw new NotFoundException('Agent definition not found.');
     }
-    const providerBindings = metadataObject(definition.provider_bindings_json);
-    const ticketingBinding = metadataObject(providerBindings.ticketing);
-    const providerKey = stringFromMetadata(ticketingBinding.provider_key) ?? 'glpi';
-    const connectionKey = stringFromMetadata(ticketingBinding.connection_id ?? ticketingBinding.connectionId) ?? providerKey;
+    const ticketingBinding = requireTicketingBinding(definition);
+    const providerKey = ticketingBinding.providerKey;
+    const connectionKey = ticketingBinding.connectionKey;
     const isEnumField = field === 'status' || field === 'priority' || field === 'type';
     const ttlMs = isEnumField ? TARGETING_ENUM_OPTIONS_TTL_MS : TARGETING_CATALOG_OPTIONS_TTL_MS;
     const cacheQuery = isEnumField ? query.toLocaleLowerCase() : query.toLocaleLowerCase();
@@ -4148,7 +4204,7 @@ export class AiAgentControlService {
     input: AgentControlAgentDefinitionInput = {},
   ) {
     if (this.agentQueue) {
-      await this.agentQueue.ensureHelpdeskGlpiTriageDefinition(context);
+      await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
     }
     const repo = context.manager.getRepository(AiAgentDefinition);
     const name = cleanSingleLine(input.name, 160);
@@ -4163,7 +4219,7 @@ export class AiAgentControlService {
       throw new BadRequestException('Only Helpdesk agents can be created today. Other agent types are not available yet.');
     }
     const template = agentType === 'helpdesk'
-      ? await repo.findOne({ where: { tenant_id: context.tenantId, agent_key: HELP_DESK_GLPI_TRIAGE_AGENT_KEY } })
+      ? await repo.findOne({ where: { tenant_id: context.tenantId, agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY } })
       : null;
     const agentKey = await this.uniqueAgentKey(context, input.agent_key ? cleanAgentKey(input.agent_key) : null, name);
     const providerBindings = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings')
@@ -4357,7 +4413,7 @@ export class AiAgentControlService {
     }
     // The built-in Helpdesk agent is auto-seeded on poll/settings load, so deleting it just
     // re-creates it. Block deletion and steer the user to disable/archive instead.
-    if (definition.agent_key === HELP_DESK_GLPI_TRIAGE_AGENT_KEY) {
+    if (definition.agent_key === HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
       throw new BadRequestException('The built-in Helpdesk agent cannot be deleted. Disable it instead.');
     }
     // Remove this agent's earned-autonomy policies (metadata-linked, no FK) so no orphan
@@ -4623,10 +4679,9 @@ export class AiAgentControlService {
     if (!definitionAllowsCapability(definition, capabilityName)) {
       throw new ForbiddenException('The agent definition does not allow this capability.');
     }
-    const providerBindings = metadataObject(definition.provider_bindings_json);
-    const ticketingBinding = metadataObject(providerBindings.ticketing);
-    const providerKey = stringFromMetadata(ticketingBinding.provider_key) ?? 'glpi';
-    const providerKind = stringFromMetadata(ticketingBinding.provider_kind) ?? 'ticketing';
+    const ticketingBinding = requireTicketingBinding(definition);
+    const providerKey = ticketingBinding.providerKey;
+    const providerKind = ticketingBinding.providerKind;
     const now = new Date();
     const nextPolicyVersion = existingPolicy ? existingPolicy.policy_version + 1 : 1;
     const policy = await policyRepo.save(policyRepo.create({
@@ -5098,10 +5153,12 @@ export class AiAgentControlService {
             FROM ai_action_requests
             WHERE tenant_id = $1
               AND provider_kind = 'ticketing'
-              AND provider_key = 'glpi'
               AND capability_name = ANY($2)
               AND created_at >= $3
               AND created_at <= $4
+              -- Agent-attributed rows only: definitionless diagnostic/mock-triage
+              -- actions must not pollute the unscoped evaluation trend.
+              AND metadata_json ->> 'agent_definition_id' IS NOT NULL
               AND ($5::text IS NULL OR metadata_json ->> 'agent_definition_id' = $5::text)
             GROUP BY 1
           `,
@@ -5151,7 +5208,6 @@ export class AiAgentControlService {
         where: {
           tenant_id: context.tenantId,
           provider_kind: 'ticketing',
-          provider_key: 'glpi',
         },
       }),
       context.manager.getRepository(AiRun).createQueryBuilder('run')
@@ -5163,7 +5219,11 @@ export class AiAgentControlService {
     const acceptedByDay = new Map<string, number>();
     for (const action of actions) {
       if (!HELPDESK_REVIEW_ACTION_CAPABILITIES.includes(action.capability_name)) continue;
-      if (agentDefinitionId && stringFromMetadata(metadataObject(action.metadata_json).agent_definition_id) !== agentDefinitionId) continue;
+      // Agent-attributed rows only, mirroring the SQL path: definitionless
+      // diagnostic/mock-triage actions must not pollute the evaluation trend.
+      const actionDefinitionId = stringFromMetadata(metadataObject(action.metadata_json).agent_definition_id);
+      if (!actionDefinitionId) continue;
+      if (agentDefinitionId && actionDefinitionId !== agentDefinitionId) continue;
       if (!withinDateRange(action.created_at, start, end)) continue;
       const key = dateKey(action.created_at instanceof Date ? action.created_at : new Date(action.created_at));
       const row = byDay.get(key);
@@ -5304,10 +5364,9 @@ export class AiAgentControlService {
     }
     if (
       workItem.source_provider_kind !== 'ticketing'
-      || workItem.source_provider_key !== 'glpi'
       || workItem.source_object_type !== 'ticket'
     ) {
-      throw new BadRequestException('Helpdesk context is only available for GLPI ticket work items.');
+      throw new BadRequestException('Helpdesk context is only available for ticketing work items.');
     }
 
     const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
@@ -5316,8 +5375,15 @@ export class AiAgentControlService {
         tenant_id: context.tenantId,
       },
     });
-    if (!definition || definition.agent_key !== 'helpdesk.glpi.triage') {
-      throw new BadRequestException('Helpdesk context is only available for the Helpdesk GLPI triage agent.');
+    if (!definition || definition.agent_key !== HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
+      throw new BadRequestException('Helpdesk context is only available for the helpdesk ticket triage agent.');
+    }
+    const binding = requireTicketingBinding(definition, 'Helpdesk context requires a ticketing provider binding.');
+    if (
+      workItem.source_provider_kind !== binding.providerKind
+      || workItem.source_provider_key !== binding.providerKey
+    ) {
+      throw new BadRequestException('Helpdesk context work item provider does not match the agent ticketing binding.');
     }
 
     const targetState = await context.manager.getRepository(AiAgentTargetState).findOne({
@@ -5437,20 +5503,31 @@ export class AiAgentControlService {
   }
 
   async listGlpiReadTargets(context: AiExecutionContextWithManager) {
+    return this.listTicketingReadTargets(context, { provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY });
+  }
+
+  async listTicketingReadTargets(
+    context: AiExecutionContextWithManager,
+    input: Pick<AgentControlTicketingReadInput, 'provider_key'> = {},
+  ) {
+    const providerKey = trimmedString(input.provider_key);
+    if (!providerKey) {
+      throw new BadRequestException('provider_key is required for ticketing read targets.');
+    }
     const [targets, applicability] = await Promise.all([
       this.liveTargets.findEnabledTargets(context, {
         providerKind: 'ticketing',
-        providerKey: 'glpi',
+        providerKey,
         allowedEffect: 'read',
         targetKind: 'ticket',
       }),
-      this.providers.getApplicability(context, 'ticketing', 'glpi'),
+      this.providers.getApplicability(context, 'ticketing', providerKey),
     ]);
 
     return {
       provider: {
         provider_kind: 'ticketing',
-        provider_key: 'glpi',
+        provider_key: providerKey,
         available: applicability.available,
         reason_code: applicability.reasonCode ?? null,
         message: applicability.message ?? null,
@@ -5568,18 +5645,36 @@ export class AiAgentControlService {
     return { executions, nextStepIndex: stepIndex };
   }
 
-  async runGlpiRead(context: AiExecutionContextWithManager, input: AgentControlGlpiReadInput = {}) {
+  async runGlpiRead(context: AiExecutionContextWithManager, input: Pick<AgentControlTicketingReadInput, 'target_key'> = {}) {
+    return this.runTicketingRead(context, {
+      provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
+      target_key: input.target_key,
+    }, {
+      workflow: 'agent_control_center_glpi_read',
+      unavailableMessage: 'GLPI provider is unavailable',
+    });
+  }
+
+  async runTicketingRead(
+    context: AiExecutionContextWithManager,
+    input: AgentControlTicketingReadInput = {},
+    options: { workflow?: string; unavailableMessage?: string } = {},
+  ) {
+    const providerKey = trimmedString(input.provider_key);
+    if (!providerKey) {
+      throw new BadRequestException('provider_key is required for ticketing read.');
+    }
     const target = await this.liveTargets.requireSingleEnabledTarget(context, {
       providerKind: 'ticketing',
-      providerKey: 'glpi',
+      providerKey,
       allowedEffect: 'read',
       targetKind: 'ticket',
       targetKey: trimmedString(input.target_key),
     });
 
-    const applicability = await this.providers.getApplicability(context, 'ticketing', 'glpi');
+    const applicability = await this.providers.getApplicability(context, 'ticketing', providerKey);
     if (!applicability.available) {
-      throw new ForbiddenException(`GLPI provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
+      throw new ForbiddenException(`${options.unavailableMessage ?? 'Ticketing provider is unavailable'}: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
     }
 
     const result = await this.dispatcher.execute(context, {
@@ -5592,7 +5687,7 @@ export class AiAgentControlService {
         surface: 'internal',
         trigger_kind: 'internal',
         metadata: {
-          uat_workflow: 'agent_control_center_glpi_read',
+          uat_workflow: options.workflow ?? 'agent_control_center_ticketing_read',
           source: 'admin_ui',
           live_target_id: target.id,
           live_target_key: target.target_key,
@@ -5609,16 +5704,47 @@ export class AiAgentControlService {
     };
   }
 
-  async runGlpiTriage(context: AiExecutionContextWithManager, input: AgentControlGlpiTriageInput = {}) {
+  async runTicketingTriage(context: AiExecutionContextWithManager, input: AgentControlTicketingTriageInput = {}) {
+    const workItemId = trimmedString(input.work_item_id);
+    if (workItemId) {
+      return this.runHelpdeskTicketingTriage(context, { work_item_id: workItemId }, TICKETING_TRIAGE_RUN_OPTIONS);
+    }
+    const providerKey = trimmedString(input.provider_key);
+    if (!providerKey) {
+      throw new BadRequestException('provider_key is required for manual ticketing triage.');
+    }
+    return this.runHelpdeskTicketingTriage(context, {
+      provider_key: providerKey,
+      target_key: input.target_key,
+      agent_definition_id: input.agent_definition_id,
+    }, TICKETING_TRIAGE_RUN_OPTIONS);
+  }
+
+  async runGlpiTriage(
+    context: AiExecutionContextWithManager,
+    input: Pick<AgentControlTicketingTriageInput, 'target_key' | 'work_item_id'> = {},
+  ) {
+    return this.runHelpdeskTicketingTriage(context, {
+      ...input,
+      provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
+    }, LEGACY_GLPI_TRIAGE_RUN_OPTIONS);
+  }
+
+  private async runHelpdeskTicketingTriage(
+    context: AiExecutionContextWithManager,
+    input: AgentControlTicketingTriageInput = {},
+    options: HelpdeskTicketingTriageRunOptions = {},
+  ) {
     const workItemId = trimmedString(input.work_item_id);
     let target: AiLiveTestTarget | AgentQueueLiveTargetLike;
     let agentDefinition: AiAgentDefinition | null = null;
+    let requestedDefinition: AiAgentDefinition | null = null;
     let leasedWorkItem: AiAgentWorkItem | null = null;
     let workItemCreated = false;
     let agentMetadata: Record<string, unknown> = {};
     if (workItemId) {
       if (!this.agentQueue) {
-        throw new ForbiddenException('Agent work queue is required to run queued GLPI triage.');
+        throw new ForbiddenException('Agent work queue is required to run queued ticketing triage.');
       }
       const queuedWorkItem = await context.manager.getRepository(AiAgentWorkItem).findOne({
         where: {
@@ -5631,10 +5757,9 @@ export class AiAgentControlService {
       }
       if (
         queuedWorkItem.source_provider_kind !== 'ticketing'
-        || queuedWorkItem.source_provider_key !== 'glpi'
         || queuedWorkItem.source_object_type !== 'ticket'
       ) {
-        throw new BadRequestException('Queued GLPI triage work item must target a GLPI ticket.');
+        throw new BadRequestException('Queued ticket triage work item must target a ticketing ticket.');
       }
       agentDefinition = await context.manager.getRepository(AiAgentDefinition).findOne({
         where: {
@@ -5643,9 +5768,16 @@ export class AiAgentControlService {
         },
       });
       if (!agentDefinition) {
-        throw new ForbiddenException('Queued GLPI triage work item has no tenant-scoped agent definition.');
+        throw new ForbiddenException('Queued ticketing triage work item has no tenant-scoped agent definition.');
       }
-      this.agentQueue.assertHelpdeskGlpiDefinitionRunnable(agentDefinition, null);
+      this.agentQueue.assertHelpdeskTicketingDefinitionRunnable(agentDefinition, null);
+      const binding = requireTicketingBinding(agentDefinition, 'Queued ticket triage requires a ticketing provider binding.');
+      if (
+        queuedWorkItem.source_provider_kind !== binding.providerKind
+        || queuedWorkItem.source_provider_key !== binding.providerKey
+      ) {
+        throw new BadRequestException('Queued ticket triage work item provider does not match the agent ticketing binding.');
+      }
       leasedWorkItem = await this.agentQueue.acquireWorkItem(context, queuedWorkItem.id, {
         leaseOwner: `helpdesk-new-ticket-poller:${context.userId || 'system'}`,
       });
@@ -5663,25 +5795,93 @@ export class AiAgentControlService {
         enabled: true,
       };
     } else {
-      target = await this.liveTargets.requireSingleEnabledTarget(context, {
-        providerKind: 'ticketing',
-        providerKey: 'glpi',
-        allowedEffect: 'read',
-        targetKind: 'ticket',
-        targetKey: trimmedString(input.target_key),
-      });
+      const providerKey = trimmedString(input.provider_key);
+      if (!providerKey) {
+        throw new BadRequestException('provider_key is required for manual ticketing triage.');
+      }
+      const requestedDefinitionId = trimmedString(input.agent_definition_id);
+      if (requestedDefinitionId) {
+        requestedDefinition = await context.manager.getRepository(AiAgentDefinition).findOne({
+          where: { id: requestedDefinitionId, tenant_id: context.tenantId },
+        });
+        if (!requestedDefinition) {
+          throw new NotFoundException('Agent definition not found.');
+        }
+      }
+      if (requestedDefinition) {
+        // Agent-scoped manual run: the operator names the agent and a ticket number, and the
+        // target is built from the agent's own provider binding. The UAT live-test-target
+        // registry (a hand-curated allowlist of a few tickets) is deliberately bypassed — the
+        // scheduled poll already reaches any ticket the targeting matches, so a manual
+        // read-and-propose run on an operator-chosen ticket is no broader.
+        const binding = requireTicketingBinding(requestedDefinition, 'Manual ticket triage requires a ticketing provider binding.');
+        if (binding.providerKind !== 'ticketing' || binding.providerKey !== providerKey) {
+          throw new BadRequestException('Manual ticket triage provider does not match the agent ticketing binding.');
+        }
+        const ticketRef = manualTicketRef(input.target_key);
+        if (!ticketRef) {
+          throw new BadRequestException('A ticket number is required to run an agent on a ticket.');
+        }
+        target = {
+          id: `manual-agent-test:${requestedDefinition.id}:${ticketRef}`,
+          provider_kind: binding.providerKind,
+          provider_key: binding.providerKey,
+          environment: requestedDefinition.environment,
+          target_kind: 'ticket',
+          target_key: `ticket:${ticketRef}`,
+          external_ref: ticketRef,
+          allowed_effect: 'read',
+          safety_label: 'manual_agent_test',
+          enabled: true,
+        };
+      } else {
+        target = await this.liveTargets.requireSingleEnabledTarget(context, {
+          providerKind: 'ticketing',
+          providerKey,
+          allowedEffect: 'read',
+          targetKind: 'ticket',
+          targetKey: trimmedString(input.target_key),
+        });
+      }
     }
 
     if (!workItemId && this.agentQueue) {
-      const enqueued = await this.agentQueue.enqueueManualGlpiSafeTarget(context, serializeLiveTarget(target), {
-        source_endpoint: 'uat/glpi-triage',
-      });
-      agentDefinition = enqueued.definition;
-      workItemCreated = enqueued.created;
-      leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
-        leaseOwner: `agent-control-center:${context.userId || 'system'}`,
-      });
-      agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      if (requestedDefinition && requestedDefinition.agent_key !== HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
+        // Manual test of a specific (custom) agent: enqueue against that agent's own
+        // binding so the run exercises its configuration, not the built-in's. If an
+        // active work item already exists for this ticket, it is reused and re-run.
+        const enqueued = await this.agentQueue.enqueueTicketingScopedTicket(context, {
+          definition: requestedDefinition,
+          ticket: { id: String(target.external_ref) },
+          metadata: {
+            source: 'manual_safe_target',
+            target_id: target.id,
+            target_key: target.target_key,
+            target_environment: target.environment,
+            target_safety_label: target.safety_label,
+            source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
+          },
+        });
+        agentDefinition = requestedDefinition;
+        workItemCreated = enqueued.created;
+        leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
+          leaseOwner: `agent-control-center:${context.userId || 'system'}`,
+        });
+        agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      } else {
+        const enqueue = options.manualEnqueueMode === 'glpi'
+          ? this.agentQueue.enqueueManualGlpiSafeTarget.bind(this.agentQueue)
+          : this.agentQueue.enqueueManualTicketingSafeTarget.bind(this.agentQueue);
+        const enqueued = await enqueue(context, serializeLiveTarget(target), {
+          source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
+        });
+        agentDefinition = enqueued.definition;
+        workItemCreated = enqueued.created;
+        leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
+          leaseOwner: `agent-control-center:${context.userId || 'system'}`,
+        });
+        agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      }
     }
     const promptRuntime = await this.compileAgentPromptRuntime(context, agentDefinition);
 
@@ -5695,7 +5895,7 @@ export class AiAgentControlService {
       : DEFAULT_APPROVAL_TTL_SECONDS;
     const proposalExpiresAt = new Date(Date.now() + runApprovalTtlSeconds * 1000).toISOString();
     const baseMetadata = {
-      uat_workflow: 'agent_control_center_glpi_triage',
+      uat_workflow: options.workflow ?? TICKETING_TRIAGE_RUN_OPTIONS.workflow,
       source: 'admin_ui',
       live_target_id: target.id,
       live_target_key: target.target_key,
@@ -5706,9 +5906,9 @@ export class AiAgentControlService {
       proposal_expires_at: proposalExpiresAt,
     };
     try {
-      const applicability = await this.providers.getApplicability(context, 'ticketing', 'glpi');
+      const applicability = await this.providers.getApplicability(context, 'ticketing', target.provider_key);
       if (!applicability.available) {
-        throw new ForbiddenException(`GLPI provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
+        throw new ForbiddenException(`Ticketing provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
       }
 
       let stepIndex = 1;
@@ -5752,7 +5952,7 @@ export class AiAgentControlService {
 
       const ticket = adapterData<TicketLike>(ticketResult.output);
     if (!ticket) {
-      throw new BadRequestException(adapterFailureMessage(ticketResult.output) ?? 'GLPI ticket read did not return ticket data.');
+      throw new BadRequestException(adapterFailureMessage(ticketResult.output) ?? 'Ticket read did not return ticket data.');
     }
 
     const ticketNotesResult = await this.dispatcher.execute<AdapterResultLike<{ notes: TicketNoteLike[] }>>(context, {
@@ -5775,7 +5975,7 @@ export class AiAgentControlService {
     allEvidenceIds.push(...await this.evidenceIdsForTool(context, ticketNotesResult.tool_execution_id));
     const ticketNotesData = adapterData<{ notes: TicketNoteLike[] }>(ticketNotesResult.output);
     if (!ticketNotesData) {
-      throw new BadRequestException(adapterFailureMessage(ticketNotesResult.output) ?? 'GLPI ticket history read did not return note data.');
+      throw new BadRequestException(adapterFailureMessage(ticketNotesResult.output) ?? 'Ticket history read did not return note data.');
     }
     const classificationContextResult = await this.dispatcher.execute<AdapterResultLike<Record<string, unknown>>>(context, {
       capabilityName: TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
@@ -6210,7 +6410,7 @@ export class AiAgentControlService {
             stepIndex: stepIndex++,
             metadata: {
               ...baseMetadata,
-              knowledge_query_source: 'glpi_ticket',
+              knowledge_query_source: 'ticket',
               knowledge_query_index: candidateIndex + 1,
               knowledge_query_count: knowledgeQueryCandidates.length,
             },
@@ -6255,7 +6455,7 @@ export class AiAgentControlService {
         [...selectedKnowledgeItems, ...unvalidatedKnowledgeItems],
       ).dropped;
       if (knowledgeLowRelevance.length > 0) {
-        this.logger.debug(`Flagged ${knowledgeLowRelevance.length} low-relevance knowledge candidate(s) (kept for synthesis) for GLPI ticket ${ticket.id}.`);
+        this.logger.debug(`Flagged ${knowledgeLowRelevance.length} low-relevance knowledge candidate(s) (kept for synthesis) for ticket ${ticket.id}.`);
       }
     }
     // Present LLM-validated selections first, then unvalidated candidates, tagged so synthesis
@@ -6301,7 +6501,7 @@ export class AiAgentControlService {
             stepIndex: stepIndex++,
             metadata: {
               ...baseMetadata,
-              knowledge_document_source: 'glpi_ticket',
+              knowledge_document_source: 'ticket',
               knowledge_document_index: documentIndex + 1,
               knowledge_document_ref: documentId,
             },
@@ -6353,7 +6553,7 @@ export class AiAgentControlService {
               stepIndex: stepIndex++,
               metadata: {
                 ...baseMetadata,
-                web_query_source: 'glpi_ticket',
+                web_query_source: 'ticket',
               },
             },
           });
@@ -6363,7 +6563,7 @@ export class AiAgentControlService {
         } catch (error) {
           webSearchStatus = 'failed';
           webSearchError = error instanceof Error ? error.message : String(error);
-          this.logger.warn(`Web search skipped for GLPI ticket ${ticket.id}: ${webSearchError}`);
+          this.logger.warn(`Web search skipped for ticket ${ticket.id}: ${webSearchError}`);
         }
       } else {
         webSearchStatus = 'skipped_empty_query';
@@ -6725,7 +6925,7 @@ export class AiAgentControlService {
             markPlannerSkipped(actionType, 'transition_not_allowed');
             continue;
           }
-          terminal = plannerStatusTransitionIsTerminal(resolvedTransition.key);
+          terminal = lifecycleTransitionIsTerminal(resolvedTransition.transition);
           if (terminal && !closeEligible) {
             markPlannerSkipped(actionType, 'terminal_transition_requires_close_eligibility');
             continue;
@@ -6867,28 +7067,44 @@ export class AiAgentControlService {
         });
       }
     }
-    // Internal-note body: a usable synthesis renders the full triage note; otherwise, if the planner
-    // deliberately escalated internally (no requester reply prepared), the note carries the agent's
-    // escalation rationale instead of the "synthesis unavailable, complete manually" boilerplate
-    // (which is only honest in genuine fallback mode). Snake_case gate tokens are filtered out.
+    // Internal-note body: a usable synthesis renders the full triage note; otherwise, if the
+    // planner deliberately handled the ticket itself — an internal escalation (no requester reply
+    // prepared) or a planner-authored administrative reply (synthesis skipped by design) — the note
+    // carries the agent's rationale instead of the "synthesis unavailable, complete manually"
+    // boilerplate (which is only honest when a sourced answer was expected and failed).
+    // Snake_case gate tokens are filtered out.
     const effectiveInternalNoteAction = effectivePlannerActions.find((entry) => entry.action.action_type === 'internal_note') ?? null;
     const hasEffectiveRequesterReply = effectivePlannerActions.some((entry) => entry.action.action_type === 'requester_reply');
+    const effectiveAdministrativeReplyAction = effectivePlannerActions.find((entry) =>
+      entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'administrative') ?? null;
     // An internal escalation = the planner ran, prepared an internal note, and NO requester reply
     // is being prepared (either never selected, #35, or downgraded after unusable synthesis, #37).
     const isPlannerEscalation = !!actionPlannerResult && !!effectiveInternalNoteAction && !hasEffectiveRequesterReply;
+    const isPlannerAdministrativeReply = !!actionPlannerResult && !!effectiveInternalNoteAction && !!effectiveAdministrativeReplyAction;
     const isProseReason = (value: string): boolean => value.length > 0 && !/^[a-z0-9_]+$/.test(value);
-    const escalationReason = isPlannerEscalation
-      ? ([actionPlannerResult.rationale, effectiveInternalNoteAction.action.reason]
+    const plannerReasonProse = (reasons: Array<string | null | undefined>): string | null =>
+      reasons
         .map((reason) => (reason ?? '').trim())
         .filter(isProseReason)
         .filter((reason, index, all) => all.indexOf(reason) === index)
-        .join(' — ') || null)
+        .join(' — ') || null;
+    const escalationReason = isPlannerEscalation
+      ? plannerReasonProse([actionPlannerResult.rationale, effectiveInternalNoteAction.action.reason])
+      : null;
+    const administrativeReason = isPlannerAdministrativeReply
+      ? plannerReasonProse([
+        actionPlannerResult.rationale,
+        effectiveAdministrativeReplyAction.action.reason,
+        effectiveInternalNoteAction.action.reason,
+      ])
       : null;
     const noteBody = isPlannerEscalation
-      ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { reason: escalationReason })
+      ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { kind: 'escalation', reason: escalationReason })
       : (replySynthesisResult
         ? renderSynthesizedTriageNote(ticket, ticketTimeline, replySynthesisResult)
-        : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, null));
+        : (isPlannerAdministrativeReply
+          ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { kind: 'administrative_reply', reason: administrativeReason })
+          : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, null)));
 
     const effectivePlannerActionSummaries = effectivePlannerActions.map((entry) => ({
       action_type: entry.action.action_type,
@@ -6928,13 +7144,13 @@ export class AiAgentControlService {
     const observation = await observationRepo.save(observationRepo.create({
       tenant_id: context.tenantId,
       run_id: ticketResult.run_id,
-      observation_type: 'glpi_ticket_triage',
+      observation_type: options.observationType ?? TICKETING_TRIAGE_RUN_OPTIONS.observationType,
       status: 'observed',
-      source_provider: 'ticketing:glpi',
+      source_provider: `${target.provider_kind}:${target.provider_key}`,
       source_object_type: 'ticket',
       source_object_id: ticket.id,
       severity: ticket.priority ?? null,
-      summary: `GLPI ticket ${ticket.id}: ${ticket.title}. ${knowledgeItems.length} knowledge result(s) found.`,
+      summary: `Ticket ${ticket.id}: ${ticket.title}. ${knowledgeItems.length} knowledge result(s) found.`,
       evidence_ids: allEvidenceIds,
       metadata_json: {
         ...agentMetadata,
@@ -6990,14 +7206,14 @@ export class AiAgentControlService {
       tenant_id: context.tenantId,
       run_id: ticketResult.run_id,
       observation_id: observation.id,
-      recommendation_type: 'glpi_triage_actions',
+      recommendation_type: options.recommendationType ?? TICKETING_TRIAGE_RUN_OPTIONS.recommendationType,
       status: anyActionEligible ? 'proposed' : 'skipped',
       summary: anyActionEligible
         ? `Prepare ${expectedActionLabels.join(' and ')} with the related KANAP knowledge and ticket history context.`
-        : 'Do not prepare a GLPI action; the action planner/builders found no eligible action for this run.',
+        : 'Do not prepare a ticketing action; the action planner/builders found no eligible action for this run.',
       rationale: anyActionEligible
-        ? 'The workflow read the GLPI ticket history, searched the KANAP knowledge base, authorized the instruction-driven plan for owned actions, and kept non-owned deterministic builders unchanged.'
-        : 'The workflow read the GLPI ticket history and no owned planner action or non-owned deterministic builder produced an eligible proposal.',
+        ? 'The workflow read the ticket history, searched the KANAP knowledge base, authorized the instruction-driven plan for owned actions, and kept non-owned deterministic builders unchanged.'
+        : 'The workflow read the ticket history and no owned planner action or non-owned deterministic builder produced an eligible proposal.',
       confidence: knowledgeItems.length > 0 ? 0.72 : 0.46,
       proposed_action_class: 'ticket_triage_followups',
       max_autonomy_level: 'A2',
@@ -7067,7 +7283,7 @@ export class AiAgentControlService {
       status: anyActionEligible ? 'pending_human_approval' : 'skipped',
       reason: anyActionEligible
         ? `Prepared ${expectedActionLabels.join(' and ')} action request(s); no write will occur without explicit approval.`
-        : 'Skipped GLPI action preparation because no eligible planner or builder action was selected.',
+        : 'Skipped ticketing action preparation because no eligible planner or builder action was selected.',
       evidence_ids: allEvidenceIds,
       policy_result_json: {
         autonomy_level: 'A2',
@@ -7097,7 +7313,7 @@ export class AiAgentControlService {
       feedback_json: null,
       metadata_json: {
         ...agentMetadata,
-        evaluation_type: 'glpi_triage_uat',
+        evaluation_type: options.evaluationType ?? TICKETING_TRIAGE_RUN_OPTIONS.evaluationType,
       },
       created_at: now,
       updated_at: now,
@@ -7463,7 +7679,7 @@ export class AiAgentControlService {
     ].filter(Boolean).length;
     const recoveredPreparedActionIds = directPreparedActionIds.length >= expectedPreparedActionCount
       ? []
-      : await this.recoverPreparedGlpiActionIds(context, {
+      : await this.recoverPreparedTicketingActionIds(context, {
         runId: ticketResult.run_id,
         targetRef: ticket.id,
       });
@@ -7480,7 +7696,7 @@ export class AiAgentControlService {
       })
       : [];
     if (expectedPreparedActionCount > 0 && durablePreparedActions.length === 0) {
-      throw new BadRequestException('GLPI triage prepared a proposal but did not create a durable action request for review.');
+      throw new BadRequestException('Ticket triage prepared a proposal but did not create a durable action request for review.');
     }
     durablePreparedActions = await this.ensureProposalEvaluations(context, {
       runId: ticketResult.run_id,
@@ -7488,6 +7704,7 @@ export class AiAgentControlService {
       decisionId: decision.id,
       actions: durablePreparedActions,
       agentMetadata,
+      evaluationType: options.proposalEvaluationType,
     });
     const automaticExecution = await this.executeAutomaticPreparedActions(context, {
       definition: agentDefinition,
@@ -7514,7 +7731,7 @@ export class AiAgentControlService {
     let finalWorkItem: AiAgentWorkItem | null = leasedWorkItem;
     let targetState: AiAgentTargetState | null = null;
     if (this.agentQueue && agentDefinition && leasedWorkItem) {
-      const outcome = await this.agentQueue.recordManualGlpiTriageOutcome(context, {
+      const outcome = await this.agentQueue.recordManualTicketingTriageOutcome(context, {
         definition: agentDefinition,
         workItem: leasedWorkItem,
         runId: ticketResult.run_id,
@@ -7920,7 +8137,7 @@ export class AiAgentControlService {
 
   // Execute a single approved action. Designed to run inside its OWN transaction
   // (one per action) so row locks on the ticket work item / target state release
-  // between slow GLPI writes and never block the queue-overview reconciliation.
+  // between slow ticketing writes and never block the queue-overview reconciliation.
   private async actionExecutionResult(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,

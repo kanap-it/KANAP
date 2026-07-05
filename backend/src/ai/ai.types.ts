@@ -4,6 +4,7 @@ import { z } from 'zod';
 export type AiSurface = 'chat' | 'mcp';
 export type AiAuthMethod = 'jwt' | 'api_key';
 export type AiMutationWriteToolName =
+  | 'import_ticket'
   | 'import_glpi_ticket'
   | 'create_task'
   | 'create_master_data_record'

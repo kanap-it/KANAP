@@ -33,6 +33,7 @@ import {
   TicketReferenceCatalogKind,
   TicketReferenceEnums,
 } from '../provider.types';
+import { OPEN_TICKET_STATUS_VALUES } from '../provider-constants';
 import {
   errorForScenario,
   evidenceSeed,
@@ -308,7 +309,7 @@ export class MockTicketingProvider implements TicketingProvider {
         scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
       },
     ];
-    const statusValues = new Set((scope.statusValues && scope.statusValues.length > 0 ? scope.statusValues : ['1', '2', '3', '4', 'new'])
+    const statusValues = new Set((scope.statusValues && scope.statusValues.length > 0 ? scope.statusValues : OPEN_TICKET_STATUS_VALUES)
       .map((value) => String(value).trim().toLowerCase())
       .filter(Boolean));
     const tickets = candidates
@@ -398,8 +399,8 @@ export class MockTicketingProvider implements TicketingProvider {
       statusLabel: 'Open',
       terminal: false,
       allowedTransitions: [
-        { key: 'pending_user', label: 'Waiting for requester', requiresApproval: true, destructive: false },
-        { key: 'escalated_l2', label: 'Escalate to L2', requiresApproval: true, destructive: false },
+        { key: 'pending_user', label: 'Waiting for requester', requiresApproval: true, destructive: false, terminal: false },
+        { key: 'escalated_l2', label: 'Escalate to L2', requiresApproval: true, destructive: false, terminal: false },
       ],
       updatedAt: '2026-05-24T09:05:00.000Z',
       supported: true,
@@ -558,6 +559,7 @@ export class MockTicketingProvider implements TicketingProvider {
       transitionKey: transition.key,
       targetStatus: transition.key,
       targetStatusLabel: transition.label,
+      terminal: transition.terminal,
       reason,
     };
     const data = {

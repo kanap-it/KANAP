@@ -76,7 +76,9 @@ const MAX_PLAN_QUERIES = 10;
 const MAX_QUERY_CHARS = 120;
 const MAX_TERMS = 10;
 const MAX_INTERPRETER_CANDIDATES = 16;
-const DEFAULT_LLM_TIMEOUT_MS = 30_000;
+// Background stage: give reasoning models room to think before emitting JSON.
+// Override per deployment via AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS.
+const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 const TOKEN_COST_EUR = 0.000002;
 // Generous output budgets so verbose / reasoning models do not truncate the JSON
 // (finish_reason=length). Override per deployment via the *_MAX_TOKENS env vars.

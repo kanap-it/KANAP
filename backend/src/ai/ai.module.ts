@@ -74,7 +74,7 @@ import { AiReplySynthesisService } from './control-plane/agent-control/ai-reply-
 import { AiSharedContextProfileService } from './control-plane/agent-control/ai-shared-context-profile.service';
 import { AiTicketNeedRepresentationService } from './control-plane/agent-control/ai-ticket-need-representation.service';
 import { AiAgentApprovalLifecycleSweeperService } from './control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
-import { AiAgentHelpdeskGlpiIngestionService } from './control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
+import { AiAgentHelpdeskTicketingIngestionService } from './control-plane/agent/ai-agent-helpdesk-ticketing-ingestion.service';
 import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
 import { AiApprovalService } from './control-plane/approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from './control-plane/automation/ai-automation-job-catalog.service';
@@ -121,7 +121,8 @@ import { AiAutonomyRoutineService } from './control-plane/policy/ai-autonomy-rou
 import { AiAdapterConfig } from './control-plane/providers/adapter-config.entity';
 import { AiAdapterConfigService } from './control-plane/providers/adapter-config.service';
 import { GlpiTicketingProvider } from './control-plane/providers/glpi-ticketing.provider';
-import { AiProviderRegistryService } from './control-plane/providers/provider-registry.service';
+import { GLPI_TICKETING_IMPLEMENTATION } from './control-plane/providers/provider-constants';
+import { AI_PROVIDER_IMPLEMENTATIONS, AiProviderRegistryService } from './control-plane/providers/provider-registry.service';
 import { AiTenantSecretResolverService } from './control-plane/providers/tenant-secret-resolver.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { GlpiService } from './glpi/glpi.service';
@@ -137,7 +138,7 @@ import { CreateBusinessRecordAiMutationOperation } from './mutation/operations/c
 import { CreateDocumentAiMutationOperation } from './mutation/operations/create-document.ai-mutation-operation';
 import { CreateMasterDataRecordAiMutationOperation } from './mutation/operations/create-master-data-record.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from './mutation/operations/create-task.ai-mutation-operation';
-import { ImportGlpiTicketAiMutationOperation } from './mutation/operations/import-glpi-ticket.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation, ImportTicketAiMutationOperation } from './mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './mutation/operations/update-document-relations.ai-mutation-operation';
@@ -249,6 +250,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiMasterDataMutationSupportService,
     AiRelationMutationSupportService,
     AiTaskMutationSupportService,
+    ImportTicketAiMutationOperation,
     ImportGlpiTicketAiMutationOperation,
     CreateBusinessRecordAiMutationOperation,
     CreateDocumentAiMutationOperation,
@@ -277,7 +279,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityDispatcherService,
     AiEvidenceService,
     AiAgentApprovalLifecycleSweeperService,
-    AiAgentHelpdeskGlpiIngestionService,
+    AiAgentHelpdeskTicketingIngestionService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
@@ -296,6 +298,13 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiEmergencyPauseService,
     AiAdapterConfigService,
     GlpiTicketingProvider,
+    {
+      provide: AI_PROVIDER_IMPLEMENTATIONS,
+      useFactory: (glpiTicketing: GlpiTicketingProvider) => [
+        { providerKind: 'ticketing', implementation: GLPI_TICKETING_IMPLEMENTATION, provider: glpiTicketing },
+      ],
+      inject: [GlpiTicketingProvider],
+    },
     AiTenantSecretResolverService,
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
@@ -332,7 +341,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityDispatcherService,
     AiEvidenceService,
     AiAgentApprovalLifecycleSweeperService,
-    AiAgentHelpdeskGlpiIngestionService,
+    AiAgentHelpdeskTicketingIngestionService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,

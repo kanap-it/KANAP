@@ -8,7 +8,7 @@ import {
   type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
 } from '../../ai/aiApi';
-import { actionCanReject, statusLabel } from '../../components/agents/agentControlPrimitives';
+import { actionCanReject, statusLabel, ticketingProviderKeyForDefinition } from '../../components/agents/agentControlPrimitives';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 const QUEUE_QUERY_KEY = ['ai-agent-control-queue'] as const;
@@ -133,7 +133,7 @@ function optionalDecisionReason(value: string | null | undefined): string | unde
   return trimmed ? trimmed.slice(0, 500) : undefined;
 }
 
-export function useAgentControlData() {
+export function useAgentControlData(input: { targetAgentKey?: string | null } = {}) {
   const { t } = useTranslation(['agents']);
   const queryClient = useQueryClient();
   const [busyActionId, setBusyActionId] = React.useState<string | null>(null);
@@ -167,6 +167,11 @@ export function useAgentControlData() {
     queryFn: () => aiAgentControlApi.getQueueOverview({ limit: 100 }),
     refetchInterval,
   });
+  const targetAgentKey = input.targetAgentKey?.trim() || null;
+  const targetDefinition = targetAgentKey
+    ? queueQuery.data?.definitions.find((definition) => definition.agent_key === targetAgentKey) ?? null
+    : null;
+  const ticketingProviderKey = ticketingProviderKeyForDefinition(targetDefinition);
   const actionsQuery = useQuery({
     queryKey: ACTIONS_QUERY_KEY,
     queryFn: () => aiAgentControlApi.listActions({ limit: 100, status: 'all' }),
@@ -181,12 +186,6 @@ export function useAgentControlData() {
     queryKey: ['ai-agent-helpdesk-settings'],
     queryFn: () => aiAgentControlApi.getHelpdeskIngestionSettings(),
   });
-  const targetsQuery = useQuery({
-    queryKey: ['ai-agent-control-glpi-read-targets'],
-    queryFn: () => aiAgentControlApi.listGlpiReadTargets(),
-    refetchInterval: 60_000,
-  });
-
   const invalidate = React.useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY }),
@@ -375,7 +374,7 @@ export function useAgentControlData() {
   });
 
   const pollMutation = useMutation({
-    mutationFn: () => aiAgentControlApi.pollHelpdeskGlpiIngestion(),
+    mutationFn: () => aiAgentControlApi.pollHelpdeskTicketingIngestion(),
     onMutate: () => {
       setError(null);
       setMessage(null);
@@ -516,7 +515,7 @@ export function useAgentControlData() {
     setMessage,
     setAutonomyMutation,
     settingsQuery,
-    targetsQuery,
+    ticketingProviderKey,
     updateAgentMutation,
     updateAgentStatusMutation,
     updateSettingsMutation,

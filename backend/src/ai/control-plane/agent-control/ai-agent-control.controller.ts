@@ -20,15 +20,15 @@ import { SkipTenantTransaction } from '../../../common/skip-tenant-transaction.d
 import { AiExecutionContext, AiExecutionContextWithManager } from '../../ai.types';
 import { AiPolicyService } from '../../ai-policy.service';
 import { AiTenantExecutionService } from '../../execution/ai-tenant-execution.service';
-import { AiAgentHelpdeskGlpiIngestionService } from '../agent/ai-agent-helpdesk-glpi-ingestion.service';
+import { AiAgentHelpdeskTicketingIngestionService } from '../agent/ai-agent-helpdesk-ticketing-ingestion.service';
 import {
   AiAgentWorkQueueService,
-  HelpdeskGlpiIngestionSettingsInput,
+  HelpdeskTicketingIngestionSettingsInput,
 } from '../agent/ai-agent-work-queue.service';
 import { AiEmergencyPauseService } from '../pause/ai-emergency-pause.service';
 import {
-  AgentControlGlpiReadInput,
-  AgentControlGlpiTriageInput,
+  AgentControlTicketingReadInput,
+  AgentControlTicketingTriageInput,
   AgentControlMockTriageInput,
   AgentControlActivityType,
   AgentControlAgentDefinitionInput,
@@ -90,7 +90,7 @@ export class AiAgentControlController {
     private readonly tenantExecutor: AiTenantExecutionService,
     private readonly policy: AiPolicyService,
     private readonly control: AiAgentControlService,
-    private readonly glpiIngestion: AiAgentHelpdeskGlpiIngestionService,
+    private readonly ticketingIngestion: AiAgentHelpdeskTicketingIngestionService,
     private readonly workQueue: AiAgentWorkQueueService,
     private readonly emergencyPause: AiEmergencyPauseService,
   ) {}
@@ -196,7 +196,7 @@ export class AiAgentControlController {
           return plan.orderedIds;
         });
         // Execute each approved action in its OWN transaction so row locks on the
-        // ticket work item / target state release between (slow) GLPI writes and
+        // ticket work item / target state release between (slow) ticketing writes and
         // never block the queue-overview reconciliation that the UI polls.
         for (let index = 0; index < orderedIds.length; index += 1) {
           const actionRequestId = orderedIds[index];
@@ -514,39 +514,82 @@ export class AiAgentControlController {
     return this.runRead(context, (tenantContext) => this.control.listGlpiReadTargets(tenantContext));
   }
 
+  @Get('uat/ticketing-read/targets')
+  async listTicketingReadTargets(
+    @Req() req: any,
+    @Query('provider_key') providerKey?: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.listTicketingReadTargets(tenantContext, {
+      provider_key: providerKey,
+    }));
+  }
+
   @Post('uat/glpi-read')
   async runGlpiRead(
     @Req() req: any,
-    @Body() body: AgentControlGlpiReadInput = {},
+    @Body() body: Pick<AgentControlTicketingReadInput, 'target_key'> = {},
   ) {
     const context = this.buildContext(req);
     return this.runTransaction(context, 'operate', (tenantContext) => this.control.runGlpiRead(tenantContext, body ?? {}));
   }
 
+  @Post('uat/ticketing-read')
+  async runTicketingRead(
+    @Req() req: any,
+    @Body() body: AgentControlTicketingReadInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runTicketingRead(tenantContext, body ?? {}));
+  }
+
   @Post('uat/glpi-triage')
   async runGlpiTriage(
     @Req() req: any,
-    @Body() body: AgentControlGlpiTriageInput = {},
+    @Body() body: Pick<AgentControlTicketingTriageInput, 'target_key' | 'work_item_id'> = {},
   ) {
     const context = this.buildContext(req);
     return this.runTransaction(context, 'operate', (tenantContext) => this.control.runGlpiTriage(tenantContext, body ?? {}));
+  }
+
+  @Post('uat/ticketing-triage')
+  async runTicketingTriage(
+    @Req() req: any,
+    @Body() body: AgentControlTicketingTriageInput = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runTicketingTriage(tenantContext, body ?? {}));
   }
 
   @Post('helpdesk/glpi-ingestion/poll')
   async pollHelpdeskGlpiIngestion(
     @Req() req: any,
   ) {
+    return this.pollHelpdeskTicketingIngestion(req);
+  }
+
+  @Post('helpdesk/ticketing-ingestion/poll')
+  async pollHelpdeskTicketingIngestion(
+    @Req() req: any,
+  ) {
     const context = this.buildContext(req);
-    return this.runTransaction(context, 'operate', (tenantContext) => this.glpiIngestion.pollTenant(tenantContext));
+    return this.runTransaction(context, 'operate', (tenantContext) => this.ticketingIngestion.pollTenant(tenantContext));
   }
 
   @Get('helpdesk/glpi-ingestion/settings')
   async getHelpdeskGlpiIngestionSettings(
     @Req() req: any,
   ) {
+    return this.getHelpdeskTicketingIngestionSettings(req);
+  }
+
+  @Get('helpdesk/ticketing-ingestion/settings')
+  async getHelpdeskTicketingIngestionSettings(
+    @Req() req: any,
+  ) {
     const context = this.buildContext(req);
     return this.runRead(context, async (tenantContext) => {
-      const settings = await this.workQueue.getHelpdeskGlpiIngestionSettings(tenantContext);
+      const settings = await this.workQueue.getHelpdeskTicketingIngestionSettings(tenantContext);
       const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
       return { ...settings, emergency_pause: this.pauseView(activePause) };
     });
@@ -555,11 +598,19 @@ export class AiAgentControlController {
   @Post('helpdesk/glpi-ingestion/settings')
   async updateHelpdeskGlpiIngestionSettings(
     @Req() req: any,
-    @Body() body: HelpdeskGlpiIngestionSettingsInput,
+    @Body() body: HelpdeskTicketingIngestionSettingsInput,
+  ) {
+    return this.updateHelpdeskTicketingIngestionSettings(req, body);
+  }
+
+  @Post('helpdesk/ticketing-ingestion/settings')
+  async updateHelpdeskTicketingIngestionSettings(
+    @Req() req: any,
+    @Body() body: HelpdeskTicketingIngestionSettingsInput,
   ) {
     const context = this.buildContext(req);
     return this.runTransaction(context, 'admin', async (tenantContext) => {
-      const settings = await this.workQueue.updateHelpdeskGlpiIngestionSettings(tenantContext, body);
+      const settings = await this.workQueue.updateHelpdeskTicketingIngestionSettings(tenantContext, body);
       const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
       return { ...settings, emergency_pause: this.pauseView(activePause) };
     });
