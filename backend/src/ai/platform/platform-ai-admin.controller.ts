@@ -23,7 +23,7 @@ import { TestPlatformAiConfigDto } from './dto/test-platform-ai-config.dto';
 import { UpdatePlatformAiConfigDto } from './dto/update-platform-ai-config.dto';
 import { UpdatePlatformAiPlanLimitsDto } from './dto/update-platform-ai-plan-limits.dto';
 import { AiBuiltinUsageService } from './ai-builtin-usage.service';
-import { PlatformAiConfigService } from './platform-ai-config.service';
+import { BUILTIN_REASONING_EFFORT, PlatformAiConfigService } from './platform-ai-config.service';
 
 @UseGuards(MultiTenantOnlyGuard, JwtAuthGuard, PlatformAdminGuard)
 @Controller('admin/ai')
@@ -102,6 +102,8 @@ export class PlatformAiAdminController {
         maxTokens: PROVIDER_TEST_MAX_TOKENS,
         timeoutMs: PROVIDER_TEST_TIMEOUT_MS,
         maxRetries: PROVIDER_TEST_MAX_RETRIES,
+        // Test with the same capped effort production built-in calls use.
+        reasoningEffort: BUILTIN_REASONING_EFFORT,
       });
 
       const iterator = stream[Symbol.asyncIterator]();

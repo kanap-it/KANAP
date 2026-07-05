@@ -42,7 +42,7 @@ import {
   ChatStreamEvent,
 } from './ai.types';
 import { buildStructuredToolResultValidation } from './ai-tool-result-validation.util';
-import { PlatformAiConfigService } from './platform/platform-ai-config.service';
+import { BUILTIN_REASONING_EFFORT, PlatformAiConfigService } from './platform/platform-ai-config.service';
 import { AiBuiltinUsageService } from './platform/ai-builtin-usage.service';
 import { AiApprovalService } from './control-plane/approval/ai-approval.service';
 import { AiCapabilityRegistry, EXECUTE_APPROVED_PREVIEW_CAPABILITY } from './control-plane/capability/ai-capability.registry';
@@ -2482,6 +2482,7 @@ export class AiChatOrchestratorService {
         signal: abortSignal,
         timeoutMs: resolveChatProviderTimeoutMs(),
         debugTrace: AI_CHAT_DEBUG_TRACE_ENABLED,
+        reasoningEffort: providerSource === 'builtin' ? BUILTIN_REASONING_EFFORT : null,
       });
 
       try {

@@ -5847,6 +5847,41 @@ async function callStructuredJsonTestHelper(client: AiAgentLlmClient, context: A
   });
 }
 
+async function testBuiltinRuntimeCapsReasoningEffortCustomDoesNot() {
+  const captured: any[] = [];
+  const fakeProvider = {
+    createStream: (params: any) => {
+      captured.push(params);
+      return (async function* () {
+        yield { type: 'text_delta', text: '{"ok":true}' };
+        yield { type: 'done', usage: { input_tokens: 1, output_tokens: 1 }, finish_reason: 'stop' };
+      })();
+    },
+  };
+  const client = Object.create(AiAgentLlmClient.prototype) as AiAgentLlmClient;
+  const runtimeFor = (source: 'builtin' | 'custom') => ({
+    source,
+    provider: fakeProvider,
+    providerId: 'custom',
+    model: 'xiaomi/mimo-v2.5',
+    apiKey: 'key',
+    endpointUrl: null,
+  });
+  const callInput = {
+    systemPrompt: 'Return JSON.',
+    userPayload: { task: 'unit' },
+    maxTokens: 50,
+    timeoutEnvName: 'AI_AGENT_UNIT_TEST_TIMEOUT_MS',
+    defaultTimeoutMs: 1000,
+  };
+
+  await client.callJsonModel({} as any, { ...callInput, runtime: runtimeFor('builtin') as any });
+  assert.equal(captured[0].reasoningEffort, 'low');
+
+  await client.callJsonModel({} as any, { ...callInput, runtime: runtimeFor('custom') as any });
+  assert.equal(captured[1].reasoningEffort, null);
+}
+
 async function testStructuredJsonHelperRetriesEmptyInvalidAndSchemaInvalid() {
   const context = createContext(createMemoryManager().manager);
 
@@ -13941,6 +13976,7 @@ async function run() {
   await testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets();
   testStaleProposalSuppressionIgnoresExpired();
   testActionPlannerPromptCompilerIncludesVerbatimCandidates();
+  await testBuiltinRuntimeCapsReasoningEffortCustomDoesNot();
   await testStructuredJsonHelperRetriesEmptyInvalidAndSchemaInvalid();
   await testStructuredJsonHelperLabelsTruncationAndHonoursMaxTokensEnv();
   await testStructuredJsonHelperClassifiesTimeoutsHonestly();
