@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { CsvExportService } from '../csv-export.service';
+import { CsvExportService, denormalizeCsvFormulaValue, neutralizeCsvFormulaValue } from '../csv-export.service';
 import { CsvResolverService } from '../csv-resolver.service';
 import {
   ArrayStrategy,
@@ -259,6 +259,15 @@ async function testFormulaLikeValuesAreNeutralized() {
   assert.ok(result.content.includes('\' +SUM'));
 }
 
+function testDenormalizeReversesNeutralize() {
+  // Values a user might enter; neutralize -> denormalize must round-trip.
+  for (const v of ['=SUM(A1)', '+33 6 12 34', '-x', '@handle', '\t tab', ' hello', "'quoted", 'plain', '']) {
+    assert.equal(denormalizeCsvFormulaValue(neutralizeCsvFormulaValue(v)), v);
+  }
+  // Non-neutralized apostrophes are left untouched.
+  assert.equal(denormalizeCsvFormulaValue("'quoted"), "'quoted");
+}
+
 // ===== Run tests =====
 
 (async () => {
@@ -272,6 +281,7 @@ async function testFormulaLikeValuesAreNeutralized() {
   await testNullValuesExportAsEmpty();
   await testBOMIsPresent();
   await testFormulaLikeValuesAreNeutralized();
+  testDenormalizeReversesNeutralize();
 
   console.log('CSV export service tests passed.');
 })().catch((err) => {

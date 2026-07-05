@@ -170,7 +170,7 @@ async function testGetLookupColumn() {
 
   assert.equal(service.getLookupColumn('users'), 'email');
   assert.equal(service.getLookupColumn('suppliers'), 'name');
-  assert.equal(service.getLookupColumn('locations'), 'name');
+  assert.equal(service.getLookupColumn('locations'), 'location_reference');
 }
 
 // ===== Run tests =====

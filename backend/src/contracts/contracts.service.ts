@@ -652,23 +652,34 @@ export class ContractsService {
     const headers = this.csvHeaders();
     const delimiter = ';';
     const rows: any[] = [];
+    const toIsoDate = (value: unknown): string => {
+      if (value == null || value === '') return '';
+      if (value instanceof Date) return value.toISOString().slice(0, 10);
+      const str = value.toString().trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      const parsed = new Date(str);
+      return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+    };
     if (scope === 'data') {
       const items = await repo.find({ order: { created_at: 'DESC' as any } });
       if (items.length) {
         const sIds = Array.from(new Set(items.map(i => i.supplier_id)));
         const cIds = Array.from(new Set(items.map(i => i.company_id)));
-        const [sRows, cRows] = await Promise.all([
+        const uIds = Array.from(new Set(items.map(i => i.owner_user_id).filter(Boolean)));
+        const [sRows, cRows, uRows] = await Promise.all([
           mg.query(`SELECT id, name FROM suppliers WHERE id = ANY($1)`, [sIds]),
           mg.query(`SELECT id, name FROM companies WHERE id = ANY($1)`, [cIds]),
+          uIds.length ? mg.query(`SELECT id, email FROM users WHERE id = ANY($1)`, [uIds]) : Promise.resolve([]),
         ]);
         const sMap = new Map<string, any>(sRows.map((r: any) => [r.id, r]));
         const cMap = new Map<string, any>(cRows.map((r: any) => [r.id, r]));
+        const uMap = new Map<string, any>(uRows.map((r: any) => [r.id, r]));
         for (const it of items) {
           rows.push({
             name: it.name,
             company_name: cMap.get(it.company_id)?.name ?? '',
             supplier_name: sMap.get(it.supplier_id)?.name ?? '',
-            start_date: it.start_date,
+            start_date: toIsoDate(it.start_date),
             duration_months: it.duration_months,
             auto_renewal: it.auto_renewal ? 'yes' : 'no',
             notice_period_months: it.notice_period_months,
@@ -676,7 +687,7 @@ export class ContractsService {
             currency: it.currency,
             billing_frequency: it.billing_frequency,
             status: it.status,
-            owner_email: '',
+            owner_email: it.owner_user_id ? (uMap.get(it.owner_user_id)?.email ?? '') : '',
             notes: it.notes ?? '',
           });
         }
@@ -689,8 +700,13 @@ export class ContractsService {
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));
-      for (const row of rows) stream.write(row);
-      stream.end();
+      if (scope === 'template') {
+        chunks.push(headers.join(delimiter) + '\n');
+        stream.end();
+      } else {
+        for (const row of rows) stream.write(row);
+        stream.end();
+      }
     });
     const BOM = '\uFEFF';
     return { filename, content: BOM + chunks.join('') };
@@ -703,15 +719,25 @@ export class ContractsService {
     const buf = file.buffer || null;
     if (!buf) throw new BadRequestException('Empty upload');
     const text = decodeCsvBufferUtf8OrThrow(buf);
+    const expectedHeaders = this.csvHeaders();
+    const errors: { row: number; message: string }[] = [];
+    let headerOk = false;
     const rows = await new Promise<any[]>((resolve, reject) => {
       const out: any[] = [];
       parseString(text, { headers: true, delimiter: ';', ignoreEmpty: true })
+        .on('headers', (headers: string[]) => {
+          const missing = expectedHeaders.filter((h) => !headers.includes(h));
+          const extras = headers.filter((h) => !expectedHeaders.includes(h));
+          headerOk = missing.length === 0 && extras.length === 0;
+          if (!headerOk) {
+            errors.push({ row: 0, message: `Header mismatch. Missing: ${missing.join(', ') || '-'}, Extra: ${extras.join(', ') || '-'}` });
+          }
+        })
         .on('error', (e) => reject(e))
         .on('data', (r) => out.push(r))
         .on('end', () => resolve(out));
     });
-    const headers = this.csvHeaders();
-    const errors: { row: number; message: string }[] = [];
+    if (!headerOk) return { ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors };
     if (rows.length === 0) return { ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors: [{ row: 0, message: 'Empty CSV' }] };
 
     // Preload reference maps by name/email for resolution
@@ -742,7 +768,10 @@ export class ContractsService {
       const notes = ((r['notes'] ?? '').toString().trim()) || null;
       if (!name) errors.push({ row: line, message: 'name is required' });
       if (!company_name) errors.push({ row: line, message: 'company_name is required' });
+      else if (!cByName.has(company_name)) errors.push({ row: line, message: `company '${company_name}' not found` });
       if (!supplier_name) errors.push({ row: line, message: 'supplier_name is required' });
+      else if (!sByName.has(supplier_name)) errors.push({ row: line, message: `supplier '${supplier_name}' not found` });
+      if (owner_email && !uByEmail.has(owner_email.toLowerCase())) errors.push({ row: line, message: `user '${owner_email}' not found` });
       if (!start_date) errors.push({ row: line, message: 'start_date is required' });
       if (currency && currency.length !== 3) errors.push({ row: line, message: 'currency must be 3 letters' });
       if (!['monthly','quarterly','annual','other'].includes(billing_frequency)) errors.push({ row: line, message: 'billing_frequency invalid' });

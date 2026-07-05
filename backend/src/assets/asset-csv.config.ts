@@ -77,8 +77,9 @@ export const assetCsvConfig: CsvEntityConfig = {
     {
       csvColumn: 'status',
       entityProperty: 'status',
-      type: CsvFieldType.ENUM,
-      enumValues: ['active', 'inactive', 'decommissioned', 'planned'],
+      // Settings-backed (lifecycle_states): resolved code/label -> code in beforeCommit,
+      // so no hard-coded enum gate here (same pattern as `kind`).
+      type: CsvFieldType.STRING,
       required: false,
       defaultExport: true,
       label: 'Lifecycle',

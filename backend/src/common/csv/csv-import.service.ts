@@ -16,6 +16,7 @@ import {
   CsvImportWarning,
 } from './csv-field.types';
 import { CsvResolverService } from './csv-resolver.service';
+import { denormalizeCsvFormulaValue } from './csv-export.service';
 import { CsvJsonValidators } from './csv-json-validators';
 
 /**
@@ -251,7 +252,14 @@ export class CsvImportService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Record<string, string>) => rows.push(row))
+        .on('data', (row: Record<string, string>) => {
+          // Strip the protective apostrophe our export prepends to
+          // formula-like values, so export -> import round-trips cleanly.
+          for (const key of Object.keys(row)) {
+            row[key] = denormalizeCsvFormulaValue(row[key]);
+          }
+          rows.push(row);
+        })
         .on('end', () => resolve());
     });
 
