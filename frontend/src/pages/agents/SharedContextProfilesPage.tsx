@@ -11,6 +11,7 @@ import KanapDialog from '../../components/design/KanapDialog';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
 import { aiAgentControlApi, AiSharedContextProfile } from '../../ai/aiApi';
+import { SHARED_CONTEXT_PROFILES_QUERY_KEY } from './useAgentControlData';
 import { editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 
 function profileLines(profile: AiSharedContextProfile): string[] {
@@ -28,7 +29,7 @@ export default function SharedContextProfilesPage() {
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
 
   const profilesQuery = useQuery({
-    queryKey: ['ai-shared-context-profiles'],
+    queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY,
     queryFn: () => aiAgentControlApi.listSharedContextProfiles(),
     staleTime: 30_000,
   });
@@ -41,7 +42,7 @@ export default function SharedContextProfilesPage() {
   const [archiveTarget, setArchiveTarget] = React.useState<AiSharedContextProfile | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['ai-shared-context-profiles'] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY });
   const readError = (err: unknown, fallback: string): string => {
     const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
     return message ?? fallback;

@@ -11,11 +11,15 @@ import { PropertyRow } from '../../components/design';
 import { dialogBorderedFieldSx } from '../../theme/formSx';
 import {
   ActionButtons,
+  actionAttentionMessage,
   actionBody,
   actionCanExecute,
   actionCanReject,
+  actionHasQueuedExecution,
+  actionInProgress,
   actionIsTerminalStatus,
   actionLabel,
+  actionNeedsAttention,
   actionUpdateSummary,
   buildTicketGroups,
   EmptyState,
@@ -26,9 +30,13 @@ import {
   PUBLIC_REPLY_CAPABILITY,
   Section,
   StatusText,
+  stringValue,
   TargetLabel,
   targetLabelText,
   type TicketWorkGroup,
+  workItemAttentionMessage,
+  workItemInProgress,
+  workItemNeedsAttention,
 } from '../../components/agents/agentControlPrimitives';
 import {
   type AiAgentControlActionRequest,
@@ -78,61 +86,12 @@ function proposalBody(action: AiAgentControlActionRequest): string | null {
   return actionUpdateSummary(action);
 }
 
-function approvedBatchContext(action: AiAgentControlActionRequest): Record<string, unknown> | null {
-  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
-  return isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
-}
-
-function stringValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function actionHasQueuedExecution(action: AiAgentControlActionRequest): boolean {
-  return action.status === 'approved'
-    && approvedBatchContext(action)?.execution_queued === true
-    && !action.executed_at;
-}
-
-function actionInProgress(action: AiAgentControlActionRequest): boolean {
-  return action.status === 'executing' || actionHasQueuedExecution(action);
-}
-
-function actionAttentionMessage(action: AiAgentControlActionRequest): string | null {
-  const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
-  const batch = approvedBatchContext(action);
-  return action.error_message
-    ?? stringValue(batch?.dead_letter_reason)
-    ?? stringValue(batch?.last_execution_error)
-    ?? stringValue(metadata.last_execution_error)
-    ?? null;
-}
-
-function actionNeedsAttention(action: AiAgentControlActionRequest): boolean {
-  return !!actionAttentionMessage(action) && ['approved', 'expired', 'failed', 'dead_letter'].includes(action.status);
-}
-
 function actionFinishedTime(action: AiAgentControlActionRequest): string | null {
   return action.executed_at
     ?? action.rejected_at
     ?? action.approved_at
     ?? action.updated_at
     ?? action.created_at
-    ?? null;
-}
-
-function workItemInProgress(workItem: AiAgentControlWorkItem): boolean {
-  return ['queued', 'leased', 'running'].includes(workItem.status);
-}
-
-function workItemNeedsAttention(workItem: AiAgentControlWorkItem): boolean {
-  return ['failed', 'dead_letter'].includes(workItem.status);
-}
-
-function workItemAttentionMessage(workItem: AiAgentControlWorkItem): string | null {
-  const metadata = isRecord(workItem.metadata_json) ? workItem.metadata_json : {};
-  return workItem.last_error
-    ?? stringValue(metadata.dead_letter_reason)
-    ?? stringValue(metadata.last_execution_error)
     ?? null;
 }
 

@@ -69,7 +69,7 @@ import {
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import AgentsApprovalsPage from './AgentsApprovalsPage';
 import AgentsActivityPage from './AgentsActivityPage';
-import { useAgentControlData } from './useAgentControlData';
+import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAgentControlData';
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
@@ -674,7 +674,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     staleTime: 60_000,
   });
   const sharedContextProfilesQuery = useQuery({
-    queryKey: ['ai-agent-shared-context-profiles'],
+    queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY,
     queryFn: () => aiAgentControlApi.listSharedContextProfiles(),
     staleTime: 60_000,
   });

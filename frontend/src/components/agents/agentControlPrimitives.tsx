@@ -363,8 +363,8 @@ function targetGroupKeyFromAction(action: AiAgentControlActionRequest): string {
   );
 }
 
-function workItemInProgress(status: string | null | undefined): boolean {
-  return ['queued', 'leased', 'running'].includes(status ?? '');
+export function workItemInProgress(workItem: AiAgentControlWorkItem): boolean {
+  return ['queued', 'leased', 'running'].includes(workItem.status);
 }
 
 function actionPendingNonExpired(action: AiAgentControlActionRequest, nowMs: number): boolean {
@@ -374,19 +374,49 @@ function actionPendingNonExpired(action: AiAgentControlActionRequest, nowMs: num
   return Number.isFinite(expiresAt) && expiresAt > nowMs;
 }
 
-function approvedBatchContext(action: AiAgentControlActionRequest): Record<string, unknown> | null {
+export function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+export function approvedBatchContext(action: AiAgentControlActionRequest): Record<string, unknown> | null {
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
   return isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
 }
 
-function actionInProgress(action: AiAgentControlActionRequest): boolean {
-  return action.status === 'executing'
-    || (action.status === 'approved' && approvedBatchContext(action)?.execution_queued === true && !action.executed_at);
+export function actionHasQueuedExecution(action: AiAgentControlActionRequest): boolean {
+  return action.status === 'approved'
+    && approvedBatchContext(action)?.execution_queued === true
+    && !action.executed_at;
 }
 
-function actionNeedsAttention(action: AiAgentControlActionRequest): boolean {
-  if (action.status === 'approved' && !!action.error_message) return true;
-  return action.status === 'expired' && !!approvedBatchContext(action)?.dead_letter_reason;
+export function actionInProgress(action: AiAgentControlActionRequest): boolean {
+  return action.status === 'executing' || actionHasQueuedExecution(action);
+}
+
+export function actionAttentionMessage(action: AiAgentControlActionRequest): string | null {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
+  const batch = approvedBatchContext(action);
+  return action.error_message
+    ?? stringValue(batch?.dead_letter_reason)
+    ?? stringValue(batch?.last_execution_error)
+    ?? stringValue(metadata.last_execution_error)
+    ?? null;
+}
+
+export function actionNeedsAttention(action: AiAgentControlActionRequest): boolean {
+  return !!actionAttentionMessage(action) && ['approved', 'expired', 'failed', 'dead_letter'].includes(action.status);
+}
+
+export function workItemNeedsAttention(workItem: AiAgentControlWorkItem): boolean {
+  return ['failed', 'dead_letter'].includes(workItem.status);
+}
+
+export function workItemAttentionMessage(workItem: AiAgentControlWorkItem): string | null {
+  const metadata = isRecord(workItem.metadata_json) ? workItem.metadata_json : {};
+  return workItem.last_error
+    ?? stringValue(metadata.dead_letter_reason)
+    ?? stringValue(metadata.last_execution_error)
+    ?? null;
 }
 
 function groupLifecycle(
@@ -395,11 +425,8 @@ function groupLifecycle(
   nowMs: number,
 ): TicketWorkGroupLifecycle {
   if (actions.some((action) => actionPendingNonExpired(action, nowMs))) return 'needs_decision';
-  if (actions.some(actionInProgress) || workItems.some((workItem) => workItemInProgress(workItem.status))) return 'in_progress';
-  if (
-    actions.some(actionNeedsAttention)
-    || workItems.some((workItem) => ['failed', 'dead_letter'].includes(workItem.status))
-  ) {
+  if (actions.some(actionInProgress) || workItems.some(workItemInProgress)) return 'in_progress';
+  if (actions.some(actionNeedsAttention) || workItems.some(workItemNeedsAttention)) {
     return 'needs_attention';
   }
   return 'finished';
@@ -414,7 +441,6 @@ function workItemSortWeight(status: string | null | undefined): number {
     leased: 4,
     queued: 5,
     completed: 6,
-    skipped: 7,
   };
   return weight[status ?? ''] ?? 20;
 }
