@@ -1,4 +1,4 @@
-name;location_reference;kind;environment;is_cluster;status;go_live_date;end_of_life_date;hostname;operating_system;notes
+name;location_code;kind;environment;is_cluster;status;go_live_date;end_of_life_date;hostname;operating_system;notes
 PAR-ESX-01;PAR-DC1;Physical Server;prod;false;active;2023-06-01;;par-esx-01.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R750 — 64 cores, 512GB RAM — primary ESXi host
 PAR-ESX-02;PAR-DC1;Physical Server;prod;false;active;2023-06-01;;par-esx-02.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R750 — 64 cores, 512GB RAM
 PAR-ESX-03;PAR-DC1;Physical Server;prod;false;active;2021-03-01;2026-12-31;par-esx-03.fromage-co.local;VMware ESXi 8.0;Dell PowerEdge R640 — 32 cores, 256GB RAM — aging, scheduled for DC refresh

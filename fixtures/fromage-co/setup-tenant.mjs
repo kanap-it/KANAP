@@ -1,4 +1,18 @@
 #!/usr/bin/env node
+// Fromage & Co demo tenant setup — single idempotent runner.
+//
+// Creates the tenant (trial flow), seeds settings/classification, imports all
+// CSVs, wires relations (suites, departments, instances, interfaces,
+// connections, contracts↔spend, portfolio timeline/teams, allocations), sets
+// demo user passwords, and provisions a demo AI agent on the mock ticketing
+// provider.
+//
+// Usage:
+//   node fixtures/fromage-co/setup-tenant.mjs \
+//     --base-url https://fromage.dev.kanap.net \
+//     --email fried@kanap.net --password '<admin password>'
+//
+// See SETUP-GUIDE.md for the full procedure per environment.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,17 +20,26 @@ import { fileURLToPath } from 'node:url';
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULTS = {
-  baseUrl: 'http://localhost:8080',
-  email: 'admin@example.com',
-  password: 'KANAPLocalDev!2026',
+  baseUrl: 'https://fromage.dev.kanap.net',
+  email: 'fried@kanap.net',
+  org: 'Fromage & Co',
+  countryIso: 'FR',
+  demoPassword: 'Fromage2026!',
+  year: 2026,
 };
 
 const argv = process.argv.slice(2);
 const options = {
   baseUrl: DEFAULTS.baseUrl,
   email: DEFAULTS.email,
-  password: DEFAULTS.password,
+  password: '',
+  org: DEFAULTS.org,
+  countryIso: DEFAULTS.countryIso,
+  activationToken: '',
+  demoPassword: DEFAULTS.demoPassword,
+  year: DEFAULTS.year,
   skipRelations: false,
+  skipAgents: false,
 };
 
 for (let i = 0; i < argv.length; i += 1) {
@@ -24,16 +47,31 @@ for (let i = 0; i < argv.length; i += 1) {
   if (arg === '--base-url') options.baseUrl = argv[++i] ?? options.baseUrl;
   else if (arg === '--email') options.email = argv[++i] ?? options.email;
   else if (arg === '--password') options.password = argv[++i] ?? options.password;
-  else if (arg === '--skip-relations') options.skipRelations = true;
-  else if (!arg.startsWith('--') && i === 0) options.baseUrl = arg;
-  else if (!arg.startsWith('--') && i === 1) options.email = arg;
-  else if (!arg.startsWith('--') && i === 2) options.password = arg;
-  else {
-    throw new Error(`Unknown argument: ${arg}`);
+  else if (arg === '--org') options.org = argv[++i] ?? options.org;
+  else if (arg === '--country') options.countryIso = argv[++i] ?? options.countryIso;
+  else if (arg === '--activation-token') {
+    // Accepts either the bare token or the full activation link from the email.
+    const raw = argv[++i] ?? '';
+    options.activationToken = raw.includes('#token=') ? raw.split('#token=')[1] : raw;
   }
+  else if (arg === '--demo-password') options.demoPassword = argv[++i] ?? '';
+  else if (arg === '--year') options.year = Number(argv[++i] ?? options.year);
+  else if (arg === '--skip-relations') options.skipRelations = true;
+  else if (arg === '--skip-agents') options.skipAgents = true;
+  else throw new Error(`Unknown argument: ${arg}`);
 }
 
 options.baseUrl = options.baseUrl.replace(/\/$/, '');
+if (!options.password) {
+  console.error('[ERR]  --password is required (tenant admin password; also used when bootstrapping the tenant).');
+  process.exit(1);
+}
+
+const tenantHost = new URL(options.baseUrl).hostname;
+const slug = tenantHost.split('.')[0];
+// Public (pre-tenant) routes are served on the marketing apex; unknown tenant
+// subdomains answer TENANT_NOT_FOUND for everything else.
+const publicBaseUrl = options.baseUrl.replace(`//${tenantHost}`, `//${tenantHost.split('.').slice(1).join('.')}`);
 
 let token = '';
 let apiPrefix = '';
@@ -122,11 +160,11 @@ function lower(value) {
   return normalizeValue(value).toLowerCase();
 }
 
-async function request(method, route, body, { uploadPath } = {}) {
+async function request(method, route, body, { uploadPath, noAuth, publicHost } = {}) {
   const headers = {};
   const init = { method, headers };
 
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token && !noAuth) headers.Authorization = `Bearer ${token}`;
 
   if (uploadPath) {
     const bytes = readFileSync(uploadPath);
@@ -138,7 +176,7 @@ async function request(method, route, body, { uploadPath } = {}) {
     init.body = JSON.stringify(body);
   }
 
-  const url = `${options.baseUrl}${apiPrefix}${route}`;
+  const url = `${publicHost ? publicBaseUrl : options.baseUrl}${apiPrefix}${route}`;
   const response = await fetch(url, init);
   const text = await response.text();
   let payload = text;
@@ -152,33 +190,13 @@ async function request(method, route, body, { uploadPath } = {}) {
 
   if (!response.ok) {
     const details = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
-    throw new Error(`${method} ${apiPrefix}${route} failed (${response.status})\n${details}`);
+    const error = new Error(`${method} ${apiPrefix}${route} failed (${response.status})\n${details}`);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
 
   return payload === '' ? null : payload;
-}
-
-async function login() {
-  info(`Authenticating as ${options.email}`);
-  const body = { email: options.email, password: options.password };
-  const candidates = ['/auth/login', '/api/auth/login'];
-
-  let lastError;
-  for (const route of candidates) {
-    const prefix = route.startsWith('/api/') ? '/api' : '';
-    apiPrefix = prefix;
-    try {
-      const payload = await request('POST', route.slice(prefix.length), body);
-      token = payload.access_token;
-      if (!token) throw new Error('No access_token in login response');
-      ok(`Authenticated using ${apiPrefix || '(direct API)'}`);
-      return;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
 }
 
 async function apiGet(route) {
@@ -193,8 +211,8 @@ async function apiPatch(route, body) {
   return request('PATCH', route, body);
 }
 
-async function apiPut(route, body) {
-  return request('PUT', route, body);
+async function apiDelete(route) {
+  return request('DELETE', route);
 }
 
 async function uploadCsv(route, csvPath) {
@@ -203,7 +221,9 @@ async function uploadCsv(route, csvPath) {
 
 function items(payload) {
   if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.items)) return payload.items;
+  for (const key of ['items', 'agent_definitions', 'profiles', 'actions']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
   return [];
 }
 
@@ -219,6 +239,89 @@ async function idByName(route, name, field = 'name') {
   const needle = normalizeValue(name);
   return firstBy(await getAll(route), (item) => normalizeValue(item[field]) === needle);
 }
+
+// ── API prefix detection + tenant bootstrap ─────────────────────────────────
+
+async function detectApiPrefix() {
+  for (const prefix of ['/api', '']) {
+    apiPrefix = prefix;
+    try {
+      const payload = await request('GET', '/health', undefined, { noAuth: true, publicHost: true });
+      if (payload && typeof payload === 'object') {
+        ok(`API reachable via ${prefix || '(root)'}`);
+        return;
+      }
+    } catch {
+      // try next prefix
+    }
+  }
+  throw new Error(`Could not reach the API health endpoint at ${publicBaseUrl} (tried /api/health and /health)`);
+}
+
+async function tryLogin() {
+  try {
+    const payload = await apiPost('/auth/login', { email: options.email, password: options.password });
+    token = payload.access_token;
+    if (!token) throw new Error('No access_token in login response');
+    ok(`Authenticated as ${options.email}`);
+    return true;
+  } catch (error) {
+    if (error.status === 401 || error.status === 404 || error.status === 400) return false;
+    throw error;
+  }
+}
+
+async function ensureTenant() {
+  info(`Trying to authenticate as ${options.email} on ${options.baseUrl}`);
+  if (await tryLogin()) return;
+
+  info(`Login failed — bootstrapping tenant '${slug}' via the trial flow`);
+  let activationToken = options.activationToken;
+
+  if (!activationToken) {
+    let response;
+    try {
+      response = await request('POST', '/public/start-trial', {
+        org: options.org,
+        slug,
+        email: options.email,
+        country_iso: options.countryIso,
+      }, { publicHost: true });
+    } catch (error) {
+      if (String(error.payload?.code) === 'SUBDOMAIN_NOT_AVAILABLE') {
+        throw new Error(
+          `Tenant '${slug}' already exists but the credentials were rejected. ` +
+          'Fix --email/--password, or delete the tenant from platform-admin first.',
+        );
+      }
+      if (error.status === 400 && /captcha/i.test(JSON.stringify(error.payload ?? ''))) {
+        throw new Error(
+          'Trial signup is CAPTCHA-protected on this environment. Sign up in the browser ' +
+          `(slug '${slug}', email ${options.email}), then re-run with --activation-token <token from the activation link>.`,
+        );
+      }
+      throw error;
+    }
+
+    const activationUrl = response?.activation_url;
+    if (activationUrl) {
+      activationToken = activationUrl.split('#token=')[1];
+    } else {
+      info(`Activation email sent to ${options.email}.`);
+      info('Open the link, copy the token after "#token=", and re-run with --activation-token <token>.');
+      process.exit(1);
+    }
+  }
+
+  const activation = await request('POST', '/public/activate-trial', { token: activationToken }, { publicHost: true });
+  ok(`Tenant activated: ${activation.tenant_url ?? options.baseUrl}`);
+  await apiPost('/auth/password-reset/complete', { token: activation.reset_token, password: options.password });
+  ok(`Admin password set for ${options.email}`);
+
+  if (!(await tryLogin())) throw new Error('Login still failing after tenant activation');
+}
+
+// ── Lookups ──────────────────────────────────────────────────────────────────
 
 async function companyIdByName(name) {
   return idByName('/companies?limit=500', name);
@@ -258,31 +361,37 @@ async function contractIdByName(name) {
   return idByName('/contracts?limit=500', name);
 }
 
-async function locationIdByCode(code) {
-  return firstBy(await getAll('/locations?limit=500'), (item) => item.code === code);
+async function locationIdByName(name) {
+  return idByName('/locations?limit=500', name);
+}
+
+async function assetIdByName(name) {
+  return idByName('/assets?limit=1000', name);
 }
 
 async function interfaceIdByCode(code) {
   return firstBy(await getAll('/interfaces?limit=1000'), (item) => item.interface_id === code);
 }
 
-async function connectionIdByCode(code) {
-  return firstBy(await getAll('/connections?limit=500'), (item) => item.connection_id === code);
+async function connectionIdByName(name) {
+  return idByName('/connections?limit=500', name);
 }
 
 async function portfolioTeamIdByName(name) {
   return idByName('/portfolio/teams', name);
 }
 
-async function appIdsFromNames(raw) {
+async function appIdsFromNames(names) {
   const ids = [];
-  for (const name of splitList(raw)) {
+  for (const name of names) {
     const id = await appIdByName(name);
     if (id) ids.push(id);
     else warn(`Application '${name}' not found while resolving app IDs`);
   }
   return [...new Set(ids)];
 }
+
+// ── Settings ─────────────────────────────────────────────────────────────────
 
 async function setupSettings() {
   info('Configuring base settings');
@@ -301,12 +410,12 @@ async function setupSettings() {
   };
   await apiPatch('/it-ops/settings', {
     serverKinds: mergeByCode(current.serverKinds, [
-      { code: 'storage', label: 'Storage', is_physical: true },
-      { code: 'network_switch', label: 'Network Switch', is_physical: true },
-      { code: 'iot_gateway', label: 'IoT Gateway', is_physical: true },
-      { code: 'edge_node', label: 'Edge Node', is_physical: false },
-      { code: 'cloud_instance', label: 'Cloud Instance', is_physical: false },
-      { code: 'cloud_database', label: 'Cloud Database', is_physical: false },
+      { code: 'storage', label: 'Storage' },
+      { code: 'network_switch', label: 'Network Switch' },
+      { code: 'iot_gateway', label: 'IoT Gateway' },
+      { code: 'edge_node', label: 'Edge Node' },
+      { code: 'cloud_instance', label: 'Cloud Instance' },
+      { code: 'cloud_database', label: 'Cloud Database' },
     ]),
     operatingSystems: mergeByCode(current.operatingSystems, [
       { code: 'vmware_esxi_8_0', label: 'VMware ESXi 8.0' },
@@ -322,9 +431,92 @@ async function setupSettings() {
       { code: 'kaasmeester-local', label: 'kaasmeester.local', dns_suffix: 'kaasmeester.local' },
       { code: 'formaggio-supremo-local', label: 'formaggio-supremo.local', dns_suffix: 'formaggio-supremo.local' },
     ]),
+    entities: mergeByCode(current.entities, [
+      { code: 'par_dc1', label: 'PAR-DC1' },
+      { code: 'gou_dc1', label: 'GOU-DC1' },
+      { code: 'prm_site', label: 'PRM-SITE' },
+      { code: 'nyc_off', label: 'NYC-OFF' },
+      { code: 'aws_eu', label: 'AWS-EU' },
+    ]),
+    serverProviders: mergeByCode(current.serverProviders, [
+      { code: 'on_prem', label: 'On-premise' },
+    ]),
   });
   ok('Base settings configured');
 }
+
+async function ensurePortfolioClassification() {
+  info('Ensuring portfolio classification');
+  const ensure = async (route, entries, extra = () => ({})) => {
+    const existing = await getAll(route);
+    for (const entry of entries) {
+      if (existing.some((item) => lower(item.name) === lower(entry.name))) continue;
+      await apiPost(route, { ...entry, ...(await extra(entry)) });
+      ok(`Created ${route.split('/').pop()} '${entry.name}'`);
+    }
+  };
+
+  await ensure('/portfolio/classification/sources', [
+    { name: 'Strategic Plan', description: 'Multi-year strategic roadmap initiatives' },
+    { name: 'IT Modernization', description: 'Technical debt reduction and platform upgrades' },
+    { name: 'Business Request', description: 'Ad-hoc requests from business stakeholders' },
+    { name: 'Regulatory Compliance', description: 'Regulatory and legal requirements' },
+  ]);
+
+  await ensure('/portfolio/classification/categories', [
+    { name: 'Digital Transformation', description: 'Innovation and digital business capabilities' },
+    { name: 'Business Applications', description: 'ERP, CRM, HR and core business systems' },
+    { name: 'Infrastructure', description: 'Servers, networks, cloud and datacenter' },
+    { name: 'Security & Compliance', description: 'Cybersecurity, identity and compliance' },
+    { name: 'Data & Analytics', description: 'BI, data platforms and advanced analytics' },
+  ]);
+
+  const categories = await getAll('/portfolio/classification/categories');
+  const categoryId = (name) => firstBy(categories, (item) => lower(item.name) === lower(name));
+  const streams = await getAll('/portfolio/classification/streams');
+  for (const [name, description, category] of [
+    ['Cheese Production Excellence', 'Optimize production, aging and quality', 'Digital Transformation'],
+    ['Customer Experience', 'Improve B2B and B2C customer interactions', 'Business Applications'],
+    ['IT Foundation', 'Core IT infrastructure and shared services', 'Infrastructure'],
+  ]) {
+    if (streams.some((item) => lower(item.name) === lower(name))) continue;
+    const category_id = categoryId(category);
+    if (!category_id) {
+      warn(`Category '${category}' not found; skipping stream '${name}'`);
+      continue;
+    }
+    await apiPost('/portfolio/classification/streams', { name, description, category_id });
+    ok(`Created stream '${name}'`);
+  }
+}
+
+async function ensureAnalyticsCategories() {
+  info('Ensuring analytics categories');
+  const existing = await getAll('/analytics-categories?limit=200');
+  for (const [name, description] of [
+    ['Productivity', 'Email, collaboration, office suites'],
+    ['ERP', 'Enterprise resource planning'],
+    ['CRM', 'Customer relationship management'],
+    ['ITSM', 'IT service management'],
+    ['HR', 'Human capital management'],
+    ['Security', 'Cybersecurity and identity'],
+    ['Infrastructure', 'Hosting, cloud and virtualization'],
+    ['Monitoring', 'Observability and alerting'],
+    ['IoT', 'Internet of Things platforms'],
+    ['Traceability', 'Supply chain and cold chain'],
+    ['Analytics', 'BI, data platforms and reporting'],
+    ['Managed Services', 'Outsourced IT services'],
+    ['Professional Services', 'Consulting and staff augmentation'],
+    ['Training', 'Learning and certifications'],
+    ['General', 'Miscellaneous IT expenses'],
+  ]) {
+    if (existing.some((item) => lower(item.name) === lower(name))) continue;
+    await apiPost('/analytics-categories', { name, description });
+    ok(`Created analytics category '${name}'`);
+  }
+}
+
+// ── Chart of accounts ────────────────────────────────────────────────────────
 
 async function ensureCoa(name, code, scope, countryIso = undefined) {
   const coas = await apiGet('/chart-of-accounts?limit=500');
@@ -342,9 +534,9 @@ async function ensureCoa(name, code, scope, countryIso = undefined) {
   return created.id;
 }
 
-async function importCsv(name, route) {
+async function importCsv(name, route, extraQuery = '') {
   info(`Importing ${name}`);
-  const result = await uploadCsv(`${route}?dryRun=false`, file(name));
+  const result = await uploadCsv(`${route}?dryRun=false${extraQuery}`, file(name));
   if (result?.ok === false) throw new Error(`${name} import returned ok=false:\n${JSON.stringify(result, null, 2)}`);
   ok(`Imported ${name}`);
   return result;
@@ -386,47 +578,155 @@ async function setupCoas() {
   ok('CoA setup complete');
 }
 
-async function upsertLocation(code, name, extra) {
-  const existingId = await locationIdByCode(code);
-  const body = { ...extra, code, name };
-  if (existingId) {
-    await apiPatch(`/locations/${existingId}`, body);
-    ok(`Updated location ${code}`);
-  } else {
-    await apiPost('/locations', body);
-    ok(`Created location ${code}`);
+// ── Companies / locations ────────────────────────────────────────────────────
+
+async function cleanupBootstrapCompany() {
+  // Trial activation seeds a company named after the org; the CSV import
+  // brings the real legal entities, so drop the placeholder if both exist.
+  const companies = await getAll('/companies?limit=500');
+  const csvNames = new Set(readCsv('01-companies.csv').map((row) => row.name));
+  const placeholder = companies.find((item) => item.name === options.org && !csvNames.has(item.name));
+  if (!placeholder) return;
+  try {
+    await apiDelete(`/companies/${placeholder.id}`);
+    ok(`Removed bootstrap placeholder company '${options.org}'`);
+  } catch {
+    try {
+      await apiPatch(`/companies/${placeholder.id}`, { status: 'disabled' });
+      warn(`Could not delete placeholder company '${options.org}'; disabled it instead`);
+    } catch {
+      warn(`Could not delete or disable placeholder company '${options.org}'`);
+    }
   }
 }
+
+// Fixture site codes (used by 18-assets.csv and the connection entities) mapped
+// to real locations. Location references are server-generated, so lookups are
+// by name.
+const LOCATIONS = {
+  'PAR-DC1': { name: 'Paris Data Center', hosting_type: 'on_prem', company: 'Fromage & Co SA', country_iso: 'FR', city: 'Paris' },
+  'GOU-DC1': { name: 'Gouda Server Room', hosting_type: 'on_prem', company: 'Kaasmeester BV', country_iso: 'NL', city: 'Gouda' },
+  'PRM-SITE': { name: 'Parma Server Room', hosting_type: 'on_prem', company: 'Formaggio Supremo SRL', country_iso: 'IT', city: 'Parma' },
+  'PAR-CAVE': { name: 'Paris Cheese Caves', hosting_type: 'on_prem', company: 'Fromage & Co SA', country_iso: 'FR', city: 'Paris' },
+  'NYC-OFF': { name: 'New York Office', hosting_type: 'on_prem', company: 'Fromage & Co Inc.', country_iso: 'US', city: 'New York' },
+  'AWS-EU': { name: 'AWS eu-west-1', hosting_type: 'public_cloud', provider: 'aws', country_iso: 'IE', city: 'Dublin', region: 'eu-west-1', additional_info: 'AWS Ireland region' },
+};
 
 async function ensureLocations() {
   info('Ensuring locations');
-  const fr = await companyIdByName('Fromage & Co SA');
-  const nl = await companyIdByName('Kaasmeester BV');
-  const it = await companyIdByName('Formaggio Supremo SRL');
-  const us = await companyIdByName('Fromage & Co Inc.');
-  await upsertLocation('PAR-DC1', 'Paris Data Center', { hosting_type: 'on_prem', operating_company_id: fr, country_iso: 'FR', city: 'Paris', datacenter: 'Main DC' });
-  await upsertLocation('GOU-DC1', 'Gouda Server Room', { hosting_type: 'on_prem', operating_company_id: nl, country_iso: 'NL', city: 'Gouda', datacenter: 'Single rack' });
-  await upsertLocation('PRM-SITE', 'Parma Server Room', { hosting_type: 'on_prem', operating_company_id: it, country_iso: 'IT', city: 'Parma', datacenter: 'Single rack' });
-  await upsertLocation('PAR-CAVE', 'Paris Cheese Caves', { hosting_type: 'on_prem', operating_company_id: fr, country_iso: 'FR', city: 'Paris', datacenter: 'Production site' });
-  await upsertLocation('NYC-OFF', 'New York Office', { hosting_type: 'on_prem', operating_company_id: us, country_iso: 'US', city: 'New York', datacenter: 'Office' });
-  await upsertLocation('AWS-EU', 'AWS eu-west-1', { hosting_type: 'public_cloud', provider: 'aws', country_iso: 'IE', city: 'Dublin', region: 'eu-west-1', additional_info: 'AWS Ireland region' });
+  const locationIdByFixtureCode = new Map();
+  for (const [code, def] of Object.entries(LOCATIONS)) {
+    const { company, ...fields } = def;
+    const body = { ...fields, operating_company_id: company ? await companyIdByName(company) : undefined };
+    let id = await locationIdByName(def.name);
+    if (id) {
+      await apiPatch(`/locations/${id}`, body);
+    } else {
+      const created = await apiPost('/locations', body);
+      id = created?.id ?? (await locationIdByName(def.name));
+      ok(`Created location ${def.name}`);
+    }
+    locationIdByFixtureCode.set(code, id);
+  }
+  return locationIdByFixtureCode;
 }
 
-async function ensureConnectionEntities() {
-  const current = await apiGet('/it-ops/settings');
-  const entities = new Map((current.entities ?? []).map((entity) => [entity.code, entity]));
-  for (const entity of [
-    { code: 'par_dc1', label: 'PAR-DC1' },
-    { code: 'gou_dc1', label: 'GOU-DC1' },
-    { code: 'prm_site', label: 'PRM-SITE' },
-    { code: 'nyc_off', label: 'NYC-OFF' },
-    { code: 'aws_eu', label: 'AWS-EU' },
-  ]) {
-    entities.set(entity.code, { ...entities.get(entity.code), ...entity });
+// Assets are created through POST /assets (the CSV import resolves locations by
+// their server-generated reference, which a fixture cannot know upfront).
+async function ensureAssets(locationIdByFixtureCode) {
+  info('Ensuring assets');
+  const settings = await apiGet('/it-ops/settings');
+  const codeByLabel = (list) => {
+    const map = new Map();
+    for (const item of list ?? []) {
+      map.set(lower(item.code), item.code);
+      map.set(lower(item.label), item.code);
+    }
+    return map;
+  };
+  const kindCodes = codeByLabel(settings.serverKinds);
+  const osCodes = codeByLabel(settings.operatingSystems);
+  const locations = await getAll('/locations?limit=500');
+  const locationById = new Map(locations.map((item) => [item.id, item]));
+  const existing = new Set((await getAll('/assets?limit=1000')).map((item) => item.name));
+  // CSV hostnames are FQDNs; the API wants a bare hostname + a domain code.
+  const domainBySuffix = new Map((settings.domains ?? []).filter((d) => d.dns_suffix).map((d) => [lower(d.dns_suffix), d.code]));
+  const splitFqdn = (value) => {
+    if (!value || !value.includes('.')) return { hostname: value || null, domain: null };
+    const [hostname, ...rest] = value.split('.');
+    const domain = domainBySuffix.get(lower(rest.join('.')));
+    if (!domain) warn(`No DNS domain matches '${rest.join('.')}'; keeping bare hostname '${hostname}'`);
+    return { hostname, domain: domain ?? null };
+  };
+
+  for (const row of readCsv('18-assets.csv')) {
+    if (existing.has(row.name)) continue;
+    const locationId = locationIdByFixtureCode.get(row.location_code);
+    if (!locationId) {
+      warn(`Unknown location code '${row.location_code}' for asset '${row.name}'`);
+      continue;
+    }
+    const location = locationById.get(locationId);
+    const kind = kindCodes.get(lower(row.kind));
+    if (!kind) {
+      warn(`Unknown asset kind '${row.kind}' for '${row.name}'`);
+      continue;
+    }
+    const operating_system = row.operating_system ? osCodes.get(lower(row.operating_system)) ?? null : null;
+    if (row.operating_system && !operating_system) warn(`Unknown OS '${row.operating_system}' for '${row.name}'`);
+    await apiPost('/assets', {
+      name: row.name,
+      kind,
+      environment: row.environment,
+      provider: location?.hosting_type === 'public_cloud' ? (location?.provider || 'other') : 'on_prem',
+      location_id: locationId,
+      is_cluster: boolValue(row.is_cluster),
+      status: lower(row.status) || 'active',
+      go_live_date: row.go_live_date || null,
+      end_of_life_date: row.end_of_life_date || null,
+      ...splitFqdn(row.hostname),
+      operating_system,
+      notes: row.notes || null,
+    });
   }
-  await apiPatch('/it-ops/settings', { entities: [...entities.values()] });
-  ok('Connection entities ensured');
+  ok('Assets ensured');
 }
+
+// ── Demo users ───────────────────────────────────────────────────────────────
+// Created via POST /users (not the CSV import) because that is the only
+// endpoint that accepts an initial password — the demo needs known logins.
+
+async function ensureDemoUsers() {
+  info('Ensuring demo users');
+  const existing = await getAll('/users?limit=1000');
+  const byEmail = new Map(existing.map((user) => [lower(user.email), user]));
+  const companies = await getAll('/companies?limit=500');
+  const departments = await getAll('/departments?limit=1000');
+  const companyId = (name) => firstBy(companies, (item) => item.name === name);
+
+  for (const row of readCsv('10-users.csv')) {
+    const found = byEmail.get(lower(row.email));
+    if (found) {
+      if (options.demoPassword) warn(`User '${row.email}' already exists — password left unchanged (re-runs cannot set passwords)`);
+      continue;
+    }
+    const cid = companyId(row.company_name);
+    const did = firstBy(departments, (item) => item.name === row.department_name && item.company_id === cid);
+    await apiPost('/users', {
+      email: row.email,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      role_name: row.role,
+      company_id: cid || null,
+      department_id: did || null,
+      status: row.status || 'enabled',
+      ...(options.demoPassword ? { password: options.demoPassword } : {}),
+    });
+    ok(`Created user ${row.email}`);
+  }
+}
+
+// ── App instances / interfaces ───────────────────────────────────────────────
 
 async function ensureAppInstances() {
   info('Ensuring app instances');
@@ -488,7 +788,7 @@ async function ensureInterfaces() {
       data_class: lower(row.data_class),
       contains_pii: boolValue(row.contains_pii),
       lifecycle: lower(row.lifecycle),
-      middleware_application_ids: await appIdsFromNames(row.middleware_application_names),
+      middleware_application_ids: await appIdsFromNames(splitList(row.middleware_application_names)),
     };
     const existingId = await interfaceIdByCode(row.interface_id);
     if (existingId) await apiPatch(`/interfaces/${existingId}`, body);
@@ -497,13 +797,15 @@ async function ensureInterfaces() {
   ok('Interfaces ensured');
 }
 
+// ── Connections (current model: entity endpoints + intermediary hops) ────────
+
 async function ensureConnections() {
   info('Ensuring connections');
+  const refToId = new Map();
   for (const row of readCsv('23-connections.csv')) {
     const body = {
-      connection_id: row.connection_id,
       name: row.name,
-      purpose: row.purpose || null,
+      description: row.description || null,
       topology: lower(row.topology) || 'server_to_server',
       source_entity_code: lower(row.source_entity_code),
       destination_entity_code: lower(row.destination_entity_code),
@@ -512,41 +814,53 @@ async function ensureConnections() {
       criticality: lower(row.criticality) || 'medium',
       data_class: lower(row.data_class) || 'internal',
       contains_pii: boolValue(row.contains_pii),
-      notes: row.notes || null,
     };
-    const existingId = await connectionIdByCode(row.connection_id);
-    if (existingId) await apiPatch(`/connections/${existingId}`, body);
-    else await apiPost('/connections', body);
+    const existingId = await connectionIdByName(row.name);
+    if (existingId) {
+      await apiPatch(`/connections/${existingId}`, body);
+      refToId.set(row.ref, existingId);
+    } else {
+      const created = await apiPost('/connections', body);
+      if (!created?.id) throw new Error(`Connection '${row.name}' creation returned no id`);
+      refToId.set(row.ref, created.id);
+    }
   }
   ok('Connections ensured');
+  return refToId;
 }
 
-async function ensureConnectionLegs() {
-  info('Ensuring connection legs');
-  const rowsByConnection = new Map();
+async function ensureConnectionLegs(refToId) {
+  info('Ensuring connection legs (intermediary hops)');
   for (const row of readCsv('24-connection-legs.csv')) {
-    const list = rowsByConnection.get(row.connection_id) ?? [];
-    list.push(row);
-    rowsByConnection.set(row.connection_id, list);
-  }
-  for (const [connectionCode, rows] of rowsByConnection) {
-    const connectionId = await connectionIdByCode(connectionCode);
+    const connectionId = refToId.get(row.connection_ref);
     if (!connectionId) {
-      warn(`Skipping legs for missing connection '${connectionCode}'`);
+      warn(`Skipping leg for unknown connection ref '${row.connection_ref}'`);
       continue;
     }
-    const legs = rows.map((row) => ({
+    const equipmentAssetId = row.equipment_asset_name ? await assetIdByName(row.equipment_asset_name) : '';
+    if (row.equipment_asset_name && !equipmentAssetId) {
+      warn(`Asset '${row.equipment_asset_name}' not found for leg on '${row.connection_ref}'`);
+    }
+    const body = {
       order_index: Number(row.order_index || 1),
-      layer_type: lower(row.layer_type),
-      source_entity_code: lower(row.source_entity_code),
-      destination_entity_code: lower(row.destination_entity_code),
+      function_code: lower(row.function_code) || null,
+      equipment_asset_id: equipmentAssetId || null,
       protocol_codes: splitList(row.protocol_codes).map(lower),
       port_override: row.port_override || null,
       notes: row.notes || null,
-    }));
-    await apiPut(`/connections/${connectionId}/legs`, legs);
+    };
+    const legs = items(await apiGet(`/connections/${connectionId}/legs`));
+    const existing = legs.find((leg) => Number(leg.order_index) === body.order_index);
+    if (existing) await apiPatch(`/connections/${connectionId}/legs/${existing.id}`, body);
+    else await apiPost(`/connections/${connectionId}/legs`, body);
   }
   ok('Connection legs ensured');
+}
+
+async function instanceIdByAppEnv(appName, environment) {
+  const appId = await appIdByName(appName);
+  if (!appId) return '';
+  return firstBy(items(await apiGet(`/applications/${appId}/instances`)), (item) => item.environment === environment);
 }
 
 async function ensureInterfaceBindings() {
@@ -594,13 +908,13 @@ async function ensureInterfaceBindings() {
   ok('Interface bindings ensured');
 }
 
-async function ensureInterfaceConnectionLinks() {
+async function ensureInterfaceConnectionLinks(refToId) {
   info('Ensuring interface connection links');
   for (const row of readCsv('25-interface-connection-links.csv')) {
     const interfaceId = await interfaceIdByCode(row.interface_id);
-    const connectionId = await connectionIdByCode(row.connection_id);
+    const connectionId = refToId.get(row.connection_ref);
     if (!interfaceId || !connectionId) {
-      warn(`Skipping interface/connection link '${row.interface_id}' -> '${row.connection_id}'`);
+      warn(`Skipping interface/connection link '${row.interface_id}' -> '${row.connection_ref}'`);
       continue;
     }
     const bindings = items(await apiGet(`/interfaces/${interfaceId}/bindings`));
@@ -613,70 +927,166 @@ async function ensureInterfaceConnectionLinks() {
     }
     await apiPost(`/interface-bindings/${binding.id}/connection-links`, {
       connection_id: connectionId,
-      role: lower(row.role) || null,
       notes: row.notes || null,
     });
   }
   ok('Interface connection links ensured');
 }
 
-async function instanceIdByAppEnv(appName, environment) {
-  const appId = await appIdByName(appName);
-  if (!appId) return '';
-  return firstBy(items(await apiGet(`/applications/${appId}/instances`)), (item) => item.environment === environment);
-}
+// ── Business links ───────────────────────────────────────────────────────────
+
+const SUITE_MEMBERS = {
+  'Microsoft 365': ['Exchange Online', 'Microsoft Teams', 'SharePoint Online', 'OneDrive for Business'],
+};
 
 async function linkSuites() {
-  for (const [suiteName, componentNames] of [
-    ['Microsoft 365', ['Exchange Online', 'SharePoint Online', 'Teams']],
-    ['SAP S/4HANA', ['SAP FI/CO', 'SAP MM', 'SAP SD']],
-    ['Salesforce', ['Sales Cloud', 'Service Cloud']],
-  ]) {
+  info('Linking suite members');
+  for (const [suiteName, componentNames] of Object.entries(SUITE_MEMBERS)) {
     const suiteId = await appIdByName(suiteName);
-    if (!suiteId) continue;
+    if (!suiteId) {
+      warn(`Suite '${suiteName}' not found`);
+      continue;
+    }
     for (const componentName of componentNames) {
       const componentId = await appIdByName(componentName);
       if (componentId) await apiPost(`/applications/${componentId}/suites/bulk-replace`, { suite_ids: [suiteId] });
+      else warn(`Suite member '${componentName}' not found`);
     }
   }
+  ok('Suites linked');
 }
 
+// company::department pairs per application
+const APP_DEPARTMENTS = {
+  'Microsoft 365': [
+    'Fromage & Co SA::Direction Générale', 'Fromage & Co SA::Finance & Controlling', 'Fromage & Co SA::IT & Digital',
+    'Fromage & Co SA::Human Resources', 'Fromage & Co SA::Sales & Marketing', 'Fromage & Co SA::Production',
+    'Fromage & Co SA::Procurement', 'Fromage & Co SA::Logistics', 'Fromage & Co SA::Quality & R&D',
+    'Kaasmeester BV::Management', 'Kaasmeester BV::Finance', 'Kaasmeester BV::IT', 'Kaasmeester BV::Sales', 'Kaasmeester BV::Operations',
+    'Formaggio Supremo SRL::Direzione', 'Formaggio Supremo SRL::Amministrazione', 'Formaggio Supremo SRL::IT',
+    'Formaggio Supremo SRL::Commerciale', 'Formaggio Supremo SRL::Produzione',
+    'Fromage & Co Inc.::Management', 'Fromage & Co Inc.::Finance', 'Fromage & Co Inc.::IT', 'Fromage & Co Inc.::Sales', 'Fromage & Co Inc.::Operations',
+  ],
+  'SAP S/4HANA': ['Fromage & Co SA::Finance & Controlling', 'Fromage & Co SA::Production', 'Fromage & Co SA::Procurement', 'Fromage & Co SA::Logistics'],
+  'SAP BW/4HANA': ['Fromage & Co SA::Finance & Controlling', 'Fromage & Co SA::Direction Générale'],
+  'Salesforce Sales Cloud': ['Fromage & Co SA::Sales & Marketing', 'Kaasmeester BV::Sales', 'Formaggio Supremo SRL::Commerciale', 'Fromage & Co Inc.::Sales'],
+  'Salesforce Service Cloud': ['Fromage & Co SA::Sales & Marketing'],
+  'Workday HCM': ['Fromage & Co SA::Human Resources'],
+  'ServiceNow ITSM': ['Fromage & Co SA::IT & Digital'],
+  'Okta Workforce Identity': ['Fromage & Co SA::IT & Digital'],
+  'QuickBooks Online': ['Fromage & Co Inc.::Finance'],
+  'Sage X3': ['Kaasmeester BV::Finance', 'Formaggio Supremo SRL::Amministrazione'],
+  'CheeseTrack': ['Fromage & Co SA::Production', 'Fromage & Co SA::Quality & R&D', 'Formaggio Supremo SRL::Produzione'],
+  'CaveGuard IoT': ['Fromage & Co SA::Production'],
+  'Power BI': ['Fromage & Co SA::Finance & Controlling', 'Fromage & Co SA::Direction Générale', 'Fromage & Co SA::Sales & Marketing'],
+  'La Boutique du Fromage': ['Fromage & Co SA::Sales & Marketing', 'Fromage & Co SA::IT & Digital'],
+  'Fromage B2B Portal': ['Fromage & Co SA::Sales & Marketing', 'Fromage & Co SA::Logistics'],
+};
+
 async function linkApplicationDepartments() {
-  for (const row of readCsv('12-applications.csv')) {
-    const appId = await appIdByName(row.name);
-    if (!appId || !row.department_names) continue;
+  info('Linking applications to departments');
+  const departments = await getAll('/departments?limit=1000');
+  const companies = await getAll('/companies?limit=500');
+  const companyId = (name) => firstBy(companies, (item) => item.name === name);
+  for (const [appName, pairs] of Object.entries(APP_DEPARTMENTS)) {
+    const appId = await appIdByName(appName);
+    if (!appId) {
+      warn(`Application '${appName}' not found; skipping department links`);
+      continue;
+    }
     const ids = [];
-    for (const name of splitList(row.department_names)) {
-      const id = await departmentIdByName(name);
+    for (const pair of pairs) {
+      const [companyName, departmentName] = pair.split('::');
+      const cid = companyId(companyName);
+      const id = firstBy(departments, (item) => item.name === departmentName && item.company_id === cid);
       if (id) ids.push(id);
+      else warn(`Department '${pair}' not found for '${appName}'`);
     }
     if (ids.length) await apiPost(`/applications/${appId}/departments/bulk-replace`, { department_ids: [...new Set(ids)] });
   }
+  ok('Application departments linked');
 }
 
-async function linkContractsToApps() {
-  for (const row of readCsv('13-contracts.csv')) {
-    const contractId = await contractIdByName(row.name);
-    const appIds = await appIdsFromNames(row.application_names);
-    if (contractId && appIds.length) {
-      await apiPost(`/contracts/${contractId}/applications/bulk-replace`, { application_ids: appIds });
+// Contracts link to their spend lines (the contract↔application relation no longer exists).
+const CONTRACT_SPEND_ITEMS = {
+  'Microsoft Enterprise Agreement': ['Microsoft Enterprise (M365 + Azure + GitHub)'],
+  'SAP Maintenance & Support': ['SAP S/4HANA Maintenance', 'SAP BW/4HANA License'],
+  'Salesforce Subscription': ['Salesforce (Sales + Service Cloud)'],
+  'ServiceNow Platform': ['ServiceNow ITSM Platform'],
+  'Workday HCM': ['Workday HCM'],
+  'OVHcloud Infrastructure': ['OVHcloud Infrastructure'],
+  'Okta Workforce Identity': ['Okta Workforce Identity'],
+  'Sophos Enterprise Agreement': ['Sophos Enterprise Security'],
+  'Broadcom VMware ELA': ['VMware vSphere Licensing'],
+  'Schneider IoT Services': ['CaveGuard IoT Platform'],
+  'Sage X3 Subscription': ['Sage X3 Licenties — Kaasmeester', 'Sage X3 Licenze — Formaggio Supremo'],
+  'CheeseTrack SaaS': ['CheeseTrack SaaS'],
+  'Fortinet FortiCare': ['Fortinet FortiCare & FortiGuard'],
+  'Axians Infogérance': ['Managed Services — Axians Infogérance'],
+  'US Managed IT Services': ['US Managed IT Services', 'US Office IT Services'],
+};
+
+async function linkContractsToSpend() {
+  info('Linking contracts to spend items');
+  for (const [contractName, spendNames] of Object.entries(CONTRACT_SPEND_ITEMS)) {
+    const contractId = await contractIdByName(contractName);
+    if (!contractId) {
+      warn(`Contract '${contractName}' not found`);
+      continue;
     }
+    const ids = [];
+    for (const name of spendNames) {
+      const id = await spendIdByName(name);
+      if (id) ids.push(id);
+      else warn(`Spend item '${name}' not found for contract '${contractName}'`);
+    }
+    if (ids.length) await apiPost(`/contracts/${contractId}/spend-items/bulk-replace`, { spend_item_ids: ids });
   }
+  ok('Contracts linked to spend items');
 }
+
+const SPEND_APPLICATIONS = {
+  'Microsoft Enterprise (M365 + Azure + GitHub)': ['Microsoft 365', 'GitHub Enterprise'],
+  'SAP S/4HANA Maintenance': ['SAP S/4HANA'],
+  'SAP BW/4HANA License': ['SAP BW/4HANA'],
+  'Salesforce (Sales + Service Cloud)': ['Salesforce Sales Cloud', 'Salesforce Service Cloud'],
+  'ServiceNow ITSM Platform': ['ServiceNow ITSM'],
+  'Workday HCM': ['Workday HCM'],
+  'OVHcloud Infrastructure': ['VMware vSphere'],
+  'AWS Cloud Hosting': ['La Boutique du Fromage'],
+  'Datadog Monitoring': ['Datadog'],
+  'Okta Workforce Identity': ['Okta Workforce Identity'],
+  'Sophos Enterprise Security': ['Sophos Intercept X'],
+  'VMware vSphere Licensing': ['VMware vSphere'],
+  'CaveGuard IoT Platform': ['CaveGuard IoT'],
+  'CheeseTrack SaaS': ['CheeseTrack'],
+  'Various SaaS Bundle': ['HubSpot Marketing Hub', 'Zoom Workplace', 'Figma', 'Coupa Procurement', 'PagerDuty', 'Adobe Acrobat Pro'],
+  'Fortinet FortiCare & FortiGuard': ['Fortinet FortiGate'],
+};
 
 async function linkSpendToApps() {
-  for (const row of readCsv('14-spend-items.csv')) {
-    const spendId = await spendIdByName(row.product_name);
-    const appIds = await appIdsFromNames(row.application_names);
-    if (spendId && appIds.length) {
-      await apiPost(`/spend-items/${spendId}/applications/bulk-replace`, { application_ids: appIds });
+  info('Linking spend items to applications');
+  for (const [spendName, appNames] of Object.entries(SPEND_APPLICATIONS)) {
+    const spendId = await spendIdByName(spendName);
+    if (!spendId) {
+      warn(`Spend item '${spendName}' not found`);
+      continue;
     }
+    const appIds = await appIdsFromNames(appNames);
+    if (appIds.length) await apiPost(`/spend-items/${spendId}/applications/bulk-replace`, { application_ids: appIds });
   }
+  ok('Spend items linked to applications');
 }
 
+// ── Portfolio teams, timeline, allocations ───────────────────────────────────
+
 async function ensurePortfolioTeamsAndCapacity() {
+  info('Ensuring portfolio teams and capacity');
   for (const name of ['Business Applications', 'Development', 'Infrastructure']) {
-    await ensurePortfolioTeam(name);
+    const existingId = await portfolioTeamIdByName(name);
+    const body = { name, description: `${name} delivery team`, is_active: true };
+    if (existingId) await apiPatch(`/portfolio/teams/${existingId}`, body);
+    else await apiPost('/portfolio/teams', body);
   }
   const teamByEmail = [
     ['sophie.laurent@fromage-co.com', 'Business Applications'],
@@ -695,22 +1105,303 @@ async function ensurePortfolioTeamsAndCapacity() {
       });
     }
   }
+  ok('Portfolio teams and capacity ensured');
 }
 
-async function ensurePortfolioTeam(name) {
-  const existingId = await portfolioTeamIdByName(name);
-  const body = { name, description: `${name} delivery team`, status: 'enabled' };
-  if (existingId) await apiPatch(`/portfolio/teams/${existingId}`, body);
-  else await apiPost('/portfolio/teams', body);
+const PROJECT_PHASES = {
+  'Fromage-as-a-Service': [
+    ['Discovery & UX Design', '2025-06-01', '2025-09-30', 'completed'],
+    ['MVP Development', '2025-09-01', '2026-03-31', 'in_progress'],
+    ['Beta Testing', '2026-03-01', '2026-06-30', 'pending'],
+    ['Launch & Scale', '2026-06-01', '2026-09-30', 'pending'],
+  ],
+  'Zero Trust Fromage': [
+    ['Assessment & Architecture', '2025-04-01', '2025-08-31', 'completed'],
+    ['Network Segmentation', '2025-09-01', '2026-02-28', 'in_progress'],
+    ['Identity Hardening', '2026-02-01', '2026-05-31', 'pending'],
+    ['Validation & Audit', '2026-05-01', '2026-06-30', 'pending'],
+  ],
+  'Workday Global Rollout': [
+    ['France Go-Live', '2025-04-01', '2025-07-31', 'completed'],
+    ['Netherlands Rollout', '2025-09-01', '2026-03-31', 'in_progress'],
+    ['Italy Rollout', '2026-03-01', '2026-08-31', 'pending'],
+    ['US Rollout', '2026-08-01', '2026-12-31', 'pending'],
+  ],
+};
+
+async function ensureProjectPhases() {
+  info('Ensuring project phases');
+  for (const [projectName, phases] of Object.entries(PROJECT_PHASES)) {
+    const projectId = await projectIdByName(projectName);
+    if (!projectId) {
+      warn(`Project '${projectName}' not found; skipping phases`);
+      continue;
+    }
+    const existing = items(await apiGet(`/portfolio/projects/${projectId}/phases`));
+    for (const [name, planned_start, planned_end, status] of phases) {
+      const phase = existing.find((item) => item.name === name);
+      if (phase) {
+        await apiPatch(`/portfolio/projects/${projectId}/phases/${phase.id}`, { name, planned_start, planned_end, status });
+      } else {
+        const created = await apiPost(`/portfolio/projects/${projectId}/phases`, { name, planned_start, planned_end });
+        await apiPatch(`/portfolio/projects/${projectId}/phases/${created.id}`, { status });
+      }
+    }
+    ok(`Phases ensured for '${projectName}'`);
+  }
 }
+
+const IT_TEAM_EMAILS = new Set([
+  'sophie.laurent@fromage-co.com', 'lucas.bernard@fromage-co.com', 'pierre.martin@fromage-co.com',
+  'thomas.berger@fromage-co.com', 'amelie.rousseau@fromage-co.com', 'clara.dupont@fromage-co.com',
+  'jan.bakker@kaasmeester.nl', 'luca.ferrari@formaggio-supremo.it', 'hugo.mercier@fromage-co.com',
+]);
+
+const PROJECT_TEAMS = {
+  'Fromage-as-a-Service': ['amelie.rousseau@fromage-co.com', 'clara.dupont@fromage-co.com', 'isabelle.moreau@fromage-co.com', 'hugo.mercier@fromage-co.com'],
+  'Zero Trust Fromage': ['lucas.bernard@fromage-co.com', 'pierre.martin@fromage-co.com', 'thomas.berger@fromage-co.com'],
+  'Workday Global Rollout': ['sophie.laurent@fromage-co.com', 'jan.bakker@kaasmeester.nl', 'luca.ferrari@formaggio-supremo.it', 'marie.fontaine@fromage-co.com'],
+  'Territory Planning Cockpit': ['isabelle.moreau@fromage-co.com', 'marie.fontaine@fromage-co.com'],
+  'Supplier Contract Workspace': ['marie.fontaine@fromage-co.com', 'isabelle.moreau@fromage-co.com'],
+  'Pricing Rules API Refactor': ['amelie.rousseau@fromage-co.com', 'clara.dupont@fromage-co.com', 'hugo.mercier@fromage-co.com'],
+  'Customer 360 Data Contracts': ['clara.dupont@fromage-co.com', 'jan.bakker@kaasmeester.nl', 'luca.ferrari@formaggio-supremo.it'],
+  'Branch Network Segmentation': ['lucas.bernard@fromage-co.com', 'pierre.martin@fromage-co.com', 'thomas.berger@fromage-co.com'],
+  'Endpoint Compliance Automation': ['sophie.laurent@fromage-co.com', 'pierre.martin@fromage-co.com', 'lucas.bernard@fromage-co.com'],
+};
+
+async function ensureProjectTeams() {
+  info('Ensuring project team members');
+  for (const [projectName, emails] of Object.entries(PROJECT_TEAMS)) {
+    const projectId = await projectIdByName(projectName);
+    if (!projectId) {
+      warn(`Project '${projectName}' not found; skipping teams`);
+      continue;
+    }
+    const itIds = [];
+    const bizIds = [];
+    for (const email of emails) {
+      const userId = await userIdByEmail(email);
+      if (!userId) {
+        warn(`User '${email}' not found for project '${projectName}'`);
+        continue;
+      }
+      (IT_TEAM_EMAILS.has(email) ? itIds : bizIds).push(userId);
+    }
+    if (itIds.length) await apiPost(`/portfolio/projects/${projectId}/it-team/bulk-replace`, { user_ids: [...new Set(itIds)] });
+    if (bizIds.length) await apiPost(`/portfolio/projects/${projectId}/business-team/bulk-replace`, { user_ids: [...new Set(bizIds)] });
+  }
+  ok('Project teams ensured');
+}
+
+const COMPANY_ALLOCATIONS = [
+  ['spend', 'Microsoft Enterprise (M365 + Azure + GitHub)', ['Fromage & Co SA', 'Kaasmeester BV', 'Formaggio Supremo SRL', 'Fromage & Co Inc.']],
+  ['spend', 'Okta Workforce Identity', ['Fromage & Co SA', 'Kaasmeester BV', 'Formaggio Supremo SRL', 'Fromage & Co Inc.']],
+  ['spend', 'Sophos Enterprise Security', ['Fromage & Co SA', 'Kaasmeester BV', 'Formaggio Supremo SRL', 'Fromage & Co Inc.']],
+  ['spend', 'Network & Telecom Services', ['Fromage & Co SA', 'Kaasmeester BV', 'Formaggio Supremo SRL', 'Fromage & Co Inc.']],
+  ['capex', 'SAP Cheddar Migration — S/4HANA upgrade', ['Fromage & Co SA', 'Kaasmeester BV', 'Formaggio Supremo SRL']],
+];
+
+async function ensureCompanyAllocations() {
+  info('Applying company allocations to spend/CAPEX versions');
+  for (const [kind, name, companyNames] of COMPANY_ALLOCATIONS) {
+    const itemId = kind === 'spend' ? await spendIdByName(name) : await capexIdByDescription(name);
+    if (!itemId) {
+      warn(`Allocation target not found: [${kind}] ${name}`);
+      continue;
+    }
+    const companyIds = [];
+    for (const companyName of companyNames) {
+      const id = await companyIdByName(companyName);
+      if (id) companyIds.push(id);
+      else warn(`Company '${companyName}' not found for [${kind}] ${name}`);
+    }
+    if (!companyIds.length) continue;
+
+    const itemBase = kind === 'spend' ? '/spend-items' : '/capex-items';
+    const versionBase = kind === 'spend' ? '/spend-versions' : '/capex-versions';
+    const versions = items(await apiGet(`${itemBase}/${itemId}/versions`));
+    if (!versions.length) {
+      warn(`No versions found for [${kind}] ${name}`);
+      continue;
+    }
+    for (const version of versions) {
+      try {
+        await apiPatch(`${itemBase}/${itemId}/versions`, {
+          id: version.id,
+          allocation_method: 'manual_company',
+          allocation_driver: 'headcount',
+        });
+        await apiPost(`${versionBase}/${version.id}/allocations/bulk-upsert`, {
+          items: companyIds.map((company_id) => ({ company_id, department_id: null })),
+        });
+      } catch (error) {
+        warn(`Allocation failed for [${kind}] ${name} version ${version.id}: ${error.message.split('\n')[0]}`);
+      }
+    }
+    ok(`Allocations applied for [${kind}] ${name}`);
+  }
+}
+
+// ── Service Desk Docs knowledge library ──────────────────────────────────────
+
+const SERVICE_DESK_LIBRARY = 'Service Desk Docs';
+const SERVICE_DESK_DOCS = [
+  { title: 'VPN & Remote Access Guide', file: 'docs/vpn-remote-access.md', summary: 'FortiClient VPN setup, Okta MFA, and the classic "credentials rejected" fix.' },
+  { title: 'SAP Access Request Process', file: 'docs/sap-access-request.md', summary: 'SAP role matrix, approvers, SLAs and the expedited month-end close path.' },
+  { title: 'CaveGuard Alert Runbook — Cheese Cave Sensors', file: 'docs/caveguard-alert-runbook.md', summary: 'Alert severities, humidity profiles per cheese family, and when to call the on-call affineur.' },
+  { title: 'Guest Wi-Fi & Visitor Access', file: 'docs/guest-wifi-visitors.md', summary: 'FromageGuest Wi-Fi codes, visitor badges, and how to book a cave visit.' },
+  { title: 'Label Printer Troubleshooting (Zebra)', file: 'docs/label-printer-troubleshooting.md', summary: 'Curled labels, humidity, calibration, and when to call Axians.' },
+];
+
+async function ensureServiceDeskDocs() {
+  info('Ensuring Service Desk Docs knowledge library');
+  const libraries = items(await apiGet('/knowledge-libraries'));
+  let library = libraries.find((item) => item.name === SERVICE_DESK_LIBRARY);
+  if (!library) {
+    const created = await apiPost('/knowledge-libraries', { name: SERVICE_DESK_LIBRARY });
+    library = created?.library ?? created;
+    ok(`Created knowledge library '${SERVICE_DESK_LIBRARY}'`);
+  }
+  const existing = items(await apiGet('/knowledge?limit=500'));
+  for (const doc of SERVICE_DESK_DOCS) {
+    if (existing.some((item) => item.title === doc.title)) continue;
+    await apiPost('/knowledge', {
+      title: doc.title,
+      library_id: library.id,
+      summary: doc.summary,
+      content_markdown: readFileSync(file(doc.file), 'utf8'),
+      status: 'published',
+    });
+    ok(`Published '${doc.title}'`);
+  }
+}
+
+// ── Demo AI agent (mock ticketing provider) ──────────────────────────────────
+
+const AGENT_NAME = 'Fromage Service Desk Agent';
+const SHARED_CONTEXT_NAME = 'Fromage & Co Company Context';
+
+async function ensureDemoAgent() {
+  info('Ensuring demo AI agent');
+  const cp = '/ai/admin/control-plane';
+
+  let profiles = [];
+  try {
+    profiles = items(await apiGet(`${cp}/shared-context-profiles`));
+  } catch (error) {
+    warn(`AI control plane unavailable (${error.message.split('\n')[0]}); skipping agent setup`);
+    return;
+  }
+
+  let profile = profiles.find((item) => item.name === SHARED_CONTEXT_NAME);
+  if (!profile) {
+    const created = await apiPost(`${cp}/shared-context-profiles`, {
+      name: SHARED_CONTEXT_NAME,
+      description: 'Shared facts about Fromage & Co for all agents',
+      lines: [
+        'Fromage & Co is a European cheese group: Fromage & Co SA (France, HQ), Kaasmeester BV (Netherlands), Formaggio Supremo SRL (Italy), Fromage & Co Inc. (US).',
+        'Core systems: SAP S/4HANA (ERP, production), Salesforce (CRM), Microsoft 365 (collaboration), Workday HCM (HR), ServiceNow (ITSM).',
+        'The Paris Data Center (PAR-DC1) hosts SAP production; site firewalls are FortiGate appliances.',
+        'Business hours are 08:00-18:00 CET; the production sites in Paris and Parma run until 22:00.',
+        'IT service desk language is English; requesters may write in French, Dutch or Italian.',
+      ],
+    });
+    profile = created?.profile ?? created;
+    ok(`Created shared context profile '${SHARED_CONTEXT_NAME}'`);
+  }
+
+  const agentBody = {
+    name: AGENT_NAME,
+    agent_type: 'helpdesk',
+    description: 'Demo helpdesk triage agent bound to the built-in mock ticketing provider.',
+    provider_bindings_json: { ticketing: { provider_kind: 'ticketing', provider_key: 'mock' } },
+    // Scope follows the template shape: manual safe targets stay allowed (a
+    // hard requirement of the triage runtime) and the bounded new-tickets
+    // watcher is enabled for the fromage mock helpdesk entity.
+    scope_policy_json: {
+      mode: 'manual_safe_target',
+      allowed_modes: ['manual_safe_target', 'new_tickets_only'],
+      provider_kind: 'ticketing',
+      provider_key: 'mock',
+      target_kind: 'ticket',
+      required_safe_target_effect: 'read',
+      new_tickets_only: {
+        enabled: true,
+        entity_id: 'fromage-helpdesk',
+        max_tickets_per_cycle: 5,
+        max_provider_requests_per_cycle: 10,
+        hard_backfill_horizon_hours: 24 * 30,
+      },
+      all_matching: { enabled: false },
+      freeform_live_object_ids: false,
+    },
+    trigger_policy_json: {
+      manual_safe_target: { enabled: true },
+      scheduled_poll: { enabled: true },
+      saved_filter: { enabled: false },
+      provider_webhook: { enabled: false },
+      ticket_update: { enabled: false },
+      production_polling_enabled: false,
+      automatic_writes_enabled: false,
+    },
+    persona_json: {
+      mission: 'Support the Fromage & Co IT service desk: triage incoming tickets, investigate using the IT landscape, and prepare source-cited replies for technician approval.',
+      instructions: [
+        'Always cite the evidence used for a conclusion.',
+        'Prefer an internal note when evidence is incomplete or confidence is low.',
+        'Never promise delivery dates; route scheduling questions to the service desk lead.',
+      ],
+      output_style: { tone: 'Professional, concise and friendly; address requesters by first name.', language: 'en' },
+      escalation_guidance: 'Escalate security incidents and anything touching SAP production to Pierre Martin.',
+      shared_context: { enabled: true, profile_id: profile.id },
+    },
+  };
+
+  const agents = items(await apiGet(`${cp}/agents`));
+  let agent = agents.find((item) => item.name === AGENT_NAME);
+  if (agent) {
+    const updated = await apiPost(`${cp}/agents/${agent.id}`, agentBody);
+    agent = updated?.agent_definition ?? agent;
+    ok(`Updated agent '${AGENT_NAME}'`);
+  } else {
+    const created = await apiPost(`${cp}/agents`, agentBody);
+    agent = created?.agent_definition ?? created;
+    ok(`Created agent '${AGENT_NAME}'`);
+  }
+
+  if (agent.status !== 'enabled') {
+    await apiPost(`${cp}/agents/${agent.id}/status`, { status: 'enabled' });
+    ok(`Agent '${AGENT_NAME}' enabled`);
+  }
+
+  // Agent triage runs on the tenant AI surface, which is disabled by default.
+  await apiPatch('/ai/settings', { chat_enabled: true });
+
+  try {
+    await apiPost(`${cp}/helpdesk/ticketing-ingestion/poll`, {});
+    ok('Ingestion poll ran — fromage demo tickets should appear in the agent work queue');
+  } catch (error) {
+    warn(`Ingestion poll failed (${error.message.split('\n')[0]}); trigger it from the agent cockpit instead`);
+  }
+
+  try {
+    await apiPost(`${cp}/uat/mock-triage`, { provider_key: 'mock', ticket_id: 'mock-fromage-remote-access' });
+    ok('Ran a mock triage — a pending approval is now waiting on the Approvals page');
+  } catch (error) {
+    warn(`Mock triage failed (${error.message.split('\n')[0]}); the agent is created but has no demo run yet`);
+  }
+}
+
+// ── Orchestration ────────────────────────────────────────────────────────────
 
 async function runImports() {
-  await importCsv('01-companies.csv', '/companies/import');
+  await importCsv('01-companies.csv', '/companies/import', `&year=${options.year}`);
+  await cleanupBootstrapCompany();
   await setupCoas();
   await importCsv('07-suppliers.csv', '/suppliers/import');
   await importCsv('08-departments.csv', '/departments/import');
   await importCsv('09-contacts.csv', '/contacts/import');
-  await importCsv('10-users.csv', '/users/import');
+  await ensureDemoUsers();
   await importCsv('11-business-processes.csv', '/business-processes/import');
   await importCsv('12-applications.csv', '/applications/import');
   await importCsv('13-contracts.csv', '/contracts/import');
@@ -718,33 +1409,51 @@ async function runImports() {
   await importCsv('15-capex-items.csv', '/capex-items/import');
   await importCsv('16-portfolio-projects.csv', '/portfolio/projects/import');
   await importCsv('17-portfolio-requests.csv', '/portfolio/requests/import');
-  await ensureLocations();
-  await importCsv('18-assets.csv', '/assets/import');
+  const locationIdByFixtureCode = await ensureLocations();
+  await ensureAssets(locationIdByFixtureCode);
   await importCsv('19-tasks.csv', '/tasks/import');
 }
 
 async function runRelations() {
-  await ensureConnectionEntities();
   await linkSuites();
   await linkApplicationDepartments();
   await ensureAppInstances();
   await ensureMiddlewareEtlEnabled();
   await ensureInterfaces();
-  await ensureConnections();
-  await ensureConnectionLegs();
+  const refToId = await ensureConnections();
+  await ensureConnectionLegs(refToId);
   await ensureInterfaceBindings();
-  await ensureInterfaceConnectionLinks();
-  await linkContractsToApps();
+  await ensureInterfaceConnectionLinks(refToId);
+  await linkContractsToSpend();
   await linkSpendToApps();
   await ensurePortfolioTeamsAndCapacity();
+  await ensureProjectPhases();
+  await ensureProjectTeams();
+  await ensureCompanyAllocations();
 }
 
 async function main() {
-  await login();
+  await detectApiPrefix();
+  await ensureTenant();
   await setupSettings();
+  await ensurePortfolioClassification();
+  await ensureAnalyticsCategories();
   await runImports();
   if (!options.skipRelations) await runRelations();
+  await ensureServiceDeskDocs();
+  if (!options.skipAgents) await ensureDemoAgent();
+
   ok('Fromage & Co fixture setup complete');
+  console.log('');
+  console.log(`  App URL:      ${options.baseUrl}`);
+  console.log(`  Tenant admin: ${options.email}`);
+  if (options.demoPassword) {
+    console.log(`  Demo users:   thomas.berger@fromage-co.com (and 15 others) / ${options.demoPassword}`);
+  }
+  if (!options.skipAgents) {
+    console.log(`  Demo agent:   '${AGENT_NAME}' (mock ticketing) — check the Agents pages`);
+    console.log(`  Knowledge:    '${SERVICE_DESK_LIBRARY}' library — the demo tickets find their answers there`);
+  }
 }
 
 main().catch((error) => {
