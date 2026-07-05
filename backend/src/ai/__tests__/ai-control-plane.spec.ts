@@ -57,7 +57,9 @@ import { AiReadonlyDiagnosticWorkflowService } from '../control-plane/diagnostic
 import { AiAgentHelpdeskTicketingIngestionService } from '../control-plane/agent/ai-agent-helpdesk-ticketing-ingestion.service';
 import { AiAgentApprovalLifecycleSweeperService } from '../control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import {
+  createProviderSubtreeResolver,
   deriveServiceDeskTargetingFetchConfig,
+  expandServiceDeskTargetingSubtrees,
   normalizeServiceDeskScopePolicy,
   normalizeServiceDeskTargeting,
   ticketMatchesServiceDeskTargeting,
@@ -14096,6 +14098,81 @@ async function run() {
   await testMaliciousEvidenceAndCrossTenantLinksCannotCausePolicyApproval();
   await testPolicyCostAndCooldownAnomaliesDeny();
   await testScheduledAndAlertRoutinesCreateDispatcherAuditRecords();
+  await testRecursiveCategoryEntityTargetingExpansion();
+}
+
+async function testRecursiveCategoryEntityTargetingExpansion() {
+  const provider = new MockTicketingProvider();
+  const context = {} as any;
+
+  // Mock catalog: 'vpn' is a child of 'access' via parentId metadata.
+  const subtree = await provider.resolveReferenceSubtree(context, { kind: 'category', ids: ['access'] });
+  assert.equal(subtree.ok !== false, true);
+  assert.deepEqual((subtree as any).data.ids, ['access', 'vpn']);
+
+  const resolver = createProviderSubtreeResolver(provider, context);
+  const targeting = normalizeServiceDeskTargeting({
+    targeting: { predicates: [{ field: 'category', operator: 'eq', value: 'access' }] },
+  });
+  const expanded = await expandServiceDeskTargetingSubtrees(targeting, resolver);
+  const ticketInSubcategory = {
+    id: 'sub-ticket',
+    title: 'Subcategory ticket',
+    status: 'new',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: '2026-06-10T10:00:00.000Z',
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'vpn' },
+  };
+  // Selecting the parent category now matches tickets filed in its subcategories;
+  // the unexpanded model keeps the historical exact-id behavior.
+  assert.equal(ticketMatchesServiceDeskTargeting(ticketInSubcategory, expanded), true);
+  assert.equal(ticketMatchesServiceDeskTargeting(ticketInSubcategory, targeting), false);
+
+  // Exclusions are recursive too: 'not access' also excludes 'vpn'.
+  const exclusion = await expandServiceDeskTargetingSubtrees(normalizeServiceDeskTargeting({
+    targeting: { predicates: [{ field: 'category', operator: 'not', value: 'access' }] },
+  }), resolver);
+  assert.equal(ticketMatchesServiceDeskTargeting(ticketInSubcategory, exclusion), false);
+
+  // Provider failures degrade to exact-id matching instead of failing the cycle.
+  const failures: string[] = [];
+  const failingResolver = createProviderSubtreeResolver({
+    resolveReferenceSubtree: async () => {
+      throw new Error('provider offline');
+    },
+  } as any, context, (_kind, _ids, message) => {
+    failures.push(message);
+  });
+  const fallback = await expandServiceDeskTargetingSubtrees(targeting, failingResolver);
+  assert.equal(ticketMatchesServiceDeskTargeting(ticketInSubcategory, fallback), false);
+  assert.equal(failures.length, 1);
+
+  // Scope listing honors the expanded id set: selecting the parent entity 'lohr'
+  // returns tickets from both child entities, where exact-id matching returned none.
+  const entitySubtree = await provider.resolveReferenceSubtree(context, { kind: 'entity', ids: ['lohr'] });
+  assert.deepEqual((entitySubtree as any).data.ids, ['lohr', 'lohr-helpdesk', 'finance']);
+  const listedRecursive = await provider.listTicketsForScope(context, {
+    scope: {
+      mode: 'new_tickets_only',
+      createdAfter: '2026-06-05T00:00:00.000Z',
+      maxResults: 20,
+      entityId: 'lohr',
+      entityIds: (entitySubtree as any).data.ids,
+    },
+  });
+  assert.deepEqual(
+    ((listedRecursive as any).data.tickets as Array<{ id: string }>).map((ticket) => ticket.id).sort(),
+    ['mock-new-ticket-in-scope', 'mock-new-ticket-out-of-scope'],
+  );
+  const listedExact = await provider.listTicketsForScope(context, {
+    scope: {
+      mode: 'new_tickets_only',
+      createdAfter: '2026-06-05T00:00:00.000Z',
+      maxResults: 20,
+      entityId: 'lohr',
+    },
+  });
+  assert.deepEqual((listedExact as any).data.tickets, []);
 }
 
 void run();

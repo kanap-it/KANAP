@@ -426,7 +426,9 @@
       "thisAgent": "This agent",
       "replaceTitle": "Replace filters?",
       "replaceDescription": "{{preset}} will replace the current filter set.",
-      "replace": "Replace"
+      "replace": "Replace",
+      "includesSubcategories": "Subcategories are included",
+      "includesSubentities": "Sub-entities are included"
     },
     "targetingFields": {
       "status": "Status",

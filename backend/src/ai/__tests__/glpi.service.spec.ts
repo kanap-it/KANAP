@@ -783,6 +783,100 @@ async function testSearchReferenceCatalogBuildsBoundedSearchAndNormalizesRows() 
   }
 }
 
+async function testListReferenceSubtreeIdsExpandsDescendantsAndCachesTree() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      requestedUrls.push(String(input));
+      return new Response(JSON.stringify([
+        { id: 1, itilcategories_id: 0 },
+        { id: 2, itilcategories_id: 1 },
+        { id: 3, itilcategories_id: 2 },
+        { id: 4, itilcategories_id: 0 },
+      ]), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'content-range': '0-3/4' },
+      });
+    }) as typeof fetch;
+
+    // Root 1 expands to its whole subtree (1 > 2 > 3); sibling root 4 stays out.
+    const ids = await service.listReferenceSubtreeIds(session, 'category', [1]);
+    assert.deepEqual(ids, [1, 2, 3]);
+    assert.equal(requestedUrls.length, 1);
+    assert.match(requestedUrls[0], /apirest\.php\/ITILCategory/);
+    assert.match(requestedUrls[0], /range=0-199/);
+
+    // Follow-up expansions reuse the cached parent map — no extra GLPI calls.
+    const again = await service.listReferenceSubtreeIds(session, 'category', [2]);
+    assert.deepEqual(again, [2, 3]);
+    assert.equal(requestedUrls.length, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testSearchTicketsForScopeUsesUnderCriteriaAndMembershipForSubtrees() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+  const jsonResponse = (payload: unknown) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.includes('search/Ticket')) {
+        return jsonResponse({ totalcount: 2, count: 2, data: [{ id: 101 }, { id: 102 }] });
+      }
+      if (url.includes('Ticket/101')) {
+        // In the subtree: child category 6 of selected root 5.
+        return jsonResponse({ id: 101, name: 'Child category ticket', status: 2, itilcategories_id: 6, entities_id: 1, date: '2026-07-01 10:00:00' });
+      }
+      // Outside the subtree: category 9.
+      return jsonResponse({ id: 102, name: 'Other category ticket', status: 2, itilcategories_id: 9, entities_id: 1, date: '2026-07-01 10:00:00' });
+    }) as typeof fetch;
+
+    const tickets = await service.searchTicketsForScope(session, {
+      createdAfter: '2026-06-30T00:00:00.000Z',
+      maxResults: 5,
+      entityId: null,
+      categoryId: 5,
+      categoryIds: [5, 6],
+    });
+    assert.match(requestedUrls[0], /searchtype%5D=under/);
+    assert.match(requestedUrls[0], /field%5D=7/);
+    assert.deepEqual(tickets.map((ticket) => ticket.id), [101]);
+
+    // Without the expanded id set the category criteria stay exact-match.
+    requestedUrls.length = 0;
+    await service.searchTicketsForScope(session, {
+      createdAfter: '2026-06-30T00:00:00.000Z',
+      maxResults: 5,
+      entityId: null,
+      categoryId: 5,
+    });
+    assert.doesNotMatch(requestedUrls[0], /under/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -803,6 +897,8 @@ async function run() {
   await testUpdateTicketFieldsRejectsUnsupportedOrInvalidUpdates();
   await testSearchReferenceCatalogBuildsBoundedSearchAndNormalizesRows();
   await testSearchTicketsForScopeTreatsZeroResultsAsEmpty();
+  await testListReferenceSubtreeIdsExpandsDescendantsAndCachesTree();
+  await testSearchTicketsForScopeUsesUnderCriteriaAndMembershipForSubtrees();
 }
 
 void run();

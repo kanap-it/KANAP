@@ -37,6 +37,9 @@ export const DEFAULT_STALE_CLOSURE_TTL_DAYS = 7;
 
 const DEFAULT_STALE_HOURS = 72;
 export const TARGETING_OPTIONS_STALE_TIME_MS = 30_000;
+export const TARGETING_LOOKUP_DEBOUNCE_MS = 300;
+// Backend caps targeting-option pages at 50 (TARGETING_OPTIONS_MAX_LIMIT).
+export const TARGETING_CATALOG_OPTIONS_LIMIT = 50;
 const AVAILABLE_TARGETING_FIELDS: TargetingFilterField[] = [
   'status',
   'priority',
@@ -410,10 +413,18 @@ function ReferenceCatalogAutocomplete({
   React.useEffect(() => {
     setInputValue(label || value);
   }, [label, value]);
-  const lookupQuery = inputValue.trim() || value.trim();
+  // Debounced lookup: each keystroke previously fired its own provider round-trip
+  // (a full GLPI session per request), which stacked slow catalog searches into
+  // timeouts on large instances. Only settled text hits the backend.
+  const [debouncedInput, setDebouncedInput] = React.useState(inputValue);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedInput(inputValue), TARGETING_LOOKUP_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [inputValue]);
+  const lookupQuery = debouncedInput.trim() || value.trim();
   const optionsQuery = useQuery({
     queryKey: ['ai-agent-targeting-options', agentId, field, lookupQuery],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, field, { query: lookupQuery || undefined, limit: 20 }),
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, field, { query: lookupQuery || undefined, limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
     enabled: !!agentId,
     staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
   });
@@ -422,31 +433,40 @@ function ReferenceCatalogAutocomplete({
     ? options.find((option) => option.value === value) ?? { value, label: label || value }
     : null;
   return (
-    <Autocomplete<AiAgentControlRefItem, false, false, false>
-      size="small"
-      options={options}
-      value={selected}
-      inputValue={inputValue}
-      loading={optionsQuery.isFetching}
-      filterOptions={(items) => items}
-      getOptionLabel={(option) => option.label}
-      isOptionEqualToValue={(option, candidate) => option.value === candidate.value}
-      noOptionsText={t('settings.targetingBuilder.noOptions')}
-      onInputChange={(_event, next) => setInputValue(next)}
-      onChange={(_event, option) => {
-        onChange(option ? { value: option.value, label: option.label } : { value: '', label: '' });
-      }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          size="small"
-          variant="standard"
-          placeholder={t(`settings.targetingFields.${field}`)}
-          InputProps={{ ...params.InputProps, disableUnderline: true }}
-          sx={editableFieldValueSx}
-        />
-      )}
-    />
+    <Box sx={{ minWidth: 0 }}>
+      <Autocomplete<AiAgentControlRefItem, false, false, false>
+        size="small"
+        options={options}
+        value={selected}
+        inputValue={inputValue}
+        loading={optionsQuery.isFetching}
+        filterOptions={(items) => items}
+        getOptionLabel={(option) => option.label}
+        isOptionEqualToValue={(option, candidate) => option.value === candidate.value}
+        noOptionsText={t('settings.targetingBuilder.noOptions')}
+        onInputChange={(_event, next) => setInputValue(next)}
+        onChange={(_event, option) => {
+          onChange(option ? { value: option.value, label: option.label } : { value: '', label: '' });
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            size="small"
+            variant="standard"
+            placeholder={t(`settings.targetingFields.${field}`)}
+            InputProps={{ ...params.InputProps, disableUnderline: true }}
+            sx={editableFieldValueSx}
+          />
+        )}
+      />
+      {value ? (
+        <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', lineHeight: 1.3 }}>
+          {field === 'category'
+            ? t('settings.targetingBuilder.includesSubcategories')
+            : t('settings.targetingBuilder.includesSubentities')}
+        </Typography>
+      ) : null}
+    </Box>
   );
 }
 
@@ -476,6 +496,22 @@ export function HelpdeskTargetingFilterBuilder({
   const typeOptionsQuery = useQuery({
     queryKey: ['ai-agent-targeting-options', agentId, 'type', ''],
     queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId || '', 'type', { limit: 50 }),
+    enabled: queryEnabled,
+    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
+  });
+  // Warm the category/entity browse lists as soon as the builder mounts: on large
+  // GLPI instances the first fetch can take several seconds, so paying it here
+  // makes the dropdown feel instant by the time the user opens it. Keys match the
+  // ReferenceCatalogAutocomplete empty-query keys so the cache is shared.
+  useQuery({
+    queryKey: ['ai-agent-targeting-options', agentId, 'category', ''],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId || '', 'category', { limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
+    enabled: queryEnabled,
+    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
+  });
+  useQuery({
+    queryKey: ['ai-agent-targeting-options', agentId, 'entity', ''],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId || '', 'entity', { limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
     enabled: queryEnabled,
     staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
   });

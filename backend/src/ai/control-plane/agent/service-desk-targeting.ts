@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { OPEN_TICKET_STATUS_VALUES } from '../providers/provider-constants';
-import { TicketRecord } from '../providers/provider.types';
+import { ProviderContext, TicketReferenceCatalogKind, TicketRecord, TicketingProvider } from '../providers/provider.types';
 
 export const SERVICE_DESK_TARGETING_SCHEMA_VERSION = 1;
 export { OPEN_TICKET_STATUS_VALUES };
@@ -525,4 +525,75 @@ export function ticketMatchesServiceDeskTargeting(
     if (predicate.operator === 'not' && allowed.includes(left)) return false;
   }
   return true;
+}
+
+export type ReferenceSubtreeResolver = (kind: TicketReferenceCatalogKind, ids: string[]) => Promise<string[]>;
+
+function isTreeCatalogPredicate(predicate: ServiceDeskTargetPredicate): predicate is ServiceDeskTargetPredicate & { field: TicketReferenceCatalogKind } {
+  return (predicate.field === 'category' || predicate.field === 'entity')
+    && (predicate.operator === 'eq' || predicate.operator === 'in' || predicate.operator === 'not');
+}
+
+// Category/entity selections are recursive: expand predicate values to include all
+// descendants (selected ids first) so eq/in/not matching covers whole subtrees.
+// When the resolver cannot expand (provider error), it returns the input ids and
+// matching degrades to exact-id behavior.
+export async function expandServiceDeskTargetingSubtrees(
+  targeting: ServiceDeskTargetingModel,
+  resolver: ReferenceSubtreeResolver,
+): Promise<ServiceDeskTargetingModel> {
+  if (!targeting.predicates.some(isTreeCatalogPredicate)) {
+    return targeting;
+  }
+  const predicates: ServiceDeskTargetPredicate[] = [];
+  for (const predicate of targeting.predicates) {
+    if (!isTreeCatalogPredicate(predicate)) {
+      predicates.push(predicate);
+      continue;
+    }
+    const roots = comparableValues(predicate.value);
+    if (roots.length === 0) {
+      predicates.push(predicate);
+      continue;
+    }
+    const expanded = await resolver(predicate.field, roots);
+    const merged = Array.from(new Set([
+      ...roots,
+      ...expanded.map((id) => String(id).trim().toLowerCase()).filter(Boolean),
+    ]));
+    predicates.push({ ...predicate, value: merged });
+  }
+  return { ...targeting, predicates };
+}
+
+// Provider-backed subtree resolver with per-instance memoization and a safe
+// fallback: any provider failure resolves to the input ids (exact-id matching).
+export function createProviderSubtreeResolver(
+  provider: Pick<TicketingProvider, 'resolveReferenceSubtree'>,
+  context: ProviderContext,
+  onError?: (kind: TicketReferenceCatalogKind, ids: string[], message: string) => void,
+): ReferenceSubtreeResolver {
+  const memo = new Map<string, Promise<string[]>>();
+  return (kind, ids) => {
+    const key = `${kind}|${[...ids].sort().join(',')}`;
+    let pending = memo.get(key);
+    if (!pending) {
+      pending = (async () => {
+        try {
+          const result = await provider.resolveReferenceSubtree(context, { kind, ids });
+          if (result.ok === false) {
+            onError?.(kind, ids, result.message ?? 'subtree resolution unavailable');
+            return ids;
+          }
+          const expanded = result.data?.ids;
+          return Array.isArray(expanded) && expanded.length > 0 ? expanded.map((id) => String(id)) : ids;
+        } catch (error: any) {
+          onError?.(kind, ids, String(error?.message ?? error ?? 'subtree resolution failed'));
+          return ids;
+        }
+      })();
+      memo.set(key, pending);
+    }
+    return pending;
+  };
 }

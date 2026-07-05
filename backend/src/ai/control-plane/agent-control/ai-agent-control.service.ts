@@ -22,6 +22,8 @@ import {
 import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
 import { requireTicketingBinding } from '../agent/ticketing-binding';
 import {
+  createProviderSubtreeResolver,
+  expandServiceDeskTargetingSubtrees,
   normalizeServiceDeskScopePolicy,
   normalizeServiceDeskTargeting,
   TargetingPreviewSummary,
@@ -53,6 +55,7 @@ import { AiCapabilityRegistry, providerCapabilityContracts } from '../capability
 import { AiAgentBuiltinQuotaService } from '../agent/ai-agent-builtin-quota.service';
 import { AiCapabilityDispatcherService } from '../dispatcher/ai-capability-dispatcher.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../diagnostics/ai-readonly-diagnostic-workflow.service';
+import { AiTenantExecutionService } from '../../execution/ai-tenant-execution.service';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
 import { AiAgentAuditEvent } from '../entities/ai-agent-audit-event.entity';
@@ -461,6 +464,11 @@ const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: 
 const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
+// Empty-query catalog lists (what every dropdown-open shows) change rarely but can be
+// slow to produce on large GLPI instances: keep them fresh much longer, and serve a
+// stale copy (up to the stale-serve bound) while a background refresh replaces it.
+const TARGETING_CATALOG_BROWSE_TTL_MS = 30 * 60 * 1000;
+const TARGETING_OPTIONS_STALE_SERVE_MS = 24 * 60 * 60 * 1000;
 const TARGETING_OPTIONS_MAX_LIMIT = 50;
 
 // An identical earlier proposal only suppresses regeneration while it is still a live or
@@ -2926,7 +2934,7 @@ function serializeAgentAuditEvent(event: AiAgentAuditEvent) {
 @Injectable()
 export class AiAgentControlService {
   private readonly logger = new Logger(AiAgentControlService.name);
-  private readonly targetingOptionsCache = new Map<string, { expiresAt: number; options: RefItem[] }>();
+  private readonly targetingOptionsCache = new Map<string, { expiresAt: number; staleUntil: number; refreshing?: boolean; options: RefItem[] }>();
 
   constructor(
     private readonly diagnostics: AiReadonlyDiagnosticWorkflowService,
@@ -2944,6 +2952,7 @@ export class AiAgentControlService {
     private readonly ticketEvidenceExtractor?: AiTicketEvidenceExtractionService,
     private readonly capabilities?: AiCapabilityRegistry,
     private readonly builtinQuota?: AiAgentBuiltinQuotaService,
+    private readonly tenantExecutor?: AiTenantExecutionService,
   ) {}
 
   private async actionPlannerProfileForProvider(
@@ -3306,7 +3315,13 @@ export class AiAgentControlService {
     ticket: TicketRecord,
     providerKey: string,
   ): Promise<{ matched: boolean; hasInactivityAge: boolean }> {
-    const targeting = normalizeServiceDeskTargeting(definition.scope_policy_json);
+    let targeting = normalizeServiceDeskTargeting(definition.scope_policy_json);
+    const needsSubtrees = targeting.predicates.some((predicate) =>
+      predicate.field === 'category' || predicate.field === 'entity');
+    if (needsSubtrees) {
+      const provider = await this.providers.ticketing(context, providerKey);
+      targeting = await expandServiceDeskTargetingSubtrees(targeting, createProviderSubtreeResolver(provider, context));
+    }
     const hasInactivityAge = targeting.predicates.some((predicate) =>
       predicate.field === 'inactivity_age' && predicate.operator === 'gte',
     );
@@ -4045,6 +4060,10 @@ export class AiAgentControlService {
     const maxResults = Math.max(1, Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle, 20));
     const ticketingBinding = requireTicketingBinding(definition);
     const provider = await this.providers.ticketing(context, ticketingBinding.providerKey);
+    const subtreeResolver = createProviderSubtreeResolver(provider, context);
+    const scopeEntityIds = config.entityId ? await subtreeResolver('entity', [config.entityId]) : null;
+    const scopeCategoryIds = config.categoryId ? await subtreeResolver('category', [config.categoryId]) : null;
+    const expandedTargeting = await expandServiceDeskTargetingSubtrees(targeting, subtreeResolver);
     const tickets: TicketRecord[] = [];
     if (config.mode === 'agent_involved') {
       const refs = await this.agentQueue.listAgentTouchedTicketRefs(context, previewDefinition, maxResults);
@@ -4062,6 +4081,8 @@ export class AiAgentControlService {
           statusValues: config.statusValues,
           entityId: config.entityId ?? null,
           categoryId: config.categoryId ?? null,
+          entityIds: scopeEntityIds,
+          categoryIds: scopeCategoryIds,
           lastChangedBefore: config.lastChangedBefore ?? null,
         }
         : {
@@ -4071,6 +4092,8 @@ export class AiAgentControlService {
           statusValues: config.statusValues,
           entityId: config.entityId ?? null,
           categoryId: config.categoryId ?? null,
+          entityIds: scopeEntityIds,
+          categoryIds: scopeCategoryIds,
         };
       const listed = await provider.listTicketsForScope(context, { scope });
       if (listed.ok === false) {
@@ -4079,7 +4102,7 @@ export class AiAgentControlService {
       const rows = isRecord(listed.data) && Array.isArray(listed.data.tickets) ? listed.data.tickets : [];
       tickets.push(...rows.slice(0, maxResults));
     }
-    const matches = tickets.filter((ticket) => ticketMatchesServiceDeskTargeting(ticket, targeting, {
+    const matches = tickets.filter((ticket) => ticketMatchesServiceDeskTargeting(ticket, expandedTargeting, {
       agentTouched: config.mode === 'agent_involved',
     }));
     const matchRefs = Array.from(new Set(matches.map((ticket) => ticket.id).filter(Boolean)));
@@ -4131,8 +4154,10 @@ export class AiAgentControlService {
     const providerKey = ticketingBinding.providerKey;
     const connectionKey = ticketingBinding.connectionKey;
     const isEnumField = field === 'status' || field === 'priority' || field === 'type';
-    const ttlMs = isEnumField ? TARGETING_ENUM_OPTIONS_TTL_MS : TARGETING_CATALOG_OPTIONS_TTL_MS;
-    const cacheQuery = isEnumField ? query.toLocaleLowerCase() : query.toLocaleLowerCase();
+    const ttlMs = isEnumField
+      ? TARGETING_ENUM_OPTIONS_TTL_MS
+      : query ? TARGETING_CATALOG_OPTIONS_TTL_MS : TARGETING_CATALOG_BROWSE_TTL_MS;
+    const cacheQuery = query.toLocaleLowerCase();
     const cacheKey = [
       context.tenantId,
       connectionKey,
@@ -4141,63 +4166,84 @@ export class AiAgentControlService {
       cacheQuery,
       limit,
     ].join('|');
+    const cloneOptions = (options: RefItem[]): RefItem[] => options.map((item) => ({
+      value: item.value,
+      label: item.label,
+      ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
+    }));
     const now = Date.now();
     const cached = this.targetingOptionsCache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
-      return {
-        options: cached.options.map((item) => ({
-          value: item.value,
-          label: item.label,
-          ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
-        })),
-      };
+      return { options: cloneOptions(cached.options) };
     }
 
-    const provider = await this.providers.ticketing(context, providerKey);
-    let options: RefItem[];
-    if (isEnumField) {
-      const result = await provider.describeReferenceEnums(context);
-      if (result.ok === false) {
-        throw new BadRequestException(result.message);
+    const fetchAndCache = async (fetchContext: AiExecutionContextWithManager): Promise<RefItem[]> => {
+      const provider = await this.providers.ticketing(fetchContext, providerKey);
+      let options: RefItem[];
+      if (isEnumField) {
+        const result = await provider.describeReferenceEnums(fetchContext);
+        if (result.ok === false) {
+          throw new BadRequestException(result.message);
+        }
+        const source = field === 'status'
+          ? result.data.statuses
+          : field === 'priority'
+            ? result.data.priorities
+            : result.data.types;
+        const normalizedQuery = query.toLocaleLowerCase();
+        options = source
+          .filter((item) => !normalizedQuery
+            || item.label.toLocaleLowerCase().includes(normalizedQuery)
+            || item.value.toLocaleLowerCase().includes(normalizedQuery))
+          .slice(0, limit);
+      } else {
+        const result = await provider.searchReferenceCatalog(fetchContext, {
+          kind: field as TicketReferenceCatalogKind,
+          query,
+          limit,
+        });
+        if (result.ok === false) {
+          throw new BadRequestException(result.message);
+        }
+        options = result.data.items.slice(0, limit);
       }
-      const source = field === 'status'
-        ? result.data.statuses
-        : field === 'priority'
-          ? result.data.priorities
-          : result.data.types;
-      const normalizedQuery = query.toLocaleLowerCase();
-      options = source
-        .filter((item) => !normalizedQuery
-          || item.label.toLocaleLowerCase().includes(normalizedQuery)
-          || item.value.toLocaleLowerCase().includes(normalizedQuery))
-        .slice(0, limit);
-    } else {
-      const result = await provider.searchReferenceCatalog(context, {
-        kind: field as TicketReferenceCatalogKind,
-        query,
-        limit,
-      });
-      if (result.ok === false) {
-        throw new BadRequestException(result.message);
-      }
-      options = result.data.items.slice(0, limit);
-    }
-    const safeOptions = options.map((item) => ({
-      value: String(item.value),
-      label: String(item.label),
-      ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
-    }));
-    this.targetingOptionsCache.set(cacheKey, {
-      expiresAt: now + ttlMs,
-      options: safeOptions,
-    });
-    return {
-      options: safeOptions.map((item) => ({
-        value: item.value,
-        label: item.label,
+      const safeOptions = options.map((item) => ({
+        value: String(item.value),
+        label: String(item.label),
         ...(item.metadata ? { metadata: { ...item.metadata } } : {}),
-      })),
+      }));
+      const fetchedAt = Date.now();
+      this.targetingOptionsCache.set(cacheKey, {
+        expiresAt: fetchedAt + ttlMs,
+        staleUntil: fetchedAt + TARGETING_OPTIONS_STALE_SERVE_MS,
+        options: safeOptions,
+      });
+      return safeOptions;
     };
+
+    // Expired but still stale-servable: answer immediately from the stale copy and
+    // refresh in the background. The refresh runs in its own tenant execution — the
+    // request's entity manager is released as soon as this handler returns.
+    if (cached && cached.staleUntil > now && this.tenantExecutor) {
+      if (!cached.refreshing) {
+        cached.refreshing = true;
+        void this.tenantExecutor
+          .runWithContext(context, (managedContext) => fetchAndCache(managedContext), { transaction: false })
+          .catch((error: any) => {
+            this.logger.warn(`Targeting options background refresh failed for ${field} (tenant ${context.tenantId}): ${String(error?.message ?? error)}`);
+          })
+          .finally(() => {
+            const entry = this.targetingOptionsCache.get(cacheKey);
+            if (entry) {
+              entry.refreshing = false;
+            }
+          });
+      }
+      return { options: cloneOptions(cached.options) };
+    }
+
+    const options = await fetchAndCache(context);
+    return { options: cloneOptions(options) };
   }
 
   async createAgentDefinition(
