@@ -164,7 +164,8 @@
     "emptyAttention": "Aucun travail agent ne nécessite d'attention.",
     "emptyFinished": "Aucune action récemment terminée.",
     "loading": "Chargement des approbations.",
-    "proposalCount": "{{count}} propositions",
+    "proposalCount_one": "{{count}} proposition",
+    "proposalCount_other": "{{count}} propositions",
     "updated": "Mis à jour {{value}}",
     "approveAll": "Tout approuver",
     "rejectAll": "Tout rejeter",
@@ -576,6 +577,10 @@
     "reason": "Motif",
     "execute": "Exécuter",
     "approve": "Approuver",
-    "reject": "Rejeter"
+    "reject": "Rejeter",
+    "assignmentUpdate": "Mise à jour d'attribution",
+    "assignee": "Attribué à",
+    "unassigned": "Non attribué",
+    "participantUpdate": "Mise à jour des participants"
   }
 }

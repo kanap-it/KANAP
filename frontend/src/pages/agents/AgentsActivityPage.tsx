@@ -187,6 +187,11 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
   const agentDefinition = React.useMemo(() => (
     agentKey ? queueQuery.data?.definitions.find((definition) => definition.agent_key === agentKey) ?? null : null
   ), [agentKey, queueQuery.data]);
+  const agentNameByKey = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const definition of queueQuery.data?.definitions ?? []) map.set(definition.agent_key, definition.name);
+    return map;
+  }, [queueQuery.data]);
   const activityQuery = useQuery({
     queryKey: ['ai-agent-control-activity', agentDefinition?.id ?? null, searchParams.toString()],
     queryFn: () => aiAgentControlApi.listActivity({
@@ -268,7 +273,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
                           <Chip size="small" label={t(`activity.types.${entry.type}`)} />
                           {entry.actionClass && <Chip size="small" variant="outlined" label={t(`settings.actionClasses.${entry.actionClass}`, { defaultValue: humanize(entry.actionClass) })} />}
                           {entry.status && <StatusText status={entry.status} />}
-                          {entry.agentKey && <Chip size="small" variant="outlined" label={entry.agentKey} />}
+                          {entry.agentKey && <Chip size="small" variant="outlined" label={agentNameByKey.get(entry.agentKey) ?? entry.agentKey} />}
                           {entry.targetRef && <TargetLabel targetType={entry.targetType} targetRef={entry.targetRef} size="dense" />}
                         </Stack>
                         <Typography variant="body2" sx={{ mt: 0.75 }}>
