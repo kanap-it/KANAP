@@ -43,9 +43,8 @@ import {
   ok,
   providerError,
 } from './mock-provider.helpers';
+import { MAX_INTERNAL_NOTE_CHARS, MAX_PUBLIC_REPLY_CHARS, noteBodyIsUnsafe, normalizeReason } from '../ticket-safety';
 
-const MAX_INTERNAL_NOTE_CHARS = 4000;
-const MAX_PUBLIC_REPLY_CHARS = 12000;
 const MOCK_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
   domain_preamble: 'Select bounded approval-gated mock ticketing actions.',
   action_vocabulary: [
@@ -91,18 +90,10 @@ const MOCK_CATALOGS: Record<TicketReferenceCatalogKind, RefItem[]> = {
   ],
 };
 
-function normalizeReason(value: string): string | null {
-  const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
-  return normalized.length > 0 && normalized.length <= 1000 ? normalized : null;
-}
 
 function normalizeNoteBody(value: string): string | null {
   const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
   return normalized.length > 0 ? normalized : null;
-}
-
-function noteBodyIsUnsafe(value: string): boolean {
-  return /<[^>]+>/.test(value) || /javascript:/i.test(value);
 }
 
 export class MockTicketingProvider implements TicketingProvider {
@@ -401,6 +392,9 @@ export class MockTicketingProvider implements TicketingProvider {
       allowedTransitions: [
         { key: 'pending_user', label: 'Waiting for requester', requiresApproval: true, destructive: false, terminal: false },
         { key: 'escalated_l2', label: 'Escalate to L2', requiresApproval: true, destructive: false, terminal: false },
+        // Terminal solve mirrors GLPI's 'solved' transition so the approval-gated
+        // terminal-close flow can be rehearsed end-to-end on mock/demo tenants.
+        { key: 'solved', label: 'Mark solved', requiresApproval: true, destructive: true, terminal: true },
       ],
       updatedAt: '2026-05-24T09:05:00.000Z',
       supported: true,
@@ -549,7 +543,10 @@ export class MockTicketingProvider implements TicketingProvider {
       );
     }
     const transition = lifecycle.data.allowedTransitions.find((candidate) => candidate.key === input.transitionKey);
-    if (!reason || !transition || transition.destructive) {
+    // Mirrors GLPI semantics: destructive (terminal solve/close) transitions CAN be
+    // prepared/proposed — they are gated by human approval — but a ticket that is
+    // already terminal cannot transition further.
+    if (!reason || !transition || lifecycle.data.terminal) {
       return providerError<TicketProviderActionPrepared<TicketStatusUpdateActionPayload>>('unsafe_operation', 'Mock provider rejected an unsupported status transition.', false);
     }
     const actionPayload: TicketStatusUpdateActionPayload = {

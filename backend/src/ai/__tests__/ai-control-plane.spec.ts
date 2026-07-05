@@ -1858,8 +1858,13 @@ async function testMockTicketingHelpdeskContextReads() {
   const lifecycle = await provider.getTicketLifecycleContext(context, { ticketId: 'mock-ticket-1001' });
   assert.equal(lifecycle.ok, true);
   assert.equal(lifecycle.ok ? lifecycle.data.status : null, 'open');
-  assert.equal(lifecycle.ok ? lifecycle.data.allowedTransitions.length : 0, 2);
+  assert.equal(lifecycle.ok ? lifecycle.data.allowedTransitions.length : 0, 3);
   assert.equal(lifecycle.ok ? lifecycle.data.allowedTransitions.every((transition) => transition.requiresApproval) : false, true);
+  // The terminal solve transition mirrors GLPI so approval-gated terminal closes are
+  // rehearsable on the mock provider.
+  const solvedTransition = lifecycle.ok ? lifecycle.data.allowedTransitions.find((transition) => transition.key === 'solved') : null;
+  assert.equal(solvedTransition?.terminal, true);
+  assert.equal(solvedTransition?.destructive, true);
 
   const routing = await provider.getTicketRoutingContext(context, { ticketId: 'mock-ticket-1001' });
   assert.equal(routing.ok, true);
@@ -1902,6 +1907,16 @@ async function testMockTicketingHelpdeskContextReads() {
   });
   assert.equal(statusWrite.ok, true);
   assert.deepEqual(statusWrite.ok ? statusWrite.data.updatedFields : [], ['status']);
+
+  // Terminal (destructive) transitions must be preparable — like GLPI, they are gated by
+  // human approval, not refused at prepare time.
+  const terminalPrepare = await provider.prepareTicketStatusUpdate(context, {
+    ticketId: 'mock-ticket-1001',
+    transitionKey: 'solved',
+    reason: 'Fix confirmed by the requester.',
+  });
+  assert.equal(terminalPrepare.ok, true);
+  assert.equal(terminalPrepare.ok ? terminalPrepare.data.actionPayload.terminal : false, true);
 
   const assignmentPrepare = await provider.prepareTicketAssignmentUpdate(context, {
     ticketId: 'mock-ticket-1001',

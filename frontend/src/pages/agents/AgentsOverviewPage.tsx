@@ -187,7 +187,7 @@ function newAgentPolicies(form: NewAgentWizardForm) {
       review_cooldown_seconds: positiveNumber(form.reviewCooldownHours, DEFAULT_REVIEW_COOLDOWN_HOURS) * 3600,
       on_conflict: form.onConflict === 'supersede' ? 'supersede' : 'defer',
       retry_backoff_seconds: [60, 300, 900],
-      terminal_statuses: ['completed', 'skipped', 'dead_letter'],
+      terminal_statuses: ['completed', 'dead_letter'],
       approval_ttl_seconds: positiveNumber(form.approvalTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
       on_stale_by_action_class: {
         public_reply: onStale,

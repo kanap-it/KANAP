@@ -8,11 +8,18 @@ import {
   type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
 } from '../../ai/aiApi';
-import { actionCanReject, statusLabel, ticketingProviderKeyForDefinition } from '../../components/agents/agentControlPrimitives';
+import {
+  actionCanReject,
+  actionHasQueuedExecution,
+  isRecord,
+  statusLabel,
+  ticketingProviderKeyForDefinition,
+} from '../../components/agents/agentControlPrimitives';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 const QUEUE_QUERY_KEY = ['ai-agent-control-queue'] as const;
 const ACTIONS_QUERY_KEY = ['ai-agent-control-actions', 'all'] as const;
+export const SHARED_CONTEXT_PROFILES_QUERY_KEY = ['ai-shared-context-profiles'] as const;
 const FAST_POLL_INTERVAL_MS = 5_000;
 const IDLE_POLL_INTERVAL_MS = 30_000;
 const KNOWN_EXECUTION_MODES = new Set(['queued', 'background', 'approve_only', 'synchronous']);
@@ -20,22 +27,6 @@ const KNOWN_EXECUTION_MODES = new Set(['queued', 'background', 'approve_only', '
 export type OptimisticActionDecision = 'approved' | 'rejected';
 type ActionDecisionInput = { action: AiAgentControlActionRequest; reason?: string | null };
 type BulkDecisionInput = { key: string; actions: AiAgentControlActionRequest[]; reason?: string | null };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function approvedBatchContext(action: AiAgentControlActionRequest): Record<string, unknown> | null {
-  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
-  const batch = isRecord(metadata?.approved_batch_context) ? metadata.approved_batch_context : null;
-  return batch;
-}
-
-function actionHasQueuedExecution(action: AiAgentControlActionRequest): boolean {
-  return action.status === 'approved'
-    && approvedBatchContext(action)?.execution_queued === true
-    && !action.executed_at;
-}
 
 function serverConfirmsOptimisticDecision(action: AiAgentControlActionRequest): boolean {
   if (['approved', 'rejected', 'executing', 'executed', 'expired'].includes(action.status)) return true;
@@ -192,8 +183,8 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-actions'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-badges'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-activity'] }),
-      queryClient.invalidateQueries({ queryKey: ['ai-agent-control-agents'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy'] }),
+      queryClient.invalidateQueries({ queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-helpdesk-evaluation-daily'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-helpdesk-settings'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-run'] }),

@@ -71,6 +71,7 @@ import { AiRunStep } from '../entities/ai-run-step.entity';
 import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
+import { MAX_INTERNAL_NOTE_CHARS, MAX_PUBLIC_REPLY_CHARS } from '../providers/ticket-safety';
 import {
   ProviderActionExecutionReadiness,
   ProviderActionPlannerProfile,
@@ -366,8 +367,6 @@ type KnowledgeDocumentFetchAttempt = {
 
 const MAX_KNOWLEDGE_QUERY_CANDIDATES = 10;
 const MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY = 3;
-const MAX_PUBLIC_REPLY_CHARS = 12000;
-const MAX_INTERNAL_NOTE_CHARS = 4000;
 const MAX_SYNTHESIZED_REQUESTER_BODY_CHARS = 10500;
 const MAX_INTERNAL_SYNTHESIS_BRIEF_CHARS = 1000;
 const MAX_INTERNAL_RECOMMENDED_REPLY_CHARS = 900;

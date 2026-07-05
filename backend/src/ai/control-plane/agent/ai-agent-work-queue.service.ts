@@ -48,8 +48,21 @@ export const HELP_DESK_TICKETING_TRIAGE_NEW_TICKETS_TRIGGER_KEY = 'scheduled.new
 export const HELP_DESK_TICKETING_TRIAGE_WORK_KIND = 'ticket_triage';
 
 const ACTIVE_WORK_ITEM_STATUSES = new Set(['queued', 'leased', 'running', 'waiting_approval', 'failed']);
-const TERMINAL_WORK_ITEM_STATUSES = new Set(['completed', 'skipped', 'dead_letter']);
+const TERMINAL_WORK_ITEM_STATUSES = new Set(['completed', 'dead_letter']);
 const RETRYABLE_WORK_ITEM_STATUSES = new Set(['queued', 'leased', 'running', 'failed']);
+// Every status write on a work item goes through applyWorkItemTransition; a from→to pair
+// outside this map is logged as a warning (never blocked — several writers run inside
+// error-recovery paths where throwing would mask the original failure).
+const WORK_ITEM_ALLOWED_TRANSITIONS: Record<string, ReadonlySet<string>> = {
+  queued: new Set(['leased', 'failed', 'dead_letter']),
+  leased: new Set(['running', 'waiting_approval', 'completed', 'failed', 'dead_letter']),
+  running: new Set(['waiting_approval', 'completed', 'failed', 'dead_letter']),
+  waiting_approval: new Set(['completed', 'failed', 'dead_letter']),
+  failed: new Set(['leased', 'failed', 'dead_letter']),
+  completed: new Set(),
+  dead_letter: new Set(),
+};
+const WORK_ITEM_FAILURE_HISTORY_LIMIT = 10;
 const DEFAULT_LEASE_TTL_SECONDS = 5 * 60;
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_COOLDOWN_SECONDS = 60;
@@ -848,7 +861,7 @@ export class AiAgentWorkQueueService {
             status: 're_review',
           },
           retry_backoff_seconds: [60, 300, 900],
-          terminal_statuses: ['completed', 'skipped', 'dead_letter'],
+          terminal_statuses: ['completed', 'dead_letter'],
           economic_guardrails: defaultEconomicGuardrails(),
         },
         response_policy_json: {
@@ -967,7 +980,7 @@ export class AiAgentWorkQueueService {
           : [60, 300, 900],
         terminal_statuses: Array.isArray(currentQueuePolicy.terminal_statuses)
           ? currentQueuePolicy.terminal_statuses
-          : ['completed', 'skipped', 'dead_letter'],
+          : ['completed', 'dead_letter'],
         economic_guardrails: mergeEconomicGuardrails(currentQueuePolicy.economic_guardrails),
       };
       const desiredProviderBindings = {
@@ -1529,11 +1542,7 @@ export class AiAgentWorkQueueService {
     }
     const actionIds = (workItem.last_action_request_ids ?? []).filter((id) => typeof id === 'string' && id.length > 0);
     if (actionIds.length === 0) {
-      workItem.status = 'completed';
-      workItem.lease_owner = null;
-      workItem.leased_until = null;
-      workItem.updated_at = new Date();
-      await this.workItemRepo(context).save(workItem);
+      await this.completeWorkItem(context, workItem);
       await this.releaseWorkItemTargetClaim(context, workItem, 'waiting_approval_without_actions_resolved');
       return null;
     }
@@ -1544,11 +1553,7 @@ export class AiAgentWorkQueueService {
       },
     });
     if (linked.length === actionIds.length && linked.every((action) => !activePendingAction(action))) {
-      workItem.status = 'completed';
-      workItem.lease_owner = null;
-      workItem.leased_until = null;
-      workItem.updated_at = new Date();
-      await this.workItemRepo(context).save(workItem);
+      await this.completeWorkItem(context, workItem);
       await this.releaseWorkItemTargetClaim(context, workItem, 'waiting_approval_actions_terminal');
       return null;
     }
@@ -1816,12 +1821,24 @@ export class AiAgentWorkQueueService {
       throw new ForbiddenException('Agent work item is cooling down before retry.');
     }
     if (workItem.attempt_count >= workItem.max_attempts) {
-      workItem.status = 'dead_letter';
+      this.applyWorkItemTransition(workItem, 'dead_letter', now);
       workItem.lease_owner = null;
       workItem.leased_until = null;
       workItem.last_error = workItem.last_error ?? 'Maximum attempts reached.';
-      workItem.updated_at = now;
       await repo.save(workItem);
+      await this.recordAuditEvent(context, {
+        agentDefinitionId: workItem.agent_definition_id,
+        workItemId: workItem.id,
+        eventType: 'work_item_dead_letter',
+        severity: 'error',
+        message: workItem.last_error ?? 'Maximum attempts reached.',
+        metadata: {
+          attempt_count: workItem.attempt_count,
+          max_attempts: workItem.max_attempts,
+          work_kind: workItem.work_kind,
+          source_object_ref: workItem.source_object_ref,
+        },
+      });
       throw new ForbiddenException('Agent work item exceeded its maximum attempts.');
     }
 
@@ -1854,22 +1871,31 @@ export class AiAgentWorkQueueService {
         now,
       });
       if (!claim.acquired) {
-        workItem.status = 'failed';
+        // Deliberately does not burn an attempt: a deferral is not a failure of this item,
+        // so claim-deferred items show status 'failed' with attempt_count still at 0.
+        this.applyWorkItemTransition(workItem, 'failed', now);
         workItem.last_error = `Target deferred by active claim: ${claim.reason ?? 'claim_conflict'}`;
         workItem.next_attempt_at = claim.claimExpiresAt ? dateFromUnknown(claim.claimExpiresAt) : new Date(now.getTime() + DEFAULT_COOLDOWN_SECONDS * 1000);
-        workItem.updated_at = now;
         await repo.save(workItem);
         throw new ForbiddenException('Agent work item target is currently claimed by another agent.');
       }
     }
 
     const ttlSeconds = this.queuePolicyNumber(definition, 'lease_ttl_seconds', DEFAULT_LEASE_TTL_SECONDS, 30, 86_400);
-    workItem.status = 'leased';
+    this.applyWorkItemTransition(workItem, 'leased', now);
     workItem.lease_owner = options.leaseOwner;
     workItem.leased_until = new Date(now.getTime() + ttlSeconds * 1000);
     workItem.attempt_count += 1;
-    workItem.updated_at = now;
     return repo.save(workItem);
+  }
+
+  private applyWorkItemTransition(workItem: AiAgentWorkItem, to: string, now = new Date()): void {
+    const from = workItem.status;
+    if (!WORK_ITEM_ALLOWED_TRANSITIONS[from]?.has(to)) {
+      this.logger.warn(`Unexpected agent work item transition ${from} -> ${to} (work item ${workItem.id}, kind ${workItem.work_kind}).`);
+    }
+    workItem.status = to;
+    workItem.updated_at = now;
   }
 
   async markRunning(
@@ -1877,11 +1903,10 @@ export class AiAgentWorkQueueService {
     workItem: AiAgentWorkItem,
     runId?: string | null,
   ): Promise<AiAgentWorkItem> {
-    workItem.status = 'running';
+    this.applyWorkItemTransition(workItem, 'running');
     if (runId) {
       workItem.last_run_id = runId;
     }
-    workItem.updated_at = new Date();
     return this.workItemRepo(context).save(workItem);
   }
 
@@ -1894,7 +1919,7 @@ export class AiAgentWorkQueueService {
       metadata?: Record<string, unknown> | null;
     },
   ): Promise<AiAgentWorkItem> {
-    workItem.status = 'waiting_approval';
+    this.applyWorkItemTransition(workItem, 'waiting_approval');
     workItem.last_run_id = input.runId;
     workItem.last_action_request_ids = Array.from(new Set(input.actionRequestIds));
     workItem.lease_owner = null;
@@ -1904,7 +1929,6 @@ export class AiAgentWorkQueueService {
       ...(isRecord(workItem.metadata_json) ? workItem.metadata_json : {}),
       ...(input.metadata ?? {}),
     };
-    workItem.updated_at = new Date();
     return this.workItemRepo(context).save(workItem);
   }
 
@@ -1917,7 +1941,7 @@ export class AiAgentWorkQueueService {
       metadata?: Record<string, unknown> | null;
     } = {},
   ): Promise<AiAgentWorkItem> {
-    workItem.status = 'completed';
+    this.applyWorkItemTransition(workItem, 'completed');
     workItem.last_run_id = input.runId ?? workItem.last_run_id ?? null;
     workItem.last_action_request_ids = input.actionRequestIds ?? workItem.last_action_request_ids ?? null;
     workItem.lease_owner = null;
@@ -1927,7 +1951,6 @@ export class AiAgentWorkQueueService {
       ...(isRecord(workItem.metadata_json) ? workItem.metadata_json : {}),
       ...(input.metadata ?? {}),
     };
-    workItem.updated_at = new Date();
     return this.workItemRepo(context).save(workItem);
   }
 
@@ -1945,18 +1968,52 @@ export class AiAgentWorkQueueService {
     workItem.lease_owner = null;
     workItem.leased_until = null;
     workItem.last_error = message.slice(0, 2000);
-    if (workItem.attempt_count >= workItem.max_attempts) {
-      workItem.status = 'dead_letter';
+    this.appendWorkItemFailure(workItem, message, now);
+    const deadLettered = workItem.attempt_count >= workItem.max_attempts;
+    if (deadLettered) {
+      this.applyWorkItemTransition(workItem, 'dead_letter', now);
       workItem.next_attempt_at = now;
     } else {
-      workItem.status = 'failed';
+      this.applyWorkItemTransition(workItem, 'failed', now);
       const cooldownSeconds = definition
         ? this.retryCooldownSeconds(definition, workItem.attempt_count)
         : DEFAULT_COOLDOWN_SECONDS;
       workItem.next_attempt_at = new Date(now.getTime() + cooldownSeconds * 1000);
     }
-    workItem.updated_at = now;
-    return repo.save(workItem);
+    const saved = await repo.save(workItem);
+    await this.recordAuditEvent(context, {
+      agentDefinitionId: workItem.agent_definition_id,
+      workItemId: workItem.id,
+      eventType: deadLettered ? 'work_item_dead_letter' : 'work_item_failed',
+      severity: deadLettered ? 'error' : 'warning',
+      message: workItem.last_error ?? message.slice(0, 2000),
+      metadata: {
+        attempt_count: workItem.attempt_count,
+        max_attempts: workItem.max_attempts,
+        next_attempt_at: workItem.next_attempt_at?.toISOString?.() ?? null,
+        work_kind: workItem.work_kind,
+        source_object_ref: workItem.source_object_ref,
+      },
+    });
+    return saved;
+  }
+
+  // Keeps the error of every attempt (last_error only ever shows the final one), so a
+  // dead-lettered item still tells the operator how attempt 1 differed from attempt 3.
+  private appendWorkItemFailure(workItem: AiAgentWorkItem, message: string, now: Date): void {
+    const metadata = isRecord(workItem.metadata_json) ? workItem.metadata_json : {};
+    const history = Array.isArray(metadata.failure_history) ? metadata.failure_history : [];
+    workItem.metadata_json = {
+      ...metadata,
+      failure_history: [
+        ...history.slice(-(WORK_ITEM_FAILURE_HISTORY_LIMIT - 1)),
+        {
+          attempt: workItem.attempt_count,
+          at: now.toISOString(),
+          message: message.slice(0, 500),
+        },
+      ],
+    };
   }
 
   async upsertTargetState(

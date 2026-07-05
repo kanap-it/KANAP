@@ -50,9 +50,8 @@ import {
   TicketReferenceCatalogKind,
   TicketReferenceEnums,
 } from './provider.types';
+import { MAX_INTERNAL_NOTE_CHARS, MAX_PUBLIC_REPLY_CHARS, noteBodyIsUnsafe, normalizeReason } from './ticket-safety';
 
-const MAX_INTERNAL_NOTE_CHARS = 4000;
-const MAX_PUBLIC_REPLY_CHARS = 12000;
 const GLPI_APPROVED_WRITE_CAPABILITIES = new Set([
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
@@ -111,10 +110,6 @@ function normalizeTicketId(value: string): number | null {
   if (!/^\d+$/.test(trimmed)) return null;
   const parsed = Number.parseInt(trimmed, 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function noteBodyIsUnsafe(value: string): boolean {
-  return /<[^>]+>/.test(value) || /javascript:/i.test(value);
 }
 
 function stableTextHash(value: string): string {
@@ -341,11 +336,6 @@ function glpiPriorityCode(value: string | null | undefined): number | null {
     default:
       return null;
   }
-}
-
-function normalizeReason(value: string): string | null {
-  const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
-  return normalized.length > 0 && normalized.length <= 1000 && !noteBodyIsUnsafe(normalized) ? normalized : null;
 }
 
 function numericDropdownValue(value: string | null): number | null {

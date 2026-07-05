@@ -37,6 +37,7 @@ import {
   SaveIndicator,
   Section,
   statusLabel,
+  TargetLabel,
   ticketingProviderKeyForDefinition,
 } from '../../components/agents/agentControlPrimitives';
 import {
@@ -69,7 +70,7 @@ import {
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import AgentsApprovalsPage from './AgentsApprovalsPage';
 import AgentsActivityPage from './AgentsActivityPage';
-import { useAgentControlData } from './useAgentControlData';
+import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAgentControlData';
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
@@ -387,6 +388,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null, Date.now()), [data.actionPool, data.queueQuery.data, definition?.id]);
   const agentGroups = grouped.groups;
   const pendingApprovalCount = agentGroups.reduce((sum, group) => sum + group.pendingActions.filter((action) => action.status === 'pending').length, 0);
+  const inProgressGroups = agentGroups.filter((group) => ['queued', 'leased', 'running'].includes(group.queueStatus));
 
   const triageMutation = useMutation({
     mutationFn: () => {
@@ -456,10 +458,21 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
       <Section title={t('monitor.queue')}>
         <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
           <MetricBlock label={t('monitor.waiting')} value={agentGroups.filter((group) => group.queueStatus === 'waiting_approval').length} />
-          <MetricBlock label={t('monitor.inProgress')} value={agentGroups.filter((group) => ['queued', 'leased', 'running'].includes(group.queueStatus)).length} />
+          <MetricBlock label={t('monitor.inProgress')} value={inProgressGroups.length} />
           <MetricBlock label={t('monitor.failed')} value={agentGroups.filter((group) => ['failed', 'dead_letter'].includes(group.queueStatus)).length} />
           <MetricBlock label={t('monitor.pendingApprovals')} value={pendingApprovalCount} />
         </Box>
+        {inProgressGroups.length > 0 && (
+          <Stack spacing={0.75} sx={{ px: 1.5, pb: 1.5 }}>
+            {inProgressGroups.map((group) => (
+              <Stack key={group.key} direction="row" spacing={1} alignItems="center">
+                <CircularProgress size={12} thickness={5} />
+                <TargetLabel targetType={group.targetType} targetRef={group.targetRef} size="dense" />
+                <Typography variant="caption" color="text.secondary">{statusLabel(group.queueStatus)}</Typography>
+              </Stack>
+            ))}
+          </Stack>
+        )}
       </Section>
 
       <Section title={t('monitor.limits')}>
@@ -674,7 +687,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     staleTime: 60_000,
   });
   const sharedContextProfilesQuery = useQuery({
-    queryKey: ['ai-agent-shared-context-profiles'],
+    queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY,
     queryFn: () => aiAgentControlApi.listSharedContextProfiles(),
     staleTime: 60_000,
   });

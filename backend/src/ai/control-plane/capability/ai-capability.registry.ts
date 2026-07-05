@@ -26,6 +26,7 @@ import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiExternalMcpBridgeService } from '../mcp/ai-external-mcp-bridge.service';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
+import { MAX_INTERNAL_NOTE_CHARS, MAX_PUBLIC_REPLY_CHARS, noteBodyIsUnsafe } from '../providers/ticket-safety';
 import {
   AUTOMATION_JOB_ALLOWED_LIST_CAPABILITY,
   AUTOMATION_JOB_DRY_RUN_CAPABILITY,
@@ -103,8 +104,6 @@ const InternalWebSearchInputSchema = z.object({
   count: z.number().int().min(1).max(10).default(5),
 }).strict();
 
-const MAX_INTERNAL_NOTE_CHARS = 4000;
-const MAX_PUBLIC_REPLY_CHARS = 12000;
 const TICKETING_EXECUTION_PHASES = {
   classification: 10,
   internal_note: 20,
@@ -1486,7 +1485,7 @@ function normalizeInternalNoteBody(value: string): string {
   if (normalized.length > MAX_INTERNAL_NOTE_CHARS) {
     throw new BadRequestException('Internal note body exceeds the allowed length.');
   }
-  if (/<[^>]+>/.test(normalized) || /javascript:/i.test(normalized)) {
+  if (noteBodyIsUnsafe(normalized)) {
     throw new BadRequestException('Internal notes must be plain text and cannot contain HTML or scripts.');
   }
   return normalized;
@@ -1500,7 +1499,7 @@ function normalizePublicReplyBody(value: string): string {
   if (normalized.length > MAX_PUBLIC_REPLY_CHARS) {
     throw new BadRequestException('Public reply body exceeds the allowed length.');
   }
-  if (/<[^>]+>/.test(normalized) || /javascript:/i.test(normalized)) {
+  if (noteBodyIsUnsafe(normalized)) {
     throw new BadRequestException('Public replies must be plain text and cannot contain HTML or scripts.');
   }
   return normalized;
