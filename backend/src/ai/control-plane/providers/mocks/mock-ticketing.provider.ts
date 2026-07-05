@@ -45,17 +45,23 @@ import {
 } from './mock-provider.helpers';
 import { MAX_INTERNAL_NOTE_CHARS, MAX_PUBLIC_REPLY_CHARS, noteBodyIsUnsafe, normalizeReason } from '../ticket-safety';
 
+// Vocabulary must use the canonical planner action types (see
+// PHASE_1_PLANNER_OWNED_ACTION_TYPES): a provider-prefixed vocabulary such as
+// mock_requester_reply is skipped as "not owned" and the planner can never
+// propose replies or notes on this provider.
 const MOCK_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
   domain_preamble: 'Select bounded approval-gated mock ticketing actions.',
   action_vocabulary: [
-    'mock_internal_note',
-    'mock_requester_reply',
-    'mock_status_update',
+    'internal_note',
+    'requester_reply',
+    'status_update',
   ],
   validation_notes: [
-    'Use mock_internal_note for operator-only audit notes.',
-    'Use mock_requester_reply only when a bounded requester-facing answer is appropriate.',
-    'Use mock_status_update only when the mock lifecycle context exposes an allowed transition.',
+    'Use internal_note for operator-only audit notes.',
+    'Use requester_reply only when a bounded requester-facing answer is appropriate.',
+    'For requester_reply sourced_answer, do not provide a body; the backend will use sourced synthesis.',
+    'If no source appears sufficient for a sourced answer, prefer internal_note over requester_reply sourced_answer.',
+    'Use status_update only when the mock lifecycle context exposes an allowed transition; transition_key must exactly match one key in allowed_status_transitions.',
   ],
 };
 
@@ -87,9 +93,99 @@ const MOCK_CATALOGS: Record<TicketReferenceCatalogKind, RefItem[]> = {
   entity: [
     { value: 'lohr-helpdesk', label: 'LOHR > Helpdesk', metadata: { completename: 'LOHR > Helpdesk', parentId: 'lohr' } },
     { value: 'finance', label: 'LOHR > Finance', metadata: { completename: 'LOHR > Finance', parentId: 'lohr' } },
+    { value: 'fromage-helpdesk', label: 'Fromage & Co > IT Helpdesk', metadata: { completename: 'Fromage & Co > IT Helpdesk', parentId: 'fromage' } },
   ],
 };
 
+// Quantized to a 6-hour anchor so repeated reads return identical timestamps:
+// a moving updatedAt makes every approved action fail the "ticket changed
+// since preparation" staleness check, so demo approvals could never execute.
+function isoHoursAgo(hours: number): string {
+  const QUANTUM_MS = 6 * 3_600_000;
+  const anchor = Math.floor(Date.now() / QUANTUM_MS) * QUANTUM_MS;
+  return new Date(anchor - hours * 3_600_000).toISOString();
+}
+
+// Demo tickets for the Fromage & Co fixture tenant (fixtures/fromage-co).
+// Their answers live in the tenant's "Service Desk Docs" knowledge library, so
+// they exercise the knowledge-search → grounded-reply path end to end. Scoped
+// under a dedicated entity so lohr-helpdesk/finance scope tests are unaffected.
+// Dates are relative to "now" so the tickets always fall inside the ingestion
+// horizon of a freshly configured demo agent.
+function fromageDemoTickets(): TicketRecord[] {
+  return [
+    {
+      id: 'FRO-2213',
+      title: 'Cannot connect to the VPN from my home office',
+      status: 'new',
+      priority: 'high',
+      type: 'incident',
+      requesterId: 'mock-user-catherine-blanc',
+      requester: 'Catherine Blanc',
+      description: 'Since this morning FortiClient says "credentials rejected" when I connect from my home office. I changed my password yesterday. How do I get back on the VPN? I need SAP before noon for a quality audit.',
+      createdAt: isoHoursAgo(3),
+      updatedAt: isoHoursAgo(3),
+      tags: ['remote-access', 'forticlient'],
+      scope: { entityId: 'fromage-helpdesk', categoryId: 'access' },
+    },
+    {
+      id: 'FRO-2214',
+      title: 'New hire needs SAP FI access before month-end close',
+      status: 'new',
+      priority: 'medium',
+      type: 'request',
+      requesterId: 'mock-user-marie-fontaine',
+      requester: 'Marie Fontaine',
+      description: 'Our new financial controller starts Monday and must post journal entries in SAP during the close. What is the process to request SAP FI roles, and is there a way to expedite it?',
+      createdAt: isoHoursAgo(6),
+      updatedAt: isoHoursAgo(6),
+      tags: ['sap', 'access', 'onboarding'],
+      scope: { entityId: 'fromage-helpdesk', categoryId: 'access' },
+    },
+    {
+      id: 'FRO-2215',
+      title: 'CaveGuard humidity alert in Cave 4 — what should I do?',
+      status: 'new',
+      priority: 'high',
+      type: 'incident',
+      requesterId: 'mock-user-jacques-dubois',
+      requester: 'Jacques Dubois',
+      description: 'CaveGuard shows an orange humidity alert for Cave 4 (Comté, 91% RH). Is this critical? Do I need to call someone now, or can it wait until the affineur arrives at 06:00?',
+      createdAt: isoHoursAgo(9),
+      updatedAt: isoHoursAgo(8),
+      tags: ['caveguard', 'iot', 'production'],
+      scope: { entityId: 'fromage-helpdesk', categoryId: 'it' },
+    },
+    {
+      id: 'FRO-2216',
+      title: 'Guest Wi-Fi for visiting cheese buyers on Thursday',
+      status: 'new',
+      priority: 'low',
+      type: 'request',
+      requesterId: 'mock-user-isabelle-moreau',
+      requester: 'Isabelle Moreau',
+      description: 'Six buyers from a Japanese retail group are visiting the Paris tasting room on Thursday. How do I arrange guest Wi-Fi for them? They would also love to see the aging caves — is that allowed?',
+      createdAt: isoHoursAgo(20),
+      updatedAt: isoHoursAgo(20),
+      tags: ['wifi', 'visitors'],
+      scope: { entityId: 'fromage-helpdesk', categoryId: 'access' },
+    },
+    {
+      id: 'FRO-2217',
+      title: 'Label printer in Gouda keeps jamming on Comté labels',
+      status: 'new',
+      priority: 'medium',
+      type: 'incident',
+      requesterId: 'mock-user-jan-bakker',
+      requester: 'Jan Bakker',
+      description: 'The Zebra printer in the Gouda warehouse jams every few labels since we moved it next to the washing line. The labels come out curled. Any advice before I order a new printer?',
+      createdAt: isoHoursAgo(26),
+      updatedAt: isoHoursAgo(26),
+      tags: ['printer', 'warehouse'],
+      scope: { entityId: 'fromage-helpdesk', categoryId: 'it' },
+    },
+  ];
+}
 
 function normalizeNoteBody(value: string): string | null {
   const normalized = String(value || '').replace(/\r\n/g, '\n').trim();
@@ -127,6 +223,12 @@ export class MockTicketingProvider implements TicketingProvider {
     const scenario = errorForScenario<TicketRecord>(input.ticketId);
     if (scenario) {
       return scenario;
+    }
+    const fromageTicket = fromageDemoTickets().find((ticket) => ticket.id === input.ticketId);
+    if (fromageTicket) {
+      return ok(fromageTicket, [
+        evidenceSeed('ticketing:mock', 'ticket', fromageTicket.id, `Ticket ${fromageTicket.id}: ${fromageTicket.title}`, fromageTicket),
+      ]);
     }
     const malicious = input.ticketId.includes('malicious');
     const data: TicketRecord = {
@@ -190,6 +292,12 @@ export class MockTicketingProvider implements TicketingProvider {
     const scenario = errorForScenario<{ notes: TicketNote[] }>(input.ticketId);
     if (scenario) {
       return scenario;
+    }
+    if (fromageDemoTickets().some((ticket) => ticket.id === input.ticketId)) {
+      // Fresh demo tickets have no follow-up notes yet.
+      return ok({ notes: [] }, [
+        evidenceSeed('ticketing:mock', 'ticket_notes', input.ticketId, `Ticket ${input.ticketId} has no notes.`, { notes: [] }),
+      ]);
     }
     const notes: TicketNote[] = [
       {
@@ -299,6 +407,7 @@ export class MockTicketingProvider implements TicketingProvider {
         tags: ['vpn'],
         scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
       },
+      ...fromageDemoTickets(),
     ];
     const statusValues = new Set((scope.statusValues && scope.statusValues.length > 0 ? scope.statusValues : OPEN_TICKET_STATUS_VALUES)
       .map((value) => String(value).trim().toLowerCase())

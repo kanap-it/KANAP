@@ -1,101 +1,125 @@
-# Fromage & Co Tenant Initialization Guide
+# Fromage & Co Demo Tenant — Setup Guide
 
-This guide contains the minimum procedure to initialize the Fromage & Co demo
-tenant in a local KANAP environment.
+Fromage & Co is the KANAP demo tenant: a European cheese group with four legal
+entities, ~50 applications, spend/CAPEX budgets, a project portfolio, an IT
+landscape with interfaces and connections, a Service Desk knowledge library,
+and a demo AI agent working mock helpdesk tickets.
 
-## Scope
+Everything is created through the public API by a single idempotent runner:
 
-- The local Docker stack runs in single-tenant mode.
-- The local tenant should resolve through `DEFAULT_TENANT_SLUG=fromage`.
-- The Node setup runner is idempotent and safe to rerun.
-- The legacy shell scripts are kept for hosted environments that already have
-  `bash`, `curl`, and `jq`.
-
-## 1. Local Prerequisites
-
-Start the local stack from the repository root:
-
-```powershell
-docker compose -f infra/docker-compose.example.yml up --build -d
+```bash
+node fixtures/fromage-co/setup-tenant.mjs \
+  --base-url https://fromage.dev.kanap.net \
+  --email fried@kanap.net \
+  --password '<admin password>'
 ```
 
-For the local demo tenant, `backend/env.dev` should contain:
+The runner is safe to re-run: every step looks up existing records before
+creating anything.
 
-```dotenv
-DEFAULT_TENANT_SLUG=fromage
-DEFAULT_TENANT_NAME=Fromage & Co
-```
+## What the runner does
 
-If you change these values after the stack is running, recreate the API
-container. A plain restart does not reload `env.dev`.
+1. **Tenant bootstrap** (if login fails): `POST /public/start-trial` →
+   `POST /public/activate-trial` → sets the admin password. See
+   "Tenant creation and CAPTCHA" below.
+2. **Settings**: currencies (EUR/USD), IT Ops server kinds, operating systems,
+   DNS domains, connection entities.
+3. **Portfolio classification** (sources, categories, streams) and
+   **analytics categories**.
+4. **CSV imports** (01→19): companies, charts of accounts, suppliers,
+   departments, contacts, users, business processes, applications, contracts,
+   spend, CAPEX, portfolio projects and requests, locations, assets, tasks.
+   The companies import is pinned to `--year` (default 2026) because year
+   columns are relative to the import year.
+5. **Demo user passwords**: all 16 imported users get `--demo-password`
+   (default `Fromage2026!`) so you can log in as e.g.
+   `thomas.berger@fromage-co.com` during a demo. Pass `--demo-password ''`
+   to skip.
+6. **Relations**: Microsoft 365 suite members, application↔department links,
+   app instances, interfaces + bindings, connections + equipment hops,
+   interface↔connection links, contract↔spend links, spend↔application links,
+   portfolio teams and capacity, project phases and team members, company
+   allocations on selected spend/CAPEX versions.
+7. **Service Desk Docs**: a knowledge library with five published guides
+   (VPN, SAP access, CaveGuard alerts, guest Wi-Fi, label printers). The
+   documents are in `docs/*.md`.
+8. **Demo AI agent**: `Fromage Service Desk Agent`, bound to the built-in
+   mock ticketing provider, with a persona, a shared-context profile, and a
+   scope targeting the `fromage-helpdesk` entity. The mock provider ships five
+   fromage tickets whose answers live in the Service Desk Docs — the agent's
+   knowledge search finds them during triage. The runner triggers one
+   ingestion poll and one mock triage so the Activity and Approvals pages have
+   content immediately.
 
-```powershell
-docker compose -f infra/docker-compose.example.yml up -d --force-recreate api
-```
+Flags: `--skip-relations`, `--skip-agents`, `--org`, `--country`, `--year`,
+`--activation-token` (see below).
 
-## 2. Snapshot Before Iterating
+## Environments
 
-Use a database dump before experimenting so you can restore quickly:
+| Environment | Base URL | Notes |
+|---|---|---|
+| Dev | `https://fromage.dev.kanap.net` | Local stack behind the Cloudflare tunnel |
+| QA | `https://fromage.qa.kanap.net` | |
+| Prod | `https://fromage.kanap.net` | Live demos |
 
-```powershell
-New-Item -ItemType Directory -Force .codex\snapshots | Out-Null
-docker compose -f infra/docker-compose.example.yml exec -T db pg_dump -U postgres -d appdb -Fc > .codex\snapshots\pre-fromage-fixture.dump
-```
+The runner auto-detects whether the API is served under `/api` (nginx-proxied
+environments) or at the root.
 
-Restore with:
+## Tenant creation
 
-```powershell
-Get-Content .codex\snapshots\pre-fromage-fixture.dump -Encoding Byte -ReadCount 0 |
-  docker compose -f infra/docker-compose.example.yml exec -T db pg_restore -U postgres -d appdb --clean --if-exists
-```
+Trial signup is the only tenant-creation path, and CAPTCHA is enforced on all
+environments, so create the tenant **exactly like a customer would** — no
+tokens, no scripting:
 
-## 3. Initialize The Tenant Locally
+1. On the marketing site, start a trial with slug `fromage` and your own
+   email (on dev/QA all outbound mail is redirected to `fried@kanap.net`).
+2. Click the activation link in the email and set your password on the
+   activation page — the tenant now exists and you are its Administrator.
+3. Run the runner with that email and password. It logs in and does
+   everything else.
 
-Run from the repository root:
+The runner only needs its bootstrap mode (`--activation-token`) for headless
+setups: pass it the activation **link** (or bare token) from the email
+instead of clicking it, and it will activate the tenant and set the password
+itself.
 
-```powershell
-& 'C:\Users\fried\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' fixtures\fromage-co\setup-tenant.mjs --base-url http://localhost:8080
-```
+If the tenant already exists (re-running after a previous setup), the runner
+just logs in and updates everything in place.
 
-By default the runner uses the local disposable administrator:
+## Recreating from scratch
 
-- Email: `admin@example.com`
-- Password: `KANAPLocalDev!2026`
+To wipe and rebuild (e.g. on QA):
 
-You can override the credentials:
+1. Log in to platform-admin (`https://platform-admin.<env>.kanap.net`) as a
+   platform administrator.
+2. Delete the `fromage` tenant (requires typing the slug to confirm). This
+   purges all tenant data, frees the slug and clears the trial signup.
+3. Follow "Tenant creation and CAPTCHA" above, then run the runner.
 
-```powershell
-& 'C:\Users\fried\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' fixtures\fromage-co\setup-tenant.mjs --base-url http://localhost:8080 --email thomas.berger@fromage-co.com --password '<password>'
-```
+## AI prerequisites
 
-## 4. What The Runner Initializes
+Cloud installs (dev/QA/prod) use the platform's built-in LLM — no per-tenant
+configuration needed. On-premise installs must configure an LLM endpoint in
+the AI settings before the demo agent can triage tickets; everything else in
+the fixture works without AI.
 
-In order, the Node runner performs:
+## Demo logins
 
-1. Currency and IT Ops settings bootstrap.
-2. Company import.
-3. Chart of accounts creation, account imports, and company CoA assignment.
-4. CSV imports for suppliers, departments, contacts, users, business processes,
-   applications, contracts, spend, CAPEX, portfolio projects, and requests.
-5. Location creation before asset import, because assets now validate
-   `location_code`.
-6. Asset and task imports.
-7. IT integration/network setup:
-   - `20-app-instances.csv`
-   - `21-interfaces.csv`
-   - `22-interface-bindings.csv`
-   - `23-connections.csv`
-   - `24-connection-legs.csv`
-   - `25-interface-connection-links.csv`
-8. Post-import links for suites, departments, contracts, spend, and portfolio
-   team capacity.
+| Who | Email | Role |
+|---|---|---|
+| Tenant owner | the `--email` you passed | Administrator |
+| Thomas Berger (CIO) | `thomas.berger@fromage-co.com` | Administrator |
+| Sophie Laurent | `sophie.laurent@fromage-co.com` | IT Landscape Administrator |
+| Marie Fontaine | `marie.fontaine@fromage-co.com` | Budget Administrator |
 
-## 5. Verification
+All demo users share the `--demo-password` (default `Fromage2026!`).
 
-Run the login verifier from the repository root:
+## Files
 
-```powershell
-& 'C:\Users\fried\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' .codex\tools\verify-kanap-login.mjs
-```
-
-The verifier saves a screenshot to `.codex\tools\kanap-after-login.png`.
+- `setup-tenant.mjs` — the runner (Node ≥ 20, no dependencies).
+- `01-…25-*.csv` — the dataset (semicolon-separated, UTF-8).
+- `docs/*.md` — the Service Desk Docs contents.
+- The fromage mock helpdesk tickets live in the backend's mock ticketing
+  provider (`backend/src/ai/control-plane/providers/mocks/mock-ticketing.provider.ts`,
+  entity `fromage-helpdesk`) so they are available in every environment
+  without seeding.

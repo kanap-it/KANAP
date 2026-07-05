@@ -164,7 +164,8 @@
     "emptyAttention": "No hay trabajo de agentes que requiera atención.",
     "emptyFinished": "No hay acciones finalizadas recientemente.",
     "loading": "Cargando aprobaciones.",
-    "proposalCount": "{{count}} propuestas",
+    "proposalCount_one": "{{count}} propuesta",
+    "proposalCount_other": "{{count}} propuestas",
     "updated": "Actualizado {{value}}",
     "approveAll": "Aprobar todo",
     "rejectAll": "Rechazar todo",
@@ -576,6 +577,10 @@
     "reason": "Motivo",
     "execute": "Ejecutar",
     "approve": "Aprobar",
-    "reject": "Rechazar"
+    "reject": "Rechazar",
+    "assignmentUpdate": "Actualización de asignación",
+    "assignee": "Asignado a",
+    "unassigned": "Sin asignar",
+    "participantUpdate": "Actualización de participantes"
   }
 }

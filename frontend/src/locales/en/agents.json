@@ -164,7 +164,8 @@
     "emptyAttention": "No agent work needs attention.",
     "emptyFinished": "No recently finished actions.",
     "loading": "Loading approvals.",
-    "proposalCount": "{{count}} proposals",
+    "proposalCount_one": "{{count}} proposal",
+    "proposalCount_other": "{{count}} proposals",
     "updated": "Updated {{value}}",
     "approveAll": "Approve all",
     "rejectAll": "Reject all",
@@ -576,6 +577,10 @@
     "reason": "Reason",
     "execute": "Execute",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "assignmentUpdate": "Assignment update",
+    "assignee": "Assignee",
+    "unassigned": "Unassigned",
+    "participantUpdate": "Participant update"
   }
 }
