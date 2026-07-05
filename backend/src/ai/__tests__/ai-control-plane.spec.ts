@@ -48,6 +48,7 @@ import {
 } from '../control-plane/agent-control/ai-agent-prompt-compiler.service';
 import { AiAgentActionPlannerService } from '../control-plane/agent-control/ai-agent-action-planner.service';
 import { AiAgentLlmClient } from '../control-plane/agent-control/ai-agent-llm-client';
+import { AiAgentBuiltinQuotaService } from '../control-plane/agent/ai-agent-builtin-quota.service';
 import { AiKnowledgeSearchPlannerService } from '../control-plane/agent-control/ai-knowledge-search-planner.service';
 import { AiReplySynthesisService } from '../control-plane/agent-control/ai-reply-synthesis.service';
 import { AiTicketEvidenceExtractionService } from '../control-plane/agent-control/ai-ticket-evidence-extraction.service';
@@ -5845,6 +5846,77 @@ async function callStructuredJsonTestHelper(client: AiAgentLlmClient, context: A
     timeoutEnvName: 'AI_AGENT_UNIT_TEST_TIMEOUT_MS',
     defaultTimeoutMs: 1000,
   });
+}
+
+async function testBuiltinRuntimeCapsReasoningEffortCustomDoesNot() {
+  const captured: any[] = [];
+  const fakeProvider = {
+    createStream: (params: any) => {
+      captured.push(params);
+      return (async function* () {
+        yield { type: 'text_delta', text: '{"ok":true}' };
+        yield { type: 'done', usage: { input_tokens: 1, output_tokens: 1 }, finish_reason: 'stop' };
+      })();
+    },
+  };
+  const client = Object.create(AiAgentLlmClient.prototype) as AiAgentLlmClient;
+  const runtimeFor = (source: 'builtin' | 'custom') => ({
+    source,
+    provider: fakeProvider,
+    providerId: 'custom',
+    model: 'xiaomi/mimo-v2.5',
+    apiKey: 'key',
+    endpointUrl: null,
+  });
+  const callInput = {
+    systemPrompt: 'Return JSON.',
+    userPayload: { task: 'unit' },
+    maxTokens: 50,
+    timeoutEnvName: 'AI_AGENT_UNIT_TEST_TIMEOUT_MS',
+    defaultTimeoutMs: 1000,
+  };
+
+  await client.callJsonModel({} as any, { ...callInput, runtime: runtimeFor('builtin') as any });
+  assert.equal(captured[0].reasoningEffort, 'low');
+
+  await client.callJsonModel({} as any, { ...callInput, runtime: runtimeFor('custom') as any });
+  assert.equal(captured[1].reasoningEffort, null);
+}
+
+async function testAgentRunsConsumeBuiltinFreeMessageQuota() {
+  const context = createContext(createMemoryManager().manager);
+  const makeService = (source: 'builtin' | 'custom', count: number, limit: number, reserved: string[]) => new AiAgentBuiltinQuotaService(
+    {
+      get: async () => ({ provider_source: source }),
+      getEffectiveProviderSource: (settings: any) => settings.provider_source,
+    } as any,
+    {
+      getCurrentUsage: async () => ({ count, limit, year_month: '2026-07', reset_date: '' }),
+      getMonthlyLimit: async () => limit,
+      reserveMessageDetached: async (tenantId: string) => {
+        reserved.push(tenantId);
+        return count + 1;
+      },
+    } as any,
+  );
+
+  // Tenants on their own LLM configuration: no gate, nothing consumed.
+  const reservedCustom: string[] = [];
+  const custom = makeService('custom', 0, 0, reservedCustom);
+  await custom.assertQuotaAvailable(context);
+  await custom.reserveRun(context);
+  assert.equal(reservedCustom.length, 0);
+
+  // Built-in with quota left: a run reserves exactly one message.
+  const reservedBuiltin: string[] = [];
+  const builtin = makeService('builtin', 10, 1500, reservedBuiltin);
+  await builtin.assertQuotaAvailable(context);
+  await builtin.reserveRun(context);
+  assert.equal(reservedBuiltin.length, 1);
+
+  // Built-in with the monthly volume used up: the poller gate refuses.
+  const exhausted = makeService('builtin', 1500, 1500, []);
+  await assert.rejects(() => exhausted.assertQuotaAvailable(context), /included AI messages/);
 }
 
 async function testStructuredJsonHelperRetriesEmptyInvalidAndSchemaInvalid() {
@@ -13941,6 +14013,8 @@ async function run() {
   await testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets();
   testStaleProposalSuppressionIgnoresExpired();
   testActionPlannerPromptCompilerIncludesVerbatimCandidates();
+  await testBuiltinRuntimeCapsReasoningEffortCustomDoesNot();
+  await testAgentRunsConsumeBuiltinFreeMessageQuota();
   await testStructuredJsonHelperRetriesEmptyInvalidAndSchemaInvalid();
   await testStructuredJsonHelperLabelsTruncationAndHonoursMaxTokensEnv();
   await testStructuredJsonHelperClassifiesTimeoutsHonestly();

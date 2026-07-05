@@ -227,6 +227,10 @@ export async function* openaiCompatibleStream(params: AiStreamParams): AsyncGene
     request.parallel_tool_calls = false;
   }
   request[params.maxTokensParam ?? 'max_completion_tokens'] = params.maxTokens;
+  if (params.reasoningEffort) {
+    // OpenAI-style field; OpenRouter accepts it as an alias for reasoning.effort.
+    request.reasoning_effort = params.reasoningEffort;
+  }
 
   let stream: Awaited<ReturnType<typeof client.chat.completions.create>>;
   try {

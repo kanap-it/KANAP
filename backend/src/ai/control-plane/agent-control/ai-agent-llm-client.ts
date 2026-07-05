@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiSecretCipherService } from '../../ai-secret-cipher.service';
 import { AiSettingsService } from '../../ai-settings.service';
-import { PlatformAiConfigService } from '../../platform/platform-ai-config.service';
+import { BUILTIN_REASONING_EFFORT, PlatformAiConfigService } from '../../platform/platform-ai-config.service';
 import { AiProviderRegistry } from '../../providers/ai-provider-registry.service';
 import { AiProviderAdapter, AiProviderId, AiProviderImageAttachment, AiStreamEvent } from '../../providers/ai-provider.types';
 
@@ -235,6 +235,7 @@ export class AiAgentLlmClient {
         timeoutMs,
         maxRetries: 1,
         signal: controller.signal,
+        reasoningEffort: runtime.source === 'builtin' ? BUILTIN_REASONING_EFFORT : null,
       });
 
       for await (const event of stream) {

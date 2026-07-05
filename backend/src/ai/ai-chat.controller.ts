@@ -67,7 +67,7 @@ export class AiChatController {
     if (prepared.providerSource === 'builtin' && prepared.builtinRateLimits) {
       this.builtinRateLimiter.assertAllowed(context.tenantId, context.userId, prepared.builtinRateLimits);
       await this.tenantExecutor.runWithContext(context, async (ctx) => {
-        const limit = await this.builtinUsage.getMonthlyLimitForTenant(ctx.tenantId, ctx.manager);
+        const limit = await this.builtinUsage.getMonthlyLimit(ctx.manager);
         await this.builtinUsage.reserveMessage(ctx.tenantId, limit, ctx.manager);
       });
     }

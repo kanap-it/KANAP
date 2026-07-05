@@ -10,6 +10,13 @@ export type AiAdminOverviewRecentActivityItem = {
   updated_at: string;
 };
 
+export type AiAdminOverviewAgentUsage = {
+  agent_definition_id: string;
+  name: string;
+  messages_current_month: number;
+  messages_last_30_days: number;
+};
+
 export type AiAdminOverviewResponse = {
   totals: {
     conversations_all: number;
@@ -32,6 +39,7 @@ export type AiAdminOverviewResponse = {
     };
   };
   recent_activity: AiAdminOverviewRecentActivityItem[];
+  agents: AiAdminOverviewAgentUsage[];
 };
 
 function toNumber(value: unknown): number {
@@ -64,12 +72,15 @@ export class AiAdminOverviewService {
       [tenantId],
     );
 
+    // message_count deliberately counts only user-sent messages — the unit the free
+    // volume charges — not every persisted row (assistant replies and tool results
+    // would triple the number and make it impossible to relate to the quota).
     const currentMonthRows = await manager.query(
       `
       SELECT
         COALESCE(SUM(COALESCE((usage_json->>'input_tokens')::bigint, 0)), 0)::bigint AS input_tokens,
         COALESCE(SUM(COALESCE((usage_json->>'output_tokens')::bigint, 0)), 0)::bigint AS output_tokens,
-        COUNT(*)::bigint AS message_count
+        COUNT(*) FILTER (WHERE role = 'user')::bigint AS message_count
       FROM ai_messages
       WHERE tenant_id = $1
         AND created_at >= date_trunc('month', now())
@@ -82,10 +93,33 @@ export class AiAdminOverviewService {
       SELECT
         COALESCE(SUM(COALESCE((usage_json->>'input_tokens')::bigint, 0)), 0)::bigint AS input_tokens,
         COALESCE(SUM(COALESCE((usage_json->>'output_tokens')::bigint, 0)), 0)::bigint AS output_tokens,
-        COUNT(*)::bigint AS message_count
+        COUNT(*) FILTER (WHERE role = 'user')::bigint AS message_count
       FROM ai_messages
       WHERE tenant_id = $1
         AND created_at >= now() - interval '30 days'
+      `,
+      [tenantId],
+    );
+
+    // One agent run = one AI message (the same unit the built-in quota counts). Runs
+    // carry their agent in metadata_json; the join window uses LEAST(month start, 30
+    // days ago) so the current-month count stays complete on the 31st of a month.
+    const agentUsageRows = await manager.query(
+      `
+      SELECT
+        d.id AS agent_definition_id,
+        d.name,
+        COUNT(r.id) FILTER (WHERE r.started_at >= date_trunc('month', now()))::bigint AS messages_current_month,
+        COUNT(r.id)::bigint AS messages_last_30_days
+      FROM ai_agent_definitions d
+      LEFT JOIN ai_runs r
+        ON r.tenant_id = $1
+       AND r.metadata_json->>'agent_definition_id' = d.id::text
+       AND r.started_at >= LEAST(date_trunc('month', now()), now() - interval '30 days')
+      WHERE d.tenant_id = $1
+        AND d.status != 'archived'
+      GROUP BY d.id, d.name
+      ORDER BY messages_last_30_days DESC, d.name ASC
       `,
       [tenantId],
     );
@@ -139,6 +173,12 @@ export class AiAdminOverviewService {
         provider: row.provider == null ? null : String(row.provider),
         model: row.model == null ? null : String(row.model),
         updated_at: toIsoDate(row.updated_at),
+      })),
+      agents: agentUsageRows.map((row: Record<string, unknown>) => ({
+        agent_definition_id: String(row.agent_definition_id),
+        name: String(row.name ?? ''),
+        messages_current_month: toNumber(row.messages_current_month),
+        messages_last_30_days: toNumber(row.messages_last_30_days),
       })),
     };
   }

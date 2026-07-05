@@ -68,6 +68,8 @@ export type AiProviderToolDef = {
   parameters: Record<string, unknown>;
 };
 
+export type AiReasoningEffort = 'low' | 'medium' | 'high';
+
 export type AiStreamParams = {
   providerId?: AiProviderId;
   model: string;
@@ -84,6 +86,10 @@ export type AiStreamParams = {
   maxRetries?: number;
   parallelToolCalls?: boolean;
   debugTrace?: boolean;
+  // Caps how much a reasoning model may think before answering. Only ever set for the
+  // platform built-in provider (a config KANAP controls); tenant-provided configurations
+  // must never send it, because arbitrary OpenAI-compatible servers may reject the field.
+  reasoningEffort?: AiReasoningEffort | null;
 };
 
 export type AiProviderDebugTraceName =

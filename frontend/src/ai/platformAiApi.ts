@@ -13,20 +13,12 @@ export type PlatformAiConfig = {
   has_api_key: boolean;
 };
 
-export type PlatformAiPlanLimit = {
-  plan_name: string;
-  monthly_message_limit: number;
-  updated_at: string;
-};
-
 export type PlatformAiUsageRow = {
   tenant_id: string;
   tenant_name: string;
   tenant_slug: string;
-  plan_name: string | null;
-  plan_key: string | null;
   used: number;
-  limit: number | null;
+  limit: number;
   usage_ratio: number | null;
   year_month: string;
 };
@@ -34,7 +26,7 @@ export type PlatformAiUsageRow = {
 export type PlatformAiConfigPayload = {
   config: PlatformAiConfig | null;
   available_providers: ProviderDescriptor[];
-  plan_limits: PlatformAiPlanLimit[];
+  free_monthly_message_limit: number;
   usage: PlatformAiUsageRow[];
 };
 
@@ -51,8 +43,8 @@ export const platformAiApi = {
     const res = await api.post('/admin/ai/config/test', payload);
     return res.data;
   },
-  async updatePlanLimits(items: PlatformAiPlanLimit[]): Promise<{ plan_limits: PlatformAiPlanLimit[] }> {
-    const res = await api.put('/admin/ai/plan-limits', { items });
+  async updateFreeMessageLimit(monthlyMessageLimit: number): Promise<{ free_monthly_message_limit: number }> {
+    const res = await api.put('/admin/ai/free-message-limit', { monthly_message_limit: monthlyMessageLimit });
     return res.data;
   },
   async getUsage(): Promise<{ items: PlatformAiUsageRow[] }> {

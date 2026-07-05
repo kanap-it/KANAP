@@ -134,7 +134,7 @@ export class AiMcpController {
       tenantPerMinute: runtime.rate_limit_tenant_per_minute,
       userPerHour: runtime.rate_limit_user_per_hour,
     });
-    const limit = await this.builtinUsage.getMonthlyLimitForTenant(ctx.tenantId, ctx.manager);
+    const limit = await this.builtinUsage.getMonthlyLimit(ctx.manager);
     await this.builtinUsage.reserveMessage(ctx.tenantId, limit, ctx.manager);
   }
 

@@ -4197,11 +4197,16 @@ async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
         tenantAConversation3,
       ],
     );
+    // message_count counts only user-sent messages (the included-volume unit);
+    // assistant and tool rows contribute tokens but never messages.
     await runner.query(
       `INSERT INTO ai_messages (conversation_id, tenant_id, user_id, role, content, usage_json, created_at)
        VALUES
+         ($1, $2, $3, 'user', 'First question', NULL, date_trunc('month', now()) + interval '23 hours'),
          ($1, $2, $3, 'assistant', 'Current month usage', '{"input_tokens":10,"output_tokens":20}'::jsonb, date_trunc('month', now()) + interval '1 day'),
+         ($1, $2, $3, 'user', 'Second question', NULL, date_trunc('month', now()) + interval '2 days' - interval '1 hour'),
          ($1, $2, $3, 'assistant', 'Null usage should count as zero', NULL, date_trunc('month', now()) + interval '2 days'),
+         ($1, $2, $3, 'tool', 'Tool result rows are not messages', NULL, date_trunc('month', now()) + interval '2 days' + interval '1 hour'),
          ($4, $2, $5, 'assistant', 'Recent usage outside current month', '{"input_tokens":4,"output_tokens":6}'::jsonb, date_trunc('month', now()) - interval '1 day')`,
       [
         tenantAConversation1,
@@ -4239,7 +4244,9 @@ async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
     assert.equal(overview.usage.last_30_days.input_tokens, previousMonthUsageIncludedInLast30Days ? 14 : 10);
     assert.equal(overview.usage.last_30_days.output_tokens, previousMonthUsageIncludedInLast30Days ? 26 : 20);
     assert.equal(overview.usage.last_30_days.total_tokens, previousMonthUsageIncludedInLast30Days ? 40 : 30);
-    assert.equal(overview.usage.last_30_days.message_count, previousMonthUsageIncludedInLast30Days ? 3 : 2);
+    // Both user messages sit in the current month; the previous-month row is an
+    // assistant message, so it never counts regardless of the 30-day boundary.
+    assert.equal(overview.usage.last_30_days.message_count, 2);
     assert.equal(overview.recent_activity.length, 3);
     assert.equal(overview.recent_activity[0].conversation_id, tenantAConversation1);
     assert.equal(

@@ -408,6 +408,32 @@ async function testReasoningModelHelpers() {
   assert.equal(getOpenAiSystemPromptRole('gpt-4o'), 'system');
 }
 
+async function testReasoningEffortIsSentOnlyWhenRequested() {
+  const baseParams = {
+    providerId: 'custom',
+    model: 'xiaomi/mimo-v2.5',
+    apiKey: 'test-key',
+    endpointUrl: 'https://openrouter.example/api/v1',
+    systemPrompt: 'Be precise.',
+    messages: [{ role: 'user', content: 'Hello' }],
+    tools: [],
+    maxTokens: 128,
+  };
+
+  resetState([{ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }]);
+  await collectEvents(openaiCompatibleStream({ ...baseParams, reasoningEffort: 'low' }));
+  assert.equal(state.requests[0].reasoning_effort, 'low');
+
+  // Tenant-provided configurations never set the field — the request must not carry it.
+  resetState([{ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }]);
+  await collectEvents(openaiCompatibleStream({ ...baseParams }));
+  assert.equal('reasoning_effort' in state.requests[0], false);
+
+  resetState([{ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }]);
+  await collectEvents(openaiCompatibleStream({ ...baseParams, reasoningEffort: null }));
+  assert.equal('reasoning_effort' in state.requests[0], false);
+}
+
 async function run() {
   await testReasoningModelsPreferDeveloperRole();
   await testLengthFinishReasonWithPendingToolCallEmitsError();
@@ -420,6 +446,7 @@ async function run() {
   await testXmlStyleToolCallStreamErrorIsRecovered();
   await testXmlStyleToolCallStreamErrorDiscardsPartialNativeToolCall();
   await testReasoningModelHelpers();
+  await testReasoningEffortIsSentOnlyWhenRequested();
 }
 
 void run();

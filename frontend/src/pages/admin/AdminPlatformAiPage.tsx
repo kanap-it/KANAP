@@ -26,7 +26,7 @@ import { useAuth } from '../../auth/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import ForbiddenPage from '../ForbiddenPage';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
-import { platformAiApi, PlatformAiConfigPayload, PlatformAiPlanLimit } from '../../ai/platformAiApi';
+import { platformAiApi, PlatformAiConfigPayload } from '../../ai/platformAiApi';
 import { AiProviderTestResult } from '../../ai/aiApi';
 import { useLocale } from '../../i18n/useLocale';
 
@@ -98,7 +98,7 @@ export default function AdminPlatformAiPage() {
   const queryClient = useQueryClient();
 
   const [configForm, setConfigForm] = React.useState<ConfigForm>(EMPTY_CONFIG_FORM);
-  const [planLimits, setPlanLimits] = React.useState<PlatformAiPlanLimit[]>([]);
+  const [freeMessageLimit, setFreeMessageLimit] = React.useState<number>(0);
   const [configError, setConfigError] = React.useState<string | null>(null);
   const [planError, setPlanError] = React.useState<string | null>(null);
   const [configSaved, setConfigSaved] = React.useState(false);
@@ -115,9 +115,9 @@ export default function AdminPlatformAiPage() {
       return;
     }
     setConfigForm(buildConfigForm(configQuery.data.config));
-    setPlanLimits(configQuery.data.plan_limits);
+    setFreeMessageLimit(configQuery.data.free_monthly_message_limit);
     setTestResult(null);
-  }, [configQuery.data?.config?.updated_at, configQuery.data?.plan_limits]);
+  }, [configQuery.data?.config?.updated_at, configQuery.data?.free_monthly_message_limit]);
 
   const saveConfigMutation = useMutation({
     mutationFn: async () => {
@@ -176,7 +176,7 @@ export default function AdminPlatformAiPage() {
 
   const savePlanLimitsMutation = useMutation({
     mutationFn: async () => {
-      await platformAiApi.updatePlanLimits(planLimits);
+      await platformAiApi.updateFreeMessageLimit(freeMessageLimit);
     },
     onMutate: () => {
       setPlanError(null);
@@ -309,37 +309,19 @@ export default function AdminPlatformAiPage() {
                   {planSaved ? <Alert severity="success">{t('platformAi.messages.planSaved')}</Alert> : null}
                   {planError ? <Alert severity="error">{planError}</Alert> : null}
 
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>{t('platformAi.planLimits.plan')}</TableCell>
-                        <TableCell align="right">{t('platformAi.planLimits.monthlyLimit')}</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {planLimits.map((item, index) => (
-                        <TableRow key={item.plan_name}>
-                          <TableCell>{item.plan_name}</TableCell>
-                          <TableCell align="right" sx={{ width: 180 }}>
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={item.monthly_message_limit}
-                              onChange={(event) => {
-                                const next = Number(event.target.value);
-                                setPlanLimits((prev) => prev.map((current, currentIndex) => (
-                                  currentIndex === index
-                                    ? { ...current, monthly_message_limit: Number.isFinite(next) ? next : 0 }
-                                    : current
-                                )));
-                              }}
-                              inputProps={{ min: 0 }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <TextField
+                    size="small"
+                    type="number"
+                    label={t('platformAi.planLimits.monthlyLimit')}
+                    helperText={t('platformAi.planLimits.hint')}
+                    value={freeMessageLimit}
+                    onChange={(event) => {
+                      const next = Number(event.target.value);
+                      setFreeMessageLimit(Number.isFinite(next) ? next : 0);
+                    }}
+                    inputProps={{ min: 0 }}
+                    sx={{ maxWidth: 320 }}
+                  />
 
                   <Button
                     variant="contained"
@@ -366,7 +348,6 @@ export default function AdminPlatformAiPage() {
                       <TableHead>
                         <TableRow>
                           <TableCell>{t('platformAi.usage.tenant')}</TableCell>
-                          <TableCell>{t('platformAi.usage.plan')}</TableCell>
                           <TableCell align="right">{t('platformAi.usage.used')}</TableCell>
                           <TableCell align="right">{t('platformAi.usage.limit')}</TableCell>
                           <TableCell align="right">{t('platformAi.usage.percent')}</TableCell>
@@ -387,7 +368,6 @@ export default function AdminPlatformAiPage() {
                                   </Typography>
                                 </Stack>
                               </TableCell>
-                              <TableCell>{item.plan_key || item.plan_name || '-'}</TableCell>
                               <TableCell align="right">{item.used.toLocaleString(locale)}</TableCell>
                               <TableCell align="right">{(item.limit ?? 0).toLocaleString(locale)}</TableCell>
                               <TableCell align="right" sx={{ minWidth: 180 }}>

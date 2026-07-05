@@ -85,12 +85,12 @@
     "overview": {
       "columns": {
         "inputTokens": "Tokens en entrée",
-        "messages": "Messages",
+        "messages": "Messages utilisateur",
         "outputTokens": "Tokens en sortie",
         "totalTokens": "Tokens totaux",
         "window": "Fenêtre"
       },
-      "description": "Utilisation du chat uniquement. Les totaux de tokens sont agrégés depuis `ai_messages.usage_json`.",
+      "description": "Conversations, consommation de tokens et messages IA de l'organisation. Un message correspond à une question posée à Plaid ou à un ticket examiné par un agent — l'unité comptée par le volume mensuel inclus.",
       "metrics": {
         "activeConversations30d": "Conversations actives (30j)",
         "activeConversations7d": "Conversations actives (7j)",
@@ -102,7 +102,9 @@
       "windows": {
         "currentMonth": "Mois en cours",
         "last30Days": "30 derniers jours"
-      }
+      },
+      "agentMessages": "Messages des agents (ce mois-ci)",
+      "agentsTotal": "Tous les agents"
     },
     "provider": {
       "apiKey": {
@@ -506,12 +508,12 @@
   "platformAi": {
     "actions": {
       "save": "Save",
-      "savePlanLimits": "Save plan limits",
+      "savePlanLimits": "Enregistrer la limite",
       "test": "Test connection",
       "testing": "Testing..."
     },
     "cards": {
-      "planLimits": "Plan message limits",
+      "planLimits": "Messages IA inclus",
       "provider": "Built-in AI Provider",
       "usage": "Current month usage"
     },
@@ -525,8 +527,8 @@
     },
     "messages": {
       "loadFailed": "Failed to load platform AI settings.",
-      "planSaveFailed": "Failed to save plan limits.",
-      "planSaved": "Plan limits saved.",
+      "planSaveFailed": "Échec de l'enregistrement de la limite de messages inclus.",
+      "planSaved": "Limite de messages inclus enregistrée.",
       "saveFailed": "Failed to save platform AI settings.",
       "saved": "Platform AI settings saved.",
       "testFailed": "Connection test failed."
@@ -536,15 +538,14 @@
       "keepKey": "Key configured (leave blank to keep)"
     },
     "planLimits": {
-      "monthlyLimit": "Monthly message limit",
-      "plan": "Plan"
+      "hint": "S'applique à toutes les organisations utilisant le fournisseur IA intégré. Le compteur repart à zéro le 1er de chaque mois.",
+      "monthlyLimit": "Messages mensuels inclus par organisation"
     },
     "title": "Platform AI",
     "usage": {
       "empty": "No tenant usage recorded yet.",
       "limit": "Limit",
       "percent": "Usage",
-      "plan": "Plan",
       "tenant": "Tenant",
       "used": "Used"
     }
