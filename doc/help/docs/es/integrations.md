@@ -1,57 +1,68 @@
 # Integraciones
 
-Use la página Integraciones para conectar KANAP con herramientas de terceros que complementan los datos que ya gestiona en la plataforma. Hoy, la página se centra en la **importación de tickets de GLPI** mediante Plaid; con el tiempo se irán añadiendo nuevas integraciones aquí.
+Use la página Integraciones para conectar KANAP con herramientas de terceros que complementan los datos que ya gestiona en la plataforma. Hoy, la página configura una sola conexión: su centro de servicios **GLPI**. Esa única conexión ahora cumple dos propósitos a la vez: permite que **Plaid** (el chat interactivo) encuentre e importe tickets en KANAP como tareas, y alimenta a los **Agentes IA** que vigilan su centro de servicios y proponen o realizan el trabajo sobre los tickets. Con el tiempo se irán añadiendo aquí nuevas integraciones.
 
 ## Dónde encontrarlo
 
 - Espacio de trabajo: **Administración**
 - Ruta: **Administración → Integraciones**
 - Ruta: `/admin/integrations`
-- Permiso: `ai_settings:admin`
+- Permiso: `ai_settings:admin` para ver y editar la conexión en esta página
 - Indicador de funcionalidad: comparte la misma superficie `ai_settings` que la página de configuración de Plaid. Cuando la superficie está desactivada, la entrada no aparece en la barra lateral.
 
-## Integración con GLPI
+Las credenciales que introduce aquí son las que usan tanto Plaid como cualquier agente IA para llegar a GLPI: la conexión se configura una sola vez, en un único lugar.
 
-[GLPI](https://glpi-project.org/) es una herramienta popular de código abierto para la gestión de servicios IT. La integración permite a su equipo pedir a Plaid que encuentre tickets en GLPI e importe los relevantes a KANAP como tareas, con un paso de confirmación en cada importación.
+---
+
+## Integración GLPI
+
+[GLPI](https://glpi-project.org/) es una popular herramienta de código abierto para la gestión de servicios IT. Esta página almacena las credenciales que KANAP usa para llegar a su instancia de GLPI. Lo que KANAP hace con esa conexión depende de la funcionalidad a la que la dirija.
 
 ### Cómo funciona
 
-1. Un usuario final pide a Plaid algo como "importar los tickets GLPI abiertos asignados a mi equipo".
-2. Plaid consulta GLPI con las credenciales que configura aquí.
-3. Los tickets candidatos se devuelven como vista previa en el chat.
-4. El usuario revisa la vista previa y hace clic en **Aprobar** para los tickets que quiere traer a KANAP.
-5. KANAP crea una tarea por cada ticket aprobado.
+La conexión alimenta dos flujos de trabajo que se habilitan y gobiernan por separado.
 
-Nada se escribe en KANAP sin esa aprobación explícita, de modo que los administradores pueden entregar la integración a los usuarios finales sin preocuparse por una rotación silenciosa de datos.
+**1. Importación desde el chat de Plaid (vista previa y aprobación).** Un usuario final pide a Plaid algo como «importar los tickets GLPI abiertos asignados a mi equipo». Plaid consulta GLPI mediante las credenciales que configura aquí, devuelve los tickets candidatos como vista previa en el chat y crea una tarea por cada ticket solo después de que el usuario revise la vista previa y haga clic en **Aprobar**. Nada se escribe en KANAP sin esa aprobación explícita, de modo que los administradores pueden entregar esto a los usuarios finales sin preocuparse por una rotación silenciosa de datos.
+
+**2. Agentes IA que vigilan el centro de servicios.** Una vez conectado GLPI aquí, un administrador puede dirigir hacia él un agente **Helpdesk** y dejar que el agente vigile los tickets nuevos y actualizados, y luego proponga el trabajo: respuestas al solicitante, notas internas y actualizaciones de clasificación, estado, asignación, participantes y cierre/resolución. Cada cambio del agente se sigue proponiendo para su aprobación antes de enviarse a GLPI, y siempre se aplican límites de seguridad estrictos, presupuestos y comprobaciones de actualidad. Esta página no configura ningún comportamiento del agente; solo proporciona la conexión que los agentes usan.
+
+### Usado por los Agentes IA
+
+Después de guardar aquí una conexión que funcione, un administrador configura los agentes en la sección Agentes IA; consulte [Agentes IA — Vista general](agents-overview.md). Desde el asistente de nuevo agente o desde la **Configuración** de un agente existente, elige esta conexión GLPI como el centro de servicios que el agente vigila. El agente lee y redacta borradores sobre ella, pero de forma predeterminada nunca envía nada por su cuenta: cada respuesta, nota o cambio de estado propuesto pasa primero a la cola de revisión.
 
 ### Requisitos previos
 
-- **El chat de Plaid debe estar habilitado** en su espacio de trabajo. La página muestra un tooltip informativo junto al título de la sección para recordarle esta dependencia. La integración se configura espacio de trabajo por espacio de trabajo; las credenciales a continuación nunca salen de su espacio de trabajo.
+- **El chat de Plaid debe estar habilitado** en su espacio de trabajo para el flujo de importación desde el chat. La página muestra un tooltip informativo junto al título de la sección para recordarle esta dependencia.
+- **Los Agentes IA deben estar habilitados** en la instancia para el flujo de trabajo de agentes, y el agente debe ser configurado por alguien con el nivel Administrador de Agentes IA (`ai_agents:admin`).
 - Una instancia de GLPI accesible desde KANAP por HTTPS.
 - Un **Token de usuario** para una cuenta de usuario de GLPI que tenga acceso de lectura a los tickets que desea exponer.
 - Un **Token de aplicación** opcional si su instancia de GLPI requiere autenticación a nivel de aplicación.
+
+La integración se configura espacio de trabajo por espacio de trabajo; las credenciales a continuación están limitadas a su espacio de trabajo y nunca salen de él.
 
 ### Campos
 
 El formulario de configuración contiene:
 
-- **Habilitar importación de tickets GLPI** — conmutador maestro para la integración. Cuando está desactivado, Plaid no intentará consultar GLPI incluso si las credenciales están establecidas.
+- **Habilitar importación de tickets GLPI** — conmutador maestro de la conexión. Cuando está desactivado, KANAP no intentará consultar GLPI aunque las credenciales estén establecidas: ni las importaciones de Plaid ni las comprobaciones de los agentes llegarán a su centro de servicios.
 - **URL de GLPI** — la URL base de su instancia de GLPI, por ejemplo `https://glpi.example.com`.
-- **Token de usuario** — el token API personal de la cuenta GLPI que Plaid usará. Los tokens existentes se enmascaran; deje el campo en blanco durante un guardado o prueba para conservar el valor almacenado.
-- **Token de aplicación** — el token de aplicación opcional de GLPI. Mismo comportamiento de blanco-para-conservar que el token de usuario.
+- **Token de usuario** — el token API personal de la cuenta GLPI que KANAP usará. Los tokens existentes se enmascaran; deje el campo en blanco durante un guardado o una prueba para conservar el valor almacenado.
+- **Token de aplicación** — el token de aplicación opcional de GLPI. Mismo comportamiento de dejar en blanco para conservar que el token de usuario.
 
 ### Acciones
 
 - **Guardar configuración** — persiste el formulario. Los tokens introducidos en el formulario reemplazan los almacenados; los campos de token en blanco conservan lo que ya está almacenado.
-- **Probar conexión** — ejecuta una ida y vuelta autenticada contra la URL de GLPI usando los valores del formulario (o, donde estén en blanco, los valores almacenados). La banda de resultado muestra éxito o el error subyacente junto con la latencia.
+- **Probar conexión** — ejecuta una ida y vuelta autenticada contra la URL de GLPI usando los valores del formulario (o, donde estén en blanco, los valores almacenados). La banda de resultado muestra el éxito o el error subyacente junto con la latencia.
 
 ### Almacenamiento de secretos
 
 Si su instancia de KANAP no tiene un almacén de secretos configurado, aparece un texto de ayuda bajo cada campo de token advirtiéndole que los valores no pueden persistirse. Configure el almacenamiento de secretos a nivel de instancia antes de confiar en esta integración en producción.
 
+---
+
 ## Consejos
 
-- **Use una cuenta GLPI dedicada**: cree una cuenta de servicio en GLPI con justo los permisos suficientes para leer las categorías de tickets que desea exponer. Eso mantiene la pista de auditoría limpia y le permite revocar el acceso sin afectar a un usuario real.
-- **Pruebe antes de anunciar**: ejecute **Probar conexión** después de cada cambio de URL o tokens. El mensaje de error es mucho más accionable que un fallo que aparece dentro de la conversación de chat de alguien.
-- **Combine con permisos de Plaid**: solo los usuarios con `ai_chat:reader` pueden pedir a Plaid que importe tickets. Combine eso con acceso basado en roles a las tareas si desea limitar quién crea realmente registros de tareas a partir de las importaciones.
-- **Planifique la rotación de tokens**: los tokens personales de GLPI pueden regenerarse. Cuando lo haga, guarde el nuevo valor aquí y ejecute la prueba de conexión antes de que los usuarios vuelvan a usar la integración.
+- **Use una cuenta GLPI dedicada**: cree una cuenta de servicio en GLPI con justo los permisos suficientes para leer las categorías de tickets que desea exponer. Eso mantiene el registro de auditoría limpio y le permite revocar el acceso sin afectar a un usuario real. Si los agentes van a enviar respuestas y cambios de estado, otorgue a esa misma cuenta el acceso de escritura que esas acciones requieren.
+- **Pruebe antes de anunciar**: ejecute **Probar conexión** después de cada cambio de URL o de tokens. El mensaje de error es mucho más accionable que un fallo que aparece dentro de la conversación de chat de alguien o en una comprobación de agente detenida.
+- **Combine con los permisos adecuados**: solo los usuarios con `ai_chat:reader` pueden pedir a Plaid que importe tickets. Dirigir un agente hacia esta conexión requiere el rol de Agentes IA — `ai_agents:reader` para ver un agente, `ai_agents:admin` para configurar uno — con los Agentes IA habilitados en la instancia. Combine eso con acceso basado en roles a las tareas si desea limitar quién crea realmente registros de tareas a partir de las importaciones.
+- **Planifique la rotación de tokens**: los tokens personales de GLPI pueden regenerarse. Cuando lo haga, guarde el nuevo valor aquí y ejecute la prueba de conexión antes de que los usuarios —o los agentes— vuelvan a usar la integración.

@@ -84,17 +84,32 @@ Si desea el camino más corto hacia la productividad, comience con las guías de
 - [Procesos de negocio](business-processes.md) - Documentación de la jerarquía de procesos de negocio
 - [Dimensiones analíticas](analytics.md) - Configuración de dimensiones de informes
 
+### Plaid
+
+- [Plaid](ai-assistant.md) - Haga preguntas en lenguaje claro sobre todos sus datos de KANAP
+
+### Agentes IA
+
+- [Vista general](agents-overview.md) - Supervise los agentes que vigilan su centro de servicios
+- [Espacio del agente](agents-workspace.md) - Monitorice, ajuste y configure un único agente
+- [Aprobaciones](agents-approvals.md) - Revise y apruebe las respuestas y actualizaciones de tickets propuestas
+- [Actividad](agents-activity.md) - La cronología de auditoría de todo lo que hicieron los agentes
+- [Contexto compartido](agents-shared-context.md) - Guía de fondo reutilizable para sus agentes
+
 ### Administración
 
-- [Administración y Usuarios](admin.md) - Gestión de usuarios, roles, autenticación y registros de auditoría
+- [Usuarios](admin.md) - Gestión de usuarios, roles, autenticación y registros de auditoría
 - [Personalización](branding.md) - Personalización del logotipo del espacio de trabajo y colores primarios claro/oscuro
 - [Registro de auditoría](admin.md#registro-de-auditoria) - Revisión del historial de cambios del espacio de trabajo con filtros y vista detallada
+- [Configuración de Plaid](ai-settings.md) - Configuración del proveedor de IA, funcionalidades, retención y claves MCP
+- [Integraciones](integrations.md) - Conexión de GLPI para importar tickets y para los agentes
+- [Tareas programadas](scheduled-tasks.md) - Revisión y gestión de trabajos recurrentes en segundo plano
 - [Administración de datos maestros](master-data-operations.md) - Congelación y copia de datos maestros
 - [Panel de control de operaciones](operations-dashboard.md) - Vista general y acciones rápidas
 
 ### Despliegue y operaciones
 
-- [Despliegue local](on-premise/index.md) - Instalación, configuración, operaciones, configuración de correo SMTP/Resend y SSO con Microsoft Entra para despliegues de un solo inquilino
+- [Despliegue on-premise](on-premise/index.md) - Instalación, configuración, operaciones, configuración de correo SMTP/Resend y SSO con Microsoft Entra para despliegues single-tenant
 
 ---
 

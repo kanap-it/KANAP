@@ -4,6 +4,9 @@ Plaid is KANAP's built-in chat assistant. It is connected to the same data you a
 
 Plaid does not replace the rest of the application. It is a faster way to summarise context, locate records, draft text, or prepare changes. Sensitive operations are always shown as previews you must approve before anything is written back into KANAP.
 
+!!! note "Plaid vs AI Agents"
+    Plaid is the interactive assistant **you** drive: you ask, it answers, and you approve one change at a time. **AI Agents** are different — they are autonomous helpers that watch your service desk and propose or handle ticket work on their own, within the approval limits you set. See [AI Agents — Overview](agents-overview.md).
+
 ## Where to find it
 
 - Workspace: **Plaid** (top navigation)

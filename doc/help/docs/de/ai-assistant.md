@@ -1,29 +1,32 @@
 # Plaid
 
-Plaid ist der integrierte Chat-Assistent von KANAP. Er ist mit denselben Daten verbunden, mit denen Sie bereits arbeiten – Anwendungen, Assets, Projekte, Anfragen, Aufgaben, Verträge, Wissensdokumente und Stammdaten – sodass Sie Fragen in natürlicher Sprache stellen können, anstatt sich durch mehrere Bildschirme zu klicken, um eine Antwort zu finden.
+Plaid ist der integrierte Chat-Assistent von KANAP. Er ist mit denselben Daten verbunden, mit denen Sie ohnehin arbeiten — Anwendungen, Assets, Projekte, Anfragen, Aufgaben, Verträge, Wissensdokumente und Stammdaten —, sodass Sie Fragen in natürlicher Sprache stellen können, anstatt sich durch mehrere Bildschirme zu klicken, um eine Antwort zu finden.
 
-Plaid ersetzt nicht den Rest der Anwendung. Es ist ein schnellerer Weg, Kontext zusammenzufassen, Datensätze zu lokalisieren, Texte zu verfassen oder Änderungen vorzubereiten. Sensible Operationen werden immer als Vorschauen angezeigt, die Sie genehmigen müssen, bevor etwas in KANAP zurückgeschrieben wird.
+Plaid ersetzt nicht den Rest der Anwendung. Es ist ein schnellerer Weg, um Kontext zusammenzufassen, Datensätze zu finden, Text zu entwerfen oder Änderungen vorzubereiten. Sensible Vorgänge werden immer als Vorschauen angezeigt, die Sie genehmigen müssen, bevor etwas in KANAP zurückgeschrieben wird.
+
+!!! note "Plaid vs. KI-Agenten"
+    Plaid ist der interaktive Assistent, den **Sie** steuern: Sie fragen, er antwortet, und Sie genehmigen eine Änderung nach der anderen. **KI-Agenten** sind etwas anderes — sie sind autonome Helfer, die Ihren Service-Desk überwachen und Ticket-Arbeit eigenständig vorschlagen oder erledigen, innerhalb der von Ihnen festgelegten Freigabegrenzen. Siehe [KI-Agenten – Übersicht](agents-overview.md).
 
 ## Wo Sie es finden
 
 - Arbeitsbereich: **Plaid** (obere Navigation)
 - Route: `/ai`
-- Berechtigung: `ai_chat:reader` ermöglicht das Öffnen des Chat-Arbeitsbereichs und das Starten von Konversationen
-- Feature-Flag: erfordert, dass die Chat-Oberfläche auf Ihrer Instanz aktiviert ist. Wenn sie deaktiviert ist, zeigt der Arbeitsbereich anstelle der Chat-Oberfläche einen Hinweis an.
+- Berechtigung: `ai_chat:reader` erlaubt Ihnen, den Chat-Arbeitsbereich zu öffnen und Konversationen zu beginnen
+- Feature-Flag: Die Chat-Oberfläche muss auf Ihrer Instanz aktiviert sein. Ist sie deaktiviert, zeigt der Arbeitsbereich einen Hinweis anstelle der Chat-Oberfläche.
 
-Der Arbeitsbereich ist auch für Administratoren mit `ai_chat:admin` verfügbar, die alles sehen und moderieren können, was reguläre Benutzer tun.
+Der Arbeitsbereich steht auch Administratoren mit `ai_chat:admin` zur Verfügung, die alles sehen und moderieren können, was normale Benutzer tun.
 
-## Eine Konversation starten
+## Eine Konversation beginnen
 
-Wenn Sie Plaid zum ersten Mal öffnen, landen Sie auf einem Begrüßungsbildschirm mit:
+Wenn Sie Plaid zum ersten Mal öffnen, gelangen Sie auf einen Begrüßungsbildschirm mit:
 
-- Einem kurzen Slogan („Plaid ist bereit") und einer Beschreibung dessen, was Sie fragen können
-- Einem Abschnitt **Versuchen Sie zu fragen** mit Beispiel-Prompts, die Sie zum Senden anklicken können
-- Dem Editor unten, bereit, Ihre erste Nachricht entgegenzunehmen
+- Einem kurzen Slogan („Plaid ist bereit“) und einer Beschreibung dessen, was Sie fragen können
+- Einem Abschnitt **Versuchen Sie** mit Beispiel-Prompts, die Sie zum Senden anklicken können
+- Dem Eingabefeld am unteren Rand, bereit für Ihre erste Nachricht
 
-Klicken Sie auf einen Vorschlag, um ihn entweder direkt zu senden, oder – bei Prompts, die einen `@`-Platzhalter enthalten – um den Vorschlag in den Editor einzufügen, damit Sie ihn fertigstellen können.
+Klicken Sie auf einen beliebigen Vorschlag, um ihn entweder direkt zu senden oder — bei Prompts, die einen `@`-Platzhalter enthalten — den Vorschlag in das Eingabefeld einzufügen, damit Sie ihn vervollständigen können.
 
-Geben Sie eine Nachricht ein und drücken Sie **Enter** zum Senden. **Umschalt+Enter** fügt eine neue Zeile ein. Die Senden-Schaltfläche ist deaktiviert, solange nichts zu senden ist, und verwandelt sich in eine rote **Stopp**-Schaltfläche, während Plaid antwortet.
+Geben Sie eine Nachricht ein und drücken Sie **Eingabe** zum Senden. **Umschalt+Eingabe** fügt eine neue Zeile ein. Die Sende-Schaltfläche ist deaktiviert, solange nichts zu senden ist, und verwandelt sich in eine rote **Stopp**-Schaltfläche, während Plaid antwortet.
 
 ## Die Konversationsliste
 
@@ -33,113 +36,113 @@ Die Liste enthält:
 
 - Eine Schaltfläche **Neue Konversation** oben
 - Ein Suchfeld, das erscheint, sobald Sie mindestens eine Konversation haben
-- Konversationen gruppiert nach Datum: **Heute**, **Gestern**, **Letzte 7 Tage**, **Älter**
+- Nach Datum gruppierte Konversationen: **Heute**, **Gestern**, **Letzte 7 Tage**, **Älter**
 
-Jede Zeile zeigt den Konversationstitel (oder **Ohne Titel**, wenn noch keiner gesetzt wurde). Bewegen Sie den Mauszeiger über eine Zeile oder fokussieren Sie sie, um Folgendes anzuzeigen:
+Jede Zeile zeigt den Konversationstitel (oder **Ohne Titel**, wenn noch keiner festgelegt wurde). Fahren Sie mit der Maus über eine Zeile oder fokussieren Sie sie, um Folgendes einzublenden:
 
-- Ein Stiftsymbol – **Umbenennen** der Konversation. Doppelklicken Sie auf den Titel, um dasselbe zu tun.
-- Ein Papierkorbsymbol – **Archivieren** der Konversation. Archivierte Konversationen verschwinden aus der Liste. Wenn Sie die aktuell geöffnete Konversation archivieren, wechselt Plaid zu einem neuen leeren Chat.
+- Ein Stiftsymbol — die Konversation **Umbenennen**. Ein Doppelklick auf den Titel bewirkt dasselbe.
+- Ein Papierkorbsymbol — die Konversation **Archivieren**. Archivierte Konversationen verschwinden aus der Liste. Wenn Sie die aktuell geöffnete Konversation archivieren, wechselt Plaid zu einem neuen, leeren Chat.
 
-Die Suche filtert die Liste nach Titel während der Eingabe. Umbenennen und Archivieren werden sofort gespeichert.
+Die Suche filtert die Liste während der Eingabe nach Titel. Umbenennen und Archivieren werden sofort gespeichert.
 
 ## Eine Nachricht schreiben
 
-Der Editor ist der zentrale Steuerungspunkt des Arbeitsbereichs. Er unterstützt:
+Das Eingabefeld ist das zentrale Bedienelement des Arbeitsbereichs. Es unterstützt:
 
-- Mehrzeiligen Text bis zu 10 sichtbaren Zeilen, bevor er scrollt
+- Mehrzeiligen Text mit bis zu 10 sichtbaren Zeilen, bevor gescrollt wird
 - Inline-Bildanhänge (PNG, JPG, GIF, WEBP)
 - `@`-Erwähnungen von KANAP-Datensätzen
-- Eine Tastatur-Erinnerung („Enter zum Senden · Umschalt+Enter für neue Zeile")
+- Einen Tastatur-Hinweis („Eingabe zum Senden · Umschalt+Eingabe für neue Zeile“)
 
 ### Bilder anhängen
 
 Sie können Bilder auf drei Arten hinzufügen:
 
-- Klicken Sie auf das Büroklammer-Symbol und wählen Sie Dateien von Ihrem Computer
-- Ziehen Sie Bilddateien per Drag-and-Drop in den Editor (ein Hinweis-Overlay bestätigt das Ziel)
+- Klicken Sie auf das Büroklammer-Symbol und wählen Sie Dateien von Ihrem Computer aus
+- Ziehen Sie Bilddateien per Drag-and-drop auf das Eingabefeld (eine eingeblendete Hilfe bestätigt das Ablageziel)
 - Fügen Sie ein Bild direkt aus der Zwischenablage ein
 
-Jedes ausstehende Bild erscheint als Miniaturansicht über dem Text. Klicken Sie auf das kleine **X** an einer Miniaturansicht, um sie zu entfernen. Es gibt ein Anhangslimit pro Nachricht; sobald es erreicht ist, ist die Büroklammer deaktiviert, bis Sie die aktuellen Anhänge entfernen oder senden.
+Jedes noch nicht gesendete Bild erscheint als Miniaturansicht über dem Text. Klicken Sie auf das kleine **X** einer Miniaturansicht, um sie zu entfernen. Es gibt ein Anhang-Limit pro Nachricht; sobald es erreicht ist, ist die Büroklammer deaktiviert, bis Sie die aktuellen Anhänge entfernen oder senden.
 
-Bilder werden zusammen mit Ihrer Nachricht hochgeladen, sodass Plaid sie beschreiben, vergleichen oder Details extrahieren kann.
+Bilder werden zusammen mit Ihrer Nachricht hochgeladen, damit Plaid sie beschreiben, vergleichen oder Details daraus extrahieren kann.
 
 ### Datensätze mit `@` erwähnen
 
-Die Eingabe von `@` öffnet die **Erwähnungsauswahl** über dem Editor. Sie ermöglicht es Ihnen, jeden KANAP-Datensatz zu referenzieren, auf den Sie Zugriff haben, mit zwei sich ergänzenden Modi:
+Die Eingabe von `@` öffnet die **Erwähnungsauswahl** über dem Eingabefeld. Damit können Sie auf jeden KANAP-Datensatz verweisen, auf den Sie Zugriff haben — mit zwei sich ergänzenden Modi:
 
-- **Typ-Token-Präfix**: Kurze Codes, die einer einzelnen Entitätsfamilie zugeordnet sind. Beispiele:
-  - `@T-5` – Aufgabe mit der Referenz T-5
-  - `@DOC` – aktuelle Wissensdokumente
-  - `@APP backup` – Anwendungen, die zu „backup" passen
+- **Typ-Token-Präfix**: Kurzcodes, die einer einzelnen Entitätsfamilie zugeordnet sind. Beispiele:
+  - `@T-5` — Aufgabe mit der Referenz T-5
+  - `@DOC` — aktuelle Wissensdokumente
+  - `@APP backup` — Anwendungen, die zu „backup“ passen
   - `@PRJ`, `@REQ`, `@AST`, `@CONN`, `@INT`, `@LOC`, `@CTR`, `@CPX`, `@COMP`, `@CONT`, `@DEPT`, `@SUP`, `@BP`
-- **Klartext**: Alles andere (`@payroll`, `@server-2`) führt eine typenübergreifende Suche durch, die nach Relevanz sortiert wird.
+- **Klartext**: alles andere (`@payroll`, `@server-2`) startet eine typübergreifende Suche, sortiert nach Relevanz.
 
-Verwenden Sie die Pfeiltasten, um durch die Vorschläge zu navigieren, **Enter** oder **Tab** zur Bestätigung, **Escape** zum Schließen der Auswahl. Ergebnisse werden nach Entitätstyp gruppiert (Wissen, Aufgaben, Projekte, Anwendungen, Assets, Verträge usw.), sodass Sie auf einen Blick erkennen können, welche Art von Datensatz Sie einfügen werden.
+Verwenden Sie die Pfeiltasten, um durch die Vorschläge zu navigieren, **Eingabe** oder **Tab** zum Bestätigen und **Escape**, um die Auswahl zu schließen. Die Ergebnisse sind nach Entitätstyp gruppiert (Wissen, Aufgaben, Projekte, Anwendungen, Assets, Verträge usw.), sodass Sie auf einen Blick erkennen, welche Art von Datensatz Sie einfügen.
 
-Wenn Sie einen Vorschlag bestätigen, zeigt der Editor weiterhin eine lesbare Bezeichnung an (`@DOC-152`, `@SAP S/4HANA`). Beim Senden der Nachricht wird jede Erwähnung in einen echten Link erweitert, dem Plaid zum Quelldatensatz folgen kann.
+Wenn Sie einen Vorschlag bestätigen, zeigt das Eingabefeld weiterhin eine lesbare Bezeichnung an (`@DOC-152`, `@SAP S/4HANA`). Beim Senden der Nachricht wird jede Erwähnung in einen echten Link umgewandelt, dem Plaid zurück zum Quelldatensatz folgen kann.
 
 ### Eine Nachricht bearbeiten oder neu generieren
 
-Bewegen Sie den Mauszeiger über eine Ihrer vorherigen Nachrichten, um Aktionen auf Nachrichtenebene zu erhalten:
+Fahren Sie mit der Maus über eine Ihrer vorherigen Nachrichten, um Aktionen auf Nachrichtenebene zu erhalten:
 
-- **Kopieren** – kopiert den Nachrichtentext in die Zwischenablage
-- **Bearbeiten** – öffnet die Nachricht erneut in einem Inline-Editor; das Speichern sendet die neue Version und schneidet alles ab, was danach kam (die Konversation läuft ab diesem Punkt erneut)
-- **Neu generieren** (bei Assistenten-Antworten) – fordern Sie Plaid auf, eine andere Antwort auf denselben Prompt zu produzieren
+- **Kopieren** — den Nachrichtentext in die Zwischenablage kopieren
+- **Bearbeiten** — die Nachricht in einem Inline-Editor erneut öffnen; beim Speichern wird die neue Version gesendet und alles danach abgeschnitten (die Konversation läuft ab diesem Punkt neu)
+- **Neu generieren** (bei Assistentenantworten) — Plaid bitten, eine weitere Antwort auf denselben Prompt zu erzeugen
 
-Bearbeiten ist das richtige Werkzeug, wenn Sie feststellen, dass Ihre vorherige Frage unklar war. Neu generieren ist das richtige Werkzeug, wenn die Frage in Ordnung war, aber die Antwort nicht.
+Bearbeiten ist die richtige Wahl, wenn Sie feststellen, dass Ihre frühere Frage unklar war. Neu generieren ist die richtige Wahl, wenn die Frage in Ordnung war, die Antwort aber nicht.
 
 ## Wie Plaid antwortet
 
 Plaid streamt seine Antwort Zeichen für Zeichen. Während des Streamings:
 
-- Bleibt der Editor nutzbar, sodass Sie eine Folgefrage vorbereiten können
-- Zeigt die Senden-Schaltfläche ein rotes **Stopp**-Symbol – ein Klick darauf bricht die laufende Antwort ab
-- Erscheint ein kleiner „Werkzeuge werden verwendet…"-Indikator, wenn Plaid KANAP durchsucht, ein Dokument abruft oder einen anderen Werkzeugaufruf ausführt
-- Werden die Anzahl und Art der verwendeten Werkzeuge unter der Antwort zusammengefasst, sobald sie abgeschlossen ist
+- Das Eingabefeld bleibt nutzbar, sodass Sie eine Anschlussfrage vorbereiten können
+- Die Sende-Schaltfläche zeigt ein rotes **Stopp**-Symbol — ein Klick darauf bricht die laufende Antwort ab
+- Ein kleiner Indikator „Tools werden verwendet…“ erscheint, wenn Plaid KANAP durchsucht, ein Dokument abruft oder einen anderen Tool-Aufruf ausführt
+- Anzahl und Art der verwendeten Tools werden unter der Antwort zusammengefasst, sobald sie fertig ist
 
-Wenn der Stream endet, springt der Fokus zurück zum Editor, sodass Sie die Konversation fortsetzen können, ohne zur Maus greifen zu müssen.
+Wenn der Stream endet, springt der Fokus zurück zum Eingabefeld, sodass Sie die Konversation fortsetzen können, ohne zur Maus zu greifen.
 
-### Werkzeugaufrufe
+### Tool-Aufrufe
 
-Plaid verwendet eine kleine Reihe interner Werkzeuge zur Beantwortung von Fragen: `Search all`, `Search knowledge`, `Get document`, `Get entity context` und einige andere. Jeder Werkzeugaufruf erscheint als kompakte Zeile unter der Nachricht („used Search all · 8 results"). Sie müssen die Werkzeugdetails normalerweise nicht lesen, aber sie sind verfügbar, wenn Sie genau sehen möchten, auf welchen Datensätzen die Antwort basiert.
+Plaid verwendet eine kleine Auswahl interner Tools, um Fragen zu beantworten: `Search all`, `Search knowledge`, `Get document`, `Get entity context` und einige weitere. Jeder Tool-Aufruf erscheint als kompakte Zeile unter der Nachricht („Alles durchsuchen verwendet · 8 Ergebnisse“). In der Regel müssen Sie die Tool-Details nicht lesen, aber sie sind vorhanden, falls Sie genau sehen möchten, auf welchen Datensätzen die Antwort beruht.
 
 ## Artefakte und Vorschauen
 
-Einige Antworten werden mit zusätzlichem Material geliefert, das nicht natürlich in den Chat-Verlauf passt. KANAP nennt diese **Artefakte**.
+Einige Antworten bringen zusätzliches Material mit, das nicht natürlich in den Chat-Verlauf passt. KANAP nennt diese **Artefakte**.
 
 Häufige Fälle:
 
 - Ein langer Text- oder Markdown-Block, den Plaid für Sie vorbereitet hat
-- Ein nebeneinander angezeigter **Vorher / Nachher**-Vergleich eines Datensatzes, den Plaid aktualisieren möchte
-- Ein Entwurf eines Imports oder Änderungssatzes, der Ihre Freigabe erfordert
+- Eine nebeneinander angeordnete **Vorher/Nachher**-Gegenüberstellung eines Datensatzes, den Plaid aktualisieren möchte
+- Ein Entwurf für einen Import oder ein Änderungspaket, das Ihre Bestätigung erfordert
 
-Artefakte werden in einem Seitenpanel rechts vom Arbeitsbereich geöffnet. Das Panel kann durch Klicken auf die Schaltfläche **Artefakte** am rechten Bildschirmrand umgeschaltet werden.
+Artefakte öffnen sich in einem seitlichen Panel rechts im Arbeitsbereich. Das Panel lässt sich über die Registerkarten-Schaltfläche **Artefakte** am rechten Bildschirmrand ein- und ausblenden.
 
 Das Panel öffnet sich automatisch, wenn:
 
-- Eine lange Vorschau während einer Streaming-Antwort eintrifft
-- Eine ausstehende Vorschau Ihre Entscheidung benötigt (diese öffnen das Panel immer, da Sie darauf reagieren müssen)
+- Eine lange Vorschau während einer gestreamten Antwort eintrifft
+- Eine ausstehende Vorschau Ihre Entscheidung erfordert (diese öffnen das Panel immer, da Sie darauf reagieren müssen)
 
 Bei ausstehenden Änderungsvorschauen bietet das Panel zwei Schaltflächen:
 
-- **Genehmigen** – bestätigt die Änderung und lässt Plaid sie anwenden
-- **Ablehnen** – bricht die Änderung ab. Plaid bestätigt die Ablehnung und setzt die Konversation fort.
+- **Genehmigen** — bestätigt die Änderung und lässt Plaid sie anwenden
+- **Ablehnen** — verwirft die Änderung. Plaid bestätigt die Ablehnung und setzt die Konversation fort.
 
-Nichts, was KANAP-Daten verändert, wird stillschweigend angewendet. Die Vorschau ist das Tor.
+Nichts, was KANAP-Daten verändert, wird stillschweigend angewendet. Die Vorschau ist die Kontrollinstanz.
 
-## Nutzungsindikatoren
+## Nutzungsanzeigen
 
-Über dem Editor helfen Ihnen zwei kleine Indikatoren, sich der Kosten und Limits bewusst zu bleiben:
+Über dem Eingabefeld helfen Ihnen zwei kleine Anzeigen, Kosten und Grenzen im Blick zu behalten:
 
-- **Integrierte Nutzung**: Wenn Ihr Mandant den integrierten Plaid-AI-Anbieter verwendet (anstelle Ihres eigenen API-Schlüssels), zeigt dies an, wie viele Nachrichten im aktuellen Monat noch verbleiben und das Datum, an dem das Kontingent zurückgesetzt wird. Wenn das Limit erreicht ist, wird der Editor deaktiviert und ein Hilfetext lädt Administratoren ein, zu einem benutzerdefinierten Anbieter zu wechseln.
-- **Token-Nutzung**: Ein dünner Balken mit Eingabe-/Ausgabe-Token-Zählern für die aktuelle Konversation sowie der Größe der letzten Anfrage. Lange Konversationen werden mit der Zeit teurer; der Balken macht diese Kosten sichtbar, sodass Sie entscheiden können, wann ein neuer Thread gestartet werden soll.
+- **Integrierte Nutzung**: Wenn Ihr Mandant den integrierten Plaid-KI-Provider (statt Ihres eigenen API-Schlüssels) verwendet, zeigt dies, wie viele Nachrichten im aktuellen Monat verbleiben und an welchem Datum das Kontingent zurückgesetzt wird. Ist das Limit erreicht, wird das Eingabefeld deaktiviert und ein Hinweistext fordert Administratoren auf, zu einem benutzerdefinierten Provider zu wechseln.
+- **Token-Nutzung**: ein schmaler Balken mit Zählern für Eingabe-/Ausgabe-Tokens der aktuellen Konversation sowie der Größe der letzten Anfrage. Lange Konversationen werden mit der Zeit teurer; der Balken macht diese Kosten sichtbar, sodass Sie entscheiden können, wann Sie einen neuen Verlauf beginnen.
 
-Der Token-Nutzungsbalken erscheint erst, sobald die Konversation mindestens einen Austausch hat.
+Der Token-Nutzungsbalken erscheint erst, wenn die Konversation mindestens einen Austausch enthält.
 
 ## Tipps
 
-- **Verwenden Sie Präfixe für Präzision**: `@T-`, `@DOC-`, `@PRJ-`, `@REQ-` werden direkt nativen KANAP-Referenzen zugeordnet. Sie sind der schnellste Weg, Plaid auf einen bestimmten Datensatz zu verweisen, und sie überleben Kopieren-Einfügen, weil sie identisch mit dem aussehen, was Sie an anderer Stelle in der Anwendung sehen.
-- **Starten Sie pro Thema eine neue Konversation**: Wenn Sie unzusammenhängende Fragen in separaten Konversationen halten, wird das Kontextfenster kleiner, die Antworten schneller und die Token-Rechnung niedriger. Die Konversationsliste ist nach Datum gruppiert, sodass Sie sie leicht wiederfinden.
-- **Genehmigen und ablehnen Sie bewusst**: Vorschauen sind das einzige, was zwischen Plaid und Ihren Live-Daten steht. Nehmen Sie sich die zusätzliche Sekunde, um den Unterschied zu lesen, bevor Sie auf **Genehmigen** klicken.
-- **Stoppen statt warten**: Wenn Plaid mitten im Stream den falschen Weg einschlägt, drücken Sie die **Stopp**-Schaltfläche, anstatt darauf zu warten, dass es fertig wird. Sie sparen Token, und Ihre Folgenachricht kann den Kurs korrigieren.
-- **Bilder direkt einfügen**: Das Ziehen eines Screenshots in den Editor ist schneller als die Dateiauswahl, und das Einfügen aus der Zwischenablage funktioniert auch. Verwenden Sie es, um ein UI-Problem zu beschreiben oder Plaid zu bitten, ein Diagramm zu lesen.
+- **Präfixe für Präzision nutzen**: `@T-`, `@DOC-`, `@PRJ-`, `@REQ-` sind direkt nativen KANAP-Referenzen zugeordnet. Sie sind der schnellste Weg, Plaid auf einen bestimmten Datensatz zu lenken, und sie überstehen Kopieren und Einfügen, weil sie identisch mit dem aussehen, was Sie an anderer Stelle in der Anwendung sehen.
+- **Pro Thema eine neue Konversation beginnen**: Wenn Sie unzusammenhängende Fragen in getrennten Konversationen halten, bleibt das Kontextfenster kleiner, die Antworten kommen schneller und die Token-Kosten sinken. Die Konversationsliste ist nach Datum gruppiert, sodass Sie sie leicht wiederfinden.
+- **Bewusst genehmigen und ablehnen**: Vorschauen sind das Einzige, was zwischen Plaid und Ihren Live-Daten steht. Nehmen Sie sich die zusätzliche Sekunde, um die Gegenüberstellung zu lesen, bevor Sie auf **Genehmigen** klicken.
+- **Stoppen statt warten**: Wenn Plaid mitten im Stream in die falsche Richtung läuft, drücken Sie die **Stopp**-Schaltfläche, statt auf das Ende zu warten. Sie sparen Tokens, und Ihre Anschlussnachricht kann den Kurs korrigieren.
+- **Bilder direkt ablegen**: Einen Screenshot auf das Eingabefeld zu ziehen ist schneller als der Dateiauswahldialog, und das Einfügen aus der Zwischenablage funktioniert ebenfalls. Nutzen Sie das, wenn Sie ein UI-Problem beschreiben oder Plaid bitten, ein Diagramm zu lesen.
