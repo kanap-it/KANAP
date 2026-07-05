@@ -6532,6 +6532,7 @@ export class AiAgentControlService {
         language: synthesisLanguage,
         knowledgeDocs: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
         webResults: webSearchResults,
+        imageEvidence: ticketImageExtraction.evidence,
         interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
         profile: promptRuntime.synthesisGuidance,
       });
@@ -6574,6 +6575,7 @@ export class AiAgentControlService {
             language: synthesisLanguage,
             knowledgeDocs: enrichedKnowledgeItems.slice(0, MAX_KNOWLEDGE_DOCUMENTS_FOR_REPLY),
             webResults: webSearchResults,
+            imageEvidence: ticketImageExtraction.evidence,
             interpretation: serializeKnowledgeInterpretation(knowledgeInterpretation),
             profile: promptRuntime.synthesisGuidance,
           });
@@ -6692,6 +6694,7 @@ export class AiAgentControlService {
       reply_language: synthesisLanguage,
       knowledge_summary: plannerKnowledgeSummary(knowledgeItems, knowledgeLowRelevance.length, knowledgeInterpretation, knowledgeSearchPlan, knowledgeQueryDerivation),
       web_summary: plannerWebSummary(webSearchResults, webSearchStatus, webSearchQuery),
+      image_evidence: ticketImageExtraction.evidence,
       granted_capabilities: allowedCapabilityNames(agentDefinition),
       owned_action_types: [...PHASE_1_PLANNER_OWNED_ACTION_TYPES],
       provider_profile: providerActionPlannerProfile,

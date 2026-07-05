@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'La plataforma open source de gobernanza de TI',
+    title: 'Agentes de IA open source para su departamento de TI',
     description:
-      'Presupuesto, arquitectura empresarial, portafolio y conocimiento en una sola plataforma. Plaid permite trabajarla en lenguaje natural y los agentes de IA asumen la carga repetitiva. Open source bajo AGPL v3. Autoaloje gratis o elija KANAP alojado.',
+      'Agentes de IA anclados en la imagen completa de su TI: aplicaciones, infraestructura, presupuestos, proyectos y documentación. Open source bajo AGPL v3. Autoaloje gratis o elija KANAP alojado.',
   },
 
   hero: {
-    eyebrow: 'Aporte claridad a su departamento de TI',
-    title: 'La plataforma open source de gobernanza de TI.',
-    lead: 'Presupuesto, arquitectura, portafolio y conocimiento en una sola plataforma. Plaid permite a su equipo trabajarla en lenguaje natural, y los agentes de IA asumen el trabajo repetitivo.\nAutoalójela gratis o déjenos operarla por usted.',
+    eyebrow: 'Open source · autoalojada · pensada para ampliarse',
+    title: 'Agentes de IA que asumen su trabajo repetitivo.',
+    lead: 'KANAP guarda la imagen completa de su departamento de TI, desde las aplicaciones y los servidores hasta los presupuestos y los proyectos. Plaid permite a cualquiera trabajarla en lenguaje natural, y ahora los agentes actúan sobre ese repositorio para quitar a su equipo la carga repetitiva.\nAutoalójela gratis o déjenos operarla por usted.',
     primaryCta: 'Desplegar gratis',
     secondaryCta: 'Probar nube alojada',
     trialNote: 'AGPL v3 · código completo en GitHub · instalación Docker · sin paywall de funcionalidades.',
@@ -21,18 +21,6 @@ const content: HomeContent = {
     title: 'Lo que hace diferente a KANAP.',
     items: [
       {
-        title: 'Creada por profesionales',
-        body: 'Diseñada por un veterano de TI con experiencia real en distintos sectores. Resuelve los problemas reales de un departamento de TI, no problemas genéricos de colaboración.',
-      },
-      {
-        title: 'Simple y potente',
-        body: 'Cero teatro de complejidad. Lo bastante potente para resolver problemas difíciles. Lo bastante simple para que su equipo la adopte hoy.',
-      },
-      {
-        title: 'Realmente open source',
-        body: 'AGPL v3. Código fuente completo en GitHub. Autoalojamiento gratuito, abierto a contribuciones. Sin bloqueo de proveedor, sin paywall de funcionalidades, sin trampa freemium.',
-      },
-      {
         title: 'Todo el departamento de TI en un solo sistema.',
         body: 'Las aplicaciones, la infraestructura, los presupuestos, los proyectos y la documentación viven en un único repositorio, en lugar de diez herramientas desconectadas.',
       },
@@ -41,8 +29,8 @@ const content: HomeContent = {
         body: 'Los agentes autónomos se ocupan de la carga repetitiva y ganan más independencia a medida que se demuestran en tareas reales.',
       },
       {
-        title: 'Adóptela a su ritmo',
-        body: 'Cada módulo es plenamente usable por sí solo. Empiece por donde más duele y añada el resto cuando esté listo, sin migración integral de la plataforma.',
+        title: 'Open source, autoalojada, ampliable por usted.',
+        body: 'Código fuente completo bajo AGPL v3. Ejecútela en sus propios servidores, conserve todas las funcionalidades y escriba sus propios agentes y conectores.',
       },
     ],
   },
@@ -73,7 +61,7 @@ const content: HomeContent = {
     eyebrow: 'Caja de herramientas de TI completa',
     title: 'Pensada para cada rol de TI.',
     intro:
-      'KANAP cubre el terreno esencial que todo departamento de TI necesita para funcionar, desde la primera línea de presupuesto hasta la última aplicación retirada, con Plaid para trabajarlo de forma transversal en lenguaje natural y agentes que asumen la carga repetitiva.',
+      'KANAP cubre el terreno esencial que todo departamento de TI necesita para funcionar, desde la primera línea de presupuesto hasta la última aplicación retirada, con Plaid para trabajarlo de forma transversal en lenguaje natural y agentes que asumen la carga repetitiva. Cada módulo es plenamente usable por sí solo, así que puede empezar por donde más duele y añadir el resto cuando esté listo.',
     items: [
       {
         slug: '/features/budget',

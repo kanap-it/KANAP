@@ -2,15 +2,15 @@ import type { HomeContent } from './types';
 
 const content: HomeContent = {
   meta: {
-    title: 'Die Open-Source-Plattform für IT-Governance',
+    title: 'Open-Source-KI-Agenten für Ihre IT-Abteilung',
     description:
-      'Budget, Unternehmensarchitektur, Portfolio und Wissen in einer Plattform. Plaid bearbeitet alles in Alltagssprache, und KI-Agenten übernehmen die wiederkehrende Last. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
+      'KI-Agenten, verankert im vollständigen Bild Ihrer IT: Anwendungen, Infrastruktur, Budgets, Projekte und Dokumentation. Open Source unter AGPL v3. Kostenlos selbst hosten oder Hosted KANAP wählen.',
   },
 
   hero: {
-    eyebrow: 'Bringen Sie Klarheit in Ihre IT-Abteilung',
-    title: 'Die Open-Source-Plattform für IT-Governance.',
-    lead: 'Budget, Architektur, Portfolio und Wissen in einer Plattform. Plaid lässt Ihr Team alles in Alltagssprache bearbeiten, und KI-Agenten übernehmen die wiederkehrende Arbeit.\nKostenlos selbst hosten oder von uns betreiben lassen.',
+    eyebrow: 'Open Source · selbst gehostet · auf Erweiterung ausgelegt',
+    title: 'KI-Agenten, die Ihre wiederkehrende Arbeit übernehmen.',
+    lead: 'KANAP hält das vollständige Bild Ihrer IT-Abteilung, von Anwendungen und Servern bis zu Budgets und Projekten. Plaid lässt jeden in Alltagssprache damit arbeiten, und Agenten handeln jetzt auf dieser Grundlage, um Ihrem Team die wiederkehrende Last abzunehmen.\nKostenlos selbst hosten oder von uns betreiben lassen.',
     primaryCta: 'Kostenlos bereitstellen',
     secondaryCta: 'Hosted Cloud testen',
     trialNote: 'AGPL v3 · kompletter Quellcode auf GitHub · Docker-Installation · keine Feature-Paywall.',
@@ -21,18 +21,6 @@ const content: HomeContent = {
     title: 'Was KANAP unterscheidet.',
     items: [
       {
-        title: 'Von Praktikern entwickelt',
-        body: 'Konzipiert von einem erfahrenen IT-Veteranen mit echter branchenübergreifender Erfahrung. Es löst reale Probleme der IT-Abteilung, nicht generische Kollaborationsprobleme.',
-      },
-      {
-        title: 'Einfach und stark',
-        body: 'Kein Komplexitätstheater. Stark genug für schwierige Probleme. Einfach genug, dass Ihr Team es heute einführt.',
-      },
-      {
-        title: 'Wirklich Open Source',
-        body: 'AGPL v3. Vollständiger Quellcode auf GitHub. Frei zum Selbsthosten, offen für Beiträge. Kein Vendor-Lock-in, keine Feature-Paywall, keine Freemium-Falle.',
-      },
-      {
         title: 'Die ganze IT-Abteilung in einem System.',
         body: 'Anwendungen, Infrastruktur, Budgets, Projekte und Dokumentation liegen in einem zentralen Datenbestand statt in zehn unverbundenen Tools.',
       },
@@ -41,8 +29,8 @@ const content: HomeContent = {
         body: 'Autonome Agenten übernehmen die wiederkehrende Last und gewinnen mehr Eigenständigkeit, je mehr sie sich an realen Aufgaben beweisen.',
       },
       {
-        title: 'In Ihrem Tempo einführen',
-        body: 'Jedes Modul ist allein voll nutzbar. Beginnen Sie dort, wo es am meisten weh tut, und ergänzen Sie den Rest, wenn Sie soweit sind, ohne Komplettmigration.',
+        title: 'Open Source, selbst gehostet, von Ihnen erweiterbar.',
+        body: 'Vollständiger Quellcode unter AGPL v3. Betreiben Sie es auf Ihren eigenen Servern, behalten Sie jede Funktion und schreiben Sie Ihre eigenen Agenten und Konnektoren.',
       },
     ],
   },
@@ -73,7 +61,7 @@ const content: HomeContent = {
     eyebrow: 'Komplettes IT-Toolkit',
     title: 'Für jede IT-Rolle gemacht.',
     intro:
-      'KANAP deckt das Kernterrain ab, das jede IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit Plaid, um alles in Alltagssprache zu bearbeiten, und Agenten, die die wiederkehrende Last übernehmen.',
+      'KANAP deckt das Kernterrain ab, das jede IT-Abteilung im Griff haben muss, von der ersten Budgetzeile bis zur letzten abgeschalteten Anwendung, mit Plaid, um alles in Alltagssprache zu bearbeiten, und Agenten, die die wiederkehrende Last übernehmen. Jedes Modul ist für sich allein voll nutzbar, Sie können also dort anfangen, wo es am meisten weh tut, und den Rest ergänzen, wenn Sie soweit sind.',
     items: [
       {
         slug: '/features/budget',

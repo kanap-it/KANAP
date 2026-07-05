@@ -1,4 +1,4 @@
-interface_id;environment;leg_order;connection_id;notes
+interface_id;environment;leg_order;connection_ref;notes
 IF-FROMAGE-001;prod;3;CONN-FROMAGE-001;SAP to Salesforce production routed via Paris-Gouda WAN
 IF-FROMAGE-001;qa;3;CONN-FROMAGE-001;SAP to Salesforce QA routed via Paris-Gouda WAN
 IF-FROMAGE-002;prod;3;CONN-FROMAGE-001;BW feed to Power BI via Paris-Gouda WAN

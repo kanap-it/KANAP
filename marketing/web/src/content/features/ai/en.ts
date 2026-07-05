@@ -81,8 +81,8 @@ const content: FeatureContent = {
   cta: {
     title: 'AI-powered IT governance starts here.',
     body: 'Plaid is included in every KANAP workspace, with generous usage on hosted cloud. Self-host free, or try the hosted cloud.',
-    primary: 'Start free trial',
-    secondary: 'Talk to us',
+    primary: 'Deploy free',
+    secondary: 'Try hosted cloud',
   },
 };
 

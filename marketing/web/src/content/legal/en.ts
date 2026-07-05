@@ -194,11 +194,11 @@ const content: LegalContent = {
 <p>KANAP is an online IT management platform designed for technology leaders and IT departments. The specific features are those described on the website at the time of subscription.</p>
 
 <h2>Article 4. Subscription and pricing</h2>
-<p>4.1. Access to the Service is offered under multiple plans described on the pricing page. Rates are indicated in euros (EUR) and are exclusive of taxes. Applicable VAT will be added to the invoice according to the customer's location and tax status.</p>
-<p>4.2. A contributor is any user who can create or modify data. Read-only users are free and unlimited in all plans.</p>
+<p>4.1. Access to the Service is offered under the subscription offers described on the pricing page. Rates are indicated in euros (EUR) and are exclusive of taxes. Applicable VAT will be added to the invoice according to the customer's location and tax status.</p>
+<p>4.2. Subscriptions include an unlimited number of users and workspaces. No per-user fee applies.</p>
 <p>4.3. The rates applicable for subscriptions are displayed on the website at the time of subscription. Rates may be modified at any time, but such modifications will only apply to subscriptions entered into after the modification.</p>
 <p>4.4. The customer will be informed in advance of any rate modification before the automatic renewal of their subscription.</p>
-<p>4.5. Paying subscribers receive a 20% discount on consulting services. Consulting services are billed separately at rates displayed on the website.</p>
+<p>4.5. Paying subscribers receive a 20% discount on consulting services. Consulting services and fixed-price service engagements are billed separately at rates displayed on the website.</p>
 
 <h2>Article 5. Payment terms</h2>
 <p>5.1. Payment is made by credit card via a secure payment platform (Stripe).</p>
@@ -211,7 +211,7 @@ const content: LegalContent = {
 <h2>Article 6. Subscription duration and renewal</h2>
 <p>6.1. <strong>Monthly subscription:</strong> entered into for one month, automatically renewable by tacit renewal. The Customer may cancel at any time from the account area, with 48h notice before renewal. Cancellation takes effect at the end of the current month.</p>
 <p>6.2. <strong>Annual subscription:</strong> entered into for one year, automatically renewable by tacit renewal unless cancelled. The customer is notified by email 30 days before renewal. Cancellation requires 30 days' notice before the anniversary date. Annual subscription does not entitle to a refund in case of early cancellation.</p>
-<p>6.3. <strong>Plan modifications:</strong> Customers may upgrade at any time (prorated difference charged immediately) or downgrade at the end of the current billing period. Customers may switch between cloud and self-hosted deployment at any time by contacting support.</p>
+<p>6.3. <strong>Subscription changes:</strong> Customers may switch from monthly to annual billing at any time (prorated difference charged immediately) or from annual to monthly at the end of the current billing period. Customers may switch between cloud and self-hosted deployment at any time by contacting support.</p>
 
 <h2>Article 7. Right of withdrawal</h2>
 <p>7.1. Since KANAP is a B2B service, the legal right of withdrawal applicable to consumers does not apply.</p>

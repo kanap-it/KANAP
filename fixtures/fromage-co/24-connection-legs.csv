@@ -1,5 +1,9 @@
-connection_id;order_index;layer_type;source_entity_code;destination_entity_code;protocol_codes;port_override;notes
-CONN-FROMAGE-001;1;network;par_dc1;gou_dc1;tcp;;Primary transport leg
-CONN-FROMAGE-002;1;network;par_dc1;prm_site;tcp;;Primary transport leg
-CONN-FROMAGE-003;1;network;par_dc1;nyc_off;ipsec;;Primary VPN leg
-CONN-FROMAGE-004;1;network;par_dc1;aws_eu;ipsec;;Primary VPN leg
+connection_ref;order_index;function_code;equipment_asset_name;protocol_codes;port_override;notes
+CONN-FROMAGE-001;1;firewall;PAR-FW-01;tcp;;Paris perimeter firewall
+CONN-FROMAGE-001;2;firewall;GOU-FW-01;tcp;;Gouda site firewall
+CONN-FROMAGE-002;1;firewall;PAR-FW-01;tcp;;Paris perimeter firewall
+CONN-FROMAGE-002;2;firewall;PRM-FW-01;tcp;;Parma site firewall
+CONN-FROMAGE-003;1;vpn_endpoint;PAR-FW-01;ipsec;;Paris VPN concentrator (FortiGate)
+CONN-FROMAGE-003;2;vpn_endpoint;NYC-FW-01;ipsec;;NYC office VPN endpoint
+CONN-FROMAGE-004;1;vpn_endpoint;PAR-FW-01;ipsec;;Paris VPN concentrator (FortiGate)
+CONN-FROMAGE-004;2;vpn_endpoint;;ipsec;;AWS Virtual Private Gateway (managed)

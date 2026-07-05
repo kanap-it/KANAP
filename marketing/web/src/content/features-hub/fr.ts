@@ -95,8 +95,8 @@ const content: FeaturesHubContent = {
     title: 'Prêt à voir votre rôle sur la plateforme ?',
     body:
       'Auto-hébergez gratuitement, ou essayez le cloud hébergé.\nToutes les fonctionnalités sur chaque plan, cloud comme auto-hébergement.',
-    primary: 'Essai gratuit',
-    secondary: 'Déployer depuis GitHub',
+    primary: 'Déployer gratuitement',
+    secondary: 'Essayer le cloud hébergé',
   },
 };
 
