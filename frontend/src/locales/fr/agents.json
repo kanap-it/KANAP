@@ -426,7 +426,9 @@
       "thisAgent": "Cet agent",
       "replaceTitle": "Remplacer les filtres ?",
       "replaceDescription": "{{preset}} remplacera le jeu de filtres actuel.",
-      "replace": "Remplacer"
+      "replace": "Remplacer",
+      "includesSubcategories": "Les sous-catégories sont incluses",
+      "includesSubentities": "Les sous-entités sont incluses"
     },
     "targetingFields": {
       "status": "Statut",

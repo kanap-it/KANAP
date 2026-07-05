@@ -915,6 +915,15 @@ export class GlpiTicketingProvider implements TicketingProvider {
     const scope = input.scope;
     const entityId = scope.entityId == null ? null : normalizeTicketId(scope.entityId);
     const categoryId = scope.categoryId == null ? null : normalizeTicketId(scope.categoryId);
+    const normalizedIdList = (ids: string[] | null | undefined): number[] | null => {
+      if (!ids || ids.length === 0) {
+        return null;
+      }
+      const normalized = ids.map((id) => normalizeTicketId(id)).filter((id): id is number => id != null);
+      return normalized.length > 0 ? normalized : null;
+    };
+    const entityIds = normalizedIdList(scope.entityIds);
+    const categoryIds = normalizedIdList(scope.categoryIds);
     if (scope.mode === 'new_tickets_only') {
       if (!scope.createdAfter || !Number.isFinite(Date.parse(scope.createdAfter))) {
         return providerError<{ tickets: TicketRecord[] }>('unsafe_operation', 'GLPI new-ticket listing requires a valid created-after horizon.', false);
@@ -927,6 +936,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
           statusValues: scope.statusValues,
           entityId,
           categoryId,
+          entityIds,
+          categoryIds,
         });
         const data = { tickets: tickets.map(toTicketRecord) };
         return ok(data, [
@@ -950,6 +961,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
           statusValues: scope.statusValues,
           entityId,
           categoryId,
+          entityIds,
+          categoryIds,
           lastChangedBefore: scope.lastChangedBefore ?? null,
           lastChangedAfter: scope.lastChangedAfter ?? null,
         });
@@ -1007,6 +1020,29 @@ export class GlpiTicketingProvider implements TicketingProvider {
           query: input.query ?? null,
           limit,
           items: data.items,
+        }),
+      ]);
+    });
+  }
+
+  async resolveReferenceSubtree(
+    context: ProviderContext,
+    input: { kind: TicketReferenceCatalogKind; ids: string[] },
+  ): Promise<AdapterResult<{ ids: string[] }>> {
+    const roots = Array.from(new Set(
+      (input.ids ?? []).map((id) => normalizeTicketId(id)).filter((id): id is number => id != null),
+    ));
+    if (roots.length === 0) {
+      return ok({ ids: [] }, []);
+    }
+    return this.withAvailableSession(context, async (session) => {
+      const ids = await this.glpi.listReferenceSubtreeIds(session, input.kind, roots);
+      const data = { ids: ids.map((id) => String(id)) };
+      return ok(data, [
+        evidenceSeed(`${input.kind}_subtree`, roots.join(','), `Expanded ${roots.length} GLPI ${input.kind} id(s) to ${data.ids.length} including descendants.`, {
+          kind: input.kind,
+          rootIds: roots.map((id) => String(id)),
+          count: data.ids.length,
         }),
       ]);
     });

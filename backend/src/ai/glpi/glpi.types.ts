@@ -37,6 +37,11 @@ export type GlpiTicketListScope =
       statusValues?: string[];
       entityId?: number | null;
       categoryId?: number | null;
+      // Recursive selection: full allowed id sets (root + descendants). When present,
+      // the GLPI criteria push down 'under' and post-fetch revalidation checks
+      // membership instead of exact-id equality.
+      entityIds?: number[] | null;
+      categoryIds?: number[] | null;
     }
   | {
       // All currently-open tickets (status 1-4), bounded by per-cycle caps and an
@@ -46,6 +51,8 @@ export type GlpiTicketListScope =
       statusValues?: string[];
       entityId?: number | null;
       categoryId?: number | null;
+      entityIds?: number[] | null;
+      categoryIds?: number[] | null;
       lastChangedBefore?: string | null;
       lastChangedAfter?: string | null;
     };

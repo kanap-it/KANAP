@@ -174,6 +174,11 @@ export type TicketListScope =
       statusValues?: string[];
       entityId?: string | null;
       categoryId?: string | null;
+      // Full allowed id sets (root first, then descendants) when the selection is
+      // recursive. When present they supersede exact-id matching on entityId/categoryId;
+      // when absent the scope stays exact-match for backward compatibility.
+      entityIds?: string[] | null;
+      categoryIds?: string[] | null;
     }
   | {
       // All currently-open tickets (provider-defined non-terminal statuses), bounded by
@@ -186,6 +191,8 @@ export type TicketListScope =
       statusValues?: string[];
       entityId?: string | null;
       categoryId?: string | null;
+      entityIds?: string[] | null;
+      categoryIds?: string[] | null;
       lastChangedBefore?: string | null;
       lastChangedAfter?: string | null;
     };
@@ -603,6 +610,9 @@ export interface TicketingProvider extends ProviderBase {
   listTicketsForScope(context: ProviderContext, input: { scope: TicketListScope }): Promise<AdapterResult<{ tickets: TicketRecord[] }>>;
   describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<TicketReferenceEnums>>;
   searchReferenceCatalog(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number }): Promise<AdapterResult<{ items: RefItem[] }>>;
+  // Expand tree-catalog ids (categories/entities) to the ids plus all their
+  // descendants, input ids first. Backs recursive targeting selection.
+  resolveReferenceSubtree(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; ids: string[] }): Promise<AdapterResult<{ ids: string[] }>>;
   getTicketClassificationContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketClassificationContext>>;
   getTicketLifecycleContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketLifecycleContext>>;
   getTicketRoutingContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRoutingContext>>;

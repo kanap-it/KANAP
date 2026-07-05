@@ -426,7 +426,9 @@
       "thisAgent": "Dieser Agent",
       "replaceTitle": "Filter ersetzen?",
       "replaceDescription": "{{preset}} ersetzt den aktuellen Filtersatz.",
-      "replace": "Ersetzen"
+      "replace": "Ersetzen",
+      "includesSubcategories": "Unterkategorien sind eingeschlossen",
+      "includesSubentities": "Untereinheiten sind eingeschlossen"
     },
     "targetingFields": {
       "status": "Status",

@@ -14,7 +14,14 @@ import {
   HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
   HelpdeskNewTicketsIngestionConfig,
 } from './ai-agent-work-queue.service';
-import { OPEN_TICKET_STATUS_VALUES, normalizeServiceDeskTargeting, ticketMatchesServiceDeskTargeting } from './service-desk-targeting';
+import {
+  OPEN_TICKET_STATUS_VALUES,
+  ReferenceSubtreeResolver,
+  createProviderSubtreeResolver,
+  expandServiceDeskTargetingSubtrees,
+  normalizeServiceDeskTargeting,
+  ticketMatchesServiceDeskTargeting,
+} from './service-desk-targeting';
 import { requireTicketingBinding } from './ticketing-binding';
 
 export type HelpdeskTicketingIngestionPollSummary = {
@@ -57,7 +64,12 @@ function normalizedStatusSet(values: string[] | undefined): Set<string> {
   return new Set(source.map((value) => String(value).trim().toLowerCase()).filter(Boolean));
 }
 
-function inScope(ticket: TicketRecord, config: HelpdeskNewTicketsIngestionConfig): boolean {
+type ScopeSubtreeSets = {
+  entityIds: Set<string> | null;
+  categoryIds: Set<string> | null;
+};
+
+function inScope(ticket: TicketRecord, config: HelpdeskNewTicketsIngestionConfig, subtrees?: ScopeSubtreeSets): boolean {
   const statusSet = normalizedStatusSet(config.statusValues);
   if (!statusSet.has(String(ticket.status ?? '').trim().toLowerCase())) {
     return false;
@@ -77,11 +89,21 @@ function inScope(ticket: TicketRecord, config: HelpdeskNewTicketsIngestionConfig
       return false;
     }
   }
-  if (config.entityId && ticket.scope?.entityId !== config.entityId) {
-    return false;
+  if (config.entityId) {
+    const entityOk = subtrees?.entityIds
+      ? subtrees.entityIds.has(ticket.scope?.entityId ?? '')
+      : ticket.scope?.entityId === config.entityId;
+    if (!entityOk) {
+      return false;
+    }
   }
-  if (config.categoryId && ticket.scope?.categoryId !== config.categoryId) {
-    return false;
+  if (config.categoryId) {
+    const categoryOk = subtrees?.categoryIds
+      ? subtrees.categoryIds.has(ticket.scope?.categoryId ?? '')
+      : ticket.scope?.categoryId === config.categoryId;
+    if (!categoryOk) {
+      return false;
+    }
   }
   return true;
 }
@@ -438,6 +460,15 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
         throw new ForbiddenException(`Ticketing provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
       }
       const provider = await this.providers.ticketing(context, binding.providerKey);
+      const subtreeResolver: ReferenceSubtreeResolver = createProviderSubtreeResolver(provider, context, (kind, ids, message) => {
+        this.logger.warn(`Recursive ${kind} expansion failed for agent ${definition.agent_key} (${ids.join(',')}): ${message}; falling back to exact-id matching.`);
+      });
+      const scopeEntityIds = config.entityId ? await subtreeResolver('entity', [config.entityId]) : null;
+      const scopeCategoryIds = config.categoryId ? await subtreeResolver('category', [config.categoryId]) : null;
+      const subtreeSets: ScopeSubtreeSets = {
+        entityIds: scopeEntityIds && scopeEntityIds.length > 0 ? new Set(scopeEntityIds) : null,
+        categoryIds: scopeCategoryIds && scopeCategoryIds.length > 0 ? new Set(scopeCategoryIds) : null,
+      };
       const maxResults = Math.min(config.maxTicketsPerCycle, config.maxProviderRequestsPerCycle);
       let listedTickets: TicketRecord[];
       if (config.mode === 'agent_involved') {
@@ -458,6 +489,8 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
             statusValues: config.statusValues,
             entityId: config.entityId ?? null,
             categoryId: config.categoryId ?? null,
+            entityIds: scopeEntityIds,
+            categoryIds: scopeCategoryIds,
             lastChangedBefore: config.lastChangedBefore ?? null,
           }
           : {
@@ -467,6 +500,8 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
             statusValues: config.statusValues,
             entityId: config.entityId ?? null,
             categoryId: config.categoryId ?? null,
+            entityIds: scopeEntityIds,
+            categoryIds: scopeCategoryIds,
           };
         const listed = await provider.listTicketsForScope(context, { scope });
         if (listed.ok === false) {
@@ -477,9 +512,12 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
         }
         listedTickets = listed.data.tickets;
       }
-      const targeting = normalizeServiceDeskTargeting(definition.scope_policy_json);
+      const targeting = await expandServiceDeskTargetingSubtrees(
+        normalizeServiceDeskTargeting(definition.scope_policy_json),
+        subtreeResolver,
+      );
       const scopedTickets = listedTickets.filter((ticket) =>
-        inScope(ticket, config)
+        inScope(ticket, config, subtreeSets)
         && ticketMatchesServiceDeskTargeting(ticket, targeting, {
           agentTouched: config.mode === 'agent_involved',
         }),

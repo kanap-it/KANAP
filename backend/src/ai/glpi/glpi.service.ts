@@ -20,6 +20,11 @@ import {
 const GLPI_TIMEOUT_MS = 10_000;
 const GLPI_MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 const GLPI_PAGE_SIZE = 50;
+// Tree catalogs (categories/entities) are fetched via the plain item-list endpoint
+// (no search engine), so larger pages are cheap; the row cap bounds pathological trees.
+const GLPI_TREE_PAGE_SIZE = 200;
+const GLPI_TREE_CACHE_TTL_MS = 10 * 60 * 1000;
+const GLPI_TREE_MAX_ROWS = 20_000;
 const GLPI_MAX_INTERNAL_NOTE_CHARS = 4000;
 const GLPI_MAX_PUBLIC_REPLY_CHARS = 12000;
 
@@ -276,6 +281,9 @@ function isLikelyJsonPayload(contentType: string | null, raw: string): boolean {
 @Injectable()
 export class GlpiService {
   private readonly logger = new Logger(GlpiService.name);
+  // Parent maps of tree catalogs, keyed by GLPI instance + acting account (visibility
+  // is account-scoped) + itemtype. Refreshed lazily every GLPI_TREE_CACHE_TTL_MS.
+  private readonly treeParentCache = new Map<string, { expiresAt: number; parents: Map<number, number | null> }>();
 
   constructor(
     private readonly settingsService: AiSettingsService,
@@ -457,17 +465,22 @@ export class GlpiService {
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, horizon);
       criteriaIndex += 1;
     }
+    // Recursive selection: when the expanded id set is provided, push down GLPI's
+    // 'under' searchtype (root + descendants) and revalidate by set membership after
+    // fetch; without a set, keep the historical exact-id behavior.
+    const entityIdSet = scope.entityIds && scope.entityIds.length > 0 ? new Set(scope.entityIds) : null;
+    const categoryIdSet = scope.categoryIds && scope.categoryIds.length > 0 ? new Set(scope.categoryIds) : null;
     if (scope.entityId) {
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '80');
-      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'equals');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, entityIdSet ? 'under' : 'equals');
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, String(scope.entityId));
       criteriaIndex += 1;
     }
     if (scope.categoryId) {
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][link]`, 'AND');
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][field]`, '7');
-      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, 'equals');
+      searchUrl.searchParams.set(`criteria[${criteriaIndex}][searchtype]`, categoryIdSet ? 'under' : 'equals');
       searchUrl.searchParams.set(`criteria[${criteriaIndex}][value]`, String(scope.categoryId));
       criteriaIndex += 1;
     }
@@ -532,11 +545,21 @@ export class GlpiService {
           continue;
         }
       }
-      if (scope.entityId && ticket.entity_id !== scope.entityId) {
-        continue;
+      if (scope.entityId) {
+        const entityOk = entityIdSet
+          ? ticket.entity_id != null && entityIdSet.has(ticket.entity_id)
+          : ticket.entity_id === scope.entityId;
+        if (!entityOk) {
+          continue;
+        }
       }
-      if (scope.categoryId && ticket.category_id !== scope.categoryId) {
-        continue;
+      if (scope.categoryId) {
+        const categoryOk = categoryIdSet
+          ? ticket.category_id != null && categoryIdSet.has(ticket.category_id)
+          : ticket.category_id === scope.categoryId;
+        if (!categoryOk) {
+          continue;
+        }
       }
       tickets.push(ticket);
       if (tickets.length >= maxResults) {
@@ -596,6 +619,121 @@ export class GlpiService {
       }
     }
     return items;
+  }
+
+  // Expand tree-catalog root ids to root + all descendants, roots first. Backs
+  // recursive category/entity targeting.
+  async listReferenceSubtreeIds(
+    session: GlpiSession,
+    kind: GlpiReferenceCatalogKind,
+    rootIds: number[],
+  ): Promise<number[]> {
+    const roots = Array.from(new Set(rootIds.filter((id) => Number.isFinite(id) && id > 0)));
+    if (roots.length === 0) {
+      return [];
+    }
+    const parents = await this.treeParentMap(session, kind);
+    const childrenByParent = new Map<number, number[]>();
+    for (const [id, parentId] of parents) {
+      if (parentId == null) {
+        continue;
+      }
+      const list = childrenByParent.get(parentId);
+      if (list) {
+        list.push(id);
+      } else {
+        childrenByParent.set(parentId, [id]);
+      }
+    }
+    const ids: number[] = [];
+    const visited = new Set<number>();
+    const queue = [...roots];
+    while (queue.length > 0) {
+      const id = queue.shift() as number;
+      if (visited.has(id)) {
+        continue;
+      }
+      visited.add(id);
+      ids.push(id);
+      const children = childrenByParent.get(id);
+      if (children) {
+        queue.push(...children);
+      }
+    }
+    return ids;
+  }
+
+  private async treeParentMap(
+    session: GlpiSession,
+    kind: GlpiReferenceCatalogKind,
+  ): Promise<Map<number, number | null>> {
+    const itemType = referenceSearchItemType(kind);
+    const cacheKey = `${session.baseUrl}|${session.agentUserId ?? 'anon'}|${itemType}`;
+    const now = Date.now();
+    const cached = this.treeParentCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.parents;
+    }
+    const parentField = itemType === 'ITILCategory' ? 'itilcategories_id' : 'entities_id';
+    const parents = new Map<number, number | null>();
+    let offset = 0;
+    let total: number | null = null;
+    while ((total == null || offset < total) && parents.size < GLPI_TREE_MAX_ROWS) {
+      const end = offset + GLPI_TREE_PAGE_SIZE - 1;
+      const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/${itemType}`));
+      pageUrl.searchParams.set('range', `${offset}-${end}`);
+      pageUrl.searchParams.set('get_hateoas', 'false');
+      pageUrl.searchParams.set('expand_dropdowns', 'false');
+
+      const response = await this.request(
+        pageUrl.toString(),
+        {
+          headers: this.buildSessionHeaders(session),
+        },
+      );
+      const raw = await response.text();
+      const payload = this.safeParseJson(raw, {
+        requestUrl: pageUrl.toString(),
+        responseUrl: response.url || pageUrl.toString(),
+        contentType: response.headers.get('content-type'),
+        status: response.status,
+      });
+      const mappedError = this.extractGlpiError(payload);
+      if (!response.ok) {
+        throw this.createHttpError(response.status, mappedError, `Unable to list the GLPI ${itemType} tree.`);
+      }
+      if (mappedError) {
+        throw new BadRequestException(mappedError);
+      }
+      if (!Array.isArray(payload)) {
+        throw new BadRequestException(`GLPI ${itemType} list response was malformed.`);
+      }
+
+      let newRows = 0;
+      for (const row of payload) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) {
+          continue;
+        }
+        const record = row as Record<string, unknown>;
+        const id = parsePositiveInteger(record.id);
+        if (!id || parents.has(id)) {
+          continue;
+        }
+        parents.set(id, parsePositiveInteger(record[parentField]) ?? null);
+        newRows += 1;
+      }
+
+      total = parseContentRangeTotal(response.headers.get('content-range'));
+      if (payload.length === 0 || newRows === 0 || (total == null && payload.length < GLPI_TREE_PAGE_SIZE)) {
+        break;
+      }
+      offset += payload.length;
+    }
+    if (total != null && total > GLPI_TREE_MAX_ROWS) {
+      this.logger.warn(`GLPI ${itemType} tree has ${total} rows; recursive targeting only expanded the first ${GLPI_TREE_MAX_ROWS}.`);
+    }
+    this.treeParentCache.set(cacheKey, { expiresAt: now + GLPI_TREE_CACHE_TTL_MS, parents });
+    return parents;
   }
 
   async getTicketFollowups(

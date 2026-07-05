@@ -412,11 +412,17 @@ export class MockTicketingProvider implements TicketingProvider {
     const statusValues = new Set((scope.statusValues && scope.statusValues.length > 0 ? scope.statusValues : OPEN_TICKET_STATUS_VALUES)
       .map((value) => String(value).trim().toLowerCase())
       .filter(Boolean));
+    const entityIdSet = scope.entityIds && scope.entityIds.length > 0 ? new Set(scope.entityIds) : null;
+    const categoryIdSet = scope.categoryIds && scope.categoryIds.length > 0 ? new Set(scope.categoryIds) : null;
     const tickets = candidates
       .filter((ticket) => Date.parse(ticket.createdAt) >= createdAfter)
       .filter((ticket) => statusValues.has(String(ticket.status ?? '').trim().toLowerCase()))
-      .filter((ticket) => !scope.entityId || ticket.scope?.entityId === scope.entityId)
-      .filter((ticket) => !scope.categoryId || ticket.scope?.categoryId === scope.categoryId)
+      .filter((ticket) => !scope.entityId || (entityIdSet
+        ? entityIdSet.has(ticket.scope?.entityId ?? '')
+        : ticket.scope?.entityId === scope.entityId))
+      .filter((ticket) => !scope.categoryId || (categoryIdSet
+        ? categoryIdSet.has(ticket.scope?.categoryId ?? '')
+        : ticket.scope?.categoryId === scope.categoryId))
       .slice(0, maxResults);
     return ok({ tickets }, [
       evidenceSeed('ticketing:mock', 'ticket_scope_list', `${scope.mode}:${scope.createdAfter}`, `Mock listed ${tickets.length} ticket(s) for bounded scope.`, {
@@ -456,6 +462,47 @@ export class MockTicketingProvider implements TicketingProvider {
         query: input.query ?? null,
         limit,
         items,
+      }),
+    ]);
+  }
+
+  async resolveReferenceSubtree(
+    context: ProviderContext,
+    input: { kind: TicketReferenceCatalogKind; ids: string[] },
+  ): Promise<AdapterResult<{ ids: string[] }>> {
+    void context;
+    const source = MOCK_CATALOGS[input.kind] ?? [];
+    const roots = Array.from(new Set((input.ids ?? []).map((id) => String(id).trim()).filter(Boolean)));
+    const childrenByParent = new Map<string, string[]>();
+    for (const item of source) {
+      const parentId = typeof item.metadata?.parentId === 'string' ? item.metadata.parentId : null;
+      if (!parentId) {
+        continue;
+      }
+      const list = childrenByParent.get(parentId);
+      if (list) {
+        list.push(item.value);
+      } else {
+        childrenByParent.set(parentId, [item.value]);
+      }
+    }
+    const ids: string[] = [];
+    const visited = new Set<string>();
+    const queue = [...roots];
+    while (queue.length > 0) {
+      const id = queue.shift() as string;
+      if (visited.has(id)) {
+        continue;
+      }
+      visited.add(id);
+      ids.push(id);
+      queue.push(...(childrenByParent.get(id) ?? []));
+    }
+    return ok({ ids }, [
+      evidenceSeed('ticketing:mock', `${input.kind}_subtree`, roots.join(',') || input.kind, `Mock expanded ${roots.length} ${input.kind} id(s) to ${ids.length} including descendants.`, {
+        kind: input.kind,
+        rootIds: roots,
+        ids,
       }),
     ]);
   }

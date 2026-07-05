@@ -426,7 +426,9 @@
       "thisAgent": "Este agente",
       "replaceTitle": "¿Sustituir filtros?",
       "replaceDescription": "{{preset}} sustituirá el conjunto de filtros actual.",
-      "replace": "Sustituir"
+      "replace": "Sustituir",
+      "includesSubcategories": "Las subcategorías están incluidas",
+      "includesSubentities": "Las subentidades están incluidas"
     },
     "targetingFields": {
       "status": "Estado",
