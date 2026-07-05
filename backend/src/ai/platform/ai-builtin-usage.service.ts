@@ -1,7 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { resolvePlanKeyFromLegacyName } from '../../billing/plans.config';
-import { Subscription } from '../../billing/subscription.entity';
 import { AiBuiltinUsage } from './ai-builtin-usage.entity';
 import { PlatformAiPlanLimit } from './platform-ai-plan-limit.entity';
 
@@ -16,15 +14,18 @@ export type BuiltinUsageAdminRow = {
   tenant_id: string;
   tenant_name: string;
   tenant_slug: string;
-  plan_name: string | null;
-  plan_key: string | null;
   used: number;
-  limit: number | null;
+  limit: number;
   usage_ratio: number | null;
   year_month: string;
 };
 
-const DEFAULT_PLAN_KEY = 'small';
+// Every cloud tenant gets the same free monthly message volume (single-plan pricing).
+// The value is stored as the one 'default' row of platform_ai_plan_limits and editable
+// on the platform admin page; a missing row falls back to this constant so a fresh
+// deployment is never accidentally quota-locked at 0.
+export const FREE_MESSAGE_LIMIT_KEY = 'default';
+export const DEFAULT_FREE_MONTHLY_MESSAGE_LIMIT = 1500;
 
 function getYearMonth(date = new Date()): string {
   const year = date.getUTCFullYear();
@@ -52,29 +53,16 @@ export class AiBuiltinUsageService {
     return (manager ?? this.dataSource.manager).getRepository(PlatformAiPlanLimit);
   }
 
-  private getSubscriptionRepo(manager?: EntityManager) {
-    return (manager ?? this.dataSource.manager).getRepository(Subscription);
-  }
-
-  private async resolvePlanKeyForTenant(tenantId: string, manager: EntityManager): Promise<string> {
-    const subscription = await this.getSubscriptionRepo(manager).findOne({
-      where: { tenant_id: tenantId },
-      order: { created_at: 'DESC' },
-    });
-    return resolvePlanKeyFromLegacyName(subscription?.plan_name) ?? DEFAULT_PLAN_KEY;
-  }
-
-  async getMonthlyLimitForTenant(tenantId: string, manager: EntityManager): Promise<number> {
-    const planKey = await this.resolvePlanKeyForTenant(tenantId, manager);
+  async getMonthlyLimit(manager?: EntityManager): Promise<number> {
     const row = await this.getPlanLimitRepo(manager).findOne({
-      where: { plan_name: planKey },
+      where: { plan_name: FREE_MESSAGE_LIMIT_KEY },
     });
-    return row?.monthly_message_limit ?? 0;
+    return row?.monthly_message_limit ?? DEFAULT_FREE_MONTHLY_MESSAGE_LIMIT;
   }
 
   async getCurrentUsage(tenantId: string, manager: EntityManager): Promise<BuiltinUsageView> {
     const yearMonth = getYearMonth();
-    const limit = await this.getMonthlyLimitForTenant(tenantId, manager);
+    const limit = await this.getMonthlyLimit(manager);
     const row = await this.getUsageRepo(manager).findOne({
       where: {
         tenant_id: tenantId,
@@ -118,48 +106,36 @@ export class AiBuiltinUsageService {
   }
 
   async getUsageForAllTenants(yearMonth = getYearMonth()): Promise<BuiltinUsageAdminRow[]> {
+    const limit = await this.getMonthlyLimit();
     const rows = await this.dataSource.query(
       `
         SELECT
           t.id AS tenant_id,
           t.name AS tenant_name,
           t.slug AS tenant_slug,
-          s.plan_name,
-          pll.plan_name AS plan_key,
           COALESCE(u.user_message_count, 0)::int AS used,
-          pll.monthly_message_limit::int AS "limit",
+          $2::int AS "limit",
           CASE
-            WHEN pll.monthly_message_limit IS NULL OR pll.monthly_message_limit = 0 THEN NULL
-            ELSE ROUND((COALESCE(u.user_message_count, 0)::numeric / pll.monthly_message_limit::numeric), 4)
+            WHEN $2::int = 0 THEN NULL
+            ELSE ROUND((COALESCE(u.user_message_count, 0)::numeric / $2::numeric), 4)
           END AS usage_ratio,
           $1::text AS year_month
         FROM tenants t
-        LEFT JOIN subscriptions s
-          ON s.tenant_id = t.id
-        LEFT JOIN platform_ai_plan_limits pll
-          ON pll.plan_name = CASE
-            WHEN LOWER(COALESCE(s.plan_name, '')) IN ('starter', 'solo', 'small') THEN 'small'
-            WHEN LOWER(COALESCE(s.plan_name, '')) IN ('team', 'standard') THEN 'standard'
-            WHEN LOWER(COALESCE(s.plan_name, '')) IN ('pro', 'max') THEN 'max'
-            ELSE 'small'
-          END
         LEFT JOIN ai_builtin_usage u
           ON u.tenant_id = t.id
          AND u.year_month = $1
         WHERE t.deleted_at IS NULL
         ORDER BY COALESCE(u.user_message_count, 0) DESC, t.name ASC
       `,
-      [yearMonth],
+      [yearMonth, limit],
     );
 
     return rows.map((row: any) => ({
       tenant_id: row.tenant_id,
       tenant_name: row.tenant_name,
       tenant_slug: row.tenant_slug,
-      plan_name: row.plan_name ?? null,
-      plan_key: row.plan_key ?? null,
       used: Number(row.used) || 0,
-      limit: row.limit == null ? null : Number(row.limit),
+      limit: Number(row.limit) || 0,
       usage_ratio: row.usage_ratio == null ? null : Number(row.usage_ratio),
       year_month: row.year_month,
     }));

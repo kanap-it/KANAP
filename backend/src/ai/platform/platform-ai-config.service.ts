@@ -3,6 +3,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AuditService } from '../../audit/audit.service';
 import { AiSecretCipherService } from '../ai-secret-cipher.service';
 import { AiProviderRegistry } from '../providers/ai-provider-registry.service';
+import { DEFAULT_FREE_MONTHLY_MESSAGE_LIMIT, FREE_MESSAGE_LIMIT_KEY } from './ai-builtin-usage.service';
 import { PlatformAiConfig } from './platform-ai-config.entity';
 import { PlatformAiPlanLimit } from './platform-ai-plan-limit.entity';
 
@@ -31,10 +32,6 @@ export type UpdatePlatformAiConfigInput = {
   rate_limit_user_per_hour?: number | null;
 };
 
-export type UpdatePlatformAiPlanLimitInput = {
-  plan_name: string;
-  monthly_message_limit: number;
-};
 
 const CACHE_TTL_MS = 60_000;
 
@@ -155,10 +152,11 @@ export class PlatformAiConfigService {
     };
   }
 
-  async getPlanLimits(opts?: { manager?: EntityManager }): Promise<PlatformAiPlanLimit[]> {
-    return this.getPlanLimitRepo(opts?.manager).find({
-      order: { plan_name: 'ASC' },
+  async getFreeMessageLimit(opts?: { manager?: EntityManager }): Promise<number> {
+    const row = await this.getPlanLimitRepo(opts?.manager).findOne({
+      where: { plan_name: FREE_MESSAGE_LIMIT_KEY },
     });
+    return row?.monthly_message_limit ?? DEFAULT_FREE_MONTHLY_MESSAGE_LIMIT;
   }
 
   async updateConfig(
@@ -246,53 +244,37 @@ export class PlatformAiConfigService {
     return this.toView(saved);
   }
 
-  async updatePlanLimits(
-    items: UpdatePlatformAiPlanLimitInput[],
+  async updateFreeMessageLimit(
+    monthlyMessageLimit: number,
     userId?: string | null,
     opts?: { manager?: EntityManager },
-  ): Promise<PlatformAiPlanLimit[]> {
+  ): Promise<number> {
     const manager = opts?.manager;
-    const before = await this.getPlanLimits({ manager });
+    const before = await this.getFreeMessageLimit({ manager });
     const executor = manager ?? this.dataSource;
-    for (const item of items) {
-      await executor.query(
-        `
-          INSERT INTO platform_ai_plan_limits (plan_name, monthly_message_limit, updated_at)
-          VALUES ($1, $2, now())
-          ON CONFLICT (plan_name)
-          DO UPDATE SET
-            monthly_message_limit = EXCLUDED.monthly_message_limit,
-            updated_at = now()
-        `,
-        [item.plan_name, item.monthly_message_limit],
-      );
-    }
+    await executor.query(
+      `
+        INSERT INTO platform_ai_plan_limits (plan_name, monthly_message_limit, updated_at)
+        VALUES ($1, $2, now())
+        ON CONFLICT (plan_name)
+        DO UPDATE SET
+          monthly_message_limit = EXCLUDED.monthly_message_limit,
+          updated_at = now()
+      `,
+      [FREE_MESSAGE_LIMIT_KEY, monthlyMessageLimit],
+    );
 
-    const after = await this.getPlanLimits({ manager });
+    const after = await this.getFreeMessageLimit({ manager });
     await this.audit.log(
       {
         table: 'platform_ai_plan_limits',
         action: 'update',
-        before: before.map((item) => ({
-          plan_name: item.plan_name,
-          monthly_message_limit: item.monthly_message_limit,
-        })),
-        after: after.map((item) => ({
-          plan_name: item.plan_name,
-          monthly_message_limit: item.monthly_message_limit,
-        })),
+        before: { monthly_message_limit: before },
+        after: { monthly_message_limit: after },
         userId: userId ?? null,
       },
       { manager },
     );
     return after;
-  }
-
-  async getMonthlyLimitForPlan(planName: string | null | undefined): Promise<number | null> {
-    if (!planName) return null;
-    const row = await this.planLimitRepo.findOne({
-      where: { plan_name: planName },
-    });
-    return row?.monthly_message_limit ?? null;
   }
 }

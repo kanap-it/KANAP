@@ -21,7 +21,7 @@ import { AiProviderRegistry } from '../providers/ai-provider-registry.service';
 import { AiProviderTestResult, AiStreamEvent } from '../providers/ai-provider.types';
 import { TestPlatformAiConfigDto } from './dto/test-platform-ai-config.dto';
 import { UpdatePlatformAiConfigDto } from './dto/update-platform-ai-config.dto';
-import { UpdatePlatformAiPlanLimitsDto } from './dto/update-platform-ai-plan-limits.dto';
+import { UpdateFreeMessageLimitDto } from './dto/update-free-message-limit.dto';
 import { AiBuiltinUsageService } from './ai-builtin-usage.service';
 import { BUILTIN_REASONING_EFFORT, PlatformAiConfigService } from './platform-ai-config.service';
 
@@ -36,20 +36,16 @@ export class PlatformAiAdminController {
 
   @Get('config')
   async getConfig() {
-    const [config, planLimits, usage] = await Promise.all([
+    const [config, freeMessageLimit, usage] = await Promise.all([
       this.platformAiConfig.getConfig().catch(() => null),
-      this.platformAiConfig.getPlanLimits(),
+      this.platformAiConfig.getFreeMessageLimit(),
       this.usageService.getUsageForAllTenants(),
     ]);
 
     return {
       config,
       available_providers: this.providerRegistry.list(),
-      plan_limits: planLimits.map((item) => ({
-        plan_name: item.plan_name,
-        monthly_message_limit: item.monthly_message_limit,
-        updated_at: item.updated_at.toISOString(),
-      })),
+      free_monthly_message_limit: freeMessageLimit,
       usage,
     };
   }
@@ -139,16 +135,10 @@ export class PlatformAiAdminController {
     }
   }
 
-  @Put('plan-limits')
-  async updatePlanLimits(@Body() body: UpdatePlatformAiPlanLimitsDto, @Tenant() ctx: TenantRequest) {
-    const planLimits = await this.platformAiConfig.updatePlanLimits(body.items, ctx.userId || null, { manager: ctx.manager });
-    return {
-      plan_limits: planLimits.map((item) => ({
-        plan_name: item.plan_name,
-        monthly_message_limit: item.monthly_message_limit,
-        updated_at: item.updated_at.toISOString(),
-      })),
-    };
+  @Put('free-message-limit')
+  async updateFreeMessageLimit(@Body() body: UpdateFreeMessageLimitDto, @Tenant() ctx: TenantRequest) {
+    const limit = await this.platformAiConfig.updateFreeMessageLimit(body.monthly_message_limit, ctx.userId || null, { manager: ctx.manager });
+    return { free_monthly_message_limit: limit };
   }
 
   @Get('usage')

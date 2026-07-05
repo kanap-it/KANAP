@@ -506,12 +506,12 @@
   "platformAi": {
     "actions": {
       "save": "Save",
-      "savePlanLimits": "Save plan limits",
+      "savePlanLimits": "Enregistrer la limite",
       "test": "Test connection",
       "testing": "Testing..."
     },
     "cards": {
-      "planLimits": "Plan message limits",
+      "planLimits": "Messages IA inclus",
       "provider": "Built-in AI Provider",
       "usage": "Current month usage"
     },
@@ -525,8 +525,8 @@
     },
     "messages": {
       "loadFailed": "Failed to load platform AI settings.",
-      "planSaveFailed": "Failed to save plan limits.",
-      "planSaved": "Plan limits saved.",
+      "planSaveFailed": "Échec de l'enregistrement de la limite de messages inclus.",
+      "planSaved": "Limite de messages inclus enregistrée.",
       "saveFailed": "Failed to save platform AI settings.",
       "saved": "Platform AI settings saved.",
       "testFailed": "Connection test failed."
@@ -536,15 +536,14 @@
       "keepKey": "Key configured (leave blank to keep)"
     },
     "planLimits": {
-      "monthlyLimit": "Monthly message limit",
-      "plan": "Plan"
+      "hint": "S'applique à toutes les organisations utilisant le fournisseur IA intégré. Le compteur repart à zéro le 1er de chaque mois.",
+      "monthlyLimit": "Messages mensuels inclus par organisation"
     },
     "title": "Platform AI",
     "usage": {
       "empty": "No tenant usage recorded yet.",
       "limit": "Limit",
       "percent": "Usage",
-      "plan": "Plan",
       "tenant": "Tenant",
       "used": "Used"
     }
