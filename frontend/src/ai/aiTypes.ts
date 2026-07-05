@@ -1,4 +1,5 @@
 export type AiMutationWriteToolName =
+  | 'import_ticket'
   | 'import_glpi_ticket'
   | 'create_task'
   | 'create_document'

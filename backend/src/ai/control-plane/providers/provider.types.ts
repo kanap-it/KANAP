@@ -89,17 +89,38 @@ export type CapabilityApplicability = {
   message?: string;
 };
 
-export type ProviderContext = AiExecutionContextWithManager;
+export type ProviderRuntimeCredential = {
+  hasSecret(): boolean;
+  reveal(): string;
+  toJSON(): unknown;
+};
+
+export type ProviderAdapterRuntime = {
+  providerKind: ProviderKind;
+  providerKey: string;
+  implementation: string;
+  environment: string;
+  baseUrl: string | null;
+  credential: ProviderRuntimeCredential | null;
+  configMetadata: Record<string, unknown> | null;
+};
+
+export type ProviderContext = AiExecutionContextWithManager & {
+  adapterRuntime?: ProviderAdapterRuntime | null;
+};
 
 export type TicketRecord = {
   id: string;
   title: string;
   status: string;
   priority?: string | null;
+  urgency?: string | null;
   type?: string | null;
   requesterId?: string | null;
   requester?: string | null;
   description?: string | null;
+  descriptionHtml?: string | null;
+  sourceUri?: string | null;
   createdAt: string;
   updatedAt: string;
   tags?: string[];
@@ -155,7 +176,7 @@ export type TicketListScope =
       categoryId?: string | null;
     }
   | {
-      // All currently-open tickets (status New/Assigned/Planned/Pending), bounded by
+      // All currently-open tickets (provider-defined non-terminal statuses), bounded by
       // per-cycle caps and an optional last-changed window. Oldest-changed first so a
       // cleanup agent sees the stalest tickets. `agent_involved` selection is NOT a
       // provider mode — it is resolved in the control-plane layer from agent-touched
@@ -176,6 +197,7 @@ export type TicketNote = {
   author?: string | null;
   authorRole?: 'requester' | 'support' | 'kanap_agent' | 'unknown';
   body: string;
+  bodyHtml?: string | null;
   createdAt: string;
   updatedAt?: string | null;
   updateFingerprint?: string | null;
@@ -214,6 +236,7 @@ export type TicketLifecycleTransition = {
   label: string;
   requiresApproval: boolean;
   destructive: boolean;
+  terminal: boolean;
 };
 
 export type TicketLifecycleContext = {
@@ -282,7 +305,7 @@ export type TicketStatusUpdateActionPayload = {
   targetStatusLabel?: string | null;
   // Terminal (solve/close) transitions are destructive cleanup actions that must
   // always be human-approved and surfaced distinctly in approvals/audit.
-  terminal?: boolean;
+  terminal: boolean;
   providerFields?: Record<string, unknown>;
   reason: string;
 };

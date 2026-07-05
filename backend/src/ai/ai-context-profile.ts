@@ -78,7 +78,7 @@ const TASK_WRITE_TOOLS: AiToolName[] = [
   'get_entity_context',
   'get_entity_comments',
   'prepare_mutation_plan',
-  'import_glpi_ticket',
+  'import_ticket',
   'create_task',
   'update_task_fields',
   'update_task_status',

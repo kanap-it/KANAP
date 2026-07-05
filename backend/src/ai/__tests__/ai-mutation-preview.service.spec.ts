@@ -7,7 +7,7 @@ import { AiTaskMutationSupportService } from '../mutation/ai-task-mutation-suppo
 import { AddTaskCommentAiMutationOperation } from '../mutation/operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from '../mutation/operations/create-task.ai-mutation-operation';
-import { ImportGlpiTicketAiMutationOperation } from '../mutation/operations/import-glpi-ticket.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation, ImportTicketAiMutationOperation } from '../mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from '../mutation/operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
@@ -615,6 +615,14 @@ function createService(options?: {
         },
       } as any,
     ),
+    new ImportTicketAiMutationOperation(
+      support,
+      tasks as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      policy as any,
+    ),
   );
 
   const service = new AiMutationPreviewService(
@@ -791,6 +799,32 @@ async function testMutationPlanCreatesDependentPreviewAfterApproval() {
   assert.equal(statusStep?.status, 'executed');
   assert.equal(assigneeStep?.status, 'preview_ready');
   assert.equal(assigneeStep?.preview_id, execution.followUpPreviews[0].preview_id);
+}
+
+async function testMutationPlanNormalizesLegacyGlpiImportStep() {
+  const { service, context, planSteps } = createService({ previews: [] });
+
+  await service.createMutationPlan(context, {
+    summary: 'Import one legacy GLPI ticket.',
+    operations: [
+      {
+        operation_id: 'import_step',
+        tool_name: 'import_glpi_ticket',
+        input: {
+          ticket_id: 123,
+          relation_type: 'standalone',
+        },
+      },
+    ],
+  });
+
+  const importStep = planSteps.find((step) => step.step_key === 'import_step');
+  assert.equal(importStep?.tool_name, 'import_ticket');
+  assert.deepEqual(importStep?.input, {
+    ticket_id: 123,
+    relation_type: 'standalone',
+    provider_key: 'glpi',
+  });
 }
 
 async function testMutationPlanDeduplicatesEquivalentOperationsAndRemapsDependents() {
@@ -2852,6 +2886,7 @@ async function main() {
   await testCreatePreviewAllowsMultiplePendingPreviewsInConversation();
   await testCreatePreviewReusesEquivalentPendingPreviewInConversation();
   await testMutationPlanCreatesDependentPreviewAfterApproval();
+  await testMutationPlanNormalizesLegacyGlpiImportStep();
   await testMutationPlanDeduplicatesEquivalentOperationsAndRemapsDependents();
   await testMutationPlanAdvancesDependentsWhenRootPreviewAlreadyExecuted();
   await testMutationPlanBlocksDependentsWhenDependencyPreparationFails();

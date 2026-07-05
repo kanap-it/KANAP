@@ -2111,6 +2111,7 @@ function buildToolIsolationCases(
       return [];
 
     case 'import_glpi_ticket':
+    case 'import_ticket':
     case 'create_task':
     case 'create_master_data_record':
     case 'create_business_record':

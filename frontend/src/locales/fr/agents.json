@@ -280,6 +280,7 @@
     "start": "Démarrer l'agent",
     "testStarted": "Exécution de test démarrée.",
     "testFailed": "Impossible de démarrer l'exécution de test.",
+    "providerMissing": "Cet agent n'a pas de fournisseur de tickets associé.",
     "status": "Statut",
     "checkNow": "Contrôler maintenant",
     "lifecycle": "Cycle de vie",

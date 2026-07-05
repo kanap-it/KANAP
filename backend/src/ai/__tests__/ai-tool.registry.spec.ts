@@ -7,7 +7,7 @@ import { AiToolRegistry } from '../ai-tool.registry';
 import { AiDocumentMutationSupportService } from '../mutation/ai-document-mutation-support.service';
 import { CreateDocumentAiMutationOperation } from '../mutation/operations/create-document.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from '../mutation/operations/create-task.ai-mutation-operation';
-import { ImportGlpiTicketAiMutationOperation } from '../mutation/operations/import-glpi-ticket.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation, ImportTicketAiMutationOperation } from '../mutation/operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from '../mutation/operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from '../mutation/operations/update-document-relations.ai-mutation-operation';
 
@@ -165,6 +165,24 @@ function createRegistry(overrides?: {
     } as any,
     {
       listOperations: () => ([
+        {
+          toolName: 'import_ticket',
+          description: 'Create a preview to import one ticket from a configured ticketing provider.',
+          inputSchema: {
+            safeParse: (value: any) => ({ success: true, data: value }),
+          },
+          inputSummary: {
+            provider_key: 'Configured ticketing provider key.',
+            ticket_id: 'Ticket identifier in the selected provider.',
+          },
+          businessResource: 'tasks',
+          writePreview: {
+            entity_type: 'tasks',
+            fields: ['relation', 'title', 'description', 'source'],
+            reversible: false,
+            prompt_hint: 'For ticket escalation, use `import_ticket` with provider_key and ticket_id.',
+          },
+        },
         {
           toolName: 'import_glpi_ticket',
           description: 'Create a preview to import one GLPI ticket into one KANAP task.',
@@ -342,6 +360,7 @@ function createRegistry(overrides?: {
       ]),
       getOperationOrNull: (toolName: string) => {
         const operation = ({
+          import_ticket: { toolName: 'import_ticket' },
           import_glpi_ticket: { toolName: 'import_glpi_ticket' },
           create_document: { toolName: 'create_document' },
           create_task: { toolName: 'create_task' },
@@ -499,6 +518,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'update_task_assignees',
       'undo_preview',
       'web_search',
+      'import_ticket',
       'import_glpi_ticket',
       'create_document',
       'create_task',
@@ -547,6 +567,7 @@ async function testRegisteredToolCategoriesMatchExpectedAssignments() {
   assert.equal(categories.get('prepare_mutation_plan'), 'mutation');
   assert.equal(categories.get('update_task_assignees'), 'mutation');
   assert.equal(categories.get('undo_preview'), 'mutation');
+  assert.equal(categories.get('import_ticket'), 'mutation');
   assert.equal(categories.get('import_glpi_ticket'), 'mutation');
   assert.equal(categories.get('create_task'), 'mutation');
   assert.equal(categories.get('update_task_status'), 'mutation');
@@ -593,6 +614,7 @@ async function testChatSurfaceIncludesWritePreviewToolsWhenWriteAllowed() {
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(tools.some((tool) => tool.name === 'create_document'));
   assert.ok(tools.some((tool) => tool.name === 'create_task'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_ticket'));
   assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_content'));
   assert.ok(tools.some((tool) => tool.name === 'update_document_metadata'));
@@ -611,6 +633,7 @@ async function testWritePreviewToolsStayHiddenWithoutWriteAccess() {
   const tools = await registry.listAvailableTools(createChatContext());
   assert.ok(!tools.some((tool) => tool.name === 'create_document'));
   assert.ok(!tools.some((tool) => tool.name === 'create_task'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_ticket'));
   assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_content'));
   assert.ok(!tools.some((tool) => tool.name === 'update_document_metadata'));
@@ -750,7 +773,7 @@ async function testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist() {
   assert.ok(!tools.some((tool) => tool.name === 'undo_preview'));
 }
 
-async function testGlpiImportToolAppearsWhenSettingsAreConfigured() {
+async function testGenericImportToolAppearsWhenLegacyGlpiSettingsAreConfigured() {
   const registry = createRegistry({
     policy: {
       assertWriteAccess: async () => undefined,
@@ -767,7 +790,83 @@ async function testGlpiImportToolAppearsWhenSettingsAreConfigured() {
   });
 
   const tools = await registry.listAvailableTools(createChatContext());
-  assert.ok(tools.some((tool) => tool.name === 'import_glpi_ticket'));
+  assert.ok(tools.some((tool) => tool.name === 'import_ticket'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
+}
+
+async function testImportTicketToolAppearsWhenTicketingAdapterConfigExists() {
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    settingsService: {
+      find: async () => ({
+        web_search_enabled: true,
+        glpi_enabled: false,
+        glpi_url: null,
+        glpi_user_token_encrypted: null,
+      }),
+    },
+  });
+  const context = {
+    ...createChatContext(),
+    manager: {
+      getRepository: () => ({
+        find: async (opts: any) =>
+          opts?.where?.provider_kind === 'ticketing' && opts?.where?.enabled === true
+            ? [{
+              tenant_id: 'tenant-1',
+              provider_kind: 'ticketing',
+              provider_key: 'ticketing-prod',
+              implementation: 'freshdesk',
+              enabled: true,
+              credential_ref_json: { kind: 'secret_ref', ref: 'tenant/tenant-1/ticketing/freshdesk' },
+            }]
+            : [],
+      }),
+    } as any,
+  };
+
+  const tools = await registry.listAvailableTools(context);
+  assert.ok(tools.some((tool) => tool.name === 'import_ticket'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
+}
+
+async function testImportTicketToolStaysHiddenForCredentiallessTicketingAdapterConfig() {
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    settingsService: {
+      find: async () => ({
+        web_search_enabled: true,
+        glpi_enabled: false,
+        glpi_url: null,
+        glpi_user_token_encrypted: null,
+      }),
+    },
+  });
+  const context = {
+    ...createChatContext(),
+    manager: {
+      getRepository: () => ({
+        find: async () => [{
+          tenant_id: 'tenant-1',
+          provider_kind: 'ticketing',
+          provider_key: 'ticketing-prod',
+          implementation: 'freshdesk',
+          enabled: true,
+          credential_ref_json: null,
+        }],
+      }),
+    } as any,
+  };
+
+  const tools = await registry.listAvailableTools(context);
+  assert.ok(!tools.some((tool) => tool.name === 'import_ticket'));
+  assert.ok(!tools.some((tool) => tool.name === 'import_glpi_ticket'));
 }
 
 async function testCreateDocumentToolSchemaExposesBodyFields() {
@@ -867,6 +966,50 @@ async function testImportGlpiTicketToolSchemaUsesNumericExclusiveMinimum() {
   assert.equal((schema!.parameters as any).properties?.assignee?.anyOf?.[1]?.type, 'null');
   assert.equal((schema!.parameters as any).properties?.priority_level?.anyOf?.[1]?.type, 'null');
   assert.equal((schema!.parameters as any).properties?.priority?.anyOf?.[1]?.type, 'null');
+}
+
+async function testImportTicketToolSchemaRequiresProviderKey() {
+  const operation = new ImportTicketAiMutationOperation(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const registry = createRegistry({
+    policy: {
+      assertWriteAccess: async () => undefined,
+      listReadableEntityTypes: async () => ['tasks'],
+    },
+    mutationOperations: {
+      listOperations: () => [operation],
+      getOperationOrNull: (toolName: string) => (toolName === 'import_ticket' ? operation : null),
+    },
+  });
+  const context = {
+    ...createChatContext(),
+    manager: {
+      getRepository: () => ({
+        find: async () => [{
+          tenant_id: 'tenant-1',
+          provider_kind: 'ticketing',
+          provider_key: 'ticketing-prod',
+          implementation: 'freshdesk',
+          enabled: true,
+          credential_ref_json: { kind: 'secret_ref', ref: 'tenant/tenant-1/ticketing/freshdesk' },
+        }],
+      }),
+    } as any,
+  };
+
+  const tools = await registry.getToolJsonSchemas(context);
+  const schema = tools.find((tool) => tool.name === 'import_ticket');
+
+  assert.ok(schema);
+  assert.ok(((schema!.parameters as any).required as string[]).includes('provider_key'));
+  assert.match(String((schema!.parameters as any).properties?.provider_key?.description || ''), /ticketing provider key/i);
+  assert.match(String((schema!.parameters as any).properties?.ticket_id?.description || ''), /ticket identifier/i);
 }
 
 async function testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields() {
@@ -1701,10 +1844,13 @@ async function run() {
   await testUpdateTaskAssigneesCreatesOnePreviewPerTaskAndReturnsPartialErrors();
   await testPrepareMutationPlanDelegatesToPreviewService();
   await testUndoPreviewStaysHiddenWhenOnlyNonReversibleWritesExist();
-  await testGlpiImportToolAppearsWhenSettingsAreConfigured();
+  await testGenericImportToolAppearsWhenLegacyGlpiSettingsAreConfigured();
+  await testImportTicketToolAppearsWhenTicketingAdapterConfigExists();
+  await testImportTicketToolStaysHiddenForCredentiallessTicketingAdapterConfig();
   await testCreateDocumentToolSchemaExposesBodyFields();
   await testCreateTaskToolSchemaExposesRelationAndAssignmentFields();
   await testImportGlpiTicketToolSchemaUsesNumericExclusiveMinimum();
+  await testImportTicketToolSchemaRequiresProviderKey();
   await testUpdateDocumentContentToolSchemaExposesDocumentAndBodyFields();
   await testUpdateDocumentRelationsToolSchemaExposesRelationFields();
   await testQueryEntitiesDelegatesToQueryExecutor();

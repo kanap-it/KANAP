@@ -204,7 +204,7 @@ function lifecycleTransitionSummaries(lifecycle: unknown): Array<{
     return [{
       key,
       label: typeof transition.label === 'string' ? transition.label : null,
-      terminal: key === 'solved' || key === 'closed',
+      terminal: transition.terminal === true,
       destructive: transition.destructive === true,
     }];
   });

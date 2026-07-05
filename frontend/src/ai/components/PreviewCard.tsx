@@ -15,6 +15,7 @@ import { getPreviewStatusColorKey, getPreviewStatusDisplay } from '../utils/prev
 const LINKED_MARKDOWN_IMAGE_RE = /\[\s*!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)\s*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
 const MARKDOWN_IMAGE_RE = /!\[[^\]]*]\(\s*<?[^)\s>]+>?[\s\S]*?\)/g;
 const HTML_IMAGE_RE = /<img\b[\s\S]*?>/gi;
+const TICKET_IMPORT_TOOL_NAMES = new Set(['import_ticket', 'import_glpi_ticket']);
 
 type PreviewCardProps = {
   preview: AiMutationPreview;
@@ -51,7 +52,7 @@ function renderValue(
   }
 
   if (diff.format === 'markdown') {
-    const content = preview.status === 'pending' && preview.tool_name === 'import_glpi_ticket'
+    const content = preview.status === 'pending' && TICKET_IMPORT_TOOL_NAMES.has(preview.tool_name)
       ? replacePendingImportImages(value, pendingImagePlaceholder)
       : value;
     return <MarkdownContent content={content} variant="compact" />;

@@ -569,7 +569,7 @@ async function runAiControlPlaneChecks(
     `INSERT INTO ai_mutation_previews (
        id, tenant_id, user_id, tool_name, target_entity_type, mutation_input, status, expires_at
      )
-     VALUES ($1, $2, $3, 'import_glpi_ticket', 'task', '{}'::jsonb, 'pending', now() + interval '10 minutes')`,
+     VALUES ($1, $2, $3, 'import_ticket', 'task', '{}'::jsonb, 'pending', now() + interval '10 minutes')`,
     [previewId, tenantOneId, userId],
   );
   await r.query(
@@ -624,14 +624,14 @@ async function runAiControlPlaneChecks(
        scope_policy_json, queue_policy_json
      )
      VALUES (
-       $1, $2, 'helpdesk.glpi.triage.rls', 'RLS Helpdesk agent',
+       $1, $2, 'helpdesk.ticketing.triage.rls', 'RLS Helpdesk agent',
        'RLS agent definition', 'helpdesk', 'enabled', 'sandbox',
-       '{"ticketing":{"provider_kind":"ticketing","provider_key":"glpi"}}'::jsonb,
+       '{"ticketing":{"provider_kind":"ticketing","provider_key":"mock"}}'::jsonb,
        '[{"name":"ticketing.ticket.get"},{"name":"search_knowledge"},{"name":"get_document"},{"name":"ticketing.ticket.internal_note.prepare"},{"name":"ticketing.ticket.public_reply.prepare"}]'::jsonb,
        '["ticketing.ticket.status.update"]'::jsonb,
        'A3', 'human_for_writes',
        '{"manual_safe_target":{"enabled":true},"scheduled_poll":{"enabled":false}}'::jsonb,
-       '{"mode":"manual_safe_target","provider_kind":"ticketing","provider_key":"glpi","target_kind":"ticket","all_matching":{"enabled":false}}'::jsonb,
+       '{"mode":"manual_safe_target","provider_kind":"ticketing","provider_key":"mock","target_kind":"ticket","all_matching":{"enabled":false}}'::jsonb,
        '{"enabled":true,"lease_ttl_seconds":300,"max_attempts":3,"cooldown_seconds":60}'::jsonb
      )`,
     [agentDefinitionId, tenantOneId],
@@ -644,7 +644,7 @@ async function runAiControlPlaneChecks(
      VALUES (
        $1, $2, $3, 'manual.safe_target', 'manual', 'enabled', true,
        '{"safe_target_required":true}'::jsonb,
-       '{"mode":"manual_safe_target","provider_kind":"ticketing","provider_key":"glpi","target_kind":"ticket","allowed_effect":"read"}'::jsonb
+       '{"mode":"manual_safe_target","provider_kind":"ticketing","provider_key":"mock","target_kind":"ticket","allowed_effect":"read"}'::jsonb
      )`,
     [agentTriggerId, tenantOneId, agentDefinitionId],
   );
@@ -656,7 +656,7 @@ async function runAiControlPlaneChecks(
        last_run_id, last_action_request_ids, metadata_json
      )
      VALUES (
-       $1, $2, $3, $4, 'ticketing', 'glpi', 'ticket', 'rls-ticket-1',
+       $1, $2, $3, $4, 'ticketing', 'mock', 'ticket', 'rls-ticket-1',
        'ticket_triage', 'waiting_approval', 100, $5, 1, 3, now(),
        $6, $7::jsonb, '{"rls":"test"}'::jsonb
      )`,
@@ -669,7 +669,7 @@ async function runAiControlPlaneChecks(
        agent_touched, needs_followup, state_json
      )
      VALUES (
-       $1, $2, $3, 'ticketing', 'glpi', 'ticket', 'rls-ticket-1',
+       $1, $2, $3, 'ticketing', 'mock', 'ticket', 'rls-ticket-1',
        $4, 'public-hash', 'internal-hash', true, true, '{"rls":"test"}'::jsonb
     )`,
     [agentTargetStateId, tenantOneId, agentDefinitionId, runId],
@@ -772,8 +772,8 @@ async function runAiControlPlaneChecks(
        metadata_json, redaction_policy_json
      )
      VALUES (
-       $1, $2, 'ticketing', 'glpi-sandbox', 'sandbox', 'ticket',
-       'rls-sandbox-ticket', 'GLPI-12345', 'read', 'read_only', false,
+       $1, $2, 'ticketing', 'mock-sandbox', 'sandbox', 'ticket',
+       'rls-sandbox-ticket', 'TICKET-12345', 'read', 'read_only', false,
        '{"purpose":"rls"}'::jsonb, '{"fields":[]}'::jsonb
      )`,
     [liveTestTargetId, tenantOneId],
@@ -940,7 +940,7 @@ async function runAiControlPlaneChecks(
        tenant_id, agent_definition_id, source_provider_kind, source_provider_key,
        source_object_type, source_object_ref, work_kind, status, dedup_key
      )
-     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'rls-ticket-1', 'ticket_triage', 'queued', $3)`,
+     VALUES ($1, $2, 'ticketing', 'mock', 'ticket', 'rls-ticket-1', 'ticket_triage', 'queued', $3)`,
     [tenantOneId, agentDefinitionId, `agent-dedup-${tag}`],
   );
 
@@ -1195,7 +1195,7 @@ async function runAiControlPlaneChecks(
        tenant_id, agent_definition_id, source_provider_kind, source_provider_key,
        source_object_type, source_object_ref, work_kind, status, dedup_key
      )
-     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-definition')`,
+     VALUES ($1, $2, 'ticketing', 'mock', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-definition')`,
     [tenantTwoId, agentDefinitionId],
   );
   await expectCrossTenantInsertBlocked(
@@ -1206,7 +1206,7 @@ async function runAiControlPlaneChecks(
        tenant_id, agent_definition_id, trigger_id, source_provider_kind, source_provider_key,
        source_object_type, source_object_ref, work_kind, status, dedup_key
      )
-     VALUES ($1, $2, $3, 'ticketing', 'glpi', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-trigger')`,
+     VALUES ($1, $2, $3, 'ticketing', 'mock', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-trigger')`,
     [tenantTwoId, agentDefinitionId, agentTriggerId],
   );
   await expectCrossTenantInsertBlocked(
@@ -1217,7 +1217,7 @@ async function runAiControlPlaneChecks(
        tenant_id, agent_definition_id, source_provider_kind, source_provider_key,
        source_object_type, source_object_ref, work_kind, status, dedup_key, last_run_id
      )
-     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-run', $3)`,
+     VALUES ($1, $2, 'ticketing', 'mock', 'ticket', 'cross-ticket', 'ticket_triage', 'queued', 'cross-work-run', $3)`,
     [tenantTwoId, agentDefinitionId, runId],
   );
   await expectCrossTenantInsertBlocked(
@@ -1227,7 +1227,7 @@ async function runAiControlPlaneChecks(
     `INSERT INTO ai_agent_target_states (
        tenant_id, agent_definition_id, provider_kind, provider_key, target_type, target_ref
      )
-     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket')`,
+     VALUES ($1, $2, 'ticketing', 'mock', 'ticket', 'cross-ticket')`,
     [tenantTwoId, agentDefinitionId],
   );
   await expectCrossTenantInsertBlocked(
@@ -1237,7 +1237,7 @@ async function runAiControlPlaneChecks(
     `INSERT INTO ai_agent_target_states (
        tenant_id, agent_definition_id, provider_kind, provider_key, target_type, target_ref, last_run_id
      )
-     VALUES ($1, $2, 'ticketing', 'glpi', 'ticket', 'cross-ticket-run', $3)`,
+     VALUES ($1, $2, 'ticketing', 'mock', 'ticket', 'cross-ticket-run', $3)`,
     [tenantTwoId, agentDefinitionId, runId],
   );
   await expectCrossTenantInsertBlocked(
@@ -1341,8 +1341,8 @@ async function runAiControlPlaneChecks(
        target_key, external_ref, allowed_effect, safety_label, enabled
      )
      VALUES (
-       $1, 'ticketing', 'glpi-cross', 'sandbox', 'ticket',
-       'cross-ticket', 'GLPI-CROSS', 'read', 'read_only', false
+       $1, 'ticketing', 'mock-cross', 'sandbox', 'ticket',
+       'cross-ticket', 'TICKET-CROSS', 'read', 'read_only', false
      )`,
     [tenantOneId],
   );

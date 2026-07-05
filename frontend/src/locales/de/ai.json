@@ -186,6 +186,8 @@
       "get_entity_context": "Entitätskontext abrufen",
       "get_entity_detail": "Entitätsdetails abrufen",
       "get_filter_values": "Filterwerte abrufen",
+      "import_ticket": "Ticket importieren",
+      "import_glpi_ticket": "GLPI-Ticket importieren",
       "prepare_mutation_plan": "Änderungsplan vorbereiten",
       "query_entities": "Entitäten abfragen",
       "search_all": "Alles durchsuchen",

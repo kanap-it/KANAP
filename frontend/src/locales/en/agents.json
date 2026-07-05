@@ -280,6 +280,7 @@
     "start": "Start agent",
     "testStarted": "Test run started.",
     "testFailed": "Could not start the test run.",
+    "providerMissing": "This agent has no ticketing provider binding.",
     "status": "Status",
     "checkNow": "Check now",
     "lifecycle": "Lifecycle",

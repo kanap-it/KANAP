@@ -8,6 +8,7 @@ import KanapDialog from '../design/KanapDialog';
 import { type AutosaveStatus } from '../../hooks/useAutosave';
 import {
   type AiAgentControlActionRequest,
+  type AiAgentControlAgentDefinition,
   type AiAgentControlHelpdeskSummary,
   type AiAgentControlQueueOverview,
   type AiAgentControlTargetState,
@@ -16,7 +17,8 @@ import {
 import i18n from '../../i18n';
 import { getDotColor } from '../../utils/statusColors';
 
-export const HELP_DESK_AGENT_KEY = 'helpdesk.glpi.triage';
+export const HELP_DESK_TICKETING_AGENT_KEY = 'helpdesk.glpi.triage';
+export const LEGACY_GLPI_TICKETING_PROVIDER_KEY = 'glpi';
 export const INTERNAL_NOTE_CAPABILITY = 'ticketing.ticket.internal_note.add_approved';
 export const PUBLIC_REPLY_CAPABILITY = 'ticketing.ticket.public_reply.add_approved';
 export const CLASSIFICATION_UPDATE_CAPABILITY = 'ticketing.ticket.classification_update.approved';
@@ -202,6 +204,39 @@ export function formatNumber(value: number | null | undefined, maximumFractionDi
 
 export function statusColor(status: string | null | undefined): string {
   return STATUS_COLORS[status ?? ''] ?? 'default';
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+// Keep in sync with the backend resolution in
+// backend/src/ai/control-plane/agent/ticketing-binding.ts (resolveTicketingBinding):
+// same fallback chain (provider_bindings_json.ticketing -> scope_policy_json)
+// and same guards, or the UI enables actions the backend will reject with 400.
+export function ticketingProviderKeyForDefinition(
+  definition: Pick<AiAgentControlAgentDefinition, 'provider_bindings_json' | 'scope_policy_json'> | null | undefined,
+): string | null {
+  const bindings = recordValue(definition?.provider_bindings_json);
+  const ticketing = recordValue(bindings?.ticketing);
+  const boundProviderKind = nonEmptyString(ticketing?.provider_kind) ?? 'ticketing';
+  const boundProviderKey = nonEmptyString(ticketing?.provider_key);
+  if (boundProviderKind === 'ticketing' && boundProviderKey) {
+    return boundProviderKey;
+  }
+
+  const scope = recordValue(definition?.scope_policy_json);
+  const scopeProviderKind = nonEmptyString(scope?.provider_kind) ?? 'ticketing';
+  const scopeProviderKey = nonEmptyString(scope?.provider_key);
+  const scopeTargetKind = nonEmptyString(scope?.target_kind);
+  if (scopeProviderKind !== 'ticketing' || (scopeTargetKind && scopeTargetKind !== 'ticket')) {
+    return null;
+  }
+  return scopeProviderKey;
 }
 
 // A terminal status proposal (close/solve) — a destructive cleanup action that

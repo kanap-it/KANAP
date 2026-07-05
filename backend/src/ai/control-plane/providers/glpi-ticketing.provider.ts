@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
-import { GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { GLPI_TICKETING_IMPLEMENTATION, LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './provider-constants';
 import {
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
   TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
@@ -118,6 +119,19 @@ function noteBodyIsUnsafe(value: string): boolean {
 
 function stableTextHash(value: string): string {
   return createHash('sha256').update(value.replace(/\r\n/g, '\n').trim()).digest('hex');
+}
+
+function textOrNull(value: unknown): string | null {
+  const text = typeof value === 'string' || typeof value === 'number'
+    ? String(value).trim()
+    : '';
+  return text.length > 0 ? text : null;
+}
+
+function objectOrNull(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function glpiStatusLabel(value: string | null): string {
@@ -274,6 +288,7 @@ function glpiSafeStatusTransitions(currentStatus: string | null): Array<{
   label: string;
   requiresApproval: true;
   destructive: boolean;
+  terminal: boolean;
 }> {
   const current = glpiStatusKey(currentStatus);
   // Already-terminal tickets are left alone.
@@ -285,6 +300,7 @@ function glpiSafeStatusTransitions(currentStatus: string | null): Array<{
     label: glpiStatusTransitionLabel(key),
     requiresApproval: true as const,
     destructive,
+    terminal: glpiTransitionIsTerminal(key),
   });
   // Non-terminal moves are safe; solve/close are destructive terminal cleanup
   // actions, offered for proposal but always human-approved.
@@ -461,12 +477,17 @@ function toTicketRecord(ticket: GlpiTicket): TicketRecord {
     // the same namespace the reference-data pickers store (see *ReferenceItems below).
     status: glpiStatusKey(ticket.status) ?? glpiStatusLabel(ticket.status),
     priority: glpiPriorityKey(ticket.priority) ?? glpiPriorityLabel(ticket.priority),
+    urgency: glpiPriorityKey(numericDropdownValue(ticket.urgency)) ?? ticket.urgency,
     type: glpiTypeKey(ticket.type) ?? glpiTypeContextLabel(ticket.type),
     requester: null,
     description: stripHtml(ticket.content_html),
+    // Rich source fields consumed by the provider-backed ticket importer:
+    // raw HTML keeps formatting + inline <img> tags for markdown conversion,
+    // and sourceUri keeps the ticket URL footer even without attachments.
+    descriptionHtml: ticket.content_html ?? null,
+    sourceUri: ticket.glpi_url ?? null,
     createdAt,
     updatedAt,
-    tags: ['glpi'],
     scope: {
       entityId: ticket.entity_id == null ? null : String(ticket.entity_id),
       categoryId: ticket.category_id == null ? null : String(ticket.category_id),
@@ -557,6 +578,7 @@ function toTicketNote(note: GlpiTicketFollowup, requesterUserIds: Set<number>): 
     author: note.author_label,
     authorRole: glpiNoteAuthorRole(note, requesterUserIds),
     body,
+    bodyHtml: note.content_html ?? null,
     createdAt: note.date ?? nowIso(),
     updatedAt,
     updateFingerprint: [
@@ -582,7 +604,7 @@ function associationLabel(value: GlpiTicketUserAssociation): string {
 @Injectable()
 export class GlpiTicketingProvider implements TicketingProvider {
   readonly kind = 'ticketing' as const;
-  readonly providerKey = 'glpi';
+  readonly providerKey = LEGACY_GLPI_TICKETING_PROVIDER_KEY;
   readonly actionPlannerProfile = GLPI_ACTION_PLANNER_PROFILE;
 
   constructor(
@@ -596,7 +618,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
       ok: applicability.available,
       providerKind: this.kind,
       providerKey: this.providerKey,
-      implementation: 'glpi',
+      implementation: GLPI_TICKETING_IMPLEMENTATION,
       environment: 'sandbox',
       checkedAt: nowIso(),
       errorCode: applicability.available ? undefined : 'not_configured' as const,
@@ -606,6 +628,29 @@ export class GlpiTicketingProvider implements TicketingProvider {
   }
 
   async applicability(context: ProviderContext) {
+    const runtimeConnection = this.runtimeConnectionOverrides(context);
+    if (runtimeConnection) {
+      if (runtimeConnection.error) {
+        return runtimeConnection.error;
+      }
+      const overrides = runtimeConnection.overrides;
+      if (!overrides.glpi_url) {
+        return {
+          available: false,
+          reasonCode: 'provider_not_configured' as const,
+          message: 'Configured GLPI adapter URL is not set.',
+        };
+      }
+      if (!overrides.glpi_user_token) {
+        return {
+          available: false,
+          reasonCode: 'missing_credentials' as const,
+          message: 'Configured GLPI adapter user token is not set.',
+        };
+      }
+      return { available: true };
+    }
+
     const settings = await this.settings.get(context.tenantId, { manager: context.manager });
     if (!settings.glpi_enabled) {
       return {
@@ -631,6 +676,73 @@ export class GlpiTicketingProvider implements TicketingProvider {
     return { available: true };
   }
 
+  private runtimeConnectionOverrides(context: ProviderContext): { overrides: GlpiConnectionOverrides; error?: undefined } | { overrides?: undefined; error: { available: false; reasonCode: 'malformed_config' | 'missing_credentials'; message: string } } | null {
+    const runtime = context.adapterRuntime;
+    if (!runtime || runtime.implementation !== GLPI_TICKETING_IMPLEMENTATION) {
+      return null;
+    }
+    const baseUrl = textOrNull(runtime.baseUrl);
+    if (!runtime.credential?.hasSecret()) {
+      return {
+        overrides: {
+          glpi_url: baseUrl,
+          glpi_user_token: null,
+          glpi_app_token: null,
+        },
+      };
+    }
+    const raw = runtime.credential.reveal();
+    const trimmed = raw.trim();
+    if (!trimmed.startsWith('{')) {
+      return {
+        overrides: {
+          glpi_url: baseUrl,
+          glpi_user_token: textOrNull(trimmed),
+          glpi_app_token: null,
+        },
+      };
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      return {
+        error: {
+          available: false,
+          reasonCode: 'malformed_config',
+          message: 'GLPI adapter credential secret is malformed.',
+        },
+      };
+    }
+    const record = objectOrNull(parsed);
+    if (!record) {
+      return {
+        error: {
+          available: false,
+          reasonCode: 'malformed_config',
+          message: 'GLPI adapter credential secret must be a JSON object.',
+        },
+      };
+    }
+    const userToken = textOrNull(record.glpi_user_token) ?? textOrNull(record.user_token);
+    if (!userToken) {
+      return {
+        error: {
+          available: false,
+          reasonCode: 'malformed_config',
+          message: 'GLPI adapter credential secret must include glpi_user_token or user_token.',
+        },
+      };
+    }
+    return {
+      overrides: {
+        glpi_url: baseUrl,
+        glpi_user_token: userToken,
+        glpi_app_token: textOrNull(record.glpi_app_token) ?? textOrNull(record.app_token),
+      },
+    };
+  }
+
   async executionReadinessForActions(
     context: ProviderContext,
     input: { actions: ProviderActionExecutionReadinessAction[] },
@@ -652,7 +764,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
   ): Promise<AdapterResult<T>> {
     let session: Awaited<ReturnType<GlpiService['initSession']>> | null = null;
     try {
-      session = await this.glpi.initSession(context.tenantId, context.manager);
+      session = await this.glpi.initSession(context.tenantId, context.manager, this.runtimeConnectionOverrides(context)?.overrides);
       return await fn(session);
     } catch (error) {
       return mapError<T>(error);
@@ -1160,7 +1272,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
       transitionKey: input.transitionKey,
       targetStatus: input.transitionKey,
       targetStatusLabel: transition.label,
-      terminal: glpiTransitionIsTerminal(input.transitionKey),
+      terminal: transition.terminal,
       providerFields: { status: targetStatusCode },
       reason,
     };

@@ -27,7 +27,7 @@ import {
   EmptyState,
   formatNumber,
   formatPercent,
-  HELP_DESK_AGENT_KEY,
+  HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
   lifecycleStatusKey,
   MetricBlock,
@@ -36,6 +36,7 @@ import {
   SaveIndicator,
   Section,
   statusLabel,
+  ticketingProviderKeyForDefinition,
 } from '../../components/agents/agentControlPrimitives';
 import {
   actionLinkButtonSx,
@@ -271,6 +272,10 @@ function helpdeskDefinitionSettingsPayload(
   const categoryId = categoryFromFilters(form.filters) || form.categoryId.trim();
   const entityId = entityFromFilters(form.filters) || form.entityId.trim();
   const horizonHours = createdHorizonHoursFromFilters(form.filters, form.horizonHours);
+  const providerKey = ticketingProviderKeyForDefinition(definition);
+  if (!providerKey) {
+    throw new Error('This agent has no ticketing provider binding.');
+  }
   const enabledAt = form.enabled
     ? stringValue(ingestion.enabled_at) || new Date().toISOString()
     : stringValue(ingestion.enabled_at) || null;
@@ -311,7 +316,7 @@ function helpdeskDefinitionSettingsPayload(
       mode: form.enabled ? mode : stringValue(scope.mode) || 'manual_safe_target',
       allowed_modes: ['manual_safe_target', 'new_tickets_only', 'all_open', 'agent_involved'],
       provider_kind: 'ticketing',
-      provider_key: 'glpi',
+      provider_key: providerKey,
       target_kind: 'ticket',
       required_safe_target_effect: 'read',
       targeting: {
@@ -365,12 +370,12 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const { t } = useTranslation(['agents']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
-  const data = useAgentControlData();
+  const data = useAgentControlData({ targetAgentKey: agentKey });
   const [targetKey, setTargetKey] = React.useState('');
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
   const summary = resolveAgentSummary(data.queueQuery.data, agentKey);
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
-  const isBuiltInHelpdesk = definition?.agent_key === HELP_DESK_AGENT_KEY;
+  const isBuiltInHelpdesk = definition?.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
   // Run state vs emergency pause are distinct axes. An agent-scoped pause can be
   // lifted from here; a tenant/global pause is managed from the fleet overview.
   const agentPause = summary?.emergencyPause ?? null;
@@ -389,7 +394,12 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   }, [data.targetsQuery.data, targetKey]);
 
   const triageMutation = useMutation({
-    mutationFn: () => aiAgentControlApi.runGlpiTriage({ target_key: targetKey }),
+    mutationFn: () => {
+      if (!data.ticketingProviderKey) {
+        throw new Error(t('monitor.providerMissing'));
+      }
+      return aiAgentControlApi.runTicketingTriage({ provider_key: data.ticketingProviderKey, target_key: targetKey });
+    },
     onSuccess: async () => {
       data.setMessage(t('monitor.testStarted'));
       await data.invalidate();
@@ -466,7 +476,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
                 <MenuItem key={target.target_key} value={target.target_key} sx={drawerMenuItemSx}>{target.safety_label} / {target.external_ref}</MenuItem>
               ))}
             </Select>
-            <Button size="small" variant="contained" startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!targetKey || triageMutation.isPending} onClick={() => triageMutation.mutate()}>
+            <Button size="small" variant="contained" startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey || triageMutation.isPending} onClick={() => triageMutation.mutate()}>
               {t('monitor.runTest')}
             </Button>
           </Stack>
@@ -613,7 +623,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     });
   }, [queryClient]);
   const settings = data.settingsQuery.data;
-  const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_AGENT_KEY;
+  const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
   const isHelpdesk = definition.agent_type === 'helpdesk';
   const autonomyQuery = useQuery({
     queryKey: ['ai-agent-control-autonomy', definition.id],
@@ -1433,7 +1443,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
 
 export default function AgentWorkspacePage() {
   const { t } = useTranslation(['agents']);
-  const { agentKey = HELP_DESK_AGENT_KEY } = useParams();
+  const { agentKey = HELP_DESK_TICKETING_AGENT_KEY } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();

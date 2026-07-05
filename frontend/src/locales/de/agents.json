@@ -280,6 +280,7 @@
     "start": "Agent starten",
     "testStarted": "Testlauf gestartet.",
     "testFailed": "Testlauf konnte nicht gestartet werden.",
+    "providerMissing": "Für diesen Agenten ist kein Ticketing-Anbieter gebunden.",
     "status": "Status",
     "checkNow": "Jetzt prüfen",
     "lifecycle": "Lebenszyklus",

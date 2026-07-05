@@ -280,6 +280,7 @@
     "start": "Iniciar agente",
     "testStarted": "Ejecución de prueba iniciada.",
     "testFailed": "No se pudo iniciar la ejecución de prueba.",
+    "providerMissing": "Este agente no tiene un proveedor de tickets asociado.",
     "status": "Estado",
     "checkNow": "Comprobar ahora",
     "lifecycle": "Ciclo de vida",

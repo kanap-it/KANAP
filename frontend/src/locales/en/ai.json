@@ -186,6 +186,8 @@
       "get_entity_context": "Get entity context",
       "get_entity_detail": "Get entity detail",
       "get_filter_values": "Get filter values",
+      "import_ticket": "Import ticket",
+      "import_glpi_ticket": "Import GLPI ticket",
       "prepare_mutation_plan": "Prepare change plan",
       "query_entities": "Query entities",
       "search_all": "Search all",

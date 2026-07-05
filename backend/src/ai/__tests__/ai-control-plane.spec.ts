@@ -53,7 +53,7 @@ import { AiReplySynthesisService } from '../control-plane/agent-control/ai-reply
 import { AiTicketEvidenceExtractionService } from '../control-plane/agent-control/ai-ticket-evidence-extraction.service';
 import { AiTicketNeedRepresentationService } from '../control-plane/agent-control/ai-ticket-need-representation.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../control-plane/diagnostics/ai-readonly-diagnostic-workflow.service';
-import { AiAgentHelpdeskGlpiIngestionService } from '../control-plane/agent/ai-agent-helpdesk-glpi-ingestion.service';
+import { AiAgentHelpdeskTicketingIngestionService } from '../control-plane/agent/ai-agent-helpdesk-ticketing-ingestion.service';
 import { AiAgentApprovalLifecycleSweeperService } from '../control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import {
   deriveServiceDeskTargetingFetchConfig,
@@ -66,6 +66,7 @@ import { AiActionRequest } from '../control-plane/entities/ai-action-request.ent
 import { AiAgentAuditEvent } from '../control-plane/entities/ai-agent-audit-event.entity';
 import { AiAgentDefinition } from '../control-plane/entities/ai-agent-definition.entity';
 import { AiAgentTargetState } from '../control-plane/entities/ai-agent-target-state.entity';
+import { AiAgentTrigger } from '../control-plane/entities/ai-agent-trigger.entity';
 import { AiAgentWorkItem } from '../control-plane/entities/ai-agent-work-item.entity';
 import { AiApproval } from '../control-plane/entities/ai-approval.entity';
 import { AiApprovalPolicy } from '../control-plane/entities/ai-approval-policy.entity';
@@ -108,6 +109,7 @@ import { MockTicketingProvider } from '../control-plane/providers/mocks/mock-tic
 import { GlpiTicketingProvider } from '../control-plane/providers/glpi-ticketing.provider';
 import { AiProviderRegistryService } from '../control-plane/providers/provider-registry.service';
 import { TicketAttachmentReadResult } from '../control-plane/providers/provider.types';
+import { AiResolvedTenantSecret } from '../control-plane/providers/tenant-secret-resolver.service';
 import { AiExecutionContextWithManager } from '../ai.types';
 import { Features } from '../../config/features';
 
@@ -433,11 +435,22 @@ async function enableHelpdeskNewTicketsOnly(
     maxProviderRequestsPerCycle?: number;
     hardBackfillHorizonHours?: number;
     dailyRuns?: number;
+    providerKey?: string;
   },
 ) {
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const definition = bundle.definition;
+  const providerKey = overrides?.providerKey ?? 'mock';
   const { targeting: _previousTargeting, ...baseScopePolicy } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
+  definition.provider_bindings_json = {
+    ...(definition.provider_bindings_json ?? {}),
+    ticketing: {
+      ...(((definition.provider_bindings_json ?? {}) as Record<string, any>).ticketing ?? {}),
+      provider_kind: 'ticketing',
+      provider_key: providerKey,
+      connection_id: providerKey,
+    },
+  };
   definition.trigger_policy_json = {
     ...(definition.trigger_policy_json ?? {}),
     scheduled_poll: { enabled: true },
@@ -447,6 +460,9 @@ async function enableHelpdeskNewTicketsOnly(
   definition.scope_policy_json = {
     ...baseScopePolicy,
     mode: 'new_tickets_only',
+    provider_kind: 'ticketing',
+    provider_key: providerKey,
+    target_kind: 'ticket',
     new_tickets_only: {
       enabled: true,
       enabled_at: overrides?.enabledAt ?? '2026-06-09T08:00:00.000Z',
@@ -915,7 +931,7 @@ async function seedPolicyAction(context: any, actions: AiActionRequestService, o
 
 async function seedAgentDefinitionForAutonomy(context: any) {
   const queue = new AiAgentWorkQueueService();
-  const definition = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const definition = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   return { queue, definition: definition.definition };
 }
 
@@ -1760,6 +1776,75 @@ async function testTicketingProviderReferenceDataContract() {
   assert.equal(killedSessions, 2);
 }
 
+async function testGlpiAdapterRuntimeCredentialPreservesAppToken() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  let initOverrides: any = null;
+  const provider = new GlpiTicketingProvider(
+    {} as any,
+    {
+      initSession: async (_tenantId: string, _manager: unknown, overrides: any) => {
+        initOverrides = overrides;
+        return { baseUrl: 'https://glpi.adapter.test', sessionToken: 'session', appToken: overrides?.glpi_app_token ?? null };
+      },
+      killSession: async () => undefined,
+      getTicket: async (_session: unknown, ticketId: number) => ({
+        id: ticketId,
+        name: 'Adapter credential ticket',
+        content_html: '<p>Adapter credential ticket</p>',
+        status: '2',
+        priority: 3,
+        urgency: 3,
+        type: 1,
+        date: '2026-06-09 08:10:00',
+        updated_date: '2026-06-09 09:15:30',
+        glpi_url: `https://glpi.adapter.test/front/ticket.form.php?id=${ticketId}`,
+        image_targets: [],
+      }),
+    } as any,
+  );
+  const runtimeContext = {
+    ...context,
+    adapterRuntime: {
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      implementation: 'glpi',
+      environment: 'sandbox',
+      baseUrl: 'https://glpi.adapter.test',
+      credential: {
+        hasSecret: () => true,
+        reveal: () => JSON.stringify({
+          glpi_user_token: 'adapter-user-token',
+          glpi_app_token: 'adapter-app-token',
+        }),
+      },
+    },
+  } as any;
+
+  const applicability = await provider.applicability(runtimeContext);
+  assert.equal(applicability.available, true);
+  const ticket = await provider.getTicket(runtimeContext, { ticketId: '42' });
+  assert.equal(ticket.ok, true);
+  assert.equal(initOverrides?.glpi_url, 'https://glpi.adapter.test');
+  assert.equal(initOverrides?.glpi_user_token, 'adapter-user-token');
+  assert.equal(initOverrides?.glpi_app_token, 'adapter-app-token');
+
+  const malformedContext = {
+    ...runtimeContext,
+    adapterRuntime: {
+      ...runtimeContext.adapterRuntime,
+      credential: {
+        hasSecret: () => true,
+        reveal: () => JSON.stringify({ glpi_app_token: 'app-token-without-user-token' }),
+      },
+    },
+  } as any;
+  const malformed = await provider.applicability(malformedContext);
+  assert.equal(malformed.available, false);
+  assert.equal(malformed.reasonCode, 'malformed_config');
+  assert.doesNotMatch(JSON.stringify(malformed), /app-token-without-user-token/);
+}
+
 async function testMockTicketingHelpdeskContextReads() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -2231,6 +2316,7 @@ async function testProviderRegistryMockProvidersAreAvailable() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const registry = new AiProviderRegistryService(new AiAdapterConfigService({} as any));
+  const adapterRepo = manager.getRepository(AiAdapterConfig);
 
   for (const kind of ['ticketing', 'monitoring', 'virtualization', 'directory', 'communication', 'automation', 'kanap_domain'] as const) {
     const health = await registry.getHealth(context, kind, 'mock');
@@ -2242,6 +2328,167 @@ async function testProviderRegistryMockProvidersAreAvailable() {
   const result = await missing.getAlert(context, { alertId: 'mock-alert-001' });
   assert.equal(result.ok, false);
   assert.equal(result.ok ? '' : result.errorCode, 'not_configured');
+
+  await adapterRepo.save(adapterRepo.create({
+    tenant_id: context.tenantId,
+    provider_kind: 'monitoring',
+    provider_key: 'prtg-prod',
+    implementation: 'prtg',
+    environment: 'production',
+    enabled: true,
+    credential_ref_json: { kind: 'environment', ref: 'PRTG_TOKEN' },
+    live_test_safety: 'live_read',
+  }));
+  const unsupportedApplicability = await registry.getApplicability(context, 'monitoring', 'prtg-prod');
+  assert.equal(unsupportedApplicability.available, false);
+  assert.equal(unsupportedApplicability.reasonCode, 'unsupported_provider_version');
+  const unsupportedHealth = await registry.getHealth(context, 'monitoring', 'prtg-prod');
+  assert.equal(unsupportedHealth.ok, false);
+  assert.equal(unsupportedHealth.errorCode, 'unsupported_provider_version');
+  const unsupported = await registry.monitoring(context, 'prtg-prod');
+  const unsupportedResult = await unsupported.getAlert(context, { alertId: 'alert-1' });
+  assert.equal(unsupportedResult.ok, false);
+  assert.equal(unsupportedResult.ok ? '' : unsupportedResult.errorCode, 'unsupported_provider_version');
+}
+
+async function testProviderRegistryPrefersConfiguredGlpiAdapterOverLegacyKey() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const adapterRepo = manager.getRepository(AiAdapterConfig);
+  await adapterRepo.save(adapterRepo.create({
+    tenant_id: context.tenantId,
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    implementation: 'glpi',
+    environment: 'sandbox',
+    enabled: true,
+    display_name: 'Configured GLPI',
+    base_url: 'https://glpi.adapter.test',
+    credential_ref_json: { kind: 'environment', ref: 'KANAP_TENANT_TEST_GLPI_TOKEN', tenant_id: context.tenantId },
+    live_test_safety: 'live_read',
+    metadata_json: { source: 'unit_test' },
+  }));
+
+  let applicabilityRuntime: any = null;
+  let callRuntime: any = null;
+  const glpiProvider = {
+    kind: 'ticketing',
+    providerKey: 'glpi',
+    health: async (ctx: any) => ({
+      ok: true,
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      checkedAt: new Date().toISOString(),
+      runtimeBaseUrl: ctx.adapterRuntime?.baseUrl ?? null,
+    }),
+    applicability: async (ctx: any) => {
+      applicabilityRuntime = ctx.adapterRuntime ?? null;
+      return { available: true };
+    },
+    getTicket: async (ctx: any) => {
+      callRuntime = ctx.adapterRuntime ?? null;
+      return {
+        ok: true,
+        data: {
+          id: '42',
+          title: 'Configured ticket',
+          status: 'open',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        evidence: [],
+      };
+    },
+  } as any;
+  const secretResolver = {
+    resolve: () => new AiResolvedTenantSecret({
+      kind: 'environment',
+      resolved: true,
+      source: 'environment',
+      ref_hash: 'hash',
+    }, 'adapter-user-token'),
+  };
+  const registry = new AiProviderRegistryService(
+    new AiAdapterConfigService({} as any),
+    secretResolver as any,
+    [{ providerKind: 'ticketing', implementation: 'glpi', provider: glpiProvider }],
+  );
+
+  const applicability = await registry.getApplicability(context, 'ticketing', 'glpi');
+  assert.equal(applicability.available, true);
+  assert.equal(applicabilityRuntime?.providerKey, 'glpi');
+  assert.equal(applicabilityRuntime?.baseUrl, 'https://glpi.adapter.test');
+  assert.equal(applicabilityRuntime?.credential?.reveal(), 'adapter-user-token');
+
+  const provider = await registry.ticketing(context, 'glpi');
+  const ticket = await provider.getTicket(context, { ticketId: '42' });
+  assert.equal(ticket.ok, true);
+  assert.equal(callRuntime?.providerKey, 'glpi');
+  assert.equal(callRuntime?.baseUrl, 'https://glpi.adapter.test');
+  assert.equal(callRuntime?.credential?.reveal(), 'adapter-user-token');
+}
+
+async function testProviderRegistryFallsBackToLegacyWhenConfiguredAdapterUnusable() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const adapterRepo = manager.getRepository(AiAdapterConfig);
+  await adapterRepo.save(adapterRepo.create({
+    tenant_id: context.tenantId,
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    implementation: 'glpi',
+    environment: 'sandbox',
+    enabled: false,
+    display_name: 'Disabled GLPI adapter row',
+    base_url: 'https://glpi.adapter.test',
+    credential_ref_json: { kind: 'environment', ref: 'KANAP_TENANT_TEST_GLPI_TOKEN', tenant_id: context.tenantId },
+    live_test_safety: 'live_read',
+    metadata_json: { source: 'unit_test' },
+  }));
+
+  let legacyApplicability: { available: boolean; reasonCode?: string } = { available: true };
+  let callRuntime: any = 'unset';
+  const glpiProvider = {
+    kind: 'ticketing',
+    providerKey: 'glpi',
+    applicability: async () => legacyApplicability,
+    getTicket: async (ctx: any) => {
+      callRuntime = ctx.adapterRuntime ?? null;
+      return {
+        ok: true,
+        data: {
+          id: '42',
+          title: 'Legacy-settings ticket',
+          status: 'open',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        evidence: [],
+      };
+    },
+  } as any;
+  const registry = new AiProviderRegistryService(
+    new AiAdapterConfigService({} as any),
+    undefined,
+    [{ providerKind: 'ticketing', implementation: 'glpi', provider: glpiProvider }],
+  );
+
+  // A disabled adapter-config row must not shadow the working legacy
+  // ai_settings-backed GLPI path.
+  const applicability = await registry.getApplicability(context, 'ticketing', 'glpi');
+  assert.equal(applicability.available, true);
+  const provider = await registry.ticketing(context, 'glpi');
+  const ticket = await provider.getTicket(context, { ticketId: '42' });
+  assert.equal(ticket.ok, true);
+  // Legacy path binds no adapter runtime.
+  assert.equal(callRuntime, null);
+
+  // When the legacy path is unavailable too, the configured row's error is
+  // the actionable one and must be preserved.
+  legacyApplicability = { available: false, reasonCode: 'provider_not_configured' };
+  const blocked = await registry.getApplicability(context, 'ticketing', 'glpi');
+  assert.equal(blocked.available, false);
+  assert.equal(blocked.reasonCode, 'provider_disabled');
 }
 
 async function testReadOnlyProviderCapabilityExecutesThroughDispatcher() {
@@ -3011,6 +3258,47 @@ async function testPrepareInternalNoteCreatesProviderActionRequest() {
   assert.equal(toolExecution.capability_name, TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY);
   assert.equal(toolExecution.status, 'completed');
   assert.equal((stores.get(AiApproval.name) ?? []).length, 0);
+}
+
+async function testNeutralTicketingTriageWorkflowCanCreateFreshExecutedProposal() {
+  const { dispatcher, context, stores, actions } = createRealProviderDispatcher();
+  const input = {
+    ticket_id: 'mock-ticket-1001',
+    note_body: 'Repeatable triage note.',
+    provider_key: 'mock',
+  };
+  const first = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input,
+    execution: { surface: 'internal' },
+  });
+  const firstAction = (stores.get(AiActionRequest.name) ?? [])
+    .find((action: AiActionRequest) => action.id === (first.output as any).data.action_request_id);
+  assert.ok(firstAction);
+  await actions.markExecuted(context, firstAction, 'executed', null);
+
+  const repeated = await dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
+    input,
+    execution: {
+      surface: 'internal',
+      metadata: {
+        uat_workflow: 'agent_control_center_ticketing_triage',
+        agent_work_item_id: 'work-item-neutral-triage',
+      },
+    },
+  });
+
+  const repeatedActionId = (repeated.output as any).data.action_request_id;
+  assert.notEqual(repeatedActionId, firstAction.id);
+  const rows = stores.get(AiActionRequest.name) ?? [];
+  assert.equal(rows.length, 2);
+  const retry = rows.find((action: AiActionRequest) => action.id === repeatedActionId);
+  assert.ok(retry);
+  assert.equal(retry.status, 'pending');
+  assert.equal(retry.metadata_json.retry_after_action_request_id, firstAction.id);
+  assert.equal(retry.metadata_json.retry_after_action_status, 'executed');
+  assert.equal(retry.metadata_json.uat_workflow, 'agent_control_center_ticketing_triage');
 }
 
 async function testAdvancedTicketUpdateActionRequestsExecuteThroughDispatcher() {
@@ -4489,6 +4777,149 @@ function glpiReadSafeTarget(overrides?: Record<string, any>) {
   };
 }
 
+async function testTicketingReadUatRequiresExplicitProviderKeyAndKeepsGlpiWrapper() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const targetLookups: any[] = [];
+  const targetLists: any[] = [];
+  const applicabilityKeys: string[] = [];
+  const calls: any[] = [];
+  const liveTargets = {
+    requireSingleEnabledTarget: async (_context: unknown, input: any) => {
+      targetLookups.push(input);
+      return glpiReadSafeTarget({
+        provider_key: input.providerKey,
+        target_key: input.targetKey ?? `${input.providerKey}-ticket-read`,
+        external_ref: `${input.providerKey}-42`,
+      });
+    },
+    findEnabledTargets: async (_context: unknown, input: any) => {
+      targetLists.push(input);
+      return [
+        glpiReadSafeTarget({
+          provider_key: input.providerKey,
+          target_key: `${input.providerKey}-ticket-read`,
+          external_ref: `${input.providerKey}-42`,
+        }),
+      ];
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {
+      execute: async (_context: unknown, request: any) => {
+        calls.push(request);
+        return {
+          run_id: `run-${calls.length}`,
+          step_id: `step-${calls.length}`,
+          tool_execution_id: `tool-${calls.length}`,
+          output: { ok: true, data: { id: request.input.ticket_id }, evidence: [] },
+        };
+      },
+    } as any,
+    liveTargets as any,
+    {
+      getApplicability: async (_context: unknown, _providerKind: string, providerKey: string) => {
+        applicabilityKeys.push(providerKey);
+        return { available: true };
+      },
+    } as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  await assert.rejects(
+    () => service.runTicketingRead(context, {}),
+    (error: unknown) => error instanceof BadRequestException,
+  );
+  await assert.rejects(
+    () => service.listTicketingReadTargets(context, {}),
+    (error: unknown) => error instanceof BadRequestException,
+  );
+
+  const listed = await service.listTicketingReadTargets(context, { provider_key: 'mock' });
+  assert.equal(targetLists[0].providerKey, 'mock');
+  assert.equal(listed.provider.provider_key, 'mock');
+  assert.equal(listed.ready, true);
+
+  const neutral = await service.runTicketingRead(context, { provider_key: 'mock', target_key: 'mock-read' });
+  assert.equal(targetLookups[0].providerKey, 'mock');
+  assert.equal(targetLookups[0].targetKey, 'mock-read');
+  assert.equal(calls[0].input.provider_key, 'mock');
+  assert.equal(calls[0].input.ticket_id, 'mock-42');
+  assert.equal(calls[0].execution.metadata.uat_workflow, 'agent_control_center_ticketing_read');
+  assert.equal(neutral.target.provider_key, 'mock');
+
+  const legacy = await service.runGlpiRead(context, { target_key: 'glpi-read' });
+  assert.equal(targetLookups[1].providerKey, 'glpi');
+  assert.equal(targetLookups[1].targetKey, 'glpi-read');
+  assert.equal(calls[1].input.provider_key, 'glpi');
+  assert.equal(calls[1].execution.metadata.uat_workflow, 'agent_control_center_glpi_read');
+  assert.equal(legacy.target.provider_key, 'glpi');
+  assert.deepEqual(applicabilityKeys, ['mock', 'mock', 'glpi']);
+}
+
+async function testTicketingTriageManualRequiresProviderKeyAndUsesNeutralOptions() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  ) as any;
+  const calls: Array<{ input: Record<string, unknown>; options: Record<string, unknown> }> = [];
+  service.runHelpdeskTicketingTriage = async (_context: unknown, input: Record<string, unknown>, options: Record<string, unknown> = {}) => {
+    calls.push({ input, options });
+    return { ok: true, input, options };
+  };
+
+  await assert.rejects(
+    () => service.runTicketingTriage(context, {}),
+    (error: unknown) => error instanceof BadRequestException,
+  );
+
+  const manual = await service.runTicketingTriage(context, {
+    provider_key: 'mock',
+    target_key: 'mock-ticket-4',
+  });
+  assert.equal(manual.input.provider_key, 'mock');
+  assert.equal(manual.input.target_key, 'mock-ticket-4');
+  assert.equal(manual.options.workflow, 'agent_control_center_ticketing_triage');
+  assert.equal(manual.options.sourceEndpoint, 'uat/ticketing-triage');
+  assert.equal(manual.options.manualEnqueueMode, 'ticketing');
+  assert.equal(manual.options.observationType, 'ticketing_ticket_triage');
+  assert.equal(manual.options.recommendationType, 'ticketing_triage_actions');
+  assert.equal(manual.options.evaluationType, 'ticketing_triage_uat');
+  assert.equal(manual.options.proposalEvaluationType, 'ticketing_triage_proposal');
+
+  const queued = await service.runTicketingTriage(context, {
+    work_item_id: 'work-item-1',
+    provider_key: 'ignored',
+    target_key: 'ignored',
+  });
+  assert.deepEqual(queued.input, { work_item_id: 'work-item-1' });
+  assert.equal(queued.options.workflow, 'agent_control_center_ticketing_triage');
+  assert.equal(queued.options.sourceEndpoint, 'uat/ticketing-triage');
+  assert.equal(queued.options.manualEnqueueMode, 'ticketing');
+  assert.equal(queued.options.observationType, 'ticketing_ticket_triage');
+  assert.equal(queued.options.recommendationType, 'ticketing_triage_actions');
+  assert.equal(queued.options.evaluationType, 'ticketing_triage_uat');
+  assert.equal(queued.options.proposalEvaluationType, 'ticketing_triage_proposal');
+
+  const legacy = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  assert.equal(legacy.input.provider_key, 'glpi');
+  assert.equal(legacy.input.target_key, 'glpi-ticket-4');
+  assert.equal(legacy.options.workflow, 'agent_control_center_glpi_triage');
+  assert.equal(legacy.options.sourceEndpoint, 'uat/glpi-triage');
+  assert.equal(legacy.options.manualEnqueueMode, 'glpi');
+  assert.equal(legacy.options.observationType, 'glpi_ticket_triage');
+  assert.equal(legacy.options.recommendationType, 'glpi_triage_actions');
+  assert.equal(legacy.options.evaluationType, 'glpi_triage_uat');
+  assert.equal(legacy.options.proposalEvaluationType, 'glpi_triage_proposal');
+}
+
 function testCapabilityNames(value: unknown): Set<string> {
   const entries = Array.isArray(value)
     ? value
@@ -4590,6 +5021,7 @@ async function testAgentWorkQueueUpgradesExistingHelpdeskDefinitionCapabilities(
   assert.equal(allowed.has(TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY), true);
   assert.equal(forbidden.has(TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY), false);
   assert.equal(forbidden.has('ticketing.ticket.close'), true);
+  assert.doesNotThrow(() => queue.assertHelpdeskTicketingDefinitionRunnable(bundle.definition, bundle.trigger));
   assert.doesNotThrow(() => queue.assertHelpdeskGlpiDefinitionRunnable(bundle.definition, bundle.trigger));
 }
 
@@ -4628,14 +5060,161 @@ async function testAgentWorkQueueSeedsHelpdeskDefinitionAndDeniesUnsafeDefinitio
   );
 }
 
+async function testAgentWorkQueueSeedsHelpdeskDefinitionFromSingleTicketingAdapterConfig() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const adapterRepo = manager.getRepository(AiAdapterConfig);
+
+  await adapterRepo.save(adapterRepo.create({
+    tenant_id: context.tenantId,
+    provider_kind: 'ticketing',
+    provider_key: 'mock',
+    implementation: 'mock',
+    environment: 'sandbox',
+    enabled: true,
+    credential_ref_json: { kind: 'none' },
+    live_test_safety: 'mock_only',
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const ticketingBinding = bundle.definition.provider_bindings_json?.ticketing;
+  assert.equal(isRecordLike(ticketingBinding) ? ticketingBinding.provider_key : null, 'mock');
+  assert.equal(bundle.definition.scope_policy_json?.provider_key, 'mock');
+  assert.equal(bundle.trigger.scope_policy_json?.provider_key, 'mock');
+}
+
+async function testAgentWorkQueueMaterializesLegacyScopeTicketingBinding() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  const triggerRepo = manager.getRepository(AiAgentTrigger);
+  const seeded = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+
+  seeded.definition.provider_bindings_json = null;
+  seeded.definition.scope_policy_json = {
+    ...(seeded.definition.scope_policy_json ?? {}),
+    provider_kind: 'ticketing',
+    provider_key: 'mock',
+    target_kind: 'ticket',
+  };
+  await definitionRepo.save(seeded.definition);
+  seeded.trigger.scope_policy_json = {
+    ...(seeded.trigger.scope_policy_json ?? {}),
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    target_kind: 'ticket',
+  };
+  await triggerRepo.save(seeded.trigger);
+
+  const upgraded = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const ticketingBinding = upgraded.definition.provider_bindings_json?.ticketing;
+  assert.equal(isRecordLike(ticketingBinding) ? ticketingBinding.provider_key : null, 'mock');
+  assert.equal(upgraded.definition.scope_policy_json?.provider_key, 'mock');
+  assert.equal(upgraded.trigger.scope_policy_json?.provider_key, 'mock');
+  assert.doesNotThrow(() => queue.assertHelpdeskTicketingDefinitionRunnable(upgraded.definition, upgraded.trigger));
+}
+
+async function testAgentWorkQueueUpgradesMissingBindingFromSingleTicketingAdapterConfig() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  const triggerRepo = manager.getRepository(AiAgentTrigger);
+  const adapterRepo = manager.getRepository(AiAdapterConfig);
+  const seeded = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+
+  await adapterRepo.save(adapterRepo.create({
+    tenant_id: context.tenantId,
+    provider_kind: 'ticketing',
+    provider_key: 'mock',
+    implementation: 'mock',
+    environment: 'sandbox',
+    enabled: true,
+    credential_ref_json: { kind: 'none' },
+    live_test_safety: 'mock_only',
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+
+  const scopePolicy = { ...(seeded.definition.scope_policy_json ?? {}) } as Record<string, unknown>;
+  delete scopePolicy.provider_key;
+  seeded.definition.provider_bindings_json = null;
+  seeded.definition.scope_policy_json = scopePolicy;
+  await definitionRepo.save(seeded.definition);
+  await triggerRepo.save(seeded.trigger);
+
+  const upgraded = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const ticketingBinding = upgraded.definition.provider_bindings_json?.ticketing;
+  assert.equal(isRecordLike(ticketingBinding) ? ticketingBinding.provider_key : null, 'mock');
+  assert.equal(upgraded.definition.scope_policy_json?.provider_key, 'mock');
+  assert.equal(upgraded.trigger.scope_policy_json?.provider_key, 'mock');
+  assert.doesNotThrow(() => queue.assertHelpdeskTicketingDefinitionRunnable(upgraded.definition, upgraded.trigger));
+}
+
+async function testManualTicketingSafeTargetUsesDefinitionProviderBinding() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  const triggerRepo = manager.getRepository(AiAgentTrigger);
+  bundle.definition.provider_bindings_json = {
+    ...(bundle.definition.provider_bindings_json ?? {}),
+    ticketing: {
+      provider_kind: 'ticketing',
+      provider_key: 'mock',
+      connection_id: 'mock',
+    },
+  };
+  bundle.definition.scope_policy_json = {
+    ...(bundle.definition.scope_policy_json ?? {}),
+    provider_kind: 'ticketing',
+    provider_key: 'mock',
+    target_kind: 'ticket',
+    allowed_effect: 'read',
+  };
+  await definitionRepo.save(bundle.definition);
+  await triggerRepo.delete({ id: bundle.trigger.id });
+  const recreated = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  assert.equal(recreated.trigger.scope_policy_json?.provider_kind, 'ticketing');
+  assert.equal(recreated.trigger.scope_policy_json?.provider_key, 'mock');
+  assert.equal(recreated.trigger.scope_policy_json?.target_kind, 'ticket');
+
+  const mockTarget = glpiReadSafeTarget({
+    provider_key: 'mock',
+    target_key: 'mock-ticket-4',
+    external_ref: 'mock-4',
+  });
+  const enqueued = await queue.enqueueManualTicketingSafeTarget(context, mockTarget, {
+    source_endpoint: 'uat/ticketing-triage',
+  });
+  assert.equal(enqueued.created, true);
+  assert.equal(enqueued.workItem.source_provider_key, 'mock');
+  assert.equal(enqueued.workItem.source_object_ref, 'mock-4');
+  assert.equal((enqueued.workItem.metadata_json as Record<string, unknown>).source_endpoint, 'uat/ticketing-triage');
+
+  await assert.rejects(
+    () => queue.enqueueManualGlpiSafeTarget(context, mockTarget),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+  await assert.rejects(
+    () => queue.enqueueManualTicketingSafeTarget(context, glpiReadSafeTarget()),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+}
+
 async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
   const target = glpiReadSafeTarget();
 
-  const first = await queue.enqueueManualGlpiSafeTarget(context, target);
-  const duplicate = await queue.enqueueManualGlpiSafeTarget(context, target);
+  const first = await queue.enqueueManualTicketingSafeTarget(context, target);
+  const duplicate = await queue.enqueueManualTicketingSafeTarget(context, target);
   assert.equal(duplicate.created, false);
   assert.equal(duplicate.workItem.id, first.workItem.id);
 
@@ -4679,7 +5258,7 @@ async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
   const state = await queue.upsertTargetState(context, {
     agentDefinitionId: first.definition.id,
     providerKind: 'ticketing',
-    providerKey: 'glpi',
+    providerKey: 'mock',
     targetType: 'ticket',
     targetRef: '4',
     lastRunId: 'run-queue',
@@ -4692,7 +5271,7 @@ async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
   assert.equal(state.target_ref, '4');
   assert.equal(state.needs_followup, true);
 
-  const afterDeadLetter = await queue.enqueueManualGlpiSafeTarget(context, target);
+  const afterDeadLetter = await queue.enqueueManualTicketingSafeTarget(context, target);
   assert.equal(afterDeadLetter.created, true);
   assert.notEqual(afterDeadLetter.workItem.id, first.workItem.id);
 }
@@ -4708,27 +5287,28 @@ function createHelpdeskIngestionService(input: {
     getApplicability: async () => ({ available: true }),
     ticketing: async () => input.provider,
   };
-  const control = {
-    runGlpiTriage: async (context: AiExecutionContextWithManager, runInput: { work_item_id?: string | null }) => {
-      const workItem = await context.manager.getRepository(AiAgentWorkItem).findOne({
-        where: { id: runInput.work_item_id, tenant_id: context.tenantId },
-      });
-      if (!workItem) {
-        throw new Error('missing test work item');
-      }
-      processed.push(workItem.id);
-      if (input.onRunWorkItem) {
-        await input.onRunWorkItem(context, workItem);
-        return { work_item: workItem };
-      }
-      workItem.status = 'waiting_approval';
-      workItem.last_action_request_ids = [`action-${workItem.id}`];
-      workItem.updated_at = new Date();
-      await context.manager.getRepository(AiAgentWorkItem).save(workItem);
+  const runQueuedTriage = async (context: AiExecutionContextWithManager, runInput: { work_item_id?: string | null }) => {
+    const workItem = await context.manager.getRepository(AiAgentWorkItem).findOne({
+      where: { id: runInput.work_item_id, tenant_id: context.tenantId },
+    });
+    if (!workItem) {
+      throw new Error('missing test work item');
+    }
+    processed.push(workItem.id);
+    if (input.onRunWorkItem) {
+      await input.onRunWorkItem(context, workItem);
       return { work_item: workItem };
-    },
+    }
+    workItem.status = 'waiting_approval';
+    workItem.last_action_request_ids = [`action-${workItem.id}`];
+    workItem.updated_at = new Date();
+    await context.manager.getRepository(AiAgentWorkItem).save(workItem);
+    return { work_item: workItem };
   };
-  return new AiAgentHelpdeskGlpiIngestionService(
+  const control = {
+    runTicketingTriage: runQueuedTriage,
+  };
+  return new AiAgentHelpdeskTicketingIngestionService(
     {} as any,
     { register: () => undefined } as any,
     providers as any,
@@ -4863,7 +5443,7 @@ async function testHelpdeskGlpiIngestionPollsMultipleHelpdeskDefinitions() {
   const secondDefinition = await definitionRepo.save(definitionRepo.create({
     ...primaryDefinition,
     id: randomUUID(),
-    agent_key: 'helpdesk.glpi.triage.payroll',
+    agent_key: 'helpdesk.ticketing.triage.payroll',
     name: 'Payroll helpdesk triage agent',
     scope_policy_json: {
       ...(primaryDefinition.scope_policy_json ?? {}),
@@ -4936,7 +5516,7 @@ async function testHelpdeskGlpiIngestionBudgetStopsProcessingAfterDetectionPass(
     const secondDefinition = await definitionRepo.save(definitionRepo.create({
       ...primaryDefinition,
       id: randomUUID(),
-      agent_key: 'helpdesk.glpi.triage.payroll',
+      agent_key: 'helpdesk.ticketing.triage.payroll',
       name: 'Payroll helpdesk triage agent',
       scope_policy_json: {
         ...(primaryDefinition.scope_policy_json ?? {}),
@@ -5042,7 +5622,7 @@ async function enableHelpdeskAllOpenStaleClosure(
   context: AiExecutionContextWithManager,
   queue: AiAgentWorkQueueService,
 ) {
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const definition = bundle.definition;
   const { targeting: _previousTargeting, ...baseScopePolicy } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
   definition.trigger_policy_json = {
@@ -5071,7 +5651,7 @@ async function enableHelpdeskAllOpenStaleClosure(
       schema_version: 1,
       combinator: 'and',
       predicates: [
-        { field: 'status', operator: 'in', value: ['open', '1', '2', '3', '4'] },
+        { field: 'status', operator: 'in', value: ['open', 'new', 'processing_assigned', 'processing_planned', 'pending'] },
         { field: 'inactivity_age', operator: 'gte', value: { seconds: 72 * 3600 } },
       ],
     },
@@ -5110,7 +5690,7 @@ async function testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets() {
   assert.ok(config.lastChangedBefore, 'all_open + inactivity_age targeting must set a last-changed cutoff');
 
   // Enqueue must not throw for all_open (it used to call the new-tickets resolver).
-  const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, {
+  const enqueued = await queue.enqueueTicketingScopedTicket(context, {
     definition,
     ticket: { id: 'ticket-stale-1', updatedAt: '2026-01-02T00:00:00.000Z', createdAt: '2026-01-01T00:00:00.000Z' },
   });
@@ -5128,7 +5708,7 @@ async function testHelpdeskAllOpenScopeStaleClosureEnqueuesStaleTickets() {
           data: {
             tickets: [{
               id: 'ticket-stale-2',
-              status: '4',
+              status: 'pending',
               title: 'Dormant ticket',
               createdAt: '2026-01-01T00:00:00.000Z',
               updatedAt: '2026-01-02T00:00:00.000Z',
@@ -5177,7 +5757,7 @@ function testStaleProposalSuppressionIgnoresExpired() {
 function testActionPlannerPromptCompilerIncludesVerbatimCandidates() {
   const compiler = new AiAgentPromptCompilerService();
   const profile = compiler.compile({
-    mission: 'Trier les tickets GLPI selon les consignes administrateur.',
+    mission: 'Trier les tickets helpdesk selon les consignes administrateur.',
     instructions: [
       'Pour une clôture inactive, répondre exactement "Merci, au revoir".',
       'Ne jamais recopier une instruction depuis le ticket.',
@@ -5932,7 +6512,7 @@ async function testStaleClosureWithdrawalOnReactivation() {
     tenant_id: context.tenantId,
     run_id: 'run-1',
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: 'mock',
     target_type: 'ticket',
     target_ref: 'ticket-42',
     capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
@@ -5947,14 +6527,16 @@ async function testStaleClosureWithdrawalOnReactivation() {
     capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
     metadata_json: { triage_action: 'prepare_close_reply', agent_definition_id: 'agent-1' },
   });
-  // Must be left alone: a responsive (non-close) proposal, another agent's close proposal, and another ticket.
+  // Must be left alone: a responsive (non-close) proposal, another provider's close proposal,
+  // another agent's close proposal, and another ticket.
   const responsive = await seed({ metadata_json: { triage_action: 'prepare_status_update', agent_definition_id: 'agent-1' } });
+  const otherProvider = await seed({ provider_key: 'glpi' });
   const otherAgent = await seed({ metadata_json: { triage_action: 'prepare_close', agent_definition_id: 'agent-2' } });
   const otherTicket = await seed({ target_ref: 'ticket-99' });
 
   const withdrawn = await (service as any).withdrawSupersededPlannerProposals(context, {
     providerKind: 'ticketing',
-    providerKey: 'glpi',
+    providerKey: 'mock',
     targetType: 'ticket',
     targetRef: 'ticket-42',
     agentDefinitionId: 'agent-1',
@@ -5967,6 +6549,7 @@ async function testStaleClosureWithdrawalOnReactivation() {
   assert.equal(byId(staleClose.id).metadata_json.withdrawn_reason, 'no_longer_eligible');
   assert.equal(byId(staleReply.id).status, 'expired');
   assert.equal(byId(responsive.id).status, 'pending');
+  assert.equal(byId(otherProvider.id).status, 'pending');
   assert.equal(byId(otherAgent.id).status, 'pending');
   assert.equal(byId(otherTicket.id).status, 'pending');
 }
@@ -6176,8 +6759,8 @@ async function testUiExecutionSafetyUsesProviderReadiness() {
       executionReadinessForActions: async (_ctx: unknown, input: { actions: AiActionRequest[] }) =>
         input.actions.map((action) => ({
           action_request_id: action.id,
-          blocked_reason: providerKey === 'glpi' && !action.target_ref
-            ? 'GLPI action has no ticket target.'
+          blocked_reason: providerKey === 'blocked-ticketing' && !action.target_ref
+            ? 'Ticketing action has no ticket target.'
             : null,
         })),
     }),
@@ -6194,27 +6777,27 @@ async function testUiExecutionSafetyUsesProviderReadiness() {
     target_id: null,
     target_ref: null,
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: 'blocked-ticketing',
     action_payload_json: null,
     expires_at: new Date(Date.now() + 60_000),
     metadata_json: null,
   } as AiActionRequest;
-  const glpiMissingTarget = Object.assign(new AiActionRequest(), base);
-  const nonGlpiMissingTarget = Object.assign(new AiActionRequest(), {
+  const blockedMissingTarget = Object.assign(new AiActionRequest(), base);
+  const readyMissingTarget = Object.assign(new AiActionRequest(), {
     ...base,
     id: randomUUID(),
     provider_key: 'mock',
   });
 
-  const readiness = await (service as any).executionReadinessForActions(context, [glpiMissingTarget, nonGlpiMissingTarget]);
-  assert.equal(readiness.get(glpiMissingTarget.id).blocked_reason, 'GLPI action has no ticket target.');
-  assert.equal(readiness.get(nonGlpiMissingTarget.id).can_execute, true);
+  const readiness = await (service as any).executionReadinessForActions(context, [blockedMissingTarget, readyMissingTarget]);
+  assert.equal(readiness.get(blockedMissingTarget.id).blocked_reason, 'Ticketing action has no ticket target.');
+  assert.equal(readiness.get(readyMissingTarget.id).can_execute, true);
 
   await assert.rejects(
-    () => (service as any).assertActionSafeForUiExecution(context, glpiMissingTarget),
+    () => (service as any).assertActionSafeForUiExecution(context, blockedMissingTarget),
     (error: unknown) => error instanceof ForbiddenException,
   );
-  await (service as any).assertActionSafeForUiExecution(context, nonGlpiMissingTarget);
+  await (service as any).assertActionSafeForUiExecution(context, readyMissingTarget);
 }
 
 function testPhase135LegacyTargetingNormalizationWithLohrPreservesConfig() {
@@ -6340,7 +6923,7 @@ async function testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast(
   assert.equal(allOpenConfig.mode, 'all_open');
   assert.equal(allOpenConfig.createdAfter, null);
   assert.equal(allOpenConfig.categoryId, 'access');
-  assert.deepEqual(allOpenConfig.statusValues, ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending']);
+  assert.deepEqual(allOpenConfig.statusValues, ['new', 'processing_assigned', 'processing_planned', 'pending']);
   assert.ok(allOpenConfig.lastChangedBefore, 'inactivity_age should derive an all_open last-changed cutoff');
 
   definition.scope_policy_json = {
@@ -6364,7 +6947,7 @@ async function testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast(
   const createdConfig = queue.resolveScopeIngestionConfig(definition);
   assert.equal(createdConfig.mode, 'new_tickets_only');
   assert.ok(createdConfig.createdAfter, 'created_at predicate should derive a created-after provider bound');
-  assert.deepEqual(createdConfig.statusValues, ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending']);
+  assert.deepEqual(createdConfig.statusValues, ['new', 'processing_assigned', 'processing_planned', 'pending']);
   const createdAfterMs = Date.parse(createdConfig.createdAfter ?? '');
   assert.ok(Number.isFinite(createdAfterMs));
   assert.ok(Math.abs(createdAfterMs - (Date.now() - 48 * 60 * 60 * 1000)) < 5 * 60 * 1000);
@@ -6373,12 +6956,40 @@ async function testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast(
     targeting: {
       predicates: [
         { field: 'touched_by', operator: 'eq', value: 'self' },
-        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'status', operator: 'in', value: ['new', 'processing_assigned', 'processing_planned', 'pending'] },
       ],
     },
   });
   assert.equal(deriveServiceDeskTargetingFetchConfig(touchedTargeting).mode, 'agent_involved');
-  assert.deepEqual(deriveServiceDeskTargetingFetchConfig(touchedTargeting).statusValues, ['1', '2', '3', '4']);
+  assert.deepEqual(deriveServiceDeskTargetingFetchConfig(touchedTargeting).statusValues, ['new', 'processing_assigned', 'processing_planned', 'pending']);
+
+  const mixedLegacyStatusTargeting = normalizeServiceDeskTargeting({
+    targeting: {
+      predicates: [
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending'] },
+      ],
+    },
+  });
+  assert.deepEqual(
+    mixedLegacyStatusTargeting.predicates.find((predicate) => predicate.field === 'status')?.value,
+    ['new', 'processing_assigned', 'processing_planned', 'pending'],
+  );
+
+  const numericOnlyTargeting = normalizeServiceDeskTargeting({
+    targeting: {
+      predicates: [
+        { field: 'touched_by', operator: 'eq', value: 'self' },
+        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+      ],
+    },
+  });
+  assert.equal(deriveServiceDeskTargetingFetchConfig(numericOnlyTargeting).mode, 'agent_involved');
+  assert.deepEqual(
+    numericOnlyTargeting.predicates.find((predicate) => predicate.field === 'status')?.value,
+    ['1', '2', '3', '4'],
+  );
+  // Raw provider status codes are no longer canonical targeting vocabulary.
+  assert.deepEqual(deriveServiceDeskTargetingFetchConfig(numericOnlyTargeting).statusValues, []);
 
   const priorityTargeting = normalizeServiceDeskTargeting({
     targeting: {
@@ -6389,7 +7000,7 @@ async function testPhase136PredicateTargetingDrivesFetchScopeAndPriorityAtLeast(
   });
   const priorityFetch = deriveServiceDeskTargetingFetchConfig(priorityTargeting);
   assert.equal(priorityFetch.mode, 'all_open');
-  assert.deepEqual(priorityFetch.statusValues, ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending', 'open']);
+  assert.deepEqual(priorityFetch.statusValues, ['new', 'processing_assigned', 'processing_planned', 'pending', 'open']);
   assert.equal(ticketMatchesServiceDeskTargeting({
     id: 'p4',
     title: 'High priority',
@@ -6435,7 +7046,7 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
       schema_version: 1,
       combinator: 'and',
       predicates: [
-        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'status', operator: 'in', value: ['new', 'processing_assigned', 'processing_planned', 'pending'] },
         { field: 'inactivity_age', operator: 'gte', value: { seconds: 24 * 3600 } },
       ],
     },
@@ -6452,7 +7063,7 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
     targeting: {
       schema_version: 1,
       combinator: 'and',
-      predicates: [{ field: 'status', operator: 'in', value: ['1', '2', '3', '4'] }],
+      predicates: [{ field: 'status', operator: 'in', value: ['new', 'processing_assigned', 'processing_planned', 'pending'] }],
     },
     stale_closure: {
       enabled: true,
@@ -6475,7 +7086,7 @@ async function testPhase136StaleClosureDerivesFromTargetingAndCapability() {
       schema_version: 1,
       combinator: 'and',
       predicates: [
-        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'status', operator: 'in', value: ['new', 'processing_assigned', 'processing_planned', 'pending'] },
         { field: 'inactivity_age', operator: 'gte', value: { seconds: 12 * 3600 } },
       ],
     },
@@ -6526,7 +7137,7 @@ async function testPhase136StaleClosureCloseGateUsesTargetingOnly() {
   assert.equal(closeReply?.action_payload_json?.body, 'Merci, au revoir');
 
   // The LLM may phrase "close the ticket" as a natural transition key. The backend must
-  // normalize that to an allowed GLPI transition instead of dropping the status proposal.
+  // normalize that to an allowed provider transition instead of dropping the status proposal.
   const closeAlias = await runQueuedStaleClosureTriage({
     targetingSeconds: 24 * 3600,
     ticketAgeHours: 48,
@@ -6536,7 +7147,7 @@ async function testPhase136StaleClosureCloseGateUsesTargetingOnly() {
   assert.equal(closeActionCount(closeAlias.calls, 'planner_prepare_terminal_status'), 1);
   const closeAliasStatus = (closeAlias.stores.get(AiActionRequest.name) ?? [])
     .find((action: AiActionRequest) => action.id === 'stale-close-action');
-  assert.equal(closeAliasStatus?.action_payload_json?.transitionKey, 'solved');
+  assert.equal(closeAliasStatus?.action_payload_json?.transitionKey, 'resolved');
 
   // Inactivity threshold 72h, ticket inactive only 48h -> does not match -> no close.
   const ineligibleAt72h = await runQueuedStaleClosureTriage({
@@ -6703,7 +7314,7 @@ async function testPhase136PollerUsesPredicateDerivedScopeInsteadOfLegacyMode() 
       schema_version: 1,
       combinator: 'and',
       predicates: [
-        { field: 'status', operator: 'in', value: ['1', '2', '3', '4'] },
+        { field: 'status', operator: 'in', value: ['new', 'processing_assigned', 'processing_planned', 'pending'] },
         { field: 'category', operator: 'eq', value: 'access' },
         { field: 'updated_at', operator: 'lte', value: { relative_hours: 24 } },
       ],
@@ -6723,7 +7334,7 @@ async function testPhase136PollerUsesPredicateDerivedScopeInsteadOfLegacyMode() 
           data: {
             tickets: [{
               id: 'predicate-all-open-ticket',
-              status: '2',
+              status: 'processing_assigned',
               title: 'Predicate all-open ticket',
               createdAt: new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString(),
               updatedAt: new Date(nowMs - 48 * 60 * 60 * 1000).toISOString(),
@@ -6775,7 +7386,7 @@ async function testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejec
   await queue.upsertTargetState(context, {
     agentDefinitionId: definition.id,
     providerKind: 'ticketing',
-    providerKey: 'glpi',
+    providerKey: 'mock',
     targetType: 'ticket',
     targetRef: 'preview-1',
     agentTouched: true,
@@ -6783,7 +7394,7 @@ async function testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejec
   await queue.upsertTargetState(context, {
     agentDefinitionId: definition.id,
     providerKind: 'ticketing',
-    providerKey: 'glpi',
+    providerKey: 'mock',
     targetType: 'ticket',
     targetRef: 'preview-2',
     agentTouched: true,
@@ -6791,7 +7402,7 @@ async function testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejec
   await queue.upsertTargetState(context, {
     agentDefinitionId: 'other-agent-definition',
     providerKind: 'ticketing',
-    providerKey: 'glpi',
+    providerKey: 'mock',
     targetType: 'ticket',
     targetRef: 'preview-1',
     agentTouched: true,
@@ -6853,7 +7464,7 @@ async function testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejec
         targeting: {
           schema_version: 1,
           combinator: 'and',
-          predicates: [{ field: 'status', operator: 'in', value: ['1', '2', '3', '4'] }],
+          predicates: [{ field: 'status', operator: 'in', value: ['new', 'processing_assigned', 'processing_planned', 'pending'] }],
         },
         all_matching: { enabled: false },
         freeform_live_object_ids: false,
@@ -6867,7 +7478,7 @@ async function testPhase135TargetStateSchedulingWakeOnChangeAndSelfWrite() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, { providerKey: 'glpi' });
   definition.queue_policy_json = {
     ...(definition.queue_policy_json ?? {}),
     review_cooldown_seconds: 60 * 60,
@@ -6890,14 +7501,14 @@ async function testPhase135TargetStateSchedulingWakeOnChangeAndSelfWrite() {
   assert.equal(first.ready, true);
   assert.equal(first.reason, 'first_review');
 
-  const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, { definition, ticket });
+  const enqueued = await queue.enqueueTicketingScopedTicket(context, { definition, ticket });
   const claimed = await queue.acquireTargetClaim(context, {
     definition,
     targetRef: ticket.id,
     workItemId: enqueued.workItem.id,
   });
   assert.equal(claimed.acquired, true);
-  const outcome = await queue.recordManualGlpiTriageOutcome(context, {
+  const outcome = await queue.recordManualTicketingTriageOutcome(context, {
     definition,
     workItem: enqueued.workItem,
     runId: 'self-write-run',
@@ -6946,7 +7557,7 @@ async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() 
   const high = await definitionRepo.save(definitionRepo.create({
     ...low,
     id: randomUUID(),
-    agent_key: 'helpdesk.glpi.high-priority',
+    agent_key: 'helpdesk.ticketing.high-priority',
     name: 'High priority helpdesk',
     agent_priority: 250,
     metadata_json: { user_modified: true },
@@ -6954,7 +7565,7 @@ async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() 
   const equalDefer = await definitionRepo.save(definitionRepo.create({
     ...low,
     id: randomUUID(),
-    agent_key: 'helpdesk.glpi.equal-defer',
+    agent_key: 'helpdesk.ticketing.equal-defer',
     name: 'Equal defer helpdesk',
     agent_priority: 250,
     queue_policy_json: { ...(low.queue_policy_json ?? {}), on_conflict: 'defer' },
@@ -6963,7 +7574,7 @@ async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() 
   const equalSupersede = await definitionRepo.save(definitionRepo.create({
     ...low,
     id: randomUUID(),
-    agent_key: 'helpdesk.glpi.equal-supersede',
+    agent_key: 'helpdesk.ticketing.equal-supersede',
     name: 'Equal supersede helpdesk',
     agent_priority: 250,
     queue_policy_json: { ...(low.queue_policy_json ?? {}), on_conflict: 'supersede' },
@@ -7005,7 +7616,7 @@ async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() 
     target_type: 'ticket',
     target_ref: 'claim-ticket',
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: 'mock',
     input_hash: 'claim-action-hash',
     input_summary: null,
     evidence_ids: null,
@@ -7025,7 +7636,7 @@ async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() 
       tenant_id: context.tenantId,
       agent_definition_id: equalSupersede.id,
       source_provider_kind: 'ticketing',
-      source_provider_key: 'glpi',
+      source_provider_key: 'mock',
       source_object_type: 'ticket',
       source_object_ref: 'claim-ticket',
       last_run_id: 'claim-run',
@@ -7401,7 +8012,7 @@ async function testPhase135StaleExecuteReReviewAndTerminalFreshnessInvariant() {
     },
   };
   const { dispatcher, context, stores, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
-  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, { providerKey: 'mock' });
   const executionMetadata = queue.agentExecutionMetadata(definition, {
     id: 'freshness-work',
     work_kind: 'ticket_triage',
@@ -7758,6 +8369,7 @@ async function testSameRunApproveAllSiblingWritesDoNotBlockEachOther() {
           label: 'Closed',
           requiresApproval: true,
           destructive: true,
+          terminal: true,
         }],
         updatedAt: currentTicket.updatedAt,
         supported: true,
@@ -7780,6 +8392,7 @@ async function testSameRunApproveAllSiblingWritesDoNotBlockEachOther() {
 	              label: 'Closed',
 	              requiresApproval: true,
 	              destructive: true,
+	              terminal: true,
 	            }],
 	            updatedAt: currentTicket.updatedAt,
 	            supported: true,
@@ -7956,7 +8569,7 @@ async function testBulkApprovePreservesExternalFreshnessReReview() {
   };
   const { dispatcher, context, stores, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
   const service = new AiAgentControlService({} as any, approvals, dispatcher, {} as any, {} as any, queue);
-  const definition = await enableHelpdeskNewTicketsOnly(context, queue);
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, { providerKey: 'mock' });
   const action = await actions.createOrEnsureProviderAction(context, providerActionSeed({
     targetRef: oldTicket.id,
     idempotencyKey: 'bulk-stale-internal-note',
@@ -8382,12 +8995,12 @@ async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList
   }
 }
 
-async function testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls() {
+async function testHelpdeskTicketingIngestionSettingsUpdateAndEmergencyPauseControls() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
 
-  const initial = await queue.getHelpdeskGlpiIngestionSettings(context);
+  const initial = await queue.getHelpdeskTicketingIngestionSettings(context);
   assert.equal(initial.ingestion.enabled, false);
   assert.equal(initial.ingestion.ready, false);
   assert.equal(typeof initial.ingestion.readyReason, 'string');
@@ -8395,7 +9008,7 @@ async function testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls(
 
   // Empty entity/category filters are allowed: they mean "all new tickets",
   // still bounded by the enablement horizon and per-check limits.
-  const wildcard = await queue.updateHelpdeskGlpiIngestionSettings(context, { ingestion: { enabled: true } });
+  const wildcard = await queue.updateHelpdeskTicketingIngestionSettings(context, { ingestion: { enabled: true } });
   assert.equal(wildcard.ingestion.enabled, true);
   assert.equal(wildcard.ingestion.ready, true);
   assert.equal(wildcard.ingestion.entityId, null);
@@ -8403,20 +9016,20 @@ async function testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls(
   assert.equal(typeof wildcard.ingestion.effectiveCreatedAfter, 'string');
 
   await assert.rejects(
-    () => queue.updateHelpdeskGlpiIngestionSettings(context, {
+    () => queue.updateHelpdeskTicketingIngestionSettings(context, {
       ingestion: { enabled: true, entityId: 'lohr-helpdesk', maxTicketsPerCycle: 50 },
     }),
     (error: any) => error instanceof BadRequestException,
   );
   await assert.rejects(
-    () => queue.updateHelpdeskGlpiIngestionSettings(context, {
+    () => queue.updateHelpdeskTicketingIngestionSettings(context, {
       ingestion: { enabled: true, entityId: 'lohr-helpdesk' },
       guardrails: { perRun: { maxEstimatedTokens: -5 } },
     }),
     (error: any) => error instanceof BadRequestException,
   );
 
-  const enabled = await queue.updateHelpdeskGlpiIngestionSettings(context, {
+  const enabled = await queue.updateHelpdeskTicketingIngestionSettings(context, {
     ingestion: { enabled: true, entityId: 'lohr-helpdesk', categoryId: 'access', maxTicketsPerCycle: 3 },
     guardrails: { daily: { maxAgentRuns: 2 } },
   });
@@ -8434,17 +9047,17 @@ async function testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls(
   );
 
   // The definition upgrade path must preserve operator-set ingestion settings.
-  await queue.ensureHelpdeskGlpiTriageDefinition(context);
-  const afterUpgrade = await queue.getHelpdeskGlpiIngestionSettings(context);
+  await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const afterUpgrade = await queue.getHelpdeskTicketingIngestionSettings(context);
   assert.equal(afterUpgrade.ingestion.enabled, true);
   assert.equal(afterUpgrade.ingestion.entityId, 'lohr-helpdesk');
   assert.equal(afterUpgrade.ingestion.maxTicketsPerCycle, 3);
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const config = queue.resolveNewTicketsIngestionConfig(bundle.definition);
   assert.equal(config.entityId, 'lohr-helpdesk');
   assert.equal(config.maxTicketsPerCycle, 3);
 
-  const disabled = await queue.updateHelpdeskGlpiIngestionSettings(context, {
+  const disabled = await queue.updateHelpdeskTicketingIngestionSettings(context, {
     ingestion: { enabled: false, entityId: 'lohr-helpdesk', categoryId: 'access' },
   });
   assert.equal(disabled.ingestion.enabled, false);
@@ -8470,7 +9083,7 @@ async function testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const definitionRepo = manager.getRepository(AiAgentDefinition);
   const otherDefinition = await definitionRepo.save(definitionRepo.create({
     ...bundle.definition,
@@ -8533,7 +9146,7 @@ async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget());
+  const bundle = await queue.enqueueManualTicketingSafeTarget(context, glpiReadSafeTarget());
   const actionRepo = manager.getRepository(AiActionRequest);
   const now = new Date();
   const internalActionId = randomUUID();
@@ -8682,7 +9295,7 @@ async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
   assert.equal(byId.get(internalActionId)?.action_payload_json?.note_body, 'Internal note for ticket 4.');
   assert.equal(byId.get(publicActionId)?.action_payload_json?.reply_body, 'Requester reply for ticket 4.');
   assert.equal(byId.get(classificationActionId)?.action_payload_json?.action, 'classification_update');
-  // Approved GLPI writes no longer require a sandbox_write safe target:
+  // Approved ticketing writes no longer require a sandbox_write safe target:
   // pending, unexpired proposals are executable after human approval.
   assert.equal((byId.get(internalActionId) as any)?.execution_readiness.can_execute, true);
   assert.equal((byId.get(publicActionId) as any)?.execution_readiness.blocked_reason, null);
@@ -8728,7 +9341,7 @@ async function testAgentControlActivityTimelineAndDailyMetrics() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const service = new AiAgentControlService(
     {} as any,
     {} as any,
@@ -8894,7 +9507,7 @@ async function testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdit
   assert.equal(executionMetadata.agent_config_version, saved.config_version);
   assert.equal(executionMetadata.agent_updated_by_user_id, context.userId);
 
-  await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const afterEnsure = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
   assert.equal(hashStableJson(afterEnsure.allowed_capabilities_json), beforeAllowed);
   assert.equal(hashStableJson(afterEnsure.forbidden_capabilities_json), beforeForbidden);
@@ -8990,7 +9603,7 @@ async function testAgentScopedEmergencyPauseBlocksHumanApproveExecute() {
   const harness = createRealProviderDispatcher({ pause: pauseHook as any });
   const { dispatcher, context, actions, approvals, stores } = harness;
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
   const agentId = bundle.definition.id;
 
   const { action } = await seedPolicyAction(context, actions, {
@@ -9396,13 +10009,14 @@ async function seedExecutedGlpiFollowupActions(context: ReturnType<typeof create
   }));
 }
 
-function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input: {
+function savePreparedTicketingAction(context: ReturnType<typeof createContext>, input: {
   id: string;
   runId: string;
   toolExecutionId: string;
   capabilityName: string;
   body: string;
   visibility: 'internal' | 'public';
+  providerKey: string;
   // When the triage run stamps a single approval window on the proposal, the mock honors it the
   // way the real capability registry would, so expiry-convergence assertions remain faithful.
   expiresAt?: Date;
@@ -9433,7 +10047,7 @@ function savePreparedGlpiAction(context: ReturnType<typeof createContext>, input
       bodyFormat: 'plain_text',
     },
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: input.providerKey,
     input_hash: `${input.id}-hash`,
     input_summary: null,
     evidence_ids: null,
@@ -9473,11 +10087,12 @@ function seedMockAiRun(context: ReturnType<typeof createContext>, runId: string)
   }));
 }
 
-function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>, input: {
+function savePreparedTicketingStatusAction(context: ReturnType<typeof createContext>, input: {
   id: string;
   runId: string;
   toolExecutionId: string;
   transitionKey: string;
+  providerKey: string;
   metadata?: Record<string, unknown> | null;
   expiresAt?: Date;
 }) {
@@ -9507,7 +10122,7 @@ function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>,
       reason: 'Closing inactive ticket.',
     },
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: input.providerKey,
     input_hash: `${input.id}-hash`,
     input_summary: null,
     evidence_ids: null,
@@ -9522,12 +10137,13 @@ function savePreparedGlpiStatusAction(context: ReturnType<typeof createContext>,
   }));
 }
 
-function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext>, input: {
+function savePreparedTicketingAdvancedAction(context: ReturnType<typeof createContext>, input: {
   id: string;
   runId: string;
   toolExecutionId: string;
   capabilityName: string;
   action: string;
+  providerKey: string;
   metadata?: Record<string, unknown> | null;
   expiresAt?: Date;
 }) {
@@ -9556,7 +10172,7 @@ function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext
       reason: 'Prepared by the close-triage test harness.',
     },
     provider_kind: 'ticketing',
-    provider_key: 'glpi',
+    provider_key: input.providerKey,
     input_hash: `${input.id}-hash`,
     input_summary: null,
     evidence_ids: null,
@@ -9571,7 +10187,7 @@ function savePreparedGlpiAdvancedAction(context: ReturnType<typeof createContext
   }));
 }
 
-// Drives a full queued GLPI triage run. Closing is now ordinary targeting-driven status work:
+// Drives a full queued ticketing triage run. Closing is now ordinary targeting-driven status work:
 // when targeting carries an inactivity_age gte predicate and the ticket matches it, the run
 // prepares a close (reply + terminal status); otherwise it produces ordinary responsive proposals.
 async function runQueuedStaleClosureTriage(input: {
@@ -9586,18 +10202,21 @@ async function runQueuedStaleClosureTriage(input: {
   verbatimRefMode?: 'exact' | 'text' | 'mangled';
   plannerTransitionKey?: string;
   replySynthesis?: unknown;
+  providerKey?: string;
 }) {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
+  const providerKey = input.providerKey ?? 'mock';
   const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
     categoryId: null,
     maxTicketsPerCycle: 3,
     maxProviderRequestsPerCycle: 3,
+    providerKey,
   });
   const ticketUpdatedAt = new Date(Date.now() - input.ticketAgeHours * 60 * 60 * 1000).toISOString();
   const predicates: Array<Record<string, unknown>> = [
-    { field: 'status', operator: 'in', value: ['open', '1', '2', '3', '4'] },
+    { field: 'status', operator: 'in', value: ['open'] },
   ];
   if (input.targetingSeconds != null) {
     predicates.push({ field: 'inactivity_age', operator: 'gte', value: { seconds: input.targetingSeconds } });
@@ -9631,7 +10250,7 @@ async function runQueuedStaleClosureTriage(input: {
     ],
   };
   await context.manager.getRepository(AiAgentDefinition).save(definition);
-  const enqueued = await queue.enqueueHelpdeskGlpiScopedTicket(context, {
+  const enqueued = await queue.enqueueTicketingScopedTicket(context, {
     definition,
     ticket: {
       id: '4',
@@ -9639,16 +10258,22 @@ async function runQueuedStaleClosureTriage(input: {
       updatedAt: ticketUpdatedAt,
       scope: { entityId: null, categoryId: null },
     },
+    providerKind: 'ticketing',
+    providerKey,
   });
 
-  const calls: Array<{ capabilityName: string; triageAction: string | null }> = [];
+  const calls: Array<{ capabilityName: string; triageAction: string | null; providerKey: string | null }> = [];
   let toolIndex = 0;
   const dispatcher = {
     execute: async (_context: unknown, request: any) => {
       const triageAction = typeof request.execution?.metadata?.triage_action === 'string'
         ? request.execution.metadata.triage_action
         : null;
-      calls.push({ capabilityName: request.capabilityName, triageAction });
+      calls.push({
+        capabilityName: request.capabilityName,
+        triageAction,
+        providerKey: typeof request.input?.provider_key === 'string' ? request.input.provider_key : null,
+      });
       // Honor the run's single approval window the way the real capability registry would: every
       // proposal carries the same proposal_expires_at anchor, so all prepared actions expire together.
       const anchor = typeof request.execution?.metadata?.proposal_expires_at === 'string'
@@ -9705,8 +10330,8 @@ async function runQueuedStaleClosureTriage(input: {
             data: {
               terminal: false,
               allowedTransitions: [
-                { key: 'pending', label: 'Pending', destructive: false },
-                { key: 'solved', label: 'Solved', destructive: true },
+                { key: 'pending', label: 'Pending', destructive: false, terminal: false },
+                { key: 'resolved', label: 'Resolved', destructive: true, terminal: true },
               ],
             },
             evidence: [],
@@ -9738,13 +10363,14 @@ async function runQueuedStaleClosureTriage(input: {
         };
       }
       if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id: `stale-internal-${toolIndex}`,
           runId: 'run-stale-closure',
           toolExecutionId,
           capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           body: request.input.note_body,
           visibility: 'internal',
+          providerKey,
           expiresAt,
           metadata: request.execution?.metadata ?? null,
         });
@@ -9759,13 +10385,14 @@ async function runQueuedStaleClosureTriage(input: {
         const id = triageAction === 'planner_prepare_administrative_close_reply' || triageAction === 'prepare_close_reply'
           ? 'stale-reply-action'
           : `stale-public-${toolIndex}`;
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id,
           runId: 'run-stale-closure',
           toolExecutionId,
           capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
           body: request.input.reply_body,
           visibility: 'public',
+          providerKey,
           expiresAt,
           metadata: request.execution?.metadata ?? null,
         });
@@ -9784,12 +10411,13 @@ async function runQueuedStaleClosureTriage(input: {
       const advanced = advancedPrepare.get(request.capabilityName);
       if (advanced) {
         const id = `stale-${advanced.action}-${toolIndex}`;
-        await savePreparedGlpiAdvancedAction(context, {
+        await savePreparedTicketingAdvancedAction(context, {
           id,
           runId: 'run-stale-closure',
           toolExecutionId,
           capabilityName: advanced.approved,
           action: advanced.action,
+          providerKey,
           metadata: request.execution?.metadata ?? null,
           expiresAt,
         });
@@ -9804,11 +10432,12 @@ async function runQueuedStaleClosureTriage(input: {
         const id = triageAction === 'planner_prepare_terminal_status' || triageAction === 'prepare_close'
           ? 'stale-close-action'
           : `stale-status-${toolIndex}`;
-        await savePreparedGlpiStatusAction(context, {
+        await savePreparedTicketingStatusAction(context, {
           id,
           runId: 'run-stale-closure',
           toolExecutionId,
           transitionKey: request.input.transition_key,
+          providerKey,
           metadata: request.execution?.metadata ?? null,
           expiresAt,
         });
@@ -9851,7 +10480,7 @@ async function runQueuedStaleClosureTriage(input: {
           },
           {
             action_type: 'status_update',
-            transition_key: input.plannerTransitionKey ?? 'solved',
+            transition_key: input.plannerTransitionKey ?? 'resolved',
             reason: 'Close inactive ticket after the configured administrative reply.',
           },
         ],
@@ -9883,7 +10512,7 @@ async function runQueuedStaleClosureTriage(input: {
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  const result = await service.runGlpiTriage(context, { work_item_id: enqueued.workItem.id });
+  const result = await service.runTicketingTriage(context, { work_item_id: enqueued.workItem.id });
   return { calls, result, stores };
 }
 
@@ -9891,7 +10520,7 @@ async function runQueuedStaleClosureTriage(input: {
 // stamps it on every proposal, so a ticket's public reply and its other prepared actions expire
 // together. Previously each action class had its own clock (public_reply ~8h, status ~24h), so a
 // reviewer could approve one half of a coordinated response after the other had already lapsed.
-async function testGlpiTriageProposalsShareOneApprovalWindow() {
+async function testTicketingTriageProposalsShareOneApprovalWindow() {
   const approvalTtlSeconds = 3 * 60 * 60; // distinct from the 24h default, to prove the window tracks the agent config
   const startedAt = Date.now();
   // targetingSeconds: null → ordinary responsive triage (internal note + requester reply), which
@@ -9907,6 +10536,7 @@ async function testGlpiTriageProposalsShareOneApprovalWindow() {
     (action: AiActionRequest) => action.run_id === 'run-stale-closure' && action.status === 'pending',
   );
   assert.ok(prepared.length >= 2, `expected at least two prepared proposals, got ${prepared.length}`);
+  assert.equal(prepared.every((action: AiActionRequest) => action.provider_key === 'mock'), true);
 
   // Every prepared action request shares the IDENTICAL expiry — one approval window for the run.
   const distinctExpiries = new Set(prepared.map((action: AiActionRequest) => action.expires_at?.getTime()));
@@ -9932,6 +10562,83 @@ async function testGlpiTriageProposalsShareOneApprovalWindow() {
     (sharedExpiry as number) <= endedAt + ttlMs + 1_000,
     `shared expiry ${sharedExpiry} should be <= now + approval_ttl_seconds (${endedAt + ttlMs})`,
   );
+}
+
+async function testQueuedTriageUsesWorkItemTicketingProviderBinding() {
+  const { calls, result, stores } = await runQueuedStaleClosureTriage({
+    targetingSeconds: null,
+    ticketAgeHours: 2,
+    providerKey: 'mock',
+  });
+  assert.equal(result.work_item?.source_provider_key, 'mock');
+  const ticketingReads = calls.filter((call) =>
+    call.capabilityName === 'ticketing.ticket.get'
+    || call.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY
+    || call.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY
+    || call.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY
+    || call.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY
+    || call.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY);
+  assert.ok(ticketingReads.length > 0, 'queued triage should execute ticketing reads');
+  assert.equal(ticketingReads.every((call) => call.providerKey === 'mock'), true);
+  const observation = (stores.get(AiObservation.name) ?? [])[0];
+  assert.ok(observation);
+  assert.equal(observation.source_provider, 'ticketing:mock');
+  assert.match(observation.summary, /^Ticket 4:/);
+  assert.doesNotMatch(observation.summary, /GLPI ticket/);
+  const prepared = (stores.get(AiActionRequest.name) ?? [])
+    .filter((action: AiActionRequest) => action.run_id === 'run-stale-closure');
+  assert.ok(prepared.length > 0, 'queued triage should prepare ticketing actions');
+  assert.equal(prepared.every((action: AiActionRequest) => action.provider_key === 'mock'), true);
+}
+
+async function testHelpdeskWorkItemContextUsesWorkItemTicketingProviderBinding() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    providerKey: 'mock',
+    categoryId: null,
+  });
+  const enqueued = await queue.enqueueTicketingScopedTicket(context, {
+    definition,
+    ticket: {
+      id: 'mock-ticket-1001',
+      createdAt: '2026-06-09T08:00:00.000Z',
+      updatedAt: '2026-06-09T09:00:00.000Z',
+      scope: { entityId: null, categoryId: null },
+    },
+    providerKind: 'ticketing',
+    providerKey: 'mock',
+  });
+
+  const calls: Array<{ capabilityName: string; providerKey: string | null }> = [];
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({
+        capabilityName: request.capabilityName,
+        providerKey: typeof request.input?.provider_key === 'string' ? request.input.provider_key : null,
+      });
+      return {
+        run_id: 'run-context-read',
+        step_id: `step-${calls.length}`,
+        tool_execution_id: `tool-${calls.length}`,
+        output: { ok: true, data: {}, evidence: [] },
+      };
+    },
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    {} as any,
+    {} as any,
+    queue,
+  );
+
+  const result = await service.getHelpdeskWorkItemContext(context, enqueued.workItem.id);
+  assert.equal(result.work_item.source_provider_key, 'mock');
+  assert.equal(calls.length, 4);
+  assert.equal(calls.every((call) => call.providerKey === 'mock'), true);
 }
 
 function isRecordLike(value: unknown): value is Record<string, unknown> {
@@ -10047,13 +10754,14 @@ function createGlpiConversationGateTriageService(input: {
         };
       }
       if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
-        await savePreparedGlpiAction(input.context, {
+        await savePreparedTicketingAction(input.context, {
           id: 'gate-internal-action',
           runId: 'run-glpi-gate',
           toolExecutionId,
           capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           body: request.input.note_body,
           visibility: 'internal',
+          providerKey: 'glpi',
         });
         return {
           run_id: 'run-glpi-gate',
@@ -10067,13 +10775,14 @@ function createGlpiConversationGateTriageService(input: {
         };
       }
       if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
-        await savePreparedGlpiAction(input.context, {
+        await savePreparedTicketingAction(input.context, {
           id: 'gate-public-action',
           runId: 'run-glpi-gate',
           toolExecutionId,
           capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
           body: request.input.reply_body,
           visibility: 'public',
+          providerKey: 'glpi',
         });
         return {
           run_id: 'run-glpi-gate',
@@ -10850,13 +11559,14 @@ async function runWp2LlmAccountingTriage(input: { perRunTokenCap?: number } = {}
             base64Data: Buffer.from('image').toString('base64'),
           });
         case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
-          await savePreparedGlpiAction(context, {
+          await savePreparedTicketingAction(context, {
             id: 'wp2-internal-action',
             runId,
             toolExecutionId,
             capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
             body: request.input.note_body,
             visibility: 'internal',
+            providerKey: 'glpi',
           });
           return ok({ summary: 'Prepared internal note.', action_request_id: 'wp2-internal-action' });
         default:
@@ -11080,24 +11790,26 @@ async function testGlpiTriageLargeKnowledgeDocumentsDoNotConsumeRunCap() {
             };
           }
           case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
-            await savePreparedGlpiAction(context, {
+            await savePreparedTicketingAction(context, {
               id: 'large-doc-internal-action',
               runId,
               toolExecutionId,
               capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
               body: request.input.note_body,
               visibility: 'internal',
+              providerKey: 'glpi',
               metadata: request.execution?.metadata ?? null,
             });
             return ok({ summary: 'Prepared internal note.', action_request_id: 'large-doc-internal-action' });
           case TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY:
-            await savePreparedGlpiAction(context, {
+            await savePreparedTicketingAction(context, {
               id: 'large-doc-public-action',
               runId,
               toolExecutionId,
               capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
               body: request.input.reply_body,
               visibility: 'public',
+              providerKey: 'glpi',
               metadata: request.execution?.metadata ?? null,
             });
             return ok({ summary: 'Prepared public reply.', action_request_id: 'large-doc-public-action' });
@@ -11254,7 +11966,7 @@ async function testGlpiTriageFallbackFailsClosedWhenSynthesisFails() {
         case TICKETING_LIFECYCLE_CONTEXT_CAPABILITY:
           // A non-destructive 'pending' transition IS available — the gate, not availability,
           // must be what suppresses the status change.
-          return ok({ terminal: false, status: 'Processing assigned', allowedTransitions: [{ key: 'pending', label: 'Pending', destructive: false, requiresApproval: true }] });
+          return ok({ terminal: false, status: 'Processing assigned', allowedTransitions: [{ key: 'pending', label: 'Pending', destructive: false, requiresApproval: true, terminal: false }] });
         case TICKETING_ROUTING_CONTEXT_CAPABILITY:
         case TICKETING_PARTICIPANT_CONTEXT_CAPABILITY:
           return ok({});
@@ -11364,11 +12076,11 @@ async function testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis() {
         case 'get_document':
           return { run_id: 'run-glpi-49', step_id: `step-${calls.length}`, tool_execution_id: toolExecutionId, output: { id: 'doc-165', ref: 'DOC-165', title: 'Recette du Burnt Cheesecake', summary: 'Dessert.', status: 'published', content_markdown: '# Burnt Cheesecake\n\nMélanger, cuire.', updated_at: '2026-06-07T08:00:00.000Z' } };
         case TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY:
-          await savePreparedGlpiAction(_context as any, { id: 'internal-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, body: request.input.note_body, visibility: 'internal', metadata: request.execution?.metadata ?? null });
+          await savePreparedTicketingAction(_context as any, { id: 'internal-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, body: request.input.note_body, visibility: 'internal', providerKey: 'glpi', metadata: request.execution?.metadata ?? null });
           return ok({ summary: 'Prepared internal note.', action_request_id: 'internal-49' });
         case TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY:
           publicReplyBody = request.input.reply_body;
-          await savePreparedGlpiAction(_context as any, { id: 'public-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, body: request.input.reply_body, visibility: 'public', metadata: request.execution?.metadata ?? null });
+          await savePreparedTicketingAction(_context as any, { id: 'public-49', runId: 'run-glpi-49', toolExecutionId, capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, body: request.input.reply_body, visibility: 'public', providerKey: 'glpi', metadata: request.execution?.metadata ?? null });
           return ok({ summary: 'Prepared public reply.', action_request_id: 'public-49' });
         default:
           return { run_id: 'run-glpi-49', step_id: `step-${calls.length}`, tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: false } };
@@ -11583,13 +12295,14 @@ async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {
       }
       if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
         internalNoteBody = request.input.note_body;
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id: 'flight-internal-action',
           runId: 'run-glpi-flight',
           toolExecutionId,
           capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           body: request.input.note_body,
           visibility: 'internal',
+          providerKey: 'glpi',
         });
         return {
           run_id: 'run-glpi-flight',
@@ -11600,13 +12313,14 @@ async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {
       }
       if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
         publicReplyBody = request.input.reply_body;
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id: 'flight-public-action',
           runId: 'run-glpi-flight',
           toolExecutionId,
           capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
           body: request.input.reply_body,
           visibility: 'public',
+          providerKey: 'glpi',
         });
         return {
           run_id: 'run-glpi-flight',
@@ -11839,7 +12553,7 @@ async function testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHono
             ok: true,
             data: {
               terminal: false,
-              allowedTransitions: [{ key: 'pending', label: 'Pending', destructive: false, requiresApproval: true }],
+              allowedTransitions: [{ key: 'pending', label: 'Pending', destructive: false, requiresApproval: true, terminal: false }],
             },
             evidence: [],
           },
@@ -11856,13 +12570,14 @@ async function testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHono
       }
       if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
         internalNoteBody = request.input.note_body;
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id: 'downgrade-internal-action',
           runId: 'run-glpi-downgrade',
           toolExecutionId,
           capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           body: request.input.note_body,
           visibility: 'internal',
+          providerKey: 'glpi',
         });
         return { run_id: 'run-glpi-downgrade', step_id: 'step-internal', tool_execution_id: toolExecutionId, output: { ok: true, data: { action_request_id: 'downgrade-internal-action' }, evidence: [] } };
       }
@@ -12144,13 +12859,14 @@ async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
         };
       }
       if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id: 'sweet-internal-action',
           runId: 'run-glpi-sweet',
           toolExecutionId,
           capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
           body: request.input.note_body,
           visibility: 'internal',
+          providerKey: 'glpi',
         });
         return {
           run_id: 'run-glpi-sweet',
@@ -12161,13 +12877,14 @@ async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
       }
       if (request.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY) {
         publicReplyBody = request.input.reply_body;
-        await savePreparedGlpiAction(context, {
+        await savePreparedTicketingAction(context, {
           id: 'sweet-public-action',
           runId: 'run-glpi-sweet',
           toolExecutionId,
           capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
           body: request.input.reply_body,
           visibility: 'public',
+          providerKey: 'glpi',
         });
         return {
           run_id: 'run-glpi-sweet',
@@ -12799,11 +13516,16 @@ async function run() {
   await testAutomationCatalogValidationStates();
   await testMockAdapterContractScenarios();
   await testTicketingProviderReferenceDataContract();
+  await testGlpiAdapterRuntimeCredentialPreservesAppToken();
   await testMockTicketingHelpdeskContextReads();
   await testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly();
+  await testTicketingReadUatRequiresExplicitProviderKeyAndKeepsGlpiWrapper();
+  await testTicketingTriageManualRequiresProviderKeyAndUsesNeutralOptions();
   await testMockTicketingInternalNoteWriteScenarios();
   await testMockAutomationAwxScenariosAndLiveGate();
   await testProviderRegistryMockProvidersAreAvailable();
+  await testProviderRegistryPrefersConfiguredGlpiAdapterOverLegacyKey();
+  await testProviderRegistryFallsBackToLegacyWhenConfiguredAdapterUnusable();
   await testReadOnlyProviderCapabilityExecutesThroughDispatcher();
   await testTicketingHelpdeskContextCapabilitiesExecuteThroughDispatcher();
   await testRealProviderDispatcherPersistsNormalizedAdapterEvidence();
@@ -12826,6 +13548,7 @@ async function run() {
   await testExternalMcpBridgeRedactsSecretsAndKeepsMaliciousOutputInert();
   await testExternalMcpBridgeMcpSurfaceAndPauseDenyBeforeTransport();
   await testPrepareInternalNoteCreatesProviderActionRequest();
+  await testNeutralTicketingTriageWorkflowCanCreateFreshExecutedProposal();
   await testAdvancedTicketUpdateActionRequestsExecuteThroughDispatcher();
   await testApprovedInternalNoteExecutionLinksApprovalAndBlocksReplay();
   await testServiceDeskProposalExpiryHonorsSingleApprovalWindow();
@@ -12848,6 +13571,10 @@ async function run() {
   await testDiagnosticRecommendationCanProposeInternalNoteAction();
   await testAgentWorkQueueUpgradesExistingHelpdeskDefinitionCapabilities();
   await testAgentWorkQueueSeedsHelpdeskDefinitionAndDeniesUnsafeDefinitions();
+  await testAgentWorkQueueSeedsHelpdeskDefinitionFromSingleTicketingAdapterConfig();
+  await testAgentWorkQueueMaterializesLegacyScopeTicketingBinding();
+  await testAgentWorkQueueUpgradesMissingBindingFromSingleTicketingAdapterConfig();
+  await testManualTicketingSafeTargetUsesDefinitionProviderBinding();
   await testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState();
   await testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsolation();
   await testHelpdeskGlpiIngestionPollsMultipleHelpdeskDefinitions();
@@ -12891,7 +13618,7 @@ async function run() {
   await testQueuedApprovedExecutionReclaimsStaleExecutingAction();
   await testQueuedApprovedExecutionFrozenWhileAgentPaused();
   await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
-  await testHelpdeskGlpiIngestionSettingsUpdateAndEmergencyPauseControls();
+  await testHelpdeskTicketingIngestionSettingsUpdateAndEmergencyPauseControls();
   await testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent();
   await testAgentScopedEmergencyPauseBlocksHumanApproveExecute();
   await testAgentControlQueueOverviewReturnsLinkedActionRequests();
@@ -12920,7 +13647,9 @@ async function run() {
   testSynthesisPromptCarriesValidationStatus();
   await testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHonorsLanguage();
   await testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange();
-  await testGlpiTriageProposalsShareOneApprovalWindow();
+  await testTicketingTriageProposalsShareOneApprovalWindow();
+  await testQueuedTriageUsesWorkItemTicketingProviderBinding();
+  await testHelpdeskWorkItemContextUsesWorkItemTicketingProviderBinding();
   await testApprovalPolicyResolverDeniesByDefaultDisabledDraftAndMalformedPolicies();
   await testApprovalPolicyResolverScopeEvidenceAndEvaluationDenials();
   await testApprovalPolicyResolverMockOnlyAndStrictCeilings();

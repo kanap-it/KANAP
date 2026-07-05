@@ -1,8 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
+import { OPEN_TICKET_STATUS_VALUES } from '../providers/provider-constants';
 import { TicketRecord } from '../providers/provider.types';
 
 export const SERVICE_DESK_TARGETING_SCHEMA_VERSION = 1;
-export const OPEN_TICKET_STATUS_VALUES = ['1', '2', '3', '4', 'new', 'processing_assigned', 'processing_planned', 'pending', 'open'];
+export { OPEN_TICKET_STATUS_VALUES };
 
 export type ServiceDeskTargetPredicateOperator = 'eq' | 'in' | 'gte' | 'lte' | 'not';
 export type ServiceDeskTargetPredicateResolution =
@@ -50,9 +51,10 @@ export type TargetingPreviewSummary = {
 };
 
 const SUPPORTED_OPERATORS = new Set(['eq', 'in', 'gte', 'lte', 'not']);
+const OPEN_TICKET_STATUS_VALUE_SET = new Set(OPEN_TICKET_STATUS_VALUES);
 // Runtime fetch bounds are derived from canonical predicates where safe, then
 // predicates are rechecked locally. Do not label fields "pushed_down" until
-// GLPI native search criteria are derived directly from those predicates.
+// the bound provider's native search criteria are derived directly from those predicates.
 const PUSHED_DOWN_FIELDS = new Set<string>();
 const LOCAL_FILTER_FIELDS = new Set(['status', 'category', 'entity', 'created_at', 'updated_at', 'inactivity_age', 'priority', 'type']);
 const CONTROL_PLANE_FIELDS = new Set(['touched_by']);
@@ -133,11 +135,28 @@ function normalizedPredicate(raw: unknown): ServiceDeskTargetPredicate {
   if (Array.isArray(raw.any) || Array.isArray(raw.or) || Array.isArray(raw.predicates)) {
     throw new BadRequestException('Targeting supports AND predicates only; cross-field OR is not available.');
   }
+  const value = field === 'status'
+    ? normalizeStatusPredicateValue(operator as ServiceDeskTargetPredicateOperator, raw.value)
+    : raw.value;
   return {
     field,
     operator: operator as ServiceDeskTargetPredicateOperator,
-    value: raw.value,
+    value,
   };
+}
+
+function normalizeStatusPredicateValue(operator: ServiceDeskTargetPredicateOperator, value: unknown): unknown {
+  if (operator === 'eq') {
+    const canonical = stringValue(value)?.toLowerCase();
+    return canonical && OPEN_TICKET_STATUS_VALUE_SET.has(canonical) ? canonical : value;
+  }
+  if (operator !== 'in' || !Array.isArray(value)) {
+    return value;
+  }
+  const canonicalValues = value
+    .map((entry) => stringValue(entry)?.toLowerCase() ?? null)
+    .filter((entry): entry is string => !!entry && OPEN_TICKET_STATUS_VALUE_SET.has(entry));
+  return canonicalValues.length > 0 ? Array.from(new Set(canonicalValues)) : value;
 }
 
 function scopeBlockPredicates(scopePolicy: Record<string, unknown>, mode: string): ServiceDeskTargetPredicate[] {
@@ -195,7 +214,7 @@ export function resolveTargetingPredicates(predicates: ServiceDeskTargetPredicat
       return {
         predicate,
         resolution: 'pushed_down',
-        reason: 'Translated to provider search criteria for GLPI.',
+        reason: 'Translated to the bound ticketing provider\'s native search criteria.',
       };
     }
     if (LOCAL_FILTER_FIELDS.has(predicate.field)) {

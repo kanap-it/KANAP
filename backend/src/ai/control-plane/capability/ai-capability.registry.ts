@@ -113,7 +113,8 @@ const TICKETING_EXECUTION_PHASES = {
   participant: 50,
   status: 60,
 } as const;
-const GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES = ['expired', 'failed', 'rejected', 'executed'];
+const TICKETING_TERMINAL_TRANSITIONS = new Set(['solved', 'closed']);
+const HELPDESK_TRIAGE_RETRY_AFTER_STATUSES = ['expired', 'failed', 'rejected', 'executed'];
 type ProviderActionForExecution = Awaited<ReturnType<AiActionRequestService['findProviderActionForExecution']>>;
 
 const PrepareInternalNoteInputSchema = z.object({
@@ -1155,11 +1156,11 @@ export function providerCapabilityContracts(): CapabilityContract[] {
         additionalProperties: false,
       },
       // No redaction_policy on base64Data: this read capability MUST return the image bytes to the
-      // caller (the vision extractor needs them), and the dispatcher returns the redacted output —
-      // so redacting base64Data here would break vision. Persisted evidence stays byte-free via the
-      // provider's adapter evidence seed (see GlpiTicketingProvider.readTicketAttachment), which is
-      // the actual control. The previous `{ fields: ['base64Data'] }` was a no-op (nested path
-      // `data.base64Data` never matched the leaf field) and is intentionally removed.
+      // caller (the vision extractor needs them), and the dispatcher returns the redacted output.
+      // Persisted evidence stays byte-free because the TicketingProvider.readTicketAttachment
+      // contract requires metadata-only adapter evidence seeds. The previous
+      // `{ fields: ['base64Data'] }` was a no-op (nested path `data.base64Data` never matched the
+      // leaf field) and is intentionally removed.
     }),
     providerReadContract({
       name: TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
@@ -1591,9 +1592,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function shouldCreateFreshGlpiAgentControlProposal(execution: CapabilityExecutionContext): boolean {
+const HELP_DESK_TRIAGE_FRESH_PROPOSAL_WORKFLOWS = new Set([
+  'agent_control_center_glpi_triage',
+  'agent_control_center_ticketing_triage',
+]);
+
+function shouldCreateFreshHelpdeskTriageProposal(execution: CapabilityExecutionContext): boolean {
   const metadata = isRecord(execution.metadata) ? execution.metadata : null;
-  return metadata?.uat_workflow === 'agent_control_center_glpi_triage'
+  return typeof metadata?.uat_workflow === 'string'
+    && HELP_DESK_TRIAGE_FRESH_PROPOSAL_WORKFLOWS.has(metadata.uat_workflow)
     && typeof metadata.agent_work_item_id === 'string'
     && metadata.agent_work_item_id.trim().length > 0;
 }
@@ -2269,7 +2276,7 @@ export class AiCapabilityRegistry {
     ticket: TicketRecord,
     reason: string,
   ): Promise<void> {
-    if (!this.agentQueue || !action.target_ref) {
+    if (!this.agentQueue || !action.target_ref || !action.provider_kind || !action.provider_key || !action.target_type) {
       return;
     }
     const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
@@ -2289,15 +2296,20 @@ export class AiCapabilityRegistry {
     await this.agentQueue.resolveWaitingApprovalForActionRequest(context, action.id);
     await this.agentQueue.releaseTargetClaim(context, {
       agentDefinitionId: definition.id,
-      providerKind: action.provider_kind ?? 'ticketing',
-      providerKey: action.provider_key ?? 'glpi',
-      targetType: action.target_type ?? 'ticket',
+      providerKind: action.provider_kind,
+      providerKey: action.provider_key,
+      targetType: action.target_type,
       targetRef: action.target_ref,
       reason,
     });
-    await this.agentQueue.enqueueHelpdeskGlpiScopedTicket(context, {
+    if (action.provider_kind !== 'ticketing' || action.target_type !== 'ticket') {
+      return;
+    }
+    await this.agentQueue.enqueueTicketingScopedTicket(context, {
       definition,
       ticket,
+      providerKind: action.provider_kind,
+      providerKey: action.provider_key,
       metadata: {
         source: 'execute_time_stale_re_review',
         stale_action_request_id: action.id,
@@ -2319,7 +2331,7 @@ export class AiCapabilityRegistry {
     }
     const current = await provider.getTicket(context, { ticketId: action.target_ref });
     if (current.ok === false) {
-      const message = `Cannot verify ticket freshness before GLPI write: ${current.message}`;
+      const message = `Cannot verify ticket freshness before the ticketing write: ${current.message}`;
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<T>(message);
     }
@@ -2485,7 +2497,7 @@ export class AiCapabilityRegistry {
     provider: TicketingProvider,
     action: AiActionRequest,
   ): Promise<void> {
-    if (!action.target_ref) {
+    if (!action.target_ref || !action.provider_kind || !action.provider_key || !action.target_type) {
       return;
     }
     const ticket = await provider.getTicket(context, { ticketId: action.target_ref });
@@ -2512,9 +2524,9 @@ export class AiCapabilityRegistry {
     }
     await this.agentQueue.upsertTargetState(context, {
       agentDefinitionId: definition.id,
-      providerKind: action.provider_kind ?? 'ticketing',
-      providerKey: action.provider_key ?? 'glpi',
-      targetType: action.target_type ?? 'ticket',
+      providerKind: action.provider_kind,
+      providerKey: action.provider_key,
+      targetType: action.target_type,
       targetRef: action.target_ref,
       lastSeenExternalUpdatedAt: ticketFreshnessUpdatedAt(ticket.data),
       lastProcessedExternalUpdatedAt: ticketFreshnessUpdatedAt(ticket.data),
@@ -2588,8 +2600,8 @@ export class AiCapabilityRegistry {
         update_kind: 'classification',
       },
       expiresAt: serviceDeskProposalExpiry(execution),
-      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
-        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+      retryAfterStatuses: shouldCreateFreshHelpdeskTriageProposal(execution)
+        ? HELPDESK_TRIAGE_RETRY_AFTER_STATUSES
         : null,
     });
     return withActionRequestData(prepared, {
@@ -2715,8 +2727,8 @@ export class AiCapabilityRegistry {
         update_kind: 'status',
       },
       expiresAt: serviceDeskProposalExpiry(execution),
-      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
-        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+      retryAfterStatuses: shouldCreateFreshHelpdeskTriageProposal(execution)
+        ? HELPDESK_TRIAGE_RETRY_AFTER_STATUSES
         : null,
     });
     return withActionRequestData(prepared, {
@@ -2744,7 +2756,8 @@ export class AiCapabilityRegistry {
     }
     const provider = await this.providers.ticketing(context, action.provider_key ?? 'mock');
     const freshnessGuard = await this.verifyTicketFreshnessPolicy<TicketProviderActionWriteResult>(context, provider, action, {
-      terminal: action.action_payload_json.terminal === true,
+      terminal: action.action_payload_json.terminal === true
+        || TICKETING_TERMINAL_TRANSITIONS.has(action.action_payload_json.transitionKey),
     });
     if (freshnessGuard) {
       return freshnessGuard;
@@ -2843,8 +2856,8 @@ export class AiCapabilityRegistry {
         update_kind: 'assignment',
       },
       expiresAt: serviceDeskProposalExpiry(execution),
-      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
-        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+      retryAfterStatuses: shouldCreateFreshHelpdeskTriageProposal(execution)
+        ? HELPDESK_TRIAGE_RETRY_AFTER_STATUSES
         : null,
     });
     return withActionRequestData(prepared, {
@@ -2971,8 +2984,8 @@ export class AiCapabilityRegistry {
         update_kind: 'participants',
       },
       expiresAt: serviceDeskProposalExpiry(execution),
-      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
-        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+      retryAfterStatuses: shouldCreateFreshHelpdeskTriageProposal(execution)
+        ? HELPDESK_TRIAGE_RETRY_AFTER_STATUSES
         : null,
     });
     return withActionRequestData(prepared, {
@@ -3096,8 +3109,8 @@ export class AiCapabilityRegistry {
         visibility: 'internal',
       },
       expiresAt: serviceDeskProposalExpiry(execution),
-      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
-        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+      retryAfterStatuses: shouldCreateFreshHelpdeskTriageProposal(execution)
+        ? HELPDESK_TRIAGE_RETRY_AFTER_STATUSES
         : null,
     });
 
@@ -3220,8 +3233,8 @@ export class AiCapabilityRegistry {
         visibility: 'public',
       },
       expiresAt: serviceDeskProposalExpiry(execution),
-      retryAfterStatuses: shouldCreateFreshGlpiAgentControlProposal(execution)
-        ? GLPI_AGENT_CONTROL_RETRY_AFTER_STATUSES
+      retryAfterStatuses: shouldCreateFreshHelpdeskTriageProposal(execution)
+        ? HELPDESK_TRIAGE_RETRY_AFTER_STATUSES
         : null,
     });
 
@@ -3308,7 +3321,7 @@ export class AiCapabilityRegistry {
 
     const current = await provider.listTicketNotes(context, { ticketId });
     if (current.ok === false) {
-      const message = `Cannot verify ticket freshness before GLPI write: ${current.message}`;
+      const message = `Cannot verify ticket freshness before the ticketing write: ${current.message}`;
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<T>(message);
     }
@@ -3337,7 +3350,7 @@ export class AiCapabilityRegistry {
     const message = [
       'Ticket history changed after this action was prepared.',
       preparedAt ? `Prepared at ${preparedAt}.` : null,
-      'Rerun triage before approving a GLPI write.',
+      'Rerun triage before approving the ticketing write.',
     ].filter((part): part is string => !!part).join(' ');
     await this.actions.markExecuted(context, action, 'failed', message);
     return ticketWriteGuardError<T>(message);

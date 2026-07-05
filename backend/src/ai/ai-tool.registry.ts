@@ -14,6 +14,9 @@ import { AiQueryExecutor } from './query/ai-query.executor';
 import { describeAiEntityFilters } from './query/ai-filter-description.util';
 import { AiMutationOperationRegistry } from './mutation/ai-mutation-operation.registry';
 import { AiSettings } from './ai-settings.entity';
+import { AiAdapterConfig } from './control-plane/providers/adapter-config.entity';
+import { parseCredentialRef } from './control-plane/providers/adapter-config.service';
+import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './control-plane/providers/provider-constants';
 import {
   AI_CONTEXT_ENTITY_TYPES,
   AI_QUERY_ENTITY_TYPES,
@@ -747,15 +750,41 @@ export class AiToolRegistry {
     }
   }
 
-  private isMutationOperationConfigured(
+  private async isMutationOperationConfigured(
     toolName: AiToolName,
     settings: AiSettings | null,
-  ): boolean {
+    context: AiExecutionContextWithManager,
+  ): Promise<boolean> {
     switch (toolName) {
       case 'import_glpi_ticket':
         return settings?.glpi_enabled === true
           && !!settings.glpi_url
           && !!settings.glpi_user_token_encrypted;
+      case 'import_ticket':
+        if (settings?.glpi_enabled === true && !!settings.glpi_url && !!settings.glpi_user_token_encrypted) {
+          return true;
+        }
+        if (typeof (context.manager as { getRepository?: unknown }).getRepository !== 'function') {
+          return false;
+        }
+        try {
+          const configs = await context.manager.getRepository(AiAdapterConfig).find({
+            where: {
+              tenant_id: context.tenantId,
+              provider_kind: 'ticketing',
+              enabled: true,
+            },
+          });
+          return configs.some((config) => {
+            if (config.implementation === 'mock') {
+              return true;
+            }
+            const credential = parseCredentialRef(config.credential_ref_json);
+            return !!credential && credential.kind !== 'none';
+          });
+        } catch {
+          return false;
+        }
       default:
         return true;
     }
@@ -791,14 +820,22 @@ export class AiToolRegistry {
       }
     }
 
-    const writableMutationToolNames = new Set<AiToolName>(
-      this.mutationOperations.listOperations()
-        .filter((operation) =>
-          operationResources(operation).some((resource) => writeAccessByResource.get(resource) === true)
-          && this.isMutationOperationConfigured(operation.toolName, settings),
-        )
-        .map((operation) => operation.toolName),
-    );
+    const writableMutationToolNames = new Set<AiToolName>();
+    for (const operation of this.mutationOperations.listOperations()) {
+      if (!operationResources(operation).some((resource) => writeAccessByResource.get(resource) === true)) {
+        continue;
+      }
+      if (!await this.isMutationOperationConfigured(operation.toolName, settings, context)) {
+        continue;
+      }
+      writableMutationToolNames.add(operation.toolName);
+    }
+    // Keep the legacy GLPI operation registered so existing previews and
+    // compatibility paths can still execute, but stop advertising it to new
+    // chat/tool turns once the provider-keyed import surface is available.
+    if (writableMutationToolNames.has('import_ticket')) {
+      writableMutationToolNames.delete('import_glpi_ticket');
+    }
 
     const canUndoPreview = writableMutationToolNames.size > 0
       ? await this.previews.hasExecutedUndoablePreviewInConversation(context, context.conversationId ?? null)
@@ -853,6 +890,17 @@ export class AiToolRegistry {
     toolName: string,
     rawInput: unknown,
   ): Promise<unknown> {
+    // Deprecated-name alias: the legacy GLPI import tool is de-advertised once
+    // the generic tool is available, but a by-name call (e.g. the model echoing
+    // a stale name from conversation history) must keep working. Mirrors
+    // normalizePlanOperationForCompatibility in ai-mutation-preview.service.
+    if (toolName === 'import_glpi_ticket' && await this.isToolAvailable('import_ticket', context)) {
+      toolName = 'import_ticket';
+      rawInput = {
+        ...(typeof rawInput === 'object' && rawInput !== null ? rawInput as Record<string, unknown> : {}),
+        provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
+      };
+    }
     await this.policy.assertSurfaceAccess(context, context.manager);
     const definition = this.getDefinition(toolName);
     if (!definition.surfaces.includes(context.surface)) {

@@ -1,11 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { AiMutationWriteToolName } from '../ai.types';
 import { AddTaskCommentAiMutationOperation } from './operations/add-task-comment.ai-mutation-operation';
 import { CreateDocumentAiMutationOperation } from './operations/create-document.ai-mutation-operation';
 import { CreateBusinessRecordAiMutationOperation } from './operations/create-business-record.ai-mutation-operation';
 import { CreateMasterDataRecordAiMutationOperation } from './operations/create-master-data-record.ai-mutation-operation';
 import { CreateTaskAiMutationOperation } from './operations/create-task.ai-mutation-operation';
-import { ImportGlpiTicketAiMutationOperation } from './operations/import-glpi-ticket.ai-mutation-operation';
+import { ImportGlpiTicketAiMutationOperation, ImportTicketAiMutationOperation } from './operations/import-glpi-ticket.ai-mutation-operation';
 import { UpdateDocumentContentAiMutationOperation } from './operations/update-document-content.ai-mutation-operation';
 import { UpdateDocumentMetadataAiMutationOperation } from './operations/update-document-metadata.ai-mutation-operation';
 import { UpdateDocumentRelationsAiMutationOperation } from './operations/update-document-relations.ai-mutation-operation';
@@ -39,8 +39,11 @@ export class AiMutationOperationRegistry {
     updateTaskStatus: UpdateTaskStatusAiMutationOperation,
     updateTaskAssignee: UpdateTaskAssigneeAiMutationOperation,
     addTaskComment: AddTaskCommentAiMutationOperation,
+    @Optional()
+    importTicket?: ImportTicketAiMutationOperation,
   ) {
     for (const operation of [
+      ...(importTicket ? [importTicket] : []),
       importGlpiTicket,
       createDocument,
       createTask,

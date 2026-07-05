@@ -16,11 +16,13 @@ import {
 } from './ai-live-test-target.service';
 
 export type LiveContractScenarioKey =
+  | 'ticketing_read'
   | 'glpi_read'
   | 'prtg_read'
   | 'nutanix_read'
   | 'ad_read'
   | 'awx_dry_run'
+  | 'ticketing_sandbox_write'
   | 'glpi_sandbox_write';
 
 export type LiveContractScenario = {
@@ -39,6 +41,15 @@ export type LiveContractStatus =
   | { status: 'failed'; scenario: LiveContractScenarioKey; reason: string };
 
 export const LIVE_CONTRACT_SCENARIOS: Record<LiveContractScenarioKey, LiveContractScenario> = {
+  ticketing_read: {
+    key: 'ticketing_read',
+    gate: 'KANAP_TICKETING_LIVE_READ',
+    providerKind: 'ticketing',
+    allowedEffect: 'read',
+    targetKind: 'ticket',
+    capabilityName: 'ticketing.ticket.get',
+    description: 'Ticketing provider ticket read contract.',
+  },
   glpi_read: {
     key: 'glpi_read',
     gate: 'KANAP_GLPI_LIVE_READ',
@@ -83,6 +94,15 @@ export const LIVE_CONTRACT_SCENARIOS: Record<LiveContractScenarioKey, LiveContra
     targetKind: 'awx_job',
     capabilityName: AUTOMATION_JOB_DRY_RUN_CAPABILITY,
     description: 'AWX safe job dry-run contract.',
+  },
+  ticketing_sandbox_write: {
+    key: 'ticketing_sandbox_write',
+    gate: 'KANAP_TICKETING_LIVE_SANDBOX_WRITE',
+    providerKind: 'ticketing',
+    allowedEffect: 'sandbox_write',
+    targetKind: 'ticket',
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    description: 'Ticketing provider private sandbox ticket note contract.',
   },
   glpi_sandbox_write: {
     key: 'glpi_sandbox_write',
@@ -215,8 +235,8 @@ export class AiLiveContractHarnessService {
       throw new ForbiddenException(`Live adapter unavailable for ${scenario.key}: ${applicability.message ?? applicability.reasonCode}`);
     }
 
-    if (scenarioKey === 'glpi_sandbox_write') {
-      return this.runGlpiSandboxWrite(context, target);
+    if (scenario.allowedEffect === 'sandbox_write' && scenario.providerKind === 'ticketing') {
+      return this.runTicketingSandboxWrite(context, target);
     }
 
     const input = this.dispatchInputFor(target, scenario);
@@ -237,6 +257,7 @@ export class AiLiveContractHarnessService {
     scenario: LiveContractScenario,
   ): Record<string, unknown> {
     switch (scenario.key) {
+      case 'ticketing_read':
       case 'glpi_read':
         return { provider_key: target.provider_key, ticket_id: target.external_ref };
       case 'prtg_read':
@@ -257,7 +278,7 @@ export class AiLiveContractHarnessService {
     }
   }
 
-  private async runGlpiSandboxWrite(
+  private async runTicketingSandboxWrite(
     context: AiExecutionContextWithManager,
     target: AiLiveTestTarget,
   ): Promise<unknown> {
@@ -276,7 +297,7 @@ export class AiLiveContractHarnessService {
     });
     const actionRequestId = (prepared.output as any)?.data?.action_request_id;
     if (typeof actionRequestId !== 'string') {
-      throw new ForbiddenException('GLPI sandbox note preparation did not create an action request.');
+      throw new ForbiddenException('Ticketing sandbox note preparation did not create an action request.');
     }
     await this.approvals.approveActionRequest(context, actionRequestId, {
       source: 'human_ui',
