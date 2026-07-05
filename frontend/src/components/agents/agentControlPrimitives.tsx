@@ -301,6 +301,24 @@ export function actionUpdateSummary(action: AiAgentControlActionRequest): string
     const target = String(payload.targetStatusLabel ?? payload.targetStatus ?? payload.transitionKey ?? agentText('common.notSet', 'Not set'));
     return [agentText('actions.statusUpdate', 'Status update'), `- ${agentText('actions.status', 'Status')}: ${humanize(currentStatus)} -> ${humanize(target)}`, reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null].filter(Boolean).join('\n');
   }
+  if (action.capability_name === ASSIGNMENT_UPDATE_CAPABILITY) {
+    const target = isRecord(payload.target) ? payload.target : null;
+    const targetLabel = typeof target?.label === 'string' && target.label.trim().length > 0 ? target.label : agentText('common.notSet', 'Not set');
+    const currentAssignee = typeof current?.assignee === 'string' && current.assignee.trim().length > 0
+      ? current.assignee
+      : agentText('actions.unassigned', 'Unassigned');
+    return [agentText('actions.assignmentUpdate', 'Assignment update'), `- ${agentText('actions.assignee', 'Assignee')}: ${currentAssignee} -> ${targetLabel}`, reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null].filter(Boolean).join('\n');
+  }
+  if (action.capability_name === PARTICIPANT_UPDATE_CAPABILITY) {
+    const participants = Array.isArray(payload.participants)
+      ? payload.participants
+          .filter(isRecord)
+          .map((entry) => (typeof entry.label === 'string' ? entry.label : null))
+          .filter((label): label is string => !!label)
+          .join(', ')
+      : null;
+    return [agentText('actions.participantUpdate', 'Participant update'), participants ? `- ${agentText('actions.participants', 'Participants')}: ${participants}` : null, reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null].filter(Boolean).join('\n');
+  }
   return null;
 }
 

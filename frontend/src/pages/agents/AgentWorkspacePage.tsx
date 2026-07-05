@@ -1327,13 +1327,13 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
                     {t('settings.autonomyProgress', {
                       decided: item.progress.decided,
                       required: item.progress.required,
-                      rate: formatPercent(item.progress.acceptanceRate),
+                      rate: item.progress.acceptanceRate == null ? '—' : formatPercent(item.progress.acceptanceRate),
                       requiredRate: formatPercent(item.progress.requiredRate),
                       days: item.progress.daysActive,
                       requiredDays: item.progress.requiredDays,
                     })}
                   </Typography>
-                  {!item.eligible && <Typography variant="caption" color="text.secondary" display="block">{item.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(', ')}</Typography>}
+                  {!item.eligible && <Typography variant="caption" color="text.secondary" display="block">{item.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(' ')}</Typography>}
                 </Box>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Chip size="small" color={item.mode === 'automatic' ? 'success' : 'default'} label={item.mode === 'automatic' ? t('settings.automatic') : t('settings.askFirst')} />
@@ -1445,7 +1445,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
               <>
                 <Alert severity="warning">{t('settings.autonomyDialog.overrideFrame')}</Alert>
                 <Typography variant="body2" color="text.secondary">
-                  {autonomyTarget.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(', ')}
+                  {autonomyTarget.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(' ')}
                 </Typography>
                 <SettingsField label={t('settings.autonomyDialog.reason')}>
                   <TextField size="small" multiline minRows={2} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} />

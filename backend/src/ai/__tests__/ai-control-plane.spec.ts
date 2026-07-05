@@ -6865,16 +6865,16 @@ function testActionPlannerConsumesProviderProfile() {
     gates: {},
     close_eligibility: { matched: false, has_inactivity_age: false, terminal: false },
     granted_capabilities: [],
-    owned_action_types: ['mock_internal_note', 'mock_status_update'],
+    owned_action_types: ['internal_note', 'status_update'],
     provider_profile: provider.actionPlannerProfile,
     verbatim_candidates: [],
     profile: null,
   }) as any;
 
   assert.equal(payload.task, 'Select bounded approval-gated mock ticketing actions.');
-  assert.equal(payload.schema.actions[0].action_type, 'mock_internal_note|mock_requester_reply|mock_status_update');
+  assert.equal(payload.schema.actions[0].action_type, 'internal_note|requester_reply|status_update');
   assert.deepEqual(payload.provider_profile.action_vocabulary, provider.actionPlannerProfile.action_vocabulary);
-  assert.match((payload.rules as string[]).join('\n'), /mock_internal_note/);
+  assert.match((payload.rules as string[]).join('\n'), /internal_note/);
 }
 
 function testActionPlannerPayloadIncludesImageEvidence() {
