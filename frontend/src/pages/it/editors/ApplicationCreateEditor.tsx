@@ -32,8 +32,6 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
   const [retiredDate, setRetiredDate] = React.useState('');
   const [lifecycle, setLifecycle] = React.useState<string>('active');
   const [criticality, setCriticality] = React.useState<'business_critical' | 'high' | 'medium' | 'low'>('medium');
-  const [notes, setNotes] = React.useState('');
-  const [licensing, setLicensing] = React.useState('');
   const [isSuite, setIsSuite] = React.useState(false);
   const [version, setVersion] = React.useState('');
   const [goLiveDate, setGoLiveDate] = React.useState('');
@@ -78,8 +76,6 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     setRetiredDate('');
     setLifecycle('active');
     setCriticality('medium');
-    setLicensing('');
-    setNotes('');
     setIsSuite(false);
     setVersion('');
     setGoLiveDate('');
@@ -111,8 +107,6 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
         etl_enabled: false,
         contains_pii: false,
         data_class: 'internal' as const,
-        licensing: licensing || null,
-        notes: notes || null,
         version: version || null,
         go_live_date: goLiveDate || null,
         end_of_support_date: endOfSupportDate || null,
@@ -129,7 +123,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     } finally {
       setSaving(false);
     }
-  }, [saving, name, supplierId, description, category, editor, retiredDate, lifecycle, criticality, licensing, notes, version, goLiveDate, endOfSupportDate, isSuite]);
+  }, [saving, name, supplierId, description, category, editor, retiredDate, lifecycle, criticality, version, goLiveDate, endOfSupportDate, isSuite]);
 
   useImperativeHandle(ref, () => ({ isDirty: () => dirty, save, reset }), [dirty, save, reset]);
 
@@ -200,15 +194,8 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
       <PropertyRow label="End of support">
         <DateEUField label="" valueYmd={endOfSupportDate} onChangeYmd={(v) => { setEndOfSupportDate(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
       </PropertyRow>
-      <Divider sx={{ my: 1 }} />
       <PropertyRow label="Retired date">
         <DateEUField label="" valueYmd={retiredDate} onChangeYmd={(v) => { setRetiredDate(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
-      </PropertyRow>
-      <PropertyRow label="Licensing">
-        <TextField value={licensing} onChange={(e) => { setLicensing(e.target.value); markDirty(); }} fullWidth multiline minRows={3} variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
-      </PropertyRow>
-      <PropertyRow label="Notes">
-        <TextField value={notes} onChange={(e) => { setNotes(e.target.value); markDirty(); }} multiline minRows={3} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
       </PropertyRow>
     </Stack>
   );
