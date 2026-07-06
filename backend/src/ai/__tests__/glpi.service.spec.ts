@@ -186,6 +186,86 @@ async function testGetTicketExtractsDescriptionImageTargets() {
     );
 
     assert.deepEqual(ticket.image_targets, ['/front/document.send.php?docid=991&itemtype=Ticket']);
+    assert.equal(ticket.content_html, '<p>See screenshot</p><img src="/front/document.send.php?docid=991&amp;itemtype=Ticket" />');
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testGetTicketDecodesGlpi10SanitizedContentAndImages() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  const sanitizedContent = '&#60;div&#62;Localisation : Duppigheim / DL27&#60;/div&#62;'
+    + '&#60;div&#62;Contact : WITTMANN Christophe&#60;/div&#62;'
+    + '&#60;img src="/front/document.send.php?docid=5&#38;tickets_id=9" /&#62;';
+
+  try {
+    global.fetch = (async () => new Response(JSON.stringify({
+      id: 78,
+      name: 'Reparer R&#38;D &#60;PC&#62;',
+      content: sanitizedContent,
+      status: '1',
+      priority: 3,
+      urgency: '3',
+      type: 1,
+      date: '2026-01-05 09:00:00',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch;
+
+    const ticket = await service.getTicket(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      78,
+    );
+
+    assert.equal(ticket.name, 'Reparer R&D <PC>');
+    assert.equal(
+      ticket.content_html,
+      '<div>Localisation : Duppigheim / DL27</div><div>Contact : WITTMANN Christophe</div><img src="/front/document.send.php?docid=5&tickets_id=9" />',
+    );
+    assert.deepEqual(ticket.image_targets, ['/front/document.send.php?docid=5&tickets_id=9']);
+    assert.doesNotMatch(JSON.stringify(ticket), /&#60;/);
+    assert.doesNotMatch(JSON.stringify(ticket), /&#38;/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testGetTicketLeavesEscapedPlainComparisonAtBoundary() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+
+  try {
+    global.fetch = (async () => new Response(JSON.stringify({
+      id: 79,
+      name: 'Plain comparison',
+      content: 'Solde a &#60; b attendu',
+      status: '1',
+      priority: 3,
+      urgency: '3',
+      type: 1,
+      date: '2026-01-05 09:00:00',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch;
+
+    const ticket = await service.getTicket(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      79,
+    );
+
+    assert.equal(ticket.content_html, 'Solde a &#60; b attendu');
+    assert.deepEqual(ticket.image_targets, []);
   } finally {
     global.fetch = originalFetch;
   }
@@ -207,7 +287,7 @@ async function testGetTicketFollowupsPaginatesAndNormalizesNewestFirst() {
             itemtype: 'Ticket',
             items_id: 4523,
             content: '<p>Older public</p><img src="/front/document.send.php?docid=88&amp;itemtype=Ticket" />',
-            users_id: { id: 101, name: 'Alice Technician' },
+            users_id: { id: 101, name: 'Alice &#38; Technician' },
             users_id_editor: { id: 999, name: 'Editor' },
             date: '2026-01-02 10:00:00',
             date_mod: '2026-01-02 10:05:00',
@@ -218,7 +298,7 @@ async function testGetTicketFollowupsPaginatesAndNormalizesNewestFirst() {
             itemtype: 'Ticket',
             items_id: 4523,
             content: '<p>Private note</p>',
-            user_name: 'Manager',
+            user_name: 'Manager &#60;N2&#62;',
             date_creation: '2026-01-03 10:00:00',
             is_private: '1',
           },
@@ -265,11 +345,57 @@ async function testGetTicketFollowupsPaginatesAndNormalizesNewestFirst() {
     assert.equal(followups[0].author_label, 'Bob Requester');
     assert.equal(followups[0].author_id, 202);
     assert.equal(followups[1].is_private, true);
-    assert.equal(followups[2].author_label, 'Alice Technician');
+    assert.equal(followups[1].author_label, 'Manager <N2>');
+    assert.equal(followups[2].author_label, 'Alice & Technician');
     assert.equal(followups[2].author_id, 101);
     assert.equal(followups[2].editor_id, 999);
     assert.equal(followups[2].updated_date, '2026-01-02 10:05:00');
+    assert.equal(followups[2].content_html, '<p>Older public</p><img src="/front/document.send.php?docid=88&amp;itemtype=Ticket" />');
     assert.deepEqual(followups[2].image_targets, ['/front/document.send.php?docid=88&itemtype=Ticket']);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testGetTicketFollowupsDecodeGlpi10SanitizedContentAndImages() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
+  const sanitizedContent = '&#60;p&#62;Requester screenshot&#60;/p&#62;'
+    + '&#60;img src="/front/document.send.php?docid=6&#38;tickets_id=9" /&#62;';
+
+  try {
+    global.fetch = (async () => new Response(JSON.stringify([
+      {
+        id: 13,
+        itemtype: 'Ticket',
+        items_id: 4523,
+        content: sanitizedContent,
+        users_id: { id: 202, name: 'Requester' },
+        date: '2026-01-04 10:00:00',
+        is_private: 0,
+      },
+    ]), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch;
+
+    const followups = await service.getTicketFollowups(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      4523,
+    );
+
+    assert.equal(followups.length, 1);
+    assert.equal(
+      followups[0].content_html,
+      '<p>Requester screenshot</p><img src="/front/document.send.php?docid=6&tickets_id=9" />',
+    );
+    assert.deepEqual(followups[0].image_targets, ['/front/document.send.php?docid=6&tickets_id=9']);
+    assert.doesNotMatch(JSON.stringify(followups[0]), /&#60;/);
+    assert.doesNotMatch(JSON.stringify(followups[0]), /&#38;/);
   } finally {
     global.fetch = originalFetch;
   }
@@ -740,7 +866,7 @@ async function testSearchReferenceCatalogBuildsBoundedSearchAndNormalizesRows() 
         totalcount: 2,
         count: 2,
         data: [
-          { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
+          { id: 12, name: 'Reseau &#38; VPN', completename: 'Assistance &#62; Reseau &#38; Securite', parent_id: 4 },
           { 2: 13, 1: 'Badge', completename: 'IT > Access > Badge' },
           { id: 12, name: 'VPN duplicate', completename: 'Duplicate' },
         ],
@@ -763,7 +889,7 @@ async function testSearchReferenceCatalogBuildsBoundedSearchAndNormalizesRows() 
     assert.match(requestedUrls[0], /range=0-1/);
     assert.match(requestedUrls[0], /criteria%5B0%5D%5Bvalue%5D=vpn/);
     assert.deepEqual(categories, [
-      { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
+      { id: 12, name: 'Reseau & VPN', completename: 'Assistance > Reseau & Securite', parent_id: 4 },
       { id: 13, name: 'Badge', completename: 'IT > Access > Badge', parent_id: null },
     ]);
 
@@ -884,7 +1010,10 @@ async function run() {
   await testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls();
   await testFetchDocumentRejectsCrossOriginTargets();
   await testGetTicketExtractsDescriptionImageTargets();
+  await testGetTicketDecodesGlpi10SanitizedContentAndImages();
+  await testGetTicketLeavesEscapedPlainComparisonAtBoundary();
   await testGetTicketFollowupsPaginatesAndNormalizesNewestFirst();
+  await testGetTicketFollowupsDecodeGlpi10SanitizedContentAndImages();
   await testGetTicketUsersNormalizesRoles();
   await testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored();
   await testAddTicketFollowupUsesFixedPrivatePostEndpoint();

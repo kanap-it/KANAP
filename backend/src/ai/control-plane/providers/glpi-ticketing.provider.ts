@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
 import { GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { GLPI_TICKETING_IMPLEMENTATION, LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './provider-constants';
 import {
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
@@ -89,7 +90,7 @@ function nowIso(): string {
 
 function stripHtml(value: string | null | undefined): string | null {
   if (!value) return null;
-  const text = String(value)
+  const text = decodeNumericHtmlEntities(String(value).replace(/\r\n/g, '\n'))
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')

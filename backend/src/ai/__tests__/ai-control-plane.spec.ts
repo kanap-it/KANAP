@@ -2017,7 +2017,7 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
         return {
           id: ticketId,
           name: 'VPN access request',
-          content_html: '<p>Need VPN access</p>',
+          content_html: '&#60;p&#62;Need VPN access&#60;/p&#62;',
           status: '2',
           priority: 4,
           urgency: '3',
@@ -2032,7 +2032,7 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
       },
       getTicketFollowups: async () => [{
         id: 90,
-        content_html: '<p>Screenshot</p><img src="/front/document.send.php?docid=701&itemtype=Ticket" />',
+        content_html: '&#60;p&#62;Screenshot&#60;/p&#62;',
         author_id: 202,
         author_label: 'Requester',
         editor_id: null,
@@ -2040,6 +2040,16 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
         updated_date: '2026-06-09 08:12:00',
         is_private: false,
         image_targets: ['/front/document.send.php?docid=701&itemtype=Ticket'],
+      }, {
+        id: 91,
+        content_html: 'Solde a &#60; b attendu',
+        author_id: 202,
+        author_label: 'Requester',
+        editor_id: null,
+        date: '2026-06-09 08:13:00',
+        updated_date: '2026-06-09 08:13:00',
+        is_private: false,
+        image_targets: [],
       }],
       getTicketUsers: async (_session: unknown, ticketId: number) => [
         { id: 1, user_id: 202, user_label: `Requester ${ticketId}`, role: 'requester' },
@@ -2064,11 +2074,16 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
   assert.equal(ticket.ok ? ticket.data.status : null, 'processing_assigned');
   assert.equal(ticket.ok ? ticket.data.priority : null, 'high');
   assert.equal(ticket.ok ? ticket.data.type : null, 'request');
+  assert.equal(ticket.ok ? ticket.data.description : null, 'Need VPN access');
+  assert.doesNotMatch(ticket.ok ? ticket.data.description ?? '' : '', /&#6/);
   assert.equal(ticket.ok ? ticket.data.attachments?.[0]?.source : null, 'ticket_description');
   assert.equal(ticket.ok ? ticket.data.attachments?.[0]?.id : null, '700');
 
   const notes = await provider.listTicketNotes(context, { ticketId: '4' });
   assert.equal(notes.ok, true);
+  assert.equal(notes.ok ? notes.data.notes[0].body : null, 'Screenshot');
+  assert.equal(notes.ok ? notes.data.notes[1].body : null, 'Solde a < b attendu');
+  assert.equal(notes.ok ? notes.data.notes.every((note) => !/&#6/.test(note.body)) : false, true);
   assert.equal(notes.ok ? notes.data.notes[0].attachments?.[0]?.source : null, 'ticket_note');
   assert.equal(notes.ok ? notes.data.notes[0].attachments?.[0]?.sourceNoteId : null, '90');
   assert.equal(notes.ok ? notes.data.notes[0].attachments?.[0]?.id : null, '701');
@@ -11317,7 +11332,7 @@ async function testGlpiTriageAllowsFollowupsAfterRequesterAnswer() {
       {
         id: '102',
         visibility: 'public',
-        body: 'I still need help after trying this.',
+        body: '&#60;p&#62;I still need help after trying this.&#60;/p&#62;',
         createdAt: '2026-06-07T11:00:00.000Z',
       },
     ],
@@ -11330,6 +11345,10 @@ async function testGlpiTriageAllowsFollowupsAfterRequesterAnswer() {
   assert.equal(result.diagnostic.conversation_gate.can_prepare_internal_note, true);
   assert.equal(result.diagnostic.conversation_gate.can_prepare_public_reply, true);
   assert.equal(result.work_item.status, 'waiting_approval');
+  const internalNoteCall = calls.find((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY);
+  assert.ok(internalNoteCall);
+  assert.doesNotMatch(internalNoteCall.input.note_body, /&#6/);
+  assert.match(internalNoteCall.input.note_body, /I still need help after trying this\./);
   const pending = (stores.get(AiActionRequest.name) ?? []).filter((action) => action.status === 'pending');
   assert.equal(pending.length, 2);
 }
@@ -11412,8 +11431,8 @@ async function testReplySynthesisServiceFiltersSourcesAndDowngradesUngroundedAns
         language: 'fr',
         usable: true,
         needs_human_review: false,
-        requester_reply: 'Créez une demande de voyage puis préparez les informations de vol.',
-        technician_brief: 'La réponse utilise la procédure voyage.',
+        requester_reply: 'Créez une demande de voyage.&#60;br&#62;Préparez les informations de vol.',
+        technician_brief: 'La réponse utilise &#60;strong&#62;la procédure voyage&#60;/strong&#62;.',
         used_sources: [
           { kind: 'knowledge', ref: 'DOC-1', url: null, title: 'Model title is ignored' },
           { kind: 'web', ref: null, url: 'https://example.test/unknown', title: 'Hallucinated link' },
@@ -11444,6 +11463,10 @@ async function testReplySynthesisServiceFiltersSourcesAndDowngradesUngroundedAns
   }]);
   assert.deepEqual(grounded.usage, { input_tokens: 40, output_tokens: 30 });
   assert.equal(grounded.model, 'test-provider:test-model');
+  assert.doesNotMatch(grounded.requester_reply, /&#6/);
+  assert.match(grounded.requester_reply, /Préparez les informations de vol/);
+  assert.doesNotMatch(grounded.technician_brief, /&#6/);
+  assert.match(grounded.technician_brief, /la procédure voyage/);
 
   const tolerantService = new AiReplySynthesisService({
     callStructuredJsonModel: async () => structuredJsonSuccess({

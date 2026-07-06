@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { decodeNumericHtmlEntities } from '../../common/html-entities';
+import { resolveHtmlContentSource } from '../../common/html-to-markdown';
 import { AiSecretCipherService } from '../ai-secret-cipher.service';
 import { AiSettingsService } from '../ai-settings.service';
 import {
@@ -42,6 +44,10 @@ function textOrNull(value: unknown): string | null {
   }
   const normalized = String(value).trim();
   return normalized || null;
+}
+
+function decodeGlpiPlainTextField(value: string | null): string | null {
+  return value == null ? null : decodeNumericHtmlEntities(value);
 }
 
 function normalizeGlpiPathname(pathname: string): string {
@@ -174,6 +180,10 @@ function decodeHtmlAttribute(value: string): string {
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, '\'')
+    .replace(/&#38;/gi, '&')
+    .replace(/&#34;/gi, '"')
+    .replace(/&#60;/gi, '<')
+    .replace(/&#62;/gi, '>')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>');
 }
@@ -388,10 +398,12 @@ export class GlpiService {
 
     const record = this.expectRecord(payload, 'GLPI ticket');
     const resolvedTicketId = parseNumericGlpiValue(record.id) ?? ticketId;
+    const contentHtml = textOrNull(resolveHtmlContentSource(String(record.content ?? '')));
+    const name = textOrNull(record.name);
     return {
       id: resolvedTicketId,
-      name: textOrNull(record.name),
-      content_html: textOrNull(record.content),
+      name: decodeGlpiPlainTextField(name),
+      content_html: contentHtml,
       status: stringifyGlpiValue(record.status),
       priority: parseNumericGlpiValue(record.priority),
       urgency: stringifyGlpiValue(record.urgency),
@@ -401,7 +413,7 @@ export class GlpiService {
       date: normalizeGlpiDate(record.date ?? record.date_creation ?? null),
       updated_date: normalizeGlpiDate(record.date_mod ?? record.date ?? record.date_creation ?? null),
       glpi_url: this.buildUrl(session.baseUrl, `front/ticket.form.php?id=${resolvedTicketId}`),
-      image_targets: extractImageTargets(textOrNull(record.content)),
+      image_targets: extractImageTargets(contentHtml),
     };
   }
 
@@ -1092,13 +1104,13 @@ export class GlpiService {
       return null;
     }
 
-    const contentHtml = textOrNull(record.content);
+    const contentHtml = textOrNull(resolveHtmlContentSource(String(record.content ?? '')));
     const authorId = parseNumericGlpiValue(record.users_id);
     const editorId = parseNumericGlpiValue(record.users_id_editor);
-    const authorLabel = textOrNull(record.user_name)
+    const authorLabel = decodeGlpiPlainTextField(textOrNull(record.user_name)
       ?? stringifyGlpiValue(record.users_id)
       ?? stringifyGlpiValue(record.users_id_editor)
-      ?? null;
+      ?? null);
 
     return {
       id,
@@ -1122,12 +1134,13 @@ export class GlpiService {
     if (!id) {
       return null;
     }
-    const name = textOrNull(record.name ?? record['1'])
+    const name = decodeGlpiPlainTextField(textOrNull(record.name ?? record['1'])
       ?? stringifyGlpiValue(record.name ?? record['1'])
-      ?? null;
-    const completename = textOrNull(record.completename)
+      ?? null);
+    const completename = decodeGlpiPlainTextField(textOrNull(record.completename)
       ?? textOrNull(record['completename'])
       ?? stringifyGlpiValue(record.completename ?? record['completename'])
+      ?? null)
       ?? name;
     const parentId = parsePositiveInteger(
       record.parent_id
@@ -1157,7 +1170,7 @@ export class GlpiService {
     return {
       id,
       user_id: userId,
-      user_label: stringifyGlpiValue(record.users_id),
+      user_label: decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id)),
       role: glpiTicketUserRole(record.type),
     };
   }

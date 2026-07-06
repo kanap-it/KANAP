@@ -200,6 +200,10 @@ function decodeHtmlAttribute(value: string): string {
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, '\'')
+    .replace(/&#38;/gi, '&')
+    .replace(/&#34;/gi, '"')
+    .replace(/&#60;/gi, '<')
+    .replace(/&#62;/gi, '>')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>');
 }
