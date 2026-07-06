@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import {
   compileSystemPrompt,
   CompiledGuidance,
@@ -110,8 +111,7 @@ const SynthesisSchema = z.object({
 });
 
 function normalizeText(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\r\n/g, '\n')
+  return decodeNumericHtmlEntities(String(value ?? '').replace(/\r\n/g, '\n'))
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')

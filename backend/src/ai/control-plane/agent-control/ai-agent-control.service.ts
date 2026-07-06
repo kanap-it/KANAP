@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FindOptionsWhere, In } from 'typeorm';
 import { Features } from '../../../config/features';
+import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import {
   AGENT_AUTONOMY_POLICY_SOURCE,
@@ -2143,8 +2144,7 @@ function resolveReplyLanguage(
 }
 
 function normalizeKnowledgeReplyText(value: string | null | undefined): string {
-  return String(value ?? '')
-    .replace(/\r\n/g, '\n')
+  return decodeNumericHtmlEntities(String(value ?? '').replace(/\r\n/g, '\n'))
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<li\b[^>]*>/gi, '- ')
