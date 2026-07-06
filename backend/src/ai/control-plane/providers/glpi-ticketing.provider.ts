@@ -748,6 +748,36 @@ export class GlpiTicketingProvider implements TicketingProvider {
     });
   }
 
+  async getTicketWebUrls(
+    context: ProviderContext,
+    input: { ticketRefs: string[] },
+  ): Promise<Record<string, string | null>> {
+    const runtimeConnection = this.runtimeConnectionOverrides(context);
+    let baseUrl: string | null = null;
+    if (runtimeConnection) {
+      baseUrl = runtimeConnection.error ? null : textOrNull(runtimeConnection.overrides.glpi_url);
+    } else {
+      const settings = await this.settings.get(context.tenantId, { manager: context.manager });
+      baseUrl = settings.glpi_enabled ? textOrNull(settings.glpi_url) : null;
+    }
+    const urls: Record<string, string | null> = {};
+    for (const ref of input.ticketRefs) {
+      const ticketId = normalizeTicketId(ref);
+      let url: string | null = null;
+      if (baseUrl && ticketId != null) {
+        try {
+          // Same relative join GlpiService uses for apirest.php, so the web root
+          // matches wherever the configured URL resolves API calls.
+          url = new URL(`front/ticket.form.php?id=${ticketId}`, baseUrl).toString();
+        } catch {
+          url = null;
+        }
+      }
+      urls[ref] = url;
+    }
+    return urls;
+  }
+
   private async withSession<T>(
     context: ProviderContext,
     fn: (session: Awaited<ReturnType<GlpiService['initSession']>>) => Promise<AdapterResult<T>>,

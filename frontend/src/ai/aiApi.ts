@@ -521,11 +521,22 @@ export type AiAgentControlHelpdeskSummary = {
   };
 };
 
+// Deep link into the external tool's own web UI for a queue target (e.g. the
+// GLPI ticket page), resolved by the backend provider at read time.
+export type AiAgentControlTargetLink = {
+  provider_kind: string;
+  provider_key: string;
+  target_type: string;
+  target_ref: string;
+  url: string;
+};
+
 export type AiAgentControlQueueOverview = {
   definitions: AiAgentControlAgentDefinition[];
   work_items: AiAgentControlWorkItem[];
   target_states: AiAgentControlTargetState[];
   action_requests: AiAgentControlActionRequest[];
+  target_links?: AiAgentControlTargetLink[];
   counts: Record<string, number>;
   helpdesk?: {
     summary: AiAgentControlHelpdeskSummary | null;

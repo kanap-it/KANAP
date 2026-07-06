@@ -5312,6 +5312,7 @@ export class AiAgentControlService {
         work_items: [],
         target_states: [],
         action_requests: [],
+        target_links: [],
         counts: {},
         helpdesk: { summary: null, summaries: [], fleet: null, audit_events: [] },
       };
@@ -5364,6 +5365,30 @@ export class AiAgentControlService {
       ...runActionRequests,
     ].map((action) => [action.id, action])).values());
     const readiness = await this.executionReadinessForActions(context, actionRequests);
+    const ticketRefsByProvider = new Map<string, Set<string>>();
+    const collectTicketRef = (
+      providerKind: string | null | undefined,
+      providerKey: string | null | undefined,
+      targetType: string | null | undefined,
+      targetRef: string | null | undefined,
+    ) => {
+      if (providerKind !== 'ticketing' || targetType !== 'ticket') return;
+      if (typeof providerKey !== 'string' || providerKey.length === 0) return;
+      if (typeof targetRef !== 'string' || targetRef.length === 0) return;
+      const refs = ticketRefsByProvider.get(providerKey) ?? new Set<string>();
+      refs.add(targetRef);
+      ticketRefsByProvider.set(providerKey, refs);
+    };
+    for (const workItem of overview.workItems) {
+      collectTicketRef(workItem.source_provider_kind, workItem.source_provider_key, workItem.source_object_type, workItem.source_object_ref);
+    }
+    for (const state of overview.targetStates) {
+      collectTicketRef(state.provider_kind, state.provider_key, state.target_type, state.target_ref);
+    }
+    for (const action of actionRequests) {
+      collectTicketRef(action.provider_kind, action.provider_key, action.target_type, action.target_ref);
+    }
+    const targetLinks = await this.resolveTicketTargetLinks(context, ticketRefsByProvider);
     // Per-agent earned-autonomy summary for the fleet view: which action classes run
     // automatically (an enabled agent-autonomy policy). One query, grouped by agent.
     const automaticByDefinition = new Map<string, string[]>();
@@ -5389,6 +5414,7 @@ export class AiAgentControlService {
       work_items: overview.workItems.map(serializeAgentWorkItem),
       target_states: overview.targetStates.map(serializeAgentTargetState),
       action_requests: actionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id))),
+      target_links: targetLinks,
       counts: overview.counts,
       helpdesk: {
         summary: overview.helpdesk.summary,
@@ -5397,6 +5423,31 @@ export class AiAgentControlService {
         audit_events: overview.helpdesk.auditEvents.map(serializeAgentAuditEvent),
       },
     };
+  }
+
+  // Human-facing deep links into the external ticketing UI for the queue's
+  // tickets, resolved per provider at read time (nothing stored). Links are
+  // cosmetic: any provider or config failure just leaves tickets unlinked.
+  private async resolveTicketTargetLinks(
+    context: AiExecutionContextWithManager,
+    ticketRefsByProvider: Map<string, Set<string>>,
+  ): Promise<Array<{ provider_kind: string; provider_key: string; target_type: string; target_ref: string; url: string }>> {
+    const links: Array<{ provider_kind: string; provider_key: string; target_type: string; target_ref: string; url: string }> = [];
+    for (const [providerKey, refs] of ticketRefsByProvider) {
+      try {
+        const provider = await this.providers.ticketing(context, providerKey);
+        if (typeof provider.getTicketWebUrls !== 'function') continue;
+        const urls = await provider.getTicketWebUrls(context, { ticketRefs: Array.from(refs) });
+        for (const [ref, url] of Object.entries(urls)) {
+          if (url) {
+            links.push({ provider_kind: 'ticketing', provider_key: providerKey, target_type: 'ticket', target_ref: ref, url });
+          }
+        }
+      } catch {
+        // Cosmetic feature: never fail the queue read over a broken link source.
+      }
+    }
+    return links;
   }
 
   async getHelpdeskWorkItemContext(context: AiExecutionContextWithManager, workItemId: string) {

@@ -658,6 +658,11 @@ export interface TicketingProvider extends ProviderBase {
   addInternalNote(context: ProviderContext, input: { actionPayload: TicketInternalNoteActionPayload; idempotencyKey: string }): Promise<AdapterResult<TicketInternalNoteWriteResult>>;
   preparePublicReply(context: ProviderContext, input: { ticketId: string; replyBody: string }): Promise<AdapterResult<TicketPublicReplyPrepared>>;
   addPublicReply(context: ProviderContext, input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string }): Promise<AdapterResult<TicketPublicReplyWriteResult>>;
+  // Optional cosmetic capability: human-facing deep links into the provider's
+  // own web UI for the given ticket refs (approvals/queue surfaces). Must stay
+  // cheap — config/settings reads only, never per-ticket provider API calls.
+  // Refs the provider cannot link resolve to null.
+  getTicketWebUrls?(context: ProviderContext, input: { ticketRefs: string[] }): Promise<Record<string, string | null>>;
 }
 
 export interface MonitoringProvider extends ProviderBase {

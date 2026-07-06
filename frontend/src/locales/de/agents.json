@@ -94,6 +94,9 @@
   "targetTypes": {
     "ticket": "Ticket"
   },
+  "targetLink": {
+    "open": "In Ihrem Ticketsystem öffnen"
+  },
   "overview": {
     "title": "KI-Agenten",
     "subtitle": "Aktive Agenten, Freigaben, Sicherheitslimits und Notfallsteuerung überwachen.",

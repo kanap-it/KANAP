@@ -1848,6 +1848,51 @@ async function testGlpiAdapterRuntimeCredentialPreservesAppToken() {
   assert.doesNotMatch(JSON.stringify(malformed), /app-token-without-user-token/);
 }
 
+async function testGlpiTicketWebUrls() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+
+  // Tenant-settings path (legacy GLPI connection): links resolve against glpi_url.
+  const settingsProvider = new GlpiTicketingProvider(
+    {
+      get: async () => ({
+        glpi_enabled: true,
+        glpi_url: 'https://glpi.internal/',
+        glpi_user_token_encrypted: 'enc-token',
+      }),
+    } as any,
+    {} as any,
+  );
+  const settingsUrls = await settingsProvider.getTicketWebUrls(context, { ticketRefs: ['17', 'not-a-ticket'] });
+  assert.equal(settingsUrls['17'], 'https://glpi.internal/front/ticket.form.php?id=17');
+  assert.equal(settingsUrls['not-a-ticket'], null);
+
+  // Disabled tenant integration must not leak links.
+  const disabledProvider = new GlpiTicketingProvider(
+    { get: async () => ({ glpi_enabled: false, glpi_url: 'https://glpi.internal/' }) } as any,
+    {} as any,
+  );
+  const disabledUrls = await disabledProvider.getTicketWebUrls(context, { ticketRefs: ['17'] });
+  assert.equal(disabledUrls['17'], null);
+
+  // Adapter-runtime path: links resolve against the configured adapter base URL,
+  // without touching tenant settings or opening a GLPI session.
+  const runtimeProvider = new GlpiTicketingProvider({} as any, {} as any);
+  const runtimeContext = {
+    ...context,
+    adapterRuntime: {
+      providerKind: 'ticketing',
+      providerKey: 'glpi',
+      implementation: 'glpi',
+      environment: 'sandbox',
+      baseUrl: 'https://glpi.adapter.test/',
+      credential: { hasSecret: () => false },
+    },
+  } as any;
+  const runtimeUrls = await runtimeProvider.getTicketWebUrls(runtimeContext, { ticketRefs: ['42'] });
+  assert.equal(runtimeUrls['42'], 'https://glpi.adapter.test/front/ticket.form.php?id=42');
+}
+
 async function testMockTicketingHelpdeskContextReads() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -13950,6 +13995,7 @@ async function run() {
   await testMockAdapterContractScenarios();
   await testTicketingProviderReferenceDataContract();
   await testGlpiAdapterRuntimeCredentialPreservesAppToken();
+  await testGlpiTicketWebUrls();
   await testMockTicketingHelpdeskContextReads();
   await testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly();
   await testTicketingReadUatRequiresExplicitProviderKeyAndKeepsGlpiWrapper();

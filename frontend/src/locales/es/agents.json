@@ -94,6 +94,9 @@
   "targetTypes": {
     "ticket": "Ticket"
   },
+  "targetLink": {
+    "open": "Abrir en su herramienta de tickets"
+  },
   "overview": {
     "title": "Agentes IA",
     "subtitle": "Supervisa agentes activos, aprobaciones, límites de seguridad y controles de emergencia.",

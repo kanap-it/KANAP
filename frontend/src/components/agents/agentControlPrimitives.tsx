@@ -1,8 +1,9 @@
 import React from 'react';
-import { Box, Button, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, Button, IconButton, Link as MuiLink, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { useTheme, type Theme } from '@mui/material/styles';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
 import KanapDialog from '../design/KanapDialog';
 import { type AutosaveStatus } from '../../hooks/useAutosave';
@@ -54,6 +55,7 @@ export type TicketWorkGroup = {
   providerKey: string | null;
   targetType: string | null;
   targetRef: string;
+  targetUrl: string | null;
   workItem: AiAgentControlWorkItem | null;
   workItems: AiAgentControlWorkItem[];
   historyWorkItems: AiAgentControlWorkItem[];
@@ -117,12 +119,22 @@ export function TargetLabel({
   targetType,
   targetRef,
   size = 'normal',
+  href = null,
 }: {
   targetType: string | null | undefined;
   targetRef: string | null | undefined;
   size?: 'normal' | 'dense';
+  href?: string | null;
 }) {
   const ref = targetRefLabel(targetRef);
+  const refSx = (theme: Theme) => ({
+    color: theme.palette.kanap.text.secondary,
+    fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+    fontSize: size === 'dense' ? 11 : 12,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: 400,
+    whiteSpace: 'nowrap',
+  });
   return (
     <Stack direction="row" spacing={0.5} alignItems="baseline" sx={{ minWidth: 0 }}>
       <Typography
@@ -136,19 +148,32 @@ export function TargetLabel({
       >
         {targetTypeLabel(targetType)}
       </Typography>
-      <Typography
-        component="span"
-        sx={(theme) => ({
-          color: theme.palette.kanap.text.secondary,
-          fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
-          fontSize: size === 'dense' ? 11 : 12,
-          fontVariantNumeric: 'tabular-nums',
-          fontWeight: 400,
-          whiteSpace: 'nowrap',
-        })}
-      >
-        {ref}
-      </Typography>
+      {href ? (
+        <Tooltip title={agentText('targetLink.open', 'Open in your ticketing tool')}>
+          <MuiLink
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+            onClick={(event) => event.stopPropagation()}
+            sx={(theme) => ({
+              ...refSx(theme),
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px',
+              '&.MuiLink-root': { color: theme.palette.kanap.text.secondary },
+              '&.MuiLink-root:hover': { color: theme.palette.kanap.teal },
+            })}
+          >
+            {ref}
+            <OpenInNewIcon sx={{ fontSize: size === 'dense' ? 11 : 12 }} />
+          </MuiLink>
+        </Tooltip>
+      ) : (
+        <Typography component="span" sx={refSx}>
+          {ref}
+        </Typography>
+      )}
     </Stack>
   );
 }
@@ -485,6 +510,10 @@ export function buildTicketGroups(
     : actionRequests;
 
   const actionById = new Map(scopedActions.map((action) => [action.id, action]));
+  const targetUrlByKey = new Map<string, string>();
+  for (const link of overview?.target_links ?? []) {
+    targetUrlByKey.set(`${link.provider_kind}::${link.provider_key}::${link.target_ref}`, link.url);
+  }
   const usedActionIds = new Set<string>();
   const drafts = new Map<string, {
     key: string;
@@ -592,12 +621,17 @@ export function buildTicketGroups(
 
     if (sortedWorkItems.length === 0 && !targetState && actions.length === 0) continue;
 
+    const providerKind = workItem?.source_provider_kind ?? targetState?.provider_kind ?? draft.providerKind;
+    const providerKey = workItem?.source_provider_key ?? targetState?.provider_key ?? draft.providerKey;
     groups.push({
       key: draft.key,
-      providerKind: workItem?.source_provider_kind ?? targetState?.provider_kind ?? draft.providerKind,
-      providerKey: workItem?.source_provider_key ?? targetState?.provider_key ?? draft.providerKey,
+      providerKind,
+      providerKey,
       targetType: workItem?.source_object_type ?? targetState?.target_type ?? draft.targetType,
       targetRef,
+      targetUrl: providerKind && providerKey
+        ? targetUrlByKey.get(`${providerKind}::${providerKey}::${targetRef}`) ?? null
+        : null,
       workItem,
       workItems: sortedWorkItems,
       historyWorkItems: workItem ? sortedWorkItems.filter((item) => item.id !== workItem.id) : sortedWorkItems,

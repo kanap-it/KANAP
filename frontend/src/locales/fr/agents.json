@@ -94,6 +94,9 @@
   "targetTypes": {
     "ticket": "Ticket"
   },
+  "targetLink": {
+    "open": "Ouvrir dans votre outil de ticketing"
+  },
   "overview": {
     "title": "Agents IA",
     "subtitle": "Surveillez les agents actifs, les validations, les limites de sécurité et les contrôles d'urgence.",
