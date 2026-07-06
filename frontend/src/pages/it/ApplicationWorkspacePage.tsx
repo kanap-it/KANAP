@@ -421,6 +421,18 @@ function ApplicationProperties({
       </PropertyGroup>
 
       <PropertyGroup>
+        <PropertyRow label="Version">
+          <TextField
+            value={app.version || ''}
+            onChange={(event) => onPatch({ version: event.target.value || null })}
+            variant="standard"
+            size="small"
+            fullWidth
+            disabled={!canManage}
+            InputProps={{ disableUnderline: true }}
+            sx={drawerFieldValueSx}
+          />
+        </PropertyRow>
         <PropertyRow label="Go live">
           <DateEUField label="" valueYmd={app.go_live_date || ''} onChangeYmd={(value) => onPatch({ go_live_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
