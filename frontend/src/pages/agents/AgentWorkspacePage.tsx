@@ -467,7 +467,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
             {inProgressGroups.map((group) => (
               <Stack key={group.key} direction="row" spacing={1} alignItems="center">
                 <CircularProgress size={12} thickness={5} />
-                <TargetLabel targetType={group.targetType} targetRef={group.targetRef} size="dense" />
+                <TargetLabel targetType={group.targetType} targetRef={group.targetRef} size="dense" href={group.targetUrl} />
                 <Typography variant="caption" color="text.secondary">{statusLabel(group.queueStatus)}</Typography>
               </Stack>
             ))}

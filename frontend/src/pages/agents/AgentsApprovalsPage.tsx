@@ -67,6 +67,7 @@ type CompactRow = {
   capabilityLabel: string;
   targetType: string | null;
   targetRef: string | null;
+  targetUrl: string | null;
   detail: string | null;
   time: string | null;
   caption?: string | null;
@@ -233,7 +234,7 @@ function CompactLifecycleRow({
         <Typography sx={(theme) => ({ color: theme.palette.kanap.text.primary, fontSize: 13, fontWeight: 400 })}>
           {row.capabilityLabel}
         </Typography>
-        <TargetLabel targetType={row.targetType} targetRef={row.targetRef} size="dense" />
+        <TargetLabel targetType={row.targetType} targetRef={row.targetRef} size="dense" href={row.targetUrl} />
         {row.detail && (
           <Typography sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: 13, fontWeight: 400 })}>
             {row.detail}
@@ -328,7 +329,7 @@ function DecisionGroup({
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ md: 'center' }}>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <TargetLabel targetType={group.targetType} targetRef={group.targetRef} />
+              <TargetLabel targetType={group.targetType} targetRef={group.targetRef} href={group.targetUrl} />
               <StatusText status={group.queueStatus} />
               <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500 })}>
                 {t('approvals.proposalCount', { count: pendingActions.length })}
@@ -390,6 +391,7 @@ function buildInProgressRows(groups: TicketWorkGroup[], t: ReturnType<typeof use
         capabilityLabel: actionLabel(action),
         targetType: action.target_type ?? group.targetType,
         targetRef: action.target_ref ?? group.targetRef,
+        targetUrl: group.targetUrl,
         detail: t('approvals.executing'),
         time: action.updated_at ?? action.approved_at ?? action.created_at,
       }));
@@ -401,6 +403,7 @@ function buildInProgressRows(groups: TicketWorkGroup[], t: ReturnType<typeof use
         capabilityLabel: t('approvals.agentCheck'),
         targetType: workItem.source_object_type ?? group.targetType,
         targetRef: workItem.source_object_ref ?? group.targetRef,
+        targetUrl: group.targetUrl,
         // "Agent working…" only when the agent actually holds the item; a queued item's
         // status chip already reads "Waiting to start" and must not be contradicted.
         detail: ['leased', 'running'].includes(workItem.status) ? t('approvals.agentWorking') : null,
@@ -420,6 +423,7 @@ function buildAttentionRows(groups: TicketWorkGroup[], t: ReturnType<typeof useT
         capabilityLabel: actionLabel(action),
         targetType: action.target_type ?? group.targetType,
         targetRef: action.target_ref ?? group.targetRef,
+        targetUrl: group.targetUrl,
         detail: null,
         time: action.updated_at ?? action.created_at,
         caption: actionAttentionMessage(action),
@@ -433,6 +437,7 @@ function buildAttentionRows(groups: TicketWorkGroup[], t: ReturnType<typeof useT
         capabilityLabel: t('approvals.agentCheck'),
         targetType: workItem.source_object_type ?? group.targetType,
         targetRef: workItem.source_object_ref ?? group.targetRef,
+        targetUrl: group.targetUrl,
         detail: null,
         time: workItem.updated_at ?? workItem.created_at,
         caption: workItemAttentionMessage(workItem),
@@ -450,6 +455,7 @@ function buildFinishedRows(groups: TicketWorkGroup[], t: ReturnType<typeof useTr
       capabilityLabel: actionLabel(action),
       targetType: action.target_type ?? group.targetType,
       targetRef: action.target_ref ?? group.targetRef,
+      targetUrl: group.targetUrl,
       detail: null,
       time: actionFinishedTime(action),
     }));
@@ -462,6 +468,7 @@ function buildFinishedRows(groups: TicketWorkGroup[], t: ReturnType<typeof useTr
         capabilityLabel: t('approvals.agentCheck'),
         targetType: workItem.source_object_type ?? group.targetType,
         targetRef: workItem.source_object_ref ?? group.targetRef,
+        targetUrl: group.targetUrl,
         detail: null,
         time: workItem.updated_at ?? workItem.created_at,
       }));

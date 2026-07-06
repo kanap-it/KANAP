@@ -94,6 +94,9 @@
   "targetTypes": {
     "ticket": "Ticket"
   },
+  "targetLink": {
+    "open": "Open in your ticketing tool"
+  },
   "overview": {
     "title": "AI Agents",
     "subtitle": "Monitor active agents, approvals, safety limits, and emergency controls.",
