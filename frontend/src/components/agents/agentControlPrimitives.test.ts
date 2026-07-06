@@ -137,6 +137,21 @@ describe('buildTicketGroups', () => {
     expect(result.groups[0].lifecycle).toBe('finished');
   });
 
+  it('puts dismissed-only action groups in the finished lifecycle', () => {
+    const dismissed = action({ id: 'dismissed-action', status: 'dismissed', target_ref: '78', expires_at: null });
+    const result = buildTicketGroups(overview({
+      work_items: [workItem({
+        source_object_ref: '78',
+        status: 'waiting_approval',
+        last_action_request_ids: ['dismissed-action'],
+      })],
+    }), [dismissed], null, nowMs);
+
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].pendingActions.map((item) => item.status)).toEqual(['dismissed']);
+    expect(result.groups[0].lifecycle).toBe('finished');
+  });
+
   it('does not attach cross-agent actions when agentDefinitionId is set', () => {
     const result = buildTicketGroups(overview({
       work_items: [workItem({ source_object_ref: '99', agent_definition_id: 'agent-a' })],
@@ -252,8 +267,13 @@ describe('agent control polling and optimistic overlay helpers', () => {
     expect(overlaid[0].status).toBe('approved');
     expect(overlaid[0].metadata_json?.approved_batch_context).toMatchObject({ execution_queued: true });
 
+    const dismissedOverlay = withOptimisticDecisionIds(new Map(), [base.id], 'dismissed');
+    const dismissed = applyOptimisticDecisionOverlay([base], dismissedOverlay);
+    expect(dismissed[0].status).toBe('dismissed');
+
     expect(pruneConfirmedOptimisticDecisions(approvedOverlay, [base]).has(base.id)).toBe(true);
     expect(pruneConfirmedOptimisticDecisions(approvedOverlay, [{ ...base, status: 'executing' }]).has(base.id)).toBe(false);
+    expect(pruneConfirmedOptimisticDecisions(dismissedOverlay, [{ ...base, status: 'dismissed' }]).has(base.id)).toBe(false);
     expect(withoutOptimisticDecisionIds(approvedOverlay, [base.id]).has(base.id)).toBe(false);
   });
 });

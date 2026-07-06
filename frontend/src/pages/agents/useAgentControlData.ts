@@ -24,12 +24,12 @@ const FAST_POLL_INTERVAL_MS = 5_000;
 const IDLE_POLL_INTERVAL_MS = 30_000;
 const KNOWN_EXECUTION_MODES = new Set(['queued', 'background', 'approve_only', 'synchronous']);
 
-export type OptimisticActionDecision = 'approved' | 'rejected';
+export type OptimisticActionDecision = 'approved' | 'rejected' | 'dismissed';
 type ActionDecisionInput = { action: AiAgentControlActionRequest; reason?: string | null };
 type BulkDecisionInput = { key: string; actions: AiAgentControlActionRequest[]; reason?: string | null };
 
 function serverConfirmsOptimisticDecision(action: AiAgentControlActionRequest): boolean {
-  if (['approved', 'rejected', 'executing', 'executed', 'expired'].includes(action.status)) return true;
+  if (['approved', 'rejected', 'dismissed', 'executing', 'executed', 'expired'].includes(action.status)) return true;
   return !!action.approved_at || !!action.rejected_at || !!action.executed_at;
 }
 
@@ -53,8 +53,8 @@ export function applyOptimisticDecisionOverlay(
   return actions.map((action) => {
     const decision = decisions.get(action.id);
     if (!decision) return action;
-    if (decision === 'rejected') {
-      return { ...action, status: 'rejected' };
+    if (decision === 'rejected' || decision === 'dismissed') {
+      return { ...action, status: decision };
     }
     const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
     const batch = isRecord(metadata.approved_batch_context) ? metadata.approved_batch_context : {};
@@ -242,6 +242,29 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     onSettled: () => setBusyActionId(null),
   });
 
+  const dismissMutation = useMutation({
+    mutationFn: (input: ActionDecisionInput) => aiAgentControlApi.dismissAction(input.action.id, {
+      reason: optionalDecisionReason(input.reason) ?? t('messages.dismissedFromAgents'),
+    }),
+    onMutate: (input) => {
+      const { action } = input;
+      setBusyActionId(action.id);
+      setError(null);
+      setMessage(null);
+      addOptimisticDecisions([action.id], 'dismissed');
+      return { actionIds: [action.id] };
+    },
+    onSuccess: async () => {
+      setMessage(t('messages.dismissed'));
+      await invalidate();
+    },
+    onError: (err, _action, context) => {
+      removeOptimisticDecisions(context?.actionIds ?? []);
+      setError(getApiErrorMessage(err, t, t('messages.dismissFailed')));
+    },
+    onSettled: () => setBusyActionId(null),
+  });
+
   const approveAllMutation = useMutation({
     mutationFn: async (input: BulkDecisionInput) => {
       const executable = input.actions.filter((action) => action.execution_readiness?.can_execute ?? ['pending', 'approved'].includes(action.status));
@@ -360,6 +383,45 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     onError: (err, _input, context) => {
       removeOptimisticDecisions(context?.actionIds ?? []);
       setError(getApiErrorMessage(err, t, t('messages.rejectManyFailed')));
+    },
+    onSettled: () => setBusyTicketKey(null),
+  });
+
+  const dismissAllMutation = useMutation({
+    mutationFn: async (input: BulkDecisionInput) => {
+      const dismissable = input.actions.filter(actionCanReject);
+      const reason = optionalDecisionReason(input.reason) ?? t('messages.dismissedFromAgents');
+      const results = await Promise.allSettled(dismissable.map((action) => aiAgentControlApi.dismissAction(action.id, {
+        reason,
+      })));
+      const dismissed = results.filter((result) => result.status === 'fulfilled').length;
+      const failedActionIds = dismissable
+        .filter((_, index) => results[index]?.status === 'rejected')
+        .map((action) => action.id);
+      return { dismissed, failed: results.length - dismissed, failedActionIds };
+    },
+    onMutate: (input) => {
+      setBusyTicketKey(input.key);
+      setError(null);
+      setMessage(null);
+      const actionIds = input.actions.filter(actionCanReject).map((action) => action.id);
+      addOptimisticDecisions(actionIds, 'dismissed');
+      return { actionIds };
+    },
+    onSuccess: (result) => {
+      if (result.failedActionIds.length > 0) {
+        removeOptimisticDecisions(result.failedActionIds);
+      }
+      if (result.failed > 0) {
+        setError(t('messages.dismissManyFailed', { count: result.dismissed, failed: result.failed }));
+      } else {
+        setMessage(t('messages.dismissedMany', { count: result.dismissed }));
+      }
+      void invalidate();
+    },
+    onError: (err, _input, context) => {
+      removeOptimisticDecisions(context?.actionIds ?? []);
+      setError(getApiErrorMessage(err, t, t('messages.dismissManyFailed')));
     },
     onSettled: () => setBusyTicketKey(null),
   });
@@ -493,6 +555,8 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     busyTicketKey,
     createAgentMutation,
     deleteAgentMutation,
+    dismissAllMutation,
+    dismissMutation,
     createPauseMutation,
     error,
     invalidate,

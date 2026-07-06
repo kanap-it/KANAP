@@ -512,6 +512,7 @@ export type AiAgentControlHelpdeskSummary = {
     proposalsByActionClass: Record<string, number>;
     terminalByStatus: Record<string, number>;
     acceptanceRate: number | null;
+    dismissRate: number | null;
     rejectionReasons: Record<string, number>;
     medianApprovalLatencySeconds: number | null;
     runsPerTicket: number | null;
@@ -852,6 +853,7 @@ export type AiAgentControlEvaluationDailyResult = {
     decided: number;
     acceptanceRate: number | null;
     executed: number;
+    dismissed: number;
     costEur: number;
     tokens: number;
   }>;
@@ -1294,6 +1296,14 @@ export const aiAgentControlApi = {
     detail: AiAgentControlRunDetail | null;
   }> {
     const res = await api.post(`/ai/admin/control-plane/actions/${id}/reject`, payload ?? {});
+    return res.data;
+  },
+  async dismissAction(id: string, payload?: { reason?: string }): Promise<{
+    action: AiAgentControlActionRequest;
+    approval: AiAgentControlApproval;
+    detail: AiAgentControlRunDetail | null;
+  }> {
+    const res = await api.post(`/ai/admin/control-plane/actions/${id}/dismiss`, payload ?? {});
     return res.data;
   },
 };

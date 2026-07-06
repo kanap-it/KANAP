@@ -791,4 +791,19 @@ export class AiAgentControlController {
       reason,
     ));
   }
+
+  @Post('actions/:id/dismiss')
+  async dismissAction(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: { reason?: string | null } = {},
+  ) {
+    const context = this.buildContext(req);
+    const reason = normalizeApprovalReason(body?.reason);
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.dismissActionRequest(
+      tenantContext,
+      id,
+      reason,
+    ));
+  }
 }

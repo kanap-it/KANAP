@@ -355,6 +355,7 @@ export type HelpdeskTicketingAgentSummary = {
     proposalsByActionClass: Record<string, number>;
     terminalByStatus: Record<string, number>;
     acceptanceRate: number | null;
+    dismissRate: number | null;
     rejectionReasons: Record<string, number>;
     medianApprovalLatencySeconds: number | null;
     runsPerTicket: number | null;
@@ -2958,10 +2959,11 @@ export class AiAgentWorkQueueService {
     const approvalLatencies: number[] = [];
     let accepted = 0;
     let terminalReviewed = 0;
+    let dismissed = 0;
 
     for (const action of relevantActions) {
       incrementCounter(proposalsByActionClass, actionClass(action));
-      if (['executed', 'rejected', 'expired', 'failed'].includes(action.status)) {
+      if (['executed', 'rejected', 'expired', 'failed', 'dismissed'].includes(action.status)) {
         incrementCounter(terminalByStatus, action.status);
       }
       if (action.status === 'executed') {
@@ -2974,6 +2976,8 @@ export class AiAgentWorkQueueService {
       } else if (action.status === 'rejected') {
         terminalReviewed += 1;
         incrementCounter(rejectionReasons, action.error_message?.trim() || 'rejected_without_reason');
+      } else if (action.status === 'dismissed') {
+        dismissed += 1;
       }
     }
 
@@ -3003,6 +3007,7 @@ export class AiAgentWorkQueueService {
       proposalsByActionClass,
       terminalByStatus,
       acceptanceRate: terminalReviewed > 0 ? Number((accepted / terminalReviewed).toFixed(4)) : null,
+      dismissRate: (terminalReviewed + dismissed) > 0 ? Number((dismissed / (terminalReviewed + dismissed)).toFixed(4)) : null,
       rejectionReasons,
       medianApprovalLatencySeconds: median(approvalLatencies),
       runsPerTicket: ticketRefs.size > 0 ? Number((relevantRuns.length / ticketCount).toFixed(4)) : null,

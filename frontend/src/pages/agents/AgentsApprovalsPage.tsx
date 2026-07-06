@@ -144,12 +144,14 @@ function ProposalRow({
   busy,
   onApprove,
   onReject,
+  onDismiss,
   emptyLabel,
 }: {
   action: AiAgentControlActionRequest;
   busy: boolean;
   onApprove: (action: AiAgentControlActionRequest) => void;
   onReject: (action: AiAgentControlActionRequest) => void;
+  onDismiss: (action: AiAgentControlActionRequest) => void;
   emptyLabel: string;
 }) {
   const body = proposalBody(action);
@@ -171,7 +173,7 @@ function ProposalRow({
           )}
           <StatusText status={action.status} />
         </Stack>
-        <ActionButtons action={action} busy={busy} onApprove={onApprove} onReject={onReject} />
+        <ActionButtons action={action} busy={busy} onApprove={onApprove} onReject={onReject} onDismiss={onDismiss} />
       </Stack>
       <Box sx={{ maxHeight: 170, overflow: 'auto', border: '1px solid', borderColor: 'kanap.border.soft', borderRadius: 1, bgcolor: 'kanap.bg.composer', px: 1, py: 0.85 }}>
         {body ? (
@@ -306,8 +308,10 @@ function DecisionGroup({
   busyActionId,
   onApprove,
   onReject,
+  onDismiss,
   onApproveAll,
   onRejectAll,
+  onDismissAll,
 }: {
   group: TicketWorkGroup;
   locale: string;
@@ -315,14 +319,17 @@ function DecisionGroup({
   busyActionId: string | null;
   onApprove: (action: AiAgentControlActionRequest, group: TicketWorkGroup) => void;
   onReject: (action: AiAgentControlActionRequest) => void;
+  onDismiss: (action: AiAgentControlActionRequest) => void;
   onApproveAll: (group: TicketWorkGroup) => void;
   onRejectAll: (group: TicketWorkGroup) => void;
+  onDismissAll: (group: TicketWorkGroup) => void;
 }) {
   const { t } = useTranslation(['agents']);
   const pendingActions = group.pendingActions.filter((action) => action.status === 'pending');
   const decidedActions = group.pendingActions.filter((action) => action.status !== 'pending');
   const executableCount = group.pendingActions.filter(actionCanExecute).length;
   const rejectableCount = group.pendingActions.filter(actionCanReject).length;
+  const dismissableCount = group.pendingActions.filter(actionCanReject).length;
   return (
     <Box sx={{ p: 1.5 }}>
       <Stack spacing={1.25}>
@@ -350,6 +357,11 @@ function DecisionGroup({
                 {t('approvals.rejectAll')}
               </Button>
             )}
+            {dismissableCount > 1 && (
+              <Button size="small" variant="outlined" color="inherit" disabled={busyTicketKey === group.key} onClick={() => onDismissAll(group)}>
+                {t('approvals.dismissAll')}
+              </Button>
+            )}
             {group.latestRunId && (
               <Button size="small" variant="text" startIcon={<VisibilityOutlinedIcon />} href={`/agents/activity?runId=${group.latestRunId}`}>
                 {t('approvals.trace')}
@@ -365,6 +377,7 @@ function DecisionGroup({
               busy={busyActionId === action.id}
               onApprove={(next) => onApprove(next, group)}
               onReject={onReject}
+              onDismiss={onDismiss}
               emptyLabel={t('approvals.noActiveProposal')}
             />
           ))}
@@ -485,6 +498,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const locale = useLocale();
   const data = useAgentControlData();
   const [rejectGroup, setRejectGroup] = React.useState<TicketWorkGroup | null>(null);
+  const [dismissGroup, setDismissGroup] = React.useState<TicketWorkGroup | null>(null);
   const [rejectReason, setRejectReason] = React.useState('');
   const [terminalApproval, setTerminalApproval] = React.useState<TerminalApprovalRequest>(null);
   const [terminalApprovalReason, setTerminalApprovalReason] = React.useState('');
@@ -527,6 +541,11 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const rejectAll = (group: TicketWorkGroup, reason?: string | null) => {
     data.rejectAllMutation.mutate({ key: group.key, actions: group.pendingActions, reason }, {
       onSettled: () => setRejectGroup(null),
+    });
+  };
+  const dismissAll = (group: TicketWorkGroup) => {
+    data.dismissAllMutation.mutate({ key: group.key, actions: group.pendingActions }, {
+      onSettled: () => setDismissGroup(null),
     });
   };
   const handleApprove = (action: AiAgentControlActionRequest, group: TicketWorkGroup) => {
@@ -591,8 +610,10 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
                   busyActionId={data.busyActionId}
                   onApprove={handleApprove}
                   onReject={(action) => data.rejectMutation.mutate({ action })}
+                  onDismiss={(action) => data.dismissMutation.mutate({ action })}
                   onApproveAll={handleApproveAll}
                   onRejectAll={setRejectGroup}
+                  onDismissAll={setDismissGroup}
                 />
               ))}
             </Stack>
@@ -662,6 +683,22 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
             </Typography>
             <ApprovalReasonField value={rejectReason} onChange={setRejectReason} />
           </Stack>
+        </KanapDialog>
+
+        <KanapDialog
+          open={!!dismissGroup}
+          title={t('approvals.dismissAllTitle')}
+          onClose={() => setDismissGroup(null)}
+          onSave={() => { if (dismissGroup) dismissAll(dismissGroup); }}
+          saveLabel={t('approvals.dismissAll')}
+          saveLoading={!!dismissGroup && data.busyTicketKey === dismissGroup.key}
+        >
+          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: 13, fontWeight: 400 })}>
+            {t('approvals.dismissAllConfirm', {
+              count: dismissGroup?.pendingActions.filter(actionCanReject).length ?? 0,
+              target: dismissGroup ? groupTargetText(dismissGroup) : '',
+            })}
+          </Typography>
         </KanapDialog>
 
         <KanapDialog
