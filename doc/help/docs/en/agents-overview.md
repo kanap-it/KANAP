@@ -32,11 +32,12 @@ Two other AI surfaces are easy to confuse with agents but are separate things: [
 
 ## The fleet dashboard
 
-Four pooled numbers sit at the top, aggregated across every helpdesk agent in the tenant — not one agent's figures:
+Five pooled numbers sit at the top, aggregated across every helpdesk agent in the tenant — not one agent's figures:
 
 - **Pending approvals** — how many proposals across the whole fleet are waiting for a human decision right now. This is the same number that drives the sidebar badge.
 - **Actions today** — how many proposals were actually executed today (approved and applied, or applied automatically).
 - **Acceptance** — the share of decided proposals that were approved rather than rejected. Reads **Not enough data** until there is enough decision history to be meaningful.
+- **Dismissed** — the share of human-reviewed proposals that were set aside rather than approved or rejected. A dismissal doesn't count against the agent, so a persistently high value usually points to a targeting problem — the agent is picking up tickets it shouldn't handle — rather than poor answer quality; fix it in the agent's settings. Also reads **Not enough data** until there is enough review history.
 - **Cost per ticket** — the estimated AI cost per ticket handled, in EUR. Also reads **Not enough data** until there is history.
 
 Treat these as fleet health, not per-agent accounting. For a single agent's numbers, open its workspace and use the **Performance** tab.

@@ -20,7 +20,7 @@ This document tracks documentation coverage for the KANAP user manual.
 | Portfolio | 10 | 10 | 0 |
 | **TOTAL** | **66** | **66** | **0** |
 
-_Note: Supplemental Fast Track guides are excluded from these route-based counts. All tenant-facing routes have a manual. The classic product (through the 2026-05-10 sweep) is available in en/fr/de/es; the AI Agents section (added 2026-07-05) is in en, with fr/de/es translation pending a `/translate-docs` run._
+_Note: Supplemental Fast Track guides are excluded from these route-based counts. All tenant-facing routes have a manual. The classic product (through the 2026-05-10 sweep) is available in en/fr/de/es; the AI Agents section (added 2026-07-05) is also available in en/fr/de/es._
 
 ---
 
@@ -28,6 +28,7 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-07-06 | _AI Agents (4 pages, en/fr/de/es)_ | Documented the new **Dismiss** operator decision on `agents-approvals` (a third action beside Approve/Reject: sets a proposal aside without sending anything and without counting against the agent's evaluation; adds the **Dismiss all** bulk action and its confirmation dialog, a short Dismiss-vs-Reject guidance subsection, and the Dismissed-vs-Expired distinction; intro reworked from the two-decision framing). Added the **Dismissed** metric to the `agents-overview` fleet header and the `agents-workspace` Performance tab (with the "high dismiss rate = targeting problem" reading guidance), and "Proposal dismissed" to `agents-activity` decision entries. Authored natively in en/fr/de/es. |
 | 2026-07-05 | _AI Agents (5 new) + 3 refreshed_ | New **AI Agents** section documented: `agents-overview`, `agents-workspace`, `agents-approvals`, `agents-activity`, `agents-shared-context`. Refreshed `ai-settings` (Multimodal LLM toggle, Agent-messages usage, provider now powers agents too), `integrations` (the GLPI connection now also feeds agents), `ai-assistant` (Plaid-vs-Agents note). Wired mkdocs nav (+fr/de/es labels), `docUrls.ts`, `doc-update-map.tsv`, a new `ai_agents` glossary category, and the on-prem feature-gate inventory. EN authored; fr/de/es translation pending (`/translate-docs`). |
 | 2026-05-10 | _15 pages_ | Stale-doc sweep + 4 new pages. Refreshed: tasks, portfolio-projects, portfolio-requests (properties drawer + new tab layouts, task ↔ application/asset linking), applications/assets (new tab layouts, linked-tasks under Relations), interfaces (mapping-group/mapping-rule model, 5-tab workspace), connection-map / interface-map (current filters and side panels), knowledge (restricted libraries, docx import, AI document generation), branding (two-card form), my-dashboard (current tiles + quick actions). New: ai-assistant.md (Plaid), ai-settings.md (Plaid Settings), integrations.md (GLPI), scheduled-tasks.md. fr/de/es synced for all updates. |
 | 2026-03-29 | `assets.md` | Refreshed: added sub-location column (list), sub-location field (Overview tab), sub-location filter |
@@ -219,7 +220,7 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/agents/activity` | AgentsActivityPage | **DOCUMENTED** | `agents-activity.md` |
 | `/agents/shared-context` | SharedContextProfilesPage | **DOCUMENTED** | `agents-shared-context.md` |
 
-_Note: `/admin/agent-control` and `/admin/agent-control/*` redirect to `/agents`. The whole section requires AI to be enabled on the instance and the `ai_agents` role. fr/de/es translations of these five manuals are pending a `/translate-docs` run._
+_Note: `/admin/agent-control` and `/admin/agent-control/*` redirect to `/agents`. The whole section requires AI to be enabled on the instance and the `ai_agents` role. All five manuals are published in en/fr/de/es._
 
 ### Reports
 
@@ -269,7 +270,7 @@ On-premise docs (`on-premise/*.md`) are deployment guides, not route manuals —
 
 ## Remaining Gaps
 
-No route-manual gaps remain. The classic product was swept 2026-05-10; the AI Agents section was documented 2026-07-05 (English — fr/de/es translation pending via `/translate-docs`).
+No route-manual gaps remain. The classic product was swept 2026-05-10; the AI Agents section was documented 2026-07-05 and is available in en/fr/de/es.
 
 Known minor staleness:
 - `portfolio-planning.md` — Roadmap Generator's drag-to-pin-start interaction is in code but not yet covered in the doc (LOW)

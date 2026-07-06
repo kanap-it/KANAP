@@ -1,6 +1,6 @@
 # Agentes IA — Aprobaciones
 
-Aprobaciones es la cola de revisión diaria para todo lo que sus agentes IA quieren hacer. Antes de que un agente publique una respuesta, añada una nota, reclasifique un ticket, cambie su estado, lo reasigne o lo cierre, presenta ese trabajo ante usted aquí como una **propuesta**. Nada de lo que hay en esta página ha ocurrido todavía del lado del solicitante: una propuesta es la sugerencia del agente, y solo llega a su sistema de tickets conectado una vez que usted la aprueba. Aquí es donde un operador pasa la mayor parte de su tiempo supervisando un agente de helpdesk: leyendo borradores, aplicando los buenos y rechazando el resto.
+Aprobaciones es la cola de revisión diaria para todo lo que sus agentes IA quieren hacer. Antes de que un agente publique una respuesta, añada una nota, reclasifique un ticket, cambie su estado, lo reasigne o lo cierre, presenta ese trabajo ante usted aquí como una **propuesta**. Nada de lo que hay en esta página ha ocurrido todavía del lado del solicitante: una propuesta es la sugerencia del agente, y solo llega a su sistema de tickets conectado una vez que usted la aprueba. Aquí es donde un operador pasa la mayor parte de su tiempo supervisando un agente de helpdesk: leyendo cada borrador y decidiendo qué hacer con él — aplicar los buenos, rechazar los erróneos y descartar los que son correctos pero no deben enviarse.
 
 ## Dónde encontrarlo
 
@@ -51,20 +51,30 @@ Cualquier cosa que haya fallado o esté bloqueada: una propuesta que no se pudo 
 
 ### Finalizadas recientemente
 
-Un historial contraíble de los elementos completados más recientemente: aplicados, rechazados, omitidos o hechos. Permanece plegado hasta que lo abre, recuerda esa elección y muestra hasta unas 30 filas con una línea **+N más** si hay más. Úselo para confirmar que una aprobación realmente se realizó, o para comprobar qué hizo un agente mientras usted estaba ausente.
+Un historial contraíble de los elementos completados más recientemente: aplicados, rechazados, descartados, omitidos o hechos. Permanece plegado hasta que lo abre, recuerda esa elección y muestra hasta unas 30 filas con una línea **+N más** si hay más. Úselo para confirmar que una aprobación realmente se realizó, o para comprobar qué hizo un agente mientras usted estaba ausente.
 
 ---
 
-## Tomar una decisión: Aprobar, Ejecutar y Rechazar
+## Tomar una decisión: Aprobar, Rechazar y Descartar
 
-Cada propuesta pendiente tiene dos botones.
+Cada propuesta pendiente ofrece tres acciones.
 
-- El botón principal muestra **Aprobar** en una propuesta que aún no ha decidido, y **Ejecutar** en una que ya aprobó pero que no se ha ejecutado. En ambos casos hace lo mismo: envía la acción a su sistema de tickets conectado, donde el agente publica la respuesta o la nota, o aplica el cambio. Aprobar es el momento en que el solicitante (o su equipo) puede verse afectado; hasta ese punto nada ha salido de KANAP.
-- **Rechazar** no aplica la acción. La propuesta se descarta pero permanece en el registro de auditoría, de modo que siempre queda constancia de lo que el agente sugirió y de que usted lo rechazó. Rechazar una sola propuesta surte efecto de inmediato.
+- **Aprobar** es el botón principal. Muestra **Aprobar** en una propuesta que aún no ha decidido, y **Ejecutar** en una que ya aprobó pero que no se ha ejecutado. En ambos casos hace lo mismo: envía la acción a su sistema de tickets conectado, donde el agente publica la respuesta o la nota, o aplica el cambio. Aprobar es el momento en que el solicitante (o su equipo) puede verse afectado; hasta ese punto nada ha salido de KANAP.
+- **Rechazar** no aplica la acción. La propuesta se desecha pero permanece en el registro de auditoría, de modo que siempre queda constancia de lo que el agente sugirió y de que usted lo rechazó. Rechazar una sola propuesta surte efecto de inmediato. Rechazar es una señal de calidad: penaliza la evaluación del agente y su tasa de aceptación, porque le indica que la propuesta era errónea.
+- **Descartar** también aparta la propuesta sin enviar nada, pero, a diferencia de rechazar, **no** penaliza al agente. La tasa de aceptación y el historial de autonomía del agente no se ven afectados. Úselo cuando la propuesta es correcta pero simplemente no debe salir: un ticket sensible, un compañero que ya ha respondido, un duplicado. Es un solo clic, sin solicitar motivo, y su información sobre herramientas indica *Descartar sin penalizar la evaluación del agente*. Una propuesta descartada ya no puede aprobarse.
 
-Si una propuesta está actualmente **bloqueada** —por ejemplo, si una comprobación de frescura o de seguridad ya no se cumple, o si el sistema de tickets no acepta el cambio en este momento—, su botón se desactiva y el motivo aparece en la información sobre herramientas del botón. La propuesta permanece visible para que pueda ver por qué no puede continuar.
+Si una propuesta está actualmente **bloqueada** —por ejemplo, si una comprobación de frescura o de seguridad ya no se cumple, o si el sistema de tickets no acepta el cambio en este momento—, su botón principal se desactiva y el motivo aparece en la información sobre herramientas del botón. La propuesta permanece visible para que pueda ver por qué no puede continuar.
 
-**Aprobar todo** y **Rechazar todo** aparecen en un grupo de ticket cuando hay más de un elemento sobre el que actuar, de modo que puede despachar un ticket completo en un solo paso. **Rechazar todo** abre un breve diálogo que confirma cuántas propuestas se rechazarán y ofrece una nota opcional para el registro de auditoría. Las propuestas se aprueban automáticamente por tipo de acción solo después de haber capturado suficientes decisiones suyas para promover ese tipo de acción de **Preguntar primero** a **Automático** en la [Configuración](agents-workspace.md) del agente; hasta entonces, y siempre para el trabajo sensible, todas las propuestas pasan por esta cola.
+**Aprobar todo**, **Rechazar todo** y **Descartar todo** aparecen en un grupo de ticket cuando hay más de un elemento sobre el que actuar, de modo que puede despachar un ticket completo en un solo paso. **Rechazar todo** abre un breve diálogo que confirma cuántas propuestas se rechazarán y ofrece una nota opcional para el registro de auditoría; **Descartar todo** abre un breve diálogo de confirmación que indica que no se enviará nada y que la evaluación del agente no se verá afectada. Las propuestas se aprueban automáticamente por tipo de acción solo después de haber capturado suficientes decisiones suyas para promover ese tipo de acción de **Preguntar primero** a **Automático** en la [Configuración](agents-workspace.md) del agente; hasta entonces, y siempre para el trabajo sensible, todas las propuestas pasan por esta cola.
+
+### Descartar o rechazar
+
+Tanto Rechazar como Descartar impiden que una propuesta llegue al ticket, pero le transmiten al agente cosas muy distintas, así que la elección importa.
+
+- **Rechace** cuando la propuesta sea errónea o de mala calidad: un borrador incorrecto, una clasificación equivocada, un cambio de estado inapropiado. El rechazo es una señal negativa de aprendizaje y evaluación: reduce la tasa de aceptación del agente y ralentiza su avance hacia actuar por su cuenta, que es justo lo que conviene cuando se equivoca.
+- **Descarte** cuando la propuesta sea *correcta* pero no deba enviarse: el ticket es sensible, un compañero ya respondió, duplica algo que ya está en marcha. Como descartar es neutral, no recompensa ni penaliza al agente: su tasa de aceptación y su historial de autonomía quedan intactos.
+
+Recurrir a Descartar cuando en realidad quiere decir «esto estaba mal» oculta un problema real de calidad, y rechazar una propuesta correcta pero no enviable perjudica injustamente a un agente que no hizo nada malo. Una propuesta descartada muestra un estado **Descartado** en gris y pasa a **Finalizadas recientemente**; el agente puede volver a proponer sobre el mismo ticket en un ciclo posterior, igual que tras un rechazo. **Descartado** no es lo mismo que **Caducado**: una propuesta caducada es una que nadie decidió antes de que expirara su ventana de aprobación, mientras que una propuesta descartada es una decisión deliberada que usted tomó.
 
 ---
 
@@ -103,6 +113,7 @@ Cada grupo de ticket y cada fila de atención lleva un enlace **Traza**. Enlaza 
 - Trabaje de arriba abajo: despache **Requiere tu decisión** y luego eche un vistazo a **Requiere atención** por si algo no llegó al sistema de tickets. Las dos secciones centrales no requieren ninguna acción de su parte.
 - Nada de lo que hay aquí ha llegado al solicitante hasta que usted lo apruebe. Leer un borrador, rastrearlo o dejarlo en la cola no cambia nada en el ticket.
 - Rechace en lugar de ignorar. Una propuesta rechazada permanece en el registro de auditoría con su nota opcional, lo cual resulta mucho más útil después que una propuesta que simplemente caducó sin atender.
+- Descarte, en lugar de rechazar, una propuesta que simplemente no va a enviar. Si un borrador es correcto pero no debe salir —un ticket sensible, un compañero que ya respondió—, **Descartar** lo aparta sin penalizar al agente. Reserve **Rechazar** para las propuestas que de verdad estaban mal.
 - La ausencia de una nota **Síntesis de respaldo** es una buena noticia, no información que falte. Dedique su lectura más atenta a los borradores que *sí* la llevan.
 - Si un cambio aprobado acaba en **Requiere atención**, la leyenda en rojo y el enlace **Traza** le indican si fue el agente, una comprobación de seguridad o el sistema de tickets conectado lo que lo detuvo; corrija la causa subyacente en lugar de volver a aprobar a ciegas.
 - La cola combinada en `/agents/approvals` es más rápida cuando ejecuta varios agentes; cambie a la pestaña **Aprobaciones** propia de un agente cuando quiera centrarse solo en ese.

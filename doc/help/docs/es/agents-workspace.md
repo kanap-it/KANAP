@@ -70,6 +70,7 @@ La pestaña **Aprobaciones** es la cola de revisión —respuestas, notas y camb
 Rendimiento le indica si el agente se está ganando más autonomía. La fila de cifras principales cubre, para este agente:
 
 - **Aceptación** — la proporción de sus propuestas que usted aprobó. Es la cifra que más influye en si un tipo de acción puede pasar a automático.
+- **Descartadas** — la proporción de propuestas revisadas de este agente que usted apartó en lugar de aprobar o rechazar. Un descarte no penaliza al agente, por lo que esta cifra queda al margen de la aceptación. Lea un valor persistentemente alto como un problema de segmentación —el agente está recogiendo tickets que no debería gestionar— y corríjalo en **Configuración → Segmentación**, en lugar de tratarlo como un problema de calidad de las respuestas.
 - **Latencia de aprobación** — el tiempo habitual, en minutos, entre la aparición de una propuesta y la decisión de alguien sobre ella. Una cifra en aumento suele significar que la cola necesita más atención de los revisores, no que el agente lo esté haciendo peor.
 - **Tasa de conocimiento** — con qué frecuencia sus respuestas se respaldaron con sus fuentes de conocimiento.
 - **Coste por ticket** — gasto medio por ticket gestionado, en EUR.

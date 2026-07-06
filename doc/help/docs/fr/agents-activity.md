@@ -29,7 +29,7 @@ Chaque entrée correspond à un événement, et elle contient suffisamment de co
 
 - Une **puce de type** — à laquelle des six catégories ci-dessus l'événement appartient.
 - Une **puce de type d'action** (lorsque l'événement porte sur un type de travail précis sur le ticket) : **Note interne**, **Réponse demandeur**, **Mise à jour classification**, **Mise à jour statut**, **Affectation** ou **Participants**.
-- Une **pastille de statut** avec un libellé en langage clair (par exemple « En attente de validation », « Terminé », « Rejeté », « Attention requise ») décrivant où en est cet élément.
+- Une **pastille de statut** avec un libellé en langage clair (par exemple « En attente de validation », « Terminé », « Rejeté », « Écarté », « Attention requise ») décrivant où en est cet élément.
 - Le **nom de l'agent** et le **ticket** concerné (affiché sous la forme `#N`).
 - Un **titre d'événement** (par exemple « Proposition créée » ou « Vérification des tickets terminée »).
 - Un **aperçu sur une ligne** de l'essentiel — la première ligne d'un message rédigé, une modification de champ ou le motif — de sorte que vous n'avez souvent rien à développer.
@@ -40,7 +40,7 @@ Chaque entrée correspond à un événement, et elle contient suffisamment de co
 Le catalogue couvre l'ensemble du cycle de vie du travail des agents. Regroupés selon la puce de type dont ils relèvent :
 
 - **Proposition** — l'agent a rédigé quelque chose à examiner : une réponse, une note ou une mise à jour de ticket a été créée et attend une décision.
-- **Décision** — une proposition a été **approuvée** ou **rejetée** (par une personne, ou automatiquement une fois que ce type d'action fonctionne de manière autonome).
+- **Décision** — une proposition a été **approuvée**, **rejetée** ou **écartée** (mise de côté sans pénaliser l'agent). Les approbations et les rejets peuvent aussi être automatiques une fois que ce type d'action fonctionne de manière autonome ; un écartement est toujours un choix délibéré d'une personne.
 - **Exécution** — une modification a été réellement envoyée au ticket, ou une exécution a **échoué**. Les exécutions automatiques et leurs échecs apparaissent également ici.
 - **Configuration** — quelqu'un a modifié le fonctionnement d'un agent : ses **paramètres de surveillance** ou sa **configuration** générale ont été mis à jour, un type d'action a été basculé en **automatique** ou **désactivé** (ou **rétrogradé** en mode demander d'abord), ou un **agent a été supprimé**.
 - **Pause** — une **pause d'urgence a été activée** ou **levée**, ou la **surveillance des tickets a été suspendue** parce qu'une pause était en vigueur.

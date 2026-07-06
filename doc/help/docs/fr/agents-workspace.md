@@ -70,6 +70,7 @@ L'onglet **Approbations** est la file d'examen — réponses, notes et mises à 
 L'onglet Performance vous indique si l'agent gagne en autonomie. La rangée de chiffres clés couvre, pour cet agent :
 
 - **Acceptation** — la part de ses propositions que vous avez approuvées. C'est le chiffre qui influence le plus la possibilité pour un type d'action de passer en automatique.
+- **Écartées** — la part des propositions examinées de cet agent que vous avez mises de côté plutôt qu'approuvées ou rejetées. Un écartement ne pénalise pas l'agent, ce chiffre est donc distinct de l'acceptation. Lisez une valeur durablement élevée comme un problème de ciblage — l'agent prend en charge des tickets qu'il ne devrait pas traiter — et corrigez-le dans **Paramètres → Ciblage**, plutôt que d'y voir un problème de qualité des réponses.
 - **Délai d'approbation** — le temps typique, en minutes, entre l'apparition d'une proposition et la décision prise à son sujet. Un chiffre en hausse signifie généralement que la file a besoin de plus d'attention de la part des relecteurs, et non que l'agent est moins performant.
 - **Taux de connaissances** — la fréquence à laquelle ses réponses s'appuyaient sur vos sources de connaissances.
 - **Coût par ticket** — la dépense moyenne par ticket traité, en EUR.

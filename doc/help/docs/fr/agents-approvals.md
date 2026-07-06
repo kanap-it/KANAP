@@ -1,6 +1,6 @@
 # Agents IA — Approbations
 
-Les Approbations constituent la file de revue quotidienne de tout ce que vos agents IA veulent faire. Avant qu'un agent ne publie une réponse, n'ajoute une note, ne reclasse un ticket, ne change son statut, ne le réaffecte ou ne le clôture, il vous soumet ce travail ici sous forme de **proposition**. Rien sur cette page ne s'est encore produit du côté du demandeur : une proposition est la suggestion de l'agent, et elle n'atteint votre système de tickets connecté qu'une fois que vous l'avez approuvée. C'est là qu'un opérateur passe le plus clair de son temps à superviser un agent helpdesk : lire les brouillons, appliquer les bons et rejeter le reste.
+Les Approbations constituent la file de revue quotidienne de tout ce que vos agents IA veulent faire. Avant qu'un agent ne publie une réponse, n'ajoute une note, ne reclasse un ticket, ne change son statut, ne le réaffecte ou ne le clôture, il vous soumet ce travail ici sous forme de **proposition**. Rien sur cette page ne s'est encore produit du côté du demandeur : une proposition est la suggestion de l'agent, et elle n'atteint votre système de tickets connecté qu'une fois que vous l'avez approuvée. C'est là qu'un opérateur passe le plus clair de son temps à superviser un agent helpdesk : lire chaque brouillon et décider quoi en faire — appliquer les bons, rejeter ceux qui sont erronés et écarter ceux qui sont justes mais ne doivent pas être envoyés.
 
 ## Où la trouver
 
@@ -51,20 +51,30 @@ Tout ce qui a échoué ou est bloqué — une proposition qui n'a pas pu être e
 
 ### Récemment terminés
 
-Un historique repliable des éléments les plus récemment terminés — appliqués, rejetés, ignorés ou effectués. Il reste replié jusqu'à ce que vous l'ouvriez, mémorise ce choix, et affiche jusqu'à une trentaine de lignes avec une ligne **+N autres** s'il y en a davantage. Utilisez-le pour confirmer qu'une approbation a bien abouti, ou pour vérifier ce qu'un agent a fait pendant votre absence.
+Un historique repliable des éléments les plus récemment terminés — appliqués, rejetés, écartés, ignorés ou effectués. Il reste replié jusqu'à ce que vous l'ouvriez, mémorise ce choix, et affiche jusqu'à une trentaine de lignes avec une ligne **+N autres** s'il y en a davantage. Utilisez-le pour confirmer qu'une approbation a bien abouti, ou pour vérifier ce qu'un agent a fait pendant votre absence.
 
 ---
 
-## Prendre une décision : Approuver, Exécuter et Rejeter
+## Prendre une décision : Approuver, Rejeter et Écarter
 
-Chaque proposition en attente comporte deux boutons.
+Chaque proposition en attente propose trois actions.
 
-- Le bouton principal affiche **Approuver** sur une proposition que vous n'avez pas encore décidée, et **Exécuter** sur une proposition que vous avez déjà approuvée mais qui n'a pas encore été exécutée. Dans les deux cas, il fait la même chose : il envoie l'action à votre système de tickets connecté, où l'agent publie la réponse ou la note, ou applique le changement. L'approbation est le moment où le demandeur (ou votre équipe) peut être affecté — jusque-là, rien n'a quitté KANAP.
-- **Rejeter** n'applique pas l'action. La proposition est abandonnée mais reste dans le journal d'audit, de sorte qu'il existe toujours une trace de ce que l'agent a suggéré et du fait que vous l'avez refusé. Le rejet d'une seule proposition prend effet immédiatement.
+- **Approuver** est le bouton principal. Il affiche **Approuver** sur une proposition que vous n'avez pas encore décidée, et **Exécuter** sur une proposition que vous avez déjà approuvée mais qui n'a pas encore été exécutée. Dans les deux cas, il fait la même chose : il envoie l'action à votre système de tickets connecté, où l'agent publie la réponse ou la note, ou applique le changement. L'approbation est le moment où le demandeur (ou votre équipe) peut être affecté — jusque-là, rien n'a quitté KANAP.
+- **Rejeter** n'applique pas l'action. La proposition est abandonnée mais reste dans le journal d'audit, de sorte qu'il existe toujours une trace de ce que l'agent a suggéré et du fait que vous l'avez refusé. Le rejet d'une seule proposition prend effet immédiatement. Le rejet est un signal de qualité : il pénalise l'évaluation de l'agent et son taux d'acceptation, car il indique à l'agent que la proposition était erronée.
+- **Écarter** met également la proposition de côté sans rien envoyer — mais, contrairement au rejet, cela ne pénalise **pas** l'agent. Le taux d'acceptation et le suivi d'autonomie de l'agent ne sont pas affectés. Utilisez cette action lorsque la proposition est juste mais ne doit tout simplement pas partir : un ticket sensible, un collègue qui a déjà répondu, un doublon. Il s'agit d'un seul clic, sans demande de motif, et son infobulle indique *Écarter sans pénaliser l'évaluation de l'agent*. Une proposition écartée ne peut plus être approuvée.
 
-Si une proposition est actuellement **bloquée** — par exemple parce qu'un contrôle de fraîcheur ou de sécurité n'est plus valide, ou parce que le système de tickets n'accepte pas le changement pour le moment — son bouton est désactivé et la raison apparaît dans l'infobulle du bouton. La proposition reste visible pour que vous puissiez voir pourquoi elle ne peut pas aboutir.
+Si une proposition est actuellement **bloquée** — par exemple parce qu'un contrôle de fraîcheur ou de sécurité n'est plus valide, ou parce que le système de tickets n'accepte pas le changement pour le moment — son bouton principal est désactivé et la raison apparaît dans l'infobulle du bouton. La proposition reste visible pour que vous puissiez voir pourquoi elle ne peut pas aboutir.
 
-**Tout approuver** et **Tout rejeter** apparaissent sur un groupe de ticket lorsqu'il y a plus d'un élément à traiter, ce qui vous permet de vider un ticket entier en une seule étape. **Tout rejeter** ouvre une courte boîte de dialogue qui confirme le nombre de propositions qui seront rejetées et propose une note facultative pour le journal d'audit. Le passage en automatique se fait par type d'action, uniquement une fois qu'assez de vos décisions ont été recueillies pour promouvoir ce type d'action de **Demander d'abord** à **Automatique** dans les [Paramètres](agents-workspace.md) de l'agent ; jusque-là, et toujours pour le travail sensible, chaque proposition passe par cette file.
+**Tout approuver**, **Tout rejeter** et **Tout écarter** apparaissent sur un groupe de ticket lorsqu'il y a plus d'un élément à traiter, ce qui vous permet de vider un ticket entier en une seule étape. **Tout rejeter** ouvre une courte boîte de dialogue qui confirme le nombre de propositions qui seront rejetées et propose une note facultative pour le journal d'audit ; **Tout écarter** ouvre une courte boîte de dialogue de confirmation indiquant que rien ne sera envoyé et que l'évaluation de l'agent n'est pas affectée. Le passage en automatique se fait par type d'action, uniquement une fois qu'assez de vos décisions ont été recueillies pour promouvoir ce type d'action de **Demander d'abord** à **Automatique** dans les [Paramètres](agents-workspace.md) de l'agent ; jusque-là, et toujours pour le travail sensible, chaque proposition passe par cette file.
+
+### Écarter ou rejeter
+
+Le rejet et l'écartement empêchent tous deux une proposition d'atteindre le ticket, mais ils transmettent à l'agent des messages très différents — le choix a donc son importance.
+
+- **Rejetez** lorsque la proposition est erronée ou de mauvaise qualité : un brouillon incorrect, une classification fausse, un changement de statut inapproprié. Le rejet est un signal négatif d'apprentissage et d'évaluation — il fait baisser le taux d'acceptation de l'agent et ralentit son accès à l'autonomie, ce qui est exactement souhaitable lorsqu'il se trompe.
+- **Écartez** lorsque la proposition est *juste* mais ne doit pas être envoyée : le ticket est sensible, un collègue a déjà répondu, elle fait doublon avec quelque chose déjà en cours. L'écartement étant neutre, il ne récompense ni ne pénalise l'agent — son taux d'acceptation et son suivi d'autonomie restent intacts.
+
+Recourir à l'écartement alors que vous voulez en réalité dire « c'était faux » masque un véritable problème de qualité, et rejeter une proposition juste mais non envoyable pénalise injustement un agent qui n'a rien fait de mal. Une proposition écartée affiche un statut **Écarté** en gris et vient s'ajouter à **Récemment terminés** ; l'agent peut toujours proposer à nouveau sur le même ticket lors d'un cycle ultérieur, tout comme après un rejet. **Écarté** n'est pas la même chose qu'**Expiré** : une proposition expirée est une proposition que personne n'a décidée avant l'échéance de sa fenêtre d'approbation, tandis qu'une proposition écartée résulte d'une décision délibérée de votre part.
 
 ---
 
@@ -103,6 +113,7 @@ Chaque groupe de ticket et chaque ligne d'attention porte un lien **Trace**. Il 
 - Travaillez de haut en bas : videz **Nécessite votre décision**, puis jetez un œil à **Attention requise** pour tout ce qui n'a pas atteint le système de tickets. Les deux sections du milieu ne requièrent aucune action de votre part.
 - Rien ici n'a atteint le demandeur tant que vous ne l'avez pas approuvé. Lire un brouillon, le tracer ou le laisser dans la file ne change rien au ticket.
 - Rejetez plutôt que d'ignorer. Une proposition rejetée reste dans le journal d'audit avec votre note facultative, ce qui est bien plus utile par la suite qu'une proposition qui a simplement expiré sans avoir été traitée.
+- Écartez, plutôt que de rejeter, une proposition que vous ne comptez tout simplement pas envoyer. Si un brouillon est juste mais ne doit pas partir — un ticket sensible, un collègue qui a déjà répondu — **Écarter** le met de côté sans pénaliser l'agent. Réservez **Rejeter** aux propositions réellement erronées.
 - L'absence de note **Synthèse de secours** est une bonne nouvelle, pas une information manquante. Réservez votre lecture la plus attentive aux brouillons qui *en* portent une.
 - Si un changement approuvé se retrouve dans **Attention requise**, la légende rouge et le lien **Trace** vous indiquent si c'est l'agent, un contrôle de sécurité ou le système de tickets connecté qui l'a bloqué — corrigez la cause sous-jacente plutôt que de réapprouver à l'aveugle.
 - La file combinée `/agents/approvals` est la plus rapide lorsque vous exécutez plusieurs agents ; passez à l'onglet **Approbations** propre à un agent lorsque vous voulez vous concentrer sur celui-là uniquement.

@@ -70,6 +70,7 @@ Die Registerkarte **Freigaben** ist die Prüfwarteschlange — vorgeschlagene An
 Leistung sagt Ihnen, ob sich der Agent mehr Autonomie verdient. Die Reihe der Kennzahlen umfasst für diesen Agenten:
 
 - **Annahme** — der Anteil seiner Vorschläge, den Sie freigegeben haben. Dies ist die Kennzahl, die am stärksten beeinflusst, ob ein Aktionstyp automatisch werden kann.
+- **Verworfen** — der Anteil der geprüften Vorschläge dieses Agenten, den Sie beiseitegelegt statt freigegeben oder abgelehnt haben. Ein Verwerfen belastet den Agenten nicht, daher steht diese Zahl neben der Annahme für sich. Lesen Sie einen dauerhaft hohen Wert als Zielauswahl-Problem — der Agent greift Tickets auf, die er nicht bearbeiten sollte — und beheben Sie es unter **Einstellungen → Zielauswahl**, statt es als Frage der Antwortqualität zu behandeln.
 - **Freigabelatenz** — die typische Zeit in Minuten zwischen dem Erscheinen eines Vorschlags und einer Entscheidung darüber. Ein steigender Wert bedeutet meist, dass die Warteschlange mehr Aufmerksamkeit der Prüfer braucht, nicht dass der Agent schlechter arbeitet.
 - **Wissens-Trefferquote** — wie oft seine Antworten durch Ihre Wissensquellen gestützt wurden.
 - **Kosten pro Ticket** — durchschnittliche Ausgaben pro bearbeitetem Ticket, in EUR.
