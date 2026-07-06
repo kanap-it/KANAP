@@ -29,7 +29,7 @@ Cada entrada es una cosa que ocurrió y lleva suficiente contexto para entenderl
 
 - Un **chip de tipo**: a cuál de las seis categorías anteriores pertenece el evento.
 - Un **chip de tipo de acción** (cuando el evento trata de un tipo concreto de trabajo sobre el ticket): **Nota interna**, **Respuesta al solicitante**, **Actualización de clasificación**, **Actualización de estado**, **Asignación** o **Participantes**.
-- Un **punto de estado** con una etiqueta en lenguaje claro (por ejemplo «Esperando aprobación», «Hecho», «Rechazado», «Requiere atención») que describe en qué situación se encuentra ese elemento.
+- Un **punto de estado** con una etiqueta en lenguaje claro (por ejemplo «Esperando aprobación», «Hecho», «Rechazado», «Descartado», «Requiere atención») que describe en qué situación se encuentra ese elemento.
 - El **nombre del agente** y el **ticket** al que se refiere (mostrado como `#N`).
 - Un **título de evento** (por ejemplo «Propuesta creada» o «Comprobación de tickets completada»).
 - Una **vista previa de una línea** del contenido —la primera línea de un mensaje redactado, un cambio de campo o el motivo—, de modo que a menudo no necesita expandir nada.
@@ -40,7 +40,7 @@ Cada entrada es una cosa que ocurrió y lleva suficiente contexto para entenderl
 El catálogo cubre todo el ciclo de vida del trabajo de los agentes. Agrupado por el chip de tipo al que corresponde:
 
 - **Propuesta** — el agente redactó algo para revisión: se creó una respuesta, una nota o una actualización de ticket que espera una decisión.
-- **Decisión** — una propuesta fue **aprobada** o **rechazada** (por una persona o automáticamente, una vez que ese tipo de acción funciona por su cuenta).
+- **Decisión** — una propuesta fue **aprobada**, **rechazada** o **descartada** (apartada sin penalizar al agente). Las aprobaciones y los rechazos también pueden ser automáticos una vez que ese tipo de acción funciona por su cuenta; un descarte es siempre una decisión deliberada de una persona.
 - **Ejecución** — un cambio se envió realmente al ticket, o una ejecución **falló**. Las ejecuciones automáticas y sus fallos también aparecen aquí.
 - **Configuración** — alguien cambió el funcionamiento de un agente: se actualizó su **configuración de vigilancia** o su **configuración** general, un tipo de acción se pasó a **automático** o se **desactivó** (o se **degradó** para volver a preguntar primero), o se **eliminó un agente**.
 - **Pausa** — se **activó** o **levantó** una **pausa de emergencia**, o se **pausó la vigilancia de un ticket** porque había una pausa en vigor.

@@ -70,6 +70,7 @@ The **Approvals** tab is the review queue — proposed replies, notes, and ticke
 Performance tells you whether the agent is earning more autonomy. The row of headline figures covers, for this agent:
 
 - **Acceptance** — the share of its proposals you approved. This is the number that most influences whether an action type can go automatic.
+- **Dismissed** — the share of this agent's reviewed proposals you set aside rather than approved or rejected. A dismissal doesn't count against the agent, so this figure sits apart from acceptance. Read a persistently high value as a targeting problem — the agent is picking up tickets it shouldn't handle — and fix it in **Settings → Targeting**, rather than treating it as an answer-quality issue.
 - **Approval latency** — the typical time, in minutes, between a proposal appearing and someone deciding on it. A rising figure usually means the queue needs more reviewer attention, not that the agent is doing worse.
 - **Knowledge hit rate** — how often its replies were backed by your knowledge sources.
 - **Cost per ticket** — average spend per ticket handled, in EUR.

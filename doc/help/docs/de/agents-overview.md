@@ -32,11 +32,12 @@ Zwei weitere KI-Oberflächen lassen sich leicht mit Agenten verwechseln, sind ab
 
 ## Das Flotten-Dashboard
 
-Vier gebündelte Kennzahlen stehen ganz oben, aggregiert über alle Helpdesk-Agenten im Mandanten – nicht die Werte eines einzelnen Agenten:
+Fünf gebündelte Kennzahlen stehen ganz oben, aggregiert über alle Helpdesk-Agenten im Mandanten – nicht die Werte eines einzelnen Agenten:
 
 - **Offene Freigaben** – wie viele Vorschläge in der gesamten Flotte gerade auf eine menschliche Entscheidung warten. Dies ist dieselbe Zahl, die das Abzeichen in der Seitenleiste steuert.
 - **Aktionen heute** – wie viele Vorschläge heute tatsächlich ausgeführt wurden (freigegeben und angewendet oder automatisch angewendet).
 - **Annahme** – der Anteil der entschiedenen Vorschläge, die freigegeben statt abgelehnt wurden. Zeigt **Nicht genug Daten** an, bis genügend Entscheidungsverlauf vorliegt, um aussagekräftig zu sein.
+- **Verworfen** – der Anteil der von einem Menschen geprüften Vorschläge, die beiseitegelegt statt freigegeben oder abgelehnt wurden. Ein Verwerfen belastet den Agenten nicht; ein dauerhaft hoher Wert deutet daher meist auf ein Zielauswahl-Problem hin – der Agent greift Tickets auf, die er nicht bearbeiten sollte – und nicht auf schlechte Antwortqualität; beheben Sie es in den Einstellungen des Agenten. Zeigt ebenfalls **Nicht genug Daten** an, bis genügend Prüfverlauf vorliegt.
 - **Kosten pro Ticket** – die geschätzten KI-Kosten pro bearbeitetem Ticket, in EUR. Zeigt ebenfalls **Nicht genug Daten** an, bis Verlaufsdaten vorliegen.
 
 Betrachten Sie diese als Gesundheitszustand der Flotte, nicht als Abrechnung pro Agent. Für die Zahlen eines einzelnen Agenten öffnen Sie dessen Arbeitsbereich und verwenden die Registerkarte **Leistung**.

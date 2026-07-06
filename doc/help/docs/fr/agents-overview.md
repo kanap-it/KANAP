@@ -32,11 +32,12 @@ Deux autres surfaces IA se confondent facilement avec les agents, mais sont des 
 
 ## Le tableau de bord du parc
 
-Quatre indicateurs mutualisés figurent en haut, agrégés sur l'ensemble des agents helpdesk du tenant — et non les chiffres d'un seul agent :
+Cinq indicateurs mutualisés figurent en haut, agrégés sur l'ensemble des agents helpdesk du tenant — et non les chiffres d'un seul agent :
 
 - **Approbations en attente** — combien de propositions, sur l'ensemble du parc, attendent une décision humaine en ce moment. C'est le même nombre qui alimente le badge de la barre latérale.
 - **Actions du jour** — combien de propositions ont réellement été exécutées aujourd'hui (approuvées et appliquées, ou appliquées automatiquement).
 - **Acceptation** — la part des propositions décidées qui ont été approuvées plutôt que rejetées. Affiche **Données insuffisantes** tant qu'il n'y a pas assez d'historique de décisions pour être significatif.
+- **Écartées** — la part des propositions examinées par un humain qui ont été mises de côté plutôt qu'approuvées ou rejetées. Un écartement ne pénalise pas l'agent ; une valeur durablement élevée traduit donc généralement un problème de ciblage — l'agent prend en charge des tickets qu'il ne devrait pas traiter — plutôt qu'un problème de qualité des réponses ; corrigez-le dans les paramètres de l'agent. Affiche également **Données insuffisantes** tant qu'il n'y a pas assez d'historique d'examen.
 - **Coût par ticket** — le coût IA estimé par ticket traité, en EUR. Affiche également **Données insuffisantes** tant qu'il n'y a pas d'historique.
 
 Considérez ces indicateurs comme la santé du parc, non comme une comptabilité par agent. Pour les chiffres d'un agent en particulier, ouvrez son espace et utilisez l'onglet **Performance**.

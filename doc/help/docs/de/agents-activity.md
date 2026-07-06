@@ -29,7 +29,7 @@ Jeder Eintrag steht für ein einzelnes Ereignis und enthält genug Kontext, um e
 
 - Einen **Typ-Chip** – zu welcher der sechs oben genannten Kategorien das Ereignis gehört.
 - Einen **Aktionstyp-Chip** (wenn das Ereignis eine bestimmte Art von Ticketarbeit betrifft): **Interne Notiz**, **Antwort an Anfragende**, **Klassifizierung aktualisieren**, **Status aktualisieren**, **Zuweisung** oder **Beteiligte**.
-- Einen **Statuspunkt** mit einer verständlichen Beschriftung (zum Beispiel „Wartet auf Freigabe", „Fertig", „Abgelehnt", „Aufmerksamkeit erforderlich"), die beschreibt, wo dieses Element steht.
+- Einen **Statuspunkt** mit einer verständlichen Beschriftung (zum Beispiel „Wartet auf Freigabe", „Fertig", „Abgelehnt", „Verworfen", „Aufmerksamkeit erforderlich"), die beschreibt, wo dieses Element steht.
 - Den **Agentennamen** und das betroffene **Ticket** (angezeigt als `#N`).
 - Einen **Ereignistitel** (zum Beispiel „Vorschlag erstellt" oder „Ticket-Prüfung abgeschlossen").
 - Eine **einzeilige Vorschau** des Inhalts – die erste Zeile einer entworfenen Nachricht, eine Feldänderung oder den Grund –, sodass Sie oft nichts erweitern müssen.
@@ -40,7 +40,7 @@ Jeder Eintrag steht für ein einzelnes Ereignis und enthält genug Kontext, um e
 Der Katalog deckt den gesamten Lebenszyklus der Agentenarbeit ab. Gruppiert nach dem Typ-Chip, unter den sie fallen:
 
 - **Vorschlag** – der Agent hat etwas zur Prüfung entworfen: eine Antwort, Notiz oder Ticketaktualisierung wurde erstellt und wartet auf eine Entscheidung.
-- **Entscheidung** – ein Vorschlag wurde **freigegeben** oder **abgelehnt** (durch eine Person oder automatisch, sobald dieser Aktionstyp eigenständig läuft).
+- **Entscheidung** – ein Vorschlag wurde **freigegeben**, **abgelehnt** oder **verworfen** (beiseitegelegt, ohne den Agenten zu belasten). Freigaben und Ablehnungen können auch automatisch erfolgen, sobald dieser Aktionstyp eigenständig läuft; ein Verwerfen ist stets die bewusste Entscheidung einer Person.
 - **Ausführung** – eine Änderung wurde tatsächlich an das Ticket gesendet, oder eine Ausführung ist **fehlgeschlagen**. Automatische Ausführungen und ihre Fehler erscheinen ebenfalls hier.
 - **Konfiguration** – jemand hat geändert, wie ein Agent läuft: seine **Überwachungseinstellungen** oder die allgemeine **Konfiguration** wurden aktualisiert, ein Aktionstyp wurde auf **automatisch** umgestellt oder **ausgeschaltet** (oder wieder auf Zuerst fragen **zurückgestuft**), oder ein **Agent wurde gelöscht**.
 - **Pause** – eine **Notfallpause wurde aktiviert** oder **aufgehoben**, oder eine **Ticketüberwachung wurde pausiert**, weil eine Pause in Kraft war.

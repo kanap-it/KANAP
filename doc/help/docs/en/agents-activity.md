@@ -29,7 +29,7 @@ Each entry is one thing that happened, and it carries enough context to understa
 
 - A **type chip** — which of the six categories above the event belongs to.
 - An **action-type chip** (when the event is about a specific kind of ticket work): **Internal note**, **Requester reply**, **Classification update**, **Status update**, **Assignment**, or **Participants**.
-- A **status dot** with a plain-language label (for example "Waiting for approval", "Done", "Rejected", "Needs attention") describing where that item stands.
+- A **status dot** with a plain-language label (for example "Waiting for approval", "Done", "Rejected", "Dismissed", "Needs attention") describing where that item stands.
 - The **agent name** and the **ticket** it concerns (shown as `#N`).
 - An **event title** (for example "Proposal created" or "Ticket check completed").
 - A **one-line preview** of the substance — the first line of a drafted message, a field change, or the reason — so you often don't need to expand anything.
@@ -40,7 +40,7 @@ Each entry is one thing that happened, and it carries enough context to understa
 The catalog covers the whole lifecycle of agent work. Grouped by the type chip they fall under:
 
 - **Proposal** — the agent drafted something for review: a reply, note, or ticket update was created and is waiting for a decision.
-- **Decision** — a proposal was **approved** or **rejected** (by a person, or automatically once that action type is running on its own).
+- **Decision** — a proposal was **approved**, **rejected**, or **dismissed** (set aside without counting against the agent). Approvals and rejections can also happen automatically once that action type is running on its own; a dismissal is always a person's deliberate choice.
 - **Execution** — a change was actually sent to the ticket, or an execution **failed**. Automatic executions and their failures show here too.
 - **Configuration** — someone changed how an agent runs: its **watching settings** or general **configuration** were updated, an action type was switched to **automatic** or **turned off** (or **demoted** back to asking first), or an **agent was deleted**.
 - **Pause** — an **emergency pause was enabled** or **lifted**, or a **ticket watcher was paused** because a pause was in effect.

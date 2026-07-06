@@ -32,11 +32,12 @@ Otras dos superficies de IA se confunden fácilmente con los agentes, pero son c
 
 ## El panel de la flota
 
-En la parte superior hay cuatro cifras agrupadas, agregadas de todos los agentes helpdesk del espacio de trabajo, no las cifras de un solo agente:
+En la parte superior hay cinco cifras agrupadas, agregadas de todos los agentes helpdesk del espacio de trabajo, no las cifras de un solo agente:
 
 - **Aprobaciones pendientes** — cuántas propuestas de toda la flota esperan ahora mismo una decisión humana. Es la misma cifra que alimenta el indicador de la barra lateral.
 - **Acciones hoy** — cuántas propuestas se ejecutaron realmente hoy (aprobadas y aplicadas, o aplicadas automáticamente).
 - **Aceptación** — la proporción de propuestas decididas que se aprobaron en lugar de rechazarse. Muestra **Datos insuficientes** hasta que haya suficiente historial de decisiones para ser significativa.
+- **Descartadas** — la proporción de propuestas revisadas por una persona que se apartaron en lugar de aprobarse o rechazarse. Un descarte no penaliza al agente; por eso un valor persistentemente alto suele apuntar a un problema de segmentación —el agente está recogiendo tickets que no debería gestionar— más que a una mala calidad de las respuestas; corríjalo en la configuración del agente. También muestra **Datos insuficientes** hasta que haya suficiente historial de revisión.
 - **Coste por ticket** — el coste estimado de IA por ticket gestionado, en EUR. También muestra **Datos insuficientes** hasta que haya historial.
 
 Considere estas cifras como el estado de salud de la flota, no como la contabilidad por agente. Para las cifras de un solo agente, abra su espacio y use la pestaña **Rendimiento**.

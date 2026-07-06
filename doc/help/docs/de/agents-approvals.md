@@ -1,6 +1,6 @@
 # KI-Agenten — Freigaben
 
-Freigaben ist die tägliche Prüf-Warteschlange für alles, was Ihre KI-Agenten vorhaben. Bevor ein Agent eine Antwort veröffentlicht, eine Notiz hinzufügt, ein Ticket neu klassifiziert, dessen Status ändert, es neu zuweist oder schließt, legt er Ihnen diese Arbeit hier als **Vorschlag** vor. Auf Seiten des Anfragenden ist auf dieser Seite noch nichts geschehen: Ein Vorschlag ist die Empfehlung des Agenten, und er erreicht Ihr verbundenes Ticketsystem erst, sobald Sie ihn freigeben. Hier verbringt ein Operator die meiste Zeit mit der Beaufsichtigung eines Helpdesk-Agenten — indem er Entwürfe liest, die guten anwendet und den Rest ablehnt.
+Freigaben ist die tägliche Prüf-Warteschlange für alles, was Ihre KI-Agenten vorhaben. Bevor ein Agent eine Antwort veröffentlicht, eine Notiz hinzufügt, ein Ticket neu klassifiziert, dessen Status ändert, es neu zuweist oder schließt, legt er Ihnen diese Arbeit hier als **Vorschlag** vor. Auf Seiten des Anfragenden ist auf dieser Seite noch nichts geschehen: Ein Vorschlag ist die Empfehlung des Agenten, und er erreicht Ihr verbundenes Ticketsystem erst, sobald Sie ihn freigeben. Hier verbringt ein Operator die meiste Zeit mit der Beaufsichtigung eines Helpdesk-Agenten — indem er jeden Entwurf liest und entscheidet, was damit geschehen soll: die guten anwenden, die falschen ablehnen und die zutreffenden, aber nicht zu versendenden beiseitelegen.
 
 ## Wo Sie es finden
 
@@ -51,20 +51,30 @@ Alles, was fehlgeschlagen ist oder blockiert wird — ein Vorschlag, der nicht a
 
 ### Kürzlich abgeschlossen
 
-Ein einklappbarer Verlauf der zuletzt abgeschlossenen Elemente — angewendet, abgelehnt, übersprungen oder fertig. Er bleibt eingeklappt, bis Sie ihn öffnen, merkt sich diese Wahl und zeigt bis zu etwa 30 Zeilen mit einer Zeile **+N weitere**, falls es mehr sind. Nutzen Sie ihn, um zu bestätigen, dass eine Freigabe tatsächlich durchgelaufen ist, oder um zu prüfen, was ein Agent getan hat, während Sie abwesend waren.
+Ein einklappbarer Verlauf der zuletzt abgeschlossenen Elemente — angewendet, abgelehnt, verworfen, übersprungen oder fertig. Er bleibt eingeklappt, bis Sie ihn öffnen, merkt sich diese Wahl und zeigt bis zu etwa 30 Zeilen mit einer Zeile **+N weitere**, falls es mehr sind. Nutzen Sie ihn, um zu bestätigen, dass eine Freigabe tatsächlich durchgelaufen ist, oder um zu prüfen, was ein Agent getan hat, während Sie abwesend waren.
 
 ---
 
-## Eine Entscheidung treffen: Freigeben, Ausführen und Ablehnen
+## Eine Entscheidung treffen: Freigeben, Ablehnen und Verwerfen
 
-Jeder offene Vorschlag hat zwei Schaltflächen.
+Jeder offene Vorschlag bietet drei Aktionen.
 
-- Die primäre Schaltfläche zeigt **Freigeben** bei einem Vorschlag, den Sie noch nicht entschieden haben, und **Ausführen** bei einem, den Sie bereits freigegeben haben, der aber noch nicht ausgeführt wurde. In beiden Fällen bewirkt sie dasselbe: Sie sendet die Aktion an Ihr verbundenes Ticketsystem, wo der Agent die Antwort oder Notiz veröffentlicht oder die Änderung anwendet. Die Freigabe ist der Moment, in dem der Anfragende (oder Ihr Team) betroffen sein kann — bis dahin hat nichts KANAP verlassen.
-- **Ablehnen** wendet die Aktion nicht an. Der Vorschlag wird verworfen, bleibt aber im Audit-Trail erhalten, sodass es stets einen Nachweis darüber gibt, was der Agent vorgeschlagen und dass Sie es abgelehnt haben. Das Ablehnen eines einzelnen Vorschlags wird sofort wirksam.
+- **Freigeben** ist die primäre Schaltfläche. Sie zeigt **Freigeben** bei einem Vorschlag, den Sie noch nicht entschieden haben, und **Ausführen** bei einem, den Sie bereits freigegeben haben, der aber noch nicht ausgeführt wurde. In beiden Fällen bewirkt sie dasselbe: Sie sendet die Aktion an Ihr verbundenes Ticketsystem, wo der Agent die Antwort oder Notiz veröffentlicht oder die Änderung anwendet. Die Freigabe ist der Moment, in dem der Anfragende (oder Ihr Team) betroffen sein kann — bis dahin hat nichts KANAP verlassen.
+- **Ablehnen** wendet die Aktion nicht an. Der Vorschlag wird fallengelassen, bleibt aber im Audit-Trail erhalten, sodass es stets einen Nachweis darüber gibt, was der Agent vorgeschlagen und dass Sie es abgelehnt haben. Das Ablehnen eines einzelnen Vorschlags wird sofort wirksam. Ablehnen ist ein Qualitätssignal: Es belastet die Bewertung des Agenten und seine Annahmequote, weil es dem Agenten mitteilt, dass der Vorschlag falsch war.
+- **Verwerfen** legt den Vorschlag ebenfalls beiseite, ohne etwas zu senden — belastet aber, anders als das Ablehnen, den Agenten **nicht**. Die Annahmequote und die Autonomie-Bilanz des Agenten bleiben unberührt. Verwenden Sie es, wenn der Vorschlag zutreffend ist, aber schlicht nicht hinausgehen soll: ein sensibles Ticket, ein Kollege, der bereits geantwortet hat, ein Duplikat. Es ist ein einziger Klick ohne Grundabfrage, und sein Tooltip lautet *Beiseitelegen, ohne die Bewertung des Agenten zu belasten*. Ein verworfener Vorschlag kann nicht mehr freigegeben werden.
 
-Wenn ein Vorschlag derzeit **blockiert** ist — etwa weil eine Aktualitäts- oder Sicherheitsprüfung nicht mehr zutrifft oder das Ticketsystem die Änderung im Moment nicht akzeptiert —, ist seine Schaltfläche deaktiviert und der Grund erscheint im Tooltip der Schaltfläche. Der Vorschlag bleibt sichtbar, damit Sie sehen können, warum er nicht fortgesetzt werden kann.
+Wenn ein Vorschlag derzeit **blockiert** ist — etwa weil eine Aktualitäts- oder Sicherheitsprüfung nicht mehr zutrifft oder das Ticketsystem die Änderung im Moment nicht akzeptiert —, ist seine primäre Schaltfläche deaktiviert und der Grund erscheint im Tooltip der Schaltfläche. Der Vorschlag bleibt sichtbar, damit Sie sehen können, warum er nicht fortgesetzt werden kann.
 
-**Alle freigeben** und **Alle ablehnen** erscheinen bei einer Ticketgruppe, wenn mehr als ein Element zu bearbeiten ist, sodass Sie ein ganzes Ticket in einem Schritt erledigen können. **Alle ablehnen** öffnet einen kurzen Dialog, der bestätigt, wie viele Vorschläge abgelehnt werden, und eine optionale Notiz für den Audit-Trail anbietet. Automatische Freigaben pro Aktionstyp erfolgen erst, nachdem genügend Ihrer Entscheidungen erfasst wurden, um diesen Aktionstyp in den [Einstellungen](agents-workspace.md) des Agenten von **Zuerst fragen** auf **Automatisch** hochzustufen; bis dahin — und bei sensibler Arbeit stets — durchläuft jeder Vorschlag diese Warteschlange.
+**Alle freigeben**, **Alle ablehnen** und **Alle verwerfen** erscheinen bei einer Ticketgruppe, wenn mehr als ein Element zu bearbeiten ist, sodass Sie ein ganzes Ticket in einem Schritt erledigen können. **Alle ablehnen** öffnet einen kurzen Dialog, der bestätigt, wie viele Vorschläge abgelehnt werden, und eine optionale Notiz für den Audit-Trail anbietet; **Alle verwerfen** öffnet einen kurzen Bestätigungsdialog, der angibt, dass nichts gesendet wird und die Bewertung des Agenten unberührt bleibt. Automatische Freigaben pro Aktionstyp erfolgen erst, nachdem genügend Ihrer Entscheidungen erfasst wurden, um diesen Aktionstyp in den [Einstellungen](agents-workspace.md) des Agenten von **Zuerst fragen** auf **Automatisch** hochzustufen; bis dahin — und bei sensibler Arbeit stets — durchläuft jeder Vorschlag diese Warteschlange.
+
+### Verwerfen oder ablehnen
+
+Sowohl Ablehnen als auch Verwerfen halten einen Vorschlag davon ab, das Ticket zu erreichen, aber sie teilen dem Agenten ganz Unterschiedliches mit — die Wahl ist also wichtig.
+
+- **Lehnen Sie ab**, wenn der Vorschlag falsch oder schlecht ist: ein schlechter Entwurf, eine falsche Klassifizierung, eine unpassende Statusänderung. Ablehnung ist negatives Trainings- und Bewertungssignal — sie senkt die Annahmequote des Agenten und verlangsamt seinen Weg zum eigenständigen Handeln, was genau dann erwünscht ist, wenn er Fehler macht.
+- **Verwerfen Sie**, wenn der Vorschlag *richtig* ist, aber nicht gesendet werden soll: das Ticket ist sensibel, ein Kollege hat bereits geantwortet, es dupliziert etwas bereits Laufendes. Da das Verwerfen neutral ist, belohnt oder bestraft es den Agenten nicht — seine Annahmequote und seine Autonomie-Bilanz bleiben unangetastet.
+
+Zum Verwerfen zu greifen, wenn Sie eigentlich „das war falsch" meinen, verschleiert ein echtes Qualitätsproblem, und einen richtigen, aber nicht versendbaren Vorschlag abzulehnen belastet einen Agenten zu Unrecht, der nichts falsch gemacht hat. Ein verworfener Vorschlag zeigt einen grauen Status **Verworfen** und wandert in **Kürzlich abgeschlossen**; der Agent kann in einem späteren Zyklus weiterhin erneut zum selben Ticket vorschlagen, genau wie nach einer Ablehnung. **Verworfen** ist nicht dasselbe wie **Abgelaufen**: Ein abgelaufener Vorschlag ist einer, über den niemand entschieden hat, bevor sein Genehmigungsfenster verstrichen ist, während ein verworfener Vorschlag eine bewusste Entscheidung ist, die Sie getroffen haben.
 
 ---
 
@@ -103,6 +113,7 @@ Jede Ticketgruppe und jede Zeile im Abschnitt „Aufmerksamkeit erforderlich“ 
 - Arbeiten Sie von oben nach unten: Erledigen Sie **Benötigt Ihre Entscheidung** und werfen Sie dann einen Blick auf **Aufmerksamkeit erforderlich**, um zu sehen, ob etwas das Ticketsystem nicht erreicht hat. Die beiden mittleren Abschnitte erfordern kein Handeln von Ihnen.
 - Nichts hier hat den Anfragenden erreicht, bevor Sie es freigeben. Einen Entwurf zu lesen, ihn zurückzuverfolgen oder ihn in der Warteschlange zu belassen, ändert nichts am Ticket.
 - Lehnen Sie ab, statt zu ignorieren. Ein abgelehnter Vorschlag bleibt mit Ihrer optionalen Notiz im Audit-Trail, was später weit nützlicher ist als ein Vorschlag, der einfach unbeachtet abgelaufen ist.
+- Verwerfen Sie einen Vorschlag, den Sie schlicht nicht senden werden, statt ihn abzulehnen. Ist ein Entwurf zutreffend, soll aber nicht hinausgehen — ein sensibles Ticket, ein Kollege hat bereits geantwortet —, legt **Verwerfen** ihn beiseite, ohne den Agenten zu belasten. **Ablehnen** bleibt Vorschlägen vorbehalten, die wirklich falsch waren.
 - Ein fehlender **Synthesis-Fallback**-Hinweis ist eine gute Nachricht, keine fehlende Information. Widmen Sie Ihre gründlichste Lektüre den Entwürfen, die ihn *tatsächlich* tragen.
 - Wenn eine freigegebene Änderung in **Aufmerksamkeit erforderlich** landet, verraten Ihnen die rote Bildunterschrift und der **Trace**-Link, ob der Agent, eine Sicherheitsprüfung oder das verbundene Ticketsystem sie gestoppt hat — beheben Sie die zugrunde liegende Ursache, statt blind erneut freizugeben.
 - Die kombinierte Warteschlange unter `/agents/approvals` ist am schnellsten, wenn Sie mehrere Agenten betreiben; wechseln Sie zum eigenen Tab **Freigaben** eines Agenten, wenn Sie sich nur auf diesen konzentrieren möchten.
