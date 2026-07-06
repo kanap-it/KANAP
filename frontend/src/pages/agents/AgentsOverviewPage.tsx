@@ -466,6 +466,7 @@ export default function AgentsOverviewPage() {
           <MetricBlock label={t('overview.pendingApprovals')} value={data.badgesQuery.data?.pendingApprovals ?? 0} />
           <MetricBlock label={t('overview.todayActions')} value={formatNumber(fleetEvaluation?.terminalByStatus.executed ?? 0)} />
           <MetricBlock label={t('overview.acceptance')} value={formatPercent(fleetEvaluation?.acceptanceRate)} />
+          <MetricBlock label={t('overview.dismissed')} value={formatPercent(fleetEvaluation?.dismissRate)} />
           <MetricBlock label={t('overview.costPerTicket')} value={fleetEvaluation?.costPerTicketEur == null ? t('common.notEnoughData') : `${fleetEvaluation.costPerTicketEur.toFixed(4)} EUR`} />
         </Stack>
 

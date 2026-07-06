@@ -3585,16 +3585,18 @@ export class AiAgentControlService {
           run_id: input.runId,
           recommendation_id: input.recommendationId,
           decision_id: input.decisionId,
-          status: ['executed', 'rejected', 'expired', 'failed'].includes(action.status) ? 'completed' : 'pending',
+          status: ['executed', 'rejected', 'expired', 'dismissed', 'failed'].includes(action.status) ? 'completed' : 'pending',
           outcome: action.status === 'executed'
             ? 'provider_action_executed'
             : action.status === 'rejected'
               ? 'provider_action_rejected'
               : action.status === 'expired'
                 ? 'provider_action_expired_unreviewed'
-                : action.status === 'failed'
-                  ? 'provider_action_failed'
-                  : null,
+                : action.status === 'dismissed'
+                  ? 'provider_action_dismissed'
+                  : action.status === 'failed'
+                    ? 'provider_action_failed'
+                    : null,
           scores_json: null,
           feedback_json: null,
           metadata_json: {
@@ -4995,7 +4997,11 @@ export class AiAgentControlService {
           agentKey: null,
           targetType: action?.target_type ?? null,
           targetRef: action?.target_ref ?? null,
-          titleKey: approval.status === 'approved' ? 'decision_approved' : 'decision_rejected',
+          titleKey: approval.status === 'approved'
+            ? 'decision_approved'
+            : approval.status === 'dismissed'
+              ? 'decision_dismissed'
+              : 'decision_rejected',
           status: approval.status,
           actorUserId: approval.actor_user_id,
           actionRequestId: approval.action_request_id,
@@ -5171,6 +5177,7 @@ export class AiAgentControlService {
       decided: number;
       acceptanceRate: number | null;
       executed: number;
+      dismissed: number;
       costEur: number;
       tokens: number;
     };
@@ -5183,6 +5190,7 @@ export class AiAgentControlService {
         decided: 0,
         acceptanceRate: null,
         executed: 0,
+        dismissed: 0,
         costEur: 0,
         tokens: 0,
       });
@@ -5196,7 +5204,8 @@ export class AiAgentControlService {
               date_trunc('day', created_at AT TIME ZONE 'UTC')::date AS day,
               COUNT(*)::int AS proposals,
               COUNT(*) FILTER (WHERE status IN ('executed', 'rejected'))::int AS decided,
-              COUNT(*) FILTER (WHERE status = 'executed')::int AS executed
+              COUNT(*) FILTER (WHERE status = 'executed')::int AS executed,
+              COUNT(*) FILTER (WHERE status = 'dismissed')::int AS dismissed
             FROM ai_action_requests
             WHERE tenant_id = $1
               AND provider_kind = 'ticketing'
@@ -5234,6 +5243,7 @@ export class AiAgentControlService {
         target.proposals = numericMetadata(row.proposals);
         target.decided = numericMetadata(row.decided);
         target.executed = numericMetadata(row.executed);
+        target.dismissed = numericMetadata(row.dismissed);
       }
       for (const row of runRows as Array<Record<string, unknown>>) {
         const key = row.day instanceof Date ? dateKey(row.day) : String(row.day ?? '').slice(0, 10);
@@ -5282,6 +5292,8 @@ export class AiAgentControlService {
         acceptedByDay.set(key, (acceptedByDay.get(key) ?? 0) + 1);
       } else if (action.status === 'rejected') {
         row.decided += 1;
+      } else if (action.status === 'dismissed') {
+        row.dismissed += 1;
       }
     }
     for (const run of runs) {
@@ -8628,6 +8640,31 @@ export class AiAgentControlService {
     return {
       action: serializeActionRequest(responseAction, readiness.get(responseAction.id)),
       approval: serializeApproval(rejected.approval),
+      detail: detailRunId ? await this.getRunDetail(context, detailRunId) : null,
+    };
+  }
+
+  async dismissActionRequest(
+    context: AiExecutionContextWithManager,
+    actionRequestId: string,
+    reason?: string | null,
+  ) {
+    const dismissed = await this.approvals.dismissActionRequest(
+      context,
+      actionRequestId,
+      approvalDecisionReason(reason, 'Dismissed from Agent Control Center.'),
+    );
+    const freshAction = await context.manager.getRepository(AiActionRequest).findOne({
+      where: { id: actionRequestId, tenant_id: context.tenantId },
+    });
+    const detailRunId = freshAction?.run_id ?? dismissed.action.run_id;
+    const responseAction = freshAction ?? dismissed.action;
+    await this.agentQueue?.resolveWaitingApprovalForActionRequest(context, responseAction.id);
+    const readiness = await this.executionReadinessForActions(context, [responseAction]);
+
+    return {
+      action: serializeActionRequest(responseAction, readiness.get(responseAction.id)),
+      approval: serializeApproval(dismissed.approval),
       detail: detailRunId ? await this.getRunDetail(context, detailRunId) : null,
     };
   }

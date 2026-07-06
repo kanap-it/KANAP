@@ -31,6 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: 'success',
   completed: 'success',
   dead_letter: 'error',
+  dismissed: 'default',
   executing: 'info',
   executed: 'success',
   failed: 'error',
@@ -777,11 +778,13 @@ export function ActionButtons({
   busy,
   onApprove,
   onReject,
+  onDismiss,
 }: {
   action: AiAgentControlActionRequest;
   busy: boolean;
   onApprove: (action: AiAgentControlActionRequest) => void;
   onReject: (action: AiAgentControlActionRequest) => void;
+  onDismiss: (action: AiAgentControlActionRequest) => void;
 }) {
   const { t } = useTranslation(['agents']);
   const canExecute = actionCanExecute(action);
@@ -801,6 +804,13 @@ export function ActionButtons({
         <span>
           <Button size="small" variant="outlined" color="inherit" disabled={busy || !canReject} onClick={(event) => { event.stopPropagation(); onReject(action); }}>
             {t('actions.reject')}
+          </Button>
+        </span>
+      </Tooltip>
+      <Tooltip title={t('actions.dismissHint')}>
+        <span>
+          <Button size="small" variant="text" color="inherit" disabled={busy || !canReject} onClick={(event) => { event.stopPropagation(); onDismiss(action); }}>
+            {t('actions.dismiss')}
           </Button>
         </span>
       </Tooltip>

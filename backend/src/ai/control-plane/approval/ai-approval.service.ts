@@ -191,6 +191,9 @@ export class AiApprovalService {
     if (action.status === 'rejected') {
       throw new ForbiddenException('Rejected action requests cannot be approved.');
     }
+    if (action.status === 'dismissed') {
+      throw new ForbiddenException('Dismissed action requests cannot be approved.');
+    }
     if (action.status === 'expired') {
       throw new ForbiddenException('Expired action requests cannot be approved.');
     }
@@ -258,6 +261,42 @@ export class AiApprovalService {
     return { action, approval };
   }
 
+  async dismissActionRequest(
+    context: AiExecutionContextWithManager,
+    actionRequestId: string,
+    reason?: string | null,
+  ): Promise<{ action: AiActionRequest; approval: AiApproval }> {
+    const action = await this.actions.findProviderActionForExecution(context, actionRequestId);
+    if (action.status !== 'pending' && action.status !== 'approved') {
+      throw new ForbiddenException('Only pending or approved action requests can be dismissed.');
+    }
+    if (action.expires_at && action.expires_at <= new Date()) {
+      await this.actions.markExpired(context, action);
+      throw new ForbiddenException('Expired action requests cannot be dismissed.');
+    }
+    const approval = await this.repo(context).save(this.repo(context).create({
+      tenant_id: context.tenantId,
+      action_request_id: action.id,
+      capability_name: action.capability_name,
+      capability_version: action.capability_version,
+      source: 'human_ui',
+      status: 'dismissed',
+      actor_user_id: context.userId,
+      actor_label: null,
+      input_hash: action.input_hash,
+      evidence_ids: action.evidence_ids ?? null,
+      reason: reason ?? null,
+      matched_policy_id: null,
+      matched_policy_version: null,
+      decision_json: null,
+      expires_at: action.expires_at ?? new Date(Date.now() + DEFAULT_APPROVAL_TTL_MS),
+      decided_at: new Date(),
+      created_at: new Date(),
+    }));
+    await this.actions.markDismissed(context, action, reason ?? null);
+    return { action, approval };
+  }
+
   async resolveApprovedAction(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
@@ -267,6 +306,9 @@ export class AiApprovalService {
     }
     if (action.status === 'rejected') {
       throw new ForbiddenException('Rejected action requests cannot be executed.');
+    }
+    if (action.status === 'dismissed') {
+      throw new ForbiddenException('Dismissed action requests cannot be executed.');
     }
     if (action.status === 'executed') {
       throw new ForbiddenException('Action request has already been executed.');

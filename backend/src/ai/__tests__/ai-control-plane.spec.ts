@@ -4002,6 +4002,212 @@ async function testRejectActionRequestRefusesTerminalStates() {
   assert.equal((stores.get(AiActionRequest.name) ?? []).find((row: any) => row.id === expired.id).status, 'expired');
 }
 
+async function testDismissActionRequestCompletesLinkedEvaluation() {
+  const { context, stores, actions, approvals } = createRealProviderDispatcher();
+  const service = new AiAgentControlService({} as any, approvals, {} as any, {} as any, {} as any);
+  const seeded = await seedPolicyAction(context, actions, {
+    action: {
+      idempotencyKey: 'dismiss-happy-path',
+      targetRef: 'mock-ticket-dismiss-happy',
+      actionPayload: {
+        ticketId: 'mock-ticket-dismiss-happy',
+        visibility: 'internal',
+        body: 'Internal note to dismiss.',
+        bodyFormat: 'plain_text',
+      },
+    },
+  });
+
+  const result = await service.dismissActionRequest(context, seeded.action.id);
+  assert.equal(result.action.status, 'dismissed');
+
+  const savedAction = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === seeded.action.id);
+  assert.ok(savedAction);
+  assert.equal(savedAction.status, 'dismissed');
+  assert.equal(savedAction.rejected_at, null);
+  assert.equal(savedAction.error_message, 'Dismissed from Agent Control Center.');
+
+  const approval = (stores.get(AiApproval.name) ?? [])
+    .filter((row: AiApproval) => row.action_request_id === seeded.action.id)
+    .at(-1);
+  assert.ok(approval);
+  assert.equal(approval.status, 'dismissed');
+  assert.equal(approval.source, 'human_ui');
+  assert.equal(approval.reason, 'Dismissed from Agent Control Center.');
+  assert.ok(approval.decided_at);
+
+  const evaluation = (stores.get(AiEvaluation.name) ?? []).find((row: AiEvaluation) => row.id === seeded.evaluation.id);
+  assert.ok(evaluation);
+  assert.equal(evaluation.status, 'completed');
+  assert.equal(evaluation.outcome, 'provider_action_dismissed');
+  assert.equal(evaluation.feedback_json.provider_action.action_request_id, seeded.action.id);
+  assert.equal(evaluation.feedback_json.provider_action.status, 'dismissed');
+  assert.equal(evaluation.feedback_json.provider_action.error_message, 'Dismissed from Agent Control Center.');
+
+  const reproposed = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: 'dismiss-happy-path',
+    targetRef: 'mock-ticket-dismiss-happy',
+    actionPayload: {
+      ticketId: 'mock-ticket-dismiss-happy',
+      visibility: 'internal',
+      body: 'Internal note to dismiss.',
+      bodyFormat: 'plain_text',
+    },
+  }));
+  assert.notEqual(reproposed.id, seeded.action.id);
+  assert.equal(reproposed.status, 'pending');
+  assert.equal((reproposed.metadata_json as any)?.retry_after_action_status, 'dismissed');
+}
+
+async function testDismissActionRequestGuardsTerminalStates() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const actions = new AiActionRequestService({} as any, {} as any);
+  const approvals = new AiApprovalService({} as any, actions);
+
+  const executed = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: 'dismiss-executed',
+  }));
+  await actions.markExecuted(context, executed, 'executed', null);
+  await assert.rejects(
+    () => approvals.dismissActionRequest(context, executed.id, 'late dismiss'),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+
+  const rejected = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: 'dismiss-rejected',
+  }));
+  await actions.markRejected(context, rejected, 'already rejected');
+  await assert.rejects(
+    () => approvals.dismissActionRequest(context, rejected.id, 'late dismiss'),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+
+  const expired = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: 'dismiss-expired',
+    expiresAt: new Date(Date.now() - 1000),
+  }));
+  await assert.rejects(
+    () => approvals.dismissActionRequest(context, expired.id, 'late dismiss'),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+  assert.equal((stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === expired.id).status, 'expired');
+
+  const dismissed = await actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: 'dismiss-already-dismissed',
+  }));
+  await approvals.dismissActionRequest(context, dismissed.id, 'dismiss for unit test');
+  const savedDismissed = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === dismissed.id);
+  assert.ok(savedDismissed);
+  assert.equal(savedDismissed.status, 'dismissed');
+
+  await assert.rejects(
+    () => approvals.approveActionRequest(context, dismissed.id),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+  await assert.rejects(
+    () => approvals.dismissActionRequest(context, dismissed.id, 'second dismiss'),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+  await assert.rejects(
+    () => approvals.resolveApprovedAction(context, savedDismissed),
+    (error: unknown) => error instanceof ForbiddenException,
+  );
+}
+
+async function testHelpdeskEvaluationDismissMetricsAreNeutral() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const actions = new AiActionRequestService({} as any, {} as any);
+  const queue = new AiAgentWorkQueueService();
+  const definitionId = 'agent-dismiss-metrics';
+  const createAction = async (suffix: string) => actions.createOrEnsureProviderAction(context, providerActionSeed({
+    idempotencyKey: `dismiss-metrics-${suffix}`,
+    targetRef: `mock-ticket-dismiss-metrics-${suffix}`,
+    actionPayload: {
+      ticketId: `mock-ticket-dismiss-metrics-${suffix}`,
+      visibility: 'internal',
+      body: `Dismiss metric action ${suffix}.`,
+      bodyFormat: 'plain_text',
+    },
+    metadata: {
+      agent_definition_id: definitionId,
+      action_class: 'internal_note',
+    },
+  }));
+
+  await actions.markExecuted(context, await createAction('executed'), 'executed', null);
+  await actions.markRejected(context, await createAction('rejected'), 'Operator rejected the suggestion.');
+  await actions.markDismissed(context, await createAction('dismissed-1'), 'Human already handled the ticket.');
+  await actions.markDismissed(context, await createAction('dismissed-2'), 'Sensitive ticket.');
+
+  // The evaluation window end is exclusive; in-memory actions are created in the
+  // same millisecond as `new Date()`, so nudge the window end past them.
+  const summary = await (queue as any).computeHelpdeskEvaluation(context, [definitionId], new Date(Date.now() + 1000));
+  assert.equal(summary.acceptanceRate, 0.5);
+  assert.equal(summary.terminalByStatus.executed, 1);
+  assert.equal(summary.terminalByStatus.rejected, 1);
+  assert.equal(summary.terminalByStatus.dismissed, 2);
+  assert.equal(summary.dismissRate, 0.5);
+  assert.deepEqual(summary.rejectionReasons, { 'Operator rejected the suggestion.': 1 });
+}
+
+async function testAgentAutonomyDecisionCountIgnoresDismissed() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const { queue, definition } = await seedAgentDefinitionForAutonomy(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  await seedAgentDecisionHistory(context, {
+    agentDefinitionId: definition.id,
+    actionClass: 'internal_note',
+    count: 19,
+    accepted: 19,
+  });
+  const createdAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  await context.manager.getRepository(AiActionRequest).save(context.manager.getRepository(AiActionRequest).create({
+    tenant_id: context.tenantId,
+    run_id: null,
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: null,
+    preview_id: null,
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'dismissed',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: 'mock-ticket-dismissed-autonomy',
+    idempotency_key: 'dismissed-autonomy-history',
+    action_payload_json: {
+      ticketId: 'mock-ticket-dismissed-autonomy',
+      visibility: 'internal',
+      body: 'Dismissed history item.',
+      bodyFormat: 'plain_text',
+    },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: 'dismissed-autonomy-history-hash',
+    input_summary: null,
+    evidence_ids: ['history-evidence'],
+    expires_at: null,
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: 'Dismissed from test history.',
+    metadata_json: {
+      agent_definition_id: definition.id,
+      action_class: 'internal_note',
+    },
+    created_at: createdAt,
+    updated_at: createdAt,
+  }));
+
+  const autonomy = await service.getAgentAutonomy(context, definition.id);
+  const internalNote = autonomy.items.find((item: any) => item.actionClass === 'internal_note');
+  assert.equal(internalNote?.progress.decided, 19);
+}
+
 async function testCreateOrEnsureProviderActionIsIdempotent() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
@@ -14037,6 +14243,10 @@ async function run() {
   await testProviderActionApprovalScopeFailures();
   await testRejectedExpiredAndAlteredProviderActionsFailClosed();
   await testRejectActionRequestRefusesTerminalStates();
+  await testDismissActionRequestCompletesLinkedEvaluation();
+  await testDismissActionRequestGuardsTerminalStates();
+  await testHelpdeskEvaluationDismissMetricsAreNeutral();
+  await testAgentAutonomyDecisionCountIgnoresDismissed();
   await testCreateOrEnsureProviderActionIsIdempotent();
   await testCreateOrEnsureProviderActionRetriesExpiredPending();
   await testApproveActionRequestExtendsNearExpiredExecutionWindow();

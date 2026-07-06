@@ -10,7 +10,7 @@ import { hashStableJson } from '../evidence/ai-evidence.service';
 import { PolicyDecisionRecord } from '../policy/policy-decision.types';
 
 const DEFAULT_PROVIDER_ACTION_TTL_MS = 30 * 60 * 1000;
-const PROVIDER_ACTION_RETRYABLE_TERMINAL_STATUSES = new Set(['expired', 'failed', 'rejected']);
+const PROVIDER_ACTION_RETRYABLE_TERMINAL_STATUSES = new Set(['expired', 'failed', 'rejected', 'dismissed']);
 
 export type ProviderActionRequestSeed = {
   runId?: string | null;
@@ -551,6 +551,20 @@ export class AiActionRequestService {
     return saved;
   }
 
+  async markDismissed(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    reason?: string | null,
+  ): Promise<AiActionRequest> {
+    const repo = this.actionRepository(context.manager);
+    action.status = 'dismissed';
+    action.error_message = reason ?? null;
+    action.updated_at = new Date();
+    const saved = await repo.save(action);
+    await this.updateLinkedEvaluation(context, saved, 'dismissed', reason ?? null);
+    return saved;
+  }
+
   async markExecuted(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
@@ -587,16 +601,18 @@ export class AiActionRequestService {
     if (!evaluation) {
       return;
     }
-    evaluation.status = status === 'executed' || status === 'rejected' || status === 'expired' ? 'completed' : 'pending';
+    evaluation.status = status === 'executed' || status === 'rejected' || status === 'expired' || status === 'dismissed' ? 'completed' : 'pending';
     evaluation.outcome = status === 'executed'
       ? 'provider_action_executed'
       : status === 'rejected'
         ? 'provider_action_rejected'
         : status === 'expired'
           ? 'provider_action_expired_unreviewed'
-          : status === 'failed'
-            ? 'provider_action_failed'
-            : evaluation.outcome;
+          : status === 'dismissed'
+            ? 'provider_action_dismissed'
+            : status === 'failed'
+              ? 'provider_action_failed'
+              : evaluation.outcome;
     evaluation.feedback_json = {
       ...(isRecord(evaluation.feedback_json) ? evaluation.feedback_json : {}),
       provider_action: {
