@@ -148,6 +148,15 @@ export default function UnifiedActivityForm({
     try {
       await api.post(endpoint, payload);
 
+      // Reflect the new status before the refetch lands so the sidebar/header update in
+      // place (no redraw). The workspace task query is keyed by the URL ref (e.g. "T-42"),
+      // not the task UUID, so patch every matching task cache entry by id rather than by key.
+      if (hasStatusChange) {
+        queryClient.setQueriesData({ queryKey: ['tasks'] }, (old: any) => (
+          old && !Array.isArray(old) && old.id === taskId ? { ...old, status } : old
+        ));
+      }
+
       // Show success feedback
       setFeedbackLabel(successLabel);
       setSubmitting(false);
@@ -162,7 +171,7 @@ export default function UnifiedActivityForm({
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['task-activities', taskId] }),
-        queryClient.invalidateQueries({ queryKey: ['tasks', taskId] }),
+        queryClient.invalidateQueries({ queryKey: ['tasks'] }),
         queryClient.invalidateQueries({ queryKey: ['task-time-entries', taskId] }),
         queryClient.invalidateQueries({ queryKey: ['task-time-entries-sum', taskId] }),
         ...(projectId
