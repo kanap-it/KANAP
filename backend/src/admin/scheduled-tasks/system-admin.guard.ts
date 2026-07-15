@@ -15,8 +15,7 @@ export class SystemAdminGuard implements CanActivate {
 
     // Multi-tenant mode: same checks as PlatformAdminGuard
     if (!Features.SINGLE_TENANT) {
-      const platformHostConfigured = (process.env.PLATFORM_ADMIN_HOST || '').trim().length > 0;
-      if (platformHostConfigured && !req.isPlatformHost) {
+      if (!req.isPlatformHost) {
         throw new ForbiddenException('Platform admin host required');
       }
       if (!isPlatformAdmin(user)) {

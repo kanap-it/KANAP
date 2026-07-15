@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { assertPublicHttpTarget } from '../common/ssrf-guard';
 import { AiAttachmentService } from './ai-attachment.service';
 import { AiConversationService } from './ai-conversation.service';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
@@ -1685,6 +1686,10 @@ export class AiChatOrchestratorService {
       const adapter = this.providerRegistry.get(settings.llm_provider);
       if (!adapter) {
         throw new Error('Provider not configured.');
+      }
+
+      if (settings.llm_endpoint_url) {
+        await assertPublicHttpTarget(settings.llm_endpoint_url);
       }
 
       return {

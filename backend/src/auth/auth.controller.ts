@@ -160,7 +160,8 @@ export class AuthController {
       }
     }
     const isBillingAdmin = isGlobalAdmin || permissions['billing'] === 'admin';
-    const isPlatform = isPlatformAdmin({ email: user.email, role: { role_name: user.role?.role_name ?? null } });
+    const isPlatform = req?.isPlatformHost === true
+      && isPlatformAdmin({ email: user.email, role: { role_name: user.role?.role_name ?? null } });
 
     const subscription = await this.billing.getSubscriptionSummary({ manager });
 

@@ -28,6 +28,7 @@ import {
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { REFRESH_TOKEN_COOKIE_NAME, parseCookieValue } from '../auth/auth-cookie.util';
 import { resolveBusinessContributorScopeForUser } from '../auth/business-contributor-scope';
 import { PermissionLevel } from '../permissions/permissions.service';
 
@@ -171,9 +172,15 @@ export class PortfolioProjectsController {
   async viewAttachmentInline(
     @Param('tenantSlug') tenantSlug: string,
     @Param('attachmentId') attachmentId: string,
+    @Req() req: any,
     @Res() res: Response,
   ): Promise<void> {
-    const meta = await this.svc.getInlineAttachmentMeta(tenantSlug, attachmentId);
+    // Private + Vary:Cookie on every response (incl. 404) so no shared cache serves
+    // tenant bytes and denials aren't cached across sessions.
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Vary', 'Cookie');
+    const refreshToken = parseCookieValue(req?.headers?.cookie as string | undefined, REFRESH_TOKEN_COOKIE_NAME);
+    const meta = await this.svc.getInlineAttachmentMeta(tenantSlug, attachmentId, refreshToken);
     if (!meta) {
       res.status(404).send('Attachment not found');
       return;
@@ -183,7 +190,6 @@ export class PortfolioProjectsController {
     res.setHeader('Content-Disposition', contentDisposition('', 'inline'));
     const contentLength = obj.contentLength ?? meta.size ?? null;
     if (contentLength != null) res.setHeader('Content-Length', String(contentLength));
-    res.setHeader('Cache-Control', 'public, max-age=300');
     obj.stream.pipe(res);
   }
 

@@ -1,10 +1,9 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
-import { isPlatformAdmin } from '../auth/platform-admin.util';
 import { throwFeatureDisabled } from '../common/feature-gates';
 import { StripeConfigService } from '../billing/stripe';
-import { FREEZE_GRACE_DAYS } from '../billing/plans.config';
-import { CollectionMethod, Subscription, SubscriptionStatus } from '../billing/subscription.entity';
+import { Subscription } from '../billing/subscription.entity';
+import { evaluateSubscriptionAccess } from '../billing/subscription-freeze.util';
 import { Features } from '../config/features';
 import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
 import { Tenant, TenantStatus } from '../tenants/tenant.entity';
@@ -61,7 +60,6 @@ const ENTITY_RESOURCE: Record<AiSearchEntityType | AiContextEntityType, string> 
 
 type EffectivePermissionState = {
   isAdmin: boolean;
-  isPlatformAdmin: boolean;
   permissions: Map<string, PermissionLevel>;
 };
 
@@ -113,7 +111,6 @@ export class AiPolicyService {
     const isAdmin = roleNames.includes('administrator');
     return {
       isAdmin,
-      isPlatformAdmin: isPlatformAdmin(user),
       permissions: isAdmin ? new Map() : await this.permissions.listForRoles(Array.from(roleIds), { manager }),
     };
   }
@@ -135,7 +132,7 @@ export class AiPolicyService {
     minimumLevel: PermissionLevel,
   ): boolean {
     if (!state) return false;
-    if (state.isAdmin || state.isPlatformAdmin) {
+    if (state.isAdmin) {
       return true;
     }
 
@@ -180,7 +177,7 @@ export class AiPolicyService {
     manager: EntityManager,
   ): Promise<void> {
     const state = await this.getEffectivePermissionState(userId, manager);
-    if (state.isAdmin || state.isPlatformAdmin) {
+    if (state.isAdmin) {
       return;
     }
 
@@ -307,6 +304,7 @@ export class AiPolicyService {
     }
 
     await this.assertTenantAvailable(context.tenantId, manager);
+    await this.assertSubscriptionAllowsAi(context.tenantId, manager);
 
     const settings = await this.aiSettings.get(context.tenantId, { manager });
     const providerReady = this.aiSettings.getEffectiveProviderSource(settings) === 'builtin'
@@ -372,6 +370,7 @@ export class AiPolicyService {
     }
 
     await this.assertTenantAvailable(context.tenantId, manager);
+    await this.assertSubscriptionAllowsAi(context.tenantId, manager);
     const state = await this.getEffectivePermissionState(context.userId, manager);
     if (this.hasPermission(state, 'ai_settings', 'admin')) {
       return;
@@ -461,78 +460,28 @@ export class AiPolicyService {
     await this.assertSurfaceAccess(context, manager);
     await this.assertUserPermission(context.userId, 'ai_chat', 'member', manager);
     await this.assertUserPermission(context.userId, businessResource, 'member', manager);
-    await this.assertBillingAllowsWrite(context.tenantId, manager);
+    await this.assertSubscriptionAllowsAi(context.tenantId, manager);
   }
 
-  private async assertBillingAllowsWrite(tenantId: string, manager: EntityManager): Promise<void> {
-    if (!this.stripeConfig.isConfigured()) {
-      return;
+  /**
+   * Blocks AI/agent use for tenants whose subscription is frozen (non-payment,
+   * past the grace window) or whose trial has expired. No-op when billing isn't
+   * configured (on-prem / single-tenant). This is the AI/agent counterpart to
+   * PermissionGuard's generic write freeze, and is enforced at every AI entry
+   * point — reads included — because a frozen tenant must not consume the
+   * built-in free-message quota, which is a direct operator cost.
+   */
+  async assertSubscriptionAllowsAi(tenantId: string, manager: EntityManager): Promise<void> {
+    const configured = this.stripeConfig.isConfigured();
+    const subscription = configured
+      ? await manager.getRepository(Subscription).findOne({
+          where: { tenant_id: tenantId },
+          order: { created_at: 'DESC' },
+        })
+      : null;
+    const decision = evaluateSubscriptionAccess(subscription, Date.now(), configured);
+    if (!decision.allowed) {
+      throw new ForbiddenException({ error: decision.reason, message: decision.message });
     }
-
-    const subscription = await manager.getRepository(Subscription).findOne({
-      where: { tenant_id: tenantId },
-      order: { created_at: 'DESC' },
-    });
-
-    if (!subscription) {
-      throw new ForbiddenException({
-        error: 'SUBSCRIPTION_FROZEN',
-        message: 'No active subscription found.',
-      });
-    }
-
-    const now = Date.now();
-    switch (subscription.status) {
-      case SubscriptionStatus.TRIALING:
-        if (subscription.trial_end && subscription.trial_end.getTime() > now) {
-          return;
-        }
-        throw new ForbiddenException({
-          error: 'TRIAL_EXPIRED',
-          message: 'Your trial has expired. Please choose a plan to continue.',
-        });
-
-      case SubscriptionStatus.ACTIVE:
-        return;
-
-      case SubscriptionStatus.PAST_DUE: {
-        const freezeEffectiveAt = this.computeFreezeEffectiveAt(subscription);
-        if (freezeEffectiveAt && now < freezeEffectiveAt) {
-          return;
-        }
-        throw new ForbiddenException({
-          error: 'SUBSCRIPTION_FROZEN',
-          message: 'Your subscription is frozen due to an overdue payment.',
-        });
-      }
-
-      default:
-        throw new ForbiddenException({
-          error: 'SUBSCRIPTION_FROZEN',
-          message: 'Your subscription is not active.',
-        });
-    }
-  }
-
-  private computeFreezeEffectiveAt(subscription: Subscription): number | null {
-    const graceMs = FREEZE_GRACE_DAYS * 86400000;
-
-    if (subscription.collection_method === CollectionMethod.SEND_INVOICE) {
-      if (subscription.latest_invoice_created && subscription.days_until_due != null) {
-        return subscription.latest_invoice_created.getTime()
-          + subscription.days_until_due * 86400000
-          + graceMs;
-      }
-      if (subscription.current_period_end) {
-        return subscription.current_period_end.getTime() + graceMs;
-      }
-      return null;
-    }
-
-    if (subscription.current_period_end) {
-      return subscription.current_period_end.getTime() + graceMs;
-    }
-
-    return null;
   }
 }

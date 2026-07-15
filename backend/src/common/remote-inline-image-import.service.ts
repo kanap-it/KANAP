@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { lookup } from 'dns/promises';
-import { BlockList, isIP } from 'net';
 import * as path from 'path';
+import { assertPublicHttpTarget } from './ssrf-guard';
 
 const MAX_REMOTE_INLINE_IMAGE_BYTES = 20 * 1024 * 1024;
 const REMOTE_IMAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -13,32 +12,11 @@ const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/webp': '.webp',
 };
 
-const DISALLOWED_ADDRESS_BLOCKLIST = new BlockList();
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('0.0.0.0', 8, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('10.0.0.0', 8, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('100.64.0.0', 10, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('127.0.0.0', 8, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('169.254.0.0', 16, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('172.16.0.0', 12, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('192.0.0.0', 24, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('192.0.2.0', 24, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('192.168.0.0', 16, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('198.18.0.0', 15, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('198.51.100.0', 24, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('203.0.113.0', 24, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('224.0.0.0', 4, 'ipv4');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('::', 128, 'ipv6');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('::1', 128, 'ipv6');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('fc00::', 7, 'ipv6');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('fe80::', 10, 'ipv6');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('ff00::', 8, 'ipv6');
-DISALLOWED_ADDRESS_BLOCKLIST.addSubnet('2001:db8::', 32, 'ipv6');
-
 @Injectable()
 export class RemoteInlineImageImportService {
   async importFromUrl(sourceUrl: string): Promise<Express.Multer.File> {
-    const url = this.parseSourceUrl(sourceUrl);
-    await this.assertPublicHost(url.hostname);
+    // Always block private targets for user-supplied image URLs, in both deployment modes.
+    const url = await assertPublicHttpTarget(sourceUrl, { enforcePrivateBlock: true });
 
     let response: Response;
     try {
@@ -84,66 +62,6 @@ export class RemoteInlineImageImportService {
       path: '',
       stream: undefined as any,
     };
-  }
-
-  private parseSourceUrl(sourceUrl: string): URL {
-    const normalized = String(sourceUrl || '').trim();
-    if (!normalized) {
-      throw new BadRequestException('Image URL is required');
-    }
-
-    let parsed: URL;
-    try {
-      parsed = new URL(normalized);
-    } catch {
-      throw new BadRequestException('Invalid image URL');
-    }
-
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new BadRequestException('Only HTTP(S) image URLs are supported');
-    }
-
-    if (parsed.username || parsed.password) {
-      throw new BadRequestException('Image URL credentials are not allowed');
-    }
-
-    return parsed;
-  }
-
-  private async assertPublicHost(hostname: string): Promise<void> {
-    const host = String(hostname || '').trim().toLowerCase();
-    if (!host) {
-      throw new BadRequestException('Invalid image host');
-    }
-
-    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
-      throw new BadRequestException('Private image hosts are not allowed');
-    }
-
-    if (this.isBlockedAddress(host)) {
-      throw new BadRequestException('Private image hosts are not allowed');
-    }
-
-    let addresses: Array<{ address: string }>;
-    try {
-      addresses = await lookup(host, { all: true, verbatim: true });
-    } catch {
-      throw new BadRequestException('Unable to resolve image host');
-    }
-
-    if (!addresses.length) {
-      throw new BadRequestException('Unable to resolve image host');
-    }
-
-    if (addresses.some(({ address }) => this.isBlockedAddress(address))) {
-      throw new BadRequestException('Private image hosts are not allowed');
-    }
-  }
-
-  private isBlockedAddress(address: string): boolean {
-    const family = isIP(address);
-    if (!family) return false;
-    return DISALLOWED_ADDRESS_BLOCKLIST.check(address, family === 6 ? 'ipv6' : 'ipv4');
   }
 
   private deriveOriginalName(url: URL, mimeType: string): string {

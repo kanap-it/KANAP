@@ -25,6 +25,7 @@ import { resolveInlineTenantSlug } from '../common/resolve-inline-tenant-slug';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { REFRESH_TOKEN_COOKIE_NAME, parseCookieValue } from '../auth/auth-cookie.util';
 import { resolveBusinessContributorScope, taskParticipantCondition } from '../auth/business-contributor-scope';
 
 const RANK: Record<PermissionLevel, number> = {
@@ -208,9 +209,15 @@ export class PortfolioRequestsController {
   async viewAttachmentInline(
     @Param('tenantSlug') tenantSlug: string,
     @Param('attachmentId') attachmentId: string,
+    @Req() req: any,
     @Res() res: Response,
   ) {
     // Look up tenant by slug and set app.current_tenant for RLS
+    // Private + Vary:Cookie on every response (incl. 404) so no shared cache serves
+    // tenant bytes and denials aren't cached across sessions.
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Vary', 'Cookie');
+    const refreshToken = parseCookieValue(req?.headers?.cookie as string | undefined, REFRESH_TOKEN_COOKIE_NAME);
     const effectiveSlug = resolveInlineTenantSlug(tenantSlug);
     const dataSource = this.svc['repo'].manager.connection;
     const runner = dataSource.createQueryRunner();
@@ -230,22 +237,25 @@ export class PortfolioRequestsController {
       const tenantId = tenantRows[0].id;
       // Set the tenant context for RLS (parameterized to prevent SQL injection)
       await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
-      // Now query the attachment - RLS will validate it belongs to this tenant
+      // Only embedded images (source_field set) are served on this inline route.
       const rows = await runner.query(
-        `SELECT storage_path, mime_type, size FROM portfolio_request_attachments WHERE id = $1 LIMIT 1`,
+        `SELECT storage_path, mime_type, size FROM portfolio_request_attachments WHERE id = $1 AND source_field IS NOT NULL LIMIT 1`,
         [attachmentId],
       );
-      await runner.commitTransaction();
-      if (!rows.length) {
+      // Require the caller to be an authenticated tenant user with >= reader on portfolio_requests.
+      const allowed = rows.length > 0
+        && await this.knowledge.canAccessInlineAttachment(runner.manager, tenantId, refreshToken, 'portfolio_requests');
+      if (!allowed) {
+        await runner.rollbackTransaction();
         res.status(404).send('Attachment not found');
         return;
       }
+      await runner.commitTransaction();
       const obj = await this.storage.getObjectStream(rows[0].storage_path);
       res.setHeader('Content-Type', obj.contentType || rows[0].mime_type || 'application/octet-stream');
       res.setHeader('Content-Disposition', contentDisposition('', 'inline'));
       const contentLength = obj.contentLength ?? rows[0].size ?? null;
       if (contentLength != null) res.setHeader('Content-Length', String(contentLength));
-      res.setHeader('Cache-Control', 'public, max-age=300');
       obj.stream.pipe(res);
     } catch (err) {
       if (runner.isTransactionActive) {

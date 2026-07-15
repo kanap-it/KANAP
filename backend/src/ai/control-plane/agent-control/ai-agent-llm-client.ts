@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { assertPublicHttpTarget } from '../../../common/ssrf-guard';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiSecretCipherService } from '../../ai-secret-cipher.service';
 import { AiSettingsService } from '../../ai-settings.service';
@@ -186,6 +187,9 @@ export class AiAgentLlmClient {
     }
     const provider = this.providerRegistry.get(settings.llm_provider);
     if (!provider) return null;
+    if (settings.llm_endpoint_url) {
+      await assertPublicHttpTarget(settings.llm_endpoint_url);
+    }
     return {
       source,
       provider,

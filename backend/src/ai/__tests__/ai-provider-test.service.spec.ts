@@ -99,6 +99,28 @@ async function testReturnsValidationErrorsWithoutCallingProvider() {
   assert.equal(called, false);
 }
 
+// F1 SSRF: a private/internal custom endpoint fails the test WITHOUT calling the provider.
+async function testRejectsInternalEndpointWithoutCallingProvider() {
+  let called = false;
+  const { service } = createService({
+    stream: async function* () {
+      called = true;
+      yield { type: 'done' };
+    },
+  });
+
+  const result = await service.testProvider('tenant-1', {
+    llm_provider: 'openai',
+    llm_model: 'gpt-4o-mini',
+    llm_api_key: 'sk-test',
+    llm_endpoint_url: 'http://169.254.169.254/latest/meta-data/',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(called, false);
+  assert.ok(/private or internal/i.test(String(result.message)));
+}
+
 async function testReturnsRuntimeFailureMessage() {
   const { service } = createService({
     settings: {
@@ -128,6 +150,7 @@ async function testReturnsRuntimeFailureMessage() {
 async function run() {
   await testUsesPersistedSecretWhenApiKeyIsOmitted();
   await testReturnsValidationErrorsWithoutCallingProvider();
+  await testRejectsInternalEndpointWithoutCallingProvider();
   await testReturnsRuntimeFailureMessage();
 }
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { assertPublicHttpTarget } from '../common/ssrf-guard';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { AiSettingsService } from './ai-settings.service';
 import {
@@ -50,6 +51,20 @@ export class AiProviderTestService {
     if (!apiKey && currentSettings?.llm_api_key_encrypted) {
       try {
         apiKey = this.cipher.decrypt(currentSettings.llm_api_key_encrypted);
+      } catch (error) {
+        return this.fail({
+          provider,
+          model,
+          startedAt,
+          message: this.getErrorMessage(error),
+          validationErrors: [this.getErrorMessage(error)],
+        });
+      }
+    }
+
+    if (endpointUrl) {
+      try {
+        await assertPublicHttpTarget(endpointUrl);
       } catch (error) {
         return this.fail({
           provider,

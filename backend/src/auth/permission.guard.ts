@@ -11,9 +11,8 @@ import { UsersService } from '../users/users.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { UserRole } from '../users/user-role.entity';
 import { StripeConfigService } from '../billing/stripe/stripe.config';
-import { Subscription, SubscriptionStatus, CollectionMethod } from '../billing/subscription.entity';
-import { FREEZE_GRACE_DAYS } from '../billing/plans.config';
-import { isPlatformAdmin } from './platform-admin.util';
+import { Subscription } from '../billing/subscription.entity';
+import { evaluateSubscriptionAccess } from '../billing/subscription-freeze.util';
 
 const RANK: Record<string, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
 
@@ -125,9 +124,6 @@ export class PermissionGuard implements CanActivate {
     // Skip for billing resource routes
     if (meta.resource === 'billing') return;
 
-    // Skip for platform admin users
-    if (isPlatformAdmin(user)) return;
-
     // Load tenant subscription
     const tenantId = req.tenant?.id;
     if (!tenantId) {
@@ -139,66 +135,11 @@ export class PermissionGuard implements CanActivate {
       order: { created_at: 'DESC' },
     });
 
-    if (!subscription) {
-      throw new ForbiddenException({ error: 'SUBSCRIPTION_FROZEN', message: 'No active subscription found.' });
+    // Stripe is configured here (early-returned above otherwise), so a missing
+    // subscription is treated as frozen. Shared with the AI/agent freeze gate.
+    const decision = evaluateSubscriptionAccess(subscription, Date.now(), true);
+    if (!decision.allowed) {
+      throw new ForbiddenException({ error: decision.reason, message: decision.message });
     }
-
-    const now = Date.now();
-
-    switch (subscription.status) {
-      case SubscriptionStatus.TRIALING: {
-        if (subscription.trial_end && subscription.trial_end.getTime() > now) {
-          return; // trial still active
-        }
-        throw new ForbiddenException({
-          error: 'TRIAL_EXPIRED',
-          message: 'Your trial has expired. Please choose a plan to continue.',
-        });
-      }
-
-      case SubscriptionStatus.ACTIVE:
-        return; // all good
-
-      case SubscriptionStatus.PAST_DUE: {
-        const freezeEffectiveAt = this.computeFreezeEffectiveAt(subscription);
-        if (freezeEffectiveAt && now < freezeEffectiveAt) {
-          return; // still within grace period
-        }
-        throw new ForbiddenException({
-          error: 'SUBSCRIPTION_FROZEN',
-          message: 'Your subscription is frozen due to an overdue payment.',
-        });
-      }
-
-      default:
-        throw new ForbiddenException({
-          error: 'SUBSCRIPTION_FROZEN',
-          message: 'Your subscription is not active.',
-        });
-    }
-  }
-
-  private computeFreezeEffectiveAt(subscription: Subscription): number | null {
-    const graceDays = FREEZE_GRACE_DAYS * 86400000;
-
-    if (subscription.collection_method === CollectionMethod.SEND_INVOICE) {
-      // For invoice-based: (latest_invoice_created + days_until_due) + grace days
-      if (subscription.latest_invoice_created && subscription.days_until_due != null) {
-        const invoiceDueAt = subscription.latest_invoice_created.getTime()
-          + subscription.days_until_due * 86400000;
-        return invoiceDueAt + graceDays;
-      }
-      // Fallback: current_period_end + grace days
-      if (subscription.current_period_end) {
-        return subscription.current_period_end.getTime() + graceDays;
-      }
-      return null;
-    }
-
-    // charge_automatically (default): current_period_end + grace days
-    if (subscription.current_period_end) {
-      return subscription.current_period_end.getTime() + graceDays;
-    }
-    return null;
   }
 }

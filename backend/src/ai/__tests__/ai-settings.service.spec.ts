@@ -163,6 +163,26 @@ async function testGlpiUrlNormalizesApiEndpointToBaseUrl() {
   assert.equal(updated.glpi_url, 'https://glpi.internal/helpdesk');
 }
 
+// F1 SSRF: in multi-tenant (default here), saving an internal-IP outbound URL is rejected.
+async function testRejectsInternalGlpiUrlInCloud() {
+  const service = createService(createMockSettings());
+  await assert.rejects(
+    () => service.update('tenant-1', { glpi_url: 'http://10.0.0.5' }),
+    (err: any) => /private or internal/i.test(String(err?.message)),
+  );
+}
+
+async function testRejectsInternalLlmEndpointInCloud() {
+  const service = createService(createMockSettings());
+  await assert.rejects(
+    () => service.update('tenant-1', { llm_endpoint_url: 'http://127.0.0.1:11434' }),
+    (err: any) => /private or internal/i.test(String(err?.message)),
+  );
+  // A public bare DNS name is still accepted (sync guard does no DNS).
+  const ok = await service.update('tenant-1', { llm_endpoint_url: 'https://api.deepseek.com/v1' });
+  assert.equal(ok.llm_endpoint_url, 'https://api.deepseek.com/v1');
+}
+
 async function run() {
   await testRejectsWebSearchWhenEnvVarAbsent();
   await testAcceptsWebSearchWhenEnvVarPresent();
@@ -170,6 +190,8 @@ async function run() {
   await testEnablingGlpiRequiresUrlAndToken();
   await testGlpiSecretsAreStoredEncryptedAndHiddenInView();
   await testGlpiUrlNormalizesApiEndpointToBaseUrl();
+  await testRejectsInternalGlpiUrlInCloud();
+  await testRejectsInternalLlmEndpointInCloud();
 }
 
 void run();

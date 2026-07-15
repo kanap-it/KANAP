@@ -403,6 +403,91 @@ async function testWriteAccessHonorsBillingFreeze() {
   Features.AI_CHAT_ENABLED = originalFeature;
 }
 
+// F2: a non-admin user whose email is in PLATFORM_ADMIN_EMAILS gets NO data-plane grant
+// (the standalone isPlatformAdmin short-circuit was removed).
+async function testPlatformAdminEmailGrantsNoDataPlaneAccess() {
+  const originalFeature = Features.AI_CHAT_ENABLED;
+  const originalEmails = process.env.PLATFORM_ADMIN_EMAILS;
+  Features.AI_CHAT_ENABLED = true;
+  process.env.PLATFORM_ADMIN_EMAILS = 'admin@kanap.net';
+
+  const policy = createPolicy({
+    user: { id: 'user-1', status: 'enabled', role_id: 'role-1', role: { role_name: 'Member', is_system: false }, email: 'admin@kanap.net' },
+    permissions: new Map(), // no ai_chat permission
+  });
+  await assert.rejects(
+    () => policy.assertSurfaceAccess(
+      { tenantId: 'tenant-1', userId: 'user-1', isPlatformHost: false, surface: 'chat', authMethod: 'jwt' },
+      createManager(),
+    ),
+  );
+
+  Features.AI_CHAT_ENABLED = originalFeature;
+  process.env.PLATFORM_ADMIN_EMAILS = originalEmails;
+}
+
+async function testSurfaceAccessHonorsBillingFreeze() {
+  const originalFeature = Features.AI_CHAT_ENABLED;
+  Features.AI_CHAT_ENABLED = true;
+
+  const policy = createPolicy({ stripeConfigured: true });
+  await assert.rejects(
+    () => policy.assertSurfaceAccess(
+      { tenantId: 'tenant-1', userId: 'user-1', isPlatformHost: false, surface: 'chat', authMethod: 'jwt' },
+      createManager({
+        subscription: {
+          tenant_id: 'tenant-1',
+          status: SubscriptionStatus.PAST_DUE,
+          collection_method: 'charge_automatically',
+          current_period_end: new Date('2000-01-01T00:00:00.000Z'),
+        },
+      }),
+    ),
+    /subscription is frozen due to an overdue payment/i,
+  );
+
+  Features.AI_CHAT_ENABLED = originalFeature;
+}
+
+async function testAgentAccessHonorsTrialExpiry() {
+  const originalFeature = Features.AI_SETTINGS_ENABLED;
+  Features.AI_SETTINGS_ENABLED = true;
+
+  const policy = createPolicy({ stripeConfigured: true });
+  await assert.rejects(
+    () => policy.assertAgentOperate(
+      { tenantId: 'tenant-1', userId: 'user-1', isPlatformHost: false } as any,
+      createManager({
+        subscription: {
+          tenant_id: 'tenant-1',
+          status: SubscriptionStatus.TRIALING,
+          trial_end: new Date('2000-01-01T00:00:00.000Z'),
+        },
+      }),
+    ),
+    /trial has expired/i,
+  );
+
+  Features.AI_SETTINGS_ENABLED = originalFeature;
+}
+
+async function testAiAccessAllowedWhenBillingUnconfigured() {
+  const originalFeature = Features.AI_CHAT_ENABLED;
+  Features.AI_CHAT_ENABLED = true;
+
+  // stripeConfigured defaults to false (single-tenant / on-prem): the freeze gate
+  // must no-op even with no subscription, so AI stays available in both modes.
+  const policy = createPolicy();
+  await assert.doesNotReject(
+    () => policy.assertSurfaceAccess(
+      { tenantId: 'tenant-1', userId: 'user-1', isPlatformHost: false, surface: 'chat', authMethod: 'jwt' },
+      createManager({ subscription: null }),
+    ),
+  );
+
+  Features.AI_CHAT_ENABLED = originalFeature;
+}
+
 async function testCapabilitiesSummarizeSurfaceAvailability() {
   const originalChat = Features.AI_CHAT_ENABLED;
   const originalMcp = Features.AI_MCP_ENABLED;
@@ -537,6 +622,10 @@ async function run() {
   await testKeyManagementRejectsPlatformHost();
   await testSettingsAccessRejectsPlatformHost();
   await testWriteAccessHonorsBillingFreeze();
+  await testPlatformAdminEmailGrantsNoDataPlaneAccess();
+  await testSurfaceAccessHonorsBillingFreeze();
+  await testAgentAccessHonorsTrialExpiry();
+  await testAiAccessAllowedWhenBillingUnconfigured();
   await testCapabilitiesSummarizeSurfaceAvailability();
   await testCapabilitiesRejectPlatformHost();
 }
