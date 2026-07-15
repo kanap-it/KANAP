@@ -7,6 +7,9 @@ import { AiActionRequestService } from '../action-request/ai-action-request.serv
 import { AiAgentControlService } from '../agent-control/ai-agent-control.service';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiAgentWorkQueueService } from './ai-agent-work-queue.service';
+import { StripeConfigService } from '../../../billing/stripe/stripe.config';
+import { Subscription } from '../../../billing/subscription.entity';
+import { evaluateSubscriptionAccess } from '../../../billing/subscription-freeze.util';
 
 const APPROVED_ACTION_EXECUTING_STATUS = 'executing';
 const QUEUED_EXECUTION_MAX_ATTEMPTS = 5;
@@ -152,7 +155,23 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
     private readonly queue: AiAgentWorkQueueService,
     private readonly actions: AiActionRequestService,
     @Optional() private readonly control: AiAgentControlService | null = null,
+    @Optional() private readonly stripeConfig: StripeConfigService | null = null,
   ) {}
+
+  /**
+   * True when the tenant's subscription is frozen/trial-expired and must not have
+   * queued approved actions executed (they produce external side-effects and burn
+   * quota). No-op when billing isn't configured or the manager can't load a repo.
+   */
+  private async subscriptionBarsExecution(context: AiExecutionContextWithManager): Promise<boolean> {
+    if (!this.stripeConfig?.isConfigured()) return false;
+    const manager = context.manager as { getRepository?: (entity: unknown) => any };
+    if (typeof manager.getRepository !== 'function') return false;
+    const subscription = await manager
+      .getRepository(Subscription)
+      .findOne({ where: { tenant_id: context.tenantId }, order: { created_at: 'DESC' } });
+    return !evaluateSubscriptionAccess(subscription, Date.now(), true).allowed;
+  }
 
   onModuleInit() {
     if (!this.scheduledTasks) {
@@ -295,11 +314,19 @@ export class AiAgentApprovalLifecycleSweeperService implements OnModuleInit {
       summary.errors.push(`Waiting approval: ${error instanceof Error ? error.message : String(error)}`);
     }
 
+    // Housekeeping above (expiring lapsed proposals, releasing stale claims) is
+    // harmless and still runs for frozen tenants; executing queued approved
+    // actions is not — it produces external side-effects and burns quota, so a
+    // frozen / trial-expired subscription bars it.
     try {
-      const queuedExecutions = await this.executeQueuedApprovedActions(context, { limit, now });
-      summary.queuedExecutionsScanned = queuedExecutions.scanned;
-      summary.queuedExecutionsExecuted = queuedExecutions.executed;
-      summary.queuedExecutionsNeedsReview = queuedExecutions.needsReview;
+      if (await this.subscriptionBarsExecution(context)) {
+        summary.errors.push('Queued executions: subscription frozen/expired; approved actions are held until it is resolved.');
+      } else {
+        const queuedExecutions = await this.executeQueuedApprovedActions(context, { limit, now });
+        summary.queuedExecutionsScanned = queuedExecutions.scanned;
+        summary.queuedExecutionsExecuted = queuedExecutions.executed;
+        summary.queuedExecutionsNeedsReview = queuedExecutions.needsReview;
+      }
     } catch (error) {
       summary.errors.push(`Queued executions: ${error instanceof Error ? error.message : String(error)}`);
     }

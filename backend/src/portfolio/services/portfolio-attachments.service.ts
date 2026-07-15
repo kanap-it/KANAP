@@ -14,6 +14,7 @@ import { extractInlineImageUrls } from '../../common/content-image-urls';
 import { RemoteInlineImageImportService } from '../../common/remote-inline-image-import.service';
 import { resolveInlineTenantSlug } from '../../common/resolve-inline-tenant-slug';
 import { isStoragePathReferencedInAnyTable } from '../../common/storage-path-refs';
+import { KnowledgeService } from '../../knowledge/knowledge.service';
 
 /**
  * Service for managing project attachments.
@@ -25,6 +26,7 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
     private readonly audit: AuditService,
     private readonly storage: StorageService,
     private readonly remoteInlineImages: RemoteInlineImageImportService,
+    private readonly knowledge: KnowledgeService,
   ) {
     super(projectRepo);
   }
@@ -225,6 +227,7 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
   async getInlineAttachmentMeta(
     tenantSlug: string,
     attachmentId: string,
+    refreshToken?: string | null,
   ): Promise<{ storagePath: string; mimeType: string | null; size: number | null } | null> {
     const effectiveSlug = resolveInlineTenantSlug(tenantSlug);
     const dataSource = this.projectRepo.manager.connection;
@@ -247,16 +250,20 @@ export class PortfolioAttachmentsService extends PortfolioProjectsBaseService {
       // Set the tenant context for RLS
       await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
 
-      // Now query the attachment - RLS will validate it belongs to this tenant
+      // Only embedded images (source_field set) are served on this inline route.
       const rows = await runner.query(
-        `SELECT storage_path, mime_type, size FROM portfolio_project_attachments WHERE id = $1 LIMIT 1`,
+        `SELECT storage_path, mime_type, size FROM portfolio_project_attachments WHERE id = $1 AND source_field IS NOT NULL LIMIT 1`,
         [attachmentId],
       );
-      await runner.commitTransaction();
-
-      if (!rows.length) {
+      // Require the caller to be an authenticated tenant user with >= reader on portfolio_projects.
+      const allowed = rows.length > 0
+        && await this.knowledge.canAccessInlineAttachment(runner.manager, tenantId, refreshToken, 'portfolio_projects');
+      if (!allowed) {
+        await runner.rollbackTransaction();
         return null;
       }
+      await runner.commitTransaction();
+
       return {
         storagePath: rows[0].storage_path,
         mimeType: rows[0].mime_type ?? null,

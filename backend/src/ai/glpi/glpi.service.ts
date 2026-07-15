@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { EntityManager } from 'typeorm';
 import { decodeNumericHtmlEntities } from '../../common/html-entities';
 import { resolveHtmlContentSource } from '../../common/html-to-markdown';
+import { assertPublicHttpTarget } from '../../common/ssrf-guard';
+import { Features } from '../../config/features';
 import { AiSecretCipherService } from '../ai-secret-cipher.service';
 import { AiSettingsService } from '../ai-settings.service';
 import {
@@ -966,11 +968,8 @@ export class GlpiService {
     }
 
     if (contentType?.toLowerCase().includes('text/html')) {
-      const raw = await response.text();
-      const prefix = raw.slice(0, 120).replace(/\s+/g, ' ').trim();
       throw new BadRequestException(
-        `GLPI document download returned HTML instead of a file.`
-        + `${prefix ? ` Response starts with: ${prefix}.` : ''}`,
+        `GLPI document download returned HTML instead of a file.`,
       );
     }
 
@@ -1288,9 +1287,14 @@ export class GlpiService {
   }
 
   private async request(url: string, init: RequestInit): Promise<Response> {
+    // SSRF guard: block internal targets in multi-tenant cloud (no-op on-prem where
+    // a private GLPI base URL is legitimate). redirect:'error' in cloud additionally
+    // stops a public host 302-ing to an internal one after the DNS check.
+    await assertPublicHttpTarget(url);
     try {
       return await fetch(url, {
         ...init,
+        redirect: Features.SINGLE_TENANT ? 'follow' : 'error',
         signal: AbortSignal.timeout(GLPI_TIMEOUT_MS),
       });
     } catch (error: any) {
@@ -1320,7 +1324,6 @@ export class GlpiService {
       const redirected = meta?.responseUrl && meta.requestUrl && meta.responseUrl !== meta.requestUrl
         ? ` Redirected to ${meta.responseUrl}.`
         : '';
-      const prefix = text.slice(0, 120).replace(/\s+/g, ' ').trim();
       const status = meta?.status ? ` HTTP ${meta.status}.` : '';
 
       this.logger.warn(
@@ -1340,7 +1343,6 @@ export class GlpiService {
       throw new BadRequestException(
         `GLPI returned a non-JSON response.${status}`
         + `${contentType ? ` Content-Type: ${contentType}.` : ''}`
-        + `${prefix ? ` Response starts with: ${prefix}.` : ''}`
         + redirected,
       );
     }

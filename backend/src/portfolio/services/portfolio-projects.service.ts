@@ -462,8 +462,8 @@ export class PortfolioProjectsService {
     return this.attachmentsService.cleanupOrphanedImages(projectId, sourceField, oldContent, newContent, opts);
   }
 
-  getInlineAttachmentMeta(tenantSlug: string, attachmentId: string) {
-    return this.attachmentsService.getInlineAttachmentMeta(tenantSlug, attachmentId);
+  getInlineAttachmentMeta(tenantSlug: string, attachmentId: string, refreshToken?: string | null) {
+    return this.attachmentsService.getInlineAttachmentMeta(tenantSlug, attachmentId, refreshToken);
   }
 
   // =========================================================================

@@ -8,6 +8,9 @@ import { AiAgentBuiltinQuotaService } from './ai-agent-builtin-quota.service';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
+import { StripeConfigService } from '../../../billing/stripe/stripe.config';
+import { Subscription } from '../../../billing/subscription.entity';
+import { evaluateSubscriptionAccess } from '../../../billing/subscription-freeze.util';
 import { TicketRecord } from '../providers/provider.types';
 import {
   AiAgentWorkQueueService,
@@ -193,7 +196,29 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
     private readonly queue: AiAgentWorkQueueService,
     private readonly control: AiAgentControlService,
     private readonly builtinQuota?: AiAgentBuiltinQuotaService,
+    private readonly stripeConfig?: StripeConfigService,
   ) {}
+
+  /**
+   * Frozen (non-payment) or trial-expired tenants must not run agents — a triage
+   * run consumes the built-in free-message quota, a direct operator cost. Returns
+   * a skip reason when the tenant is barred, or null when it may proceed. No-op
+   * when billing isn't configured (on-prem / single-tenant) or in unit tests that
+   * construct the service without a Stripe config or a repository-backed manager.
+   */
+  private async subscriptionSkipReason(context: AiExecutionContextWithManager): Promise<string | null> {
+    if (!this.stripeConfig?.isConfigured()) return null;
+    const manager = context.manager as { getRepository?: (entity: unknown) => any };
+    if (typeof manager.getRepository !== 'function') return null;
+    const subscription = await manager
+      .getRepository(Subscription)
+      .findOne({ where: { tenant_id: context.tenantId }, order: { created_at: 'DESC' } });
+    const decision = evaluateSubscriptionAccess(subscription, Date.now(), true);
+    if (decision.allowed) return null;
+    return decision.reason === 'TRIAL_EXPIRED'
+      ? 'Subscription trial expired; agent runs are paused until a plan is chosen.'
+      : 'Subscription frozen for non-payment; agent runs are paused until it is resolved.';
+  }
 
   onModuleInit() {
     this.scheduledTasks.register({
@@ -281,6 +306,14 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
       processed: 0,
       errors: [],
     };
+    // Frozen / trial-expired tenants get no agent runs (they would burn the
+    // built-in free-message quota, a direct operator cost). Skip before any work.
+    const subscriptionSkip = await this.subscriptionSkipReason(context);
+    if (subscriptionSkip) {
+      summary.status = 'skipped';
+      summary.reason = subscriptionSkip;
+      return summary;
+    }
     // Serialize polling per tenant: the scheduled cron and a manual cockpit
     // trigger (or a second backend instance) must not poll concurrently.
     // Transaction-scoped, so it releases automatically with the tenant tx.

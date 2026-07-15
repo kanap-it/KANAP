@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { Features } from '../config/features';
+import { assertPublicHttpUrl } from '../common/ssrf-guard';
 import { AiSettings } from './ai-settings.entity';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { PlatformAiConfigService } from './platform/platform-ai-config.service';
@@ -230,7 +231,9 @@ export class AiSettingsService {
       settings.llm_api_key_encrypted = raw ? this.cipher.encrypt(raw) : null;
     }
     if (Object.prototype.hasOwnProperty.call(input, 'llm_endpoint_url')) {
-      settings.llm_endpoint_url = normalizeNullableString(input.llm_endpoint_url);
+      const normalized = normalizeHttpUrl(input.llm_endpoint_url, 'llm_endpoint_url');
+      if (normalized) assertPublicHttpUrl(normalized);
+      settings.llm_endpoint_url = normalized;
     }
     if (Object.prototype.hasOwnProperty.call(input, 'llm_model')) {
       const model = normalizeNullableString(input.llm_model);
@@ -267,7 +270,11 @@ export class AiSettingsService {
       settings.glpi_enabled = input.glpi_enabled === true;
     }
     if (Object.prototype.hasOwnProperty.call(input, 'glpi_url')) {
-      settings.glpi_url = normalizeHttpUrl(input.glpi_url, 'glpi_url');
+      {
+        const normalizedGlpi = normalizeHttpUrl(input.glpi_url, 'glpi_url');
+        if (normalizedGlpi) assertPublicHttpUrl(normalizedGlpi);
+        settings.glpi_url = normalizedGlpi;
+      }
     }
     if (Object.prototype.hasOwnProperty.call(input, 'glpi_user_token')) {
       const raw = normalizeNullableString(input.glpi_user_token);

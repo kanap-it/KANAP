@@ -1310,6 +1310,25 @@ export class KnowledgeService {
     return (await this.getKnowledgeLevelForUser(manager, userId)) != null;
   }
 
+  /**
+   * Shared viewer-authorization gate for @Public() inline-attachment routes in
+   * other modules (portfolio projects/requests, tasks). Resolves the user from
+   * the refresh_token cookie within the tenant and requires >= reader on the
+   * given RBAC resource. Returns false (→ caller 404s) when the cookie is
+   * missing/expired/invalid or the user lacks permission.
+   */
+  async canAccessInlineAttachment(
+    manager: EntityManager,
+    tenantId: string,
+    refreshToken: string | null | undefined,
+    resource: string,
+  ): Promise<boolean> {
+    const userId = await this.resolveUserIdFromRefreshToken(manager, tenantId, refreshToken);
+    if (!userId) return false;
+    const level = await this.getPermissionLevelForUser(manager, userId, resource);
+    return this.hasPermissionLevel(level || undefined, 'reader');
+  }
+
   private normalizeStatus(input?: unknown, fallback: DocumentStatus = 'draft'): DocumentStatus {
     if (input == null) return fallback;
     const value = String(input).trim().toLowerCase();
