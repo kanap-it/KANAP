@@ -162,7 +162,7 @@ export class AdminTenantsService {
     const subsRepo = manager.getRepository(Subscription);
     let sub = await subsRepo.findOne({ where: {} });
     if (!sub) {
-      sub = subsRepo.create({ plan_name: 'Starter', seat_limit: 5 });
+      sub = subsRepo.create({ plan_name: 'Trial', seat_limit: null });
       sub = await subsRepo.save(sub);
     }
     const before = this.serializeSubscription(sub);

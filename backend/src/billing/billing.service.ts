@@ -806,7 +806,7 @@ export class BillingService {
       sub.plan_name = toPlanDisplayName(resolvedPlanKey);
       sub.seat_limit = PLANS[resolvedPlanKey].seatLimit;
     } else {
-      sub.plan_name = this.derivePlanName(quantity) ?? stripeSub?.plan?.nickname ?? sub.plan_name;
+      sub.plan_name = stripeSub?.plan?.nickname ?? sub.plan_name;
       sub.seat_limit = quantity || sub.seat_limit || 1;
     }
     sub.active_seats = quantity;
@@ -1121,7 +1121,7 @@ export class BillingService {
   }
 
   private resolveConfiguredPriceId(sub: Subscription): string | null {
-    const planKey = sub.plan_name ? sub.plan_name.toLowerCase().replace(/[^a-z0-9]+/g, '_') : undefined;
+    const planKey = resolvePlanKeyFromLegacyName(sub.plan_name) ?? undefined;
     const interval = sub.subscription_type === SubscriptionType.ANNUAL ? 'annual' : 'monthly';
     return this.stripeConfig.getPriceId(interval, planKey);
   }
@@ -1186,13 +1186,6 @@ export class BillingService {
     }
   }
 
-  private derivePlanName(quantity: number | null | undefined): string | null {
-    if (typeof quantity !== 'number') return null;
-    if (quantity <= 2) return 'Solo';
-    if (quantity <= 9) return 'Team';
-    return 'Pro';
-  }
-
   private toDate(value: any): Date | null {
     if (!value) return null;
     if (value instanceof Date) return value;
@@ -1248,8 +1241,8 @@ export class BillingService {
     let sub = await repo.findOne({ where: {} });
     if (!sub) {
       sub = repo.create({
-        plan_name: 'Starter',
-        seat_limit: 5,
+        plan_name: 'Trial',
+        seat_limit: null,
         subscription_type: SubscriptionType.MONTHLY,
         payment_mode: PaymentMode.CARD,
       });
@@ -1280,7 +1273,7 @@ export class BillingService {
     if (!subscription) {
       const defaults = Features.SINGLE_TENANT
         ? { plan_name: 'On-Prem', seat_limit: 1000, active_seats: 0, subscription_type: SubscriptionType.ANNUAL, payment_mode: PaymentMode.CARD, status: SubscriptionStatus.ACTIVE }
-        : { plan_name: 'Starter', seat_limit: 5, active_seats: 0, subscription_type: SubscriptionType.MONTHLY, payment_mode: PaymentMode.CARD };
+        : { plan_name: 'Trial', seat_limit: null, active_seats: 0, subscription_type: SubscriptionType.MONTHLY, payment_mode: PaymentMode.CARD };
       subscription = repo.create(defaults);
       subscription = await repo.save(subscription);
     } else if (Features.SINGLE_TENANT) {

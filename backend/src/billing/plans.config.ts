@@ -1,6 +1,6 @@
 import { StripeConfigService } from './stripe/stripe.config';
 
-export type PlanKey = 'small' | 'standard' | 'max';
+export type PlanKey = 'max';
 export type IntervalKey = 'monthly' | 'annual';
 
 export const TRIAL_PERIOD_DAYS = 14;
@@ -22,9 +22,7 @@ export interface PlanDef {
 }
 
 export const PLANS: Record<PlanKey, PlanDef> = {
-  small: { key: 'small', displayName: 'Starter', seatLimit: 5, invoiceEligible: false, prices: { monthly: 4900, annual: 49000 } },
-  standard: { key: 'standard', displayName: 'Standard', seatLimit: 25, invoiceEligible: true, prices: { monthly: 14900, annual: 149000 } },
-  max: { key: 'max', displayName: 'Max', seatLimit: null, invoiceEligible: true, prices: { monthly: 24900, annual: 249000 } },
+  max: { key: 'max', displayName: 'Hosted KANAP', seatLimit: null, invoiceEligible: true, prices: { monthly: 24900, annual: 249000 } },
 };
 
 /** Map new env-var price IDs back to a PlanKey. */
@@ -39,13 +37,11 @@ export function resolvePlanKeyFromPriceId(priceId: string): PlanKey | null {
   return null;
 }
 
-/** Legacy plan-name mapping (Solo → small, Team → standard, Pro → max). Also handles current display names. */
+/** Map a stored plan name (display name or plan key) back to a PlanKey. */
 export function resolvePlanKeyFromLegacyName(name: string | null | undefined): PlanKey | null {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
-  if (lower === 'starter' || lower === 'solo') return 'small';
-  if (lower === 'team') return 'standard';
-  if (lower === 'pro') return 'max';
+  if (lower === 'hosted kanap') return 'max';
   // Direct match
   if (lower in PLANS) return lower as PlanKey;
   return null;

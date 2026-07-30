@@ -27,10 +27,10 @@ The Admin landing page provides quick access to the main administrative function
 | **Departments** | Manage departments and headcount | `departments:reader` |
 | **Suppliers** | Manage suppliers and contacts | `suppliers:reader` |
 | **Accounts** | Manage accounting codes | `accounts:reader` |
-| **Users & Access** | Assign seats and roles | `users:reader` |
+| **Users & Access** | Manage users and roles | `users:reader` |
 | **Roles** | Define role permissions | `users:reader` |
 | **Audit Log** | Browse all change history | `users:admin` |
-| **Billing** | Plan, seats and invoices | Billing admin |
+| **Billing** | Plan and invoices | Billing admin |
 
 Authentication and Branding are available from the sidebar navigation but do not appear on the Admin hub landing page.
 
@@ -132,7 +132,7 @@ The grid defaults to showing **enabled** users. Use the scope toggle to switch b
    - **Business Phone** / **Mobile Phone**: Contact numbers
    - **Roles**: Assign one or more roles (determines permissions)
    - **Company** / **Department**: Organizational assignment
-   - **Enabled**: Whether the user can log in (uses a seat)
+   - **Enabled**: Whether the user can log in
 4. Click **Save** or **Save and Invite** to send login email
 
 ### Multi-Role Assignment
@@ -141,11 +141,11 @@ Users can be assigned multiple roles. Their effective permissions are the combin
 
 ### Seat Management
 
-Users consume **seats** based on your subscription plan:
-- **Enabled users**: Count against your seat limit
-- **Disabled users**: Don't consume seats
-- The seat counter in the toolbar shows current usage (e.g., "Seats 5/10")
-- Toggle the **Enabled** switch when editing a user to manage seat allocation
+The hosted subscription includes **unlimited users** -- there is no seat limit to manage:
+- **Enabled users**: Can log in and use KANAP
+- **Disabled users**: Keep their data but can no longer log in
+- The counter in the toolbar shows how many enabled users you have
+- Toggle the **Enabled** switch when editing a user to control access
 
 ### SSO-Managed Users
 
@@ -271,7 +271,7 @@ The **Contact** role is a special system role for users who appear in dropdown l
 
 **Contact users:**
 - Cannot log in to KANAP
-- Do not consume subscription seats
+- Do not count in the enabled-user total
 - Do not receive email notifications (even if assigned to projects/tasks)
 - Can be selected in user dropdowns (e.g., as project sponsor)
 
@@ -304,13 +304,13 @@ The Roles page has a two-panel layout:
 
 ## Billing
 
-Manage your subscription, seats, and invoices.
+Manage your subscription, users, and invoices.
 
 ### Subscription Overview
 
 The subscription card shows your current plan at a glance:
-- **Plan**: Your subscription tier (Solo, Team, Pro, or Free trial)
-- **Seats**: Used vs. available seats
+- **Plan**: Hosted KANAP (or Free trial). The subscription includes unlimited users -- billed monthly or annually
+- **Seats**: Number of enabled users
 - **Status**: Active, Trialing, Past Due, Canceled, etc.
 - **Renewal date**: When the next billing cycle starts
 
@@ -325,7 +325,7 @@ If the subscription is in a trial period, the remaining trial days are displayed
 
 ### Actions
 
-- **Choose plan** / **Change plan**: Open the plan selection dialog to subscribe or switch plans. Requires billing admin.
+- **Choose plan** / **Change plan**: Open the plan dialog to subscribe or switch between monthly and annual billing. Requires billing admin.
 - **Manage subscription**: Open the Stripe customer portal to update payment methods, cancel, or make other changes. Only available when a Stripe subscription exists.
 
 If your subscription is unhealthy (expired trial, past due, etc.), the plan selection dialog opens automatically when you visit the Billing page.
@@ -453,6 +453,5 @@ All changes are saved automatically as you toggle switches or change selections.
   - **Duplicate built-in roles**: Instead of creating roles from scratch, duplicate a built-in role and adjust permissions. This saves time and ensures you don't miss important resources.
   - **Use multi-role for flexibility**: Assign users multiple roles to combine permissions -- for example, a "Finance Reader" role plus a "Project Manager" role.
   - **Use SSO**: If you have Microsoft 365, connect Entra ID for easier user management and automatic profile sync.
-  - **Monitor seats**: Keep track of seat usage in the toolbar to avoid hitting limits.
   - **Disable don't delete**: When someone leaves, disable their account to preserve audit history.
   - **Review permissions regularly**: Audit role permissions periodically to maintain least-privilege access.

@@ -27,10 +27,10 @@ La page d'accueil Administration donne un accès rapide aux principales fonction
 | **Départements** | Gérer les départements et l'effectif | `departments:reader` |
 | **Fournisseurs** | Gérer les fournisseurs et contacts | `suppliers:reader` |
 | **Comptes** | Gérer les codes comptables | `accounts:reader` |
-| **Utilisateurs et accès** | Assigner les sièges et rôles | `users:reader` |
+| **Utilisateurs et accès** | Gérer les utilisateurs et rôles | `users:reader` |
 | **Rôles** | Définir les autorisations des rôles | `users:reader` |
 | **Journal d'audit** | Parcourir tout l'historique des modifications | `users:admin` |
-| **Facturation** | Plan, sièges et factures | Admin facturation |
+| **Facturation** | Plan et factures | Admin facturation |
 
 Authentification et Personnalisation sont accessibles depuis la navigation dans la barre latérale mais n'apparaissent pas sur la page d'accueil du hub d'administration.
 
@@ -124,7 +124,7 @@ La grille affiche par défaut les utilisateurs **activés**. Utilisez la bascule
    - **Tél. professionnel** / **Tél. mobile** : Numéros de contact
    - **Rôles** : Assigner un ou plusieurs rôles (détermine les autorisations)
    - **Société** / **Département** : Affectation organisationnelle
-   - **Activé** : Si l'utilisateur peut se connecter (consomme un siège)
+   - **Activé** : Si l'utilisateur peut se connecter
 4. Cliquez sur **Enregistrer** ou **Enregistrer et inviter** pour envoyer l'e-mail de connexion
 
 ### Assignation multi-rôles
@@ -133,11 +133,11 @@ Les utilisateurs peuvent se voir assigner plusieurs rôles. Leurs autorisations 
 
 ### Gestion des sièges
 
-Les utilisateurs consomment des **sièges** selon votre plan d'abonnement :
-- **Utilisateurs activés** : Comptent dans votre limite de sièges
-- **Utilisateurs désactivés** : Ne consomment pas de sièges
-- Le compteur de sièges dans la barre d'outils affiche l'utilisation actuelle (ex. : « Sièges 5/10 »)
-- Basculez le commutateur **Activé** lors de la modification d'un utilisateur pour gérer l'allocation de sièges
+L'abonnement hébergé inclut un nombre **illimité d'utilisateurs** — il n'y a pas de limite de sièges à gérer :
+- **Utilisateurs activés** : Peuvent se connecter et utiliser KANAP
+- **Utilisateurs désactivés** : Conservent leurs données mais ne peuvent plus se connecter
+- Le compteur dans la barre d'outils affiche le nombre d'utilisateurs activés
+- Basculez le commutateur **Activé** lors de la modification d'un utilisateur pour contrôler l'accès
 
 ### Utilisateurs gérés par SSO
 
@@ -263,7 +263,7 @@ Le rôle **Contact** est un rôle système spécial pour les utilisateurs qui ap
 
 **Les utilisateurs Contact :**
 - Ne peuvent pas se connecter à KANAP
-- Ne consomment pas de sièges d'abonnement
+- Ne comptent pas dans le total des utilisateurs activés
 - Ne reçoivent pas de notifications par e-mail (même s'ils sont assignés à des projets/tâches)
 - Peuvent être sélectionnés dans les menus déroulants d'utilisateurs (ex. : comme sponsor de projet)
 
@@ -296,13 +296,13 @@ La page Rôles a une disposition à deux panneaux :
 
 ## Facturation
 
-Gérez votre abonnement, vos sièges et vos factures.
+Gérez votre abonnement, vos utilisateurs et vos factures.
 
 ### Vue d'ensemble de l'abonnement
 
 La carte d'abonnement affiche votre plan actuel en un coup d'oeil :
-- **Plan** : Votre niveau d'abonnement (Solo, Team, Pro ou Essai gratuit)
-- **Sièges** : Sièges utilisés vs. disponibles
+- **Plan** : Hosted KANAP (ou Essai gratuit). L'abonnement inclut un nombre illimité d'utilisateurs — facturation mensuelle ou annuelle
+- **Sièges** : Nombre d'utilisateurs activés
 - **Statut** : Actif, En essai, En retard, Annulé, etc.
 - **Date de renouvellement** : Quand le prochain cycle de facturation commence
 
@@ -315,7 +315,7 @@ Pour les abonnements actifs (pas les essais locaux), des détails supplémentair
 
 ### Actions
 
-- **Choisir un plan** / **Changer de plan** : Ouvrir la boîte de dialogue de sélection de plan pour souscrire ou changer de plans. Nécessite l'admin facturation.
+- **Choisir un plan** / **Changer de plan** : Ouvrir la boîte de dialogue du plan pour souscrire ou basculer entre facturation mensuelle et annuelle. Nécessite l'admin facturation.
 - **Gérer l'abonnement** : Ouvrir le portail client Stripe pour mettre à jour les moyens de paiement, annuler ou effectuer d'autres modifications. Disponible uniquement lorsqu'un abonnement Stripe existe.
 
 ### Historique des factures
@@ -435,6 +435,5 @@ Toutes les modifications sont enregistrées automatiquement lorsque vous bascule
   - **Dupliquez les rôles intégrés** : Au lieu de créer des rôles de zéro, dupliquez un rôle intégré et ajustez les autorisations. Cela fait gagner du temps et vous assure de ne pas oublier de ressources importantes.
   - **Utilisez le multi-rôle pour la flexibilité** : Assignez aux utilisateurs plusieurs rôles pour combiner les autorisations -- par exemple, un rôle « Lecteur finance » plus un rôle « Chef de projet ».
   - **Utilisez le SSO** : Si vous avez Microsoft 365, connectez Entra ID pour une gestion plus facile des utilisateurs et une synchronisation automatique des profils.
-  - **Surveillez les sièges** : Gardez un oeil sur l'utilisation des sièges dans la barre d'outils pour éviter d'atteindre les limites.
   - **Désactivez, ne supprimez pas** : Lorsque quelqu'un part, désactivez son compte pour préserver l'historique d'audit.
   - **Revoyez les autorisations régulièrement** : Auditez les autorisations des rôles périodiquement pour maintenir le principe du moindre privilège.

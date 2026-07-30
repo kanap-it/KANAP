@@ -319,10 +319,7 @@
         "trialEnds": "Trial ends"
       },
       "planLabels": {
-        "freeTrial": "Free trial",
-        "pro": "Pro",
-        "solo": "Solo",
-        "team": "Team"
+        "freeTrial": "Free trial"
       },
       "title": "Subscription",
       "values": {
@@ -627,6 +624,7 @@
       "payByBankTransfer": "Pay by Bank Transfer",
       "payByCard": "Pay by Card"
     },
+    "annualSavings": "2 months free",
     "billingCycle": {
       "annual": "Annual",
       "monthly": "Monthly"
@@ -645,16 +643,14 @@
       "trialExpires_other": "Trial expires in {{count}} days."
     },
     "pricePer": "per {{period}}",
-    "seatLimitContributors_one": "{{count}} contributor included",
-    "seatLimitContributors_other": "{{count}} contributors included",
     "shared": {
       "month": "month",
-      "unlimited": "Unlimited",
       "upToSeats_one": "Up to {{count}} seat",
       "upToSeats_other": "Up to {{count}} seats",
       "year": "year"
     },
-    "title": "Choose a Plan"
+    "title": "Choose a Plan",
+    "unlimitedUsers": "Unlimited users"
   },
   "roles": {
     "actions": {

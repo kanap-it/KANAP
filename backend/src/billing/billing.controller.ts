@@ -12,7 +12,7 @@ import type { PlanKey, IntervalKey } from './plans.config';
 
 class CreateCheckoutSessionDto {
   @IsOptional()
-  @IsIn(['small', 'standard', 'max'])
+  @IsIn(['max'])
   plan_key?: PlanKey;
 
   @IsOptional()
@@ -46,7 +46,7 @@ class CreateCheckoutSessionDto {
 }
 
 class ChangePlanDto {
-  @IsIn(['small', 'standard', 'max'])
+  @IsIn(['max'])
   plan_key!: PlanKey;
 
   @IsIn(['monthly', 'annual'])
@@ -54,7 +54,7 @@ class ChangePlanDto {
 }
 
 class RequestInvoiceDto {
-  @IsIn(['small', 'standard', 'max'])
+  @IsIn(['max'])
   plan_key!: PlanKey;
 
   @IsIn(['monthly', 'annual'])
