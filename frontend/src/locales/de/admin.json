@@ -158,6 +158,42 @@
       "title": "Anbieter",
       "validationErrorsTitle": "Aktuelle Validierungsfehler des Anbieters"
     },
+    "prtg": {
+      "actions": {
+        "goToAgents": "Agents-Seite öffnen"
+      },
+      "description": "Verbinden Sie Ihren PRTG-Monitoring-Server, damit KANAP-Agenten Alarme und den Zustand der Sensoren Ihrer Infrastruktur auslesen können.",
+      "fields": {
+        "apiKey": "API-Schlüssel",
+        "baseUrl": "Serveradresse",
+        "enabled": "PRTG-Monitoring aktivieren",
+        "timezone": "Zeitzone des Servers"
+      },
+      "hints": {
+        "apiKey": "Erstellen Sie einen in PRTG unter Setup → API-Schlüssel. Lesezugriff genügt.",
+        "apiKeyExisting": "Ein API-Schlüssel ist bereits gespeichert. Leer lassen, um ihn zu behalten.",
+        "baseUrl": "Die Adresse Ihrer PRTG-Weboberfläche, z. B. https://prtg.example.com",
+        "timezone": "Die Zeitzone, in der Ihr PRTG-Server läuft, damit Alarmzeitstempel korrekt gelesen werden."
+      },
+      "messages": {
+        "loadFailed": "Die Monitoring-Integration konnte nicht geladen werden.",
+        "nextStep": "Ein SRE-Monitoring-Agent kann jetzt auf der Agents-Seite erstellt werden.",
+        "testFailed": "Der PRTG-Verbindungstest ist fehlgeschlagen.",
+        "testSuccess_one": "Verbunden — PRTG {{version}}, {{count}} Sensor sichtbar",
+        "testSuccess_other": "Verbunden — PRTG {{version}}, {{count}} Sensoren sichtbar"
+      },
+      "placeholders": {
+        "apiKeySaved": "API-Schlüssel gespeichert (leer lassen zum Beibehalten)",
+        "enterApiKey": "API-Schlüssel eingeben",
+        "url": "https://prtg.example.com"
+      },
+      "status": {
+        "connected": "Verbunden",
+        "disabled": "Deaktiviert",
+        "notConfigured": "Nicht konfiguriert"
+      },
+      "title": "Monitoring — PRTG"
+    },
     "sections": {
       "features": "Funktionen",
       "integrations": "Integrationen",

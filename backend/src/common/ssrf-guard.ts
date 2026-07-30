@@ -48,6 +48,22 @@ function stripBrackets(host: string): string {
   return host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
 }
 
+// Operator escape hatch: hosts/IPs listed in SSRF_ALLOWED_HOSTS are permitted even
+// when they would otherwise be blocked as private. Empty by default, so cloud/prod
+// behavior is unchanged — set it only for dev / on-prem to reach known-good internal
+// services (e.g. a local GLPI/PRTG). Read per-call so tests/env changes take effect.
+function envHostAllowlist(): Set<string> {
+  const raw = process.env.SSRF_ALLOWED_HOSTS ?? '';
+  return new Set(
+    raw.split(',').map((h) => stripBrackets(h.trim().toLowerCase())).filter(Boolean),
+  );
+}
+
+function isAllowlistedHost(hostname: string, allow: Set<string>): boolean {
+  if (allow.size === 0) return false;
+  return allow.has(stripBrackets(String(hostname || '').trim().toLowerCase()));
+}
+
 function isBlockedAddress(address: string): boolean {
   const family = isIP(address);
   if (!family) return false;
@@ -93,7 +109,9 @@ function assertHostLiteral(hostname: string): void {
 // transient resolution). Returns the parsed URL.
 export function assertPublicHttpUrl(target: string | URL, opts?: PublicHttpTargetOptions): URL {
   const url = parseHttpUrl(target);
-  if (shouldEnforce(opts)) assertHostLiteral(url.hostname);
+  if (shouldEnforce(opts) && !isAllowlistedHost(url.hostname, envHostAllowlist())) {
+    assertHostLiteral(url.hostname);
+  }
   return url;
 }
 
@@ -105,6 +123,8 @@ export async function assertPublicHttpTarget(
 ): Promise<URL> {
   const url = parseHttpUrl(target);
   if (!shouldEnforce(opts)) return url;
+  const allow = envHostAllowlist();
+  if (isAllowlistedHost(url.hostname, allow)) return url;
   assertHostLiteral(url.hostname);
   const lookupFn = opts?.lookupFn ?? (lookup as unknown as LookupFn);
   let addresses: Array<{ address: string }>;
@@ -114,7 +134,9 @@ export async function assertPublicHttpTarget(
     throw new BadRequestException('Unable to resolve target host.');
   }
   if (!addresses.length) throw new BadRequestException('Unable to resolve target host.');
-  if (addresses.some(({ address }) => isBlockedAddress(address))) {
+  // A resolved address is blocked unless it is explicitly allowlisted (covers a DNS
+  // name that legitimately points at an allowlisted internal IP).
+  if (addresses.some(({ address }) => isBlockedAddress(address) && !allow.has(address.toLowerCase()))) {
     throw new BadRequestException('Private or internal hosts are not allowed.');
   }
   return url;

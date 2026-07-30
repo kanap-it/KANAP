@@ -40,6 +40,7 @@ import { AiConversation } from './ai-conversation.entity';
 import { AiConversationService } from './ai-conversation.service';
 import { AiConversationsController } from './ai-conversations.controller';
 import { AiEntityService } from './ai-entity.service';
+import { AiIntegrationsController } from './ai-integrations.controller';
 import { AiMcpController } from './ai-mcp.controller';
 import { AiSearchController } from './ai-search.controller';
 import { AiMessage } from './ai-message.entity';
@@ -71,11 +72,13 @@ import { AiAgentLlmClient } from './control-plane/agent-control/ai-agent-llm-cli
 import { AiTicketEvidenceExtractionService } from './control-plane/agent-control/ai-ticket-evidence-extraction.service';
 import { AiKnowledgeSearchPlannerService } from './control-plane/agent-control/ai-knowledge-search-planner.service';
 import { AiReplySynthesisService } from './control-plane/agent-control/ai-reply-synthesis.service';
+import { AiDiagnosticBriefSynthesisService } from './control-plane/agent-control/ai-diagnostic-brief-synthesis.service';
 import { AiSharedContextProfileService } from './control-plane/agent-control/ai-shared-context-profile.service';
 import { AiTicketNeedRepresentationService } from './control-plane/agent-control/ai-ticket-need-representation.service';
 import { AiAgentApprovalLifecycleSweeperService } from './control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import { AiAgentBuiltinQuotaService } from './control-plane/agent/ai-agent-builtin-quota.service';
 import { AiAgentHelpdeskTicketingIngestionService } from './control-plane/agent/ai-agent-helpdesk-ticketing-ingestion.service';
+import { AiAgentMonitoringAlertIngestionService } from './control-plane/agent/ai-agent-monitoring-alert-ingestion.service';
 import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
 import { AiApprovalService } from './control-plane/approval/ai-approval.service';
 import { AiAutomationJobCatalogService } from './control-plane/automation/ai-automation-job-catalog.service';
@@ -121,12 +124,15 @@ import { AiAutonomyDemotionService } from './control-plane/policy/ai-autonomy-de
 import { AiAutonomyRoutineService } from './control-plane/policy/ai-autonomy-routine.service';
 import { AiAdapterConfig } from './control-plane/providers/adapter-config.entity';
 import { AiAdapterConfigService } from './control-plane/providers/adapter-config.service';
+import { AiMonitoringIntegrationsService } from './control-plane/providers/ai-monitoring-integrations.service';
 import { GlpiTicketingProvider } from './control-plane/providers/glpi-ticketing.provider';
-import { GLPI_TICKETING_IMPLEMENTATION } from './control-plane/providers/provider-constants';
+import { PrtgMonitoringProvider } from './control-plane/providers/prtg-monitoring.provider';
+import { GLPI_TICKETING_IMPLEMENTATION, PRTG_MONITORING_IMPLEMENTATION } from './control-plane/providers/provider-constants';
 import { AI_PROVIDER_IMPLEMENTATIONS, AiProviderRegistryService } from './control-plane/providers/provider-registry.service';
 import { AiTenantSecretResolverService } from './control-plane/providers/tenant-secret-resolver.service';
 import { AiTenantExecutionService } from './execution/ai-tenant-execution.service';
 import { GlpiService } from './glpi/glpi.service';
+import { PrtgService } from './prtg/prtg.service';
 import { AiDocumentMutationSupportService } from './mutation/ai-document-mutation-support.service';
 import { AiBusinessRecordMutationSupportService } from './mutation/ai-business-record-mutation-support.service';
 import { AiFinancialPlanMutationSupportService } from './mutation/ai-financial-plan-mutation-support.service';
@@ -231,6 +237,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiChatController,
     AiConversationsController,
     AiApiKeysController,
+    AiIntegrationsController,
     AiMcpController,
     AiSearchController,
     AiAgentControlController,
@@ -245,6 +252,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAttachmentService,
     AiConversationService,
     GlpiService,
+    PrtgService,
     AiDocumentMutationSupportService,
     AiBusinessRecordMutationSupportService,
     AiFinancialPlanMutationSupportService,
@@ -282,6 +290,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAgentApprovalLifecycleSweeperService,
     AiAgentBuiltinQuotaService,
     AiAgentHelpdeskTicketingIngestionService,
+    AiAgentMonitoringAlertIngestionService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
@@ -299,13 +308,16 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAutomationJobCatalogService,
     AiEmergencyPauseService,
     AiAdapterConfigService,
+    AiMonitoringIntegrationsService,
     GlpiTicketingProvider,
+    PrtgMonitoringProvider,
     {
       provide: AI_PROVIDER_IMPLEMENTATIONS,
-      useFactory: (glpiTicketing: GlpiTicketingProvider) => [
+      useFactory: (glpiTicketing: GlpiTicketingProvider, prtgMonitoring: PrtgMonitoringProvider) => [
         { providerKind: 'ticketing', implementation: GLPI_TICKETING_IMPLEMENTATION, provider: glpiTicketing },
+        { providerKind: 'monitoring', implementation: PRTG_MONITORING_IMPLEMENTATION, provider: prtgMonitoring },
       ],
-      inject: [GlpiTicketingProvider],
+      inject: [GlpiTicketingProvider, PrtgMonitoringProvider],
     },
     AiTenantSecretResolverService,
     AiProviderRegistryService,
@@ -318,6 +330,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiKnowledgeSearchPlannerService,
     AiTicketNeedRepresentationService,
     AiReplySynthesisService,
+    AiDiagnosticBriefSynthesisService,
     AiAgentControlService,
     BraveSearchService,
     McpApiKeyAuthGuard,
@@ -345,6 +358,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiAgentApprovalLifecycleSweeperService,
     AiAgentBuiltinQuotaService,
     AiAgentHelpdeskTicketingIngestionService,
+    AiAgentMonitoringAlertIngestionService,
     AiAgentWorkQueueService,
     AiExternalMcpBridgeService,
     AiExternalMcpMockTransport,
@@ -374,6 +388,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiKnowledgeSearchPlannerService,
     AiTicketNeedRepresentationService,
     AiReplySynthesisService,
+    AiDiagnosticBriefSynthesisService,
     AiAgentControlService,
     McpApiKeyAuthGuard,
     AiChatOrchestratorService,

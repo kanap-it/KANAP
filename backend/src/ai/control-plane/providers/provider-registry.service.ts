@@ -117,6 +117,13 @@ class UnavailableMonitoringProvider extends UnavailableProvider implements Monit
   async getSensorHistory() { return this.unavailable<any>(); }
   async getCurrentState() { return this.unavailable<any>(); }
   async listRelatedAlerts() { return this.unavailable<any>(); }
+  async listAlertsForScope() { return this.unavailable<any>(); }
+  async getMonitoredObject() { return this.unavailable<any>(); }
+  async describeReferenceEnums() { return this.unavailable<any>(); }
+  async searchReferenceCatalog() { return this.unavailable<any>(); }
+  // The optional 15.B write pairs are intentionally not stubbed: the control
+  // plane offers those actions only when `typeof provider.<method>` is a
+  // function, and an unavailable provider must never offer them.
 }
 
 class UnavailableVirtualizationProvider extends UnavailableProvider implements VirtualizationProvider {

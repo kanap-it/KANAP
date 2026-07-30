@@ -18,6 +18,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
+import MonitoringIntegrationCard from '../../components/admin/MonitoringIntegrationCard';
 import {
   aiAdminApi,
   type AiGlpiTestResult,
@@ -287,6 +288,8 @@ export default function AdminIntegrationsPage() {
             ) : null}
           </CardContent>
         </Card>
+
+        <MonitoringIntegrationCard />
       </Stack>
     </>
   );

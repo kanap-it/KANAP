@@ -22,6 +22,7 @@
     "pollComplete": "Contrôle terminé : {{status}}. {{processed}} traités, {{enqueued}} mis en file.",
     "pollCompleteWithReason": "Contrôle terminé : {{status}}. {{processed}} traités, {{enqueued}} mis en file — {{reason}}",
     "pollFailed": "Impossible de contrôler les tickets.",
+    "monitoringPollFailed": "Impossible de vérifier les alertes.",
     "settingsSaved": "Paramètres enregistrés.",
     "settingsFailed": "Impossible d'enregistrer les paramètres.",
     "agentCreated": "Agent créé.",
@@ -98,7 +99,12 @@
     "custom": "Personnalisé"
   },
   "targetTypes": {
-    "ticket": "Ticket"
+    "ticket": "Ticket",
+    "alert": "Alerte",
+    "sensor": "Contrôle supervisé"
+  },
+  "targetLink": {
+    "open": "Ouvrir dans votre outil de ticketing"
   },
   "targetLink": {
     "open": "Ouvrir dans votre outil de ticketing"
@@ -129,11 +135,11 @@
     "runsToday": "Exécutions du jour",
     "updated": "Mis à jour",
     "newAgent": "Nouvel agent",
-    "newAgentEnabled": "Créer un agent helpdesk brouillon depuis le modèle sécurisé.",
+    "newAgentEnabled": "Créer un agent brouillon depuis un modèle sécurisé.",
     "newAgentDefaultName": "Agent helpdesk",
     "newAgentDescription": "Agent helpdesk brouillon créé depuis le modèle sécurisé de triage helpdesk.",
     "wizard": {
-      "title": "Nouvel agent helpdesk",
+      "title": "Nouvel agent",
       "steps": {
         "type": "Type",
         "connection": "Connexion",
@@ -158,8 +164,16 @@
       "cancel": "Annuler",
       "back": "Retour",
       "next": "Suivant",
-      "create": "Créer"
-    }
+      "create": "Créer",
+      "sre": "Supervision d'infrastructure (SRE)",
+      "monitoringConnection": "Outil de supervision",
+      "monitoringConnectionHint": "Aucun outil de supervision n'est encore connecté. Connectez-en un dans les réglages ; d'ici là, l'agent est créé sans connexion et reste inactif.",
+      "notConnected": "Non connecté",
+      "sreWatchingLater": "Vous choisirez les alertes surveillées par cet agent dans ses réglages, une fois celui-ci créé.",
+      "reviewBodySre": "L'agent est créé avec le statut Non démarré. Choisissez les alertes à surveiller dans ses réglages, testez-le sur une alerte, puis activez-le."
+    },
+    "newAgentSreDefaultName": "Agent de supervision d'infrastructure",
+    "newAgentSreDescription": "Agent de supervision en brouillon : il lit les alertes, les met en relation avec vos données KANAP et prépare des notes de diagnostic à relire."
   },
   "approvals": {
     "title": "Approbations agents",
@@ -319,7 +333,52 @@
     "testTicket": "Tester sur un ticket",
     "ticketNumberPlaceholder": "Numéro de ticket (ex. 64)",
     "runTest": "Lancer le test",
-    "recentActivity": "Activité récente"
+    "recentActivity": "Activité récente",
+    "testAlert": "Tester sur une alerte",
+    "alertIdPlaceholder": "Identifiant d'alerte (ex. 2081)",
+    "checkForAlerts": "Vérifier les nouvelles alertes",
+    "testCompleted": "Diagnostic terminé.",
+    "actionKinds": {
+      "diagnostic_note": "Note de diagnostic",
+      "monitor_only": "Continuer la surveillance uniquement",
+      "acknowledge_alert": "Acquitter l'alerte",
+      "pause_object": "Mettre le contrôle en pause",
+      "create_ticket": "Ouvrir un ticket",
+      "create_kanap_task": "Créer une tâche KANAP",
+      "run_automation_job": "Lancer un travail d'automatisation",
+      "escalate_to_human": "Transmettre à une personne"
+    },
+    "monitoringProviderMissing": "Cet agent n'est relié à aucun outil de supervision.",
+    "watchedAlerts": "Alertes surveillées",
+    "noWatchedAlerts": "Aucune alerte n'est surveillée pour le moment.",
+    "allAlerts": "Toutes les alertes",
+    "lastDiagnosis": "Dernier diagnostic",
+    "diagnosis": "Diagnostic",
+    "needsReview": "À relire",
+    "confidence": "Confiance",
+    "confidenceLevels": {
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Élevée"
+    },
+    "probableCauses": "Causes probables",
+    "businessImpact": "Impact métier",
+    "recommendedNextSteps": "Prochaines étapes recommandées",
+    "sources": "Sources",
+    "activeSince": "Active depuis",
+    "alertStates": {
+      "down": "Hors service",
+      "down_partial": "Partiellement hors service",
+      "warning": "Avertissement",
+      "unusual": "Inhabituel",
+      "paused": "En pause",
+      "up": "Opérationnel",
+      "unknown": "Inconnu"
+    },
+    "ack": {
+      "acknowledged": "Acquittée",
+      "unacknowledged": "Non acquittée"
+    }
   },
   "performance": {
     "acceptance": "Acceptation",
@@ -578,6 +637,60 @@
       "public_reply": "Réponse demandeur",
       "assignment": "Affectation",
       "participant": "Participants"
+    },
+    "monitoringTargetingFields": {
+      "status": "État de l'alerte",
+      "severity_floor": "Gravité au moins",
+      "severity_values": "Gravité parmi",
+      "ack_state": "Acquittement",
+      "group": "Groupe",
+      "device": "Équipement",
+      "check_type": "Type de contrôle",
+      "age_minutes": "Seulement les alertes plus anciennes que",
+      "touched_by": "Traitées par cet agent"
+    },
+    "monitoringStatuses": {
+      "down": "Hors service",
+      "down_partial": "Partiellement hors service",
+      "warning": "Avertissement",
+      "unusual": "Inhabituel",
+      "paused": "En pause",
+      "up": "Opérationnel",
+      "unknown": "Inconnu"
+    },
+    "monitoringSeverities": {
+      "very_low": "Très faible",
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Élevée",
+      "critical": "Critique"
+    },
+    "monitoringAck": {
+      "unacknowledged": "Non acquittées uniquement",
+      "any": "Toutes"
+    },
+    "monitoringBuilder": {
+      "hint": "Tous les filtres se cumulent. Une alerte doit correspondre à chacun d'eux.",
+      "minutes": "minutes",
+      "valuesUnavailable": "Les valeurs ne peuvent pas être chargées depuis l'outil de supervision pour le moment. Les sélections enregistrées sont conservées."
+    },
+    "monitoringPresets": {
+      "unacknowledged_down": "Hors service non acquittées",
+      "critical_and_high": "Critiques et élevées",
+      "stable_down_10min": "Hors service depuis ≥ 10 min"
+    },
+    "watchAlerts": "Surveiller les alertes automatiquement",
+    "maxAlerts": "Alertes traitées par vérification",
+    "maxMonitoringRequests": "Requêtes vers l'outil de supervision par vérification",
+    "monitoringNotConnected": "Aucun outil de supervision connecté — cet agent ne peut pas fonctionner.",
+    "kanapDataEnabled": "Rechercher dans les données KANAP",
+    "kanapDataHint": "Permet à l'agent de consulter votre inventaire informatique pour enrichir le diagnostic de contexte métier.",
+    "kanapDataDomains": {
+      "applications": "Applications",
+      "assets": "Actifs",
+      "interfaces": "Interfaces",
+      "connections": "Connexions",
+      "locations": "Sites"
     }
   },
   "actions": {

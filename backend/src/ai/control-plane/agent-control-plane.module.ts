@@ -46,6 +46,7 @@ import { AiAdapterConfig } from './providers/adapter-config.entity';
 import { AiAdapterConfigService } from './providers/adapter-config.service';
 import { AiProviderRegistryService } from './providers/provider-registry.service';
 import { AiTenantSecretResolverService } from './providers/tenant-secret-resolver.service';
+import { StripeConfigService } from '../../billing/stripe/stripe.config';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { AiTenantSecretResolverService } from './providers/tenant-secret-resolve
     AiTenantSecretResolverService,
     AiProviderRegistryService,
     AiReadonlyDiagnosticWorkflowService,
+    StripeConfigService,
   ],
   exports: [
     AiCapabilityRegistry,

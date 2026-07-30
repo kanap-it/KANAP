@@ -22,6 +22,7 @@
     "pollComplete": "Comprobación completa: {{status}}. {{processed}} procesados, {{enqueued}} en cola.",
     "pollCompleteWithReason": "Comprobación completa: {{status}}. {{processed}} procesados, {{enqueued}} en cola — {{reason}}",
     "pollFailed": "No se pudieron comprobar los tickets.",
+    "monitoringPollFailed": "No se pudieron comprobar las alertas.",
     "settingsSaved": "Configuración guardada.",
     "settingsFailed": "No se pudo guardar la configuración.",
     "agentCreated": "Agente creado.",
@@ -98,7 +99,12 @@
     "custom": "Personalizado"
   },
   "targetTypes": {
-    "ticket": "Ticket"
+    "ticket": "Ticket",
+    "alert": "Alerta",
+    "sensor": "Comprobación supervisada"
+  },
+  "targetLink": {
+    "open": "Abrir en su herramienta de tickets"
   },
   "targetLink": {
     "open": "Abrir en su herramienta de tickets"
@@ -129,11 +135,11 @@
     "runsToday": "Ejecuciones hoy",
     "updated": "Actualizado",
     "newAgent": "Nuevo agente",
-    "newAgentEnabled": "Crear un borrador de agente helpdesk desde la plantilla segura.",
+    "newAgentEnabled": "Crear un agente en borrador a partir de una plantilla segura.",
     "newAgentDefaultName": "Agente helpdesk",
     "newAgentDescription": "Borrador de agente helpdesk creado desde la plantilla segura de triaje de helpdesk.",
     "wizard": {
-      "title": "Nuevo agente helpdesk",
+      "title": "Nuevo agente",
       "steps": {
         "type": "Tipo",
         "connection": "Conexión",
@@ -158,8 +164,16 @@
       "cancel": "Cancelar",
       "back": "Atrás",
       "next": "Siguiente",
-      "create": "Crear"
-    }
+      "create": "Crear",
+      "sre": "Supervisión de infraestructura (SRE)",
+      "monitoringConnection": "Herramienta de supervisión",
+      "monitoringConnectionHint": "Aún no hay ninguna herramienta de supervisión conectada. Conecte una en la configuración; hasta entonces, el agente se crea sin conexión y permanece inactivo.",
+      "notConnected": "Sin conexión",
+      "sreWatchingLater": "Después de crearlo, elegirá en su configuración qué alertas vigila este agente.",
+      "reviewBodySre": "El agente se crea como No iniciado. Elija en su configuración las alertas que vigilará, pruébelo con una alerta y actívelo después."
+    },
+    "newAgentSreDefaultName": "Agente de supervisión de infraestructura",
+    "newAgentSreDescription": "Agente de supervisión en borrador: lee alertas, las relaciona con sus datos de KANAP y prepara notas de diagnóstico para revisión."
   },
   "approvals": {
     "title": "Aprobaciones de agentes",
@@ -319,7 +333,52 @@
     "testTicket": "Probar en un ticket",
     "ticketNumberPlaceholder": "Número de ticket (p. ej. 64)",
     "runTest": "Ejecutar prueba",
-    "recentActivity": "Actividad reciente"
+    "recentActivity": "Actividad reciente",
+    "testAlert": "Probar con una alerta",
+    "alertIdPlaceholder": "ID de la alerta (p. ej., 2081)",
+    "checkForAlerts": "Buscar nuevas alertas",
+    "testCompleted": "Diagnóstico terminado.",
+    "actionKinds": {
+      "diagnostic_note": "Nota de diagnóstico",
+      "monitor_only": "Solo seguir vigilando",
+      "acknowledge_alert": "Reconocer la alerta",
+      "pause_object": "Pausar la comprobación",
+      "create_ticket": "Abrir un ticket",
+      "create_kanap_task": "Crear una tarea de KANAP",
+      "run_automation_job": "Ejecutar un trabajo de automatización",
+      "escalate_to_human": "Derivar a una persona"
+    },
+    "monitoringProviderMissing": "Este agente no tiene ninguna herramienta de supervisión conectada.",
+    "watchedAlerts": "Alertas vigiladas",
+    "noWatchedAlerts": "Ahora mismo no se vigila ninguna alerta.",
+    "allAlerts": "Todas las alertas",
+    "lastDiagnosis": "Último diagnóstico",
+    "diagnosis": "Diagnóstico",
+    "needsReview": "Requiere revisión",
+    "confidence": "Confianza",
+    "confidenceLevels": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta"
+    },
+    "probableCauses": "Causas probables",
+    "businessImpact": "Impacto en el negocio",
+    "recommendedNextSteps": "Próximos pasos recomendados",
+    "sources": "Fuentes",
+    "activeSince": "Activa desde",
+    "alertStates": {
+      "down": "Caído",
+      "down_partial": "Parcialmente caído",
+      "warning": "Advertencia",
+      "unusual": "Inusual",
+      "paused": "En pausa",
+      "up": "Operativo",
+      "unknown": "Desconocido"
+    },
+    "ack": {
+      "acknowledged": "Reconocida",
+      "unacknowledged": "Sin reconocer"
+    }
   },
   "performance": {
     "acceptance": "Aceptación",
@@ -578,6 +637,60 @@
       "public_reply": "Respuesta al solicitante",
       "assignment": "Asignación",
       "participant": "Participantes"
+    },
+    "monitoringTargetingFields": {
+      "status": "Estado de la alerta",
+      "severity_floor": "Gravedad mínima",
+      "severity_values": "La gravedad es una de",
+      "ack_state": "Reconocimiento",
+      "group": "Grupo",
+      "device": "Dispositivo",
+      "check_type": "Tipo de comprobación",
+      "age_minutes": "Solo alertas con más de",
+      "touched_by": "Gestionadas por este agente"
+    },
+    "monitoringStatuses": {
+      "down": "Caído",
+      "down_partial": "Parcialmente caído",
+      "warning": "Advertencia",
+      "unusual": "Inusual",
+      "paused": "En pausa",
+      "up": "Operativo",
+      "unknown": "Desconocido"
+    },
+    "monitoringSeverities": {
+      "very_low": "Muy baja",
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "critical": "Crítica"
+    },
+    "monitoringAck": {
+      "unacknowledged": "Solo sin reconocer",
+      "any": "Todas"
+    },
+    "monitoringBuilder": {
+      "hint": "Todos los filtros se combinan. Una alerta debe cumplir cada filtro.",
+      "minutes": "minutos",
+      "valuesUnavailable": "Los valores no se pueden cargar desde la herramienta de supervisión en este momento. Las selecciones guardadas se conservan."
+    },
+    "monitoringPresets": {
+      "unacknowledged_down": "Caídas sin reconocer",
+      "critical_and_high": "Críticas y altas",
+      "stable_down_10min": "Caídas desde hace ≥ 10 min"
+    },
+    "watchAlerts": "Vigilar alertas automáticamente",
+    "maxAlerts": "Alertas gestionadas por comprobación",
+    "maxMonitoringRequests": "Solicitudes a la herramienta de supervisión por comprobación",
+    "monitoringNotConnected": "Ninguna herramienta de supervisión conectada — este agente no puede funcionar.",
+    "kanapDataEnabled": "Buscar en los datos de KANAP",
+    "kanapDataHint": "Permite al agente consultar su inventario de TI para añadir contexto de negocio al diagnóstico.",
+    "kanapDataDomains": {
+      "applications": "Aplicaciones",
+      "assets": "Activos",
+      "interfaces": "Interfaces",
+      "connections": "Conexiones",
+      "locations": "Ubicaciones"
     }
   },
   "actions": {

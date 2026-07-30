@@ -12,7 +12,7 @@ import {
 
 const SECRET_KEY_RE = /(api[-_]?key|token|secret|password|authorization|cookie|session|client_secret)/i;
 const SECRET_VALUE_RE = /\b(Bearer\s+[A-Za-z0-9._~+/=-]{12,}|(?:password|token|secret|api[-_]?key)\s*[:=]\s*[^ \n\r\t]+)/i;
-const VALID_CREDENTIAL_KINDS = new Set(['none', 'secret_ref', 'environment']);
+const VALID_CREDENTIAL_KINDS = new Set(['none', 'secret_ref', 'environment', 'encrypted']);
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -52,6 +52,22 @@ export function parseCredentialRef(value: unknown): ProviderCredentialRef | null
   }
   if (kind === 'none') {
     return { kind: 'none' };
+  }
+  if (kind === 'encrypted') {
+    // AES-256-GCM envelope (versioned, base64url segments) — not plaintext, so
+    // the plaintext heuristics above stay focused on the other ref kinds.
+    const ciphertext = object.ciphertext;
+    if (typeof ciphertext !== 'string' || ciphertext.trim().length === 0) {
+      return null;
+    }
+    const materialShape = object.material_shape;
+    return {
+      kind: 'encrypted',
+      ciphertext: ciphertext.trim(),
+      material_shape: typeof materialShape === 'string' && materialShape.trim().length > 0
+        ? materialShape.trim()
+        : null,
+    };
   }
   const ref = object.ref;
   if (typeof ref !== 'string' || ref.trim().length === 0) {

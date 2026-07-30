@@ -22,6 +22,7 @@
     "pollComplete": "Prüfung abgeschlossen: {{status}}. {{processed}} verarbeitet, {{enqueued}} eingereiht.",
     "pollCompleteWithReason": "Prüfung abgeschlossen: {{status}}. {{processed}} verarbeitet, {{enqueued}} eingereiht — {{reason}}",
     "pollFailed": "Tickets konnten nicht geprüft werden.",
+    "monitoringPollFailed": "Alarme konnten nicht geprüft werden.",
     "settingsSaved": "Einstellungen gespeichert.",
     "settingsFailed": "Einstellungen konnten nicht gespeichert werden.",
     "agentCreated": "Agent erstellt.",
@@ -98,7 +99,12 @@
     "custom": "Benutzerdefiniert"
   },
   "targetTypes": {
-    "ticket": "Ticket"
+    "ticket": "Ticket",
+    "alert": "Alarm",
+    "sensor": "Überwachter Check"
+  },
+  "targetLink": {
+    "open": "In Ihrem Ticketsystem öffnen"
   },
   "targetLink": {
     "open": "In Ihrem Ticketsystem öffnen"
@@ -129,11 +135,11 @@
     "runsToday": "Läufe heute",
     "updated": "Aktualisiert",
     "newAgent": "Neuer Agent",
-    "newAgentEnabled": "Einen Entwurf aus der sicheren Helpdesk-Vorlage erstellen.",
+    "newAgentEnabled": "Einen Agenten im Entwurfsstatus aus einer sicheren Vorlage erstellen.",
     "newAgentDefaultName": "Helpdesk-Agent",
     "newAgentDescription": "Entwurf eines Helpdesk-Agenten aus der sicheren Helpdesk-Triage-Vorlage.",
     "wizard": {
-      "title": "Neuer Helpdesk-Agent",
+      "title": "Neuer Agent",
       "steps": {
         "type": "Typ",
         "connection": "Verbindung",
@@ -158,8 +164,16 @@
       "cancel": "Abbrechen",
       "back": "Zurück",
       "next": "Weiter",
-      "create": "Erstellen"
-    }
+      "create": "Erstellen",
+      "sre": "Infrastruktur-Überwachung (SRE)",
+      "monitoringConnection": "Überwachungstool",
+      "monitoringConnectionHint": "Es ist noch kein Überwachungstool verbunden. Verbinden Sie eines in den Einstellungen; bis dahin wird der Agent ohne Verbindung erstellt und bleibt inaktiv.",
+      "notConnected": "Nicht verbunden",
+      "sreWatchingLater": "Welche Alarme dieser Agent beobachtet, legen Sie nach der Erstellung in seinen Einstellungen fest.",
+      "reviewBodySre": "Der Agent wird als Nicht gestartet erstellt. Wählen Sie in den Einstellungen die zu beobachtenden Alarme, testen Sie ihn an einem Alarm und aktivieren Sie ihn dann."
+    },
+    "newAgentSreDefaultName": "Agent für Infrastruktur-Überwachung",
+    "newAgentSreDescription": "Überwachungs-Agent im Entwurf: liest Alarme, verknüpft sie mit Ihren KANAP-Daten und bereitet Diagnosenotizen zur Prüfung vor."
   },
   "approvals": {
     "title": "Agentenfreigaben",
@@ -319,7 +333,52 @@
     "testTicket": "An einem Ticket testen",
     "ticketNumberPlaceholder": "Ticketnummer (z. B. 64)",
     "runTest": "Test starten",
-    "recentActivity": "Aktuelle Aktivität"
+    "recentActivity": "Aktuelle Aktivität",
+    "testAlert": "An einem Alarm testen",
+    "alertIdPlaceholder": "Alarm-ID (z. B. 2081)",
+    "checkForAlerts": "Auf neue Alarme prüfen",
+    "testCompleted": "Diagnose abgeschlossen.",
+    "actionKinds": {
+      "diagnostic_note": "Diagnosenotiz",
+      "monitor_only": "Nur weiter beobachten",
+      "acknowledge_alert": "Alarm quittieren",
+      "pause_object": "Prüfung pausieren",
+      "create_ticket": "Ticket eröffnen",
+      "create_kanap_task": "KANAP-Aufgabe erstellen",
+      "run_automation_job": "Automatisierungsjob ausführen",
+      "escalate_to_human": "An eine Person übergeben"
+    },
+    "monitoringProviderMissing": "Dieser Agent ist mit keinem Überwachungstool verbunden.",
+    "watchedAlerts": "Beobachtete Alarme",
+    "noWatchedAlerts": "Derzeit werden keine Alarme beobachtet.",
+    "allAlerts": "Alle Alarme",
+    "lastDiagnosis": "Letzte Diagnose",
+    "diagnosis": "Diagnose",
+    "needsReview": "Prüfung erforderlich",
+    "confidence": "Konfidenz",
+    "confidenceLevels": {
+      "low": "Niedrig",
+      "medium": "Mittel",
+      "high": "Hoch"
+    },
+    "probableCauses": "Wahrscheinliche Ursachen",
+    "businessImpact": "Geschäftliche Auswirkung",
+    "recommendedNextSteps": "Empfohlene nächste Schritte",
+    "sources": "Quellen",
+    "activeSince": "Aktiv seit",
+    "alertStates": {
+      "down": "Ausgefallen",
+      "down_partial": "Teilweise ausgefallen",
+      "warning": "Warnung",
+      "unusual": "Ungewöhnlich",
+      "paused": "Pausiert",
+      "up": "Betriebsbereit",
+      "unknown": "Unbekannt"
+    },
+    "ack": {
+      "acknowledged": "Quittiert",
+      "unacknowledged": "Nicht quittiert"
+    }
   },
   "performance": {
     "acceptance": "Annahme",
@@ -578,6 +637,60 @@
       "public_reply": "Antwort an Anfragende",
       "assignment": "Zuweisung",
       "participant": "Beteiligte"
+    },
+    "monitoringTargetingFields": {
+      "status": "Alarmzustand",
+      "severity_floor": "Schweregrad mindestens",
+      "severity_values": "Schweregrad ist einer von",
+      "ack_state": "Quittierung",
+      "group": "Gruppe",
+      "device": "Gerät",
+      "check_type": "Check-Typ",
+      "age_minutes": "Nur Alarme, die älter sind als",
+      "touched_by": "Von diesem Agenten bearbeitet"
+    },
+    "monitoringStatuses": {
+      "down": "Ausgefallen",
+      "down_partial": "Teilweise ausgefallen",
+      "warning": "Warnung",
+      "unusual": "Ungewöhnlich",
+      "paused": "Pausiert",
+      "up": "Betriebsbereit",
+      "unknown": "Unbekannt"
+    },
+    "monitoringSeverities": {
+      "very_low": "Sehr niedrig",
+      "low": "Niedrig",
+      "medium": "Mittel",
+      "high": "Hoch",
+      "critical": "Kritisch"
+    },
+    "monitoringAck": {
+      "unacknowledged": "Nur unquittierte",
+      "any": "Alle"
+    },
+    "monitoringBuilder": {
+      "hint": "Alle Filter werden kombiniert. Ein Alarm muss jedem Filter entsprechen.",
+      "minutes": "Minuten",
+      "valuesUnavailable": "Werte können derzeit nicht aus dem Überwachungstool geladen werden. Gespeicherte Auswahlen bleiben erhalten."
+    },
+    "monitoringPresets": {
+      "unacknowledged_down": "Unquittiert ausgefallen",
+      "critical_and_high": "Kritisch & hoch",
+      "stable_down_10min": "Ausgefallen seit ≥ 10 Min."
+    },
+    "watchAlerts": "Alarme automatisch beobachten",
+    "maxAlerts": "Bearbeitete Alarme pro Prüfung",
+    "maxMonitoringRequests": "Anfragen an das Überwachungstool pro Prüfung",
+    "monitoringNotConnected": "Kein Überwachungstool verbunden — dieser Agent kann nicht arbeiten.",
+    "kanapDataEnabled": "KANAP-Daten durchsuchen",
+    "kanapDataHint": "Erlaubt dem Agenten, Ihr IT-Inventar nachzuschlagen, um Diagnosen mit Geschäftskontext anzureichern.",
+    "kanapDataDomains": {
+      "applications": "Anwendungen",
+      "assets": "Assets",
+      "interfaces": "Schnittstellen",
+      "connections": "Verbindungen",
+      "locations": "Standorte"
     }
   },
   "actions": {

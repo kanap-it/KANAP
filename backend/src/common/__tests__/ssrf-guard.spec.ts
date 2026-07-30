@@ -67,6 +67,25 @@ async function run() {
   assert.equal(url.hostname, 'internal.example.com');
   assert.equal(called, false, 'lookupFn must not run when private block is disabled');
 
+  // --- allowlist: SSRF_ALLOWED_HOSTS permits an otherwise-blocked internal host ---
+  const prevAllow = process.env.SSRF_ALLOWED_HOSTS;
+  try {
+    // blocked without allowlist
+    throws(() => assertPublicHttpUrl('http://192.168.1.45/', ENFORCE));
+    process.env.SSRF_ALLOWED_HOSTS = '192.168.1.45, other.internal';
+    // sync guard now allows the allowlisted literal IP
+    assert.equal(assertPublicHttpUrl('http://192.168.1.45/', ENFORCE).hostname, '192.168.1.45');
+    // async guard allows it too (host allowlisted → no DNS block); a DNS name resolving
+    // to the allowlisted IP is also permitted
+    assert.equal((await assertPublicHttpTarget('http://192.168.1.45/', { enforcePrivateBlock: true, lookupFn: async () => [{ address: '192.168.1.45' }] })).hostname, '192.168.1.45');
+    assert.equal((await assertPublicHttpTarget('http://glpi.corp/', { enforcePrivateBlock: true, lookupFn: async () => [{ address: '192.168.1.45' }] })).hostname, 'glpi.corp');
+    // a non-allowlisted internal host is still blocked
+    throws(() => assertPublicHttpUrl('http://192.168.1.99/', ENFORCE));
+  } finally {
+    if (prevAllow === undefined) delete process.env.SSRF_ALLOWED_HOSTS;
+    else process.env.SSRF_ALLOWED_HOSTS = prevAllow;
+  }
+
   console.log('ssrf-guard.spec: all assertions passed');
 }
 

@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
+import { resolveProviderBinding } from './provider-binding';
 
 export type TicketingBinding = {
   providerKind: 'ticketing';
@@ -22,13 +23,11 @@ function stringValue(value: unknown): string | null {
 // (ticketingProviderKeyForDefinition) — the UI derives the same provider key
 // to decide which actions to enable.
 export function resolveTicketingBinding(definition: TicketingBindingSource): TicketingBinding | null {
-  const bindings = isRecord(definition.provider_bindings_json) ? definition.provider_bindings_json : {};
-  const ticketing = isRecord(bindings.ticketing) ? bindings.ticketing : {};
-  const providerKind = stringValue(ticketing.provider_kind) ?? 'ticketing';
-  const providerKey = stringValue(ticketing.provider_key);
-  if (providerKind === 'ticketing' && providerKey) {
-    const connectionKey = stringValue(ticketing.connection_id ?? ticketing.connectionId) ?? providerKey;
-    return { providerKind, providerKey, connectionKey };
+  // The provider_bindings_json branch is the generic resolution shared by every
+  // provider kind; only the legacy scope_policy fallback below is ticketing-specific.
+  const bound = resolveProviderBinding(definition, 'ticketing');
+  if (bound) {
+    return { providerKind: 'ticketing', providerKey: bound.providerKey, connectionKey: bound.connectionKey };
   }
 
   const scopePolicy = isRecord(definition.scope_policy_json) ? definition.scope_policy_json : {};

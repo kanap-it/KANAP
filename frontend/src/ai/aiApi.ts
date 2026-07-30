@@ -36,6 +36,40 @@ export type AiGlpiTestResult = {
   latency_ms: number | null;
 };
 
+export type AiMonitoringCredentialShape = 'api_token' | 'username_passhash' | 'secret_ref' | 'none';
+
+export type AiMonitoringIntegration = {
+  provider_key: string;
+  implementation: string;
+  enabled: boolean;
+  environment: 'sandbox' | 'production';
+  base_url: string;
+  server_timezone: string | null;
+  credential: {
+    present: boolean;
+    shape: AiMonitoringCredentialShape;
+  };
+  updated_at: string;
+};
+
+export type AiPrtgIntegrationUpdatePayload = {
+  base_url: string;
+  enabled: boolean;
+  environment?: 'sandbox' | 'production';
+  server_timezone?: string;
+  /** Write-only: omitted or empty keeps the stored credential. */
+  api_token?: string;
+  username?: string;
+  passhash?: string;
+};
+
+export type AiPrtgTestResult = {
+  ok: boolean;
+  prtg_version?: string;
+  sensor_count?: number;
+  message: string;
+};
+
 export type AiSettingsPayload = {
   instance_features: { ai_chat: boolean; ai_mcp: boolean; ai_settings: boolean; ai_web_search: boolean };
   settings: {
@@ -281,6 +315,35 @@ export type AiAgentControlAgentDefinition = {
   updated_at: string | null;
 };
 
+// KANAP-data enrichment domains an SRE agent may search (scope_policy_json
+// .knowledge_sources.kanap_data.domains). Keep in sync with the five-family
+// whitelist of the backend entity capabilities (plan 37 §4.5).
+export type AiAgentKanapDataDomains = {
+  applications: boolean;
+  assets: boolean;
+  interfaces: boolean;
+  connections: boolean;
+  locations: boolean;
+};
+
+export type AiAgentKanapDataSources = {
+  enabled: boolean;
+  domains: AiAgentKanapDataDomains;
+};
+
+// Per-agent retrieval-source policy written to scope_policy_json.knowledge_sources.
+// DATA-LOSS GUARD: the backend replaces the WHOLE knowledge_sources sub-block on
+// every update — any persist call for this block (e.g. the workspace Settings
+// autosave) MUST read kanap_data from the current definition and round-trip it.
+// Omitting kanap_data resets it to disabled and silently wipes the SRE agent's
+// KANAP-data policy (backend defaults absent kanap_data to OFF).
+export type AiAgentKnowledgeSourcesInput = {
+  knowledge: { enabled: boolean; all_libraries: boolean; library_ids: string[] };
+  web: { enabled: boolean };
+  precedence?: string;
+  kanap_data?: AiAgentKanapDataSources;
+};
+
 export type AiAgentControlAgentDefinitionInput = {
   agent_key?: string | null;
   name?: string | null;
@@ -293,7 +356,7 @@ export type AiAgentControlAgentDefinitionInput = {
   persona_json?: Record<string, unknown> | null;
   trigger_policy_json?: Record<string, unknown> | null;
   scope_policy_json?: Record<string, unknown> | null;
-  knowledge_sources?: Record<string, unknown> | null;
+  knowledge_sources?: AiAgentKnowledgeSourcesInput | null;
   queue_policy_json?: Record<string, unknown> | null;
   response_policy_json?: Record<string, unknown> | null;
   evaluation_policy_json?: Record<string, unknown> | null;
@@ -303,6 +366,25 @@ export type AiAgentControlRefItem = {
   value: string;
   label: string;
   metadata?: Record<string, unknown>;
+};
+
+// Keep in sync with MonitoringTargetPredicateOperator in
+// backend/src/ai/control-plane/agent/monitoring-targeting.ts — monitoring
+// targeting has no `lte` (unlike ticketing targeting).
+export type AiMonitoringTargetingOperator = 'eq' | 'in' | 'gte' | 'not';
+
+export type AiMonitoringTargetingPredicate = {
+  field: string;
+  operator: AiMonitoringTargetingOperator;
+  value: unknown;
+};
+
+// The exact shape the backend's normalizeMonitoringTargeting expects under an
+// SRE agent's scope_policy_json.targeting.
+export type AiMonitoringTargetingModel = {
+  schema_version: 1;
+  combinator: 'and';
+  predicates: AiMonitoringTargetingPredicate[];
 };
 
 export type AiKnowledgeLibrary = {
@@ -791,6 +873,80 @@ export type AiAgentControlHelpdeskIngestionPollResult = {
   errors: string[];
 };
 
+// Mirrors MonitoringAlertIngestionPollSummary in
+// backend/src/ai/control-plane/agent/ai-agent-monitoring-alert-ingestion.service.ts.
+export type AiAgentControlMonitoringIngestionPollResult = {
+  tenantId: string;
+  agentDefinitionId?: string | null;
+  agentKey?: string | null;
+  status: 'disabled' | 'paused' | 'completed' | 'failed' | 'skipped';
+  reason?: string | null;
+  listed: number;
+  enqueued: number;
+  deduped: number;
+  processed: number;
+  errors: string[];
+  agents?: AiAgentControlMonitoringIngestionPollResult[];
+};
+
+// Citation entry of a diagnostic brief (kind 'entity' = a KANAP record; url is
+// the deep link, ref is the business reference the model cited by).
+export type AiAgentControlDiagnosticSource = {
+  kind: 'knowledge' | 'web' | 'entity';
+  ref: string | null;
+  url: string | null;
+  title: string;
+};
+
+// Mirrors DiagnosticBriefResult in
+// backend/src/ai/control-plane/agent-control/ai-diagnostic-brief-synthesis.service.ts
+// (usage/cost internals omitted — the UI surfaces the reviewable fields).
+export type AiAgentControlDiagnosticBrief = {
+  language: string;
+  summary: string;
+  probable_causes: Array<{
+    cause: string;
+    confidence: 'low' | 'medium' | 'high';
+    rationale: string | null;
+  }>;
+  business_impact: string;
+  recommended_actions: Array<{
+    action: string;
+    rationale: string | null;
+    urgency: 'low' | 'medium' | 'high';
+  }>;
+  used_sources: AiAgentControlDiagnosticSource[];
+  rejected_sources: Array<AiAgentControlDiagnosticSource & { reason: string }>;
+  needs_human_review: boolean;
+  confidence: 'low' | 'medium' | 'high';
+  fallback: boolean;
+  fallback_reason: string | null;
+  model: string | null;
+};
+
+export type AiAgentControlMonitoringDiagnosisResult = {
+  status: string;
+  agent_definition: AiAgentControlAgentDefinition;
+  work_item: AiAgentControlWorkItem;
+  target_state: AiAgentControlTargetState | null;
+  // The diagnosis pipeline attaches many stage-specific fields (tool execution
+  // ids, enrichment statuses, usage ledger); only the stable reviewable core is
+  // typed here — everything else stays reachable through the index signature.
+  diagnostic: {
+    run_id: string | null;
+    diagnosis_stage: string;
+    outcome?: string | null;
+    alert?: Record<string, unknown> | null;
+    brief?: AiAgentControlDiagnosticBrief | null;
+    kanap_context?: Record<string, unknown> | null;
+    knowledge_status?: string | null;
+    web_search_status?: string | null;
+    similar_tickets_status?: string | null;
+    evidence_ids?: string[];
+    [key: string]: unknown;
+  };
+};
+
 export type AiAgentControlEmergencyPause = {
   id: string;
   active: boolean;
@@ -1081,6 +1237,18 @@ export const aiAdminApi = {
     const res = await api.post('/ai/settings/test-glpi', payload);
     return res.data;
   },
+  async listMonitoringIntegrations(): Promise<{ integrations: AiMonitoringIntegration[] }> {
+    const res = await api.get('/ai/admin/integrations/monitoring');
+    return res.data;
+  },
+  async updatePrtgIntegration(payload: AiPrtgIntegrationUpdatePayload): Promise<{ ok: boolean }> {
+    const res = await api.put('/ai/admin/integrations/monitoring/prtg', payload);
+    return res.data;
+  },
+  async testPrtgIntegration(payload: { base_url?: string; api_token?: string }): Promise<AiPrtgTestResult> {
+    const res = await api.post('/ai/admin/integrations/monitoring/prtg/test', payload);
+    return res.data;
+  },
   async getOverview(): Promise<AiAdminOverview> {
     const res = await api.get('/ai/admin/overview');
     return res.data;
@@ -1122,9 +1290,16 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/agents/${id}/targeting-preview`, payload);
     return res.data;
   },
+  // Kind-aware provider-sourced pickers (13.7 pattern): for helpdesk agents the
+  // backend resolves the ticketing binding and serves status/priority/type/
+  // category/entity; for SRE agents it resolves the monitoring binding and
+  // serves status/severity/ack_state (enums) plus group/device/check_type
+  // (catalog search). Same endpoint, same `{ options }` response shape.
   async getAgentTargetingOptions(
     id: string,
-    field: 'status' | 'priority' | 'type' | 'category' | 'entity',
+    field:
+      | 'status' | 'priority' | 'type' | 'category' | 'entity'
+      | 'severity' | 'ack_state' | 'group' | 'device' | 'check_type',
     params: { query?: string; limit?: number } = {},
   ): Promise<{ options: AiAgentControlRefItem[] }> {
     const res = await api.get(`/ai/admin/control-plane/agents/${id}/targeting-options/${field}`, { params });
@@ -1243,6 +1418,21 @@ export const aiAgentControlApi = {
   },
   async pollHelpdeskTicketingIngestion(): Promise<AiAgentControlHelpdeskIngestionPollResult> {
     const res = await api.post('/ai/admin/control-plane/helpdesk/ticketing-ingestion/poll', {}, { timeout: 600_000 });
+    return res.data;
+  },
+  // Manual "check for new alerts" for every SRE agent of the tenant. Long
+  // timeout: pass 2 may run diagnoses under the backend's ~210s cycle budget.
+  async pollSreMonitoringIngestion(): Promise<AiAgentControlMonitoringIngestionPollResult> {
+    const res = await api.post('/ai/admin/control-plane/sre/monitoring-ingestion/poll', {}, { timeout: 600_000 });
+    return res.data;
+  },
+  // Manual "test on an alert" for one SRE agent: enqueues (or reuses) a work
+  // item for the alert and runs the full diagnosis pipeline synchronously.
+  async testAgentMonitoringDiagnosis(
+    id: string,
+    payload: { alert_id: string },
+  ): Promise<AiAgentControlMonitoringDiagnosisResult> {
+    const res = await api.post(`/ai/admin/control-plane/agents/${id}/monitoring-diagnosis/test`, payload, { timeout: 600_000 });
     return res.data;
   },
   async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {
