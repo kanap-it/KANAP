@@ -17,7 +17,7 @@ import DepartmentSelect from '../../../../components/fields/DepartmentSelect';
 import DateEUField from '../../../../components/fields/DateEUField';
 import TeamMemberMultiSelect from '../../../../components/fields/TeamMemberMultiSelect';
 import { PropertyGroup, PropertyRow } from '../../../../components/design';
-import { drawerMenuItemSx, drawerSelectSx } from '../../../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../../theme/formSx';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { getProjectStatusLabel } from '../../../../utils/portfolioI18n';
 
@@ -319,6 +319,8 @@ export default function RequestPropertyPanel({
                 true,
               )}
               disabled={!canManage}
+              hideLabel
+              textFieldSx={drawerFieldValueSx}
             />
           </PropertyRow>
 
@@ -334,6 +336,8 @@ export default function RequestPropertyPanel({
                 true,
               )}
               disabled={!canManage}
+              hideLabel
+              textFieldSx={drawerFieldValueSx}
             />
           </PropertyRow>
         </PropertyGroup>
