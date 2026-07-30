@@ -3,8 +3,10 @@ import { In } from 'typeorm';
 import { z } from 'zod';
 import { KnowledgeService } from '../../../knowledge/knowledge.service';
 import { BraveSearchResult, BraveSearchService } from '../../web-search/brave-search.service';
+import { AiEntityService } from '../../ai-entity.service';
 import { AiMutationPreviewService } from '../../ai-mutation-preview.service';
 import { AiPolicyService } from '../../ai-policy.service';
+import { AiQueryExecutor } from '../../query/ai-query.executor';
 import { AiToolRegistry } from '../../ai-tool.registry';
 import {
   AiDocumentDto,
@@ -103,6 +105,45 @@ const InternalWebSearchInputSchema = z.object({
   query: z.string().trim().min(1),
   count: z.number().int().min(1).max(10).default(5),
 }).strict();
+
+// The five KANAP entity families the agent runtime may read for context enrichment
+// (plan 37 §4.5). Mirrored one-to-one by the kanap_data domain toggles in the per-agent
+// retrieval-source policy (scope_policy_json.knowledge_sources.kanap_data.domains).
+export const KANAP_ENTITY_FAMILIES = ['applications', 'assets', 'interfaces', 'connections', 'locations'] as const;
+export type KanapEntityFamily = (typeof KANAP_ENTITY_FAMILIES)[number];
+
+// Context lookups are restricted to AI_CONTEXT_ENTITY_TYPES ∩ KANAP_ENTITY_FAMILIES:
+// AiEntityService.getEntityContext does not support interfaces/connections/locations.
+export const KANAP_CONTEXT_ENTITY_FAMILIES = ['applications', 'assets'] as const;
+
+export const KANAP_ENTITY_SEARCH_CAPABILITY = 'kanap.entity.search';
+export const KANAP_ENTITY_DETAIL_CAPABILITY = 'kanap.entity.detail';
+export const KANAP_ENTITY_CONTEXT_CAPABILITY = 'kanap.entity.context';
+
+const InternalEntitySearchInputSchema = z.object({
+  entity_type: z.enum(KANAP_ENTITY_FAMILIES),
+  q: z.string().trim().min(1),
+  limit: z.number().int().min(1).max(10).default(5),
+}).strict();
+
+const InternalEntityDetailInputSchema = z.object({
+  entity_type: z.enum(KANAP_ENTITY_FAMILIES),
+  // Accepts a UUID, a short ref or an entity name; AiQueryExecutor.executeDetail
+  // resolves non-UUID values via resolveDetailEntityId.
+  entity_id: z.string().trim().min(1),
+}).strict();
+
+const InternalEntityContextInputSchema = z.object({
+  entity_type: z.enum(KANAP_CONTEXT_ENTITY_FAMILIES),
+  entity_id: z.string().trim().min(1),
+}).strict();
+
+// Bounds for the field-projected entity detail payload (see compactEntityDetailData).
+const MAX_ENTITY_DETAIL_FIELDS = 80;
+const MAX_ENTITY_DETAIL_STRING_CHARS = 600;
+const MAX_ENTITY_DETAIL_LIST_ITEMS = 20;
+const MAX_ENTITY_CONTEXT_GROUPS = 12;
+const MAX_ENTITY_CONTEXT_GROUP_ITEMS = 25;
 
 const TICKETING_EXECUTION_PHASES = {
   classification: 10,
@@ -499,6 +540,108 @@ function internalWebSearchContract(): CapabilityContract {
     mcp_exposure: { enabled: false, read_only: false },
     live_test_safety: 'live_read',
     compatibility: { ai_tool_name: null },
+  });
+}
+
+// Shared shape for the three read-only KANAP entity contracts (plan 37 §4.5): internal
+// surface only (chat/MCP entity tools stay untouched), provider_kind 'kanap_domain' so the
+// dispatcher records evidence with 'system' trust, MCP-hidden, schema-strict five-family
+// whitelist. tenant_permissions/business_resources are declarative; the real per-family
+// permission (applications/infrastructure/locations) is enforced in the handlers via
+// AiPolicyService.assertEntityTypeReadAccess.
+function internalEntityContract(input: {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  tenant_permissions: string[];
+  key_fields: string[];
+}): CapabilityContract {
+  return CapabilityContractSchema.parse({
+    name: input.name,
+    version: COMPATIBILITY_CAPABILITY_VERSION,
+    description: input.description,
+    category: 'kanap_data',
+    provider_kind: 'kanap_domain',
+    supported_surfaces: ['internal'],
+    input_schema: input.input_schema,
+    output_schema: { type: 'object' },
+    effect: 'read',
+    risk_level: 'low',
+    max_autonomy_level: 'A1',
+    default_approval: 'none',
+    approval_strategy: { mode: 'none' },
+    evidence: {
+      persist_input: false,
+      persist_output: true,
+      redact_fields: [],
+      retention: 'standard',
+    },
+    tenant_permissions: input.tenant_permissions,
+    business_resources: ['kanap_entities'],
+    timeout_seconds: 30,
+    retry_policy: { automatic_retry: false, max_attempts: 1 },
+    idempotency: { mode: 'idempotent', key_fields: input.key_fields },
+    rollback: { supported: false },
+    cost: { estimated_unit_cost: null, metered: false },
+    redaction_policy: { fields: [] },
+    mcp_exposure: { enabled: false, read_only: false },
+    live_test_safety: 'live_read',
+    compatibility: { ai_tool_name: null },
+  });
+}
+
+function internalEntitySearchContract(): CapabilityContract {
+  return internalEntityContract({
+    name: KANAP_ENTITY_SEARCH_CAPABILITY,
+    description: 'Search KANAP applications, assets, interfaces, connections or locations through the governed internal control-plane surface.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        entity_type: { type: 'string', enum: [...KANAP_ENTITY_FAMILIES] },
+        q: { type: 'string', minLength: 1 },
+        limit: { type: 'number', minimum: 1, maximum: 10, default: 5 },
+      },
+      required: ['entity_type', 'q'],
+      additionalProperties: false,
+    },
+    tenant_permissions: ['applications', 'infrastructure', 'locations'],
+    key_fields: ['entity_type', 'q', 'limit'],
+  });
+}
+
+function internalEntityDetailContract(): CapabilityContract {
+  return internalEntityContract({
+    name: KANAP_ENTITY_DETAIL_CAPABILITY,
+    description: 'Read one KANAP entity as a compact field projection (scalars, short lists and IP addresses; heavy linked payloads omitted) through the governed internal control-plane surface.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        entity_type: { type: 'string', enum: [...KANAP_ENTITY_FAMILIES] },
+        entity_id: { type: 'string', minLength: 1 },
+      },
+      required: ['entity_type', 'entity_id'],
+      additionalProperties: false,
+    },
+    tenant_permissions: ['applications', 'infrastructure', 'locations'],
+    key_fields: ['entity_type', 'entity_id'],
+  });
+}
+
+function internalEntityContextContract(): CapabilityContract {
+  return internalEntityContract({
+    name: KANAP_ENTITY_CONTEXT_CAPABILITY,
+    description: 'Read the relationship context (linked applications/assets, owners, knowledge) of one KANAP application or asset through the governed internal control-plane surface.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        entity_type: { type: 'string', enum: [...KANAP_CONTEXT_ENTITY_FAMILIES] },
+        entity_id: { type: 'string', minLength: 1 },
+      },
+      required: ['entity_type', 'entity_id'],
+      additionalProperties: false,
+    },
+    tenant_permissions: ['applications', 'infrastructure'],
+    key_fields: ['entity_type', 'entity_id'],
   });
 }
 
@@ -1071,6 +1214,55 @@ export function providerCapabilityContracts(): CapabilityContract[] {
       },
     }),
     providerReadContract({
+      name: 'monitoring.state.get',
+      description: 'Read the current state of a monitoring check through a provider adapter.',
+      category: 'provider_monitoring',
+      provider_kind: 'monitoring',
+      business_resources: ['infrastructure'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          sensor_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['sensor_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
+      name: 'monitoring.alert.related.list',
+      description: 'List alerts related to a monitoring check (same device or group) through a provider adapter.',
+      category: 'provider_monitoring',
+      provider_kind: 'monitoring',
+      business_resources: ['infrastructure'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          sensor_id: { type: 'string', minLength: 1 },
+          limit: { type: 'integer', minimum: 1, maximum: 10 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['sensor_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
+      name: 'monitoring.object.get',
+      description: 'Read a monitored object (device/group context, including its host address) through a provider adapter.',
+      category: 'provider_monitoring',
+      provider_kind: 'monitoring',
+      business_resources: ['infrastructure'],
+      input_schema: {
+        type: 'object',
+        properties: {
+          object_id: { type: 'string', minLength: 1 },
+          provider_key: { type: 'string', minLength: 1 },
+        },
+        required: ['object_id'],
+        additionalProperties: false,
+      },
+    }),
+    providerReadContract({
       name: 'virtualization.vm.health',
       description: 'Read virtual machine health through a virtualization provider adapter.',
       category: 'provider_virtualization',
@@ -1591,6 +1783,55 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+// Field-projected detail payload: scalars and short string lists only, plus normalized
+// ip_addresses (KANAP asset correlation needs them for the alert→asset matching rule).
+// The nested linked_* payloads AiQueryExecutor.executeDetail bolts onto detail rows are
+// deliberately dropped — full detail dumps burned the per-run token cap during helpdesk
+// calibration (PR #95 lesson).
+function compactEntityDetailData(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  let fields = 0;
+  for (const [key, value] of Object.entries(data)) {
+    if (fields >= MAX_ENTITY_DETAIL_FIELDS) {
+      break;
+    }
+    if (key === 'ip_addresses' && Array.isArray(value)) {
+      result.ip_addresses = value
+        .map((entry) => {
+          if (typeof entry === 'string') return entry.trim();
+          return isRecord(entry) && typeof entry.ip === 'string' ? entry.ip.trim() : '';
+        })
+        .filter(Boolean)
+        .slice(0, MAX_ENTITY_DETAIL_LIST_ITEMS);
+      fields += 1;
+      continue;
+    }
+    if (value === null || typeof value === 'boolean' || typeof value === 'number') {
+      result[key] = value;
+      fields += 1;
+      continue;
+    }
+    if (typeof value === 'string') {
+      result[key] = value.length > MAX_ENTITY_DETAIL_STRING_CHARS
+        ? `${value.slice(0, MAX_ENTITY_DETAIL_STRING_CHARS)}…`
+        : value;
+      fields += 1;
+      continue;
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      result[key] = value
+        .slice(0, MAX_ENTITY_DETAIL_LIST_ITEMS)
+        .map((item: string) => (item.length > MAX_ENTITY_DETAIL_STRING_CHARS
+          ? `${item.slice(0, MAX_ENTITY_DETAIL_STRING_CHARS)}…`
+          : item));
+      fields += 1;
+      continue;
+    }
+    // Nested objects/arrays (hardware_info, relations, linked_* bundles) deliberately omitted.
+  }
+  return result;
+}
+
 const HELP_DESK_TRIAGE_FRESH_PROPOSAL_WORKFLOWS = new Set([
   'agent_control_center_glpi_triage',
   'agent_control_center_ticketing_triage',
@@ -1832,6 +2073,9 @@ export class AiCapabilityRegistry {
     ['search_knowledge', internalKnowledgeSearchContract()],
     ['get_document', internalKnowledgeDocumentContract()],
     ['web_search', internalWebSearchContract()],
+    [KANAP_ENTITY_SEARCH_CAPABILITY, internalEntitySearchContract()],
+    [KANAP_ENTITY_DETAIL_CAPABILITY, internalEntityDetailContract()],
+    [KANAP_ENTITY_CONTEXT_CAPABILITY, internalEntityContextContract()],
   ]);
   private readonly providerContracts = new Map<string, CapabilityContract>(
     providerCapabilityContracts().map((contract) => [contract.name, contract]),
@@ -1849,6 +2093,8 @@ export class AiCapabilityRegistry {
     @Optional() private readonly knowledge?: KnowledgeService,
     @Optional() private readonly braveSearch?: BraveSearchService,
     @Optional() private readonly agentQueue?: AiAgentWorkQueueService,
+    @Optional() private readonly queryExecutor?: AiQueryExecutor,
+    @Optional() private readonly entityService?: AiEntityService,
   ) {}
 
   validateContract(contract: CapabilityContract): CapabilityContract {
@@ -1964,6 +2210,12 @@ export class AiCapabilityRegistry {
         return this.getDocumentInternal(context, rawInput);
       case 'web_search':
         return this.webSearchInternal(context, rawInput);
+      case KANAP_ENTITY_SEARCH_CAPABILITY:
+        return this.searchEntitiesInternal(context, rawInput);
+      case KANAP_ENTITY_DETAIL_CAPABILITY:
+        return this.getEntityDetailInternal(context, rawInput);
+      case KANAP_ENTITY_CONTEXT_CAPABILITY:
+        return this.getEntityContextInternal(context, rawInput);
       default:
         throw new NotFoundException('Unknown internal capability.');
     }
@@ -2099,6 +2351,102 @@ export class AiCapabilityRegistry {
     return result;
   }
 
+  // Absent optional deps (registry constructed without the entity read layer, e.g. in
+  // isolated specs or a module that does not provide AiQueryExecutor/AiEntityService)
+  // surface as a structured CapabilityApplicability-style result instead of a throw, so
+  // callers degrade to "source unavailable" like any other skipped enrichment domain.
+  private entityCapabilityUnavailable(): Record<string, unknown> {
+    return {
+      available: false,
+      reasonCode: 'provider_not_configured',
+      message: 'KANAP entity data access is not configured.',
+    };
+  }
+
+  private async searchEntitiesInternal(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    if (!this.policy || !this.queryExecutor) {
+      return this.entityCapabilityUnavailable();
+    }
+    const parsed = InternalEntitySearchInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.policy.assertEntityTypeReadAccess(context, parsed.data.entity_type, context.manager);
+    const result = await this.queryExecutor.execute(context, {
+      entity_type: parsed.data.entity_type,
+      q: parsed.data.q,
+      page: 1,
+      limit: parsed.data.limit,
+    });
+    const allItems = Array.isArray(result.items) ? result.items : [];
+    const items = allItems.slice(0, parsed.data.limit);
+    return {
+      items,
+      total: result.total ?? 0,
+      returned: items.length,
+      truncated: result.truncated === true || items.length < allItems.length,
+      complete: result.complete === true && items.length === allItems.length,
+    };
+  }
+
+  private async getEntityDetailInternal(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    if (!this.policy || !this.queryExecutor) {
+      return this.entityCapabilityUnavailable();
+    }
+    const parsed = InternalEntityDetailInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.policy.assertEntityTypeReadAccess(context, parsed.data.entity_type, context.manager);
+    const result = await this.queryExecutor.executeDetail(context, {
+      entity_type: parsed.data.entity_type,
+      entity_id: parsed.data.entity_id,
+    });
+    const data = compactEntityDetailData(result.data);
+    const truncated = Object.keys(data).length < Object.keys(result.data).length;
+    return {
+      entity: result.entity,
+      data,
+      total: 1,
+      returned: 1,
+      truncated,
+      complete: !truncated && result.complete !== false,
+    };
+  }
+
+  private async getEntityContextInternal(
+    context: AiExecutionContextWithManager,
+    rawInput: unknown,
+  ): Promise<unknown> {
+    if (!this.policy || !this.entityService) {
+      return this.entityCapabilityUnavailable();
+    }
+    const parsed = InternalEntityContextInputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    // getEntityContext asserts the same permission internally; asserting here first keeps
+    // the handler pattern uniform with the other internal capabilities.
+    await this.policy.assertEntityTypeReadAccess(context, parsed.data.entity_type, context.manager);
+    const result = await this.entityService.getEntityContext(context, {
+      entity_type: parsed.data.entity_type,
+      entity_id: parsed.data.entity_id,
+    });
+    return {
+      ...result,
+      related: (result.related ?? []).slice(0, MAX_ENTITY_CONTEXT_GROUPS).map((group) => ({
+        ...group,
+        items: (group.items ?? []).slice(0, MAX_ENTITY_CONTEXT_GROUP_ITEMS),
+      })),
+    };
+  }
+
   private async executeApprovedPreview(
     context: AiExecutionContextWithManager,
     rawInput: unknown,
@@ -2161,6 +2509,21 @@ export class AiCapabilityRegistry {
           sensorId: stringField(rawInput, 'sensor_id'),
           windowMinutes: optionalNumberField(rawInput, 'window_minutes'),
         });
+      }
+      case 'monitoring.state.get': {
+        const provider = await this.providers.monitoring(context, providerKey(rawInput));
+        return provider.getCurrentState(context, { sensorId: stringField(rawInput, 'sensor_id') });
+      }
+      case 'monitoring.alert.related.list': {
+        const provider = await this.providers.monitoring(context, providerKey(rawInput));
+        return provider.listRelatedAlerts(context, {
+          sensorId: stringField(rawInput, 'sensor_id'),
+          limit: optionalNumberField(rawInput, 'limit'),
+        });
+      }
+      case 'monitoring.object.get': {
+        const provider = await this.providers.monitoring(context, providerKey(rawInput));
+        return provider.getMonitoredObject(context, { objectId: stringField(rawInput, 'object_id') });
       }
       case 'virtualization.vm.health': {
         const provider = await this.providers.virtualization(context, providerKey(rawInput));

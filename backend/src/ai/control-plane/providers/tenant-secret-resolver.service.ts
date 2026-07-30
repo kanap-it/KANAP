@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Optional } from '@nestjs/common';
+import { AiSecretCipherService } from '../../ai-secret-cipher.service';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { parseCredentialRef } from './adapter-config.service';
 import { ProviderCredentialRef } from './provider.types';
@@ -16,7 +17,7 @@ export type TenantSecretDescriptor = {
   resolved: boolean;
   ref_hash?: string;
   version_hash?: string | null;
-  source: 'none' | 'environment' | 'secret_ref';
+  source: 'none' | 'environment' | 'secret_ref' | 'encrypted';
 };
 
 export class AiResolvedTenantSecret {
@@ -154,6 +155,11 @@ function assertReferenceValueSafe(kind: ProviderCredentialRef['kind'], ref: stri
 
 @Injectable()
 export class AiTenantSecretResolverService {
+  // Optional so lightweight instantiations (specs, non-Nest harnesses) keep
+  // working; without a cipher the 'encrypted' kind fails closed exactly like
+  // an unset environment reference.
+  constructor(@Optional() private readonly cipher?: AiSecretCipherService) {}
+
   resolve(
     context: AiExecutionContextWithManager,
     rawRef: unknown,
@@ -172,7 +178,7 @@ export class AiTenantSecretResolverService {
     if (!parsed) {
       throw new BadRequestException('Credential reference is malformed or unsupported.');
     }
-    if (parsed.kind !== 'none') {
+    if (parsed.kind === 'environment' || parsed.kind === 'secret_ref') {
       assertReferenceValueSafe(parsed.kind, parsed.ref);
     }
     assertTenantScopedRef(context, rawRef, parsed);
@@ -182,6 +188,29 @@ export class AiTenantSecretResolverService {
         resolved: false,
         source: 'none',
       }, null);
+    }
+    if (parsed.kind === 'encrypted') {
+      // Cipher unavailable or decrypt failure behaves exactly like an unset
+      // environment variable: a structured missing-credential Forbidden, and
+      // never a throw that carries material or ciphertext.
+      if (!this.cipher?.canEncrypt()) {
+        throw new ForbiddenException('Encrypted credential storage is not configured on this instance.');
+      }
+      let material: string | null = null;
+      try {
+        material = this.cipher.decrypt(parsed.ciphertext);
+      } catch {
+        material = null;
+      }
+      if (typeof material !== 'string' || material.length === 0) {
+        throw new ForbiddenException('Stored encrypted credential could not be decrypted.');
+      }
+      return new AiResolvedTenantSecret({
+        kind: 'encrypted',
+        resolved: true,
+        ref_hash: hashRef(parsed.ciphertext) ?? undefined,
+        source: 'encrypted',
+      }, material);
     }
     if (parsed.kind === 'environment') {
       const value = env[parsed.ref];

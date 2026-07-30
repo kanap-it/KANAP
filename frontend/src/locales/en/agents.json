@@ -22,6 +22,7 @@
     "pollComplete": "Check complete: {{status}}. {{processed}} processed, {{enqueued}} queued.",
     "pollCompleteWithReason": "Check complete: {{status}}. {{processed}} processed, {{enqueued}} queued — {{reason}}",
     "pollFailed": "Could not check for tickets.",
+    "monitoringPollFailed": "Could not check for alerts.",
     "settingsSaved": "Settings saved.",
     "settingsFailed": "Could not save settings.",
     "agentCreated": "Agent created.",
@@ -98,7 +99,12 @@
     "custom": "Custom"
   },
   "targetTypes": {
-    "ticket": "Ticket"
+    "ticket": "Ticket",
+    "alert": "Alert",
+    "sensor": "Monitored check"
+  },
+  "targetLink": {
+    "open": "Open in your ticketing tool"
   },
   "targetLink": {
     "open": "Open in your ticketing tool"
@@ -129,11 +135,11 @@
     "runsToday": "Runs today",
     "updated": "Updated",
     "newAgent": "New agent",
-    "newAgentEnabled": "Create a draft helpdesk agent from the safe template.",
+    "newAgentEnabled": "Create a draft agent from a safe template.",
     "newAgentDefaultName": "Helpdesk agent",
     "newAgentDescription": "Draft helpdesk agent created from the safe helpdesk triage template.",
     "wizard": {
-      "title": "New helpdesk agent",
+      "title": "New agent",
       "steps": {
         "type": "Type",
         "connection": "Connection",
@@ -158,8 +164,16 @@
       "cancel": "Cancel",
       "back": "Back",
       "next": "Next",
-      "create": "Create"
-    }
+      "create": "Create",
+      "sre": "Infrastructure monitoring (SRE)",
+      "monitoringConnection": "Monitoring tool",
+      "monitoringConnectionHint": "No monitoring tool is connected yet. Connect one in Settings; until then the agent is created without a connection and stays inactive.",
+      "notConnected": "Not connected",
+      "sreWatchingLater": "You choose which alerts this agent watches in its settings after it is created.",
+      "reviewBodySre": "The agent is created as Not started. Pick the alerts it watches in its settings, test it on an alert, then enable it."
+    },
+    "newAgentSreDefaultName": "Infrastructure monitoring agent",
+    "newAgentSreDescription": "Draft monitoring agent that reads alerts, correlates them with your KANAP data, and prepares diagnosis notes for review."
   },
   "approvals": {
     "title": "Agent approvals",
@@ -319,7 +333,52 @@
     "testTicket": "Test on a ticket",
     "ticketNumberPlaceholder": "Ticket number (e.g. 64)",
     "runTest": "Run test",
-    "recentActivity": "Recent activity"
+    "recentActivity": "Recent activity",
+    "testAlert": "Test on an alert",
+    "alertIdPlaceholder": "Alert ID (e.g. 2081)",
+    "checkForAlerts": "Check for new alerts",
+    "testCompleted": "Diagnosis finished.",
+    "actionKinds": {
+      "diagnostic_note": "Diagnosis note",
+      "monitor_only": "Keep watching only",
+      "acknowledge_alert": "Acknowledge the alert",
+      "pause_object": "Pause the check",
+      "create_ticket": "Open a ticket",
+      "create_kanap_task": "Create a KANAP task",
+      "run_automation_job": "Run an automation job",
+      "escalate_to_human": "Hand over to a person"
+    },
+    "monitoringProviderMissing": "This agent has no monitoring tool connected.",
+    "watchedAlerts": "Watched alerts",
+    "noWatchedAlerts": "No alerts are being watched right now.",
+    "allAlerts": "All alerts",
+    "lastDiagnosis": "Last diagnosis",
+    "diagnosis": "Diagnosis",
+    "needsReview": "Needs review",
+    "confidence": "Confidence",
+    "confidenceLevels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "probableCauses": "Likely causes",
+    "businessImpact": "Business impact",
+    "recommendedNextSteps": "Recommended next steps",
+    "sources": "Sources",
+    "activeSince": "Active since",
+    "alertStates": {
+      "down": "Down",
+      "down_partial": "Partially down",
+      "warning": "Warning",
+      "unusual": "Unusual",
+      "paused": "Paused",
+      "up": "Up",
+      "unknown": "Unknown"
+    },
+    "ack": {
+      "acknowledged": "Acknowledged",
+      "unacknowledged": "Unacknowledged"
+    }
   },
   "performance": {
     "acceptance": "Acceptance",
@@ -578,6 +637,60 @@
       "public_reply": "Requester reply",
       "assignment": "Assignment",
       "participant": "Participants"
+    },
+    "monitoringTargetingFields": {
+      "status": "Alert state",
+      "severity_floor": "Severity at least",
+      "severity_values": "Severity is one of",
+      "ack_state": "Acknowledgement",
+      "group": "Group",
+      "device": "Device",
+      "check_type": "Check type",
+      "age_minutes": "Only alerts older than",
+      "touched_by": "Handled by this agent"
+    },
+    "monitoringStatuses": {
+      "down": "Down",
+      "down_partial": "Partially down",
+      "warning": "Warning",
+      "unusual": "Unusual",
+      "paused": "Paused",
+      "up": "Up",
+      "unknown": "Unknown"
+    },
+    "monitoringSeverities": {
+      "very_low": "Very low",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "monitoringAck": {
+      "unacknowledged": "Unacknowledged only",
+      "any": "Any"
+    },
+    "monitoringBuilder": {
+      "hint": "All filters are combined. An alert must match every filter.",
+      "minutes": "minutes",
+      "valuesUnavailable": "Values can't be loaded from the monitoring tool right now. Stored selections are kept."
+    },
+    "monitoringPresets": {
+      "unacknowledged_down": "Unacknowledged down",
+      "critical_and_high": "Critical & high",
+      "stable_down_10min": "Stable down ≥ 10 min"
+    },
+    "watchAlerts": "Watch alerts automatically",
+    "maxAlerts": "Alerts handled per check",
+    "maxMonitoringRequests": "Requests to the monitoring tool per check",
+    "monitoringNotConnected": "No monitoring tool connected — this agent cannot run.",
+    "kanapDataEnabled": "Search KANAP data",
+    "kanapDataHint": "Let the agent look up your own IT inventory to add business context to a diagnosis.",
+    "kanapDataDomains": {
+      "applications": "Applications",
+      "assets": "Assets",
+      "interfaces": "Interfaces",
+      "connections": "Connections",
+      "locations": "Locations"
     }
   },
   "actions": {

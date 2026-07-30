@@ -45,10 +45,19 @@ export type ReplySynthesisWebResult = {
 };
 
 export type ReplySynthesisSource = {
-  kind: 'knowledge' | 'web';
+  kind: 'knowledge' | 'web' | 'entity';
   ref: string | null;
   url: string | null;
   title: string;
+};
+
+// A KANAP entity registered as a citable source (plan 37 §4.5): ref is the entity
+// ref/label the model cites by, url is the deep link into KANAP. Entity sources pass
+// through the same knownSources anti-hallucination gate as knowledge and web.
+export type ReplySynthesisEntitySource = {
+  ref: string;
+  url: string | null;
+  title?: string | null;
 };
 
 export type ReplySynthesisRejectedSource = ReplySynthesisSource & {
@@ -89,7 +98,7 @@ const TOKEN_COST_EUR = 0.000002;
 // malformed source (e.g. an empty title) must never fail the whole synthesis (regression #37) —
 // an unmatchable source is simply dropped during post-processing.
 const SourceSchema = z.object({
-  kind: z.enum(['knowledge', 'web']).nullable().optional(),
+  kind: z.enum(['knowledge', 'web', 'entity']).nullable().optional(),
   ref: z.string().trim().max(80).nullable().optional(),
   url: z.string().trim().max(1000).nullable().optional(),
   title: z.string().trim().max(240).nullable().optional(),
@@ -153,12 +162,15 @@ function isUnsafePlainText(value: string): boolean {
   return /<[^>]+>/.test(value) || /javascript:/i.test(value);
 }
 
-function sourceKey(source: { kind: 'knowledge' | 'web' | null; ref: string | null; url: string | null }): string | null {
+function sourceKey(source: { kind: ReplySynthesisSource['kind'] | null; ref: string | null; url: string | null }): string | null {
   if (source.kind === 'knowledge') {
     return source.ref ? `knowledge:${source.ref.toLocaleLowerCase()}` : null;
   }
   if (source.kind === 'web') {
     return source.url ? `web:${source.url.toLocaleLowerCase()}` : null;
+  }
+  if (source.kind === 'entity') {
+    return source.ref ? `entity:${source.ref.toLocaleLowerCase()}` : null;
   }
   return null;
 }
@@ -298,6 +310,10 @@ export class AiReplySynthesisService {
       language: string;
       knowledgeDocs: ReplySynthesisKnowledgeDoc[];
       webResults: ReplySynthesisWebResult[];
+      // KANAP entities retrieved during the run (plan 37 §4.5): registered in knownSources
+      // so the model can cite them, but not injected into the prompt payload here — the
+      // calling flow decides how entity context reaches the model.
+      entitySources?: ReplySynthesisEntitySource[];
       imageEvidence?: TicketImageEvidence[];
       interpretation?: Record<string, unknown> | null;
       profile?: CompiledGuidance | null;
@@ -345,6 +361,16 @@ export class AiReplySynthesisService {
         ref: null,
         url,
         title: result.title || url,
+      });
+    }
+    for (const entity of input.entitySources ?? []) {
+      const ref = entity.ref.trim();
+      if (!ref) continue;
+      knownSources.set(`entity:${ref.toLocaleLowerCase()}`, {
+        kind: 'entity',
+        ref,
+        url: entity.url,
+        title: (entity.title ?? '').trim() || ref,
       });
     }
 

@@ -39,13 +39,118 @@ import {
   TargetingPreviewSummary,
   ticketMatchesServiceDeskTargeting,
 } from './service-desk-targeting';
+import { MONITORING_SEVERITY_VALUES } from '../providers/provider-constants';
+import { MonitoringTargetingModel, normalizeMonitoringTargeting } from './monitoring-targeting';
+import { requireMonitoringBinding, resolveMonitoringBinding } from './provider-binding';
 import { requireTicketingBinding, resolveTicketingBinding } from './ticketing-binding';
 
 export const HELP_DESK_TICKETING_TRIAGE_AGENT_KEY = 'helpdesk.glpi.triage';
 
+export const SRE_MONITORING_DIAGNOSIS_AGENT_KEY = 'sre.monitoring.diagnosis';
+
 export const HELP_DESK_TICKETING_TRIAGE_MANUAL_TRIGGER_KEY = 'manual.safe_target';
 export const HELP_DESK_TICKETING_TRIAGE_NEW_TICKETS_TRIGGER_KEY = 'scheduled.new_tickets_only';
 export const HELP_DESK_TICKETING_TRIAGE_WORK_KIND = 'ticket_triage';
+// EXACT value allowed by the phase-10 CHECK constraint on ai_agent_work_items
+// for monitoring work — any other monitoring work kind needs a migration.
+export const MONITORING_ALERT_DIAGNOSTIC_WORK_KIND = 'monitoring_alert_diagnostic';
+// D4 occurrence identity tolerance: providers may report the same occurrence
+// start with sub-minute jitter between fetches (PRTG rounds to the minute),
+// so occurrence timestamps within this window are the SAME occurrence.
+export const MONITORING_OCCURRENCE_TOLERANCE_MS = 60_000;
+
+// Occurrence bucket for work-item dedup keys, rounded down to the minute so
+// sub-minute provider jitter cannot mint a second key for the same occurrence.
+export function monitoringAlertOccurrenceBucket(occurrenceStartedAt: string | null | undefined): string {
+  const parsed = typeof occurrenceStartedAt === 'string' && occurrenceStartedAt.trim()
+    ? Date.parse(occurrenceStartedAt)
+    : NaN;
+  if (!Number.isFinite(parsed)) {
+    return 'none';
+  }
+  return new Date(Math.floor(parsed / 60_000) * 60_000).toISOString().slice(0, 16);
+}
+
+// Monitoring work-item dedup key (D4): provider + object + occurrence bucket.
+// A clear-then-refire produces a new occurrence bucket and therefore a new key.
+export function monitoringAlertDedupKey(
+  providerKey: string,
+  alertId: string,
+  occurrenceStartedAt?: string | null,
+): string {
+  return `monitoring:${providerKey}:${alertId}:${monitoringAlertOccurrenceBucket(occurrenceStartedAt)}`;
+}
+
+// D4 occurrence-in-progress marker on monitoring target states. Providers may
+// legitimately report NO occurrence timestamp for an active alarm state (PRTG
+// tracks no "down since" for warning/unusual sensors), so "an occurrence is
+// recorded" must never be inferred from the timestamp alone — a
+// null-timestamp occurrence would read as first_occurrence on every poll and
+// be re-diagnosed (and re-billed) every cycle. The explicit flag records that
+// an occurrence is in progress; the timestamp (when known) still drives
+// new-occurrence detection. Rows written before the flag existed carry only
+// the timestamp, hence the fallback.
+export function monitoringOccurrenceOpen(stateJson: Record<string, unknown>): boolean {
+  if (stateJson.occurrence_open === true) {
+    return true;
+  }
+  if (stateJson.occurrence_open === false) {
+    return false;
+  }
+  return typeof stateJson.occurrence_started_at === 'string' && stateJson.occurrence_started_at.trim().length > 0;
+}
+
+// touched_by is occurrence-scoped (plan 37 §4.2 "skip alerts the agent already
+// handled this occurrence"): the lifetime agent_touched flag alone must not
+// hide a sensor forever. The agent counts as having touched an alert only
+// when its recorded occurrence is still in progress AND the fetched alert
+// does not prove a NEW occurrence (both timestamps known and apart beyond the
+// jitter tolerance — the same same-occurrence rule monitoringOccurrenceReadiness
+// applies). A recovered-and-refired sensor is therefore visible again.
+export function monitoringAlertTouchedForOccurrence(
+  state: AiAgentTargetState | null | undefined,
+  alert: { occurrenceStartedAt?: string | null },
+): boolean {
+  if (!state?.agent_touched) {
+    return false;
+  }
+  const stateJson = policyObject(state.state_json);
+  if (!monitoringOccurrenceOpen(stateJson)) {
+    return false;
+  }
+  const recordedMs = dateFromUnknown(stringFromPolicy(stateJson.occurrence_started_at))?.getTime() ?? null;
+  const fetchedMs = dateFromUnknown(alert.occurrenceStartedAt ?? null)?.getTime() ?? null;
+  if (recordedMs != null && fetchedMs != null && Math.abs(fetchedMs - recordedMs) > MONITORING_OCCURRENCE_TOLERANCE_MS) {
+    return false;
+  }
+  return true;
+}
+
+// Failed-attempt marker for savepoint-wrapped callers (the monitoring poller):
+// a ROLLBACK TO SAVEPOINT reverts EVERYTHING the failed attempt wrote —
+// acquireWorkItem's attempt_count increment AND failWorkItem's
+// failed/dead_letter + backoff bookkeeping — while the attempt's externalized
+// costs (detached built-in quota reservation, real LLM tokens) survive. The
+// control service stamps the error when a leased attempt failed; the caller
+// re-applies the failure bookkeeping after its rollback so retry backoff and
+// dead-lettering keep working. Without it a deterministically failing
+// diagnosis would return to 'queued' with a past next_attempt_at and retry at
+// full cost on every cron tick, forever.
+const FAILED_WORK_ITEM_ATTEMPT_MARKER = 'kanapFailedWorkItemAttemptId';
+
+export function markWorkItemAttemptFailure(error: unknown, workItemId: string): void {
+  if (error && typeof error === 'object') {
+    (error as Record<string, unknown>)[FAILED_WORK_ITEM_ATTEMPT_MARKER] = workItemId;
+  }
+}
+
+export function failedWorkItemAttemptId(error: unknown): string | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+  const id = (error as Record<string, unknown>)[FAILED_WORK_ITEM_ATTEMPT_MARKER];
+  return typeof id === 'string' && id.trim().length > 0 ? id : null;
+}
 
 const ACTIVE_WORK_ITEM_STATUSES = new Set(['queued', 'leased', 'running', 'waiting_approval', 'failed']);
 const TERMINAL_WORK_ITEM_STATUSES = new Set(['completed', 'dead_letter']);
@@ -68,6 +173,8 @@ const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_COOLDOWN_SECONDS = 60;
 const DEFAULT_NEW_TICKET_MAX_PER_CYCLE = 5;
 const DEFAULT_NEW_TICKET_RATE_LIMIT_PER_CYCLE = 10;
+const DEFAULT_MONITORING_ALERTS_PER_CYCLE = 5;
+const DEFAULT_MONITORING_REQUESTS_PER_CYCLE = 10;
 const DEFAULT_BACKFILL_HORIZON_HOURS = 24;
 const DEFAULT_PER_RUN_TOKEN_CAP = 40_000;
 const DEFAULT_PER_RUN_COST_CAP_EUR = 1;
@@ -164,6 +271,39 @@ const HELP_DESK_FORBIDDEN_CAPABILITIES = [
   'production_a4',
 ];
 
+// Read-only set for the built-in SRE agent: knowledge/web retrieval plus the
+// monitoring provider reads the diagnosis runtime dispatches (WS-A6/WS-A8).
+// Exported as the single source of truth for the SRE capability cap table in
+// ai-agent-control.service.ts (SRE_POSSIBLE_CAPABILITY_CAPS) and the creation
+// wizard's explicit capability list (AgentsOverviewPage.tsx) — keep in sync.
+export const SRE_MONITORING_ALLOWED_CAPABILITIES = [
+  { name: 'monitoring.alert.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'monitoring.sensor.history', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  // WS-A8 evidence-chain reads: current check state + same-device related alerts,
+  // dispatched by the diagnosis runtime so the whole chain is audited.
+  { name: 'monitoring.state.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'monitoring.alert.related.list', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  // Device context read (host address) so the KANAP asset correlation can apply
+  // the documented IP-equality tiebreak on ambiguous device names (§4.5).
+  { name: 'monitoring.object.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+  { name: 'web_search', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
+];
+
+const REQUIRED_SRE_DIAGNOSIS_CAPABILITIES = [
+  'monitoring.alert.get',
+  'monitoring.sensor.history',
+] as const;
+
+// Applied to the seed AND to UI-created SRE definitions (create endpoint) —
+// same server-side discipline as the helpdesk template's forbidden list.
+export const SRE_MONITORING_FORBIDDEN_CAPABILITIES = [
+  'automation.job.launch_approved',
+  'external_mcp.*',
+  'production_a4',
+];
+
 const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
@@ -241,6 +381,33 @@ export type AgentQueueOverview = {
     fleet: HelpdeskTicketingAgentSummary['evaluation'] | null;
     auditEvents: AiAgentAuditEvent[];
   };
+};
+
+export type MonitoringIngestionConfig = {
+  enabled: true;
+  enabledAt: string;
+  maxAlertsPerCycle: number;
+  maxProviderRequestsPerCycle: number;
+  targeting: MonitoringTargetingModel;
+};
+
+// Compact alert view the queue persists on monitoring work items and target
+// states. Deliberately excludes the alert message: provider text is untrusted
+// external evidence and oversized queue payloads burn run caps (PR #95).
+export type MonitoringAlertSnapshotInput = {
+  id: string;
+  status?: string | null;
+  severity?: string | null;
+  deviceName?: string | null;
+  occurrenceStartedAt?: string | null;
+  observedAt?: string | null;
+  sourceUri?: string | null;
+};
+
+export type MonitoringOccurrenceReadiness = {
+  state: AiAgentTargetState | null;
+  ready: boolean;
+  reason: 'first_occurrence' | 'new_occurrence' | 'escalated' | 'active_work_item' | 'duplicate_occurrence';
 };
 
 export type HelpdeskScopeMode = 'new_tickets_only' | 'all_open' | 'agent_involved';
@@ -716,6 +883,38 @@ function actionBodyHash(action: AiActionRequest | null): string | null {
   return body ? hashStableJson({ body }) : null;
 }
 
+const MONITORING_SEVERITY_LADDER = MONITORING_SEVERITY_VALUES as readonly string[];
+
+function monitoringSeverityRank(value: unknown): number {
+  return MONITORING_SEVERITY_LADDER.indexOf(String(value ?? '').trim().toLowerCase());
+}
+
+// Status classes for the D4 escalation rule: a warning-class alert crossing
+// into the down class is new work even inside the same occurrence.
+function monitoringStatusClass(value: unknown): 'down' | 'warning' | 'other' {
+  const status = String(value ?? '').trim().toLowerCase();
+  if (status === 'down' || status === 'down_partial') {
+    return 'down';
+  }
+  if (status === 'warning' || status === 'unusual') {
+    return 'warning';
+  }
+  return 'other';
+}
+
+function monitoringOccurrenceEscalated(
+  recordedStatus: unknown,
+  recordedSeverity: unknown,
+  alert: MonitoringAlertSnapshotInput,
+): boolean {
+  const recordedRank = monitoringSeverityRank(recordedSeverity);
+  const alertRank = monitoringSeverityRank(alert.severity);
+  if (recordedRank >= 0 && alertRank > recordedRank) {
+    return true;
+  }
+  return monitoringStatusClass(recordedStatus) === 'warning' && monitoringStatusClass(alert.status) === 'down';
+}
+
 @Injectable()
 export class AiAgentWorkQueueService {
   private readonly logger = new Logger(AiAgentWorkQueueService.name);
@@ -1088,6 +1287,145 @@ export class AiAgentWorkQueueService {
     return this.ensureHelpdeskTicketingTriageDefinition(context);
   }
 
+  private async enabledMonitoringProviderKeys(context: AiExecutionContextWithManager): Promise<string[]> {
+    const configs = await context.manager.getRepository(AiAdapterConfig).find({
+      where: {
+        tenant_id: context.tenantId,
+        provider_kind: 'monitoring',
+        enabled: true,
+      },
+    });
+    return Array.from(new Set(configs
+      .map((config) => typeof config.provider_key === 'string' ? config.provider_key.trim() : '')
+      .filter(Boolean)));
+  }
+
+  async ensureSreMonitoringDefinition(context: AiExecutionContextWithManager): Promise<AiAgentDefinition | null> {
+    if (!context.tenantId) {
+      throw new ForbiddenException('Tenant context is required for agent definitions.');
+    }
+
+    const definitionRepo = this.definitionRepo(context);
+    let definition = await definitionRepo.findOne({
+      where: {
+        tenant_id: context.tenantId,
+        agent_key: SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
+      },
+    });
+    if (!definition) {
+      // Tenants without an enabled monitoring adapter config get no SRE definition
+      // at all — never seed a dead agent onto the fleet page.
+      const monitoringProviderKeys = await this.enabledMonitoringProviderKeys(context);
+      if (monitoringProviderKeys.length === 0) {
+        return null;
+      }
+      definition = await definitionRepo.save(definitionRepo.create({
+        tenant_id: context.tenantId,
+        agent_key: SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
+        name: 'SRE monitoring diagnosis agent',
+        description: 'Reads alerts from the bound monitoring provider, correlates them with KANAP knowledge and infrastructure data, and prepares diagnostic findings for review.',
+        agent_type: 'sre',
+        // Unlike the helpdesk seed this starts as a draft: an operator enables
+        // monitoring diagnosis deliberately.
+        status: 'draft',
+        environment: 'sandbox',
+        // Bind automatically only when the choice is unambiguous; with several
+        // enabled monitoring configs the operator picks the provider explicitly
+        // (an unbound monitoring agent fails closed, it never guesses).
+        provider_bindings_json: monitoringProviderKeys.length === 1
+          ? {
+            monitoring: {
+              provider_kind: 'monitoring',
+              provider_key: monitoringProviderKeys[0],
+            },
+          }
+          : {},
+        allowed_capabilities_json: SRE_MONITORING_ALLOWED_CAPABILITIES,
+        forbidden_capabilities_json: SRE_MONITORING_FORBIDDEN_CAPABILITIES,
+        max_autonomy_level: 'A1',
+        default_approval_requirement: 'human_for_writes',
+        agent_priority: 100,
+        trigger_policy_json: {
+          scheduled_poll: { enabled: false },
+          provider_webhook: { enabled: false },
+          production_polling_enabled: false,
+          automatic_writes_enabled: false,
+        },
+        scope_policy_json: {
+          knowledge_sources: {
+            knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+            web: { enabled: false },
+            precedence: 'knowledge_first',
+            kanap_data: {
+              enabled: true,
+              domains: {
+                applications: true,
+                assets: true,
+                interfaces: true,
+                connections: true,
+                locations: true,
+              },
+            },
+          },
+          // Inert placeholder until the monitoring targeting module lands: an
+          // empty predicate list round-trips unchanged through the scope-policy
+          // normalizers used by the agent update path.
+          targeting: { schema_version: 1, combinator: 'and', predicates: [] },
+        },
+        queue_policy_json: {
+          enabled: true,
+          dedup_mode: 'active_work_item',
+          lease_ttl_seconds: DEFAULT_LEASE_TTL_SECONDS,
+          max_attempts: DEFAULT_MAX_ATTEMPTS,
+          cooldown_seconds: DEFAULT_COOLDOWN_SECONDS,
+          review_cooldown_seconds: DEFAULT_REVIEW_COOLDOWN_SECONDS,
+          on_conflict: 'defer',
+          approval_ttl_seconds: DEFAULT_APPROVAL_TTL_SECONDS,
+          retry_backoff_seconds: [60, 300, 900],
+          terminal_statuses: ['completed', 'dead_letter'],
+          economic_guardrails: defaultEconomicGuardrails(),
+        },
+        response_policy_json: {
+          require_human_approval_for_writes: true,
+        },
+        evaluation_policy_json: {
+          create_pending_evaluation: true,
+          feedback_required_for_autonomy_promotion: true,
+        },
+        persona_json: {
+          mission: 'Diagnose monitoring alerts with supporting KANAP knowledge and infrastructure context, and prepare clear findings for operator review.',
+        },
+        config_version: 1,
+        updated_by_user_id: null,
+        metadata_json: {
+          product_owned: true,
+          phase: 15,
+        },
+        created_at: new Date(),
+        updated_at: new Date(),
+      }));
+    } else if (
+      (!isRecord(definition.metadata_json) || definition.metadata_json.user_modified !== true)
+      && !resolveMonitoringBinding(definition)
+    ) {
+      // Non-destructive reconcile: backfill the binding once a previously
+      // ambiguous tenant converges on a single enabled monitoring adapter config.
+      const monitoringProviderKeys = await this.enabledMonitoringProviderKeys(context);
+      if (monitoringProviderKeys.length === 1) {
+        definition.provider_bindings_json = {
+          ...(isRecord(definition.provider_bindings_json) ? definition.provider_bindings_json : {}),
+          monitoring: {
+            provider_kind: 'monitoring',
+            provider_key: monitoringProviderKeys[0],
+          },
+        };
+        definition.updated_at = new Date();
+        definition = await definitionRepo.save(definition);
+      }
+    }
+    return definition;
+  }
+
   assertHelpdeskTicketingDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
     if (definition.status !== 'enabled') {
       throw new ForbiddenException('Helpdesk ticket triage agent definition is not enabled.');
@@ -1161,6 +1499,72 @@ export class AiAgentWorkQueueService {
 
   assertHelpdeskGlpiDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
     this.assertHelpdeskTicketingDefinitionRunnable(definition, trigger);
+  }
+
+  assertSreMonitoringDefinitionRunnable(definition: AiAgentDefinition): void {
+    if (definition.status !== 'enabled') {
+      throw new ForbiddenException('SRE monitoring diagnosis agent definition is not enabled.');
+    }
+    if (definition.agent_type !== 'sre') {
+      throw new ForbiddenException('SRE monitoring diagnosis agent definition has an invalid type.');
+    }
+    if (!['sandbox', 'lab', 'mock', 'staging'].includes(definition.environment)) {
+      throw new ForbiddenException('SRE monitoring diagnosis is limited to non-production environments in Phase 15.A.');
+    }
+    if (!['A1', 'A2', 'A3'].includes(definition.max_autonomy_level)) {
+      throw new ForbiddenException('SRE monitoring diagnosis requires an autonomy ceiling between A1 and A3.');
+    }
+    if (!resolveMonitoringBinding(definition)) {
+      throw new ForbiddenException('SRE monitoring diagnosis requires a monitoring provider binding.');
+    }
+    const queuePolicy = policyObject(definition.queue_policy_json);
+    if (queuePolicy.enabled === false) {
+      throw new ForbiddenException('SRE monitoring diagnosis queue policy is disabled.');
+    }
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    if (triggerPolicy.automatic_writes_enabled === true) {
+      throw new ForbiddenException('Automatic writes are out of scope for SRE monitoring diagnosis in Phase 15.A.');
+    }
+    const allowed = capabilityNames(definition.allowed_capabilities_json);
+    const forbidden = capabilityNames(definition.forbidden_capabilities_json);
+    for (const required of REQUIRED_SRE_DIAGNOSIS_CAPABILITIES) {
+      if (!allowed.has(required)) {
+        throw new ForbiddenException(`SRE monitoring diagnosis definition does not allow required capability ${required}.`);
+      }
+      if (forbidden.has(required) || forbidden.has('*')) {
+        throw new ForbiddenException(`SRE monitoring diagnosis definition forbids required capability ${required}.`);
+      }
+    }
+  }
+
+  // Resolve the alert-selection scope for an SRE agent. Monitoring is
+  // greenfield: canonical targeting predicates are the only selection model
+  // (no legacy mode blocks); the optional scope_policy_json.ingestion block
+  // carries the per-cycle caps.
+  resolveMonitoringScopeIngestionConfig(definition: AiAgentDefinition): MonitoringIngestionConfig {
+    const triggerPolicy = policyObject(definition.trigger_policy_json);
+    const scopePolicy = policyObject(definition.scope_policy_json);
+    if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
+      throw new ForbiddenException('Automatic alert watching is turned off. Enable it in the agent settings.');
+    }
+    if (triggerPolicy.automatic_writes_enabled === true) {
+      throw new ForbiddenException('Monitoring alert ingestion cannot run with automatic writes enabled.');
+    }
+    if (!runGuardrailsFromDefinition(definition) || !dailyGuardrailCapsFromDefinition(definition)) {
+      throw new ForbiddenException('Monitoring alert ingestion requires configured economic guardrails.');
+    }
+    // Fail-closed predicate validation: a bad predicate rejects the whole cycle.
+    const targeting = normalizeMonitoringTargeting(scopePolicy);
+    const ingestion = nestedPolicy(scopePolicy, 'ingestion');
+    return {
+      enabled: true,
+      enabledAt: isoFromPolicy(ingestion.enabled_at) ?? new Date().toISOString(),
+      maxAlertsPerCycle: numberPolicyOrNull(ingestion.max_alerts_per_cycle, 1, 20)
+        ?? DEFAULT_MONITORING_ALERTS_PER_CYCLE,
+      maxProviderRequestsPerCycle: numberPolicyOrNull(ingestion.max_provider_requests_per_cycle, 1, 100)
+        ?? DEFAULT_MONITORING_REQUESTS_PER_CYCLE,
+      targeting,
+    };
   }
 
   resolveNewTicketsIngestionConfig(definition: AiAgentDefinition): HelpdeskNewTicketsIngestionConfig {
@@ -1795,6 +2199,263 @@ export class AiAgentWorkQueueService {
     return { workItem, created: true };
   }
 
+  // Occurrence-level dedup gate (D4): a fetched alert is NEW WORK only when no
+  // active work item exists for its occurrence dedup key AND the target state
+  // has no recorded occurrence (or a different/escalated one). The ±1 minute
+  // tolerance absorbs provider-side occurrence-timestamp jitter (IMPL-2).
+  async monitoringOccurrenceReadiness(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      alert: MonitoringAlertSnapshotInput;
+      dedupKey: string;
+      now?: Date;
+    },
+  ): Promise<MonitoringOccurrenceReadiness> {
+    const binding = requireMonitoringBinding(input.definition);
+    const targetRef = normalizedTargetRef(input.alert.id);
+    const state = await this.targetStateRepo(context).findOne({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: input.definition.id,
+        provider_kind: binding.providerKind,
+        provider_key: binding.providerKey,
+        target_type: 'sensor',
+        target_ref: targetRef,
+      },
+    });
+    const activeItem = await this.findActiveWorkItem(context, input.definition, input.dedupKey);
+    if (activeItem) {
+      return { state: state ?? null, ready: false, reason: 'active_work_item' };
+    }
+    const stateJson = policyObject(state?.state_json);
+    const recordedOccurrence = stringFromPolicy(stateJson.occurrence_started_at);
+    // "No occurrence in progress" is the open marker's call, NOT the
+    // timestamp's: a provider that exposes no occurrence timestamp for an
+    // active alarm (nullable by contract) must still dedup as the same
+    // occurrence on later polls instead of re-entering first_occurrence.
+    if (!state || !monitoringOccurrenceOpen(stateJson)) {
+      return { state: state ?? null, ready: true, reason: 'first_occurrence' };
+    }
+    const recordedMs = dateFromUnknown(recordedOccurrence)?.getTime() ?? null;
+    const fetchedMs = dateFromUnknown(input.alert.occurrenceStartedAt)?.getTime() ?? null;
+    if (recordedMs != null && fetchedMs != null && Math.abs(fetchedMs - recordedMs) > MONITORING_OCCURRENCE_TOLERANCE_MS) {
+      return { state, ready: true, reason: 'new_occurrence' };
+    }
+    if (monitoringOccurrenceEscalated(stateJson.last_status, stateJson.last_severity, input.alert)) {
+      return { state, ready: true, reason: 'escalated' };
+    }
+    return { state, ready: false, reason: 'duplicate_occurrence' };
+  }
+
+  async enqueueMonitoringScopedAlert(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      alert: MonitoringAlertSnapshotInput;
+      dedupKey: string;
+      providerKind?: string | null;
+      providerKey?: string | null;
+      priority?: number | null;
+      metadata?: Record<string, unknown> | null;
+    },
+  ): Promise<{ workItem: AiAgentWorkItem; created: boolean }> {
+    this.assertSreMonitoringDefinitionRunnable(input.definition);
+    this.resolveMonitoringScopeIngestionConfig(input.definition);
+    const binding = requireMonitoringBinding(input.definition);
+    const providerKind = input.providerKind ?? binding.providerKind;
+    const providerKey = input.providerKey ?? binding.providerKey;
+    if (providerKind !== binding.providerKind || providerKey !== binding.providerKey) {
+      throw new ForbiddenException('Monitoring work item source must match the bound monitoring provider.');
+    }
+    const targetRef = normalizedTargetRef(input.alert.id);
+    const dedupKey = typeof input.dedupKey === 'string' ? input.dedupKey.trim() : '';
+    if (!dedupKey) {
+      throw new BadRequestException('Monitoring work items require an occurrence dedup key.');
+    }
+    const existing = await this.findActiveWorkItem(context, input.definition, dedupKey);
+    if (existing) {
+      return { workItem: existing, created: false };
+    }
+
+    const repo = this.workItemRepo(context);
+    const now = new Date();
+    const workItem = await repo.save(repo.create({
+      tenant_id: context.tenantId,
+      agent_definition_id: input.definition.id,
+      trigger_id: null,
+      source_provider_kind: providerKind,
+      source_provider_key: providerKey,
+      source_object_type: 'sensor',
+      source_object_ref: targetRef,
+      source_object_updated_at: dateFromUnknown(input.alert.observedAt ?? input.alert.occurrenceStartedAt),
+      work_kind: MONITORING_ALERT_DIAGNOSTIC_WORK_KIND,
+      status: 'queued',
+      priority: typeof input.priority === 'number' ? numberFromPolicy(input.priority, 100, 0, 1000) : 100,
+      dedup_key: dedupKey,
+      lease_owner: null,
+      leased_until: null,
+      attempt_count: 0,
+      max_attempts: this.queuePolicyNumber(input.definition, 'max_attempts', DEFAULT_MAX_ATTEMPTS, 1, 20),
+      next_attempt_at: now,
+      last_run_id: null,
+      last_action_request_ids: null,
+      last_error: null,
+      metadata_json: {
+        source: 'scheduled_monitoring_alerts',
+        // Compact snapshot only — the alert message is untrusted provider text
+        // and never persisted on queue rows.
+        alert: {
+          status: stringFromPolicy(input.alert.status),
+          severity: stringFromPolicy(input.alert.severity),
+          device_name: stringFromPolicy(input.alert.deviceName),
+          occurrence_started_at: stringFromPolicy(input.alert.occurrenceStartedAt),
+          source_uri: stringFromPolicy(input.alert.sourceUri),
+        },
+        ...(input.metadata ?? {}),
+      },
+      created_at: now,
+      updated_at: now,
+    }));
+
+    // Record the occurrence at enqueue time (not completion): a dead-lettered
+    // item must not re-enqueue the same occurrence forever, and a fresh
+    // occurrence clears any prior re-arm marker.
+    await this.upsertTargetState(context, {
+      agentDefinitionId: input.definition.id,
+      providerKind,
+      providerKey,
+      targetType: 'sensor',
+      targetRef,
+      lastSeenExternalUpdatedAt: input.alert.observedAt ?? input.alert.occurrenceStartedAt ?? null,
+      state: {
+        occurrence_started_at: stringFromPolicy(input.alert.occurrenceStartedAt),
+        // Occurrence in progress even when the provider exposes no timestamp
+        // for it — the open marker is what later readiness checks consult.
+        occurrence_open: true,
+        last_status: stringFromPolicy(input.alert.status),
+        last_severity: stringFromPolicy(input.alert.severity),
+        cleared_at: null,
+        latest_enqueued_work_item_id: workItem.id,
+      },
+    });
+
+    return { workItem, created: true };
+  }
+
+  // Re-arm on clear (D4): an alert absent from a fetch that covered it — or
+  // present with status up — has ended its occurrence, so the next non-up
+  // occurrence becomes new work. A truncated fetch proves nothing about
+  // absence, so clearances are only recorded for untruncated fetches.
+  async reconcileMonitoringOccurrenceClearances(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      fetchedAlerts: Array<{ id: string; status?: string | null }>;
+      fetchTruncated: boolean;
+      now?: Date;
+    },
+  ): Promise<{ rearmed: number }> {
+    if (input.fetchTruncated) {
+      return { rearmed: 0 };
+    }
+    const binding = requireMonitoringBinding(input.definition);
+    const now = input.now ?? new Date();
+    const states = await this.targetStateRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: input.definition.id,
+        provider_kind: binding.providerKind,
+        provider_key: binding.providerKey,
+        target_type: 'sensor',
+      },
+    });
+    const fetchedById = new Map(input.fetchedAlerts
+      .map((alert) => [String(alert.id ?? '').trim(), alert] as const)
+      .filter(([id]) => id.length > 0));
+    let rearmed = 0;
+    for (const state of states) {
+      const stateJson = policyObject(state.state_json);
+      // Open marker, not timestamp: occurrences recorded without a provider
+      // occurrence timestamp must re-arm on clearance too.
+      if (!monitoringOccurrenceOpen(stateJson)) {
+        continue;
+      }
+      const fetched = fetchedById.get(state.target_ref) ?? null;
+      const fetchedStatus = fetched ? String(fetched.status ?? '').trim().toLowerCase() : null;
+      if (fetched && fetchedStatus !== 'up') {
+        continue;
+      }
+      await this.upsertTargetState(context, {
+        agentDefinitionId: input.definition.id,
+        providerKind: binding.providerKind,
+        providerKey: binding.providerKey,
+        targetType: 'sensor',
+        targetRef: state.target_ref,
+        state: {
+          occurrence_started_at: null,
+          occurrence_open: false,
+          last_status: fetchedStatus ?? 'up',
+          cleared_at: now.toISOString(),
+        },
+      });
+      rearmed += 1;
+    }
+    return { rearmed };
+  }
+
+  // Monitoring sibling of recordManualTicketingTriageOutcome for the
+  // recommendation-free diagnosis skeleton: no action requests, so the work
+  // item always completes and the whole-target claim is released.
+  async recordMonitoringDiagnosisOutcome(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      workItem: AiAgentWorkItem;
+      runId: string | null;
+      alert: MonitoringAlertSnapshotInput;
+      metadata?: Record<string, unknown> | null;
+    },
+  ): Promise<{ workItem: AiAgentWorkItem; targetState: AiAgentTargetState }> {
+    const externalUpdatedAt = input.alert.observedAt ?? input.alert.occurrenceStartedAt ?? null;
+    const targetState = await this.upsertTargetState(context, {
+      agentDefinitionId: input.definition.id,
+      providerKind: input.workItem.source_provider_kind,
+      providerKey: input.workItem.source_provider_key,
+      targetType: input.workItem.source_object_type,
+      targetRef: input.workItem.source_object_ref,
+      lastSeenExternalUpdatedAt: externalUpdatedAt,
+      lastProcessedExternalUpdatedAt: externalUpdatedAt,
+      nextReviewAt: this.scheduleNextReviewAt(input.definition),
+      lastRunId: input.runId,
+      agentTouched: true,
+      needsFollowup: false,
+      state: {
+        occurrence_started_at: stringFromPolicy(input.alert.occurrenceStartedAt),
+        // Occurrence stays in progress until the alert is back up (the
+        // alert-cleared escape reports status 'up'); the flag — not the
+        // nullable timestamp — is what dedup and touched_by consult.
+        occurrence_open: (stringFromPolicy(input.alert.status)?.toLowerCase() ?? '') !== 'up',
+        last_status: stringFromPolicy(input.alert.status),
+        last_severity: stringFromPolicy(input.alert.severity),
+        last_diagnosis_at: new Date().toISOString(),
+        latest_work_item_id: input.workItem.id,
+        ...(input.metadata ?? {}),
+      },
+    });
+
+    const workItem = await this.completeWorkItem(context, input.workItem, {
+      runId: input.runId,
+      actionRequestIds: [],
+      metadata: {
+        latest_target_state_id: targetState.id,
+        ...(input.metadata ?? {}),
+      },
+    });
+    await this.releaseWorkItemTargetClaim(context, workItem, 'diagnosis_completed_without_pending_proposals');
+    return { workItem, targetState };
+  }
+
   async acquireWorkItem(
     context: AiExecutionContextWithManager,
     workItemId: string,
@@ -1852,12 +2513,16 @@ export class AiAgentWorkQueueService {
     if (!definition) {
       throw new ForbiddenException('Agent work item has no tenant-scoped definition.');
     }
-    if (
-      workItem.source_provider_kind === 'ticketing'
-      && workItem.source_provider_key
-      && workItem.source_object_type === 'ticket'
-      && workItem.source_object_ref
-    ) {
+    // Whole-target claim integration: ticketing tickets and monitoring sensors
+    // share the same claim key machinery (tenant + provider kind/key + target
+    // type/ref) with unchanged collision semantics.
+    const claimEligible = !!workItem.source_provider_key
+      && !!workItem.source_object_ref
+      && (
+        (workItem.source_provider_kind === 'ticketing' && workItem.source_object_type === 'ticket')
+        || (workItem.source_provider_kind === 'monitoring' && workItem.source_object_type === 'sensor')
+      );
+    if (claimEligible) {
       const claim = await this.acquireTargetClaim(context, {
         definition,
         providerKind: workItem.source_provider_kind,
@@ -2880,11 +3545,16 @@ export class AiAgentWorkQueueService {
           daily_usage: summary,
         },
       });
-      await this.updateHelpdeskIngestionState(context, definition, {
+      const pauseState = {
         status: 'paused',
         reason: summary.reachedReasons.join(','),
         daily_usage: summary,
-      });
+      };
+      if (definition.agent_type === 'sre') {
+        await this.updateMonitoringIngestionState(context, definition, pauseState);
+      } else {
+        await this.updateHelpdeskIngestionState(context, definition, pauseState);
+      }
       throw new ForbiddenException('Agent ingestion is paused because the tenant daily cap has been reached.');
     }
     return summary;
@@ -2895,10 +3565,27 @@ export class AiAgentWorkQueueService {
     definition: AiAgentDefinition,
     state: Record<string, unknown>,
   ): Promise<AiAgentDefinition> {
+    return this.updateAgentIngestionState(context, definition, 'helpdesk_ingestion_state', state);
+  }
+
+  async updateMonitoringIngestionState(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    state: Record<string, unknown>,
+  ): Promise<AiAgentDefinition> {
+    return this.updateAgentIngestionState(context, definition, 'monitoring_ingestion_state', state);
+  }
+
+  private async updateAgentIngestionState(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    stateKey: 'helpdesk_ingestion_state' | 'monitoring_ingestion_state',
+    state: Record<string, unknown>,
+  ): Promise<AiAgentDefinition> {
     definition.metadata_json = {
       ...(isRecord(definition.metadata_json) ? definition.metadata_json : {}),
-      helpdesk_ingestion_state: {
-        ...(isRecord(definition.metadata_json?.helpdesk_ingestion_state) ? definition.metadata_json.helpdesk_ingestion_state : {}),
+      [stateKey]: {
+        ...(isRecord(definition.metadata_json?.[stateKey]) ? definition.metadata_json[stateKey] : {}),
         ...state,
         updated_at: new Date().toISOString(),
       },
@@ -3074,6 +3761,15 @@ export class AiAgentWorkQueueService {
     options: { limit?: number } = {},
   ): Promise<AgentQueueOverview> {
     await this.ensureHelpdeskTicketingTriageDefinition(context);
+    // Opportunistic built-in SRE seed: a failed adapter-config lookup or write must
+    // never take the agents overview down with it.
+    try {
+      await this.ensureSreMonitoringDefinition(context);
+    } catch (error) {
+      this.logger.warn(
+        `SRE monitoring definition seeding failed; continuing without it: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     const limit = Math.max(1, Math.min(100, Math.floor(options.limit ?? 50)));
     const definitions = (await this.definitionRepo(context).find({ where: { tenant_id: context.tenantId } }))
       .sort((left, right) => left.agent_key.localeCompare(right.agent_key));
@@ -3104,12 +3800,19 @@ export class AiAgentWorkQueueService {
       ?? helpdeskDefinitions[0]
       ?? null;
     const helpdeskDefinitionIds = helpdeskDefinitions.map((definition) => definition.id);
+    // Monitoring inclusion: SRE agents flow through the generic definitions /
+    // work items / target states lists above; audit events cover them too so
+    // the Monitor tab shows poller cycles for both agent families.
+    const sreDefinitionIds = definitions
+      .filter((definition) => definition.agent_type === 'sre')
+      .map((definition) => definition.id);
+    const auditDefinitionIds = [...helpdeskDefinitionIds, ...sreDefinitionIds];
     // Scope, order, and limit in SQL instead of loading every tenant audit event and
     // filtering/sorting in memory (which scaled with total history, not the 20 returned).
-    const auditEvents = helpdeskDefinitionIds.length === 0
+    const auditEvents = auditDefinitionIds.length === 0
       ? []
       : await this.auditRepo(context).find({
-        where: { tenant_id: context.tenantId, agent_definition_id: In(helpdeskDefinitionIds) },
+        where: { tenant_id: context.tenantId, agent_definition_id: In(auditDefinitionIds) },
         order: { created_at: 'DESC' },
         take: 20,
       });

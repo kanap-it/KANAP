@@ -265,6 +265,26 @@ export function ticketingProviderKeyForDefinition(
   return scopeProviderKey;
 }
 
+// Keep in sync with the backend resolution in
+// backend/src/ai/control-plane/agent/provider-binding.ts (resolveProviderBinding):
+// a binding only resolves when provider_bindings_json[kind] carries a matching
+// provider_kind and a non-empty provider_key — missing or malformed bindings fail
+// closed, with no scope_policy fallback. Ticketing callers keep using
+// ticketingProviderKeyForDefinition above for its legacy fallback chain.
+export function providerBindingForDefinition(
+  definition: Pick<AiAgentControlAgentDefinition, 'provider_bindings_json'> | null | undefined,
+  kind: string,
+): { providerKind: string; providerKey: string } | null {
+  const bindings = recordValue(definition?.provider_bindings_json);
+  const binding = recordValue(bindings ? bindings[kind] : null);
+  const boundProviderKind = nonEmptyString(binding?.provider_kind) ?? kind;
+  const boundProviderKey = nonEmptyString(binding?.provider_key);
+  if (boundProviderKind === kind && boundProviderKey) {
+    return { providerKind: boundProviderKind, providerKey: boundProviderKey };
+  }
+  return null;
+}
+
 // A terminal status proposal (close/solve) — a destructive cleanup action that
 // must be surfaced distinctly from an ordinary status move and always approved.
 export function actionIsTerminalStatus(action: AiAgentControlActionRequest): boolean {

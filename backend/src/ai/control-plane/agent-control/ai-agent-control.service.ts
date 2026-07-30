@@ -19,9 +19,15 @@ import {
   AiAgentWorkQueueService,
   DEFAULT_APPROVAL_TTL_SECONDS,
   HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
+  markWorkItemAttemptFailure,
+  monitoringAlertDedupKey,
+  SRE_MONITORING_ALLOWED_CAPABILITIES,
+  SRE_MONITORING_FORBIDDEN_CAPABILITIES,
 } from '../agent/ai-agent-work-queue.service';
 import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
-import { requireTicketingBinding } from '../agent/ticketing-binding';
+import { normalizeMonitoringScopePolicy } from '../agent/monitoring-targeting';
+import { requireMonitoringBinding } from '../agent/provider-binding';
+import { requireTicketingBinding, resolveTicketingBinding } from '../agent/ticketing-binding';
 import {
   createProviderSubtreeResolver,
   expandServiceDeskTargetingSubtrees,
@@ -52,7 +58,12 @@ import {
   TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../capability/capability-contract';
-import { AiCapabilityRegistry, providerCapabilityContracts } from '../capability/ai-capability.registry';
+import {
+  AiCapabilityRegistry,
+  KANAP_ENTITY_FAMILIES,
+  KanapEntityFamily,
+  providerCapabilityContracts,
+} from '../capability/ai-capability.registry';
 import { AiAgentBuiltinQuotaService } from '../agent/ai-agent-builtin-quota.service';
 import { AiCapabilityDispatcherService } from '../dispatcher/ai-capability-dispatcher.service';
 import { AiReadonlyDiagnosticWorkflowService } from '../diagnostics/ai-readonly-diagnostic-workflow.service';
@@ -78,6 +89,7 @@ import { AiLiveTestTargetService } from '../live-readiness/ai-live-test-target.s
 import { AiProviderRegistryService } from '../providers/provider-registry.service';
 import { MAX_INTERNAL_NOTE_CHARS, MAX_PUBLIC_REPLY_CHARS } from '../providers/ticket-safety';
 import {
+  MonitoringReferenceCatalogKind,
   ProviderActionExecutionReadiness,
   ProviderActionPlannerProfile,
   RefItem,
@@ -94,10 +106,24 @@ import {
   guidanceHash,
   RUNTIME_SAFETY_FLOOR_ACTION_PLANNER,
   RUNTIME_SAFETY_FLOOR_INTERPRETER,
+  RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS,
   RUNTIME_SAFETY_FLOOR_PLANNER,
   RUNTIME_SAFETY_FLOOR_SYNTHESIS,
   VerbatimCandidate,
 } from './ai-agent-prompt-compiler.service';
+import {
+  AiDiagnosticBriefSynthesisService,
+  buildFallbackDiagnosticBrief,
+  DiagnosticBriefAlertEvidence,
+  DiagnosticBriefResult,
+  DiagnosticBriefSynthesisInput,
+  DiagnosticHistorySummary,
+  estimateDiagnosticBriefUsage,
+} from './ai-diagnostic-brief-synthesis.service';
+import {
+  KanapEntityContextResolver,
+  KanapEntityDispatchOutcome,
+} from './ai-kanap-entity-context.service';
 import {
   ActionPlannerResult,
   ActionPlannerPromptInput,
@@ -115,6 +141,7 @@ import {
 import {
   AiReplySynthesisService,
   estimateReplySynthesisUsage,
+  ReplySynthesisEntitySource,
   ReplySynthesisRejectedSource,
   ReplySynthesisResult,
   ReplySynthesisSource,
@@ -183,6 +210,16 @@ export type AgentControlTicketingTriageInput = {
   agent_definition_id?: string | null;
 };
 
+export type AgentControlMonitoringDiagnosisInput = {
+  // Queued path (scheduled poller / retry): run an existing monitoring work item.
+  work_item_id?: string | null;
+  // Manual test path: run a named SRE agent against one alert; a work item is
+  // enqueued (or the active one reused) so the queued and manual paths share
+  // the same lease/claim/outcome bookkeeping.
+  agent_definition_id?: string | null;
+  alert_id?: string | null;
+};
+
 type RunLlmUsageEstimate = {
   estimatedTokens: number;
   estimatedCostEur: number;
@@ -218,7 +255,124 @@ const LEGACY_GLPI_TRIAGE_RUN_OPTIONS: Required<HelpdeskTicketingTriageRunOptions
   proposalEvaluationType: 'glpi_triage_proposal',
 };
 
+// Monitoring mirror of the ticketing run-options bundle. Recommendation and
+// evaluation types are already named so IMPL-4 (full diagnosis pipeline) can
+// consume them without re-deciding the vocabulary.
+const MONITORING_DIAGNOSIS_RUN_OPTIONS = {
+  workflow: 'agent_control_center_monitoring_diagnosis',
+  sourceEndpoint: 'agents/monitoring-diagnosis/test',
+  observationType: 'monitoring_alert_diagnostic',
+  recommendationType: 'monitoring_diagnosis_actions',
+  evaluationType: 'monitoring_diagnosis_uat',
+  proposalEvaluationType: 'monitoring_diagnosis_proposal',
+} as const;
+
+// Minimal normalized-alert view the diagnosis pipeline consumes; matches the
+// MonitoringAlert contract without importing its full shape.
+type MonitoringAlertLike = {
+  id: string;
+  status?: string | null;
+  severity?: string | null;
+  ackState?: string | null;
+  // Untrusted provider text — reaches the LLM only under the payload's
+  // untrusted_alert_text key and is never persisted on queue/observation rows.
+  message?: string | null;
+  deviceName?: string | null;
+  // Provider device object id (optional adapter metadata): gates the
+  // monitored-object read that feeds the §4.5 IP tiebreak.
+  deviceId?: string | null;
+  occurrenceStartedAt?: string | null;
+  observedAt?: string | null;
+  lastCheckedAt?: string | null;
+  lastValue?: string | null;
+  objectKind?: string | null;
+  groupPath?: string[] | null;
+  sourceUri?: string | null;
+};
+
+const MONITORING_HISTORY_WINDOW_MINUTES = 60;
+const MAX_MONITORING_KNOWLEDGE_QUERIES = 2;
+const MAX_MONITORING_KNOWLEDGE_DOCUMENTS = 2;
+const MAX_MONITORING_RELATED_ALERTS = 5;
+const MAX_MONITORING_SIMILAR_TICKETS = 3;
+
+// Deterministic history digest (D11): min/max/latest per channel computed
+// control-plane side so raw point arrays never reach an LLM payload.
+function summarizeMonitoringHistory(
+  history: { metric?: unknown; unit?: unknown; windowMinutes?: unknown; points?: unknown } | null,
+  fallbackWindowMinutes: number,
+): DiagnosticHistorySummary | null {
+  if (!history) {
+    return null;
+  }
+  const points = Array.isArray(history.points) ? history.points.filter(isRecord) : [];
+  const values = points
+    .map((point) => ({
+      timestamp: typeof point.timestamp === 'string' ? point.timestamp : null,
+      value: Number(point.value),
+    }))
+    .filter((point) => Number.isFinite(point.value));
+  const metric = typeof history.metric === 'string' && history.metric.trim() ? history.metric.trim() : 'value';
+  const windowMinutes = Number.isFinite(Number(history.windowMinutes)) && Number(history.windowMinutes) > 0
+    ? Number(history.windowMinutes)
+    : fallbackWindowMinutes;
+  const latest = values.length > 0 ? values[values.length - 1] : null;
+  return {
+    window_minutes: windowMinutes,
+    channels: [{
+      metric,
+      unit: typeof history.unit === 'string' && history.unit.trim() ? history.unit.trim() : null,
+      point_count: values.length,
+      min: values.length > 0 ? Math.min(...values.map((point) => point.value)) : null,
+      max: values.length > 0 ? Math.max(...values.map((point) => point.value)) : null,
+      latest: latest ? latest.value : null,
+      latest_at: latest ? latest.timestamp : null,
+    }],
+  };
+}
+
+function compactRelatedMonitoringAlerts(
+  alerts: unknown,
+  excludeId: string,
+): Array<{ id: string; status: string | null; severity: string | null; device_name: string | null; occurrence_started_at: string | null }> {
+  if (!Array.isArray(alerts)) {
+    return [];
+  }
+  return alerts
+    .filter(isRecord)
+    .map((entry) => ({
+      id: trimmedString(entry.id) ?? '',
+      status: trimmedString(entry.status),
+      severity: trimmedString(entry.severity),
+      device_name: trimmedString(entry.deviceName),
+      occurrence_started_at: trimmedString(entry.occurrenceStartedAt),
+    }))
+    .filter((entry) => !!entry.id && entry.id !== excludeId)
+    .slice(0, MAX_MONITORING_RELATED_ALERTS);
+}
+
+// Bounded, deterministic retrieval queries built from alert FACTS (device,
+// metric, normalized status) — never from the untrusted alert message text.
+function buildMonitoringRetrievalQueryCandidates(
+  alert: MonitoringAlertLike,
+  historySummary: DiagnosticHistorySummary | null,
+): string[] {
+  const device = trimmedString(alert.deviceName);
+  const rawMetric = historySummary?.channels[0]?.metric ?? null;
+  const metric = rawMetric && rawMetric !== 'value' ? rawMetric : null;
+  const status = trimmedString(alert.status);
+  const candidates = [
+    [device, metric, status].filter(Boolean).join(' ').trim(),
+    [device ?? metric].filter(Boolean).join(' ').trim(),
+  ].filter((query) => query.length > 0);
+  return Array.from(new Set(candidates)).slice(0, MAX_MONITORING_KNOWLEDGE_QUERIES);
+}
+
 export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity';
+// Monitoring flavor served through the same targeting-options endpoint for SRE
+// definitions: enum fields resolve from describeReferenceEnums, catalog fields
+// (group/device/check_type) from searchReferenceCatalog on the bound provider.
+export type AgentControlMonitoringTargetingOptionField = 'status' | 'severity' | 'ack_state' | 'group' | 'device' | 'check_type';
 
 export type AgentControlAgentDefinitionInput = {
   agent_key?: string | null;
@@ -425,6 +579,18 @@ const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
   [TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY, 'A3'],
   [TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, 'A3'],
 ]);
+// SRE cap table derived from the seed list (single source of truth in the
+// work-queue service): every 15.A SRE capability is a read capped at A1 —
+// prepare/approved write pairs only arrive with 15.B.
+const SRE_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>(
+  SRE_MONITORING_ALLOWED_CAPABILITIES.map((capability) => [capability.name, capability.max_autonomy_level]),
+);
+// Capability validation is per agent type: monitoring reads are meaningless on a
+// helpdesk agent and ticketing writes are meaningless on an SRE agent — both are
+// rejected with the same "not available for this agent type" error.
+function possibleCapabilityCapsForAgentType(agentType: unknown): Map<string, string> {
+  return agentType === 'sre' ? SRE_POSSIBLE_CAPABILITY_CAPS : HELPDESK_POSSIBLE_CAPABILITY_CAPS;
+}
 const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
 const CLOSE_TRIAGE_ACTIONS = new Set(['prepare_close', 'prepare_close_reply']);
 const PHASE_1_PLANNER_OWNED_ACTION_TYPES = [
@@ -463,6 +629,7 @@ const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: 
   },
 };
 const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity']);
+const MONITORING_TARGETING_OPTION_FIELDS = new Set(['status', 'severity', 'ack_state', 'group', 'device', 'check_type']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
 // Empty-query catalog lists (what every dropdown-open shows) change rarely but can be
@@ -585,6 +752,14 @@ function cleanTargetingOptionField(value: unknown): AgentControlTargetingOptionF
     throw new BadRequestException('Unsupported targeting option field.');
   }
   return field as AgentControlTargetingOptionField;
+}
+
+function cleanMonitoringTargetingOptionField(value: unknown): AgentControlMonitoringTargetingOptionField {
+  const field = trimmedString(value)?.toLowerCase();
+  if (!field || !MONITORING_TARGETING_OPTION_FIELDS.has(field)) {
+    throw new BadRequestException('Unsupported targeting option field.');
+  }
+  return field as AgentControlMonitoringTargetingOptionField;
 }
 
 function cleanTargetingOptionLimit(value: unknown): number {
@@ -1322,12 +1497,33 @@ function cleanAgentPriority(value: unknown, fallback = 100): number {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// KANAP data enrichment sub-block (plan 37 §4.5): kanap_data.enabled defaults to FALSE
+// when the block is absent — existing (helpdesk) definitions predate it and must not
+// silently gain KANAP entity reads (helpdesk-safety). The SRE seed writes the block
+// explicitly enabled with all five domains, so SRE agents get it from day one. Within an
+// explicitly present block, a missing domain key defaults to ON (master-switch
+// semantics); unknown domain keys are dropped.
+function readKanapDataBlock(sources: Record<string, unknown>): {
+  enabled: boolean;
+  domains: Record<KanapEntityFamily, boolean>;
+} {
+  const kanapData = isRecord(sources.kanap_data) ? sources.kanap_data : {};
+  const rawDomains = isRecord(kanapData.domains) ? kanapData.domains : {};
+  const domains = {} as Record<KanapEntityFamily, boolean>;
+  for (const domain of KANAP_ENTITY_FAMILIES) {
+    domains[domain] = rawDomains[domain] !== false;
+  }
+  return { enabled: kanapData.enabled === true, domains };
+}
+
 // Per-agent retrieval-source policy, read from scope_policy_json.knowledge_sources.
-// Defaults preserve current behaviour: knowledge ON over all accessible libraries, web OFF.
-function readAgentKnowledgeSources(definition: AiAgentDefinition | null): {
+// Defaults preserve current behaviour: knowledge ON over all accessible libraries, web OFF,
+// KANAP data OFF (see readKanapDataBlock).
+export function readAgentKnowledgeSources(definition: AiAgentDefinition | null): {
   knowledgeEnabled: boolean;
   knowledgeLibraryIds: string[] | null; // null = all accessible libraries
   webEnabled: boolean;
+  kanapData: { enabled: boolean; domains: Record<KanapEntityFamily, boolean> };
 } {
   const scope = isRecord(definition?.scope_policy_json) ? definition.scope_policy_json : {};
   const sources = isRecord(scope.knowledge_sources) ? scope.knowledge_sources : {};
@@ -1341,6 +1537,7 @@ function readAgentKnowledgeSources(definition: AiAgentDefinition | null): {
     knowledgeEnabled: knowledge.enabled !== false,
     knowledgeLibraryIds: allLibraries || libraryIds.length === 0 ? null : libraryIds,
     webEnabled: web.enabled === true,
+    kanapData: readKanapDataBlock(sources),
   };
 }
 
@@ -1348,7 +1545,7 @@ function readAgentKnowledgeSources(definition: AiAgentDefinition | null): {
 // de-duplicated here; tenant/ACL safety is additionally enforced at read time by
 // KnowledgeService.search (the configured ids are intersected with the agent user's
 // accessible libraries, never substituted for them).
-function normalizeKnowledgeSources(value: unknown): Record<string, unknown> {
+export function normalizeKnowledgeSources(value: unknown): Record<string, unknown> {
   const source = isRecord(value) ? value : {};
   const knowledge = isRecord(source.knowledge) ? source.knowledge : {};
   const web = isRecord(source.web) ? source.web : {};
@@ -1356,6 +1553,7 @@ function normalizeKnowledgeSources(value: unknown): Record<string, unknown> {
   const libraryIds = Array.isArray(knowledge.library_ids)
     ? Array.from(new Set(knowledge.library_ids.filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))))
     : [];
+  const kanapData = readKanapDataBlock(source);
   return {
     knowledge: {
       enabled: knowledge.enabled !== false,
@@ -1363,6 +1561,7 @@ function normalizeKnowledgeSources(value: unknown): Record<string, unknown> {
       library_ids: allLibraries ? [] : libraryIds,
     },
     web: { enabled: web.enabled === true },
+    kanap_data: { enabled: kanapData.enabled, domains: kanapData.domains },
     precedence: 'knowledge_first',
   };
 }
@@ -1523,8 +1722,9 @@ function capabilityNameFromEntry(entry: unknown): string | null {
   return null;
 }
 
-function normalizeAllowedCapabilitiesForConfig(value: unknown): Record<string, unknown>[] | null {
+function normalizeAllowedCapabilitiesForConfig(value: unknown, agentType: unknown): Record<string, unknown>[] | null {
   if (value == null) return null;
+  const possibleCaps = possibleCapabilityCapsForAgentType(agentType);
   const entries = Array.isArray(value)
     ? value
     : isRecord(value) && Array.isArray(value.capabilities)
@@ -1540,7 +1740,7 @@ function normalizeAllowedCapabilitiesForConfig(value: unknown): Record<string, u
     if (!name) {
       throw new BadRequestException('Every capability entry requires a name.');
     }
-    const maxCap = HELPDESK_POSSIBLE_CAPABILITY_CAPS.get(name);
+    const maxCap = possibleCaps.get(name);
     if (!maxCap) {
       throw new ForbiddenException(`Capability ${name} is not available for this agent type.`);
     }
@@ -1563,6 +1763,17 @@ function normalizeAllowedCapabilitiesForConfig(value: unknown): Record<string, u
     }
   }
   return normalized;
+}
+
+// Scope-policy normalization is agent-type aware: SRE definitions carry
+// monitoring targeting predicates (severity/ack_state/age_minutes, group refs)
+// that the service-desk normalizer rejects, and vice versa. Both normalizers
+// preserve every sibling scope key (knowledge_sources, ingestion, mode blocks)
+// verbatim and only rebuild the targeting block.
+function normalizeScopePolicyForAgentType(agentType: unknown, scopePolicy: unknown): Record<string, unknown> | null {
+  return agentType === 'sre'
+    ? normalizeMonitoringScopePolicy(scopePolicy)
+    : normalizeServiceDeskScopePolicy(scopePolicy);
 }
 
 function definitionAllowsCapability(definition: AiAgentDefinition, capabilityName: string): boolean {
@@ -2953,6 +3164,7 @@ export class AiAgentControlService {
     private readonly capabilities?: AiCapabilityRegistry,
     private readonly builtinQuota?: AiAgentBuiltinQuotaService,
     private readonly tenantExecutor?: AiTenantExecutionService,
+    private readonly diagnosticBriefSynthesis?: AiDiagnosticBriefSynthesisService,
   ) {}
 
   private async actionPlannerProfileForProvider(
@@ -3086,6 +3298,38 @@ export class AiAgentControlService {
     }));
   }
 
+  // Diagnostic-brief sibling of recordSynthesisRunStep: same run-step kind so
+  // the run detail view renders it alongside ticketing synthesis steps, with a
+  // capability name that identifies the monitoring stage.
+  private async recordDiagnosticBriefRunStep(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      stepIndex: number;
+      status: 'completed' | 'skipped' | 'failed';
+      inputSummary: Record<string, unknown>;
+      outputSummary: Record<string, unknown>;
+      errorMessage?: string | null;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
+      tenant_id: context.tenantId,
+      run_id: input.runId,
+      step_index: input.stepIndex,
+      kind: 'synthesis',
+      status: input.status,
+      capability_name: 'diagnostic_brief_synthesis',
+      capability_version: '1.0.0',
+      input_summary: input.inputSummary,
+      output_summary: input.outputSummary,
+      error_message: input.errorMessage ?? null,
+      started_at: now,
+      completed_at: now,
+      created_at: now,
+    }));
+  }
+
   private async recordNeedRepresentationRunStep(
     context: AiExecutionContextWithManager,
     input: {
@@ -3171,6 +3415,41 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       synthesis: {
         estimated_cost_eur: input.synthesis.estimated_cost_eur,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
+  }
+
+  // Per-stage usage mirror for the diagnostic brief (D11): actual usage under
+  // run.usage_json.diagnostic_brief, charged to the run-scoped ledger by the caller.
+  private async recordDiagnosticBriefUsage(
+    context: AiExecutionContextWithManager,
+    input: {
+      runId: string;
+      brief: DiagnosticBriefResult;
+    },
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: input.runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      diagnostic_brief: {
+        input_tokens: input.brief.usage?.input_tokens ?? null,
+        output_tokens: input.brief.usage?.output_tokens ?? null,
+        estimated_tokens: input.brief.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      diagnostic_brief: {
+        estimated_cost_eur: input.brief.estimated_cost_eur,
       },
     };
     run.updated_at = new Date();
@@ -3949,9 +4228,24 @@ export class AiAgentControlService {
     return candidate;
   }
 
+  // The SRE seed only creates a definition for tenants with an enabled monitoring adapter
+  // config; a failure there (odd adapter state) must never break fleet listing, detail
+  // reads or agent creation, so it degrades to a warning.
+  private async ensureSreMonitoringDefinitionSafely(context: AiExecutionContextWithManager): Promise<void> {
+    if (!this.agentQueue) {
+      return;
+    }
+    try {
+      await this.agentQueue.ensureSreMonitoringDefinition(context);
+    } catch (error) {
+      this.logger.warn(`ensureSreMonitoringDefinition failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   async listAgentDefinitions(context: AiExecutionContextWithManager) {
     if (this.agentQueue) {
       await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
+      await this.ensureSreMonitoringDefinitionSafely(context);
     }
     const items = await context.manager.getRepository(AiAgentDefinition).find({
       where: { tenant_id: context.tenantId },
@@ -3963,6 +4257,7 @@ export class AiAgentControlService {
   async getAgentDefinition(context: AiExecutionContextWithManager, id: string) {
     if (this.agentQueue) {
       await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
+      await this.ensureSreMonitoringDefinitionSafely(context);
     }
     const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
       where: { id, tenant_id: context.tenantId },
@@ -4140,7 +4435,6 @@ export class AiAgentControlService {
     fieldInput: string,
     input: { query?: string | null; limit?: number | string | null } = {},
   ): Promise<{ options: RefItem[] }> {
-    const field = cleanTargetingOptionField(fieldInput);
     const limit = cleanTargetingOptionLimit(input.limit);
     const query = cleanTargetingOptionQuery(input.query);
     const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
@@ -4152,16 +4446,28 @@ export class AiAgentControlService {
     if (!definition) {
       throw new NotFoundException('Agent definition not found.');
     }
-    const ticketingBinding = requireTicketingBinding(definition);
-    const providerKey = ticketingBinding.providerKey;
-    const connectionKey = ticketingBinding.connectionKey;
-    const isEnumField = field === 'status' || field === 'priority' || field === 'type';
+    // Kind-aware options: SRE definitions resolve reference data from their
+    // monitoring binding; every other agent type keeps the ticketing path.
+    // Same endpoint, same `{ options: RefItem[] }` response shape either way.
+    const monitoringOptions = definition.agent_type === 'sre';
+    const field = monitoringOptions
+      ? cleanMonitoringTargetingOptionField(fieldInput)
+      : cleanTargetingOptionField(fieldInput);
+    const binding = monitoringOptions
+      ? requireMonitoringBinding(definition, 'Targeting options require a monitoring provider binding.')
+      : requireTicketingBinding(definition);
+    const providerKey = binding.providerKey;
+    const connectionKey = binding.connectionKey;
+    const isEnumField = monitoringOptions
+      ? field === 'status' || field === 'severity' || field === 'ack_state'
+      : field === 'status' || field === 'priority' || field === 'type';
     const ttlMs = isEnumField
       ? TARGETING_ENUM_OPTIONS_TTL_MS
       : query ? TARGETING_CATALOG_OPTIONS_TTL_MS : TARGETING_CATALOG_BROWSE_TTL_MS;
     const cacheQuery = query.toLocaleLowerCase();
     const cacheKey = [
       context.tenantId,
+      binding.providerKind,
       connectionKey,
       providerKey,
       field,
@@ -4179,35 +4485,64 @@ export class AiAgentControlService {
       return { options: cloneOptions(cached.options) };
     }
 
+    const filterEnumOptions = (source: RefItem[]): RefItem[] => {
+      const normalizedQuery = query.toLocaleLowerCase();
+      return source
+        .filter((item) => !normalizedQuery
+          || item.label.toLocaleLowerCase().includes(normalizedQuery)
+          || item.value.toLocaleLowerCase().includes(normalizedQuery))
+        .slice(0, limit);
+    };
     const fetchAndCache = async (fetchContext: AiExecutionContextWithManager): Promise<RefItem[]> => {
-      const provider = await this.providers.ticketing(fetchContext, providerKey);
       let options: RefItem[];
-      if (isEnumField) {
-        const result = await provider.describeReferenceEnums(fetchContext);
-        if (result.ok === false) {
-          throw new BadRequestException(result.message);
+      if (monitoringOptions) {
+        const provider = await this.providers.monitoring(fetchContext, providerKey);
+        if (isEnumField) {
+          const result = await provider.describeReferenceEnums(fetchContext);
+          if (result.ok === false) {
+            throw new BadRequestException(result.message);
+          }
+          const source = field === 'status'
+            ? result.data.statuses
+            : field === 'severity'
+              ? result.data.severities
+              : result.data.ackStates;
+          options = filterEnumOptions(source);
+        } else {
+          const result = await provider.searchReferenceCatalog(fetchContext, {
+            kind: field as MonitoringReferenceCatalogKind,
+            query,
+            limit,
+          });
+          if (result.ok === false) {
+            throw new BadRequestException(result.message);
+          }
+          options = result.data.items.slice(0, limit);
         }
-        const source = field === 'status'
-          ? result.data.statuses
-          : field === 'priority'
-            ? result.data.priorities
-            : result.data.types;
-        const normalizedQuery = query.toLocaleLowerCase();
-        options = source
-          .filter((item) => !normalizedQuery
-            || item.label.toLocaleLowerCase().includes(normalizedQuery)
-            || item.value.toLocaleLowerCase().includes(normalizedQuery))
-          .slice(0, limit);
       } else {
-        const result = await provider.searchReferenceCatalog(fetchContext, {
-          kind: field as TicketReferenceCatalogKind,
-          query,
-          limit,
-        });
-        if (result.ok === false) {
-          throw new BadRequestException(result.message);
+        const provider = await this.providers.ticketing(fetchContext, providerKey);
+        if (isEnumField) {
+          const result = await provider.describeReferenceEnums(fetchContext);
+          if (result.ok === false) {
+            throw new BadRequestException(result.message);
+          }
+          const source = field === 'status'
+            ? result.data.statuses
+            : field === 'priority'
+              ? result.data.priorities
+              : result.data.types;
+          options = filterEnumOptions(source);
+        } else {
+          const result = await provider.searchReferenceCatalog(fetchContext, {
+            kind: field as TicketReferenceCatalogKind,
+            query,
+            limit,
+          });
+          if (result.ok === false) {
+            throw new BadRequestException(result.message);
+          }
+          options = result.data.items.slice(0, limit);
         }
-        options = result.data.items.slice(0, limit);
       }
       const safeOptions = options.map((item) => ({
         value: String(item.value),
@@ -4254,6 +4589,7 @@ export class AiAgentControlService {
   ) {
     if (this.agentQueue) {
       await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
+      await this.ensureSreMonitoringDefinitionSafely(context);
     }
     const repo = context.manager.getRepository(AiAgentDefinition);
     const name = cleanSingleLine(input.name, 160);
@@ -4261,11 +4597,11 @@ export class AiAgentControlService {
       throw new BadRequestException('Agent name is required.');
     }
     const agentType = cleanAgentType(input.agent_type ?? 'helpdesk');
-    // Only Helpdesk has a capability/possible-set model today. The shared caps map is
-    // helpdesk-specific, so creating another type would yield a non-functional shell or
+    // Helpdesk and SRE are the only agent families with a working runtime and capability
+    // model today; creating another type would yield a non-functional shell or
     // mis-validated capabilities. Fail closed until each type ships its own model.
-    if (agentType !== 'helpdesk') {
-      throw new BadRequestException('Only Helpdesk agents can be created today. Other agent types are not available yet.');
+    if (agentType !== 'helpdesk' && agentType !== 'sre') {
+      throw new BadRequestException('Only Helpdesk and SRE agents can be created today. Other agent types are not available yet.');
     }
     const template = agentType === 'helpdesk'
       ? await repo.findOne({ where: { tenant_id: context.tenantId, agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY } })
@@ -4275,13 +4611,15 @@ export class AiAgentControlService {
       ?? template?.provider_bindings_json
       ?? null;
     const allowedCapabilities = input.allowed_capabilities_json !== undefined
-      ? normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json)
+      ? normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json, agentType)
       : template?.allowed_capabilities_json ?? [];
+    // SRE agents have no creation template, so the server applies the seed's
+    // forbidden list itself — same fail-closed discipline as the helpdesk path.
     const forbiddenCapabilities = input.forbidden_capabilities_json !== undefined
       ? (() => { throw new ForbiddenException('Forbidden capabilities are immutable from this endpoint.'); })()
-      : template?.forbidden_capabilities_json ?? [];
+      : template?.forbidden_capabilities_json ?? (agentType === 'sre' ? [...SRE_MONITORING_FORBIDDEN_CAPABILITIES] : []);
     const scopePolicy = normalizedPolicyObject(input.scope_policy_json, 'Scope policy') ?? template?.scope_policy_json ?? null;
-    const normalizedScopePolicy = normalizeServiceDeskScopePolicy(scopePolicy);
+    const normalizedScopePolicy = normalizeScopePolicyForAgentType(agentType, scopePolicy);
     const now = new Date();
     const definition = await repo.save(repo.create({
       tenant_id: context.tenantId,
@@ -4365,7 +4703,7 @@ export class AiAgentControlService {
       definition.provider_bindings_json = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings');
     }
     if (Object.prototype.hasOwnProperty.call(input, 'allowed_capabilities_json')) {
-      definition.allowed_capabilities_json = normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json);
+      definition.allowed_capabilities_json = normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json, definition.agent_type);
     }
     if (Object.prototype.hasOwnProperty.call(input, 'persona_json')) {
       definition.persona_json = normalizePersona(input.persona_json, definition.persona_json);
@@ -4374,11 +4712,11 @@ export class AiAgentControlService {
       definition.trigger_policy_json = normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy');
     }
     if (Object.prototype.hasOwnProperty.call(input, 'scope_policy_json')) {
-      definition.scope_policy_json = normalizeServiceDeskScopePolicy(normalizedPolicyObject(input.scope_policy_json, 'Scope policy'));
+      definition.scope_policy_json = normalizeScopePolicyForAgentType(definition.agent_type, normalizedPolicyObject(input.scope_policy_json, 'Scope policy'));
     }
     if (Object.prototype.hasOwnProperty.call(input, 'knowledge_sources')) {
       // Patch only the knowledge_sources sub-block, preserving the rest of scope_policy_json.
-      definition.scope_policy_json = normalizeServiceDeskScopePolicy({
+      definition.scope_policy_json = normalizeScopePolicyForAgentType(definition.agent_type, {
         ...(isRecord(definition.scope_policy_json) ? definition.scope_policy_json : {}),
         knowledge_sources: normalizeKnowledgeSources(input.knowledge_sources),
       });
@@ -5838,6 +6176,925 @@ export class AiAgentControlService {
       ...input,
       provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
     }, LEGACY_GLPI_TRIAGE_RUN_OPTIONS);
+  }
+
+  // Deterministic monitoring-diagnosis skeleton (WS-A6). No LLM calls, no
+  // recommendations, no built-in quota reservation yet — IMPL-4 replaces the
+  // marked seam with the full diagnosis pipeline while keeping the
+  // work-item/claim/target-state finalization contract intact.
+  async runMonitoringDiagnosis(
+    context: AiExecutionContextWithManager,
+    input: AgentControlMonitoringDiagnosisInput = {},
+  ) {
+    if (!this.agentQueue) {
+      throw new ForbiddenException('Agent work queue is required to run monitoring diagnosis.');
+    }
+    const workItemId = trimmedString(input.work_item_id);
+    if (workItemId) {
+      return this.runMonitoringDiagnosisForWorkItem(context, workItemId);
+    }
+    const definitionId = trimmedString(input.agent_definition_id);
+    const alertId = trimmedString(input.alert_id);
+    if (!definitionId || !alertId) {
+      throw new BadRequestException('agent_definition_id and alert_id are required for a manual monitoring diagnosis test.');
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id: definitionId, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition not found.');
+    }
+    this.agentQueue.assertSreMonitoringDefinitionRunnable(definition);
+    const binding = requireMonitoringBinding(definition, 'Monitoring diagnosis requires a monitoring provider binding.');
+    const applicability = await this.providers.getApplicability(context, binding.providerKind, binding.providerKey);
+    if (!applicability.available) {
+      throw new ForbiddenException(`Monitoring provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
+    }
+    // Direct provider read before enqueue: the occurrence-scoped dedup key
+    // needs the live occurrence timestamp. The queued run re-reads the alert
+    // through the audited dispatcher capability below.
+    const provider = await this.providers.monitoring(context, binding.providerKey);
+    const fetched = await provider.getAlert(context, { alertId });
+    const alert = adapterData<MonitoringAlertLike>(fetched);
+    if (!alert) {
+      throw new BadRequestException(adapterFailureMessage(fetched) ?? 'Monitoring alert read did not return alert data.');
+    }
+    const enqueued = await this.agentQueue.enqueueMonitoringScopedAlert(context, {
+      definition,
+      alert: {
+        id: alert.id,
+        status: alert.status ?? null,
+        severity: alert.severity ?? null,
+        deviceName: alert.deviceName ?? null,
+        occurrenceStartedAt: alert.occurrenceStartedAt ?? null,
+        observedAt: alert.observedAt ?? null,
+        sourceUri: alert.sourceUri ?? null,
+      },
+      dedupKey: monitoringAlertDedupKey(binding.providerKey, alert.id, alert.occurrenceStartedAt ?? null),
+      metadata: {
+        source: 'manual_diagnosis_test',
+        source_endpoint: MONITORING_DIAGNOSIS_RUN_OPTIONS.sourceEndpoint,
+      },
+    });
+    return this.runMonitoringDiagnosisForWorkItem(context, enqueued.workItem.id);
+  }
+
+  private async runMonitoringDiagnosisForWorkItem(
+    context: AiExecutionContextWithManager,
+    workItemId: string,
+  ) {
+    if (!this.agentQueue) {
+      throw new ForbiddenException('Agent work queue is required to run monitoring diagnosis.');
+    }
+    const queuedWorkItem = await context.manager.getRepository(AiAgentWorkItem).findOne({
+      where: { id: workItemId, tenant_id: context.tenantId },
+    });
+    if (!queuedWorkItem) {
+      throw new NotFoundException('Agent work item not found.');
+    }
+    if (queuedWorkItem.source_provider_kind !== 'monitoring' || queuedWorkItem.source_object_type !== 'sensor') {
+      throw new BadRequestException('Queued monitoring diagnosis work item must target a monitoring sensor.');
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id: queuedWorkItem.agent_definition_id, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new ForbiddenException('Queued monitoring diagnosis work item has no tenant-scoped agent definition.');
+    }
+    this.agentQueue.assertSreMonitoringDefinitionRunnable(definition);
+    const binding = requireMonitoringBinding(definition, 'Queued monitoring diagnosis requires a monitoring provider binding.');
+    if (
+      queuedWorkItem.source_provider_kind !== binding.providerKind
+      || queuedWorkItem.source_provider_key !== binding.providerKey
+    ) {
+      throw new BadRequestException('Queued monitoring diagnosis work item provider does not match the agent monitoring binding.');
+    }
+    let leasedWorkItem = await this.agentQueue.acquireWorkItem(context, queuedWorkItem.id, {
+      leaseOwner: `sre-monitoring-diagnosis:${context.userId || 'system'}`,
+    });
+    const agentMetadata = this.agentQueue.agentExecutionMetadata(definition, leasedWorkItem);
+    const baseMetadata = {
+      uat_workflow: MONITORING_DIAGNOSIS_RUN_OPTIONS.workflow,
+      source: 'agent_control_center',
+      provider_key: binding.providerKey,
+      ...agentMetadata,
+    };
+    try {
+      const applicability = await this.providers.getApplicability(context, binding.providerKind, binding.providerKey);
+      if (!applicability.available) {
+        throw new ForbiddenException(`Monitoring provider is unavailable: ${applicability.message ?? applicability.reasonCode ?? 'not ready'}.`);
+      }
+
+      let stepIndex = 1;
+      const allEvidenceIds: string[] = [];
+      const alertResult = await this.dispatcher.execute<AdapterResultLike<MonitoringAlertLike>>(context, {
+        capabilityName: 'monitoring.alert.get',
+        input: {
+          provider_key: binding.providerKey,
+          alert_id: leasedWorkItem.source_object_ref,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          stepIndex: stepIndex++,
+          metadata: baseMetadata,
+        },
+      });
+      leasedWorkItem = await this.agentQueue.markRunning(context, leasedWorkItem, alertResult.run_id);
+      allEvidenceIds.push(...await this.evidenceIdsForTool(context, alertResult.tool_execution_id));
+      const alert = adapterData<MonitoringAlertLike>(alertResult.output);
+      const alertReadNotFound = !alert
+        && !!alertResult.output
+        && alertResult.output.ok === false
+        && alertResult.output.errorCode === 'not_found';
+      if (!alert && !alertReadNotFound) {
+        throw new BadRequestException(adapterFailureMessage(alertResult.output) ?? 'Monitoring alert read did not return alert data.');
+      }
+
+      // Escalation path: an alert that already cleared (back up) or no longer
+      // exists completes with an 'alert_cleared' outcome — no further provider
+      // reads, no quota reservation, no LLM spend.
+      if (!alert || String(alert.status ?? '').trim().toLowerCase() === 'up') {
+        const clearedSnapshot = {
+          id: alert?.id ?? leasedWorkItem.source_object_ref,
+          status: alert?.status ?? 'up',
+          severity: alert?.severity ?? null,
+          deviceName: alert?.deviceName ?? null,
+          // The occurrence is over — mirrors the poller's clearance re-arm.
+          occurrenceStartedAt: null,
+          observedAt: alert?.observedAt ?? null,
+          sourceUri: alert?.sourceUri ?? null,
+        };
+        const outcome = await this.agentQueue.recordMonitoringDiagnosisOutcome(context, {
+          definition,
+          workItem: leasedWorkItem,
+          runId: alertResult.run_id,
+          alert: clearedSnapshot,
+          metadata: {
+            outcome: 'alert_cleared',
+            diagnosis_stage: 'alert_cleared',
+          },
+        });
+        return {
+          status: 'completed',
+          agent_definition: serializeAgentDefinition(definition),
+          work_item: serializeAgentWorkItem(outcome.workItem),
+          target_state: serializeAgentTargetState(outcome.targetState),
+          diagnostic: {
+            run_id: alertResult.run_id,
+            alert_tool_execution_id: alertResult.tool_execution_id,
+            outcome: 'alert_cleared',
+            diagnosis_stage: 'alert_cleared',
+            alert: {
+              id: clearedSnapshot.id,
+              status: clearedSnapshot.status,
+              severity: clearedSnapshot.severity,
+              device_name: clearedSnapshot.deviceName,
+            },
+            evidence_ids: allEvidenceIds,
+          },
+        };
+      }
+
+      // On the built-in provider one diagnosis consumes one included message
+      // (same unit as a chat message) — reserved after applicability and the
+      // cleared-alert escape, before any LLM work (ticketing triage placement).
+      await this.builtinQuota?.reserveRun(context);
+
+      // PR #95 discipline: run-scoped ledger charged with ACTUAL per-stage
+      // usage, never a whole-run snapshot estimate.
+      const runLlmUsageLedger: RunLlmUsageEstimate = {
+        estimatedTokens: 0,
+        estimatedCostEur: 0,
+      };
+      const currentRunLlmUsage = (): RunLlmUsageEstimate => ({
+        estimatedTokens: runLlmUsageLedger.estimatedTokens,
+        estimatedCostEur: runLlmUsageLedger.estimatedCostEur,
+      });
+      const chargeRunLlmUsage = (usage: { estimated_tokens?: number | null; estimated_cost_eur?: number | null } | null | undefined) => {
+        const estimatedTokens = Number(usage?.estimated_tokens ?? 0);
+        const estimatedCostEur = Number(usage?.estimated_cost_eur ?? 0);
+        if (Number.isFinite(estimatedTokens) && estimatedTokens > 0) {
+          runLlmUsageLedger.estimatedTokens += Math.round(estimatedTokens);
+        }
+        if (Number.isFinite(estimatedCostEur) && estimatedCostEur > 0) {
+          runLlmUsageLedger.estimatedCostEur = Number((runLlmUsageLedger.estimatedCostEur + estimatedCostEur).toFixed(6));
+        }
+      };
+
+      // Bounded history window through the existing dispatcher capability,
+      // digested deterministically before any LLM sees it.
+      const historyResult = await this.dispatcher.execute<AdapterResultLike<{ points?: unknown[] }>>(context, {
+        capabilityName: 'monitoring.sensor.history',
+        input: {
+          provider_key: binding.providerKey,
+          sensor_id: leasedWorkItem.source_object_ref,
+          window_minutes: MONITORING_HISTORY_WINDOW_MINUTES,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: alertResult.run_id,
+          stepIndex: stepIndex++,
+          metadata: {
+            ...baseMetadata,
+            diagnosis_action: 'read_sensor_history',
+          },
+        },
+      });
+      allEvidenceIds.push(...await this.evidenceIdsForTool(context, historyResult.tool_execution_id));
+      const history = adapterData<{ metric?: string; unit?: string; windowMinutes?: number; points?: unknown[] }>(historyResult.output);
+      const historySummary = summarizeMonitoringHistory(history, MONITORING_HISTORY_WINDOW_MINUTES);
+      const historyPointCount = historySummary?.channels.reduce((sum, channel) => sum + channel.point_count, 0) ?? 0;
+
+      // Current state + related alerts through dispatcher capabilities so the
+      // whole evidence chain is audited (WS-A8 replaces the skeleton's direct
+      // provider reads). Both are best-effort: a failed read degrades to
+      // missing evidence, never a failed diagnosis.
+      let currentState: { status: string | null; value: number | string | null; unit: string | null; observed_at: string | null } | null = null;
+      const stateResult = await this.dispatcher.execute<AdapterResultLike<{ status?: string | null; value?: unknown; unit?: string | null; observedAt?: string | null }>>(context, {
+        capabilityName: 'monitoring.state.get',
+        input: {
+          provider_key: binding.providerKey,
+          sensor_id: leasedWorkItem.source_object_ref,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: alertResult.run_id,
+          stepIndex: stepIndex++,
+          metadata: {
+            ...baseMetadata,
+            diagnosis_action: 'read_current_state',
+          },
+        },
+      });
+      allEvidenceIds.push(...await this.evidenceIdsForTool(context, stateResult.tool_execution_id));
+      const stateData = adapterData<{ status?: string | null; value?: unknown; unit?: string | null; observedAt?: string | null }>(stateResult.output);
+      if (stateData) {
+        currentState = {
+          status: stateData.status ?? null,
+          value: typeof stateData.value === 'number' || typeof stateData.value === 'string' ? stateData.value : null,
+          unit: stateData.unit ?? null,
+          observed_at: stateData.observedAt ?? null,
+        };
+      }
+      const relatedResult = await this.dispatcher.execute<AdapterResultLike<{ alerts?: unknown[] }>>(context, {
+        capabilityName: 'monitoring.alert.related.list',
+        input: {
+          provider_key: binding.providerKey,
+          sensor_id: leasedWorkItem.source_object_ref,
+          limit: MAX_MONITORING_RELATED_ALERTS,
+        },
+        execution: {
+          surface: 'internal',
+          trigger_kind: 'internal',
+          runId: alertResult.run_id,
+          stepIndex: stepIndex++,
+          metadata: {
+            ...baseMetadata,
+            diagnosis_action: 'read_related_alerts',
+          },
+        },
+      });
+      allEvidenceIds.push(...await this.evidenceIdsForTool(context, relatedResult.tool_execution_id));
+      const relatedData = adapterData<{ alerts?: unknown[] }>(relatedResult.output);
+      const relatedAlerts = compactRelatedMonitoringAlerts(relatedData?.alerts, alert.id);
+      const relatedAlertIds = relatedAlerts.map((entry) => entry.id);
+
+      // KANAP entity enrichment per the retrieval-source policy (§4.5): every
+      // lookup flows through the dispatcher via the resolver's dispatch
+      // callback; denied/unavailable families degrade to notes, never errors.
+      const knowledgeSources = readAgentKnowledgeSources(definition);
+
+      // One bounded monitored-object read resolves the device host address so
+      // the KANAP asset correlation can apply the documented IP-equality
+      // tiebreak on ambiguous device names (§4.5 matching rule). Fetched only
+      // when asset correlation is actually on AND the adapter attached the
+      // device object id on the alert (`deviceId` — PRTG carries the sensor
+      // row's parentid). Without a device id the read is skipped entirely:
+      // querying with the CHECK object id would be a guaranteed not_found on
+      // adapters whose device lookups are id-exact (two wasted provider
+      // requests per diagnosis), so the correlation degrades to name-only
+      // matching instead. Best-effort like every enrichment source: a failed
+      // read also degrades to name-only matching, never a failed diagnosis.
+      let deviceHostAddress: string | null = null;
+      const deviceObjectId = trimmedString(alert.deviceId);
+      if (
+        knowledgeSources.kanapData.enabled
+        && knowledgeSources.kanapData.domains.assets
+        && (alert.deviceName ?? '').trim()
+        && deviceObjectId
+      ) {
+        try {
+          const objectResult = await this.dispatcher.execute<AdapterResultLike<{ hostAddress?: string | null }>>(context, {
+            capabilityName: 'monitoring.object.get',
+            input: {
+              provider_key: binding.providerKey,
+              object_id: deviceObjectId,
+            },
+            execution: {
+              surface: 'internal',
+              trigger_kind: 'internal',
+              runId: alertResult.run_id,
+              stepIndex: stepIndex++,
+              metadata: {
+                ...baseMetadata,
+                diagnosis_action: 'read_monitored_object',
+              },
+            },
+          });
+          allEvidenceIds.push(...await this.evidenceIdsForTool(context, objectResult.tool_execution_id));
+          const objectData = adapterData<{ hostAddress?: string | null }>(objectResult.output);
+          deviceHostAddress = trimmedString(objectData?.hostAddress);
+        } catch (error) {
+          this.logger.warn(`Monitored-object read skipped for alert ${alert.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      const entityResolver = new KanapEntityContextResolver({
+        dispatch: async (dispatchContext, capabilityName, capabilityInput): Promise<KanapEntityDispatchOutcome> => {
+          try {
+            const result = await this.dispatcher.execute<Record<string, unknown>>(dispatchContext, {
+              capabilityName,
+              input: capabilityInput,
+              execution: {
+                surface: 'internal',
+                trigger_kind: 'internal',
+                runId: alertResult.run_id,
+                stepIndex: stepIndex++,
+                metadata: {
+                  ...baseMetadata,
+                  diagnosis_action: 'kanap_entity_lookup',
+                  entity_capability: capabilityName,
+                },
+              },
+            });
+            allEvidenceIds.push(...await this.evidenceIdsForTool(dispatchContext, result.tool_execution_id));
+            return { ok: true, output: result.output };
+          } catch (error) {
+            // Resolver contract: never rethrow. A denied or failing family is
+            // "source unavailable" in the resolution notes, not a run failure.
+            const message = error instanceof Error ? error.message : String(error);
+            if (error instanceof ForbiddenException) {
+              return { ok: false, errorKind: 'missing_permission', message };
+            }
+            if (error instanceof NotFoundException) {
+              return { ok: false, errorKind: 'unavailable', message };
+            }
+            return { ok: false, errorKind: 'error', message };
+          }
+        },
+      });
+      const kanapContext = await entityResolver.resolveAlertContext({
+        context,
+        alert: { deviceName: alert.deviceName ?? null, hostAddress: deviceHostAddress },
+        kanapData: knowledgeSources.kanapData,
+      });
+      const entitySources: ReplySynthesisEntitySource[] = kanapContext.sources.map((source) => ({
+        ref: source.ref,
+        url: source.url,
+        title: source.label,
+      }));
+
+      // Similar-ticket context when (and only when) this SRE agent carries an
+      // optional ticketing binding (D6); skipped silently when unbound.
+      const ticketingBinding = resolveTicketingBinding(definition);
+      const retrievalQueryCandidates = buildMonitoringRetrievalQueryCandidates(alert, historySummary);
+      let similarTickets: Array<{ id: string; title: string; status: string | null }> = [];
+      let similarTicketsStatus: string = ticketingBinding ? 'executed' : 'no_ticketing_binding';
+      if (ticketingBinding) {
+        const similarQuery = retrievalQueryCandidates[0] ?? '';
+        if (!similarQuery) {
+          similarTicketsStatus = 'skipped_empty_query';
+        } else {
+          try {
+            const similarResult = await this.dispatcher.execute<AdapterResultLike<{ tickets?: unknown[] }>>(context, {
+              capabilityName: 'ticketing.ticket.search_similar',
+              input: {
+                provider_key: ticketingBinding.providerKey,
+                query: similarQuery,
+                limit: MAX_MONITORING_SIMILAR_TICKETS,
+              },
+              execution: {
+                surface: 'internal',
+                trigger_kind: 'internal',
+                runId: alertResult.run_id,
+                stepIndex: stepIndex++,
+                metadata: {
+                  ...baseMetadata,
+                  diagnosis_action: 'search_similar_tickets',
+                },
+              },
+            });
+            allEvidenceIds.push(...await this.evidenceIdsForTool(context, similarResult.tool_execution_id));
+            const ticketsData = adapterData<{ tickets?: unknown[] }>(similarResult.output);
+            similarTickets = (Array.isArray(ticketsData?.tickets) ? ticketsData.tickets : [])
+              .filter(isRecord)
+              .map((ticket) => ({
+                id: trimmedString(ticket.id) ?? '',
+                title: clampText(typeof ticket.title === 'string' ? ticket.title : '', 200),
+                status: trimmedString(ticket.status),
+              }))
+              .filter((ticket) => !!ticket.id)
+              .slice(0, MAX_MONITORING_SIMILAR_TICKETS);
+          } catch (error) {
+            similarTicketsStatus = 'failed';
+            this.logger.warn(`Similar-ticket search skipped for alert ${alert.id}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
+
+      // Knowledge retrieval per policy — same dispatch contracts as the
+      // ticketing flow (search_knowledge with the agent's library restriction,
+      // get_document for top hits), but best-effort: for a monitoring
+      // diagnosis every enrichment source is optional and the deterministic
+      // alert evidence must survive any retrieval failure.
+      const knowledgeQueryCandidates = knowledgeSources.knowledgeEnabled ? retrievalQueryCandidates : [];
+      let knowledgeStatus: string = knowledgeSources.knowledgeEnabled ? 'executed' : 'disabled_by_agent';
+      const knowledgeAttempts: Array<{ query: string; items: KnowledgeSearchItem[] }> = [];
+      for (const [candidateIndex, knowledgeQuery] of knowledgeQueryCandidates.entries()) {
+        try {
+          const result = await this.dispatcher.execute<Record<string, unknown>>(context, {
+            capabilityName: 'search_knowledge',
+            input: {
+              query: knowledgeQuery,
+              limit: 5,
+              offset: 0,
+              ...(knowledgeSources.knowledgeLibraryIds ? { library_ids: knowledgeSources.knowledgeLibraryIds } : {}),
+            },
+            execution: {
+              surface: 'internal',
+              trigger_kind: 'internal',
+              runId: alertResult.run_id,
+              stepIndex: stepIndex++,
+              metadata: {
+                ...baseMetadata,
+                knowledge_query_source: 'monitoring_alert',
+                knowledge_query_index: candidateIndex + 1,
+                knowledge_query_count: knowledgeQueryCandidates.length,
+              },
+            },
+          });
+          allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
+          knowledgeAttempts.push({ query: knowledgeQuery, items: knowledgeItemsFromOutput(result.output) });
+        } catch (error) {
+          knowledgeStatus = 'failed';
+          this.logger.warn(`Knowledge search skipped for alert ${alert.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      const knowledgeItems: KnowledgeSearchItem[] = [];
+      const seenKnowledgeRefs = new Set<string>();
+      for (const attempt of knowledgeAttempts) {
+        for (const item of attempt.items) {
+          if (knowledgeItems.length >= MAX_MONITORING_KNOWLEDGE_DOCUMENTS) break;
+          const ref = knowledgeDocumentRef(item);
+          if (!ref || seenKnowledgeRefs.has(ref.toLocaleLowerCase())) continue;
+          seenKnowledgeRefs.add(ref.toLocaleLowerCase());
+          knowledgeItems.push(item);
+        }
+        if (knowledgeItems.length >= MAX_MONITORING_KNOWLEDGE_DOCUMENTS) break;
+      }
+      const enrichedKnowledgeItems = [...knowledgeItems];
+      for (const [documentIndex, item] of knowledgeItems.entries()) {
+        const documentId = knowledgeDocumentRef(item);
+        if (!documentId) continue;
+        try {
+          const result = await this.dispatcher.execute<Record<string, unknown>>(context, {
+            capabilityName: 'get_document',
+            input: { document_id: documentId },
+            execution: {
+              surface: 'internal',
+              trigger_kind: 'internal',
+              runId: alertResult.run_id,
+              stepIndex: stepIndex++,
+              metadata: {
+                ...baseMetadata,
+                knowledge_document_source: 'monitoring_alert',
+                knowledge_document_index: documentIndex + 1,
+                knowledge_document_ref: documentId,
+              },
+            },
+          });
+          allEvidenceIds.push(...await this.evidenceIdsForTool(context, result.tool_execution_id));
+          const fullDocument = knowledgeDocumentFromOutput(item, result.output);
+          if (fullDocument) {
+            enrichedKnowledgeItems[documentIndex] = fullDocument;
+          }
+        } catch (error) {
+          this.logger.warn(`Knowledge document fetch skipped for alert ${alert.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      // Web search per policy — identical gating to the ticketing flow; the
+      // web_search capability applies the public-query sanitization (alert
+      // queries carry hostnames, so this is not optional).
+      let webSearchResults: WebSearchResultItem[] = [];
+      let webSearchStatus: string = knowledgeSources.webEnabled ? 'disabled_by_platform' : 'disabled_by_agent';
+      let webSearchQuery: string | null = null;
+      let webSearchError: string | null = null;
+      if (knowledgeSources.webEnabled && Features.AI_WEB_SEARCH_READY) {
+        const webQuery = retrievalQueryCandidates[0] ?? '';
+        webSearchQuery = webQuery || null;
+        if (webQuery) {
+          try {
+            const webResult = await this.dispatcher.execute<Record<string, unknown>>(context, {
+              capabilityName: 'web_search',
+              input: { query: webQuery, count: 5 },
+              execution: {
+                surface: 'internal',
+                trigger_kind: 'internal',
+                runId: alertResult.run_id,
+                stepIndex: stepIndex++,
+                metadata: {
+                  ...baseMetadata,
+                  web_query_source: 'monitoring_alert',
+                },
+              },
+            });
+            allEvidenceIds.push(...await this.evidenceIdsForTool(context, webResult.tool_execution_id));
+            webSearchResults = webSearchItemsFromOutput(webResult.output);
+            webSearchStatus = 'executed';
+          } catch (error) {
+            webSearchStatus = 'failed';
+            webSearchError = error instanceof Error ? error.message : String(error);
+            this.logger.warn(`Web search skipped for alert ${alert.id}: ${webSearchError}`);
+          }
+        } else {
+          webSearchStatus = 'skipped_empty_query';
+        }
+      }
+
+      // ONE structured LLM stage: the diagnostic brief, with the monitoring
+      // planner profile's vocabulary/validation notes and citations gated by
+      // the knownSources allowlist. Conservative fallback on every failure.
+      const promptRuntime = await this.compileAgentPromptRuntime(context, definition);
+      const diagnosisGuidance = this.agentPromptCompiler().sliceFor(promptRuntime.profile, 'monitoring_diagnosis');
+      const diagnosisGuidanceHash = guidanceHash(diagnosisGuidance);
+      const briefLanguage = promptRuntime.profile.output_style?.language && promptRuntime.profile.output_style.language !== 'auto'
+        ? promptRuntime.profile.output_style.language
+        : 'en';
+      const plannerProfile = await this.actionPlannerProfileForProvider(context, binding.providerKind, binding.providerKey);
+      const alertEvidence: DiagnosticBriefAlertEvidence = {
+        alert: {
+          id: alert.id,
+          status: alert.status ?? null,
+          severity: alert.severity ?? null,
+          ack_state: alert.ackState ?? null,
+          device_name: alert.deviceName ?? null,
+          occurrence_started_at: alert.occurrenceStartedAt ?? null,
+          observed_at: alert.observedAt ?? null,
+          last_checked_at: alert.lastCheckedAt ?? null,
+          last_value: alert.lastValue ?? null,
+          object_kind: alert.objectKind ?? null,
+          group_path: Array.isArray(alert.groupPath) ? alert.groupPath : null,
+          source_uri: alert.sourceUri ?? null,
+        },
+        untrusted_message: typeof alert.message === 'string' && alert.message.trim() ? alert.message : null,
+        current_state: currentState,
+        history_summary: historySummary,
+        related_alerts: relatedAlerts,
+        similar_tickets: similarTickets,
+      };
+      const briefInput: DiagnosticBriefSynthesisInput = {
+        compiledPrompt: diagnosisGuidance,
+        language: briefLanguage,
+        alertEvidence,
+        kanapContext,
+        knowledgeDocs: enrichedKnowledgeItems,
+        webResults: webSearchResults,
+        entitySources,
+        plannerProfile,
+      };
+      const briefInputSummary = {
+        language: briefLanguage,
+        knowledge_source_count: enrichedKnowledgeItems.length,
+        web_source_count: webSearchResults.length,
+        entity_source_count: entitySources.length,
+        kanap_asset_match: kanapContext.assetMatch,
+        prompt_profile: promptRuntime.promptProfileSummary,
+        guidance_hash: diagnosisGuidanceHash,
+      };
+      const guardrails = this.agentQueue.runGuardrails(definition);
+      let brief: DiagnosticBriefResult;
+      let briefProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
+      if (!this.diagnosticBriefSynthesis) {
+        brief = buildFallbackDiagnosticBrief(briefInput, 'synthesis_service_unavailable');
+        await this.recordDiagnosticBriefRunStep(context, {
+          runId: alertResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: briefInputSummary,
+          outputSummary: { fallback_reason: brief.fallback_reason },
+        });
+      } else if (process.env.AI_AGENT_DIAGNOSTIC_BRIEF === '0') {
+        brief = buildFallbackDiagnosticBrief(briefInput, 'synthesis_disabled_by_env');
+        await this.recordDiagnosticBriefRunStep(context, {
+          runId: alertResult.run_id,
+          stepIndex: stepIndex++,
+          status: 'skipped',
+          inputSummary: briefInputSummary,
+          outputSummary: { fallback_reason: brief.fallback_reason },
+        });
+      } else {
+        const briefPayload = this.diagnosticBriefSynthesis.buildPromptPayload(briefInput);
+        briefProjection = estimateDiagnosticBriefUsage({
+          systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS, diagnosisGuidance),
+          userPayload: briefPayload,
+        }, this.diagnosticBriefSynthesis.maxOutputTokens());
+        const baseUsageEstimate = currentRunLlmUsage();
+        if (
+          baseUsageEstimate.estimatedTokens + briefProjection.estimatedTokens > guardrails.maxEstimatedTokens
+          || baseUsageEstimate.estimatedCostEur + briefProjection.estimatedCostEur > guardrails.maxEstimatedCostEur
+        ) {
+          brief = buildFallbackDiagnosticBrief(briefInput, 'synthesis_projected_over_per_run_cap');
+          await this.recordDiagnosticBriefRunStep(context, {
+            runId: alertResult.run_id,
+            stepIndex: stepIndex++,
+            status: 'skipped',
+            inputSummary: {
+              ...briefInputSummary,
+              projected_tokens: briefProjection.estimatedTokens,
+              projected_cost_eur: briefProjection.estimatedCostEur,
+            },
+            outputSummary: {
+              fallback_reason: brief.fallback_reason,
+              base_estimated_tokens: baseUsageEstimate.estimatedTokens,
+              base_estimated_cost_eur: baseUsageEstimate.estimatedCostEur,
+              cap: guardrails,
+            },
+          });
+        } else {
+          const briefStepIndex = stepIndex++;
+          brief = await this.diagnosticBriefSynthesis.synthesizeDiagnosticBrief(context, briefInput);
+          if (brief.estimated_tokens > 0) {
+            await this.recordDiagnosticBriefUsage(context, { runId: alertResult.run_id, brief });
+            chargeRunLlmUsage(brief);
+          }
+          await this.recordDiagnosticBriefRunStep(context, {
+            runId: alertResult.run_id,
+            stepIndex: briefStepIndex,
+            status: brief.fallback
+              ? (brief.fallback_reason === 'no_llm_runtime_configured' ? 'skipped' : 'failed')
+              : 'completed',
+            inputSummary: {
+              ...briefInputSummary,
+              model: brief.model,
+              projected_tokens: briefProjection.estimatedTokens,
+              projected_cost_eur: briefProjection.estimatedCostEur,
+            },
+            outputSummary: {
+              fallback: brief.fallback,
+              fallback_reason: brief.fallback_reason,
+              needs_human_review: brief.needs_human_review,
+              confidence: brief.confidence,
+              used_source_count: brief.used_sources.length,
+              rejected_source_count: brief.rejected_sources.length,
+              recommended_action_count: brief.recommended_actions.length,
+              tokens: brief.estimated_tokens,
+              cost_eur: brief.estimated_cost_eur,
+              latency_ms: brief.latency_ms,
+            },
+            errorMessage: brief.fallback ? brief.fallback_reason : null,
+          });
+        }
+      }
+
+      // Final per-run cap enforcement on the actual-usage ledger (D11) — same
+      // audit/failure semantics as the ticketing flow.
+      const runUsageEstimate = await this.recordAndEnforceHelpdeskRunCap(context, {
+        definition,
+        runId: alertResult.run_id,
+        stage: 'before_diagnosis_finalization',
+        usage: currentRunLlmUsage(),
+      });
+
+      const compactAlert = {
+        id: alert.id,
+        status: alert.status ?? null,
+        severity: alert.severity ?? null,
+        ack_state: alert.ackState ?? null,
+        device_name: alert.deviceName ?? null,
+        occurrence_started_at: alert.occurrenceStartedAt ?? null,
+        observed_at: alert.observedAt ?? null,
+        last_value: alert.lastValue ?? null,
+        source_uri: alert.sourceUri ?? null,
+      };
+      const kanapContextMetadata = {
+        asset_match: kanapContext.assetMatch,
+        lookups_used: kanapContext.lookupsUsed,
+        entity_refs: entitySources.map((source) => source.ref),
+        owners: kanapContext.owners ?? [],
+        notes: kanapContext.notes,
+      };
+      const briefMetadata = {
+        diagnosis_stage: 'llm_brief',
+        brief_summary: clampText(brief.summary, 2000),
+        probable_causes: brief.probable_causes,
+        business_impact: brief.business_impact,
+        recommended_actions: brief.recommended_actions,
+        used_sources: brief.used_sources,
+        rejected_sources: brief.rejected_sources,
+        needs_human_review: brief.needs_human_review,
+        brief_confidence: brief.confidence,
+        brief_language: brief.language,
+        synthesis_model: brief.model,
+        synthesis_tokens: brief.estimated_tokens,
+        synthesis_usage: brief.usage,
+        synthesis_cost_eur: brief.estimated_cost_eur,
+        synthesis_latency_ms: brief.latency_ms,
+        synthesis_fallback: brief.fallback,
+        synthesis_fallback_reason: brief.fallback_reason,
+      };
+      const recommendedActionKinds = Array.from(new Set(brief.recommended_actions.map((action) => action.action)));
+
+      const now = new Date();
+      const observationRepo = context.manager.getRepository(AiObservation);
+      const summaryBits = [
+        `Alert ${alert.id}`,
+        alert.status ? `status ${alert.status}` : null,
+        alert.severity ? `severity ${alert.severity}` : null,
+        alert.deviceName ? `device ${alert.deviceName}` : null,
+      ].filter(Boolean).join(', ');
+      const observation = await observationRepo.save(observationRepo.create({
+        tenant_id: context.tenantId,
+        run_id: alertResult.run_id,
+        observation_type: MONITORING_DIAGNOSIS_RUN_OPTIONS.observationType,
+        status: 'observed',
+        source_provider: `${binding.providerKind}:${binding.providerKey}`,
+        source_object_type: 'sensor',
+        source_object_id: alert.id,
+        severity: alert.severity ?? null,
+        summary: `${summaryBits}. ${relatedAlerts.length} related alert(s), ${historyPointCount} history point(s) in the last ${MONITORING_HISTORY_WINDOW_MINUTES} minutes.`,
+        evidence_ids: allEvidenceIds,
+        metadata_json: {
+          ...agentMetadata,
+          provider_key: binding.providerKey,
+          alert: compactAlert,
+          current_state: currentState,
+          related_alert_ids: relatedAlertIds,
+          related_alerts: relatedAlerts,
+          history_window_minutes: MONITORING_HISTORY_WINDOW_MINUTES,
+          history_point_count: historyPointCount,
+          history_summary: historySummary,
+          kanap_context: kanapContextMetadata,
+          knowledge_status: knowledgeStatus,
+          knowledge_query_candidates: knowledgeQueryCandidates,
+          knowledge_result_count: enrichedKnowledgeItems.length,
+          web_search_enabled: knowledgeSources.webEnabled === true,
+          web_search_ready: Features.AI_WEB_SEARCH_READY,
+          web_search_status: webSearchStatus,
+          web_search_query: webSearchQuery,
+          web_search_error: webSearchError,
+          web_result_count: webSearchResults.length,
+          similar_tickets_status: similarTicketsStatus,
+          similar_ticket_count: similarTickets.length,
+          run_usage_estimate: runUsageEstimate,
+          ...briefMetadata,
+        },
+        observed_at: now,
+        created_at: now,
+        updated_at: now,
+      }));
+
+      // Recommend-only (15.A): the brief itself is the deliverable. The full
+      // diagnosis lives in AiRecommendation metadata — no prepared actions, no
+      // provider writes, no approval surface involvement.
+      const recommendationRepo = context.manager.getRepository(AiRecommendation);
+      const recommendation = await recommendationRepo.save(recommendationRepo.create({
+        tenant_id: context.tenantId,
+        run_id: alertResult.run_id,
+        observation_id: observation.id,
+        recommendation_type: MONITORING_DIAGNOSIS_RUN_OPTIONS.recommendationType,
+        status: 'proposed',
+        summary: clampText(brief.summary, 500),
+        rationale: brief.probable_causes.length > 0
+          ? clampText(brief.probable_causes.map((cause) => cause.cause).join(' | '), 800)
+          : (brief.fallback
+            ? 'Deterministic fallback brief — automated diagnosis was unavailable for this alert.'
+            : 'No probable cause could be identified from the collected evidence.'),
+        confidence: brief.confidence === 'high' ? 0.85 : brief.confidence === 'medium' ? 0.6 : 0.35,
+        proposed_action_class: 'monitoring_diagnosis',
+        max_autonomy_level: 'A1',
+        evidence_ids: allEvidenceIds,
+        metadata_json: {
+          ...agentMetadata,
+          provider_key: binding.providerKey,
+          alert: compactAlert,
+          kanap_context: kanapContextMetadata,
+          recommended_action_kinds: recommendedActionKinds,
+          similar_tickets: similarTickets,
+          run_usage_estimate: runUsageEstimate,
+          ...briefMetadata,
+        },
+        created_at: now,
+        updated_at: now,
+      }));
+
+      // Shadow-mode evaluation shell, like triage: pending until a human
+      // calibrates the diagnosis quality.
+      const evaluationRepo = context.manager.getRepository(AiEvaluation);
+      const evaluation = await evaluationRepo.save(evaluationRepo.create({
+        tenant_id: context.tenantId,
+        run_id: alertResult.run_id,
+        recommendation_id: recommendation.id,
+        decision_id: null,
+        status: 'pending',
+        outcome: null,
+        scores_json: null,
+        feedback_json: null,
+        metadata_json: {
+          ...agentMetadata,
+          evaluation_type: MONITORING_DIAGNOSIS_RUN_OPTIONS.evaluationType,
+          brief_confidence: brief.confidence,
+          needs_human_review: brief.needs_human_review,
+          synthesis_fallback_reason: brief.fallback_reason,
+        },
+        created_at: now,
+        updated_at: now,
+      }));
+
+      const outcome = await this.agentQueue.recordMonitoringDiagnosisOutcome(context, {
+        definition,
+        workItem: leasedWorkItem,
+        runId: alertResult.run_id,
+        alert: {
+          id: alert.id,
+          status: alert.status ?? null,
+          severity: alert.severity ?? null,
+          deviceName: alert.deviceName ?? null,
+          occurrenceStartedAt: alert.occurrenceStartedAt ?? null,
+          observedAt: alert.observedAt ?? null,
+          sourceUri: alert.sourceUri ?? null,
+        },
+        metadata: {
+          observation_id: observation.id,
+          recommendation_id: recommendation.id,
+          evaluation_id: evaluation.id,
+          diagnosis_stage: 'llm_brief',
+          brief_confidence: brief.confidence,
+          needs_human_review: brief.needs_human_review,
+          ...(brief.fallback_reason ? { fallback_reason: brief.fallback_reason } : {}),
+          recommended_action_kinds: recommendedActionKinds,
+        },
+      });
+
+      return {
+        status: 'completed',
+        agent_definition: serializeAgentDefinition(definition),
+        work_item: serializeAgentWorkItem(outcome.workItem),
+        target_state: serializeAgentTargetState(outcome.targetState),
+        diagnostic: {
+          run_id: alertResult.run_id,
+          alert_tool_execution_id: alertResult.tool_execution_id,
+          history_tool_execution_id: historyResult.tool_execution_id,
+          state_tool_execution_id: stateResult.tool_execution_id,
+          related_tool_execution_id: relatedResult.tool_execution_id,
+          observation_id: observation.id,
+          recommendation_id: recommendation.id,
+          evaluation_id: evaluation.id,
+          evidence_ids: allEvidenceIds,
+          alert: compactAlert,
+          current_state: currentState,
+          related_alert_count: relatedAlerts.length,
+          history_point_count: historyPointCount,
+          history_summary: historySummary,
+          kanap_context: kanapContextMetadata,
+          knowledge_status: knowledgeStatus,
+          knowledge_result_count: enrichedKnowledgeItems.length,
+          web_search_status: webSearchStatus,
+          web_result_count: webSearchResults.length,
+          similar_tickets_status: similarTicketsStatus,
+          similar_ticket_count: similarTickets.length,
+          run_usage_estimate: runUsageEstimate,
+          diagnosis_stage: 'llm_brief',
+          brief: {
+            summary: brief.summary,
+            probable_causes: brief.probable_causes,
+            business_impact: brief.business_impact,
+            recommended_actions: brief.recommended_actions,
+            used_sources: brief.used_sources,
+            rejected_sources: brief.rejected_sources,
+            needs_human_review: brief.needs_human_review,
+            confidence: brief.confidence,
+            language: brief.language,
+            fallback: brief.fallback,
+            fallback_reason: brief.fallback_reason,
+            model: brief.model,
+          },
+        },
+      };
+    } catch (error) {
+      if (this.agentQueue && leasedWorkItem) {
+        await this.agentQueue.failWorkItem(context, leasedWorkItem, error);
+        // Savepoint-wrapped callers (the monitoring poller) roll this
+        // bookkeeping back together with the failed attempt's writes; the
+        // marker lets them re-apply it after the rollback so attempt counting,
+        // backoff and dead-lettering survive on the poller path.
+        markWorkItemAttemptFailure(error, leasedWorkItem.id);
+      }
+      throw error;
+    }
   }
 
   private async runHelpdeskTicketingTriage(

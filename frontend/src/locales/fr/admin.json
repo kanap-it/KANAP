@@ -158,6 +158,42 @@
       "title": "Fournisseur",
       "validationErrorsTitle": "Erreurs de validation du fournisseur actuel"
     },
+    "prtg": {
+      "actions": {
+        "goToAgents": "Ouvrir la page Agents"
+      },
+      "description": "Connectez votre serveur de supervision PRTG pour que les agents KANAP puissent lire les alertes et l'état des capteurs de votre infrastructure.",
+      "fields": {
+        "apiKey": "Clé API",
+        "baseUrl": "Adresse du serveur",
+        "enabled": "Activer la supervision PRTG",
+        "timezone": "Fuseau horaire du serveur"
+      },
+      "hints": {
+        "apiKey": "Créez-en une dans PRTG sous Configuration → Clés API. Un accès en lecture seule suffit.",
+        "apiKeyExisting": "Une clé API est déjà enregistrée. Laissez vide pour la conserver.",
+        "baseUrl": "L'adresse de l'interface web de votre PRTG, p. ex. https://prtg.example.com",
+        "timezone": "Le fuseau horaire dans lequel fonctionne votre serveur PRTG, pour lire correctement l'horodatage des alertes."
+      },
+      "messages": {
+        "loadFailed": "Impossible de charger l'intégration de supervision.",
+        "nextStep": "Un agent de supervision SRE peut maintenant être créé depuis la page Agents.",
+        "testFailed": "Le test de connexion PRTG a échoué.",
+        "testSuccess_one": "Connecté — PRTG {{version}}, {{count}} capteur visible",
+        "testSuccess_other": "Connecté — PRTG {{version}}, {{count}} capteurs visibles"
+      },
+      "placeholders": {
+        "apiKeySaved": "Clé API enregistrée (laissez vide pour conserver)",
+        "enterApiKey": "Saisissez la clé API",
+        "url": "https://prtg.example.com"
+      },
+      "status": {
+        "connected": "Connecté",
+        "disabled": "Désactivé",
+        "notConfigured": "Non configuré"
+      },
+      "title": "Supervision — PRTG"
+    },
     "sections": {
       "features": "Fonctionnalités",
       "integrations": "Intégrations",

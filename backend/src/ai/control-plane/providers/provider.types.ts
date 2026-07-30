@@ -1,4 +1,9 @@
 import { AiExecutionContextWithManager } from '../../ai.types';
+import {
+  MONITORING_ACK_STATES,
+  MONITORING_ALERT_STATUS_VALUES,
+  MONITORING_SEVERITY_VALUES,
+} from './provider-constants';
 
 export type ProviderKind =
   | 'ticketing'
@@ -14,7 +19,12 @@ export type ProviderEnvironment = 'production' | 'staging' | 'sandbox' | 'lab' |
 export type ProviderCredentialRef =
   | { kind: 'none' }
   | { kind: 'secret_ref'; ref: string; version?: string | null; tenant_id?: string | null }
-  | { kind: 'environment'; ref: string; tenant_id?: string | null };
+  | { kind: 'environment'; ref: string; tenant_id?: string | null }
+  // Tenant-scoped AES-256-GCM envelope written by the admin integrations
+  // endpoints via AiSecretCipherService. `material_shape` is a decrypt-free
+  // presence hint for admin reads (e.g. 'api_token' | 'username_passhash') —
+  // it never contains material.
+  | { kind: 'encrypted'; ciphertext: string; material_shape?: string | null };
 
 export type AdapterErrorCode =
   | 'not_configured'
@@ -394,15 +404,139 @@ export type TicketPublicReplyWriteResult = {
   alreadyApplied?: boolean;
 };
 
+// Normalized monitoring vocabularies. Derived from the canonical value lists
+// in provider-constants.ts so the type unions and runtime vocabularies cannot
+// drift apart. Adapters translate native codes to these keys — raw provider
+// status/priority codes never leave the adapter layer.
+export type MonitoringAlertStatus = (typeof MONITORING_ALERT_STATUS_VALUES)[number];
+export type MonitoringSeverity = (typeof MONITORING_SEVERITY_VALUES)[number];
+export type MonitoringAckState = (typeof MONITORING_ACK_STATES)[number];
+
+// The failing object's shape in the provider's model: a `check` is a single
+// probe/sensor/service check, a `device`/`host` is the monitored machine, a
+// `group` is an aggregation node. Providers without a distinct device object
+// (host-centric tools) use `host` for the machine-level object.
+export type MonitoringObjectKind = 'check' | 'device' | 'group' | 'host';
+
 export type MonitoringAlert = {
+  // Provider object id of the failing check. An alert IS a check in a non-up
+  // state; an occurrence is identified by (id, occurrenceStartedAt).
   id: string;
-  status: string;
-  severity: 'info' | 'warning' | 'critical';
+  status: MonitoringAlertStatus;
+  severity: MonitoringSeverity;
+  ackState: MonitoringAckState;
+  // Untrusted provider text (last message from the tool) — external evidence,
+  // never instructions.
   message: string;
   sensorId: string;
   vmId?: string | null;
   relatedTicketId?: string | null;
   observedAt: string;
+  // When the current occurrence started (transition into the non-up state);
+  // null when the provider does not expose it. A clear-then-refire yields a
+  // new occurrenceStartedAt and therefore a new occurrence.
+  occurrenceStartedAt: string | null;
+  lastCheckedAt: string | null;
+  // Display string of the last measured value, already unit-formatted by the
+  // provider; null when the check has no value (e.g. hard down).
+  lastValue: string | null;
+  objectKind: MonitoringObjectKind;
+  deviceName: string | null;
+  // Human-readable ancestor path (root first); ids live in the reference
+  // catalog, not here.
+  groupPath: string[] | null;
+  // Optional provider reference ids matching the reference-catalog values the
+  // targeting UI pickers store (group/device/check_type predicates). Adapters
+  // attach them when the underlying rows expose them; the control-plane
+  // targeting matcher verifies ref-id predicates against these and only falls
+  // back to name-based fields when they are absent. deviceId also feeds the
+  // monitored-object read for the KANAP asset IP tiebreak.
+  groupId?: string | null;
+  deviceId?: string | null;
+  checkTypeId?: string | null;
+  // Deep link into the monitoring tool — same load-bearing role as ticket
+  // sourceUri.
+  sourceUri: string | null;
+  // Stable dedup key for work items and idempotency:
+  // provider key + object id + normalized status + occurrenceStartedAt.
+  dedupKey: string;
+};
+
+// Bounded ingestion scope, mirror of TicketListScope: every field is a
+// push-down filter the adapter translates to its native query language.
+// String values come from the normalized monitoring vocabularies.
+export type MonitoringAlertListScope = {
+  // Absent/empty = provider default: all non-up states.
+  statusValues?: string[] | null;
+  // Inclusive minimum severity (floor) on the normalized severity ladder.
+  severityFloor?: string | null;
+  ackState?: string | null;
+  // Provider reference-catalog ids; subtree expansion happens control-plane
+  // side before the scope reaches the adapter.
+  groupIds?: string[] | null;
+  deviceIds?: string[] | null;
+  checkTypeIds?: string[] | null;
+  // Flap guard: only alerts whose current occurrence is at least this old.
+  minAgeMinutes?: number | null;
+  maxResults: number;
+};
+
+export type MonitoredObjectRecord = {
+  objectId: string;
+  objectKind: MonitoringObjectKind;
+  name: string;
+  // IP address or DNS name when the provider exposes it — feeds KANAP asset
+  // correlation.
+  hostAddress: string | null;
+  groupPath: string[] | null;
+  tags: string[] | null;
+  sourceUri: string | null;
+};
+
+export type MonitoringReferenceEnums = {
+  statuses: RefItem[];
+  severities: RefItem[];
+  ackStates: RefItem[];
+};
+
+export type MonitoringReferenceCatalogKind = 'group' | 'device' | 'check_type';
+
+export type MonitoringAcknowledgeAlertActionPayload = {
+  objectId: string;
+  action: 'acknowledge_alert';
+  // Required — carries the diagnosis reference into the monitoring tool.
+  message: string;
+  // Freshness anchor: the occurrence the acknowledgement was prepared against.
+  // Execute must fail closed (noLongerApplicable) when it no longer matches.
+  occurrenceStartedAt: string | null;
+  providerFields?: Record<string, unknown>;
+  reason: string;
+};
+
+export type MonitoringPauseObjectActionPayload = {
+  objectId: string;
+  action: 'pause_object';
+  // Bounded suppression only — indefinite pause is never offered.
+  durationMinutes: number;
+  message: string | null;
+  providerFields?: Record<string, unknown>;
+  reason: string;
+};
+
+export type MonitoringProviderActionPrepared<TActionPayload> = {
+  actionPayload: TActionPayload;
+  summary: string;
+};
+
+export type MonitoringProviderActionWriteResult = {
+  objectId: string;
+  summary: string;
+  idempotencyKey: string;
+  updatedFields: string[];
+  alreadyApplied?: boolean;
+  // Fail-closed freshness: the alert cleared or changed occurrence between
+  // prepare and execute, so the write was intentionally not applied.
+  noLongerApplicable?: boolean;
 };
 
 export type MonitoringSensorHistory = {
@@ -670,6 +804,36 @@ export interface MonitoringProvider extends ProviderBase {
   getSensorHistory(context: ProviderContext, input: { sensorId: string; windowMinutes?: number | null }): Promise<AdapterResult<MonitoringSensorHistory>>;
   getCurrentState(context: ProviderContext, input: { sensorId: string }): Promise<AdapterResult<MonitoringCurrentState>>;
   listRelatedAlerts(context: ProviderContext, input: { sensorId: string; limit?: number | null }): Promise<AdapterResult<{ alerts: MonitoringAlert[] }>>;
+  // Bounded ingestion workhorse — mirror of listTicketsForScope with the
+  // normalized monitoring vocabulary scope.
+  listAlertsForScope(context: ProviderContext, input: { scope: MonitoringAlertListScope }): Promise<AdapterResult<{ alerts: MonitoringAlert[] }>>;
+  // Device/group context for an alert (name, path, host address, tags) —
+  // feeds KANAP asset correlation.
+  getMonitoredObject(context: ProviderContext, input: { objectId: string }): Promise<AdapterResult<MonitoredObjectRecord>>;
+  describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<MonitoringReferenceEnums>>;
+  searchReferenceCatalog(context: ProviderContext, input: { kind: MonitoringReferenceCatalogKind; query: string; limit?: number | null }): Promise<AdapterResult<{ items: RefItem[] }>>;
+  // 15.B write pairs — typed now, adapter implementations land in 15.B. The
+  // control plane checks `typeof provider.<method> === 'function'` before
+  // offering the corresponding action; providers that omit them never see the
+  // action offered.
+  prepareAcknowledgeAlert?(context: ProviderContext, input: {
+    objectId: string;
+    message: string;
+    reason: string;
+  }): Promise<AdapterResult<MonitoringProviderActionPrepared<MonitoringAcknowledgeAlertActionPayload>>>;
+  executeAcknowledgeAlert?(context: ProviderContext, input: {
+    actionPayload: MonitoringAcknowledgeAlertActionPayload;
+    idempotencyKey: string;
+  }): Promise<AdapterResult<MonitoringProviderActionWriteResult>>;
+  preparePauseObject?(context: ProviderContext, input: {
+    objectId: string;
+    durationMinutes: number;
+    reason: string;
+  }): Promise<AdapterResult<MonitoringProviderActionPrepared<MonitoringPauseObjectActionPayload>>>;
+  executePauseObject?(context: ProviderContext, input: {
+    actionPayload: MonitoringPauseObjectActionPayload;
+    idempotencyKey: string;
+  }): Promise<AdapterResult<MonitoringProviderActionWriteResult>>;
 }
 
 export interface VirtualizationProvider extends ProviderBase {

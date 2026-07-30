@@ -158,6 +158,42 @@
       "title": "Provider",
       "validationErrorsTitle": "Current provider validation errors"
     },
+    "prtg": {
+      "actions": {
+        "goToAgents": "Open the Agents page"
+      },
+      "description": "Connect your PRTG monitoring server so KANAP agents can read alerts and sensor health for your infrastructure.",
+      "fields": {
+        "apiKey": "API key",
+        "baseUrl": "Server address",
+        "enabled": "Enable PRTG monitoring",
+        "timezone": "Server time zone"
+      },
+      "hints": {
+        "apiKey": "Create one in PRTG under Setup → API keys. Read-only access is enough.",
+        "apiKeyExisting": "An API key is already saved. Leave blank to keep it.",
+        "baseUrl": "The address of your PRTG web interface, e.g. https://prtg.example.com",
+        "timezone": "The time zone your PRTG server runs in, so alert timestamps are read correctly."
+      },
+      "messages": {
+        "loadFailed": "Could not load the monitoring integration.",
+        "nextStep": "An SRE monitoring agent can now be created from the Agents page.",
+        "testFailed": "PRTG connection test failed.",
+        "testSuccess_one": "Connected — PRTG {{version}}, {{count}} sensor visible",
+        "testSuccess_other": "Connected — PRTG {{version}}, {{count}} sensors visible"
+      },
+      "placeholders": {
+        "apiKeySaved": "API key saved (leave blank to keep)",
+        "enterApiKey": "Enter API key",
+        "url": "https://prtg.example.com"
+      },
+      "status": {
+        "connected": "Connected",
+        "disabled": "Disabled",
+        "notConfigured": "Not configured"
+      },
+      "title": "Monitoring — PRTG"
+    },
     "sections": {
       "features": "Features",
       "integrations": "Integrations",

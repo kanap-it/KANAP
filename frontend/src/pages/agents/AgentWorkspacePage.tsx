@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, FormControlLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
 import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -18,6 +18,7 @@ import {
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
+  type AiAgentKanapDataSources,
   type AiSharedContextProfile,
 } from '../../ai/aiApi';
 import { useAuth } from '../../auth/AuthContext';
@@ -26,12 +27,14 @@ import useAutosave from '../../hooks/useAutosave';
 import {
   buildTicketGroups,
   EmptyState,
+  formatDateTime,
   formatNumber,
   formatPercent,
   HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
   lifecycleStatusKey,
   MetricBlock,
+  providerBindingForDefinition,
   ReasonDialog,
   resolveAgentSummary,
   SaveIndicator,
@@ -39,6 +42,7 @@ import {
   statusLabel,
   TargetLabel,
   ticketingProviderKeyForDefinition,
+  type TicketWorkGroup,
 } from '../../components/agents/agentControlPrimitives';
 import {
   actionLinkButtonSx,
@@ -67,6 +71,16 @@ import {
   type TargetingFilter,
   type TargetingPresetKey,
 } from '../../components/agents/helpdeskTargeting';
+import {
+  MonitoringTargetingFilterBuilder,
+  MonitoringTargetingPresetButtons,
+  monitoringFiltersFromScope,
+  monitoringStatusSemanticColor,
+  monitoringTargetingModelFromFilters,
+  type MonitoringTargetingFilter,
+  type MonitoringTargetingPresetKey,
+} from '../../components/agents/monitoringTargeting';
+import { getDotColor } from '../../utils/statusColors';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import AgentsApprovalsPage from './AgentsApprovalsPage';
 import AgentsActivityPage from './AgentsActivityPage';
@@ -368,8 +382,98 @@ function helpdeskDefinitionSettingsPayload(
   };
 }
 
-function MonitorTab({ agentKey }: { agentKey: string }) {
+// ---------------------------------------------------------------------------
+// SRE (monitoring) workspace flavor. Helpdesk agents render exactly as before —
+// every SRE branch below is gated on definition.agent_type === 'sre'.
+// ---------------------------------------------------------------------------
+
+const KANAP_DATA_DOMAINS = ['applications', 'assets', 'interfaces', 'connections', 'locations'] as const;
+
+// Mirror of the backend bounds in resolveMonitoringScopeIngestionConfig
+// (ai-agent-work-queue.service.ts): alerts 1..20 default 5, requests 1..100
+// default 10 — keep in sync or saved values silently snap to the server clamp.
+const DEFAULT_SRE_MAX_ALERTS = 5;
+const DEFAULT_SRE_MAX_REQUESTS = 10;
+const SRE_MAX_ALERTS_CAP = 20;
+const SRE_MAX_REQUESTS_CAP = 100;
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+type SreSettingsForm = {
+  enabled: boolean;
+  filters: MonitoringTargetingFilter[];
+  maxAlerts: string;
+  maxRequests: string;
+};
+
+function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition): SreSettingsForm {
+  const trigger = policyObject(definition.trigger_policy_json);
+  const scope = policyObject(definition.scope_policy_json);
+  const ingestion = nestedPolicy(scope, 'ingestion');
+  return {
+    enabled: policyObject(trigger.scheduled_poll).enabled === true,
+    filters: monitoringFiltersFromScope(scope),
+    maxAlerts: numberString(ingestion.max_alerts_per_cycle, DEFAULT_SRE_MAX_ALERTS),
+    maxRequests: numberString(ingestion.max_provider_requests_per_cycle, DEFAULT_SRE_MAX_REQUESTS),
+  };
+}
+
+// Diagnosis outcome fields written by recordMonitoringDiagnosisOutcome
+// (ai-agent-work-queue.service.ts): the completed work item's metadata_json and
+// the target state's state_json both carry brief_confidence /
+// needs_human_review / recommended_action_kinds; the target state additionally
+// remembers the occurrence (last_status, occurrence_started_at,
+// last_diagnosis_at). Render only what is actually present.
+function monitoringDiagnosisFields(group: TicketWorkGroup): {
+  lastStatus: string | null;
+  occurrenceStartedAt: string | null;
+  lastDiagnosisAt: string | null;
+  briefConfidence: string | null;
+  needsHumanReview: boolean;
+  recommendedActionKinds: string[];
+} {
+  const stateJson = policyObject(group.targetState?.state_json);
+  const workMeta = policyObject(group.workItem?.metadata_json);
+  const source = typeof workMeta.brief_confidence === 'string' || typeof workMeta.needs_human_review === 'boolean'
+    ? workMeta
+    : stateJson;
+  const kinds = Array.isArray(source.recommended_action_kinds)
+    ? source.recommended_action_kinds.filter((kind): kind is string => typeof kind === 'string' && kind.length > 0)
+    : [];
+  return {
+    lastStatus: stringValue(stateJson.last_status) || null,
+    occurrenceStartedAt: stringValue(stateJson.occurrence_started_at) || null,
+    lastDiagnosisAt: stringValue(stateJson.last_diagnosis_at) || null,
+    briefConfidence: typeof source.brief_confidence === 'string' && source.brief_confidence ? source.brief_confidence : null,
+    needsHumanReview: source.needs_human_review === true,
+    recommendedActionKinds: kinds,
+  };
+}
+
+// Dot + text alert state (status charter pattern 1), colored by the normalized
+// monitoring vocabulary — never provider-raw values.
+function AlertStateText({ status }: { status: string }) {
   const { t } = useTranslation(['agents']);
+  const color = monitoringStatusSemanticColor(status);
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+      <Box
+        aria-hidden
+        sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(color, theme.palette.mode), flex: '0 0 auto' })}
+      />
+      <Typography
+        sx={(theme) => ({ color: getDotColor(color, theme.palette.mode), fontSize: 12, fontWeight: 500, lineHeight: 1.35, minWidth: 0 })}
+      >
+        {t(`monitor.alertStates.${status}`, { defaultValue: humanize(status) })}
+      </Typography>
+    </Stack>
+  );
+}
+
+function MonitorTab({ agentKey }: { agentKey: string }) {
+  const { t, i18n } = useTranslation(['agents']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
   const data = useAgentControlData({ targetAgentKey: agentKey });
@@ -377,6 +481,18 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
   const summary = resolveAgentSummary(data.queueQuery.data, agentKey);
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
+  const isSre = definition?.agent_type === 'sre';
+  const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
+  // SRE agents have no entry in the helpdesk summaries, so watching / last-check
+  // state comes from the definition itself (trigger policy + the poller's
+  // monitoring_ingestion_state written into metadata_json).
+  const sreWatching = policyObject(policyObject(definition?.trigger_policy_json).scheduled_poll).enabled === true;
+  const sreTargetingPredicateCount = (() => {
+    const predicates = policyObject(policyObject(definition?.scope_policy_json).targeting).predicates;
+    return Array.isArray(predicates) ? predicates.length : 0;
+  })();
+  const sreIngestionState = policyObject(policyObject(definition?.metadata_json).monitoring_ingestion_state);
+  const sreLastPollStatus = stringValue(sreIngestionState.last_poll_status);
   // Run state vs emergency pause are distinct axes. An agent-scoped pause can be
   // lifted from here; a tenant/global pause is managed from the fleet overview.
   const agentPause = summary?.emergencyPause ?? null;
@@ -389,6 +505,8 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const agentGroups = grouped.groups;
   const pendingApprovalCount = agentGroups.reduce((sum, group) => sum + group.pendingActions.filter((action) => action.status === 'pending').length, 0);
   const inProgressGroups = agentGroups.filter((group) => ['queued', 'leased', 'running'].includes(group.queueStatus));
+  const monitoringGroups = agentGroups.filter((group) => group.providerKind === 'monitoring');
+  const pollMutation = isSre ? data.pollMonitoringMutation : data.pollMutation;
 
   const triageMutation = useMutation({
     mutationFn: () => {
@@ -403,6 +521,22 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
     },
     onSuccess: async () => {
       data.setMessage(t('monitor.testStarted'));
+      await data.invalidate();
+    },
+    onError: (err) => data.setError(getApiErrorMessage(err, t, t('monitor.testFailed'))),
+  });
+
+  // SRE "test on an alert": runs the full diagnosis synchronously, so on success
+  // the outcome chips are already visible in the watched-alerts list below.
+  const monitoringDiagnosisMutation = useMutation({
+    mutationFn: () => {
+      if (!definition || !monitoringBinding) {
+        throw new Error(t('monitor.monitoringProviderMissing'));
+      }
+      return aiAgentControlApi.testAgentMonitoringDiagnosis(definition.id, { alert_id: targetKey.trim() });
+    },
+    onSuccess: async () => {
+      data.setMessage(t('monitor.testCompleted'));
       await data.invalidate();
     },
     onError: (err) => data.setError(getApiErrorMessage(err, t, t('monitor.testFailed'))),
@@ -441,17 +575,27 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
                 <Button size="small" color="error" variant="outlined" startIcon={<PauseCircleOutlineIcon />} onClick={() => setPauseDialogOpen(true)}>{t('pause.agent')}</Button>
               </>
             )}
-            <Button size="small" variant="outlined" startIcon={data.pollMutation.isPending ? <CircularProgress size={16} /> : <RefreshIcon />} onClick={() => data.pollMutation.mutate()} disabled={data.pollMutation.isPending || !!activePause}>
-              {t('monitor.checkNow')}
+            <Button size="small" variant="outlined" startIcon={pollMutation.isPending ? <CircularProgress size={16} /> : <RefreshIcon />} onClick={() => pollMutation.mutate()} disabled={pollMutation.isPending || !!activePause}>
+              {isSre ? t('monitor.checkForAlerts') : t('monitor.checkNow')}
             </Button>
           </Stack>
         )}
       >
         <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
-          <MetricBlock label={t('monitor.lifecycle')} value={definition ? t(`lifecycle.${lifecycleStatusKey(definition.status, !!summary?.ingestion.enabled, definition.automatic_action_classes?.length ?? 0, !!activePause || !!summary?.ingestion.paused)}`) : t('common.notSet')} />
-          <MetricBlock label={t('monitor.watching')} value={summary?.ingestion.enabled ? (summary.ingestion.entityId || summary.ingestion.categoryId ? t('monitor.filtered') : t('monitor.allTickets')) : t('monitor.off')} />
-          <MetricBlock label={t('monitor.lastCheck')} value={summary?.ingestion.lastPollStatus ? statusLabel(summary.ingestion.lastPollStatus) : t('common.notSet')} />
-          <MetricBlock label={t('monitor.nextCheck')} value={summary?.ingestion.enabled ? t('monitor.everyFiveMinutes') : t('common.notSet')} />
+          <MetricBlock label={t('monitor.lifecycle')} value={definition ? t(`lifecycle.${lifecycleStatusKey(definition.status, isSre ? sreWatching : !!summary?.ingestion.enabled, definition.automatic_action_classes?.length ?? 0, !!activePause || !!summary?.ingestion.paused)}`) : t('common.notSet')} />
+          <MetricBlock
+            label={t('monitor.watching')}
+            value={isSre
+              ? (sreWatching ? (sreTargetingPredicateCount > 0 ? t('monitor.filtered') : t('monitor.allAlerts')) : t('monitor.off'))
+              : (summary?.ingestion.enabled ? (summary.ingestion.entityId || summary.ingestion.categoryId ? t('monitor.filtered') : t('monitor.allTickets')) : t('monitor.off'))}
+          />
+          <MetricBlock
+            label={t('monitor.lastCheck')}
+            value={isSre
+              ? (sreLastPollStatus ? statusLabel(sreLastPollStatus) : t('common.notSet'))
+              : (summary?.ingestion.lastPollStatus ? statusLabel(summary.ingestion.lastPollStatus) : t('common.notSet'))}
+          />
+          <MetricBlock label={t('monitor.nextCheck')} value={(isSre ? sreWatching : summary?.ingestion.enabled) ? t('monitor.everyFiveMinutes') : t('common.notSet')} />
         </Box>
       </Section>
 
@@ -475,30 +619,105 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
         )}
       </Section>
 
-      <Section title={t('monitor.limits')}>
-        <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
-          <MetricBlock label={t('monitor.runsToday')} value={`${summary?.guardrails.daily?.runs ?? 0} / ${summary?.guardrails.daily?.cap.maxRuns ?? '-'}`} />
-          <MetricBlock label={t('monitor.tokensToday')} value={`${formatNumber(summary?.guardrails.daily?.estimatedTokens ?? 0)} / ${formatNumber(summary?.guardrails.daily?.cap.maxTokens)}`} />
-          <MetricBlock label={t('monitor.costToday')} value={`${(summary?.guardrails.daily?.estimatedCostEur ?? 0).toFixed(4)} / ${summary?.guardrails.daily?.cap.maxCostEur ?? '-'} EUR`} />
-        </Box>
-      </Section>
+      {isSre && (
+        <Section title={t('monitor.watchedAlerts')}>
+          {monitoringGroups.length === 0 ? (
+            <EmptyState>{t('monitor.noWatchedAlerts')}</EmptyState>
+          ) : (
+            <Stack spacing={1} sx={{ p: 1.5 }}>
+              {monitoringGroups.map((group, index) => {
+                const diagnosis = monitoringDiagnosisFields(group);
+                return (
+                  <Stack
+                    key={group.key}
+                    spacing={0.5}
+                    sx={(theme) => (index > 0 ? { borderTop: `1px solid ${theme.palette.kanap.border.soft}`, pt: 1 } : {})}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center" useFlexGap flexWrap="wrap">
+                      <TargetLabel targetType={group.targetType} targetRef={group.targetRef} size="dense" href={group.targetUrl} />
+                      {diagnosis.lastStatus && <AlertStateText status={diagnosis.lastStatus} />}
+                      {diagnosis.occurrenceStartedAt && (
+                        <Typography variant="caption" color="text.secondary">
+                          {`${t('monitor.activeSince')} ${formatDateTime(diagnosis.occurrenceStartedAt, i18n.language)}`}
+                        </Typography>
+                      )}
+                    </Stack>
+                    {(diagnosis.needsHumanReview || diagnosis.briefConfidence || diagnosis.recommendedActionKinds.length > 0 || diagnosis.lastDiagnosisAt) && (
+                      <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
+                        {diagnosis.needsHumanReview && <Chip size="small" color="warning" label={t('monitor.needsReview')} />}
+                        {diagnosis.briefConfidence && (
+                          <Chip size="small" label={`${t('monitor.confidence')}: ${t(`monitor.confidenceLevels.${diagnosis.briefConfidence}`, { defaultValue: humanize(diagnosis.briefConfidence) })}`} />
+                        )}
+                        {diagnosis.recommendedActionKinds.map((kind) => (
+                          <Chip key={kind} size="small" variant="outlined" label={t(`monitor.actionKinds.${kind}`, { defaultValue: humanize(kind) })} />
+                        ))}
+                        {diagnosis.lastDiagnosisAt && (
+                          <Typography variant="caption" color="text.secondary">
+                            {`${t('monitor.lastDiagnosis')}: ${formatDateTime(diagnosis.lastDiagnosisAt, i18n.language)}`}
+                          </Typography>
+                        )}
+                      </Stack>
+                    )}
+                  </Stack>
+                );
+              })}
+            </Stack>
+          )}
+        </Section>
+      )}
 
-      <Section title={t('monitor.testTicket')}>
+      {/* Daily-usage totals come from the helpdesk summaries, which do not cover
+          SRE agents yet — hide the section rather than showing misleading zeros. */}
+      {!isSre && (
+        <Section title={t('monitor.limits')}>
+          <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+            <MetricBlock label={t('monitor.runsToday')} value={`${summary?.guardrails.daily?.runs ?? 0} / ${summary?.guardrails.daily?.cap.maxRuns ?? '-'}`} />
+            <MetricBlock label={t('monitor.tokensToday')} value={`${formatNumber(summary?.guardrails.daily?.estimatedTokens ?? 0)} / ${formatNumber(summary?.guardrails.daily?.cap.maxTokens)}`} />
+            <MetricBlock label={t('monitor.costToday')} value={`${(summary?.guardrails.daily?.estimatedCostEur ?? 0).toFixed(4)} / ${summary?.guardrails.daily?.cap.maxCostEur ?? '-'} EUR`} />
+          </Box>
+        </Section>
+      )}
+
+      <Section title={isSre ? t('monitor.testAlert') : t('monitor.testTicket')}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
-          <TextField
-            variant="standard"
-            size="small"
-            value={targetKey}
-            onChange={(event) => setTargetKey(event.target.value)}
-            placeholder={t('monitor.ticketNumberPlaceholder')}
-            sx={{ minWidth: 220 }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && targetKey.trim() && !triageMutation.isPending) triageMutation.mutate();
-            }}
-          />
-          <Button size="small" variant="contained" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }} startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey.trim() || triageMutation.isPending || !definition} onClick={() => triageMutation.mutate()}>
-            {t('monitor.runTest')}
-          </Button>
+          {isSre ? (
+            <>
+              <TextField
+                variant="standard"
+                size="small"
+                value={targetKey}
+                onChange={(event) => setTargetKey(event.target.value)}
+                placeholder={t('monitor.alertIdPlaceholder')}
+                sx={{ minWidth: 220 }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && targetKey.trim() && !monitoringDiagnosisMutation.isPending) monitoringDiagnosisMutation.mutate();
+                }}
+              />
+              <Button size="small" variant="contained" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }} startIcon={monitoringDiagnosisMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!monitoringBinding || !targetKey.trim() || monitoringDiagnosisMutation.isPending || !definition} onClick={() => monitoringDiagnosisMutation.mutate()}>
+                {t('monitor.runTest')}
+              </Button>
+              {!monitoringBinding && (
+                <Typography variant="caption" color="text.secondary">{t('monitor.monitoringProviderMissing')}</Typography>
+              )}
+            </>
+          ) : (
+            <>
+              <TextField
+                variant="standard"
+                size="small"
+                value={targetKey}
+                onChange={(event) => setTargetKey(event.target.value)}
+                placeholder={t('monitor.ticketNumberPlaceholder')}
+                sx={{ minWidth: 220 }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && targetKey.trim() && !triageMutation.isPending) triageMutation.mutate();
+                }}
+              />
+              <Button size="small" variant="contained" sx={{ whiteSpace: 'nowrap', flexShrink: 0 }} startIcon={triageMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <ScienceOutlinedIcon />} disabled={!data.ticketingProviderKey || !targetKey.trim() || triageMutation.isPending || !definition} onClick={() => triageMutation.mutate()}>
+                {t('monitor.runTest')}
+              </Button>
+            </>
+          )}
         </Stack>
       </Section>
 
@@ -613,6 +832,7 @@ function sharedContextProfileLines(profile: AiSharedContextProfile | null | unde
 
 function knowledgeFormFromDefinition(definition: AiAgentControlAgentDefinition): {
   enabled: boolean; allLibraries: boolean; libraryIds: string[]; webEnabled: boolean;
+  kanapData: AiAgentKanapDataSources | null;
 } {
   const scope = definition.scope_policy_json && typeof definition.scope_policy_json === 'object'
     ? definition.scope_policy_json as Record<string, unknown> : {};
@@ -620,11 +840,50 @@ function knowledgeFormFromDefinition(definition: AiAgentControlAgentDefinition):
     ? scope.knowledge_sources as Record<string, unknown> : {};
   const k = ks.knowledge && typeof ks.knowledge === 'object' ? ks.knowledge as Record<string, unknown> : {};
   const web = ks.web && typeof ks.web === 'object' ? ks.web as Record<string, unknown> : {};
+  // kanap_data mirrors the backend readKanapDataBlock semantics (enabled only when
+  // explicitly true, a domain is on unless explicitly false). An ABSENT block stays
+  // null so persistKnowledge never fabricates one — the backend treats absent as
+  // disabled and older (helpdesk) agents must keep that default untouched.
+  const kanapDataRaw = isRecord(ks.kanap_data) ? ks.kanap_data : null;
+  const kanapDomainsRaw = kanapDataRaw && isRecord(kanapDataRaw.domains) ? kanapDataRaw.domains : {};
   return {
     enabled: k.enabled !== false,
     allLibraries: k.all_libraries !== false,
     libraryIds: Array.isArray(k.library_ids) ? k.library_ids.filter((id): id is string => typeof id === 'string') : [],
     webEnabled: web.enabled === true,
+    kanapData: kanapDataRaw
+      ? {
+        enabled: kanapDataRaw.enabled === true,
+        domains: {
+          applications: kanapDomainsRaw.applications !== false,
+          assets: kanapDomainsRaw.assets !== false,
+          interfaces: kanapDomainsRaw.interfaces !== false,
+          connections: kanapDomainsRaw.connections !== false,
+          locations: kanapDomainsRaw.locations !== false,
+        },
+      }
+      : null,
+  };
+}
+
+// Single source for the knowledge_sources payload shape, shared by the
+// dedicated knowledge autosave and the SRE scope autosave (which replaces the
+// WHOLE scope_policy_json server-side and must therefore carry the freshest
+// knowledge/kanap-data intent instead of a stored snapshot).
+function knowledgeSourcesPayloadFromForm(current: ReturnType<typeof knowledgeFormFromDefinition>) {
+  return {
+    knowledge: {
+      enabled: current.enabled,
+      all_libraries: current.allLibraries,
+      library_ids: current.allLibraries ? [] : current.libraryIds,
+    },
+    web: { enabled: current.webEnabled },
+    // Round-trip the FULL block: the backend replaces knowledge_sources
+    // wholesale on this patch, so omitting kanap_data would silently reset an
+    // SRE agent's KANAP-data policy to disabled (backend default for the
+    // absent block). Send exactly what was read (plus any user edits); an
+    // absent block is never fabricated here.
+    ...(current.kanapData ? { kanap_data: current.kanapData } : {}),
   };
 }
 
@@ -645,6 +904,8 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const settings = data.settingsQuery.data;
   const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
   const isHelpdesk = definition.agent_type === 'helpdesk';
+  const isSre = definition.agent_type === 'sre';
+  const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
   const autonomyQuery = useQuery({
     queryKey: ['ai-agent-control-autonomy', definition.id],
     queryFn: () => aiAgentControlApi.getAgentAutonomy(definition.id),
@@ -678,6 +939,11 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const [sharedContextDraftLines, setSharedContextDraftLines] = React.useState('');
   const [effectivePromptTask, setEffectivePromptTask] = React.useState<EffectivePromptTaskKey>('action_planner');
   const [form, setForm] = React.useState<HelpdeskSettingsForm>(() => settingsFormFromDefinition(definition));
+  const [sreForm, setSreForm] = React.useState<SreSettingsForm>(() => sreSettingsFormFromDefinition(definition));
+  const [pendingMonitoringPreset, setPendingMonitoringPreset] = React.useState<{
+    preset: MonitoringTargetingPresetKey;
+    filters: MonitoringTargetingFilter[];
+  } | null>(null);
   const [knowledgeForm, setKnowledgeForm] = React.useState(() => knowledgeFormFromDefinition(definition));
   const [capabilityForm, setCapabilityForm] = React.useState<Record<string, boolean>>(() => capabilityEnabledState(definition));
   const webSearchAvailable = useFeatures().config.features.aiWebSearch;
@@ -733,6 +999,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   );
   const identityAutosave = useAutosave({ onError: onSaveError });
   const settingsAutosave = useAutosave({ onError: onSaveError });
+  const sreAutosave = useAutosave({ onError: onSaveError });
   const knowledgeAutosave = useAutosave({ onError: onSaveError });
   const capabilitiesAutosave = useAutosave({ onError: onSaveError });
 
@@ -742,10 +1009,17 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   agentFormRef.current = agentForm;
   const formRef = React.useRef(form);
   formRef.current = form;
+  const sreFormRef = React.useRef(sreForm);
+  sreFormRef.current = sreForm;
   const knowledgeFormRef = React.useRef(knowledgeForm);
   knowledgeFormRef.current = knowledgeForm;
   const capabilityFormRef = React.useRef(capabilityForm);
   capabilityFormRef.current = capabilityForm;
+  // Latest saved definition for debounced flush thunks: a thunk scheduled
+  // before another section's autosave landed must spread the FRESH policy
+  // JSON, not the render-time snapshot it closed over.
+  const definitionRef = React.useRef(definition);
+  definitionRef.current = definition;
   const savedStatusRef = React.useRef(definition.status);
 
   // Seed the helpdesk settings form once its source first loads (built-in: the
@@ -883,17 +1157,55 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     applySavedDefinition(res.agent_definition);
   }, [definition, isBuiltInHelpdesk, applySavedDefinition, queryClient]);
 
-  const persistKnowledge = React.useCallback(async () => {
-    const current = knowledgeFormRef.current;
-    const res = await aiAgentControlApi.updateAgent(definition.id, {
-      knowledge_sources: {
-        knowledge: {
+  // SRE watch/targeting/pace autosave. The scope patch spreads the stored
+  // scope_policy_json so sibling keys survive the round-trip — read from
+  // definitionRef (the LATEST saved definition), never the render-time
+  // snapshot this debounced thunk closed over: the backend replaces
+  // scope_policy_json wholesale, so a stale snapshot would silently revert
+  // whatever another section's autosave (knowledge/kanap-data) persisted in
+  // the meantime. knowledge_sources itself is additionally composed fresh
+  // from the knowledge form — the local authority — so the two autosaves
+  // agree even when their requests overlap in flight.
+  const persistSreSettings = React.useCallback(async () => {
+    const current = sreFormRef.current;
+    const definitionNow = definitionRef.current;
+    const trigger = policyObject(definitionNow.trigger_policy_json);
+    const scope = policyObject(definitionNow.scope_policy_json);
+    const ingestion = nestedPolicy(scope, 'ingestion');
+    const enabledAt = current.enabled
+      ? stringValue(ingestion.enabled_at) || new Date().toISOString()
+      : stringValue(ingestion.enabled_at) || null;
+    const res = await aiAgentControlApi.updateAgent(definitionNow.id, {
+      trigger_policy_json: {
+        ...trigger,
+        scheduled_poll: {
+          ...policyObject(trigger.scheduled_poll),
           enabled: current.enabled,
-          all_libraries: current.allLibraries,
-          library_ids: current.allLibraries ? [] : current.libraryIds,
         },
-        web: { enabled: current.webEnabled },
+        production_polling_enabled: current.enabled,
+        automatic_writes_enabled: false,
       },
+      scope_policy_json: {
+        ...scope,
+        knowledge_sources: {
+          ...policyObject(scope.knowledge_sources),
+          ...knowledgeSourcesPayloadFromForm(knowledgeFormRef.current),
+        },
+        targeting: monitoringTargetingModelFromFilters(current.filters),
+        ingestion: {
+          ...ingestion,
+          enabled_at: enabledAt,
+          max_alerts_per_cycle: clampNumber(positiveNumber(current.maxAlerts, DEFAULT_SRE_MAX_ALERTS), 1, SRE_MAX_ALERTS_CAP),
+          max_provider_requests_per_cycle: clampNumber(positiveNumber(current.maxRequests, DEFAULT_SRE_MAX_REQUESTS), 1, SRE_MAX_REQUESTS_CAP),
+        },
+      },
+    });
+    applySavedDefinition(res.agent_definition);
+  }, [applySavedDefinition]);
+
+  const persistKnowledge = React.useCallback(async () => {
+    const res = await aiAgentControlApi.updateAgent(definition.id, {
+      knowledge_sources: knowledgeSourcesPayloadFromForm(knowledgeFormRef.current),
     });
     applySavedDefinition(res.agent_definition);
   }, [definition.id, applySavedDefinition]);
@@ -943,9 +1255,33 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     }
     applyTargetingPreset(preset);
   };
+  const updateSre = (patch: Partial<SreSettingsForm>) => {
+    setSreForm((current) => ({ ...current, ...patch }));
+    sreAutosave.schedule(persistSreSettings);
+  };
+  const requestMonitoringPreset = (preset: MonitoringTargetingPresetKey, filters: MonitoringTargetingFilter[]) => {
+    if (sreForm.filters.length > 0) {
+      setPendingMonitoringPreset({ preset, filters });
+      return;
+    }
+    updateSre({ filters });
+  };
   const updateKnowledge = (patch: Partial<typeof knowledgeForm>) => {
     setKnowledgeForm((current) => ({ ...current, ...patch }));
     knowledgeAutosave.schedule(persistKnowledge);
+  };
+  // Displayed KANAP-data state: an absent block reads as the backend default
+  // (disabled, all domains on). The block is only materialized (and therefore
+  // persisted) once the user actually touches a toggle.
+  const kanapDataView: AiAgentKanapDataSources = knowledgeForm.kanapData ?? {
+    enabled: false,
+    domains: { applications: true, assets: true, interfaces: true, connections: true, locations: true },
+  };
+  const updateKanapData = (patch: Partial<AiAgentKanapDataSources>) => {
+    updateKnowledge({ kanapData: { ...kanapDataView, ...patch } });
+  };
+  const updateKanapDataDomain = (domain: typeof KANAP_DATA_DOMAINS[number], enabled: boolean) => {
+    updateKnowledge({ kanapData: { ...kanapDataView, domains: { ...kanapDataView.domains, [domain]: enabled } } });
   };
   const updateCapability = (groupKey: string, enabled: boolean) => {
     setCapabilityForm((current) => ({ ...current, [groupKey]: enabled }));
@@ -966,6 +1302,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     <Stack spacing={2}>
       {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
       {data.message && <Alert severity="success" onClose={() => data.setMessage(null)}>{data.message}</Alert>}
+      {isSre && !monitoringBinding && <Alert severity="warning">{t('settings.monitoringNotConnected')}</Alert>}
       <Section title={t('settings.objectiveCapabilities')} actions={<SaveIndicator status={identityAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 180px' }, gap: 1.5 }}>
@@ -1216,6 +1553,20 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
         </Stack>
         </Section>
       )}
+      {isSre && (
+        <Section title={t('settings.targeting')} actions={<SaveIndicator status={sreAutosave.status} />}>
+          <Stack spacing={1.5} sx={{ p: 1.5 }}>
+            <FormControlLabel
+              control={<Switch checked={sreForm.enabled} onChange={(event) => updateSre({ enabled: event.target.checked })} />}
+              label={t('settings.watchAlerts')}
+            />
+            <MonitoringTargetingPresetButtons onApply={requestMonitoringPreset} />
+            <SettingsField label={t('settings.targetingBuilder.filters')} hint={t('settings.monitoringBuilder.hint')}>
+              <MonitoringTargetingFilterBuilder agentId={definition.id} filters={sreForm.filters} onChange={(filters) => updateSre({ filters })} />
+            </SettingsField>
+          </Stack>
+        </Section>
+      )}
       {isHelpdesk && <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={settingsAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
@@ -1249,6 +1600,18 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
           </Box>
         </Stack>
       </Section>}
+      {isSre && (
+        <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={sreAutosave.status} />}>
+          <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label={t('settings.maxAlerts')}>
+              <TextField size="small" value={sreForm.maxAlerts} onChange={(event) => updateSre({ maxAlerts: event.target.value })} />
+            </SettingsField>
+            <SettingsField label={t('settings.maxMonitoringRequests')}>
+              <TextField size="small" value={sreForm.maxRequests} onChange={(event) => updateSre({ maxRequests: event.target.value })} />
+            </SettingsField>
+          </Box>
+        </Section>
+      )}
 
       <Section title={t('settings.knowledgeSources')} actions={<SaveIndicator status={knowledgeAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
@@ -1304,6 +1667,32 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
           <Typography variant="caption" color="text.secondary">
             {webSearchAvailable ? t('settings.webHint') : t('settings.webUnavailableHint')}
           </Typography>
+          {isSre && (
+            <>
+              <FormControlLabel
+                control={<Switch checked={kanapDataView.enabled} onChange={(event) => updateKanapData({ enabled: event.target.checked })} />}
+                label={t('settings.kanapDataEnabled')}
+              />
+              <Typography variant="caption" color="text.secondary">{t('settings.kanapDataHint')}</Typography>
+              {kanapDataView.enabled && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2, rowGap: 0.25, pl: 1.5 }}>
+                  {KANAP_DATA_DOMAINS.map((domain) => (
+                    <FormControlLabel
+                      key={domain}
+                      control={(
+                        <Checkbox
+                          size="small"
+                          checked={kanapDataView.domains[domain]}
+                          onChange={(event) => updateKanapDataDomain(domain, event.target.checked)}
+                        />
+                      )}
+                      label={t(`settings.kanapDataDomains.${domain}`)}
+                    />
+                  ))}
+                </Box>
+              )}
+            </>
+          )}
         </Stack>
       </Section>
 
@@ -1364,6 +1753,25 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
           <Typography variant="body2" color="text.secondary">
             {t('settings.targetingBuilder.replaceDescription', {
               preset: t(`settings.targetingPresets.${pendingPreset}`),
+            })}
+          </Typography>
+        </KanapDialog>
+      )}
+
+      {pendingMonitoringPreset && (
+        <KanapDialog
+          open={!!pendingMonitoringPreset}
+          title={t('settings.targetingBuilder.replaceTitle')}
+          onClose={() => setPendingMonitoringPreset(null)}
+          onSave={() => {
+            updateSre({ filters: pendingMonitoringPreset.filters });
+            setPendingMonitoringPreset(null);
+          }}
+          saveLabel={t('settings.targetingBuilder.replace')}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t('settings.targetingBuilder.replaceDescription', {
+              preset: t(`settings.monitoringPresets.${pendingMonitoringPreset.preset}`),
             })}
           </Typography>
         </KanapDialog>

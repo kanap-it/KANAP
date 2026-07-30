@@ -18,6 +18,7 @@ import {
 export type LiveContractScenarioKey =
   | 'ticketing_read'
   | 'glpi_read'
+  | 'monitoring_read'
   | 'prtg_read'
   | 'nutanix_read'
   | 'ad_read'
@@ -58,6 +59,18 @@ export const LIVE_CONTRACT_SCENARIOS: Record<LiveContractScenarioKey, LiveContra
     targetKind: 'ticket',
     capabilityName: 'ticketing.ticket.get',
     description: 'GLPI ticket read contract.',
+  },
+  monitoring_read: {
+    key: 'monitoring_read',
+    gate: 'KANAP_MONITORING_LIVE_READ',
+    providerKind: 'monitoring',
+    allowedEffect: 'read',
+    targetKind: 'sensor',
+    // Nominal capability for reporting; the run exercises the provider reads
+    // (getAlert + getSensorHistory + listAlertsForScope) with tiny bounds
+    // through the registry-resolved provider, not the dispatcher.
+    capabilityName: 'monitoring.alert.get',
+    description: 'Monitoring provider bounded sensor read contract (alert, history, scope list).',
   },
   prtg_read: {
     key: 'prtg_read',
@@ -239,6 +252,10 @@ export class AiLiveContractHarnessService {
       return this.runTicketingSandboxWrite(context, target);
     }
 
+    if (scenario.key === 'monitoring_read') {
+      return this.runMonitoringRead(context, target);
+    }
+
     const input = this.dispatchInputFor(target, scenario);
     const result = await this.dispatcher.execute(context, {
       capabilityName: scenario.capabilityName,
@@ -276,6 +293,39 @@ export class AiLiveContractHarnessService {
       default:
         throw new BadRequestException('Unsupported live contract scenario.');
     }
+  }
+
+  // Neutral monitoring read contract: exercises the three read paths the SRE
+  // ingestion/diagnosis runtime depends on, with tiny bounds, through the
+  // registry-resolved provider. Returns metadata only — never alert text.
+  private async runMonitoringRead(
+    context: AiExecutionContextWithManager,
+    target: AiLiveTestTarget,
+  ): Promise<unknown> {
+    const provider = await this.providers.monitoring(context, target.provider_key);
+    const alert = await provider.getAlert(context, { alertId: target.external_ref }) as any;
+    if (!alert?.ok) {
+      throw new ForbiddenException(`Live monitoring alert read failed: ${alert?.message ?? alert?.errorCode ?? 'unknown'}`);
+    }
+    const history = await provider.getSensorHistory(context, { sensorId: target.external_ref, windowMinutes: 60 }) as any;
+    if (!history?.ok) {
+      throw new ForbiddenException(`Live monitoring sensor history read failed: ${history?.message ?? history?.errorCode ?? 'unknown'}`);
+    }
+    const scoped = await provider.listAlertsForScope(context, { scope: { maxResults: 5 } }) as any;
+    if (!scoped?.ok) {
+      throw new ForbiddenException(`Live monitoring scope list failed: ${scoped?.message ?? scoped?.errorCode ?? 'unknown'}`);
+    }
+    return {
+      scenario: 'monitoring_read',
+      alert: {
+        id: alert.data?.id,
+        status: alert.data?.status,
+        severity: alert.data?.severity,
+        ackState: alert.data?.ackState,
+      },
+      history_points: Array.isArray(history.data?.points) ? history.data.points.length : 0,
+      scoped_alerts: Array.isArray(scoped.data?.alerts) ? scoped.data.alerts.length : 0,
+    };
   }
 
   private async runTicketingSandboxWrite(

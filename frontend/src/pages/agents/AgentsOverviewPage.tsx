@@ -37,6 +37,7 @@ import {
   LEGACY_GLPI_TICKETING_PROVIDER_KEY,
   lifecycleStatusKey,
   MetricBlock,
+  providerBindingForDefinition,
   ReasonDialog,
   Section,
   statusLabel,
@@ -75,8 +76,11 @@ import { useAgentControlData } from './useAgentControlData';
 type NewAgentWizardForm = {
   name: string;
   description: string;
-  agentType: 'helpdesk';
-  providerKey: typeof LEGACY_GLPI_TICKETING_PROVIDER_KEY;
+  agentType: 'helpdesk' | 'sre';
+  // Helpdesk: ticketing provider key. SRE: monitoring provider key, or '' when
+  // no monitoring connection is known — the agent is then created unbound
+  // (fail closed), mirroring the backend seed's behavior.
+  providerKey: string;
   watchEnabled: boolean;
   filters: TargetingFilter[];
   agentPriority: string;
@@ -123,7 +127,126 @@ function positiveNumber(value: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+// SRE "watching" source of truth (mirror of the workspace Monitor header's
+// sreWatching): scheduled_poll.enabled on the definition's trigger policy —
+// SRE agents have no helpdesk ingestion summary to read it from.
+function sreScheduledPollEnabled(triggerPolicy: unknown): boolean {
+  const trigger = triggerPolicy && typeof triggerPolicy === 'object' && !Array.isArray(triggerPolicy)
+    ? triggerPolicy as Record<string, unknown> : {};
+  const scheduledPoll = trigger.scheduled_poll && typeof trigger.scheduled_poll === 'object' && !Array.isArray(trigger.scheduled_poll)
+    ? trigger.scheduled_poll as Record<string, unknown> : {};
+  return scheduledPoll.enabled === true;
+}
+
+// Wizard step sequence per agent type. SRE has no "watching" step: monitoring
+// alert selection is configured in the agent's settings after creation (the
+// wizard sends the seed's inert empty targeting placeholder — see
+// newSreAgentPolicies).
+const WIZARD_STEP_KEYS: Record<NewAgentWizardForm['agentType'], Array<'type' | 'connection' | 'watching' | 'limits' | 'review'>> = {
+  helpdesk: ['type', 'connection', 'watching', 'limits', 'review'],
+  sre: ['type', 'connection', 'limits', 'review'],
+};
+
+function economicGuardrailsFromForm(form: NewAgentWizardForm) {
+  return {
+    configured: true,
+    per_run: {
+      max_estimated_tokens: positiveNumber(form.perRunTokens, DEFAULT_PER_RUN_TOKENS),
+      max_estimated_cost_eur: positiveNumber(form.perRunCost, DEFAULT_PER_RUN_COST),
+    },
+    daily: {
+      max_agent_runs: positiveNumber(form.dailyRuns, DEFAULT_DAILY_RUNS),
+      max_estimated_tokens: positiveNumber(form.dailyTokens, DEFAULT_DAILY_TOKENS),
+      max_estimated_cost_eur: positiveNumber(form.dailyCost, DEFAULT_DAILY_COST),
+    },
+  };
+}
+
+// Create-input mirror of the backend SRE seed (ensureSreMonitoringDefinition in
+// backend/src/ai/control-plane/agent/ai-agent-work-queue.service.ts — keep in
+// sync). UI-created SRE agents have no template (the create template is
+// helpdesk-only), so every policy the seed sets must be passed explicitly.
+
+// Mirror of SRE_MONITORING_ALLOWED_CAPABILITIES (backend seed — keep in sync):
+// read-only A1 capabilities validated against the backend's SRE cap table
+// (SRE_POSSIBLE_CAPABILITY_CAPS). Without this list a new SRE agent would start
+// with an empty capability set and fail closed as not runnable.
+const SRE_AGENT_ALLOWED_CAPABILITIES = [
+  'monitoring.alert.get',
+  'monitoring.sensor.history',
+  'monitoring.state.get',
+  'monitoring.alert.related.list',
+  'monitoring.object.get',
+  'search_knowledge',
+  'get_document',
+  'web_search',
+].map((name) => ({ name, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' }));
+
+function newSreAgentPolicies(form: NewAgentWizardForm) {
+  return {
+    agent_priority: positiveNumber(form.agentPriority, 100),
+    allowed_capabilities_json: SRE_AGENT_ALLOWED_CAPABILITIES,
+    provider_bindings_json: form.providerKey
+      ? {
+        monitoring: {
+          provider_kind: 'monitoring',
+          provider_key: form.providerKey,
+        },
+      }
+      : {},
+    trigger_policy_json: {
+      scheduled_poll: { enabled: false },
+      provider_webhook: { enabled: false },
+      production_polling_enabled: false,
+      automatic_writes_enabled: false,
+    },
+    scope_policy_json: {
+      knowledge_sources: {
+        knowledge: { enabled: true, all_libraries: true, library_ids: [] },
+        web: { enabled: false },
+        precedence: 'knowledge_first',
+        kanap_data: {
+          enabled: true,
+          domains: {
+            applications: true,
+            assets: true,
+            interfaces: true,
+            connections: true,
+            locations: true,
+          },
+        },
+      },
+      // Inert placeholder, same as the seed: an empty predicate list round-trips
+      // unchanged through the scope-policy normalizers on the create path.
+      targeting: { schema_version: 1, combinator: 'and', predicates: [] },
+    },
+    queue_policy_json: {
+      enabled: true,
+      dedup_mode: 'active_work_item',
+      lease_ttl_seconds: 300,
+      max_attempts: 3,
+      cooldown_seconds: 60,
+      review_cooldown_seconds: positiveNumber(form.reviewCooldownHours, DEFAULT_REVIEW_COOLDOWN_HOURS) * 3600,
+      on_conflict: form.onConflict === 'supersede' ? 'supersede' : 'defer',
+      approval_ttl_seconds: positiveNumber(form.approvalTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
+      retry_backoff_seconds: [60, 300, 900],
+      terminal_statuses: ['completed', 'dead_letter'],
+      economic_guardrails: economicGuardrailsFromForm(form),
+    },
+    response_policy_json: {
+      require_human_approval_for_writes: true,
+    },
+    evaluation_policy_json: {
+      create_pending_evaluation: true,
+      feedback_required_for_autonomy_promotion: true,
+    },
+  };
+}
+
 function newAgentPolicies(form: NewAgentWizardForm) {
+  if (form.agentType === 'sre') {
+    return newSreAgentPolicies(form);
+  }
   const enabledAt = form.watchEnabled ? new Date().toISOString() : null;
   const mode = modeFromFilters(form.filters);
   const predicates = targetingPredicatesFromFilters(form.filters);
@@ -197,18 +320,7 @@ function newAgentPolicies(form: NewAgentWizardForm) {
         assignment: onStale,
         participant: onStale,
       },
-      economic_guardrails: {
-        configured: true,
-        per_run: {
-          max_estimated_tokens: positiveNumber(form.perRunTokens, DEFAULT_PER_RUN_TOKENS),
-          max_estimated_cost_eur: positiveNumber(form.perRunCost, DEFAULT_PER_RUN_COST),
-        },
-        daily: {
-          max_agent_runs: positiveNumber(form.dailyRuns, DEFAULT_DAILY_RUNS),
-          max_estimated_tokens: positiveNumber(form.dailyTokens, DEFAULT_DAILY_TOKENS),
-          max_estimated_cost_eur: positiveNumber(form.dailyCost, DEFAULT_DAILY_COST),
-        },
-      },
+      economic_guardrails: economicGuardrailsFromForm(form),
     },
     response_policy_json: {
       prepare_internal_note: true,
@@ -339,16 +451,53 @@ export default function AgentsOverviewPage() {
   const [wizardStep, setWizardStep] = React.useState(0);
   const [wizardForm, setWizardForm] = React.useState<NewAgentWizardForm>(() => defaultWizardForm(t));
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
-  const wizardSteps = React.useMemo(() => [
-    t('overview.wizard.steps.type'),
-    t('overview.wizard.steps.connection'),
-    t('overview.wizard.steps.watching'),
-    t('overview.wizard.steps.limits'),
-    t('overview.wizard.steps.review'),
-  ], [t]);
+  const wizardStepKeys = WIZARD_STEP_KEYS[wizardForm.agentType];
+  const wizardSteps = React.useMemo(
+    () => wizardStepKeys.map((step) => t(`overview.wizard.steps.${step}`)),
+    [t, wizardStepKeys],
+  );
+  const wizardStepKey = wizardStepKeys[Math.min(wizardStep, wizardStepKeys.length - 1)];
   const updateWizard = <K extends keyof NewAgentWizardForm>(field: K, value: NewAgentWizardForm[K]) => {
     setWizardForm((current) => ({ ...current, [field]: value }));
   };
+  // Monitoring connections the wizard can bind to. There is no adapter-config
+  // list endpoint, so this mirrors what the backend seed exposes indirectly:
+  // the monitoring bindings already present on the fleet's SRE definitions
+  // (the seed binds automatically when exactly one enabled monitoring adapter
+  // config exists). Empty means "none known" — the agent is created unbound.
+  const monitoringProviderKeys = React.useMemo(() => {
+    const keys = new Set<string>();
+    for (const definition of definitions) {
+      const binding = providerBindingForDefinition(definition, 'monitoring');
+      if (binding) keys.add(binding.providerKey);
+    }
+    return Array.from(keys);
+  }, [definitions]);
+  // Switching agent type swaps the provider slot and, when the user has not
+  // customized them, the default name/description.
+  const changeWizardType = React.useCallback((next: NewAgentWizardForm['agentType']) => {
+    const defaultNames = {
+      helpdesk: t('overview.newAgentDefaultName'),
+      sre: t('overview.newAgentSreDefaultName'),
+    };
+    const defaultDescriptions = {
+      helpdesk: t('overview.newAgentDescription'),
+      sre: t('overview.newAgentSreDescription'),
+    };
+    setWizardForm((current) => ({
+      ...current,
+      agentType: next,
+      providerKey: next === 'sre'
+        ? (monitoringProviderKeys[0] ?? '')
+        : LEGACY_GLPI_TICKETING_PROVIDER_KEY,
+      name: current.name === defaultNames.helpdesk || current.name === defaultNames.sre
+        ? defaultNames[next]
+        : current.name,
+      description: current.description === defaultDescriptions.helpdesk || current.description === defaultDescriptions.sre
+        ? defaultDescriptions[next]
+        : current.description,
+    }));
+  }, [monitoringProviderKeys, t]);
   const helpdeskTemplateDefinition = React.useMemo(
     () => definitions.find((definition) => definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY)
       ?? definitions.find((definition) => definition.agent_type === 'helpdesk')
@@ -493,7 +642,14 @@ export default function AgentsOverviewPage() {
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5, p: 1.5, alignItems: 'start' }}>
               {definitions.map((definition) => {
                 const agentHelpdeskSummary = helpdeskSummaryByAgent.get(definition.id) ?? null;
-                const watching = !!agentHelpdeskSummary?.ingestion.enabled;
+                // Helpdesk agents watch through the ingestion summary; SRE
+                // agents watch through trigger_policy_json.scheduled_poll —
+                // same source the workspace Monitor header reads, so the
+                // fleet card can never say "Testing" while the workspace
+                // says "Watching".
+                const watching = definition.agent_type === 'sre'
+                  ? sreScheduledPollEnabled(definition.trigger_policy_json)
+                  : !!agentHelpdeskSummary?.ingestion.enabled;
                 const pending = data.actionPool.filter((action) => {
                   const metadata = action.metadata_json ?? {};
                   // Count only actionable pending proposals — exclude expired/terminal ones the
@@ -601,7 +757,7 @@ export default function AgentsOverviewPage() {
         <Stack spacing={2}>
           <WizardProgress activeStep={wizardStep} steps={wizardSteps} />
 
-          {wizardStep === 0 && (
+          {wizardStepKey === 'type' && (
             <Stack spacing={1.5}>
               <PropertyRow label={t('overview.wizard.name')} required>
                 <TextField
@@ -617,10 +773,11 @@ export default function AgentsOverviewPage() {
                 <Select
                   variant="standard"
                   value={wizardForm.agentType}
-                  onChange={(event) => updateWizard('agentType', event.target.value as NewAgentWizardForm['agentType'])}
+                  onChange={(event) => changeWizardType(event.target.value as NewAgentWizardForm['agentType'])}
                   sx={drawerSelectSx}
                 >
                   <MenuItem value="helpdesk" sx={drawerMenuItemSx}>{t('overview.wizard.helpdesk')}</MenuItem>
+                  <MenuItem value="sre" sx={drawerMenuItemSx}>{t('overview.wizard.sre')}</MenuItem>
                 </Select>
               </PropertyRow>
               <PropertyRow label={t('overview.wizard.description')}>
@@ -638,13 +795,13 @@ export default function AgentsOverviewPage() {
             </Stack>
           )}
 
-          {wizardStep === 1 && (
+          {wizardStepKey === 'connection' && wizardForm.agentType === 'helpdesk' && (
             <Stack spacing={1.5}>
               <PropertyRow label={t('overview.wizard.connection')}>
                 <Select
                   variant="standard"
                   value={wizardForm.providerKey}
-                  onChange={(event) => updateWizard('providerKey', event.target.value as NewAgentWizardForm['providerKey'])}
+                  onChange={(event) => updateWizard('providerKey', event.target.value)}
                   sx={drawerSelectSx}
                 >
                   <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
@@ -656,7 +813,33 @@ export default function AgentsOverviewPage() {
             </Stack>
           )}
 
-          {wizardStep === 2 && (
+          {wizardStepKey === 'connection' && wizardForm.agentType === 'sre' && (
+            <Stack spacing={1.5}>
+              {monitoringProviderKeys.length > 0 ? (
+                <PropertyRow label={t('overview.wizard.monitoringConnection')}>
+                  <Select
+                    variant="standard"
+                    value={wizardForm.providerKey}
+                    onChange={(event) => updateWizard('providerKey', event.target.value)}
+                    sx={drawerSelectSx}
+                  >
+                    {monitoringProviderKeys.map((key) => (
+                      <MenuItem key={key} value={key} sx={drawerMenuItemSx}>{key.toUpperCase()}</MenuItem>
+                    ))}
+                  </Select>
+                </PropertyRow>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  {t('overview.wizard.monitoringConnectionHint')}
+                </Typography>
+              )}
+              <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary, lineHeight: 1.4 })}>
+                {t('overview.wizard.sreWatchingLater')}
+              </Typography>
+            </Stack>
+          )}
+
+          {wizardStepKey === 'watching' && (
             <Stack spacing={1.5}>
               <WizardSwitchRow
                 checked={wizardForm.watchEnabled}
@@ -688,7 +871,7 @@ export default function AgentsOverviewPage() {
             </Stack>
           )}
 
-          {wizardStep === 3 && (
+          {wizardStepKey === 'limits' && (
             <Stack spacing={1.5}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
                 <PropertyRow label={t('settings.agentPriority')}>
@@ -703,24 +886,30 @@ export default function AgentsOverviewPage() {
                     <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
                   </Select>
                 </PropertyRow>
-                <PropertyRow label={t('settings.maxTickets')}>
-                  <TextField size="small" variant="standard" value={wizardForm.maxTickets} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('maxTickets', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.maxRequests')}>
-                  <TextField size="small" variant="standard" value={wizardForm.maxRequests} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('maxRequests', event.target.value)} />
-                </PropertyRow>
+                {wizardForm.agentType === 'helpdesk' && (
+                  <PropertyRow label={t('settings.maxTickets')}>
+                    <TextField size="small" variant="standard" value={wizardForm.maxTickets} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('maxTickets', event.target.value)} />
+                  </PropertyRow>
+                )}
+                {wizardForm.agentType === 'helpdesk' && (
+                  <PropertyRow label={t('settings.maxRequests')}>
+                    <TextField size="small" variant="standard" value={wizardForm.maxRequests} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('maxRequests', event.target.value)} />
+                  </PropertyRow>
+                )}
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
                 <PropertyRow label={t('settings.approvalTtl')}>
                   <TextField size="small" variant="standard" value={wizardForm.approvalTtlHours} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('approvalTtlHours', event.target.value)} />
                 </PropertyRow>
-                <PropertyRow label={t('settings.onStale')}>
-                  <Select variant="standard" value={wizardForm.onStale} onChange={(event) => updateWizard('onStale', event.target.value)} sx={drawerSelectSx}>
-                    <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
-                    <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
-                    <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
-                  </Select>
-                </PropertyRow>
+                {wizardForm.agentType === 'helpdesk' && (
+                  <PropertyRow label={t('settings.onStale')}>
+                    <Select variant="standard" value={wizardForm.onStale} onChange={(event) => updateWizard('onStale', event.target.value)} sx={drawerSelectSx}>
+                      <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
+                      <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
+                      <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
+                    </Select>
+                  </PropertyRow>
+                )}
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
                 <PropertyRow label={t('settings.perRunTokens')}>
@@ -742,23 +931,41 @@ export default function AgentsOverviewPage() {
             </Stack>
           )}
 
-          {wizardStep === 4 && (
+          {wizardStepKey === 'review' && (
             <Stack spacing={1.5}>
               <Typography sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary })}>
                 {wizardForm.name || t('overview.wizard.unnamed')}
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-                <WizardSummaryRow label={t('overview.wizard.type')} value={t('overview.wizard.helpdesk')} />
-                <WizardSummaryRow label={t('overview.wizard.connection')} value="GLPI" />
-                <WizardSummaryRow label={t('monitor.watching')} value={wizardForm.watchEnabled ? t('overview.wizard.watchEnabled') : t('overview.wizard.watchDisabled')} />
-                <WizardSummaryRow label={t('settings.scopeMode')} value={t(`settings.scopeModes.${wizardScopeMode}`)} />
-                <WizardSummaryRow label={t('settings.targetingBuilder.filters')} value={t('overview.wizard.filterCount', { count: wizardForm.filters.length })} />
-                <WizardSummaryRow label={t('settings.maxTickets')} value={wizardForm.maxTickets} />
+                <WizardSummaryRow
+                  label={t('overview.wizard.type')}
+                  value={t(wizardForm.agentType === 'sre' ? 'overview.wizard.sre' : 'overview.wizard.helpdesk')}
+                />
+                <WizardSummaryRow
+                  label={t('overview.wizard.connection')}
+                  value={wizardForm.agentType === 'sre'
+                    ? (wizardForm.providerKey ? wizardForm.providerKey.toUpperCase() : t('overview.wizard.notConnected'))
+                    : 'GLPI'}
+                />
+                {wizardForm.agentType === 'helpdesk' && (
+                  <WizardSummaryRow label={t('monitor.watching')} value={wizardForm.watchEnabled ? t('overview.wizard.watchEnabled') : t('overview.wizard.watchDisabled')} />
+                )}
+                {wizardForm.agentType === 'helpdesk' && (
+                  <WizardSummaryRow label={t('settings.scopeMode')} value={t(`settings.scopeModes.${wizardScopeMode}`)} />
+                )}
+                {wizardForm.agentType === 'helpdesk' && (
+                  <WizardSummaryRow label={t('settings.targetingBuilder.filters')} value={t('overview.wizard.filterCount', { count: wizardForm.filters.length })} />
+                )}
+                {wizardForm.agentType === 'helpdesk' && (
+                  <WizardSummaryRow label={t('settings.maxTickets')} value={wizardForm.maxTickets} />
+                )}
                 <WizardSummaryRow label={t('settings.reviewCooldown')} value={wizardForm.reviewCooldownHours} />
                 <WizardSummaryRow label={t('settings.dailyRuns')} value={wizardForm.dailyRuns} />
                 <WizardSummaryRow label={t('settings.dailyCost')} value={`${wizardForm.dailyCost} EUR`} />
               </Box>
-              <Typography variant="body2" color="text.secondary">{t('overview.wizard.reviewBody')}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t(wizardForm.agentType === 'sre' ? 'overview.wizard.reviewBodySre' : 'overview.wizard.reviewBody')}
+              </Typography>
             </Stack>
           )}
         </Stack>

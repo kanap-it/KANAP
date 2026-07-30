@@ -509,6 +509,103 @@ async function testTicketingSandboxWriteLiveContractUsesNeutralScenario() {
   assert.equal(result.output.ok, true);
 }
 
+async function testMonitoringReadLiveContractRunsBoundedProviderReads() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const targets = new AiLiveTestTargetService({} as any);
+  await targets.saveTarget(context, {
+    providerKind: 'monitoring',
+    providerKey: 'prtg-lab',
+    environment: 'sandbox',
+    targetKind: 'sensor',
+    targetKey: 'sensor-read',
+    externalRef: '4711',
+    allowedEffect: 'read',
+    safetyLabel: 'read_only',
+    enabled: true,
+  });
+  const calls: Array<{ method: string; input: any }> = [];
+  const fakeAlert = {
+    id: '4711',
+    status: 'down',
+    severity: 'high',
+    ackState: 'unacknowledged',
+    message: 'Ping timed out.',
+    sensorId: '4711',
+    observedAt: '2026-07-05T10:00:00.000Z',
+    occurrenceStartedAt: '2026-07-05T09:45:00.000Z',
+    lastCheckedAt: '2026-07-05T10:00:00.000Z',
+    lastValue: null,
+    objectKind: 'check',
+    deviceName: 'srv-fr-db01',
+    groupPath: ['Probe DC1', 'Production'],
+    sourceUri: 'https://prtg.lab.test/sensor.htm?id=4711',
+    dedupKey: 'prtg:4711:down:2026-07-05T09:45:00.000Z',
+  };
+  const fakeMonitoringProvider = {
+    getAlert: async (_context: unknown, input: any) => {
+      calls.push({ method: 'getAlert', input });
+      return { ok: true, data: fakeAlert, evidence: [] };
+    },
+    getSensorHistory: async (_context: unknown, input: any) => {
+      calls.push({ method: 'getSensorHistory', input });
+      return {
+        ok: true,
+        data: { sensorId: input.sensorId, metric: 'ping', unit: '', windowMinutes: input.windowMinutes, points: [{ timestamp: '2026-07-05T09:50:00.000Z', value: 12 }], summary: '1 point' },
+        evidence: [],
+      };
+    },
+    listAlertsForScope: async (_context: unknown, input: any) => {
+      calls.push({ method: 'listAlertsForScope', input });
+      return { ok: true, data: { alerts: [fakeAlert] }, evidence: [] };
+    },
+  };
+  const resolvedProviderKeys: string[] = [];
+  const harness = new AiLiveContractHarnessService(
+    targets,
+    {
+      getApplicability: async () => ({ available: true }),
+      monitoring: async (_context: unknown, providerKey: string) => {
+        resolvedProviderKeys.push(providerKey);
+        return fakeMonitoringProvider;
+      },
+    } as any,
+    { execute: async () => { throw new Error('monitoring_read must not go through the dispatcher'); } } as any,
+    {} as any,
+  );
+  const env = {
+    KANAP_LIVE_CONTRACT_TESTS: '1',
+    KANAP_LIVE_TENANT_SLUG: 'tenant-one',
+    KANAP_MONITORING_LIVE_READ: '1',
+    KANAP_MONITORING_LIVE_READ_PROVIDER_KEY: 'prtg-lab',
+  };
+
+  const skipped = await harness.readiness(context, 'monitoring_read', {
+    KANAP_LIVE_CONTRACT_TESTS: '1',
+    KANAP_LIVE_TENANT_SLUG: 'tenant-one',
+  });
+  assert.equal(skipped.status, 'skipped');
+  assert.match(skipped.status === 'skipped' ? skipped.reason : '', /KANAP_MONITORING_LIVE_READ/);
+
+  const ready = await harness.readiness(context, 'monitoring_read', env);
+  assert.equal(ready.status, 'ready');
+  assert.equal(ready.status === 'ready' ? ready.target.target_kind : null, 'sensor');
+
+  const result = await harness.run(context, 'monitoring_read', env) as any;
+  assert.deepEqual(resolvedProviderKeys, ['prtg-lab']);
+  assert.deepEqual(calls.map((call) => call.method), ['getAlert', 'getSensorHistory', 'listAlertsForScope']);
+  assert.equal(calls[0].input.alertId, '4711');
+  assert.equal(calls[1].input.sensorId, '4711');
+  assert.equal(calls[1].input.windowMinutes, 60);
+  assert.equal(calls[2].input.scope.maxResults, 5);
+  assert.equal(result.scenario, 'monitoring_read');
+  assert.equal(result.alert.id, '4711');
+  assert.equal(result.history_points, 1);
+  assert.equal(result.scoped_alerts, 1);
+  // Metadata only — the summary payload never carries alert text.
+  assert.doesNotMatch(JSON.stringify(result), /Ping timed out/);
+}
+
 function testLiveReadinessDoesNotCreateMcpCapabilities() {
   const names = providerCapabilityContracts().map((contract) => contract.name);
   for (const scenario of Object.values(LIVE_CONTRACT_SCENARIOS)) {
@@ -537,6 +634,7 @@ async function run() {
   await testProviderRegistryResolvesCredentialsBeforeAdapterReadiness();
   await testLiveContractHarnessSkipsAndFailsClosed();
   await testTicketingSandboxWriteLiveContractUsesNeutralScenario();
+  await testMonitoringReadLiveContractRunsBoundedProviderReads();
   testLiveReadinessDoesNotCreateMcpCapabilities();
 }
 

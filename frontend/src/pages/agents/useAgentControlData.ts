@@ -445,6 +445,30 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     onError: (err) => setError(getApiErrorMessage(err, t, t('messages.pollFailed'))),
   });
 
+  // SRE mirror of the helpdesk check-now poll. The tenant-level summary carries
+  // the poller status; per-agent skip reasons (watching off, pause, caps) live in
+  // the nested per-agent summaries, so surface the first one when the top level
+  // has none — the operator must see why nothing happened.
+  const pollMonitoringMutation = useMutation({
+    mutationFn: () => aiAgentControlApi.pollSreMonitoringIngestion(),
+    onMutate: () => {
+      setError(null);
+      setMessage(null);
+    },
+    onSuccess: async (result) => {
+      const reason = result.reason ?? result.agents?.find((agent) => agent.reason)?.reason ?? null;
+      const messageKey = reason ? 'messages.pollCompleteWithReason' : 'messages.pollComplete';
+      setMessage(t(messageKey, {
+        status: statusLabel(result.status),
+        enqueued: result.enqueued,
+        processed: result.processed,
+        reason,
+      }));
+      await invalidate();
+    },
+    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.monitoringPollFailed'))),
+  });
+
   const updateSettingsMutation = useMutation({
     mutationFn: (payload: AiAgentControlHelpdeskIngestionSettingsInput) => aiAgentControlApi.updateHelpdeskIngestionSettings(payload),
     onSuccess: async () => {
@@ -562,6 +586,7 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     invalidate,
     message,
     pollMutation,
+    pollMonitoringMutation,
     queueQuery,
     rejectAllMutation,
     rejectMutation,

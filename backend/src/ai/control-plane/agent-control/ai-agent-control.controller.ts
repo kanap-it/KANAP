@@ -21,6 +21,7 @@ import { AiExecutionContext, AiExecutionContextWithManager } from '../../ai.type
 import { AiPolicyService } from '../../ai-policy.service';
 import { AiTenantExecutionService } from '../../execution/ai-tenant-execution.service';
 import { AiAgentHelpdeskTicketingIngestionService } from '../agent/ai-agent-helpdesk-ticketing-ingestion.service';
+import { AiAgentMonitoringAlertIngestionService } from '../agent/ai-agent-monitoring-alert-ingestion.service';
 import {
   AiAgentWorkQueueService,
   HelpdeskTicketingIngestionSettingsInput,
@@ -29,6 +30,7 @@ import { AiEmergencyPauseService } from '../pause/ai-emergency-pause.service';
 import {
   AgentControlTicketingReadInput,
   AgentControlTicketingTriageInput,
+  AgentControlMonitoringDiagnosisInput,
   AgentControlMockTriageInput,
   AgentControlActivityType,
   AgentControlAgentDefinitionInput,
@@ -91,6 +93,7 @@ export class AiAgentControlController {
     private readonly policy: AiPolicyService,
     private readonly control: AiAgentControlService,
     private readonly ticketingIngestion: AiAgentHelpdeskTicketingIngestionService,
+    private readonly monitoringIngestion: AiAgentMonitoringAlertIngestionService,
     private readonly workQueue: AiAgentWorkQueueService,
     private readonly emergencyPause: AiEmergencyPauseService,
   ) {}
@@ -574,6 +577,27 @@ export class AiAgentControlController {
   ) {
     const context = this.buildContext(req);
     return this.runTransaction(context, 'operate', (tenantContext) => this.ticketingIngestion.pollTenant(tenantContext));
+  }
+
+  @Post('sre/monitoring-ingestion/poll')
+  async pollSreMonitoringIngestion(
+    @Req() req: any,
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'operate', (tenantContext) => this.monitoringIngestion.pollTenant(tenantContext));
+  }
+
+  @Post('agents/:id/monitoring-diagnosis/test')
+  async testAgentMonitoringDiagnosis(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: Pick<AgentControlMonitoringDiagnosisInput, 'alert_id'> = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runMonitoringDiagnosis(tenantContext, {
+      agent_definition_id: id,
+      alert_id: body?.alert_id ?? null,
+    }));
   }
 
   @Get('helpdesk/glpi-ingestion/settings')
