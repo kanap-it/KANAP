@@ -27,10 +27,10 @@ La página principal de Administración proporciona acceso rápido a las funcion
 | **Departamentos** | Gestionar departamentos y plantilla | `departments:reader` |
 | **Proveedores** | Gestionar proveedores y contactos | `suppliers:reader` |
 | **Cuentas** | Gestionar códigos contables | `accounts:reader` |
-| **Usuarios y acceso** | Asignar puestos y roles | `users:reader` |
+| **Usuarios y acceso** | Gestionar usuarios y roles | `users:reader` |
 | **Roles** | Definir permisos de roles | `users:reader` |
 | **Registro de auditoría** | Consultar todo el historial de cambios | `users:admin` |
-| **Facturación** | Plan, puestos y facturas | Administrador de facturación |
+| **Facturación** | Plan y facturas | Administrador de facturación |
 
 Autenticación y Personalización están disponibles desde la navegación lateral pero no aparecen en la página principal del centro de Administración.
 
@@ -132,7 +132,7 @@ La cuadrícula muestra por defecto los usuarios **habilitados**. Utilice el conm
    - **Teléfono profesional** / **Teléfono móvil**: Números de contacto
    - **Roles**: Asignar uno o más roles (determina los permisos)
    - **Empresa** / **Departamento**: Asignación organizacional
-   - **Habilitado**: Si el usuario puede iniciar sesión (consume un puesto)
+   - **Habilitado**: Si el usuario puede iniciar sesión
 4. Haga clic en **Guardar** o **Guardar e invitar** para enviar el correo de inicio de sesión
 
 ### Asignación de múltiples roles
@@ -141,11 +141,11 @@ Se pueden asignar múltiples roles a los usuarios. Sus permisos efectivos son la
 
 ### Gestión de puestos
 
-Los usuarios consumen **puestos** según su plan de suscripción:
-- **Usuarios habilitados**: Cuentan contra su límite de puestos
-- **Usuarios deshabilitados**: No consumen puestos
-- El contador de puestos en la barra de herramientas muestra el uso actual (p. ej., "Puestos 5/10")
-- Active o desactive el interruptor **Habilitado** al editar un usuario para gestionar la asignación de puestos
+La suscripción alojada incluye **usuarios ilimitados** — no hay límite de puestos que gestionar:
+- **Usuarios habilitados**: Pueden iniciar sesión y usar KANAP
+- **Usuarios deshabilitados**: Conservan sus datos pero ya no pueden iniciar sesión
+- El contador en la barra de herramientas muestra el número de usuarios habilitados
+- Active o desactive el interruptor **Habilitado** al editar un usuario para controlar el acceso
 
 ### Usuarios gestionados por SSO
 
@@ -271,7 +271,7 @@ El rol de **Contacto** es un rol especial del sistema para usuarios que aparecen
 
 **Usuarios con rol de Contacto:**
 - No pueden iniciar sesión en KANAP
-- No consumen puestos de suscripción
+- No cuentan en el total de usuarios habilitados
 - No reciben notificaciones por correo electrónico (incluso si están asignados a proyectos/tareas)
 - Pueden ser seleccionados en desplegables de usuario (p. ej., como patrocinador del proyecto)
 
@@ -304,13 +304,13 @@ La página de Roles tiene un diseño de dos paneles:
 
 ## Facturación
 
-Gestione su suscripción, puestos y facturas.
+Gestione su suscripción, usuarios y facturas.
 
 ### Resumen de la suscripción
 
 La tarjeta de suscripción muestra su plan actual de un vistazo:
-- **Plan**: Su nivel de suscripción (Solo, Team, Pro o Prueba gratuita)
-- **Puestos**: Puestos utilizados vs. disponibles
+- **Plan**: Hosted KANAP (o Prueba gratuita). La suscripción incluye usuarios ilimitados — facturación mensual o anual
+- **Puestos**: Número de usuarios habilitados
 - **Estado**: Activo, En prueba, Pago vencido, Cancelado, etc.
 - **Fecha de renovación**: Cuándo comienza el siguiente ciclo de facturación
 
@@ -325,7 +325,7 @@ Si la suscripción está en período de prueba, se muestran los días restantes 
 
 ### Acciones
 
-- **Elegir plan** / **Cambiar plan**: Abrir el cuadro de selección de plan para suscribirse o cambiar de plan. Requiere administrador de facturación.
+- **Elegir plan** / **Cambiar plan**: Abrir el cuadro de diálogo del plan para suscribirse o alternar entre facturación mensual y anual. Requiere administrador de facturación.
 - **Gestionar suscripción**: Abrir el portal de cliente de Stripe para actualizar métodos de pago, cancelar u otros cambios. Solo disponible cuando existe una suscripción de Stripe.
 
 Si su suscripción no está en buen estado (prueba expirada, pago vencido, etc.), el cuadro de selección de plan se abre automáticamente al visitar la página de Facturación.
@@ -453,6 +453,5 @@ Todos los cambios se guardan automáticamente al activar/desactivar interruptore
   - **Duplique roles integrados**: En lugar de crear roles desde cero, duplique un rol integrado y ajuste los permisos. Esto ahorra tiempo y garantiza que no omita recursos importantes.
   - **Use múltiples roles para mayor flexibilidad**: Asigne a los usuarios múltiples roles para combinar permisos, por ejemplo, un rol de "Lector de finanzas" más un rol de "Gestor de proyectos".
   - **Utilice SSO**: Si tiene Microsoft 365, conecte Entra ID para facilitar la gestión de usuarios y la sincronización automática de perfiles.
-  - **Supervise los puestos**: Controle el uso de puestos en la barra de herramientas para evitar alcanzar los límites.
   - **Desactive, no elimine**: Cuando alguien se va, desactive su cuenta para preservar el historial de auditoría.
   - **Revise los permisos periódicamente**: Audite los permisos de los roles de forma regular para mantener el principio de mínimo privilegio.

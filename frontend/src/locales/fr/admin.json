@@ -319,10 +319,7 @@
         "trialEnds": "Fin de l'essai"
       },
       "planLabels": {
-        "freeTrial": "Essai gratuit",
-        "pro": "Pro",
-        "solo": "Solo",
-        "team": "Team"
+        "freeTrial": "Essai gratuit"
       },
       "title": "Abonnement",
       "values": {
@@ -627,6 +624,7 @@
       "payByBankTransfer": "Payer par virement",
       "payByCard": "Payer par carte"
     },
+    "annualSavings": "2 mois offerts",
     "billingCycle": {
       "annual": "Annuel",
       "monthly": "Mensuel"
@@ -645,16 +643,14 @@
       "trialExpires_other": "La période d'essai expire dans {{count}} jours."
     },
     "pricePer": "par {{period}}",
-    "seatLimitContributors_one": "{{count}} contributeur inclus",
-    "seatLimitContributors_other": "{{count}} contributeurs inclus",
     "shared": {
       "month": "mois",
-      "unlimited": "Illimité",
       "upToSeats_one": "Jusqu'à {{count}} poste",
       "upToSeats_other": "Jusqu'à {{count}} postes",
       "year": "an"
     },
-    "title": "Choisir un plan"
+    "title": "Choisir un plan",
+    "unlimitedUsers": "Utilisateurs illimités"
   },
   "roles": {
     "actions": {

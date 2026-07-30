@@ -27,10 +27,10 @@ Die Startseite der Administration bietet schnellen Zugriff auf die wichtigsten V
 | **Abteilungen** | Abteilungen und Mitarbeiterzahl verwalten | `departments:reader` |
 | **Lieferanten** | Lieferanten und Kontakte verwalten | `suppliers:reader` |
 | **Konten** | Buchungskonten verwalten | `accounts:reader` |
-| **Benutzer & Zugriff** | Plätze und Rollen zuweisen | `users:reader` |
+| **Benutzer & Zugriff** | Benutzer und Rollen verwalten | `users:reader` |
 | **Rollen** | Rollenberechtigungen definieren | `users:reader` |
 | **Audit-Protokoll** | Gesamte Änderungshistorie durchsuchen | `users:admin` |
-| **Abrechnung** | Tarif, Plätze und Rechnungen | Abrechnungsadministrator |
+| **Abrechnung** | Tarif und Rechnungen | Abrechnungsadministrator |
 
 Authentifizierung und Branding sind über die Seitenleistennavigation erreichbar, erscheinen jedoch nicht auf der Startseite des Administrations-Hubs.
 
@@ -132,7 +132,7 @@ Das Grid zeigt standardmäßig **aktivierte** Benutzer. Verwenden Sie den Bereic
    - **Geschäftstelefon** / **Mobiltelefon**: Telefonnummern
    - **Rollen**: Eine oder mehrere Rollen zuweisen (bestimmt die Berechtigungen)
    - **Unternehmen** / **Abteilung**: Organisatorische Zuordnung
-   - **Aktiviert**: Ob der Benutzer sich anmelden kann (belegt einen Platz)
+   - **Aktiviert**: Ob der Benutzer sich anmelden kann
 4. Klicken Sie auf **Speichern** oder **Speichern und einladen**, um die Anmelde-E-Mail zu senden
 
 ### Mehrfach-Rollenzuweisung
@@ -141,11 +141,11 @@ Benutzern können mehrere Rollen zugewiesen werden. Ihre effektiven Berechtigung
 
 ### Platzverwaltung
 
-Benutzer verbrauchen **Plätze** gemäß Ihrem Abonnement:
-- **Aktivierte Benutzer**: Zählen gegen Ihr Platzlimit
-- **Deaktivierte Benutzer**: Verbrauchen keine Plätze
-- Der Platzzähler in der Symbolleiste zeigt die aktuelle Nutzung (z. B. „Plätze 5/10")
-- Schalten Sie den **Aktiviert**-Schalter beim Bearbeiten eines Benutzers um, um die Platzzuordnung zu verwalten
+Das gehostete Abonnement umfasst **unbegrenzte Nutzer** — es gibt kein Platzlimit zu verwalten:
+- **Aktivierte Benutzer**: Können sich anmelden und KANAP nutzen
+- **Deaktivierte Benutzer**: Behalten ihre Daten, können sich aber nicht mehr anmelden
+- Der Zähler in der Symbolleiste zeigt die Anzahl der aktivierten Benutzer
+- Schalten Sie den **Aktiviert**-Schalter beim Bearbeiten eines Benutzers um, um den Zugriff zu steuern
 
 ### SSO-verwaltete Benutzer
 
@@ -271,7 +271,7 @@ Die Rolle **Kontakt** ist eine spezielle Systemrolle für Benutzer, die in Dropd
 
 **Kontakt-Benutzer:**
 - Können sich nicht bei KANAP anmelden
-- Verbrauchen keine Abonnement-Plätze
+- Zählen nicht zur Gesamtzahl der aktivierten Benutzer
 - Erhalten keine E-Mail-Benachrichtigungen (auch wenn sie Projekten/Aufgaben zugewiesen sind)
 - Können in Benutzer-Dropdowns ausgewählt werden (z. B. als Projektsponsor)
 
@@ -304,13 +304,13 @@ Die Rollenseite hat ein zweispaltiges Layout:
 
 ## Abrechnung
 
-Verwalten Sie Ihr Abonnement, Ihre Plätze und Rechnungen.
+Verwalten Sie Ihr Abonnement, Ihre Benutzer und Rechnungen.
 
 ### Abonnement-Übersicht
 
 Die Abonnementkarte zeigt Ihren aktuellen Tarif auf einen Blick:
-- **Tarif**: Ihre Abonnementstufe (Solo, Team, Pro oder Kostenlose Testversion)
-- **Plätze**: Belegte vs. verfügbare Plätze
+- **Tarif**: Hosted KANAP (oder Kostenlose Testversion). Das Abonnement umfasst unbegrenzte Nutzer — monatliche oder jährliche Abrechnung
+- **Plätze**: Anzahl der aktivierten Benutzer
 - **Status**: Aktiv, Testphase, Überfällig, Gekündigt usw.
 - **Verlängerungsdatum**: Wann der nächste Abrechnungszeitraum beginnt
 
@@ -325,7 +325,7 @@ Befindet sich das Abonnement in einer Testphase, werden die verbleibenden Testta
 
 ### Aktionen
 
-- **Tarif wählen** / **Tarif ändern**: Öffnet den Tarifauswahldialog zum Abonnieren oder Wechseln von Tarifen. Erfordert Abrechnungsadministrator.
+- **Tarif wählen** / **Tarif ändern**: Öffnet den Tarifdialog zum Abonnieren oder zum Wechsel zwischen monatlicher und jährlicher Abrechnung. Erfordert Abrechnungsadministrator.
 - **Abonnement verwalten**: Öffnet das Stripe-Kundenportal zum Aktualisieren von Zahlungsmethoden, Kündigen oder für andere Änderungen. Nur verfügbar, wenn ein Stripe-Abonnement existiert.
 
 Wenn Ihr Abonnement nicht in Ordnung ist (abgelaufene Testversion, überfällig usw.), öffnet sich der Tarifauswahldialog automatisch, wenn Sie die Abrechnungsseite besuchen.
@@ -453,6 +453,5 @@ Alle Änderungen werden automatisch gespeichert, sobald Sie Schalter umschalten 
   - **Integrierte Rollen duplizieren**: Anstatt Rollen von Grund auf zu erstellen, duplizieren Sie eine integrierte Rolle und passen Sie die Berechtigungen an. Das spart Zeit und stellt sicher, dass Sie keine wichtigen Ressourcen übersehen.
   - **Mehrfach-Rollen für Flexibilität**: Weisen Sie Benutzern mehrere Rollen zu, um Berechtigungen zu kombinieren -- z. B. eine Rolle „Finanz-Leser" plus eine Rolle „Projektmanager".
   - **SSO verwenden**: Wenn Sie Microsoft 365 haben, verbinden Sie Entra ID für einfachere Benutzerverwaltung und automatische Profilsynchronisation.
-  - **Plätze überwachen**: Behalten Sie die Platznutzung in der Symbolleiste im Auge, um Limits nicht zu überschreiten.
   - **Deaktivieren statt löschen**: Wenn jemand das Unternehmen verlässt, deaktivieren Sie das Konto, um die Audit-Historie zu bewahren.
   - **Berechtigungen regelmäßig überprüfen**: Prüfen Sie die Rollenberechtigungen regelmäßig, um das Prinzip der minimalen Rechte einzuhalten.

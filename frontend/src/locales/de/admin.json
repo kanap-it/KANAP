@@ -319,10 +319,7 @@
         "trialEnds": "Testphase endet"
       },
       "planLabels": {
-        "freeTrial": "Kostenlose Testphase",
-        "pro": "Pro",
-        "solo": "Solo",
-        "team": "Team"
+        "freeTrial": "Kostenlose Testphase"
       },
       "title": "Abonnement",
       "values": {
@@ -627,6 +624,7 @@
       "payByBankTransfer": "Per Überweisung zahlen",
       "payByCard": "Per Karte zahlen"
     },
+    "annualSavings": "2 Monate gratis",
     "billingCycle": {
       "annual": "Jährlich",
       "monthly": "Monatlich"
@@ -645,16 +643,14 @@
       "trialExpires_other": "Testphase läuft in {{count}} Tagen ab."
     },
     "pricePer": "pro {{period}}",
-    "seatLimitContributors_one": "{{count}} Mitwirkender enthalten",
-    "seatLimitContributors_other": "{{count}} Mitwirkende enthalten",
     "shared": {
       "month": "Monat",
-      "unlimited": "Unbegrenzt",
       "upToSeats_one": "Bis zu {{count}} Platz",
       "upToSeats_other": "Bis zu {{count}} Plätze",
       "year": "Jahr"
     },
-    "title": "Plan wählen"
+    "title": "Plan wählen",
+    "unlimitedUsers": "Unbegrenzte Nutzer"
   },
   "roles": {
     "actions": {

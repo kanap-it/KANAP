@@ -238,8 +238,8 @@ export class StripeWebhookService implements OnModuleInit {
       if (!sub) {
         const initPlanKey = this.resolvePlanKey(subscriptionData, null);
         sub = repo.create({
-          plan_name: initPlanKey ? toPlanDisplayName(initPlanKey) : (this.derivePlanName(subscriptionData?.quantity) ?? subscriptionData?.plan?.nickname ?? null),
-          seat_limit: initPlanKey ? PLANS[initPlanKey].seatLimit : (typeof subscriptionData?.quantity === 'number' ? subscriptionData.quantity : 5),
+          plan_name: initPlanKey ? toPlanDisplayName(initPlanKey) : (subscriptionData?.plan?.nickname ?? null),
+          seat_limit: initPlanKey ? PLANS[initPlanKey].seatLimit : (typeof subscriptionData?.quantity === 'number' ? subscriptionData.quantity : null),
           subscription_type: this.resolveSubscriptionType(subscriptionData?.items?.data?.[0]?.price),
           payment_mode: this.resolvePaymentMode(subscriptionData),
         });
@@ -277,7 +277,7 @@ export class StripeWebhookService implements OnModuleInit {
           sub.plan_name = toPlanDisplayName(resolvedPlanKey);
           sub.seat_limit = PLANS[resolvedPlanKey].seatLimit;
         } else {
-          const planName = this.derivePlanName(subscriptionData?.quantity) ?? subscriptionData?.plan?.nickname ?? null;
+          const planName = subscriptionData?.plan?.nickname ?? null;
           sub.plan_name = planName ?? sub.plan_name ?? null;
           if (typeof subscriptionData?.quantity === 'number') {
             sub.seat_limit = subscriptionData.quantity;
@@ -441,13 +441,6 @@ export class StripeWebhookService implements OnModuleInit {
     const fromLegacy = resolvePlanKeyFromLegacyName(existingPlanName);
     if (fromLegacy) return fromLegacy;
     return null;
-  }
-
-  private derivePlanName(quantity: number | null | undefined): string | null {
-    if (typeof quantity !== 'number') return null;
-    if (quantity <= 2) return 'Solo';
-    if (quantity <= 9) return 'Team';
-    return 'Pro';
   }
 
   private resolveQuantity(subObject: any): number {

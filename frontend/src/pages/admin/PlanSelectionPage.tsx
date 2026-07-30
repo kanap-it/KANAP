@@ -59,7 +59,7 @@ function formatPrice(cents: number, locale: string): string {
 }
 
 function formatSeatLimit(limit: number | null, t: TFunction): string {
-  if (limit == null) return t('planSelection.shared.unlimited');
+  if (limit == null) return t('planSelection.unlimitedUsers');
   return t('planSelection.shared.upToSeats', { count: limit });
 }
 
@@ -225,8 +225,11 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: `repeat(${Math.min(plans.length, 3)}, 1fr)` },
+                  gridTemplateColumns: plans.length === 1
+                    ? 'minmax(0, 380px)'
+                    : { xs: '1fr', md: `repeat(${Math.min(plans.length, 3)}, 1fr)` },
                   gap: 2,
+                  justifyContent: plans.length === 1 ? 'center' : undefined,
                 }}
               >
                 {plans.map((plan) => {
@@ -249,7 +252,7 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
                             {plan.display_name}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {t('planSelection.seatLimitContributors', { limit: formatSeatLimit(plan.seat_limit, t) })}
+                            {formatSeatLimit(plan.seat_limit, t)}
                           </Typography>
                           <Box>
                             <Typography variant="h4" fontWeight={700}>
@@ -262,6 +265,11 @@ export default function PlanSelectionDialog({ open, onClose, onSuccess }: PlanSe
                                   : t('planSelection.shared.month'),
                               })}
                             </Typography>
+                            {billingCycle === 'annual' && (
+                              <Typography variant="caption" color="success.main" fontWeight={600}>
+                                {t('planSelection.annualSavings')}
+                              </Typography>
+                            )}
                           </Box>
 
                           {!bankTransferEligible && (

@@ -171,12 +171,7 @@ function derivePlanLabel(
   if (!subscription) return '—';
   // Local trial (no Stripe subscription)
   if (subscription.status === 'trialing' && !subscription.stripe_subscription_id) return t('billing.subscription.planLabels.freeTrial');
-  if (subscription.plan_name) return subscription.plan_name;
-  const seats = Math.max(subscription.seat_limit ?? 0, subscription.seats_used ?? 0);
-  if (!seats) return '—';
-  if (seats <= 2) return t('billing.subscription.planLabels.solo');
-  if (seats <= 9) return t('billing.subscription.planLabels.team');
-  return t('billing.subscription.planLabels.pro');
+  return subscription.plan_name || '—';
 }
 
 function formatSubscriptionType(
