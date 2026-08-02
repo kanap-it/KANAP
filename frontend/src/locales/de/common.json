@@ -378,7 +378,11 @@
     "addPersonalMessage": "Persönliche Nachricht hinzufügen...",
     "copied": "Kopiert!",
     "copyLink": "Link kopieren",
-    "typeEmailAddress": "E-Mail-Adresse eingeben"
+    "typeEmailAddress": "E-Mail-Adresse eingeben",
+    "copy": "Kopieren",
+    "copiedToClipboard": "In die Zwischenablage kopiert",
+    "orEmailSection": "Oder per E-Mail an jemanden senden",
+    "sendEmail": "E-Mail senden"
   },
   "enumEditor": {
     "label": "Bezeichnung",

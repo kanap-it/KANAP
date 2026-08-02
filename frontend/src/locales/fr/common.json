@@ -378,7 +378,11 @@
     "addPersonalMessage": "Ajouter un message personnel...",
     "copied": "Copié !",
     "copyLink": "Copier le lien",
-    "typeEmailAddress": "Saisir une adresse e-mail"
+    "typeEmailAddress": "Saisir une adresse e-mail",
+    "copy": "Copier",
+    "copiedToClipboard": "Copié dans le presse-papiers",
+    "orEmailSection": "Ou l'envoyer par e-mail à quelqu'un",
+    "sendEmail": "Envoyer l'e-mail"
   },
   "enumEditor": {
     "label": "Libellé",

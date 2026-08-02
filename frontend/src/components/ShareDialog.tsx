@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Alert,
   Autocomplete,
+  Box,
   Button,
   Chip,
   CircularProgress,
@@ -9,14 +10,16 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
+  Divider,
   Stack,
   TextField,
+  Typography,
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 import { useTranslation } from 'react-i18next';
+import { MONO_FONT_FAMILY } from '../config/ThemeContext';
 import { formatItemRef } from '../utils/item-ref';
 
 export type ShareItemType = 'task' | 'project' | 'request' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface' | 'document';
@@ -105,6 +108,8 @@ function formatName(u: User) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const fieldLabelSx = { fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.3, mb: 0.5 } as const;
+
 export default function ShareDialog({
   open,
   onClose,
@@ -122,7 +127,8 @@ export default function ShareDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
 
-  const refOrId = itemRef || (itemNumber ? formatItemRef(itemType, itemNumber) : itemId);
+  const displayRef = itemRef || (itemNumber ? formatItemRef(itemType, itemNumber) : null);
+  const refOrId = displayRef || itemId;
   const itemUrl = `${window.location.origin}${buildItemPath(itemType, refOrId)}`;
 
   const { data: users, isLoading } = useQuery({
@@ -177,146 +183,215 @@ export default function ShareDialog({
     }
   };
 
+  const markCopied = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(itemUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      markCopied();
     } catch {
-      // Fallback: select the text
+      // navigator.clipboard requires a secure context; fall back for plain-http deployments
+      const textarea = document.createElement('textarea');
+      textarea.value = itemUrl;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        if (document.execCommand('copy')) markCopied();
+      } finally {
+        document.body.removeChild(textarea);
+      }
     }
   };
 
   return (
     <Dialog open={open} onClose={sending ? undefined : onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{t('share.sendLink')}</DialogTitle>
+      <DialogTitle component="div" sx={{ pb: 1 }}>
+        <Typography sx={{ fontSize: 16, fontWeight: 500, lineHeight: 1.3 }}>
+          {t('share.sendLink')}
+        </Typography>
+        <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mt: 0.25, minWidth: 0 }}>
+          {displayRef && (
+            <Typography sx={{ fontFamily: MONO_FONT_FAMILY, fontSize: 11, color: 'kanap.text.tertiary', flexShrink: 0 }}>
+              {displayRef}
+            </Typography>
+          )}
+          <Typography noWrap sx={{ fontSize: 12, color: 'kanap.text.secondary' }}>
+            {itemName}
+          </Typography>
+        </Stack>
+      </DialogTitle>
       <DialogContent>
-        <Stack spacing={3} sx={{ mt: 1 }}>
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
-          <Autocomplete<RecipientValue, true, false, true>
-            multiple
-            freeSolo
-            options={sortedUsers}
-            value={recipients}
-            inputValue={inputValue}
-            onInputChange={(_, value, reason) => {
-              if (reason !== 'reset') setInputValue(value);
+          <Box
+            sx={{
+              bgcolor: 'kanap.bg.composer',
+              border: '1px solid',
+              borderColor: 'kanap.border.default',
+              borderRadius: '8px',
+              p: '12px 14px',
             }}
-            onChange={(_, newValue) => {
-              setRecipients(newValue);
-              setInputValue('');
-            }}
-            getOptionLabel={(option) =>
-              typeof option === 'string' ? option : formatName(option)
-            }
-            filterOptions={(options, { inputValue }) => {
-              const s = inputValue.toLowerCase();
-              return options.filter((o) => {
-                if (typeof o === 'string') return o.toLowerCase().includes(s);
-                const fullName = `${o.first_name || ''} ${o.last_name || ''}`.trim().toLowerCase();
-                return fullName.includes(s);
-              });
-            }}
-            isOptionEqualToValue={(option, value) => {
-              if (typeof option === 'string' || typeof value === 'string') {
-                return option === value;
-              }
-              return option.id === value.id;
-            }}
-            renderOption={(props, option) => {
-              if (typeof option === 'string') return <li {...props}>{option}</li>;
-              return (
-                <li {...props} key={option.id}>
-                  {formatName(option)}
-                </li>
-              );
-            }}
-            renderTags={(tagValue, getTagProps) =>
-              tagValue.map((item, index) => {
-                const label = typeof item === 'string' ? item : formatName(item);
-                const key = typeof item === 'string' ? item : item.id;
-                return (
-                  <Chip {...getTagProps({ index })} key={key} label={label} size="small" />
-                );
-              })
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={t('labels.recipients')}
-                required
-                placeholder={t('share.searchUsersOrEmail')}
-                InputLabelProps={{ shrink: true }}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
+          >
+            <Typography sx={{ ...fieldLabelSx, mb: 0.75 }}>{t('labels.link')}</Typography>
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+              <Typography
+                noWrap
+                sx={{ flex: 1, minWidth: 0, fontFamily: MONO_FONT_FAMILY, fontSize: 12, color: 'kanap.text.primary' }}
+              >
+                {itemUrl}
+              </Typography>
+              <Button
+                variant="action"
+                onClick={handleCopy}
+                startIcon={<ContentCopyIcon sx={{ fontSize: '13px !important' }} />}
+              >
+                {t('share.copy')}
+              </Button>
+            </Stack>
+            {copied && (
+              <Typography sx={{ fontSize: 11, color: 'success.main', mt: 0.75 }}>
+                ✓ {t('share.copiedToClipboard')}
+              </Typography>
             )}
-            disabled={isLoading}
-            loading={isLoading}
-            noOptionsText={isLoading ? t('selects.loading') : t('share.typeEmailAddress')}
-            autoHighlight
-            handleHomeEndKeys
-            // Only accept free-text entries that look like valid emails
-            autoSelect={false}
-            onBlur={() => {
-              const trimmed = inputValue.trim();
-              if (trimmed && EMAIL_RE.test(trimmed)) {
-                const alreadyAdded = recipients.some(
-                  (r) =>
-                    (typeof r === 'string' && r === trimmed) ||
-                    (typeof r !== 'string' && r.email === trimmed),
-                );
-                if (!alreadyAdded) {
-                  setRecipients((prev) => [...prev, trimmed]);
-                }
+          </Box>
+
+          <Divider sx={{ borderColor: 'kanap.border.soft' }} />
+
+          <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary' }}>
+            {t('share.orEmailSection')}
+          </Typography>
+
+          <Box>
+            <Typography sx={fieldLabelSx}>{t('labels.recipients')}</Typography>
+              <Autocomplete<RecipientValue, true, false, true>
+              multiple
+              freeSolo
+              options={sortedUsers}
+              value={recipients}
+              inputValue={inputValue}
+              onInputChange={(_, value, reason) => {
+                if (reason !== 'reset') setInputValue(value);
+              }}
+              onChange={(_, newValue) => {
+                setRecipients(newValue);
+                setInputValue('');
+              }}
+              getOptionLabel={(option) =>
+                typeof option === 'string' ? option : formatName(option)
               }
-              setInputValue('');
-            }}
-            fullWidth
-          />
-
-          <TextField
-            label={t('share.messageOptional')}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            multiline
-            rows={3}
-            placeholder={t('share.addPersonalMessage')}
-            fullWidth
-          />
-
-          <Stack direction="row" spacing={1} alignItems="center">
-            <TextField
-              label={t('labels.link')}
-              value={itemUrl}
+              filterOptions={(options, { inputValue }) => {
+                const s = inputValue.toLowerCase();
+                return options.filter((o) => {
+                  if (typeof o === 'string') return o.toLowerCase().includes(s);
+                  const fullName = `${o.first_name || ''} ${o.last_name || ''}`.trim().toLowerCase();
+                  return fullName.includes(s);
+                });
+              }}
+              isOptionEqualToValue={(option, value) => {
+                if (typeof option === 'string' || typeof value === 'string') {
+                  return option === value;
+                }
+                return option.id === value.id;
+              }}
+              renderOption={(props, option) => {
+                if (typeof option === 'string') return <li {...props}>{option}</li>;
+                return (
+                  <li {...props} key={option.id}>
+                    {formatName(option)}
+                  </li>
+                );
+              }}
+              renderTags={(tagValue, getTagProps) =>
+                tagValue.map((item, index) => {
+                  const label = typeof item === 'string' ? item : formatName(item);
+                  const key = typeof item === 'string' ? item : item.id;
+                  return (
+                    <Chip {...getTagProps({ index })} key={key} label={label} size="small" />
+                  );
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  size="small"
+                  placeholder={t('share.searchUsersOrEmail')}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              disabled={isLoading}
+              loading={isLoading}
+              noOptionsText={isLoading ? t('selects.loading') : t('share.typeEmailAddress')}
+              autoHighlight
+              handleHomeEndKeys
+              // Only accept free-text entries that look like valid emails
+              autoSelect={false}
+              onBlur={() => {
+                const trimmed = inputValue.trim();
+                if (trimmed && EMAIL_RE.test(trimmed)) {
+                  const alreadyAdded = recipients.some(
+                    (r) =>
+                      (typeof r === 'string' && r === trimmed) ||
+                      (typeof r !== 'string' && r.email === trimmed),
+                  );
+                  if (!alreadyAdded) {
+                    setRecipients((prev) => [...prev, trimmed]);
+                  }
+                }
+                setInputValue('');
+              }}
               fullWidth
-              size="small"
-              InputProps={{ readOnly: true }}
             />
-            <IconButton onClick={handleCopy} title={copied ? t('share.copied') : t('share.copyLink')}>
-              <ContentCopyIcon color={copied ? 'success' : 'action'} />
-            </IconButton>
-          </Stack>
+          </Box>
+
+          <Box>
+            <Typography sx={fieldLabelSx}>{t('share.messageOptional')}</Typography>
+            <Box
+              sx={{
+                bgcolor: 'kanap.bg.composer',
+                border: '1px solid',
+                borderColor: 'kanap.border.default',
+                borderRadius: '8px',
+                p: '8px 12px',
+                '&:focus-within': { borderColor: 'primary.main' },
+              }}
+            >
+              <TextField
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                multiline
+                rows={3}
+                placeholder={t('share.addPersonalMessage')}
+                fullWidth
+                InputProps={{ disableUnderline: true }}
+              />
+            </Box>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={sending}>
-          {t('buttons.cancel')}
+          {t('buttons.close')}
         </Button>
         <Button
           variant="contained"
           onClick={handleSend}
           disabled={sending || recipients.length === 0}
         >
-          {sending ? t('status.sending') : t('buttons.send')}
+          {sending ? t('status.sending') : t('share.sendEmail')}
         </Button>
       </DialogActions>
     </Dialog>
