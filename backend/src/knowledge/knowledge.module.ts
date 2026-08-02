@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { CommonModule } from '../common/common.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { EmailModule } from '../email/email.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 import { DocumentActivity } from './document-activity.entity';
@@ -65,6 +66,7 @@ import { DocumentTypesController } from './document-types.controller';
     CommonModule,
     StorageModule,
     EmailModule,
+    NotificationsModule,
     PermissionsModule,
     forwardRef(() => UsersModule),
   ],

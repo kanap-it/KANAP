@@ -1439,6 +1439,7 @@ function createKnowledgeService(manager: any) {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   );
 }
 

@@ -11,6 +11,8 @@ type SendLinkButtonProps = {
   itemNumber?: number | null;
   itemRef?: string | null;
   disabled?: boolean;
+  variant?: 'action' | 'outlined';
+  size?: 'small' | 'medium';
 };
 
 export default function SendLinkButton({
@@ -20,6 +22,8 @@ export default function SendLinkButton({
   itemNumber,
   itemRef,
   disabled = false,
+  variant = 'action',
+  size,
 }: SendLinkButtonProps) {
   const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
@@ -27,7 +31,8 @@ export default function SendLinkButton({
   return (
     <>
       <Button
-        variant="action"
+        variant={variant}
+        size={size}
         onClick={() => setOpen(true)}
         disabled={disabled}
         startIcon={<ShareIcon sx={{ fontSize: '14px !important' }} />}

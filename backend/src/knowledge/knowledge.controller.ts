@@ -31,6 +31,7 @@ import { RateLimitGuard } from '../common/rate-limit.guard';
 import { resolveTenantAppBaseUrl } from '../common/url';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
 import { KnowledgeRelationsService } from './knowledge-relations.service';
 import { KnowledgeWorkflowService } from './knowledge-workflow.service';
@@ -190,6 +191,13 @@ export class KnowledgeController {
   @Get(':idOrRef')
   get(@Param('idOrRef') idOrRef: string, @Tenant() ctx: TenantRequest) {
     return this.docs.get(idOrRef, { manager: ctx.manager, userId: ctx.userId || null });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'reader')
+  @Post(':idOrRef/share')
+  share(@Param('idOrRef') idOrRef: string, @Body() body: ShareItemDto, @Tenant() ctx: TenantRequest) {
+    return this.docs.share(idOrRef, body, ctx.tenantId, ctx.userId || '', { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

@@ -18,6 +18,7 @@ export const en = {
       location: { label: 'Location', lower: 'location', view: 'View Location' },
       connection: { label: 'Connection', lower: 'connection', view: 'View Connection' },
       interface: { label: 'Interface', lower: 'interface', view: 'View Interface' },
+      document: { label: 'Document', lower: 'document', view: 'View Document' },
     },
     labels: {
       openDocument: 'Open Document',

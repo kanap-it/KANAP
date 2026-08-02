@@ -23,6 +23,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../../api';
 import ExportButton from '../../components/ExportButton';
 import ImportButton from '../../components/ImportButton';
+import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
@@ -1711,6 +1712,17 @@ export default function KnowledgeWorkspacePage() {
           </Typography>
         </Breadcrumbs>
         <Stack direction="row" alignItems="center" spacing={1}>
+          {!isCreate && !!doc?.id && (
+            <SendLinkButton
+              variant="outlined"
+              size="small"
+              itemType="document"
+              itemId={doc.id}
+              itemName={String(form.title || doc.title || doc.item_ref || '')}
+              itemNumber={doc.item_number ?? null}
+              itemRef={doc.item_ref ?? null}
+            />
+          )}
           {!isCreate && !workflowActive && canManageDocument && !isManagedIntegratedDocument && (
             <Button
               variant="outlined"
