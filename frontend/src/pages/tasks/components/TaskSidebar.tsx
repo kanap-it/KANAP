@@ -291,7 +291,7 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
             {t('workspace.task.sidebar.sections.context')}
           </Typography>
         </AccordionSummary>
@@ -313,7 +313,7 @@ export default function TaskSidebar({
                 <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
                   {t('workspace.task.sidebar.fields.relatedTo')}
                 </Typography>
-                <Typography sx={{ ...readOnlyValueSx, fontWeight: 600 }}>
+                <Typography sx={{ ...readOnlyValueSx, fontWeight: 500 }}>
                   {t('workspace.task.sidebar.values.standaloneTask')}
                 </Typography>
               </Box>
@@ -323,7 +323,7 @@ export default function TaskSidebar({
                   {t('workspace.task.sidebar.fields.relatedTo')}
                 </Typography>
                 <Box sx={{ mt: 0.25 }}>
-                  <Typography component="span" fontWeight="bold">
+                  <Typography component="span" fontWeight={500}>
                     {isProjectTask
                       ? relatedTypeLabels.project
                       : task.related_object_type === 'spend_item'
@@ -388,7 +388,7 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
             {t('workspace.task.sidebar.sections.details')}
           </Typography>
         </AccordionSummary>
@@ -467,7 +467,7 @@ export default function TaskSidebar({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                 {t('workspace.task.sidebar.sections.classification')}
               </Typography>
             </AccordionSummary>
@@ -576,7 +576,7 @@ export default function TaskSidebar({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                 {t('workspace.task.sidebar.sections.time')}
               </Typography>
             </AccordionSummary>
@@ -595,7 +595,7 @@ export default function TaskSidebar({
                   <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
                     {t('workspace.task.sidebar.fields.timeSpent')}
                   </Typography>
-                  <Typography sx={{ mt: 0.25, fontSize: '1rem', fontWeight: 600 }}>
+                  <Typography sx={{ mt: 0.25, fontSize: '1rem', fontWeight: 500 }}>
                     {formatHours(totalTimeHours)}
                   </Typography>
                 </Box>
@@ -633,7 +633,7 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
             {t('workspace.task.sidebar.sections.people')}
           </Typography>
         </AccordionSummary>
@@ -675,7 +675,7 @@ export default function TaskSidebar({
         sx={accordionSx}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
             {t('workspace.task.sidebar.sections.dates')}
           </Typography>
         </AccordionSummary>
@@ -710,7 +710,7 @@ export default function TaskSidebar({
             sx={accordionSx}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={accordionSummarySx}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                 {t('workspace.task.sidebar.sections.knowledge')}
               </Typography>
             </AccordionSummary>

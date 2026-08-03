@@ -1007,7 +1007,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         }}
       >
         <Box sx={{ p: 2, minWidth: 250, maxWidth: 350 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
             Choose Columns
           </Typography>
           <Divider sx={{ mb: 1 }} />

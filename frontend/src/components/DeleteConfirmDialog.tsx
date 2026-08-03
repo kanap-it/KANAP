@@ -85,7 +85,7 @@ export default function DeleteConfirmDialog({
           </Typography>
         )}
 
-        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
           {itemCount === 1
             ? t('delete.singleItem')
             : t('delete.multipleItems', { count: itemCount })}
@@ -141,7 +141,7 @@ export default function DeleteConfirmDialog({
           </Box>
         )}
 
-        <Typography variant="body2" sx={{ mt: 2, fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ mt: 2, fontWeight: 500 }}>
           {t('delete.confirmPrompt')}
         </Typography>
       </DialogContent>

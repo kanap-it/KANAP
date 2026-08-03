@@ -253,11 +253,11 @@ export default function EffortAllocationDialog({
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>
+                  <TableCell sx={{ fontWeight: 500 }}>
                     {t('portfolio:dialogs.effortAllocation.table.contributor')}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, width: 100 }}>%</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, width: 80 }}>MD</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 500, width: 100 }}>%</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 500, width: 80 }}>MD</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -309,7 +309,7 @@ export default function EffortAllocationDialog({
             <Typography
               variant="body1"
               sx={{
-                fontWeight: 600,
+                fontWeight: 500,
                 color: isValid ? 'success.main' : 'error.main',
               }}
             >

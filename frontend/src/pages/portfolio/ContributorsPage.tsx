@@ -241,7 +241,7 @@ export default function ContributorsPage() {
                     <IconButton size="small">
                       {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </IconButton>
-                    <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: 0.5 }}>
+                    <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 500, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: 0.5 }}>
                       {teamName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">

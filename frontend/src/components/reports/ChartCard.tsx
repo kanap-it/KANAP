@@ -53,7 +53,7 @@ export default forwardRef(function ChartCard(
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       {title && (
-        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{title}</Typography>
+        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>{title}</Typography>
       )}
       <Box sx={{ height }} ref={wrapperRef}>
         <AgChartsReact ref={chartRef} options={options} />

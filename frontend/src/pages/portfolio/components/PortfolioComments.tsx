@@ -416,7 +416,7 @@ export default function PortfolioComments({
                         {getDecisionOutcomeLabel(t, a.decision_outcome)}
                       </Typography>
                     )}
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {`${a.first_name || ''} ${a.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -444,7 +444,7 @@ export default function PortfolioComments({
                     <Typography
                       variant="body2"
                       sx={{
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color:
                           a.type === 'decision'
                             ? 'warning.dark'

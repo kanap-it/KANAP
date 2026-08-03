@@ -68,7 +68,7 @@ export default function EffortAllocationTable({
   if (allocations.length === 0) {
     return (
       <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>{title}</Typography>
+        <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 1 }}>{title}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
           {t('portfolio:dialogs.effortAllocation.states.empty', { effortType: effortTypeLabel })}
         </Typography>
@@ -80,7 +80,7 @@ export default function EffortAllocationTable({
     <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{title}</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>{title}</Typography>
           <Typography variant="body2" color="text.secondary">
             {mode === 'auto'
               ? t('portfolio:dialogs.effortAllocation.chips.autoCalculated')
@@ -124,11 +124,11 @@ export default function EffortAllocationTable({
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 600, width: '60%' }}>
+            <TableCell sx={{ fontWeight: 500, width: '60%' }}>
               {t('portfolio:dialogs.effortAllocation.table.contributor')}
             </TableCell>
-            <TableCell align="right" sx={{ fontWeight: 600 }}>%</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 600 }}>MD</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 500 }}>%</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 500 }}>MD</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

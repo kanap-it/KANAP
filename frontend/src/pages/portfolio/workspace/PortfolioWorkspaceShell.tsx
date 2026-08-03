@@ -128,7 +128,7 @@ export default function PortfolioWorkspaceShell({
         justifyContent="space-between"
         sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
           {resolvedSidebarTitle}
         </Typography>
         <IconButton size="small" onClick={() => setMobilePanelOpen(false)} title={t('workspace.closeProperties')}>
@@ -235,7 +235,7 @@ export default function PortfolioWorkspaceShell({
                     justifyContent="space-between"
                     sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}
                   >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                       {resolvedSidebarTitle}
                     </Typography>
                     <IconButton

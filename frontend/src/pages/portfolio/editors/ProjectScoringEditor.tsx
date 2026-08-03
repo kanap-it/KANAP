@@ -558,7 +558,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack spacing={0.25}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                     {t('editors.scoring.sections.originalRequestScoring')}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -578,7 +578,7 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
                   <Stack spacing={2}>
                     {/* Original Score Display */}
                     <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: 'background.paper', borderRadius: 1 }}>
-                      <Typography variant="h4" fontWeight="bold" color="text.secondary">
+                      <Typography variant="h4" fontWeight={500} color="text.secondary">
                         {originalRequest.priority_score != null
                           ? Math.round(originalRequest.priority_score)
                           : '-'}
@@ -595,17 +595,17 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
                         <Box component="thead">
                           <Box component="tr" sx={{ bgcolor: 'background.paper' }}>
                             <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption" fontWeight={600}>
+                              <Typography variant="caption" fontWeight={500}>
                                 {t('editors.scoring.columns.criterion')}
                               </Typography>
                             </Box>
                             <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption" fontWeight={600}>
+                              <Typography variant="caption" fontWeight={500}>
                                 {t('editors.scoring.columns.original')}
                               </Typography>
                             </Box>
                             <Box component="th" sx={{ p: 1, textAlign: 'left', borderBottom: 1, borderColor: 'divider' }}>
-                              <Typography variant="caption" fontWeight={600}>
+                              <Typography variant="caption" fontWeight={500}>
                                 {t('editors.scoring.columns.current')}
                               </Typography>
                             </Box>
