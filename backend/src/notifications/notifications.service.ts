@@ -23,7 +23,7 @@ import { renderMarkdownToHtml } from '../common/markdown-to-html';
 import { EmailBranding, resolveEmailBranding } from '../email/email-branding';
 import { getEmailStrings, resolveEmailLocale } from '../i18n/email-i18n';
 
-type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+type ItemType = 'request' | 'project' | 'task' | 'contract' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface' | 'document';
 type TriggerType = 'status_change' | 'team_added' | 'team_change_as_lead' | 'comment' | 'assignment' | 'expiration_warning';
 
 interface NotificationRecipient {
@@ -183,6 +183,8 @@ export class NotificationsService {
         return `${base}/it/connections/${id}/overview`;
       case 'interface':
         return `${base}/it/interfaces/${id}/overview`;
+      case 'document':
+        return `${base}/knowledge/${id}`;
       default:
         return base;
     }
@@ -200,6 +202,7 @@ export class NotificationsService {
       location: { table: 'locations', expression: 'location_reference' },
       connection: { table: 'connections', expression: 'connection_reference' },
       interface: { table: 'interfaces', expression: 'interface_reference' },
+      document: { table: 'documents', expression: `'DOC-' || item_number::text` },
     };
     const config = tableMap[itemType];
     if (!config) return null;
@@ -603,7 +606,7 @@ export class NotificationsService {
    * Notify about status change on an item.
    */
   async notifyStatusChange(params: {
-    itemType: Exclude<ItemType, 'asset' | 'application' | 'location' | 'connection' | 'interface'>;
+    itemType: Exclude<ItemType, 'asset' | 'application' | 'location' | 'connection' | 'interface' | 'document'>;
     itemId: string;
     itemName: string;
     oldStatus: string;
@@ -1128,7 +1131,7 @@ export class NotificationsService {
    * Notify recipients about a shared item (fire-and-forget, no dedupe).
    */
   async notifyShare(params: {
-    itemType: 'request' | 'project' | 'task' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface';
+    itemType: 'request' | 'project' | 'task' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface' | 'document';
     itemId: string;
     itemName: string;
     senderName: string;

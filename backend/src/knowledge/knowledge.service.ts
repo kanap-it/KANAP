@@ -35,6 +35,8 @@ import { Features } from '../config/features';
 import { EmailService } from '../email/email.service';
 import { resolveEmailLocale } from '../i18n/email-i18n';
 import type { EmailContent } from '../notifications/notification-templates';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user-role.entity';
@@ -649,6 +651,7 @@ export class KnowledgeService {
     private readonly permissions: PermissionsService,
     private readonly users: UsersService,
     private readonly emails: EmailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   getManager(opts?: { manager?: EntityManager }): EntityManager {
@@ -3407,6 +3410,55 @@ export class KnowledgeService {
       is_restricted_library: libraryAccess.is_restricted,
       ...validationInfo,
     };
+  }
+
+  async share(idOrRef: string, dto: ShareItemDto, tenantId: string, userId: string, opts?: { manager?: EntityManager }) {
+    const userIds = dto.recipient_user_ids ?? [];
+    const rawEmails = dto.recipient_emails ?? [];
+    if (userIds.length === 0 && rawEmails.length === 0) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+    const manager = this.getManager(opts);
+    const id = await this.resolveDocumentId(idOrRef, manager);
+
+    const rows = await manager.query(
+      `SELECT id, title, item_number, library_id FROM documents WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    if (!rows.length) throw new NotFoundException('Document not found');
+    const document = rows[0];
+    await this.assertLibraryReadable(document.library_id, manager, userId || null);
+
+    const senderRows = await manager.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const senderName = senderRows.length > 0
+      ? `${senderRows[0].first_name} ${senderRows[0].last_name}`.trim() || 'Someone'
+      : 'Someone';
+
+    const recipientRows = userIds.length > 0
+      ? await manager.query(
+          `SELECT u.id AS "userId", u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.locale
+           FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = ANY($1) AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [userIds],
+        )
+      : [];
+
+    if (recipientRows.length > 0 || rawEmails.length > 0) {
+      this.notifications.notifyShare({
+        itemType: 'document',
+        itemId: document.id,
+        itemName: document.title || `DOC-${document.item_number}`,
+        senderName,
+        message: dto.message,
+        recipients: recipientRows,
+        rawEmails,
+        tenantId,
+        manager,
+      });
+    }
+    return { success: true };
   }
 
   async create(

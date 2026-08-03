@@ -20,6 +20,7 @@ export const es: EmailStrings = {
       location: { label: 'Ubicación', lower: 'ubicación', view: 'Ver ubicación' },
       connection: { label: 'Conexión', lower: 'conexión', view: 'Ver conexión' },
       interface: { label: 'Interfaz', lower: 'interfaz', view: 'Ver interfaz' },
+      document: { label: 'Documento', lower: 'documento', view: 'Ver documento' },
     },
     labels: {
       openDocument: 'Abrir documento',

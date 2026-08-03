@@ -372,13 +372,17 @@
     "openColumn": "Open"
   },
   "share": {
-    "sendLink": "Send Link",
+    "sendLink": "Send link",
     "searchUsersOrEmail": "Search users or type an email...",
     "messageOptional": "Message (optional)",
     "addPersonalMessage": "Add a personal message...",
     "copied": "Copied!",
     "copyLink": "Copy link",
-    "typeEmailAddress": "Type an email address"
+    "typeEmailAddress": "Type an email address",
+    "copy": "Copy",
+    "copiedToClipboard": "Copied to clipboard",
+    "orEmailSection": "Or email it to someone",
+    "sendEmail": "Send email"
   },
   "enumEditor": {
     "label": "Label",
