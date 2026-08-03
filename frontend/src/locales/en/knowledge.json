@@ -92,7 +92,7 @@
     "folder": "Folder: {{name}}",
     "messages": {
       "crossLibraryAdminOnly": "Cross-library folder moves are admin-only. You can only reparent within the current library.",
-      "templatesOnly": "Folders in the Templates library can only be reorganized within Templates."
+      "templatesOnly": "Folders in the templates library can only be reorganized within templates."
     },
     "title": "Move folder"
   },
@@ -140,8 +140,8 @@
     "dragSingleLibraryOnly": "Drag is available only in a single-library view.",
     "dragToFolderOrLibrary": "Drag to a folder or another library",
     "folderMoved": "Folder moved.",
-    "managedDocsCannotDelete": "Managed docs cannot be deleted from Knowledge.",
-    "managedDocsCannotMove": "Managed docs cannot be moved from Knowledge.",
+    "managedDocsCannotDelete": "Managed docs cannot be deleted from knowledge.",
+    "managedDocsCannotMove": "Managed docs cannot be moved from knowledge.",
     "moveDocumentsFailed": "Unable to move documents.",
     "moveFolderFailed": "Unable to move folder.",
     "moveTemplatesSeparately": "Move template documents separately from other libraries.",
@@ -167,7 +167,7 @@
       "selectSingleLibrary": "Select documents from a single library to move them, or use an admin account for a cross-library move.",
       "templatesBlocked": "Template documents cannot be moved together with documents from other libraries.",
       "templatesMixed": "Template documents must be moved separately from documents in other libraries.",
-      "templatesOnly": "Documents in the Templates library can only be reorganized within Templates."
+      "templatesOnly": "Documents in the templates library can only be reorganized within templates."
     },
     "selection": {
       "multiple": "{{count}} documents selected",
@@ -275,7 +275,7 @@
     },
     "tooltips": {
       "managedFolder": "Managed docs keep folder placement controlled by the source workspace.",
-      "managedRelations": "Managed docs keep source relations read-only in Knowledge.",
+      "managedRelations": "Managed docs keep source relations read-only in knowledge.",
       "managedStatus": "Managed docs keep status controlled by the source workspace. Knowledge review workflow is unavailable.",
       "managedTemplate": "Managed docs keep the template controlled by the source workspace.",
       "managedType": "Managed docs keep the document type controlled by the source workspace.",

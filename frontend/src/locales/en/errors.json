@@ -14,6 +14,6 @@
   "MISSING_TOKEN": "Authentication required. Please sign in.",
   "WEEKLY_REVIEW_USER_NOT_FOUND": "User not found or disabled.",
   "WEEKLY_REVIEW_ROLE_INELIGIBLE": "Weekly review is unavailable for your current role.",
-  "WEEKLY_REVIEW_NOT_ENABLED": "Enable both Email Notifications and Weekly Review Email to preview.",
+  "WEEKLY_REVIEW_NOT_ENABLED": "Enable both email notifications and weekly review email to preview.",
   "WEEKLY_REVIEW_SEND_FAILED": "Failed to send weekly review email."
 }

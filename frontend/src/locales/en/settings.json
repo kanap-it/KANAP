@@ -7,15 +7,15 @@
   },
   "profile": {
     "sections": {
-      "accountInformation": "Account Information",
-      "portfolioContributor": "Portfolio Contributor"
+      "accountInformation": "Account information",
+      "portfolioContributor": "Portfolio contributor"
     },
     "fields": {
-      "firstName": "First Name",
-      "lastName": "Last Name",
-      "jobTitle": "Job Title",
-      "businessPhone": "Business Phone",
-      "mobilePhone": "Mobile Phone",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "jobTitle": "Job title",
+      "businessPhone": "Business phone",
+      "mobilePhone": "Mobile phone",
       "language": "Language"
     },
     "locale": {
@@ -27,29 +27,29 @@
       "portfolioDescription": "Manage your contributor profile, skills, availability, and classification defaults."
     },
     "actions": {
-      "viewContributorProfile": "View Contributor Profile"
+      "viewContributorProfile": "View contributor profile"
     }
   },
   "appearance": {
     "title": "Appearance",
-    "description": "Choose how Kanap should look in this browser.",
+    "description": "Choose how kanap should look in this browser.",
     "light": "Light",
     "dark": "Dark",
     "system": "System",
     "activeMode": "Active mode: {{mode}}"
   },
   "notifications": {
-    "emailNotifications": "Email Notifications",
+    "emailNotifications": "Email notifications",
     "emailDescription": "Receive email notifications for updates and activity",
     "portfolio": {
-      "title": "Portfolio Notifications",
+      "title": "Portfolio notifications",
       "statusChanges": "Status changes",
       "teamAdditions": "When I'm added to a team",
       "teamChangesAsLead": "Team changes on items I lead",
       "comments": "Comments"
     },
     "tasks": {
-      "title": "Task Notifications",
+      "title": "Task notifications",
       "notifyWhen": "Notify me when I am:",
       "asAssignee": "Assigned to a task",
       "asRequestor": "Requestor of a task",
@@ -60,13 +60,13 @@
       "comments": "Comments"
     },
     "budget": {
-      "title": "Budget Notifications",
+      "title": "Budget notifications",
       "expirationWarnings": "Expiration warnings",
       "statusChanges": "Status changes",
       "comments": "Comments"
     },
     "weeklyReview": {
-      "title": "Weekly Review Email",
+      "title": "Weekly review email",
       "description": "Receive a summary of your activity and upcoming items",
       "day": "Day",
       "time": "Time",

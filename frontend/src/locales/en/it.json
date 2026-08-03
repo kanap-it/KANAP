@@ -2,14 +2,14 @@
   "pages": {
     "applications": {
       "title": "Applications",
-      "newAppService": "New App / Service",
-      "appService": "App / Service",
+      "newAppService": "New app / service",
+      "appService": "App / service",
       "importCsv": "Import CSV",
       "exportCsv": "Export CSV",
       "copyItem": "Copy item",
-      "exportTitle": "Export Applications",
-      "importTitle": "Import Applications",
-      "dataEnrichment": "Data Enrichment",
+      "exportTitle": "Export applications",
+      "importTitle": "Import applications",
+      "dataEnrichment": "Data enrichment",
       "includedIn": "Included in:",
       "noActiveEnvironments": "No active environments",
       "scope": {
@@ -27,23 +27,23 @@
         "lifecycle": "Lifecycle",
         "criticality": "Criticality",
         "publisher": "Publisher",
-        "derivedUsers": "Derived Users (Y)",
+        "derivedUsers": "Derived users (Y)",
         "created": "Created",
         "supplier": "Supplier",
-        "businessOwners": "Business Owners",
-        "itOwners": "IT Owners",
+        "businessOwners": "Business owners",
+        "itOwners": "IT owners",
         "hosting": "Hosting",
-        "externalFacing": "External Facing",
-        "ssoEnabled": "SSO Enabled",
-        "mfaEnabled": "MFA Enabled",
-        "dataIntegrationEtl": "Data Integration / ETL",
-        "opexItems": "OPEX Items",
-        "capexItems": "CAPEX Items",
+        "externalFacing": "External facing",
+        "ssoEnabled": "SSO enabled",
+        "mfaEnabled": "MFA enabled",
+        "dataIntegrationEtl": "Data integration / ETL",
+        "opexItems": "OPEX items",
+        "capexItems": "CAPEX items",
         "contracts": "Contracts",
         "components": "Components",
-        "dataClass": "Data Class",
+        "dataClass": "Data class",
         "containsPii": "Contains PII",
-        "dataResidency": "Data Residency"
+        "dataResidency": "Data residency"
       }
     },
     "assets": {
@@ -52,19 +52,19 @@
       "deleteAsset": "Delete asset",
       "importCsv": "Import CSV",
       "exportCsv": "Export CSV",
-      "exportTitle": "Export Assets",
-      "importTitle": "Import Assets",
-      "dataEnrichment": "Data Enrichment",
+      "exportTitle": "Export assets",
+      "importTitle": "Import assets",
+      "dataEnrichment": "Data enrichment",
       "columns": {
         "name": "Name",
-        "assetType": "Asset Type",
+        "assetType": "Asset type",
         "cluster": "Cluster",
         "environment": "Environment",
         "location": "Location",
         "subLocation": "Sub-location",
         "hosting": "Hosting",
         "os": "OS",
-        "networkZone": "Network Zone",
+        "networkZone": "Network zone",
         "lifecycle": "Lifecycle",
         "goLive": "Go-live",
         "endOfLife": "End-of-life",
@@ -110,7 +110,7 @@
       "deleteInterface": "Delete interface",
       "alsoDeleteBindings": "Also delete related bindings",
       "deleteBindingsDescription": "If unchecked, interfaces with bindings will not be deleted.",
-      "duplicateDialogTitle": "Duplicate Interface",
+      "duplicateDialogTitle": "Duplicate interface",
       "duplicateDescription": "Create a copy of \"{{name}}\".",
       "copyEnvBindings": "Copy environment bindings",
       "copyEnvBindingsDescription": "Instance connections will be preserved, but environment-specific details (endpoints, authentication, job names) will be cleared.",
@@ -122,26 +122,26 @@
         "interfaceCode": "Interface code",
         "name": "Name",
         "environments": "Environments",
-        "sourceApp": "Source App",
-        "targetApp": "Target App",
+        "sourceApp": "Source app",
+        "targetApp": "Target app",
         "lifecycle": "Lifecycle",
         "criticality": "Criticality",
         "created": "Created",
-        "businessProcess": "Business Process",
-        "dataCategory": "Data Category",
+        "businessProcess": "Business process",
+        "dataCategory": "Data category",
         "containsPii": "Contains PII",
-        "envCoverage": "Env Coverage",
+        "envCoverage": "Env coverage",
         "bindings": "Bindings"
       }
     },
     "locations": {
       "title": "Locations",
-      "addLocation": "Add Location",
+      "addLocation": "Add location",
       "columns": {
         "code": "Code",
         "name": "Name",
         "hostingType": "Hosting type",
-        "providerCompany": "Provider / Company",
+        "providerCompany": "Provider / company",
         "country": "Country",
         "city": "City",
         "assets": "Assets",
@@ -149,28 +149,28 @@
       }
     },
     "connectionMap": {
-      "title": "Connection Map"
+      "title": "Connection map"
     },
     "interfaceMap": {
-      "title": "Interface Map"
+      "title": "Interface map"
     },
     "settings": {
-      "title": "IT Landscape Settings",
-      "description": "Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Landscape workspace.",
-      "loadFailed": "Failed to load IT Landscape settings.",
-      "updateSuccess": "IT Landscape settings updated successfully",
+      "title": "IT landscape settings",
+      "description": "Configure reusable lists for data classification, server catalog, and interface protocols used across the IT landscape workspace.",
+      "loadFailed": "Failed to load IT landscape settings.",
+      "updateSuccess": "IT landscape settings updated successfully",
       "updateFailed": "Failed to update settings",
       "groups": {
         "locations": {
           "title": "Locations",
-          "subtitle": "Lists used when creating or editing Locations."
+          "subtitle": "Lists used when creating or editing locations."
         },
         "serversConnections": {
-          "title": "Servers & Connections",
-          "subtitle": "Lists used for Servers, Connections, and related risk/endpoint data."
+          "title": "Servers & connections",
+          "subtitle": "Lists used for servers, connections, and related risk/endpoint data."
         },
         "appsInterfaces": {
-          "title": "Apps, Services & Interfaces",
+          "title": "Apps, services & interfaces",
           "subtitle": "Lists used across applications, app instances, interfaces, and bindings."
         }
       }
@@ -178,21 +178,21 @@
   },
   "workspace": {
     "application": {
-      "title": "App / Service",
-      "newTitle": "New App / Service",
+      "title": "App / service",
+      "newTitle": "New app / service",
       "indexOfTotal": "({{index}} of {{total}})",
       "tabs": {
         "overview": "Overview",
         "instances": "Instances",
         "servers": "Servers",
         "interfaces": "Interfaces",
-        "ownership": "Ownership & Audience",
-        "technical": "Technical & Support",
+        "ownership": "Ownership & audience",
+        "technical": "Technical & support",
         "relations": "Relations",
         "knowledge": "Knowledge",
         "compliance": "Compliance"
       },
-      "createNewVersion": "Create New Version",
+      "createNewVersion": "Create new version",
       "saveBeforeVersion": "Save changes before creating a new version",
       "overview": {
         "description": "Description",
@@ -203,18 +203,18 @@
         "lifecycle": "Lifecycle",
         "canHaveChildApps": "Can have child apps",
         "suiteDisabledHint": "This setting is disabled because the application belongs to a suite. Remove the parent suite under the Relations tab to re-enable it.",
-        "versionInfo": "Version Information",
+        "versionInfo": "Version information",
         "version": "Version",
         "versionPlaceholder": "e.g., 4.2.1, 2023, Q1 2024",
-        "goLiveDate": "Go Live Date",
-        "endOfSupport": "End of Support",
-        "retiredDate": "Retired Date",
+        "goLiveDate": "Go live date",
+        "endOfSupport": "End of support",
+        "retiredDate": "Retired date",
         "licensing": "Licensing",
         "notes": "Notes"
       },
       "ownership": {
-        "businessOwners": "Business Owners",
-        "itOwners": "IT Owners",
+        "businessOwners": "Business owners",
+        "itOwners": "IT owners",
         "addRow": "Add row",
         "audience": "Audience",
         "audienceDescription": "Select company and optionally a department (leave empty to select the full company).",
@@ -224,7 +224,7 @@
         "manualMethod": "Manual",
         "manualUsers": "Manual users",
         "derivedUsers": "Derived users:",
-        "basedOnAudience": "(based on Audience)",
+        "basedOnAudience": "(based on audience)",
         "headcount": "(headcount)",
         "itUsers": "(IT users)"
       },
@@ -232,11 +232,11 @@
         "title": "Technical information",
         "suites": "Suites",
         "suitesPlaceholder": "Select suites this application belongs to",
-        "accessMethods": "Access Methods",
+        "accessMethods": "Access methods",
         "accessMethodsPlaceholder": "Select how this application is accessed",
-        "externalFacing": "External Facing",
-        "dataIntegrationEtl": "Data Integration / ETL",
-        "supportInfo": "Support Information",
+        "externalFacing": "External facing",
+        "dataIntegrationEtl": "Data integration / ETL",
+        "supportInfo": "Support information",
         "addContact": "Add contact",
         "contact": "Contact",
         "email": "Email",
@@ -247,24 +247,24 @@
       },
       "interfaces": {
         "title": "Interfaces",
-        "loadingInterfaces": "Loading interfaces\u2026",
+        "loadingInterfaces": "Loading interfaces…",
         "noInterfaces": "No interfaces found for this application.",
-        "interfaceName": "Interface Name",
-        "sourceApplication": "Source Application",
-        "targetApplication": "Target Application",
+        "interfaceName": "Interface name",
+        "sourceApplication": "Source application",
+        "targetApplication": "Target application",
         "viaMiddleware": "Via middleware"
       },
       "compliance": {
-        "dataClass": "Data Class",
-        "lastDrTest": "Last DR Test",
+        "dataClass": "Data class",
+        "lastDrTest": "Last DR test",
         "containsPii": "Contains PII",
-        "dataResidency": "Data Residency (countries)",
+        "dataResidency": "Data residency (countries)",
         "addCountries": "Add countries"
       }
     },
     "asset": {
       "title": "Server",
-      "newTitle": "New Server",
+      "newTitle": "New server",
       "tabs": {
         "overview": "Overview",
         "technical": "Technical",
@@ -287,7 +287,7 @@
         "hostingType": "Hosting type",
         "cloudProvider": "Cloud provider",
         "operatingCompany": "Operating company",
-        "operatingCompanyCloudProvider": "Operating company / Cloud provider",
+        "operatingCompanyCloudProvider": "Operating company / cloud provider",
         "country": "Country",
         "city": "City",
         "lifecycle": "Lifecycle",
@@ -300,10 +300,10 @@
         "members": "Members",
         "editMembers": "Edit members",
         "saveClusterFirst": "Save this cluster before managing members.",
-        "loadingMembers": "Loading members\u2026",
+        "loadingMembers": "Loading members…",
         "noMembers": "No members added yet.",
         "clusterMembership": "Cluster membership",
-        "loadingClusters": "Loading clusters\u2026",
+        "loadingClusters": "Loading clusters…",
         "notInCluster": "Not part of any cluster.",
         "identity": "Identity",
         "hostname": "Hostname",
@@ -311,26 +311,26 @@
         "domain": "Domain",
         "fqdn": "FQDN",
         "aliases": "Aliases",
-        "aliasesPlaceholder": "Type and press Enter",
-        "operatingSystem": "Operating System",
+        "aliasesPlaceholder": "Type and press enter",
+        "operatingSystem": "Operating system",
         "osClusterHint": "Operating system is defined by cluster member servers.",
-        "osChooseHint": "Choose from the Operating Systems list in Settings.",
+        "osChooseHint": "Choose from the operating systems list in settings.",
         "standardSupportEnds": "Standard support ends {{date}}",
         "extendedSupportEnds": "Extended support ends {{date}}",
-        "ipAddresses": "IP Addresses",
-        "addIpAddress": "Add IP Address",
+        "ipAddresses": "IP addresses",
+        "addIpAddress": "Add IP address",
         "noIpAddresses": "No IP addresses configured.",
         "type": "Type",
-        "ipAddress": "IP Address",
+        "ipAddress": "IP address",
         "subnet": "Subnet",
-        "defineSubnets": "Define subnets in Settings.",
-        "networkZone": "Network Zone",
+        "defineSubnets": "Define subnets in settings.",
+        "networkZone": "Network zone",
         "vlan": "VLAN",
         "clusterTableHeaders": {
           "name": "Name",
           "environment": "Environment",
           "status": "Status",
-          "operatingSystem": "Operating System"
+          "operatingSystem": "Operating system"
         }
       },
       "assignments": {
@@ -353,11 +353,11 @@
         "roleRequired": "Role is required",
         "selectAppForEnv": "Select an application to choose an environment.",
         "noInstances": "No instances for this application",
-        "noServerRoles": "No server roles configured; update IT Ops settings.",
+        "noServerRoles": "No server roles configured; update IT ops settings.",
         "assign": "Assign"
       },
       "connections": {
-        "loadingConnections": "Loading connections\u2026",
+        "loadingConnections": "Loading connections…",
         "noConnections": "No connections found.",
         "connectionReference": "Reference",
         "name": "Name",
@@ -376,12 +376,12 @@
     },
     "connection": {
       "title": "Connection",
-      "newTitle": "New Connection",
+      "newTitle": "New connection",
       "tabs": {
         "overview": "Overview",
         "layers": "Layers",
-        "compliance": "Criticality & Compliance",
-        "interfaces": "Related Interfaces"
+        "compliance": "Criticality & compliance",
+        "interfaces": "Related interfaces"
       },
       "createFromBinding": "Creating from interface binding context",
       "overview": {
@@ -398,7 +398,7 @@
         "selectTwoServers": "Select at least two servers.",
         "multiClusterHint": "One or more selected endpoints are clusters. Their member hosts are managed in the Servers workspace.",
         "protocols": "Protocols",
-        "protocolsPlaceholder": "Select protocols (from Connection Types)",
+        "protocolsPlaceholder": "Select protocols (from connection types)",
         "typicalPorts": "Typical ports",
         "lifecycle": "Lifecycle",
         "notes": "Notes"
@@ -429,7 +429,7 @@
       "compliance": {
         "riskSummary": "Risk summary",
         "riskDerived": "Risk is derived from {{count}} interface bindings.",
-        "riskDerivedNoBindings": "Risk is set to Derived, but no interface bindings are linked to this connection.",
+        "riskDerivedNoBindings": "Risk is set to derived, but no interface bindings are linked to this connection.",
         "effectiveCriticality": "criticality",
         "effectiveDataClass": "data class",
         "effectivePii": "PII",
@@ -456,23 +456,23 @@
     },
     "interface": {
       "title": "Interface",
-      "newTitle": "New Interface",
+      "newTitle": "New interface",
       "tabs": {
         "overview": "Overview",
-        "ownership": "Ownership & Criticality",
-        "functional": "Functional Definition",
-        "technical": "Technical Definition",
-        "environments": "Bindings & Connections",
-        "compliance": "Data & Compliance"
+        "ownership": "Ownership & criticality",
+        "functional": "Functional definition",
+        "technical": "Technical definition",
+        "environments": "Bindings & connections",
+        "compliance": "Data & compliance"
       },
       "selectSourceTarget": "Select source and target applications to manage bindings."
     },
     "location": {
       "title": "Location",
-      "newTitle": "New Location",
+      "newTitle": "New location",
       "tabs": {
         "overview": "Overview",
-        "contacts": "Contacts & Support",
+        "contacts": "Contacts & support",
         "relations": "Relations"
       },
       "deleteTitle": "Delete location?",
@@ -493,13 +493,13 @@
       "instanceSaved": "Instance saved",
       "instanceRemoved": "Instance removed",
       "bulkUpdateApplied": "Bulk update applied",
-      "addDialog": "Add Environment",
-      "editDialog": "Edit Environment",
+      "addDialog": "Add environment",
+      "editDialog": "Edit environment",
       "envAlreadyExists": "Environment already exists",
       "baseUrl": "Base URL",
       "ssoEnabled": "SSO enabled",
       "mfaSupported": "MFA supported",
-      "copyFromProd": "Copy from Prod",
+      "copyFromProd": "Copy from prod",
       "editEnvironment": "Edit environment",
       "deleteEnvironment": "Delete environment",
       "applySettings": "Apply settings to selected environments",
@@ -525,55 +525,55 @@
       "removeAssignment": "Remove assignment"
     },
     "createVersion": {
-      "dialogTitle": "Create New Version",
+      "dialogTitle": "Create new version",
       "steps": {
-        "versionDetails": "Version Details",
-        "copyOptions": "Copy Options",
+        "versionDetails": "Version details",
+        "copyOptions": "Copy options",
         "interfaces": "Interfaces"
       },
       "creatingVersionOf": "Creating a new version of:",
-      "applicationName": "Application Name",
+      "applicationName": "Application name",
       "version": "Version",
       "versionPlaceholder": "e.g., 2.0, 2024, Q1 2025",
-      "goLiveDate": "Go Live Date",
-      "endOfSupportDate": "End of Support Date",
+      "goLiveDate": "Go live date",
+      "endOfSupportDate": "End of support date",
       "selectWhatToCopy": "Select what to copy from the source application:",
-      "copyOwners": "Owners (Business & IT)",
-      "copyCompanies": "Companies (Audience)",
+      "copyOwners": "Owners (business & IT)",
+      "copyCompanies": "Companies (audience)",
       "copyDepartments": "Departments",
-      "copyDataResidency": "Data Residency",
-      "copyLinks": "Links (Documentation)",
-      "copySupportContacts": "Support Contacts",
-      "copyOpexCapex": "OPEX/CAPEX Items",
+      "copyDataResidency": "Data residency",
+      "copyLinks": "Links (documentation)",
+      "copySupportContacts": "Support contacts",
+      "copyOpexCapex": "OPEX/CAPEX items",
       "copyContracts": "Contracts",
-      "copyInstances": "Instances (Environments)",
+      "copyInstances": "Instances (environments)",
       "copyBindings": "Bindings (environment connections)",
       "bindingsHint": "Bindings connect interface legs to app instances. Environment-specific details (endpoints, auth, job names) will be cleared.",
       "suitesNotCopied": "Note: Suites and attachments are not copied.",
       "selectInterfaces": "Select interfaces to migrate to the new version. Selected interfaces will be duplicated and linked to the new version.",
       "loadingInterfaces": "Loading interfaces...",
       "noInterfaces": "No interfaces found for this application.",
-      "selectAll": "Select All",
-      "deselectAll": "Deselect All",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
       "selectedOf": "{{selected}} of {{total}} selected",
       "viaMiddleware": "via middleware",
       "sourceTarget": "source & target",
       "flowsThrough": "flows through this ETL",
-      "flowsThroughAs": "{{source}} \u2192 {{target}} (flows through this ETL)",
-      "asRole": "{{source}} \u2192 {{target}} (as {{role}})",
+      "flowsThroughAs": "{{source}} → {{target}} (flows through this ETL)",
+      "asRole": "{{source}} → {{target}} (as {{role}})",
       "middlewareHint": "Interfaces marked \"flows through this ETL\" use this application as middleware. Copying them creates new interface definitions for the upgraded ETL.",
       "back": "Back",
       "next": "Next",
-      "createVersion": "Create Version",
+      "createVersion": "Create version",
       "nameRequired": "Application name is required"
     },
     "versionTimeline": {
-      "title": "Version History"
+      "title": "Version history"
     }
   },
   "enums": {
     "topology": {
-      "serverToServer": "Server to Server",
+      "serverToServer": "Server to server",
       "multiServer": "Multi-server"
     },
     "criticality": {
@@ -725,9 +725,9 @@
     "loading": "Loading...",
     "name": "Name",
     "user": "User",
-    "lastName": "Last Name",
-    "firstName": "First Name",
-    "jobTitle": "Job Title",
+    "lastName": "Last name",
+    "firstName": "First name",
+    "jobTitle": "Job title",
     "users": "Users",
     "lifecycle": "Lifecycle",
     "environment": "Environment",

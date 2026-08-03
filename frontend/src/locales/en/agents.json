@@ -6,8 +6,8 @@
   "messages": {
     "approved": "Approved and sent for execution.",
     "approveFailed": "Could not approve this proposal.",
-    "rejectedFromAgents": "Rejected from the AI Agents workspace.",
-    "dismissedFromAgents": "Dismissed from the AI Agents workspace.",
+    "rejectedFromAgents": "Rejected from the AI agents workspace.",
+    "dismissedFromAgents": "Dismissed from the AI agents workspace.",
     "rejected": "Proposal rejected.",
     "rejectFailed": "Could not reject this proposal.",
     "dismissed": "Proposal dismissed.",
@@ -106,11 +106,8 @@
   "targetLink": {
     "open": "Open in your ticketing tool"
   },
-  "targetLink": {
-    "open": "Open in your ticketing tool"
-  },
   "overview": {
-    "title": "AI Agents",
+    "title": "AI agents",
     "subtitle": "Monitor active agents, approvals, safety limits, and emergency controls.",
     "pendingApprovals": "Pending approvals",
     "todayActions": "Actions today",
@@ -227,7 +224,7 @@
     }
   },
   "activity": {
-    "title": "Agent Activity",
+    "title": "Agent activity",
     "subtitle": "Review proposals, decisions, executions, pauses, and errors.",
     "filters": "Filters",
     "ticketSearch": "Ticket number",
@@ -469,7 +466,7 @@
       "title": "New shared context profile",
       "create": "Create profile",
       "name": "Name",
-      "namePlaceholder": "e.g., Default IT environment",
+      "namePlaceholder": "e.g., default IT environment",
       "lines": "Context lines",
       "linesHint": "One background guidance line per row.",
       "linesPlaceholder": "Most users run managed laptops.\nNever ask users for passwords."

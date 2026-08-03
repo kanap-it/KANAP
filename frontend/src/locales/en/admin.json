@@ -24,15 +24,15 @@
       "keyMaxLifetimeDays": "Key max lifetime (days)",
       "keyMaxLifetimeHelper": "Leave empty for no expiration limit",
       "label": "Label",
-      "labelPlaceholder": "e.g., Desktop MCP client"
+      "labelPlaceholder": "e.g., desktop MCP client"
     },
     "glpi": {
       "description": "Configure tenant-scoped GLPI credentials so Plaid can import selected GLPI tickets into KANAP tasks after user confirmation.",
       "fields": {
-        "appToken": "App Token",
+        "appToken": "App token",
         "enabled": "Enable GLPI ticket import",
         "url": "GLPI URL",
-        "userToken": "User Token"
+        "userToken": "User token"
       },
       "messages": {
         "testFailed": "GLPI connection test failed."
@@ -44,7 +44,7 @@
         "url": "https://glpi.example.com",
         "userTokenConfigured": "User token configured (leave blank to keep)"
       },
-      "title": "GLPI Integration",
+      "title": "GLPI integration",
       "tooltips": {
         "plaidRequired": "Plaid must be enabled for users to import GLPI tickets from chat."
       },
@@ -67,7 +67,7 @@
         "active": "Active",
         "revoked": "Revoked"
       },
-      "title": "MCP API Keys"
+      "title": "MCP API keys"
     },
     "messages": {
       "connectionTestFailed": "Connection test failed.",
@@ -97,7 +97,7 @@
         "activeUsers30d": "Active users (30d)",
         "allConversations": "All conversations"
       },
-      "title": "Usage Overview",
+      "title": "Usage overview",
       "tokenUsage": "Token usage",
       "windows": {
         "currentMonth": "Current month",
@@ -122,7 +122,7 @@
       "connectionFailed": "Connection failed",
       "connectionSucceeded": "Connection succeeded",
       "fields": {
-        "apiKey": "API Key",
+        "apiKey": "API key",
         "endpointUrl": "Endpoint URL",
         "model": "Model",
         "multimodal": "Multimodal LLM",
@@ -138,7 +138,7 @@
         "title": "Built-in usage"
       },
       "info": {
-        "ollama": "In Docker, use http://host.docker.internal:<port>/v1 instead of localhost."
+        "ollama": "In docker, use http://host.docker.internal:<port>/v1 instead of localhost."
       },
       "placeholders": {
         "anthropicModel": "e.g., claude-sonnet-4-20250514",
@@ -160,7 +160,7 @@
     },
     "prtg": {
       "actions": {
-        "goToAgents": "Open the Agents page"
+        "goToAgents": "Open the agents page"
       },
       "description": "Connect your PRTG monitoring server so KANAP agents can read alerts and sensor health for your infrastructure.",
       "fields": {
@@ -177,7 +177,7 @@
       },
       "messages": {
         "loadFailed": "Could not load the monitoring integration.",
-        "nextStep": "An SRE monitoring agent can now be created from the Agents page.",
+        "nextStep": "An SRE monitoring agent can now be created from the agents page.",
         "testFailed": "PRTG connection test failed.",
         "testSuccess_one": "Connected — PRTG {{version}}, {{count}} sensor visible",
         "testSuccess_other": "Connected — PRTG {{version}}, {{count}} sensors visible"
@@ -217,26 +217,26 @@
       "date": "Date",
       "recordId": "Record ID",
       "source": "Source",
-      "sourceRef": "Source Ref",
+      "sourceRef": "Source ref",
       "table": "Table",
       "tenantId": "Tenant ID",
       "user": "User",
       "userId": "User ID",
-      "userName": "User Name"
+      "userName": "User name"
     },
     "details": {
       "action": "Action: {{value}}",
       "after": "After",
       "before": "Before",
-      "changedFields": "Changed Fields",
+      "changedFields": "Changed fields",
       "date": "Date: {{value}}",
       "noFieldChanges": "No key-level changes",
       "recordId": "Record ID: {{value}}",
       "source": "Source: {{value}}",
-      "sourceRef": "Source Ref: {{value}}",
+      "sourceRef": "Source ref: {{value}}",
       "table": "Table: {{value}}",
       "tenant": "Tenant: {{value}}",
-      "title": "Audit Entry Details",
+      "title": "Audit entry details",
       "user": "User: {{value}}"
     },
     "messages": {
@@ -250,7 +250,7 @@
       "user": "User",
       "webhook": "Webhook"
     },
-    "title": "Audit Log",
+    "title": "Audit log",
     "values": {
       "unknownUser": "Unknown ({{id}}...)"
     }
@@ -268,7 +268,7 @@
       "connected": "Connected",
       "disconnectedDescription": "Single sign-on is not connected for this workspace.",
       "tenantId": "Tenant ID",
-      "title": "Microsoft Entra ID"
+      "title": "Microsoft entra ID"
     },
     "messages": {
       "connectStartFailed": "Failed to start the connection flow.",
@@ -284,7 +284,7 @@
       "manageSubscription": "Manage subscription"
     },
     "customer": {
-      "title": "Customer Information"
+      "title": "Customer information"
     },
     "fields": {
       "addressLine1": "Address line 1",
@@ -297,12 +297,12 @@
       "phone": "Phone",
       "postalCode": "Postal code",
       "recipientName": "Recipient name",
-      "stateProvince": "State / Province",
+      "stateProvince": "State / province",
       "vatNumber": "VAT number"
     },
     "invoiceDetails": {
       "copyFromCustomer": "Copy from customer",
-      "title": "Invoicing Information"
+      "title": "Invoicing information"
     },
     "invoiceStatuses": {
       "draft": "Draft",
@@ -345,7 +345,7 @@
         "amountPerPeriod": "Amount per period",
         "billingFrequency": "Billing frequency",
         "collectionMethod": "Collection method",
-        "lastStripeSync": "Last Stripe sync",
+        "lastStripeSync": "Last stripe sync",
         "paymentMethod": "Payment method",
         "plan": "Plan",
         "renewalDate": "Renewal date",
@@ -376,12 +376,12 @@
     "actions": {
       "clear": "Clear",
       "discard": "Discard",
-      "removeLogo": "Remove Logo",
+      "removeLogo": "Remove logo",
       "removingLogo": "Removing...",
-      "replaceSelectedFile": "Replace Selected File",
-      "resetToDefault": "Reset to Default",
+      "replaceSelectedFile": "Replace selected file",
+      "resetToDefault": "Reset to default",
       "resetting": "Resetting...",
-      "uploadLogo": "Upload Logo"
+      "uploadLogo": "Upload logo"
     },
     "colors": {
       "darkHelper": "Used in dark mode. If empty, light mode color is reused.",
@@ -395,12 +395,12 @@
       "readabilityWarning": "You can still save, but readability may suffer.",
       "selectedText": "selected",
       "swatch": "Swatch",
-      "title": "Primary Colors",
+      "title": "Primary colors",
       "usingDarkFallback": ", using dark-mode fallback color",
       "usingLightFallback": ", using light-mode fallback color"
     },
     "confirmations": {
-      "reset": "Reset branding to default Kanap settings? This removes logo and custom colors."
+      "reset": "Reset branding to default kanap settings? This removes logo and custom colors."
     },
     "fields": {
       "showLogoInDark": "Show logo in dark mode"
@@ -448,8 +448,8 @@
       "version": "Version"
     },
     "dialog": {
-      "createTitle": "New CoA Template",
-      "editTitle": "Edit CoA Template",
+      "createTitle": "New CoA template",
+      "editTitle": "Edit CoA template",
       "fields": {
         "allCountries": "All countries (global template)",
         "code": "Code",
@@ -462,14 +462,14 @@
         "saveFailed": "Failed to save."
       }
     },
-    "exportTitle": "Export Template {{code}} {{version}}",
-    "importTitle": "Import Template CSV — {{code}} {{version}}",
+    "exportTitle": "Export template {{code}} {{version}}",
+    "importTitle": "Import template CSV — {{code}} {{version}}",
     "shared": {
       "allCountries": "All countries",
       "no": "No",
       "yes": "Yes"
     },
-    "title": "CoA Templates (Platform Admin)"
+    "title": "CoA templates (platform admin)"
   },
   "confirmations": {
     "unsavedNavigate": "You have unsaved changes. Save before navigating?",
@@ -483,7 +483,7 @@
       },
       "auditLogs": {
         "description": "Review audit log activity.",
-        "title": "Audit Logs"
+        "title": "Audit logs"
       },
       "billing": {
         "description": "Manage billing and subscriptions.",
@@ -499,7 +499,7 @@
       },
       "opsDashboard": {
         "description": "View platform operations metrics.",
-        "title": "Ops Dashboard"
+        "title": "Ops dashboard"
       },
       "platformAi": {
         "description": "Manage the platform-wide built-in AI provider.",
@@ -536,7 +536,7 @@
       }
     },
     "subtitle": "Run platform-wide master data operations.",
-    "title": "Master Data Operations"
+    "title": "Master data operations"
   },
   "platformAi": {
     "actions": {
@@ -547,11 +547,11 @@
     },
     "cards": {
       "planLimits": "Free AI messages",
-      "provider": "Built-in AI Provider",
+      "provider": "Built-in AI provider",
       "usage": "Current month usage"
     },
     "fields": {
-      "apiKey": "API Key",
+      "apiKey": "API key",
       "endpointUrl": "Endpoint URL",
       "model": "Model",
       "provider": "Provider",
@@ -585,11 +585,11 @@
   },
   "opsDashboard": {
     "cards": {
-      "activeQueries": "Active Queries",
+      "activeQueries": "Active queries",
       "cpuSystem": "system {{count}}s",
       "cpuUser": "CPU (user)",
       "deadlocks": "Deadlocks (cumul.)",
-      "eventLoopP99": "Event Loop P99",
+      "eventLoopP99": "Event loop P99",
       "failRate": "{{count}}% fail rate",
       "heapTotal": "/ {{total}} MB total",
       "heapUsed": "Heap used",
@@ -615,7 +615,7 @@
       "avg": "Avg",
       "count": "Count",
       "error": "Error",
-      "lastSeen": "Last Seen",
+      "lastSeen": "Last seen",
       "p50": "P50",
       "p95": "P95",
       "p99": "P99",
@@ -636,13 +636,13 @@
     "sections": {
       "auth": "Auth (5-minute window)",
       "database": "Database",
-      "process": "Node.js Process",
-      "recentErrors": "Recent Errors (15-minute window)",
-      "topRoutes": "Top Routes by Volume (5-minute window)",
+      "process": "Node.js process",
+      "recentErrors": "Recent errors (15-minute window)",
+      "topRoutes": "Top routes by volume (5-minute window)",
       "traffic": "Traffic (1-minute window)",
-      "windowComparison": "Window Comparison"
+      "windowComparison": "Window comparison"
     },
-    "title": "Ops Dashboard",
+    "title": "Ops dashboard",
     "updated": "Updated {{value}}",
     "values": {
       "justNow": "just now",
@@ -655,10 +655,10 @@
   },
   "planSelection": {
     "actions": {
-      "changePlanBankTransfer": "Change Plan (Bank Transfer)",
-      "changePlanCard": "Change Plan (Card)",
-      "payByBankTransfer": "Pay by Bank Transfer",
-      "payByCard": "Pay by Card"
+      "changePlanBankTransfer": "Change plan (bank transfer)",
+      "changePlanCard": "Change plan (card)",
+      "payByBankTransfer": "Pay by bank transfer",
+      "payByCard": "Pay by card"
     },
     "annualSavings": "2 months free",
     "billingCycle": {
@@ -685,25 +685,25 @@
       "upToSeats_other": "Up to {{count}} seats",
       "year": "year"
     },
-    "title": "Choose a Plan",
+    "title": "Choose a plan",
     "unlimitedUsers": "Unlimited users"
   },
   "roles": {
     "actions": {
       "duplicate": "Duplicate",
       "duplicating": "Duplicating...",
-      "newRole": "New Role",
-      "saveDetails": "Save Details",
-      "savePermissions": "Save Permissions"
+      "newRole": "New role",
+      "saveDetails": "Save details",
+      "savePermissions": "Save permissions"
     },
     "badges": {
       "builtIn": "Built-in",
       "system": "System"
     },
     "dialogs": {
-      "createTitle": "New Role",
+      "createTitle": "New role",
       "deleteMessage": "This action is permanent. You can only delete roles with no users assigned.",
-      "deleteTitle": "Delete Role"
+      "deleteTitle": "Delete role"
     },
     "empty": "No roles found.",
     "fields": {
@@ -713,11 +713,11 @@
     "groups": {
       "AI": "AI",
       "Administration": "Administration",
-      "Budget & Finance": "Budget & Finance",
-      "IT Landscape": "IT Landscape",
+      "Budget & Finance": "Budget & finance",
+      "IT Landscape": "IT landscape",
       "Knowledge": "Knowledge",
-      "Master Data": "Master Data",
-      "Portfolio Management": "Portfolio Management",
+      "Master Data": "Master data",
+      "Portfolio Management": "Portfolio management",
       "Tasks": "Tasks"
     },
     "levels": {
@@ -737,15 +737,15 @@
     },
     "resources": {
       "accounts": "Accounts",
-      "ai_agents": "AI Agents",
-      "ai_chat": "AI Chat",
+      "ai_agents": "AI agents",
+      "ai_chat": "AI chat",
       "ai_mcp": "AI MCP",
-      "ai_settings": "AI Settings",
+      "ai_settings": "AI settings",
       "analytics": "Analytics",
       "applications": "Applications",
       "billing": "Billing",
-      "budget_ops": "Budget Ops",
-      "business_processes": "Business Processes",
+      "budget_ops": "Budget ops",
+      "business_processes": "Business processes",
       "capex": "Capex",
       "companies": "Companies",
       "contacts": "Contacts",
@@ -755,11 +755,11 @@
       "knowledge": "Knowledge",
       "locations": "Locations",
       "opex": "Opex",
-      "portfolio_planning": "Portfolio Planning",
-      "portfolio_projects": "Portfolio Projects",
-      "portfolio_reports": "Portfolio Reports",
-      "portfolio_requests": "Portfolio Requests",
-      "portfolio_settings": "Portfolio Settings",
+      "portfolio_planning": "Portfolio planning",
+      "portfolio_projects": "Portfolio projects",
+      "portfolio_reports": "Portfolio reports",
+      "portfolio_requests": "Portfolio requests",
+      "portfolio_settings": "Portfolio settings",
       "reporting": "Reporting",
       "settings": "Settings",
       "suppliers": "Suppliers",
@@ -816,7 +816,7 @@
         "status": "Status"
       },
       "empty": "No runs yet.",
-      "title": "Run History: {{name}}"
+      "title": "Run history: {{name}}"
     },
     "shared": {
       "empty": "-"
@@ -827,7 +827,7 @@
       "running": "Running",
       "success": "Success"
     },
-    "title": "Scheduled Tasks"
+    "title": "Scheduled tasks"
   },
   "shared": {
     "billingAdminRequired": "Billing admin access required.",
@@ -837,12 +837,12 @@
     }
   },
   "standardAccountWorkspace": {
-    "newTitle": "New Standard Account",
+    "newTitle": "New standard account",
     "position": "Position {{current}} of {{total}}",
     "tabs": {
       "overview": "Overview"
     },
-    "title": "Standard Account {{accountNumber}}"
+    "title": "Standard account {{accountNumber}}"
   },
   "standardAccounts": {
     "actions": {
@@ -851,19 +851,19 @@
       "new": "New"
     },
     "columns": {
-      "accountNumber": "Account Number",
-      "consolidationAccountNumber": "Consolidation Account Number",
-      "consolidationDescription": "Consolidation Description",
-      "consolidationName": "Consolidation Name",
+      "accountNumber": "Account number",
+      "consolidationAccountNumber": "Consolidation account number",
+      "consolidationDescription": "Consolidation description",
+      "consolidationName": "Consolidation name",
       "description": "Description",
       "name": "Name",
-      "nativeName": "Native Name",
+      "nativeName": "Native name",
       "status": "Status"
     },
-    "exportTitle": "Export Template Accounts",
-    "importTitle": "Import Template Accounts",
+    "exportTitle": "Export template accounts",
+    "importTitle": "Import template accounts",
     "templateLabel": "Template",
-    "title": "Standard Accounts (Platform Admin)"
+    "title": "Standard accounts (platform admin)"
   },
   "tenants": {
     "actions": {
@@ -890,13 +890,13 @@
     },
     "delete": {
       "columns": {
-        "rowsDeleted": "Rows Deleted",
+        "rowsDeleted": "Rows deleted",
         "table": "Table"
       },
       "confirmSlug": "Type the tenant slug to confirm",
       "reasonOptional": "Reason (optional)",
       "slugHelper": "Slug: {{slug}}",
-      "summaryTitle": "Deletion Summary",
+      "summaryTitle": "Deletion summary",
       "warning": "Deleting a tenant removes all associated data immediately. This action cannot be undone. Freeze the tenant instead if you want to retain data."
     },
     "detail": {
@@ -956,11 +956,11 @@
       "none": "—"
     },
     "stats": {
-      "capexEntries": "CAPEX Entries",
+      "capexEntries": "CAPEX entries",
       "companies": "Companies",
       "departments": "Departments",
       "headcount": "Headcount",
-      "opexEntries": "OPEX Entries",
+      "opexEntries": "OPEX entries",
       "suppliers": "Suppliers",
       "usersEnabledTotal": "Users (enabled/total)"
     },
@@ -974,17 +974,17 @@
     "title": "Tenants"
   },
   "userForm": {
-    "entraManagedHint": "This user is managed by Microsoft Entra ID and cannot be edited here.",
+    "entraManagedHint": "This user is managed by Microsoft entra ID and cannot be edited here.",
     "fields": {
-      "businessPhone": "Business Phone",
+      "businessPhone": "Business phone",
       "companyOptional": "Company (optional)",
       "departmentOptional": "Department (optional)",
       "email": "Email",
       "enabled": "Enabled",
-      "firstName": "First Name",
-      "jobTitle": "Job Title",
-      "lastName": "Last Name",
-      "mobilePhone": "Mobile Phone",
+      "firstName": "First name",
+      "jobTitle": "Job title",
+      "lastName": "Last name",
+      "mobilePhone": "Mobile phone",
       "roles": "Roles"
     }
   },
@@ -998,16 +998,16 @@
       "inviting": "Inviting…"
     },
     "columns": {
-      "lastName": "Last Name",
-      "firstName": "First Name",
-      "email": "Email Address",
-      "jobTitle": "Job Title",
+      "lastName": "Last name",
+      "firstName": "First name",
+      "email": "Email address",
+      "jobTitle": "Job title",
       "role": "Role",
       "company": "Company",
       "department": "Department",
-      "businessPhone": "Business Phone",
-      "mobilePhone": "Mobile Phone",
-      "mfaEnabled": "MFA Enabled",
+      "businessPhone": "Business phone",
+      "mobilePhone": "Mobile phone",
+      "mfaEnabled": "MFA enabled",
       "created": "Created"
     },
     "mfaValues": {
@@ -1015,9 +1015,9 @@
       "no": "No"
     },
     "dialogs": {
-      "newUser": "New User",
-      "editUser": "Edit User",
-      "saveAndInvite": "Save and Invite",
+      "newUser": "New user",
+      "editUser": "Edit user",
+      "saveAndInvite": "Save and invite",
       "saving": "Saving…"
     },
     "messages": {
@@ -1026,8 +1026,8 @@
       "invitePartialFail": "Invited {{success}} user(s); {{failed}} failed",
       "inviteFailed": "Failed to invite selected users"
     },
-    "exportTitle": "Export Users",
-    "importTitle": "Import Users",
+    "exportTitle": "Export users",
+    "importTitle": "Import users",
     "seats": {
       "limited": "Seats {{used}}/{{limit}}",
       "unlimited": "Seats {{used}} (unlimited)"
