@@ -1401,7 +1401,7 @@
         "overrideJustification": "Justificación de la sobrescritura",
         "overrideValue": "Valor de sobrescritura",
         "phase": "Fase",
-        "phaseWithId": "Fase {{phase}} {{field}}",
+        "phaseGeneric": "Fase {{field}}",
         "phaseWithName": "Fase «{{phase}}» {{field}}",
         "plannedEnd": "Fin planificado",
         "plannedStart": "Inicio planificado",

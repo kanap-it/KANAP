@@ -1708,7 +1708,9 @@ export default function KnowledgeWorkspacePage() {
             <MLink component={Link} underline="hover" color="inherit" to={libraryListUrl}>{libraryName}</MLink>
           )}
           <Typography color="text.primary">
-            {isCreate ? t('workspace.breadcrumbs.newDocument') : (doc?.item_ref || id)}
+            {isCreate
+              ? t('workspace.breadcrumbs.newDocument')
+              : (doc?.item_ref || (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id ?? '') ? '' : id))}
           </Typography>
         </Breadcrumbs>
         <Stack direction="row" alignItems="center" spacing={1}>

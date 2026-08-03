@@ -165,8 +165,8 @@ export default function PortfolioHistory({
         const phaseIdOrName = parts[1];
         const phaseField = parts.slice(2).join('.');
         if (phaseIdOrName.length >= 8 && phaseIdOrName.includes('-')) {
-          return t('activity.history.fields.phaseWithId', {
-            phase: phaseIdOrName.slice(0, 8),
+          // UUID identifier — never surface it (or a fragment of it) to users
+          return t('activity.history.fields.phaseGeneric', {
             field: humanize(phaseField),
           });
         }

@@ -294,7 +294,17 @@ function KnowledgeGroupTable({
                 }}
               >
                 <TableCell>
-                  <Link href={`/knowledge/DOC-${item.item_number}`} underline="none" sx={{ color: 'kanap.text.primary', '&:hover': { color: 'kanap.teal', textDecoration: 'underline' } }}>
+                  <Link
+                    href={`/knowledge/DOC-${item.item_number}`}
+                    underline="none"
+                    sx={{
+                      color: 'kanap.text.secondary',
+                      fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+                      fontSize: 12,
+                      fontVariantNumeric: 'tabular-nums',
+                      '&:hover': { color: 'kanap.teal', textDecoration: 'underline' },
+                    }}
+                  >
                     {`DOC-${item.item_number}`}
                   </Link>
                 </TableCell>
@@ -847,7 +857,18 @@ export default function EntityKnowledgePanel({
               </ListSubheader>,
               ...group.items.map((row) => (
                 <MenuItem key={row.id} value={row.id} sx={drawerMenuItemSx}>
-                  {`DOC-${row.item_number} - ${row.title}`}
+                  <Box
+                    component="span"
+                    sx={{
+                      fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+                      fontSize: 11,
+                      color: 'kanap.text.tertiary',
+                      mr: 1,
+                    }}
+                  >
+                    {`DOC-${row.item_number}`}
+                  </Box>
+                  {row.title}
                 </MenuItem>
               )),
             ]))}
