@@ -629,7 +629,7 @@
           "latestRecommendation": "Latest recommendation"
         },
         "messages": {
-          "publishRecommendation": "Publish a formal decision to activity with context \"analysis recommendation\".",
+          "publishRecommendation": "Publish a formal decision to Activity with context \"Analysis recommendation\".",
           "statusChanged": "Status changed: {{from}} → {{to}}"
         },
         "placeholders": {
@@ -1879,7 +1879,7 @@
       }
     },
     "skills": {
-      "empty": "No skills configured yet. Use seed defaults to populate with standard skills, or add skills manually.",
+      "empty": "No skills configured yet. Use Seed defaults to populate with standard skills, or add skills manually.",
       "description": "Skills are used to define team member expertise areas. Configure the skills that are relevant to your organization.",
       "dialog": {
         "editTitle": "Edit skill",
@@ -1971,7 +1971,7 @@
       }
     },
     "teams": {
-      "empty": "No teams configured yet. Use seed defaults to populate with standard teams, or add teams manually.",
+      "empty": "No teams configured yet. Use Seed defaults to populate with standard teams, or add teams manually.",
       "description": "Teams are organizational groups that contributors belong to. Assign contributors to teams to organize them by department or function.",
       "memberCount_one": "{{count}} member",
       "memberCount_other": "{{count}} members",
