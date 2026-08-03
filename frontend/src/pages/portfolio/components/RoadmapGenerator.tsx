@@ -420,14 +420,11 @@ const CONTRIBUTOR_REASON_LABELS: Record<ExplanationContributorEntry['reason'], s
   reservation: 'Reservation pressure',
 };
 
-const GANTT_STATUS_COLORS: Record<string, string> = {
-  waiting_list: '#ffa726',
-  planned: '#66bb6a',
-  in_progress: '#42a5f5',
-  in_testing: '#29b6f6',
-  on_hold: '#ef5350',
-  done: '#9e9e9e',
-};
+// Bar colors derive from the centralized status palette (utils/statusColors.ts).
+// The canvas renders inside a LightModeIsland, so the light-mode hexes apply.
+const GANTT_STATUS_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PROJECT_STATUS_COLORS).map(([status, mui]) => [status, getDotColor(mui, 'light')]),
+);
 
 const CONTRIBUTOR_PRIMARY_MIN_TOTAL_DAYS = 5;
 const CONTRIBUTOR_PRIMARY_MIN_SHARE = 0.15;
