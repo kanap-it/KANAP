@@ -1,6 +1,6 @@
 {
   "home": {
-    "title": "Master Data",
+    "title": "Master data",
     "subtitle": "Manage organizational structure, suppliers, accounts, and analytics dimensions.",
     "cards": {
       "companiesTitle": "Companies",
@@ -9,13 +9,13 @@
       "departmentsDescription": "Manage departments across companies",
       "suppliersTitle": "Suppliers",
       "suppliersDescription": "Manage supplier information",
-      "coaTitle": "Charts of Accounts",
+      "coaTitle": "Charts of accounts",
       "coaDescription": "Manage charts of accounts and accounts",
       "currencyTitle": "Currency",
       "currencyDescription": "Configure reporting and default currencies",
-      "businessProcessesTitle": "Business Processes",
+      "businessProcessesTitle": "Business processes",
       "businessProcessesDescription": "Manage core ISO 9001-style business processes",
-      "analyticsDimensionsTitle": "Analytics Dimensions",
+      "analyticsDimensionsTitle": "Analytics dimensions",
       "analyticsDimensionsDescription": "Configure analytics dimensions",
       "administrationTitle": "Administration",
       "administrationDescription": "Freeze, copy, and manage master data across years"
@@ -83,70 +83,70 @@
   "companies": {
     "title": "Companies",
     "entity": "company",
-    "newCompany": "New Company",
+    "newCompany": "New company",
     "companyFallback": "Company",
-    "detailsTabHint": "The Details tab becomes available after you create the company.",
+    "detailsTabHint": "The details tab becomes available after you create the company.",
     "loadError": "Failed to load company.",
     "columns": {
       "city": "City",
-      "postalCode": "Postal Code",
+      "postalCode": "Postal code",
       "address1": "Address 1",
       "address2": "Address 2",
       "state": "State",
       "currency": "Currency",
       "headcountYear": "Headcount ({{year}})",
-      "itUsersYear": "IT Users ({{year}})",
+      "itUsersYear": "IT users ({{year}})",
       "turnoverYear": "Turnover ({{year}})"
     },
     "pinnedTotal": "Total",
-    "export": "Export Companies",
-    "import": "Import Companies",
+    "export": "Export companies",
+    "import": "Import companies",
     "fields": {
-      "companyInformation": "Company Information",
+      "companyInformation": "Company information",
       "address1": "Address 1",
       "address2": "Address 2",
-      "postalCode": "Postal Code",
+      "postalCode": "Postal code",
       "city": "City",
       "state": "State",
       "regNumber": "Registration #",
       "vatNumber": "VAT #",
-      "baseCurrency": "Base Currency",
-      "chartOfAccounts": "Chart of Accounts",
+      "baseCurrency": "Base currency",
+      "chartOfAccounts": "Chart of accounts",
       "searchCoA": "Search CoA",
-      "itUsers": "IT Users",
-      "turnover": "Turnover (M\u20ac)"
+      "itUsers": "IT users",
+      "turnover": "Turnover (M€)"
     }
   },
   "departments": {
     "title": "Departments",
     "entity": "department",
-    "newDepartment": "New Department",
+    "newDepartment": "New department",
     "departmentFallback": "Department",
-    "detailsTabHint": "The Details tab becomes available after you create the department.",
+    "detailsTabHint": "The details tab becomes available after you create the department.",
     "loadError": "Failed to load department.",
     "selectCompanyFirst": "Select a company first",
     "columns": {
       "company": "Company",
       "headcountYear": "Headcount ({{year}})"
     },
-    "export": "Export Departments",
-    "import": "Import Departments"
+    "export": "Export departments",
+    "import": "Import departments"
   },
   "suppliers": {
     "title": "Suppliers",
     "entity": "supplier",
-    "newSupplier": "New Supplier",
+    "newSupplier": "New supplier",
     "supplierFallback": "Supplier",
-    "contactsTabHint": "The Contacts tab becomes available after you create the supplier.",
+    "contactsTabHint": "The contacts tab becomes available after you create the supplier.",
     "loadError": "Failed to load supplier.",
     "columns": {
-      "erpSupplierId": "ERP Supplier ID"
+      "erpSupplierId": "ERP supplier ID"
     },
     "noSuppliersFound": "No suppliers found",
-    "export": "Export Suppliers",
-    "import": "Import Suppliers",
+    "export": "Export suppliers",
+    "import": "Import suppliers",
     "fields": {
-      "erpSupplierId": "ERP Supplier ID"
+      "erpSupplierId": "ERP supplier ID"
     },
     "contacts": {
       "commercial": "Commercial",
@@ -157,7 +157,7 @@
       "add": "Add",
       "create": "Create",
       "attach": "Attach",
-      "selectContact": "Select {{role}} Contact",
+      "selectContact": "Select {{role}} contact",
       "firstName": "First name",
       "lastName": "Last name",
       "jobTitle": "Job title",
@@ -170,18 +170,18 @@
   "contacts": {
     "title": "Contacts",
     "entity": "contact",
-    "newContact": "New Contact",
+    "newContact": "New contact",
     "contactFallback": "Contact",
     "columns": {
-      "lastName": "Last Name",
-      "firstName": "First Name",
+      "lastName": "Last name",
+      "firstName": "First name",
       "supplier": "Supplier",
-      "jobTitle": "Job Title",
+      "jobTitle": "Job title",
       "phone": "Phone",
       "mobile": "Mobile"
     },
-    "export": "Export Contacts",
-    "import": "Import Contacts",
+    "export": "Export contacts",
+    "import": "Import contacts",
     "fields": {
       "firstName": "First name",
       "lastName": "Last name",
@@ -203,30 +203,30 @@
     }
   },
   "coa": {
-    "title": "Charts of Accounts",
+    "title": "Charts of accounts",
     "loadError": "Failed to load charts of accounts.",
-    "loadingCoA": "Loading Charts of Accounts\u2026",
+    "loadingCoA": "Loading charts of Accounts…",
     "accounts": "accounts",
-    "newAccount": "New Account",
-    "exportAccounts": "Export Accounts",
-    "importAccounts": "Import Accounts into selected CoA",
+    "newAccount": "New account",
+    "exportAccounts": "Export accounts",
+    "importAccounts": "Import accounts into selected CoA",
     "columns": {
       "accountNumber": "Account #",
       "accountName": "Name",
-      "nativeName": "Native Name",
+      "nativeName": "Native name",
       "consolAccountNumber": "Consol. Account #",
       "consolAccountName": "Consol. Name",
       "consolDescription": "Consol. Description"
     },
     "chipBar": {
-      "createFirst": "Create your first Chart of Accounts",
+      "createFirst": "Create your first chart of accounts",
       "accountsInChart": "Accounts are always managed inside a chart.",
-      "newCoA": "New Chart of Accounts",
+      "newCoA": "New chart of accounts",
       "newChip": "New",
       "manage": "Manage"
     },
     "createDialog": {
-      "title": "New Chart of Accounts",
+      "title": "New chart of accounts",
       "mode": "Mode",
       "scratch": "Create from scratch",
       "template": "Copy from template",
@@ -237,8 +237,8 @@
       "scopeCountry": "Country",
       "scopeGlobal": "Global",
       "setDefaultForCountry": "Set as default for this country",
-      "preflightOk": "Preflight OK \u2014 total {{total}}, inserts {{inserted}}, updates {{updated}}.",
-      "codeAndNameRequired": "Code and Name are required",
+      "preflightOk": "Preflight OK — total {{total}}, inserts {{inserted}}, updates {{updated}}.",
+      "codeAndNameRequired": "Code and name are required",
       "countryRequired": "Country is required",
       "selectTemplate": "Please select a template",
       "preflightFailed": "Preflight failed",
@@ -246,46 +246,46 @@
       "preflight": "Preflight"
     },
     "manageDialog": {
-      "title": "Manage Charts of Accounts",
-      "setCountryDefault": "Set Country Default",
-      "setGlobalDefault": "Set Global Default",
-      "loadingCoAs": "Loading charts of accounts\u2026",
+      "title": "Manage charts of accounts",
+      "setCountryDefault": "Set country default",
+      "setGlobalDefault": "Set global default",
+      "loadingCoAs": "Loading charts of accounts…",
       "loadError": "Failed to load charts of accounts.",
       "noCoAs": "No charts of accounts found.",
-      "selectToView": "Select a Chart of Accounts to view details.",
+      "selectToView": "Select a chart of accounts to view details.",
       "scope": "Scope",
-      "countryDefault": "Country Default",
-      "globalDefault": "Global Default",
-      "linkedCompanies": "Linked Companies",
+      "countryDefault": "Country default",
+      "globalDefault": "Global default",
+      "linkedCompanies": "Linked companies",
       "accountsCount": "Accounts",
-      "failedSetDefault": "Failed to set default Chart of Accounts",
-      "failedSetGlobalDefault": "Failed to set global default Chart of Accounts"
+      "failedSetDefault": "Failed to set default chart of accounts",
+      "failedSetGlobalDefault": "Failed to set global default chart of accounts"
     }
   },
   "accounts": {
     "entity": "account",
-    "newAccount": "New Account",
+    "newAccount": "New account",
     "accountFallback": "Account",
     "loadError": "Failed to load account.",
     "fields": {
-      "chartOfAccounts": "Chart of Accounts",
-      "chartOfAccountsRequired": "Chart of Accounts is required",
+      "chartOfAccounts": "Chart of accounts",
+      "chartOfAccountsRequired": "Chart of accounts is required",
       "selectCoA": "Select a CoA",
-      "accountNumber": "Account Number",
-      "accountName": "Account Name",
-      "nativeName": "Native Name (local language)",
-      "consolAccountNumber": "Consolidation Account Number",
-      "consolAccountName": "Consolidation Account Name",
-      "consolAccountDescription": "Consolidation Account Description",
-      "loadCoAsError": "Failed to load Charts of Accounts"
+      "accountNumber": "Account number",
+      "accountName": "Account name",
+      "nativeName": "Native name (local language)",
+      "consolAccountNumber": "Consolidation account number",
+      "consolAccountName": "Consolidation account name",
+      "consolAccountDescription": "Consolidation account description",
+      "loadCoAsError": "Failed to load charts of accounts"
     }
   },
   "analytics": {
-    "title": "Analytics Dimensions",
+    "title": "Analytics dimensions",
     "entity": "analytics dimension",
-    "newCategory": "New Dimension",
-    "newAnalyticsCategory": "New Analytics Dimension",
-    "analyticsCategoryFallback": "Analytics Dimension",
+    "newCategory": "New dimension",
+    "newAnalyticsCategory": "New analytics dimension",
+    "analyticsCategoryFallback": "Analytics dimension",
     "loadError": "Failed to load analytics dimension.",
     "noOptions": "No analytics dimensions found",
     "fields": {
@@ -295,18 +295,18 @@
     }
   },
   "businessProcesses": {
-    "title": "Business Processes",
+    "title": "Business processes",
     "entity": "business process",
-    "newBusinessProcess": "New Business Process",
-    "businessProcessFallback": "Business Process",
+    "newBusinessProcess": "New business process",
+    "businessProcessFallback": "Business process",
     "loadError": "Failed to load business process.",
-    "manageCategories": "Manage Categories",
+    "manageCategories": "Manage categories",
     "columns": {
       "categories": "Categories",
-      "processOwner": "Process Owner"
+      "processOwner": "Process owner"
     },
-    "export": "Export Business Processes",
-    "import": "Import Business Processes",
+    "export": "Export business processes",
+    "import": "Import business processes",
     "sections": {
       "basicInfo": "Basic info",
       "classification": "Classification",
@@ -318,17 +318,17 @@
       "statusHelper": "Toggle off to disable this process",
       "categories": "Categories",
       "categoriesHelper": "Assign one or more categories",
-      "processOwner": "Process Owner",
+      "processOwner": "Process owner",
       "processOwnerHelper": "User ultimately responsible for the process",
-      "itOwner": "IT Owner",
+      "itOwner": "IT owner",
       "itOwnerHelper": "IT contact responsible for tools / systems supporting this process",
       "notesPlaceholder": "Internal notes, links to SOPs or process maps"
     },
     "categoryManager": {
-      "title": "Manage Business Process Categories",
+      "title": "Manage business process categories",
       "description": "Rename, activate/deactivate, or delete categories. Categories in use cannot be deleted. Changes are only saved when you click Save.",
       "newCategory": "New category",
-      "loadingCategories": "Loading categories\u2026",
+      "loadingCategories": "Loading categories…",
       "noCategories": "No categories found.",
       "nameEmpty": "Name cannot be empty",
       "deleteConfirm": "Delete this category? This cannot be undone.",
@@ -341,25 +341,25 @@
   },
   "admin": {
     "copy": {
-      "title": "Master Data Copy",
+      "title": "Master data copy",
       "subtitle": "Copy company and department metrics between years with a dry run preview",
-      "sourceYear": "Source Year",
-      "destinationYear": "Destination Year",
-      "dataSources": "Data Sources",
-      "companyMetrics": "Company Metrics",
+      "sourceYear": "Source year",
+      "destinationYear": "Destination year",
+      "dataSources": "Data sources",
+      "companyMetrics": "Company metrics",
       "noAdminAccess": "No admin access",
       "metrics": {
         "headcount": "Headcount",
-        "itUsers": "IT Users",
+        "itUsers": "IT users",
         "turnover": "Turnover"
       },
       "columns": {
         "type": "Type",
         "name": "Name",
         "metric": "Metric",
-        "sourceValue": "Source Value",
-        "currentDestination": "Current Destination",
-        "newValue": "New Value",
+        "sourceValue": "Source value",
+        "currentDestination": "Current destination",
+        "newValue": "New value",
         "status": "Status"
       },
       "entityTypes": {
@@ -380,7 +380,7 @@
       "oneItemFailed": "One item failed to copy.",
       "multipleItemsFailed": "{{count}} items failed to copy.",
       "reviewTable": "Review the table for details.",
-      "dataPreview": "Data Preview",
+      "dataPreview": "Data preview",
       "summary": {
         "totalRows": "Total rows",
         "readyToCopy": "Ready to copy",
@@ -388,28 +388,28 @@
         "errors": "Errors"
       },
       "dryRunHint": "Run a dry run to preview the data that will be copied.",
-      "processing": "Processing\u2026",
-      "dryRunBtn": "Dry Run",
-      "copyDataBtn": "Copy Data",
-      "copyingBtn": "Copying\u2026"
+      "processing": "Processing…",
+      "dryRunBtn": "Dry run",
+      "copyDataBtn": "Copy data",
+      "copyingBtn": "Copying…"
     },
     "freeze": {
-      "title": "Freeze / Unfreeze Data",
+      "title": "Freeze / unfreeze data",
       "noPermission": "You need the appropriate permissions to freeze or unfreeze master data. You can still review the current status below.",
       "loadError": "Failed to load freeze status. Try selecting a different year.",
       "frozenSuccessfully": "Data frozen successfully.",
       "unfrozenSuccessfully": "Data unfrozen successfully.",
       "unableToFreeze": "Unable to freeze data.",
       "unableToUnfreeze": "Unable to unfreeze data.",
-      "freezeBtn": "Freeze Data",
-      "unfreezeBtn": "Unfreeze Data",
-      "freezingBtn": "Freezing\u2026",
-      "unfreezingBtn": "Unfreezing\u2026",
-      "updatingStatus": "Updating freeze status\u2026",
+      "freezeBtn": "Freeze data",
+      "unfreezeBtn": "Unfreeze data",
+      "freezingBtn": "Freezing…",
+      "unfreezingBtn": "Unfreezing…",
+      "updatingStatus": "Updating freeze status…",
       "scopeCompanies": "Companies",
       "scopeDepartments": "Departments",
-      "companiesMetrics": "Companies Metrics",
-      "departmentsMetrics": "Departments Metrics",
+      "companiesMetrics": "Companies metrics",
+      "departmentsMetrics": "Departments metrics",
       "frozen": "Frozen",
       "editable": "Editable",
       "frozenBy": "by {{name}}"

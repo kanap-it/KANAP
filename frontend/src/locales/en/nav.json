@@ -1,12 +1,12 @@
 {
   "workspaces": {
     "ai": "Plaid",
-    "agents": "AI Agents",
+    "agents": "AI agents",
     "portfolio": "Portfolio",
-    "itOperations": "IT Landscape",
+    "itOperations": "IT landscape",
     "knowledge": "Knowledge",
-    "budgetManagement": "Budget Management",
-    "masterData": "Master Data",
+    "budgetManagement": "Budget management",
+    "masterData": "Master data",
     "admin": "Admin"
   },
   "topBar": {
@@ -20,7 +20,7 @@
     "account": "Account"
   },
   "userMenu": {
-    "myProfile": "My Profile",
+    "myProfile": "My profile",
     "logout": "Logout"
   },
   "sidebar": {
@@ -33,10 +33,10 @@
       "administration": "Administration"
     },
     "masterData": {
-      "home": "Master Data Home",
+      "home": "Master data home",
       "sections": {
         "organization": "Organization",
-        "externalParties": "External Parties",
+        "externalParties": "External parties",
         "finance": "Finance",
         "classification": "Classification"
       },
@@ -44,10 +44,10 @@
       "departments": "Departments",
       "suppliers": "Suppliers",
       "contacts": "Contacts",
-      "chartsOfAccounts": "Charts of Accounts",
+      "chartsOfAccounts": "Charts of accounts",
       "currency": "Currency",
-      "businessProcesses": "Business Processes",
-      "analyticsDimensions": "Analytics Dimensions",
+      "businessProcesses": "Business processes",
+      "analyticsDimensions": "Analytics dimensions",
       "administration": "Administration"
     },
     "it": {
@@ -58,10 +58,10 @@
       "locations": "Locations",
       "assets": "Assets",
       "connections": "Connections",
-      "connectionMap": "Connection Map",
+      "connectionMap": "Connection map",
       "applications": "Applications",
       "interfaces": "Interfaces",
-      "interfaceMap": "Interface Map",
+      "interfaceMap": "Interface map",
       "settings": "Settings"
     },
     "portfolio": {
@@ -83,7 +83,7 @@
     "admin": {
       "users": "Users",
       "roles": "Roles",
-      "auditLog": "Audit Log",
+      "auditLog": "Audit log",
       "billing": "Billing",
       "authentication": "Authentication",
       "branding": "Branding",
@@ -93,42 +93,42 @@
     },
     "platform": {
       "tenants": "Tenants",
-      "coaTemplates": "CoA Templates",
-      "standardAccounts": "Standard Accounts",
+      "coaTemplates": "CoA templates",
+      "standardAccounts": "Standard accounts",
       "platformAi": "Platform AI",
-      "opsDashboard": "Ops Dashboard",
-      "scheduledTasks": "Scheduled Tasks"
+      "opsDashboard": "Ops dashboard",
+      "scheduledTasks": "Scheduled tasks"
     }
   },
   "breadcrumbs": {
     "dashboard": "Dashboard",
-    "ops": "Budget Management",
+    "ops": "Budget management",
     "admin": "Admin",
-    "it": "IT Landscape",
-    "masterData": "Master Data",
+    "it": "IT landscape",
+    "masterData": "Master data",
     "portfolio": "Portfolio",
     "ai": "Plaid",
     "opex": "OPEX",
     "capex": "CAPEX",
     "projects": "Projects",
     "contributors": "Contributors",
-    "teamMembers": "Team Members",
+    "teamMembers": "Team members",
     "companies": "Companies",
     "departments": "Departments",
     "suppliers": "Suppliers",
     "accounts": "Accounts",
-    "coa": "Charts of Accounts",
-    "analytics": "Analytics Dimensions",
+    "coa": "Charts of accounts",
+    "analytics": "Analytics dimensions",
     "users": "Users",
     "roles": "Roles",
-    "scheduledTasks": "Scheduled Tasks",
+    "scheduledTasks": "Scheduled tasks",
     "billing": "Billing",
     "agentControl": "Agent control",
     "reports": "Reporting",
     "contracts": "Contracts",
     "applications": "Applications",
-    "interfaceMap": "Interface Map",
-    "connectionMap": "Connection Map",
+    "interfaceMap": "Interface map",
+    "connectionMap": "Connection map",
     "tasks": "Tasks",
     "operations": "Administration"
   }
