@@ -23,6 +23,7 @@ import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
+import { StatusDot } from '../../components/design';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -183,7 +184,7 @@ export default function InterfacesPage() {
                 lineHeight: 1,
               }}
             >
-              <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getEnvDotColor(env, mode), flexShrink: 0 }} />
+              <StatusDot color={getEnvDotColor(env, mode)} />
               {env.toUpperCase()}
             </Box>
           ))}

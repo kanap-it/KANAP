@@ -40,7 +40,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import { useTranslation } from 'react-i18next';
 import AgGridBox from '../../../components/AgGridBox';
-import { KanapDialog, PropertyGroup, PropertyRow } from '../../../components/design';
+import { KanapDialog, PropertyGroup, PropertyRow, StatusDot } from '../../../components/design';
 import {
   interfacesApi,
   type CreateInterfaceMappingGroupInput,
@@ -1701,16 +1701,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
           if (!row) return null;
           return (
             <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-              <Box
-                component="span"
-                sx={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: '50%',
-                  bgcolor: getDotColor(LIFECYCLE_COLORS[row.lifecycle] || 'default', theme.palette.mode),
-                  flex: '0 0 auto',
-                }}
-              />
+              <StatusDot size={7} color={getDotColor(LIFECYCLE_COLORS[row.lifecycle] || 'default', theme.palette.mode)} />
               <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }} noWrap>
                 {row.lifecycle_label}
               </Typography>

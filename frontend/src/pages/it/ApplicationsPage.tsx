@@ -6,6 +6,7 @@ import { ICellRendererParams } from 'ag-grid-community';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LinkCellRenderer } from '../../components/grid/renderers';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
+import { StatusDot } from '../../components/design';
 import { useAuth } from '../../auth/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import ForbiddenPage from '../ForbiddenPage';
@@ -554,7 +555,7 @@ export default function ApplicationsPage() {
                     '&:hover': { textDecoration: 'none' },
                   }}
                 >
-                  <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getEnvDotColor(env.value, mode), flexShrink: 0 }} />
+                  <StatusDot color={getEnvDotColor(env.value, mode)} />
                   {env.short}
                 </Box>
               </Tooltip>

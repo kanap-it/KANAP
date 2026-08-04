@@ -15,7 +15,7 @@ import ApplicationMultiSelect from '../../../components/fields/ApplicationMultiS
 import AssetMultiSelect from '../../../components/fields/AssetMultiSelect';
 import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
-import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx, tealLinkSx } from '../../../theme/formSx';
 import DrawerKnowledgeSection from './DrawerKnowledgeSection';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { taskDetailTokens, taskDetailTypography } from '../theme/taskDetailTokens';
@@ -339,7 +339,7 @@ export default function TaskPropertiesDrawer({
                 <Box
                   component="button"
                   onClick={() => setLogTimeOpen(true)}
-                  sx={{ color: theme.palette.kanap.teal, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', p: 0, fontFamily: 'inherit', whiteSpace: 'nowrap', '&:hover': { textDecoration: 'underline', textUnderlineOffset: '2px' } }}
+                  sx={tealLinkSx}
                 >
                   + Log time
                 </Box>

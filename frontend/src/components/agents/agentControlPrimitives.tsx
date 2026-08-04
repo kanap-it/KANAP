@@ -17,6 +17,7 @@ import {
 } from '../../ai/aiApi';
 import i18n from '../../i18n';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../design';
 
 export const HELP_DESK_TICKETING_AGENT_KEY = 'helpdesk.glpi.triage';
 export const LEGACY_GLPI_TICKETING_PROVIDER_KEY = 'glpi';
@@ -680,7 +681,7 @@ export function StatusText({ status }: { status: string }) {
   const dotColor = getDotColor(statusColor(status), theme.palette.mode);
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box aria-hidden sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
+      <StatusDot color={dotColor} />
       <Typography sx={{ color: dotColor, fontSize: 13, fontWeight: 500, lineHeight: 1.35, minWidth: 0 }}>
         {statusLabel(status)}
       </Typography>

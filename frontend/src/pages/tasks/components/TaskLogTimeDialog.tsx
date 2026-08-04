@@ -7,7 +7,7 @@ import UserSelect from '../../../components/fields/UserSelect';
 import DateEUField from '../../../components/fields/DateEUField';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow } from '../../../components/design';
-import { drawerFieldValueSx, dialogBorderedFieldSx } from '../../../theme/formSx';
+import { drawerFieldValueSx, dialogBorderedFieldSx, textTabsSx, textTabSx } from '../../../theme/formSx';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 
 type TimeEntryCategory = 'it' | 'business';
@@ -177,7 +177,7 @@ export default function TaskLogTimeDialog({
           <Tabs
             value={category}
             onChange={(_, v) => setCategory(v as TimeEntryCategory)}
-            sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
+            sx={textTabsSx}
           >
             {CATEGORIES.map((c) => (
               <Tab
@@ -185,18 +185,7 @@ export default function TaskLogTimeDialog({
                 value={c}
                 disableRipple
                 label={t(`portfolio:dialogs.logTime.categories.${c}`)}
-                sx={(theme) => ({
-                  minHeight: 'auto',
-                  p: 0,
-                  mr: 2.5,
-                  minWidth: 'auto',
-                  textTransform: 'none',
-                  fontSize: 13,
-                  fontWeight: category === c ? 500 : 400,
-                  color: category === c
-                    ? theme.palette.kanap.text.primary
-                    : theme.palette.kanap.text.tertiary,
-                })}
+                sx={[textTabSx(category === c), { mr: 2.5 }]}
               />
             ))}
           </Tabs>

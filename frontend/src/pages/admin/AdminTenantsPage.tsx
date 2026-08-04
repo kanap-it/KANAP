@@ -30,6 +30,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../../components/design';
 import DateEUField from '../../components/fields/DateEUField';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
@@ -331,7 +332,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                       </TableCell>
                       <TableCell>
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(STATUS_COLOR[tenant.status] ?? 'default', mode) }} />
+                          <StatusDot color={getDotColor(STATUS_COLOR[tenant.status] ?? 'default', mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor(STATUS_COLOR[tenant.status] ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{getStatusLabel(tenant.status)}</Typography>
                         </Box>
                       </TableCell>
@@ -405,7 +406,7 @@ const renderStatCard = (label: string, value: React.ReactNode) => (
                   <Typography variant="h6">{effectiveDetail.name}</Typography>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(STATUS_COLOR[effectiveDetail.status] ?? 'default', mode) }} />
+                      <StatusDot color={getDotColor(STATUS_COLOR[effectiveDetail.status] ?? 'default', mode)} />
                       <Typography variant="body2" sx={{ color: getDotColor(STATUS_COLOR[effectiveDetail.status] ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{getStatusLabel(effectiveDetail.status)}</Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary">{t('tenants.detail.slug', { slug: effectiveDetail.slug })}</Typography>

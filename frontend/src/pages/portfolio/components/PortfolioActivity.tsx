@@ -9,6 +9,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import { useTranslation } from 'react-i18next';
 import PortfolioComments from './PortfolioComments';
 import PortfolioHistory from './PortfolioHistory';
+import { textTabSx, textTabsSx } from '../../../theme/formSx';
 
 type ActivityTab = 'comments' | 'history';
 
@@ -76,41 +77,21 @@ export default function PortfolioActivity({
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
-          sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
+          sx={textTabsSx}
         >
           <Tab
             value="comments"
             icon={<CommentIcon sx={{ fontSize: 14 }} />}
             iconPosition="start"
             label={t('activity.tabs.comments')}
-            sx={(theme) => ({
-              minHeight: 'auto',
-              p: 0,
-              mr: 2,
-              textTransform: 'none',
-              minWidth: 'auto',
-              fontSize: '13px',
-              fontWeight: activeTab === 'comments' ? 500 : 400,
-              color: activeTab === 'comments' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
-              '& .MuiTab-iconWrapper': { mr: 0.75 },
-            })}
+            sx={[textTabSx(activeTab === 'comments'), { '& .MuiTab-iconWrapper': { mr: 0.75 } }]}
           />
           <Tab
             value="history"
             icon={<HistoryIcon sx={{ fontSize: 14 }} />}
             iconPosition="start"
             label={t('activity.tabs.history')}
-            sx={(theme) => ({
-              minHeight: 'auto',
-              p: 0,
-              mr: 2,
-              textTransform: 'none',
-              minWidth: 'auto',
-              fontSize: '13px',
-              fontWeight: activeTab === 'history' ? 500 : 400,
-              color: activeTab === 'history' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
-              '& .MuiTab-iconWrapper': { mr: 0.75 },
-            })}
+            sx={[textTabSx(activeTab === 'history'), { '& .MuiTab-iconWrapper': { mr: 0.75 } }]}
           />
         </Tabs>
       </Box>

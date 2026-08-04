@@ -10,6 +10,7 @@ import { TASK_STATUS_OPTIONS } from '../task.constants';
 import type { TaskStatus } from '../task.constants';
 import { taskDetailTokens, taskDetailTypography, STATUS_DOT_COLORS } from '../theme/taskDetailTokens';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import { StatusDot } from '../../../components/design';
 import { useTheme } from '@mui/material/styles';
 
 const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
@@ -255,7 +256,7 @@ export default function UnifiedActivityForm({
                 const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? '#9CA3AF';
                 return (
                   <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
+                    <StatusDot size={7} color={dotColor} />
                     <span>{opt.label}</span>
                   </Box>
                 );
@@ -272,7 +273,7 @@ export default function UnifiedActivityForm({
                 const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? '#9CA3AF';
                 return (
                   <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: 13, gap: '8px' }}>
-                    <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flexShrink: 0 }} />
+                    <StatusDot size={7} color={dotColor} />
                     {opt.label}
                   </MenuItem>
                 );

@@ -5,6 +5,7 @@ import { PortfolioMetadataItem } from '../../portfolio/workspace/PortfolioMetada
 import MetadataUserPicker from '../../../components/workspace/MetadataUserPicker';
 import { drawerMenuItemSx } from '../../../theme/formSx';
 import { STATUS_ENABLED, STATUS_DISABLED, StatusValue } from '../../../constants/status';
+import { StatusDot } from '../../../components/design';
 
 export type CapexPriority = 'mandatory' | 'high' | 'medium' | 'low';
 
@@ -58,7 +59,7 @@ export default function CapexMetadataBar({
         onClick={(e) => !disabled && setStatusAnchor(e.currentTarget as HTMLElement)}
         disabled={disabled}
       >
-        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: statusColor, mr: 0.75, display: 'inline-block' }} />
+        <StatusDot size={8} color={statusColor} sx={{ mr: 0.75 }} />
         <Typography component="span" sx={{ fontSize: 12 }}>{statusLabel}</Typography>
       </PortfolioMetadataItem>
 
@@ -67,7 +68,7 @@ export default function CapexMetadataBar({
         onClick={(e) => !disabled && setPriorityAnchor(e.currentTarget as HTMLElement)}
         disabled={disabled}
       >
-        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: selectedPriority.color, mr: 0.75, display: 'inline-block' }} />
+        <StatusDot size={8} color={selectedPriority.color} sx={{ mr: 0.75 }} />
         <Typography component="span" sx={{ fontSize: 12 }}>{selectedPriority.label}</Typography>
       </PortfolioMetadataItem>
 

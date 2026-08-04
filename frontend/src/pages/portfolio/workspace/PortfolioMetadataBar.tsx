@@ -9,21 +9,8 @@ import {
 import type { SxProps, Theme } from '@mui/material/styles';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import { drawerMenuItemSx } from '../../../theme/formSx';
-import { taskDetailTypography } from '../../tasks/theme/taskDetailTokens';
-
-const dotSx = {
-  width: 8,
-  height: 8,
-  borderRadius: '50%',
-  flexShrink: 0,
-} as const;
-
-const metaItemBaseSx = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '7px',
-  ...taskDetailTypography.metaChip,
-} as const;
+import { StatusDot } from '../../../components/design';
+import { metaItemSx, taskDetailTypography } from '../../tasks/theme/taskDetailTokens';
 
 type MetadataItemProps = {
   children: React.ReactNode;
@@ -52,7 +39,7 @@ export function PortfolioMetadataItem({
       onClick={disabled ? undefined : onClick}
       sx={[
         (theme) => ({
-          ...metaItemBaseSx,
+          ...metaItemSx,
           border: 0,
           p: 0,
           bgcolor: 'transparent',
@@ -124,7 +111,7 @@ export function PortfolioStatusMetadata({
         type="button"
         onClick={disabled ? undefined : (event) => setAnchorEl(event.currentTarget)}
         sx={(theme) => ({
-          ...metaItemBaseSx,
+          ...metaItemSx,
           border: 0,
           p: 0,
           bgcolor: 'transparent',
@@ -133,7 +120,7 @@ export function PortfolioStatusMetadata({
           cursor: disabled ? 'default' : 'pointer',
         })}
       >
-        <Box component="span" sx={{ ...dotSx, bgcolor: color }} />
+        <StatusDot color={color} size={8} />
         <span>{label}</span>
       </Box>
       <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}>
@@ -147,7 +134,7 @@ export function PortfolioStatusMetadata({
             }}
             sx={{ ...drawerMenuItemSx, gap: '8px' }}
           >
-            <Box component="span" sx={{ ...dotSx, bgcolor: option.color }} />
+            <StatusDot color={option.color} size={8} />
             {option.label}
           </MenuItem>
         ))}
@@ -172,8 +159,8 @@ export function PortfolioScoreMetadata({
   if (value == null) return null;
 
   const node = (
-    <Box sx={(theme) => ({ ...metaItemBaseSx, color: theme.palette.kanap.text.primary })}>
-      <Box component="span" sx={{ ...dotSx, bgcolor: color }} />
+    <Box sx={(theme) => ({ ...metaItemSx, color: theme.palette.kanap.text.primary })}>
+      <StatusDot color={color} size={8} />
       <Box component="span" sx={{ ...taskDetailTypography.scoreValue }}>
         {Math.round(Number(value))}
       </Box>

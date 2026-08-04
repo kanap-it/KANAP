@@ -15,6 +15,7 @@ import {
 import type { ChipProps } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../../components/design';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
@@ -473,7 +474,7 @@ export default function BillingCenter() {
                 <Grid item xs={12} sm={6} md={3}>
                   <SummaryItem label={t('billing.subscription.labels.status')}>
                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(statusMeta.color ?? 'default', mode) }} />
+                      <StatusDot color={getDotColor(statusMeta.color ?? 'default', mode)} />
                       <Typography variant="body2" sx={{ color: getDotColor(statusMeta.color ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem', textTransform: 'capitalize' }}>{statusMeta.label}</Typography>
                     </Box>
                   </SummaryItem>
@@ -585,7 +586,7 @@ export default function BillingCenter() {
                         </Typography>
                       </Box>
                       <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(statusMeta.color ?? 'default', mode) }} />
+                        <StatusDot color={getDotColor(statusMeta.color ?? 'default', mode)} />
                         <Typography variant="body2" sx={{ color: getDotColor(statusMeta.color ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem', textTransform: 'capitalize' }}>{statusMeta.label}</Typography>
                       </Box>
                       <Box sx={{ flexGrow: 1 }}>

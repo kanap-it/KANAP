@@ -3,6 +3,7 @@ import { Box, Checkbox, ListItemText, MenuItem, Popover, Typography } from '@mui
 import { PortfolioMetadataItem } from '../../portfolio/workspace/PortfolioMetadataBar';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { drawerMenuItemSx } from '../../../theme/formSx';
+import { StatusDot } from '../../../components/design';
 
 type Props = {
   lifecycle: string;
@@ -98,7 +99,7 @@ export default function ConnectionMetadataBar({
         disabled={disabled}
       >
         <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', mr: 0.5 }}>Lifecycle</Typography>
-        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: lifecycleColor, mr: 0.75, display: 'inline-block' }} />
+        <StatusDot size={8} color={lifecycleColor} sx={{ mr: 0.75 }} />
         <Typography component="span" sx={{ fontSize: 12 }}>{lifecycleLabel}</Typography>
       </PortfolioMetadataItem>
 
@@ -115,7 +116,7 @@ export default function ConnectionMetadataBar({
         disabled={disabled || riskMode === 'derived'}
       >
         <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', mr: 0.5 }}>Criticality</Typography>
-        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: criticalityColor, mr: 0.75, display: 'inline-block' }} />
+        <StatusDot size={8} color={criticalityColor} sx={{ mr: 0.75 }} />
         <Typography component="span" sx={{ fontSize: 12 }}>{effectiveCritLabel}</Typography>
         {riskMode === 'derived' && (
           <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', ml: 0.5 }}>

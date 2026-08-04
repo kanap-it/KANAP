@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot as StatusDotCircle } from '../../components/design';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import HistoryIcon from '@mui/icons-material/History';
 import EditIcon from '@mui/icons-material/Edit';
@@ -67,7 +68,7 @@ function StatusDot({ status, t, mode }: { status: string | null; t: (key: string
   const label = !status ? t('scheduledTasks.statuses.neverRun') : status === 'success' ? t('scheduledTasks.statuses.success') : status === 'failure' ? t('scheduledTasks.statuses.failure') : status === 'running' ? t('scheduledTasks.statuses.running') : status;
   return (
     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(colorKey, mode) }} />
+      <StatusDotCircle color={getDotColor(colorKey, mode)} />
       <Typography variant="body2" sx={{ color: getDotColor(colorKey, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{label}</Typography>
     </Box>
   );

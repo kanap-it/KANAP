@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../../components/design';
 import { useTranslation } from 'react-i18next';
 
 type ToolResultBodyProps = {
@@ -40,7 +41,7 @@ function EntityList({ items }: { items: any[] }) {
           <Typography variant="body2">{item.label}</Typography>
           {item.status && (
             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+              <StatusDot color={getDotColor('info', mode)} />
               <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{item.status}</Typography>
             </Box>
           )}

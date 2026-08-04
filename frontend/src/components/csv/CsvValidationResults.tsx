@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../design';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -55,24 +56,24 @@ export function CsvValidationResults({
       {/* Counts */}
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('default', mode) }} />
+          <StatusDot color={getDotColor('default', mode)} />
           <Typography variant="body2" sx={{ color: getDotColor('default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.totalRows', { count: result.total })}</Typography>
         </Box>
         {result.inserted > 0 && (
           <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('success', mode) }} />
+            <StatusDot color={getDotColor('success', mode)} />
             <Typography variant="body2" sx={{ color: getDotColor('success', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.toInsert', { count: result.inserted })}</Typography>
           </Box>
         )}
         {result.updated > 0 && (
           <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+            <StatusDot color={getDotColor('info', mode)} />
             <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.toUpdate', { count: result.updated })}</Typography>
           </Box>
         )}
         {result.skipped > 0 && (
           <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+            <StatusDot color={getDotColor('warning', mode)} />
             <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('csv.skipped', { count: result.skipped })}</Typography>
           </Box>
         )}

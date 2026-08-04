@@ -25,6 +25,39 @@ export const nakedControlHoverSx = {
   cursor: 'pointer',
 } as const;
 
+/** Teal action link rendered as an unstyled button (e.g. "+ Link existing", "+ Log time"). */
+export const tealLinkSx = {
+  color: 'kanap.teal',
+  fontSize: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  p: 0,
+  fontFamily: 'inherit',
+  whiteSpace: 'nowrap',
+  '&:hover': {
+    textDecoration: 'underline',
+    textUnderlineOffset: '2px',
+  },
+} as const;
+
+/** Charter text tabs: no indicator, active = primary/500, inactive = tertiary/400. */
+export const textTabsSx = {
+  minHeight: 'auto',
+  '& .MuiTabs-indicator': { display: 'none' },
+} as const;
+
+export const textTabSx = (active: boolean) => ({
+  minHeight: 'auto',
+  p: 0,
+  mr: 2,
+  textTransform: 'none' as const,
+  minWidth: 'auto',
+  fontSize: 13,
+  fontWeight: active ? 500 : 400,
+  color: active ? 'kanap.text.primary' : 'kanap.text.tertiary',
+});
+
 export const drawerSelectSx = {
   width: '100%',
   fontSize: 13,
