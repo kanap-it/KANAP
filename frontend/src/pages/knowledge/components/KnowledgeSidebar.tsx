@@ -31,7 +31,14 @@ import {
   drawerMenuItemSx,
   drawerSelectSx,
   editableFieldValueSx,
+  longFormSurfaceFieldSx,
 } from '../../../theme/formSx';
+
+// Compact variant of the long-form composer surface for the narrow sidebar.
+const sidebarLongFormSx = {
+  '& .MuiInputBase-root': { minHeight: 0, px: '10px', py: '8px' },
+  '& .MuiInputBase-input': { fontSize: '13px !important', lineHeight: '1.5 !important' },
+} as const;
 
 const STATUS_OPTIONS = [
   { value: 'draft' },
@@ -575,7 +582,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   {t('sidebar.actions.openTemplate')}
                 </Button>
               )}
-              <PropertyRow label={t('sidebar.fields.summary')} valueSx={editableFieldValueSx}>
+              <PropertyRow label={t('sidebar.fields.summary')}>
                 <TextField
                   variant="standard"
                   value={form.summary || ''}
@@ -587,6 +594,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   fullWidth
                   placeholder={t('sidebar.fields.summary')}
                   InputProps={{ disableUnderline: true }}
+                  sx={[longFormSurfaceFieldSx, sidebarLongFormSx]}
                 />
               </PropertyRow>
             </Stack>
@@ -1197,7 +1205,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
           <Stack spacing={2}>
             {!isCreate && (
               <>
-                <PropertyRow label={t('sidebar.comments.fields.addComment')} valueSx={editableFieldValueSx}>
+                <PropertyRow label={t('sidebar.comments.fields.addComment')}>
                   <TextField
                     multiline
                     minRows={2}
@@ -1208,6 +1216,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     fullWidth
                     placeholder={t('sidebar.comments.fields.addComment')}
                     InputProps={{ disableUnderline: true }}
+                    sx={[longFormSurfaceFieldSx, sidebarLongFormSx]}
                   />
                 </PropertyRow>
                 <Box>

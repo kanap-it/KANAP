@@ -76,6 +76,7 @@ type IntegratedDocumentEditorProps = {
   autosaveEnabled?: boolean;
   autosaveDelayMs?: number;
   surface?: boolean;
+  hideToolbarUntilFocus?: boolean;
 };
 
 const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
@@ -129,6 +130,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     autosaveEnabled = true,
     autosaveDelayMs = 1800,
     surface = false,
+    hideToolbarUntilFocus = false,
   },
   ref,
 ) {
@@ -605,6 +607,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
               maxRows={maxRows}
               disabled={disabled}
               surface={surface}
+              hideToolbarUntilFocus={hideToolbarUntilFocus}
             />
           </React.Suspense>
         )}
@@ -748,6 +751,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             onImageUpload={canEditContent ? handleInlineImageUpload : undefined}
             onImageUrlImport={canEditContent ? handleInlineImageImport : undefined}
             surface={surface}
+            hideToolbarUntilFocus={hideToolbarUntilFocus}
           />
         </React.Suspense>
       ) : (
