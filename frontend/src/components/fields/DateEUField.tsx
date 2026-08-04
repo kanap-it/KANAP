@@ -2,6 +2,8 @@ import React from 'react';
 import { TextField, InputAdornment, IconButton, SxProps, Theme, Box } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import { euToYmd, ymdToEu, formatEuPartial } from '../../lib/date-eu';
+import { FieldLabel, mergeSx } from '../design';
+import { nakedInputHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Props = {
   label: string;
@@ -69,8 +71,11 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
     setText(ymdToEu(ymd));
   };
 
+  const naked = hideLabel || !label;
+
   return (
     <Box sx={{ position: 'relative', ...sx }}>
+      {!naked && <FieldLabel required={required} sx={{ mb: '2px' }}>{label}</FieldLabel>}
       <input
         ref={nativeRef}
         type="date"
@@ -87,24 +92,22 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
         onChange={onNativeChange}
       />
       <TextField
-        label={hideLabel || !label ? undefined : label}
         placeholder="dd/mm/yyyy"
         value={text}
         onChange={onTextChange}
         onBlur={onBlur}
         disabled={disabled}
         required={required}
-        variant={hideLabel || !label ? 'standard' : undefined}
-        InputLabelProps={hideLabel || !label ? undefined : { shrink: true }}
+        variant="standard"
         name={name}
         error={error}
         helperText={helperText}
         size={size}
         fullWidth
-        sx={textFieldSx}
+        sx={naked ? mergeSx(nakedInputHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
         inputProps={{ inputMode: 'numeric' }}
         InputProps={{
-          ...(hideLabel || !label ? { disableUnderline: true } : {}),
+          ...(naked ? { disableUnderline: true } : {}),
           endAdornment: (
             <InputAdornment position="end">
               <IconButton size="small" onClick={openPicker} aria-label="Open calendar" tabIndex={-1}>

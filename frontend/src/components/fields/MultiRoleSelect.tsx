@@ -1,8 +1,11 @@
 import React from 'react';
-import { Autocomplete, CircularProgress, TextField, Chip } from '@mui/material';
+import { Autocomplete, Box, CircularProgress, TextField, Chip } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Role = { id: string; role_name: string; role_description: string };
 
@@ -14,6 +17,8 @@ export default function MultiRoleSelect({
   error,
   helperText,
   required,
+  hideLabel = false,
+  textFieldSx,
 }: {
   label?: string;
   value: string[];
@@ -22,9 +27,12 @@ export default function MultiRoleSelect({
   error?: boolean;
   helperText?: React.ReactNode;
   required?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 }) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.roles');
+  const naked = hideLabel || label === '';
   const { data, isLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
@@ -47,7 +55,7 @@ export default function MultiRoleSelect({
     onChange(newRoles.map((r) => r.id));
   };
 
-  return (
+  const control = (
     <Autocomplete
       multiple
       options={options}
@@ -56,15 +64,19 @@ export default function MultiRoleSelect({
       onChange={handleRoleChange}
       disabled={disabled}
       isOptionEqualToValue={(a, b) => a.id === b.id}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
           required={required}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          placeholder={naked && selectedRoles.length === 0 ? t('selects.notSet') : undefined}
           error={error}
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress size={16} /> : null}
@@ -99,5 +111,13 @@ export default function MultiRoleSelect({
         );
       }}
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 }

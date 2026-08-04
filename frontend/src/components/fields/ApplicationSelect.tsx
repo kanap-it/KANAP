@@ -1,9 +1,11 @@
 import React from 'react';
-import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import { Autocomplete, Box, CircularProgress, TextField } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type ApplicationOption = {
   id: string;
@@ -52,6 +54,7 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
 ) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.application');
+  const naked = hideLabel || label === '';
   const { data: applications, isLoading } = useQuery({
     queryKey: ['applications', 'select', onlyEtl ? 'etl' : 'all'],
     queryFn: async () => {
@@ -84,7 +87,7 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
 
   const selectedOption = mergedOptions.find((app) => app.id === value) || null;
 
-  return (
+  const control = (
     <Autocomplete
       options={mergedOptions}
       value={selectedOption}
@@ -108,17 +111,17 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
       renderInput={(params) => (
         <TextField
           {...params}
-          label={hideLabel ? undefined : label}
-          placeholder={placeholder}
+          placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
           required={required}
           helperText={helperText}
-          InputLabelProps={hideLabel ? undefined : { shrink: true }}
+          variant="standard"
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
           }}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || loadingSelected) ? <CircularProgress color="inherit" size={16} /> : null}
@@ -126,13 +129,22 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
               </>
             ),
           }}
-          sx={textFieldSx}
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
         />
       )}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       loading={isLoading || loadingSelected}
       noOptionsText={isLoading ? t('selects.loadingEllipsis') : t('selects.noApplicationsFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

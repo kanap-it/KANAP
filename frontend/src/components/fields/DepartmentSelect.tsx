@@ -4,7 +4,8 @@ import { TextField, CircularProgress, Autocomplete, Box } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Department = { id: string; name: string; company_id?: string | null };
 
@@ -16,6 +17,7 @@ type DepartmentSelectProps = {
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
+  placeholder?: string;
   required?: boolean;
   size?: 'small' | 'medium';
   year?: number;
@@ -41,6 +43,7 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
     disabled,
     error,
     helperText,
+    placeholder,
     required,
     size = 'medium',
     year,
@@ -49,7 +52,8 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
   },
   ref,
 ) {
-  const { t } = useTranslation(['master-data']);
+  const { t } = useTranslation(['master-data', 'common']);
+  const naked = hideLabel || label === '';
   const { data: departments, isLoading } = useQuery({
     queryKey: ['departments', 'lookup', 'active', companyId, year],
     queryFn: async () => {
@@ -83,7 +87,7 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
   const isDisabled = disabled || !companyId || isLoading;
   const selected = sorted.find((d) => d.id === value) || null;
 
-  return (
+  const control = (
     <Box sx={{ position: 'relative' }}>
       <Autocomplete
         options={sorted}
@@ -94,7 +98,6 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
         renderInput={(params) => (
           <TextField
             {...params}
-            label={hideLabel ? undefined : label}
             inputRef={(node) => {
               assignRef((params.inputProps as any)?.ref, node);
               assignRef(ref, node ?? null);
@@ -103,13 +106,12 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
             helperText={companyId ? helperText : undefined}
             required={required}
             size={size}
-            placeholder={!companyId ? t('departments.selectCompanyFirst') : (hideLabel ? label : undefined)}
-            variant={hideLabel ? 'standard' : undefined}
-            sx={textFieldSx}
-            InputLabelProps={hideLabel ? undefined : { shrink: true }}
+            placeholder={!companyId ? t('departments.selectCompanyFirst') : (placeholder ?? (naked ? t('common:selects.notSet') : undefined))}
+            variant="standard"
+            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
             InputProps={{
               ...params.InputProps,
-              ...(hideLabel ? { disableUnderline: true } : {}),
+              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || isLoadingSelected) ? <CircularProgress size={20} /> : null}
@@ -125,10 +127,18 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
         }}
         disabled={isDisabled}
         loading={isLoading || isLoadingSelected}
-        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+        ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
         size={size}
         fullWidth
       />
+    </Box>
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
     </Box>
   );
 });

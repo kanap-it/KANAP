@@ -1,8 +1,11 @@
 import React from 'react';
-import { Autocomplete, Chip, CircularProgress, TextField } from '@mui/material';
+import { Autocomplete, Box, Chip, CircularProgress, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type ApplicationOption = {
   id: string;
@@ -18,6 +21,8 @@ type ApplicationMultiSelectProps = {
   disabled?: boolean;
   placeholder?: string;
   size?: 'small' | 'medium';
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 export default function ApplicationMultiSelect({
@@ -27,9 +32,12 @@ export default function ApplicationMultiSelect({
   disabled,
   placeholder,
   size,
+  hideLabel = false,
+  textFieldSx,
 }: ApplicationMultiSelectProps) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.applications', { defaultValue: 'Applications' });
+  const naked = hideLabel || label === '';
   const ids = Array.isArray(value) ? value : [];
 
   const { data: applications = [], isLoading } = useQuery({
@@ -65,13 +73,14 @@ export default function ApplicationMultiSelect({
   const selected = options.filter((option) => ids.includes(option.id));
   const loading = isLoading || isLoadingMissing;
 
-  return (
+  const control = (
     <Autocomplete
       multiple
       options={options}
       value={selected}
       onChange={(_, next) => onChange(Array.from(new Set(next.map((item) => item.id))))}
       getOptionLabel={(option) => option.name || option.id}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       size={size}
       disabled={disabled || loading}
       loading={loading}
@@ -88,12 +97,13 @@ export default function ApplicationMultiSelect({
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
-          placeholder={placeholder}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          placeholder={placeholder ?? (naked && selected.length === 0 ? t('selects.notSet') : undefined)}
           size={size}
-          InputLabelProps={{ shrink: true }}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {loading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -106,5 +116,13 @@ export default function ApplicationMultiSelect({
       noOptionsText={loading ? t('selects.loadingEllipsis') : t('selects.noApplicationsFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 }

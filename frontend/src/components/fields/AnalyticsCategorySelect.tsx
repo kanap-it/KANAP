@@ -1,8 +1,11 @@
 import React from 'react';
 import { Autocomplete, Box, CircularProgress, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type AnalyticsCategory = {
   id: string;
@@ -18,9 +21,11 @@ type Props = {
   helperText?: React.ReactNode;
   error?: boolean;
   disabled?: boolean;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
-export default function AnalyticsCategorySelect({ value, onChange, label, helperText, error, disabled }: Props) {
+export default function AnalyticsCategorySelect({ value, onChange, label, helperText, error, disabled, hideLabel = false, textFieldSx }: Props) {
   const { t } = useTranslation(['master-data', 'common']);
   const { data, isLoading } = useQuery({
     queryKey: ['analytics-categories', 'all'],
@@ -56,8 +61,9 @@ export default function AnalyticsCategorySelect({ value, onChange, label, helper
 
   const selected = React.useMemo(() => mergedOptions.find((cat) => cat.id === value) ?? null, [mergedOptions, value]);
   const resolvedLabel = label ?? t('analytics.analyticsCategoryFallback');
+  const naked = hideLabel || resolvedLabel === '';
 
-  return (
+  const control = (
     <Autocomplete
       options={mergedOptions}
       value={selected}
@@ -80,14 +86,18 @@ export default function AnalyticsCategorySelect({ value, onChange, label, helper
           </Box>
         </li>
       )}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={resolvedLabel}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          placeholder={naked ? t('common:selects.notSet') : undefined}
           error={error}
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}
@@ -105,5 +115,13 @@ export default function AnalyticsCategorySelect({ value, onChange, label, helper
       noOptionsText={isLoading ? t('common:status.loading') : t('analytics.noOptions')}
       fullWidth
     />
+  );
+
+  if (naked || !resolvedLabel) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{resolvedLabel}</FieldLabel>
+      {control}
+    </Box>
   );
 }

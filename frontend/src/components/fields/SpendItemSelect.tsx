@@ -1,8 +1,11 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress, Chip, Box } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type SpendItem = {
   id: string;
@@ -19,6 +22,8 @@ type SpendItemSelectProps = {
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>(function SpendItemSelect(
@@ -29,10 +34,13 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
     disabled,
     error,
     helperText,
+    hideLabel = false,
+    textFieldSx,
   },
   ref,
 ) {
-  const { t } = useTranslation(['ops']);
+  const { t } = useTranslation(['ops', 'common']);
+  const naked = hideLabel || label === '';
   const { data: items, isLoading } = useQuery({
     queryKey: ['spend-items', 'list'],
     queryFn: async () => {
@@ -62,7 +70,7 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
     return item.product_name;
   };
 
-  return (
+  const control = (
     <Autocomplete
       multiple
       options={sortedItems}
@@ -97,15 +105,19 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
           />
         ))
       }
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           inputRef={ref}
+          placeholder={naked && selectedItems.length === 0 ? t('common:selects.notSet') : undefined}
           error={error}
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
@@ -128,6 +140,14 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
       noOptionsText={isLoading ? t('common:status.loading') : t('shared.noSpendItemsFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

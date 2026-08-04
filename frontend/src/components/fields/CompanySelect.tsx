@@ -2,8 +2,10 @@ import React from 'react';
 import { TextField, CircularProgress, Autocomplete, Box } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Company = { id: string; name: string };
 
@@ -14,6 +16,7 @@ export default function CompanySelect({
   disabled,
   error,
   helperText,
+  placeholder,
   required,
   size = 'medium',
   excludeCompanyIds,
@@ -26,17 +29,20 @@ export default function CompanySelect({
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
+  placeholder?: string;
   required?: boolean;
   size?: 'small' | 'medium';
   excludeCompanyIds?: string[];
   hideLabel?: boolean;
   textFieldSx?: SxProps<Theme>;
 }) {
+  const { t } = useTranslation('common');
+  const naked = hideLabel || label === '';
   const { data: companies, isLoading } = useQuery({
     queryKey: ['companies', 'lookup', 'active'],
     queryFn: async () => {
       const res = await api.get<{ items: Company[] }>('/companies/lookup', {
-        params: { limit: 1000 } 
+        params: { limit: 1000 }
       });
       return res.data.items;
     },
@@ -73,7 +79,7 @@ export default function CompanySelect({
 
   const selected = mergedOptions.find((c) => c.id === value) || null;
 
-  return (
+  const control = (
     <Box sx={{ position: 'relative' }}>
       <Autocomplete
         options={filteredOptions}
@@ -84,18 +90,16 @@ export default function CompanySelect({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={hideLabel ? undefined : label}
-            placeholder={hideLabel ? label : undefined}
+            placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
             error={error}
             helperText={helperText}
             required={required}
             size={size}
-            variant={hideLabel ? 'standard' : undefined}
-            sx={textFieldSx}
-            InputLabelProps={hideLabel ? undefined : { shrink: true }}
+            variant="standard"
+            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
             InputProps={{
               ...params.InputProps,
-              ...(hideLabel ? { disableUnderline: true } : {}),
+              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || isLoadingSelected) ? <CircularProgress size={20} /> : null}
@@ -111,10 +115,18 @@ export default function CompanySelect({
         }}
         disabled={disabled || isLoading}
         loading={isLoading || isLoadingSelected}
-        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+        ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
         size={size}
         fullWidth
       />
+    </Box>
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
     </Box>
   );
 }
