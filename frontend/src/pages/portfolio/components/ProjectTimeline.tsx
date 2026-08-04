@@ -23,6 +23,7 @@ import api from '../../../api';
 import LightModeIsland from '../../../components/LightModeIsland';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useKanapDialogs } from '../../../components/design';
+import { getDotColor, MILESTONE_STATUS_COLORS, PHASE_STATUS_COLORS } from '../../../utils/statusColors';
 import { useLocale } from '../../../i18n/useLocale';
 import { exportProjectTimelineGanttAsPng } from './project-timeline-png';
 
@@ -54,17 +55,15 @@ interface Props {
   tableView: React.ReactNode; // The existing table view to render
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: '#ffa726',
-  in_progress: '#42a5f5',
-  completed: '#66bb6a',
-};
+// Bar colors derive from the centralized status palette (utils/statusColors.ts).
+// The gantt renders inside a LightModeIsland, so the light-mode hexes apply.
+const STATUS_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PHASE_STATUS_COLORS).map(([status, mui]) => [status, getDotColor(mui, 'light')]),
+);
 
-const MILESTONE_STATUS_COLORS: Record<string, string> = {
-  pending: '#ffa726',
-  achieved: '#66bb6a',
-  missed: '#ef5350',
-};
+const MILESTONE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(MILESTONE_STATUS_COLORS).map(([status, mui]) => [status, getDotColor(mui, 'light')]),
+);
 
 // Shared chart container styling — used both inline and in the fullscreen dialog.
 const GANTT_CONTAINER_SX = {
@@ -426,7 +425,7 @@ export function ProjectTimeline({ projectId, phases, milestones = [], onUpdate, 
     if (!data) return null;
 
     if (data.type === 'milestone') {
-      const color = MILESTONE_STATUS_COLORS[data._status] || MILESTONE_STATUS_COLORS.pending;
+      const color = MILESTONE_COLORS[data._status] || MILESTONE_COLORS.pending;
       return (
         <div
           title={data.text}
@@ -469,7 +468,7 @@ export function ProjectTimeline({ projectId, phases, milestones = [], onUpdate, 
       end: task.end,
       type: task.type,
       color: task.type === 'milestone'
-        ? (MILESTONE_STATUS_COLORS[(task as any)._status] || MILESTONE_STATUS_COLORS.pending)
+        ? (MILESTONE_COLORS[(task as any)._status] || MILESTONE_COLORS.pending)
         : (STATUS_COLORS[(task as any)._status] || STATUS_COLORS.pending),
     }));
     try {

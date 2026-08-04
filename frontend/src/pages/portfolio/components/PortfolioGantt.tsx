@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gantt } from '@svar-ui/react-gantt';
 import type { ITask, IApi } from '@svar-ui/react-gantt';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import '@svar-ui/react-gantt/style.css';
 import api from '../../../api';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { getDotColor, MILESTONE_STATUS_COLORS, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 import { computeInactiveSegments, formatInactiveTooltip } from './roadmap-inactive-segments';
 import type { InactiveSegment } from './roadmap-inactive-segments';
 import { useLocale } from '../../../i18n/useLocale';
@@ -60,20 +61,8 @@ interface Props {
   readOnly?: boolean;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  waiting_list: '#ffa726',
-  planned: '#66bb6a',
-  in_progress: '#42a5f5',
-  in_testing: '#29b6f6',
-  on_hold: '#ef5350',
-  done: '#9e9e9e',
-};
-
-const MILESTONE_STATUS_COLORS: Record<string, string> = {
-  pending: '#ffa726',
-  achieved: '#66bb6a',
-  missed: '#ef5350',
-};
+// Bar colors derive from the centralized status palette (utils/statusColors.ts)
+// so the gantt matches the status dots used everywhere else in the app.
 
 // SVAR link types: e2s = end-to-start (finish-to-start)
 const DEPENDENCY_TYPE_MAP: Record<string, 'e2s' | 's2s' | 'e2e' | 's2e'> = {
@@ -162,6 +151,15 @@ export function PortfolioGantt({
   const { t } = useTranslation(['portfolio', 'errors']);
   const dialogs = useKanapDialogs();
   const locale = useLocale();
+  const mode = useTheme().palette.mode;
+  const projectStatusHex = useCallback(
+    (status: string) => getDotColor(PROJECT_STATUS_COLORS[status] ?? 'default', mode),
+    [mode],
+  );
+  const milestoneStatusHex = useCallback(
+    (status: string) => getDotColor(MILESTONE_STATUS_COLORS[status] ?? MILESTONE_STATUS_COLORS.pending, mode),
+    [mode],
+  );
   const navigate = useNavigate();
   const apiRef = useRef<IApi | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -584,8 +582,8 @@ export function PortfolioGantt({
     const status = data._status || 'planned';
     const isReservationTask = !!data._isReservation;
     const color = data.type === 'milestone'
-      ? MILESTONE_STATUS_COLORS[status] || MILESTONE_STATUS_COLORS.pending
-      : (isReservationTask ? '#607d8b' : (STATUS_COLORS[status] || STATUS_COLORS.planned));
+      ? milestoneStatusHex(status)
+      : (isReservationTask ? '#607d8b' : projectStatusHex(status));
     const progress = Math.round((data.progress || 0) * 100);
 
     const na = t('planning.gantt.tooltip.na');
@@ -761,7 +759,7 @@ export function PortfolioGantt({
         </div>
       </div>
     );
-  }, [onProjectClick, pinStartMode]);
+  }, [onProjectClick, pinStartMode, milestoneStatusHex, projectStatusHex]);
 
   // Empty state
   if (tasks.length === 0) {

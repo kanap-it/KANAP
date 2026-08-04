@@ -84,6 +84,20 @@ export const PROJECT_STATUS_COLORS: Record<string, string> = {
   cancelled: 'error',
 };
 
+/** Project phase statuses */
+export const PHASE_STATUS_COLORS: Record<string, string> = {
+  pending: 'warning',
+  in_progress: 'info',
+  completed: 'success',
+};
+
+/** Project milestone statuses */
+export const MILESTONE_STATUS_COLORS: Record<string, string> = {
+  pending: 'warning',
+  achieved: 'success',
+  missed: 'error',
+};
+
 /** Request statuses */
 export const REQUEST_STATUS_COLORS: Record<string, string> = {
   pending_review: 'default',
