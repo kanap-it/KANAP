@@ -59,7 +59,7 @@ export function SettingsSection({
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Stack direction="row" alignItems="center" sx={{ flex: 1, pr: 2 }}>
           <Stack spacing={0.25} sx={{ flex: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{title}</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{title}</Typography>
             {description && (
               <Typography variant="caption" color="text.secondary">{description}</Typography>
             )}
@@ -138,8 +138,8 @@ export function SettingsGroup({
     <Stack spacing={1.5}>
       <Stack spacing={0.25} sx={{ pt: 0.5 }}>
         <Typography
-          variant="overline"
-          sx={{ letterSpacing: 1, fontWeight: 700, textTransform: 'uppercase' }}
+          variant="caption"
+          sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary' }}
         >
           {title}
         </Typography>

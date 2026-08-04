@@ -123,7 +123,7 @@ export default function TaskAttachments({
       {/* Compact header: title + inline upload button. Drop a file anywhere on
           this section to upload — the section highlights only while dragging. */}
       <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minHeight: 32 }}>
-        <Typography variant="subtitle2" fontWeight="bold">
+        <Typography variant="subtitle2" fontWeight={500}>
           {t('workspace.task.attachments.title')}
         </Typography>
         {canManage && (

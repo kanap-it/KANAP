@@ -57,7 +57,7 @@ export default function AuthFrame({ children }: AuthFrameProps) {
               />
             )}
             {!showLogo && (
-              <Typography variant="h6" fontWeight={700} color="inherit">
+              <Typography variant="h6" fontWeight={500} color="inherit">
                 KANAP
               </Typography>
             )}

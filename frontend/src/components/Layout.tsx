@@ -420,7 +420,7 @@ export default function Layout() {
               </IconButton>
               <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
                 <Box sx={{ px: 2, py: 1, minWidth: 200 }}>
-                  <Typography variant="subtitle2" fontWeight={600}>
+                  <Typography variant="subtitle2" fontWeight={500}>
                     {[profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'User'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">

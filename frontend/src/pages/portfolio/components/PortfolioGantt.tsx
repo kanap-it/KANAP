@@ -791,7 +791,7 @@ export function PortfolioGantt({
         },
         '& .wx-table .wx-grid .wx-header .wx-cell:first-child': {
           fontSize: '12px',
-          fontWeight: 700,
+          fontWeight: 500,
         },
         '& .wx-scale .wx-cell': {
           fontSize: '12px',

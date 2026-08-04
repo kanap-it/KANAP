@@ -230,7 +230,7 @@ export default function CapacityHeatmapReport() {
 
   const heatmapCellStyle = useCallback((params: any): CellStyle => {
     const band: CapacityColorBand = params.data?.colorBand ?? 'na';
-    return { backgroundColor: HEATMAP_COLORS[band], fontWeight: 600 };
+    return { backgroundColor: HEATMAP_COLORS[band], fontWeight: 500 };
   }, []);
 
   const formatNumberLabel = useCallback((value: number | null | undefined): string => {
@@ -486,7 +486,7 @@ export default function CapacityHeatmapReport() {
           </Stack>
 
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
               {groupBy === 'team' ? t('reports.capacityHeatmap.sections.teamCapacity') : t('reports.capacityHeatmap.sections.contributorCapacity')}
             </Typography>
             <Box ref={heatmapExportRef} sx={{ width: '100%' }}>
@@ -519,7 +519,7 @@ export default function CapacityHeatmapReport() {
 
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.capacityHeatmap.sections.unassignedWork')}</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t('reports.capacityHeatmap.sections.unassignedWork')}</Typography>
               <ButtonBase onClick={() => setUnassignedOpen((v) => !v)} sx={{ px: 1, py: 0.5, borderRadius: 1 }}>
                 <Typography variant="body2" color="text.secondary">
                   {unassignedOpen ? t('reports.capacityHeatmap.actions.hideDetails') : t('reports.capacityHeatmap.actions.showDetails')}

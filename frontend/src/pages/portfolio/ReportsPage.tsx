@@ -17,7 +17,7 @@ export default function ReportsPage() {
           <Card variant="outlined">
             <CardActionArea onClick={() => navigate('/portfolio/reports/status-change')}>
               <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.cards.statusChange.title')}</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t('reports.cards.statusChange.title')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {t('reports.cards.statusChange.description')}
                 </Typography>
@@ -29,7 +29,7 @@ export default function ReportsPage() {
           <Card variant="outlined">
             <CardActionArea onClick={() => navigate('/portfolio/reports/capacity-heatmap')}>
               <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.cards.capacityHeatmap.title')}</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t('reports.cards.capacityHeatmap.title')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {t('reports.cards.capacityHeatmap.description')}
                 </Typography>
@@ -41,7 +41,7 @@ export default function ReportsPage() {
           <Card variant="outlined">
             <CardActionArea onClick={() => navigate('/portfolio/reports/weekly')}>
               <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.cards.weekly.title')}</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t('reports.cards.weekly.title')}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   {t('reports.cards.weekly.description')}
                 </Typography>

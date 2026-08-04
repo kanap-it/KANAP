@@ -649,7 +649,7 @@ const exportRoadmapGanttAsPng = async (
   ctx.stroke();
 
   // Month header.
-  ctx.font = '600 12px Arial, sans-serif';
+  ctx.font = '500 12px Arial, sans-serif';
   ctx.fillStyle = '#334155';
   for (let cursor = new Date(rangeStart); cursor.getTime() <= rangeEnd.getTime();) {
     const monthStart = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1));
@@ -682,7 +682,7 @@ const exportRoadmapGanttAsPng = async (
   ctx.lineTo(canvasWidth, headerHeight + 0.5);
   ctx.stroke();
 
-  ctx.font = '600 12px Arial, sans-serif';
+  ctx.font = '500 12px Arial, sans-serif';
   ctx.fillStyle = '#1f2937';
   ctx.fillText('Project', 12, 24);
 
@@ -1002,7 +1002,7 @@ const exportOccupationAsPng = async (
   // Header
   ctx.fillStyle = '#f7f8fb';
   ctx.fillRect(0, 0, canvasW, headerH);
-  ctx.font = '600 11px Arial, sans-serif';
+  ctx.font = '500 11px Arial, sans-serif';
   ctx.fillStyle = '#334155';
   let headerX = 0;
   const headerLabels = view === 'contributor' ? ['Team', 'Contributor'] : ['Team'];
@@ -1047,7 +1047,7 @@ const exportOccupationAsPng = async (
       ctx.rect(lx + 4, y + 2, labelColWidths[c] - 8, cellH - 4);
       ctx.clip();
       ctx.fillStyle = '#334155';
-      ctx.font = isAvgRow ? '700 11px Arial, sans-serif' : '400 11px Arial, sans-serif';
+      ctx.font = isAvgRow ? '500 11px Arial, sans-serif' : '400 11px Arial, sans-serif';
       ctx.fillText(row.labels[c] || '', lx + 6, y + cellH - 10);
       ctx.restore();
       lx += labelColWidths[c];
@@ -1067,7 +1067,7 @@ const exportOccupationAsPng = async (
 
       // Text
       const text = val != null ? `${val}%` : '-';
-      ctx.font = isAvgRow ? '700 11px Arial, sans-serif' : '400 11px Arial, sans-serif';
+      ctx.font = isAvgRow ? '500 11px Arial, sans-serif' : '400 11px Arial, sans-serif';
       ctx.fillStyle = '#334155';
       const textW = ctx.measureText(text).width;
       ctx.fillText(text, x + (dataCellW - textW) / 2, y + cellH - 10);
@@ -2227,7 +2227,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
     <Stack spacing={2}>
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={2}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
             Roadmap Generator
           </Typography>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} flexWrap="wrap">
@@ -2408,7 +2408,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
           {activeConstraintOverrides.length > 0 && (
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                   Scenario Overrides
                 </Typography>
                 <Button size="small" color="inherit" onClick={() => { void clearAllScenarioOverrides(); }}>
@@ -2496,7 +2496,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                 '&:hover': { backgroundColor: 'action.hover' },
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
                 Schedule / Bottlenecks / Occupation
               </Typography>
               {panelExpanded
@@ -2848,7 +2848,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 <KeyboardArrowDownIcon fontSize="small" />
                               )}
                             </IconButton>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
                               {item.contributorName}
                             </Typography>
                           </Stack>
@@ -2968,7 +2968,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 return (
                                   <TableCell key={`contributor-week:${weekKey}`} align="center" sx={{ minWidth: 74 }}>
                                     <Stack spacing={0} alignItems="center">
-                                      <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 500 }}>
                                         W{String(isoWeek.week).padStart(2, '0')}
                                       </Typography>
                                       <Typography variant="caption" color="text.secondary">
@@ -2987,7 +2987,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                   {rowIndex === 0 && (
                                     <TableCell
                                       rowSpan={group.rows.length}
-                                      sx={{ fontWeight: 600, verticalAlign: 'top', backgroundColor: 'action.hover' }}
+                                      sx={{ fontWeight: 500, verticalAlign: 'top', backgroundColor: 'action.hover' }}
                                     >
                                       {group.teamName}
                                     </TableCell>
@@ -3011,7 +3011,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           </TableBody>
                           <TableFooter>
                             <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                              <TableCell colSpan={2} sx={{ fontWeight: 700 }}>Avg</TableCell>
+                              <TableCell colSpan={2} sx={{ fontWeight: 500 }}>Avg</TableCell>
                               {occupationWeekKeys.map((weekKey) => {
                                 const avg = contributorOccupationAverages.get(weekKey) ?? null;
                                 return (
@@ -3019,7 +3019,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                     key={`contributor-avg:${weekKey}`}
                                     align="center"
                                     sx={{
-                                      fontWeight: 700,
+                                      fontWeight: 500,
                                       backgroundColor: getOccupationCellBackground(avg, 'contributor'),
                                     }}
                                   >
@@ -3050,7 +3050,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 return (
                                   <TableCell key={`team-week:${weekKey}`} align="center" sx={{ minWidth: 74 }}>
                                     <Stack spacing={0} alignItems="center">
-                                      <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 500 }}>
                                         W{String(isoWeek.week).padStart(2, '0')}
                                       </Typography>
                                       <Typography variant="caption" color="text.secondary">
@@ -3065,7 +3065,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           <TableBody>
                             {teamOccupationRows.map((row) => (
                               <TableRow key={row.teamId || 'no-team'} hover>
-                                <TableCell sx={{ fontWeight: 600 }}>{row.teamName}</TableCell>
+                                <TableCell sx={{ fontWeight: 500 }}>{row.teamName}</TableCell>
                                 {occupationWeekKeys.map((weekKey) => {
                                   const occupationPct = row.weekOccupation.get(weekKey) ?? null;
                                   return (
@@ -3083,7 +3083,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           </TableBody>
                           <TableFooter>
                             <TableRow sx={{ backgroundColor: 'action.hover' }}>
-                              <TableCell sx={{ fontWeight: 700 }}>Avg</TableCell>
+                              <TableCell sx={{ fontWeight: 500 }}>Avg</TableCell>
                               {occupationWeekKeys.map((weekKey) => {
                                 const avg = teamOccupationAverages.get(weekKey) ?? null;
                                 return (
@@ -3091,7 +3091,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                     key={`team-avg:${weekKey}`}
                                     align="center"
                                     sx={{
-                                      fontWeight: 700,
+                                      fontWeight: 500,
                                       backgroundColor: getOccupationCellBackground(avg, 'team'),
                                     }}
                                   >
@@ -3118,7 +3118,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
               alignItems={{ xs: 'stretch', sm: 'center' }}
               sx={{ px: 1, py: 0.5 }}
             >
-              <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ flex: 1, fontWeight: 500 }}>
                 Read-only Gantt
               </Typography>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>

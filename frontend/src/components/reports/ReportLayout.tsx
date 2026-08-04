@@ -43,7 +43,7 @@ export default function ReportLayout({
           </MLink>
           <Typography color="text.primary">{title}</Typography>
         </Breadcrumbs>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>{title}</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>{title}</Typography>
         {subtitle && (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{subtitle}</Typography>
         )}

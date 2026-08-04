@@ -744,7 +744,7 @@ export default function WeeklyReport() {
         </Stack>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('reports.weekly.sections.projectUpdates')}</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>{t('reports.weekly.sections.projectUpdates')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyProjectRow>
               rowData={projects}
@@ -764,7 +764,7 @@ export default function WeeklyReport() {
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('reports.weekly.sections.closedTasks')}</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>{t('reports.weekly.sections.closedTasks')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyTaskRow>
               rowData={tasks}
@@ -784,7 +784,7 @@ export default function WeeklyReport() {
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t('reports.weekly.sections.requestUpdates')}</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>{t('reports.weekly.sections.requestUpdates')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyRequestRow>
               rowData={requests}

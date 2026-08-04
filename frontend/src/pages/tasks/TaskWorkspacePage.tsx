@@ -1440,9 +1440,7 @@ export default function TaskWorkspacePage() {
             <Typography
               variant="caption"
               sx={{
-                textTransform: 'uppercase',
-                letterSpacing: 0.8,
-                fontWeight: 700,
+                fontWeight: 500,
                 color: 'text.primary',
               }}
             >
@@ -1468,7 +1466,7 @@ export default function TaskWorkspacePage() {
                 placeholder={t('portfolio:workspace.task.title.placeholder')}
                 InputProps={{
                   disableUnderline: true,
-                  sx: { fontSize: '1.5rem', fontWeight: 600 },
+                  sx: { fontSize: '1.5rem', fontWeight: 500 },
                 }}
               />
             </Box>
@@ -1575,7 +1573,7 @@ export default function TaskWorkspacePage() {
             {/* Description */}
             <Box sx={{ mb: contentSpacing.sectionLarge }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                <Typography variant="subtitle2" fontWeight="bold">
+                <Typography variant="subtitle2" fontWeight={500}>
                   {t('portfolio:labels.description')}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -1723,7 +1721,7 @@ export default function TaskWorkspacePage() {
           {/* Description */}
           <Box sx={{ mb: contentSpacing.sectionLarge }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-              <Typography variant="subtitle2" fontWeight="bold">
+              <Typography variant="subtitle2" fontWeight={500}>
                 {t('portfolio:labels.description')}
               </Typography>
               {descSaveStatus === 'saved' && (

@@ -232,7 +232,7 @@ export function EnumEditor<T extends EnumItem>({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
         <Typography variant="body2" color="text.secondary">
