@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate } from '../../../lib/dateFormat';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import TaskLogTimeDialog, { TaskTimeEntryData } from './TaskLogTimeDialog';
 import { useKanapDialogs } from '../../../components/design';
@@ -153,10 +154,7 @@ export default function TaskWorkLog({ taskId, projectId, readOnly = false, relat
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  const formatDate = (dateStr: string) => formatShortDate(dateStr, locale, { year: 'always' });
 
   const formatHours = (hours: number | string | null | undefined) => {
     const h = Number(hours) || 0;

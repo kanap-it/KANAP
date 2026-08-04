@@ -19,6 +19,7 @@ import { formatAmount as formatNumber } from '../i18n/formatters';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './opex/listContextStorage';
 import { STATUS_VALUES } from '../constants/status';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDate, formatShortDateTime } from '../lib/dateFormat';
 import ForbiddenPage from './ForbiddenPage';
 
 type SummaryRow = {
@@ -695,7 +696,7 @@ export default function OpexListPage() {
       headerName: t('opex.columns.effectiveStart'),
       width: 150,
       defaultHidden: true,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
+      valueFormatter: (p) => formatShortDate(p.value as string | null, locale),
       cellRenderer: (params: any) => (
         <LinkCellRenderer
           {...params}
@@ -710,7 +711,7 @@ export default function OpexListPage() {
       headerName: t('opex.columns.effectiveEnd'),
       width: 150,
       defaultHidden: true,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
+      valueFormatter: (p) => formatShortDate(p.value as string | null, locale),
       cellRenderer: (params: any) => (
         <LinkCellRenderer
           {...params}
@@ -814,7 +815,7 @@ export default function OpexListPage() {
       field: 'created_at',
       headerName: t('opex.columns.created'),
       width: 200,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+      valueFormatter: (p) => formatShortDateTime(p.value as string | null, locale),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer
@@ -829,7 +830,7 @@ export default function OpexListPage() {
       field: 'updated_at',
       headerName: t('opex.columns.updated'),
       width: 200,
-      valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+      valueFormatter: (p) => formatShortDateTime(p.value as string | null, locale),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer

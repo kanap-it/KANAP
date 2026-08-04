@@ -27,6 +27,7 @@ import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
+import { formatShortDateTime } from '../../lib/dateFormat';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import { useTenant } from '../../tenant/TenantContext';
 import { useRecentKnowledgeDocuments } from '../workspace/hooks/useRecentKnowledgeDocuments';
@@ -1650,7 +1651,7 @@ export default function KnowledgeWorkspacePage() {
   const workflow = doc?.workflow || null;
   const workflowActive = !!workflow?.is_active;
   const isValidatedCurrentRevision = !!doc?.is_validated_current_revision;
-  const validatedAtLabel = doc?.validated_at ? new Date(doc.validated_at).toLocaleString(locale) : null;
+  const validatedAtLabel = doc?.validated_at ? formatShortDateTime(doc.validated_at, locale) : null;
   const isManagedIntegratedDocument = !isCreate && !!doc?.is_managed_integrated_document;
   const showTitleMeta = (!isCreate && !!doc?.item_number) || isManagedIntegratedDocument;
   const hasWorkflowAssignments = contributorAssignments.reviewer_user_ids.length > 0 || contributorAssignments.approver_user_ids.length > 0;
@@ -1695,7 +1696,7 @@ export default function KnowledgeWorkspacePage() {
     if (!activeLockInfo?.expires_at) return null;
     const dt = new Date(activeLockInfo.expires_at);
     if (Number.isNaN(dt.getTime())) return null;
-    return dt.toLocaleString(locale);
+    return formatShortDateTime(dt, locale);
   })();
   const showReadOnlyAccessNotice = (!isCreate && !canManageDocument) || (isCreate && !!activeCreateLibrary && !canManageDocument);
 

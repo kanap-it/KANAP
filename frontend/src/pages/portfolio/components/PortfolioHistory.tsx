@@ -11,6 +11,7 @@ import {
   getFeasibilityStatusLabel,
 } from '../../../utils/portfolioI18n';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate, formatShortDateTime } from '../../../lib/dateFormat';
 
 interface Activity {
   id: string;
@@ -124,15 +125,7 @@ export default function PortfolioHistory({
     return t('activity.history.values.dimensionsAssessed', { count: parts.length });
   };
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString(locale, {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (dateStr: string) => formatShortDateTime(dateStr, locale);
 
   const formatFieldValue = (field: string, value: unknown): string => {
     if (value === null || value === undefined) return t('activity.history.values.empty');
@@ -145,7 +138,9 @@ export default function PortfolioHistory({
       return formatFeasibilitySummary(value);
     }
     if (field.endsWith('_date') || field === 'planned_start' || field === 'planned_end') {
-      return value ? new Date(String(value)).toLocaleDateString(locale) : t('activity.history.values.none');
+      return value
+        ? formatShortDate(String(value), locale, { year: 'always', empty: t('activity.history.values.none') })
+        : t('activity.history.values.none');
     }
     // For rich text content, show truncated plain-text preview
     if (typeof value === 'string') {

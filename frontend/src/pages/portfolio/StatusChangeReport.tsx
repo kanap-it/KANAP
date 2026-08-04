@@ -20,6 +20,8 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../i18n/useLocale';
+import { formatShortDate } from '../../lib/dateFormat';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type StatusChangeItemType = 'task' | 'request' | 'project';
@@ -71,13 +73,6 @@ const getDefaultStartDate = (): string => {
 const humanize = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-const formatDate = (value: string | null): string => {
-  if (!value) return '';
-  const [year, month, day] = String(value).slice(0, 10).split('-');
-  if (!year || !month || !day) return String(value);
-  return `${day}-${month}-${year.slice(-2)}`;
-};
-
 const parseFilename = (contentDisposition: string | undefined, fallback: string): string => {
   if (!contentDisposition) return fallback;
   const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
@@ -119,6 +114,7 @@ const buildParams = (args: {
 export default function StatusChangeReport() {
   const navigate = useNavigate();
   const { t } = useTranslation(['portfolio', 'errors']);
+  const locale = useLocale();
   const today = useMemo(() => toIsoDate(new Date()), []);
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
@@ -296,10 +292,10 @@ export default function StatusChangeReport() {
         field: 'lastChangedAt',
         headerName: t('reports.statusChange.columns.lastChanged'),
         width: 130,
-        valueFormatter: (params) => formatDate(params.value || null),
+        valueFormatter: (params) => formatShortDate(params.value || null, locale),
       },
     ];
-  }, [getStatusLabel, itemTypeLabelMap, navigate, t]);
+  }, [getStatusLabel, itemTypeLabelMap, locale, navigate, t]);
 
   const handleDownload = async (format: 'csv' | 'xlsx') => {
     if (!isValidPeriod) return;

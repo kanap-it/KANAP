@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDateTime } from '../lib/dateFormat';
 import ForbiddenPage from './ForbiddenPage';
 
 interface AnalyticsCategoryRow {
@@ -93,7 +94,7 @@ export default function AnalyticsCategoriesPage() {
         field: 'updated_at',
         headerName: t('shared.columns.updated'),
         width: 200,
-        valueFormatter: (p) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        valueFormatter: (p) => formatShortDateTime(p.value as string | null, locale),
         cellRenderer: (params: any) => (
           <LinkCellRenderer
             {...params}

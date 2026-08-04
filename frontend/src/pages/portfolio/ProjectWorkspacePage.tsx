@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import api from '../../api';
+import { formatShortDate } from '../../lib/dateFormat';
 import { useProjectNav } from '../../hooks/useProjectNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { useAuth } from '../../auth/AuthContext';
@@ -83,14 +84,7 @@ interface ClassificationStream {
 }
 
 function formatDate(locale: string, value?: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(locale, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatShortDate(value, locale, { year: 'always' }) || null;
 }
 
 const ProjectTimelineTab = React.lazy(() => import('./workspace/project/ProjectTimelineTab'));

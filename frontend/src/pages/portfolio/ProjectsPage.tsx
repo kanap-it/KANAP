@@ -15,6 +15,8 @@ import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilte
 import api from '../../api';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../i18n/useLocale';
+import { formatShortDate } from '../../lib/dateFormat';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../utils/statusColors';
 
 type ProjectRow = {
@@ -73,20 +75,12 @@ function ProgressCellRenderer(props: any) {
   );
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `${day}-${month}-${year}`;
-}
-
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
   const { t } = useTranslation(['portfolio', 'common']);
+  const locale = useLocale();
   const [refreshKey, setRefreshKey] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -426,7 +420,7 @@ export default function ProjectsPage() {
       headerName: t('projects.columns.start'),
       width: 110,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
     },
     {
@@ -434,7 +428,7 @@ export default function ProjectsPage() {
       headerName: t('projects.columns.end'),
       width: 110,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
     },
     {
@@ -442,7 +436,7 @@ export default function ProjectsPage() {
       headerName: t('projects.columns.created'),
       width: 110,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
     },
     {
@@ -450,11 +444,11 @@ export default function ProjectsPage() {
       headerName: t('projects.columns.lastChanged'),
       width: 130,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
-  ], [clickableCellRenderer, getProjectFilterValues, originLabelMap, renderStatusCell, statusLabelMap, t]);
+  ], [clickableCellRenderer, getProjectFilterValues, locale, originLabelMap, renderStatusCell, statusLabelMap, t]);
 
   const extraParams = useMemo(() => {
     const params: Record<string, any> = {

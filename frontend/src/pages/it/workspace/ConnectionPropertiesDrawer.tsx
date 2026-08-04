@@ -3,6 +3,8 @@ import { Box, MenuItem, Switch, TextField, Typography } from '@mui/material';
 import { PropertyGroup, PropertyRow } from '../../../components/design/PropertyRow';
 import { drawerSelectSx, drawerMenuItemSx } from '../../../theme/formSx';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
+import { formatShortDate } from '../../../lib/dateFormat';
+import { useLocale } from '../../../i18n/useLocale';
 
 const CRITICALITIES = [
   { code: 'low', label: 'Low' },
@@ -35,19 +37,6 @@ type Props = {
   onContainsPiiChange: (next: boolean) => void;
 };
 
-function formatShortDate(value: string | null): string {
-  if (!value) return 'Not set';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return 'Not set';
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-}
-
 export default function ConnectionPropertiesDrawer({
   lifecycle,
   topology,
@@ -72,6 +61,7 @@ export default function ConnectionPropertiesDrawer({
   onContainsPiiChange,
 }: Props) {
   const { byField, labelFor } = useItOpsEnumOptions();
+  const locale = useLocale();
   const lifecycleOptions = byField.lifecycleStatus || [];
   const dataClassOptions = byField.dataClass || [];
 
@@ -208,10 +198,10 @@ export default function ConnectionPropertiesDrawer({
 
       <PropertyGroup>
         <PropertyRow label="Created">
-          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt)}</Typography>
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt, locale, { empty: 'Not set' })}</Typography>
         </PropertyRow>
         <PropertyRow label="Updated">
-          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt)}</Typography>
+          <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt, locale, { empty: 'Not set' })}</Typography>
         </PropertyRow>
       </PropertyGroup>
     </>

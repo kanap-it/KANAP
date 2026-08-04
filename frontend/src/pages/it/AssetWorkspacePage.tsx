@@ -42,6 +42,8 @@ import AssetRelationsPanel, { AssetRelationsPanelHandle } from './editors/AssetR
 import { useAssetNav } from '../../hooks/useAssetNav';
 import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
 import { useAuth } from '../../auth/AuthContext';
+import { formatShortDate } from '../../lib/dateFormat';
+import { useLocale } from '../../i18n/useLocale';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
@@ -152,13 +154,6 @@ const ENV_OPTIONS = [
   { value: 'sandbox', label: 'Sandbox' },
 ] as const;
 
-function formatShortDate(value: string | null | undefined) {
-  if (!value) return 'Not set';
-  const date = new Date(String(value).includes('T') ? String(value) : `${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 function humanize(value: string | null | undefined) {
   const text = String(value || '').trim();
   if (!text) return 'Not set';
@@ -236,6 +231,7 @@ const denseTableSx = {
 
 export default function AssetWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
+  const locale = useLocale();
   const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
   const theme = useTheme();
@@ -1504,7 +1500,7 @@ export default function AssetWorkspacePage() {
               disabled={!canManage || saving}
               title="Edit go live"
             >
-              {formatShortDate(goLiveDate)}
+              {formatShortDate(goLiveDate, locale, { empty: 'Not set' })}
             </PortfolioMetadataItem>
             <Box
               component="input"

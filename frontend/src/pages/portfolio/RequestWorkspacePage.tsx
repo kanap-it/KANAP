@@ -9,6 +9,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import TransformIcon from '@mui/icons-material/Transform';
 import api from '../../api';
+import { formatShortDate } from '../../lib/dateFormat';
 import { useRequestNav } from '../../hooks/useRequestNav';
 import { useClassificationDefaults } from '../../hooks/useClassificationDefaults';
 import { useAuth } from '../../auth/AuthContext';
@@ -93,14 +94,7 @@ const DECISION_OUTCOME_COLORS: Record<string, 'default' | 'success' | 'error' | 
 };
 
 function formatDate(locale: string, value?: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(locale, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatShortDate(value, locale, { year: 'always' }) || null;
 }
 
 const RequestAnalysisTab = React.lazy(() => import('./workspace/request/RequestAnalysisTab'));
