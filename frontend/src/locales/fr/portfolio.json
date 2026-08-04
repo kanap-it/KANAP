@@ -1401,7 +1401,7 @@
         "overrideJustification": "Justification de la surcharge",
         "overrideValue": "Valeur de surcharge",
         "phase": "Phase",
-        "phaseWithId": "Phase {{phase}} {{field}}",
+        "phaseGeneric": "Phase {{field}}",
         "phaseWithName": "Phase « {{phase}} » {{field}}",
         "plannedEnd": "Fin prévue",
         "plannedStart": "Début prévu",

@@ -2577,7 +2577,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                   component={RouterLink}
                                   to={`/portfolio/projects/${project.projectId}/effort`}
                                   underline="hover"
-                                  color="primary"
+                                  color="inherit"
                                 >
                                   {scenarioProject?.projectName || project.projectName}
                                 </Link>
@@ -2781,7 +2781,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                       component={RouterLink}
                                       to={`/portfolio/projects/${project.projectId}/effort`}
                                       underline="hover"
-                                      color="primary"
+                                      color="inherit"
                                     >
                                       {project.projectName}
                                     </Link>
@@ -2890,7 +2890,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                         component={RouterLink}
                                         to={`/portfolio/projects/${row.projectId}/effort`}
                                         underline="hover"
-                                        color="primary"
+                                        color="inherit"
                                       >
                                         {row.projectName}
                                       </Link>

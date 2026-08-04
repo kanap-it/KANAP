@@ -579,7 +579,7 @@ const timelineTableSx: SxProps<Theme> = (theme) => ({
     fontSize: 12,
   },
   '& .kanap-bl-early': {
-    color: theme.palette.kanap.teal,
+    color: getDotColor('success', theme.palette.mode),
     fontSize: 12,
   },
 });

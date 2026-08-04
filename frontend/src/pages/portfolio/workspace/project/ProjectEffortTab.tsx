@@ -19,6 +19,7 @@ import EffortAllocationDialog, { type EligibleUser } from '../../components/Effo
 import { type AllocationUser, type EffortAllocationData } from '../../components/EffortAllocationTable';
 import LogTimeDialog, { type TimeEntryData } from '../../components/LogTimeDialog';
 import { useKanapDialogs } from '../../../../components/design';
+import { getDotColor } from '../../../../utils/statusColors';
 
 type ProjectEffortTabProps = {
   businessAllocationData?: EffortAllocationData | null;
@@ -330,7 +331,7 @@ const effortTabSx: SxProps<Theme> = (theme) => ({
     fontSize: 12,
   },
   '& .kanap-bl-ok': {
-    color: theme.palette.kanap.teal,
+    color: getDotColor('success', theme.palette.mode),
     fontSize: 12,
   },
 });

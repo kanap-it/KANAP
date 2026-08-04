@@ -1402,7 +1402,7 @@
         "overrideJustification": "Override Justification",
         "overrideValue": "Override Value",
         "phase": "Phase",
-        "phaseWithId": "Phase {{phase}} {{field}}",
+        "phaseGeneric": "Phase {{field}}",
         "phaseWithName": "Phase \"{{phase}}\" {{field}}",
         "plannedEnd": "Planned End",
         "plannedStart": "Planned Start",
