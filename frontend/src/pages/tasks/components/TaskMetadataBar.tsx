@@ -14,6 +14,8 @@ import type { TaskStatus } from '../task.constants';
 import { TASK_STATUS_OPTIONS } from '../task.constants';
 import { getTaskStatusLabel, getPriorityLabel } from '../../../utils/portfolioI18n';
 import DateEUField from '../../../components/fields/DateEUField';
+import { formatShortDate } from '../../../lib/dateFormat';
+import { useLocale } from '../../../i18n/useLocale';
 import MetadataUserPicker from '../../../components/workspace/MetadataUserPicker';
 
 interface TaskMetadataBarProps {
@@ -167,23 +169,10 @@ function toYmdOnly(value: string | null): string {
   return value;
 }
 
-function formatShortDate(value: string | null): string {
-  if (!value) return 'Not set';
-  // Handle both YYYY-MM-DD and ISO datetime formats
-  const d = new Date(value.includes('T') ? value : value + 'T00:00:00');
-  if (isNaN(d.getTime())) return value;
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-}
-
 function DueDateChip({ dueDate, readOnly, onPatch }: { dueDate: string | null; readOnly?: boolean; onPatch: (p: Record<string, any>) => void }) {
   const { t } = useTranslation('portfolio');
   const theme = useTheme();
+  const locale = useLocale();
   const [anchor, setAnchor] = React.useState<HTMLElement | null>(null);
 
   return (
@@ -195,7 +184,7 @@ function DueDateChip({ dueDate, readOnly, onPatch }: { dueDate: string | null; r
         <Box component="span" sx={{ ...metaLabelSx, color: theme.palette.kanap.text.tertiary }}>
           {t('workspace.task.sidebar.fields.dueDate')}
         </Box>
-        <span>{formatShortDate(dueDate)}</span>
+        <span>{formatShortDate(dueDate, locale, { empty: 'Not set' })}</span>
       </Box>
       <Popover
         open={!!anchor}

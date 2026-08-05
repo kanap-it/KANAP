@@ -19,6 +19,7 @@ import api from '../../api';
 import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import { useLocale } from '../../i18n/useLocale';
+import { formatShortDateTime } from '../../lib/dateFormat';
 
 type AuditLogItem = {
   id: string;
@@ -107,7 +108,7 @@ export default function AuditLogsPage() {
         headerName: t('auditLogs.columns.date'),
         width: 180,
         filter: 'agDateColumnFilter',
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
       },
       {
         field: 'table_name',

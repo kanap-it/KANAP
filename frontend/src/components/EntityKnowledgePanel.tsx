@@ -32,6 +32,8 @@ import api from '../api';
 import { KanapDialog, PropertyRow } from './design';
 import KnowledgeLinkPickerDialog, { type KnowledgeLinkOption } from './knowledge/KnowledgeLinkPickerDialog';
 import { drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
+import { useLocale } from '../i18n/useLocale';
+import { formatShortDate } from '../lib/dateFormat';
 
 export type EntityKnowledgeType =
   | 'applications'
@@ -214,17 +216,6 @@ function dedupeKnowledgeItems(
   return Array.from(byId.values());
 }
 
-function formatDateOnly(value?: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 function formatSourceLabel(source: KnowledgeContextSource): string {
   const prefix = ENTITY_REF_PREFIXES[source.entity_type];
   const ref = source.item_ref || (prefix && source.item_number != null ? `${prefix}-${source.item_number}` : null);
@@ -257,6 +248,7 @@ function KnowledgeGroupTable({
   unlinkPending: boolean;
 }) {
   const { t } = useTranslation('common');
+  const locale = useLocale();
   const showUnlink = canCreate && group.key === 'direct';
 
   return (
@@ -324,7 +316,7 @@ function KnowledgeGroupTable({
                     ))}
                   </Stack>
                 </TableCell>
-                <TableCell>{formatDateOnly(item.updated_at || item.created_at)}</TableCell>
+                <TableCell>{formatShortDate(item.updated_at || item.created_at, locale)}</TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
                     {showUnlink && (
@@ -369,6 +361,7 @@ function SidebarKnowledgeGroupList({
   unlinkPending: boolean;
 }) {
   const { t } = useTranslation('common');
+  const locale = useLocale();
   const showUnlink = canCreate && group.key === 'direct';
 
   return (
@@ -427,8 +420,8 @@ function SidebarKnowledgeGroupList({
                   {item.linked_via_label}
                 </Typography>
               )}
-              <Typography variant="caption" color="text.secondary" noWrap title={formatDateOnly(item.updated_at || item.created_at)}>
-                {formatDateOnly(item.updated_at || item.created_at)}
+              <Typography variant="caption" color="text.secondary" noWrap title={formatShortDate(item.updated_at || item.created_at, locale)}>
+                {formatShortDate(item.updated_at || item.created_at, locale)}
               </Typography>
             </Stack>
 

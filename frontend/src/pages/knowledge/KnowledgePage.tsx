@@ -56,6 +56,8 @@ import KnowledgeMoveDialog from './components/KnowledgeMoveDialog';
 import ValidatedBadge from './components/ValidatedBadge';
 import KnowledgeTypesManager from './components/KnowledgeTypesManager';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useLocale } from '../../i18n/useLocale';
+import { formatShortDate } from '../../lib/dateFormat';
 import { getDotColor, KNOWLEDGE_STATUS_COLORS } from '../../utils/statusColors';
 import {
   dialogBorderedFieldSx,
@@ -171,18 +173,10 @@ function StatusCellRenderer(props: any) {
   );
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `${day}-${month}-${year}`;
-}
-
 export default function KnowledgePage() {
   const { hasLevel, profile } = useAuth();
   const { t } = useTranslation(['knowledge', 'common']);
+  const locale = useLocale();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -593,11 +587,11 @@ export default function KnowledgePage() {
       headerName: t('columns.updated'),
       width: 120,
       cellRenderer: ClickableCell,
-      valueFormatter: (params) => formatDate(params.value),
+      valueFormatter: (params) => formatShortDate(params.value, locale),
     });
 
     return nextColumns;
-  }, [ClickableCell, DragHandleCell, dragToFolderEnabled, getDocFilterValues, searchAllLibraries, t]);
+  }, [ClickableCell, DragHandleCell, dragToFolderEnabled, getDocFilterValues, locale, searchAllLibraries, t]);
 
   const createLibraryMutation = useMutation({
     mutationFn: async () => {

@@ -19,6 +19,8 @@ import { COUNTRY_OPTIONS, type CountryOption } from '../../../constants/isoOptio
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { drawerFieldValueSx } from '../../../theme/formSx';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { formatShortDate } from '../../../lib/dateFormat';
+import { useLocale } from '../../../i18n/useLocale';
 import type {
   InterfaceCompany,
   InterfaceDataResidency,
@@ -49,18 +51,6 @@ type Props = {
   onReplaceOwners: (ownerType: 'business' | 'it', userIds: string[]) => Promise<void>;
 };
 
-function formatShortDate(value: string | Date | null | undefined) {
-  if (!value) return 'Not set';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not set';
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-}
-
 function ReadOnlyValue({ children }: { children: React.ReactNode }) {
   return (
     <Typography sx={{ fontSize: 13, color: 'kanap.text.primary', minHeight: 26, display: 'flex', alignItems: 'center' }}>
@@ -79,6 +69,7 @@ export default function InterfacePropertyPanel({
   onReplaceOwners,
 }: Props) {
   const { t } = useTranslation(['it', 'common']);
+  const locale = useLocale();
   const { byField } = useItOpsEnumOptions();
   const [panelError, setPanelError] = React.useState<string | null>(null);
   const [interfaceIdDraft, setInterfaceIdDraft] = React.useState(data?.interface_id || '');
@@ -281,10 +272,10 @@ export default function InterfacePropertyPanel({
         {!isCreate && (
           <>
             <PropertyRow label="Created">
-              <ReadOnlyValue>{formatShortDate(data?.created_at)}</ReadOnlyValue>
+              <ReadOnlyValue>{formatShortDate(data?.created_at, locale, { empty: 'Not set' })}</ReadOnlyValue>
             </PropertyRow>
             <PropertyRow label="Updated">
-              <ReadOnlyValue>{formatShortDate(data?.updated_at)}</ReadOnlyValue>
+              <ReadOnlyValue>{formatShortDate(data?.updated_at, locale, { empty: 'Not set' })}</ReadOnlyValue>
             </PropertyRow>
           </>
         )}

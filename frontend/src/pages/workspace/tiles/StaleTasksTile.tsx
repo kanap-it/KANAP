@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate } from '../../../lib/dateFormat';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 import { getDotColor, getPillBg, TASK_STATUS_COLORS } from '../../../utils/statusColors';
 
@@ -29,10 +30,6 @@ interface StaleTaskItem {
 
 interface StaleTasksTileProps {
   config: Record<string, unknown>;
-}
-
-function formatDate(dateStr: string, loc?: string): string {
-  return new Date(dateStr).toLocaleDateString(loc || 'en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function StaleTasksTile({ config }: StaleTasksTileProps) {
@@ -103,7 +100,7 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
                       </Box>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {item.relatedObjectName || t('dashboard.tiles.standaloneTask')} {String.fromCharCode(8226)} {t('dashboard.tiles.updated', { date: formatDate(item.updatedAt, locale) })}
+                      {item.relatedObjectName || t('dashboard.tiles.standaloneTask')} {String.fromCharCode(8226)} {t('dashboard.tiles.updated', { date: formatShortDate(item.updatedAt, locale) })}
                     </Typography>
                     {scope !== 'my' && item.assigneeName && (
                       <Typography variant="caption" color="text.secondary">

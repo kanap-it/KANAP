@@ -11,6 +11,7 @@ import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { STATUS_VALUES } from '../constants/status';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDateTime } from '../lib/dateFormat';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function SuppliersPage() {
@@ -89,7 +90,7 @@ export default function SuppliersPage() {
       field: 'created_at',
       headerName: t('shared.columns.created'),
       width: 200,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+      valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getSupplierHref} onNavigate={(href) => navigate(href)} />

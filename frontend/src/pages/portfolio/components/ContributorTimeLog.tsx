@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate } from '../../../lib/dateFormat';
 import LogTimeDialog, { TimeEntryData } from './LogTimeDialog';
 import TaskLogTimeDialog, { TaskTimeEntryData } from '../../tasks/components/TaskLogTimeDialog';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -45,12 +46,6 @@ interface ContributorTimeEntry {
 interface ContributorTimeLogProps {
   contributorId: string;
 }
-
-const formatDate = (locale: string, value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
-};
 
 const formatHours = (value: number) => {
   if (!Number.isFinite(value) || value <= 0) return '0h';
@@ -231,7 +226,7 @@ export default function ContributorTimeLog({ contributorId }: ContributorTimeLog
                 const editable = canEditEntry(entry);
                 return (
                   <TableRow key={`${entry.source_type}-${entry.id}`} hover>
-                    <TableCell>{formatDate(locale, entry.logged_at)}</TableCell>
+                    <TableCell>{formatShortDate(entry.logged_at, locale, { year: 'always', empty: '-' })}</TableCell>
                     <TableCell>
                       <Typography
                         variant="body2"

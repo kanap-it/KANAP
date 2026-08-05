@@ -12,6 +12,7 @@ import api from '../api';
 import { useAuth } from '../auth/AuthContext';
 import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDateTime } from '../lib/dateFormat';
 import { useTranslation } from 'react-i18next';
 import ForbiddenPage from './ForbiddenPage';
 import { useKanapDialogs } from '../components/design';
@@ -176,7 +177,7 @@ export default function UsersPage() {
     { field: 'business_phone', headerName: t('users.columns.businessPhone'), width: 180, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'mobile_phone', headerName: t('users.columns.mobilePhone'), width: 160, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'mfa_enabled', headerName: t('users.columns.mfaEnabled'), width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? t('users.mfaValues.yes') : t('users.mfaValues.no'), cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'created_at', headerName: t('users.columns.created'), width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'created_at', headerName: t('users.columns.created'), width: 200, valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
   ], [ClickableCell, ClickableCellGeneric, canManageUsers, locale, t]);
 
   if (!hasLevel('users', 'reader')) {

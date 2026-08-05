@@ -10,6 +10,7 @@ import DeleteSelectedButton from '../components/DeleteSelectedButton';
 import { useNavigate } from 'react-router-dom';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDateTime } from '../lib/dateFormat';
 import ForbiddenPage from './ForbiddenPage';
 
 export default function ContactsPage() {
@@ -125,7 +126,7 @@ export default function ContactsPage() {
       field: 'created_at',
       headerName: t('shared.columns.created'),
       width: 200,
-      valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+      valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
       defaultHidden: true,
       cellRenderer: (params: any) => (
         <LinkCellRenderer {...params} linkType="internal" getHref={getContactHref} onNavigate={(href) => navigate(href)} />

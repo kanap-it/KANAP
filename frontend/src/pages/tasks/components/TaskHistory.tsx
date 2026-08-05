@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { contentToPlainText } from '../../../utils/contentToPlainText';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate, formatShortDateTime } from '../../../lib/dateFormat';
 import { getPriorityLabel, getTaskStatusLabel } from '../../../utils/portfolioI18n';
 
 interface Activity {
@@ -81,15 +82,7 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
     enabled: !!taskId,
   });
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString(locale, {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (dateStr: string) => formatShortDateTime(dateStr, locale);
 
   const formatFieldValue = (field: string, value: unknown): string => {
     if (value === null || value === undefined) return t('workspace.task.history.values.empty');
@@ -100,7 +93,9 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
       return value.map((entry) => String(entry)).join(', ');
     }
     if (field === 'due_date' || field === 'start_date') {
-      return value ? new Date(String(value)).toLocaleDateString(locale) : t('workspace.task.history.values.none');
+      return value
+        ? formatShortDate(String(value), locale, { year: 'always', empty: t('workspace.task.history.values.none') })
+        : t('workspace.task.history.values.none');
     }
     return String(value);
   };

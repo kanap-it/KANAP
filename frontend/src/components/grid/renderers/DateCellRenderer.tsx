@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Tooltip, Typography } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate, formatShortDateTime } from '../../../lib/dateFormat';
 
 /**
  * Date format options
@@ -62,19 +63,13 @@ function formatDate(
 ): string {
   switch (format) {
     case 'date':
-      return date.toLocaleDateString(locale, formatOptions ?? {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
+      return formatOptions
+        ? date.toLocaleDateString(locale, formatOptions)
+        : formatShortDate(date, locale, { year: 'always' });
     case 'datetime':
-      return date.toLocaleString(locale, formatOptions ?? {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return formatOptions
+        ? date.toLocaleString(locale, formatOptions)
+        : formatShortDateTime(date, locale);
     case 'time':
       return date.toLocaleTimeString(locale, formatOptions ?? {
         hour: '2-digit',

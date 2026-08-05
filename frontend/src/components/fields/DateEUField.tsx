@@ -2,6 +2,8 @@ import React from 'react';
 import { TextField, InputAdornment, IconButton, SxProps, Theme, Box } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import { euToYmd, ymdToEu, formatEuPartial } from '../../lib/date-eu';
+import { formatShortDate } from '../../lib/dateFormat';
+import { useLocale } from '../../i18n/useLocale';
 import { FieldLabel, mergeSx } from '../design';
 import { nakedInputHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
@@ -32,15 +34,20 @@ function toYmdOnly(value: string): string {
 
 export default function DateEUField({ label, valueYmd = '', onChangeYmd, disabled, required, name, error, helperText, size, sx, hideLabel = false, textFieldSx }: Props) {
   const [text, setText] = React.useState<string>('');
+  const [focused, setFocused] = React.useState(false);
   const nativeRef = React.useRef<HTMLInputElement | null>(null);
+  const locale = useLocale();
 
   // Normalize the input value to YYYY-MM-DD format
   const normalizedYmd = toYmdOnly(valueYmd);
 
-  // sync from value
+  // sync from value (skip while the user is editing)
   React.useEffect(() => {
-    setText(ymdToEu(normalizedYmd));
-  }, [normalizedYmd]);
+    if (!focused) setText(ymdToEu(normalizedYmd));
+  }, [normalizedYmd, focused]);
+
+  // At rest the field shows the charter display format; numeric dd/mm/yyyy only while editing.
+  const restText = normalizedYmd ? formatShortDate(normalizedYmd, locale, { year: 'always' }) : '';
 
   const onTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -50,7 +57,13 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
     if (ymd) onChangeYmd(ymd);
   };
 
+  const onFocus = () => {
+    setText(ymdToEu(normalizedYmd));
+    setFocused(true);
+  };
+
   const onBlur = () => {
+    setFocused(false);
     const ymd = euToYmd(text);
     if (!ymd && text.trim() === '') {
       onChangeYmd('');
@@ -93,8 +106,9 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
       />
       <TextField
         placeholder="dd/mm/yyyy"
-        value={text}
+        value={focused ? text : restText}
         onChange={onTextChange}
+        onFocus={onFocus}
         onBlur={onBlur}
         disabled={disabled}
         required={required}

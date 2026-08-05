@@ -13,6 +13,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useRecentKnowledgeDocuments } from '../hooks/useRecentKnowledgeDocuments';
+import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate } from '../../../lib/dateFormat';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 
 interface KnowledgeReviewItem {
@@ -29,7 +31,7 @@ interface KnowledgeOverviewTileProps {
   config: Record<string, unknown>;
 }
 
-function formatTime(dateStr: string): string {
+function formatTime(dateStr: string, locale: string): string {
   const date = new Date(dateStr);
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.max(1, Math.floor(diffMs / 60000));
@@ -38,12 +40,13 @@ function formatTime(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatShortDate(date, locale);
 }
 
 export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOverviewTileProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
+  const locale = useLocale();
   const { items: recentDocuments } = useRecentKnowledgeDocuments();
 
   const { data, isLoading } = useQuery({
@@ -101,7 +104,7 @@ export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOver
                             sx={{ height: 20, fontSize: '0.7rem' }}
                           />
                           <Typography variant="caption" color="text.secondary">
-                            {t('dashboard.tiles.requestedAgo', { time: formatTime(item.requestedAt) })}
+                            {t('dashboard.tiles.requestedAgo', { time: formatTime(item.requestedAt, locale) })}
                           </Typography>
                         </Box>
                         {item.requestedByName && (
@@ -140,7 +143,7 @@ export default function KnowledgeOverviewTile({ config: _config }: KnowledgeOver
                     primary={item.label}
                     secondary={(
                       <Typography variant="caption" color="text.secondary">
-                        {formatTime(new Date(item.viewedAt).toISOString())}
+                        {formatTime(new Date(item.viewedAt).toISOString(), locale)}
                       </Typography>
                     )}
                     primaryTypographyProps={{ variant: 'body2', noWrap: true }}

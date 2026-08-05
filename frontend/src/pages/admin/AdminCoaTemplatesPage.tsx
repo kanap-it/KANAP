@@ -11,6 +11,7 @@ import CsvExportDialog from '../../components/csv/CsvExportDialog';
 import CsvImportDialog from '../../components/csv/CsvImportDialog';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { useLocale } from '../../i18n/useLocale';
+import { formatShortDateTime } from '../../lib/dateFormat';
 
 type Template = {
   id: string;
@@ -107,7 +108,7 @@ export default function AdminCoaTemplatesPage() {
     { field: 'version', headerName: t('coaTemplates.columns.version'), width: 120 },
     { field: 'country_iso', headerName: t('coaTemplates.columns.scope'), width: 150, valueFormatter: (p: any) => (!p.value ? t('coaTemplates.shared.allCountries') : p.value) },
     { field: 'loaded_by_default', headerName: t('coaTemplates.columns.loadedByDefault'), width: 170, valueFormatter: (p: any) => (p.value ? t('coaTemplates.shared.yes') : t('coaTemplates.shared.no')) },
-    { field: 'updated_at', headerName: t('coaTemplates.columns.updated'), width: 200, valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : '') },
+    { field: 'updated_at', headerName: t('coaTemplates.columns.updated'), width: 200, valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale) },
   ], [locale, t]);
 
   const actions = (

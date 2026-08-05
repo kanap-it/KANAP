@@ -17,6 +17,8 @@ import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 import { useGridScopePreference } from '../hooks/useGridScopePreference';
 import { ACTIVE_TASK_STATUSES, TASK_STATUS_COLORS, TASK_STATUS_LABELS } from './tasks/task.constants';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../i18n/useLocale';
+import { formatShortDate } from '../lib/dateFormat';
 import { getDotColor } from '../utils/statusColors';
 
 type TaskRow = {
@@ -103,20 +105,12 @@ function ScoreCellRenderer(props: any) {
   );
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `${day}-${month}-${year}`;
-}
-
 export default function TasksPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
   const { t } = useTranslation(['portfolio', 'common']);
+  const locale = useLocale();
 
   if (!hasLevel('tasks', 'reader')) {
     return <ForbiddenPage />;
@@ -496,7 +490,7 @@ export default function TasksPage() {
       headerName: t('tasks.columns.dueDate'),
       width: 120,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params) => formatDate(params.value),
+      valueFormatter: (params) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
@@ -505,7 +499,7 @@ export default function TasksPage() {
       headerName: t('tasks.columns.created'),
       width: 120,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params) => formatDate(params.value),
+      valueFormatter: (params) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
@@ -514,7 +508,7 @@ export default function TasksPage() {
       headerName: t('tasks.columns.lastChanged'),
       width: 130,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params) => formatDate(params.value),
+      valueFormatter: (params) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
@@ -574,7 +568,7 @@ export default function TasksPage() {
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
-  ], [clickableCellRenderer, contextLabelMap, getTaskFilterValues, renderPriorityCell, renderStatusCell, renderTypeCell, statusLabelMap, t]);
+  ], [clickableCellRenderer, contextLabelMap, getTaskFilterValues, locale, renderPriorityCell, renderStatusCell, renderTypeCell, statusLabelMap, t]);
 
   const actions = (
     <Stack direction="row" spacing={1}>

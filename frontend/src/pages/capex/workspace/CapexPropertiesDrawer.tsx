@@ -12,6 +12,8 @@ import UserSelect from '../../../components/fields/UserSelect';
 import { CURRENCY_OPTIONS, CurrencyOption } from '../../../constants/isoOptions';
 import useCurrencySettings from '../../../hooks/useCurrencySettings';
 import { STATUS_ENABLED, StatusValue } from '../../../constants/status';
+import { formatShortDate } from '../../../lib/dateFormat';
+import { useLocale } from '../../../i18n/useLocale';
 import type { CapexPriority } from './CapexMetadataBar';
 
 export type CapexPpeType = 'hardware' | 'software';
@@ -59,15 +61,6 @@ const hideInnerLabelSx = {
   '& .MuiFormControl-root': { m: 0 },
 } as const;
 
-function formatShortDate(value: string | null): string {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
-}
-
 function valueOption<T extends string>(options: Option<T>[], value: T): Option<T> {
   return options.find((opt) => opt.value === value) || options[0];
 }
@@ -107,6 +100,7 @@ export default function CapexPropertiesDrawer({
   onOwnerBusinessChange,
 }: Props) {
   const { t } = useTranslation(['ops', 'common']);
+  const locale = useLocale();
   const { data: currencySettings } = useCurrencySettings();
 
   const ppeOptions = React.useMemo<Array<Option<CapexPpeType>>>(() => [
@@ -291,10 +285,10 @@ export default function CapexPropertiesDrawer({
       {mode === 'edit' && (
         <PropertyGroup>
           <PropertyRow label={t('capex.fields.created')}>
-            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt)}</Typography>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt, locale, { empty: '-' })}</Typography>
           </PropertyRow>
           <PropertyRow label={t('capex.fields.updated')}>
-            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt)}</Typography>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt, locale, { empty: '-' })}</Typography>
           </PropertyRow>
         </PropertyGroup>
       )}

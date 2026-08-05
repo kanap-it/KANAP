@@ -47,6 +47,7 @@ import {
   getTaskStatusLabel,
 } from '../../utils/portfolioI18n';
 import { useLocale } from '../../i18n/useLocale';
+import { formatShortDateTime } from '../../lib/dateFormat';
 import { useTenant } from '../../tenant/TenantContext';
 import { useKanapDialogs } from '../../components/design';
 
@@ -1187,15 +1188,7 @@ export default function TaskWorkspacePage() {
     navigate(`/portfolio/tasks/${targetId}${qs ? `?${qs}` : ''}`);
   }, [buildTaskFormFromTask, cleanedSearchParams, dialogs, dirty, handleSave, navigate, resetClassificationTouched, task, t, waitForSidebarSaves]);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString(locale, {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (dateStr: string) => formatShortDateTime(dateStr, locale);
 
   const handleCreateSave = async () => {
     if (createSaving) return;
