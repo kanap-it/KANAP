@@ -1,8 +1,11 @@
 import React from 'react';
-import { Autocomplete, TextField, CircularProgress } from '@mui/material';
+import { Autocomplete, Box, TextField, CircularProgress } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Account = {
   id: string;
@@ -20,6 +23,8 @@ type AccountSelectProps = {
   helperText?: React.ReactNode;
   required?: boolean;
   companyId?: string | null | undefined;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 function assignRef<T>(target: React.Ref<T | null> | undefined, value: T | null) {
@@ -41,11 +46,14 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
     helperText,
     required = false,
     companyId,
+    hideLabel = false,
+    textFieldSx,
   },
   ref,
 ) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.account');
+  const naked = hideLabel || label === '';
   const { data: accounts, isLoading } = useQuery({
     queryKey: ['accounts', 'active', companyId || 'all'],
     queryFn: async () => {
@@ -110,7 +118,7 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
 
   const selectedAccount: Account | null = sortedAccounts.find((account: Account) => account.id === value) || null;
 
-  return (
+  const control = (
     <Autocomplete
       options={sortedAccounts}
       value={selectedAccount}
@@ -132,20 +140,23 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
           </div>
         </li>
       )}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
           required={required}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
           }}
+          placeholder={naked ? t('selects.notSet') : undefined}
           error={error}
           helperText={helperText}
-          InputLabelProps={{ shrink: true }}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
@@ -168,6 +179,14 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
       noOptionsText={isLoading ? t('selects.loading') : t('selects.noAccountsFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

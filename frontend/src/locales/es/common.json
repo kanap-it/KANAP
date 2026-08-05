@@ -270,7 +270,7 @@
     "uploadCompleted": "Carga completada correctamente.",
     "fileNotFormatted": "El archivo proporcionado no tiene el formato correcto",
     "rowError": "Fila {{row}}: {{message}}",
-    "andMoreErrors": "\u2026y {{count}} más",
+    "andMoreErrors": "…y {{count}} más",
     "importWorkflow": "Flujo de trabajo de importación",
     "advancedOptions": "Opciones avanzadas",
     "overridePresetNote": "Estos ajustes anulan la selección de preconfiguración del flujo de trabajo.",
@@ -296,7 +296,7 @@
   },
   "selects": {
     "loading": "Cargando...",
-    "loadingEllipsis": "Cargando\u2026",
+    "loadingEllipsis": "Cargando…",
     "noAccountsFound": "No se encontraron cuentas",
     "noContactsFound": "No se encontraron contactos",
     "noSupplier": "Sin proveedor",
@@ -324,7 +324,8 @@
     "user": "Usuario",
     "users": "Usuarios",
     "roles": "Roles",
-    "server": "Servidor"
+    "server": "Servidor",
+    "notSet": "Sin definir"
   },
   "documentEditor": {
     "expandDocument": "Expandir documento",

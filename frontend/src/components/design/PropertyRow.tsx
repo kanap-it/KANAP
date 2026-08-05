@@ -2,6 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { drawerFieldValueSx } from '../../theme/formSx';
+import { FieldLabel } from './FieldLabel';
 
 type PropertyRowProps = {
   children: React.ReactNode;
@@ -46,23 +47,9 @@ export function PropertyRow({
         sx,
       )}
     >
-      <Box
-        sx={mergeSx(
-          (theme) => ({
-            fontSize: 12,
-            lineHeight: 1.3,
-            color: theme.palette.kanap.text.tertiary,
-          }),
-          labelSx,
-        )}
-      >
+      <FieldLabel required={required} sx={labelSx}>
         {label}
-        {required && (
-          <Box component="span" sx={{ color: 'warning.main', ml: 0.25 }}>
-            *
-          </Box>
-        )}
-      </Box>
+      </FieldLabel>
       <Box
         sx={mergeSx(
           drawerFieldValueSx,

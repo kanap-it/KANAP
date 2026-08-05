@@ -1,10 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Autocomplete, TextField, CircularProgress } from '@mui/material';
+import { Autocomplete, Box, TextField, CircularProgress } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Supplier = {
   id: string;
@@ -20,6 +21,7 @@ type SupplierSelectProps = {
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
+  placeholder?: string;
   required?: boolean;
   hideLabel?: boolean;
   textFieldSx?: SxProps<Theme>;
@@ -42,6 +44,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
     disabled,
     error,
     helperText,
+    placeholder,
     required = false,
     hideLabel = false,
     textFieldSx,
@@ -49,6 +52,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
   ref,
 ) {
   const { t } = useTranslation(['master-data', 'common']);
+  const naked = hideLabel || label === '';
   const { data: suppliers, isLoading } = useQuery({
     queryKey: ['suppliers', 'active'],
     queryFn: async () => {
@@ -84,7 +88,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
 
   const selectedSupplier = mergedOptions.find((supplier: Supplier) => supplier.id === value) || null;
 
-  return (
+  const control = (
     <Autocomplete
       options={mergedOptions}
       value={selectedSupplier}
@@ -107,14 +111,14 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
           </div>
         </li>
       )}
-      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={hideLabel ? undefined : label}
           required={required}
-          variant={hideLabel ? 'standard' : undefined}
-          sx={textFieldSx}
+          placeholder={placeholder ?? (naked ? t('common:selects.notSet') : undefined)}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
@@ -123,7 +127,7 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(hideLabel ? { disableUnderline: true } : {}),
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}
@@ -145,6 +149,14 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
       noOptionsText={isLoading ? t('common:status.loading') : t('master-data:suppliers.noSuppliersFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

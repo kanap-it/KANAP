@@ -1,8 +1,11 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress, Stack, Box, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import EnumAutocomplete from './EnumAutocomplete';
+import { FieldLabel, mergeSx } from '../design';
+import { nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 export type RelatedObjectType = 'project' | 'spend_item' | 'contract' | 'capex_item' | null;
 
@@ -14,6 +17,7 @@ interface RelatedObjectSelectProps {
   onChangeId: (id: string | null, name: string | null) => void;
   disabled?: boolean;
   size?: 'small' | 'medium';
+  hideLabel?: boolean;
 }
 
 interface RelatedOption {
@@ -39,7 +43,9 @@ export default function RelatedObjectSelect({
   onChangeId,
   disabled = false,
   size = 'small',
+  hideLabel = false,
 }: RelatedObjectSelectProps) {
+  const { t } = useTranslation('common');
   const [inputValue, setInputValue] = React.useState('');
 
   // Fetch items based on selected type
@@ -108,19 +114,28 @@ export default function RelatedObjectSelect({
     onChangeId(option?.id || null, option?.name || null);
   };
 
+  const itemLabel = TYPE_OPTIONS.find((o) => o.value === relationType)?.label || 'Item';
+
   return (
     <Stack spacing={1.5}>
-      <EnumAutocomplete
-        label="Related To"
-        value={relationType ?? STANDALONE_VALUE}
-        onChange={handleTypeChange}
-        options={TYPE_OPTIONS}
-        size={size}
-        disabled={disabled}
-      />
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+        {!hideLabel && <FieldLabel>Related To</FieldLabel>}
+        <EnumAutocomplete
+          label=""
+          hideLabel={hideLabel}
+          textFieldSx={hideLabel ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx) : undefined}
+          value={relationType ?? STANDALONE_VALUE}
+          onChange={handleTypeChange}
+          options={TYPE_OPTIONS}
+          size={size}
+          disabled={disabled}
+        />
+      </Box>
 
       {relationType && (
-        <Autocomplete
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+          {!hideLabel && <FieldLabel>{itemLabel}</FieldLabel>}
+          <Autocomplete
           options={items || []}
           value={selectedItem}
           onChange={handleItemChange}
@@ -137,11 +152,13 @@ export default function RelatedObjectSelect({
           renderInput={(params) => (
             <TextField
               {...params}
-              label={TYPE_OPTIONS.find((t) => t.value === relationType)?.label || 'Item'}
-              placeholder="Search..."
+              placeholder={hideLabel ? t('selects.notSet') : 'Search...'}
               size={size}
+              variant="standard"
+              sx={hideLabel ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx) : undefined}
               InputProps={{
                 ...params.InputProps,
+                ...(hideLabel ? { disableUnderline: true } : {}),
                 endAdornment: (
                   <>
                     {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
@@ -155,7 +172,8 @@ export default function RelatedObjectSelect({
           loading={isLoading}
           fullWidth
           size={size}
-        />
+          />
+        </Box>
       )}
     </Stack>
   );
