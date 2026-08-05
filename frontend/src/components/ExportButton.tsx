@@ -10,6 +10,7 @@ interface ExportButtonProps {
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
   getContent?: () => string;
+  buttonVariant?: string;
 }
 
 const FORMATS: Array<{ value: DocumentExportFormat; label: string }> = [
@@ -44,6 +45,7 @@ export default function ExportButton({
   disabled = false,
   size = 'small',
   getContent,
+  buttonVariant = 'outlined',
 }: ExportButtonProps) {
   const { t } = useTranslation('common');
   const dialogs = useKanapDialogs();
@@ -98,7 +100,7 @@ export default function ExportButton({
     <>
       <Button
         size={size}
-        variant="outlined"
+        variant={buttonVariant as any}
         disabled={!canExport || exporting !== null}
         onClick={(event) => {
           if (getContent && !String(getContent() || '').trim()) return;

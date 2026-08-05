@@ -322,6 +322,9 @@
         "waiting": "Wartend",
         "you": "Sie"
       }
+    },
+    "messages": {
+      "saveFirstAll": "Speichern Sie das Dokument zuerst, um Mitwirkende, Workflow, Klassifizierung, Beziehungen und Versionen zu verwalten."
     }
   },
   "statuses": {

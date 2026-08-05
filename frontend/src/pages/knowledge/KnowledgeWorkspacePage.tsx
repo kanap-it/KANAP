@@ -1718,7 +1718,6 @@ export default function KnowledgeWorkspacePage() {
         <Stack direction="row" alignItems="center" spacing={1}>
           {!isCreate && !!doc?.id && (
             <SendLinkButton
-              variant="outlined"
               size="small"
               itemType="document"
               itemId={doc.id}
@@ -1727,24 +1726,24 @@ export default function KnowledgeWorkspacePage() {
               itemRef={doc.item_ref ?? null}
             />
           )}
-          {!isCreate && !workflowActive && canManageDocument && !isManagedIntegratedDocument && (
+          {canRequestReview && (
             <Button
-              variant="outlined"
+              variant="action"
               size="small"
-              disabled={!canRequestReview || requestReviewMutation.isPending}
+              disabled={requestReviewMutation.isPending}
               onClick={() => requestReviewMutation.mutate()}
             >
               {t('workspace.actions.requestReview')}
             </Button>
           )}
           {!isCreate && !workflowActive && !editMode && canManageDocument && (
-            <Button variant="outlined" size="small" startIcon={<EditIcon />} onClick={() => { void startEdit(); }}>
+            <Button variant="action" size="small" startIcon={<EditIcon />} onClick={() => { void startEdit(); }}>
               {isLockedByAnotherUser ? t('workspace.actions.retryLock') : t('workspace.actions.edit')}
             </Button>
           )}
           {!isCreate && workflowActive && canManageDocument && (
             <Button
-              variant="outlined"
+              variant="action"
               size="small"
               onClick={() => cancelWorkflowMutation.mutate()}
               disabled={cancelWorkflowMutation.isPending}
@@ -1754,7 +1753,7 @@ export default function KnowledgeWorkspacePage() {
           )}
           {canCreateVersion && (
             <Button
-              variant="outlined"
+              variant="action"
               size="small"
               startIcon={createVersionFeedback ? <CheckIcon /> : <HistoryIcon />}
               onClick={handleCreateVersion}
@@ -1770,9 +1769,11 @@ export default function KnowledgeWorkspacePage() {
               onError={handleDocumentImportError}
               hasContent={contentHasText}
               size="small"
+              buttonVariant="action"
             />
           )}
           <ExportButton
+            buttonVariant="action"
             content={form.content_markdown || ''}
             title={String(form.title || (!isCreate ? doc?.item_ref : '') || 'knowledge-document')}
             disabled={!contentHasText}
@@ -1791,7 +1792,7 @@ export default function KnowledgeWorkspacePage() {
           )}
           {!isCreate && !workflowActive && editMode && canManageDocument && (
             <Button
-              variant="outlined"
+              variant="action"
               size="small"
               startIcon={<CheckIcon />}
               onClick={handleDoneEditing}
