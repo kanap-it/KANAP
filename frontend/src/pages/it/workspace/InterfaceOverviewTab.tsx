@@ -177,6 +177,7 @@ export default function InterfaceOverviewTab({
           minRows={12}
           maxRows={34}
           surface
+          hideToolbarUntilFocus
           placeholder="Capture the managed interface specification here."
         />
       </Box>

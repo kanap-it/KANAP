@@ -1,10 +1,11 @@
 import React from 'react';
-import { Autocomplete, TextField, CircularProgress } from '@mui/material';
+import { Autocomplete, Box, TextField, CircularProgress } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type Contact = {
   id: string;
@@ -66,6 +67,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
 ) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.contact');
+  const naked = hideLabel || label === '';
   const [input, setInput] = React.useState(query);
   const { data: items, isFetching } = useQuery({
     queryKey: ['contacts', 'typeahead', input],
@@ -101,7 +103,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
 
   const selected = mergedOptions.find((c) => c.id === value) || null;
 
-  return (
+  const control = (
     <Autocomplete
       options={mergedOptions}
       value={selected}
@@ -116,7 +118,7 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
       }}
       getOptionLabel={(option) => formatLabel(option as Contact, showEmail, compactOptions)}
       groupBy={groupByCompany ? (option) => (option as Contact).supplier_name || t('selects.noSupplier') : undefined}
-      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderOption={(props, option) => (
         <li {...props}>
           <span className="kanap-autocomplete-option-primary">
@@ -127,17 +129,16 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
       renderInput={(params) => (
         <TextField
           {...params}
-          label={hideLabel ? undefined : label}
-          placeholder={placeholder}
+          placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
           required={required}
           inputRef={ref}
           error={error}
           helperText={helperText}
-          variant={hideLabel ? 'standard' : undefined}
-          sx={textFieldSx}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           InputProps={{
             ...params.InputProps,
-            ...(hideLabel ? { disableUnderline: true } : {}),
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isFetching || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}
@@ -153,6 +154,14 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
       noOptionsText={isFetching ? t('selects.loadingEllipsis') : t('selects.noContactsFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

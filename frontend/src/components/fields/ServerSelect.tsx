@@ -1,9 +1,10 @@
 import React from 'react';
-import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import { Autocomplete, Box, CircularProgress, TextField } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 export type ServerOption = {
   id: string;
@@ -70,6 +71,7 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
 }) => {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.server');
+  const naked = hideLabel || label === '';
   const [inputValue, setInputValue] = React.useState('');
   const { options, loading } = useServerOptions(inputValue, { allowClusters });
   const [selectedOption, setSelectedOption] = React.useState<ServerOption | null>(null);
@@ -98,7 +100,7 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
     return () => { isMounted = false; };
   }, [value, selectedOption]);
 
-  return (
+  const control = (
     <Autocomplete
       options={options}
       value={selectedOption}
@@ -122,19 +124,18 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
           </div>
         </li>
       )}
-      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={hideLabel ? undefined : label}
           required={required}
-          placeholder={placeholder}
+          placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
           helperText={helperText}
-          variant={hideLabel ? 'standard' : undefined}
-          sx={textFieldSx}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           InputProps={{
             ...params.InputProps,
-            ...(hideLabel ? { disableUnderline: true } : {}),
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {loading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -148,6 +149,14 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
       noOptionsText={loading ? t('selects.loadingEllipsis') : t('selects.noServersFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 };
 

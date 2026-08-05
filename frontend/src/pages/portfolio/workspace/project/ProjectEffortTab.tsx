@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../../api';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { useLocale } from '../../../../i18n/useLocale';
+import { formatShortDate } from '../../../../lib/dateFormat';
 import EffortAllocationDialog, { type EligibleUser } from '../../components/EffortAllocationDialog';
 import { type AllocationUser, type EffortAllocationData } from '../../components/EffortAllocationTable';
 import LogTimeDialog, { type TimeEntryData } from '../../components/LogTimeDialog';
@@ -49,33 +50,6 @@ function formatEffortVariance(t: TFunction, diff: number | null) {
   if (diff === 0) return t('workspace.project.effort.values.onTrack');
   if (diff > 0) return t('workspace.project.effort.values.mdHigher', { count: diff });
   return t('workspace.project.effort.values.mdLower', { count: Math.abs(diff) });
-}
-
-function getDatePart(value: string | null | undefined): string {
-  if (!value) return '';
-  return value.includes('T') ? value.split('T')[0] : value;
-}
-
-function formatShortDate(value: string | null | undefined, locale: string): string {
-  const datePart = getDatePart(value);
-  if (!datePart) return '-';
-  const [yearText, monthText, dayText] = datePart.split('-');
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  if (!year || !month || !day) return '-';
-
-  const date = new Date(year, month - 1, day);
-  const parts = new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).formatToParts(date);
-  const dayPart = parts.find((part) => part.type === 'day')?.value;
-  const monthPart = parts.find((part) => part.type === 'month')?.value;
-  const yearPart = parts.find((part) => part.type === 'year')?.value;
-
-  return [dayPart, monthPart, yearPart].filter(Boolean).join(' ') || '-';
 }
 
 function formatMd(value: number): string {
@@ -797,7 +771,7 @@ export default function ProjectEffortTab({
 
                       return (
                         <tr key={`${entry.source}-${entry.id}`}>
-                          <td>{formatShortDate(entry.logged_at, locale)}</td>
+                          <td>{formatShortDate(entry.logged_at, locale, { empty: '-' })}</td>
                           <td>{sourceContent}</td>
                           <td>{personName}</td>
                           <td className="kanap-text-tertiary">

@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
+import { longFormSurfaceFieldSx } from '../../../theme/formSx';
 import api from '../../../api';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import { getScoreColor } from '../../tasks/theme/taskDetailTokens';
@@ -506,6 +507,8 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
               disabled={readOnly}
               fullWidth
               helperText={t('editors.scoring.helper.justification')}
+              InputProps={{ disableUnderline: true }}
+              sx={[longFormSurfaceFieldSx, { '& .MuiInputBase-root': { minHeight: 0 } }]}
             />
           </Stack>
         )}

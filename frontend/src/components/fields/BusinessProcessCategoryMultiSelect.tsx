@@ -1,9 +1,11 @@
 import React from 'react';
-import { Autocomplete, Chip, CircularProgress, Stack, TextField, Button } from '@mui/material';
+import { Autocomplete, Box, Chip, CircularProgress, Stack, TextField, Button } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { useKanapDialogs } from '../design';
+import { FieldLabel, mergeSx, useKanapDialogs } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type BusinessProcessCategory = {
   id: string;
@@ -20,6 +22,8 @@ type Props = {
   error?: boolean;
   disabled?: boolean;
   onManageCategoriesClick?: () => void;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 export default function BusinessProcessCategoryMultiSelect({
@@ -30,10 +34,13 @@ export default function BusinessProcessCategoryMultiSelect({
   error,
   disabled,
   onManageCategoriesClick,
+  hideLabel = false,
+  textFieldSx,
 }: Props) {
   const { t } = useTranslation('common');
   const dialogs = useKanapDialogs();
   const label = labelProp ?? t('selects.categories');
+  const naked = hideLabel || label === '';
   const queryClient = useQueryClient();
 
   const { data, isLoading, isFetching } = useQuery({
@@ -90,7 +97,7 @@ export default function BusinessProcessCategoryMultiSelect({
     }
   };
 
-  return (
+  const control = (
     <Stack spacing={0.5} alignItems="flex-start">
       <Autocomplete<BusinessProcessCategory, true, false, false>
         multiple
@@ -102,6 +109,7 @@ export default function BusinessProcessCategoryMultiSelect({
           onChange(ids);
         }}
         getOptionLabel={(option) => option.name}
+        ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
         renderTags={(tagValue, getTagProps) =>
           tagValue.map((option, index) => (
             <Chip
@@ -115,12 +123,14 @@ export default function BusinessProcessCategoryMultiSelect({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={label}
+            variant="standard"
+            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
             placeholder={t('selects.selectCategories')}
             helperText={helperText}
             error={error}
             InputProps={{
               ...params.InputProps,
+              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || isFetching) ? <CircularProgress color="inherit" size={16} /> : null}
@@ -153,5 +163,13 @@ export default function BusinessProcessCategoryMultiSelect({
         )}
       </Stack>
     </Stack>
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 }

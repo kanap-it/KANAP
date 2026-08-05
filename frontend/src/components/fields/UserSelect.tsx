@@ -1,11 +1,12 @@
 import React from 'react';
-import { Autocomplete, Divider, TextField, CircularProgress } from '@mui/material';
+import { Autocomplete, Box, Divider, TextField, CircularProgress } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type User = {
   id: string;
@@ -56,6 +57,7 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
 ) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.user');
+  const naked = hideLabel || label === '';
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', 'enabled', 'select'],
     queryFn: async () => {
@@ -111,7 +113,7 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
     return name || u.email;
   };
 
-  return (
+  const control = (
     <Autocomplete
       options={mergedOptions}
       value={selected}
@@ -128,26 +130,24 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
           {option.id === myId && <Divider />}
         </React.Fragment>
       )}
-      ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={hideLabel ? undefined : label}
           required={required}
           size={size}
-          variant={hideLabel ? 'standard' : undefined}
-          sx={textFieldSx}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);
           }}
-          placeholder={placeholder}
+          placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
           error={error}
           helperText={helperText}
-          InputLabelProps={hideLabel ? undefined : { shrink: true }}
           InputProps={{
             ...params.InputProps,
-            ...(hideLabel ? { disableUnderline: true } : {}),
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}
@@ -170,6 +170,14 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
       noOptionsText={isLoading ? t('selects.loading') : t('selects.noUsersFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

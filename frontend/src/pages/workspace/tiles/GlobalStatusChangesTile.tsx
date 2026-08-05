@@ -10,6 +10,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate } from '../../../lib/dateFormat';
 import api from '../../../api';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
 import { getDotColor, getPillBg, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
@@ -31,12 +32,6 @@ interface GlobalStatusChangesTileProps {
 function formatStatus(status: string | null): string {
   if (!status) return 'Unknown';
   return status.replace(/_/g, ' ');
-}
-
-// Note: formatDate uses locale from component scope
-
-function formatDate(dateStr: string, loc?: string): string {
-  return new Date(dateStr).toLocaleDateString(loc || 'en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesTileProps) {
@@ -105,7 +100,7 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
                       </Box>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {t('dashboard.tiles.authorOnDate', { author: item.authorName, date: formatDate(item.createdAt, locale) })}
+                      {t('dashboard.tiles.authorOnDate', { author: item.authorName, date: formatShortDate(item.createdAt, locale) })}
                     </Typography>
                   </Box>
                 )}

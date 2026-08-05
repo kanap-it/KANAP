@@ -1,9 +1,12 @@
 import React from 'react';
-import { Autocomplete, Divider, TextField, CircularProgress, Chip } from '@mui/material';
+import { Autocomplete, Box, Divider, TextField, CircularProgress, Chip } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type User = {
   id: string;
@@ -23,6 +26,8 @@ type UserMultiSelectProps = {
   placeholder?: string;
   required?: boolean;
   size?: 'small' | 'medium';
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 export default function UserMultiSelect({
@@ -35,9 +40,12 @@ export default function UserMultiSelect({
   placeholder,
   required,
   size,
+  hideLabel = false,
+  textFieldSx,
 }: UserMultiSelectProps) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.users');
+  const naked = hideLabel || label === '';
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', 'enabled', 'select'],
     queryFn: async () => {
@@ -97,7 +105,7 @@ export default function UserMultiSelect({
     return name || u.email;
   };
 
-  return (
+  const control = (
     <Autocomplete
       multiple
       options={mergedOptions}
@@ -125,18 +133,20 @@ export default function UserMultiSelect({
           />
         ))
       }
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
           required={required}
           size={size}
-          placeholder={placeholder}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          placeholder={placeholder ?? (naked && selected.length === 0 ? t('selects.notSet') : undefined)}
           error={error}
           helperText={helperText}
-          InputLabelProps={{ shrink: true }}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingMissing) ? <CircularProgress color="inherit" size={20} /> : null}
@@ -159,5 +169,13 @@ export default function UserMultiSelect({
       noOptionsText={isLoading ? t('selects.loading') : t('selects.noUsersFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 }

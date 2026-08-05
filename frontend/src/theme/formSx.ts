@@ -25,6 +25,17 @@ export const nakedControlHoverSx = {
   cursor: 'pointer',
 } as const;
 
+export const nakedFieldPlaceholderSx = {
+  '& input::placeholder': {
+    color: 'kanap.text.tertiary',
+    opacity: 1,
+  },
+} as const;
+
+export const selectPlaceholderSx = {
+  color: 'kanap.text.tertiary',
+} as const;
+
 /** Teal action link rendered as an unstyled button (e.g. "+ Link existing", "+ Log time"). */
 export const tealLinkSx = {
   color: 'kanap.teal',
@@ -98,6 +109,7 @@ export const drawerFieldValueSx = {
   minHeight: 26,
   '& .MuiInputLabel-root': { display: 'none' },
   '& .MuiFormLabel-root': { display: 'none' },
+  '& .kanap-field-label': { display: 'none' },
   '& .MuiInput-root': { mt: '0 !important' },
   '& .MuiInput-input': { py: '3px !important', fontSize: '13px !important' },
   '& .MuiOutlinedInput-root': {

@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Autocomplete, Box, Chip, CircularProgress, TextField } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import api from '../../api';
-import { drawerAutocompleteListboxSx } from '../../theme/formSx';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 import { useQuery } from '@tanstack/react-query';
 
 type Department = { id: string; name: string; company_id?: string | null };
@@ -14,6 +15,7 @@ type DepartmentMultiSelectProps = {
   onChange: (value: string[]) => void;
   companyId?: string | null;
   disabled?: boolean;
+  placeholder?: string;
   size?: 'small' | 'medium';
   year?: number;
   hideLabel?: boolean;
@@ -26,12 +28,14 @@ export default function DepartmentMultiSelect({
   onChange,
   companyId,
   disabled,
+  placeholder,
   size = 'medium',
   year,
   hideLabel = false,
   textFieldSx,
 }: DepartmentMultiSelectProps) {
-  const { t } = useTranslation(['master-data']);
+  const { t } = useTranslation(['master-data', 'common']);
+  const naked = hideLabel || label === '';
   const { data: departments, isLoading } = useQuery({
     queryKey: ['departments', 'active', companyId, year],
     queryFn: async () => {
@@ -54,7 +58,16 @@ export default function DepartmentMultiSelect({
   const selected = React.useMemo(() => sorted.filter((department) => selectedIds.has(department.id)), [selectedIds, sorted]);
   const isDisabled = disabled || !companyId || isLoading;
 
-  return (
+  const baseSx: SxProps<Theme> = [
+    ...(Array.isArray(textFieldSx) ? textFieldSx : [textFieldSx]),
+    {
+      '& .MuiInput-root:before': { display: 'none !important' },
+      '& .MuiInput-root:after': { display: 'none !important' },
+      '& .MuiInput-root:hover:not(.Mui-disabled):before': { display: 'none !important' },
+    },
+  ];
+
+  const control = (
     <Box sx={{ position: 'relative' }}>
       <Autocomplete
         multiple
@@ -84,22 +97,19 @@ export default function DepartmentMultiSelect({
         renderInput={(params) => (
           <TextField
             {...params}
-            label={hideLabel ? undefined : label}
-            placeholder={!companyId ? t('departments.selectCompanyFirst') : (selected.length === 0 ? 'All departments' : undefined)}
+            placeholder={
+              !companyId
+                ? t('departments.selectCompanyFirst')
+                : (selected.length === 0
+                    ? (placeholder ?? (naked ? t('common:selects.notSet') : 'All departments'))
+                    : undefined)
+            }
             size={size}
-            variant={hideLabel ? 'standard' : undefined}
-            sx={[
-              ...(Array.isArray(textFieldSx) ? textFieldSx : [textFieldSx]),
-              {
-                '& .MuiInput-root:before': { display: 'none !important' },
-                '& .MuiInput-root:after': { display: 'none !important' },
-                '& .MuiInput-root:hover:not(.Mui-disabled):before': { display: 'none !important' },
-              },
-            ]}
-            InputLabelProps={hideLabel ? undefined : { shrink: true }}
+            variant="standard"
+            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, baseSx) : baseSx}
             InputProps={{
               ...params.InputProps,
-              ...(hideLabel ? { disableUnderline: true } : {}),
+              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {isLoading ? <CircularProgress size={20} /> : null}
@@ -115,10 +125,18 @@ export default function DepartmentMultiSelect({
         }}
         disabled={isDisabled}
         loading={isLoading}
-        ListboxProps={hideLabel ? { sx: drawerAutocompleteListboxSx } : undefined}
+        ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
         size={size}
         fullWidth
       />
+    </Box>
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{label}</FieldLabel>
+      {control}
     </Box>
   );
 }

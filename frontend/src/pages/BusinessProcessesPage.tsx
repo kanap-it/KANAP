@@ -11,6 +11,7 @@ import { useAuth } from '../auth/AuthContext';
 import { STATUS_VALUES } from '../constants/status';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDateTime } from '../lib/dateFormat';
 import BusinessProcessCategoryManagerDialog from './business-processes/BusinessProcessCategoryManagerDialog';
 import ForbiddenPage from './ForbiddenPage';
 
@@ -111,7 +112,7 @@ export default function BusinessProcessesPage() {
         field: 'updated_at',
         headerName: t('shared.columns.updated'),
         width: 200,
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
         cellRenderer: (params: any) => (
           <LinkCellRenderer {...params} linkType="internal" getHref={getBusinessProcessHref} onNavigate={(href) => navigate(href)} />
         ),

@@ -15,6 +15,8 @@ import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilte
 import api from '../../api';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../i18n/useLocale';
+import { formatShortDate } from '../../lib/dateFormat';
 import { getDotColor, REQUEST_STATUS_COLORS } from '../../utils/statusColors';
 
 type RequestRow = {
@@ -51,20 +53,12 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_ORDER = Object.keys(STATUS_LABELS);
 
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `${day}-${month}-${year}`;
-}
-
 export default function RequestsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasLevel, profile } = useAuth();
   const { t } = useTranslation(['portfolio', 'common']);
+  const locale = useLocale();
   const [refreshKey, setRefreshKey] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -401,7 +395,7 @@ export default function RequestsPage() {
       headerName: t('requests.columns.targetDate'),
       width: 130,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
     },
     {
@@ -409,7 +403,7 @@ export default function RequestsPage() {
       headerName: t('requests.columns.created'),
       width: 130,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
     },
     {
@@ -417,11 +411,11 @@ export default function RequestsPage() {
       headerName: t('requests.columns.lastChanged'),
       width: 140,
       filter: 'agDateColumnFilter',
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueFormatter: (params: any) => formatShortDate(params.value, locale),
       cellRenderer: clickableCellRenderer,
       hide: true,
     },
-  ], [clickableCellRenderer, getRequestFilterValues, renderStatusCell, statusLabelMap, t]);
+  ], [clickableCellRenderer, getRequestFilterValues, locale, renderStatusCell, statusLabelMap, t]);
 
   const extraParams = useMemo(() => {
     const params: Record<string, any> = {

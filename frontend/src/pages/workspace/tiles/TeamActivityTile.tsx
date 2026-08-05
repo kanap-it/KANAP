@@ -12,6 +12,8 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDate } from '../../../lib/dateFormat';
 
 interface TeamActivityItem {
   id: string;
@@ -28,7 +30,7 @@ interface TeamActivityTileProps {
   config: Record<string, unknown>;
 }
 
-function formatTime(dateStr: string): string {
+function formatTime(dateStr: string, locale: string): string {
   const value = new Date(dateStr);
   const diffMs = Date.now() - value.getTime();
   const minutes = Math.max(1, Math.floor(diffMs / 60000));
@@ -37,7 +39,7 @@ function formatTime(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return value.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatShortDate(value, locale);
 }
 
 function buildSummary(item: TeamActivityItem): string {
@@ -53,6 +55,7 @@ function buildSummary(item: TeamActivityItem): string {
 export default function TeamActivityTile({ config }: TeamActivityTileProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
+  const locale = useLocale();
   const limit = Math.min((config.limit as number) || 5, 5);
 
   const { data, isLoading } = useQuery({
@@ -101,7 +104,7 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
                         sx={{ height: 20, fontSize: '0.7rem' }}
                       />
                       <Typography variant="caption" color="text.secondary">
-                        {formatTime(item.createdAt)}
+                        {formatTime(item.createdAt, locale)}
                       </Typography>
                     </Box>
                     <Typography variant="caption" color="text.secondary">

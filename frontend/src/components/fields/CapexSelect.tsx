@@ -1,9 +1,12 @@
 import React from 'react';
 import { Autocomplete, TextField, CircularProgress, Chip, Box } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 import { useLocale } from '../../i18n/useLocale';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type CapexItem = {
   id: string;
@@ -23,6 +26,8 @@ type CapexSelectProps = {
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(function CapexSelect(
@@ -33,10 +38,13 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
     disabled,
     error,
     helperText,
+    hideLabel = false,
+    textFieldSx,
   },
   ref,
 ) {
-  const { t } = useTranslation(['ops']);
+  const { t } = useTranslation(['ops', 'common']);
+  const naked = hideLabel || label === '';
   const locale = useLocale();
   const { data: items, isLoading } = useQuery({
     queryKey: ['capex-items', 'list'],
@@ -58,7 +66,7 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
     return sortedItems.filter((item) => value.includes(item.id));
   }, [sortedItems, value]);
 
-  return (
+  const control = (
     <Autocomplete
       multiple
       options={sortedItems}
@@ -93,15 +101,19 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
           />
         ))
       }
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           inputRef={ref}
+          placeholder={naked && selectedItems.length === 0 ? t('common:selects.notSet') : undefined}
           error={error}
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress color="inherit" size={20} /> : null}
@@ -123,6 +135,14 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
       noOptionsText={isLoading ? t('common:status.loading') : t('shared.noCapexItemsFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 });
 

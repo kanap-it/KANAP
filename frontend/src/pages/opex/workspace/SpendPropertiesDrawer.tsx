@@ -12,6 +12,8 @@ import UserSelect from '../../../components/fields/UserSelect';
 import { CURRENCY_OPTIONS, CurrencyOption } from '../../../constants/isoOptions';
 import useCurrencySettings from '../../../hooks/useCurrencySettings';
 import { STATUS_ENABLED, StatusValue } from '../../../constants/status';
+import { formatShortDate } from '../../../lib/dateFormat';
+import { useLocale } from '../../../i18n/useLocale';
 
 type Props = {
   mode?: 'create' | 'edit';
@@ -49,15 +51,6 @@ const hideInnerLabelSx = {
   '& .MuiFormControl-root': { m: 0 },
 } as const;
 
-function formatShortDate(value: string | null): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
-}
-
 export default function SpendPropertiesDrawer({
   mode = 'edit',
   supplierId,
@@ -87,6 +80,7 @@ export default function SpendPropertiesDrawer({
   onOwnerBusinessChange,
 }: Props) {
   const { t } = useTranslation(['ops', 'common']);
+  const locale = useLocale();
   const { data: currencySettings } = useCurrencySettings();
 
   const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
@@ -205,10 +199,10 @@ export default function SpendPropertiesDrawer({
       {mode === 'edit' && (
         <PropertyGroup>
           <PropertyRow label={t('opex.fields.created')}>
-            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt)}</Typography>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(createdAt, locale, { empty: '—' })}</Typography>
           </PropertyRow>
           <PropertyRow label={t('opex.fields.updated')}>
-            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt)}</Typography>
+            <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>{formatShortDate(updatedAt, locale, { empty: '—' })}</Typography>
           </PropertyRow>
         </PropertyGroup>
       )}

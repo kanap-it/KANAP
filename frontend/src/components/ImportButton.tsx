@@ -3,16 +3,13 @@ import {
   Alert,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Snackbar,
+  Typography,
 } from '@mui/material';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import { useTranslation } from 'react-i18next';
 import type { ImportDocumentResult } from '../api/endpoints/import';
-import { useKanapDialogs } from './design';
+import { KanapDialog, useKanapDialogs } from './design';
 
 interface ImportButtonProps {
   onImportFile: (file: File) => Promise<ImportDocumentResult>;
@@ -169,18 +166,18 @@ export default function ImportButton({
           void handleFileChange(event);
         }}
       />
-      <Dialog open={!!pendingFile} onClose={handleCancelConfirm}>
-        <DialogTitle>{t('import.replaceTitle')}</DialogTitle>
-        <DialogContent>
+      <KanapDialog
+        open={!!pendingFile}
+        title={t('import.replaceTitle')}
+        onClose={handleCancelConfirm}
+        onSave={() => { void handleConfirmImport(); }}
+        saveLabel={t('buttons.continue')}
+        cancelLabel={t('buttons.cancel')}
+      >
+        <Typography sx={{ fontSize: 13.5, color: 'kanap.text.primary' }}>
           {t('import.replaceDescription')}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelConfirm}>{t('buttons.cancel')}</Button>
-          <Button variant="contained" onClick={() => { void handleConfirmImport(); }}>
-            {t('buttons.continue')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Typography>
+      </KanapDialog>
       <Snackbar
         open={warningOpen}
         autoHideDuration={8000}

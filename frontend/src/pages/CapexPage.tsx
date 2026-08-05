@@ -18,6 +18,7 @@ import ForbiddenPage from './ForbiddenPage';
 import { STATUS_VALUES } from '../constants/status';
 import { formatAmount as formatNumber } from '../i18n/formatters';
 import { useLocale } from '../i18n/useLocale';
+import { formatShortDate, formatShortDateTime } from '../lib/dateFormat';
 // import StatusSwitch from '../components/fields/StatusSwitch';
 
 type SummaryRow = {
@@ -550,7 +551,7 @@ export default function CapexPage() {
         headerName: t('capex.columns.effectiveStart'),
         width: 150,
         defaultHidden: true,
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
+        valueFormatter: (p: any) => formatShortDate(p.value as string | null, locale),
         cellRenderer: linkCell('effective_start'),
       },
       {
@@ -558,7 +559,7 @@ export default function CapexPage() {
         headerName: t('capex.columns.effectiveEnd'),
         width: 150,
         defaultHidden: true,
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleDateString(locale) : ''),
+        valueFormatter: (p: any) => formatShortDate(p.value as string | null, locale),
         cellRenderer: linkCell('effective_end'),
       },
       {
@@ -623,7 +624,7 @@ export default function CapexPage() {
         field: 'created_at',
         headerName: t('capex.columns.created'),
         width: 200,
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
         defaultHidden: true,
         cellRenderer: linkCell('created_at'),
       },
@@ -631,7 +632,7 @@ export default function CapexPage() {
         field: 'updated_at',
         headerName: t('capex.columns.updated'),
         width: 200,
-        valueFormatter: (p: any) => (p.value ? new Date(p.value as string).toLocaleString(locale) : ''),
+        valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
         defaultHidden: true,
         cellRenderer: linkCell('updated_at'),
       },

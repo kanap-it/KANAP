@@ -46,6 +46,8 @@ import DeploymentsEditor from './components/DeploymentsEditor';
 import ApplicationRelationsPanel from './editors/ApplicationRelationsPanel';
 import ApplicationCreateEditor, { type ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
 import CreateVersionDialog from './components/CreateVersionDialog';
+import { formatShortDate } from '../../lib/dateFormat';
+import { useLocale } from '../../i18n/useLocale';
 
 type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
 
@@ -167,13 +169,6 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
-}
-
-function formatShortDate(value: string | null | undefined) {
-  if (!value) return 'Not set';
-  const date = new Date(String(value).includes('T') ? String(value) : `${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function humanize(value: string | null | undefined) {
@@ -1200,6 +1195,7 @@ function ComplianceTab({
 
 export default function ApplicationWorkspacePage() {
   const theme = useTheme();
+  const locale = useLocale();
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
@@ -1429,7 +1425,7 @@ export default function ApplicationWorkspacePage() {
               </PortfolioMetadataItem>
             )}
             <PortfolioMetadataItem label="Go live">
-              {formatShortDate(app.go_live_date)}
+              {formatShortDate(app.go_live_date, locale, { empty: 'Not set' })}
             </PortfolioMetadataItem>
           </>
         ) : undefined}
