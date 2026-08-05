@@ -20,6 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from '../i18n/useLocale';
 import { formatShortDate } from '../lib/dateFormat';
 import { getDotColor } from '../utils/statusColors';
+import { useTheme } from '@mui/material/styles';
+import { StatusDot } from '../components/design';
 
 type TaskRow = {
   id: string;
@@ -111,6 +113,7 @@ export default function TasksPage() {
   const { hasLevel, profile } = useAuth();
   const { t } = useTranslation(['portfolio', 'common']);
   const locale = useLocale();
+  const theme = useTheme();
 
   if (!hasLevel('tasks', 'reader')) {
     return <ForbiddenPage />;
@@ -177,14 +180,11 @@ export default function TasksPage() {
           fontSize: '0.8125rem', fontWeight: 500, color, lineHeight: 1,
         };
       }}>
-        <Box component="span" sx={(theme) => ({
-          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-          backgroundColor: getDotColor(colorKey, theme.palette.mode),
-        })} />
+        <StatusDot color={getDotColor(colorKey, theme.palette.mode)} />
         {label}
       </Box>
     );
-  }, [t]);
+  }, [t, theme.palette.mode]);
 
   const renderPriorityCell = useCallback((props: any) => {
     const priority = String(props.value || 'normal');

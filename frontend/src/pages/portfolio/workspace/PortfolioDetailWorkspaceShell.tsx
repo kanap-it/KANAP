@@ -441,14 +441,13 @@ export default function PortfolioDetailWorkspaceShell({
               onChange={(_, nextValue) => onTabChange(String(nextValue))}
               variant="scrollable"
               allowScrollButtonsMobile
-              sx={(theme) => ({
+              sx={{
                 minHeight: 'auto',
                 overflow: 'visible',
-                borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
                 '& .MuiTabs-indicator': { display: 'none' },
                 '& .MuiTabs-scroller': { overflow: 'visible !important' },
                 '& .MuiTabs-flexContainer': { overflow: 'visible', pt: '10px' },
-              })}
+              }}
             >
               {tabs.map((tab) => (
                 <Tab
@@ -506,16 +505,6 @@ export default function PortfolioDetailWorkspaceShell({
                     '&.Mui-disabled': {
                       color: theme.palette.kanap.text.tertiary,
                       opacity: 0.65,
-                    },
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      bottom: -1,
-                      height: activeTab === tab.key ? 2 : 0,
-                      borderRadius: 1,
-                      bgcolor: theme.palette.kanap.teal,
                     },
                   })}
                 />

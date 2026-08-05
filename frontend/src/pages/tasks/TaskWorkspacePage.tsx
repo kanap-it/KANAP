@@ -49,7 +49,7 @@ import {
 import { useLocale } from '../../i18n/useLocale';
 import { formatShortDateTime } from '../../lib/dateFormat';
 import { useTenant } from '../../tenant/TenantContext';
-import { useKanapDialogs } from '../../components/design';
+import { StatusDot, useKanapDialogs } from '../../components/design';
 
 const PROJECT_WORKSPACE_TABS = new Set([
   'summary',
@@ -1468,7 +1468,7 @@ export default function TaskWorkspacePage() {
                 const color = getDotColor(TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default', theme.palette.mode);
                 return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color };
               }}>
-                <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default', theme.palette.mode) })} />
+                <StatusDot color={getDotColor(TASK_STATUS_COLORS[(form.status as TaskStatus) || 'open'] || 'default', theme.palette.mode)} />
                 {getTaskStatusLabel(t, (form.status as TaskStatus) || 'open')}
               </Box>
               <Typography variant="body2" color="text.secondary">

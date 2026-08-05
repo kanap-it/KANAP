@@ -24,7 +24,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-import { KanapDialog, PropertyGroup, PropertyRow } from '../../components/design';
+import { KanapDialog, PropertyGroup, PropertyRow, StatusDot } from '../../components/design';
 import IntegratedDocumentEditor, { type IntegratedDocumentEditorHandle } from '../../components/IntegratedDocumentEditor';
 import DateEUField from '../../components/fields/DateEUField';
 import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
@@ -734,6 +734,7 @@ function InterfaceRowsTable({
   onOpenInterface: (id: string) => void;
   onOpenApplication: (id: string) => void;
 }) {
+  const theme = useTheme();
   const counterpartHeader = direction === 'inbound' ? 'Source' : direction === 'outbound' ? 'Target' : 'Endpoints';
 
   return (
@@ -803,7 +804,7 @@ function InterfaceRowsTable({
               <TableCell>
                 {row.via_middleware ? (
                   <Box sx={(theme) => ({ display: 'inline-flex', alignItems: 'center', gap: '6px', color: theme.palette.kanap.text.primary })}>
-                    <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', bgcolor: theme.palette.kanap.text.secondary, flexShrink: 0 })} />
+                    <StatusDot color={theme.palette.kanap.text.secondary} />
                     {viaMiddlewareLabel(row)}
                   </Box>
                 ) : '—'}
