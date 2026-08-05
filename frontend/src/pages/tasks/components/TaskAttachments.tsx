@@ -146,7 +146,7 @@ export default function TaskAttachments({
       </Stack>
 
       {hover && canManage && (
-        <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+        <Typography variant="caption" sx={(theme) => ({ display: 'block', mt: 0.5, color: theme.palette.kanap.text.tertiary })}>
           {t('workspace.task.attachments.dropHere')}
         </Typography>
       )}

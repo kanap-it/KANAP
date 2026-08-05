@@ -253,7 +253,7 @@ export default function UnifiedActivityForm({
               displayEmpty
               renderValue={(val) => {
                 const opt = statusOptions.find((o) => o.value === val) || statusOptions[0];
-                const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? '#9CA3AF';
+                const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? theme.palette.kanap.text.tertiary;
                 return (
                   <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <StatusDot size={7} color={dotColor} />
@@ -270,7 +270,7 @@ export default function UnifiedActivityForm({
               })}
             >
               {statusOptions.map((opt) => {
-                const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? '#9CA3AF';
+                const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? theme.palette.kanap.text.tertiary;
                 return (
                   <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: 13, gap: '8px' }}>
                     <StatusDot size={7} color={dotColor} />

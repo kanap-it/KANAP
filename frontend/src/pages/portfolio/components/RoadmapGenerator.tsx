@@ -53,6 +53,7 @@ import { useLocale } from '../../../i18n/useLocale';
 import { PortfolioGantt } from './PortfolioGantt';
 import { computeInactiveSegments } from './roadmap-inactive-segments';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
+import { kanapPalette, modeVal } from '../../tasks/theme/taskDetailTokens';
 import { downloadXlsxWorkbook } from '../../../lib/simpleXlsx';
 
 type RoadmapTab = 'schedule' | 'bottlenecks' | 'occupation';
@@ -858,7 +859,7 @@ const exportRoadmapGanttAsPng = async (
   const todayOffset = dayDiffUtc(rangeStart, today);
   if (todayOffset >= 0 && todayOffset < totalDays) {
     const x = leftWidth + (todayOffset * pxPerDay) + 0.5;
-    ctx.strokeStyle = '#1A6B7A';
+    ctx.strokeStyle = modeVal(kanapPalette.teal, 'light');
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x, headerHeight);

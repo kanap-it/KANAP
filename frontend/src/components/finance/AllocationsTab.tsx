@@ -11,6 +11,7 @@ import useAutosave from '../../hooks/useAutosave';
 import YearTabs from '../navigation/YearTabs';
 import { drawerSelectSx, drawerMenuItemSx } from '../../theme/formSx';
 import { FinanceModuleConfig } from './config';
+import { PropertyRow } from '../design';
 
 type PickerOption = { id: string; label: string };
 
@@ -341,21 +342,19 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
       </Box>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-end' }}>
-        <Box sx={{ minWidth: 200 }}>
-          <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t(`${config.i18nPrefix}.allocations.method`)}</Typography>
+        <PropertyRow label={t(`${config.i18nPrefix}.allocations.method`)} sx={{ minWidth: 200 }}>
           <TextField select fullWidth variant="standard" value={method} onChange={(e) => onMethodChange(e.target.value as Method)} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
             {methodOptions.map((o) => <MenuItem key={o.value} value={o.value} sx={drawerMenuItemSx}>{o.label}</MenuItem>)}
           </TextField>
-        </Box>
+        </PropertyRow>
         {isManualCompany && (
-          <Box sx={{ minWidth: 140 }}>
-            <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', mb: 0.5 }}>{t(`${config.i18nPrefix}.allocations.allocateBy`)}</Typography>
+          <PropertyRow label={t(`${config.i18nPrefix}.allocations.allocateBy`)} sx={{ minWidth: 140 }}>
             <TextField select fullWidth variant="standard" value={driver} onChange={(e) => { setDriver(e.target.value as Driver); scheduleSave(); }} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
               <MenuItem value="headcount" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.headcount`)}</MenuItem>
               <MenuItem value="it_users" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.itUsers`)}</MenuItem>
               <MenuItem value="turnover" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.turnover`)}</MenuItem>
             </TextField>
-          </Box>
+          </PropertyRow>
         )}
         <Box sx={{ ml: 'auto', textAlign: 'right' }}>
           <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>{t(`${config.i18nPrefix}.allocations.yearBudget`)}{currency ? ` · ${currency.toUpperCase()}` : ''}</Typography>
