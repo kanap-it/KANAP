@@ -107,6 +107,26 @@ export const taskDetailTypography = {
 } as const;
 
 /* ------------------------------------------------------------------ */
+/*  Metadata bar item styling (shared by all workspace metadata bars) */
+/* ------------------------------------------------------------------ */
+
+export const metaItemSx = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '7px',
+  ...taskDetailTypography.metaChip,
+} as const;
+
+export const metaItemClickableSx = {
+  ...metaItemSx,
+  cursor: 'pointer',
+} as const;
+
+export const metaLabelSx = {
+  ...taskDetailTypography.metaLabel,
+} as const;
+
+/* ------------------------------------------------------------------ */
 /*  Avatar sizes                                                      */
 /* ------------------------------------------------------------------ */
 

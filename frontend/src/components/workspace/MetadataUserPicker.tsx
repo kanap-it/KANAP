@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-import { taskDetailAvatarSizes, taskDetailTypography } from '../../pages/tasks/theme/taskDetailTokens';
+import { taskDetailAvatarSizes, taskDetailTypography, metaItemSx, metaLabelSx } from '../../pages/tasks/theme/taskDetailTokens';
 
 export type MetadataUserOption = {
   id: string;
@@ -38,17 +38,6 @@ type MetadataUserPickerProps = {
   onChange: (userId: string | null) => void;
   sx?: SxProps<Theme>;
 };
-
-const metaItemSx = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '7px',
-  ...taskDetailTypography.metaChip,
-} as const;
-
-const metaLabelSx = {
-  ...taskDetailTypography.metaLabel,
-} as const;
 
 export function formatMetadataUserName(user: MetadataUserOption | null | undefined): string | null {
   if (!user) return null;

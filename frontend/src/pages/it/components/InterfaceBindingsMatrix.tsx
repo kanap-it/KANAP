@@ -22,6 +22,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -29,7 +30,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api';
-import { KanapDialog, PropertyRow } from '../../../components/design';
+import { KanapDialog, PropertyRow, StatusDot } from '../../../components/design';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import {
   dialogBorderedFieldSx,
@@ -272,6 +273,7 @@ export default function InterfaceBindingsMatrix({
   integrationRouteType,
 }: Props) {
   const { t } = useTranslation(['it', 'common']);
+  const theme = useTheme();
   const { byField, labelFor } = useItOpsEnumOptions();
   const lifecycleOptions = React.useMemo(() => {
     const list = byField.lifecycleStatus || [];
@@ -993,15 +995,7 @@ export default function InterfaceBindingsMatrix({
 
   const renderStatusDot = (label: string, muiColor: string = 'default') => (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box
-        sx={(theme) => ({
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          flex: '0 0 auto',
-          bgcolor: getDotColor(muiColor, theme.palette.mode),
-        })}
-      />
+      <StatusDot color={getDotColor(muiColor, theme.palette.mode)} />
       <Typography
         component="span"
         sx={(theme) => ({

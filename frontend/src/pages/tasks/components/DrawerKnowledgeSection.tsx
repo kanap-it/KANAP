@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import KnowledgeLinkPickerDialog, { type KnowledgeLinkOption } from '../../../components/knowledge/KnowledgeLinkPickerDialog';
+import { tealLinkSx } from '../../../theme/formSx';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -247,7 +248,7 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
           <Box
             component="button"
             onClick={() => setLinkOpen(true)}
-            sx={(theme) => ({ color: theme.palette.kanap.teal, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', p: 0, fontFamily: 'inherit', whiteSpace: 'nowrap', '&:hover': { textDecoration: 'underline', textUnderlineOffset: '2px' } })}
+            sx={tealLinkSx}
           >
             + Link existing
           </Box>
@@ -258,7 +259,7 @@ export default function DrawerKnowledgeSection({ taskId, canCreate }: DrawerKnow
               component="button"
               onClick={() => createBlankMutation.mutate()}
               disabled={createBlankMutation.isPending}
-              sx={(theme) => ({ color: theme.palette.kanap.teal, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', p: 0, fontFamily: 'inherit', whiteSpace: 'nowrap', '&:hover': { textDecoration: 'underline', textUnderlineOffset: '2px' } })}
+              sx={tealLinkSx}
             >
               + New document
             </Box>

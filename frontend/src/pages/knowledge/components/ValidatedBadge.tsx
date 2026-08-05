@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import { useTranslation } from 'react-i18next';
 import { getDotColor } from '../../../utils/statusColors';
+import { StatusDot } from '../../../components/design';
 
 type ValidatedBadgeProps = {
   size?: 'small' | 'medium';
@@ -30,7 +31,7 @@ export default function ValidatedBadge({ size = 'small', validatedAtLabel, iconO
   return (
     <Tooltip title={title}>
       <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('success', mode) }} />
+        <StatusDot color={getDotColor('success', mode)} />
         <Typography variant="body2" sx={{ color: getDotColor('success', mode), fontWeight: 500, fontSize: '0.8125rem' }}>
           {t('validatedBadge.label')}
         </Typography>

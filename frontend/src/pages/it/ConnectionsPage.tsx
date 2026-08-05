@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
+import { StatusDot } from '../../components/design';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -119,7 +120,7 @@ export default function ConnectionsPage() {
       const color = params.colorMap[value] || '#9CA3AF';
       return (
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
-          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+          <StatusDot color={color} />
           <Box component="span" sx={{ fontSize: 13 }}>{params.labelFn(value)}</Box>
         </Box>
       );
@@ -213,7 +214,7 @@ export default function ConnectionsPage() {
         const color = CRIT_DOT_COLORS[value] || '#9CA3AF';
         return (
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+            <StatusDot color={color} />
             <Box component="span" sx={{ fontSize: 13 }}>
               {CRIT_LABELS[value] || value}
               {isDerived && (
@@ -261,7 +262,7 @@ export default function ConnectionsPage() {
         const label = labelFor('lifecycleStatus', value) || value;
         return (
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+            <StatusDot color={color} />
             <Box component="span" sx={{ fontSize: 13 }}>{label}</Box>
           </Box>
         );

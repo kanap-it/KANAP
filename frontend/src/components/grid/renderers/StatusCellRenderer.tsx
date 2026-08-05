@@ -3,6 +3,7 @@ import { Box, ChipProps, useTheme } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
 import { useTranslation } from 'react-i18next';
 import { getDotColor } from '../../../utils/statusColors';
+import { StatusDot } from '../../design';
 
 /**
  * Status value mapping configuration
@@ -150,16 +151,7 @@ export function StatusCellRenderer<T = unknown>(
         lineHeight: 1,
       }}
     >
-      <Box
-        component="span"
-        sx={{
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          backgroundColor: dotColor,
-          flexShrink: 0,
-        }}
-      />
+      <StatusDot color={dotColor} />
       {label}
     </Box>
   );

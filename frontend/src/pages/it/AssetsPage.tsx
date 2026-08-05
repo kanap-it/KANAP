@@ -6,6 +6,7 @@ import ServerDataGrid, { EnhancedColDef } from '../../components/ServerDataGrid'
 import { ICellRendererParams } from 'ag-grid-community';
 import { LinkCellRenderer } from '../../components/grid/renderers';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
+import { StatusDot } from '../../components/design';
 import { useAuth } from '../../auth/AuthContext';
 import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
@@ -219,7 +220,7 @@ export default function AssetsPage() {
           onClick={(event) => handleInternalNavigate(event, href)}
           sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', textDecoration: 'none', color: 'text.primary', '&:hover': { textDecoration: 'none' } }}
         >
-          <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getEnvDotColor(env, mode), flexShrink: 0 }} />
+          <StatusDot color={getEnvDotColor(env, mode)} />
           {envLabel(env)}
         </Link>
       );

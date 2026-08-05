@@ -53,6 +53,7 @@ import { AiApiKeyRecord } from '../../ai/aiTypes';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { useTheme } from '@mui/material/styles';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../../components/design';
 
 type AiSettingsForm = {
   chat_enabled: boolean;
@@ -567,15 +568,15 @@ export default function AdminAiPage() {
                       <Typography variant="h6">{t('aiAdmin.provider.title')}</Typography>
                       <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ ml: 'auto' }}>
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(settingsQuery.data.settings.chat_enabled ? 'success' : 'default', mode) }} />
+                          <StatusDot color={getDotColor(settingsQuery.data.settings.chat_enabled ? 'success' : 'default', mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor(settingsQuery.data.settings.chat_enabled ? 'success' : 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{settingsQuery.data.settings.chat_enabled ? t('aiAdmin.provider.chips.chatEnabled') : t('aiAdmin.provider.chips.chatDisabled')}</Typography>
                         </Box>
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(settingsQuery.data.settings.mcp_enabled ? 'success' : 'default', mode) }} />
+                          <StatusDot color={getDotColor(settingsQuery.data.settings.mcp_enabled ? 'success' : 'default', mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor(settingsQuery.data.settings.mcp_enabled ? 'success' : 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{settingsQuery.data.settings.mcp_enabled ? t('aiAdmin.provider.chips.mcpEnabled') : t('aiAdmin.provider.chips.mcpDisabled')}</Typography>
                         </Box>
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(settingsQuery.data.settings.chat_ready ? 'success' : 'default', mode) }} />
+                          <StatusDot color={getDotColor(settingsQuery.data.settings.chat_ready ? 'success' : 'default', mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor(settingsQuery.data.settings.chat_ready ? 'success' : 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{settingsQuery.data.settings.chat_ready ? t('aiAdmin.provider.chips.providerReady') : t('aiAdmin.provider.chips.providerIncomplete')}</Typography>
                         </Box>
                       </Stack>
@@ -930,12 +931,12 @@ export default function AdminAiPage() {
                             <TableCell>
                               {key.revoked_at ? (
                                 <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('error', mode) }} />
+                                  <StatusDot color={getDotColor('error', mode)} />
                                   <Typography variant="body2" sx={{ color: getDotColor('error', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('aiAdmin.keys.statuses.revoked')}</Typography>
                                 </Box>
                               ) : (
                                 <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('success', mode) }} />
+                                  <StatusDot color={getDotColor('success', mode)} />
                                   <Typography variant="body2" sx={{ color: getDotColor('success', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{t('aiAdmin.keys.statuses.active')}</Typography>
                                 </Box>
                               )}

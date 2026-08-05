@@ -10,6 +10,7 @@ import TaskHistory from './TaskHistory';
 import TaskWorkLog from './TaskWorkLog';
 import type { TaskStatus } from '../task.constants';
 import { taskDetailTokens } from '../theme/taskDetailTokens';
+import { textTabSx, textTabsSx } from '../../../theme/formSx';
 
 type ActivityTab = 'comments' | 'history' | 'worklog';
 
@@ -53,38 +54,23 @@ export default function TaskActivity({
         <Tabs
           value={activeTab}
           onChange={(_, v) => setActiveTab(v)}
-          sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
+          sx={textTabsSx}
         >
           <Tab
             label={t('activity.tabs.comments')}
             value="comments"
-            sx={(theme) => ({
-              minHeight: 'auto', p: 0, mr: 2, textTransform: 'none', minWidth: 'auto',
-              fontSize: '13px',
-              fontWeight: activeTab === 'comments' ? 500 : 400,
-              color: activeTab === 'comments' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
-            })}
+            sx={textTabSx(activeTab === 'comments')}
           />
           <Tab
             label={t('activity.tabs.history')}
             value="history"
-            sx={(theme) => ({
-              minHeight: 'auto', p: 0, mr: 2, textTransform: 'none', minWidth: 'auto',
-              fontSize: '13px',
-              fontWeight: activeTab === 'history' ? 500 : 400,
-              color: activeTab === 'history' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
-            })}
+            sx={textTabSx(activeTab === 'history')}
           />
           {supportsTimeLogging && (
             <Tab
               label={t('activity.tabs.workLog')}
               value="worklog"
-              sx={(theme) => ({
-                minHeight: 'auto', p: 0, textTransform: 'none', minWidth: 'auto',
-                fontSize: '13px',
-                fontWeight: activeTab === 'worklog' ? 500 : 400,
-                color: activeTab === 'worklog' ? theme.palette.kanap.text.primary : theme.palette.kanap.text.tertiary,
-              })}
+              sx={[textTabSx(activeTab === 'worklog'), { mr: 0 }]}
             />
           )}
         </Tabs>

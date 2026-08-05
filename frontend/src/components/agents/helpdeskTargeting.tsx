@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { aiAgentControlApi, type AiAgentControlRefItem } from '../../ai/aiApi';
 import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
 import { getDotColor } from '../../utils/statusColors';
+import { StatusDot } from '../design';
 
 export const DEFAULT_MAX_TICKETS = 5;
 export const DEFAULT_MAX_REQUESTS = 10;
@@ -372,7 +373,7 @@ function DotOptionLabel({ color, label }: { color: string; label: React.ReactNod
   const dotColor = getDotColor(color, theme.palette.mode);
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: dotColor, flex: '0 0 auto' }} />
+      <StatusDot size={7} color={dotColor} />
       <Typography variant="body2" sx={{ color: dotColor, minWidth: 0 }}>{label}</Typography>
     </Stack>
   );

@@ -17,7 +17,8 @@ import { TASK_STATUS_COLORS, TASK_STATUS_LABELS } from '../pages/tasks/task.cons
 import type { TaskStatus } from '../pages/tasks/task.constants';
 import { getApiErrorMessage } from '../utils/apiErrorMessage';
 import { getDotColor, PRIORITY_COLORS } from '../utils/statusColors';
-import { useKanapDialogs } from './design';
+import { StatusDot, useKanapDialogs } from './design';
+import { useTheme } from '@mui/material/styles';
 
 type Task = {
   id: string;
@@ -70,6 +71,7 @@ const PARAM_NAMES: Record<EntityType, string> = {
 
 export default function EntityTasksPanel({ entityType, entityId, phases = [], disabled = false, onTasksChange }: Props) {
   const navigate = useNavigate();
+  const theme = useTheme();
   const location = useLocation();
   const queryClient = useQueryClient();
   const { t } = useTranslation(['portfolio', 'common', 'errors']);
@@ -319,7 +321,7 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
                         fontSize: '0.8125rem', fontWeight: 500,
                         color: getDotColor(colorKey, theme.palette.mode),
                       })}>
-                        <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(colorKey, theme.palette.mode) })} />
+                        <StatusDot color={getDotColor(colorKey, theme.palette.mode)} />
                         {t(`portfolio:statuses.task.${task.status}`, { defaultValue: STATUS_LABELS[task.status] || task.status })}
                       </Box>
                     );
