@@ -39,7 +39,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
-import { KanapDialog, PropertyRow } from '../../components/design';
+import { KanapDialog, PropertyRow, StatusDot } from '../../components/design';
 import ServerDataGrid from '../../components/ServerDataGrid';
 import type { EnhancedColDef } from '../../components/ServerDataGrid';
 import { LinkCellRenderer } from '../../components/grid/renderers';
@@ -161,7 +161,7 @@ function StatusCellRenderer(props: any) {
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ height: '100%' }}>
       <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(colorKey, mode) }} />
+        <StatusDot color={getDotColor(colorKey, mode)} />
         <Typography variant="body2" sx={{ color: getDotColor(colorKey, mode), fontWeight: 500, fontSize: '0.8125rem' }}>
           {t(`knowledge:statuses.${status}`, { defaultValue: STATUS_LABELS[status] || status })}
         </Typography>

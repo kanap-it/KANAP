@@ -47,7 +47,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import api from '../../../api';
-import { KanapDialog } from '../../../components/design';
+import { KanapDialog, StatusDot } from '../../../components/design';
 import LightModeIsland from '../../../components/LightModeIsland';
 import { useLocale } from '../../../i18n/useLocale';
 import { PortfolioGantt } from './PortfolioGantt';
@@ -2250,7 +2250,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {selected.map((status) => (
                       <Box key={status} component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(PROJECT_STATUS_COLORS[status] ?? 'default', mode) }} />
+                        <StatusDot color={getDotColor(PROJECT_STATUS_COLORS[status] ?? 'default', mode)} />
                         <Typography variant="body2" sx={{ color: getDotColor(PROJECT_STATUS_COLORS[status] ?? 'default', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{STATUS_LABELS[status] || status}</Typography>
                       </Box>
                     ))}
@@ -2426,7 +2426,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                           <Box component="span" sx={{ color: getDotColor('info', mode), fontSize: '0.8125rem' }}>{formatConstraint(override.constraint)}</Box>
                           {warningCount > 0 && (
                             <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                              <StatusDot color={getDotColor('warning', mode)} />
                               <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{`Conflict${warningCount > 1 ? 's' : ''}`}</Typography>
                             </Box>
                           )}
@@ -2582,13 +2582,13 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                                 <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap" useFlexGap>
                                   {pinStartValue && (
                                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+                                      <StatusDot color={getDotColor('info', mode)} />
                                       <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Pinned</Typography>
                                     </Box>
                                   )}
                                   {hasConstraintConflict && (
                                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                                      <StatusDot color={getDotColor('warning', mode)} />
                                       <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Conflict</Typography>
                                     </Box>
                                   )}
@@ -2702,13 +2702,13 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                               <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                                 {pinStartValue && (
                                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('info', mode) }} />
+                                    <StatusDot color={getDotColor('info', mode)} />
                                     <Typography variant="body2" sx={{ color: getDotColor('info', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Pinned</Typography>
                                   </Box>
                                 )}
                                 {hasConstraintConflict && (
                                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                                    <StatusDot color={getDotColor('warning', mode)} />
                                     <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>Conflict</Typography>
                                   </Box>
                                 )}
@@ -3161,7 +3161,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                 <Typography variant="body2" color="text.secondary">{activeGanttFocusScope === 'contributor' ? 'Contributor Significance View' : 'Team Significance View'}</Typography>
                 {hiddenSupportSummary && (
                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                    <StatusDot color={getDotColor('warning', mode)} />
                     <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>{`Hidden support work: ${hiddenSupportSummary.count} project(s), ${hiddenSupportSummary.totalDays.toFixed(1)}d`}</Typography>
                   </Box>
                 )}
@@ -3388,7 +3388,7 @@ export default function RoadmapGenerator({ onApplied }: Props) {
                       </Typography>
                       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning', mode) }} />
+                          <StatusDot color={getDotColor(selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning', mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor(selectedFocusTimeline.significance === 'primary' ? 'success' : 'warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>
                             {selectedFocusTimeline.significance === 'primary' ? 'Primary roadmap work' : 'Support work'}
                           </Typography>

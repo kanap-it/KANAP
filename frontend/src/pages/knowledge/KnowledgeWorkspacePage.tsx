@@ -24,6 +24,7 @@ import api from '../../api';
 import ExportButton from '../../components/ExportButton';
 import ImportButton from '../../components/ImportButton';
 import SendLinkButton from '../../components/workspace/SendLinkButton';
+import { StatusDot } from '../../components/design';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
@@ -1913,7 +1914,7 @@ export default function KnowledgeWorkspacePage() {
                     {!isCreate && (
                       <>
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(currentStatusColor, theme.palette.mode) }} />
+                          <StatusDot color={getDotColor(currentStatusColor, theme.palette.mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor(currentStatusColor, theme.palette.mode), fontWeight: 500, fontSize: '0.8125rem' }}>
                             {currentStatusLabel}
                           </Typography>

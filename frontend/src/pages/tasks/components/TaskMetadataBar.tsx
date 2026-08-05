@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { taskDetailTokens, taskDetailTypography, STATUS_DOT_COLORS, PRIORITY_DOT_COLORS, getScoreColor } from '../theme/taskDetailTokens';
+import { taskDetailTokens, taskDetailTypography, metaItemClickableSx, metaLabelSx, STATUS_DOT_COLORS, PRIORITY_DOT_COLORS, getScoreColor } from '../theme/taskDetailTokens';
 import type { PriorityLevel } from '../theme/taskDetailTokens';
 import type { TaskStatus } from '../task.constants';
 import { TASK_STATUS_OPTIONS } from '../task.constants';
@@ -17,6 +17,7 @@ import DateEUField from '../../../components/fields/DateEUField';
 import { formatShortDate } from '../../../lib/dateFormat';
 import { useLocale } from '../../../i18n/useLocale';
 import MetadataUserPicker from '../../../components/workspace/MetadataUserPicker';
+import { StatusDot } from '../../../components/design';
 
 interface TaskMetadataBarProps {
   status: TaskStatus;
@@ -33,26 +34,6 @@ interface TaskMetadataBarProps {
   onNavigateToProject?: (projectId: string) => void;
 }
 
-/* ---- Shared chip style ---- */
-
-const metaItemSx = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '7px',
-  cursor: 'pointer',
-  ...taskDetailTypography.metaChip,
-} as const;
-
-const metaLabelSx = {
-  ...taskDetailTypography.metaLabel,
-} as const;
-
-const dotSx = {
-  width: 8,
-  height: 8,
-  borderRadius: '50%',
-  flexShrink: 0,
-} as const;
 
 /* ================================================================== */
 /*  StatusChip                                                        */
@@ -68,10 +49,10 @@ function StatusChip({ status, readOnly, onPatch }: { status: TaskStatus; readOnl
   return (
     <>
       <Box
-        sx={{ ...metaItemSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
+        sx={{ ...metaItemClickableSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
         onClick={readOnly ? undefined : (e) => setAnchor(e.currentTarget)}
       >
-        <Box component="span" sx={{ ...dotSx, bgcolor: color }} />
+        <StatusDot color={color} size={8} />
         <span>{getTaskStatusLabel(t, status)}</span>
       </Box>
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
@@ -82,7 +63,7 @@ function StatusChip({ status, readOnly, onPatch }: { status: TaskStatus; readOnl
             onClick={() => { onPatch({ status: opt.value }); setAnchor(null); }}
             sx={{ gap: '8px', fontSize: 13 }}
           >
-            <Box component="span" sx={{ ...dotSx, bgcolor: STATUS_DOT_COLORS[opt.value]?.[mode] }} />
+            <StatusDot color={STATUS_DOT_COLORS[opt.value]?.[mode]} size={8} />
             {getTaskStatusLabel(t, opt.value)}
           </MenuItem>
         ))}
@@ -106,7 +87,7 @@ function PriorityChip({ priority, readOnly, onPatch }: { priority: PriorityLevel
   return (
     <>
       <Box
-        sx={{ ...metaItemSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
+        sx={{ ...metaItemClickableSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
         onClick={readOnly ? undefined : (e) => setAnchor(e.currentTarget)}
       >
         <Box component="span" sx={{ ...metaLabelSx, color: theme.palette.kanap.text.tertiary }}>
@@ -122,7 +103,7 @@ function PriorityChip({ priority, readOnly, onPatch }: { priority: PriorityLevel
             onClick={() => { onPatch({ priority_level: p }); setAnchor(null); }}
             sx={{ gap: '8px', fontSize: 13 }}
           >
-            <Box component="span" sx={{ ...dotSx, bgcolor: PRIORITY_DOT_COLORS[p]?.[mode] }} />
+            <StatusDot color={PRIORITY_DOT_COLORS[p]?.[mode]} size={8} />
             {getPriorityLabel(t, p)}
           </MenuItem>
         ))}
@@ -146,8 +127,8 @@ function ScoreChip({ score, isProjectTask }: { score: number; isProjectTask?: bo
 
   return (
     <Tooltip title={t('workspace.task.priority.projectPriorityTitle')} arrow>
-      <Box sx={{ ...metaItemSx, cursor: 'default', color: theme.palette.kanap.text.primary }}>
-        <Box component="span" sx={{ ...dotSx, bgcolor: color }} />
+      <Box sx={{ ...metaItemClickableSx, cursor: 'default', color: theme.palette.kanap.text.primary }}>
+        <StatusDot color={color} size={8} />
         <Box component="span" sx={{ ...metaLabelSx, color: theme.palette.kanap.text.tertiary }}>
           {t('workspace.task.priority.projectPriority')}
         </Box>
@@ -178,7 +159,7 @@ function DueDateChip({ dueDate, readOnly, onPatch }: { dueDate: string | null; r
   return (
     <>
       <Box
-        sx={{ ...metaItemSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
+        sx={{ ...metaItemClickableSx, color: theme.palette.kanap.text.primary, ...(readOnly && { cursor: 'default' }) }}
         onClick={readOnly ? undefined : (e) => setAnchor(e.currentTarget)}
       >
         <Box component="span" sx={{ ...metaLabelSx, color: theme.palette.kanap.text.tertiary }}>
@@ -257,7 +238,7 @@ export default function TaskMetadataBar({
           onClick={(e: React.MouseEvent) => { e.preventDefault(); onNavigateToProject(projectId); }}
           title={projectName}
           sx={{
-            ...metaItemSx,
+            ...metaItemClickableSx,
             textDecoration: 'none',
             color: theme.palette.kanap.text.primary,
             '&:hover .kanap-meta-project-name': {

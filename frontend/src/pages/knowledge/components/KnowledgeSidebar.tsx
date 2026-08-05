@@ -25,7 +25,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import { getDotColor } from '../../../utils/statusColors';
-import { PropertyRow } from '../../../components/design';
+import { PropertyRow, StatusDot } from '../../../components/design';
 import {
   drawerAutocompleteListboxSx,
   drawerMenuItemSx,
@@ -758,7 +758,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     <>
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" alignItems="center">
                         <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor('warning', mode) }} />
+                          <StatusDot color={getDotColor('warning', mode)} />
                           <Typography variant="body2" sx={{ color: getDotColor('warning', mode), fontWeight: 500, fontSize: '0.8125rem' }}>
                             {currentStage === 'approver' ? t('sidebar.workflow.values.awaitingApproval') : t('sidebar.workflow.values.awaitingReview')}
                           </Typography>
@@ -790,7 +790,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                               const _l = reviewerStageState === 'active' ? t('sidebar.workflow.values.active') : reviewerStageState === 'completed' ? t('sidebar.workflow.values.completed') : t('sidebar.workflow.values.pending');
                               return (
                                 <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                  <StatusDot color={getDotColor(_c, mode)} />
                                   <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
                                 </Box>
                               );
@@ -804,7 +804,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                 const _l = row.decision === 'approved' ? t('sidebar.workflow.values.approved') : row.decision === 'changes_requested' ? t('sidebar.workflow.values.changesRequested') : t('sidebar.workflow.values.pending');
                                 return (
                                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                    <StatusDot color={getDotColor(_c, mode)} />
                                     <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
                                   </Box>
                                 );
@@ -833,7 +833,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                               const _l = approverStageState === 'active' ? t('sidebar.workflow.values.active') : approverStageState === 'completed' ? t('sidebar.workflow.values.completed') : approverStageState === 'waiting' ? t('sidebar.workflow.values.waiting') : t('sidebar.workflow.values.pending');
                               return (
                                 <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                  <StatusDot color={getDotColor(_c, mode)} />
                                   <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
                                 </Box>
                               );
@@ -853,7 +853,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                       : t('sidebar.workflow.values.pending');
                                 return (
                                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(_c, mode) }} />
+                                    <StatusDot color={getDotColor(_c, mode)} />
                                     <Typography variant="body2" sx={{ color: getDotColor(_c, mode), fontWeight: 500, fontSize: '0.8125rem' }}>{_l}</Typography>
                                   </Box>
                                 );

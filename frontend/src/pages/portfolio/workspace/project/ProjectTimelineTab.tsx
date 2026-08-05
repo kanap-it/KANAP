@@ -60,7 +60,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../../api';
-import { KanapDialog } from '../../../../components/design';
+import { KanapDialog, StatusDot } from '../../../../components/design';
+import { useTheme } from '@mui/material/styles';
 import DateEUField from '../../../../components/fields/DateEUField';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { useLocale } from '../../../../i18n/useLocale';
@@ -171,19 +172,11 @@ function getPhaseStatusColorName(status: string): string {
 
 function PhaseStatusValue({ status }: { status: string }) {
   const { t } = useTranslation(['portfolio']);
+  const theme = useTheme();
 
   return (
     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-      <Box
-        component="span"
-        sx={(theme) => ({
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          flexShrink: 0,
-          bgcolor: getDotColor(getPhaseStatusColorName(status), theme.palette.mode),
-        })}
-      />
+      <StatusDot size={7} color={getDotColor(getPhaseStatusColorName(status), theme.palette.mode)} />
       <Box component="span" sx={(theme) => ({ fontSize: 13, fontWeight: 400, color: theme.palette.kanap.text.primary })}>
         {getPhaseStatusLabel(t, status)}
       </Box>
@@ -194,19 +187,11 @@ function PhaseStatusValue({ status }: { status: string }) {
 function TaskStatusValue({ status }: { status: string }) {
   const { t } = useTranslation(['portfolio']);
   const colorName = TASK_STATUS_COLORS[status] || 'default';
+  const theme = useTheme();
 
   return (
     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-      <Box
-        component="span"
-        sx={(theme) => ({
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          flexShrink: 0,
-          bgcolor: getDotColor(colorName, theme.palette.mode),
-        })}
-      />
+      <StatusDot size={7} color={getDotColor(colorName, theme.palette.mode)} />
       <Box component="span" sx={(theme) => ({ fontSize: 13, fontWeight: 400, color: theme.palette.kanap.text.primary })}>
         {getTaskStatusLabel(t, status)}
       </Box>

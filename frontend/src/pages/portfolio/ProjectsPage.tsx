@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../i18n/useLocale';
 import { formatShortDate } from '../../lib/dateFormat';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../utils/statusColors';
+import { useTheme } from '@mui/material/styles';
+import { StatusDot } from '../../components/design';
 
 type ProjectRow = {
   id: string;
@@ -81,6 +83,7 @@ export default function ProjectsPage() {
   const { hasLevel, profile } = useAuth();
   const { t } = useTranslation(['portfolio', 'common']);
   const locale = useLocale();
+  const theme = useTheme();
   const [refreshKey, setRefreshKey] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -111,11 +114,11 @@ export default function ProjectsPage() {
         const color = getDotColor(PROJECT_STATUS_COLORS[status], theme.palette.mode);
         return { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', fontWeight: 500, color, lineHeight: 1 };
       }}>
-        <Box component="span" sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: getDotColor(PROJECT_STATUS_COLORS[status], theme.palette.mode) })} />
+        <StatusDot color={getDotColor(PROJECT_STATUS_COLORS[status], theme.palette.mode)} />
         {label}
       </Box>
     );
-  }, [t]);
+  }, [t, theme.palette.mode]);
 
   // Read filters from URL to restore state when returning from workspace
   const urlFilters = useMemo(() => {
