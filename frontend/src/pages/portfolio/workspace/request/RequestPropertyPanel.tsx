@@ -17,7 +17,7 @@ import DepartmentSelect from '../../../../components/fields/DepartmentSelect';
 import DateEUField from '../../../../components/fields/DateEUField';
 import TeamMemberMultiSelect from '../../../../components/fields/TeamMemberMultiSelect';
 import { PropertyGroup, PropertyRow } from '../../../../components/design';
-import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, selectPlaceholderSx } from '../../../../theme/formSx';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { getProjectStatusLabel } from '../../../../utils/portfolioI18n';
 
@@ -162,6 +162,7 @@ export default function RequestPropertyPanel({
             variant="standard"
             disableUnderline
             displayEmpty
+            renderValue={(v) => (v ? (sources.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
           >
             <MenuItem value="" sx={drawerMenuItemSx}>{noneLabel}</MenuItem>
@@ -181,6 +182,7 @@ export default function RequestPropertyPanel({
             variant="standard"
             disableUnderline
             displayEmpty
+            renderValue={(v) => (v ? (categories.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
           >
             <MenuItem value="" sx={drawerMenuItemSx}>{noneLabel}</MenuItem>
@@ -200,6 +202,7 @@ export default function RequestPropertyPanel({
             variant="standard"
             disableUnderline
             displayEmpty
+            renderValue={(v) => (v ? (filteredStreams.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
           >
             <MenuItem value="" sx={drawerMenuItemSx}>{noneLabel}</MenuItem>
@@ -213,7 +216,7 @@ export default function RequestPropertyPanel({
 
         <PropertyRow label={t('workspace.request.fields.requestor')}>
           <UserSelect
-            label={t('workspace.request.fields.requestor')}
+            hideLabel
             value={form?.requestor_id || null}
             onChange={onRequestorChange}
             disabled={coreFieldsDisabled}
@@ -223,7 +226,7 @@ export default function RequestPropertyPanel({
 
         <PropertyRow label={t('workspace.request.fields.company')}>
           <CompanySelect
-            label={t('workspace.request.fields.company')}
+            hideLabel
             value={form?.company_id || null}
             onChange={onCompanyChange}
             disabled={coreFieldsDisabled}
@@ -233,7 +236,7 @@ export default function RequestPropertyPanel({
 
         <PropertyRow label={t('workspace.request.fields.department')}>
           <DepartmentSelect
-            label={t('workspace.request.fields.department')}
+            hideLabel
             companyId={form?.company_id || undefined}
             value={form?.department_id || null}
             onChange={(value) => onUpdate({ department_id: value })}
@@ -244,7 +247,7 @@ export default function RequestPropertyPanel({
 
         <PropertyRow label={t('workspace.request.fields.targetDeliveryDate')}>
           <DateEUField
-            label={t('workspace.request.fields.targetDeliveryDate')}
+            label=""
             valueYmd={form?.target_delivery_date || ''}
             onChangeYmd={(value) => onUpdate({ target_delivery_date: value })}
             disabled={coreFieldsDisabled}
@@ -257,7 +260,7 @@ export default function RequestPropertyPanel({
         <PropertyGroup>
           <PropertyRow label={t('workspace.request.fields.businessSponsor')}>
             <UserSelect
-              label={t('workspace.request.fields.businessSponsor')}
+              hideLabel
               value={form?.business_sponsor_id || null}
               onChange={(value) => handleImmediateSave(
                 () => api.patch(`/portfolio/requests/${form.id}`, { business_sponsor_id: value }),
@@ -270,7 +273,7 @@ export default function RequestPropertyPanel({
 
           <PropertyRow label={t('workspace.request.fields.businessLead')}>
             <UserSelect
-              label={t('workspace.request.fields.businessLead')}
+              hideLabel
               value={form?.business_lead_id || null}
               onChange={(value) => handleImmediateSave(
                 () => api.patch(`/portfolio/requests/${form.id}`, { business_lead_id: value }),
@@ -283,7 +286,7 @@ export default function RequestPropertyPanel({
 
           <PropertyRow label={t('workspace.request.fields.itSponsor')}>
             <UserSelect
-              label={t('workspace.request.fields.itSponsor')}
+              hideLabel
               value={form?.it_sponsor_id || null}
               onChange={(value) => handleImmediateSave(
                 () => api.patch(`/portfolio/requests/${form.id}`, { it_sponsor_id: value }),
@@ -296,7 +299,7 @@ export default function RequestPropertyPanel({
 
           <PropertyRow label={t('workspace.request.fields.itLead')}>
             <UserSelect
-              label={t('workspace.request.fields.itLead')}
+              hideLabel
               value={form?.it_lead_id || null}
               onChange={(value) => handleImmediateSave(
                 () => api.patch(`/portfolio/requests/${form.id}`, { it_lead_id: value }),

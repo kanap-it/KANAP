@@ -1,8 +1,11 @@
 import React from 'react';
-import { Autocomplete, Chip, CircularProgress, TextField } from '@mui/material';
+import { Autocomplete, Box, Chip, CircularProgress, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type AssetOption = {
   id: string;
@@ -21,6 +24,8 @@ type AssetMultiSelectProps = {
   disabled?: boolean;
   placeholder?: string;
   size?: 'small' | 'medium';
+  hideLabel?: boolean;
+  textFieldSx?: SxProps<Theme>;
 };
 
 function assetLabel(asset: AssetOption): string {
@@ -34,9 +39,12 @@ export default function AssetMultiSelect({
   disabled,
   placeholder,
   size,
+  hideLabel = false,
+  textFieldSx,
 }: AssetMultiSelectProps) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.assets', { defaultValue: 'Assets' });
+  const naked = hideLabel || label === '';
   const ids = Array.isArray(value) ? value : [];
 
   const { data: assets = [], isLoading } = useQuery({
@@ -72,13 +80,14 @@ export default function AssetMultiSelect({
   const selected = options.filter((option) => ids.includes(option.id));
   const loading = isLoading || isLoadingMissing;
 
-  return (
+  const control = (
     <Autocomplete
       multiple
       options={options}
       value={selected}
       onChange={(_, next) => onChange(Array.from(new Set(next.map((item) => item.id))))}
       getOptionLabel={assetLabel}
+      ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
       size={size}
       disabled={disabled || loading}
       loading={loading}
@@ -95,12 +104,13 @@ export default function AssetMultiSelect({
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
-          placeholder={placeholder}
+          variant="standard"
+          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          placeholder={placeholder ?? (naked && selected.length === 0 ? t('selects.notSet') : undefined)}
           size={size}
-          InputLabelProps={{ shrink: true }}
           InputProps={{
             ...params.InputProps,
+            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {loading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -113,5 +123,13 @@ export default function AssetMultiSelect({
       noOptionsText={loading ? t('selects.loadingEllipsis') : t('selects.noServersFound')}
       fullWidth
     />
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel>{label}</FieldLabel>
+      {control}
+    </Box>
   );
 }

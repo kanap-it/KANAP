@@ -1,7 +1,8 @@
 import React from 'react';
-import { Stack, TextField, IconButton, InputAdornment } from '@mui/material';
+import { Box, Stack, TextField, IconButton, InputAdornment } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import StatusSwitch from './StatusSwitch';
+import { FieldLabel } from '../design';
 import { STATUS_ENABLED, STATUS_DISABLED, StatusValue, deriveStatusFromDisabledAt } from '../../constants/status';
 import { isoToEuDate, euDateToIsoEndOfDay, formatEuPartial } from '../../lib/date-eu';
 import { isoToLocalDateInput } from '../../lib/datetime';
@@ -141,14 +142,14 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
             value={isoToLocalDateInput(disabledAt)}
             onChange={onNativeChange}
           />
-          <TextField
-            label={disabledAtLabel}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <FieldLabel>{disabledAtLabel}</FieldLabel>
+            <TextField
             placeholder="dd/mm/yyyy"
             value={inputText}
             onChange={handleDisabledAtTextChange}
             onBlur={handleDisabledAtBlur}
             disabled={disabled}
-            InputLabelProps={{ shrink: true }}
             name={disabledAtName}
             error={disabledAtError}
             helperText={
@@ -165,7 +166,8 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
                 </InputAdornment>
               )
             }}
-          />
+            />
+          </Box>
         </>
       )}
     </Stack>

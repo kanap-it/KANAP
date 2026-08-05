@@ -47,6 +47,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import api from '../../../api';
+import { KanapDialog } from '../../../components/design';
 import LightModeIsland from '../../../components/LightModeIsland';
 import { useLocale } from '../../../i18n/useLocale';
 import { PortfolioGantt } from './PortfolioGantt';
@@ -3568,23 +3569,20 @@ export default function RoadmapGenerator({ onApplied }: Props) {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={confirmOpen} onClose={() => !applying && setConfirmOpen(false)}>
-        <DialogTitle>Apply Roadmap Dates</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will update planned start/end dates for {selectedSchedulableCount} selected visible project(s). The change is transactional:
-            if one project fails validation, no dates will be applied.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)} disabled={applying}>
-            Cancel
-          </Button>
-          <Button onClick={handleApply} variant="contained" disabled={applying || selectedSchedulableCount === 0}>
-            {applying ? 'Applying...' : 'Confirm'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <KanapDialog
+        open={confirmOpen}
+        title="Apply roadmap dates"
+        onClose={() => { if (!applying) setConfirmOpen(false); }}
+        onSave={handleApply}
+        saveLabel="Apply dates"
+        saveDisabled={selectedSchedulableCount === 0}
+        saveLoading={applying}
+      >
+        <Typography sx={{ fontSize: 13.5, color: 'kanap.text.primary' }}>
+          This will update planned start/end dates for {selectedSchedulableCount} selected visible project(s). The change is transactional:
+          if one project fails validation, no dates will be applied.
+        </Typography>
+      </KanapDialog>
     </Stack>
   );
 }

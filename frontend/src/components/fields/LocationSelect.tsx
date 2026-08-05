@@ -5,6 +5,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
+import { FieldLabel, mergeSx } from '../design';
+import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
 type LocationOption = { id: string; location_reference: string; name: string };
 
@@ -17,6 +19,7 @@ type Props = {
   helperText?: React.ReactNode;
   hideLabel?: boolean;
   required?: boolean;
+  placeholder?: string;
   size?: 'small' | 'medium';
   textFieldSx?: SxProps<Theme>;
 };
@@ -30,11 +33,13 @@ export default function LocationSelect({
   helperText,
   hideLabel,
   required,
+  placeholder,
   size = 'medium',
   textFieldSx,
 }: Props) {
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.location');
+  const naked = hideLabel || label === '';
   const { data: locations, isLoading } = useQuery({
     queryKey: ['locations', 'options'],
     queryFn: async () => {
@@ -76,7 +81,7 @@ export default function LocationSelect({
 
   const selectedOption = options.find((opt) => opt.id === value) || null;
 
-  return (
+  const control = (
     <Box sx={{ position: 'relative' }}>
       <Autocomplete
         options={options}
@@ -113,17 +118,19 @@ export default function LocationSelect({
               opt.name.toLowerCase().includes(s),
           );
         }}
+        ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}
         renderInput={(params) => (
           <TextField
             {...params}
-            label={hideLabel ? undefined : label}
             size={size}
             error={error}
             helperText={helperText}
             required={required}
-            InputLabelProps={hideLabel ? undefined : { shrink: true }}
+            variant="standard"
+            placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
             InputProps={{
               ...params.InputProps,
+              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || loadingSelected) && <CircularProgress size={18} />}
@@ -131,11 +138,19 @@ export default function LocationSelect({
                 </>
               ),
             }}
-            sx={textFieldSx}
+            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
           />
         )}
         fullWidth
       />
+    </Box>
+  );
+
+  if (naked || !label) return control;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      {control}
     </Box>
   );
 }

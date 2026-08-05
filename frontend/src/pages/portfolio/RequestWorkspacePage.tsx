@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+  Alert, Box, Button,
   IconButton, LinearProgress, Snackbar, Stack, Typography, useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -47,7 +47,7 @@ import { useLocale } from '../../i18n/useLocale';
 import { useTenant } from '../../tenant/TenantContext';
 import { getScoreColor } from '../tasks/theme/taskDetailTokens';
 import { fetchPortfolioRelationsCount } from '../../utils/workspaceTabCounts';
-import { useKanapDialogs } from '../../components/design';
+import { KanapDialog, useKanapDialogs } from '../../components/design';
 
 type TabKey = 'summary' | 'analysis' | 'scoring' | 'relations' | 'knowledge';
 type LegacyPanelRoute = 'overview' | 'activity' | 'team';
@@ -1274,20 +1274,19 @@ export default function RequestWorkspacePage() {
         </Alert>
       </Snackbar>
 
-      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>{t('portfolio:workspace.request.deleteDialog.title')}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {t('portfolio:workspace.request.deleteDialog.message', { name: form?.name || t('portfolio:workspace.request.title.fallback') })}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button color="error" variant="contained" onClick={() => void handleDelete()}>
-            {t('common:buttons.delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <KanapDialog
+        open={deleteConfirmOpen}
+        title={t('portfolio:workspace.request.deleteDialog.title')}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onSave={() => void handleDelete()}
+        saveLabel={t('common:buttons.delete')}
+        saveColor="error"
+        cancelLabel={t('common:buttons.cancel')}
+      >
+        <Typography sx={{ fontSize: 13.5, color: 'kanap.text.primary' }}>
+          {t('portfolio:workspace.request.deleteDialog.message', { name: form?.name || t('portfolio:workspace.request.title.fallback') })}
+        </Typography>
+      </KanapDialog>
     </Box>
   );
 }

@@ -18,7 +18,7 @@ import DepartmentSelect from '../../../../components/fields/DepartmentSelect';
 import DateEUField from '../../../../components/fields/DateEUField';
 import TeamMemberMultiSelect from '../../../../components/fields/TeamMemberMultiSelect';
 import { PropertyGroup, PropertyRow } from '../../../../components/design';
-import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, selectPlaceholderSx } from '../../../../theme/formSx';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { getRequestStatusLabel } from '../../../../utils/portfolioI18n';
 
@@ -195,6 +195,7 @@ export default function ProjectPropertyPanel({
             variant="standard"
             disableUnderline
             displayEmpty
+            renderValue={(v) => (v ? (sources.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
           >
             <MenuItem value="" sx={drawerMenuItemSx}>{noneLabel}</MenuItem>
@@ -214,6 +215,7 @@ export default function ProjectPropertyPanel({
             variant="standard"
             disableUnderline
             displayEmpty
+            renderValue={(v) => (v ? (categories.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
           >
             <MenuItem value="" sx={drawerMenuItemSx}>{noneLabel}</MenuItem>
@@ -233,6 +235,7 @@ export default function ProjectPropertyPanel({
             variant="standard"
             disableUnderline
             displayEmpty
+            renderValue={(v) => (v ? (filteredStreams.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
           >
             <MenuItem value="" sx={drawerMenuItemSx}>{noneLabel}</MenuItem>
@@ -246,7 +249,7 @@ export default function ProjectPropertyPanel({
 
         <PropertyRow label={t('workspace.project.fields.company')}>
           <CompanySelect
-            label={t('workspace.project.fields.company')}
+            hideLabel
             value={form?.company_id || null}
             onChange={onCompanyChange}
             disabled={coreFieldsDisabled}
@@ -256,7 +259,7 @@ export default function ProjectPropertyPanel({
 
         <PropertyRow label={t('workspace.project.fields.department')}>
           <DepartmentSelect
-            label={t('workspace.project.fields.department')}
+            hideLabel
             companyId={form?.company_id || undefined}
             value={form?.department_id || null}
             onChange={(value) => onUpdate({ department_id: value })}
@@ -267,7 +270,7 @@ export default function ProjectPropertyPanel({
 
         <PropertyRow label={t('workspace.project.fields.plannedStart')}>
           <DateEUField
-            label={t('workspace.project.fields.plannedStart')}
+            label=""
             valueYmd={form?.planned_start || ''}
             onChangeYmd={onPlannedStartChange}
             disabled={coreFieldsDisabled}
@@ -277,7 +280,7 @@ export default function ProjectPropertyPanel({
 
         <PropertyRow label={t('workspace.project.fields.plannedEnd')}>
           <DateEUField
-            label={t('workspace.project.fields.plannedEnd')}
+            label=""
             valueYmd={form?.planned_end || ''}
             onChangeYmd={onPlannedEndChange}
             disabled={coreFieldsDisabled}
@@ -290,7 +293,7 @@ export default function ProjectPropertyPanel({
         <PropertyGroup>
           <PropertyRow label={t('workspace.project.fields.businessSponsor')}>
             <UserSelect
-              label={t('workspace.project.fields.businessSponsor')}
+              hideLabel
               value={form?.business_sponsor_id || null}
               onChange={(value) => handleImmediateSave(
                 () => api.patch(`/portfolio/projects/${form.id}`, { business_sponsor_id: value }),
@@ -303,7 +306,7 @@ export default function ProjectPropertyPanel({
 
           <PropertyRow label={t('workspace.project.fields.businessLead')}>
             <UserSelect
-              label={t('workspace.project.fields.businessLead')}
+              hideLabel
               value={form?.business_lead_id || null}
               onChange={(value) => handleImmediateSave(
                 async () => {
@@ -319,7 +322,7 @@ export default function ProjectPropertyPanel({
 
           <PropertyRow label={t('workspace.project.fields.itSponsor')}>
             <UserSelect
-              label={t('workspace.project.fields.itSponsor')}
+              hideLabel
               value={form?.it_sponsor_id || null}
               onChange={(value) => handleImmediateSave(
                 () => api.patch(`/portfolio/projects/${form.id}`, { it_sponsor_id: value }),
@@ -332,7 +335,7 @@ export default function ProjectPropertyPanel({
 
           <PropertyRow label={t('workspace.project.fields.itLead')}>
             <UserSelect
-              label={t('workspace.project.fields.itLead')}
+              hideLabel
               value={form?.it_lead_id || null}
               onChange={(value) => handleImmediateSave(
                 async () => {

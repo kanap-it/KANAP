@@ -15,7 +15,7 @@ import ApplicationMultiSelect from '../../../components/fields/ApplicationMultiS
 import AssetMultiSelect from '../../../components/fields/AssetMultiSelect';
 import RelatedObjectSelect, { RelatedObjectType } from '../../../components/fields/RelatedObjectSelect';
 import CompanySelect from '../../../components/fields/CompanySelect';
-import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx, selectPlaceholderSx } from '../../../theme/formSx';
 import DrawerKnowledgeSection from './DrawerKnowledgeSection';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { taskDetailTokens, taskDetailTypography } from '../theme/taskDetailTokens';
@@ -83,6 +83,10 @@ function withCurrentOption(options: SelectOption[], currentId?: string | null, c
   if (!currentId) return options;
   if (options.some((o) => o.value === currentId)) return options;
   return [...options, { value: currentId, label: currentLabel || currentId }];
+}
+
+function selectPlaceholder(text: string) {
+  return <Box component="span" sx={selectPlaceholderSx}>{text}</Box>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -195,6 +199,7 @@ export default function TaskPropertiesDrawer({
               onChangeType={(type) => onRelationChange({ type, id: null, name: null })}
               onChangeId={(id, name) => onRelationChange({ type: task.related_object_type as RelatedObjectType, id, name })}
               size="small"
+              hideLabel
             />
           ) : (
             <Typography sx={{ fontSize: 13 }}>
@@ -214,6 +219,8 @@ export default function TaskPropertiesDrawer({
                 onChange={(e) => onPatch({ phase_id: e.target.value || null })}
                 variant="standard"
                 disableUnderline
+                displayEmpty
+                renderValue={(v) => (v ? (phases.find((p) => p.id === v)?.name ?? task.phase_name ?? '') : selectPlaceholder(t('workspace.task.sidebar.values.projectLevel')))}
                 sx={drawerSelectSx}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}>{t('workspace.task.sidebar.values.projectLevel')}</MenuItem>
@@ -233,6 +240,8 @@ export default function TaskPropertiesDrawer({
               onChange={(e) => onPatch({ task_type_id: e.target.value || null })}
               variant="standard"
               disableUnderline
+              displayEmpty
+              renderValue={(v) => (v ? (taskTypeOptions.find((o) => o.value === v)?.label ?? task.task_type_name ?? '') : selectPlaceholder(t('common:selects.notSet')))}
               sx={drawerSelectSx}
             >
               <MenuItem value="" sx={drawerMenuItemSx}><em>—</em></MenuItem>
@@ -247,7 +256,7 @@ export default function TaskPropertiesDrawer({
         {canEditClassification && !readOnly ? (
           <>
             <PropertyRow label={t('workspace.task.sidebar.fields.source')}>
-              <Select value={task.source_id || ''} onChange={(e) => onPatch({ source_id: e.target.value || null })} variant="standard" disableUnderline sx={drawerSelectSx}>
+              <Select value={task.source_id || ''} onChange={(e) => onPatch({ source_id: e.target.value || null })} variant="standard" disableUnderline displayEmpty renderValue={(v) => (v ? (sourceOptions.find((o) => o.value === v)?.label ?? task.source_name ?? '') : selectPlaceholder(t('common:selects.notSet')))} sx={drawerSelectSx}>
                 <MenuItem value="" sx={drawerMenuItemSx}><em>—</em></MenuItem>
                 {sourceOptions.map((o) => <MenuItem key={o.value} value={o.value} sx={drawerMenuItemSx}>{o.label}</MenuItem>)}
               </Select>
@@ -266,6 +275,8 @@ export default function TaskPropertiesDrawer({
                 }}
                 variant="standard"
                 disableUnderline
+                displayEmpty
+                renderValue={(v) => (v ? (categoryOptions.find((o) => o.value === v)?.label ?? task.category_name ?? '') : selectPlaceholder(t('common:selects.notSet')))}
                 sx={drawerSelectSx}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}><em>—</em></MenuItem>
@@ -273,7 +284,7 @@ export default function TaskPropertiesDrawer({
               </Select>
             </PropertyRow>
             <PropertyRow label={t('workspace.task.sidebar.fields.stream')}>
-              <Select value={task.stream_id || ''} onChange={(e) => onPatch({ stream_id: e.target.value || null })} variant="standard" disableUnderline disabled={!task.category_id} sx={drawerSelectSx}>
+              <Select value={task.stream_id || ''} onChange={(e) => onPatch({ stream_id: e.target.value || null })} variant="standard" disableUnderline displayEmpty renderValue={(v) => (v ? (streamOptions.find((o) => o.value === v)?.label ?? task.stream_name ?? '') : selectPlaceholder(t('common:selects.notSet')))} disabled={!task.category_id} sx={drawerSelectSx}>
                 <MenuItem value="" sx={drawerMenuItemSx}><em>—</em></MenuItem>
                 {streamOptions.map((o) => <MenuItem key={o.value} value={o.value} sx={drawerMenuItemSx}>{o.label}</MenuItem>)}
               </Select>

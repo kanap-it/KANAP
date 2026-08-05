@@ -891,6 +891,36 @@ export default function ItOperationsSettingsPage() {
     mutation.mutate({ domains: stripLocalIds(sorted) });
   };
 
+  // Debounced autosave: each dirty list saves ~1.5s after the last edit, but
+  // only once every row is complete — half-typed rows stay local until filled.
+  const listReadyToSave = (id: ListId): boolean => {
+    const hasCodeAndLabel = (rows: Array<{ code?: string; label?: string }>) =>
+      rows.every((row) => String(row.code || '').trim() !== '' && String(row.label || '').trim() !== '');
+    if (id === 'subnets') return state.subnets.every((row) => String(row.cidr || '').trim() !== '');
+    if (id === 'operatingSystems') return hasCodeAndLabel(state.operatingSystems);
+    if (id === 'connectionTypes') return hasCodeAndLabel(state.connectionTypes);
+    if (id === 'domains') return hasCodeAndLabel(state.domains);
+    return hasCodeAndLabel(state.enums[id as EnumListId] || []);
+  };
+
+  React.useEffect(() => {
+    if (submitting) return undefined;
+    const dirtyIds = (Object.keys(state.dirty) as ListId[]).filter(
+      (id) => state.dirty[id] && listReadyToSave(id),
+    );
+    if (dirtyIds.length === 0) return undefined;
+    const timer = setTimeout(() => {
+      dirtyIds.forEach((id) => {
+        if (id === 'operatingSystems') handleSaveOperatingSystems();
+        else if (id === 'connectionTypes') handleSaveConnections();
+        else if (id === 'subnets') handleSaveSubnets();
+        else if (id === 'domains') handleSaveDomains();
+        else handleSaveEnum(id);
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  });
+
   const makeEmptyEnumRow = (id: EnumListId): ItOpsEnumOption => {
     if (id === 'hostingTypes') return { code: '', label: '', category: 'cloud', deprecated: false };
     if (id === 'serverKinds') return { code: '', label: '', is_physical: false, deprecated: false } as any;
@@ -934,8 +964,6 @@ export default function ItOperationsSettingsPage() {
                     <SettingsSection key={section.id} title="Operating Systems" description={listUsage.operatingSystems}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setOperatingSystems', items: [{ code: '', label: '', standardSupportEnd: '', extendedSupportEnd: '', deprecated: false, localId: makeLocalId('os') }, ...state.operatingSystems] })}
-                        onSave={handleSaveOperatingSystems}
-                        onReset={() => dispatch({ type: 'resetOperatingSystems' })}
                         saving={state.pending === 'operatingSystems' && submitting}
                         dirty={!!state.dirty.operatingSystems}
                       />
@@ -948,8 +976,6 @@ export default function ItOperationsSettingsPage() {
                     <SettingsSection key={section.id} title="Connection Types" description={listUsage.connectionTypes}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setConnectionTypes', items: [{ category: '', label: '', code: '', typicalPorts: '', deprecated: false, localId: makeLocalId('ct') }, ...state.connectionTypes] })}
-                        onSave={handleSaveConnections}
-                        onReset={() => dispatch({ type: 'resetConnectionTypes' })}
                         saving={state.pending === 'connectionTypes' && submitting}
                         dirty={!!state.dirty.connectionTypes}
                       />
@@ -963,8 +989,6 @@ export default function ItOperationsSettingsPage() {
                     <SettingsSection key={section.id} title="Subnets" description={listUsage.subnets}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setSubnets', items: [{ location_id: defaultLocationId, cidr: '', vlan_number: undefined, network_zone: 'lan', description: '', deprecated: false, localId: makeLocalId('subnet') }, ...state.subnets] })}
-                        onSave={handleSaveSubnets}
-                        onReset={() => dispatch({ type: 'resetSubnets' })}
                         saving={state.pending === 'subnets' && submitting}
                         dirty={!!state.dirty.subnets}
                       />
@@ -977,8 +1001,6 @@ export default function ItOperationsSettingsPage() {
                     <SettingsSection key={section.id} title="Domains" description={listUsage.domains}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setDomains', items: [{ code: '', label: '', dns_suffix: '', deprecated: false, system: false, localId: makeLocalId('domain') }, ...state.domains] })}
-                        onSave={handleSaveDomains}
-                        onReset={() => dispatch({ type: 'resetDomains' })}
                         saving={state.pending === 'domains' && submitting}
                         dirty={!!state.dirty.domains}
                       />
@@ -996,8 +1018,6 @@ export default function ItOperationsSettingsPage() {
                   <SettingsSection key={enumSection.id} title={enumSection.title} description={listUsage[enumSection.id]}>
                     <SettingsControls
                       onAdd={() => dispatch({ type: 'setEnum', id: enumSection.id, items: [{ ...makeEmptyEnumRow(enumSection.id), localId: makeLocalId(enumSection.id) }, ...items] })}
-                      onSave={() => handleSaveEnum(enumSection.id)}
-                      onReset={() => dispatch({ type: 'resetEnum', id: enumSection.id })}
                       saving={saving}
                       dirty={dirty}
                     />
