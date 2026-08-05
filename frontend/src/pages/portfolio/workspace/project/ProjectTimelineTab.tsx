@@ -60,6 +60,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../../api';
+import { KanapDialog } from '../../../../components/design';
 import DateEUField from '../../../../components/fields/DateEUField';
 import { getApiErrorMessage } from '../../../../utils/apiErrorMessage';
 import { useLocale } from '../../../../i18n/useLocale';
@@ -1572,54 +1573,47 @@ export default function ProjectTimelineTab({
         </Table>
       </Box>
 
-      <Dialog open={replaceConfirmOpen} onClose={() => setReplaceConfirmOpen(false)}>
-        <DialogTitle>{t('workspace.project.timeline.dialogs.replaceAll.title')}</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            {t('workspace.project.timeline.dialogs.replaceAll.description')}
-          </DialogContentText>
-          <Select
-            value={selectedTemplateId}
-            onChange={(event) => setSelectedTemplateId(event.target.value)}
-            displayEmpty
-            fullWidth
-            size="small"
-          >
-            <MenuItem value="" disabled>{t('workspace.project.timeline.states.selectTemplate')}</MenuItem>
-            {phaseTemplates.map((template) => (
-              <MenuItem key={template.id} value={template.id}>{template.name}</MenuItem>
-            ))}
-          </Select>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReplaceConfirmOpen(false)}>
-            {t('common:buttons.cancel')}
-          </Button>
-          <Button
-            color="warning"
-            variant="contained"
-            disabled={!selectedTemplateId}
-            onClick={async () => {
-              if (!selectedTemplateId) return;
-              try {
-                await api.post(`/portfolio/projects/${projectId}/apply-template`, {
-                  template_id: selectedTemplateId,
-                  replace: true,
-                });
-                await onRefetch();
-                setSelectedTemplateId('');
-                setReplaceConfirmOpen(false);
-              } catch (error: any) {
-                onError(
-                  getApiErrorMessage(error, t, t('workspace.project.timeline.messages.applyTemplateFailed')),
-                );
-              }
-            }}
-          >
-            {t('workspace.project.timeline.actions.replaceAll')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <KanapDialog
+        open={replaceConfirmOpen}
+        title={t('workspace.project.timeline.dialogs.replaceAll.title')}
+        onClose={() => setReplaceConfirmOpen(false)}
+        saveLabel={t('workspace.project.timeline.actions.replaceAll')}
+        saveColor="warning"
+        saveDisabled={!selectedTemplateId}
+        cancelLabel={t('common:buttons.cancel')}
+        onSave={async () => {
+          if (!selectedTemplateId) return;
+          try {
+            await api.post(`/portfolio/projects/${projectId}/apply-template`, {
+              template_id: selectedTemplateId,
+              replace: true,
+            });
+            await onRefetch();
+            setSelectedTemplateId('');
+            setReplaceConfirmOpen(false);
+          } catch (error: any) {
+            onError(
+              getApiErrorMessage(error, t, t('workspace.project.timeline.messages.applyTemplateFailed')),
+            );
+          }
+        }}
+      >
+        <Typography sx={{ fontSize: 13.5, color: 'kanap.text.primary', mb: 2 }}>
+          {t('workspace.project.timeline.dialogs.replaceAll.description')}
+        </Typography>
+        <Select
+          value={selectedTemplateId}
+          onChange={(event) => setSelectedTemplateId(event.target.value)}
+          displayEmpty
+          fullWidth
+          size="small"
+        >
+          <MenuItem value="" disabled>{t('workspace.project.timeline.states.selectTemplate')}</MenuItem>
+          {phaseTemplates.map((template) => (
+            <MenuItem key={template.id} value={template.id}>{template.name}</MenuItem>
+          ))}
+        </Select>
+      </KanapDialog>
 
       <Dialog
         open={Boolean(linkDialogPhase)}
