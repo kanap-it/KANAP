@@ -117,6 +117,8 @@ export default function RequestAnalysisTab({
           showManagedDocChip={false}
           editModeBehavior="auto"
           autosaveEnabled
+          surface
+          hideToolbarUntilFocus
         />
       </Box>
 

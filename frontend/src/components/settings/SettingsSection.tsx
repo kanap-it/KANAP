@@ -17,7 +17,7 @@ export interface SettingsSectionProps {
   children: React.ReactNode;
   defaultExpanded?: boolean;
   actions?: React.ReactNode;
-  /** Controls section (add/save/reset buttons) shown above the content */
+  /** Controls section (add button + autosave status) shown above the content */
   controls?: React.ReactNode;
 }
 
@@ -85,35 +85,46 @@ export function SettingsSection({
 
 export interface SettingsControlsProps {
   onAdd: () => void;
-  onSave: () => void;
-  onReset: () => void;
   saving?: boolean;
   dirty?: boolean;
   addLabel?: string;
 }
 
 /**
- * Standard controls bar for settings sections with Add/Save/Reset buttons.
+ * Controls bar for settings sections: add button plus a subtle autosave
+ * status ("Saving..." during the API call, "Saved" briefly after success).
+ * Edits persist via debounced autosave — there is no manual save action.
  */
 export function SettingsControls({
   onAdd,
-  onSave,
-  onReset,
   saving,
   dirty,
   addLabel: addLabelProp,
 }: SettingsControlsProps) {
   const { t } = useTranslation('common');
   const addLabel = addLabelProp ?? t('settingsSection.addItem');
+  const [justSaved, setJustSaved] = React.useState(false);
+  const prevSaving = React.useRef(!!saving);
+
+  React.useEffect(() => {
+    const wasSaving = prevSaving.current;
+    prevSaving.current = !!saving;
+    if (wasSaving && !saving) {
+      setJustSaved(true);
+      const timer = setTimeout(() => setJustSaved(false), 1500);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [saving]);
+
+  const status = saving ? t('status.saving') : justSaved && !dirty ? t('status.saved') : '';
+
   return (
-    <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mb: 1 }}>
+    <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="flex-end" sx={{ mb: 1 }}>
+      <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', minHeight: 18 }}>
+        {status}
+      </Typography>
       <Button size="small" variant="outlined" onClick={onAdd}>{addLabel}</Button>
-      <Button size="small" variant="contained" disabled={!dirty || !!saving} onClick={onSave}>
-        {saving ? t('status.saving') : t('settingsSection.saveChanges')}
-      </Button>
-      <Button size="small" variant="text" disabled={!dirty || !!saving} onClick={onReset}>
-        {t('buttons.reset')}
-      </Button>
     </Stack>
   );
 }

@@ -59,6 +59,7 @@ export default function RequestSummaryTab({
           onDraftChange={onPurposeDraftChange}
           onDirtyChange={onPurposeDirtyChange}
           surface
+          hideToolbarUntilFocus
         />
       </Box>
     </Stack>
