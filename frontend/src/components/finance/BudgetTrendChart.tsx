@@ -34,7 +34,7 @@ export default function BudgetTrendChart({ id, currency, config }: { id: string;
       budget: dark ? '#60A5FA' : '#3B82F6',
       revision: dark ? '#9CA3AF' : '#6B7280',
       actual: dark ? '#34D399' : '#10B981',
-      landing: dark ? '#F0A830' : '#E8920F',
+      landing: theme.palette.kanap.orange,
     };
     const line = (yKey: string, yName: string, color: string) => ({
       type: 'line' as const,
@@ -51,7 +51,7 @@ export default function BudgetTrendChart({ id, currency, config }: { id: string;
       line('actual', t('operations.budgetColumns.followUp'), colors.actual),
       line('landing', t('operations.budgetColumns.landing'), colors.landing),
     ];
-  }, [dark, t]);
+  }, [dark, theme, t]);
 
   const options = React.useMemo(() => ({
     theme: dark ? 'ag-default-dark' : 'ag-default',

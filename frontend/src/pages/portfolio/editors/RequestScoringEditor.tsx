@@ -411,12 +411,12 @@ export const RequestScoringEditor = forwardRef<RequestScoringEditorHandle, Props
                   '&.Mui-selected': {
                     position: 'relative',
                     zIndex: 1,
-                    bgcolor: theme.palette.mode === 'dark' ? '#E5E7EB' : '#111827',
-                    borderColor: theme.palette.mode === 'dark' ? '#E5E7EB' : '#111827',
-                    color: theme.palette.mode === 'dark' ? '#181A20' : '#FFFFFF',
+                    bgcolor: theme.palette.kanap.text.primary,
+                    borderColor: theme.palette.kanap.text.primary,
+                    color: theme.palette.kanap.bg.primary,
                     fontWeight: 500,
                     '&:hover': {
-                      bgcolor: theme.palette.mode === 'dark' ? '#E5E7EB' : '#111827',
+                      bgcolor: theme.palette.kanap.text.primary,
                     },
                   },
                   '&.Mui-disabled': {

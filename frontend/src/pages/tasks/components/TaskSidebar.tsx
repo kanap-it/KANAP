@@ -25,6 +25,7 @@ import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { useAuth } from '../../../auth/AuthContext';
 import { getPriorityLabel, getTaskStatusOptions } from '../../../utils/portfolioI18n';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
+import { PropertyRow } from '../../../components/design';
 
 const compactFieldSx = {
   '& .MuiFormLabel-root': {
@@ -49,16 +50,6 @@ const accordionSummarySx = {
   '& .MuiAccordionSummary-content': {
     my: 0.75,
   },
-};
-
-const readOnlyLabelSx = {
-  lineHeight: 1,
-  fontSize: '0.72rem',
-};
-
-const readOnlyValueSx = {
-  mt: 0.25,
-  fontSize: '0.9rem',
 };
 
 // Classification types
@@ -309,20 +300,19 @@ export default function TaskSidebar({
                 size="small"
               />
             ) : isStandalone ? (
-              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  {t('workspace.task.sidebar.fields.relatedTo')}
-                </Typography>
-                <Typography sx={{ ...readOnlyValueSx, fontWeight: 500 }}>
-                  {t('workspace.task.sidebar.values.standaloneTask')}
-                </Typography>
-              </Box>
+              <PropertyRow
+                label={t('workspace.task.sidebar.fields.relatedTo')}
+                sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}
+                valueSx={{ fontWeight: 500 }}
+              >
+                {t('workspace.task.sidebar.values.standaloneTask')}
+              </PropertyRow>
             ) : (
-              <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  {t('workspace.task.sidebar.fields.relatedTo')}
-                </Typography>
-                <Box sx={{ mt: 0.25 }}>
+              <PropertyRow
+                label={t('workspace.task.sidebar.fields.relatedTo')}
+                sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.25 }}
+              >
+                <Box>
                   <Typography component="span" fontWeight={500}>
                     {isProjectTask
                       ? relatedTypeLabels.project
@@ -347,19 +337,14 @@ export default function TaskSidebar({
                     {task.related_object_name || t('workspace.task.sidebar.values.unknown')}
                   </Typography>
                 </Box>
-              </Box>
+              </PropertyRow>
             )}
 
             {isProjectTask && (
               readOnly ? (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                    {t('workspace.task.sidebar.fields.phase')}
-                  </Typography>
-                  <Typography sx={readOnlyValueSx}>
-                    {task.phase_name || t('workspace.task.sidebar.values.projectLevel')}
-                  </Typography>
-                </Box>
+                <PropertyRow label={t('workspace.task.sidebar.fields.phase')}>
+                  {task.phase_name || t('workspace.task.sidebar.values.projectLevel')}
+                </PropertyRow>
               ) : (
                 <EnumAutocomplete
                   label={t('workspace.task.sidebar.fields.phase')}
@@ -395,14 +380,9 @@ export default function TaskSidebar({
         <AccordionDetails sx={{ pt: 0 }}>
           <Stack spacing={1.25} sx={compactFieldSx}>
             {readOnly ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  {t('workspace.task.sidebar.fields.taskType')}
-                </Typography>
-                <Typography sx={readOnlyValueSx}>
-                  {task.task_type_name || taskTypeOptions.find((o) => o.value === task.task_type_id)?.label || '-'}
-                </Typography>
-              </Box>
+              <PropertyRow label={t('workspace.task.sidebar.fields.taskType')}>
+                {task.task_type_name || taskTypeOptions.find((o) => o.value === task.task_type_id)?.label || '-'}
+              </PropertyRow>
             ) : (
               <EnumAutocomplete
                 label={t('workspace.task.sidebar.fields.taskType')}
@@ -414,14 +394,9 @@ export default function TaskSidebar({
             )}
 
             {readOnly ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  {t('workspace.task.sidebar.fields.priority')}
-                </Typography>
-                <Typography sx={readOnlyValueSx}>
-                  {getPriorityLabel(t, task.priority_level)}
-                </Typography>
-              </Box>
+              <PropertyRow label={t('workspace.task.sidebar.fields.priority')}>
+                {getPriorityLabel(t, task.priority_level)}
+              </PropertyRow>
             ) : (
               <EnumAutocomplete
                 label={t('workspace.task.sidebar.fields.priority')}
@@ -433,14 +408,9 @@ export default function TaskSidebar({
             )}
 
             {readOnly ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                  {t('workspace.task.sidebar.fields.status')}
-                </Typography>
-                <Typography sx={readOnlyValueSx}>
-                  {statusOptions.find((o) => o.value === task.status)?.label || task.status}
-                </Typography>
-              </Box>
+              <PropertyRow label={t('workspace.task.sidebar.fields.status')}>
+                {statusOptions.find((o) => o.value === task.status)?.label || task.status}
+              </PropertyRow>
             ) : (
               <EnumAutocomplete
                 label={t('workspace.task.sidebar.fields.status')}
@@ -519,36 +489,24 @@ export default function TaskSidebar({
                 ) : (
                   <>
                     {task.source_name && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                          {t('workspace.task.sidebar.fields.source')}
-                        </Typography>
-                        <Typography variant="body2" sx={readOnlyValueSx}>{task.source_name}</Typography>
-                      </Box>
+                      <PropertyRow label={t('workspace.task.sidebar.fields.source')}>
+                        {task.source_name}
+                      </PropertyRow>
                     )}
                     {task.category_name && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                          {t('workspace.task.sidebar.fields.category')}
-                        </Typography>
-                        <Typography variant="body2" sx={readOnlyValueSx}>{task.category_name}</Typography>
-                      </Box>
+                      <PropertyRow label={t('workspace.task.sidebar.fields.category')}>
+                        {task.category_name}
+                      </PropertyRow>
                     )}
                     {task.stream_name && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                          {t('workspace.task.sidebar.fields.stream')}
-                        </Typography>
-                        <Typography variant="body2" sx={readOnlyValueSx}>{task.stream_name}</Typography>
-                      </Box>
+                      <PropertyRow label={t('workspace.task.sidebar.fields.stream')}>
+                        {task.stream_name}
+                      </PropertyRow>
                     )}
                     {task.company_name && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                          {t('workspace.task.sidebar.fields.company')}
-                        </Typography>
-                        <Typography variant="body2" sx={readOnlyValueSx}>{task.company_name}</Typography>
-                      </Box>
+                      <PropertyRow label={t('workspace.task.sidebar.fields.company')}>
+                        {task.company_name}
+                      </PropertyRow>
                     )}
                     {!hasClassificationValues && (
                       <Typography variant="body2" color="text.secondary">
@@ -591,14 +549,12 @@ export default function TaskSidebar({
                     {t('dialogs.logTime.actions.logTime')}
                   </Button>
                 )}
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={readOnlyLabelSx}>
-                    {t('workspace.task.sidebar.fields.timeSpent')}
-                  </Typography>
-                  <Typography sx={{ mt: 0.25, fontSize: '1rem', fontWeight: 500 }}>
-                    {formatHours(totalTimeHours)}
-                  </Typography>
-                </Box>
+                <PropertyRow
+                  label={t('workspace.task.sidebar.fields.timeSpent')}
+                  valueSx={{ fontSize: '1rem', fontWeight: 500 }}
+                >
+                  {formatHours(totalTimeHours)}
+                </PropertyRow>
               </Stack>
             </AccordionDetails>
           </Accordion>

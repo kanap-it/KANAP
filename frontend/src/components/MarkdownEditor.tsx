@@ -252,7 +252,7 @@ function KanapBlockStyleSelect({
           }}
         >
           <Paper
-            elevation={3}
+            elevation={2}
             sx={{
               minWidth: anchorEl?.clientWidth || 116,
               borderRadius: 1,

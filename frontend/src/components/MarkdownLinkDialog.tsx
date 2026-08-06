@@ -191,7 +191,7 @@ export default function MarkdownLinkDialog() {
       ]}
     >
       <Paper
-        elevation={6}
+        elevation={2}
         sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}
       >
         <Stack

@@ -1455,7 +1455,6 @@ export default function TaskWorkspacePage() {
                 }}
                 variant="standard"
                 fullWidth
-                autoFocus
                 placeholder={t('portfolio:workspace.task.title.placeholder')}
                 InputProps={{
                   disableUnderline: true,
