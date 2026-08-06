@@ -106,9 +106,6 @@
   "targetLink": {
     "open": "Ouvrir dans votre outil de ticketing"
   },
-  "targetLink": {
-    "open": "Ouvrir dans votre outil de ticketing"
-  },
   "overview": {
     "title": "Agents IA",
     "subtitle": "Surveillez les agents actifs, les validations, les limites de sécurité et les contrôles d'urgence.",
@@ -363,7 +360,7 @@
     },
     "probableCauses": "Causes probables",
     "businessImpact": "Impact métier",
-    "recommendedNextSteps": "Prochaines étapes recommandées",
+    "recommendedNextSteps": "Prochaines étapes suggérées",
     "sources": "Sources",
     "activeSince": "Active depuis",
     "alertStates": {
@@ -378,7 +375,34 @@
     "ack": {
       "acknowledged": "Acquittée",
       "unacknowledged": "Non acquittée"
-    }
+    },
+    "alerts": "Alertes",
+    "alertsActiveGroup": "Actives ({{count}})",
+    "alertsResolvedGroup": "Résolues ({{count}})",
+    "cleared": "Rétablie",
+    "clearedAt": "Rétablie {{when}}",
+    "queueSummary": "{{waiting}} en attente · {{inProgress}} en cours",
+    "causeConfidence": "Confiance {{level}}",
+    "suggestionState": "Suggestion",
+    "suggestionOnlyNote": "Cet agent suggère les prochaines étapes ; il n'exécute pas encore d'actions.",
+    "evidence": "Éléments constatés",
+    "alertMessageLabel": "Message d'alerte de l'outil de supervision",
+    "stateAtDiagnosis": "État au diagnostic",
+    "historyLabel": "Historique, {{minutes}} dernières min",
+    "historyNoPoints": "Aucun point de données enregistré",
+    "historyPoints_one": "{{count}} point de données",
+    "historyPoints_other": "{{count}} points de données",
+    "relatedAlertsLabel": "Alertes liées sur cet équipement",
+    "noneLabel": "Aucune",
+    "kanapAssetLabel": "Actif KANAP",
+    "sourcesLabel": "Sources de connaissances",
+    "sourcesConsidered": "{{considered}} consultées, {{used}} utilisées",
+    "showWhy": "Pourquoi",
+    "hideWhy": "Masquer",
+    "diagnosedAt": "Diagnostiqué {{when}}",
+    "openInMonitoringTool": "Ouvrir dans l'outil de supervision",
+    "previousDiagnoses": "Diagnostics précédents",
+    "noDiagnosisStored": "Aucun diagnostic enregistré pour cette alerte."
   },
   "performance": {
     "acceptance": "Acceptation",

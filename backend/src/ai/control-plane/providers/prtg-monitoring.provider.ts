@@ -349,6 +349,7 @@ function toMonitoringAlert(
     lastValue: textOrNull(row.lastvalue),
     objectKind: 'check',
     deviceName: textOrNull(row.device),
+    checkName: textOrNull(row.sensor),
     groupPath: groupPathFromRow(row),
     // Provider-ref ids for exact targeting verification and the device-context
     // read (§4.5 IP tiebreak): a sensor row's parentid IS its device objid.

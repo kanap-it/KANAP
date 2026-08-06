@@ -75,6 +75,12 @@ function createMemoryManager() {
       const [, field] = isNull;
       return row[field] == null;
     }
+    const inList = condition.match(/^[a-z]+\.(\w+) IN \(:\.\.\.(\w+)\)$/i);
+    if (inList) {
+      const [, field, param] = inList;
+      const values = Array.isArray(params[param]) ? params[param] : [];
+      return values.includes(row[field]);
+    }
     throw new Error(`Unsupported in-memory query condition: ${rawCondition}`);
   };
   const applyOrderAndTake = (items: any[], opts: any) => {
@@ -142,6 +148,8 @@ function createMemoryManager() {
       createQueryBuilder: (_alias: string) => {
         const filters: Array<{ condition: string; params?: Record<string, any> }> = [];
         let order: { field: string; direction: 'ASC' | 'DESC' } | null = null;
+        let secondaryOrder: { field: string; direction: 'ASC' | 'DESC' } | null = null;
+        let distinctOnFields: string[] | null = null;
         let takeValue: number | null = null;
         const builder: any = {
           where: (condition: string, params?: Record<string, any>) => {
@@ -157,6 +165,14 @@ function createMemoryManager() {
             order = { field, direction };
             return builder;
           },
+          addOrderBy: (field: string, direction: 'ASC' | 'DESC' = 'ASC') => {
+            secondaryOrder = { field, direction };
+            return builder;
+          },
+          distinctOn: (fields: string[]) => {
+            distinctOnFields = fields;
+            return builder;
+          },
           take: (value: number) => {
             takeValue = value;
             return builder;
@@ -165,6 +181,32 @@ function createMemoryManager() {
             let result = rows.filter((row) => filters.every((filter) => matchesQueryCondition(row, filter.condition, filter.params)));
             if (order) {
               result = applyOrderAndTake(result, { order: { [order.field]: order.direction } });
+              if (secondaryOrder) {
+                // Postgres DISTINCT ON semantics: stable-sort by the secondary
+                // key within equal primary keys, then keep the first per key.
+                const primary = order;
+                result = [...result].sort((left, right) => {
+                  const leftPrimary = String(fieldValue(left, primary.field) ?? '');
+                  const rightPrimary = String(fieldValue(right, primary.field) ?? '');
+                  if (leftPrimary !== rightPrimary) {
+                    const diff = leftPrimary.localeCompare(rightPrimary);
+                    return primary.direction === 'DESC' ? -diff : diff;
+                  }
+                  const leftTime = Date.parse(String(fieldValue(left, secondaryOrder!.field) ?? ''));
+                  const rightTime = Date.parse(String(fieldValue(right, secondaryOrder!.field) ?? ''));
+                  const diff = (Number.isFinite(leftTime) ? leftTime : 0) - (Number.isFinite(rightTime) ? rightTime : 0);
+                  return secondaryOrder!.direction === 'DESC' ? -diff : diff;
+                });
+              }
+            }
+            if (distinctOnFields) {
+              const seen = new Set<string>();
+              result = result.filter((row) => {
+                const key = distinctOnFields!.map((field) => String(fieldValue(row, field) ?? '')).join('|');
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
             }
             if (takeValue != null) {
               result = result.slice(0, takeValue);
@@ -943,7 +985,9 @@ async function testDiagnosisSkeletonEndToEnd() {
   // Without a diagnostic-brief service the pipeline records the conservative fallback.
   assert.equal((pingObservation.metadata_json as any)?.synthesis_fallback, true);
   assert.equal((pingObservation.metadata_json as any)?.synthesis_fallback_reason, 'synthesis_service_unavailable');
-  assert.equal('message' in ((pingObservation.metadata_json as any)?.alert ?? {}), false);
+  // Plan 38: the diagnosis observation (review surface) stores a clamped
+  // excerpt of the alert message; work items above still must not.
+  assert.equal(((pingObservation.metadata_json as any)?.alert ?? {}).message, 'Ping timed out (100% packet loss).');
 
   const pingState = (stores.get(AiAgentTargetState.name) ?? []).find((row) => row.target_ref === 'mock-check-db01-ping');
   assert.ok(pingState);

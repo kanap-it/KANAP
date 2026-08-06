@@ -620,6 +620,7 @@ export type AiAgentControlQueueOverview = {
   target_states: AiAgentControlTargetState[];
   action_requests: AiAgentControlActionRequest[];
   target_links?: AiAgentControlTargetLink[];
+  monitoring_diagnoses?: AiAgentControlMonitoringDiagnosisCard[];
   counts: Record<string, number>;
   helpdesk?: {
     summary: AiAgentControlHelpdeskSummary | null;
@@ -945,6 +946,72 @@ export type AiAgentControlMonitoringDiagnosisResult = {
     evidence_ids?: string[];
     [key: string]: unknown;
   };
+};
+
+// List-level alert dossier card: the latest stored diagnosis per watched
+// monitoring target. Mirrors MonitoringDiagnosisCard in
+// backend/src/ai/control-plane/agent/ai-agent-work-queue.service.ts.
+export type AiAgentControlMonitoringDiagnosisCard = {
+  target_ref: string;
+  observation_id: string;
+  run_id: string | null;
+  observed_at: string | null;
+  check_name: string | null;
+  device_name: string | null;
+  severity: string | null;
+  status_at_diagnosis: string | null;
+  brief_summary: string | null;
+  brief_confidence: string | null;
+  needs_human_review: boolean;
+  synthesis_fallback: boolean;
+  occurrence_started_at: string | null;
+  source_uri: string | null;
+};
+
+export type AiAgentControlDiagnosisCause = {
+  cause?: string;
+  confidence?: string;
+  rationale?: string | null;
+};
+
+export type AiAgentControlDiagnosisRecommendedAction = {
+  action?: string;
+  rationale?: string | null;
+  urgency?: string;
+};
+
+// One stored diagnosis dossier. Mirrors serializeMonitoringAlertDiagnosis in
+// backend/src/ai/control-plane/agent-control/ai-agent-control.service.ts.
+export type AiAgentControlMonitoringAlertDiagnosis = {
+  observation_id: string;
+  run_id: string | null;
+  observed_at: string | null;
+  severity: string | null;
+  summary: string | null;
+  alert: Record<string, unknown> | null;
+  current_state: Record<string, unknown> | null;
+  related_alerts: Array<Record<string, unknown>>;
+  history_window_minutes: number | null;
+  history_point_count: number | null;
+  history_summary: Record<string, unknown> | null;
+  kanap_context: Record<string, unknown> | null;
+  brief: {
+    summary: string | null;
+    probable_causes: AiAgentControlDiagnosisCause[];
+    business_impact: string | null;
+    recommended_actions: AiAgentControlDiagnosisRecommendedAction[];
+    used_sources: AiAgentControlDiagnosticSource[];
+    rejected_sources: Array<AiAgentControlDiagnosticSource & { reason?: string }>;
+    needs_human_review: boolean;
+    confidence: string | null;
+    language: string | null;
+    fallback: boolean;
+    fallback_reason: string | null;
+    model: string | null;
+  };
+  synthesis: { model: string | null; tokens: number | null; cost_eur: number | null };
+  knowledge: { status: string | null; result_count: number | null };
+  web: { status: string | null; result_count: number | null };
 };
 
 export type AiAgentControlEmergencyPause = {
@@ -1433,6 +1500,15 @@ export const aiAgentControlApi = {
     payload: { alert_id: string },
   ): Promise<AiAgentControlMonitoringDiagnosisResult> {
     const res = await api.post(`/ai/admin/control-plane/agents/${id}/monitoring-diagnosis/test`, payload, { timeout: 600_000 });
+    return res.data;
+  },
+  // Stored diagnoses for one watched monitoring target (newest first) — the
+  // alert dossier the Monitor tab expands.
+  async listAgentMonitoringAlertDiagnoses(
+    id: string,
+    targetRef: string,
+  ): Promise<{ diagnoses: AiAgentControlMonitoringAlertDiagnosis[] }> {
+    const res = await api.get(`/ai/admin/control-plane/agents/${id}/monitoring-alerts/${encodeURIComponent(targetRef)}/diagnoses`);
     return res.data;
   },
   async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {

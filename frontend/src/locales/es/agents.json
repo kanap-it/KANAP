@@ -106,9 +106,6 @@
   "targetLink": {
     "open": "Abrir en su herramienta de tickets"
   },
-  "targetLink": {
-    "open": "Abrir en su herramienta de tickets"
-  },
   "overview": {
     "title": "Agentes IA",
     "subtitle": "Supervisa agentes activos, aprobaciones, límites de seguridad y controles de emergencia.",
@@ -363,7 +360,7 @@
     },
     "probableCauses": "Causas probables",
     "businessImpact": "Impacto en el negocio",
-    "recommendedNextSteps": "Próximos pasos recomendados",
+    "recommendedNextSteps": "Próximos pasos sugeridos",
     "sources": "Fuentes",
     "activeSince": "Activa desde",
     "alertStates": {
@@ -378,7 +375,34 @@
     "ack": {
       "acknowledged": "Reconocida",
       "unacknowledged": "Sin reconocer"
-    }
+    },
+    "alerts": "Alertas",
+    "alertsActiveGroup": "Activas ({{count}})",
+    "alertsResolvedGroup": "Resueltas ({{count}})",
+    "cleared": "Resuelta",
+    "clearedAt": "Resuelta {{when}}",
+    "queueSummary": "{{waiting}} en espera · {{inProgress}} en curso",
+    "causeConfidence": "Confianza {{level}}",
+    "suggestionState": "Sugerencia",
+    "suggestionOnlyNote": "Este agente sugiere próximos pasos; todavía no ejecuta acciones.",
+    "evidence": "Evidencia",
+    "alertMessageLabel": "Mensaje de alerta de la herramienta de supervisión",
+    "stateAtDiagnosis": "Estado en el diagnóstico",
+    "historyLabel": "Historial, últimos {{minutes}} min",
+    "historyNoPoints": "Sin puntos de datos registrados",
+    "historyPoints_one": "{{count}} punto de datos",
+    "historyPoints_other": "{{count}} puntos de datos",
+    "relatedAlertsLabel": "Alertas relacionadas en este equipo",
+    "noneLabel": "Ninguna",
+    "kanapAssetLabel": "Activo KANAP",
+    "sourcesLabel": "Fuentes de conocimiento",
+    "sourcesConsidered": "{{considered}} consultadas, {{used}} utilizadas",
+    "showWhy": "Por qué",
+    "hideWhy": "Ocultar",
+    "diagnosedAt": "Diagnosticado {{when}}",
+    "openInMonitoringTool": "Abrir en la herramienta de supervisión",
+    "previousDiagnoses": "Diagnósticos anteriores",
+    "noDiagnosisStored": "Aún no hay un diagnóstico guardado para esta alerta."
   },
   "performance": {
     "acceptance": "Aceptación",

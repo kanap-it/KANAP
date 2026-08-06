@@ -106,9 +106,6 @@
   "targetLink": {
     "open": "In Ihrem Ticketsystem öffnen"
   },
-  "targetLink": {
-    "open": "In Ihrem Ticketsystem öffnen"
-  },
   "overview": {
     "title": "KI-Agenten",
     "subtitle": "Aktive Agenten, Freigaben, Sicherheitslimits und Notfallsteuerung überwachen.",
@@ -363,7 +360,7 @@
     },
     "probableCauses": "Wahrscheinliche Ursachen",
     "businessImpact": "Geschäftliche Auswirkung",
-    "recommendedNextSteps": "Empfohlene nächste Schritte",
+    "recommendedNextSteps": "Vorgeschlagene nächste Schritte",
     "sources": "Quellen",
     "activeSince": "Aktiv seit",
     "alertStates": {
@@ -378,7 +375,34 @@
     "ack": {
       "acknowledged": "Quittiert",
       "unacknowledged": "Nicht quittiert"
-    }
+    },
+    "alerts": "Alarme",
+    "alertsActiveGroup": "Aktiv ({{count}})",
+    "alertsResolvedGroup": "Behoben ({{count}})",
+    "cleared": "Behoben",
+    "clearedAt": "Behoben {{when}}",
+    "queueSummary": "{{waiting}} wartend · {{inProgress}} in Arbeit",
+    "causeConfidence": "Zuversicht: {{level}}",
+    "suggestionState": "Vorschlag",
+    "suggestionOnlyNote": "Dieser Agent schlägt nächste Schritte vor; er führt noch keine Aktionen aus.",
+    "evidence": "Belege",
+    "alertMessageLabel": "Alarmmeldung aus dem Monitoring-Tool",
+    "stateAtDiagnosis": "Zustand bei der Diagnose",
+    "historyLabel": "Verlauf, letzte {{minutes}} Min.",
+    "historyNoPoints": "Keine Datenpunkte aufgezeichnet",
+    "historyPoints_one": "{{count}} Datenpunkt",
+    "historyPoints_other": "{{count}} Datenpunkte",
+    "relatedAlertsLabel": "Verwandte Alarme auf diesem Gerät",
+    "noneLabel": "Keine",
+    "kanapAssetLabel": "KANAP-Asset",
+    "sourcesLabel": "Wissensquellen",
+    "sourcesConsidered": "{{considered}} geprüft, {{used}} verwendet",
+    "showWhy": "Warum",
+    "hideWhy": "Ausblenden",
+    "diagnosedAt": "Diagnostiziert {{when}}",
+    "openInMonitoringTool": "Im Monitoring-Tool öffnen",
+    "previousDiagnoses": "Frühere Diagnosen",
+    "noDiagnosisStored": "Für diesen Alarm ist noch keine Diagnose gespeichert."
   },
   "performance": {
     "acceptance": "Annahme",
