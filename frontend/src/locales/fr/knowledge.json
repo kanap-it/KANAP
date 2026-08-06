@@ -322,6 +322,9 @@
         "waiting": "En attente",
         "you": "Vous"
       }
+    },
+    "messages": {
+      "saveFirstAll": "Enregistrez d’abord le document pour gérer les contributeurs, le workflow, la classification, les relations et les versions."
     }
   },
   "statuses": {

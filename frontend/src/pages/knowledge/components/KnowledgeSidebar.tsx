@@ -1,8 +1,5 @@
 import React from 'react';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Autocomplete,
   Box,
@@ -18,7 +15,6 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -26,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import { getDotColor } from '../../../utils/statusColors';
 import { PropertyRow, StatusDot } from '../../../components/design';
+import { formatShortDateTime } from '../../../lib/dateFormat';
 import {
   drawerAutocompleteListboxSx,
   drawerMenuItemSx,
@@ -33,6 +30,21 @@ import {
   editableFieldValueSx,
   longFormSurfaceFieldSx,
 } from '../../../theme/formSx';
+
+// Flat section styling (charter: no accordions/chevrons in property panels).
+const sectionHeaderSx = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: 32,
+  pt: 1,
+  pb: 0.5,
+} as const;
+
+const sectionLabelSx = {
+  fontSize: 11,
+  fontWeight: 500,
+  color: 'kanap.text.secondary',
+} as const;
 
 // Compact variant of the long-form composer surface for the narrow sidebar.
 const sidebarLongFormSx = {
@@ -132,11 +144,6 @@ const RELATION_LABELS: Record<RelationKey, string> = {
   tasks: 'Tasks',
 };
 
-const accordionSx = {
-  '&:before': { display: 'none' },
-  bgcolor: 'transparent',
-};
-
 const EMPTY_CLASSIFICATION_ROW: ClassificationRow = { category_id: '', stream_id: null };
 
 function ManagedReadonlyBadge({ title }: { title: string }) {
@@ -215,15 +222,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   const locale = useLocale();
   const mode = useTheme().palette.mode;
   const [activeTab, setActiveTab] = React.useState<'properties' | 'comments'>('properties');
-  const [expanded, setExpanded] = React.useState<string[]>([]);
   const [workflowComment, setWorkflowComment] = React.useState('');
-  const autoExpandedWorkflowRef = React.useRef<string | null>(null);
-
-  const handleAccordionChange = (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
-    setExpanded((prev) =>
-      isExpanded ? [...prev, panel] : prev.filter((p) => p !== panel),
-    );
-  };
 
   const disabled = !editMode && !isCreate;
   const isManagedIntegratedDocument = !!doc?.is_managed_integrated_document;
@@ -417,9 +416,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   }, [currentStage]);
   const reviewerStageState = getStageState('reviewer', reviewerParticipants);
   const approverStageState = getStageState('approver', approverParticipants);
-  const workflowAutoExpandKey = workflowActive
-    ? String(workflow?.id || `${workflow?.requested_revision || form.revision || 1}:${currentStage || 'active'}`)
-    : null;
   const editableClassificationRows = classificationRows.length > 0
     ? classificationRows
     : [EMPTY_CLASSIFICATION_ROW];
@@ -439,16 +435,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
   React.useEffect(() => {
     setWorkflowComment('');
   }, [workflow?.id]);
-
-  React.useEffect(() => {
-    if (!workflowAutoExpandKey) {
-      autoExpandedWorkflowRef.current = null;
-      return;
-    }
-    if (autoExpandedWorkflowRef.current === workflowAutoExpandKey) return;
-    autoExpandedWorkflowRef.current = workflowAutoExpandKey;
-    setExpanded((prev) => (prev.includes('workflow') ? prev : [...prev, 'workflow']));
-  }, [workflowAutoExpandKey]);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -599,20 +585,18 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
               </PropertyRow>
             </Stack>
 
+            {isCreate ? (
+              <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.messages.saveFirstAll')}</Alert>
+            ) : (
+              <>
             <Divider />
 
             {/* Contributors */}
-            <Accordion
-              expanded={expanded.includes('contributors')}
-              onChange={handleAccordionChange('contributors')}
-              disableGutters
-              elevation={0}
-              sx={accordionSx}
-            >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">{t('sidebar.sections.contributors')}</Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0 }}>
+            <Box>
+              <Box sx={sectionHeaderSx}>
+                <Typography sx={sectionLabelSx}>{t('sidebar.sections.contributors')}</Typography>
+              </Box>
+              <Box>
                 {isCreate ? (
                   <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.contributors.messages.saveFirst')}</Alert>
                 ) : !canManage ? (
@@ -732,27 +716,21 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     {contributorsError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{contributorsError}</Alert>}
                   </Stack>
                 )}
-              </AccordionDetails>
-            </Accordion>
+              </Box>
+            </Box>
 
             <Divider />
 
-            <Accordion
-              expanded={expanded.includes('workflow')}
-              onChange={handleAccordionChange('workflow')}
-              disableGutters
-              elevation={0}
-              sx={accordionSx}
-            >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box>
+              <Box sx={sectionHeaderSx}>
                 <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Typography variant="subtitle2">{t('sidebar.sections.workflow')}</Typography>
+                  <Typography sx={sectionLabelSx}>{t('sidebar.sections.workflow')}</Typography>
                   {isManagedIntegratedDocument && (
                     <ManagedReadonlyBadge title={managedWorkflowTooltip} />
                   )}
                 </Stack>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0 }}>
+              </Box>
+              <Box>
                 <Stack spacing={1}>
                   {workflowActive ? (
                     <>
@@ -970,23 +948,17 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     )}
                   </Stack>
                 </Stack>
-              </AccordionDetails>
-            </Accordion>
+              </Box>
+            </Box>
 
             <Divider />
 
             {/* Classification */}
-            <Accordion
-              expanded={expanded.includes('classification')}
-              onChange={handleAccordionChange('classification')}
-              disableGutters
-              elevation={0}
-              sx={accordionSx}
-            >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">{t('sidebar.sections.classification')}</Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0 }}>
+            <Box>
+              <Box sx={sectionHeaderSx}>
+                <Typography sx={sectionLabelSx}>{t('sidebar.sections.classification')}</Typography>
+              </Box>
+              <Box>
                 {isCreate ? (
                   <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.classification.messages.saveFirst')}</Alert>
                 ) : !canManage ? (
@@ -1074,28 +1046,22 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     {classificationError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{classificationError}</Alert>}
                   </Stack>
                 )}
-              </AccordionDetails>
-            </Accordion>
+              </Box>
+            </Box>
 
             <Divider />
 
             {/* Relations */}
-            <Accordion
-              expanded={expanded.includes('relations')}
-              onChange={handleAccordionChange('relations')}
-              disableGutters
-              elevation={0}
-              sx={accordionSx}
-            >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box>
+              <Box sx={sectionHeaderSx}>
                 <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Typography variant="subtitle2">{t('sidebar.sections.relations')}</Typography>
+                  <Typography sx={sectionLabelSx}>{t('sidebar.sections.relations')}</Typography>
                   {isManagedIntegratedDocument && (
                     <ManagedReadonlyBadge title={managedRelationsTooltip} />
                   )}
                 </Stack>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0 }}>
+              </Box>
+              <Box>
                 {isCreate ? (
                   <Alert severity="info" sx={{ fontSize: '0.75rem' }}>{t('sidebar.relations.messages.saveFirst')}</Alert>
                 ) : isManagedIntegratedDocument ? (
@@ -1152,22 +1118,16 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     {relationsError && <Alert severity="error" sx={{ fontSize: '0.75rem' }}>{relationsError}</Alert>}
                   </Stack>
                 )}
-              </AccordionDetails>
-            </Accordion>
+              </Box>
+            </Box>
             <Divider />
 
             {/* Versions */}
-            <Accordion
-              expanded={expanded.includes('versions')}
-              onChange={handleAccordionChange('versions')}
-              disableGutters
-              elevation={0}
-              sx={accordionSx}
-            >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="subtitle2">{t('sidebar.sections.versions')}</Typography>
-              </AccordionSummary>
-              <AccordionDetails sx={{ pt: 0 }}>
+            <Box>
+              <Box sx={sectionHeaderSx}>
+                <Typography sx={sectionLabelSx}>{t('sidebar.sections.versions')}</Typography>
+              </Box>
+              <Box>
                 <Stack spacing={0.75}>
                   {(versions || []).map((version: any) => (
                     <Box key={version.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
@@ -1176,7 +1136,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                           v{version.version_number}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {version.created_at ? new Date(version.created_at).toLocaleString(locale) : ''}
+                          {version.created_at ? formatShortDateTime(version.created_at, locale) : ''}
                           {version.change_note ? ` - ${version.change_note}` : ''}
                         </Typography>
                       </Box>
@@ -1196,8 +1156,10 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     <Typography variant="body2" color="text.secondary">{t('sidebar.versions.empty')}</Typography>
                   )}
                 </Stack>
-              </AccordionDetails>
-            </Accordion>
+              </Box>
+            </Box>
+              </>
+            )}
           </Stack>
         )}
 

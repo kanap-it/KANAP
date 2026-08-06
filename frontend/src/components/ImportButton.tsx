@@ -20,6 +20,7 @@ interface ImportButtonProps {
   disabled?: boolean;
   disabledTitle?: string;
   size?: 'small' | 'medium' | 'large';
+  buttonVariant?: string;
 }
 
 const ACCEPTED_FILE_TYPES = '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -48,6 +49,7 @@ export default function ImportButton({
   disabled = false,
   disabledTitle,
   size = 'small',
+  buttonVariant = 'outlined',
 }: ImportButtonProps) {
   const { t } = useTranslation('common');
   const dialogs = useKanapDialogs();
@@ -149,7 +151,7 @@ export default function ImportButton({
       <span title={disabled ? (disabledTitle || '') : ''}>
         <Button
           size={size}
-          variant="outlined"
+          variant={buttonVariant as any}
           disabled={disabled || importing}
           onClick={openPicker}
           startIcon={importing ? <CircularProgress size={14} /> : <UploadFileOutlinedIcon fontSize="small" />}
