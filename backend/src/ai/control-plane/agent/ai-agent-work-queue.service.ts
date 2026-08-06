@@ -27,6 +27,7 @@ import { AiAgentTargetState } from '../entities/ai-agent-target-state.entity';
 import { AiAgentTrigger } from '../entities/ai-agent-trigger.entity';
 import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
 import { AiEmergencyPause } from '../entities/ai-emergency-pause.entity';
+import { AiObservation } from '../entities/ai-observation.entity';
 import { AiRun } from '../entities/ai-run.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
 import { AiAdapterConfig } from '../providers/adapter-config.entity';
@@ -381,6 +382,27 @@ export type AgentQueueOverview = {
     fleet: HelpdeskTicketingAgentSummary['evaluation'] | null;
     auditEvents: AiAgentAuditEvent[];
   };
+  // Latest stored diagnosis per watched monitoring target — the list-level
+  // "dossier card" (check/device names, one-line conclusion). Read-time join
+  // over ai_observations so historical rows need no backfill.
+  monitoringDiagnoses: MonitoringDiagnosisCard[];
+};
+
+export type MonitoringDiagnosisCard = {
+  target_ref: string;
+  observation_id: string;
+  run_id: string | null;
+  observed_at: string | null;
+  check_name: string | null;
+  device_name: string | null;
+  severity: string | null;
+  status_at_diagnosis: string | null;
+  brief_summary: string | null;
+  brief_confidence: string | null;
+  needs_human_review: boolean;
+  synthesis_fallback: boolean;
+  occurrence_started_at: string | null;
+  source_uri: string | null;
 };
 
 export type MonitoringIngestionConfig = {
@@ -602,6 +624,31 @@ function pruneProductOwnedForbiddenCapabilityConflicts(current: unknown): unknow
 
 function policyObject(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
+}
+
+function monitoringDiagnosisCardFromObservation(observation: AiObservation): MonitoringDiagnosisCard {
+  const metadata = policyObject(observation.metadata_json);
+  const alert = policyObject(metadata.alert);
+  const text = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 ? value : null);
+  const observedAt = observation.observed_at instanceof Date
+    ? observation.observed_at.toISOString()
+    : (observation.observed_at ? String(observation.observed_at) : null);
+  return {
+    target_ref: observation.source_object_id ?? '',
+    observation_id: observation.id,
+    run_id: observation.run_id ?? null,
+    observed_at: observedAt,
+    check_name: text(alert.check_name),
+    device_name: text(alert.device_name),
+    severity: text(observation.severity),
+    status_at_diagnosis: text(alert.status),
+    brief_summary: text(metadata.brief_summary)?.slice(0, 240) ?? null,
+    brief_confidence: text(metadata.brief_confidence),
+    needs_human_review: metadata.needs_human_review === true,
+    synthesis_fallback: metadata.synthesis_fallback === true,
+    occurrence_started_at: text(alert.occurrence_started_at),
+    source_uri: text(alert.source_uri),
+  };
 }
 
 function nestedPolicy(value: unknown, key: string): Record<string, unknown> {
@@ -3822,11 +3869,17 @@ export class AiAgentWorkQueueService {
     const fleet = helpdeskDefinitionIds.length > 0
       ? await this.computeHelpdeskEvaluation(context, helpdeskDefinitionIds)
       : null;
+    const monitoringTargetRefs = Array.from(new Set([
+      ...targetStates.filter((state) => state.provider_kind === 'monitoring').map((state) => state.target_ref),
+      ...workItems.filter((item) => item.source_provider_kind === 'monitoring').map((item) => item.source_object_ref),
+    ].filter((ref): ref is string => typeof ref === 'string' && ref.length > 0)));
+    const monitoringDiagnoses = await this.latestMonitoringDiagnosisCards(context, monitoringTargetRefs);
     return {
       definitions,
       workItems,
       targetStates,
       counts,
+      monitoringDiagnoses,
       helpdesk: {
         summary: helpdeskDefinition
           ? helpdeskSummaries.find((summary) => summary.agentDefinitionId === helpdeskDefinition.id) ?? null
@@ -3836,6 +3889,28 @@ export class AiAgentWorkQueueService {
         auditEvents,
       },
     };
+  }
+
+  // One batched query for the whole overview (never per-row), tenant-scoped
+  // explicitly on top of RLS. DISTINCT ON keeps the newest diagnosis per
+  // target ref.
+  private async latestMonitoringDiagnosisCards(
+    context: AiExecutionContextWithManager,
+    targetRefs: string[],
+  ): Promise<MonitoringDiagnosisCard[]> {
+    if (targetRefs.length === 0) {
+      return [];
+    }
+    const observations = await context.manager.getRepository(AiObservation)
+      .createQueryBuilder('observation')
+      .where('observation.tenant_id = :tenantId', { tenantId: context.tenantId })
+      .andWhere('observation.observation_type = :observationType', { observationType: 'monitoring_alert_diagnostic' })
+      .andWhere('observation.source_object_id IN (:...targetRefs)', { targetRefs })
+      .distinctOn(['observation.source_object_id'])
+      .orderBy('observation.source_object_id', 'ASC')
+      .addOrderBy('observation.created_at', 'DESC')
+      .getMany();
+    return observations.map((observation) => monitoringDiagnosisCardFromObservation(observation));
   }
 
   agentExecutionMetadata(definition: AiAgentDefinition, workItem: AiAgentWorkItem): Record<string, unknown> {

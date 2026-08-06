@@ -442,6 +442,10 @@ export type MonitoringAlert = {
   lastValue: string | null;
   objectKind: MonitoringObjectKind;
   deviceName: string | null;
+  // Human-readable display name of the failing check itself (e.g. a sensor
+  // label like "HTTP" or "Disk Free") — untrusted provider text, display only.
+  // Optional: adapters attach it when the provider exposes one.
+  checkName?: string | null;
   // Human-readable ancestor path (root first); ids live in the reference
   // catalog, not here.
   groupPath: string[] | null;

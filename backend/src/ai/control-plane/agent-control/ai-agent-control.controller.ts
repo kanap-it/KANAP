@@ -600,6 +600,19 @@ export class AiAgentControlController {
     }));
   }
 
+  @Get('agents/:id/monitoring-alerts/:targetRef/diagnoses')
+  async listAgentMonitoringAlertDiagnoses(
+    @Req() req: any,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('targetRef') targetRef: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.listMonitoringAlertDiagnoses(tenantContext, {
+      agent_definition_id: id,
+      target_ref: targetRef,
+    }));
+  }
+
   @Get('helpdesk/glpi-ingestion/settings')
   async getHelpdeskGlpiIngestionSettings(
     @Req() req: any,

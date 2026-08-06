@@ -75,13 +75,12 @@ import {
   MonitoringTargetingFilterBuilder,
   MonitoringTargetingPresetButtons,
   monitoringFiltersFromScope,
-  monitoringStatusSemanticColor,
   monitoringTargetingModelFromFilters,
   type MonitoringTargetingFilter,
   type MonitoringTargetingPresetKey,
 } from '../../components/agents/monitoringTargeting';
-import { getDotColor } from '../../utils/statusColors';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { AlertDossierBody, AlertOccurrenceList, dossierFromDiagnosisResult } from './AlertDossier';
 import AgentsApprovalsPage from './AgentsApprovalsPage';
 import AgentsActivityPage from './AgentsActivityPage';
 import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAgentControlData';
@@ -420,55 +419,17 @@ function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition
   };
 }
 
-// Diagnosis outcome fields written by recordMonitoringDiagnosisOutcome
-// (ai-agent-work-queue.service.ts): the completed work item's metadata_json and
-// the target state's state_json both carry brief_confidence /
-// needs_human_review / recommended_action_kinds; the target state additionally
-// remembers the occurrence (last_status, occurrence_started_at,
-// last_diagnosis_at). Render only what is actually present.
-function monitoringDiagnosisFields(group: TicketWorkGroup): {
-  lastStatus: string | null;
-  occurrenceStartedAt: string | null;
-  lastDiagnosisAt: string | null;
-  briefConfidence: string | null;
-  needsHumanReview: boolean;
-  recommendedActionKinds: string[];
-} {
-  const stateJson = policyObject(group.targetState?.state_json);
-  const workMeta = policyObject(group.workItem?.metadata_json);
-  const source = typeof workMeta.brief_confidence === 'string' || typeof workMeta.needs_human_review === 'boolean'
-    ? workMeta
-    : stateJson;
-  const kinds = Array.isArray(source.recommended_action_kinds)
-    ? source.recommended_action_kinds.filter((kind): kind is string => typeof kind === 'string' && kind.length > 0)
-    : [];
-  return {
-    lastStatus: stringValue(stateJson.last_status) || null,
-    occurrenceStartedAt: stringValue(stateJson.occurrence_started_at) || null,
-    lastDiagnosisAt: stringValue(stateJson.last_diagnosis_at) || null,
-    briefConfidence: typeof source.brief_confidence === 'string' && source.brief_confidence ? source.brief_confidence : null,
-    needsHumanReview: source.needs_human_review === true,
-    recommendedActionKinds: kinds,
-  };
-}
-
-// Dot + text alert state (status charter pattern 1), colored by the normalized
-// monitoring vocabulary — never provider-raw values.
-function AlertStateText({ status }: { status: string }) {
-  const { t } = useTranslation(['agents']);
-  const color = monitoringStatusSemanticColor(status);
+// Inline label·value fact for the consolidated status strip (charter workspace
+// metric strip: one lightweight line, not a grid of metric cards).
+function StatusStripItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-      <Box
-        aria-hidden
-        sx={(theme) => ({ width: 6, height: 6, borderRadius: '50%', bgcolor: getDotColor(color, theme.palette.mode), flex: '0 0 auto' })}
-      />
-      <Typography
-        sx={(theme) => ({ color: getDotColor(color, theme.palette.mode), fontSize: 12, fontWeight: 500, lineHeight: 1.35, minWidth: 0 })}
-      >
-        {t(`monitor.alertStates.${status}`, { defaultValue: humanize(status) })}
+    <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary, whiteSpace: 'nowrap' })}>
+      {label}
+      {' '}
+      <Typography component="span" sx={(theme) => ({ fontSize: 12, fontWeight: 500, color: theme.palette.kanap.text.primary })}>
+        {value}
       </Typography>
-    </Stack>
+    </Typography>
   );
 }
 
@@ -503,7 +464,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const canStart = !!definition && definition.status !== 'enabled' && definition.status !== 'archived';
   const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null, Date.now()), [data.actionPool, data.queueQuery.data, definition?.id]);
   const agentGroups = grouped.groups;
-  const pendingApprovalCount = agentGroups.reduce((sum, group) => sum + group.pendingActions.filter((action) => action.status === 'pending').length, 0);
+  const failedGroupCount = agentGroups.filter((group) => ['failed', 'dead_letter'].includes(group.queueStatus)).length;
   const inProgressGroups = agentGroups.filter((group) => ['queued', 'leased', 'running'].includes(group.queueStatus));
   const monitoringGroups = agentGroups.filter((group) => group.providerKind === 'monitoring');
   const pollMutation = isSre ? data.pollMonitoringMutation : data.pollMutation;
@@ -541,6 +502,13 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
     },
     onError: (err) => data.setError(getApiErrorMessage(err, t, t('monitor.testFailed'))),
   });
+
+  // The synchronous test run's diagnosis, rendered through the same dossier
+  // surface as stored diagnoses (its outcome used to be invisible).
+  const testDossier = React.useMemo(
+    () => (monitoringDiagnosisMutation.data ? dossierFromDiagnosisResult(monitoringDiagnosisMutation.data) : null),
+    [monitoringDiagnosisMutation.data],
+  );
 
   const [pauseDialogOpen, setPauseDialogOpen] = React.useState(false);
   const submitPause = (reason: string) => {
@@ -581,31 +549,40 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
           </Stack>
         )}
       >
-        <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
-          <MetricBlock label={t('monitor.lifecycle')} value={definition ? t(`lifecycle.${lifecycleStatusKey(definition.status, isSre ? sreWatching : !!summary?.ingestion.enabled, definition.automatic_action_classes?.length ?? 0, !!activePause || !!summary?.ingestion.paused)}`) : t('common.notSet')} />
-          <MetricBlock
+        {/* One consolidated status line (plan 38 declutter): the strip carries
+            lifecycle / watching / checks / queue as inline facts so the alerts
+            list stays above the fold. */}
+        <Stack direction="row" spacing={2.75} useFlexGap flexWrap="wrap" alignItems="baseline" sx={{ px: 1.5, py: 1.25 }}>
+          <StatusStripItem
+            label={t('monitor.lifecycle')}
+            value={definition ? t(`lifecycle.${lifecycleStatusKey(definition.status, isSre ? sreWatching : !!summary?.ingestion.enabled, definition.automatic_action_classes?.length ?? 0, !!activePause || !!summary?.ingestion.paused)}`) : t('common.notSet')}
+          />
+          <StatusStripItem
             label={t('monitor.watching')}
             value={isSre
               ? (sreWatching ? (sreTargetingPredicateCount > 0 ? t('monitor.filtered') : t('monitor.allAlerts')) : t('monitor.off'))
               : (summary?.ingestion.enabled ? (summary.ingestion.entityId || summary.ingestion.categoryId ? t('monitor.filtered') : t('monitor.allTickets')) : t('monitor.off'))}
           />
-          <MetricBlock
+          <StatusStripItem
             label={t('monitor.lastCheck')}
             value={isSre
               ? (sreLastPollStatus ? statusLabel(sreLastPollStatus) : t('common.notSet'))
               : (summary?.ingestion.lastPollStatus ? statusLabel(summary.ingestion.lastPollStatus) : t('common.notSet'))}
           />
-          <MetricBlock label={t('monitor.nextCheck')} value={(isSre ? sreWatching : summary?.ingestion.enabled) ? t('monitor.everyFiveMinutes') : t('common.notSet')} />
-        </Box>
-      </Section>
-
-      <Section title={t('monitor.queue')}>
-        <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
-          <MetricBlock label={t('monitor.waiting')} value={agentGroups.filter((group) => group.queueStatus === 'waiting_approval').length} />
-          <MetricBlock label={t('monitor.inProgress')} value={inProgressGroups.length} />
-          <MetricBlock label={t('monitor.failed')} value={agentGroups.filter((group) => ['failed', 'dead_letter'].includes(group.queueStatus)).length} />
-          <MetricBlock label={t('monitor.pendingApprovals')} value={pendingApprovalCount} />
-        </Box>
+          <StatusStripItem label={t('monitor.nextCheck')} value={(isSre ? sreWatching : summary?.ingestion.enabled) ? t('monitor.everyFiveMinutes') : t('common.notSet')} />
+          <StatusStripItem
+            label={t('monitor.queue')}
+            value={t('monitor.queueSummary', {
+              waiting: agentGroups.filter((group) => group.queueStatus === 'waiting_approval').length,
+              inProgress: inProgressGroups.length,
+            })}
+          />
+          {failedGroupCount > 0 && (
+            <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'error.main' }}>
+              {t('overview.failedCount', { count: failedGroupCount })}
+            </Typography>
+          )}
+        </Stack>
         {inProgressGroups.length > 0 && (
           <Stack spacing={0.75} sx={{ px: 1.5, pb: 1.5 }}>
             {inProgressGroups.map((group) => (
@@ -620,49 +597,12 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
       </Section>
 
       {isSre && (
-        <Section title={t('monitor.watchedAlerts')}>
-          {monitoringGroups.length === 0 ? (
-            <EmptyState>{t('monitor.noWatchedAlerts')}</EmptyState>
-          ) : (
-            <Stack spacing={1} sx={{ p: 1.5 }}>
-              {monitoringGroups.map((group, index) => {
-                const diagnosis = monitoringDiagnosisFields(group);
-                return (
-                  <Stack
-                    key={group.key}
-                    spacing={0.5}
-                    sx={(theme) => (index > 0 ? { borderTop: `1px solid ${theme.palette.kanap.border.soft}`, pt: 1 } : {})}
-                  >
-                    <Stack direction="row" spacing={1.5} alignItems="center" useFlexGap flexWrap="wrap">
-                      <TargetLabel targetType={group.targetType} targetRef={group.targetRef} size="dense" href={group.targetUrl} />
-                      {diagnosis.lastStatus && <AlertStateText status={diagnosis.lastStatus} />}
-                      {diagnosis.occurrenceStartedAt && (
-                        <Typography variant="caption" color="text.secondary">
-                          {`${t('monitor.activeSince')} ${formatDateTime(diagnosis.occurrenceStartedAt, i18n.language)}`}
-                        </Typography>
-                      )}
-                    </Stack>
-                    {(diagnosis.needsHumanReview || diagnosis.briefConfidence || diagnosis.recommendedActionKinds.length > 0 || diagnosis.lastDiagnosisAt) && (
-                      <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
-                        {diagnosis.needsHumanReview && <Chip size="small" color="warning" label={t('monitor.needsReview')} />}
-                        {diagnosis.briefConfidence && (
-                          <Chip size="small" label={`${t('monitor.confidence')}: ${t(`monitor.confidenceLevels.${diagnosis.briefConfidence}`, { defaultValue: humanize(diagnosis.briefConfidence) })}`} />
-                        )}
-                        {diagnosis.recommendedActionKinds.map((kind) => (
-                          <Chip key={kind} size="small" variant="outlined" label={t(`monitor.actionKinds.${kind}`, { defaultValue: humanize(kind) })} />
-                        ))}
-                        {diagnosis.lastDiagnosisAt && (
-                          <Typography variant="caption" color="text.secondary">
-                            {`${t('monitor.lastDiagnosis')}: ${formatDateTime(diagnosis.lastDiagnosisAt, i18n.language)}`}
-                          </Typography>
-                        )}
-                      </Stack>
-                    )}
-                  </Stack>
-                );
-              })}
-            </Stack>
-          )}
+        <Section title={t('monitor.alerts')}>
+          <AlertOccurrenceList
+            groups={monitoringGroups}
+            cards={data.queueQuery.data?.monitoring_diagnoses ?? []}
+            agentDefinitionId={definition?.id ?? null}
+          />
         </Section>
       )}
 
@@ -719,6 +659,11 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
             </>
           )}
         </Stack>
+        {isSre && testDossier && (
+          <Box sx={(theme) => ({ px: 1.5, pb: 1.5, pt: 1.25, borderTop: `1px solid ${theme.palette.kanap.border.soft}` })}>
+            <AlertDossierBody diagnosis={testDossier} />
+          </Box>
+        )}
       </Section>
 
       <Box>

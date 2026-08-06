@@ -573,7 +573,14 @@ async function testHappyPathPersistsCitedRecommendation() {
   const observations = stores.get(AiObservation.name) ?? [];
   assert.equal(observations.length, 1);
   assert.equal((observations[0].metadata_json as any).diagnosis_stage, 'llm_brief');
-  assert.equal('message' in ((observations[0].metadata_json as any).alert ?? {}), false, 'untrusted message never persisted');
+  // Plan 38 (alert dossier): the diagnosis observation stores a clamped
+  // display excerpt of the untrusted alert message plus the check name so the
+  // review surface can show what the tool reported. Queue rows still never
+  // carry the message.
+  const persistedAlert = (observations[0].metadata_json as any).alert ?? {};
+  assert.equal(persistedAlert.message, 'Ping timed out (100% packet loss).', 'clamped alert-message excerpt persisted for the review surface');
+  assert.ok(String(persistedAlert.message).length <= 500, 'alert-message excerpt stays clamped');
+  assert.equal(persistedAlert.check_name, 'Ping', 'check display name persisted for the dossier');
 
   // Actual-usage ledger charged for the synthesis stage and stamped on the run.
   const run = (stores.get(AiRun.name) ?? []).find((row) => row.id === runId());

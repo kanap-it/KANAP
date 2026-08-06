@@ -275,9 +275,13 @@ type MonitoringAlertLike = {
   severity?: string | null;
   ackState?: string | null;
   // Untrusted provider text — reaches the LLM only under the payload's
-  // untrusted_alert_text key and is never persisted on queue/observation rows.
+  // untrusted_alert_text key. Not persisted on queue rows; the diagnosis
+  // observation stores a clamped display excerpt (compactAlert.message) so the
+  // review surface can show the reviewer what the tool actually reported.
   message?: string | null;
   deviceName?: string | null;
+  // Display name of the failing check itself (untrusted provider text).
+  checkName?: string | null;
   // Provider device object id (optional adapter metadata): gates the
   // monitored-object read that feeds the §4.5 IP tiebreak.
   deviceId?: string | null;
@@ -2893,6 +2897,57 @@ function serializeObservation(observation: AiObservation) {
     observed_at: toIso(observation.observed_at),
     created_at: toIso(observation.created_at),
     updated_at: toIso(observation.updated_at),
+  };
+}
+
+// Explicit field picks — the raw metadata_json also carries agent execution
+// bookkeeping that has no business on a review surface.
+function serializeMonitoringAlertDiagnosis(observation: AiObservation) {
+  const metadata = isRecord(observation.metadata_json) ? observation.metadata_json as Record<string, unknown> : {};
+  const text = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 ? value : null);
+  const count = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+  const record = (value: unknown): Record<string, unknown> | null => (isRecord(value) ? value : null);
+  const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  return {
+    observation_id: observation.id,
+    run_id: observation.run_id ?? null,
+    observed_at: toIso(observation.observed_at),
+    severity: observation.severity ?? null,
+    summary: observation.summary ?? null,
+    alert: record(metadata.alert),
+    current_state: record(metadata.current_state),
+    related_alerts: list(metadata.related_alerts),
+    history_window_minutes: count(metadata.history_window_minutes),
+    history_point_count: count(metadata.history_point_count),
+    history_summary: record(metadata.history_summary),
+    kanap_context: record(metadata.kanap_context),
+    brief: {
+      summary: text(metadata.brief_summary),
+      probable_causes: list(metadata.probable_causes),
+      business_impact: text(metadata.business_impact),
+      recommended_actions: list(metadata.recommended_actions),
+      used_sources: list(metadata.used_sources),
+      rejected_sources: list(metadata.rejected_sources),
+      needs_human_review: metadata.needs_human_review === true,
+      confidence: text(metadata.brief_confidence),
+      language: text(metadata.brief_language),
+      fallback: metadata.synthesis_fallback === true,
+      fallback_reason: text(metadata.synthesis_fallback_reason),
+      model: text(metadata.synthesis_model),
+    },
+    synthesis: {
+      model: text(metadata.synthesis_model),
+      tokens: count(metadata.synthesis_tokens),
+      cost_eur: count(metadata.synthesis_cost_eur),
+    },
+    knowledge: {
+      status: text(metadata.knowledge_status),
+      result_count: count(metadata.knowledge_result_count),
+    },
+    web: {
+      status: text(metadata.web_search_status),
+      result_count: count(metadata.web_result_count),
+    },
   };
 }
 
@@ -5663,6 +5718,7 @@ export class AiAgentControlService {
         target_states: [],
         action_requests: [],
         target_links: [],
+        monitoring_diagnoses: [],
         counts: {},
         helpdesk: { summary: null, summaries: [], fleet: null, audit_events: [] },
       };
@@ -5765,6 +5821,7 @@ export class AiAgentControlService {
       target_states: overview.targetStates.map(serializeAgentTargetState),
       action_requests: actionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id))),
       target_links: targetLinks,
+      monitoring_diagnoses: overview.monitoringDiagnoses,
       counts: overview.counts,
       helpdesk: {
         summary: overview.helpdesk.summary,
@@ -6182,6 +6239,37 @@ export class AiAgentControlService {
   // recommendations, no built-in quota reservation yet — IMPL-4 replaces the
   // marked seam with the full diagnosis pipeline while keeping the
   // work-item/claim/target-state finalization contract intact.
+  // Stored-dossier read for the Monitor tab: the diagnoses the agent already
+  // produced for one watched monitoring target, newest first. Read-only —
+  // review surface, no provider calls.
+  async listMonitoringAlertDiagnoses(
+    context: AiExecutionContextWithManager,
+    input: { agent_definition_id: string; target_ref: string; limit?: number },
+  ) {
+    const definitionId = trimmedString(input.agent_definition_id);
+    const targetRef = trimmedString(input.target_ref);
+    if (!definitionId || !targetRef) {
+      throw new BadRequestException('agent_definition_id and target_ref are required.');
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id: definitionId, tenant_id: context.tenantId },
+    });
+    if (!definition) {
+      throw new NotFoundException('Agent definition was not found.');
+    }
+    const limit = Math.max(1, Math.min(10, Math.floor(input.limit ?? 5)));
+    const observations = await context.manager.getRepository(AiObservation)
+      .createQueryBuilder('observation')
+      .where('observation.tenant_id = :tenantId', { tenantId: context.tenantId })
+      .andWhere('observation.observation_type = :observationType', { observationType: MONITORING_DIAGNOSIS_RUN_OPTIONS.observationType })
+      .andWhere('observation.source_object_id = :targetRef', { targetRef })
+      .andWhere("observation.metadata_json->>'agent_definition_id' = :definitionId", { definitionId })
+      .orderBy('observation.created_at', 'DESC')
+      .take(limit)
+      .getMany();
+    return { diagnoses: observations.map((observation) => serializeMonitoringAlertDiagnosis(observation)) };
+  }
+
   async runMonitoringDiagnosis(
     context: AiExecutionContextWithManager,
     input: AgentControlMonitoringDiagnosisInput = {},
@@ -6875,6 +6963,9 @@ export class AiAgentControlService {
         severity: alert.severity ?? null,
         ack_state: alert.ackState ?? null,
         device_name: alert.deviceName ?? null,
+        check_name: alert.checkName ?? null,
+        // Untrusted provider text, display-only in review surfaces.
+        message: clampText(alert.message ?? '', 500) || null,
         occurrence_started_at: alert.occurrenceStartedAt ?? null,
         observed_at: alert.observedAt ?? null,
         last_value: alert.lastValue ?? null,
