@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { llmCostEur } from '../../ai-llm-cost.util';
 import {
   compileSystemPrompt,
   CompiledGuidance,
@@ -79,7 +80,6 @@ const MAX_INTERPRETER_CANDIDATES = 16;
 // Background stage: give reasoning models room to think before emitting JSON.
 // Override per deployment via AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS.
 const DEFAULT_LLM_TIMEOUT_MS = 120_000;
-const TOKEN_COST_EUR = 0.000002;
 // Generous output budgets so verbose / reasoning models do not truncate the JSON
 // (finish_reason=length). Override per deployment via the *_MAX_TOKENS env vars.
 const MAX_KNOWLEDGE_PLANNER_OUTPUT_TOKENS = 4000;
@@ -528,14 +528,13 @@ export class AiKnowledgeSearchPlannerService {
         schema: ResultInterpretationSchema,
       });
       if (!result) return fallback;
-      const actualTokens = result.usage
-        ? result.usage.input_tokens + result.usage.output_tokens
-        : estimateTokens(userPayload) + estimateTokens(result.text);
+      const actualInputTokens = result.usage ? result.usage.input_tokens : estimateTokens(userPayload);
+      const actualOutputTokens = result.usage ? result.usage.output_tokens : estimateTokens(result.text ?? '');
       const usageFields = {
         model: result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : null,
         usage: result.usage,
-        estimated_tokens: actualTokens,
-        estimated_cost_eur: Number((actualTokens * TOKEN_COST_EUR).toFixed(6)),
+        estimated_tokens: actualInputTokens + actualOutputTokens,
+        estimated_cost_eur: llmCostEur(actualInputTokens, actualOutputTokens, result.runtime),
         latency_ms: result.latencyMs,
       };
       if (!result.ok) {

@@ -1123,6 +1123,17 @@
   },
   "aiUsage": {
     "title": "Uso y costes",
-    "subtitle": "Cuánto usa su organización las funciones IA. El desglose de costes por modelo llegará con la tarificación de los modelos."
+    "subtitle": "Cuánto usa su organización las funciones IA. El desglose de costes por modelo llegará con la tarificación de los modelos.",
+    "costs": {
+      "title": "Costes",
+      "totalMonth": "Total este mes",
+      "agentsMonth": "Agentes este mes",
+      "chatMonth": "Plaid este mes",
+      "chatEstimatedNote": "Estimado con las tarifas del modelo asignado actualmente",
+      "chatFreeNote": "El modelo asignado no tiene coste",
+      "byAgent": "Coste por agente",
+      "byModel": "Coste por modelo",
+      "unknownModel": "Modelo desconocido"
+    }
   }
 }

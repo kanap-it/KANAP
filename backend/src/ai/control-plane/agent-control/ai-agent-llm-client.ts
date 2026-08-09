@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { assertPublicHttpTarget } from '../../../common/ssrf-guard';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { LlmTokenPrices } from '../../ai-llm-cost.util';
 import { AiModelResolverService } from '../../ai-model-resolver.service';
 import { BUILTIN_REASONING_EFFORT } from '../../platform/platform-ai-config.service';
 import { AiProviderRegistry } from '../../providers/ai-provider-registry.service';
@@ -19,6 +20,9 @@ export type AgentLlmRuntime = {
   supportsVision: boolean;
   // Per-model timeout; null falls back to the caller's per-stage env default.
   modelTimeoutMs: number | null;
+  // €/Mtok prices of the resolved model; null/0 = free (local, self-hosted, builtin).
+  priceInputEurPerMtok: number | null;
+  priceOutputEurPerMtok: number | null;
 };
 
 export type AgentJsonModelResult = {
@@ -194,6 +198,26 @@ export class AiAgentLlmClient {
       modelConfigId: resolved.configId,
       supportsVision: resolved.supportsVision,
       modelTimeoutMs: resolved.timeoutMs,
+      priceInputEurPerMtok: resolved.priceInputEurPerMtok,
+      priceOutputEurPerMtok: resolved.priceOutputEurPerMtok,
+    };
+  }
+
+  // Prices-only lookup for pre-flight cost projections: no provider adapter,
+  // no key decryption, no SSRF/DNS round-trip. Null when no model resolves.
+  async resolvePrices(context: AiExecutionContextWithManager): Promise<LlmTokenPrices | null> {
+    const resolved = await this.modelResolver.tryResolve(
+      context.tenantId,
+      context.agentId
+        ? { type: 'agent', agentId: context.agentId }
+        : { type: 'chat' },
+      context.manager,
+      { withSecrets: false },
+    );
+    if (!resolved) return null;
+    return {
+      priceInputEurPerMtok: resolved.priceInputEurPerMtok,
+      priceOutputEurPerMtok: resolved.priceOutputEurPerMtok,
     };
   }
 

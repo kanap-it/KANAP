@@ -399,6 +399,12 @@ function structuredJsonSuccess(value: unknown, overrides?: {
       model: overrides?.model ?? 'test-model',
       apiKey: null,
       endpointUrl: null,
+      modelConfigId: null,
+      supportsVision: true,
+      modelTimeoutMs: null,
+      // €2/Mtok both ways — the legacy flat rate, so historical cost expectations hold.
+      priceInputEurPerMtok: 2,
+      priceOutputEurPerMtok: 2,
     },
     usage,
     latencyMs,

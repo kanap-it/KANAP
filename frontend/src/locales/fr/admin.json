@@ -1123,6 +1123,17 @@
   },
   "aiUsage": {
     "title": "Utilisation & coûts",
-    "subtitle": "L'utilisation des fonctions IA par votre organisation. La ventilation des coûts par modèle arrive avec la tarification des modèles."
+    "subtitle": "L'utilisation des fonctions IA par votre organisation. La ventilation des coûts par modèle arrive avec la tarification des modèles.",
+    "costs": {
+      "title": "Coûts",
+      "totalMonth": "Total ce mois-ci",
+      "agentsMonth": "Agents ce mois-ci",
+      "chatMonth": "Plaid ce mois-ci",
+      "chatEstimatedNote": "Estimé aux tarifs du modèle actuellement assigné",
+      "chatFreeNote": "Le modèle assigné est sans coût",
+      "byAgent": "Coût par agent",
+      "byModel": "Coût par modèle",
+      "unknownModel": "Modèle inconnu"
+    }
   }
 }

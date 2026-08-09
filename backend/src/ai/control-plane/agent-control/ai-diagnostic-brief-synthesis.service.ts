@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { LlmTokenPrices, llmCostEur } from '../../ai-llm-cost.util';
 import { ProviderActionPlannerProfile } from '../providers/provider.types';
 import {
   compileSystemPrompt,
@@ -158,7 +159,6 @@ const MAX_BRIEF_OUTPUT_TOKENS = 6000;
 const MAX_SOURCE_CONTENT_CHARS = 3800;
 const MAX_UNTRUSTED_MESSAGE_CHARS = 1200;
 const MAX_FALLBACK_SOURCE_TITLES = 8;
-const TOKEN_COST_EUR = 0.000002;
 
 // Tolerant on purpose (same rule as reply synthesis): one malformed cause,
 // action, or source must never fail the whole brief — post-processing drops
@@ -335,14 +335,18 @@ function estimateTokens(value: unknown): number {
   return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
 }
 
-export function estimateDiagnosticBriefUsage(input: unknown, maxOutputTokens = MAX_BRIEF_OUTPUT_TOKENS): {
+export function estimateDiagnosticBriefUsage(
+  input: unknown,
+  prices: LlmTokenPrices | null,
+  maxOutputTokens = MAX_BRIEF_OUTPUT_TOKENS,
+): {
   estimatedTokens: number;
   estimatedCostEur: number;
 } {
-  const estimatedTokens = estimateTokens(input) + maxOutputTokens;
+  const inputTokens = estimateTokens(input);
   return {
-    estimatedTokens,
-    estimatedCostEur: Number((estimatedTokens * TOKEN_COST_EUR).toFixed(6)),
+    estimatedTokens: inputTokens + maxOutputTokens,
+    estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
   };
 }
 
@@ -583,9 +587,9 @@ export class AiDiagnosticBriefSynthesisService {
     const needsHumanReview = parsed.needs_human_review === true
       || unknownCitationDropped
       || usedSources.length === 0;
-    const actualTokens = response.usage
-      ? response.usage.input_tokens + response.usage.output_tokens
-      : estimateTokens(payload) + estimateTokens(response.text);
+    const actualInputTokens = response.usage ? response.usage.input_tokens : estimateTokens(payload);
+    const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateTokens(response.text);
+    const actualTokens = actualInputTokens + actualOutputTokens;
     return {
       language: parsed.language || input.language,
       summary,
@@ -601,7 +605,7 @@ export class AiDiagnosticBriefSynthesisService {
       model: `${response.runtime.providerId}:${response.runtime.model}`,
       usage: response.usage,
       estimated_tokens: actualTokens,
-      estimated_cost_eur: Number((actualTokens * TOKEN_COST_EUR).toFixed(6)),
+      estimated_cost_eur: llmCostEur(actualInputTokens, actualOutputTokens, response.runtime),
       latency_ms: response.latencyMs,
     };
   }
