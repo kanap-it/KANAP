@@ -89,7 +89,13 @@
       "branding": "Branding",
       "integrations": "Integrationen",
       "ai": "Plaid",
-      "agentControl": "Agentensteuerung"
+      "agentControl": "Agentensteuerung",
+      "aiModels": "KI-Modelle",
+      "aiUsage": "Nutzung & Kosten",
+      "sections": {
+        "ai": "Künstliche Intelligenz",
+        "integrations": "Integrationen"
+      }
     },
     "platform": {
       "tenants": "Mandanten",
@@ -130,6 +136,8 @@
     "interfaceMap": "Schnittstellenkarte",
     "connectionMap": "Verbindungskarte",
     "tasks": "Aufgaben",
-    "operations": "Administration"
+    "operations": "Administration",
+    "aiModels": "KI-Modelle",
+    "aiUsage": "Nutzung & Kosten"
   }
 }

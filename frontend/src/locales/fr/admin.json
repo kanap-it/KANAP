@@ -156,7 +156,15 @@
       },
       "testLabel": "Test du fournisseur",
       "title": "Fournisseur",
-      "validationErrorsTitle": "Erreurs de validation du fournisseur actuel"
+      "validationErrorsTitle": "Erreurs de validation du fournisseur actuel",
+      "modelSelector": {
+        "label": "Modèle utilisé par Plaid",
+        "builtin": "Modèle inclus KANAP",
+        "tenantDefault": "Modèle par défaut ({{name}})",
+        "noDefault": "Aucun modèle configuré",
+        "hintPrefix": "Les modèles se gèrent dans la page",
+        "hintLink": "Modèles IA"
+      }
     },
     "prtg": {
       "actions": {
@@ -1035,5 +1043,86 @@
       "limited": "Postes {{used}}/{{limit}}",
       "unlimited": "Postes {{used}} (illimité)"
     }
+  },
+  "aiModels": {
+    "title": "Modèles IA",
+    "subtitle": "Les modèles IA disponibles pour votre organisation. Assignez-les à Plaid ou à des agents ; le modèle par défaut est utilisé quand rien de spécifique n'est assigné.",
+    "sectionTitle": "Modèles",
+    "new": "Nouveau modèle",
+    "empty": "Aucun modèle IA configuré pour l'instant. Ajoutez votre premier modèle pour alimenter Plaid et les agents.",
+    "secretNotWritable": "Les clés API ne peuvent pas être enregistrées : aucun secret de chiffrement n'est configuré sur le serveur. Contactez votre administrateur.",
+    "defaultChip": "Par défaut",
+    "archivedChip": "Archivé",
+    "incomplete": "Configuration incomplète",
+    "visionYes": "Images ✓",
+    "visionNo": "Texte seul",
+    "usedByChat": "Plaid",
+    "usedByNone": "Non assigné",
+    "edit": "Modifier",
+    "archive": "Archiver",
+    "archiveBlocked": "Ce modèle est encore assigné et ne peut pas être archivé",
+    "restore": "Restaurer",
+    "makeDefault": "Utiliser comme modèle par défaut",
+    "clearDefault": "Ne plus utiliser comme modèle par défaut",
+    "columns": {
+      "name": "Nom",
+      "model": "Modèle",
+      "capabilities": "Capacités",
+      "priceInput": "Prix entrée / M tokens",
+      "priceOutput": "Prix sortie / M tokens",
+      "usedBy": "Utilisé par",
+      "actions": "Actions"
+    },
+    "builtin": {
+      "name": "Modèle inclus KANAP",
+      "caption": "Opéré par KANAP, inclus dans votre abonnement",
+      "model": "Géré par KANAP",
+      "quota": "{{used}} / {{limit}} messages inclus ce mois-ci",
+      "fallback": "Utilisé quand aucun autre modèle n'est assigné"
+    },
+    "errors": {
+      "loadFailed": "Les modèles IA n'ont pas pu être chargés.",
+      "saveFailed": "Le modèle IA n'a pas pu être enregistré.",
+      "archiveFailed": "Le modèle IA n'a pas pu être archivé.",
+      "testFailed": "Le test de connexion a échoué.",
+      "stillAssigned": "Ce modèle est encore utilisé par : {{consumers}}. Réassignez-les avant de l’archiver."
+    },
+    "dialog": {
+      "createTitle": "Nouveau modèle IA",
+      "editTitle": "Modifier le modèle IA",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "name": "Nom",
+      "namePlaceholder": "ex. Claude production",
+      "provider": "Fournisseur",
+      "model": "Modèle",
+      "modelPlaceholder": "ex. claude-sonnet-5",
+      "endpoint": "Adresse du serveur",
+      "endpointPlaceholder": "ex. https://ia.exemple.com",
+      "apiKey": "Clé API",
+      "apiKeyPlaceholder": "Collez la clé API fournie par votre fournisseur",
+      "apiKeyKeepHint": "Laissez vide pour conserver la clé actuelle.",
+      "capabilities": "Capacités",
+      "visionLabel": "Comprend les images",
+      "visionHint": "À désactiver pour un modèle texte seul : les captures d'écran jointes aux tickets sont alors ignorées au lieu de provoquer des appels en échec.",
+      "pricing": "Coût",
+      "pricingHint": "Prix par million de tokens, tel qu’affiché sur la page tarifs de votre fournisseur. Laissez vide ou à 0 pour un modèle local ou auto-hébergé.",
+      "priceInput": "Entrée (€ / M tokens)",
+      "priceOutput": "Sortie (€ / M tokens)",
+      "priceInputPlaceholder": "ex. 3,00",
+      "priceOutputPlaceholder": "ex. 15,00",
+      "advanced": "Paramètres avancés",
+      "timeout": "Temps de réponse maximum (secondes)",
+      "timeoutPlaceholder": "ex. 120",
+      "timeoutHint": "Durée d'attente maximale avant d'abandonner l'appel. Laissez vide pour la limite standard. Les modèles locaux ont souvent besoin de plus de temps.",
+      "defaultLabel": "Utiliser comme modèle par défaut",
+      "test": "Tester la connexion",
+      "testing": "Test en cours…",
+      "testOk": "Connexion réussie ({{latency}} ms)."
+    }
+  },
+  "aiUsage": {
+    "title": "Utilisation & coûts",
+    "subtitle": "L'utilisation des fonctions IA par votre organisation. La ventilation des coûts par modèle arrive avec la tarification des modèles."
   }
 }

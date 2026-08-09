@@ -721,7 +721,10 @@
       "interfaces": "Interfaces",
       "connections": "Conexiones",
       "locations": "Ubicaciones"
-    }
+    },
+    "model": "Modelo IA",
+    "modelTenantDefault": "Predeterminado de la organización",
+    "modelHint": "El modelo IA con el que funciona este agente. Los modelos se gestionan en Administración, en Modelos IA."
   },
   "actions": {
     "internalNote": "Nota interna",
