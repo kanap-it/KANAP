@@ -215,6 +215,69 @@ async function testCaseInsensitiveNameAndFqdnMatching() {
   }
 }
 
+// Shortname <-> FQDN bridging (rule extension 2026-08-09): a monitoring tool
+// reporting the device as an FQDN must match an asset stored under the bare
+// shortname, and vice versa. The search query uses the first DNS label so the
+// substring search can actually surface shortname-stored assets.
+async function testShortnameFqdnBridging() {
+  // FQDN-shaped device name vs asset stored as bare shortname.
+  {
+    const bare = assetItem({ label: 'lohr-fr-dc1', metadata: {} });
+    const { calls, dispatch } = makeDispatch((capabilityName, input) => {
+      if (capabilityName === KANAP_ENTITY_SEARCH_CAPABILITY && input.entity_type === 'assets') {
+        return { ok: true, output: searchOutput([bare]) };
+      }
+      return happyPathHandler(capabilityName, input);
+    });
+    const resolver = new KanapEntityContextResolver({ dispatch });
+    const resolution = await resolver.resolveAlertContext({
+      context,
+      alert: { deviceName: 'LOHR-FR-DC1.lohr-fr.com' },
+      kanapData: policy({ applications: false, interfaces: false, connections: false, locations: false }),
+    });
+    assert.equal(resolution.assetMatch, 'matched');
+    // The candidate search must run on the shortname, or a shortname-stored
+    // asset would never appear in the substring results.
+    const assetSearch = calls.find((call) => call.capabilityName === KANAP_ENTITY_SEARCH_CAPABILITY);
+    assert.equal(assetSearch?.input.q, 'LOHR-FR-DC1');
+  }
+  // Shortname device vs asset identified only by its FQDN.
+  {
+    const fqdnOnly = assetItem({ label: 'Some display label', metadata: { fqdn: 'web01.corp.local' } });
+    const { dispatch } = makeDispatch((capabilityName, input) => {
+      if (capabilityName === KANAP_ENTITY_SEARCH_CAPABILITY && input.entity_type === 'assets') {
+        return { ok: true, output: searchOutput([fqdnOnly]) };
+      }
+      return happyPathHandler(capabilityName, input);
+    });
+    const resolver = new KanapEntityContextResolver({ dispatch });
+    const resolution = await resolver.resolveAlertContext({
+      context,
+      alert: { deviceName: 'WEB01' },
+      kanapData: policy({ applications: false, interfaces: false, connections: false, locations: false }),
+    });
+    assert.equal(resolution.assetMatch, 'matched');
+  }
+  // Still no fuzzy matching: a shortname that is only a PREFIX of the
+  // candidate's shortname must not match.
+  {
+    const bare = assetItem({ label: 'lohr-fr-dc1', metadata: {} });
+    const { dispatch } = makeDispatch((capabilityName, input) => {
+      if (capabilityName === KANAP_ENTITY_SEARCH_CAPABILITY && input.entity_type === 'assets') {
+        return { ok: true, output: searchOutput([bare]) };
+      }
+      return happyPathHandler(capabilityName, input);
+    });
+    const resolver = new KanapEntityContextResolver({ dispatch });
+    const resolution = await resolver.resolveAlertContext({
+      context,
+      alert: { deviceName: 'LOHR-FR.lohr-fr.com' },
+      kanapData: policy({ applications: false, interfaces: false, connections: false, locations: false }),
+    });
+    assert.equal(resolution.assetMatch, 'unmatched');
+  }
+}
+
 async function testIpTiebreakResolvesAmbiguity() {
   const twin = assetItem({ id: 'aaaaaaaa-0000-4000-8000-000000000009', ref: 'AST-9' });
   const { calls, dispatch } = makeDispatch((capabilityName, input) => {
@@ -443,6 +506,7 @@ async function run() {
   await testAssetsDomainOffDispatchesNothing();
   await testPerDomainOffFamiliesNeverDispatched();
   await testCaseInsensitiveNameAndFqdnMatching();
+  await testShortnameFqdnBridging();
   await testIpTiebreakResolvesAmbiguity();
   await testAmbiguousWithoutIpTakesNothing();
   await testUnmatchedDeviceIsNoted();
