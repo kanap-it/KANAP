@@ -22,6 +22,7 @@ import {
   markWorkItemAttemptFailure,
   monitoringAlertDedupKey,
   SRE_MONITORING_ALLOWED_CAPABILITIES,
+  SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
   SRE_MONITORING_FORBIDDEN_CAPABILITIES,
 } from '../agent/ai-agent-work-queue.service';
 import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
@@ -4885,10 +4886,13 @@ export class AiAgentControlService {
     if (!definition) {
       throw new NotFoundException('Agent definition not found.');
     }
-    // The built-in Helpdesk agent is auto-seeded on poll/settings load, so deleting it just
-    // re-creates it. Block deletion and steer the user to disable/archive instead.
+    // Built-in agents are auto-seeded on poll/overview load, so deleting them just
+    // re-creates them. Block deletion and steer the user to disable/archive instead.
     if (definition.agent_key === HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
       throw new BadRequestException('The built-in Helpdesk agent cannot be deleted. Disable it instead.');
+    }
+    if (definition.agent_key === SRE_MONITORING_DIAGNOSIS_AGENT_KEY) {
+      throw new BadRequestException('The built-in SRE monitoring agent cannot be deleted. Disable or archive it instead.');
     }
     // Remove this agent's earned-autonomy policies (metadata-linked, no FK) so no orphan
     // auto-approval policy survives the agent.
