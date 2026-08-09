@@ -113,6 +113,9 @@ export type ProviderAdapterRuntime = {
   baseUrl: string | null;
   credential: ProviderRuntimeCredential | null;
   configMetadata: Record<string, unknown> | null;
+  // Operator-tuned request timeout (ai_adapter_configs.timeout_seconds);
+  // null means the provider's built-in default.
+  timeoutSeconds: number | null;
 };
 
 export type ProviderContext = AiExecutionContextWithManager & {

@@ -20,8 +20,14 @@ import {
 // Invocation: connection parameters come in per call (the monitoring adapter
 // derives them from context.adapterRuntime); this service holds no state.
 
-const PRTG_TIMEOUT_MS = 10_000;
-// Admin "test connection" probes stay snappy: they are interactive.
+// Default for background ingestion/diagnosis calls. Raised from 10 s: on
+// large or WAN-reached PRTG servers table.json regularly needs longer, and a
+// timed-out call fails the whole alert diagnosis. Operators can tune it per
+// adapter via the request-timeout setting (connection.requestTimeoutMs).
+const PRTG_TIMEOUT_MS = 30_000;
+// Admin "test connection" probes stay snappy: they are interactive. A
+// configured per-adapter timeout still applies so a slow-but-working server
+// can pass the test.
 const PRTG_TEST_TIMEOUT_MS = 5_000;
 
 // PRTG absolute `*_raw` datetime columns (lastcheck_raw, datetime_raw, ...)
@@ -104,6 +110,11 @@ function wallClockMsToUtcMs(wallMs: number, timeZone: string): number {
 }
 
 export type PrtgFetchLike = (url: string, init: { signal: AbortSignal }) => Promise<Response>;
+
+function connectionTimeoutMs(connection: PrtgConnection): number {
+  const value = connection.requestTimeoutMs;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : PRTG_TIMEOUT_MS;
+}
 
 // Optional DI token so specs can inject a fake transport; production leaves
 // it unbound and the client falls back to the global fetch.
@@ -219,7 +230,7 @@ export class PrtgService {
         params.append(key, value);
       }
     });
-    const payload = await this.requestJson(url, 'table.json');
+    const payload = await this.requestJson(url, 'table.json', connectionTimeoutMs(connection));
     const rows = isRecord(payload) ? payload[request.content] : null;
     if (!Array.isArray(rows)) {
       throw new PrtgApiError('invalid_response', `PRTG table.json response did not include a ${request.content} row list.`);
@@ -234,7 +245,7 @@ export class PrtgService {
       params.set('id', sensorId);
       params.set('output', 'json');
     });
-    const payload = await this.requestJson(url, 'getsensordetails.json');
+    const payload = await this.requestJson(url, 'getsensordetails.json', connectionTimeoutMs(connection));
     const sensordata = isRecord(payload) && isRecord(payload.sensordata) ? payload.sensordata : null;
     if (!sensordata) {
       throw new PrtgApiError('invalid_response', 'PRTG getsensordetails.json response was malformed.');
@@ -258,7 +269,7 @@ export class PrtgService {
       params.set('usecaption', '1');
       params.set('output', 'json');
     });
-    const payload = await this.requestJson(url, 'historicdata.json');
+    const payload = await this.requestJson(url, 'historicdata.json', connectionTimeoutMs(connection));
     const rows = isRecord(payload) ? payload.histdata : null;
     if (!Array.isArray(rows)) {
       throw new PrtgApiError('invalid_response', 'PRTG historicdata.json response did not include a histdata row list.');
@@ -273,7 +284,7 @@ export class PrtgService {
     const url = this.buildUrl(connection, 'api/sensortypesinuse.json', (params) => {
       params.set('output', 'json');
     });
-    const payload = await this.requestJson(url, 'sensortypesinuse.json');
+    const payload = await this.requestJson(url, 'sensortypesinuse.json', connectionTimeoutMs(connection));
     const record = isRecord(payload) ? payload : {};
     const rows = Array.isArray(record.sensortypes)
       ? record.sensortypes
@@ -304,7 +315,7 @@ export class PrtgService {
       params.set('start', '0');
       params.set('output', 'json');
     });
-    const payload = await this.requestJson(url, 'table.json', PRTG_TEST_TIMEOUT_MS);
+    const payload = await this.requestJson(url, 'table.json', connection.requestTimeoutMs ?? PRTG_TEST_TIMEOUT_MS);
     const record = isRecord(payload) ? payload : {};
     if (!Array.isArray(record.sensors)) {
       throw new PrtgApiError('invalid_response', 'PRTG table.json response did not include a sensors row list.');

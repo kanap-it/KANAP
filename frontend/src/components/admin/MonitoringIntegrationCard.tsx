@@ -31,6 +31,7 @@ type PrtgForm = {
   base_url: string;
   api_token: string;
   server_timezone: string;
+  request_timeout_seconds: string;
 };
 
 type PrtgStatus = 'connected' | 'disabled' | 'notConfigured';
@@ -67,6 +68,7 @@ function buildForm(integration: AiMonitoringIntegration | null): PrtgForm {
     base_url: integration?.base_url || '',
     api_token: '',
     server_timezone: integration?.server_timezone || getBrowserTimeZone(),
+    request_timeout_seconds: integration?.request_timeout_seconds != null ? String(integration.request_timeout_seconds) : '',
   };
 }
 
@@ -110,6 +112,8 @@ export default function MonitoringIntegrationCard() {
         base_url: data.base_url.trim(),
         enabled: data.enabled,
         ...(data.server_timezone ? { server_timezone: data.server_timezone } : {}),
+        // Always sent: an emptied field clears back to the built-in default.
+        request_timeout_seconds: data.request_timeout_seconds.trim() ? Number(data.request_timeout_seconds.trim()) : null,
         ...(data.api_token.trim() ? { api_token: data.api_token.trim() } : {}),
       }),
     onMutate: () => {
@@ -240,6 +244,15 @@ export default function MonitoringIntegrationCard() {
                   helperText={t('aiAdmin.prtg.hints.timezone')}
                 />
               )}
+            />
+
+            <TextField
+              size="small"
+              label={t('aiAdmin.prtg.fields.requestTimeout')}
+              value={form.request_timeout_seconds}
+              onChange={(event) => setForm((prev) => ({ ...prev, request_timeout_seconds: event.target.value.replace(/[^0-9]/g, '') }))}
+              placeholder={t('aiAdmin.prtg.placeholders.requestTimeout')}
+              helperText={t('aiAdmin.prtg.hints.requestTimeout')}
             />
 
             {testResult ? (

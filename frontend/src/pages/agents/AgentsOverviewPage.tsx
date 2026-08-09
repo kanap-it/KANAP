@@ -32,6 +32,7 @@ import {
   EmptyState,
   formatNumber,
   formatPercent,
+  BUILT_IN_AGENT_KEYS,
   HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
   LEGACY_GLPI_TICKETING_PROVIDER_KEY,
@@ -676,7 +677,7 @@ export default function AgentsOverviewPage() {
                             </Box>
                             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
                               <StatusText status={t(`lifecycle.${label}`)} />
-                              {canAdmin && definition.agent_key !== HELP_DESK_TICKETING_AGENT_KEY && (
+                              {canAdmin && !BUILT_IN_AGENT_KEYS.includes(definition.agent_key) && (
                                 <Tooltip title={t('overview.deleteAgent')}>
                                   <IconButton
                                     size="small"

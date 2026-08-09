@@ -303,8 +303,12 @@
     }
   },
   "monitor": {
-    "start": "Agent starten",
-    "disable": "Deaktivieren",
+    "modes": {
+      "off": "Aus",
+      "manual": "Nur manuell",
+      "watching": "Beobachtung"
+    },
+    "archivedNote": "Archiviert — im Tab Einstellungen wiederherstellen.",
     "testStarted": "Testlauf gestartet.",
     "testFailed": "Testlauf konnte nicht gestartet werden.",
     "providerMissing": "Für diesen Agenten ist kein Ticketing-Anbieter gebunden.",
@@ -445,11 +449,13 @@
     "objectiveCapabilities": "Ziel und Fähigkeiten",
     "name": "Name",
     "status": "Status",
-    "statuses": {
-      "draft": "Nicht gestartet",
-      "enabled": "Aktiviert",
-      "disabled": "Aus",
-      "archived": "Archiviert"
+    "manageInMonitor": "Im Monitor verwalten",
+    "archiveAgent": "Agent archivieren",
+    "restoreAgent": "Agent wiederherstellen",
+    "archiveDialog": {
+      "title": "Diesen Agenten archivieren?",
+      "body": "{{name}} beobachtet und läuft nicht mehr. Konfiguration und Verlauf bleiben erhalten, und Sie können ihn hier jederzeit wiederherstellen.",
+      "confirm": "Archivieren"
     },
     "description": "Beschreibung",
     "mission": "Mission",
@@ -487,7 +493,8 @@
       "action_planner": "Aktionsplanung",
       "planner": "Planung",
       "interpreter": "Interpretation",
-      "synthesis": "Synthese"
+      "synthesis": "Synthese",
+      "monitoring_diagnosis": "Diagnose"
     },
     "sharedContextDialog": {
       "title": "Neues gemeinsames Kontextprofil",
@@ -504,8 +511,6 @@
     "saveFailed": "Speichern fehlgeschlagen",
     "watching": "Überwachung",
     "targeting": "Zielauswahl",
-    "watchNewTickets": "Neue Tickets überwachen",
-    "watchTickets": "Tickets automatisch überwachen",
     "targetingPresets": {
       "new_tickets": "Neue Tickets",
       "all_open": "Alle offenen",
@@ -703,7 +708,6 @@
       "critical_and_high": "Kritisch & hoch",
       "stable_down_10min": "Ausgefallen seit ≥ 10 Min."
     },
-    "watchAlerts": "Alarme automatisch beobachten",
     "maxAlerts": "Bearbeitete Alarme pro Prüfung",
     "maxMonitoringRequests": "Anfragen an das Überwachungstool pro Prüfung",
     "monitoringNotConnected": "Kein Überwachungstool verbunden — dieser Agent kann nicht arbeiten.",

@@ -425,6 +425,7 @@ export class AiProviderRegistryService {
       baseUrl: config.base_url ?? null,
       credential: null,
       configMetadata: config.metadata_json ?? null,
+      timeoutSeconds: config.timeout_seconds ?? null,
     };
     const applicability = this.adapterConfigs.validateConfig(config);
     if (!applicability.available) {

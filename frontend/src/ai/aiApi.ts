@@ -45,6 +45,7 @@ export type AiMonitoringIntegration = {
   environment: 'sandbox' | 'production';
   base_url: string;
   server_timezone: string | null;
+  request_timeout_seconds: number | null;
   credential: {
     present: boolean;
     shape: AiMonitoringCredentialShape;
@@ -57,6 +58,8 @@ export type AiPrtgIntegrationUpdatePayload = {
   enabled: boolean;
   environment?: 'sandbox' | 'production';
   server_timezone?: string;
+  /** Whole seconds (5–120); null clears back to the built-in default. */
+  request_timeout_seconds?: number | null;
   /** Write-only: omitted or empty keeps the stored credential. */
   api_token?: string;
   username?: string;
@@ -425,12 +428,8 @@ export type AiAgentEffectivePrompt = {
   prompt_profile: Record<string, unknown>;
   shared_context_resolved: boolean;
   shared_context_resolution_reason: string | null;
-  tasks: {
-    action_planner: AiAgentEffectivePromptTask;
-    planner: AiAgentEffectivePromptTask;
-    interpreter: AiAgentEffectivePromptTask;
-    synthesis: AiAgentEffectivePromptTask;
-  };
+  // Helpdesk agents expose the four triage tasks; SRE agents expose monitoring_diagnosis only.
+  tasks: Partial<Record<'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis', AiAgentEffectivePromptTask>>;
 };
 
 export type AiAgentControlAutonomyItem = {
@@ -1346,7 +1345,7 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/agents/${id}`, payload);
     return res.data;
   },
-  async updateAgentStatus(id: string, payload: { status: string }): Promise<{
+  async updateAgentStatus(id: string, payload: { status: string; watching?: boolean }): Promise<{
     agent_definition: AiAgentControlAgentDefinition;
     diff: Record<string, unknown>;
   }> {

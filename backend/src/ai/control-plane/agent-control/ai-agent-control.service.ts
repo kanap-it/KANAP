@@ -22,6 +22,7 @@ import {
   markWorkItemAttemptFailure,
   monitoringAlertDedupKey,
   SRE_MONITORING_ALLOWED_CAPABILITIES,
+  SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
   SRE_MONITORING_FORBIDDEN_CAPABILITIES,
 } from '../agent/ai-agent-work-queue.service';
 import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
@@ -399,6 +400,9 @@ export type AgentControlAgentDefinitionInput = {
 
 export type AgentControlAgentStatusInput = {
   status?: string | null;
+  // Optional scheduled-poll flip so a run-mode change (off / manual only / watching)
+  // lands atomically with the status write instead of racing a second request.
+  watching?: boolean | null;
 };
 
 export type AgentControlAutonomyInput = {
@@ -4360,6 +4364,23 @@ export class AiAgentControlService {
     }
     const runtime = await this.compileAgentPromptRuntime(context, definition);
     const compiler = this.agentPromptCompiler();
+    // SRE agents run a single LLM stage (monitoring_diagnosis); the helpdesk task
+    // prompts never execute for them and must not appear in the settings preview.
+    if (definition.agent_type === 'sre') {
+      const diagnosisGuidance = compiler.sliceFor(runtime.profile, 'monitoring_diagnosis');
+      return {
+        agent_definition_id: definition.id,
+        prompt_profile: runtime.promptProfileSummary,
+        shared_context_resolved: runtime.sharedContextResolution.resolved,
+        shared_context_resolution_reason: runtime.sharedContextResolution.reason,
+        tasks: {
+          monitoring_diagnosis: {
+            system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS, diagnosisGuidance),
+            guidance_json: compiler.guidancePayload(diagnosisGuidance),
+          },
+        },
+      };
+    }
     return {
       agent_definition_id: definition.id,
       prompt_profile: runtime.promptProfileSummary,
@@ -4824,6 +4845,18 @@ export class AiAgentControlService {
     const before = configSnapshot(definition);
     const status = cleanAgentStatus(input.status);
     definition.status = status;
+    if (typeof input.watching === 'boolean') {
+      const watching = input.watching === true;
+      const trigger = isRecord(definition.trigger_policy_json) ? definition.trigger_policy_json : {};
+      definition.trigger_policy_json = {
+        ...trigger,
+        scheduled_poll: {
+          ...(isRecord(trigger.scheduled_poll) ? trigger.scheduled_poll : {}),
+          enabled: watching,
+        },
+        production_polling_enabled: watching,
+      };
+    }
     definition.metadata_json = {
       ...metadataObject(definition.metadata_json),
       user_modified: true,
@@ -4853,10 +4886,13 @@ export class AiAgentControlService {
     if (!definition) {
       throw new NotFoundException('Agent definition not found.');
     }
-    // The built-in Helpdesk agent is auto-seeded on poll/settings load, so deleting it just
-    // re-creates it. Block deletion and steer the user to disable/archive instead.
+    // Built-in agents are auto-seeded on poll/overview load, so deleting them just
+    // re-creates them. Block deletion and steer the user to disable/archive instead.
     if (definition.agent_key === HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
       throw new BadRequestException('The built-in Helpdesk agent cannot be deleted. Disable it instead.');
+    }
+    if (definition.agent_key === SRE_MONITORING_DIAGNOSIS_AGENT_KEY) {
+      throw new BadRequestException('The built-in SRE monitoring agent cannot be deleted. Disable or archive it instead.');
     }
     // Remove this agent's earned-autonomy policies (metadata-linked, no FK) so no orphan
     // auto-approval policy survives the agent.

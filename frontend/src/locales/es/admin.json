@@ -167,11 +167,13 @@
         "apiKey": "Clave API",
         "baseUrl": "Dirección del servidor",
         "enabled": "Activar la monitorización PRTG",
-        "timezone": "Zona horaria del servidor"
+        "timezone": "Zona horaria del servidor",
+        "requestTimeout": "Tiempo de espera de las solicitudes (segundos)"
       },
       "hints": {
         "apiKey": "Cree una en PRTG en Configuración → Claves API. Basta con acceso de solo lectura.",
         "apiKeyExisting": "Ya hay una clave API guardada. Déjelo en blanco para conservarla.",
+        "requestTimeout": "Cuánto tiempo espera KANAP la respuesta de PRTG en cada solicitud (5–120 segundos). Auméntelo si las comprobaciones de alertas fallan por tiempo de espera en un servidor PRTG grande o lento. Déjelo vacío para el valor predeterminado (30).",
         "baseUrl": "La dirección de la interfaz web de su PRTG, p. ej. https://prtg.example.com",
         "timezone": "La zona horaria en la que funciona su servidor PRTG, para leer correctamente las marcas de tiempo de las alertas."
       },
@@ -185,7 +187,8 @@
       "placeholders": {
         "apiKeySaved": "Clave API guardada (déjelo en blanco para conservarla)",
         "enterApiKey": "Introduzca la clave API",
-        "url": "https://prtg.example.com"
+        "url": "https://prtg.example.com",
+        "requestTimeout": "p. ej., 60"
       },
       "status": {
         "connected": "Conectado",

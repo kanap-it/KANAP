@@ -305,6 +305,19 @@ function mapError<T>(error: unknown): AdapterResult<T> {
   return providerError<T>('provider_unavailable', message, true);
 }
 
+// Operator-tuned request timeout: ai_adapter_configs.timeout_seconds clamped
+// to 5..120 s. Null/invalid falls back to the PRTG client default.
+export const PRTG_MIN_TIMEOUT_SECONDS = 5;
+export const PRTG_MAX_TIMEOUT_SECONDS = 120;
+
+function prtgRequestTimeoutMs(timeoutSeconds: number | null | undefined): number | null {
+  if (typeof timeoutSeconds !== 'number' || !Number.isFinite(timeoutSeconds)) {
+    return null;
+  }
+  const clamped = Math.max(PRTG_MIN_TIMEOUT_SECONDS, Math.min(PRTG_MAX_TIMEOUT_SECONDS, Math.floor(timeoutSeconds)));
+  return clamped * 1000;
+}
+
 function sensorSourceUri(connection: PrtgConnection, objectId: string): string {
   return `${connection.baseUrl}/sensor.htm?id=${objectId}`;
 }
@@ -444,8 +457,9 @@ export class PrtgMonitoringProvider implements MonitoringProvider {
     // `*_raw` datetimes and sdate/edate are server-local wall-clock values.
     // Absent means UTC; validated at admin write time.
     const serverTimeZone = textOrNull(objectOrNull(runtime.configMetadata)?.server_timezone);
+    const requestTimeoutMs = prtgRequestTimeoutMs(runtime.timeoutSeconds);
     if (!raw.startsWith('{')) {
-      return { connection: { baseUrl: normalizedBaseUrl, auth: { kind: 'api_token', apiToken: raw }, serverTimeZone } };
+      return { connection: { baseUrl: normalizedBaseUrl, auth: { kind: 'api_token', apiToken: raw }, serverTimeZone, requestTimeoutMs } };
     }
     let parsed: unknown;
     try {
@@ -471,12 +485,12 @@ export class PrtgMonitoringProvider implements MonitoringProvider {
     }
     const apiToken = textOrNull(record.api_token);
     if (apiToken) {
-      return { connection: { baseUrl: normalizedBaseUrl, auth: { kind: 'api_token', apiToken }, serverTimeZone } };
+      return { connection: { baseUrl: normalizedBaseUrl, auth: { kind: 'api_token', apiToken }, serverTimeZone, requestTimeoutMs } };
     }
     const username = textOrNull(record.username);
     const passhash = textOrNull(record.passhash);
     if (username && passhash) {
-      return { connection: { baseUrl: normalizedBaseUrl, auth: { kind: 'passhash', username, passhash }, serverTimeZone } };
+      return { connection: { baseUrl: normalizedBaseUrl, auth: { kind: 'passhash', username, passhash }, serverTimeZone, requestTimeoutMs } };
     }
     return {
       error: {

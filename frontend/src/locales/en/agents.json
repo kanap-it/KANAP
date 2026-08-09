@@ -303,8 +303,12 @@
     }
   },
   "monitor": {
-    "start": "Start agent",
-    "disable": "Disable",
+    "modes": {
+      "off": "Off",
+      "manual": "Manual only",
+      "watching": "Watching"
+    },
+    "archivedNote": "Archived — restore it from the Settings tab.",
     "testStarted": "Test run started.",
     "testFailed": "Could not start the test run.",
     "providerMissing": "This agent has no ticketing provider binding.",
@@ -445,11 +449,13 @@
     "objectiveCapabilities": "Objective and capabilities",
     "name": "Name",
     "status": "Status",
-    "statuses": {
-      "draft": "Not started",
-      "enabled": "Enabled",
-      "disabled": "Off",
-      "archived": "Archived"
+    "manageInMonitor": "Manage in Monitor",
+    "archiveAgent": "Archive agent",
+    "restoreAgent": "Restore agent",
+    "archiveDialog": {
+      "title": "Archive this agent?",
+      "body": "{{name}} stops watching and running. Its configuration and history are kept, and you can restore it from here at any time.",
+      "confirm": "Archive"
     },
     "description": "Description",
     "mission": "Mission",
@@ -487,7 +493,8 @@
       "action_planner": "Action planner",
       "planner": "Planner",
       "interpreter": "Interpreter",
-      "synthesis": "Synthesis"
+      "synthesis": "Synthesis",
+      "monitoring_diagnosis": "Diagnosis"
     },
     "sharedContextDialog": {
       "title": "New shared context profile",
@@ -504,8 +511,6 @@
     "saveFailed": "Couldn't save",
     "watching": "Watching",
     "targeting": "Targeting",
-    "watchNewTickets": "Watch new tickets",
-    "watchTickets": "Watch tickets automatically",
     "targetingPresets": {
       "new_tickets": "New tickets",
       "all_open": "All open",
@@ -703,7 +708,6 @@
       "critical_and_high": "Critical & high",
       "stable_down_10min": "Stable down ≥ 10 min"
     },
-    "watchAlerts": "Watch alerts automatically",
     "maxAlerts": "Alerts handled per check",
     "maxMonitoringRequests": "Requests to the monitoring tool per check",
     "monitoringNotConnected": "No monitoring tool connected — this agent cannot run.",

@@ -167,11 +167,13 @@
         "apiKey": "API-Schlüssel",
         "baseUrl": "Serveradresse",
         "enabled": "PRTG-Monitoring aktivieren",
-        "timezone": "Zeitzone des Servers"
+        "timezone": "Zeitzone des Servers",
+        "requestTimeout": "Anfrage-Timeout (Sekunden)"
       },
       "hints": {
         "apiKey": "Erstellen Sie einen in PRTG unter Setup → API-Schlüssel. Lesezugriff genügt.",
         "apiKeyExisting": "Ein API-Schlüssel ist bereits gespeichert. Leer lassen, um ihn zu behalten.",
+        "requestTimeout": "Wie lange KANAP pro Anfrage auf eine Antwort von PRTG wartet (5–120 Sekunden). Erhöhen Sie den Wert, wenn Alarmprüfungen auf einem großen oder langsamen PRTG-Server mit Timeouts fehlschlagen. Leer lassen für den Standard (30).",
         "baseUrl": "Die Adresse Ihrer PRTG-Weboberfläche, z. B. https://prtg.example.com",
         "timezone": "Die Zeitzone, in der Ihr PRTG-Server läuft, damit Alarmzeitstempel korrekt gelesen werden."
       },
@@ -185,7 +187,8 @@
       "placeholders": {
         "apiKeySaved": "API-Schlüssel gespeichert (leer lassen zum Beibehalten)",
         "enterApiKey": "API-Schlüssel eingeben",
-        "url": "https://prtg.example.com"
+        "url": "https://prtg.example.com",
+        "requestTimeout": "z. B. 60"
       },
       "status": {
         "connected": "Verbunden",

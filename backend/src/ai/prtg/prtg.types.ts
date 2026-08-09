@@ -18,6 +18,9 @@ export type PrtgConnection = {
   // `server_timezone`). PRTG absolute `*_raw` datetimes and sdate/edate
   // parameters are server-local wall-clock values; absent/null means UTC.
   serverTimeZone?: string | null;
+  // Operator-tuned per-request timeout (ai_adapter_configs.timeout_seconds,
+  // already clamped by the adapter); absent/null means the client default.
+  requestTimeoutMs?: number | null;
 };
 
 export type PrtgObjectContent = 'sensors' | 'devices' | 'groups';

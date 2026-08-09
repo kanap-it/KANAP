@@ -303,8 +303,12 @@
     }
   },
   "monitor": {
-    "start": "Démarrer l'agent",
-    "disable": "Désactiver",
+    "modes": {
+      "off": "Arrêté",
+      "manual": "Manuel uniquement",
+      "watching": "Surveillance"
+    },
+    "archivedNote": "Archivé — restaurez-le depuis l'onglet Paramètres.",
     "testStarted": "Exécution de test démarrée.",
     "testFailed": "Impossible de démarrer l'exécution de test.",
     "providerMissing": "Cet agent n'a pas de fournisseur de tickets associé.",
@@ -445,11 +449,13 @@
     "objectiveCapabilities": "Objectif et capacités",
     "name": "Nom",
     "status": "Statut",
-    "statuses": {
-      "draft": "Non démarré",
-      "enabled": "Activé",
-      "disabled": "Désactivé",
-      "archived": "Archivé"
+    "manageInMonitor": "Gérer dans Surveillance",
+    "archiveAgent": "Archiver l'agent",
+    "restoreAgent": "Restaurer l'agent",
+    "archiveDialog": {
+      "title": "Archiver cet agent ?",
+      "body": "{{name}} cesse de surveiller et de s'exécuter. Sa configuration et son historique sont conservés, et vous pouvez le restaurer ici à tout moment.",
+      "confirm": "Archiver"
     },
     "description": "Description",
     "mission": "Mission",
@@ -487,7 +493,8 @@
       "action_planner": "Planificateur d'actions",
       "planner": "Planificateur",
       "interpreter": "Interpréteur",
-      "synthesis": "Synthèse"
+      "synthesis": "Synthèse",
+      "monitoring_diagnosis": "Diagnostic"
     },
     "sharedContextDialog": {
       "title": "Nouveau profil de contexte partagé",
@@ -504,8 +511,6 @@
     "saveFailed": "Échec de l'enregistrement",
     "watching": "Surveillance",
     "targeting": "Ciblage",
-    "watchNewTickets": "Surveiller les nouveaux tickets",
-    "watchTickets": "Surveiller les tickets automatiquement",
     "targetingPresets": {
       "new_tickets": "Nouveaux tickets",
       "all_open": "Tous ouverts",
@@ -703,7 +708,6 @@
       "critical_and_high": "Critiques et élevées",
       "stable_down_10min": "Hors service depuis ≥ 10 min"
     },
-    "watchAlerts": "Surveiller les alertes automatiquement",
     "maxAlerts": "Alertes traitées par vérification",
     "maxMonitoringRequests": "Requêtes vers l'outil de supervision par vérification",
     "monitoringNotConnected": "Aucun outil de supervision connecté — cet agent ne peut pas fonctionner.",
