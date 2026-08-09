@@ -73,6 +73,7 @@ import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
 import { AiAgentAuditEvent } from '../entities/ai-agent-audit-event.entity';
 import { AiModelConfig } from '../../ai-model-config.entity';
+import { AiAgentLlmClient } from './ai-agent-llm-client';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiAgentTargetState } from '../entities/ai-agent-target-state.entity';
 import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
@@ -3228,6 +3229,7 @@ export class AiAgentControlService {
     private readonly builtinQuota?: AiAgentBuiltinQuotaService,
     private readonly tenantExecutor?: AiTenantExecutionService,
     private readonly diagnosticBriefSynthesis?: AiDiagnosticBriefSynthesisService,
+    private readonly llmClient?: AiAgentLlmClient,
   ) {}
 
   private async actionPlannerProfileForProvider(
@@ -3478,6 +3480,7 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       synthesis: {
         estimated_cost_eur: input.synthesis.estimated_cost_eur,
+        model: input.synthesis.model ?? null,
       },
     };
     run.updated_at = new Date();
@@ -3513,6 +3516,7 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       diagnostic_brief: {
         estimated_cost_eur: input.brief.estimated_cost_eur,
+        model: input.brief.model ?? null,
       },
     };
     run.updated_at = new Date();
@@ -3546,6 +3550,7 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       need_representation: {
         estimated_cost_eur: input.needRepresentation.estimated_cost_eur,
+        model: input.needRepresentation.model ?? null,
       },
     };
     run.updated_at = new Date();
@@ -3579,6 +3584,7 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       knowledge_interpretation: {
         estimated_cost_eur: input.interpretation.estimated_cost_eur,
+        model: input.interpretation.model ?? null,
       },
     };
     run.updated_at = new Date();
@@ -3612,6 +3618,7 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       evidence_extraction: {
         estimated_cost_eur: input.evidenceExtraction.estimated_cost_eur,
+        model: input.evidenceExtraction.model ?? null,
       },
     };
     run.updated_at = new Date();
@@ -3645,6 +3652,7 @@ export class AiAgentControlService {
       ...(isRecord(run.cost_json) ? run.cost_json : {}),
       action_planner: {
         estimated_cost_eur: input.planner.estimated_cost_eur,
+        model: input.planner.model ?? null,
       },
     };
     run.updated_at = new Date();
@@ -6417,6 +6425,8 @@ export class AiAgentControlService {
     // Lets the LLM client resolve this agent's assigned registry model for
     // every downstream stage without threading the definition through them.
     context.agentId = definition.id;
+    // Assigned model's €/Mtok prices for pre-flight cost projections (null = free).
+    const llmPrices = (await this.llmClient?.resolvePrices(context)) ?? null;
     let leasedWorkItem = await this.agentQueue.acquireWorkItem(context, queuedWorkItem.id, {
       leaseOwner: `sre-monitoring-diagnosis:${context.userId || 'system'}`,
     });
@@ -6949,7 +6959,7 @@ export class AiAgentControlService {
         briefProjection = estimateDiagnosticBriefUsage({
           systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS, diagnosisGuidance),
           userPayload: briefPayload,
-        }, this.diagnosticBriefSynthesis.maxOutputTokens());
+        }, llmPrices, this.diagnosticBriefSynthesis.maxOutputTokens());
         const baseUsageEstimate = currentRunLlmUsage();
         if (
           baseUsageEstimate.estimatedTokens + briefProjection.estimatedTokens > guardrails.maxEstimatedTokens
@@ -7404,6 +7414,8 @@ export class AiAgentControlService {
     // Lets the LLM client resolve this agent's assigned registry model for
     // every downstream stage without threading the definition through them.
     context.agentId = agentDefinition?.id ?? null;
+    // Assigned model's €/Mtok prices for pre-flight cost projections (null = free).
+    const llmPrices = (await this.llmClient?.resolvePrices(context)) ?? null;
     const promptRuntime = await this.compileAgentPromptRuntime(context, agentDefinition);
 
     // One approval window for the whole run: compute a single expiry anchor here and stamp it on
@@ -7636,7 +7648,7 @@ export class AiAgentControlService {
         ticket,
         notes: ticketNotesData.notes,
         maxImages: this.ticketEvidenceExtractor.maxImageCount(),
-      }, this.ticketEvidenceExtractor.maxOutputTokens());
+      }, llmPrices, this.ticketEvidenceExtractor.maxOutputTokens());
       const evidenceInputSummary = {
         attachment_count: evidenceProjection.attachmentCount,
         projected_image_call_count: evidenceProjection.imageCallCount,
@@ -7777,7 +7789,7 @@ export class AiAgentControlService {
       const needProjection = estimateTicketNeedRepresentationUsage({
         systemPrompt: plannerSystemPrompt,
         userPayload: needPayload,
-      }, this.ticketNeedBuilder.maxOutputTokens());
+      }, llmPrices, this.ticketNeedBuilder.maxOutputTokens());
       const needInputSummary = {
         image_evidence_count: ticketImageExtraction.evidence.length,
         projected_tokens: needProjection.estimatedTokens,
@@ -8144,7 +8156,7 @@ export class AiAgentControlService {
       synthesisProjection = estimateReplySynthesisUsage({
         systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_SYNTHESIS, promptRuntime.synthesisGuidance),
         userPayload: synthesisPayload,
-      }, this.replySynthesis.maxOutputTokens());
+      }, llmPrices, this.replySynthesis.maxOutputTokens());
       const baseUsageEstimate = currentRunLlmUsage();
       const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
       if (
@@ -8317,7 +8329,7 @@ export class AiAgentControlService {
       actionPlannerProjection = estimateActionPlannerUsage({
         systemPrompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_ACTION_PLANNER, promptRuntime.actionPlannerGuidance),
         userPayload: actionPlannerPayload,
-      }, this.actionPlanner.maxOutputTokens());
+      }, llmPrices, this.actionPlanner.maxOutputTokens());
       const actionPlannerBaseUsageEstimate = currentRunLlmUsage();
       const guardrails = this.agentQueue && agentDefinition ? this.agentQueue.runGuardrails(agentDefinition) : null;
       if (

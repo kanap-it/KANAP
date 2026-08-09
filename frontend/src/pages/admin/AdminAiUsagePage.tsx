@@ -25,6 +25,11 @@ function formatNumber(value: number | null | undefined, locale: string): string 
   return value.toLocaleString(locale);
 }
 
+function formatCostEur(value: number | null | undefined, locale: string): string {
+  const amount = value ?? 0;
+  return `${amount.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: amount > 0 && amount < 0.01 ? 4 : 2 })} €`;
+}
+
 function MetricCard(props: { label: string; value: string; caption?: string }) {
   return (
     <Card variant="outlined">
@@ -70,6 +75,81 @@ export default function AdminAiUsagePage() {
         </Alert>
       ) : overviewQuery.data ? (
         <Stack spacing={2.5}>
+          <Stack spacing={1}>
+            <Typography variant="subtitle1">{t('aiUsage.costs.title')}</Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+              }}
+            >
+              <MetricCard
+                label={t('aiUsage.costs.totalMonth')}
+                value={formatCostEur(overviewQuery.data.costs.current_month.total_eur, locale)}
+                caption={`${t('aiAdmin.overview.windows.last30Days')}: ${formatCostEur(overviewQuery.data.costs.last_30_days.total_eur, locale)}`}
+              />
+              <MetricCard
+                label={t('aiUsage.costs.agentsMonth')}
+                value={formatCostEur(overviewQuery.data.costs.current_month.agents_eur, locale)}
+                caption={`${t('aiAdmin.overview.windows.last30Days')}: ${formatCostEur(overviewQuery.data.costs.last_30_days.agents_eur, locale)}`}
+              />
+              <MetricCard
+                label={t('aiUsage.costs.chatMonth')}
+                value={formatCostEur(overviewQuery.data.costs.current_month.chat_eur, locale)}
+                caption={overviewQuery.data.costs.chat_priced
+                  ? t('aiUsage.costs.chatEstimatedNote')
+                  : t('aiUsage.costs.chatFreeNote')}
+              />
+            </Box>
+            {(overviewQuery.data.costs.by_agent.length > 0 || overviewQuery.data.costs.by_model.length > 0) && (
+              <Box sx={{ display: 'grid', gap: 2.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+                {overviewQuery.data.costs.by_agent.length > 0 && (
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t('aiUsage.costs.byAgent')}</TableCell>
+                        <TableCell align="right">{t('aiAdmin.overview.windows.currentMonth')}</TableCell>
+                        <TableCell align="right">{t('aiAdmin.overview.windows.last30Days')}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {overviewQuery.data.costs.by_agent.map((row) => (
+                        <TableRow key={row.agent_definition_id}>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell align="right">{formatCostEur(row.cost_current_month_eur, locale)}</TableCell>
+                          <TableCell align="right">{formatCostEur(row.cost_last_30_days_eur, locale)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                {overviewQuery.data.costs.by_model.length > 0 && (
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t('aiUsage.costs.byModel')}</TableCell>
+                        <TableCell align="right">{t('aiAdmin.overview.windows.currentMonth')}</TableCell>
+                        <TableCell align="right">{t('aiAdmin.overview.windows.last30Days')}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {overviewQuery.data.costs.by_model.map((row) => (
+                        <TableRow key={row.model ?? 'unknown'}>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                            {row.model ?? t('aiUsage.costs.unknownModel')}
+                          </TableCell>
+                          <TableCell align="right">{formatCostEur(row.cost_current_month_eur, locale)}</TableCell>
+                          <TableCell align="right">{formatCostEur(row.cost_last_30_days_eur, locale)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </Box>
+            )}
+          </Stack>
+
           <Box
             sx={{
               display: 'grid',

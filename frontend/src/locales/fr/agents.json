@@ -724,7 +724,8 @@
     },
     "model": "Modèle IA",
     "modelTenantDefault": "Modèle par défaut de l'organisation",
-    "modelHint": "Le modèle IA sur lequel cet agent s'exécute. Les modèles se gèrent dans Administration, page Modèles IA."
+    "modelHint": "Le modèle IA sur lequel cet agent s'exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
+    "costCapHint": "Estimé selon les tarifs du modèle assigné. Un modèle gratuit (0 €) n'atteint jamais ce plafond — les plafonds de tokens restent la protection."
   },
   "actions": {
     "internalNote": "Note interne",

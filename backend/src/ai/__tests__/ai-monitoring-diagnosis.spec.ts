@@ -416,7 +416,8 @@ function structuredSuccess(value: unknown) {
     text: JSON.stringify(value),
     usage: { input_tokens: 900, output_tokens: 300 },
     latencyMs: 12,
-    runtime: { providerId: 'test-provider', model: 'test-model' },
+    // €2/Mtok both ways — the legacy flat rate, so historical cost expectations hold.
+    runtime: { providerId: 'test-provider', model: 'test-model', priceInputEurPerMtok: 2, priceOutputEurPerMtok: 2 },
     metadata: {
       taskName: 'diagnostic_brief_synthesis',
       retry_attempted: false,
@@ -436,7 +437,8 @@ function structuredTimeout() {
     text: 'partial reasoning text that must never be parsed',
     usage: null,
     latencyMs: 120_000,
-    runtime: { providerId: 'test-provider', model: 'test-model' },
+    // €2/Mtok both ways — the legacy flat rate, so historical cost expectations hold.
+    runtime: { providerId: 'test-provider', model: 'test-model', priceInputEurPerMtok: 2, priceOutputEurPerMtok: 2 },
     metadata: {
       taskName: 'diagnostic_brief_synthesis',
       retry_attempted: true,

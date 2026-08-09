@@ -1,4 +1,6 @@
 import * as assert from 'node:assert/strict';
+import { llmCostEur } from '../ai-llm-cost.util';
+import { estimateReplySynthesisUsage } from '../control-plane/agent-control/ai-reply-synthesis.service';
 import { AiModelConfig } from '../ai-model-config.entity';
 import { AiModelConfigService } from '../ai-model-config.service';
 import { AiModelResolutionError, AiModelResolverService } from '../ai-model-resolver.service';
@@ -611,8 +613,37 @@ async function testMigrationBackfillOrdering() {
 
 // ---------------------------------------------------------------------------
 
+async function testLlmCostEurMath() {
+  // Real usage priced per direction: 500k in at 3 €/Mtok + 100k out at 15 €/Mtok.
+  assert.equal(llmCostEur(500_000, 100_000, { priceInputEurPerMtok: 3, priceOutputEurPerMtok: 15 }), 3);
+  // Null, zero, or missing prices → free model, zero cost.
+  assert.equal(llmCostEur(1_000_000, 1_000_000, { priceInputEurPerMtok: null, priceOutputEurPerMtok: null }), 0);
+  assert.equal(llmCostEur(1_000_000, 1_000_000, { priceInputEurPerMtok: 0, priceOutputEurPerMtok: 0 }), 0);
+  assert.equal(llmCostEur(1_000_000, 1_000_000, null), 0);
+  // One-sided pricing and rounding to 6 decimals.
+  assert.equal(llmCostEur(100, 0, { priceInputEurPerMtok: 2, priceOutputEurPerMtok: null }), 0.0002);
+  assert.equal(llmCostEur(1, 1, { priceInputEurPerMtok: 2, priceOutputEurPerMtok: 2 }), 0.000004);
+  // Negative token counts (defensive) never produce negative costs.
+  assert.equal(llmCostEur(-100, -100, { priceInputEurPerMtok: 2, priceOutputEurPerMtok: 2 }), 0);
+}
+
+async function testEstimatorsPriceByAssignedModel() {
+  const prices = { priceInputEurPerMtok: 10, priceOutputEurPerMtok: 20 };
+  const input = { systemPrompt: 'x', userPayload: { a: 'b' } };
+  const priced = estimateReplySynthesisUsage(input, prices, 1000);
+  const free = estimateReplySynthesisUsage(input, null, 1000);
+  // Token projection identical; only pricing differs.
+  assert.equal(priced.estimatedTokens, free.estimatedTokens);
+  assert.equal(free.estimatedCostEur, 0);
+  const inputTokens = priced.estimatedTokens - 1000;
+  assert.equal(priced.estimatedCostEur, llmCostEur(inputTokens, 1000, prices));
+  assert.ok(priced.estimatedCostEur > 0);
+}
+
 async function run() {
   const tests = [
+    testLlmCostEurMath,
+    testEstimatorsPriceByAssignedModel,
     testResolverExplicitChatAssignment,
     testResolverArchivedAssignmentFallsThroughToDefault,
     testResolverNoAssignmentUsesActiveDefault,

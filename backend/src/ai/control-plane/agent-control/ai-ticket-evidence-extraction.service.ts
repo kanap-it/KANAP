@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { LlmTokenPrices, llmCostEur } from '../../ai-llm-cost.util';
 import { TicketAttachmentReadResult, TicketAttachmentRef } from '../providers/provider.types';
 import {
   compileSystemPrompt,
@@ -28,7 +29,6 @@ export type TicketEvidenceExtractionResult = {
 // AI_AGENT_VISION_EXTRACTION_TIMEOUT_MS.
 const DEFAULT_VISION_TIMEOUT_MS = 120_000;
 const MAX_VISION_EXTRACTION_OUTPUT_TOKENS = 12000;
-const TOKEN_COST_EUR = 0.000002;
 const DEFAULT_MAX_IMAGES = 5;
 const DEFAULT_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -241,7 +241,7 @@ export function estimateTicketEvidenceExtractionUsage(input: {
   ticket: { id: string; attachments?: TicketAttachmentRef[] | null };
   notes: Array<{ id: string; attachments?: TicketAttachmentRef[] | null }>;
   maxImages: number;
-}, maxOutputTokens = MAX_VISION_EXTRACTION_OUTPUT_TOKENS): {
+}, prices: LlmTokenPrices | null, maxOutputTokens = MAX_VISION_EXTRACTION_OUTPUT_TOKENS): {
   estimatedTokens: number;
   estimatedCostEur: number;
   attachmentCount: number;
@@ -251,13 +251,14 @@ export function estimateTicketEvidenceExtractionUsage(input: {
   const selectedRefs = attachmentRefs
     .filter((ref) => ref.kind === 'image' || !ref.mimeType || SUPPORTED_IMAGE_MIME_TYPES.has(normalizeMimeType(ref.mimeType)))
     .slice(0, input.maxImages);
-  const estimatedTokens = selectedRefs.reduce((sum, ref) => sum + estimateTokens({
+  const estimatedInputTokens = selectedRefs.reduce((sum, ref) => sum + estimateTokens({
     systemPrompt: input.systemPrompt,
     userPayload: visionPromptPayload({ ticketId: input.ticket.id, ref }),
-  }) + maxOutputTokens, 0);
+  }), 0);
+  const estimatedOutputTokens = selectedRefs.length * maxOutputTokens;
   return {
-    estimatedTokens,
-    estimatedCostEur: Number((estimatedTokens * TOKEN_COST_EUR).toFixed(6)),
+    estimatedTokens: estimatedInputTokens + estimatedOutputTokens,
+    estimatedCostEur: llmCostEur(estimatedInputTokens, estimatedOutputTokens, prices),
     attachmentCount: attachmentRefs.length,
     imageCallCount: selectedRefs.length,
   };
@@ -374,6 +375,7 @@ export class AiTicketEvidenceExtractionService {
     const evidence: TicketImageEvidence[] = [];
     let usage: TicketEvidenceExtractionResult['usage'] = null;
     let estimatedTokens = 0;
+    let estimatedCostEur = 0;
     let latencyMs = 0;
     let model: string | null = null;
     // Distinguish a real vision-call failure (text-only model rejecting/ignoring images, timeout,
@@ -434,9 +436,10 @@ export class AiTicketEvidenceExtractionService {
         model = result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : model;
         usage = aggregateUsage(usage, result.usage);
         latencyMs += result.latencyMs;
-        estimatedTokens += result.usage
-          ? result.usage.input_tokens + result.usage.output_tokens
-          : estimateTokens(userPayload) + estimateTokens(result.text);
+        const callInputTokens = result.usage ? result.usage.input_tokens : estimateTokens(userPayload);
+        const callOutputTokens = result.usage ? result.usage.output_tokens : estimateTokens(result.text ?? '');
+        estimatedTokens += callInputTokens + callOutputTokens;
+        estimatedCostEur += llmCostEur(callInputTokens, callOutputTokens, result.runtime);
         if (!result.ok) {
           callErrored = true;
           const message = result.metadata.failure?.message ?? 'invalid structured JSON';
@@ -470,7 +473,7 @@ export class AiTicketEvidenceExtractionService {
       model,
       usage,
       estimated_tokens: estimatedTokens,
-      estimated_cost_eur: Number((estimatedTokens * TOKEN_COST_EUR).toFixed(6)),
+      estimated_cost_eur: Number(estimatedCostEur.toFixed(6)),
       latency_ms: latencyMs,
     };
   }

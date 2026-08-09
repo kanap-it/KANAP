@@ -724,7 +724,8 @@
     },
     "model": "KI-Modell",
     "modelTenantDefault": "Standard der Organisation",
-    "modelHint": "Das KI-Modell, mit dem dieser Agent arbeitet. Modelle werden in der Administration unter KI-Modelle verwaltet."
+    "modelHint": "Das KI-Modell, mit dem dieser Agent arbeitet. Modelle werden in der Administration unter KI-Modelle verwaltet.",
+    "costCapHint": "Geschätzt anhand der Preise des zugewiesenen Modells. Ein kostenfreies Modell (0 €) erreicht dieses Limit nie — die Token-Limits bleiben der Schutz."
   },
   "actions": {
     "internalNote": "Interne Notiz",

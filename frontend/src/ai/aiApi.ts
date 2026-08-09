@@ -179,6 +179,22 @@ export type AiAdminOverview = {
     messages_current_month: number;
     messages_last_30_days: number;
   }>;
+  costs: {
+    current_month: { agents_eur: number; chat_eur: number; total_eur: number };
+    last_30_days: { agents_eur: number; chat_eur: number; total_eur: number };
+    by_agent: Array<{
+      agent_definition_id: string;
+      name: string;
+      cost_current_month_eur: number;
+      cost_last_30_days_eur: number;
+    }>;
+    by_model: Array<{
+      model: string | null;
+      cost_current_month_eur: number;
+      cost_last_30_days_eur: number;
+    }>;
+    chat_priced: boolean;
+  };
 };
 
 export type AiAgentControlRunItem = {

@@ -4231,7 +4231,7 @@ async function testAiAdminOverviewAggregatesUsageAndIsTenantScoped() {
     );
 
     await setCurrentTenant(runner, tenantA);
-    const service = new AiAdminOverviewService();
+    const service = new AiAdminOverviewService({ tryResolve: async () => null } as any);
     const overview = await service.getOverview(tenantA, runner.manager);
 
     assert.equal(overview.totals.conversations_all, 3);

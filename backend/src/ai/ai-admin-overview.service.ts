@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { llmCostEur } from './ai-llm-cost.util';
+import { AiModelResolverService } from './ai-model-resolver.service';
 
 export type AiAdminOverviewRecentActivityItem = {
   conversation_id: string;
@@ -15,6 +17,30 @@ export type AiAdminOverviewAgentUsage = {
   name: string;
   messages_current_month: number;
   messages_last_30_days: number;
+};
+
+export type AiAdminOverviewAgentCost = {
+  agent_definition_id: string;
+  name: string;
+  cost_current_month_eur: number;
+  cost_last_30_days_eur: number;
+};
+
+export type AiAdminOverviewModelCost = {
+  model: string | null;
+  cost_current_month_eur: number;
+  cost_last_30_days_eur: number;
+};
+
+export type AiAdminOverviewCosts = {
+  current_month: { agents_eur: number; chat_eur: number; total_eur: number };
+  last_30_days: { agents_eur: number; chat_eur: number; total_eur: number };
+  by_agent: AiAdminOverviewAgentCost[];
+  by_model: AiAdminOverviewModelCost[];
+  // Chat costs are estimated at the CURRENTLY assigned model's rates (chat
+  // messages predate per-call cost recording); false when no chat model with
+  // prices resolves, so the UI can label the number honestly.
+  chat_priced: boolean;
 };
 
 export type AiAdminOverviewResponse = {
@@ -40,6 +66,7 @@ export type AiAdminOverviewResponse = {
   };
   recent_activity: AiAdminOverviewRecentActivityItem[];
   agents: AiAdminOverviewAgentUsage[];
+  costs: AiAdminOverviewCosts;
 };
 
 function toNumber(value: unknown): number {
@@ -55,6 +82,8 @@ function toIsoDate(value: unknown): string {
 
 @Injectable()
 export class AiAdminOverviewService {
+  constructor(private readonly modelResolver: AiModelResolverService) {}
+
   async getOverview(
     tenantId: string,
     manager: EntityManager,
@@ -124,6 +153,63 @@ export class AiAdminOverviewService {
       [tenantId],
     );
 
+    // Real per-run costs recorded by the LLM stages (cost_json). The flattened
+    // root estimated_cost_eur is the run-total ledger snapshot; the per-stage
+    // objects carry {estimated_cost_eur, model}. The run total prefers the
+    // snapshot and falls back to the stage sum, never both (no double count).
+    const agentCostRows = await manager.query(
+      `
+      WITH run_costs AS (
+        SELECT
+          r.metadata_json->>'agent_definition_id' AS agent_definition_id,
+          r.started_at,
+          COALESCE(
+            (r.cost_json->>'estimated_cost_eur')::numeric,
+            (
+              SELECT COALESCE(SUM((s.value->>'estimated_cost_eur')::numeric), 0)
+              FROM jsonb_each(r.cost_json) s
+              WHERE jsonb_typeof(s.value) = 'object' AND s.value ? 'estimated_cost_eur'
+            ),
+            0
+          ) AS cost_eur
+        FROM ai_runs r
+        WHERE r.tenant_id = $1
+          AND r.cost_json IS NOT NULL
+          AND r.started_at >= LEAST(date_trunc('month', now()), now() - interval '30 days')
+      )
+      SELECT
+        d.id AS agent_definition_id,
+        d.name,
+        COALESCE(SUM(c.cost_eur) FILTER (WHERE c.started_at >= date_trunc('month', now())), 0) AS cost_current_month_eur,
+        COALESCE(SUM(c.cost_eur) FILTER (WHERE c.started_at >= now() - interval '30 days'), 0) AS cost_last_30_days_eur
+      FROM ai_agent_definitions d
+      JOIN run_costs c ON c.agent_definition_id = d.id::text
+      WHERE d.tenant_id = $1
+      GROUP BY d.id, d.name
+      ORDER BY cost_last_30_days_eur DESC, d.name ASC
+      `,
+      [tenantId],
+    );
+
+    const modelCostRows = await manager.query(
+      `
+      SELECT
+        s.value->>'model' AS model,
+        COALESCE(SUM((s.value->>'estimated_cost_eur')::numeric) FILTER (WHERE r.started_at >= date_trunc('month', now())), 0) AS cost_current_month_eur,
+        COALESCE(SUM((s.value->>'estimated_cost_eur')::numeric) FILTER (WHERE r.started_at >= now() - interval '30 days'), 0) AS cost_last_30_days_eur
+      FROM ai_runs r
+      CROSS JOIN LATERAL jsonb_each(r.cost_json) s
+      WHERE r.tenant_id = $1
+        AND r.cost_json IS NOT NULL
+        AND r.started_at >= LEAST(date_trunc('month', now()), now() - interval '30 days')
+        AND jsonb_typeof(s.value) = 'object'
+        AND s.value ? 'estimated_cost_eur'
+      GROUP BY s.value->>'model'
+      ORDER BY cost_last_30_days_eur DESC
+      `,
+      [tenantId],
+    );
+
     const recentActivityRows = await manager.query(
       `
       SELECT
@@ -144,6 +230,18 @@ export class AiAdminOverviewService {
     const totals = totalsRows[0] ?? {};
     const currentMonth = currentMonthRows[0] ?? {};
     const last30Days = last30DaysRows[0] ?? {};
+
+    // Chat cost: estimated at the currently assigned chat model's rates —
+    // messages predate per-call cost recording, so this is an approximation
+    // the UI labels as such.
+    const chatModel = await this.modelResolver.tryResolve(tenantId, { type: 'chat' }, manager);
+    const chatPrices = chatModel
+      ? { priceInputEurPerMtok: chatModel.priceInputEurPerMtok, priceOutputEurPerMtok: chatModel.priceOutputEurPerMtok }
+      : null;
+    const chatCostMonth = llmCostEur(toNumber(currentMonth.input_tokens), toNumber(currentMonth.output_tokens), chatPrices);
+    const chatCost30d = llmCostEur(toNumber(last30Days.input_tokens), toNumber(last30Days.output_tokens), chatPrices);
+    const agentsCostMonth = agentCostRows.reduce((sum: number, row: Record<string, unknown>) => sum + toNumber(row.cost_current_month_eur), 0);
+    const agentsCost30d = agentCostRows.reduce((sum: number, row: Record<string, unknown>) => sum + toNumber(row.cost_last_30_days_eur), 0);
 
     return {
       totals: {
@@ -180,6 +278,30 @@ export class AiAdminOverviewService {
         messages_current_month: toNumber(row.messages_current_month),
         messages_last_30_days: toNumber(row.messages_last_30_days),
       })),
+      costs: {
+        current_month: {
+          agents_eur: Number(agentsCostMonth.toFixed(4)),
+          chat_eur: chatCostMonth,
+          total_eur: Number((agentsCostMonth + chatCostMonth).toFixed(4)),
+        },
+        last_30_days: {
+          agents_eur: Number(agentsCost30d.toFixed(4)),
+          chat_eur: chatCost30d,
+          total_eur: Number((agentsCost30d + chatCost30d).toFixed(4)),
+        },
+        by_agent: agentCostRows.map((row: Record<string, unknown>) => ({
+          agent_definition_id: String(row.agent_definition_id),
+          name: String(row.name ?? ''),
+          cost_current_month_eur: toNumber(row.cost_current_month_eur),
+          cost_last_30_days_eur: toNumber(row.cost_last_30_days_eur),
+        })),
+        by_model: modelCostRows.map((row: Record<string, unknown>) => ({
+          model: row.model == null ? null : String(row.model),
+          cost_current_month_eur: toNumber(row.cost_current_month_eur),
+          cost_last_30_days_eur: toNumber(row.cost_last_30_days_eur),
+        })),
+        chat_priced: !!chatPrices && ((chatPrices.priceInputEurPerMtok ?? 0) > 0 || (chatPrices.priceOutputEurPerMtok ?? 0) > 0),
+      },
     };
   }
 }

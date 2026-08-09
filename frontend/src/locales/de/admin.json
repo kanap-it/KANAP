@@ -1123,6 +1123,17 @@
   },
   "aiUsage": {
     "title": "Nutzung & Kosten",
-    "subtitle": "Wie stark Ihre Organisation die KI-Funktionen nutzt. Kostenaufschlüsselungen pro Modell folgen mit der Modellpreisgestaltung."
+    "subtitle": "Wie stark Ihre Organisation die KI-Funktionen nutzt. Kostenaufschlüsselungen pro Modell folgen mit der Modellpreisgestaltung.",
+    "costs": {
+      "title": "Kosten",
+      "totalMonth": "Gesamt in diesem Monat",
+      "agentsMonth": "Agenten in diesem Monat",
+      "chatMonth": "Plaid in diesem Monat",
+      "chatEstimatedNote": "Geschätzt zu den Tarifen des aktuell zugewiesenen Modells",
+      "chatFreeNote": "Das zugewiesene Modell ist kostenfrei",
+      "byAgent": "Kosten pro Agent",
+      "byModel": "Kosten pro Modell",
+      "unknownModel": "Unbekanntes Modell"
+    }
   }
 }

@@ -724,7 +724,8 @@
     },
     "model": "Modelo IA",
     "modelTenantDefault": "Predeterminado de la organización",
-    "modelHint": "El modelo IA con el que funciona este agente. Los modelos se gestionan en Administración, en Modelos IA."
+    "modelHint": "El modelo IA con el que funciona este agente. Los modelos se gestionan en Administración, en Modelos IA.",
+    "costCapHint": "Estimado con los precios del modelo asignado. Un modelo gratuito (0 €) nunca alcanza este límite: los límites de tokens siguen siendo la protección."
   },
   "actions": {
     "internalNote": "Nota interna",
