@@ -399,6 +399,9 @@ export type AgentControlAgentDefinitionInput = {
 
 export type AgentControlAgentStatusInput = {
   status?: string | null;
+  // Optional scheduled-poll flip so a run-mode change (off / manual only / watching)
+  // lands atomically with the status write instead of racing a second request.
+  watching?: boolean | null;
 };
 
 export type AgentControlAutonomyInput = {
@@ -4841,6 +4844,18 @@ export class AiAgentControlService {
     const before = configSnapshot(definition);
     const status = cleanAgentStatus(input.status);
     definition.status = status;
+    if (typeof input.watching === 'boolean') {
+      const watching = input.watching === true;
+      const trigger = isRecord(definition.trigger_policy_json) ? definition.trigger_policy_json : {};
+      definition.trigger_policy_json = {
+        ...trigger,
+        scheduled_poll: {
+          ...(isRecord(trigger.scheduled_poll) ? trigger.scheduled_poll : {}),
+          enabled: watching,
+        },
+        production_polling_enabled: watching,
+      };
+    }
     definition.metadata_json = {
       ...metadataObject(definition.metadata_json),
       user_modified: true,

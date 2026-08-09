@@ -303,8 +303,12 @@
     }
   },
   "monitor": {
-    "start": "Iniciar agente",
-    "disable": "Desactivar",
+    "modes": {
+      "off": "Apagado",
+      "manual": "Solo manual",
+      "watching": "Vigilancia"
+    },
+    "archivedNote": "Archivado — restáurelo desde la pestaña Configuración.",
     "testStarted": "Ejecución de prueba iniciada.",
     "testFailed": "No se pudo iniciar la ejecución de prueba.",
     "providerMissing": "Este agente no tiene un proveedor de tickets asociado.",
@@ -445,11 +449,13 @@
     "objectiveCapabilities": "Objetivo y capacidades",
     "name": "Nombre",
     "status": "Estado",
-    "statuses": {
-      "draft": "No iniciado",
-      "enabled": "Activado",
-      "disabled": "Desactivado",
-      "archived": "Archivado"
+    "manageInMonitor": "Gestionar en Supervisión",
+    "archiveAgent": "Archivar agente",
+    "restoreAgent": "Restaurar agente",
+    "archiveDialog": {
+      "title": "¿Archivar este agente?",
+      "body": "{{name}} deja de vigilar y de ejecutarse. Su configuración e historial se conservan, y puede restaurarlo aquí en cualquier momento.",
+      "confirm": "Archivar"
     },
     "description": "Descripción",
     "mission": "Misión",
@@ -505,8 +511,6 @@
     "saveFailed": "No se pudo guardar",
     "watching": "Vigilancia",
     "targeting": "Segmentación",
-    "watchNewTickets": "Vigilar nuevos tickets",
-    "watchTickets": "Vigilar tickets automáticamente",
     "targetingPresets": {
       "new_tickets": "Tickets nuevos",
       "all_open": "Todos abiertos",
@@ -704,7 +708,6 @@
       "critical_and_high": "Críticas y altas",
       "stable_down_10min": "Caídas desde hace ≥ 10 min"
     },
-    "watchAlerts": "Vigilar alertas automáticamente",
     "maxAlerts": "Alertas gestionadas por comprobación",
     "maxMonitoringRequests": "Solicitudes a la herramienta de supervisión por comprobación",
     "monitoringNotConnected": "Ninguna herramienta de supervisión conectada — este agente no puede funcionar.",

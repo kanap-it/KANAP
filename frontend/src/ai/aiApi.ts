@@ -1342,7 +1342,7 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/agents/${id}`, payload);
     return res.data;
   },
-  async updateAgentStatus(id: string, payload: { status: string }): Promise<{
+  async updateAgentStatus(id: string, payload: { status: string; watching?: boolean }): Promise<{
     agent_definition: AiAgentControlAgentDefinition;
     diff: Record<string, unknown>;
   }> {

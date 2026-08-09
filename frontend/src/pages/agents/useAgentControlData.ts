@@ -507,7 +507,8 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
   });
 
   const updateAgentStatusMutation = useMutation({
-    mutationFn: (input: { id: string; status: string }) => aiAgentControlApi.updateAgentStatus(input.id, { status: input.status }),
+    mutationFn: (input: { id: string; status: string; watching?: boolean }) =>
+      aiAgentControlApi.updateAgentStatus(input.id, { status: input.status, watching: input.watching }),
     onSuccess: async () => {
       setMessage(t('messages.agentSaved'));
       await invalidate();

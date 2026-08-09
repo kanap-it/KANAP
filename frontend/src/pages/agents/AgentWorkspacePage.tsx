@@ -4,7 +4,6 @@ import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +39,7 @@ import {
   SaveIndicator,
   Section,
   statusLabel,
+  StatusText,
   TargetLabel,
   ticketingProviderKeyForDefinition,
   type TicketWorkGroup,
@@ -87,6 +87,11 @@ import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAge
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
+// Run-mode control values: off = status disabled; manual = enabled without the
+// scheduled poll (runs only on manual triggers/tests); watching = enabled + poll.
+type RunModeKey = 'off' | 'manual' | 'watching';
+const RUN_MODES: RunModeKey[] = ['off', 'manual', 'watching'];
+
 type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis';
 const HELPDESK_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
 const SRE_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['monitoring_diagnosis'];
@@ -199,7 +204,6 @@ const agentPersonaFieldSx = [
 const SCOPE_MODES = ['new_tickets_only', 'all_open', 'agent_involved'] as const;
 
 type HelpdeskSettingsForm = {
-  enabled: boolean;
   scopeMode: string;
   filters: TargetingFilter[];
   agentPriority: string;
@@ -229,7 +233,6 @@ const HELPDESK_CAPABILITY_GROUPS = [
 ] as const;
 
 function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): HelpdeskSettingsForm {
-  const trigger = policyObject(definition.trigger_policy_json);
   const scope = policyObject(definition.scope_policy_json);
   const rawMode = stringValue(scope.mode);
   const mode = (SCOPE_MODES as readonly string[]).includes(rawMode) ? rawMode : 'new_tickets_only';
@@ -253,7 +256,6 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
   const perRun = policyObject(guardrails.per_run);
   const daily = policyObject(guardrails.daily);
   return {
-    enabled: policyObject(trigger.scheduled_poll).enabled === true,
     scopeMode: modeFromFilters(targetingState.filters),
     filters: targetingState.filters,
     agentPriority: numberString(definition.agent_priority, 100),
@@ -292,12 +294,15 @@ function helpdeskDefinitionSettingsPayload(
   if (!providerKey) {
     throw new Error('This agent has no ticketing provider binding.');
   }
-  const enabledAt = form.enabled
+  // Watching is operated from the Monitor tab run-mode control; settings saves
+  // carry the definition's current value through so they never flip it.
+  const watching = policyObject(trigger.scheduled_poll).enabled === true;
+  const enabledAt = watching
     ? stringValue(ingestion.enabled_at) || new Date().toISOString()
     : stringValue(ingestion.enabled_at) || null;
   // Shared per-mode selection block (entity/category filters + per-cycle caps).
   const blockConfig = {
-    enabled: form.enabled,
+    enabled: watching,
     enabled_at: enabledAt,
     entity_id: entityId || null,
     category_id: categoryId || null,
@@ -319,17 +324,17 @@ function helpdeskDefinitionSettingsPayload(
       manual_safe_target: { enabled: true },
       scheduled_poll: {
         ...policyObject(trigger.scheduled_poll),
-        enabled: form.enabled,
+        enabled: watching,
       },
       saved_filter: policyObject(trigger.saved_filter).enabled == null ? { enabled: false } : trigger.saved_filter,
       provider_webhook: { enabled: false },
       ticket_update: { enabled: false },
-      production_polling_enabled: form.enabled,
+      production_polling_enabled: watching,
       automatic_writes_enabled: false,
     },
     scope_policy_json: {
       ...scope,
-      mode: form.enabled ? mode : stringValue(scope.mode) || 'manual_safe_target',
+      mode: watching ? mode : stringValue(scope.mode) || 'manual_safe_target',
       allowed_modes: ['manual_safe_target', 'new_tickets_only', 'all_open', 'agent_involved'],
       provider_kind: 'ticketing',
       provider_key: providerKey,
@@ -402,18 +407,15 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 type SreSettingsForm = {
-  enabled: boolean;
   filters: MonitoringTargetingFilter[];
   maxAlerts: string;
   maxRequests: string;
 };
 
 function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition): SreSettingsForm {
-  const trigger = policyObject(definition.trigger_policy_json);
   const scope = policyObject(definition.scope_policy_json);
   const ingestion = nestedPolicy(scope, 'ingestion');
   return {
-    enabled: policyObject(trigger.scheduled_poll).enabled === true,
     filters: monitoringFiltersFromScope(scope),
     maxAlerts: numberString(ingestion.max_alerts_per_cycle, DEFAULT_SRE_MAX_ALERTS),
     maxRequests: numberString(ingestion.max_provider_requests_per_cycle, DEFAULT_SRE_MAX_REQUESTS),
@@ -460,9 +462,24 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const agentPause = summary?.emergencyPause ?? null;
   const tenantPause = data.settingsQuery.data?.emergency_pause ?? null;
   const activePause = agentPause ?? tenantPause;
-  // The agent does not run while it is draft/disabled — offer a Start that flips
-  // it to enabled. Archived agents are restored deliberately from settings.
-  const canStart = !!definition && definition.status !== 'enabled' && definition.status !== 'archived';
+  // Single run-mode control (off / manual only / watching) collapsing the two
+  // backend axes: definition.status and trigger_policy.scheduled_poll.enabled.
+  // Draft has no selection (a fact, not a choice); archived hides the control —
+  // restore is a deliberate action in Settings.
+  const watching = isSre ? sreWatching : !!summary?.ingestion.enabled;
+  const runMode: RunModeKey | null = definition?.status === 'enabled'
+    ? (watching ? 'watching' : 'manual')
+    : definition?.status === 'disabled'
+      ? 'off'
+      : null;
+  const setRunMode = (mode: RunModeKey) => {
+    if (!definition || mode === runMode) return;
+    data.updateAgentStatusMutation.mutate({
+      id: definition.id,
+      status: mode === 'off' ? 'disabled' : 'enabled',
+      watching: mode === 'watching',
+    });
+  };
   const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null, Date.now()), [data.actionPool, data.queueQuery.data, definition?.id]);
   const agentGroups = grouped.groups;
   const failedGroupCount = agentGroups.filter((group) => ['failed', 'dead_letter'].includes(group.queueStatus)).length;
@@ -533,13 +550,24 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
               <Button size="small" variant="outlined" startIcon={<PlayArrowIcon />} onClick={() => data.revokePauseMutation.mutate(agentPause.id)} disabled={data.revokePauseMutation.isPending}>{t('pause.lift')}</Button>
             ) : tenantPause ? (
               <Button size="small" variant="text" onClick={() => navigate('/agents')}>{t('pause.managedForAll')}</Button>
+            ) : definition?.status === 'archived' ? (
+              <Typography variant="caption" color="text.secondary">{t('monitor.archivedNote')}</Typography>
             ) : (
               <>
-                {canAdmin && canStart && (
-                  <Button size="small" variant="contained" startIcon={<PlayArrowIcon />} onClick={() => definition && data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'enabled' })} disabled={data.updateAgentStatusMutation.isPending}>{t('monitor.start')}</Button>
-                )}
-                {canAdmin && definition?.status === 'enabled' && (
-                  <Button size="small" variant="outlined" startIcon={<StopCircleOutlinedIcon />} onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })} disabled={data.updateAgentStatusMutation.isPending}>{t('monitor.disable')}</Button>
+                {canAdmin && (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    {RUN_MODES.map((mode) => (
+                      <Chip
+                        key={mode}
+                        clickable
+                        size="small"
+                        color={runMode === mode ? 'primary' : 'default'}
+                        label={t(`monitor.modes.${mode}`)}
+                        disabled={data.updateAgentStatusMutation.isPending}
+                        onClick={() => setRunMode(mode)}
+                      />
+                    ))}
+                  </Stack>
                 )}
                 <Button size="small" color="error" variant="outlined" startIcon={<PauseCircleOutlineIcon />} onClick={() => setPauseDialogOpen(true)}>{t('pause.agent')}</Button>
               </>
@@ -852,6 +880,22 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const isHelpdesk = definition.agent_type === 'helpdesk';
   const isSre = definition.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
+  const navigate = useNavigate();
+  // Read-only lifecycle display: run state is operated from the Monitor tab only.
+  // Same derivation as the Monitor status strip so the two never disagree.
+  const agentSummary = resolveAgentSummary(data.queueQuery.data, definition.agent_key);
+  const settingsWatching = isSre
+    ? policyObject(policyObject(definition.trigger_policy_json).scheduled_poll).enabled === true
+    : !!agentSummary?.ingestion.enabled;
+  const settingsPause = agentSummary?.emergencyPause ?? data.settingsQuery.data?.emergency_pause ?? null;
+  const settingsLifecycleKey = lifecycleStatusKey(
+    definition.status,
+    settingsWatching,
+    definition.automatic_action_classes?.length ?? 0,
+    !!settingsPause || !!agentSummary?.ingestion.paused,
+  );
+  const isArchived = definition.status === 'archived';
+  const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
   const autonomyQuery = useQuery({
     queryKey: ['ai-agent-control-autonomy', definition.id],
     queryFn: () => aiAgentControlApi.getAgentAutonomy(definition.id),
@@ -871,7 +915,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const [agentForm, setAgentForm] = React.useState({
     name: definition.name,
     description: definition.description ?? '',
-    status: definition.status,
     mission: personaText(definition, 'mission'),
     outputStyleTone: personaNestedText(definition, 'output_style', 'tone') || personaText(definition, 'tone'),
     outputStyleLanguage: personaNestedText(definition, 'output_style', 'language') || 'auto',
@@ -922,7 +965,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     queryFn: () => aiAgentControlApi.previewAgentTargeting(definition.id, {
       scope_policy_json: JSON.parse(previewScopeJson || '{}') as Record<string, unknown>,
     }),
-    enabled: isHelpdesk && form.enabled && !!previewScopeJson,
+    enabled: isHelpdesk && !!previewScopeJson,
     staleTime: 30_000,
   });
   const targetingStatusOptionsQuery = useQuery({
@@ -967,7 +1010,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   // JSON, not the render-time snapshot it closed over.
   const definitionRef = React.useRef(definition);
   definitionRef.current = definition;
-  const savedStatusRef = React.useRef(definition.status);
 
   // Seed the helpdesk settings form once its source first loads (built-in: the
   // settings query; custom: the definition policy JSON), then leave local edits
@@ -988,7 +1030,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       }
       setForm({
         ...definitionForm,
-        enabled: settings.ingestion.enabled,
         scopeMode: 'new_tickets_only',
         filters: builtInFilters,
         entityId: settings.ingestion.entityId ?? '',
@@ -1038,13 +1079,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
         },
       },
     });
-    let saved = res.agent_definition;
-    if (current.status !== savedStatusRef.current) {
-      const statusRes = await aiAgentControlApi.updateAgentStatus(definition.id, { status: current.status });
-      saved = statusRes.agent_definition;
-      savedStatusRef.current = current.status;
-    }
-    applySavedDefinition(saved);
+    applySavedDefinition(res.agent_definition);
   }, [definition.id, applySavedDefinition]);
 
   const createSharedContextProfileMutation = useMutation({
@@ -1074,9 +1109,13 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
 
   const persistSettings = React.useCallback(async () => {
     const current = formRef.current;
+    // Read the LATEST saved definition (same rule as persistSreSettings): watching
+    // is owned by the Monitor run-mode control and must round-trip unchanged.
+    const definitionNow = definitionRef.current;
+    const watchingNow = policyObject(policyObject(definitionNow.trigger_policy_json).scheduled_poll).enabled === true;
     const payload: AiAgentControlHelpdeskIngestionSettingsInput = {
       ingestion: {
-        enabled: current.enabled,
+        enabled: watchingNow,
         entityId: current.entityId.trim() || null,
         categoryId: current.categoryId.trim() || null,
         maxTicketsPerCycle: numberField(current.maxTickets),
@@ -1095,14 +1134,14 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
         },
       },
     };
-    const definitionPayload = helpdeskDefinitionSettingsPayload(definition, current);
+    const definitionPayload = helpdeskDefinitionSettingsPayload(definitionNow, current);
     if (isBuiltInHelpdesk) {
       await aiAgentControlApi.updateHelpdeskIngestionSettings(payload);
       await queryClient.invalidateQueries({ queryKey: ['ai-agent-helpdesk-settings'] });
     }
-    const res = await aiAgentControlApi.updateAgent(definition.id, definitionPayload);
+    const res = await aiAgentControlApi.updateAgent(definitionNow.id, definitionPayload);
     applySavedDefinition(res.agent_definition);
-  }, [definition, isBuiltInHelpdesk, applySavedDefinition, queryClient]);
+  }, [isBuiltInHelpdesk, applySavedDefinition, queryClient]);
 
   // SRE watch/targeting/pace autosave. The scope patch spreads the stored
   // scope_policy_json so sibling keys survive the round-trip — read from
@@ -1119,7 +1158,10 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     const trigger = policyObject(definitionNow.trigger_policy_json);
     const scope = policyObject(definitionNow.scope_policy_json);
     const ingestion = nestedPolicy(scope, 'ingestion');
-    const enabledAt = current.enabled
+    // Watching belongs to the Monitor run-mode control; carry the stored value
+    // through unchanged so a targeting/pace save never flips it.
+    const watchingNow = policyObject(trigger.scheduled_poll).enabled === true;
+    const enabledAt = watchingNow
       ? stringValue(ingestion.enabled_at) || new Date().toISOString()
       : stringValue(ingestion.enabled_at) || null;
     const res = await aiAgentControlApi.updateAgent(definitionNow.id, {
@@ -1127,9 +1169,9 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
         ...trigger,
         scheduled_poll: {
           ...policyObject(trigger.scheduled_poll),
-          enabled: current.enabled,
+          enabled: watchingNow,
         },
-        production_polling_enabled: current.enabled,
+        production_polling_enabled: watchingNow,
         automatic_writes_enabled: false,
       },
       scope_policy_json: {
@@ -1250,14 +1292,36 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
       {data.message && <Alert severity="success" onClose={() => data.setMessage(null)}>{data.message}</Alert>}
       {isSre && !monitoringBinding && <Alert severity="warning">{t('settings.monitoringNotConnected')}</Alert>}
-      <Section title={t('settings.objectiveCapabilities')} actions={<SaveIndicator status={identityAutosave.status} />}>
+      <Section
+        title={t('settings.objectiveCapabilities')}
+        actions={(
+          <Stack direction="row" spacing={1} alignItems="center">
+            {isArchived ? (
+              <Button
+                size="small"
+                variant="action"
+                onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })}
+                disabled={data.updateAgentStatusMutation.isPending}
+              >
+                {t('settings.restoreAgent')}
+              </Button>
+            ) : (
+              <Button size="small" variant="action-danger" onClick={() => setArchiveDialogOpen(true)}>{t('settings.archiveAgent')}</Button>
+            )}
+            <SaveIndicator status={identityAutosave.status} />
+          </Stack>
+        )}
+      >
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 180px' }, gap: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 220px' }, gap: 1.5 }}>
             <SettingsField label={t('settings.name')}><TextField size="small" value={agentForm.name} onChange={(event) => updateAgent('name', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.status')}>
-              <Select variant="standard" value={agentForm.status} onChange={(event) => updateAgent('status', event.target.value)} sx={drawerSelectSx}>
-                {['draft', 'enabled', 'disabled', 'archived'].map((status) => <MenuItem key={status} value={status} sx={drawerMenuItemSx}>{t(`settings.statuses.${status}`)}</MenuItem>)}
-              </Select>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ minHeight: 31 }}>
+                <StatusText status={t(`lifecycle.${settingsLifecycleKey}`)} />
+                <Button size="small" variant="text" sx={actionLinkButtonSx} onClick={() => navigate(`/agents/${definition.agent_key}?tab=monitor`)}>
+                  {t('settings.manageInMonitor')}
+                </Button>
+              </Stack>
             </SettingsField>
           </Box>
           <SettingsField label={t('settings.description')}>
@@ -1472,7 +1536,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       {isHelpdesk && (
         <Section title={t('settings.targeting')} actions={<SaveIndicator status={settingsAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <FormControlLabel control={<Switch checked={form.enabled} onChange={(event) => update('enabled', event.target.checked)} />} label={isBuiltInHelpdesk ? t('settings.watchNewTickets') : t('settings.watchTickets')} />
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             {(['new_tickets', 'all_open', 'handled'] as TargetingPresetKey[]).map((preset) => (
               <Button key={preset} size="small" variant="text" onClick={() => requestTargetingPreset(preset)} disabled={presetStatusValues.length === 0} sx={actionLinkButtonSx}>
@@ -1503,10 +1566,6 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       {isSre && (
         <Section title={t('settings.targeting')} actions={<SaveIndicator status={sreAutosave.status} />}>
           <Stack spacing={1.5} sx={{ p: 1.5 }}>
-            <FormControlLabel
-              control={<Switch checked={sreForm.enabled} onChange={(event) => updateSre({ enabled: event.target.checked })} />}
-              label={t('settings.watchAlerts')}
-            />
             <MonitoringTargetingPresetButtons onApply={requestMonitoringPreset} />
             <SettingsField label={t('settings.targetingBuilder.filters')} hint={t('settings.monitoringBuilder.hint')}>
               <MonitoringTargetingFilterBuilder agentId={definition.id} filters={sreForm.filters} onChange={(filters) => updateSre({ filters })} />
@@ -1720,6 +1779,25 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
             {t('settings.targetingBuilder.replaceDescription', {
               preset: t(`settings.monitoringPresets.${pendingMonitoringPreset.preset}`),
             })}
+          </Typography>
+        </KanapDialog>
+      )}
+
+      {archiveDialogOpen && (
+        <KanapDialog
+          open={archiveDialogOpen}
+          title={t('settings.archiveDialog.title')}
+          onClose={() => setArchiveDialogOpen(false)}
+          onSave={() => data.updateAgentStatusMutation.mutate(
+            { id: definition.id, status: 'archived' },
+            { onSuccess: () => setArchiveDialogOpen(false) },
+          )}
+          saveLabel={t('settings.archiveDialog.confirm')}
+          saveColor="error"
+          saveLoading={data.updateAgentStatusMutation.isPending}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t('settings.archiveDialog.body', { name: definition.name })}
           </Typography>
         </KanapDialog>
       )}
