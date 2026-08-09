@@ -425,12 +425,8 @@ export type AiAgentEffectivePrompt = {
   prompt_profile: Record<string, unknown>;
   shared_context_resolved: boolean;
   shared_context_resolution_reason: string | null;
-  tasks: {
-    action_planner: AiAgentEffectivePromptTask;
-    planner: AiAgentEffectivePromptTask;
-    interpreter: AiAgentEffectivePromptTask;
-    synthesis: AiAgentEffectivePromptTask;
-  };
+  // Helpdesk agents expose the four triage tasks; SRE agents expose monitoring_diagnosis only.
+  tasks: Partial<Record<'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis', AiAgentEffectivePromptTask>>;
 };
 
 export type AiAgentControlAutonomyItem = {

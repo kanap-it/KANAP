@@ -87,8 +87,9 @@ import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAge
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
-type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis';
-const EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
+type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis';
+const HELPDESK_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
+const SRE_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['monitoring_diagnosis'];
 
 function numberField(value: string): number | null {
   const trimmed = value.trim();
@@ -882,7 +883,8 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   const [sharedContextDialogOpen, setSharedContextDialogOpen] = React.useState(false);
   const [sharedContextDraftName, setSharedContextDraftName] = React.useState('');
   const [sharedContextDraftLines, setSharedContextDraftLines] = React.useState('');
-  const [effectivePromptTask, setEffectivePromptTask] = React.useState<EffectivePromptTaskKey>('action_planner');
+  const effectivePromptTasks = isSre ? SRE_EFFECTIVE_PROMPT_TASKS : HELPDESK_EFFECTIVE_PROMPT_TASKS;
+  const [effectivePromptTask, setEffectivePromptTask] = React.useState<EffectivePromptTaskKey>(effectivePromptTasks[0]);
   const [form, setForm] = React.useState<HelpdeskSettingsForm>(() => settingsFormFromDefinition(definition));
   const [sreForm, setSreForm] = React.useState<SreSettingsForm>(() => sreSettingsFormFromDefinition(definition));
   const [pendingMonitoringPreset, setPendingMonitoringPreset] = React.useState<{
@@ -1414,7 +1416,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
                     onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
                     sx={[drawerSelectSx, { minWidth: 150 }]}
                   >
-                    {EFFECTIVE_PROMPT_TASKS.map((task) => (
+                    {effectivePromptTasks.map((task) => (
                       <MenuItem key={task} value={task} sx={drawerMenuItemSx}>{t(`settings.effectivePromptTasks.${task}`)}</MenuItem>
                     ))}
                   </Select>

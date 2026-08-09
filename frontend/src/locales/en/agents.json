@@ -487,7 +487,8 @@
       "action_planner": "Action planner",
       "planner": "Planner",
       "interpreter": "Interpreter",
-      "synthesis": "Synthesis"
+      "synthesis": "Synthesis",
+      "monitoring_diagnosis": "Diagnosis"
     },
     "sharedContextDialog": {
       "title": "New shared context profile",

@@ -4360,6 +4360,23 @@ export class AiAgentControlService {
     }
     const runtime = await this.compileAgentPromptRuntime(context, definition);
     const compiler = this.agentPromptCompiler();
+    // SRE agents run a single LLM stage (monitoring_diagnosis); the helpdesk task
+    // prompts never execute for them and must not appear in the settings preview.
+    if (definition.agent_type === 'sre') {
+      const diagnosisGuidance = compiler.sliceFor(runtime.profile, 'monitoring_diagnosis');
+      return {
+        agent_definition_id: definition.id,
+        prompt_profile: runtime.promptProfileSummary,
+        shared_context_resolved: runtime.sharedContextResolution.resolved,
+        shared_context_resolution_reason: runtime.sharedContextResolution.reason,
+        tasks: {
+          monitoring_diagnosis: {
+            system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS, diagnosisGuidance),
+            guidance_json: compiler.guidancePayload(diagnosisGuidance),
+          },
+        },
+      };
+    }
     return {
       agent_definition_id: definition.id,
       prompt_profile: runtime.promptProfileSummary,

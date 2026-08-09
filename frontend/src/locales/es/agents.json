@@ -487,7 +487,8 @@
       "action_planner": "Planificador de acciones",
       "planner": "Planificador",
       "interpreter": "Intérprete",
-      "synthesis": "Síntesis"
+      "synthesis": "Síntesis",
+      "monitoring_diagnosis": "Diagnóstico"
     },
     "sharedContextDialog": {
       "title": "Nuevo perfil de contexto compartido",
