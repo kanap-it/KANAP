@@ -287,7 +287,9 @@
       "agent_autonomy_execution_failed": "Exécution automatique en échec",
       "per_run_cap_exceeded": "Limite de sécurité par exécution atteinte",
       "poller_cycle_completed": "Vérification des tickets terminée",
+      "poller_cycle_completed_sre": "Vérification des alertes terminée",
       "work_item_processing_failed": "Échec du traitement du ticket",
+      "work_item_processing_failed_sre": "Échec du traitement de l'alerte",
       "agent_deleted": "Agent supprimé"
     }
   },

@@ -287,7 +287,9 @@
       "agent_autonomy_execution_failed": "Automatische Ausführung fehlgeschlagen",
       "per_run_cap_exceeded": "Sicherheitslimit pro Ausführung erreicht",
       "poller_cycle_completed": "Ticket-Prüfung abgeschlossen",
+      "poller_cycle_completed_sre": "Alarmprüfung abgeschlossen",
       "work_item_processing_failed": "Ticket-Verarbeitung fehlgeschlagen",
+      "work_item_processing_failed_sre": "Alarmverarbeitung fehlgeschlagen",
       "agent_deleted": "Agent gelöscht"
     }
   },
