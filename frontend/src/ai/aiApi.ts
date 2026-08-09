@@ -45,6 +45,7 @@ export type AiMonitoringIntegration = {
   environment: 'sandbox' | 'production';
   base_url: string;
   server_timezone: string | null;
+  request_timeout_seconds: number | null;
   credential: {
     present: boolean;
     shape: AiMonitoringCredentialShape;
@@ -57,6 +58,8 @@ export type AiPrtgIntegrationUpdatePayload = {
   enabled: boolean;
   environment?: 'sandbox' | 'production';
   server_timezone?: string;
+  /** Whole seconds (5–120); null clears back to the built-in default. */
+  request_timeout_seconds?: number | null;
   /** Write-only: omitted or empty keeps the stored credential. */
   api_token?: string;
   username?: string;

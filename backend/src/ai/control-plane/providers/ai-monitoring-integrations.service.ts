@@ -7,6 +7,7 @@ import { PrtgApiError, PrtgAuth } from '../../prtg/prtg.types';
 import { AiAdapterConfig } from './adapter-config.entity';
 import { AiAdapterConfigService, parseCredentialRef } from './adapter-config.service';
 import { PRTG_MONITORING_IMPLEMENTATION, PRTG_MONITORING_PROVIDER_KEY } from './provider-constants';
+import { PRTG_MAX_TIMEOUT_SECONDS, PRTG_MIN_TIMEOUT_SECONDS } from './prtg-monitoring.provider';
 import { ProviderCredentialRef } from './provider.types';
 import { AiTenantSecretResolverService } from './tenant-secret-resolver.service';
 
@@ -23,6 +24,7 @@ export type MonitoringIntegrationView = {
   environment: string;
   base_url: string | null;
   server_timezone: string | null;
+  request_timeout_seconds: number | null;
   credential: {
     present: boolean;
     shape: 'api_token' | 'username_passhash' | 'secret_ref' | 'none';
@@ -35,6 +37,7 @@ export type PrtgIntegrationSaveInput = {
   enabled?: unknown;
   environment?: unknown;
   server_timezone?: unknown;
+  request_timeout_seconds?: unknown;
   api_token?: unknown;
   username?: unknown;
   passhash?: unknown;
@@ -58,6 +61,8 @@ const TIMEZONE_MESSAGE = 'The server time zone must be a valid IANA time zone na
   + 'Use the time zone configured on the machine that runs the PRTG core server (its operating-system clock setting).';
 const CREDENTIAL_PAIR_MESSAGE = 'Enter both the PRTG user name and the passhash together. '
   + 'The passhash is shown in PRTG under Setup > Account Settings > My Account.';
+const TIMEOUT_MESSAGE = 'The request timeout must be a whole number of seconds between '
+  + `${PRTG_MIN_TIMEOUT_SECONDS} and ${PRTG_MAX_TIMEOUT_SECONDS}, or empty to use the default.`;
 
 function textOrNull(value: unknown): string | null {
   if (value == null) {
@@ -161,6 +166,7 @@ function toView(config: AiAdapterConfig): MonitoringIntegrationView {
     environment: config.environment,
     base_url: textOrNull(config.base_url),
     server_timezone: textOrNull(metadata?.server_timezone),
+    request_timeout_seconds: config.timeout_seconds ?? null,
     credential: credentialSummary(config.credential_ref_json),
     updated_at: config.updated_at instanceof Date
       ? config.updated_at.toISOString()
@@ -228,6 +234,23 @@ export class AiMonitoringIntegrationsService {
       }
     }
 
+    // request_timeout_seconds: key present + value → validate and set; key
+    // present + empty → clear (back to the built-in default); key absent →
+    // keep the stored value.
+    let timeoutSeconds = existing?.timeout_seconds ?? null;
+    if (input.request_timeout_seconds !== undefined) {
+      const timeoutRaw = input.request_timeout_seconds;
+      if (timeoutRaw === null || (typeof timeoutRaw === 'string' && !timeoutRaw.trim())) {
+        timeoutSeconds = null;
+      } else {
+        const parsed = Number(timeoutRaw);
+        if (!Number.isInteger(parsed) || parsed < PRTG_MIN_TIMEOUT_SECONDS || parsed > PRTG_MAX_TIMEOUT_SECONDS) {
+          throw new BadRequestException(TIMEOUT_MESSAGE);
+        }
+        timeoutSeconds = parsed;
+      }
+    }
+
     // Credential is write-only: omitted/empty keeps the existing reference
     // as-is — including an operator-managed secret_ref, which a base_url-only
     // save must never clobber.
@@ -253,6 +276,7 @@ export class AiMonitoringIntegrationsService {
       base_url: baseUrl,
       credential_ref_json: credentialRef,
       metadata_json: Object.keys(metadata).length > 0 ? metadata : null,
+      timeout_seconds: timeoutSeconds,
     });
     return { ok: true };
   }
@@ -288,8 +312,14 @@ export class AiMonitoringIntegrationsService {
       return { ok: false, message: 'The saved PRTG credential is incomplete. Enter the API token (or user name and passhash) again and save.' };
     }
 
+    // Apply the tuned timeout to the probe too: a slow-but-working PRTG
+    // server should pass the admin test with the same budget the poller gets.
+    const timeoutSeconds = config?.timeout_seconds;
+    const requestTimeoutMs = typeof timeoutSeconds === 'number' && Number.isFinite(timeoutSeconds)
+      ? Math.max(PRTG_MIN_TIMEOUT_SECONDS, Math.min(PRTG_MAX_TIMEOUT_SECONDS, Math.floor(timeoutSeconds))) * 1000
+      : null;
     try {
-      const probe = await this.prtg.testConnection({ baseUrl, auth });
+      const probe = await this.prtg.testConnection({ baseUrl, auth, requestTimeoutMs });
       const version = probe.prtgVersion;
       const count = probe.sensorCount;
       return {

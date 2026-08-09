@@ -167,11 +167,13 @@
         "apiKey": "API key",
         "baseUrl": "Server address",
         "enabled": "Enable PRTG monitoring",
-        "timezone": "Server time zone"
+        "timezone": "Server time zone",
+        "requestTimeout": "Request timeout (seconds)"
       },
       "hints": {
         "apiKey": "Create one in PRTG under Setup → API keys. Read-only access is enough.",
         "apiKeyExisting": "An API key is already saved. Leave blank to keep it.",
+        "requestTimeout": "How long KANAP waits for PRTG to answer each request (5–120 seconds). Increase this if alert checks fail with timeouts on a large or slow PRTG server. Leave blank for the default (30).",
         "baseUrl": "The address of your PRTG web interface, e.g. https://prtg.example.com",
         "timezone": "The time zone your PRTG server runs in, so alert timestamps are read correctly."
       },
@@ -185,7 +187,8 @@
       "placeholders": {
         "apiKeySaved": "API key saved (leave blank to keep)",
         "enterApiKey": "Enter API key",
-        "url": "https://prtg.example.com"
+        "url": "https://prtg.example.com",
+        "requestTimeout": "e.g., 60"
       },
       "status": {
         "connected": "Connected",
