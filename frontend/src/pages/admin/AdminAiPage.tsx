@@ -12,14 +12,11 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  FormControl,
   FormControlLabel,
   IconButton,
-  InputLabel,
   LinearProgress,
+  Link,
   MenuItem,
-  Radio,
-  RadioGroup,
   Select,
   Stack,
   Switch,
@@ -35,20 +32,20 @@ import {
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { Link as RouterLink } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { useFeatures } from '../../config/FeaturesContext';
 import { useLocale } from '../../i18n/useLocale';
 import {
   aiAdminApi,
   aiKeysApi,
-  type AiAdminOverview,
-  type AiProviderTestResult,
+  aiModelConfigsApi,
   type AiSettingsPayload,
   type AiWebSearchTestResult,
-  type ProviderDescriptor,
 } from '../../ai/aiApi';
+import { PropertyRow } from '../../components/design';
+import { drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
 import { AiApiKeyRecord } from '../../ai/aiTypes';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { useTheme } from '@mui/material/styles';
@@ -58,15 +55,11 @@ import { StatusDot } from '../../components/design';
 type AiSettingsForm = {
   chat_enabled: boolean;
   mcp_enabled: boolean;
-  provider_source: 'builtin' | 'custom';
-  llm_provider: string;
-  llm_model: string;
-  llm_endpoint_url: string;
-  llm_api_key: string;
+  // '' means "no explicit assignment": tenant default model, then the KANAP included model.
+  chat_model_config_id: string;
   mcp_key_max_lifetime_days: string | number;
   conversation_retention_days: string | number;
   web_search_enabled: boolean;
-  llm_supports_vision: boolean;
   glpi_enabled: boolean;
   glpi_url: string;
   glpi_user_token: string;
@@ -76,15 +69,10 @@ type AiSettingsForm = {
 const EMPTY_FORM: AiSettingsForm = {
   chat_enabled: false,
   mcp_enabled: false,
-  provider_source: 'custom',
-  llm_provider: '',
-  llm_model: '',
-  llm_endpoint_url: '',
-  llm_api_key: '',
+  chat_model_config_id: '',
   mcp_key_max_lifetime_days: '',
   conversation_retention_days: '',
   web_search_enabled: false,
-  llm_supports_vision: true,
   glpi_enabled: false,
   glpi_url: '',
   glpi_user_token: '',
@@ -113,15 +101,10 @@ function buildSettingsForm(settings: AiSettingsPayload['settings']): AiSettingsF
   return {
     chat_enabled: settings.chat_enabled,
     mcp_enabled: settings.mcp_enabled,
-    provider_source: settings.provider_source,
-    llm_provider: settings.llm_provider || '',
-    llm_model: settings.llm_model || '',
-    llm_endpoint_url: settings.llm_endpoint_url || '',
-    llm_api_key: '',
+    chat_model_config_id: settings.chat_model_config_id ?? '',
     mcp_key_max_lifetime_days: settings.mcp_key_max_lifetime_days ?? '',
     conversation_retention_days: settings.conversation_retention_days ?? '',
     web_search_enabled: settings.web_search_enabled,
-    llm_supports_vision: settings.llm_supports_vision ?? true,
     glpi_enabled: settings.glpi_enabled,
     glpi_url: settings.glpi_url || '',
     glpi_user_token: '',
@@ -137,18 +120,11 @@ function buildSettingsUpdatePayload(
 
   if (form.chat_enabled !== settings.chat_enabled) payload.chat_enabled = form.chat_enabled;
   if (form.mcp_enabled !== settings.mcp_enabled) payload.mcp_enabled = form.mcp_enabled;
-  if (form.provider_source !== settings.provider_source) payload.provider_source = form.provider_source;
 
-  const provider = normalizeNullableString(form.llm_provider);
-  if (provider !== settings.llm_provider) payload.llm_provider = provider;
-
-  const model = normalizeNullableString(form.llm_model);
-  if (model !== settings.llm_model) payload.llm_model = model;
-
-  const endpointUrl = normalizeNullableString(form.llm_endpoint_url);
-  if (endpointUrl !== settings.llm_endpoint_url) payload.llm_endpoint_url = endpointUrl;
-
-  if (form.llm_api_key.trim()) payload.llm_api_key = form.llm_api_key.trim();
+  const chatModelConfigId = form.chat_model_config_id || null;
+  if (chatModelConfigId !== (settings.chat_model_config_id ?? null)) {
+    payload.chat_model_config_id = chatModelConfigId;
+  }
 
   const maxLifetime = form.mcp_key_max_lifetime_days === '' ? null : Number(form.mcp_key_max_lifetime_days);
   if (maxLifetime !== settings.mcp_key_max_lifetime_days) {
@@ -162,10 +138,6 @@ function buildSettingsUpdatePayload(
 
   if (form.web_search_enabled !== settings.web_search_enabled) {
     payload.web_search_enabled = form.web_search_enabled;
-  }
-
-  if (form.llm_supports_vision !== settings.llm_supports_vision) {
-    payload.llm_supports_vision = form.llm_supports_vision;
   }
 
   if (form.glpi_enabled !== settings.glpi_enabled) {
@@ -188,62 +160,11 @@ function buildSettingsUpdatePayload(
   return payload;
 }
 
-function buildProviderTestPayload(form: AiSettingsForm): Record<string, unknown> {
-  return {
-    llm_provider: normalizeNullableString(form.llm_provider),
-    llm_model: normalizeNullableString(form.llm_model),
-    llm_endpoint_url: normalizeNullableString(form.llm_endpoint_url),
-    ...(form.llm_api_key.trim() ? { llm_api_key: form.llm_api_key.trim() } : {}),
-  };
-}
-
-function providerInfoText(
-  provider: ProviderDescriptor | undefined,
-  t: TFunction,
-): string | null {
-  switch (provider?.id) {
-    case 'ollama':
-      return t('aiAdmin.provider.info.ollama');
-    default:
-      return null;
-  }
-}
-
 function getBuiltinUsageRatio(usage?: { count: number; limit: number } | null): number {
   if (!usage || usage.limit <= 0) {
     return 0;
   }
   return Math.min(1, usage.count / usage.limit);
-}
-
-function providerModelPlaceholder(
-  provider: ProviderDescriptor | undefined,
-  t: TFunction,
-): string {
-  switch (provider?.id) {
-    case 'anthropic':
-      return t('aiAdmin.provider.placeholders.anthropicModel');
-    case 'openai':
-      return t('aiAdmin.provider.placeholders.openaiModel');
-    case 'ollama':
-      return t('aiAdmin.provider.placeholders.ollamaModel');
-    default:
-      return t('aiAdmin.provider.placeholders.modelIdentifier');
-  }
-}
-
-function providerApiKeyHelperText(
-  settings: AiSettingsPayload['settings'] | undefined,
-  t: TFunction,
-): string | undefined {
-  const messages: string[] = [];
-  if (settings?.has_llm_api_key) {
-    messages.push(t('aiAdmin.provider.apiKey.keepExisting'));
-  }
-  if (settings && !settings.provider_secret_writable) {
-    messages.push(t('aiAdmin.provider.apiKey.storageUnavailable'));
-  }
-  return messages.length > 0 ? messages.join(' ') : undefined;
 }
 
 function ValidationErrorList({ errors }: { errors: string[] }) {
@@ -258,144 +179,6 @@ function ValidationErrorList({ errors }: { errors: string[] }) {
   );
 }
 
-function MetricCard(props: { label: string; value: string; caption?: string }) {
-  return (
-    <Card variant="outlined">
-      <CardContent>
-        <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary">
-            {props.label}
-          </Typography>
-          <Typography variant="h5">{props.value}</Typography>
-          {props.caption ? (
-            <Typography variant="caption" color="text.secondary">
-              {props.caption}
-            </Typography>
-          ) : null}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function renderOverviewSection(overviewQuery: {
-  isLoading: boolean;
-  isError: boolean;
-  error: unknown;
-  data: AiAdminOverview | undefined;
-}, t: TFunction, locale: string) {
-  return (
-    <Card>
-      <CardContent>
-        <Stack spacing={2.5}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <AutoAwesomeIcon sx={{ color: 'text.secondary' }} />
-            <Typography variant="h6">{t('aiAdmin.overview.title')}</Typography>
-          </Stack>
-
-          {overviewQuery.isLoading ? (
-            <Box display="flex" justifyContent="center" py={4}>
-              <CircularProgress size={28} />
-            </Box>
-          ) : overviewQuery.isError ? (
-            <Alert severity="error">
-              {getApiErrorMessage(overviewQuery.error, t, t('aiAdmin.messages.loadOverviewFailed'))}
-            </Alert>
-          ) : overviewQuery.data ? (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                {t('aiAdmin.overview.description')}
-              </Typography>
-
-              <Box
-                sx={{
-                  display: 'grid',
-                  gap: 2,
-                  gridTemplateColumns: {
-                    xs: '1fr',
-                    sm: 'repeat(2, minmax(0, 1fr))',
-                    lg: 'repeat(4, minmax(0, 1fr))',
-                  },
-                }}
-              >
-                <MetricCard
-                  label={t('aiAdmin.overview.metrics.allConversations')}
-                  value={formatNumber(overviewQuery.data.totals.conversations_all, locale)}
-                />
-                <MetricCard
-                  label={t('aiAdmin.overview.metrics.activeConversations7d')}
-                  value={formatNumber(overviewQuery.data.totals.conversations_7d, locale)}
-                />
-                <MetricCard
-                  label={t('aiAdmin.overview.metrics.activeConversations30d')}
-                  value={formatNumber(overviewQuery.data.totals.conversations_30d, locale)}
-                />
-                <MetricCard
-                  label={t('aiAdmin.overview.metrics.activeUsers30d')}
-                  value={formatNumber(overviewQuery.data.totals.active_users_30d, locale)}
-                />
-              </Box>
-
-              <Stack spacing={1}>
-                <Typography variant="subtitle1">{t('aiAdmin.overview.tokenUsage')}</Typography>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>{t('aiAdmin.overview.columns.window')}</TableCell>
-                      <TableCell align="right">{t('aiAdmin.overview.columns.inputTokens')}</TableCell>
-                      <TableCell align="right">{t('aiAdmin.overview.columns.outputTokens')}</TableCell>
-                      <TableCell align="right">{t('aiAdmin.overview.columns.totalTokens')}</TableCell>
-                      <TableCell align="right">{t('aiAdmin.overview.columns.messages')}</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>{t('aiAdmin.overview.windows.currentMonth')}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.input_tokens, locale)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.output_tokens, locale)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.total_tokens, locale)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.current_month.message_count, locale)}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>{t('aiAdmin.overview.windows.last30Days')}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.input_tokens, locale)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.output_tokens, locale)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.total_tokens, locale)}</TableCell>
-                      <TableCell align="right">{formatNumber(overviewQuery.data.usage.last_30_days.message_count, locale)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </Stack>
-
-              {(overviewQuery.data.agents ?? []).length > 0 && (
-                <Stack spacing={1}>
-                  <Typography variant="subtitle1">{t('aiAdmin.overview.agentMessages')}</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-                    <MetricCard
-                      label={t('aiAdmin.overview.agentsTotal')}
-                      value={formatNumber(overviewQuery.data.agents.reduce((sum, agent) => sum + agent.messages_current_month, 0), locale)}
-                      caption={`${t('aiAdmin.overview.windows.last30Days')}: ${formatNumber(overviewQuery.data.agents.reduce((sum, agent) => sum + agent.messages_last_30_days, 0), locale)}`}
-                    />
-                    {overviewQuery.data.agents.map((agent) => (
-                      <MetricCard
-                        key={agent.agent_definition_id}
-                        label={agent.name}
-                        value={formatNumber(agent.messages_current_month, locale)}
-                        caption={`${t('aiAdmin.overview.windows.last30Days')}: ${formatNumber(agent.messages_last_30_days, locale)}`}
-                      />
-                    ))}
-                  </Box>
-                </Stack>
-              )}
-
-            </>
-          ) : null}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function AdminAiPage() {
   const { config } = useFeatures();
   const queryClient = useQueryClient();
@@ -406,7 +189,6 @@ export default function AdminAiPage() {
   const [form, setForm] = useState<AiSettingsForm>(EMPTY_FORM);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [providerTestResult, setProviderTestResult] = useState<AiProviderTestResult | null>(null);
   const [webSearchTestResult, setWebSearchTestResult] = useState<AiWebSearchTestResult | null>(null);
   const [createKeyDialog, setCreateKeyDialog] = useState(false);
   const [newKeyLabel, setNewKeyLabel] = useState('');
@@ -419,9 +201,9 @@ export default function AdminAiPage() {
     enabled: config.features.aiSettings,
   });
 
-  const overviewQuery = useQuery<AiAdminOverview>({
-    queryKey: ['admin-ai-overview'],
-    queryFn: () => aiAdminApi.getOverview(),
+  const modelConfigsQuery = useQuery({
+    queryKey: ['ai-model-configs'],
+    queryFn: () => aiModelConfigsApi.list(),
     enabled: config.features.aiSettings,
   });
 
@@ -440,7 +222,6 @@ export default function AdminAiPage() {
   React.useEffect(() => {
     if (settingsQuery.data) {
       setForm(buildSettingsForm(settingsQuery.data.settings));
-      setProviderTestResult(null);
     }
   }, [settingsQuery.data?.settings.updated_at]);
 
@@ -460,36 +241,16 @@ export default function AdminAiPage() {
       if (!updated) return;
       setSaveSuccess(true);
       setSaveError(null);
-      setProviderTestResult(null);
-      setForm((prev) => ({ ...prev, llm_api_key: '', glpi_user_token: '', glpi_app_token: '' }));
+      setForm((prev) => ({ ...prev, glpi_user_token: '', glpi_app_token: '' }));
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-settings'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-ai-builtin-usage'] });
+      await queryClient.invalidateQueries({ queryKey: ['ai-model-configs'] });
       setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (error: any) => {
       const validationErrors = getValidationErrors(error);
       const message = getApiErrorMessage(error, t, t('aiAdmin.messages.saveFailed'));
       setSaveError(validationErrors.length > 0 ? `${message} ${validationErrors.join(' ')}` : message);
-    },
-  });
-
-  const testProviderMutation = useMutation({
-    mutationFn: async (data: AiSettingsForm) => aiAdminApi.testProvider(buildProviderTestPayload(data)),
-    onMutate: () => {
-      setProviderTestResult(null);
-    },
-    onSuccess: (result) => {
-      setProviderTestResult(result);
-    },
-    onError: (error: any, data) => {
-      setProviderTestResult({
-        ok: false,
-        provider: normalizeNullableString(data.llm_provider),
-        model: normalizeNullableString(data.llm_model),
-        latency_ms: null,
-        message: getApiErrorMessage(error, t, t('aiAdmin.messages.connectionTestFailed')),
-        validation_errors: getValidationErrors(error),
-      });
     },
   });
 
@@ -538,10 +299,14 @@ export default function AdminAiPage() {
     },
   });
 
-  const selectedProvider = settingsQuery.data?.available_providers.find((provider) => provider.id === form.llm_provider);
   const currentSettings = settingsQuery.data?.settings;
   const builtinUsageRatio = getBuiltinUsageRatio(builtinUsageQuery.data);
   const builtinUsageColor = builtinUsageRatio >= 0.9 ? 'error' : builtinUsageRatio >= 0.75 ? 'warning' : 'success';
+  const activeModelConfigs = (modelConfigsQuery.data?.model_configs ?? []).filter((entry) => entry.status === 'active');
+  const defaultModelName = activeModelConfigs.find((entry) => entry.is_default)?.name ?? null;
+  // With no explicit assignment, chat falls back to the tenant default model,
+  // then to the KANAP included model — the quota card only matters on that path.
+  const chatUsesBuiltin = config.features.builtinAiProvider && form.chat_model_config_id === '' && !defaultModelName;
 
   return (
     <>
@@ -593,54 +358,37 @@ export default function AdminAiPage() {
                       </Alert>
                     ) : null}
 
-                    {providerTestResult ? (
-                      <Alert severity={providerTestResult.ok ? 'success' : 'error'} variant="outlined">
-                        <Stack spacing={0.75}>
-                          <Typography variant="body2" fontWeight={600}>
-                            {providerTestResult.ok ? t('aiAdmin.provider.connectionSucceeded') : t('aiAdmin.provider.connectionFailed')}
-                          </Typography>
-                          <Typography variant="body2">{providerTestResult.message}</Typography>
-                          {providerTestResult.provider || providerTestResult.model || providerTestResult.latency_ms != null ? (
-                            <Typography variant="caption" color="text.secondary">
-                              {[providerTestResult.provider, providerTestResult.model].filter(Boolean).join(' / ') || t('aiAdmin.provider.testLabel')}
-                              {providerTestResult.latency_ms != null ? ` • ${providerTestResult.latency_ms} ms` : ''}
-                            </Typography>
-                          ) : null}
-                          {providerTestResult.validation_errors.length > 0 ? (
-                            <ValidationErrorList errors={providerTestResult.validation_errors} />
-                          ) : null}
-                        </Stack>
-                      </Alert>
-                    ) : null}
+                    <PropertyRow label={t('aiAdmin.provider.modelSelector.label')}>
+                      <Select
+                        variant="standard"
+                        disableUnderline
+                        value={form.chat_model_config_id}
+                        displayEmpty
+                        sx={[drawerSelectSx, { maxWidth: 420 }]}
+                        onChange={(event) => {
+                          setForm((prev) => ({ ...prev, chat_model_config_id: String(event.target.value) }));
+                        }}
+                      >
+                        <MenuItem value="" sx={drawerMenuItemSx}>
+                          {defaultModelName
+                            ? t('aiAdmin.provider.modelSelector.tenantDefault', { name: defaultModelName })
+                            : config.features.builtinAiProvider
+                              ? t('aiAdmin.provider.modelSelector.builtin')
+                              : t('aiAdmin.provider.modelSelector.noDefault')}
+                        </MenuItem>
+                        {activeModelConfigs.map((modelConfig) => (
+                          <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>
+                            {modelConfig.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      <Typography variant="caption" color="text.secondary">
+                        {t('aiAdmin.provider.modelSelector.hintPrefix')}{' '}
+                        <Link component={RouterLink} to="/admin/ai-models">{t('aiAdmin.provider.modelSelector.hintLink')}</Link>
+                      </Typography>
+                    </PropertyRow>
 
-                    {config.features.builtinAiProvider ? (
-                      <FormControl>
-                        <RadioGroup
-                          row
-                          value={form.provider_source}
-                          onChange={(event) => {
-                            setProviderTestResult(null);
-                            setForm((prev) => ({
-                              ...prev,
-                              provider_source: event.target.value as 'builtin' | 'custom',
-                            }));
-                          }}
-                        >
-                          <FormControlLabel
-                            value="builtin"
-                            control={<Radio />}
-                            label={t('aiAdmin.provider.sources.builtin')}
-                          />
-                          <FormControlLabel
-                            value="custom"
-                            control={<Radio />}
-                            label={t('aiAdmin.provider.sources.custom')}
-                          />
-                        </RadioGroup>
-                      </FormControl>
-                    ) : null}
-
-                    {form.provider_source === 'builtin' ? (
+                    {chatUsesBuiltin ? (
                       <Card variant="outlined">
                         <CardContent>
                           <Stack spacing={1.5}>
@@ -684,90 +432,7 @@ export default function AdminAiPage() {
                           </Stack>
                         </CardContent>
                       </Card>
-                    ) : (
-                      <>
-                        <FormControl size="small" fullWidth>
-                          <InputLabel>{t('aiAdmin.provider.fields.provider')}</InputLabel>
-                          <Select
-                            value={form.llm_provider}
-                            label={t('aiAdmin.provider.fields.provider')}
-                            onChange={(event) => {
-                              const nextProvider = settingsQuery.data?.available_providers.find((provider) => provider.id === event.target.value);
-                              const shouldClearEndpoint = nextProvider && nextProvider.id !== 'ollama' && nextProvider.id !== 'custom';
-                              setForm((prev) => ({
-                                ...prev,
-                                llm_provider: String(event.target.value),
-                                ...(shouldClearEndpoint ? { llm_endpoint_url: '' } : {}),
-                              }));
-                            }}
-                          >
-                            <MenuItem value="">{t('aiAdmin.shared.none')}</MenuItem>
-                            {settingsQuery.data.available_providers.map((provider) => (
-                              <MenuItem key={provider.id} value={provider.id}>
-                                {provider.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-
-                        {providerInfoText(selectedProvider, t) ? (
-                          <Alert severity="info" variant="outlined">
-                            {providerInfoText(selectedProvider, t)}
-                          </Alert>
-                        ) : null}
-
-                        <TextField
-                          size="small"
-                          label={t('aiAdmin.provider.fields.model')}
-                          value={form.llm_model}
-                          onChange={(event) => setForm((prev) => ({ ...prev, llm_model: event.target.value }))}
-                          placeholder={providerModelPlaceholder(selectedProvider, t)}
-                        />
-
-                        {(selectedProvider?.id === 'ollama' || selectedProvider?.id === 'custom') ? (
-                          <TextField
-                            size="small"
-                            label={t('aiAdmin.provider.fields.endpointUrl')}
-                            value={form.llm_endpoint_url}
-                            onChange={(event) => setForm((prev) => ({ ...prev, llm_endpoint_url: event.target.value }))}
-                            placeholder={
-                              selectedProvider?.id === 'ollama'
-                                ? t('aiAdmin.provider.placeholders.ollamaEndpoint')
-                                : t('aiAdmin.provider.placeholders.customEndpoint')
-                            }
-                          />
-                        ) : null}
-
-                        {selectedProvider?.capabilities.requiresApiKey ? (
-                          <TextField
-                            size="small"
-                            label={t('aiAdmin.provider.fields.apiKey')}
-                            type="password"
-                            value={form.llm_api_key}
-                            onChange={(event) => setForm((prev) => ({ ...prev, llm_api_key: event.target.value }))}
-                            placeholder={
-                              currentSettings?.has_llm_api_key
-                                ? t('aiAdmin.provider.placeholders.apiKeyConfigured')
-                                : t('aiAdmin.provider.placeholders.enterApiKey')
-                            }
-                            helperText={providerApiKeyHelperText(currentSettings, t)}
-                          />
-                        ) : null}
-                      </>
-                    )}
-
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={form.llm_supports_vision}
-                          onChange={(event) => setForm((prev) => ({ ...prev, llm_supports_vision: event.target.checked }))}
-                        />
-                      }
-                      label={t('aiAdmin.provider.fields.multimodal')}
-                    />
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: -1, ml: 4, display: 'block' }}>
-                      {t('aiAdmin.provider.multimodalHelper')}
-                    </Typography>
+                    ) : null}
 
                     <Divider />
 
@@ -854,15 +519,6 @@ export default function AdminAiPage() {
                       >
                         {saveMutation.isPending ? t('common:status.saving') : t('aiAdmin.actions.saveSettings')}
                       </Button>
-                      {form.provider_source === 'custom' ? (
-                        <Button
-                          variant="outlined"
-                          onClick={() => testProviderMutation.mutate(form)}
-                          disabled={testProviderMutation.isPending}
-                        >
-                          {testProviderMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
-                        </Button>
-                      ) : null}
                     </Stack>
                   </Stack>
                 ) : null}
@@ -965,7 +621,6 @@ export default function AdminAiPage() {
               </CardContent>
             </Card>
 
-            {renderOverviewSection(overviewQuery, t, locale)}
           </>
         )}
       </Stack>

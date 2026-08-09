@@ -79,6 +79,7 @@ export type AiSettingsPayload = {
     chat_enabled: boolean;
     mcp_enabled: boolean;
     provider_source: 'builtin' | 'custom';
+    chat_model_config_id: string | null;
     llm_provider: string | null;
     llm_endpoint_url: string | null;
     llm_model: string | null;
@@ -107,6 +108,43 @@ export type AiProviderTestResult = {
   latency_ms: number | null;
   message: string;
   validation_errors: string[];
+};
+
+export type AiModelConfigUsage = {
+  chat: boolean;
+  agents: { id: string; name: string }[];
+};
+
+export type AiModelConfig = {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  endpoint_url: string | null;
+  has_api_key: boolean;
+  supports_vision: boolean;
+  price_input_eur_per_mtok: number | null;
+  price_output_eur_per_mtok: number | null;
+  llm_timeout_ms: number | null;
+  status: 'active' | 'archived';
+  is_default: boolean;
+  used_by: AiModelConfigUsage;
+  validation_errors: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type AiModelConfigInput = {
+  name?: string;
+  provider?: string;
+  model?: string;
+  endpoint_url?: string | null;
+  api_key?: string | null;
+  supports_vision?: boolean;
+  price_input_eur_per_mtok?: number | null;
+  price_output_eur_per_mtok?: number | null;
+  llm_timeout_ms?: number | null;
+  is_default?: boolean;
 };
 
 export type AiUsageWindow = {
@@ -309,6 +347,7 @@ export type AiAgentControlAgentDefinition = {
   response_policy_json: Record<string, unknown> | null;
   evaluation_policy_json: Record<string, unknown> | null;
   persona_json: Record<string, unknown> | null;
+  llm_model_config_id: string | null;
   config_version: number;
   updated_by_user_id: string | null;
   metadata_json: Record<string, unknown> | null;
@@ -363,6 +402,7 @@ export type AiAgentControlAgentDefinitionInput = {
   queue_policy_json?: Record<string, unknown> | null;
   response_policy_json?: Record<string, unknown> | null;
   evaluation_policy_json?: Record<string, unknown> | null;
+  llm_model_config_id?: string | null;
 };
 
 export type AiAgentControlRefItem = {
@@ -1321,6 +1361,41 @@ export const aiAdminApi = {
   },
   async getBuiltinUsage(): Promise<BuiltinUsage> {
     const res = await api.get('/ai/settings/builtin-usage');
+    return res.data;
+  },
+};
+
+export const aiModelConfigsApi = {
+  async list(): Promise<{ model_configs: AiModelConfig[]; secret_writable: boolean }> {
+    const res = await api.get('/ai/model-configs');
+    return res.data;
+  },
+  async create(payload: AiModelConfigInput): Promise<{ model_config: AiModelConfig }> {
+    const res = await api.post('/ai/model-configs', payload);
+    return res.data;
+  },
+  async update(id: string, payload: AiModelConfigInput): Promise<{ model_config: AiModelConfig }> {
+    const res = await api.patch(`/ai/model-configs/${id}`, payload);
+    return res.data;
+  },
+  async archive(id: string): Promise<{ model_config: AiModelConfig }> {
+    const res = await api.delete(`/ai/model-configs/${id}`);
+    return res.data;
+  },
+  async restore(id: string): Promise<{ model_config: AiModelConfig }> {
+    const res = await api.post(`/ai/model-configs/${id}/restore`);
+    return res.data;
+  },
+  async setDefault(id: string): Promise<{ model_config: AiModelConfig }> {
+    const res = await api.post(`/ai/model-configs/${id}/set-default`);
+    return res.data;
+  },
+  async clearDefault(id: string): Promise<{ model_config: AiModelConfig }> {
+    const res = await api.post(`/ai/model-configs/${id}/clear-default`);
+    return res.data;
+  },
+  async test(id: string): Promise<AiProviderTestResult> {
+    const res = await api.post(`/ai/model-configs/${id}/test`);
     return res.data;
   },
 };

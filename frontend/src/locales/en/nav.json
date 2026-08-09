@@ -89,7 +89,13 @@
       "branding": "Branding",
       "integrations": "Integrations",
       "ai": "Plaid",
-      "agentControl": "Agent control"
+      "agentControl": "Agent control",
+      "aiModels": "AI models",
+      "aiUsage": "Usage & costs",
+      "sections": {
+        "ai": "Artificial intelligence",
+        "integrations": "Integrations"
+      }
     },
     "platform": {
       "tenants": "Tenants",
@@ -130,6 +136,8 @@
     "interfaceMap": "Interface map",
     "connectionMap": "Connection map",
     "tasks": "Tasks",
-    "operations": "Administration"
+    "operations": "Administration",
+    "aiModels": "AI models",
+    "aiUsage": "Usage & costs"
   }
 }

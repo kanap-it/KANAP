@@ -721,7 +721,10 @@
       "interfaces": "Interfaces",
       "connections": "Connections",
       "locations": "Locations"
-    }
+    },
+    "model": "AI model",
+    "modelTenantDefault": "Organization default",
+    "modelHint": "Which AI model this agent runs on. Models are managed in Administration under AI models."
   },
   "actions": {
     "internalNote": "Internal note",

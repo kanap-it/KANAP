@@ -13,6 +13,7 @@ import { PropertyRow } from '../../components/design';
 import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 import {
   aiAgentControlApi,
+  aiModelConfigsApi,
   type AiAgentControlAgentDefinition,
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlHelpdeskIngestionSettingsInput,
@@ -948,6 +949,12 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     queryFn: () => aiAgentControlApi.listSharedContextProfiles(),
     staleTime: 60_000,
   });
+  const modelConfigsQuery = useQuery({
+    queryKey: ['ai-model-configs'],
+    queryFn: () => aiModelConfigsApi.list(),
+    staleTime: 60_000,
+  });
+  const activeModelConfigs = (modelConfigsQuery.data?.model_configs ?? []).filter((entry) => entry.status === 'active');
   const effectivePromptQuery = useQuery({
     queryKey: ['ai-agent-effective-prompt', definition.id, definition.config_version],
     queryFn: () => aiAgentControlApi.getEffectivePrompt(definition.id),
@@ -987,6 +994,12 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     (err: unknown) => data.setError(getApiErrorMessage(err, t, t('messages.agentSaveFailed'))),
     [data, t],
   );
+  const setModelMutation = useMutation({
+    mutationFn: (modelConfigId: string | null) =>
+      aiAgentControlApi.updateAgent(definition.id, { llm_model_config_id: modelConfigId }),
+    onSuccess: (res) => applySavedDefinition(res.agent_definition),
+    onError: onSaveError,
+  });
   const identityAutosave = useAutosave({ onError: onSaveError });
   const settingsAutosave = useAutosave({ onError: onSaveError });
   const sreAutosave = useAutosave({ onError: onSaveError });
@@ -1576,6 +1589,21 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       {isHelpdesk && <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={settingsAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label={t('settings.model')} hint={t('settings.modelHint')}>
+              <Select
+                variant="standard"
+                value={definition.llm_model_config_id ?? ''}
+                displayEmpty
+                disabled={setModelMutation.isPending}
+                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
+                sx={drawerSelectSx}
+              >
+                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
+                {activeModelConfigs.map((modelConfig) => (
+                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
+                ))}
+              </Select>
+            </SettingsField>
             <SettingsField label={t('settings.agentPriority')}><TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.reviewCooldown')}><TextField size="small" value={form.reviewCooldownHours} onChange={(event) => update('reviewCooldownHours', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.onConflict')}>
@@ -1609,6 +1637,21 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       {isSre && (
         <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={sreAutosave.status} />}>
           <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label={t('settings.model')} hint={t('settings.modelHint')}>
+              <Select
+                variant="standard"
+                value={definition.llm_model_config_id ?? ''}
+                displayEmpty
+                disabled={setModelMutation.isPending}
+                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
+                sx={drawerSelectSx}
+              >
+                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
+                {activeModelConfigs.map((modelConfig) => (
+                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
+                ))}
+              </Select>
+            </SettingsField>
             <SettingsField label={t('settings.maxAlerts')}>
               <TextField size="small" value={sreForm.maxAlerts} onChange={(event) => updateSre({ maxAlerts: event.target.value })} />
             </SettingsField>
