@@ -154,6 +154,10 @@ export function failedWorkItemAttemptId(error: unknown): string | null {
 }
 
 const ACTIVE_WORK_ITEM_STATUSES = new Set(['queued', 'leased', 'running', 'waiting_approval', 'failed']);
+// How long a dead-lettered monitoring diagnosis waits before its still-open
+// occurrence becomes eligible for a fresh work item (see
+// monitoringOccurrenceReadiness).
+export const MONITORING_DEAD_LETTER_RETRY_BACKOFF_MS = 60 * 60 * 1000;
 const TERMINAL_WORK_ITEM_STATUSES = new Set(['completed', 'dead_letter']);
 const RETRYABLE_WORK_ITEM_STATUSES = new Set(['queued', 'leased', 'running', 'failed']);
 // Every status write on a work item goes through applyWorkItemTransition; a from→to pair
@@ -429,7 +433,7 @@ export type MonitoringAlertSnapshotInput = {
 export type MonitoringOccurrenceReadiness = {
   state: AiAgentTargetState | null;
   ready: boolean;
-  reason: 'first_occurrence' | 'new_occurrence' | 'escalated' | 'active_work_item' | 'duplicate_occurrence';
+  reason: 'first_occurrence' | 'new_occurrence' | 'escalated' | 'active_work_item' | 'duplicate_occurrence' | 'retry_after_dead_letter';
 };
 
 export type HelpdeskScopeMode = 'new_tickets_only' | 'all_open' | 'agent_involved';
@@ -2292,7 +2296,45 @@ export class AiAgentWorkQueueService {
     if (monitoringOccurrenceEscalated(stateJson.last_status, stateJson.last_severity, input.alert)) {
       return { state, ready: true, reason: 'escalated' };
     }
+    // A dead-lettered diagnosis for a STILL-OPEN occurrence retries on a slow
+    // backoff: the failure cause may have been transient or fixed since (e.g.
+    // a raised provider timeout), and an open incident without a stored
+    // diagnosis is exactly what the agent exists to explain. The dedup key is
+    // occurrence-scoped, so past occurrences can never be replayed, and the
+    // backoff keeps a persistently failing occurrence from burning a work
+    // item every cycle.
+    const latest = await this.findLatestWorkItemForDedupKey(context, input.definition, input.dedupKey);
+    if (latest?.status === 'dead_letter') {
+      const nowMs = (input.now ?? new Date()).getTime();
+      const latestMs = latest.updated_at instanceof Date
+        ? latest.updated_at.getTime()
+        : Date.parse(String(latest.updated_at ?? ''));
+      if (Number.isFinite(latestMs) && nowMs - latestMs >= MONITORING_DEAD_LETTER_RETRY_BACKOFF_MS) {
+        return { state, ready: true, reason: 'retry_after_dead_letter' };
+      }
+    }
     return { state, ready: false, reason: 'duplicate_occurrence' };
+  }
+
+  private async findLatestWorkItemForDedupKey(
+    context: AiExecutionContextWithManager,
+    definition: AiAgentDefinition,
+    dedupKey: string,
+  ): Promise<AiAgentWorkItem | null> {
+    const rows = await this.workItemRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: definition.id,
+      },
+    });
+    const matching = rows
+      .filter((row) => row.dedup_key === dedupKey)
+      .sort((left, right) => {
+        const leftTime = left.updated_at instanceof Date ? left.updated_at.getTime() : Date.parse(String(left.updated_at ?? ''));
+        const rightTime = right.updated_at instanceof Date ? right.updated_at.getTime() : Date.parse(String(right.updated_at ?? ''));
+        return rightTime - leftTime;
+      });
+    return matching[0] ?? null;
   }
 
   async enqueueMonitoringScopedAlert(

@@ -492,7 +492,15 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
         }),
       );
 
-      for (const alert of scopedAlerts.slice(0, config.maxAlertsPerCycle)) {
+      // The per-cycle cap bounds NEW work items, not considered alerts: a
+      // deduped (already-diagnosed, still-open) occurrence must not consume a
+      // slot, or alerts sorted behind it — e.g. a dead-lettered occurrence
+      // waiting for its retry backoff — would starve indefinitely.
+      let enqueuedThisCycle = 0;
+      for (const alert of scopedAlerts) {
+        if (enqueuedThisCycle >= config.maxAlertsPerCycle) {
+          break;
+        }
         const dedupKey = monitoringAlertDedupKey(binding.providerKey, alert.id, alert.occurrenceStartedAt);
         const readiness = await this.queue.monitoringOccurrenceReadiness(context, {
           definition,
@@ -546,6 +554,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
         });
         if (result.created) {
           summary.enqueued += 1;
+          enqueuedThisCycle += 1;
         } else {
           summary.deduped += 1;
         }

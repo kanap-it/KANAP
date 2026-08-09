@@ -192,6 +192,21 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
     for (const definition of queueQuery.data?.definitions ?? []) map.set(definition.agent_key, definition.name);
     return map;
   }, [queueQuery.data]);
+  // SRE entries use alert-flavored titles where one exists (`<key>_sre`),
+  // falling back to the shared ticket-flavored title. Resolved at render time
+  // so historical entries are relabeled too.
+  const agentTypeByKey = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const definition of queueQuery.data?.definitions ?? []) map.set(definition.agent_key, definition.agent_type ?? 'helpdesk');
+    return map;
+  }, [queueQuery.data]);
+  const activityTitle = React.useCallback((entry: { agentKey?: string | null; titleKey: string }) => {
+    const fallback = t(`activity.titles.${entry.titleKey}`, { defaultValue: humanize(entry.titleKey) });
+    if (entry.agentKey && agentTypeByKey.get(entry.agentKey) === 'sre') {
+      return t(`activity.titles.${entry.titleKey}_sre`, { defaultValue: fallback });
+    }
+    return fallback;
+  }, [agentTypeByKey, t]);
   const activityQuery = useQuery({
     queryKey: ['ai-agent-control-activity', agentDefinition?.id ?? null, searchParams.toString()],
     queryFn: () => aiAgentControlApi.listActivity({
@@ -277,7 +292,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
                           {entry.targetRef && <TargetLabel targetType={entry.targetType} targetRef={entry.targetRef} size="dense" />}
                         </Stack>
                         <Typography variant="body2" sx={{ mt: 0.75 }}>
-                          {t(`activity.titles.${entry.titleKey}`, { defaultValue: humanize(entry.titleKey) })}
+                          {activityTitle(entry)}
                         </Typography>
                         {detailAvailable && !isExpanded && <DetailPreview detail={entry.detail!} />}
                         {entry.errorMessage && <Typography variant="caption" color="error" component="div">{entry.errorMessage}</Typography>}

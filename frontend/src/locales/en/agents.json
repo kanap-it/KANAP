@@ -287,7 +287,9 @@
       "agent_autonomy_execution_failed": "Automatic execution failed",
       "per_run_cap_exceeded": "Per-run safety cap reached",
       "poller_cycle_completed": "Ticket check completed",
+      "poller_cycle_completed_sre": "Alert check completed",
       "work_item_processing_failed": "Ticket processing failed",
+      "work_item_processing_failed_sre": "Alert processing failed",
       "agent_deleted": "Agent deleted"
     }
   },
