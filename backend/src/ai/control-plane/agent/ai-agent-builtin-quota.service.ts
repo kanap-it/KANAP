@@ -1,22 +1,26 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { AiExecutionContextWithManager } from '../../ai.types';
-import { AiSettingsService } from '../../ai-settings.service';
+import { AiModelResolverService } from '../../ai-model-resolver.service';
 import { AiBuiltinUsageService } from '../../platform/ai-builtin-usage.service';
 
 // Agent runs on the built-in (free-volume) provider consume the same monthly message
 // quota as Plaid chat: one triage run = one included message, reserved before the run
-// does any provider or LLM work. Tenants on their own LLM configuration are unlimited
-// here — they pay their own provider.
+// does any provider or LLM work. Agents assigned (or defaulting to) a registry model
+// are unlimited here — the tenant pays its own provider.
 @Injectable()
 export class AiAgentBuiltinQuotaService {
   constructor(
-    private readonly settings: AiSettingsService,
+    private readonly modelResolver: AiModelResolverService,
     private readonly builtinUsage: AiBuiltinUsageService,
   ) {}
 
   private async usesBuiltinProvider(context: AiExecutionContextWithManager): Promise<boolean> {
-    const settings = await this.settings.get(context.tenantId, { manager: context.manager });
-    return this.settings.getEffectiveProviderSource(settings) === 'builtin';
+    const resolved = await this.modelResolver.tryResolve(
+      context.tenantId,
+      context.agentId ? { type: 'agent', agentId: context.agentId } : { type: 'chat' },
+      context.manager,
+    );
+    return resolved?.source === 'builtin';
   }
 
   // Non-consuming gate for the scheduled poller: lets a cycle pause processing with an

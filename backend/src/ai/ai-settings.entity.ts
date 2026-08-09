@@ -27,8 +27,15 @@ export class AiSettings {
   @Column('varchar', { length: 100, nullable: true })
   llm_model!: string | null;
 
+  // Deprecated: superseded by chat_model_config_id (null = builtin). Kept until the
+  // legacy-column cleanup migration; no runtime resolution reads it anymore.
   @Column('varchar', { length: 10, default: 'builtin' })
   provider_source!: 'builtin' | 'custom';
+
+  // Registry model assigned to Plaid chat; null resolves to the tenant default
+  // entry, then the platform builtin model.
+  @Column('uuid', { nullable: true })
+  chat_model_config_id!: string | null;
 
   @Column('integer', { nullable: true })
   mcp_key_max_lifetime_days!: number | null;

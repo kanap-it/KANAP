@@ -8,7 +8,6 @@ import {
   RUNTIME_SAFETY_FLOOR_PLANNER,
 } from './ai-agent-prompt-compiler.service';
 import { AgentLlmRuntime, AiAgentLlmClient } from './ai-agent-llm-client';
-import { AiSettingsService } from '../../ai-settings.service';
 import { TicketImageEvidence } from './ai-ticket-need-representation.types';
 
 export type TicketEvidenceExtractionResult = {
@@ -270,7 +269,6 @@ export class AiTicketEvidenceExtractionService {
 
   constructor(
     private readonly llmClient: AiAgentLlmClient,
-    private readonly settings: AiSettingsService,
   ) {}
 
   maxOutputTokens(): number {
@@ -315,32 +313,12 @@ export class AiTicketEvidenceExtractionService {
       };
     }
 
-    // Vision is best-effort on the tenant's DEFAULT LLM (the one shared with Plaid chat). A
-    // per-tenant admin setting ("Multimodal LLM", default ON) can turn it off for a known
-    // text-only model to avoid the wasted call. Reading settings / resolving the runtime can
-    // throw — degradation is absolute: any failure here skips image enrichment and continues
-    // text-only, never aborts triage (the call site does not wrap this in try/catch).
-    let supportsVision = true;
-    try {
-      const tenantSettings = await this.settings.get(context.tenantId, { manager: context.manager });
-      supportsVision = tenantSettings.llm_supports_vision !== false;
-    } catch {
-      supportsVision = true;
-    }
-    if (!supportsVision) {
-      return {
-        attachmentRefs,
-        evidence: [],
-        warnings: [`${attachmentRefs.length} screenshot(s) not analyzed: image understanding is turned off in AI settings.`],
-        skippedReason: 'vision_disabled_by_setting',
-        model: null,
-        usage: null,
-        estimated_tokens: 0,
-        estimated_cost_eur: 0,
-        latency_ms: 0,
-      };
-    }
-
+    // Vision is best-effort on the model this run resolves to (the agent's assigned
+    // registry model, or the tenant default shared with Plaid chat). The per-model
+    // "understands images" flag (default ON) can turn it off for a known text-only
+    // model to avoid the wasted call. Resolving the runtime can throw — degradation
+    // is absolute: any failure here skips image enrichment and continues text-only,
+    // never aborts triage (the call site does not wrap this in try/catch).
     let runtime: AgentLlmRuntime | null;
     try {
       runtime = await this.llmClient.resolveRuntime(context);
@@ -364,6 +342,19 @@ export class AiTicketEvidenceExtractionService {
         evidence: [],
         warnings: [`${attachmentRefs.length} screenshot(s) not analyzed: no LLM model configured.`],
         skippedReason: 'vision_call_error',
+        model: null,
+        usage: null,
+        estimated_tokens: 0,
+        estimated_cost_eur: 0,
+        latency_ms: 0,
+      };
+    }
+    if (!runtime.supportsVision) {
+      return {
+        attachmentRefs,
+        evidence: [],
+        warnings: [`${attachmentRefs.length} screenshot(s) not analyzed: image understanding is turned off for this model.`],
+        skippedReason: 'vision_disabled_by_setting',
         model: null,
         usage: null,
         estimated_tokens: 0,

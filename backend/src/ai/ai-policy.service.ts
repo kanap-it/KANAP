@@ -213,14 +213,7 @@ export class AiPolicyService {
     const tenantActive = !!tenant && tenant.status === TenantStatus.ACTIVE;
     const settings = tenant ? await this.aiSettings.find(context.tenantId, { manager }) : null;
     const providerReady = settings
-      ? (this.aiSettings.getEffectiveProviderSource(settings) === 'builtin'
-        ? await this.platformAiConfig.isConfigured()
-        : this.providerRegistry.validate({
-          llm_provider: settings.llm_provider ?? null,
-          llm_model: settings.llm_model ?? null,
-          llm_endpoint_url: settings.llm_endpoint_url ?? null,
-          has_llm_api_key: !!settings.llm_api_key_encrypted,
-        }).length === 0)
+      ? (await this.aiSettings.getProviderValidationErrors(settings, manager)).length === 0
       : false;
 
     const buildSurfaceCapability = (
@@ -307,9 +300,7 @@ export class AiPolicyService {
     await this.assertSubscriptionAllowsAi(context.tenantId, manager);
 
     const settings = await this.aiSettings.get(context.tenantId, { manager });
-    const providerReady = this.aiSettings.getEffectiveProviderSource(settings) === 'builtin'
-      ? await this.platformAiConfig.isConfigured()
-      : this.providerRegistry.validate(this.aiSettings.toProviderSnapshot(settings)).length === 0;
+    const providerReady = (await this.aiSettings.getProviderValidationErrors(settings, manager)).length === 0;
     if (context.surface === 'chat') {
       if (!settings.chat_enabled) {
         throw new ForbiddenException('AI chat is disabled for this tenant.');

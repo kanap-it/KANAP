@@ -39,10 +39,15 @@ export class AiProviderTestService {
   async testProvider(
     tenantId: string,
     input: AiProviderTestInput,
-    opts?: { manager?: EntityManager },
+    // skipStoredFallback tests the input exactly as given (registry entries carry
+    // their own credentials); by default missing fields fall back to the tenant's
+    // stored settings so the legacy ad-hoc settings test keeps working.
+    opts?: { manager?: EntityManager; skipStoredFallback?: boolean },
   ): Promise<AiProviderTestResult> {
     const startedAt = Date.now();
-    const currentSettings = await this.settingsService.find(tenantId, { manager: opts?.manager });
+    const currentSettings = opts?.skipStoredFallback
+      ? null
+      : await this.settingsService.find(tenantId, { manager: opts?.manager });
     const provider = normalizeNullableString(input.llm_provider) ?? currentSettings?.llm_provider ?? null;
     const model = normalizeNullableString(input.llm_model) ?? currentSettings?.llm_model ?? null;
     const endpointUrl = normalizeNullableString(input.llm_endpoint_url) ?? currentSettings?.llm_endpoint_url ?? null;

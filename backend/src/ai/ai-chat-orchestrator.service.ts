@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { assertPublicHttpTarget } from '../common/ssrf-guard';
 import { AiAttachmentService } from './ai-attachment.service';
 import { AiConversationService } from './ai-conversation.service';
+import { AiModelResolverService } from './ai-model-resolver.service';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiPolicyService } from './ai-policy.service';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
@@ -214,6 +215,8 @@ type PreparedChatRequest = {
   model: string;
   apiKey: string | null;
   endpointUrl: string | null;
+  // Per-model timeout from the registry; null falls back to AI_CHAT_PROVIDER_TIMEOUT_MS.
+  modelTimeoutMs: number | null;
   tenantName: string;
   builtinRateLimits?: {
     tenantPerMinute: number;
@@ -1087,6 +1090,7 @@ export class AiChatOrchestratorService {
     private readonly policy: AiPolicyService,
     private readonly settings: AiSettingsService,
     private readonly cipher: AiSecretCipherService,
+    private readonly modelResolver: AiModelResolverService,
     private readonly providerRegistry: AiProviderRegistry,
     private readonly platformAiConfig: PlatformAiConfigService,
     private readonly builtinUsage: AiBuiltinUsageService,
@@ -1654,10 +1658,9 @@ export class AiChatOrchestratorService {
         [ctx.tenantId],
       );
       const tenantName = tenant?.[0]?.name || 'KANAP';
-      const settings = await this.settings.get(ctx.tenantId, { manager: ctx.manager });
-      const providerSource = this.settings.getEffectiveProviderSource(settings);
+      const resolved = await this.modelResolver.resolve(ctx.tenantId, { type: 'chat' }, ctx.manager);
 
-      if (providerSource === 'builtin') {
+      if (resolved.source === 'builtin') {
         const runtime = await this.platformAiConfig.getRuntimeConfig();
         const adapter = this.providerRegistry.get(runtime.provider);
         if (!adapter) {
@@ -1670,11 +1673,12 @@ export class AiChatOrchestratorService {
           attachmentIds: params.attachmentIds ?? null,
           truncateFromMessageId: params.truncateFromMessageId ?? null,
           approvalAction,
-          providerSource,
+          providerSource: 'builtin',
           provider: adapter,
           model: runtime.model,
           apiKey: runtime.apiKey,
           endpointUrl: runtime.endpoint_url,
+          modelTimeoutMs: null,
           tenantName,
           builtinRateLimits: {
             tenantPerMinute: runtime.rate_limit_tenant_per_minute,
@@ -1683,13 +1687,13 @@ export class AiChatOrchestratorService {
         };
       }
 
-      const adapter = this.providerRegistry.get(settings.llm_provider);
+      const adapter = this.providerRegistry.get(resolved.provider);
       if (!adapter) {
         throw new Error('Provider not configured.');
       }
 
-      if (settings.llm_endpoint_url) {
-        await assertPublicHttpTarget(settings.llm_endpoint_url);
+      if (resolved.endpointUrl) {
+        await assertPublicHttpTarget(resolved.endpointUrl);
       }
 
       return {
@@ -1699,11 +1703,12 @@ export class AiChatOrchestratorService {
         attachmentIds: params.attachmentIds ?? null,
         truncateFromMessageId: params.truncateFromMessageId ?? null,
         approvalAction,
-        providerSource,
+        providerSource: 'custom',
         provider: adapter,
-        model: settings.llm_model!,
-        apiKey: settings.llm_api_key_encrypted ? this.cipher.decrypt(settings.llm_api_key_encrypted) : null,
-        endpointUrl: settings.llm_endpoint_url,
+        model: resolved.model,
+        apiKey: resolved.apiKey,
+        endpointUrl: resolved.endpointUrl,
+        modelTimeoutMs: resolved.timeoutMs,
         tenantName,
       };
     });
@@ -1780,7 +1785,7 @@ export class AiChatOrchestratorService {
     prepared: PreparedChatRequest,
     opts?: { signal?: AbortSignal | null; requestStartedAt?: number },
   ): AsyncGenerator<ChatStreamEvent> {
-    const { context, userMessage, provider, model, apiKey, endpointUrl, tenantName, providerSource } = prepared;
+    const { context, userMessage, provider, model, apiKey, endpointUrl, modelTimeoutMs, tenantName, providerSource } = prepared;
     const replayDeepSeekReasoning = isOfficialDeepSeekEndpoint(endpointUrl);
     const abortSignal = opts?.signal ?? null;
     const requestStartedAt = opts?.requestStartedAt ?? Date.now();
@@ -2485,7 +2490,7 @@ export class AiChatOrchestratorService {
         tools,
         maxTokens: requestMaxTokens,
         signal: abortSignal,
-        timeoutMs: resolveChatProviderTimeoutMs(),
+        timeoutMs: modelTimeoutMs ?? resolveChatProviderTimeoutMs(),
         debugTrace: AI_CHAT_DEBUG_TRACE_ENABLED,
         reasoningEffort: providerSource === 'builtin' ? BUILTIN_REASONING_EFFORT : null,
       });

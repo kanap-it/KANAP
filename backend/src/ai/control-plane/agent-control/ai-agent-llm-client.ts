@@ -2,9 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { assertPublicHttpTarget } from '../../../common/ssrf-guard';
 import { AiExecutionContextWithManager } from '../../ai.types';
-import { AiSecretCipherService } from '../../ai-secret-cipher.service';
-import { AiSettingsService } from '../../ai-settings.service';
-import { BUILTIN_REASONING_EFFORT, PlatformAiConfigService } from '../../platform/platform-ai-config.service';
+import { AiModelResolverService } from '../../ai-model-resolver.service';
+import { BUILTIN_REASONING_EFFORT } from '../../platform/platform-ai-config.service';
 import { AiProviderRegistry } from '../../providers/ai-provider-registry.service';
 import { AiProviderAdapter, AiProviderId, AiProviderImageAttachment, AiStreamEvent } from '../../providers/ai-provider.types';
 
@@ -15,6 +14,11 @@ export type AgentLlmRuntime = {
   model: string;
   apiKey: string | null;
   endpointUrl: string | null;
+  // Registry entry backing this runtime; null on the builtin path.
+  modelConfigId: string | null;
+  supportsVision: boolean;
+  // Per-model timeout; null falls back to the caller's per-stage env default.
+  modelTimeoutMs: number | null;
 };
 
 export type AgentJsonModelResult = {
@@ -159,44 +163,37 @@ function annotateTruncation<T>(
 @Injectable()
 export class AiAgentLlmClient {
   constructor(
-    private readonly settings: AiSettingsService,
-    private readonly cipher: AiSecretCipherService,
+    private readonly modelResolver: AiModelResolverService,
     private readonly providerRegistry: AiProviderRegistry,
-    private readonly platformAiConfig: PlatformAiConfigService,
   ) {}
 
   async resolveRuntime(context: AiExecutionContextWithManager): Promise<AgentLlmRuntime | null> {
-    const settings = await this.settings.get(context.tenantId, { manager: context.manager });
-    const source = this.settings.getEffectiveProviderSource(settings);
-    if (source === 'builtin') {
-      const runtime = await this.platformAiConfig.getRuntimeConfig();
-      const provider = this.providerRegistry.get(runtime.provider);
-      if (!provider) return null;
-      return {
-        source,
-        provider,
-        providerId: runtime.provider,
-        model: runtime.model,
-        apiKey: runtime.apiKey,
-        endpointUrl: runtime.endpoint_url,
-      };
-    }
-
-    if (!settings.llm_provider || !settings.llm_model || !settings.llm_api_key_encrypted) {
+    const resolved = await this.modelResolver.tryResolve(
+      context.tenantId,
+      context.agentId
+        ? { type: 'agent', agentId: context.agentId }
+        : { type: 'chat' },
+      context.manager,
+    );
+    if (!resolved) return null;
+    if (resolved.source === 'registry' && !resolved.apiKey && resolved.provider !== 'ollama' && resolved.provider !== 'custom') {
       return null;
     }
-    const provider = this.providerRegistry.get(settings.llm_provider);
+    const provider = this.providerRegistry.get(resolved.provider);
     if (!provider) return null;
-    if (settings.llm_endpoint_url) {
-      await assertPublicHttpTarget(settings.llm_endpoint_url);
+    if (resolved.source === 'registry' && resolved.endpointUrl) {
+      await assertPublicHttpTarget(resolved.endpointUrl);
     }
     return {
-      source,
+      source: resolved.source === 'builtin' ? 'builtin' : 'custom',
       provider,
-      providerId: settings.llm_provider,
-      model: settings.llm_model,
-      apiKey: this.cipher.decrypt(settings.llm_api_key_encrypted),
-      endpointUrl: settings.llm_endpoint_url,
+      providerId: resolved.provider,
+      model: resolved.model,
+      apiKey: resolved.apiKey,
+      endpointUrl: resolved.endpointUrl,
+      modelConfigId: resolved.configId,
+      supportsVision: resolved.supportsVision,
+      modelTimeoutMs: resolved.timeoutMs,
     };
   }
 
@@ -215,7 +212,9 @@ export class AiAgentLlmClient {
     const runtime = input.runtime === undefined ? await this.resolveRuntime(context) : input.runtime;
     if (!runtime) return null;
 
-    const timeoutMs = parsePositiveIntEnv(process.env[input.timeoutEnvName], input.defaultTimeoutMs);
+    // Per-model timeout from the registry wins; per-stage env vars stay as fallback.
+    const timeoutMs = runtime.modelTimeoutMs
+      ?? parsePositiveIntEnv(process.env[input.timeoutEnvName], input.defaultTimeoutMs);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const started = Date.now();

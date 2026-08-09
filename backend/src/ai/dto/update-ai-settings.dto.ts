@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsString, IsUrl, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsString, IsUrl, IsUUID, MaxLength, Min, ValidateIf } from 'class-validator';
 
 export class UpdateAiSettingsDto {
   @ValidateIf((_, value) => value !== undefined)
@@ -16,6 +16,10 @@ export class UpdateAiSettingsDto {
   @ValidateIf((_, value) => value !== undefined)
   @IsIn(['builtin', 'custom'])
   provider_source?: 'builtin' | 'custom';
+
+  @ValidateIf((_, value) => value !== undefined && value !== null)
+  @IsUUID()
+  chat_model_config_id?: string | null;
 
   @ValidateIf((_, value) => value !== undefined && value !== null)
   @IsString()

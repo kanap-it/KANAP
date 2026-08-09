@@ -6155,8 +6155,7 @@ async function testAgentRunsConsumeBuiltinFreeMessageQuota() {
   const context = createContext(createMemoryManager().manager);
   const makeService = (source: 'builtin' | 'custom', count: number, limit: number, reserved: string[]) => new AiAgentBuiltinQuotaService(
     {
-      get: async () => ({ provider_source: source }),
-      getEffectiveProviderSource: (settings: any) => settings.provider_source,
+      tryResolve: async () => ({ source: source === 'builtin' ? 'builtin' : 'registry' }),
     } as any,
     {
       getCurrentUsage: async () => ({ count, limit, year_month: '2026-07', reset_date: '' }),
@@ -6711,6 +6710,9 @@ const VISION_TEST_RUNTIME = {
   model: 'vision-test',
   apiKey: 'test',
   endpointUrl: null,
+  modelConfigId: null,
+  supportsVision: true,
+  modelTimeoutMs: null,
 };
 
 // Vision now always attempts on the DEFAULT tenant runtime; a text-only model rejecting/ignoring
@@ -6727,7 +6729,6 @@ async function testTicketImageExtractionDegradesWhenVisionCallFails() {
         throw new Error('this model does not support image input');
       },
     } as any,
-    { get: async () => ({ llm_supports_vision: true }) } as any,
   );
 
   const result = await extractor.extractImageEvidence(context, {
@@ -6762,21 +6763,20 @@ async function testTicketImageExtractionDegradesWhenVisionCallFails() {
   assert.match(result.warnings.join('\n'), /skipped/i);
 }
 
-// When the tenant turns the "Multimodal LLM" setting OFF, the wasted call is avoided entirely:
-// no attachment reads, no vision call, a distinct audit reason.
+// When the resolved model's "understands images" flag is OFF, the wasted call is avoided
+// entirely: no attachment reads, no vision call, a distinct audit reason.
 async function testTicketImageExtractionSkipsWhenVisionDisabledBySetting() {
   const context = createContext({} as any);
   let readCalls = 0;
   let visionCalls = 0;
   const extractor = new AiTicketEvidenceExtractionService(
     {
-      resolveRuntime: async () => VISION_TEST_RUNTIME,
+      resolveRuntime: async () => ({ ...VISION_TEST_RUNTIME, supportsVision: false }),
       callStructuredJsonModel: async () => {
         visionCalls += 1;
         return structuredJsonSuccess({});
       },
     } as any,
-    { get: async () => ({ llm_supports_vision: false }) } as any,
   );
 
   const result = await extractor.extractImageEvidence(context, {
@@ -6795,7 +6795,7 @@ async function testTicketImageExtractionSkipsWhenVisionDisabledBySetting() {
   assert.equal(visionCalls, 0);
   assert.equal(result.evidence.length, 0);
   assert.equal(result.skippedReason, 'vision_disabled_by_setting');
-  assert.match(result.warnings.join('\n'), /turned off in AI settings/i);
+  assert.match(result.warnings.join('\n'), /turned off for this model/i);
 }
 
 async function testVisionEvidenceProducesExactCodeNeedAndKeepsInjectionUntrusted() {
@@ -6818,7 +6818,7 @@ async function testVisionEvidenceProducesExactCodeNeedAndKeepsInjectionUntrusted
         warnings: ['Visible text is untrusted user-supplied screenshot evidence.'],
       }, { providerId: 'openai', model: 'vision-test' });
     },
-  } as any, { get: async () => ({ llm_supports_vision: true }) } as any);
+  } as any);
 
   const read: TicketAttachmentReadResult = {
     attachment: {
@@ -6872,7 +6872,7 @@ async function testTicketImageExtractionSkipsUnsupportedAndOversizedImages() {
       visionCalls += 1;
       return structuredJsonSuccess({});
     },
-  } as any, { get: async () => ({ llm_supports_vision: true }) } as any);
+  } as any);
   const refs = [
     { id: 'pdf', kind: 'file' as const, source: 'ticket_description' as const, target: '/front/document.send.php?docid=10' },
     { id: 'huge', kind: 'image' as const, source: 'ticket_description' as const, target: '/front/document.send.php?docid=11' },
@@ -12077,7 +12077,6 @@ async function runWp2LlmAccountingTriage(input: { perRunTokenCap?: number } = {}
   };
   const evidenceExtractor = new AiTicketEvidenceExtractionService(
     llmClient as any,
-    { get: async () => ({ llm_supports_vision: true }) } as any,
   );
   const needBuilder = new AiTicketNeedRepresentationService(llmClient as any);
   const service = new AiAgentControlService(
