@@ -18,12 +18,22 @@ export type ResolvedModel = {
   provider: string;
   model: string;
   endpointUrl: string | null;
+  // Decrypted only when resolving withSecrets (the default); config-inspection
+  // paths (validation, pricing) resolve without secrets and get null here.
   apiKey: string | null;
+  hasApiKey: boolean;
   supportsVision: boolean;
   priceInputEurPerMtok: number | null;
   priceOutputEurPerMtok: number | null;
   // Per-model LLM timeout; null falls back to the caller's per-stage env default.
   timeoutMs: number | null;
+};
+
+export type ResolveModelOptions = {
+  // False skips API-key decryption: readiness/validation and price lookups must
+  // never throw on a corrupt or legacy key payload — only an actual LLM call
+  // (withSecrets: true) should surface that.
+  withSecrets?: boolean;
 };
 
 export type AiModelResolutionErrorCode = 'no_model_available' | 'builtin_not_configured';
@@ -79,14 +89,24 @@ export class AiModelResolverService {
     return (manager ?? this.configRepo.manager).getRepository(AiModelConfig);
   }
 
-  async resolve(tenantId: string, consumer: AiModelConsumer, manager?: EntityManager): Promise<ResolvedModel> {
+  async resolve(
+    tenantId: string,
+    consumer: AiModelConsumer,
+    manager?: EntityManager,
+    opts?: ResolveModelOptions,
+  ): Promise<ResolvedModel> {
     const assignmentId = await this.loadAssignmentId(tenantId, consumer, manager);
-    return this.resolveForAssignment(tenantId, assignmentId, manager, this.describeConsumer(consumer));
+    return this.resolveForAssignment(tenantId, assignmentId, manager, this.describeConsumer(consumer), opts);
   }
 
-  async tryResolve(tenantId: string, consumer: AiModelConsumer, manager?: EntityManager): Promise<ResolvedModel | null> {
+  async tryResolve(
+    tenantId: string,
+    consumer: AiModelConsumer,
+    manager?: EntityManager,
+    opts?: ResolveModelOptions,
+  ): Promise<ResolvedModel | null> {
     try {
-      return await this.resolve(tenantId, consumer, manager);
+      return await this.resolve(tenantId, consumer, manager, opts);
     } catch (error) {
       if (error instanceof AiModelResolutionError) {
         return null;
@@ -104,11 +124,13 @@ export class AiModelResolverService {
     assignmentId: string | null,
     manager?: EntityManager,
     consumerLabel = 'unknown',
+    opts?: ResolveModelOptions,
   ): Promise<ResolvedModel> {
+    const withSecrets = opts?.withSecrets !== false;
     if (assignmentId) {
       const assigned = await this.loadActiveConfig(tenantId, assignmentId, manager);
       if (assigned) {
-        return this.fromConfig(assigned);
+        return this.fromConfig(assigned, withSecrets);
       }
       this.logger.warn(
         `AI model assignment ${assignmentId} for tenant ${tenantId} (consumer=${consumerLabel}) `
@@ -122,7 +144,7 @@ export class AiModelResolverService {
     if (fallback) {
       const withKey = await this.loadActiveConfig(tenantId, fallback.id, manager);
       if (withKey) {
-        return this.fromConfig(withKey);
+        return this.fromConfig(withKey, withSecrets);
       }
     }
 
@@ -139,6 +161,7 @@ export class AiModelResolverService {
         model: runtime.model,
         endpointUrl: runtime.endpoint_url,
         apiKey: runtime.apiKey,
+        hasApiKey: runtime.apiKey != null,
         // The platform-operated model is multimodal; tenants cannot configure it.
         supportsVision: true,
         priceInputEurPerMtok: 0,
@@ -161,7 +184,7 @@ export class AiModelResolverService {
   async validationErrors(tenantId: string, assignmentId: string | null, manager?: EntityManager): Promise<string[]> {
     let resolved: ResolvedModel;
     try {
-      resolved = await this.resolveForAssignment(tenantId, assignmentId, manager);
+      resolved = await this.resolveForAssignment(tenantId, assignmentId, manager, 'validation', { withSecrets: false });
     } catch (error) {
       if (error instanceof AiModelResolutionError) {
         return [error.message];
@@ -175,7 +198,7 @@ export class AiModelResolverService {
       llm_provider: resolved.provider,
       llm_model: resolved.model,
       llm_endpoint_url: resolved.endpointUrl,
-      has_llm_api_key: resolved.apiKey != null,
+      has_llm_api_key: resolved.hasApiKey,
     });
   }
 
@@ -214,7 +237,7 @@ export class AiModelResolverService {
       .getOne();
   }
 
-  private fromConfig(config: AiModelConfig): ResolvedModel {
+  private fromConfig(config: AiModelConfig, withSecrets: boolean): ResolvedModel {
     return {
       source: 'registry',
       configId: config.id,
@@ -222,7 +245,8 @@ export class AiModelResolverService {
       provider: config.provider,
       model: config.model,
       endpointUrl: config.endpoint_url,
-      apiKey: config.api_key_encrypted ? this.cipher.decrypt(config.api_key_encrypted) : null,
+      apiKey: withSecrets && config.api_key_encrypted ? this.cipher.decrypt(config.api_key_encrypted) : null,
+      hasApiKey: !!config.api_key_encrypted,
       supportsVision: config.supports_vision !== false,
       priceInputEurPerMtok: parsePriceEurPerMtok(config.price_input_eur_per_mtok),
       priceOutputEurPerMtok: parsePriceEurPerMtok(config.price_output_eur_per_mtok),
