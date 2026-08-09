@@ -31,6 +31,7 @@ export const TENANT_SCOPED_TABLES = [
   'ai_recommendations',
   'ai_run_steps',
   'ai_runs',
+  'ai_model_configs',
   'ai_settings',
   'ai_shared_context_profiles',
   'ai_tool_executions',
