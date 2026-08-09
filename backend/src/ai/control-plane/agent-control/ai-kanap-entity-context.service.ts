@@ -103,6 +103,17 @@ function isIpLiteral(value: string): boolean {
   return IPV4_RE.test(value) || value.includes(':');
 }
 
+// First DNS label of an FQDN-shaped value ("lohr-fr-dc1.lohr-fr.com" ->
+// "lohr-fr-dc1"). Null for IP literals and undotted names: those have no
+// shortname distinct from the value itself.
+function firstDnsLabel(value: string): string | null {
+  if (!value || isIpLiteral(value)) {
+    return null;
+  }
+  const dot = value.indexOf('.');
+  return dot > 0 ? value.slice(0, dot) : null;
+}
+
 // Deep-link patterns mirror the canonical frontend routes (App.tsx `/it/*`
 // registrations, same shapes as EntityKnowledgePanel's sourceHref) — the routes accept
 // either the short ref or the UUID and normalize via a replaceState redirect.
@@ -154,9 +165,13 @@ function toSourceRef(entity: KanapResolvedEntity): EntitySourceRef {
   };
 }
 
-// Matching rule (maintainer decision 2026-07-05, plan 37 §4.5): case-insensitive EXACT
-// comparison of the candidate's name/hostname/fqdn against the device name (and against
-// the device host address when it is a DNS name). No fuzzy matching in v1.
+// Matching rule (maintainer decision 2026-07-05, plan 37 §4.5; extended 2026-08-09):
+// case-insensitive EXACT comparison of the candidate's name/hostname/fqdn against the
+// device name (and against the device host address when it is a DNS name). A value's
+// FIRST DNS LABEL also counts as exact on either side, so a monitoring tool reporting
+// "LOHR-FR-DC1.lohr-fr.com" matches an asset named "lohr-fr-dc1" and a shortname
+// device matches an asset whose name/hostname/fqdn carries the domain. Still no
+// fuzzy matching.
 function candidateMatches(candidate: KanapResolvedEntity, targets: string[]): boolean {
   const metadata = candidate.metadata ?? {};
   const fields = [
@@ -164,7 +179,17 @@ function candidateMatches(candidate: KanapResolvedEntity, targets: string[]): bo
     stringOrNull(metadata.hostname),
     stringOrNull(metadata.fqdn),
   ];
-  return fields.some((field) => !!field && targets.includes(field.trim().toLocaleLowerCase()));
+  return fields.some((field) => {
+    if (!field) {
+      return false;
+    }
+    const normalized = field.trim().toLocaleLowerCase();
+    if (targets.includes(normalized)) {
+      return true;
+    }
+    const label = firstDnsLabel(normalized);
+    return !!label && targets.includes(label);
+  });
 }
 
 function detailIps(output: unknown): string[] {
@@ -268,15 +293,26 @@ export class KanapEntityContextResolver {
     };
     const hostAddress = (input.alert.hostAddress ?? '').trim();
     const hostIsIp = hostAddress ? isIpLiteral(hostAddress) : false;
+    const deviceShortName = firstDnsLabel(deviceName);
     const matchTargets = [deviceName.toLocaleLowerCase()];
+    if (deviceShortName) {
+      matchTargets.push(deviceShortName.toLocaleLowerCase());
+    }
     if (hostAddress && !hostIsIp) {
       matchTargets.push(hostAddress.toLocaleLowerCase());
+      const hostShortName = firstDnsLabel(hostAddress);
+      if (hostShortName) {
+        matchTargets.push(hostShortName.toLocaleLowerCase());
+      }
     }
 
-    // 1. Asset candidates by device name.
+    // 1. Asset candidates by device name. FQDN-shaped names search by their
+    // first label: the substring search would never return an asset whose
+    // stored name is the bare shortname, and the shortname is itself a
+    // substring of every FQDN-carrying candidate field, so recall only grows.
     const search = await this.dispatchBounded(state, KANAP_ENTITY_SEARCH_CAPABILITY, {
       entity_type: 'assets',
-      q: deviceName,
+      q: deviceShortName ?? deviceName,
       limit: ASSET_CANDIDATE_LIMIT,
     }, 'Asset');
     if (search.status !== 'ok') {
