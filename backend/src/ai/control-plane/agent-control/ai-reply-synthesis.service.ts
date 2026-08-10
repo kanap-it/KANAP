@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { LlmTokenPrices, llmCostEur } from '../../ai-llm-cost.util';
 import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import {
   compileSystemPrompt,
@@ -91,7 +92,6 @@ const MAX_SOURCE_CONTENT_CHARS = 3800;
 // Raised well above the old 1800 so verbose / reasoning models do not truncate the
 // JSON (finish_reason=length). Override per deployment via AI_AGENT_SYNTHESIS_MAX_TOKENS.
 const MAX_SYNTHESIS_OUTPUT_TOKENS = 8000;
-const TOKEN_COST_EUR = 0.000002;
 
 // Source fields are tolerant on purpose: the backend re-maps each source to a real known
 // document by (kind, ref, url), so the model's title/reason are non-authoritative. A single
@@ -216,14 +216,18 @@ function estimateTokens(value: unknown): number {
   return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
 }
 
-export function estimateReplySynthesisUsage(input: unknown, maxOutputTokens = MAX_SYNTHESIS_OUTPUT_TOKENS): {
+export function estimateReplySynthesisUsage(
+  input: unknown,
+  prices: LlmTokenPrices | null,
+  maxOutputTokens = MAX_SYNTHESIS_OUTPUT_TOKENS,
+): {
   estimatedTokens: number;
   estimatedCostEur: number;
 } {
-  const estimatedTokens = estimateTokens(input) + maxOutputTokens;
+  const inputTokens = estimateTokens(input);
   return {
-    estimatedTokens,
-    estimatedCostEur: Number((estimatedTokens * TOKEN_COST_EUR).toFixed(6)),
+    estimatedTokens: inputTokens + maxOutputTokens,
+    estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
   };
 }
 
@@ -429,9 +433,9 @@ export class AiReplySynthesisService {
       needsHumanReview = true;
     }
     const technicianBrief = normalizeText(parsed.technician_brief);
-    const actualTokens = response.usage
-      ? response.usage.input_tokens + response.usage.output_tokens
-      : estimateTokens(payload) + estimateTokens(response.text);
+    const actualInputTokens = response.usage ? response.usage.input_tokens : estimateTokens(payload);
+    const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateTokens(response.text);
+    const actualTokens = actualInputTokens + actualOutputTokens;
     return {
       language: parsed.language || input.language,
       usable,
@@ -444,7 +448,7 @@ export class AiReplySynthesisService {
       model: `${response.runtime.providerId}:${response.runtime.model}`,
       usage: response.usage,
       estimated_tokens: actualTokens,
-      estimated_cost_eur: Number((actualTokens * TOKEN_COST_EUR).toFixed(6)),
+      estimated_cost_eur: llmCostEur(actualInputTokens, actualOutputTokens, response.runtime),
       latency_ms: response.latencyMs,
       fallback_reason: fallbackReason,
     };

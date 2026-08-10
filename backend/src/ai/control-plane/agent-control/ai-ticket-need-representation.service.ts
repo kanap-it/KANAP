@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { LlmTokenPrices, llmCostEur } from '../../ai-llm-cost.util';
 import {
   compileSystemPrompt,
   CompiledGuidance,
@@ -34,7 +35,6 @@ export type TicketNeedRepresentationBuildResult = {
 // Override per deployment via AI_AGENT_KNOWLEDGE_LLM_TIMEOUT_MS.
 const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 const MAX_NEED_BUILDER_OUTPUT_TOKENS = 5000;
-const TOKEN_COST_EUR = 0.000002;
 const MAX_DERIVED_QUERIES = 10;
 const MAX_QUERY_CHARS = 120;
 const MAX_FIELD_ITEMS = 16;
@@ -371,11 +371,11 @@ function estimateTokens(value: unknown): number {
 export function estimateTicketNeedRepresentationUsage(input: {
   systemPrompt: string;
   userPayload: Record<string, unknown>;
-}, maxOutputTokens = MAX_NEED_BUILDER_OUTPUT_TOKENS): { estimatedTokens: number; estimatedCostEur: number } {
-  const estimatedTokens = estimateTokens(input) + maxOutputTokens;
+}, prices: LlmTokenPrices | null, maxOutputTokens = MAX_NEED_BUILDER_OUTPUT_TOKENS): { estimatedTokens: number; estimatedCostEur: number } {
+  const inputTokens = estimateTokens(input);
   return {
-    estimatedTokens,
-    estimatedCostEur: Number((estimatedTokens * TOKEN_COST_EUR).toFixed(6)),
+    estimatedTokens: inputTokens + maxOutputTokens,
+    estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
   };
 }
 
@@ -733,14 +733,13 @@ export class AiTicketNeedRepresentationService {
           warnings: ['Need builder skipped: no LLM runtime configured.'],
         };
       }
-      const actualTokens = result.usage
-        ? result.usage.input_tokens + result.usage.output_tokens
-        : estimateTokens(userPayload) + estimateTokens(result.text);
+      const actualInputTokens = result.usage ? result.usage.input_tokens : estimateTokens(userPayload);
+      const actualOutputTokens = result.usage ? result.usage.output_tokens : estimateTokens(result.text ?? '');
       const usageFields = {
         model: result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : null,
         usage: result.usage,
-        estimated_tokens: actualTokens,
-        estimated_cost_eur: Number((actualTokens * TOKEN_COST_EUR).toFixed(6)),
+        estimated_tokens: actualInputTokens + actualOutputTokens,
+        estimated_cost_eur: llmCostEur(actualInputTokens, actualOutputTokens, result.runtime),
         latency_ms: result.latencyMs,
       };
       if (!result.ok) {

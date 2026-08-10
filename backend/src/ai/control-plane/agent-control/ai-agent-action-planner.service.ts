@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
+import { LlmTokenPrices, llmCostEur } from '../../ai-llm-cost.util';
 import { ProviderActionPlannerProfile } from '../providers/provider.types';
 import {
   CompiledGuidance,
@@ -111,7 +112,6 @@ const DEFAULT_LLM_TIMEOUT_MS = 120_000;
 // Raised well above the old 1600 so verbose / reasoning models do not truncate the
 // JSON (finish_reason=length). Override per deployment via AI_AGENT_ACTION_PLANNER_MAX_TOKENS.
 const MAX_ACTION_PLANNER_OUTPUT_TOKENS = 6000;
-const TOKEN_COST_EUR = 0.000002;
 
 const RoutingTargetSchema = z.object({
   kind: z.enum(['user', 'group']),
@@ -236,11 +236,11 @@ function estimateTokens(value: unknown): number {
 export function estimateActionPlannerUsage(input: {
   systemPrompt: string;
   userPayload: Record<string, unknown>;
-}, maxOutputTokens = MAX_ACTION_PLANNER_OUTPUT_TOKENS): { estimatedTokens: number; estimatedCostEur: number } {
-  const estimatedTokens = estimateTokens(input) + maxOutputTokens;
+}, prices: LlmTokenPrices | null, maxOutputTokens = MAX_ACTION_PLANNER_OUTPUT_TOKENS): { estimatedTokens: number; estimatedCostEur: number } {
+  const inputTokens = estimateTokens(input);
   return {
-    estimatedTokens,
-    estimatedCostEur: Number((estimatedTokens * TOKEN_COST_EUR).toFixed(6)),
+    estimatedTokens: inputTokens + maxOutputTokens,
+    estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
   };
 }
 
@@ -357,9 +357,9 @@ export class AiAgentActionPlannerService {
         return null;
       }
       const parsed = response.value as ParsedActionPlan;
-      const actualTokens = response.usage
-        ? response.usage.input_tokens + response.usage.output_tokens
-        : estimateTokens(userPayload) + estimateTokens(response.text);
+      const actualInputTokens = response.usage ? response.usage.input_tokens : estimateTokens(userPayload);
+      const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateTokens(response.text);
+      const actualTokens = actualInputTokens + actualOutputTokens;
       return {
         source: 'llm',
         actions: parsed.actions,
@@ -368,7 +368,7 @@ export class AiAgentActionPlannerService {
         model: `${response.runtime.providerId}:${response.runtime.model}`,
         usage: response.usage,
         estimated_tokens: actualTokens,
-        estimated_cost_eur: Number((actualTokens * TOKEN_COST_EUR).toFixed(6)),
+        estimated_cost_eur: llmCostEur(actualInputTokens, actualOutputTokens, response.runtime),
         latency_ms: response.latencyMs,
       };
     } catch (error) {

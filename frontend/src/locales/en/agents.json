@@ -724,7 +724,8 @@
     },
     "model": "AI model",
     "modelTenantDefault": "Organization default",
-    "modelHint": "Which AI model this agent runs on. Models are managed in Administration under AI models."
+    "modelHint": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
+    "costCapHint": "Estimated using the assigned model’s prices. A free model (0 €) never reaches this cap — the token caps remain the protection."
   },
   "actions": {
     "internalNote": "Internal note",
