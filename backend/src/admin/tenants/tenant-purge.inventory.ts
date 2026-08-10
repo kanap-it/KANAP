@@ -104,6 +104,8 @@ export const TENANT_PURGE_TABLES = [
   'ai_conversations',
   'ai_api_keys',
   'ai_settings',
+  // After ai_settings and ai_agent_definitions: both hold FKs to the model registry.
+  'ai_model_configs',
   // Applications: purge attachments and links first
   'application_attachments',
   'application_links',

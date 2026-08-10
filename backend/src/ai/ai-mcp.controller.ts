@@ -16,6 +16,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { validate as isUuid } from 'uuid';
 import { SkipTenantTransaction } from '../common/skip-tenant-transaction.decorator';
+import { AiModelResolverService } from './ai-model-resolver.service';
 import { AiSettingsService } from './ai-settings.service';
 import { McpApiKeyAuthGuard } from './auth/mcp-api-key-auth.guard';
 import { AiCapabilityDispatcherService } from './control-plane/dispatcher/ai-capability-dispatcher.service';
@@ -47,6 +48,7 @@ export class AiMcpController {
     private readonly mcpRateLimiter: AiMcpRateLimiter,
     private readonly tenantExecutor: AiTenantExecutionService,
     private readonly settingsService: AiSettingsService,
+    private readonly modelResolver: AiModelResolverService,
     private readonly platformAiConfig: PlatformAiConfigService,
     private readonly builtinUsage: AiBuiltinUsageService,
     private readonly builtinRateLimiter: AiBuiltinRateLimiter,
@@ -125,8 +127,8 @@ export class AiMcpController {
   }
 
   private async assertBuiltinMcpBudget(ctx: AiExecutionContext & { manager: any }) {
-    const settings = await this.settingsService.get(ctx.tenantId, { manager: ctx.manager });
-    if (this.settingsService.getEffectiveProviderSource(settings) !== 'builtin') {
+    const resolved = await this.modelResolver.tryResolve(ctx.tenantId, { type: 'chat' }, ctx.manager);
+    if (resolved?.source !== 'builtin') {
       return;
     }
     const runtime = await this.platformAiConfig.getRuntimeConfig();

@@ -56,7 +56,9 @@ export default function ProtectedRoute() {
     const path = location.pathname;
     const isAiWorkspaceRoute = path === '/ai' || path.startsWith('/ai/');
     const isAgentsRoute = path === '/agents' || path.startsWith('/agents/');
-    const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/');
+    const isAdminAiRoute = path === '/admin/ai' || path.startsWith('/admin/ai/')
+      || path === '/admin/ai-models' || path.startsWith('/admin/ai-models/')
+      || path === '/admin/ai-usage' || path.startsWith('/admin/ai-usage/');
     const isAdminIntegrationsRoute = path === '/admin/integrations' || path.startsWith('/admin/integrations/');
     const roleNames = [
       profile.role,
@@ -150,6 +152,8 @@ export default function ProtectedRoute() {
       billing: { resource: 'billing', level: 'reader' },
       'choose-plan': { resource: 'billing', level: 'reader' },
       ai: { resource: 'ai_settings', level: 'admin' },
+      'ai-models': { resource: 'ai_settings', level: 'admin' },
+      'ai-usage': { resource: 'ai_settings', level: 'admin' },
       'agent-control': { resource: 'ai_agents', level: 'reader' },
       'scheduled-tasks': { resource: 'users', level: 'admin' },
     };

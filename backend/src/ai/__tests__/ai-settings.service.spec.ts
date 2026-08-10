@@ -10,6 +10,7 @@ function createMockSettings(overrides?: Partial<AiSettings>): AiSettings {
     chat_enabled: false,
     mcp_enabled: false,
     provider_source: 'custom',
+    chat_model_config_id: null,
     llm_provider: null,
     llm_api_key_encrypted: null,
     llm_endpoint_url: null,
@@ -59,7 +60,11 @@ function createService(settings: AiSettings) {
     isConfigured: async () => true,
   };
 
-  return new AiSettingsService(repo as any, providerRegistry as any, cipher as any, platformAiConfig as any);
+  const modelResolver = {
+    validationErrors: async () => [],
+  };
+
+  return new AiSettingsService(repo as any, providerRegistry as any, cipher as any, platformAiConfig as any, modelResolver as any);
 }
 
 async function testRejectsWebSearchWhenEnvVarAbsent() {

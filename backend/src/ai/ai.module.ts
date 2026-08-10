@@ -56,6 +56,10 @@ import { AiAdminOverviewController } from './ai-admin-overview.controller';
 import { AiAdminOverviewService } from './ai-admin-overview.service';
 import { AiAdminSearchIndexController } from './search-index/ai-admin-search-index.controller';
 import { AiSearchIndexService } from './search-index/ai-search-index.service';
+import { AiModelConfig } from './ai-model-config.entity';
+import { AiModelConfigService } from './ai-model-config.service';
+import { AiModelConfigsController } from './ai-model-configs.controller';
+import { AiModelResolverService } from './ai-model-resolver.service';
 import { AiSettingsController } from './ai-settings.controller';
 import { AiSettings } from './ai-settings.entity';
 import { AiSettingsService } from './ai-settings.service';
@@ -165,6 +169,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
   imports: [
     TypeOrmModule.forFeature([
       AiSettings,
+      AiModelConfig,
       AiApiKey,
       AiConversation,
       AiMessage,
@@ -232,6 +237,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
   controllers: [
     AiCapabilitiesController,
     AiSettingsController,
+    AiModelConfigsController,
     AiAdminOverviewController,
     AiAdminSearchIndexController,
     AiChatController,
@@ -246,6 +252,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiTenantExecutionService,
     McpApiKeyHashService,
     AiSettingsService,
+    AiModelConfigService,
+    AiModelResolverService,
     AiAdminOverviewService,
     AiSearchIndexService,
     AiApiKeysService,
@@ -340,6 +348,8 @@ import { BraveSearchService } from './web-search/brave-search.service';
   exports: [
     AiTenantExecutionService,
     AiSettingsService,
+    AiModelConfigService,
+    AiModelResolverService,
     AiAdminOverviewService,
     AiSearchIndexService,
     AiApiKeysService,

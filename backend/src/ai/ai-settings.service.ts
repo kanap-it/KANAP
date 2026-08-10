@@ -4,6 +4,8 @@ import { EntityManager, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { Features } from '../config/features';
 import { assertPublicHttpUrl } from '../common/ssrf-guard';
+import { AiModelConfig } from './ai-model-config.entity';
+import { AiModelResolverService } from './ai-model-resolver.service';
 import { AiSettings } from './ai-settings.entity';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
 import { PlatformAiConfigService } from './platform/platform-ai-config.service';
@@ -15,6 +17,7 @@ export type AiSettingsView = {
   chat_enabled: boolean;
   mcp_enabled: boolean;
   provider_source: 'builtin' | 'custom';
+  chat_model_config_id: string | null;
   llm_provider: string | null;
   llm_endpoint_url: string | null;
   llm_model: string | null;
@@ -38,6 +41,7 @@ export type UpdateAiSettingsInput = {
   chat_enabled?: boolean;
   mcp_enabled?: boolean;
   provider_source?: 'builtin' | 'custom';
+  chat_model_config_id?: string | null;
   llm_provider?: string | null;
   llm_api_key?: string | null;
   llm_endpoint_url?: string | null;
@@ -105,6 +109,7 @@ export class AiSettingsService {
     private readonly providerRegistry: AiProviderRegistry,
     private readonly cipher: AiSecretCipherService,
     private readonly platformAiConfig: PlatformAiConfigService,
+    private readonly modelResolver: AiModelResolverService,
     private readonly audit?: AuditService,
   ) {}
 
@@ -191,13 +196,12 @@ export class AiSettingsService {
     };
   }
 
-  async getProviderValidationErrors(settings: AiSettings): Promise<string[]> {
-    if (this.getEffectiveProviderSource(settings) === 'builtin') {
-      return (await this.platformAiConfig.isConfigured())
-        ? []
-        : ['Built-in AI provider is not configured.'];
-    }
-    return this.providerRegistry.validate(this.toProviderSnapshot(settings));
+  async getProviderValidationErrors(settings: AiSettings, manager?: EntityManager): Promise<string[]> {
+    return this.modelResolver.validationErrors(
+      settings.tenant_id,
+      settings.chat_model_config_id ?? null,
+      manager,
+    );
   }
 
   async update(
@@ -218,6 +222,21 @@ export class AiSettingsService {
     }
     if (Object.prototype.hasOwnProperty.call(input, 'provider_source')) {
       settings.provider_source = this.normalizeProviderSourceValue(input.provider_source);
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'chat_model_config_id')) {
+      const configId = normalizeNullableString(input.chat_model_config_id);
+      if (configId) {
+        const config = await (opts?.manager ?? this.repo.manager)
+          .getRepository(AiModelConfig)
+          .findOne({ where: { id: configId, tenant_id: tenantId } });
+        if (!config) {
+          throw new BadRequestException('AI model configuration not found.');
+        }
+        if (config.status !== 'active') {
+          throw new BadRequestException('An archived AI model cannot be assigned.');
+        }
+      }
+      settings.chat_model_config_id = configId;
     }
     if (Object.prototype.hasOwnProperty.call(input, 'llm_provider')) {
       const provider = normalizeNullableString(input.llm_provider);
@@ -301,7 +320,7 @@ export class AiSettingsService {
     }
 
     if (settings.chat_enabled) {
-      const providerErrors = await this.getProviderValidationErrors(settings);
+      const providerErrors = await this.getProviderValidationErrors(settings, opts?.manager);
       if (providerErrors.length > 0) {
         throw new BadRequestException({
           message: 'AI chat cannot be enabled until the provider is fully configured.',
@@ -334,7 +353,7 @@ export class AiSettingsService {
 
   async toView(settings: AiSettings, opts?: { manager?: EntityManager }): Promise<AiSettingsView> {
     const normalized = await this.normalizeProviderSource(settings, opts?.manager);
-    const providerErrors = await this.getProviderValidationErrors(normalized);
+    const providerErrors = await this.getProviderValidationErrors(normalized, opts?.manager);
 
     return {
       id: normalized.id,
@@ -342,6 +361,7 @@ export class AiSettingsService {
       chat_enabled: normalized.chat_enabled,
       mcp_enabled: normalized.mcp_enabled,
       provider_source: this.getEffectiveProviderSource(normalized),
+      chat_model_config_id: normalized.chat_model_config_id ?? null,
       llm_provider: normalized.llm_provider,
       llm_endpoint_url: normalized.llm_endpoint_url,
       llm_model: normalized.llm_model,

@@ -92,6 +92,10 @@ export type AiExecutionContext = {
   conversationId?: string | null;
   requestId?: string | null;
   aiApiKeyId?: string | null;
+  // Agent definition driving this execution, when the context belongs to an
+  // agent run. Lets the LLM client resolve the agent's assigned registry model
+  // without threading the definition through every stage service.
+  agentId?: string | null;
 };
 
 export type AiExecutionContextWithManager = AiExecutionContext & {

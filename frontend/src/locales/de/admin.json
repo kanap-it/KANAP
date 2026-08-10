@@ -156,7 +156,15 @@
       },
       "testLabel": "Anbieter-Test",
       "title": "Anbieter",
-      "validationErrorsTitle": "Aktuelle Validierungsfehler des Anbieters"
+      "validationErrorsTitle": "Aktuelle Validierungsfehler des Anbieters",
+      "modelSelector": {
+        "label": "Von Plaid verwendetes Modell",
+        "builtin": "Inklusives KANAP-Modell",
+        "tenantDefault": "Standardmodell ({{name}})",
+        "noDefault": "Kein Modell konfiguriert",
+        "hintPrefix": "Modelle werden verwaltet auf der Seite",
+        "hintLink": "KI-Modelle"
+      }
     },
     "prtg": {
       "actions": {
@@ -1035,5 +1043,86 @@
       "limited": "Plätze {{used}}/{{limit}}",
       "unlimited": "Plätze {{used}} (unbegrenzt)"
     }
+  },
+  "aiModels": {
+    "title": "KI-Modelle",
+    "subtitle": "Die für Ihre Organisation verfügbaren KI-Modelle. Weisen Sie sie Plaid oder einzelnen Agenten zu; ohne spezifische Zuweisung wird das Standardmodell verwendet.",
+    "sectionTitle": "Modelle",
+    "new": "Neues Modell",
+    "empty": "Noch kein KI-Modell konfiguriert. Fügen Sie Ihr erstes Modell hinzu, um Plaid und die Agenten zu betreiben.",
+    "secretNotWritable": "API-Schlüssel können nicht gespeichert werden: Auf dem Server ist kein Verschlüsselungsgeheimnis konfiguriert. Wenden Sie sich an Ihren Administrator.",
+    "defaultChip": "Standard",
+    "archivedChip": "Archiviert",
+    "incomplete": "Konfiguration unvollständig",
+    "visionYes": "Bilder ✓",
+    "visionNo": "Nur Text",
+    "usedByChat": "Plaid",
+    "usedByNone": "Nicht zugewiesen",
+    "edit": "Bearbeiten",
+    "archive": "Archivieren",
+    "archiveBlocked": "Dieses Modell ist noch zugewiesen und kann nicht archiviert werden",
+    "restore": "Wiederherstellen",
+    "makeDefault": "Als Standardmodell verwenden",
+    "clearDefault": "Nicht mehr als Standardmodell verwenden",
+    "columns": {
+      "name": "Name",
+      "model": "Modell",
+      "capabilities": "Fähigkeiten",
+      "priceInput": "Eingabepreis / M Tokens",
+      "priceOutput": "Ausgabepreis / M Tokens",
+      "usedBy": "Verwendet von",
+      "actions": "Aktionen"
+    },
+    "builtin": {
+      "name": "Inklusives KANAP-Modell",
+      "caption": "Von KANAP betrieben, in Ihrem Abonnement enthalten",
+      "model": "Von KANAP verwaltet",
+      "quota": "{{used}} / {{limit}} inklusive Nachrichten in diesem Monat",
+      "fallback": "Wird verwendet, wenn kein anderes Modell zugewiesen ist"
+    },
+    "errors": {
+      "loadFailed": "Die KI-Modelle konnten nicht geladen werden.",
+      "saveFailed": "Das KI-Modell konnte nicht gespeichert werden.",
+      "archiveFailed": "Das KI-Modell konnte nicht archiviert werden.",
+      "testFailed": "Der Verbindungstest ist fehlgeschlagen.",
+      "stillAssigned": "Dieses Modell wird noch verwendet von: {{consumers}}. Weisen Sie diese neu zu, bevor Sie es archivieren."
+    },
+    "dialog": {
+      "createTitle": "Neues KI-Modell",
+      "editTitle": "KI-Modell bearbeiten",
+      "create": "Erstellen",
+      "save": "Speichern",
+      "name": "Name",
+      "namePlaceholder": "z. B. Claude Produktion",
+      "provider": "Anbieter",
+      "model": "Modell",
+      "modelPlaceholder": "z. B. claude-sonnet-5",
+      "endpoint": "Serveradresse",
+      "endpointPlaceholder": "z. B. https://ki.beispiel.com",
+      "apiKey": "API-Schlüssel",
+      "apiKeyPlaceholder": "Fügen Sie den API-Schlüssel Ihres Anbieters ein",
+      "apiKeyKeepHint": "Leer lassen, um den aktuellen Schlüssel zu behalten.",
+      "capabilities": "Fähigkeiten",
+      "visionLabel": "Versteht Bilder",
+      "visionHint": "Für ein reines Textmodell deaktivieren: An Tickets angehängte Screenshots werden dann übersprungen, statt fehlgeschlagene Aufrufe zu verursachen.",
+      "pricing": "Kosten",
+      "pricingHint": "Preis pro Million Tokens, wie auf der Preisseite Ihres Anbieters angegeben. Für ein lokales oder selbst gehostetes Modell leer oder auf 0 lassen.",
+      "priceInput": "Eingabe (€ / M Tokens)",
+      "priceOutput": "Ausgabe (€ / M Tokens)",
+      "priceInputPlaceholder": "z. B. 3,00",
+      "priceOutputPlaceholder": "z. B. 15,00",
+      "advanced": "Erweiterte Einstellungen",
+      "timeout": "Maximale Antwortzeit (Sekunden)",
+      "timeoutPlaceholder": "z. B. 120",
+      "timeoutHint": "Wie lange auf dieses Modell gewartet wird, bevor abgebrochen wird. Leer lassen für das Standardlimit. Lokale Modelle brauchen oft mehr Zeit.",
+      "defaultLabel": "Als Standardmodell verwenden",
+      "test": "Verbindung testen",
+      "testing": "Test läuft…",
+      "testOk": "Verbindung erfolgreich ({{latency}} ms)."
+    }
+  },
+  "aiUsage": {
+    "title": "Nutzung & Kosten",
+    "subtitle": "Wie stark Ihre Organisation die KI-Funktionen nutzt. Kostenaufschlüsselungen pro Modell folgen mit der Modellpreisgestaltung."
   }
 }

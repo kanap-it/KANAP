@@ -92,6 +92,26 @@ function createOrchestrator(options?: {
     decrypt: () => 'real-api-key',
   };
 
+  const mockResolvedModel = () => ({
+    source: 'registry' as const,
+    configId: 'model-config-1',
+    configName: options?.model ?? 'gpt-4o',
+    provider: options?.providerId ?? 'openai',
+    model: options?.model ?? 'gpt-4o',
+    endpointUrl: options?.endpointUrl ?? null,
+    apiKey: 'real-api-key',
+    supportsVision: true,
+    priceInputEurPerMtok: null,
+    priceOutputEurPerMtok: null,
+    timeoutMs: null,
+  });
+
+  const mockModelResolver = {
+    resolve: async () => mockResolvedModel(),
+    tryResolve: async () => mockResolvedModel(),
+    validationErrors: async () => [],
+  };
+
   const providerCallCount = { value: 0 };
 
   const mockProviderRegistry = {
@@ -293,6 +313,7 @@ function createOrchestrator(options?: {
     mockPolicy as any,
     mockSettings as any,
     mockCipher as any,
+    mockModelResolver as any,
     mockProviderRegistry as any,
     mockPlatformAiConfig as any,
     mockBuiltinUsage as any,

@@ -32,6 +32,11 @@ export class AiAgentDefinition {
   @Column('jsonb', { nullable: true })
   provider_bindings_json!: Record<string, unknown> | null;
 
+  // Registry model this agent runs on; null resolves to the tenant default
+  // entry, then the platform builtin model.
+  @Column('uuid', { nullable: true })
+  llm_model_config_id!: string | null;
+
   @Column('jsonb', { nullable: true })
   allowed_capabilities_json!: Record<string, unknown> | unknown[] | null;
 

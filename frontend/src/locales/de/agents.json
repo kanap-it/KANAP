@@ -721,7 +721,10 @@
       "interfaces": "Schnittstellen",
       "connections": "Verbindungen",
       "locations": "Standorte"
-    }
+    },
+    "model": "KI-Modell",
+    "modelTenantDefault": "Standard der Organisation",
+    "modelHint": "Das KI-Modell, mit dem dieser Agent arbeitet. Modelle werden in der Administration unter KI-Modelle verwaltet."
   },
   "actions": {
     "internalNote": "Interne Notiz",

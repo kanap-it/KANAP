@@ -72,6 +72,7 @@ import { AiTenantExecutionService } from '../../execution/ai-tenant-execution.se
 import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
 import { AiAgentAuditEvent } from '../entities/ai-agent-audit-event.entity';
+import { AiModelConfig } from '../../ai-model-config.entity';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiAgentTargetState } from '../entities/ai-agent-target-state.entity';
 import { AiAgentWorkItem } from '../entities/ai-agent-work-item.entity';
@@ -396,6 +397,7 @@ export type AgentControlAgentDefinitionInput = {
   queue_policy_json?: Record<string, unknown> | null;
   response_policy_json?: Record<string, unknown> | null;
   evaluation_policy_json?: Record<string, unknown> | null;
+  llm_model_config_id?: string | null;
 };
 
 export type AgentControlAgentStatusInput = {
@@ -1969,6 +1971,7 @@ function configSnapshot(definition: AiAgentDefinition): Record<string, unknown> 
     queue_policy_json: definition.queue_policy_json,
     response_policy_json: definition.response_policy_json,
     evaluation_policy_json: definition.evaluation_policy_json,
+    llm_model_config_id: definition.llm_model_config_id ?? null,
     config_version: definition.config_version ?? 1,
   };
 }
@@ -3117,6 +3120,7 @@ function serializeAgentDefinition(definition: AiAgentDefinition) {
     response_policy_json: definition.response_policy_json,
     evaluation_policy_json: definition.evaluation_policy_json,
     persona_json: definition.persona_json ?? null,
+    llm_model_config_id: definition.llm_model_config_id ?? null,
     config_version: definition.config_version ?? 1,
     updated_by_user_id: definition.updated_by_user_id ?? null,
     metadata_json: definition.metadata_json,
@@ -4808,6 +4812,23 @@ export class AiAgentControlService {
     if (Object.prototype.hasOwnProperty.call(input, 'evaluation_policy_json')) {
       definition.evaluation_policy_json = normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy');
     }
+    if (Object.prototype.hasOwnProperty.call(input, 'llm_model_config_id')) {
+      const configId = typeof input.llm_model_config_id === 'string' && input.llm_model_config_id.trim()
+        ? input.llm_model_config_id.trim()
+        : null;
+      if (configId) {
+        const config = await context.manager.getRepository(AiModelConfig).findOne({
+          where: { id: configId, tenant_id: context.tenantId },
+        });
+        if (!config) {
+          throw new BadRequestException('AI model configuration not found.');
+        }
+        if (config.status !== 'active') {
+          throw new BadRequestException('An archived AI model cannot be assigned.');
+        }
+      }
+      definition.llm_model_config_id = configId;
+    }
     definition.metadata_json = {
       ...metadataObject(definition.metadata_json),
       user_modified: true,
@@ -6393,6 +6414,9 @@ export class AiAgentControlService {
     ) {
       throw new BadRequestException('Queued monitoring diagnosis work item provider does not match the agent monitoring binding.');
     }
+    // Lets the LLM client resolve this agent's assigned registry model for
+    // every downstream stage without threading the definition through them.
+    context.agentId = definition.id;
     let leasedWorkItem = await this.agentQueue.acquireWorkItem(context, queuedWorkItem.id, {
       leaseOwner: `sre-monitoring-diagnosis:${context.userId || 'system'}`,
     });
@@ -7377,6 +7401,9 @@ export class AiAgentControlService {
         agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
       }
     }
+    // Lets the LLM client resolve this agent's assigned registry model for
+    // every downstream stage without threading the definition through them.
+    context.agentId = agentDefinition?.id ?? null;
     const promptRuntime = await this.compileAgentPromptRuntime(context, agentDefinition);
 
     // One approval window for the whole run: compute a single expiry anchor here and stamp it on

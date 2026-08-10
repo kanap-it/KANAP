@@ -141,18 +141,33 @@ async function seedTenant(runner: QueryRunner, tenantId: string, slug: string, n
     [tenantId, slug, name],
   );
   await setCurrentTenant(runner, tenantId);
+  // Chat readiness now resolves through the model registry: mirror what the
+  // registry backfill produces for a custom-provider tenant — one registry
+  // entry assigned to chat — instead of only the legacy flat llm_* columns.
+  const modelConfigRows = await runner.query(
+    `INSERT INTO ai_model_configs (
+       tenant_id, name, provider, model, endpoint_url, api_key_encrypted,
+       supports_vision, is_default, created_at, updated_at
+     )
+     VALUES (
+       $1, 'capability-test-model', 'custom', 'capability-test-model',
+       'https://llm.example.test/v1', 'test-secret', true, true, now(), now()
+     )
+     RETURNING id`,
+    [tenantId],
+  );
   await runner.query(
     `INSERT INTO ai_settings (
        tenant_id, chat_enabled, mcp_enabled, provider_source, llm_provider,
        llm_endpoint_url, llm_model, llm_api_key_encrypted, web_search_enabled,
-       glpi_enabled, created_at, updated_at
+       glpi_enabled, chat_model_config_id, created_at, updated_at
      )
      VALUES (
        $1, true, true, 'custom', 'custom',
        'https://llm.example.test/v1', 'capability-test-model', 'test-secret',
-       false, false, now(), now()
+       false, false, $2, now(), now()
      )`,
-    [tenantId],
+    [tenantId, modelConfigRows[0].id],
   );
 }
 

@@ -193,8 +193,12 @@ export default function Layout() {
     { to: '/admin/billing', label: t('nav:sidebar.admin.billing'), icon: <CreditCardIcon />, resource: 'billing' },
     { to: '/admin/auth', label: t('nav:sidebar.admin.authentication'), icon: <AdminPanelSettingsIcon />, resource: 'users', level: 'admin' },
     { to: '/admin/branding', label: t('nav:sidebar.admin.branding'), icon: <BrushIcon />, resource: 'users', level: 'admin' },
-    { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings', level: 'admin' },
+    { divider: t('nav:sidebar.admin.sections.ai') },
+    { to: '/admin/ai-models', label: t('nav:sidebar.admin.aiModels'), icon: <StorageIcon />, resource: 'ai_settings', level: 'admin' },
     { to: '/admin/ai', label: t('nav:sidebar.admin.ai'), icon: <AutoAwesomeIcon />, resource: 'ai_settings', level: 'admin' },
+    { to: '/admin/ai-usage', label: t('nav:sidebar.admin.aiUsage'), icon: <MonitorHeartIcon />, resource: 'ai_settings', level: 'admin' },
+    { divider: t('nav:sidebar.admin.sections.integrations') },
+    { to: '/admin/integrations', label: t('nav:sidebar.admin.integrations'), icon: <ExtensionIcon />, resource: 'ai_settings', level: 'admin' },
   ];
 
   const platformAdminNav: NavEntry[] = [
@@ -459,14 +463,13 @@ export default function Layout() {
             let entries: NavEntry[];
             if (workspace === 'admin') {
               const base = isPlatformHost && !isSingleTenant ? platformAdminNav : tenantAdminNav;
+              const aiAdminRoutes = ['/admin/ai', '/admin/ai-models', '/admin/ai-usage', '/admin/integrations'];
               entries = base.filter((entry) => {
                 if (!isNavItem(entry)) return true;
                 if (entry.to === '/admin/billing' && !config.features.billing) return false;
                 if (entry.to === '/admin/auth' && !config.features.sso) return false;
-                if (entry.to === '/admin/ai' && !config.features.aiSettings) return false;
-                if (entry.to === '/admin/integrations' && !config.features.aiSettings) return false;
-                if (entry.to === '/admin/ai' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
-                if (entry.to === '/admin/integrations' && aiCapabilities.data?.surfaces.settings.available !== true) return false;
+                if (aiAdminRoutes.includes(entry.to) && !config.features.aiSettings) return false;
+                if (aiAdminRoutes.includes(entry.to) && aiCapabilities.data?.surfaces.settings.available !== true) return false;
                 return true;
               });
               // In single-tenant mode, append Scheduled Tasks for admin users
@@ -488,12 +491,18 @@ export default function Layout() {
             }
 
             // Filter items by permission (dividers pass through)
-            const visible = entries.filter((entry) => {
+            const permitted = entries.filter((entry) => {
               if (!isNavItem(entry)) return true;
-              if (entry.to === '/admin/ai' || entry.to === '/admin/integrations') {
+              if (['/admin/ai', '/admin/ai-models', '/admin/ai-usage', '/admin/integrations'].includes(entry.to)) {
                 return aiCapabilities.data?.surfaces.settings.available === true;
               }
               return !entry.resource || hasLevel(entry.resource, entry.level ?? 'reader');
+            });
+            // Drop group headers whose items were all filtered out.
+            const visible = permitted.filter((entry, idx) => {
+              if (isNavItem(entry)) return true;
+              const next = permitted[idx + 1];
+              return next !== undefined && isNavItem(next);
             });
 
             return (

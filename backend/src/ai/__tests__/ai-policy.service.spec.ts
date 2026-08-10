@@ -92,6 +92,7 @@ function createPolicy(options?: {
       get: async () => settings,
       find: async () => settings,
       getEffectiveProviderSource: (value: any) => value.provider_source === 'custom' ? 'custom' : 'builtin',
+      getProviderValidationErrors: async () => options?.providerErrors ?? [],
       toProviderSnapshot: (value: any) => ({
         llm_provider: value.llm_provider,
         llm_model: value.llm_model,

@@ -89,7 +89,13 @@
       "branding": "Personnalisation",
       "integrations": "Intégrations",
       "ai": "Plaid",
-      "agentControl": "Contrôle agents"
+      "agentControl": "Contrôle agents",
+      "aiModels": "Modèles IA",
+      "aiUsage": "Utilisation & coûts",
+      "sections": {
+        "ai": "Intelligence artificielle",
+        "integrations": "Intégrations"
+      }
     },
     "platform": {
       "tenants": "Tenants",
@@ -130,6 +136,8 @@
     "interfaceMap": "Carte des interfaces",
     "connectionMap": "Carte des connexions",
     "tasks": "Tâches",
-    "operations": "Administration"
+    "operations": "Administration",
+    "aiModels": "Modèles IA",
+    "aiUsage": "Utilisation & coûts"
   }
 }

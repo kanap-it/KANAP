@@ -103,6 +103,8 @@ import AgentsActivityPage from './pages/agents/AgentsActivityPage';
 import AgentWorkspacePage from './pages/agents/AgentWorkspacePage';
 import SharedContextProfilesPage from './pages/agents/SharedContextProfilesPage';
 import AdminAiPage from './pages/admin/AdminAiPage';
+import AdminAiModelsPage from './pages/admin/AdminAiModelsPage';
+import AdminAiUsagePage from './pages/admin/AdminAiUsagePage';
 import AdminIntegrationsPage from './pages/admin/AdminIntegrationsPage';
 import AdminPlatformAiPage from './pages/admin/AdminPlatformAiPage';
 import ScheduledTasksPage from './pages/admin/ScheduledTasksPage';
@@ -286,6 +288,8 @@ function AppRoutes() {
           {config.features.billing && <Route path="/admin/choose-plan" element={<Navigate to="/admin/billing" replace />} />}
           {config.features.sso && <Route path="/admin/auth" element={<AdminAuthPage />} />}
           <Route path="/admin/ai" element={<AdminAiPage />} />
+          <Route path="/admin/ai-models" element={<AdminAiModelsPage />} />
+          <Route path="/admin/ai-usage" element={<AdminAiUsagePage />} />
           <Route path="/admin/agent-control" element={<Navigate to="/agents" replace />} />
           <Route path="/admin/agent-control/*" element={<Navigate to="/agents" replace />} />
           <Route path="/admin/integrations" element={<AdminIntegrationsPage />} />

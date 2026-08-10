@@ -1,8 +1,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminAiPage from './AdminAiPage';
+import { createAppTheme } from '../../config/ThemeContext';
 import api from '../../api';
 
 vi.mock('../../api', () => ({
@@ -20,6 +23,7 @@ vi.mock('../../config/FeaturesContext', () => ({
       features: {
         aiSettings: true,
         aiWebSearch: false,
+        builtinAiProvider: false,
       },
     },
   }),
@@ -38,9 +42,13 @@ function renderPage() {
   });
 
   render(
-    <QueryClientProvider client={client}>
-      <AdminAiPage />
-    </QueryClientProvider>,
+    <ThemeProvider theme={createAppTheme('light')}>
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <AdminAiPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ThemeProvider>,
   );
 }
 
@@ -57,6 +65,8 @@ describe('AdminAiPage', () => {
               settings: {
                 chat_enabled: true,
                 mcp_enabled: true,
+                provider_source: 'custom',
+                chat_model_config_id: 'model-1',
                 llm_provider: 'openai',
                 llm_endpoint_url: null,
                 llm_model: 'gpt-4o',
@@ -89,39 +99,30 @@ describe('AdminAiPage', () => {
               ],
             },
           });
-        case '/ai/admin/overview':
+        case '/ai/model-configs':
           return Promise.resolve({
             data: {
-              totals: {
-                conversations_all: 12,
-                conversations_7d: 4,
-                conversations_30d: 9,
-                active_users_30d: 3,
-              },
-              usage: {
-                current_month: {
-                  input_tokens: 1200,
-                  output_tokens: 800,
-                  total_tokens: 2000,
-                  message_count: 10,
-                },
-                last_30_days: {
-                  input_tokens: 1500,
-                  output_tokens: 1000,
-                  total_tokens: 2500,
-                  message_count: 14,
-                },
-              },
-              recent_activity: [
+              model_configs: [
                 {
-                  conversation_id: 'conv-1',
-                  title: 'Quarterly planning',
-                  user_id: 'user-1',
-                  provider: 'openai',
-                  model: 'gpt-4o',
-                  updated_at: '2026-03-21T11:15:00.000Z',
+                  id: 'model-1',
+                  name: 'Claude production',
+                  provider: 'anthropic',
+                  model: 'claude-sonnet-5',
+                  endpoint_url: null,
+                  has_api_key: true,
+                  supports_vision: true,
+                  price_input_eur_per_mtok: 3,
+                  price_output_eur_per_mtok: 15,
+                  llm_timeout_ms: null,
+                  status: 'active',
+                  is_default: true,
+                  used_by: { chat: true, agents: [] },
+                  validation_errors: [],
+                  created_at: '2026-03-21T10:00:00.000Z',
+                  updated_at: '2026-03-21T10:00:00.000Z',
                 },
               ],
+              secret_writable: true,
             },
           });
         case '/ai/admin/keys':
@@ -132,17 +133,15 @@ describe('AdminAiPage', () => {
     });
   });
 
-  it('renders settings and keys before the overview and hides recent activity', async () => {
+  it('renders the model selector with the assigned registry model and no usage overview', async () => {
     renderPage();
 
-    const providerSettings = await screen.findByRole('heading', { name: 'Provider' });
-    const mcpKeys = await screen.findByText('MCP API Keys');
-    const usageOverview = await screen.findByText('Usage Overview');
-
-    expect(await screen.findByText('Token usage')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Provider' });
+    expect(await screen.findByText('Model used by Plaid')).toBeInTheDocument();
+    expect(await screen.findByText('Claude production')).toBeInTheDocument();
     expect(await screen.findByText('No MCP API keys configured.')).toBeInTheDocument();
-    expect(screen.queryByText('Recent activity')).not.toBeInTheDocument();
-    expect(providerSettings.compareDocumentPosition(usageOverview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(mcpKeys.compareDocumentPosition(usageOverview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The token/usage overview moved to the dedicated Usage & costs page.
+    expect(screen.queryByText('Usage Overview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Token usage')).not.toBeInTheDocument();
   });
 });

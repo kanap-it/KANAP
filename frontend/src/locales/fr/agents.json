@@ -721,7 +721,10 @@
       "interfaces": "Interfaces",
       "connections": "Connexions",
       "locations": "Sites"
-    }
+    },
+    "model": "Modèle IA",
+    "modelTenantDefault": "Modèle par défaut de l'organisation",
+    "modelHint": "Le modèle IA sur lequel cet agent s'exécute. Les modèles se gèrent dans Administration, page Modèles IA."
   },
   "actions": {
     "internalNote": "Note interne",
