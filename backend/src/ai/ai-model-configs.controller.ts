@@ -54,9 +54,22 @@ export class AiModelConfigsController {
     return this.tenantExecutor.run(
       context.tenantId,
       async (manager) => {
-        await this.policy.assertSettingsAccess(context, manager);
+        const tier = await this.policy.resolveModelConfigReadTier(context, manager);
+        const configs = await this.modelConfigs.list(context.tenantId, manager);
+        if (tier === 'assignment') {
+          return {
+            model_configs: configs.map(({ id, name, status, is_default, supports_vision }) => ({
+              id,
+              name,
+              status,
+              is_default,
+              supports_vision,
+            })),
+            secret_writable: false,
+          };
+        }
         return {
-          model_configs: await this.modelConfigs.list(context.tenantId, manager),
+          model_configs: configs,
           secret_writable: this.cipher.canEncrypt(),
         };
       },

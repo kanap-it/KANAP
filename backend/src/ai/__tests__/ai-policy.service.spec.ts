@@ -165,6 +165,50 @@ async function testSettingsAccessRequiresAiSettingsAdmin() {
   Features.AI_SETTINGS_ENABLED = originalFeature;
 }
 
+async function testModelConfigReadTierMatrix() {
+  const originalFeature = Features.AI_SETTINGS_ENABLED;
+  Features.AI_SETTINGS_ENABLED = true;
+  const context = {
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    isPlatformHost: false,
+  };
+
+  const settingsAdminPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_settings', 'admin'],
+    ]),
+  });
+  assert.equal(await settingsAdminPolicy.resolveModelConfigReadTier(context, createManager()), 'full');
+
+  const agentAdminPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_agents', 'admin'],
+    ]),
+  });
+  assert.equal(await agentAdminPolicy.resolveModelConfigReadTier(context, createManager()), 'assignment');
+
+  const agentContributorPolicy = createPolicy({
+    permissions: new Map([
+      ['ai_agents', 'contributor'],
+    ]),
+  });
+  await assert.rejects(
+    () => agentContributorPolicy.resolveModelConfigReadTier(context, createManager()),
+    /Missing required permission ai_settings:admin/,
+  );
+
+  await assert.rejects(
+    () => agentAdminPolicy.resolveModelConfigReadTier(
+      { ...context, isPlatformHost: true },
+      createManager(),
+    ),
+    /platform host/,
+  );
+
+  Features.AI_SETTINGS_ENABLED = originalFeature;
+}
+
 async function testAgentPermissionMatrixAndSettingsCompatibility() {
   const originalFeature = Features.AI_SETTINGS_ENABLED;
   Features.AI_SETTINGS_ENABLED = true;
@@ -612,6 +656,7 @@ async function testCapabilitiesRejectPlatformHost() {
 async function run() {
   await testListReadableEntityTypesFiltersUnreadableFamilies();
   await testSettingsAccessRequiresAiSettingsAdmin();
+  await testModelConfigReadTierMatrix();
   await testAgentPermissionMatrixAndSettingsCompatibility();
   await testChatSurfaceRequiresFeatureFlag();
   await testChatSurfaceRequiresTenantEnablement();

@@ -134,6 +134,16 @@ export type AiModelConfig = {
   updated_at: string;
 };
 
+// Reduced shape returned by GET /ai/model-configs for agent admins without
+// AI settings access — just enough to assign models to agents.
+export type AiModelAssignmentOption = {
+  id: string;
+  name: string;
+  supports_vision: boolean;
+  status: 'active' | 'archived';
+  is_default: boolean;
+};
+
 export type AiModelConfigInput = {
   name?: string;
   provider?: string;
@@ -1383,6 +1393,10 @@ export const aiAdminApi = {
 
 export const aiModelConfigsApi = {
   async list(): Promise<{ model_configs: AiModelConfig[]; secret_writable: boolean }> {
+    const res = await api.get('/ai/model-configs');
+    return res.data;
+  },
+  async listAssignable(): Promise<{ model_configs: AiModelAssignmentOption[] }> {
     const res = await api.get('/ai/model-configs');
     return res.data;
   },
