@@ -1123,7 +1123,7 @@
   },
   "aiUsage": {
     "title": "Nutzung & Kosten",
-    "subtitle": "Wie stark Ihre Organisation die KI-Funktionen nutzt. Kostenaufschlüsselungen pro Modell folgen mit der Modellpreisgestaltung.",
+    "subtitle": "Wie stark Ihre Organisation die KI-Funktionen nutzt. Die Kosten sind nach Modell und Agent aufgeschlüsselt.",
     "costs": {
       "title": "Kosten",
       "totalMonth": "Gesamt in diesem Monat",

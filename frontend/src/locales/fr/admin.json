@@ -1123,7 +1123,7 @@
   },
   "aiUsage": {
     "title": "Utilisation & coûts",
-    "subtitle": "L'utilisation des fonctions IA par votre organisation. La ventilation des coûts par modèle arrive avec la tarification des modèles.",
+    "subtitle": "L'utilisation des fonctions IA par votre organisation. Les coûts sont ventilés par modèle et par agent.",
     "costs": {
       "title": "Coûts",
       "totalMonth": "Total ce mois-ci",

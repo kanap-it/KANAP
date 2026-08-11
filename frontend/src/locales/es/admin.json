@@ -1123,7 +1123,7 @@
   },
   "aiUsage": {
     "title": "Uso y costes",
-    "subtitle": "Cuánto usa su organización las funciones IA. El desglose de costes por modelo llegará con la tarificación de los modelos.",
+    "subtitle": "Cuánto usa su organización las funciones IA. Los costes se desglosan por modelo y por agente.",
     "costs": {
       "title": "Costes",
       "totalMonth": "Total este mes",

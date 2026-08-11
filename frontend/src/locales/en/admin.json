@@ -1123,7 +1123,7 @@
   },
   "aiUsage": {
     "title": "Usage & costs",
-    "subtitle": "How much your organization uses the AI features. Cost breakdowns by model arrive with model pricing.",
+    "subtitle": "How much your organization uses the AI features. Costs are broken down by model and by agent.",
     "costs": {
       "title": "Costs",
       "totalMonth": "Total this month",
