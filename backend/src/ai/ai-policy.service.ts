@@ -349,6 +349,31 @@ export class AiPolicyService {
     await this.assertUserPermission(context.userId, 'ai_settings', 'admin', manager);
   }
 
+  // Model registry reads: settings admins get the full view; agent admins get
+  // an assignment tier so they can pick models for agents without seeing
+  // provider, endpoint, or pricing details.
+  async resolveModelConfigReadTier(
+    context: AiPolicyAccessContext,
+    manager: EntityManager,
+  ): Promise<'full' | 'assignment'> {
+    this.assertPlatformHostAllowed(context);
+
+    if (!Features.AI_SETTINGS_ENABLED) {
+      throwFeatureDisabled('ai_settings');
+    }
+
+    await this.assertTenantAvailable(context.tenantId, manager);
+    const state = await this.getEffectivePermissionState(context.userId, manager);
+    if (this.hasPermission(state, 'ai_settings', 'admin')) {
+      return 'full';
+    }
+    if (this.hasPermission(state, 'ai_agents', 'admin')) {
+      await this.assertSubscriptionAllowsAi(context.tenantId, manager);
+      return 'assignment';
+    }
+    throw new ForbiddenException('Missing required permission ai_settings:admin.');
+  }
+
   private async assertAgentAccess(
     context: AiPolicyAccessContext,
     manager: EntityManager,

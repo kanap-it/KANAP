@@ -950,8 +950,8 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     staleTime: 60_000,
   });
   const modelConfigsQuery = useQuery({
-    queryKey: ['ai-model-configs'],
-    queryFn: () => aiModelConfigsApi.list(),
+    queryKey: ['ai-model-configs', 'assignable'],
+    queryFn: () => aiModelConfigsApi.listAssignable(),
     staleTime: 60_000,
   });
   const activeModelConfigs = (modelConfigsQuery.data?.model_configs ?? []).filter((entry) => entry.status === 'active');
@@ -1603,6 +1603,9 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
                   <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
                 ))}
               </Select>
+              {modelConfigsQuery.isError && (
+                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
+              )}
             </SettingsField>
             <SettingsField label={t('settings.agentPriority')}><TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.reviewCooldown')}><TextField size="small" value={form.reviewCooldownHours} onChange={(event) => update('reviewCooldownHours', event.target.value)} /></SettingsField>
@@ -1651,6 +1654,9 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
                   <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
                 ))}
               </Select>
+              {modelConfigsQuery.isError && (
+                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
+              )}
             </SettingsField>
             <SettingsField label={t('settings.maxAlerts')}>
               <TextField size="small" value={sreForm.maxAlerts} onChange={(event) => updateSre({ maxAlerts: event.target.value })} />

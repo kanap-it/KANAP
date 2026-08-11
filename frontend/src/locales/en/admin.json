@@ -108,7 +108,6 @@
     },
     "provider": {
       "apiKey": {
-        "keepExisting": "Leave blank to keep the stored key for save and test actions.",
         "storageUnavailable": "Secret storage is not configured on this instance."
       },
       "chips": {
@@ -119,16 +118,6 @@
         "providerIncomplete": "Provider incomplete",
         "providerReady": "Provider ready"
       },
-      "connectionFailed": "Connection failed",
-      "connectionSucceeded": "Connection succeeded",
-      "fields": {
-        "apiKey": "API key",
-        "endpointUrl": "Endpoint URL",
-        "model": "Model",
-        "multimodal": "Multimodal LLM",
-        "provider": "Provider"
-      },
-      "multimodalHelper": "Enable if the default model can analyze images (e.g. ticket screenshots). Turn off if the model is text-only.",
       "builtinUsage": {
         "cta": "Use your own API keys for unlimited usage.",
         "description": "Built-in usage is shared across chat and MCP requests for this tenant.",
@@ -137,24 +126,6 @@
         "summary": "{{count}} / {{limit}} messages used this month",
         "title": "Built-in usage"
       },
-      "info": {
-        "ollama": "In docker, use http://host.docker.internal:<port>/v1 instead of localhost."
-      },
-      "placeholders": {
-        "anthropicModel": "e.g., claude-sonnet-4-20250514",
-        "apiKeyConfigured": "Key configured (leave blank to keep)",
-        "customEndpoint": "e.g., https://my-provider.example.com/v1",
-        "enterApiKey": "Enter API key",
-        "modelIdentifier": "Model identifier",
-        "ollamaEndpoint": "e.g., http://host.docker.internal:1234/v1",
-        "ollamaModel": "e.g., llama3, mistral",
-        "openaiModel": "e.g., gpt-4o"
-      },
-      "sources": {
-        "builtin": "Plaid AI - Built-in",
-        "custom": "Your own provider"
-      },
-      "testLabel": "Provider test",
       "title": "Provider",
       "validationErrorsTitle": "Current provider validation errors",
       "modelSelector": {
@@ -214,7 +185,7 @@
       "never": "Never",
       "none": "None"
     },
-    "title": "AI"
+    "title": "Plaid"
   },
   "auditLogs": {
     "actions": {
@@ -1123,7 +1094,7 @@
   },
   "aiUsage": {
     "title": "Usage & costs",
-    "subtitle": "How much your organization uses the AI features. Cost breakdowns by model arrive with model pricing.",
+    "subtitle": "How much your organization uses the AI features. Costs are broken down by model and by agent.",
     "costs": {
       "title": "Costs",
       "totalMonth": "Total this month",

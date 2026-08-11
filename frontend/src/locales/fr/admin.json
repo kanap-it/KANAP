@@ -108,7 +108,6 @@
     },
     "provider": {
       "apiKey": {
-        "keepExisting": "Laissez vide pour conserver la clé enregistrée pour les actions de sauvegarde et de test.",
         "storageUnavailable": "Le stockage sécurisé n'est pas configuré sur cette instance."
       },
       "chips": {
@@ -119,42 +118,14 @@
         "providerIncomplete": "Fournisseur incomplet",
         "providerReady": "Fournisseur prêt"
       },
-      "connectionFailed": "Connexion échouée",
-      "connectionSucceeded": "Connexion réussie",
-      "fields": {
-        "apiKey": "Clé API",
-        "endpointUrl": "URL du point d'accès",
-        "model": "Modèle",
-        "multimodal": "LLM multimodal",
-        "provider": "Fournisseur"
-      },
-      "multimodalHelper": "Activez si le modèle par défaut peut analyser des images (ex. captures d'écran de tickets). Désactivez si le modèle est uniquement textuel.",
       "builtinUsage": {
-        "cta": "Use your own API keys for unlimited usage.",
-        "description": "Built-in usage is shared across chat and MCP requests for this tenant.",
-        "loadFailed": "Failed to load built-in usage.",
-        "reset": "Resets on {{date}}.",
-        "summary": "{{count}} / {{limit}} messages used this month",
-        "title": "Built-in usage"
+        "cta": "Utilisez vos propres clés API pour une utilisation illimitée.",
+        "description": "L'utilisation intégrée est partagée entre les requêtes de chat et MCP de ce tenant.",
+        "loadFailed": "Impossible de charger l'utilisation intégrée.",
+        "reset": "Réinitialisation le {{date}}.",
+        "summary": "{{count}} / {{limit}} messages utilisés ce mois-ci",
+        "title": "Utilisation intégrée"
       },
-      "info": {
-        "ollama": "Sous Docker, utilisez http://host.docker.internal:<port>/v1 au lieu de localhost."
-      },
-      "placeholders": {
-        "anthropicModel": "Ex. : claude-sonnet-4-20250514",
-        "apiKeyConfigured": "Clé configurée (laissez vide pour conserver)",
-        "customEndpoint": "Ex. : https://my-provider.example.com/v1",
-        "enterApiKey": "Saisissez la clé API",
-        "modelIdentifier": "Identifiant du modèle",
-        "ollamaEndpoint": "Ex. : http://host.docker.internal:1234/v1",
-        "ollamaModel": "Ex. : llama3, mistral",
-        "openaiModel": "Ex. : gpt-4o"
-      },
-      "sources": {
-        "builtin": "Plaid AI - Built-in",
-        "custom": "Your own provider"
-      },
-      "testLabel": "Test du fournisseur",
       "title": "Fournisseur",
       "validationErrorsTitle": "Erreurs de validation du fournisseur actuel",
       "modelSelector": {
@@ -214,7 +185,7 @@
       "never": "Jamais",
       "none": "Aucun"
     },
-    "title": "IA"
+    "title": "Plaid"
   },
   "auditLogs": {
     "actions": {
@@ -1123,7 +1094,7 @@
   },
   "aiUsage": {
     "title": "Utilisation & coûts",
-    "subtitle": "L'utilisation des fonctions IA par votre organisation. La ventilation des coûts par modèle arrive avec la tarification des modèles.",
+    "subtitle": "L'utilisation des fonctions IA par votre organisation. Les coûts sont ventilés par modèle et par agent.",
     "costs": {
       "title": "Coûts",
       "totalMonth": "Total ce mois-ci",

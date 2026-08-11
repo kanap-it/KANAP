@@ -725,6 +725,7 @@
     "model": "KI-Modell",
     "modelTenantDefault": "Standard der Organisation",
     "modelHint": "Das KI-Modell, mit dem dieser Agent arbeitet. Modelle werden in der Administration unter KI-Modelle verwaltet.",
+    "modelListError": "Die Modellliste konnte nicht geladen werden; die angezeigte Auswahl ist möglicherweise unvollständig.",
     "costCapHint": "Geschätzt anhand der Preise des zugewiesenen Modells. Ein kostenfreies Modell (0 €) erreicht dieses Limit nie — die Token-Limits bleiben der Schutz."
   },
   "actions": {
