@@ -122,13 +122,18 @@ A note appears when the preview is bounded by your per-check limits — the real
 
 The pace-and-budget controls:
 
+- **AI model** — which model this agent runs on. **Organization default** is the starting value and usually the right one: the agent follows whatever model your organization has set as default, and moves with it. Pick a specific model by name to pin this agent to it — a vision-capable model for screenshot-heavy queues, a cheap local one for high-volume triage. Only active models appear, they are defined on the [AI models](ai-models.md) page, and the choice is saved the moment you make it (this one field doesn't wait for the section's autosave), taking effect on the agent's next run. A model an agent is pinned to cannot be archived out from under it — the agent has to be moved off it first. Note that reading the model list needs the AI settings admin permission (`ai_settings:admin`), the same one that opens the AI models page: with the **Agent Admin** role alone the dropdown offers only **Organization default**, which is a permissions gap rather than an empty registry.
 - **Agent priority** — used with **Ticket collision** to decide who handles a ticket two agents both want.
 - **Review every (hours)** — how long the agent waits before it looks again at a ticket it has already handled.
 - **Ticket collision** — what to do when another agent is already on a ticket: **Defer** (leave it alone) or **Supersede equal priority** (take over from an agent of the same priority).
 - **Max tickets per check** and **Max provider requests** — how much work a single check may take on.
 - **Approval window (hours)** — how long every proposal for a ticket stays open before it expires. All proposals from one check share this window, so they expire together rather than piecemeal.
 - **If ticket changed** — what to do if the ticket moved on between the proposal and your approval: **Re-review**, **Cancel**, or **Apply anyway**.
-- **Tokens per run** / **Cost per run (EUR)** and **Runs per day** / **Tokens per day** / **Cost per day (EUR)** — the per-check and daily spending caps. The daily figures are the same caps you watch on the Monitor **Limits** card.
+- **Tokens per run** / **Cost per run (EUR)** and **Runs per day** / **Tokens per day** / **Cost per day (EUR)** — the per-run and daily spending caps. The daily figures are the same caps you watch on the Monitor **Limits** card. A *run* is one pass on one ticket, not one check: a single check can spend the per-run budget once for each ticket it picks up, so read these next to **Max tickets per check**.
+
+The two cost caps are priced with the **AI model** assigned above, using the prices recorded for it on the [AI models](ai-models.md) page — the hint under each field says so. That has one consequence worth knowing: **a free model (0 €) never reaches a cost cap**, because everything it does costs nothing. On the KANAP included model, on a local model, or on any model you registered without prices, the cost caps are inert and the **token** caps are your only real protection. Set them accordingly.
+
+Monitoring agents, which watch alerts rather than tickets, have the same **AI model** selector in their own shorter **Operating settings** section — alongside **Alerts handled per check** and **Requests to the monitoring tool per check** — and it works exactly as described above.
 
 ### Knowledge and web sources
 
@@ -136,7 +141,7 @@ Where the agent gets its facts:
 
 - **Search KANAP knowledge** — when on, the agent draws on your [Knowledge libraries](knowledge.md) and cites them in replies. With it off, the agent answers from the model's own knowledge (and the web, if that's on).
 - **Search all available libraries**, or turn it off to pick specific **Libraries** — the agent then searches only those, within what it's allowed to access. Library names come from the Knowledge section.
-- **Search the web** — lets the agent also consult the public web; KANAP knowledge always takes precedence and web results are cited. This switch is only available if web search is enabled for the whole platform. When it isn't, the switch is disabled and a note points you to your administrator — see [Plaid Settings / AI provider](ai-settings.md).
+- **Search the web** — lets the agent also consult the public web; KANAP knowledge always takes precedence and web results are cited. This switch is only available if web search is enabled for the whole platform. When it isn't, the switch is disabled and a note points you to your administrator — see [Plaid Settings](ai-settings.md).
 
 ### Autonomy
 
@@ -153,7 +158,8 @@ Whatever an action type's mode, the platform's hard safety limits, budgets, fres
 ## Tips
 
 - **Use Test on a ticket before you enable.** A test run gives you real proposals to judge without the agent touching anything else. It's the honest way to tune a persona: adjust, re-test, repeat.
-- **The Limits card is your early-warning light.** An agent that suddenly goes quiet has usually hit a daily cap — check *Runs / Tokens / Cost today* on Monitor before assuming something broke.
+- **The Limits card is your early-warning light.** An agent that suddenly goes quiet has usually hit a daily cap — check *Runs / Tokens / Cost today* on Monitor before assuming something broke. On a free model, only the token and run caps can be the cause.
+- **Match the model to the queue, not to the fleet.** Assignment is per agent precisely so a screenshot-heavy queue can run on a vision model while a high-volume, text-only queue runs on something cheaper. What each choice actually costs shows up under [Usage & costs](ai-usage.md).
 - **Read the Effective prompt after a persona change.** It's the ground truth of what the agent actually receives, and it makes it obvious when an instruction landed the way you meant it to.
 - **Grow autonomy one action type at a time.** Promote low-risk types (internal notes) first and leave requester replies asking first until acceptance is consistently high — the ladder won't let you go automatic without the evidence, but you set the appetite.
 - **Prefer shared context for background, libraries for facts.** Shared context colours the agent's judgement but is never cited; only knowledge libraries (and, if enabled, the web) show up as sources in a reply.

@@ -101,7 +101,9 @@ Si vous souhaitez le chemin le plus court vers la productivité, commencez par l
 - [Utilisateurs](admin.md) - Gérez les utilisateurs, les rôles, l'authentification et les journaux d'audit
 - [Personnalisation](branding.md) - Personnalisez le logo de votre tenant et les couleurs primaires en mode clair et sombre
 - [Journal d'audit](admin.md#audit-log) - Consultez l'historique des modifications du tenant avec des filtres et une vue détaillée
-- [Paramètres Plaid](ai-settings.md) - Configurez le fournisseur d'IA, les fonctionnalités, la rétention et les clés MCP
+- [Modèles IA](ai-models.md) - Enregistrez les modèles IA utilisés par votre organisation, avec leurs tarifs, et désignez celui par défaut
+- [Paramètres Plaid](ai-settings.md) - Choisissez le modèle utilisé par Plaid, ainsi que les fonctionnalités de chat, la rétention et les clés MCP
+- [Utilisation & coûts](ai-usage.md) - L'utilisation de l'IA et les coûts réels du chat et des agents, par agent et par modèle
 - [Intégrations](integrations.md) - Connectez GLPI pour l'import de tickets et pour les agents
 - [Tâches planifiées](scheduled-tasks.md) - Consultez et gérez les tâches d'arrière-plan récurrentes
 - [Administration des données de référence](master-data-operations.md) - Gelez et copiez les données de référence

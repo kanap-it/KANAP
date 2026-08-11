@@ -122,13 +122,18 @@ Aparece una nota cuando la vista previa está limitada por sus topes por comprob
 
 Los controles de ritmo y presupuesto:
 
+- **Modelo IA** — con qué modelo funciona este agente. **Predeterminado de la organización** es el valor de partida y normalmente el acertado: el agente sigue el modelo que su organización tenga definido como predeterminado y se mueve con él. Elija un modelo concreto por su nombre para fijar este agente a él: un modelo que entienda imágenes para colas con muchas capturas de pantalla, uno local y barato para el triaje de gran volumen. Solo aparecen los modelos activos, se definen en la página [Modelos IA](ai-models.md) y la elección se guarda en el momento en que la hace (este campo concreto no espera al guardado automático de la sección), con efecto en la siguiente ejecución del agente. Un modelo al que hay un agente fijado no puede archivarse a sus espaldas: primero hay que sacar al agente de él. Tenga en cuenta que leer la lista de modelos requiere el permiso de administrador de configuración de Plaid (`ai_settings:admin`), el mismo que da acceso a la página Modelos IA: con el rol **Administrador de Agentes IA** por sí solo, el desplegable únicamente ofrece **Predeterminado de la organización**, lo cual es una carencia de permisos y no un registro vacío.
 - **Prioridad del agente** — se usa junto con **Colisión de ticket** para decidir quién gestiona un ticket que dos agentes quieren.
 - **Revisar cada (horas)** — cuánto espera el agente antes de volver a mirar un ticket que ya ha gestionado.
 - **Colisión de ticket** — qué hacer cuando otro agente ya está en un ticket: **Diferir** (dejarlo en paz) o **Sustituir misma prioridad** (tomar el relevo de un agente de la misma prioridad).
 - **Tickets máximos por comprobación** y **Solicitudes máximas al proveedor** — cuánto trabajo puede asumir una sola comprobación.
 - **Ventana de aprobación (horas)** — cuánto tiempo permanece abierta cada propuesta de un ticket antes de expirar. Todas las propuestas de una misma comprobación comparten esta ventana, por lo que expiran juntas en lugar de por partes.
 - **Si el ticket cambió** — qué hacer si el ticket avanzó entre la propuesta y su aprobación: **Revisar de nuevo**, **Cancelar** o **Aplicar igualmente**.
-- **Tokens por ejecución** / **Coste por ejecución (EUR)** y **Ejecuciones por día** / **Tokens por día** / **Coste por día (EUR)** — los topes de gasto por comprobación y diarios. Las cifras diarias son los mismos topes que vigila en la tarjeta **Límites** de Monitor.
+- **Tokens por ejecución** / **Coste por ejecución (EUR)** y **Ejecuciones por día** / **Tokens por día** / **Coste por día (EUR)** — los topes de gasto por ejecución y diarios. Las cifras diarias son los mismos topes que vigila en la tarjeta **Límites** de Monitor. Una *ejecución* es una pasada sobre un ticket, no una comprobación: una sola comprobación puede gastar el presupuesto por ejecución una vez por cada ticket que recoge, así que léalos junto a **Tickets máximos por comprobación**.
+
+Los dos topes de coste se calculan con el **Modelo IA** asignado más arriba, usando los precios registrados para él en la página [Modelos IA](ai-models.md); así lo indica la ayuda bajo cada campo. Esto tiene una consecuencia que conviene conocer: **un modelo gratuito (0 €) nunca alcanza un tope de coste**, porque todo lo que hace cuesta cero. Con el modelo incluido de KANAP, con un modelo local o con cualquier modelo que haya registrado sin precios, los topes de coste quedan inertes y los topes de **tokens** son su única protección real. Ajústelos en consecuencia.
+
+Los agentes de supervisión, que vigilan alertas en lugar de tickets, tienen el mismo selector **Modelo IA** en su propia sección **Ajustes operativos**, más corta —junto a **Alertas gestionadas por comprobación** y **Solicitudes a la herramienta de supervisión por comprobación**—, y funciona exactamente como se ha descrito.
 
 ### Fuentes de conocimiento y web
 
@@ -136,7 +141,7 @@ De dónde saca el agente sus datos:
 
 - **Buscar en el conocimiento de KANAP** — cuando está activado, el agente recurre a sus [bibliotecas de conocimiento](knowledge.md) y las cita en las respuestas. Con esto desactivado, el agente responde con el conocimiento propio del modelo (y de la web, si está activada).
 - **Buscar en todas las bibliotecas disponibles**, o desactívelo para elegir **Bibliotecas** concretas: el agente busca entonces solo en esas, dentro de las que puede acceder. Los nombres de las bibliotecas provienen de la sección de Conocimiento.
-- **Buscar en la web** — permite que el agente también consulte la web pública; el conocimiento de KANAP siempre tiene prioridad y los resultados web se citan. Este interruptor solo está disponible si la búsqueda web está habilitada para toda la plataforma. Cuando no lo está, el interruptor aparece deshabilitado y una nota le remite a su administrador; consulte [Configuración de Plaid / proveedor de IA](ai-settings.md).
+- **Buscar en la web** — permite que el agente también consulte la web pública; el conocimiento de KANAP siempre tiene prioridad y los resultados web se citan. Este interruptor solo está disponible si la búsqueda web está habilitada para toda la plataforma. Cuando no lo está, el interruptor aparece deshabilitado y una nota le remite a su administrador; consulte [Configuración de Plaid](ai-settings.md).
 
 ### Autonomía
 
@@ -153,7 +158,8 @@ Sea cual sea el modo de un tipo de acción, los límites de seguridad estrictos 
 ## Consejos
 
 - **Use Probar en un ticket antes de activar.** Una ejecución de prueba le da propuestas reales que juzgar sin que el agente toque nada más. Es la forma honesta de ajustar una persona: ajuste, vuelva a probar, repita.
-- **La tarjeta Límites es su luz de aviso temprano.** Un agente que de repente se queda en silencio suele haber alcanzado un tope diario; revise *Ejecuciones / Tokens / Coste hoy* en Monitor antes de dar por hecho que algo se rompió.
+- **La tarjeta Límites es su luz de aviso temprano.** Un agente que de repente se queda en silencio suele haber alcanzado un tope diario; revise *Ejecuciones / Tokens / Coste hoy* en Monitor antes de dar por hecho que algo se rompió. Con un modelo gratuito, solo los topes de tokens y de ejecuciones pueden ser la causa.
+- **Ajuste el modelo a la cola, no a la flota.** La asignación es por agente precisamente para que una cola con muchas capturas de pantalla pueda funcionar con un modelo que entienda imágenes mientras una cola de gran volumen y solo texto funciona con algo más barato. Lo que cuesta realmente cada elección aparece en [Uso y costes](ai-usage.md).
 - **Lea el Prompt efectivo tras un cambio en la persona.** Es la verdad de fondo de lo que el agente recibe realmente, y deja claro cuándo una instrucción quedó como usted pretendía.
 - **Aumente la autonomía de un tipo de acción cada vez.** Promueva primero los tipos de bajo riesgo (notas internas) y deje las respuestas al solicitante preguntando primero hasta que la aceptación sea alta de forma constante; la escala no le dejará pasar a automático sin la evidencia, pero usted marca el apetito.
 - **Prefiera el contexto compartido para el trasfondo y las bibliotecas para los datos.** El contexto compartido matiza el criterio del agente pero nunca se cita; solo las bibliotecas de conocimiento (y, si está habilitada, la web) aparecen como fuentes en una respuesta.

@@ -101,7 +101,9 @@ If you want the shortest path to productivity, start with the Fast Track guides 
 - [Admin & Users](admin.md) - Manage users, roles, authentication, and audit logs
 - [Branding](branding.md) - Customize your tenant logo and light/dark primary colors
 - [Audit Log](admin.md#audit-log) - Review tenant change history with filters and detail view
-- [Plaid Settings](ai-settings.md) - Configure the AI provider, features, retention, and MCP keys
+- [AI models](ai-models.md) - Register the AI models your organization uses, with their prices, and set the default
+- [Plaid Settings](ai-settings.md) - Choose the model Plaid uses, plus chat features, retention, and MCP keys
+- [Usage & costs](ai-usage.md) - AI usage and real costs across chat and agents, by agent and by model
 - [Integrations](integrations.md) - Connect GLPI for ticket import and for agents
 - [Scheduled Tasks](scheduled-tasks.md) - Review and manage recurring background jobs
 - [Master Data Administration](master-data-operations.md) - Freeze and copy master data

@@ -101,7 +101,9 @@ Si desea el camino más corto hacia la productividad, comience con las guías de
 - [Usuarios](admin.md) - Gestión de usuarios, roles, autenticación y registros de auditoría
 - [Personalización](branding.md) - Personalización del logotipo del espacio de trabajo y colores primarios claro/oscuro
 - [Registro de auditoría](admin.md#registro-de-auditoria) - Revisión del historial de cambios del espacio de trabajo con filtros y vista detallada
-- [Configuración de Plaid](ai-settings.md) - Configuración del proveedor de IA, funcionalidades, retención y claves MCP
+- [Modelos IA](ai-models.md) - Registro de los modelos IA que usa su organización, con sus precios, y definición del predeterminado
+- [Configuración de Plaid](ai-settings.md) - Elección del modelo que usa Plaid, funcionalidades de chat, retención y claves MCP
+- [Uso y costes](ai-usage.md) - Uso de la IA y costes reales en chat y agentes, por agente y por modelo
 - [Integraciones](integrations.md) - Conexión de GLPI para importar tickets y para los agentes
 - [Tareas programadas](scheduled-tasks.md) - Revisión y gestión de trabajos recurrentes en segundo plano
 - [Administración de datos maestros](master-data-operations.md) - Congelación y copia de datos maestros
