@@ -130,12 +130,12 @@
       },
       "multimodalHelper": "Aktivieren, wenn das Standardmodell Bilder analysieren kann (z. B. Ticket-Screenshots). Deaktivieren, wenn das Modell nur Text unterstützt.",
       "builtinUsage": {
-        "cta": "Use your own API keys for unlimited usage.",
-        "description": "Built-in usage is shared across chat and MCP requests for this tenant.",
-        "loadFailed": "Failed to load built-in usage.",
-        "reset": "Resets on {{date}}.",
-        "summary": "{{count}} / {{limit}} messages used this month",
-        "title": "Built-in usage"
+        "cta": "Verwenden Sie Ihre eigenen API-Schlüssel für unbegrenzte Nutzung.",
+        "description": "Die integrierte Nutzung wird für diesen Mandanten von Chat- und MCP-Anfragen gemeinsam genutzt.",
+        "loadFailed": "Die integrierte Nutzung konnte nicht geladen werden.",
+        "reset": "Wird am {{date}} zurückgesetzt.",
+        "summary": "{{count}} / {{limit}} Nachrichten in diesem Monat verwendet",
+        "title": "Integrierte Nutzung"
       },
       "info": {
         "ollama": "In Docker verwenden Sie http://host.docker.internal:<port>/v1 anstelle von localhost."

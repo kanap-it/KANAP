@@ -130,12 +130,12 @@
       },
       "multimodalHelper": "Actívelo si el modelo predeterminado puede analizar imágenes (p. ej., capturas de tickets). Desactívelo si el modelo solo admite texto.",
       "builtinUsage": {
-        "cta": "Use your own API keys for unlimited usage.",
-        "description": "Built-in usage is shared across chat and MCP requests for this tenant.",
-        "loadFailed": "Failed to load built-in usage.",
-        "reset": "Resets on {{date}}.",
-        "summary": "{{count}} / {{limit}} messages used this month",
-        "title": "Built-in usage"
+        "cta": "Use sus propias claves API para un uso ilimitado.",
+        "description": "El uso del proveedor integrado se comparte entre las solicitudes de chat y de MCP de este espacio de trabajo.",
+        "loadFailed": "No se pudo cargar el uso del proveedor integrado.",
+        "reset": "Se restablece el {{date}}.",
+        "summary": "{{count}} / {{limit}} mensajes utilizados este mes",
+        "title": "Uso del proveedor integrado"
       },
       "info": {
         "ollama": "En Docker, use http://host.docker.internal:<port>/v1 en lugar de localhost."
