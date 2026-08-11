@@ -348,7 +348,7 @@ function DecisionGroup({
           </Box>
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
             {executableCount > 1 && (
-              <Button size="small" variant="outlined" disabled={busyTicketKey === group.key} onClick={() => onApproveAll(group)}>
+              <Button size="small" variant="contained" disabled={busyTicketKey === group.key} onClick={() => onApproveAll(group)}>
                 {t('approvals.approveAll')}
               </Button>
             )}
@@ -620,17 +620,16 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
           )}
         </Section>
 
-        <Section title={t('approvals.inProgress')} count={inProgressRows.length}>
-          {loading ? (
-            <EmptyState>{t('approvals.loading')}</EmptyState>
-          ) : inProgressRows.length === 0 ? (
-            <EmptyState>{t('approvals.emptyInProgress')}</EmptyState>
-          ) : (
+        {/* The workspace control bar already states whether anything is running,
+            so this section no longer carries its own status framing: it appears
+            only when there are rows to show. */}
+        {!loading && inProgressRows.length > 0 && (
+          <Section title={t('approvals.inProgress')}>
             <Stack>
               {inProgressRows.map((row) => <CompactLifecycleRow key={row.id} row={row} locale={locale} />)}
             </Stack>
-          )}
-        </Section>
+          </Section>
+        )}
 
         <Section title={t('approvals.needsAttention')} count={attentionRows.length}>
           {loading ? (

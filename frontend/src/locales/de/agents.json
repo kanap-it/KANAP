@@ -114,7 +114,6 @@
     "todayActions": "Aktionen heute",
     "acceptance": "Annahme",
     "dismissed": "Verworfen",
-    "costPerTicket": "Kosten pro Ticket",
     "fleet": "Agentenflotte",
     "empty": "Für diesen Mandanten sind keine Agenten verfügbar.",
     "noDescription": "Keine Beschreibung.",
@@ -133,7 +132,6 @@
     "runsToday": "Läufe heute",
     "updated": "Aktualisiert",
     "newAgent": "Neuer Agent",
-    "newAgentEnabled": "Einen Agenten im Entwurfsstatus aus einer sicheren Vorlage erstellen.",
     "newAgentDefaultName": "Helpdesk-Agent",
     "newAgentDescription": "Entwurf eines Helpdesk-Agenten aus der sicheren Helpdesk-Triage-Vorlage.",
     "wizard": {
@@ -171,7 +169,8 @@
       "reviewBodySre": "Der Agent wird als Nicht gestartet erstellt. Wählen Sie in den Einstellungen die zu beobachtenden Alarme, testen Sie ihn an einem Alarm und aktivieren Sie ihn dann."
     },
     "newAgentSreDefaultName": "Agent für Infrastruktur-Überwachung",
-    "newAgentSreDescription": "Überwachungs-Agent im Entwurf: liest Alarme, verknüpft sie mit Ihren KANAP-Daten und bereitet Diagnosenotizen zur Prüfung vor."
+    "newAgentSreDescription": "Überwachungs-Agent im Entwurf: liest Alarme, verknüpft sie mit Ihren KANAP-Daten und bereitet Diagnosenotizen zur Prüfung vor.",
+    "cost": "Kosten — heute / 7 Tage"
   },
   "approvals": {
     "title": "Agentenfreigaben",
@@ -182,7 +181,6 @@
     "needsAttention": "Aufmerksamkeit erforderlich",
     "recentlyFinished": "Kürzlich abgeschlossen",
     "emptyDecision": "Nichts benötigt Ihre Entscheidung.",
-    "emptyInProgress": "Keine Agentenarbeit ist in Bearbeitung.",
     "emptyAttention": "Keine Agentenarbeit benötigt Aufmerksamkeit.",
     "emptyFinished": "Keine kürzlich abgeschlossenen Aktionen.",
     "loading": "Freigaben werden geladen.",
@@ -315,9 +313,7 @@
     "testStarted": "Testlauf gestartet.",
     "testFailed": "Testlauf konnte nicht gestartet werden.",
     "providerMissing": "Für diesen Agenten ist kein Ticketing-Anbieter gebunden.",
-    "status": "Status",
     "checkNow": "Jetzt prüfen",
-    "lifecycle": "Lebenszyklus",
     "watching": "Überwachung",
     "filtered": "Gefiltert",
     "allTickets": "Alle Tickets",
@@ -330,7 +326,6 @@
     "inProgress": "In Arbeit",
     "failed": "Fehlgeschlagen",
     "pendingApprovals": "Offene Freigaben",
-    "limits": "Limits",
     "runsToday": "Läufe heute",
     "tokensToday": "Tokens heute",
     "costToday": "Kosten heute",
@@ -409,7 +404,10 @@
     "diagnosedAt": "Diagnostiziert {{when}}",
     "openInMonitoringTool": "Im Monitoring-Tool öffnen",
     "previousDiagnoses": "Frühere Diagnosen",
-    "noDiagnosisStored": "Für diesen Alarm ist noch keine Diagnose gespeichert."
+    "noDiagnosisStored": "Für diesen Alarm ist noch keine Diagnose gespeichert.",
+    "runMode": "Betriebsmodus",
+    "checkNowOffHint": "Schalten Sie den Agenten zuerst ein.",
+    "checkNowPausedHint": "Heben Sie zuerst die Pause auf."
   },
   "performance": {
     "acceptance": "Annahme",
@@ -451,8 +449,6 @@
     "identity": "Identität und Persona",
     "objectiveCapabilities": "Ziel und Fähigkeiten",
     "name": "Name",
-    "status": "Status",
-    "manageInMonitor": "Im Monitor verwalten",
     "archiveAgent": "Agent archivieren",
     "restoreAgent": "Agent wiederherstellen",
     "archiveDialog": {

@@ -53,6 +53,25 @@ const STATUS_COLORS: Record<string, string> = {
   waiting_approval: 'warning',
 };
 
+// Agent lifecycle (see lifecycleStatusKey) → status palette slot. Keyed on the
+// lifecycle KEY, never on the translated label: looking a colour up by the
+// display string silently degraded every agent to grey in non-English UIs (and
+// in English too, since the labels never matched the enum keys).
+const LIFECYCLE_COLORS: Record<string, string> = {
+  watchingAutomatic: 'success',
+  watchingAskFirst: 'success',
+  testing: 'info',
+  paused: 'error',
+  failed: 'error',
+  off: 'default',
+  notStarted: 'default',
+  archived: 'default',
+};
+
+export function lifecycleColor(lifecycleKey: string | null | undefined): string {
+  return LIFECYCLE_COLORS[lifecycleKey ?? ''] ?? 'default';
+}
+
 export type TicketWorkGroupLifecycle = 'needs_decision' | 'in_progress' | 'needs_attention' | 'finished';
 
 export type TicketWorkGroup = {
@@ -693,6 +712,22 @@ export function StatusText({ status }: { status: string }) {
   );
 }
 
+// Same sober dot + text treatment as StatusText, but for the agent lifecycle:
+// the colour comes from the lifecycle key and only the label is translated.
+export function LifecycleText({ lifecycleKey, size = 'normal' }: { lifecycleKey: string; size?: 'normal' | 'dense' }) {
+  const theme = useTheme();
+  const { t } = useTranslation(['agents']);
+  const dotColor = getDotColor(lifecycleColor(lifecycleKey), theme.palette.mode);
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+      <StatusDot color={dotColor} />
+      <Typography sx={{ color: dotColor, fontSize: size === 'dense' ? 12 : 13, fontWeight: 500, lineHeight: 1.35, minWidth: 0 }}>
+        {t(`lifecycle.${lifecycleKey}`)}
+      </Typography>
+    </Stack>
+  );
+}
+
 export function Section({
   title,
   actions,
@@ -818,9 +853,11 @@ export function ActionButtons({
   const executeLabel = action.status === 'approved' ? t('actions.execute') : t('actions.approve');
   return (
     <Stack direction="row" justifyContent="flex-end" spacing={0.75} flexWrap="wrap" useFlexGap>
+      {/* Per-proposal decisions are peers, not the primary call to action —
+          "Approve all" on the ticket group carries the contained treatment. */}
       <Tooltip title={blockedReason ?? executeLabel}>
         <span>
-          <Button size="small" variant="contained" disabled={busy || !canExecute} onClick={(event) => { event.stopPropagation(); onApprove(action); }}>
+          <Button size="small" variant="outlined" color="inherit" disabled={busy || !canExecute} onClick={(event) => { event.stopPropagation(); onApprove(action); }}>
             {executeLabel}
           </Button>
         </span>
