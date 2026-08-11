@@ -27,9 +27,9 @@ Il y a donc deux façons de faire fonctionner le chat : marquer un modèle par d
 
 L'indication en dessous renvoie directement vers la page **Modèles IA**, d'où proviennent toutes les options de la liste. Il n'y a plus ici ni fournisseur, ni point d'accès, ni clé API à renseigner, ni commutateur multimodal distinct : la capacité du modèle à lire les images est une propriété du modèle, définie une fois pour toutes dans son éditeur.
 
-### Built-in usage
+### Utilisation intégrée
 
-Lorsque Plaid tourne sur le modèle inclus KANAP — aucun choix explicite, aucun modèle par défaut d'organisation —, une carte **Built-in usage** apparaît avec :
+Lorsque Plaid tourne sur le modèle inclus KANAP — aucun choix explicite, aucun modèle par défaut d'organisation —, une carte **Utilisation intégrée** apparaît avec :
 
 - Le nombre de **messages utilisés ce mois-ci** par rapport à la limite, avec une barre de progression qui passe à l'ambre au-delà des trois quarts et au rouge à l'approche du plafond
 - La date de **réinitialisation** du volume

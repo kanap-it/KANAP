@@ -27,9 +27,9 @@ Así que hay dos formas de poner el chat en marcha: marcar un predeterminado con
 
 El texto de ayuda de debajo enlaza directamente con la página **Modelos IA**, que es de donde sale cada una de las opciones de la lista. Aquí ya no hay ningún proveedor, endpoint ni clave API que rellenar, ni ningún conmutador multimodal aparte: que el modelo pueda leer imágenes es una propiedad del modelo, que se define una sola vez en su editor.
 
-### Built-in usage
+### Uso integrado
 
-Cuando Plaid funciona con el modelo incluido de KANAP —sin elección explícita y sin predeterminado de la organización— aparece una tarjeta **Built-in usage** con:
+Cuando Plaid funciona con el modelo incluido de KANAP —sin elección explícita y sin predeterminado de la organización— aparece una tarjeta **Uso integrado** con:
 
 - Cuántos **mensajes lleva utilizados este mes** frente al límite, con una barra de progreso que se vuelve ámbar pasadas tres cuartas partes y roja cerca del tope
 - La fecha en la que se **restablece** el volumen

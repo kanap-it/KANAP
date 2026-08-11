@@ -29,7 +29,7 @@ Der Hinweis darunter verlinkt direkt auf die Seite **KI-Modelle**, aus der jede 
 
 ### Integrierte Nutzung
 
-Wenn Plaid auf dem Inklusiven KANAP-Modell läuft — keine ausdrückliche Wahl, kein Organisationsstandard —, erscheint eine Karte **Built-in usage** mit:
+Wenn Plaid auf dem Inklusiven KANAP-Modell läuft — keine ausdrückliche Wahl, kein Organisationsstandard —, erscheint eine Karte **Integrierte Nutzung** mit:
 
 - Der Anzahl der in diesem Monat verbrauchten Nachrichten im Vergleich zum Limit, mit einem Fortschrittsbalken, der ab drei Vierteln bernsteinfarben und kurz vor dem Limit rot wird
 - Dem Datum, an dem das Kontingent zurückgesetzt wird
