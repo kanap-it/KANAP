@@ -120,11 +120,11 @@
       },
       "builtinUsage": {
         "cta": "Use sus propias claves API para un uso ilimitado.",
-        "description": "El uso del proveedor integrado se comparte entre las solicitudes de chat y de MCP de este espacio de trabajo.",
-        "loadFailed": "No se pudo cargar el uso del proveedor integrado.",
+        "description": "El uso integrado se comparte entre las solicitudes de chat y de MCP de este espacio de trabajo.",
+        "loadFailed": "No se pudo cargar el uso integrado.",
         "reset": "Se restablece el {{date}}.",
         "summary": "{{count}} / {{limit}} mensajes utilizados este mes",
-        "title": "Uso del proveedor integrado"
+        "title": "Uso integrado"
       },
       "title": "Proveedor",
       "validationErrorsTitle": "Errores de validación del proveedor actual",
