@@ -108,7 +108,6 @@
     },
     "provider": {
       "apiKey": {
-        "keepExisting": "Leer lassen, um den gespeicherten Schlüssel für Speicher- und Testaktionen beizubehalten.",
         "storageUnavailable": "Der Geheimspeicher ist auf dieser Instanz nicht konfiguriert."
       },
       "chips": {
@@ -119,16 +118,6 @@
         "providerIncomplete": "Anbieter unvollständig",
         "providerReady": "Anbieter bereit"
       },
-      "connectionFailed": "Verbindung fehlgeschlagen",
-      "connectionSucceeded": "Verbindung erfolgreich",
-      "fields": {
-        "apiKey": "API-Schlüssel",
-        "endpointUrl": "Endpunkt-URL",
-        "model": "Modell",
-        "multimodal": "Multimodales LLM",
-        "provider": "Anbieter"
-      },
-      "multimodalHelper": "Aktivieren, wenn das Standardmodell Bilder analysieren kann (z. B. Ticket-Screenshots). Deaktivieren, wenn das Modell nur Text unterstützt.",
       "builtinUsage": {
         "cta": "Verwenden Sie Ihre eigenen API-Schlüssel für unbegrenzte Nutzung.",
         "description": "Die integrierte Nutzung wird für diesen Mandanten von Chat- und MCP-Anfragen gemeinsam genutzt.",
@@ -137,24 +126,6 @@
         "summary": "{{count}} / {{limit}} Nachrichten in diesem Monat verwendet",
         "title": "Integrierte Nutzung"
       },
-      "info": {
-        "ollama": "In Docker verwenden Sie http://host.docker.internal:<port>/v1 anstelle von localhost."
-      },
-      "placeholders": {
-        "anthropicModel": "z. B. claude-sonnet-4-20250514",
-        "apiKeyConfigured": "Schlüssel konfiguriert (leer lassen zum Beibehalten)",
-        "customEndpoint": "z. B. https://my-provider.example.com/v1",
-        "enterApiKey": "API-Schlüssel eingeben",
-        "modelIdentifier": "Modell-Kennung",
-        "ollamaEndpoint": "z. B. http://host.docker.internal:1234/v1",
-        "ollamaModel": "z. B. llama3, mistral",
-        "openaiModel": "z. B. gpt-4o"
-      },
-      "sources": {
-        "builtin": "Plaid AI - Built-in",
-        "custom": "Your own provider"
-      },
-      "testLabel": "Anbieter-Test",
       "title": "Anbieter",
       "validationErrorsTitle": "Aktuelle Validierungsfehler des Anbieters",
       "modelSelector": {

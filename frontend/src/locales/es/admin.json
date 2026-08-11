@@ -108,7 +108,6 @@
     },
     "provider": {
       "apiKey": {
-        "keepExisting": "Deje vacío para mantener la clave almacenada para las acciones de guardado y prueba.",
         "storageUnavailable": "El almacenamiento seguro no está configurado en esta instancia."
       },
       "chips": {
@@ -119,16 +118,6 @@
         "providerIncomplete": "Proveedor incompleto",
         "providerReady": "Proveedor listo"
       },
-      "connectionFailed": "Conexión fallida",
-      "connectionSucceeded": "Conexión exitosa",
-      "fields": {
-        "apiKey": "Clave API",
-        "endpointUrl": "URL del endpoint",
-        "model": "Modelo",
-        "multimodal": "LLM multimodal",
-        "provider": "Proveedor"
-      },
-      "multimodalHelper": "Actívelo si el modelo predeterminado puede analizar imágenes (p. ej., capturas de tickets). Desactívelo si el modelo solo admite texto.",
       "builtinUsage": {
         "cta": "Use sus propias claves API para un uso ilimitado.",
         "description": "El uso del proveedor integrado se comparte entre las solicitudes de chat y de MCP de este espacio de trabajo.",
@@ -137,24 +126,6 @@
         "summary": "{{count}} / {{limit}} mensajes utilizados este mes",
         "title": "Uso del proveedor integrado"
       },
-      "info": {
-        "ollama": "En Docker, use http://host.docker.internal:<port>/v1 en lugar de localhost."
-      },
-      "placeholders": {
-        "anthropicModel": "Ej.: claude-sonnet-4-20250514",
-        "apiKeyConfigured": "Clave configurada (deje vacío para mantener)",
-        "customEndpoint": "Ej.: https://my-provider.example.com/v1",
-        "enterApiKey": "Introduzca la clave API",
-        "modelIdentifier": "Identificador del modelo",
-        "ollamaEndpoint": "Ej.: http://host.docker.internal:1234/v1",
-        "ollamaModel": "Ej.: llama3, mistral",
-        "openaiModel": "Ej.: gpt-4o"
-      },
-      "sources": {
-        "builtin": "Plaid AI - Built-in",
-        "custom": "Your own provider"
-      },
-      "testLabel": "Prueba del proveedor",
       "title": "Proveedor",
       "validationErrorsTitle": "Errores de validación del proveedor actual",
       "modelSelector": {
