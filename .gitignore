@@ -57,6 +57,10 @@ doc/operations/
 doc/planning/
 doc/templates/
 doc/cheatsheets/__pycache__/
+# MkDocs build output. Cloudflare Pages rebuilds this from source on every push
+# to main (see doc/help/DEPLOYMENT.md), so the committed copy served no purpose
+# beyond going stale and swamping every docs diff.
+doc/help/site/
 # AI tooling
 .claude/
 .playwright-mcp/
