@@ -42,6 +42,7 @@ import {
   type AiAgentControlActionRequest,
   type AiAgentControlWorkItem,
 } from '../../ai/aiApi';
+import RunTraceDialog from '../../components/agents/RunTraceDialog';
 import { useLocale } from '../../i18n/useLocale';
 import { useAgentControlData } from './useAgentControlData';
 
@@ -73,6 +74,28 @@ type CompactRow = {
   caption?: string | null;
   traceRunId?: string | null;
 };
+
+// The run trace opens in place, over the approvals list. A context rather than
+// prop drilling: the trace button sits three component layers down, and the URL
+// stays untouched so closing the dialog returns to the exact same context
+// (filters, scroll, and — in the agent workspace — the current tab).
+const OpenRunTraceContext = React.createContext<(runId: string) => void>(() => undefined);
+
+function TraceButton({ runId, dense }: { runId: string; dense?: boolean }) {
+  const { t } = useTranslation(['agents']);
+  const openTrace = React.useContext(OpenRunTraceContext);
+  return (
+    <Button
+      size="small"
+      variant="text"
+      startIcon={<VisibilityOutlinedIcon />}
+      onClick={() => openTrace(runId)}
+      sx={dense ? { minHeight: 24, py: 0 } : undefined}
+    >
+      {t('approvals.trace')}
+    </Button>
+  );
+}
 
 function proposalIcon(capabilityName: string) {
   if (capabilityName === PUBLIC_REPLY_CAPABILITY) return <ForumOutlinedIcon fontSize="small" color="action" />;
@@ -245,11 +268,7 @@ function CompactLifecycleRow({
         <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 400 })}>
           {displayedTime}
         </Typography>
-        {row.traceRunId && (
-          <Button size="small" variant="text" startIcon={<VisibilityOutlinedIcon />} href={`/agents/activity?runId=${row.traceRunId}`} sx={{ minHeight: 24, py: 0 }}>
-            {t('approvals.trace')}
-          </Button>
-        )}
+        {row.traceRunId && <TraceButton runId={row.traceRunId} dense />}
       </Stack>
       {row.caption && (
         <Typography sx={(theme) => ({ color: theme.palette.kanap.danger, fontSize: 12, fontWeight: 400, lineHeight: 1.35, mt: 0.2 })}>
@@ -362,11 +381,7 @@ function DecisionGroup({
                 {t('approvals.dismissAll')}
               </Button>
             )}
-            {group.latestRunId && (
-              <Button size="small" variant="text" startIcon={<VisibilityOutlinedIcon />} href={`/agents/activity?runId=${group.latestRunId}`}>
-                {t('approvals.trace')}
-              </Button>
-            )}
+            {group.latestRunId && <TraceButton runId={group.latestRunId} />}
           </Stack>
         </Stack>
         <Stack spacing={1}>
@@ -502,6 +517,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const [rejectReason, setRejectReason] = React.useState('');
   const [terminalApproval, setTerminalApproval] = React.useState<TerminalApprovalRequest>(null);
   const [terminalApprovalReason, setTerminalApprovalReason] = React.useState('');
+  const [traceRunId, setTraceRunId] = React.useState<string | null>(null);
   const [finishedOpen, setFinishedOpen] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(FINISHED_OPEN_STORAGE_KEY) === 'true';
@@ -583,6 +599,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
     : !!terminalApproval?.actions[0] && data.busyActionId === terminalApproval.actions[0].id;
 
   return (
+    <OpenRunTraceContext.Provider value={setTraceRunId}>
     <Box sx={{ p: agentKey ? 0 : 2 }}>
       {!agentKey && (
         <>
@@ -736,7 +753,10 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
             <ApprovalReasonField value={terminalApprovalReason} onChange={setTerminalApprovalReason} />
           </Stack>
         </KanapDialog>
+
+        <RunTraceDialog runId={traceRunId} onClose={() => setTraceRunId(null)} />
       </Stack>
     </Box>
+    </OpenRunTraceContext.Provider>
   );
 }

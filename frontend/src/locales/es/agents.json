@@ -262,6 +262,7 @@
       "decision": "Decisión",
       "execution": "Ejecución",
       "configuration": "Configuración",
+      "check": "Comprobaciones",
       "pause": "Pausa",
       "error": "Error"
     },
@@ -285,12 +286,42 @@
       "agent_autonomy_demoted": "Modo automático degradado",
       "agent_autonomy_execution_failed": "Ejecución automática fallida",
       "per_run_cap_exceeded": "Límite de seguridad por ejecución alcanzado",
-      "poller_cycle_completed": "Comprobación de tickets completada",
-      "poller_cycle_completed_sre": "Comprobación de alertas completada",
+      "poller_cycle_completed": "Comprobación de tickets",
+      "poller_cycle_completed_sre": "Comprobación de alertas",
       "work_item_processing_failed": "Fallo en el procesamiento del ticket",
       "work_item_processing_failed_sre": "Fallo en el procesamiento de la alerta",
       "agent_deleted": "Agente eliminado"
-    }
+    },
+    "checkSummary": {
+      "noTickets": "sin tickets nuevos",
+      "noAlerts": "sin alertas nuevas",
+      "newTickets_one": "{{count}} ticket nuevo",
+      "newTickets_other": "{{count}} tickets nuevos",
+      "newAlerts_one": "{{count}} alerta nueva",
+      "newAlerts_other": "{{count}} alertas nuevas",
+      "duplicates_one": "{{count}} ya visto",
+      "duplicates_other": "{{count}} ya vistos",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errores"
+    },
+    "checkStatus": {
+      "disabled": "Sin vigilancia",
+      "paused": "En pausa",
+      "skipped": "Omitida",
+      "failed": "Fallida"
+    },
+    "checkFields": {
+      "listed": "Vistos",
+      "enqueued": "En cola",
+      "deduped": "Ya vistos",
+      "processed": "Procesados"
+    },
+    "loadMore": "Cargar más",
+    "shown": "{{shown}} mostradas",
+    "shownOfTotal": "{{shown}} de {{total}} mostradas",
+    "runStarted": "Iniciado {{value}}",
+    "runCompleted": "finalizado {{value}}",
+    "runDuration": "duración {{value}}"
   },
   "workspace": {
     "back": "Volver a agentes",
@@ -723,7 +754,9 @@
     "modelTenantDefault": "Predeterminado de la organización",
     "modelHint": "El modelo IA con el que funciona este agente. Los modelos se gestionan en Administración, en Modelos IA.",
     "modelListError": "No se pudo cargar la lista de modelos; las opciones mostradas pueden estar incompletas.",
-    "costCapHint": "Estimado con los precios del modelo asignado. Un modelo gratuito (0 €) nunca alcanza este límite: los límites de tokens siguen siendo la protección."
+    "costCapHint": "Estimado con los precios del modelo asignado. Un modelo gratuito (0 €) nunca alcanza este límite: los límites de tokens siguen siendo la protección.",
+    "activityRetention": "Conservar el historial de actividad (días)",
+    "activityRetentionHint": "Cuánto tiempo se conserva el historial de este agente. Las entradas más antiguas se eliminan automáticamente (de 7 a 90 días). Conserve al menos 30 días si piensa activar el modo automático: el historial del agente se mide sobre los últimos 28 días."
   },
   "actions": {
     "internalNote": "Nota interna",

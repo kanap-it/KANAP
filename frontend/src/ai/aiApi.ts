@@ -1096,7 +1096,29 @@ export type AiAgentControlBadgeSummary = {
   pendingApprovals: number;
 };
 
-export type AiAgentControlActivityType = 'proposal' | 'decision' | 'execution' | 'configuration' | 'pause' | 'error';
+export type AiAgentControlActivityType = 'proposal' | 'decision' | 'execution' | 'configuration' | 'check' | 'pause' | 'error';
+
+export const AI_AGENT_CONTROL_ACTIVITY_TYPES: AiAgentControlActivityType[] = [
+  'proposal',
+  'decision',
+  'execution',
+  'configuration',
+  'check',
+  'pause',
+  'error',
+];
+
+// What a watcher cycle actually did, as stored in its audit event.
+export type AiAgentControlActivityCheck = {
+  listed: number;
+  enqueued: number;
+  deduped: number;
+  processed: number;
+  errorCount: number;
+  errors: string[];
+  status: string | null;
+  reason: string | null;
+};
 
 export type AiAgentControlActivityDetail = {
   capabilityName: string | null;
@@ -1105,6 +1127,7 @@ export type AiAgentControlActivityDetail = {
   reason: string | null;
   rationale: string | null;
   evidenceCount: number | null;
+  check?: AiAgentControlActivityCheck | null;
 };
 
 export type AiAgentControlActivityEntry = {
@@ -1132,9 +1155,10 @@ export type AiAgentControlActivityEntry = {
 
 export type AiAgentControlActivityResult = {
   items: AiAgentControlActivityEntry[];
-  total: number;
+  // Only counted on the first page (no cursor); null on "load more" pages.
+  total: number | null;
   limit: number;
-  offset: number;
+  nextCursor: string | null;
 };
 
 export type AiAgentControlEvaluationDailyResult = {
@@ -1546,7 +1570,7 @@ export const aiAgentControlApi = {
     actorUserId?: string | null;
     status?: string | null;
     limit?: number;
-    offset?: number;
+    cursor?: string | null;
   }): Promise<AiAgentControlActivityResult> {
     const res = await api.get('/ai/admin/control-plane/activity', {
       params: {

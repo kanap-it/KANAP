@@ -42,6 +42,7 @@ import {
 import { AiCapabilityRegistry, providerCapabilityContracts } from '../control-plane/capability/ai-capability.registry';
 import { AiAutomationJobCatalogService } from '../control-plane/automation/ai-automation-job-catalog.service';
 import { AiAgentControlService, proposalStillBlocksRegeneration } from '../control-plane/agent-control/ai-agent-control.service';
+import { auditActivityType, auditActivityTypeClauseSql } from '../control-plane/agent-control/ai-agent-activity-timeline';
 import {
   AiAgentPromptCompilerService,
   RUNTIME_SAFETY_FLOOR_ACTION_PLANNER,
@@ -170,7 +171,17 @@ function createMemoryManager() {
   };
   const matchesWhere = (row: any, where: any) =>
     Object.entries(where).every(([key, value]) => matchesValue(row[key], value));
-  const fieldValue = (row: any, rawField: string) => row[String(rawField).split('.').pop() ?? rawField];
+  const fieldValue = (row: any, rawField: string): any => {
+    const coalesce = String(rawField).match(/^COALESCE\(([^)]+)\)$/i);
+    if (coalesce) {
+      for (const part of coalesce[1].split(',')) {
+        const value = fieldValue(row, part.trim());
+        if (value != null) return value;
+      }
+      return null;
+    }
+    return row[String(rawField).split('.').pop() ?? rawField];
+  };
   const matchesQueryCondition = (row: any, rawCondition: string, params: Record<string, any> = {}) => {
     const condition = rawCondition.replace(/\s+/g, ' ').trim();
     if (condition.includes('tenant_id = :tenantId OR') && condition.includes('tenant_id IS NULL')) {
@@ -220,6 +231,52 @@ function createMemoryManager() {
       if (op === '<=') return left <= right;
       if (op === '>') return left > right;
       return left < right;
+    }
+    if (condition === 'false') {
+      return false;
+    }
+    // Activity timeline: the audit-type predicate is generated clause by clause
+    // from the same classifier the service uses, so the harness can decide by
+    // classifying the row and looking for its clause.
+    if (condition.includes('lower(event.event_type)')) {
+      return condition.includes(auditActivityTypeClauseSql('event', auditActivityType(row)));
+    }
+    // Activity timeline: approvals filtered through their linked action request.
+    if (condition.startsWith('EXISTS (SELECT 1 FROM ai_action_requests linked')) {
+      const linked = (stores.get(AiActionRequest.name) ?? []).find((entry: any) => entry.id === row.action_request_id);
+      if (!linked) return false;
+      if (condition.includes("linked.metadata_json ->> 'agent_definition_id'")) {
+        return String(linked.metadata_json?.agent_definition_id ?? '') === String(params.agentDefinitionId ?? '');
+      }
+      if (condition.includes('linked.target_ref ILIKE')) {
+        const needle = String(params.targetRef ?? '').replace(/%/g, '').toLocaleLowerCase();
+        return String(linked.target_ref ?? '').toLocaleLowerCase().includes(needle);
+      }
+      return false;
+    }
+    const metadataIlikeEither = condition.match(/^\(([a-z]+)\.metadata_json ->> '(\w+)' ILIKE :(\w+) OR [a-z]+\.metadata_json ->> '(\w+)' ILIKE :\3\)$/i);
+    if (metadataIlikeEither) {
+      const [, , firstKey, param, secondKey] = metadataIlikeEither;
+      const needle = String(params[param] ?? '').replace(/%/g, '').toLocaleLowerCase();
+      return [firstKey, secondKey].some((key) => String(row.metadata_json?.[key] ?? '').toLocaleLowerCase().includes(needle));
+    }
+    const coalesceComparison = condition.match(/^COALESCE\(([^)]+)\) (>=|<=|>|<) :(\w+)$/i);
+    if (coalesceComparison) {
+      const [, expression, op, param] = coalesceComparison;
+      const leftValue = fieldValue(row, `COALESCE(${expression})`);
+      const left = leftValue instanceof Date ? leftValue.getTime() : Date.parse(String(leftValue ?? ''));
+      const rightRaw = params[param];
+      const right = rightRaw instanceof Date ? rightRaw.getTime() : Date.parse(String(rightRaw ?? ''));
+      if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
+      if (op === '>=') return left >= right;
+      if (op === '<=') return left <= right;
+      if (op === '>') return left > right;
+      return left < right;
+    }
+    const isNotNull = condition.match(/^[a-z]+\.(\w+) IS NOT NULL$/i);
+    if (isNotNull) {
+      const [, field] = isNotNull;
+      return row[field] != null;
     }
     const equality = condition.match(/^[a-z]+\.(\w+) = :(\w+)$/i);
     if (equality) {
