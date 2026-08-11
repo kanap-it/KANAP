@@ -134,7 +134,7 @@ Rien de ce qui modifie les données de KANAP n'est appliqué en silence. L'aper�
 
 Au-dessus du composeur, deux petits indicateurs vous aident à garder à l'esprit les coûts et les limites :
 
-- **Utilisation intégrée** : lorsque votre tenant utilise le fournisseur d'IA Plaid intégré (au lieu de votre propre clé API), cet indicateur montre combien de messages restent pour le mois en cours ainsi que la date de réinitialisation du quota. Lorsque la limite est atteinte, le composeur est désactivé et un texte d'aide invite les administrateurs à basculer vers un fournisseur personnalisé.
+- **Utilisation intégrée** : lorsque Plaid s'exécute sur le modèle inclus KANAP plutôt que sur l'un des modèles propres à votre organisation, cet indicateur montre combien de messages restent pour le mois en cours ainsi que la date de réinitialisation du quota. Lorsque la limite est atteinte, le composeur est désactivé et un texte d'aide invite les administrateurs à basculer vers un modèle qui leur est propre — voir [Modèles IA](ai-models.md).
 - **Utilisation des tokens** : une fine barre avec des compteurs de tokens en entrée/sortie pour la conversation en cours, ainsi que la taille de la dernière requête. Les longues conversations deviennent plus coûteuses avec le temps ; la barre rend ce coût visible afin que vous puissiez décider quand démarrer un nouveau fil.
 
 La barre d'utilisation des tokens n'apparaît qu'une fois que la conversation compte au moins un échange.

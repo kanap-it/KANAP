@@ -1,11 +1,11 @@
 # Plaid Settings
 
-The provider you configure on this page is the default AI model for your whole tenant — it powers both the interactive [Plaid chat assistant](ai-assistant.md) and the automated [AI Agents](agents-overview.md) that triage tickets. So this is not a chat-only screen: choosing a provider, turning on multimodal support, or hitting a monthly limit affects the agents just as much as the chat box. The page also controls which AI surfaces are switched on, how long conversations are kept, which keys let external MCP clients reach your data, and it gives administrators a tenant-wide usage overview to keep an eye on traffic and cost.
+This page controls the [Plaid chat assistant](ai-assistant.md): which AI model it talks to, whether chat and the MCP API are switched on, how long conversations are kept, and which keys let external MCP clients reach your data. It is a chat-focused screen. The models themselves — providers, keys, prices — are defined once on the [AI models](ai-models.md) page, and each [AI agent](agents-workspace.md) picks its own model on its Settings tab, so nothing you change here alters how the agents run.
 
 ## Where to find it
 
 - Workspace: **Admin**
-- Path: **Admin → Plaid**
+- Path: **Admin → Artificial intelligence → Plaid**
 - Route: `/admin/ai`
 - Permission: `ai_settings:admin`
 - Feature flag: requires the AI settings surface to be enabled. When it is off, the page shows a notice ("AI settings are disabled for this instance") and no controls are available.
@@ -14,41 +14,28 @@ The provider you configure on this page is the default AI model for your whole t
 
 ## Provider
 
-The **Provider** section chooses which large language model your tenant uses. The model you set here is what the Plaid chat assistant talks to *and* what every AI agent uses to read tickets, plan work, and draft replies — there is no separate model setting for agents.
+### Model used by Plaid
 
-### Provider source
+A single selector decides which model answers chat questions:
 
-When the built-in provider is offered on your instance, you can pick between:
+- **Default model (*name*)** — the organization default from the [AI models](ai-models.md) page, named so you can see what you are getting. This is the first option and the usual answer: leave it here and Plaid follows the default wherever you move it.
+- **KANAP included model** — shown in place of the above when no default is set, on the hosted service. Plaid then runs on the model included in your subscription, within its monthly message allowance.
+- **No model configured** — shown when there is no default *and* no included model, which is the on-premise case. Note that this option keeps saying *No model configured* until some model is starred as the organization default, even if you have already registered several — it describes the fallback, not your registry.
+- **Any active model by name** — pin Plaid to one specific model, independent of the default. Archived models are not offered.
 
-- **Plaid AI - Built-in** — KANAP's hosted service, with a monthly message allowance tracked per tenant.
-- **Your own provider** — bring your own API key for **Anthropic**, **OpenAI**, **Ollama**, or a **Custom** (OpenAI-compatible) endpoint. No allowance beyond what your own provider enforces.
+So there are two ways to get chat working: star a default on the [AI models](ai-models.md) page and leave this selector on the first option, or pick a model here by name. Pinning one here works whether or not a default exists.
 
-When the built-in option is not offered (typical on-prem deployments), only the custom provider configuration is shown.
+The hint underneath links straight to the **AI models page**, which is where every option in the list comes from. There is no provider, endpoint, or API key to fill in here any more, and no separate multimodal switch — whether the model can read images is a property of the model, set once in its editor.
 
 ### Built-in usage
 
-If you select the built-in provider, a **Built-in usage** card appears with:
+When Plaid is running on the KANAP included model — no explicit choice, no organization default — a **Built-in usage** card appears with:
 
-- A progress bar of **messages used this month** against the per-tenant limit
-- The **reset** date for the allowance
-- A reminder that switching to your own keys removes the cap
+- How many **messages used this month** against the limit, with a progress bar that turns amber past three-quarters and red near the top
+- The date the allowance **resets**
+- A reminder that using your own API keys removes the cap
 
-The built-in allowance is shared across chat and MCP requests for this tenant, and a "message" is counted the same way it is in the [Usage Overview](#usage-overview) below — one chat question *or* one ticket reviewed by an agent. In other words, agent activity draws from the same monthly allowance as chat, so a busy agent fleet consumes it faster.
-
-### Custom provider configuration
-
-Select **Your own provider** to expose:
-
-- **Provider** — Anthropic, OpenAI, Ollama, or Custom (OpenAI-compatible). Leave it on **None** to clear the setting.
-- **Model** — the exact model identifier (for example `claude-sonnet-4-20250514`, `gpt-4o`, or `llama3`).
-- **Endpoint URL** — shown only for Ollama and Custom providers. When Ollama runs on the host while KANAP runs in Docker, use `http://host.docker.internal:<port>/v1` rather than `localhost`.
-- **API Key** — required when the provider needs one. Existing keys are masked; leave the field blank to keep the stored value during a save or test. If secret storage is not configured on the instance, the field says so.
-
-Once everything is set, click **Test connection** to run a no-cost ping against the provider. The result appears in a banner with the provider, model, and round-trip latency.
-
-### Multimodal LLM
-
-The **Multimodal LLM** toggle controls whether the model is allowed to look at images. When it is on, both the chat assistant and the AI agents can read attached pictures — most usefully, the **ticket screenshots** requesters paste into a ticket, which agents then use as evidence when drafting a reply. Turn it on only if your configured model actually supports vision; turn it off if the model is text-only, otherwise image requests will fail. New tenants start with it enabled.
+As the card says, the allowance is shared across chat and MCP requests for this tenant — and the agents draw on it too. One message is one chat question, one request from an external assistant over MCP, or one ticket reviewed by an agent. A busy agent fleet consumes it faster, so if you are watching this bar, watch the [Usage & costs](ai-usage.md) page too.
 
 ### Status chips
 
@@ -56,9 +43,9 @@ The header of the Provider card shows three at-a-glance indicators:
 
 - **Chat enabled / Chat disabled** — the master switch for end-user chat
 - **MCP enabled / MCP disabled** — whether external MCP clients can connect
-- **Provider ready / Provider incomplete** — whether the provider configuration is valid and usable
+- **Provider ready / Provider incomplete** — whether the model Plaid resolves to is actually usable
 
-Validation errors (missing API key, wrong endpoint shape, unknown model) appear in a warning above the form under **Current provider validation errors**, so you know exactly what to fix.
+When something is missing, **Current provider validation errors** lists it above the form — an incomplete model, or no model at all. The fix is normally on the [AI models](ai-models.md) page rather than here.
 
 ---
 
@@ -66,7 +53,7 @@ Validation errors (missing API key, wrong endpoint shape, unknown model) appear 
 
 The **Features** section toggles the optional AI surfaces:
 
-- **Enable chat** — turns the in-app chat workspace on or off for end users.
+- **Enable chat** — turns the in-app chat workspace on or off for end users. It cannot be switched on while the header says **Provider incomplete**: the save is refused with the reasons listed, and you fix them on the [AI models](ai-models.md) page first. The same check runs on every save while chat is already on, so a model that becomes incomplete later will block unrelated changes on this page until it is sorted out.
 - **Enable MCP** — turns the MCP API on or off for external clients.
 - **Web search** — lets the Plaid chat assistant search the web. It requires the instance-level web-search key to be configured; without it, the toggle is disabled and a tooltip explains why. Switching it on automatically runs a connectivity test and reports the result. This toggle applies to the **chat assistant only** — AI agents have their own, independent web-search setting on each agent's [Settings tab](agents-workspace.md), which relies on the same instance-level configuration.
 
@@ -76,11 +63,13 @@ The **Features** section toggles the optional AI surfaces:
 
 - **Conversation retention (days)** — chat conversations and their messages older than this value become eligible for automatic cleanup. Leave it empty to keep them indefinitely.
 
+Changes in **Provider**, **Features**, **Retention** *and* the **Key max lifetime (days)** field further down are all applied by the single **Save settings** button at the bottom of this card. Nothing on this page saves by itself.
+
 ---
 
-## MCP API Keys
+## MCP API keys
 
-The **MCP API Keys** section mints long-lived keys so external assistants and IDEs can talk to KANAP through the Model Context Protocol, using the same data Plaid sees.
+The **MCP API keys** section mints long-lived keys so external assistants and IDEs can talk to KANAP through the Model Context Protocol, using the same data Plaid sees.
 
 The card shows a **Create key** button, the **Key max lifetime (days)** cap, and a table of existing keys with **Label**, **Prefix**, **Created**, **Expires**, **Last used**, and **Status** (**Active** or **Revoked**).
 
@@ -91,7 +80,7 @@ The card shows a **Create key** button, the **Key max lifetime (days)** cap, and
 3. Click **Create**. KANAP generates a one-time secret.
 4. Copy the secret immediately — it is shown once and cannot be retrieved later.
 
-The **Key max lifetime (days)** field caps how long any newly issued key can live, regardless of what the request asks for. Leave it empty for no expiration limit.
+The **Key max lifetime (days)** field caps how long any newly issued key can live, regardless of what the request asks for. Leave it empty for no expiration limit. Note that this one field belongs to the settings above rather than to this card: it is written by the **Save settings** button, not by creating a key.
 
 ### Revoking a key
 
@@ -99,29 +88,11 @@ Click the trash icon on any active row to revoke the key. Revoked keys stay in t
 
 ---
 
-## Usage Overview
-
-At the bottom of the page, the **Usage Overview** card summarizes AI activity for the whole organization. As the card explains, a **message** is one question sent to Plaid *or* one ticket reviewed by an agent — the same unit the included monthly volume counts.
-
-The top row of metric cards covers chat conversations:
-
-- **All conversations** — total conversations ever created
-- **Active conversations (7d)** and **Active conversations (30d)** — conversations updated in the last 7 or 30 days
-- **Active users (30d)** — unique users who chatted in the last 30 days
-
-Below that, the **Token usage** table breaks down two windows — **Current month** and **Last 30 days** — into **Input tokens**, **Output tokens**, **Total tokens**, and **User messages** (the chat questions asked in each window).
-
-If any agent has done work, an **Agent messages (this month)** block appears underneath. **All agents** shows the combined count of tickets reviewed this month across the fleet, and one card per agent shows that agent's own count; each card's caption reports the **Last 30 days** figure for the same scope. This is the tenant-wide counterpart to the per-agent numbers on the [agent workspace](agents-workspace.md) — use it to see which agents are doing the most work and to sanity-check that agent volume against your provider budget.
-
-Token totals summarize the model input and output for each window; agent volume is tracked separately as the message counts in the **Agent messages** block rather than being broken out into its own token line here.
-
----
-
 ## Tips
 
-- **Set the model with agents in mind.** Because agents share this provider, a cheaper text-only model saves money on chat but leaves your triage agents unable to read screenshots — decide with both jobs in view, and pair a vision-capable model with the **Multimodal LLM** toggle if agents will handle image-heavy tickets.
-- **Test before you switch chat on.** The **Test connection** button validates credentials without writing anything or spending quota. Run it before turning on chat for end users or starting an agent.
+- **Leave Plaid on the default model unless you have a reason not to.** Pinning chat to a specific model means it stops following the organization default — useful when chat and agents genuinely need different models, a nuisance otherwise.
+- **Chat volume is cheap to underestimate.** The [Usage & costs](ai-usage.md) page prices chat at the assigned model's rates; a busy assistant on an expensive model shows up there long before it shows up on an invoice.
+- **A vision model is an agent requirement, not a chat one.** If your triage agents need to read ticket screenshots, that belongs on *their* model — see **Understands images** on the [AI models](ai-models.md) page.
 - **Rotate MCP keys.** Prefer short-lived keys for shared workstations, and use **Key max lifetime (days)** to enforce a ceiling no request can exceed.
-- **Watch the token totals and agent counts together.** A single month with very high totals usually traces back to a few long conversations or a heavy agent workload — the **Agent messages** block tells you which, so you can encourage fresh chat threads per topic or revisit an agent's checking cadence.
 - **Set a retention window.** Keeping conversations forever is convenient until the database grows large or a compliance review asks how long chat content is kept — 90 or 180 days is a common starting point.
 - **GLPI lives elsewhere.** The ticketing connection your agents work against is configured under **Admin → Integrations**, not here — see [Integrations](integrations.md).

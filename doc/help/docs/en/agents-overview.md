@@ -26,7 +26,7 @@ A few ideas recur across every page in this section. Learn them once here.
 
 Only the **Helpdesk** agent type is usable end to end today. Other types may appear in the agent-type list, but they are not ready to run — stick with Helpdesk.
 
-Two other AI surfaces are easy to confuse with agents but are separate things: [Plaid](ai-assistant.md) is the interactive chat assistant you drive yourself, and [Plaid Settings](ai-settings.md) is where the shared AI provider is configured.
+Two other AI surfaces are easy to confuse with agents but are separate things: [Plaid](ai-assistant.md) is the interactive chat assistant you drive yourself, and [Plaid Settings](ai-settings.md) configures that assistant. The models themselves live on the [AI models](ai-models.md) page, where each agent's model — and the organization default it falls back to — is defined.
 
 ---
 
@@ -86,7 +86,7 @@ Admins get a **New agent** card at the end of the fleet grid. It opens a five-st
 1. **Type** — give the agent a **Name** and **Description**. The **Agent type** is fixed to **Helpdesk**.
 2. **Connection** — pick the ticketing system it works against (**GLPI**). A **Manage integrations** link jumps to **Admin → Integrations** if the connection isn't set up yet.
 3. **Watching** — decide whether it should watch on its own with the **Watch new tickets** toggle, then choose which tickets it targets. Presets (**New tickets**, **All open**, **Handled by this agent**) give you a starting point; the filter builder narrows it further, with all filters combined and their values drawn from the connected ticketing system.
-4. **Limits** — the safety frame. This covers **Agent priority** and **Review every (hours)** (how often it revisits the same ticket), **Ticket collision** handling when another agent is already on a ticket, **Max tickets per check** and **Max provider requests** per check, the **Approval window (hours)** (how long each check's proposals stay open before expiring — they all expire together), the **If ticket changed** behavior (re-review, cancel, or apply anyway), and the per-run and daily caps on **Tokens**, **Cost**, and **Runs**. The template ships sensible defaults; the full meaning of each field is documented on the [Agent workspace](agents-workspace.md) Settings tab.
+4. **Limits** — the safety frame. This covers the **AI model** the agent runs on (**Organization default** unless you pin one), **Agent priority** and **Review every (hours)** (how often it revisits the same ticket), **Ticket collision** handling when another agent is already on a ticket, **Max tickets per check** and **Max provider requests** per check, the **Approval window (hours)** (how long each check's proposals stay open before expiring — they all expire together), the **If ticket changed** behavior (re-review, cancel, or apply anyway), and the per-run and daily caps on **Tokens**, **Cost**, and **Runs**. The template ships sensible defaults; the full meaning of each field is documented on the [Agent workspace](agents-workspace.md) Settings tab.
 5. **Review** — a summary of everything above.
 
 New agents are always created as **Not started**, and you land on their **Settings** tab. The recommended path is to test the agent on a real ticket first, then turn on watching once you trust its output.

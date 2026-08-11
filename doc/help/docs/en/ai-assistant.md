@@ -134,7 +134,7 @@ Nothing that mutates KANAP data is applied silently. The preview is the gate.
 
 Above the composer, two small indicators help you stay aware of cost and limits:
 
-- **Built-in usage**: when your tenant uses the built-in Plaid AI provider (instead of your own API key), this shows how many messages remain in the current month and the date the quota resets. When the limit is reached, the composer is disabled and a helper text invites administrators to switch to a custom provider.
+- **Built-in usage**: when Plaid is running on the KANAP included model rather than one of your organization's own models, this shows how many messages remain in the current month and the date the quota resets. When the limit is reached, the composer is disabled and a helper text invites administrators to switch to a model of their own — see [AI models](ai-models.md).
 - **Token usage**: a thin bar with input/output token counters for the current conversation, plus the size of the last request. Long conversations get more expensive over time; the bar makes that cost visible so you can decide when to start a fresh thread.
 
 The token usage bar only appears once the conversation has at least one exchange.

@@ -1,6 +1,6 @@
 # User Manual Documentation Inventory
 
-_Generated: 2026-05-10_
+_Generated: 2026-08-10_
 
 This document tracks documentation coverage for the KANAP user manual.
 
@@ -13,14 +13,14 @@ This document tracks documentation coverage for the KANAP user manual.
 | IT Landscape | 8 | 8 | 0 |
 | Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
-| Admin & Settings | 13 | 13 | 0 |
+| Admin & Settings | 15 | 15 | 0 |
 | Plaid | 1 | 1 | 0 |
 | AI Agents | 5 | 5 | 0 |
 | Reports | 10 | 10 | 0 |
 | Portfolio | 10 | 10 | 0 |
-| **TOTAL** | **66** | **66** | **0** |
+| **TOTAL** | **68** | **68** | **0** |
 
-_Note: Supplemental Fast Track guides are excluded from these route-based counts. All tenant-facing routes have a manual. The classic product (through the 2026-05-10 sweep) is available in en/fr/de/es; the AI Agents section (added 2026-07-05) is also available in en/fr/de/es._
+_Note: Supplemental Fast Track guides are excluded from these route-based counts. All tenant-facing routes have a manual. The classic product (through the 2026-05-10 sweep) is available in en/fr/de/es; the AI Agents section (added 2026-07-05) is also available in en/fr/de/es. The two AI model registry pages (added 2026-08-10) are available in en/fr/de/es._
 
 ---
 
@@ -28,6 +28,7 @@ _Note: Supplemental Fast Track guides are excluded from these route-based counts
 
 | Date | Doc File | Changes |
 |------|----------|---------|
+| 2026-08-10 | _AI model registry (2 new + 4 refreshed)_ | Documented the per-tenant AI model registry shipped in PRs #140 + #142. New: `ai-models.md` (`/admin/ai-models` — the model list with the pinned KANAP included model row, capabilities, €/M-token prices, "Used by", the default-model star, the editor dialog, and the archive/restore rules) and `ai-usage.md` (`/admin/ai-usage` — the token/conversation metrics moved off the Plaid page, plus real monthly and 30-day costs broken down by agent and by model, with the Plaid-estimate caveat). Rewrote `ai-settings` around the single **Model used by Plaid** selector (the provider radio, the flat provider/model/endpoint/key fields, the Multimodal LLM toggle and the Usage Overview are all gone). Refreshed `agents-workspace` (per-agent **AI model** selector defaulting to **Organization default**; cost caps priced by the assigned model and inert on a free one; monitoring agents get the same selector), `agents-overview` (Limits list + the "shared provider" framing), `ai-assistant` (built-in usage now phrased as the KANAP included model), and `index`. Wired mkdocs nav (+fr/de/es labels), `docUrls.ts` (the `/^\/admin\/ai/` prefix was capturing both new routes and sending their Help button to Plaid Settings) and `doc-update-map.tsv`. |
 | 2026-07-06 | _AI Agents (4 pages, en/fr/de/es)_ | Documented the new **Dismiss** operator decision on `agents-approvals` (a third action beside Approve/Reject: sets a proposal aside without sending anything and without counting against the agent's evaluation; adds the **Dismiss all** bulk action and its confirmation dialog, a short Dismiss-vs-Reject guidance subsection, and the Dismissed-vs-Expired distinction; intro reworked from the two-decision framing). Added the **Dismissed** metric to the `agents-overview` fleet header and the `agents-workspace` Performance tab (with the "high dismiss rate = targeting problem" reading guidance), and "Proposal dismissed" to `agents-activity` decision entries. Authored natively in en/fr/de/es. |
 | 2026-07-05 | _AI Agents (5 new) + 3 refreshed_ | New **AI Agents** section documented: `agents-overview`, `agents-workspace`, `agents-approvals`, `agents-activity`, `agents-shared-context`. Refreshed `ai-settings` (Multimodal LLM toggle, Agent-messages usage, provider now powers agents too), `integrations` (the GLPI connection now also feeds agents), `ai-assistant` (Plaid-vs-Agents note). Wired mkdocs nav (+fr/de/es labels), `docUrls.ts`, `doc-update-map.tsv`, a new `ai_agents` glossary category, and the on-prem feature-gate inventory. EN authored; fr/de/es translation pending (`/translate-docs`). |
 | 2026-05-10 | _15 pages_ | Stale-doc sweep + 4 new pages. Refreshed: tasks, portfolio-projects, portfolio-requests (properties drawer + new tab layouts, task ↔ application/asset linking), applications/assets (new tab layouts, linked-tasks under Relations), interfaces (mapping-group/mapping-rule model, 5-tab workspace), connection-map / interface-map (current filters and side panels), knowledge (restricted libraries, docx import, AI document generation), branding (two-card form), my-dashboard (current tiles + quick actions). New: ai-assistant.md (Plaid), ai-settings.md (Plaid Settings), integrations.md (GLPI), scheduled-tasks.md. fr/de/es synced for all updates. |
@@ -196,7 +197,9 @@ _Note: `/knowledge/new`, `/knowledge/:id`, and `/knowledge/:id/:tab` are covered
 | `/admin/billing` | BillingCenter | **DOCUMENTED** | `admin.md` |
 | `/admin/auth` | AdminAuthPage | **DOCUMENTED** | `admin.md` |
 | `/admin/branding` | AdminBrandingPage | **DOCUMENTED** | `branding.md` |
+| `/admin/ai-models` | AdminAiModelsPage | **DOCUMENTED** | `ai-models.md` |
 | `/admin/ai` | AdminAiPage | **DOCUMENTED** | `ai-settings.md` |
+| `/admin/ai-usage` | AdminAiUsagePage | **DOCUMENTED** | `ai-usage.md` |
 | `/admin/integrations` | AdminIntegrationsPage | **DOCUMENTED** | `integrations.md` |
 | `/admin/scheduled-tasks` | ScheduledTasksPage | **DOCUMENTED** | `scheduled-tasks.md` |
 | `/settings` | SettingsPage | **DOCUMENTED** | mapped to `fast-track/getting-started.md` in `docUrls.ts` (personal settings are covered in the Getting Started guide) |
@@ -270,10 +273,12 @@ On-premise docs (`on-premise/*.md`) are deployment guides, not route manuals —
 
 ## Remaining Gaps
 
-No route-manual gaps remain. The classic product was swept 2026-05-10; the AI Agents section was documented 2026-07-05 and is available in en/fr/de/es.
+No route-manual gaps remain. The classic product was swept 2026-05-10; the AI Agents section was documented 2026-07-05 and the AI model registry pages 2026-08-10, both available in en/fr/de/es.
 
 Known minor staleness:
 - `portfolio-planning.md` — Roadmap Generator's drag-to-pin-start interaction is in code but not yet covered in the doc (LOW)
+- `agents-workspace.md` — written for the helpdesk agent. The monitoring/SRE agent (shipped in #120/#136/#137) has its own Monitor, targeting and Operating settings and is only referenced in passing; it has no section of its own (MEDIUM)
+- `/master-data` (MasterDataHomePage) — the Master Data hub landing page has no manual and no `docUrls.ts` mapping (LOW)
 
 ---
 

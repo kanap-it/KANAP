@@ -122,13 +122,18 @@ Ein Hinweis erscheint, wenn die Vorschau durch Ihre Limits pro Prüfung begrenzt
 
 Die Steuerungen für Tempo und Budget:
 
+- **KI-Modell** — mit welchem Modell dieser Agent arbeitet. **Standard der Organisation** ist der Ausgangswert und meist der richtige: Der Agent folgt dem Modell, das Ihre Organisation als Standard gesetzt hat, und zieht mit ihm mit. Wählen Sie ein bestimmtes Modell namentlich aus, um diesen Agenten daran zu binden — ein Modell, das Bilder versteht, für Warteschlangen mit vielen Screenshots; ein günstiges lokales Modell für die Triage großer Mengen. Es erscheinen nur aktive Modelle, sie werden auf der Seite [KI-Modelle](ai-models.md) definiert, und die Auswahl wird in dem Moment gespeichert, in dem Sie sie treffen (dieses eine Feld wartet nicht auf das automatische Speichern des Abschnitts); wirksam wird sie beim nächsten Lauf des Agenten. Ein Modell, an das ein Agent gebunden ist, kann ihm nicht unter den Händen weg archiviert werden — der Agent muss zuerst davon abgezogen werden. Beachten Sie, dass das Lesen der Modellliste die Berechtigung KI-Einstellungen-Administrator (`ai_settings:admin`) voraussetzt, dieselbe, die auch die Seite KI-Modelle öffnet: Allein mit der Rolle **KI-Agenten-Administrator** bietet die Auswahlliste nur **Standard der Organisation** an — das ist eine Berechtigungslücke und kein leeres Modellverzeichnis.
 - **Agentenpriorität** — wird zusammen mit **Ticket-Kollision** verwendet, um zu entscheiden, wer ein Ticket bearbeitet, das zwei Agenten beide wollen.
 - **Prüfen alle (Stunden)** — wie lange der Agent wartet, bevor er ein bereits bearbeitetes Ticket erneut ansieht.
 - **Ticket-Kollision** — was zu tun ist, wenn bereits ein anderer Agent an einem Ticket arbeitet: **Zurückstellen** (in Ruhe lassen) oder **Gleiche Priorität ersetzen** (von einem Agenten mit gleicher Priorität übernehmen).
 - **Max. Tickets pro Prüfung** und **Max. Provider-Anfragen** — wie viel Arbeit eine einzelne Prüfung übernehmen darf.
 - **Genehmigungsfenster (Stunden)** — wie lange jeder Vorschlag für ein Ticket offen bleibt, bevor er abläuft. Alle Vorschläge aus einer Prüfung teilen sich dieses Fenster und laufen daher gemeinsam ab, statt einzeln.
 - **Wenn Ticket geändert wurde** — was zu tun ist, wenn sich das Ticket zwischen dem Vorschlag und Ihrer Freigabe weiterentwickelt hat: **Neu prüfen**, **Abbrechen** oder **Trotzdem anwenden**.
-- **Tokens pro Lauf** / **Kosten pro Lauf (EUR)** und **Läufe pro Tag** / **Tokens pro Tag** / **Kosten pro Tag (EUR)** — die Ausgabenobergrenzen pro Prüfung und pro Tag. Die Tageswerte sind dieselben Obergrenzen, die Sie auf der Karte **Limits** im Monitor beobachten.
+- **Tokens pro Lauf** / **Kosten pro Lauf (EUR)** und **Läufe pro Tag** / **Tokens pro Tag** / **Kosten pro Tag (EUR)** — die Ausgabenobergrenzen pro Lauf und pro Tag. Die Tageswerte sind dieselben Obergrenzen, die Sie auf der Karte **Limits** im Monitor beobachten. Ein *Lauf* ist ein Durchgang an einem Ticket, nicht eine Prüfung: Eine einzelne Prüfung kann das Budget pro Lauf für jedes aufgegriffene Ticket einmal ausgeben — lesen Sie diese Werte deshalb zusammen mit **Max. Tickets pro Prüfung**.
+
+Die beiden Kostenobergrenzen werden mit dem oben zugewiesenen **KI-Modell** berechnet, anhand der Preise, die dafür auf der Seite [KI-Modelle](ai-models.md) hinterlegt sind — der Hinweis unter jedem Feld sagt das auch. Das hat eine Konsequenz, die man kennen sollte: **Ein kostenfreies Modell (0 €) erreicht eine Kostenobergrenze nie**, weil alles, was es tut, nichts kostet. Beim inklusiven KANAP-Modell, bei einem lokalen Modell oder bei jedem Modell, das Sie ohne Preise hinterlegt haben, sind die Kostenobergrenzen wirkungslos, und die **Token**-Limits sind Ihr einziger echter Schutz. Setzen Sie sie entsprechend.
+
+Überwachungs-Agenten, die Alarme statt Tickets beobachten, haben in ihrem eigenen, kürzeren Abschnitt **Betriebseinstellungen** dieselbe Auswahl **KI-Modell** — neben **Bearbeitete Alarme pro Prüfung** und **Anfragen an das Überwachungstool pro Prüfung** —, und sie funktioniert genau wie oben beschrieben.
 
 ### Wissens- und Webquellen
 
@@ -136,7 +141,7 @@ Woher der Agent seine Fakten bezieht:
 
 - **KANAP-Wissensdatenbank durchsuchen** — wenn aktiviert, greift der Agent auf Ihre [Wissensbibliotheken](knowledge.md) zurück und zitiert sie in Antworten. Wenn deaktiviert, antwortet der Agent aus dem eigenen Wissen des Modells (und aus dem Web, falls das aktiviert ist).
 - **Alle verfügbaren Bibliotheken durchsuchen**, oder deaktivieren Sie dies, um bestimmte **Bibliotheken** auszuwählen — der Agent durchsucht dann nur diese, im Rahmen seiner Zugriffsrechte. Bibliotheksnamen stammen aus dem Bereich Wissensdatenbank.
-- **Im Web suchen** — lässt den Agenten auch das öffentliche Web heranziehen; das KANAP-Wissen hat immer Vorrang und Web-Ergebnisse werden als Quelle angegeben. Dieser Schalter ist nur verfügbar, wenn die Websuche für die gesamte Plattform aktiviert ist. Wenn nicht, ist der Schalter deaktiviert und ein Hinweis verweist Sie an Ihren Administrator — siehe [Plaid-Einstellungen / AI-Anbieter](ai-settings.md).
+- **Im Web suchen** — lässt den Agenten auch das öffentliche Web heranziehen; das KANAP-Wissen hat immer Vorrang und Web-Ergebnisse werden als Quelle angegeben. Dieser Schalter ist nur verfügbar, wenn die Websuche für die gesamte Plattform aktiviert ist. Wenn nicht, ist der Schalter deaktiviert und ein Hinweis verweist Sie an Ihren Administrator — siehe [Plaid-Einstellungen](ai-settings.md).
 
 ### Autonomie
 
@@ -153,7 +158,8 @@ Unabhängig vom Modus eines Aktionstyps gelten die harten Sicherheitslimits, Bud
 ## Tipps
 
 - **Nutzen Sie „An einem Ticket testen", bevor Sie aktivieren.** Ein Testlauf gibt Ihnen echte Vorschläge zum Beurteilen, ohne dass der Agent irgendetwas anderes anrührt. Es ist der ehrliche Weg, eine Persona abzustimmen: anpassen, erneut testen, wiederholen.
-- **Die Karte „Limits" ist Ihr Frühwarnlicht.** Ein Agent, der plötzlich verstummt, hat meist ein Tageslimit erreicht — prüfen Sie *Läufe / Tokens / Kosten heute* im Monitor, bevor Sie annehmen, dass etwas kaputt ist.
+- **Die Karte „Limits" ist Ihr Frühwarnlicht.** Ein Agent, der plötzlich verstummt, hat meist ein Tageslimit erreicht — prüfen Sie *Läufe / Tokens / Kosten heute* im Monitor, bevor Sie annehmen, dass etwas kaputt ist. Bei einem kostenfreien Modell kommen nur die Token- und Lauf-Limits als Ursache infrage.
+- **Passen Sie das Modell an die Warteschlange an, nicht an die Flotte.** Die Zuweisung erfolgt genau deshalb pro Agent, damit eine Warteschlange mit vielen Screenshots auf einem Modell laufen kann, das Bilder versteht, während eine reine Textwarteschlange mit hohem Volumen auf etwas Günstigerem läuft. Was jede Wahl tatsächlich kostet, sehen Sie unter [Nutzung & Kosten](ai-usage.md).
 - **Lesen Sie den „Effektiven Prompt" nach einer Persona-Änderung.** Er ist die verlässliche Grundwahrheit dessen, was der Agent tatsächlich erhält, und macht deutlich, wenn eine Anweisung so angekommen ist, wie Sie es gemeint haben.
 - **Bauen Sie Autonomie Aktionstyp für Aktionstyp auf.** Stufen Sie zuerst risikoarme Typen (interne Notizen) hoch und lassen Sie Antworten an Anfragende so lange zuerst fragen, bis die Annahme durchgängig hoch ist — die Stufen lassen Sie ohne die Belege nicht auf automatisch gehen, aber Sie bestimmen die Risikobereitschaft.
 - **Bevorzugen Sie gemeinsamen Kontext für Hintergrund, Bibliotheken für Fakten.** Gemeinsamer Kontext färbt das Urteil des Agenten, wird aber nie zitiert; nur Wissensbibliotheken (und, falls aktiviert, das Web) erscheinen als Quellen in einer Antwort.

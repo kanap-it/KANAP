@@ -101,7 +101,9 @@ Wenn Sie schnellstmöglich produktiv werden möchten, beginnen Sie mit den Fast-
 - [Benutzer](admin.md) - Benutzer, Rollen, Authentifizierung und Audit-Protokolle verwalten
 - [Branding](branding.md) - Ihr Mandanten-Logo und die Primärfarben für hell/dunkel anpassen
 - [Audit-Protokoll](admin.md#audit-log) - Änderungsverlauf des Mandanten mit Filtern und Detailansicht prüfen
-- [Plaid-Einstellungen](ai-settings.md) - KI-Anbieter, Funktionen, Aufbewahrung und MCP-Schlüssel konfigurieren
+- [KI-Modelle](ai-models.md) - Die von Ihrer Organisation genutzten KI-Modelle mit ihren Preisen registrieren und den Standard festlegen
+- [Plaid-Einstellungen](ai-settings.md) - Das von Plaid genutzte Modell wählen, dazu Chat-Funktionen, Aufbewahrung und MCP-Schlüssel
+- [Nutzung & Kosten](ai-usage.md) - KI-Nutzung und reale Kosten über Chat und Agenten hinweg, pro Agent und pro Modell
 - [Integrationen](integrations.md) - GLPI für Ticketimport und für Agenten verbinden
 - [Geplante Aufgaben](scheduled-tasks.md) - Wiederkehrende Hintergrundjobs prüfen und verwalten
 - [Stammdatenadministration](master-data-operations.md) - Stammdaten einfrieren und kopieren
