@@ -330,7 +330,7 @@
     "tabs": {
       "monitor": "Monitor",
       "approvals": "Approvals",
-      "performance": "Performance",
+      "performance": "Performance & autonomy",
       "settings": "Settings"
     }
   },
@@ -351,7 +351,6 @@
     "off": "Off",
     "lastCheck": "Last check",
     "nextCheck": "Next check",
-    "everyFiveMinutes": "Every 5 minutes",
     "queue": "Queue",
     "waiting": "Waiting",
     "inProgress": "In progress",
@@ -438,7 +437,9 @@
     "noDiagnosisStored": "No stored diagnosis for this alert yet.",
     "runMode": "Run mode",
     "checkNowOffHint": "Turn the agent on first.",
-    "checkNowPausedHint": "Lift the pause first."
+    "checkNowPausedHint": "Lift the pause first.",
+    "everyMinutes_one": "Every minute",
+    "everyMinutes_other": "Every {{count}} minutes"
   },
   "performance": {
     "acceptance": "Acceptance",
@@ -448,12 +449,11 @@
     "costPerTicket": "Cost per ticket",
     "runsPerTicket": "Runs per ticket",
     "trends": "Trends",
-    "daySummary": "{{proposals}} proposed, {{accepted}} executed",
-    "autonomy": "Autonomy ladder",
-    "noActionClasses": "No action classes have enough data yet.",
-    "eligibility": "{{decided}} decisions captured. {{required}} required for automation review.",
     "askFirst": "Ask first",
-    "reviewAutonomy": "Review"
+    "proposed": "Proposed",
+    "executed": "Executed",
+    "costTrend": "Cost per day",
+    "noTrendData": "No activity recorded yet."
   },
   "sharedContext": {
     "title": "Shared context",
@@ -477,7 +477,6 @@
     "archiveBody": "\"{{name}}\" will stop being available to agents. Any agent currently using it will run without shared context until you point it at another profile."
   },
   "settings": {
-    "identity": "Identity and persona",
     "objectiveCapabilities": "Objective and capabilities",
     "name": "Name",
     "archiveAgent": "Archive agent",
@@ -489,7 +488,6 @@
     },
     "description": "Description",
     "mission": "Mission",
-    "tone": "Tone",
     "outputStyle": "Output style",
     "outputStyleTonePlaceholder": "e.g., clear and concise",
     "outputStyleVerbosityOptions": {
@@ -506,16 +504,13 @@
     },
     "replyLanguage": "Reply language",
     "instructions": "Instructions",
-    "instructionsHint": "One instruction per line.",
     "escalation": "Escalation",
     "escalationGuidance": "Escalation guidance",
-    "sharedContext": "Shared context",
     "sharedContextHint": "Background guidance for this agent. It is not a permission grant and not a citable source.",
     "sharedContextEnabled": "Use shared context",
     "sharedContextNoProfile": "No profile selected",
     "sharedContextCreate": "New profile",
     "sharedContextEmptyPreview": "No shared context lines selected.",
-    "effectivePrompt": "Effective prompt",
     "effectivePromptHint": "Read-only preview of what the runtime sends for each task. Guidance cannot override safety rules.",
     "effectivePromptLoading": "Loading prompt…",
     "effectivePromptEmpty": "No prompt preview available.",
@@ -618,7 +613,6 @@
       "control_plane_resolved": "Control plane",
       "unsupported": "Unsupported"
     },
-    "pace": "Pace",
     "operatingSettings": "Operating settings",
     "agentPriority": "Agent priority",
     "reviewCooldown": "Review every (hours)",
@@ -630,7 +624,6 @@
     "maxTickets": "Max tickets per check",
     "maxRequests": "Max provider requests",
     "horizon": "Backfill horizon (hours)",
-    "spending": "Spending",
     "perRunTokens": "Tokens per run",
     "perRunCost": "Cost per run (EUR)",
     "dailyRuns": "Runs per day",
@@ -672,16 +665,23 @@
       "evidence": "Based on {{decided}} decisions with {{rate}} acceptance over {{days}} days.",
       "frame": "Automatic actions still respect the daily limits and emergency pause, and return to ask-first if acceptance drops.",
       "overrideFrame": "This override bypasses recommendation thresholds only. Hard safety limits, freshness checks, provider support, budgets, pauses, and public-reply restrictions still apply.",
-      "reason": "Override reason"
+      "reason": "Override reason",
+      "highRiskGeneric": "This action is visible outside your team or moves work between people. Turning it on means the agent does it without anyone reviewing it first.",
+      "highRisk": {
+        "public_reply": "The agent will reply to requesters directly, with nobody reading the reply first. Turn this on only if you are comfortable with what it has proposed so far.",
+        "assignment": "The agent will reassign tickets to other people, with nobody reviewing the change first.",
+        "participant": "The agent will add and remove people on tickets, with nobody reviewing the change first."
+      },
+      "reasonHighRiskHint": "Required. It is kept in the agent history so your team can see who accepted this and why."
     },
     "autonomyReasons": {
-      "ACTION_CLASS_NOT_ALLOWLISTED": "This action type can't run automatically.",
       "CAPABILITY_NOT_ALLOWED": "This action isn't enabled for this agent.",
       "INSUFFICIENT_DECIDED_PROPOSALS": "Not enough reviewed proposals yet.",
       "ACCEPTANCE_RATE_TOO_LOW": "Acceptance rate is below the threshold.",
       "OBSERVATION_WINDOW_TOO_SHORT": "Not enough days of activity yet.",
       "OPEN_INCIDENT_FLAG": "An open incident is blocking automation.",
-      "ACTION_CLASS_NOT_FOUND": "This action type isn't available."
+      "ACTION_CLASS_NOT_FOUND": "This action type isn't available.",
+      "HIGH_RISK_ACKNOWLEDGEMENT_REQUIRED": "This action needs an explicit acknowledgement and a reason."
     },
     "autonomyProgress": "{{decided}}/{{required}} decisions, {{rate}}/{{requiredRate}} acceptance, {{days}}/{{requiredDays}} days",
     "automatic": "Automatic",
@@ -752,11 +752,45 @@
     },
     "model": "AI model",
     "modelTenantDefault": "Organization default",
-    "modelHint": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "modelListError": "The model list could not be loaded, so the choices shown may be incomplete.",
-    "costCapHint": "Estimated using the assigned model’s prices. A free model (0 €) never reaches this cap — the token caps remain the protection.",
     "activityRetention": "Keep activity history (days)",
-    "activityRetentionHint": "How long this agent's timeline is kept. Older entries are deleted automatically (7 to 90 days). Keep at least 30 days if you plan to turn on automatic mode: the agent's track record is measured over the last 28 days."
+    "activityRetentionHint": "How long this agent's timeline is kept. Older entries are deleted automatically (7 to 90 days). Keep at least 30 days if you plan to turn on automatic mode: the agent's track record is measured over the last 28 days.",
+    "safetyLimits": "Safety limits",
+    "safetyLimitsInfo": "Hard stops, not estimates. When the agent reaches one of these limits it stops working for the rest of the day and waits for you.",
+    "usageToday": "Today: {{value}}",
+    "checkInterval": "Check every (minutes)",
+    "checkIntervalInfo": "How often the agent looks for new tickets while it is watching. Between 5 minutes and 24 hours. \"Check now\" always runs straight away, whatever this says.",
+    "checkIntervalAlertsInfo": "How often the agent looks for new alerts while it is watching. Between 5 minutes and 24 hours. \"Check for new alerts\" always runs straight away, whatever this says.",
+    "nameInfo": "The name shown across KANAP for this agent. It has no effect on what the agent does.",
+    "descriptionInfo": "A short summary for your colleagues, shown under the agent name.",
+    "missionInfo": "What this agent is here to do, in one or two sentences. The agent reads it before every ticket.",
+    "instructionsInfo": "House rules the agent follows, one per line. They cannot widen what the agent is allowed to do.",
+    "outputStyleInfo": "How the agent should sound when it writes, for example clear and concise.",
+    "replyLanguageInfo": "The language the agent writes in. \"Ticket language\" makes it answer in whatever language the requester used.",
+    "escalationGuidanceInfo": "When the agent should hand the ticket over to a person instead of proposing something itself.",
+    "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
+    "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
+    "maxTicketsInfo": "The most tickets the agent picks up in a single check. The rest wait for the next one.",
+    "maxRequestsInfo": "The most calls the agent makes to the ticketing system in a single check, so it never floods it.",
+    "maxAlertsInfo": "The most alerts the agent diagnoses in a single check. The rest wait for the next one.",
+    "maxMonitoringRequestsInfo": "The most calls the agent makes to the monitoring tool in a single check, so it never floods it.",
+    "reviewCooldownInfo": "How long the agent waits before looking at the same ticket again, so it does not repeat itself.",
+    "agentPriorityInfo": "Which agent wins when several of them target the same ticket. The lower the number, the higher the priority.",
+    "onConflictInfo": "What the agent does when another agent is already working on the same ticket: stand back, or take over from an agent of equal priority.",
+    "onStaleInfo": "What happens to a waiting proposal when the ticket changes before you decide: look at it again, drop it, or apply it as it is.",
+    "perRunTokensInfo": "The most words the agent may spend on one ticket. Reaching it stops that ticket and nothing is proposed for it.",
+    "perRunCostInfo": "The most the agent may spend on one ticket, estimated from the assigned model’s prices. A free model (0 EUR) never reaches it, so the word limit stays the real protection.",
+    "dailyRunsInfo": "Stop the agent for the day once it has worked on this many tickets. It starts again the next day.",
+    "dailyTokensInfo": "Stop the agent for the day once it has spent this many words. It starts again the next day.",
+    "dailyCostInfo": "Stop the agent for the day once it has cost this much, estimated from the assigned model’s prices. It starts again the next day.",
+    "effectivePromptShow": "View effective prompt",
+    "effectivePromptHide": "Hide effective prompt",
+    "autonomyHighRisk": "The requester sees this, or the work moves to someone else.",
+    "autonomyHighRiskNote": {
+      "public_reply": "The agent would reply to the requester with nobody reading it first.",
+      "assignment": "The agent would reassign tickets with nobody reading it first.",
+      "participant": "The agent would add or remove people on tickets with nobody reading it first."
+    }
   },
   "actions": {
     "internalNote": "Internal note",
