@@ -29,6 +29,7 @@
     "agentCreateFailed": "Agent konnte nicht erstellt werden.",
     "agentSaved": "Agent gespeichert.",
     "agentSaveFailed": "Agent konnte nicht gespeichert werden.",
+    "sectionSaveFailed": "„{{section}}“ wurde nicht gespeichert. Ihre Änderung ist weiterhin sichtbar – bearbeiten Sie sie erneut, um es noch einmal zu versuchen.",
     "agentDeleted": "Agent gelöscht.",
     "agentDeleteFailed": "Agent konnte nicht gelöscht werden.",
     "autonomySaved": "Autonomie aktualisiert.",

@@ -23,7 +23,7 @@ import {
 } from '../../ai/aiApi';
 import { useAuth } from '../../auth/AuthContext';
 import { useFeatures } from '../../config/FeaturesContext';
-import useAutosave from '../../hooks/useAutosave';
+import useAutosave, { useAutosaveQueue, useAutosaveRegistry, type AutosaveRegistry } from '../../hooks/useAutosave';
 import {
   buildTicketGroups,
   EmptyState,
@@ -862,19 +862,38 @@ function knowledgeSourcesPayloadFromForm(current: ReturnType<typeof knowledgeFor
   };
 }
 
-function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition }) {
+function SettingsTab({ definition, autosaveRegistry }: {
+  definition: AiAgentControlAgentDefinition;
+  autosaveRegistry: AutosaveRegistry;
+}) {
   const { t } = useTranslation(['agents']);
   const data = useAgentControlData();
   const queryClient = useQueryClient();
+  // Freshest known definition, used by every debounced save thunk: the backend
+  // replaces the policy JSON columns wholesale, so a thunk that spreads a stale
+  // snapshot silently reverts whatever another section just saved. The PATCH
+  // response updates this ref synchronously (the cache round-trip through React
+  // is one render too late), and a render still carrying the pre-save prop must
+  // not undo it — hence the config_version comparison.
+  const definitionRef = React.useRef(definition);
+  if (definition.id !== definitionRef.current.id || definition.config_version >= definitionRef.current.config_version) {
+    definitionRef.current = definition;
+  }
   // Autosave persists each change, then patches the cached agent definition in place
   // instead of invalidating the whole workspace query set. This keeps the definition
   // (and the config-version-keyed effective-prompt preview) fresh without refetching
   // the queue/settings queries that drive the page, so a save no longer redraws it.
   const applySavedDefinition = React.useCallback((saved: AiAgentControlAgentDefinition) => {
+    definitionRef.current = saved;
+    let patched = false;
     queryClient.setQueryData<AiAgentControlQueueOverview>(['ai-agent-control-queue'], (old) => {
-      if (!old?.definitions) return old;
+      if (!old?.definitions?.some((item) => item.id === saved.id)) return old;
+      patched = true;
       return { ...old, definitions: old.definitions.map((item) => (item.id === saved.id ? saved : item)) };
     });
+    // No cache entry to patch (evicted, or the definition is not in the list any
+    // more): refetch instead of silently leaving the page on a stale definition.
+    if (!patched) void queryClient.invalidateQueries({ queryKey: ['ai-agent-control-queue'] });
   }, [queryClient]);
   const settings = data.settingsQuery.data;
   const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
@@ -965,7 +984,14 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   });
   const previewScopeJson = React.useMemo(() => {
     if (!isHelpdesk) return '';
-    return JSON.stringify(helpdeskDefinitionSettingsPayload(definition, form).scope_policy_json ?? {});
+    try {
+      return JSON.stringify(helpdeskDefinitionSettingsPayload(definition, form).scope_policy_json ?? {});
+    } catch {
+      // The payload builder throws when the agent has no ticketing binding yet.
+      // The preview is simply unavailable then — it must never crash the render
+      // that an autosave-scheduling edit just triggered.
+      return '';
+    }
   }, [definition, form, isHelpdesk]);
   const targetingPreviewQuery = useQuery({
     queryKey: ['ai-agent-targeting-preview', definition.id, previewScopeJson],
@@ -990,21 +1016,48 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   // Autosave: one controller per section, surfacing a subtle "Saving…/Saved"
   // indicator in each section header. No Save buttons — KANAP autosaves in-place
   // edits of existing entities (design charter, anti-pattern #15).
-  const onSaveError = React.useCallback(
-    (err: unknown) => data.setError(getApiErrorMessage(err, t, t('messages.agentSaveFailed'))),
-    [data, t],
+  // The alert is global, but it names the section that failed: five controllers
+  // share it, and "Could not save the agent." alone leaves the user hunting.
+  const reportSaveError = React.useCallback((err: unknown, section: string) => {
+    const reason = getApiErrorMessage(err, t, '');
+    const failure = t('messages.sectionSaveFailed', { section });
+    data.setError(reason ? `${reason} ${failure}` : failure);
+  }, [data, t]);
+  // One controller drives both the Targeting and the Operating settings sections;
+  // remember which one the user last edited so the alert points at the right one.
+  const settingsSectionRef = React.useRef<'targeting' | 'operating'>('operating');
+  const onIdentitySaveError = React.useCallback(
+    (err: unknown) => reportSaveError(err, t('settings.objectiveCapabilities')),
+    [reportSaveError, t],
   );
+  const onSettingsSaveError = React.useCallback(
+    (err: unknown) => reportSaveError(err, t(settingsSectionRef.current === 'targeting' ? 'settings.targeting' : 'settings.operatingSettings')),
+    [reportSaveError, t],
+  );
+  const onKnowledgeSaveError = React.useCallback(
+    (err: unknown) => reportSaveError(err, t('settings.knowledgeSources')),
+    [reportSaveError, t],
+  );
+  const onCapabilitiesSaveError = React.useCallback(
+    (err: unknown) => reportSaveError(err, t('settings.capabilities')),
+    [reportSaveError, t],
+  );
+  // Every write to this agent goes through one queue: the backend replaces the
+  // policy JSON columns wholesale, so overlapping PATCHes lose updates.
+  const saveQueue = useAutosaveQueue();
   const setModelMutation = useMutation({
-    mutationFn: (modelConfigId: string | null) =>
-      aiAgentControlApi.updateAgent(definition.id, { llm_model_config_id: modelConfigId }),
-    onSuccess: (res) => applySavedDefinition(res.agent_definition),
-    onError: onSaveError,
+    mutationFn: (modelConfigId: string | null) => saveQueue.run(async () => {
+      const res = await aiAgentControlApi.updateAgent(definitionRef.current.id, { llm_model_config_id: modelConfigId });
+      applySavedDefinition(res.agent_definition);
+    }),
+    onError: onSettingsSaveError,
   });
-  const identityAutosave = useAutosave({ onError: onSaveError });
-  const settingsAutosave = useAutosave({ onError: onSaveError });
-  const sreAutosave = useAutosave({ onError: onSaveError });
-  const knowledgeAutosave = useAutosave({ onError: onSaveError });
-  const capabilitiesAutosave = useAutosave({ onError: onSaveError });
+  const autosaveOptions = { queue: saveQueue, registry: autosaveRegistry };
+  const identityAutosave = useAutosave({ ...autosaveOptions, onError: onIdentitySaveError });
+  const settingsAutosave = useAutosave({ ...autosaveOptions, onError: onSettingsSaveError });
+  const sreAutosave = useAutosave({ ...autosaveOptions, onError: onSettingsSaveError });
+  const knowledgeAutosave = useAutosave({ ...autosaveOptions, onError: onKnowledgeSaveError });
+  const capabilitiesAutosave = useAutosave({ ...autosaveOptions, onError: onCapabilitiesSaveError });
 
   // Refs mirror the latest form state so debounced flush thunks read current
   // values at execution time, not stale schedule-time values.
@@ -1018,20 +1071,24 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
   knowledgeFormRef.current = knowledgeForm;
   const capabilityFormRef = React.useRef(capabilityForm);
   capabilityFormRef.current = capabilityForm;
-  // Latest saved definition for debounced flush thunks: a thunk scheduled
-  // before another section's autosave landed must spread the FRESH policy
-  // JSON, not the render-time snapshot it closed over.
-  const definitionRef = React.useRef(definition);
-  definitionRef.current = definition;
 
   // Seed the helpdesk settings form once its source first loads (built-in: the
   // settings query; custom: the definition policy JSON), then leave local edits
   // authoritative so autosave round-trips never clobber in-flight typing.
   const settingsSeededRef = React.useRef(false);
+  // True as soon as the user edits a settings field: a late-resolving settings
+  // query must never wholesale-overwrite live edits.
+  const settingsDirtyRef = React.useRef(false);
   React.useEffect(() => {
     if (settingsSeededRef.current) return;
     if (isBuiltInHelpdesk) {
       if (!settings) return;
+      if (settingsDirtyRef.current || settingsAutosave.isBusy()) {
+        // The user typed before the query resolved — their edits win, and the
+        // form is considered seeded so this never fires again.
+        settingsSeededRef.current = true;
+        return;
+      }
       const definitionForm = settingsFormFromDefinition(definition);
       const builtInHorizon = settings.ingestion.hardBackfillHorizonHours ?? DEFAULT_HORIZON_HOURS;
       const builtInFilters = targetingPresetFilters('new_tickets', builtInHorizon);
@@ -1075,7 +1132,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
 
   const persistIdentity = React.useCallback(async () => {
     const current = agentFormRef.current;
-    const res = await aiAgentControlApi.updateAgent(definition.id, {
+    const res = await aiAgentControlApi.updateAgent(definitionRef.current.id, {
       name: current.name,
       description: current.description || null,
       persona_json: {
@@ -1093,7 +1150,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       },
     });
     applySavedDefinition(res.agent_definition);
-  }, [definition.id, applySavedDefinition]);
+  }, [applySavedDefinition]);
 
   const createSharedContextProfileMutation = useMutation({
     mutationFn: (payload: { name: string; lines: string[] }) => aiAgentControlApi.createSharedContextProfile({
@@ -1117,7 +1174,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
       setSharedContextDraftLines('');
       identityAutosave.schedule(persistIdentity);
     },
-    onError: onSaveError,
+    onError: onIdentitySaveError,
   });
 
   const persistSettings = React.useCallback(async () => {
@@ -1205,24 +1262,29 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     applySavedDefinition(res.agent_definition);
   }, [applySavedDefinition]);
 
+  // Both thunks below read definitionRef.current, never the render-time
+  // snapshot they closed over: a save scheduled before a sibling section's
+  // PATCH landed would otherwise rebuild its payload from a pre-save
+  // definition and revert it.
   const persistKnowledge = React.useCallback(async () => {
-    const res = await aiAgentControlApi.updateAgent(definition.id, {
+    const res = await aiAgentControlApi.updateAgent(definitionRef.current.id, {
       knowledge_sources: knowledgeSourcesPayloadFromForm(knowledgeFormRef.current),
     });
     applySavedDefinition(res.agent_definition);
-  }, [definition.id, applySavedDefinition]);
+  }, [applySavedDefinition]);
 
   const persistCapabilities = React.useCallback(async () => {
-    let allowed: unknown[] = capabilityEntries(definition.allowed_capabilities_json);
+    const definitionNow = definitionRef.current;
+    let allowed: unknown[] = capabilityEntries(definitionNow.allowed_capabilities_json);
     for (const [groupKey, enabled] of Object.entries(capabilityFormRef.current)) {
-      allowed = allowedCapabilitiesWithGroup({ ...definition, allowed_capabilities_json: allowed }, groupKey, enabled);
+      allowed = allowedCapabilitiesWithGroup({ ...definitionNow, allowed_capabilities_json: allowed }, groupKey, enabled);
     }
-    const res = await aiAgentControlApi.updateAgent(definition.id, {
+    const res = await aiAgentControlApi.updateAgent(definitionNow.id, {
       allowed_capabilities_json: allowed,
     });
     applySavedDefinition(res.agent_definition);
-    await queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy', definition.id] });
-  }, [definition, applySavedDefinition, queryClient]);
+    await queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy', definitionNow.id] });
+  }, [applySavedDefinition, queryClient]);
 
   const updateAgent = <K extends keyof typeof agentForm>(field: K, value: typeof agentForm[K]) => {
     setAgentForm((current) => ({ ...current, [field]: value }));
@@ -1233,10 +1295,14 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     identityAutosave.schedule(persistIdentity);
   };
   const update = <K extends keyof HelpdeskSettingsForm>(field: K, value: HelpdeskSettingsForm[K]) => {
+    settingsDirtyRef.current = true;
+    settingsSectionRef.current = 'operating';
     setForm((current) => ({ ...current, [field]: value }));
     settingsAutosave.schedule(persistSettings);
   };
   const updateFilters = (filters: TargetingFilter[]) => {
+    settingsDirtyRef.current = true;
+    settingsSectionRef.current = 'targeting';
     setForm((current) => ({
       ...current,
       filters,
@@ -1258,6 +1324,7 @@ function SettingsTab({ definition }: { definition: AiAgentControlAgentDefinition
     applyTargetingPreset(preset);
   };
   const updateSre = (patch: Partial<SreSettingsForm>) => {
+    settingsSectionRef.current = 'filters' in patch ? 'targeting' : 'operating';
     setSreForm((current) => ({ ...current, ...patch }));
     sreAutosave.schedule(persistSreSettings);
   };
@@ -1956,11 +2023,25 @@ export default function AgentWorkspacePage() {
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
   const tabs = TABS.filter((tab) => tab !== 'settings' || canAdmin);
+  // Switching tab unmounts the Settings form. Its autosave controllers register
+  // here so a debounced or in-flight save is drained BEFORE the switch — and if
+  // it fails, the switch is aborted so the error alert (and the edit) stay on
+  // screen instead of vanishing with the tab.
+  const autosaveRegistry = useAutosaveRegistry();
+  const [flushingTab, setFlushingTab] = React.useState(false);
 
   const setTab = (_: React.SyntheticEvent, next: string) => {
     const params = new URLSearchParams(searchParams);
     params.set('tab', next);
-    setSearchParams(params);
+    if (!autosaveRegistry.isBusy()) {
+      setSearchParams(params);
+      return;
+    }
+    setFlushingTab(true);
+    void autosaveRegistry.flushAll().then((saved) => {
+      setFlushingTab(false);
+      if (saved) setSearchParams(params);
+    });
   };
 
   if (data.queueQuery.isLoading && !definition) {
@@ -1989,12 +2070,12 @@ export default function AgentWorkspacePage() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{definition.description ?? definition.agent_key}</Typography>
       <Stack spacing={2}>
         <Tabs value={tabs.includes(activeTab) ? activeTab : 'monitor'} onChange={setTab} variant="scrollable" scrollButtons="auto">
-          {tabs.map((tab) => <Tab key={tab} value={tab} label={t(`workspace.tabs.${tab}`)} />)}
+          {tabs.map((tab) => <Tab key={tab} value={tab} label={t(`workspace.tabs.${tab}`)} disabled={flushingTab} />)}
         </Tabs>
         {activeTab === 'monitor' && <MonitorTab agentKey={definition.agent_key} />}
         {activeTab === 'approvals' && <AgentsApprovalsPage agentKey={definition.agent_key} />}
         {activeTab === 'performance' && <PerformanceTab agentKey={definition.agent_key} />}
-        {activeTab === 'settings' && canAdmin && <SettingsTab definition={definition} />}
+        {activeTab === 'settings' && canAdmin && <SettingsTab definition={definition} autosaveRegistry={autosaveRegistry} />}
       </Stack>
     </Box>
   );

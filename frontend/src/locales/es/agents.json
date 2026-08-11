@@ -29,6 +29,7 @@
     "agentCreateFailed": "No se pudo crear el agente.",
     "agentSaved": "Agente guardado.",
     "agentSaveFailed": "No se pudo guardar el agente.",
+    "sectionSaveFailed": "\"{{section}}\" no se guardó. Tu cambio sigue en pantalla: edítalo de nuevo para volver a intentarlo.",
     "agentDeleted": "Agente eliminado.",
     "agentDeleteFailed": "No se pudo eliminar el agente.",
     "autonomySaved": "Autonomía actualizada.",
