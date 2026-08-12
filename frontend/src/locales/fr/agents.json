@@ -299,7 +299,8 @@
       "poller_cycle_completed_sre": "Vérification des alertes",
       "work_item_processing_failed": "Échec du traitement du ticket",
       "work_item_processing_failed_sre": "Échec du traitement de l'alerte",
-      "agent_deleted": "Agent supprimé"
+      "agent_deleted": "Agent supprimé",
+      "agent_attention_acknowledged": "Élément d'attention pris en compte"
     },
     "checkSummary": {
       "noTickets": "aucun nouveau ticket",

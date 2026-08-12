@@ -70,7 +70,7 @@ import {
 } from '../../components/agents/helpdeskTargeting';
 import { aiAgentControlApi } from '../../ai/aiApi';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { compactSelectMenuProps, dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx, longFormSurfaceFieldSx } from '../../theme/formSx';
+import { compactSelectMenuProps, dialogBorderedFieldSx, drawerMenuItemSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
 import { useLocale } from '../../i18n/useLocale';
 import { useAgentControlData } from './useAgentControlData';
 
@@ -825,7 +825,7 @@ export default function AgentsOverviewPage() {
                   variant="standard"
                   value={wizardForm.agentType}
                   onChange={(event) => changeWizardType(event.target.value as NewAgentWizardForm['agentType'])}
-                  sx={drawerSelectSx}
+                  sx={pageSelectSx}
                   MenuProps={compactSelectMenuProps}
                 >
                   <MenuItem value="helpdesk" sx={drawerMenuItemSx}>{t('overview.wizard.helpdesk')}</MenuItem>
@@ -854,7 +854,7 @@ export default function AgentsOverviewPage() {
                   variant="standard"
                   value={wizardForm.providerKey}
                   onChange={(event) => updateWizard('providerKey', event.target.value)}
-                  sx={drawerSelectSx}
+                  sx={pageSelectSx}
                   MenuProps={compactSelectMenuProps}
                 >
                   <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
@@ -874,7 +874,7 @@ export default function AgentsOverviewPage() {
                     variant="standard"
                     value={wizardForm.providerKey}
                     onChange={(event) => updateWizard('providerKey', event.target.value)}
-                    sx={drawerSelectSx}
+                    sx={pageSelectSx}
                     MenuProps={compactSelectMenuProps}
                   >
                     {monitoringProviderKeys.map((key) => (
@@ -935,7 +935,7 @@ export default function AgentsOverviewPage() {
                   <TextField size="small" variant="standard" value={wizardForm.reviewCooldownHours} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('reviewCooldownHours', event.target.value)} />
                 </PropertyRow>
                 <PropertyRow label={t('settings.onConflict')}>
-                  <Select variant="standard" value={wizardForm.onConflict} onChange={(event) => updateWizard('onConflict', event.target.value)} sx={drawerSelectSx}
+                  <Select variant="standard" value={wizardForm.onConflict} onChange={(event) => updateWizard('onConflict', event.target.value)} sx={pageSelectSx}
                     MenuProps={compactSelectMenuProps}
                   >
                     <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
@@ -959,7 +959,7 @@ export default function AgentsOverviewPage() {
                 </PropertyRow>
                 {wizardForm.agentType === 'helpdesk' && (
                   <PropertyRow label={t('settings.onStale')}>
-                    <Select variant="standard" value={wizardForm.onStale} onChange={(event) => updateWizard('onStale', event.target.value)} sx={drawerSelectSx}
+                    <Select variant="standard" value={wizardForm.onStale} onChange={(event) => updateWizard('onStale', event.target.value)} sx={pageSelectSx}
                       MenuProps={compactSelectMenuProps}
                     >
                       <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>

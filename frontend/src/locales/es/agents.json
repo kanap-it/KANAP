@@ -299,7 +299,8 @@
       "poller_cycle_completed_sre": "Comprobación de alertas",
       "work_item_processing_failed": "Fallo en el procesamiento del ticket",
       "work_item_processing_failed_sre": "Fallo en el procesamiento de la alerta",
-      "agent_deleted": "Agente eliminado"
+      "agent_deleted": "Agente eliminado",
+      "agent_attention_acknowledged": "Elemento dado por visto"
     },
     "checkSummary": {
       "noTickets": "sin tickets nuevos",

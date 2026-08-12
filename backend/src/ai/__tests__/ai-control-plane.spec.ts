@@ -10260,6 +10260,23 @@ async function testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited() 
   assert.ok((storedWorkItem as any).metadata_json.attention_acknowledged.at);
   assert.equal(auditEvents().length, 2);
   assert.equal(auditEvents()[1].work_item_id, workItemId);
+
+  // Round-3 UAT: an acknowledgement is a decision, not a configuration change —
+  // it must be classified as such and reachable under the "Decision" chip.
+  for (const event of auditEvents()) {
+    assert.equal(auditActivityType(event), 'decision');
+  }
+  const decisionPage = await service.listActivity(context, { types: ['decision'] });
+  const acknowledgements = decisionPage.items.filter((item: any) => item.eventType === 'agent_attention_acknowledged');
+  assert.equal(acknowledgements.length, 2, 'both acknowledgements must show under the Decision filter');
+  assert.ok(acknowledgements.every((item: any) => item.type === 'decision'));
+  // ...and must no longer be dragged in by the Configuration filter.
+  const configurationPage = await service.listActivity(context, { types: ['configuration'] });
+  assert.equal(
+    configurationPage.items.filter((item: any) => item.eventType === 'agent_attention_acknowledged').length,
+    0,
+    'acknowledgements must not appear under Configuration any more',
+  );
 }
 
 // Round-2 UAT: "Re-run analysis" on an attention row reuses the test-on-a-ticket

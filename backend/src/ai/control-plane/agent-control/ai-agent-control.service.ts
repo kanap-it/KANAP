@@ -17,6 +17,7 @@ import {
   isAutomatableAutonomyActionClass,
 } from '../agent/ai-agent-autonomy';
 import {
+  AGENT_ACTIVITY_AUDIT_TYPES,
   AGENT_ACTIVITY_TYPES,
   AgentActivityType,
   auditActivityType,
@@ -5648,7 +5649,10 @@ export class AiAgentControlService {
       }
     }
 
-    if (wantedTypes.has('configuration') || wantedTypes.has('check') || wantedTypes.has('pause') || wantedTypes.has('error')) {
+    // Derived from the classifier's own list so a newly audit-derived type
+    // (e.g. the acknowledgements now filed under "decision") can never be
+    // selected by the filter yet skipped by this gate.
+    if (AGENT_ACTIVITY_AUDIT_TYPES.some((type) => wantedTypes.has(type))) {
       const auditTypeSql = auditActivityTypeSql('event', wantedTypes);
       const auditStream = (withCursor: boolean) => {
         const qb = context.manager.getRepository(AiAgentAuditEvent).createQueryBuilder('event')

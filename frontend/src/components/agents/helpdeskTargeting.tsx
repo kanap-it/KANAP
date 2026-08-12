@@ -19,7 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { aiAgentControlApi, type AiAgentControlRefItem } from '../../ai/aiApi';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, pageSelectSx } from '../../theme/formSx';
 import { getDotColor } from '../../utils/statusColors';
 import { StatusDot } from '../design';
 
@@ -551,7 +551,7 @@ export function HelpdeskTargetingFilterBuilder({
             variant="standard"
             value={filter.field}
             onChange={(event) => replaceField(filter.id, event.target.value as TargetingFilterField)}
-            sx={drawerSelectSx}
+            sx={pageSelectSx}
             MenuProps={compactSelectMenuProps}
           >
             {AVAILABLE_TARGETING_FIELDS.map((field) => (
@@ -574,7 +574,7 @@ export function HelpdeskTargetingFilterBuilder({
                 const value = event.target.value;
                 updateFilter(filter.id, { value: typeof value === 'string' ? value.split(',') : value as string[] });
               }}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               {statusOptions.map((status) => (
@@ -591,7 +591,7 @@ export function HelpdeskTargetingFilterBuilder({
               variant="standard"
               value={typeof filter.value === 'string' ? filter.value : ''}
               onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               {priorityOptions.map((priority) => (
@@ -607,7 +607,7 @@ export function HelpdeskTargetingFilterBuilder({
               variant="standard"
               value={typeof filter.value === 'string' ? filter.value : ''}
               onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               {typeOptions.map((type) => (

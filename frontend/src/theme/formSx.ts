@@ -96,14 +96,16 @@ export const drawerMenuItemSx = {
   minHeight: 'auto',
 } as const;
 
+/** Shared width bounds for page-level dropdowns: the control and its menu match. */
+export const COMPACT_SELECT_MIN_WIDTH = 240;
+export const COMPACT_SELECT_MAX_WIDTH = 420;
+
 /**
  * Menu sizing for page-level `<Select>`s.
  *
  * MUI pins a Select's menu to the width of its anchor, so a naked select that
  * fills a wide grid cell opens a menu across half the screen. These props size
- * the menu to its content between sane bounds instead — the charter's "page-level
- * dropdowns should size to content or a modest max width, never stretch across
- * the full page".
+ * the menu to its content between sane bounds instead.
  *
  * `style` and not `sx` on purpose: MUI writes the anchor width as an *inline*
  * style on the menu paper, and only another inline style can override it
@@ -112,9 +114,31 @@ export const drawerMenuItemSx = {
 export const compactSelectMenuProps = {
   slotProps: {
     paper: {
-      style: { minWidth: 240, maxWidth: 420 },
+      style: { minWidth: COMPACT_SELECT_MIN_WIDTH, maxWidth: COMPACT_SELECT_MAX_WIDTH },
     },
   },
+} as const;
+
+/**
+ * Page-level `<Select>` styling — use this instead of `drawerSelectSx` outside
+ * the 280px properties drawer.
+ *
+ * `drawerSelectSx` sets `width: '100%'`, which is right in a narrow drawer and
+ * wrong on a page: dropped into a settings grid cell it stretches the *closed*
+ * control across most of the viewport (measured: 1276px of a 1600px window in
+ * the agent Targeting builder). Bounding the menu alone is not enough — the
+ * control is what the user looks at when the menu is shut, which is nearly all
+ * the time. This caps it at the same width the menu uses, so the field and its
+ * menu read as one object.
+ *
+ * The charter: "page-level dropdowns and metadata dropdowns should size to
+ * content or a modest max width, never stretch across the full page."
+ *
+ * Pair with `MenuProps={compactSelectMenuProps}`.
+ */
+export const pageSelectSx = {
+  ...drawerSelectSx,
+  maxWidth: COMPACT_SELECT_MAX_WIDTH,
 } as const;
 
 export const drawerDatePickerSx = {

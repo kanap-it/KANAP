@@ -89,7 +89,9 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
           py: 1,
         })}
       >
-        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+        {/* Right-aligned per the charter: the bar carries actions only, and
+            actions sit at the trailing edge of their row. */}
+        <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="flex-end" flexWrap="wrap" useFlexGap>
           {runModeSelectable ? (
             <Select
               variant="standard"

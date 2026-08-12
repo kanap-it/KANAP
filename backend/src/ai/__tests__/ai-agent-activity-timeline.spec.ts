@@ -36,6 +36,8 @@ function testAuditTypeMapping() {
     [{ event_type: 'poller_paused_by_emergency_pause', severity: 'info' }, 'pause'],
     [{ event_type: 'emergency_pause_created', severity: 'info' }, 'pause'],
     [{ event_type: 'work_item_processing_failed', severity: 'error' }, 'error'],
+    // Acknowledging a needs-attention row is an operator ruling, not a config change.
+    [{ event_type: 'agent_attention_acknowledged', severity: 'info' }, 'decision'],
     [{ event_type: 'agent_config_updated', severity: 'info' }, 'configuration'],
     [{ event_type: 'agent_autonomy_granted', severity: 'info' }, 'configuration'],
     [{ event_type: 'ingestion_settings_updated', severity: null }, 'configuration'],
@@ -51,7 +53,14 @@ function testAuditTypeSqlMirrorsTheClassifier() {
   // No filtering needed when every audit-backed type is wanted.
   assert.equal(auditActivityTypeSql('event', new Set(AGENT_ACTIVITY_TYPES)), null);
   // Only non-audit types wanted: the audit stream must return nothing.
-  assert.equal(auditActivityTypeSql('event', new Set<AgentActivityType>(['proposal', 'decision'])), 'false');
+  assert.equal(auditActivityTypeSql('event', new Set<AgentActivityType>(['proposal', 'execution'])), 'false');
+
+  // "decision" is audit-backed too now: acknowledgements must survive the filter.
+  const decisionOnly = auditActivityTypeSql('event', new Set<AgentActivityType>(['decision']));
+  assert.ok(decisionOnly && decisionOnly.includes("LIKE '%attention_acknowledged%'"),
+    'decision filter must select acknowledgements');
+  assert.ok(decisionOnly!.includes("NOT lower(event.event_type) LIKE 'poller_cycle%'"),
+    'decision filter must exclude checks');
 
   const checkOnly = auditActivityTypeSql('event', new Set<AgentActivityType>(['check']));
   assert.ok(checkOnly && checkOnly.includes("LIKE 'poller_cycle%'"), 'check filter must select poller cycles');
@@ -61,6 +70,8 @@ function testAuditTypeSqlMirrorsTheClassifier() {
   const configOnly = auditActivityTypeSql('event', new Set<AgentActivityType>(['configuration']));
   assert.ok(configOnly && configOnly.includes("NOT lower(event.event_type) LIKE 'poller_cycle%'"),
     'configuration must no longer swallow poller cycles');
+  assert.ok(configOnly!.includes("NOT lower(event.event_type) LIKE '%attention_acknowledged%'"),
+    'configuration must no longer swallow acknowledgements');
 
   const errorOnly = auditActivityTypeSql('event', new Set<AgentActivityType>(['error']));
   assert.ok(errorOnly && !errorOnly.includes("LIKE 'poller_cycle%'"), 'error filter is independent of the check clause');

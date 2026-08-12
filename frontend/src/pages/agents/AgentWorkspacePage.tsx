@@ -14,7 +14,7 @@ import AgentControlBar from '../../components/agents/AgentControlBar';
 import AgentStatusStrip from '../../components/agents/AgentStatusStrip';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
 import {
   aiAgentControlApi,
   aiModelConfigsApi,
@@ -1591,7 +1591,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 variant="standard"
                 disableUnderline
                 value={agentForm.outputStyleLanguage}
-                sx={drawerSelectSx}
+                sx={pageSelectSx}
                 onChange={(event) => updateAgent('outputStyleLanguage', event.target.value)}
                 MenuProps={compactSelectMenuProps}
               >
@@ -1700,7 +1700,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                   value={agentForm.sharedContextProfileId ?? ''}
                   displayEmpty
                   disabled={sharedContextProfiles.length === 0}
-                  sx={drawerSelectSx}
+                  sx={pageSelectSx}
                   onChange={(event) => updateAgent('sharedContextProfileId', event.target.value || null)}
                   MenuProps={compactSelectMenuProps}
                 >
@@ -1811,7 +1811,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                   <Select
                     multiple
                     variant="standard"
-                    sx={[drawerSelectSx, { maxWidth: 420 }]}
+                    sx={pageSelectSx}
                     value={knowledgeForm.libraryIds}
                     displayEmpty
                     renderValue={(selected) => {
@@ -1887,7 +1887,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 displayEmpty
                 disabled={setModelMutation.isPending}
                 onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
-                sx={drawerSelectSx}
+                sx={pageSelectSx}
                 MenuProps={compactSelectMenuProps}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
@@ -1915,7 +1915,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
               <TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} />
             </SettingsField>
             <SettingsField label={t('settings.onConflict')} info={t('settings.onConflictInfo')}>
-              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={drawerSelectSx}
+              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={pageSelectSx}
                 MenuProps={compactSelectMenuProps}
               >
                 <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
@@ -1926,7 +1926,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
               <TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} />
             </SettingsField>
             <SettingsField label={t('settings.onStale')} info={t('settings.onStaleInfo')}>
-              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={drawerSelectSx}
+              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={pageSelectSx}
                 MenuProps={compactSelectMenuProps}
               >
                 <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
@@ -1991,7 +1991,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 displayEmpty
                 disabled={setModelMutation.isPending}
                 onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
-                sx={drawerSelectSx}
+                sx={pageSelectSx}
                 MenuProps={compactSelectMenuProps}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>

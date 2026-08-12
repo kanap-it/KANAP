@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { aiAgentControlApi } from '../../ai/aiApi';
 import type { AiAgentControlRefItem, AiMonitoringTargetingModel, AiMonitoringTargetingPredicate } from '../../ai/aiApi';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, editableFieldValueSx, pageSelectSx } from '../../theme/formSx';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 import { getDotColor } from '../../utils/statusColors';
 import { StatusDot } from '../design';
@@ -470,7 +470,7 @@ export function MonitoringTargetingFilterBuilder({
             variant="standard"
             value={filter.field}
             onChange={(event) => replaceField(filter.id, event.target.value as MonitoringTargetingField)}
-            sx={drawerSelectSx}
+            sx={pageSelectSx}
             MenuProps={compactSelectMenuProps}
           >
             {AVAILABLE_MONITORING_FIELDS.map((field) => (
@@ -492,7 +492,7 @@ export function MonitoringTargetingFilterBuilder({
                 const value = event.target.value;
                 updateFilter(filter.id, { value: typeof value === 'string' ? value.split(',') : value as string[] });
               }}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               {MONITORING_ALERT_STATUS_VALUES.map((status) => (
@@ -516,7 +516,7 @@ export function MonitoringTargetingFilterBuilder({
               variant="standard"
               value={typeof filter.value === 'string' ? filter.value : ''}
               onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               {MONITORING_SEVERITY_VALUES.map((severity) => (
@@ -542,7 +542,7 @@ export function MonitoringTargetingFilterBuilder({
                 const value = event.target.value;
                 updateFilter(filter.id, { value: typeof value === 'string' ? value.split(',') : value as string[] });
               }}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               {MONITORING_SEVERITY_VALUES.map((severity) => (
@@ -566,7 +566,7 @@ export function MonitoringTargetingFilterBuilder({
               variant="standard"
               value={typeof filter.value === 'string' && filter.value ? filter.value : 'unacknowledged'}
               onChange={(event) => updateFilter(filter.id, { value: event.target.value })}
-              sx={drawerSelectSx}
+              sx={pageSelectSx}
               MenuProps={compactSelectMenuProps}
             >
               <MenuItem value="unacknowledged" sx={drawerMenuItemSx}>{t('settings.monitoringAck.unacknowledged')}</MenuItem>
