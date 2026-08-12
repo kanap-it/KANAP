@@ -220,7 +220,16 @@
       "operating_context_leak": "Fuite de contexte opérationnel bloquée",
       "invalid_or_ungrounded_synthesis": "Synthèse invalide ou non étayée",
       "unknown": "Secours utilisé ({{reason}})"
-    }
+    },
+    "acknowledge": "Prendre acte",
+    "acknowledgeHint": "Marquer comme vu et retirer définitivement de la liste.",
+    "acknowledgeDone": "Pris en compte.",
+    "acknowledgeFailed": "Impossible de prendre acte de cet élément.",
+    "rerun": "Relancer l’analyse",
+    "rerunHint": "Demander à l’agent de le réexaminer.",
+    "rerunRunning": "L’agent le réexamine…",
+    "rerunStarted": "L’agent réexamine {{target}}.",
+    "rerunFailed": "Impossible de relancer l’analyse."
   },
   "activity": {
     "title": "Activité agents",
@@ -321,7 +330,8 @@
     "shownOfTotal": "{{shown}} sur {{total}} affichées",
     "runStarted": "Démarré le {{value}}",
     "runCompleted": "terminé le {{value}}",
-    "runDuration": "durée {{value}}"
+    "runDuration": "durée {{value}}",
+    "noTypesSelected": "Choisissez au moins un type d’activité pour afficher le journal."
   },
   "workspace": {
     "back": "Retour aux agents",
@@ -439,7 +449,13 @@
     "checkNowOffHint": "Activez d'abord l'agent.",
     "checkNowPausedHint": "Levez d'abord la pause.",
     "everyMinutes_one": "Toutes les minutes",
-    "everyMinutes_other": "Toutes les {{count}} minutes"
+    "everyMinutes_other": "Toutes les {{count}} minutes",
+    "status": "État",
+    "modeDescriptions": {
+      "off": "Rien ne s’exécute, pas même une vérification manuelle.",
+      "manual": "Ne s’exécute que sur demande (Vérifier maintenant, tests).",
+      "watching": "Vérifie tout seul, en plus de tout ce que fait le mode manuel."
+    }
   },
   "performance": {
     "acceptance": "Acceptation",

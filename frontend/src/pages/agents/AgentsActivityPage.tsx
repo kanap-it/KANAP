@@ -18,6 +18,27 @@ import { useLocale } from '../../i18n/useLocale';
 
 const ACTIVITY_PAGE_SIZE = 50;
 
+// The type chips are a multi-select, all active by default except "Checks":
+// a watcher writes one check row every few minutes and they drown the entries
+// an operator actually reads. Turning the chip on brings them back.
+const DEFAULT_ACTIVITY_TYPES: AiAgentControlActivityType[] = AI_AGENT_CONTROL_ACTIVITY_TYPES.filter(
+  (type) => type !== 'check',
+);
+
+function parseSelectedTypes(
+  typesParam: string | null,
+  legacyTypeParam: string | null,
+): AiAgentControlActivityType[] {
+  const allowed = new Set<string>(AI_AGENT_CONTROL_ACTIVITY_TYPES);
+  // `?type=` is the pre-multi-select deep link (one type). Honour it as a
+  // single-chip selection so old links keep meaning what they meant.
+  const raw = typesParam ?? (legacyTypeParam != null ? legacyTypeParam : null);
+  if (raw == null) return DEFAULT_ACTIVITY_TYPES;
+  const selected = new Set(raw.split(',').map((entry) => entry.trim()).filter((entry) => allowed.has(entry)));
+  // Canonical chip order, not the order they appear in the URL.
+  return AI_AGENT_CONTROL_ACTIVITY_TYPES.filter((type) => selected.has(type));
+}
+
 function hasInlineDetail(detail: AiAgentControlActivityDetail | null | undefined): detail is AiAgentControlActivityDetail {
   return !!detail && !!(
     detail.body
@@ -162,8 +183,21 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
   // The trace opens in place. Seeded from ?runId= so old deep links still work,
   // then owned by local state so closing it never navigates the page away.
   const [traceRunId, setTraceRunId] = React.useState<string | null>(() => searchParams.get('runId'));
-  const typeParam = searchParams.get('type') as AiAgentControlActivityType | null;
+  const selectedTypes = React.useMemo(
+    () => parseSelectedTypes(searchParams.get('types'), searchParams.get('type')),
+    [searchParams],
+  );
   const checkSummary = useCheckSummary();
+
+  const toggleType = React.useCallback((type: AiAgentControlActivityType) => {
+    const next = selectedTypes.includes(type)
+      ? selectedTypes.filter((entry) => entry !== type)
+      : AI_AGENT_CONTROL_ACTIVITY_TYPES.filter((entry) => entry === type || selectedTypes.includes(entry));
+    const params = new URLSearchParams(searchParams);
+    params.delete('type');
+    params.set('types', next.join(','));
+    setSearchParams(params);
+  }, [searchParams, selectedTypes, setSearchParams]);
 
   const closeTrace = React.useCallback(() => {
     setTraceRunId(null);
@@ -224,13 +258,15 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
     queryFn: ({ pageParam }) => aiAgentControlApi.listActivity({
       agentDefinitionId: agentDefinition?.id ?? null,
       targetRef: searchParams.get('targetRef'),
-      types: typeParam ? [typeParam] : null,
+      // The selection is always sent explicitly — the server's "no param means
+      // every type" default would otherwise silently re-add the Checks rows.
+      types: selectedTypes,
       limit: ACTIVITY_PAGE_SIZE,
       cursor: pageParam ?? null,
     }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: !agentKey || !!agentDefinition,
+    enabled: (!agentKey || !!agentDefinition) && selectedTypes.length > 0,
     refetchInterval: 60_000,
   });
   const items = React.useMemo(
@@ -265,26 +301,28 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
               onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }}
             />
             <Button size="small" variant="outlined" startIcon={<SearchIcon />} onClick={applySearch}>{t('activity.search')}</Button>
-            {AI_AGENT_CONTROL_ACTIVITY_TYPES.map((type) => (
-              <Chip
-                key={type}
-                clickable
-                size="small"
-                color={typeParam === type ? 'primary' : 'default'}
-                label={t(`activity.types.${type}`)}
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams);
-                  if (typeParam === type) next.delete('type');
-                  else next.set('type', type);
-                  setSearchParams(next);
-                }}
-              />
-            ))}
+            {AI_AGENT_CONTROL_ACTIVITY_TYPES.map((type) => {
+              const active = selectedTypes.includes(type);
+              return (
+                <Chip
+                  key={type}
+                  clickable
+                  size="small"
+                  color={active ? 'primary' : 'default'}
+                  variant={active ? 'filled' : 'outlined'}
+                  aria-pressed={active}
+                  label={t(`activity.types.${type}`)}
+                  onClick={() => toggleType(type)}
+                />
+              );
+            })}
           </Stack>
         </Section>
 
         <Section title={t('activity.timeline')}>
-          {activityQuery.isLoading ? (
+          {selectedTypes.length === 0 ? (
+            <EmptyState>{t('activity.noTypesSelected')}</EmptyState>
+          ) : activityQuery.isLoading ? (
             <Box display="flex" justifyContent="center" py={4}><CircularProgress size={24} /></Box>
           ) : activityQuery.isError ? (
             <Alert severity="error">{t('activity.loadFailed')}</Alert>

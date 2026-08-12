@@ -491,11 +491,22 @@ export function actionAttentionMessage(action: AiAgentControlActionRequest): str
     ?? null;
 }
 
+// When an operator acknowledges a "Needs attention" row, the backend stamps the
+// record's own metadata (zero migration). The row then stops needing attention
+// for good, on every device and after any refresh.
+export function attentionAcknowledgedAt(metadataJson: unknown): string | null {
+  const metadata = isRecord(metadataJson) ? metadataJson : null;
+  const acknowledged = isRecord(metadata?.attention_acknowledged) ? metadata.attention_acknowledged : null;
+  return stringValue(acknowledged?.at);
+}
+
 export function actionNeedsAttention(action: AiAgentControlActionRequest): boolean {
+  if (attentionAcknowledgedAt(action.metadata_json)) return false;
   return !!actionAttentionMessage(action) && ['approved', 'expired', 'failed', 'dead_letter'].includes(action.status);
 }
 
 export function workItemNeedsAttention(workItem: AiAgentControlWorkItem): boolean {
+  if (attentionAcknowledgedAt(workItem.metadata_json)) return false;
   return ['failed', 'dead_letter'].includes(workItem.status);
 }
 

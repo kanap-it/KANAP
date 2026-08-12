@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -50,13 +51,20 @@ function parseLimit(value: unknown, fallback: number): number {
   return Math.floor(parsed);
 }
 
-function parseActivityTypes(value: unknown): AgentControlActivityType[] | null {
-  if (typeof value !== 'string' && !Array.isArray(value)) return null;
-  const rawValues = Array.isArray(value) ? value : value.split(',');
+// `types` accepts a repeated query param (?types=a&types=b) or a comma-separated
+// list (?types=a,b). The legacy single `type` param is still honoured so old
+// deep links into the timeline keep working; both are merged when present.
+function parseActivityTypes(...values: unknown[]): AgentControlActivityType[] | null {
   const allowed = new Set<string>(AGENT_ACTIVITY_TYPES);
-  const parsed = rawValues
-    .map((entry) => String(entry).trim())
-    .filter((entry): entry is AgentControlActivityType => allowed.has(entry));
+  const parsed: AgentControlActivityType[] = [];
+  for (const value of values) {
+    if (typeof value !== 'string' && !Array.isArray(value)) continue;
+    const rawValues = Array.isArray(value) ? value : value.split(',');
+    for (const entry of rawValues) {
+      const trimmed = String(entry).trim();
+      if (allowed.has(trimmed)) parsed.push(trimmed as AgentControlActivityType);
+    }
+  }
   return parsed.length > 0 ? Array.from(new Set(parsed)) : null;
 }
 
@@ -431,6 +439,7 @@ export class AiAgentControlController {
     @Query('to') to?: string,
     @Query('targetRef') targetRef?: string,
     @Query('types') types?: string | string[],
+    @Query('type') type?: string | string[],
     @Query('actorUserId') actorUserId?: string,
     @Query('status') status?: string,
     @Query('limit') limit?: string,
@@ -442,7 +451,7 @@ export class AiAgentControlController {
       from: from ?? null,
       to: to ?? null,
       targetRef: targetRef ?? null,
-      types: parseActivityTypes(types),
+      types: parseActivityTypes(types, type),
       actorUserId: actorUserId ?? null,
       status: status ?? null,
       limit: parseLimit(limit, 50),
@@ -499,6 +508,24 @@ export class AiAgentControlController {
   ) {
     const context = this.buildContext(req);
     return this.runRead(context, (tenantContext) => this.control.getHelpdeskWorkItemContext(tenantContext, id));
+  }
+
+  // Clearing a "Needs attention" row. Operator-gated like the approve/reject
+  // decisions — it is a judgement call on the agent's output, not a read.
+  @Post('queue/attention/:kind/:id/acknowledge')
+  async acknowledgeAttention(
+    @Req() req: any,
+    @Param('kind') kind: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const context = this.buildContext(req);
+    if (kind !== 'action' && kind !== 'work-item') {
+      throw new BadRequestException('kind must be "action" or "work-item".');
+    }
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.acknowledgeAttention(
+      tenantContext,
+      { kind: kind === 'action' ? 'action' : 'work_item', id },
+    ));
   }
 
   @Post('uat/mock-triage')

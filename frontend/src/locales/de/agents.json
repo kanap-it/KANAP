@@ -220,7 +220,16 @@
       "operating_context_leak": "Betriebskontext-Leak blockiert",
       "invalid_or_ungrounded_synthesis": "Ungültige oder nicht belegte Synthesis",
       "unknown": "Fallback verwendet ({{reason}})"
-    }
+    },
+    "acknowledge": "Zur Kenntnis nehmen",
+    "acknowledgeHint": "Als gesehen markieren und dauerhaft aus der Liste entfernen.",
+    "acknowledgeDone": "Zur Kenntnis genommen.",
+    "acknowledgeFailed": "Der Eintrag konnte nicht zur Kenntnis genommen werden.",
+    "rerun": "Analyse erneut starten",
+    "rerunHint": "Den Agenten bitten, das noch einmal anzusehen.",
+    "rerunRunning": "Der Agent sieht es sich erneut an …",
+    "rerunStarted": "Der Agent sieht sich {{target}} erneut an.",
+    "rerunFailed": "Die Analyse konnte nicht erneut gestartet werden."
   },
   "activity": {
     "title": "Agentenaktivität",
@@ -321,7 +330,8 @@
     "shownOfTotal": "{{shown}} von {{total}} angezeigt",
     "runStarted": "Gestartet {{value}}",
     "runCompleted": "beendet {{value}}",
-    "runDuration": "Dauer {{value}}"
+    "runDuration": "Dauer {{value}}",
+    "noTypesSelected": "Wählen Sie mindestens eine Aktivitätsart, um den Verlauf zu sehen."
   },
   "workspace": {
     "back": "Zurück zu Agenten",
@@ -439,7 +449,13 @@
     "checkNowOffHint": "Schalten Sie den Agenten zuerst ein.",
     "checkNowPausedHint": "Heben Sie zuerst die Pause auf.",
     "everyMinutes_one": "Jede Minute",
-    "everyMinutes_other": "Alle {{count}} Minuten"
+    "everyMinutes_other": "Alle {{count}} Minuten",
+    "status": "Status",
+    "modeDescriptions": {
+      "off": "Es läuft nichts, auch keine manuelle Prüfung.",
+      "manual": "Läuft nur auf Anfrage (Jetzt prüfen, Tests).",
+      "watching": "Prüft selbstständig, zusätzlich zu allem aus dem manuellen Modus."
+    }
   },
   "performance": {
     "acceptance": "Annahme",

@@ -220,7 +220,16 @@
       "operating_context_leak": "Fuga de contexto operativo bloqueada",
       "invalid_or_ungrounded_synthesis": "Síntesis inválida o sin base",
       "unknown": "Respaldo utilizado ({{reason}})"
-    }
+    },
+    "acknowledge": "Dar por visto",
+    "acknowledgeHint": "Marcar como visto y quitarlo de la lista definitivamente.",
+    "acknowledgeDone": "Dado por visto.",
+    "acknowledgeFailed": "No se ha podido dar por visto este elemento.",
+    "rerun": "Repetir el análisis",
+    "rerunHint": "Pedir al agente que lo vuelva a revisar.",
+    "rerunRunning": "El agente lo está revisando de nuevo…",
+    "rerunStarted": "El agente está revisando {{target}} de nuevo.",
+    "rerunFailed": "No se ha podido repetir el análisis."
   },
   "activity": {
     "title": "Actividad de agentes",
@@ -321,7 +330,8 @@
     "shownOfTotal": "{{shown}} de {{total}} mostradas",
     "runStarted": "Iniciado {{value}}",
     "runCompleted": "finalizado {{value}}",
-    "runDuration": "duración {{value}}"
+    "runDuration": "duración {{value}}",
+    "noTypesSelected": "Elige al menos un tipo de actividad para ver el historial."
   },
   "workspace": {
     "back": "Volver a agentes",
@@ -439,7 +449,13 @@
     "checkNowOffHint": "Active primero el agente.",
     "checkNowPausedHint": "Levante primero la pausa.",
     "everyMinutes_one": "Cada minuto",
-    "everyMinutes_other": "Cada {{count}} minutos"
+    "everyMinutes_other": "Cada {{count}} minutos",
+    "status": "Estado",
+    "modeDescriptions": {
+      "off": "No se ejecuta nada, ni siquiera una comprobación manual.",
+      "manual": "Solo se ejecuta cuando lo pides (Comprobar ahora, pruebas).",
+      "watching": "Comprueba por su cuenta, además de todo lo del modo manual."
+    }
   },
   "performance": {
     "acceptance": "Aceptación",

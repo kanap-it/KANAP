@@ -96,6 +96,27 @@ export const drawerMenuItemSx = {
   minHeight: 'auto',
 } as const;
 
+/**
+ * Menu sizing for page-level `<Select>`s.
+ *
+ * MUI pins a Select's menu to the width of its anchor, so a naked select that
+ * fills a wide grid cell opens a menu across half the screen. These props size
+ * the menu to its content between sane bounds instead — the charter's "page-level
+ * dropdowns should size to content or a modest max width, never stretch across
+ * the full page".
+ *
+ * `style` and not `sx` on purpose: MUI writes the anchor width as an *inline*
+ * style on the menu paper, and only another inline style can override it
+ * (see @mui/material/Select/SelectInput: `style: { minWidth: menuMinWidth, ...paperProps.style }`).
+ */
+export const compactSelectMenuProps = {
+  slotProps: {
+    paper: {
+      style: { minWidth: 240, maxWidth: 420 },
+    },
+  },
+} as const;
+
 export const drawerDatePickerSx = {
   '& input': { fontSize: 13, padding: '4px 0' },
   '& .MuiInput-underline:before': { display: 'none' },
