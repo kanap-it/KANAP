@@ -1,9 +1,12 @@
 import React from 'react';
-import { Alert, Box, Button, CircularProgress, Divider, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Divider, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import DoneOutlinedIcon from '@mui/icons-material/DoneOutlined';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
+import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import KanapDialog from '../../components/design/KanapDialog';
@@ -11,6 +14,7 @@ import { PropertyRow } from '../../components/design';
 import { dialogBorderedFieldSx } from '../../theme/formSx';
 import {
   ActionButtons,
+  actionAgentDefinitionId,
   actionAttentionMessage,
   actionBody,
   actionCanExecute,
@@ -39,11 +43,13 @@ import {
   workItemNeedsAttention,
 } from '../../components/agents/agentControlPrimitives';
 import {
+  aiAgentControlApi,
   type AiAgentControlActionRequest,
   type AiAgentControlWorkItem,
 } from '../../ai/aiApi';
 import RunTraceDialog from '../../components/agents/RunTraceDialog';
 import { useLocale } from '../../i18n/useLocale';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { useAgentControlData } from './useAgentControlData';
 
 const FINISHED_OPEN_STORAGE_KEY = 'kanap.agentsApprovals.finishedOpen';
@@ -73,7 +79,48 @@ type CompactRow = {
   time: string | null;
   caption?: string | null;
   traceRunId?: string | null;
+  attention?: AttentionSubject | null;
 };
+
+// What a "Needs attention" row needs to be actionable: which record to
+// acknowledge, and enough context to re-run the analysis that produced it.
+type AttentionSubject = {
+  kind: 'action' | 'work-item';
+  agentDefinitionId: string | null;
+  providerKind: string | null;
+  providerKey: string | null;
+  targetRef: string | null;
+};
+
+type AttentionRerun =
+  | { kind: 'ticket'; providerKey: string; targetRef: string; agentDefinitionId: string | null }
+  | { kind: 'alert'; agentDefinitionId: string; targetRef: string };
+
+/**
+ * Whether a row can be re-analysed, and how.
+ *
+ * Ticketing rows re-run the same "Test on a ticket" path (manual trigger) on the
+ * row's ticket; monitoring rows re-run the alert diagnosis test. A row whose
+ * provider, agent or target reference can no longer be resolved has no sensible
+ * re-run — Acknowledge alone is the answer there.
+ */
+function attentionRerun(subject: AttentionSubject | null | undefined): AttentionRerun | null {
+  if (!subject?.targetRef) return null;
+  if (subject.providerKind === 'monitoring') {
+    return subject.agentDefinitionId
+      ? { kind: 'alert', agentDefinitionId: subject.agentDefinitionId, targetRef: subject.targetRef }
+      : null;
+  }
+  if (subject.providerKind === 'ticketing' && subject.providerKey) {
+    return {
+      kind: 'ticket',
+      providerKey: subject.providerKey,
+      targetRef: subject.targetRef,
+      agentDefinitionId: subject.agentDefinitionId,
+    };
+  }
+  return null;
+}
 
 // The run trace opens in place, over the approvals list. A context rather than
 // prop drilling: the trace button sits three component layers down, and the URL
@@ -239,14 +286,71 @@ function CompactStatusLine({
   );
 }
 
+/**
+ * The two ways out of a "Needs attention" row: re-run the analysis that failed,
+ * or acknowledge it so it stops coming back. Without them the section was a
+ * read-only list of dead ends.
+ */
+function AttentionRowActions({
+  row,
+  rerunning,
+  onAcknowledge,
+  onRerun,
+}: {
+  row: CompactRow;
+  rerunning: boolean;
+  onAcknowledge: (row: CompactRow) => void;
+  onRerun: (row: CompactRow, rerun: AttentionRerun) => void;
+}) {
+  const { t } = useTranslation(['agents']);
+  const rerun = attentionRerun(row.attention);
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+      {rerun && (
+        <Tooltip title={rerunning ? t('approvals.rerunRunning') : t('approvals.rerunHint')}>
+          <span>
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              startIcon={rerunning ? <CircularProgress size={12} /> : <ReplayOutlinedIcon />}
+              disabled={rerunning}
+              sx={{ minHeight: 24, py: 0 }}
+              onClick={() => onRerun(row, rerun)}
+            >
+              {t('approvals.rerun')}
+            </Button>
+          </span>
+        </Tooltip>
+      )}
+      <Tooltip title={t('approvals.acknowledgeHint')}>
+        <span>
+          <Button
+            size="small"
+            variant="text"
+            color="inherit"
+            startIcon={<DoneOutlinedIcon />}
+            sx={{ minHeight: 24, py: 0 }}
+            onClick={() => onAcknowledge(row)}
+          >
+            {t('approvals.acknowledge')}
+          </Button>
+        </span>
+      </Tooltip>
+    </Stack>
+  );
+}
+
 function CompactLifecycleRow({
   row,
   locale,
   timeMode = 'relative',
+  actions,
 }: {
   row: CompactRow;
   locale: string;
   timeMode?: 'relative' | 'absolute';
+  actions?: React.ReactNode;
 }) {
   const { t } = useTranslation(['agents']);
   const displayedTime = timeMode === 'absolute'
@@ -269,6 +373,7 @@ function CompactLifecycleRow({
           {displayedTime}
         </Typography>
         {row.traceRunId && <TraceButton runId={row.traceRunId} dense />}
+        {actions}
       </Stack>
       {row.caption && (
         <Typography sx={(theme) => ({ color: theme.palette.kanap.danger, fontSize: 12, fontWeight: 400, lineHeight: 1.35, mt: 0.2 })}>
@@ -441,7 +546,11 @@ function buildInProgressRows(groups: TicketWorkGroup[], t: ReturnType<typeof use
   });
 }
 
-function buildAttentionRows(groups: TicketWorkGroup[], t: ReturnType<typeof useTranslation>['t']): CompactRow[] {
+function buildAttentionRows(
+  groups: TicketWorkGroup[],
+  t: ReturnType<typeof useTranslation>['t'],
+  fallbackAgentDefinitionId: string | null,
+): CompactRow[] {
   return groups.flatMap((group) => {
     const actionRows = group.pendingActions
       .filter(actionNeedsAttention)
@@ -456,6 +565,13 @@ function buildAttentionRows(groups: TicketWorkGroup[], t: ReturnType<typeof useT
         time: action.updated_at ?? action.created_at,
         caption: actionAttentionMessage(action),
         traceRunId: action.run_id ?? group.latestRunId,
+        attention: {
+          kind: 'action' as const,
+          agentDefinitionId: actionAgentDefinitionId(action) ?? fallbackAgentDefinitionId,
+          providerKind: action.provider_kind ?? group.providerKind,
+          providerKey: action.provider_key ?? group.providerKey,
+          targetRef: action.target_ref ?? group.targetRef,
+        },
       }));
     const workRows = group.workItems
       .filter(workItemNeedsAttention)
@@ -470,6 +586,13 @@ function buildAttentionRows(groups: TicketWorkGroup[], t: ReturnType<typeof useT
         time: workItem.updated_at ?? workItem.created_at,
         caption: workItemAttentionMessage(workItem),
         traceRunId: workItem.last_run_id ?? group.latestRunId,
+        attention: {
+          kind: 'work-item' as const,
+          agentDefinitionId: workItem.agent_definition_id ?? fallbackAgentDefinitionId,
+          providerKind: workItem.source_provider_kind ?? group.providerKind,
+          providerKey: workItem.source_provider_key ?? group.providerKey,
+          targetRef: workItem.source_object_ref ?? group.targetRef,
+        },
       }));
     return [...actionRows, ...workRows];
   });
@@ -518,6 +641,8 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const [terminalApproval, setTerminalApproval] = React.useState<TerminalApprovalRequest>(null);
   const [terminalApprovalReason, setTerminalApprovalReason] = React.useState('');
   const [traceRunId, setTraceRunId] = React.useState<string | null>(null);
+  const [acknowledgedIds, setAcknowledgedIds] = React.useState<Set<string>>(() => new Set());
+  const [rerunningRowId, setRerunningRowId] = React.useState<string | null>(null);
   const [finishedOpen, setFinishedOpen] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(FINISHED_OPEN_STORAGE_KEY) === 'true';
@@ -545,11 +670,67 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
 
   const needsDecisionGroups = React.useMemo(() => grouped.groups.filter((group) => group.lifecycle === 'needs_decision'), [grouped.groups]);
   const inProgressRows = React.useMemo(() => buildInProgressRows(grouped.groups.filter((group) => group.lifecycle === 'in_progress'), t), [grouped.groups, t]);
-  const attentionRows = React.useMemo(() => buildAttentionRows(grouped.groups.filter((group) => group.lifecycle === 'needs_attention'), t), [grouped.groups, t]);
+  const allAttentionRows = React.useMemo(
+    () => buildAttentionRows(grouped.groups.filter((group) => group.lifecycle === 'needs_attention'), t, agentDefinition?.id ?? null),
+    [agentDefinition?.id, grouped.groups, t],
+  );
+  // Acknowledged rows leave the list immediately; the server-side stamp keeps
+  // them gone once the queue refetches, so this set is only the optimistic gap.
+  const attentionRows = React.useMemo(
+    () => allAttentionRows.filter((row) => !acknowledgedIds.has(row.id)),
+    [acknowledgedIds, allAttentionRows],
+  );
   const finishedRows = React.useMemo(() => buildFinishedRows(grouped.groups.filter((group) => group.lifecycle === 'finished'), t), [grouped.groups, t]);
   const visibleFinishedRows = finishedRows.slice(0, FINISHED_ROW_LIMIT);
   const hiddenFinishedCount = Math.max(0, finishedRows.length - visibleFinishedRows.length);
   const loading = data.queueQuery.isLoading || data.actionsQuery.isLoading;
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: (row: CompactRow) => {
+      if (!row.attention) throw new Error(t('approvals.acknowledgeFailed'));
+      return aiAgentControlApi.acknowledgeAttention(row.attention.kind, row.id);
+    },
+    onMutate: (row: CompactRow) => {
+      setAcknowledgedIds((current) => new Set(current).add(row.id));
+    },
+    onSuccess: async () => {
+      data.setMessage(t('approvals.acknowledgeDone'));
+      await data.invalidate();
+    },
+    onError: (error, row) => {
+      // Put the row back: an acknowledgement that did not persist must not look
+      // like it did.
+      setAcknowledgedIds((current) => {
+        const next = new Set(current);
+        next.delete(row.id);
+        return next;
+      });
+      data.setError(getApiErrorMessage(error, t, t('approvals.acknowledgeFailed')));
+    },
+  });
+
+  // "Re-run analysis" is the very same path as "Test on a ticket/alert" in the
+  // Monitor tab (manual trigger), aimed at the row's own target.
+  const rerunMutation = useMutation({
+    mutationFn: async ({ rerun }: { row: CompactRow; rerun: AttentionRerun }): Promise<void> => {
+      if (rerun.kind === 'alert') {
+        await aiAgentControlApi.testAgentMonitoringDiagnosis(rerun.agentDefinitionId, { alert_id: rerun.targetRef });
+        return;
+      }
+      await aiAgentControlApi.runTicketingTriage({
+        provider_key: rerun.providerKey,
+        target_key: rerun.targetRef,
+        agent_definition_id: rerun.agentDefinitionId ?? undefined,
+      });
+    },
+    onMutate: ({ row }) => setRerunningRowId(row.id),
+    onSuccess: async (_result, { rerun }) => {
+      data.setMessage(t('approvals.rerunStarted', { target: rerun.targetRef }));
+      await data.invalidate();
+    },
+    onError: (error) => data.setError(getApiErrorMessage(error, t, t('approvals.rerunFailed'))),
+    onSettled: () => setRerunningRowId(null),
+  });
 
   const approveAll = (group: TicketWorkGroup, reason?: string | null) => {
     data.approveAllMutation.mutate({ key: group.key, actions: group.pendingActions, reason });
@@ -655,7 +836,21 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
             <EmptyState>{t('approvals.emptyAttention')}</EmptyState>
           ) : (
             <Stack>
-              {attentionRows.map((row) => <CompactLifecycleRow key={row.id} row={row} locale={locale} />)}
+              {attentionRows.map((row) => (
+                <CompactLifecycleRow
+                  key={row.id}
+                  row={row}
+                  locale={locale}
+                  actions={row.attention ? (
+                    <AttentionRowActions
+                      row={row}
+                      rerunning={rerunningRowId === row.id}
+                      onAcknowledge={(next) => acknowledgeMutation.mutate(next)}
+                      onRerun={(next, rerun) => rerunMutation.mutate({ row: next, rerun })}
+                    />
+                  ) : null}
+                />
+              ))}
             </Stack>
           )}
         </Section>

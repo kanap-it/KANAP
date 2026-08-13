@@ -28,20 +28,26 @@ export const AGENT_ACTIVITY_TYPES: readonly AgentActivityType[] = [
 ];
 
 /** Activity types an audit event can be classified as. */
-export const AGENT_ACTIVITY_AUDIT_TYPES: readonly AgentActivityType[] = ['pause', 'error', 'check', 'configuration'];
+export const AGENT_ACTIVITY_AUDIT_TYPES: readonly AgentActivityType[] = ['pause', 'error', 'check', 'decision', 'configuration'];
 
 export type AuditEventLike = { event_type: string; severity?: string | null };
 
 /**
  * Classify one audit event. Order matters and is mirrored 1:1 by
  * `auditActivityTypeSql` below: pause wins over error, error over check
- * (a failed poll cycle is an error, not a check), check over configuration.
+ * (a failed poll cycle is an error, not a check), check over decision,
+ * decision over configuration.
+ *
+ * Acknowledging a needs-attention row is an operator ruling on a piece of the
+ * agent's work — the same family as approve/reject/dismiss — so it belongs with
+ * the decisions, not with the configuration changes.
  */
 export function auditActivityType(event: AuditEventLike): AgentActivityType {
   const eventType = (event.event_type ?? '').toLocaleLowerCase();
   if (eventType.includes('pause')) return 'pause';
   if (event.severity === 'error' || eventType.includes('fail') || eventType.includes('error')) return 'error';
   if (eventType.startsWith('poller_cycle')) return 'check';
+  if (eventType.includes('attention_acknowledged')) return 'decision';
   return 'configuration';
 }
 
@@ -55,6 +61,7 @@ export function auditActivityTypeClauseSql(alias: string, type: AgentActivityTyp
   const isPause = `lower(${alias}.event_type) LIKE '%pause%'`;
   const isError = `(${alias}.severity = 'error' OR lower(${alias}.event_type) LIKE '%fail%' OR lower(${alias}.event_type) LIKE '%error%')`;
   const isCheck = `lower(${alias}.event_type) LIKE 'poller_cycle%'`;
+  const isDecision = `lower(${alias}.event_type) LIKE '%attention_acknowledged%'`;
   switch (type) {
     case 'pause':
       return `(${isPause})`;
@@ -62,8 +69,10 @@ export function auditActivityTypeClauseSql(alias: string, type: AgentActivityTyp
       return `(NOT ${isPause} AND ${isError})`;
     case 'check':
       return `(NOT ${isPause} AND NOT ${isError} AND ${isCheck})`;
+    case 'decision':
+      return `(NOT ${isPause} AND NOT ${isError} AND NOT ${isCheck} AND ${isDecision})`;
     default:
-      return `(NOT ${isPause} AND NOT ${isError} AND NOT ${isCheck})`;
+      return `(NOT ${isPause} AND NOT ${isError} AND NOT ${isCheck} AND NOT ${isDecision})`;
   }
 }
 

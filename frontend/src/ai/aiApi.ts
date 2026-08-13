@@ -1705,6 +1705,17 @@ export const aiAgentControlApi = {
     const res = await api.post(`/ai/admin/control-plane/actions/${id}/reject`, payload ?? {});
     return res.data;
   },
+  // Clear one "Needs attention" row for good. Idempotent server-side: a second
+  // call keeps the first acknowledgement and reports `already: true`.
+  async acknowledgeAttention(kind: 'action' | 'work-item', id: string): Promise<{
+    kind: 'action' | 'work_item';
+    id: string;
+    already: boolean;
+    acknowledged_at: string | null;
+  }> {
+    const res = await api.post(`/ai/admin/control-plane/queue/attention/${kind}/${id}/acknowledge`, {});
+    return res.data;
+  },
   async dismissAction(id: string, payload?: { reason?: string }): Promise<{
     action: AiAgentControlActionRequest;
     approval: AiAgentControlApproval;

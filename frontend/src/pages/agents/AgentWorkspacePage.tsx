@@ -11,9 +11,10 @@ import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import ChartCard from '../../components/reports/ChartCard';
 import AgentControlBar from '../../components/agents/AgentControlBar';
+import AgentStatusStrip from '../../components/agents/AgentStatusStrip';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
-import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
 import {
   aiAgentControlApi,
   aiModelConfigsApi,
@@ -486,9 +487,9 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
   const isSre = definition?.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
-  // Lifecycle, run-mode controls, checks, queue counts and the daily limits all
-  // live in the transverse control bar above the tabs now — this tab is the
-  // agent's work surface only (test run, watched alerts, timeline).
+  // The run-mode control, checks, tests and the emergency brake live in the
+  // transverse control bar above the tabs. The facts that used to sit next to
+  // them are the "Status" section right below.
   const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null, Date.now()), [data.actionPool, data.queueQuery.data, definition?.id]);
   const monitoringGroups = grouped.groups.filter((group) => group.providerKind === 'monitoring');
 
@@ -537,6 +538,10 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
     <Stack spacing={2}>
       {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
       {data.message && <Alert severity="success" onClose={() => data.setMessage(null)}>{data.message}</Alert>}
+
+      <Section title={t('monitor.status')}>
+        <AgentStatusStrip agentKey={agentKey} />
+      </Section>
 
       {isSre && (
         <Section title={t('monitor.alerts')}>
@@ -1586,8 +1591,9 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 variant="standard"
                 disableUnderline
                 value={agentForm.outputStyleLanguage}
-                sx={drawerSelectSx}
+                sx={pageSelectSx}
                 onChange={(event) => updateAgent('outputStyleLanguage', event.target.value)}
+                MenuProps={compactSelectMenuProps}
               >
                 {['auto', 'fr', 'en', 'de', 'es'].map((value) => (
                   <MenuItem key={value} value={value} sx={drawerMenuItemSx}>{t(`settings.outputStyleLanguageOptions.${value}`)}</MenuItem>
@@ -1694,8 +1700,9 @@ function SettingsTab({ definition, autosaveRegistry }: {
                   value={agentForm.sharedContextProfileId ?? ''}
                   displayEmpty
                   disabled={sharedContextProfiles.length === 0}
-                  sx={drawerSelectSx}
+                  sx={pageSelectSx}
                   onChange={(event) => updateAgent('sharedContextProfileId', event.target.value || null)}
+                  MenuProps={compactSelectMenuProps}
                 >
                   <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.sharedContextNoProfile')}</MenuItem>
                   {sharedContextProfiles.map((profile) => (
@@ -1752,6 +1759,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                     value={effectivePromptTask}
                     onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
                     sx={[drawerSelectSx, { minWidth: 150, width: 'auto', flexShrink: 0 }]}
+                    MenuProps={compactSelectMenuProps}
                   >
                     {effectivePromptTasks.map((task) => (
                       <MenuItem key={task} value={task} sx={drawerMenuItemSx}>{t(`settings.effectivePromptTasks.${task}`)}</MenuItem>
@@ -1803,7 +1811,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                   <Select
                     multiple
                     variant="standard"
-                    sx={[drawerSelectSx, { maxWidth: 420 }]}
+                    sx={pageSelectSx}
                     value={knowledgeForm.libraryIds}
                     displayEmpty
                     renderValue={(selected) => {
@@ -1819,6 +1827,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
                       const value = event.target.value;
                       updateKnowledge({ libraryIds: typeof value === 'string' ? value.split(',') : (value as unknown as string[]) });
                     }}
+                    MenuProps={compactSelectMenuProps}
                   >
                     {(librariesQuery.data ?? []).map((lib) => <MenuItem key={lib.id} value={lib.id} sx={drawerMenuItemSx}>{lib.name}</MenuItem>)}
                   </Select>
@@ -1878,7 +1887,8 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 displayEmpty
                 disabled={setModelMutation.isPending}
                 onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
-                sx={drawerSelectSx}
+                sx={pageSelectSx}
+                MenuProps={compactSelectMenuProps}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
                 {activeModelConfigs.map((modelConfig) => (
@@ -1905,7 +1915,9 @@ function SettingsTab({ definition, autosaveRegistry }: {
               <TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} />
             </SettingsField>
             <SettingsField label={t('settings.onConflict')} info={t('settings.onConflictInfo')}>
-              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={drawerSelectSx}>
+              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={pageSelectSx}
+                MenuProps={compactSelectMenuProps}
+              >
                 <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
                 <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
               </Select>
@@ -1914,7 +1926,9 @@ function SettingsTab({ definition, autosaveRegistry }: {
               <TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} />
             </SettingsField>
             <SettingsField label={t('settings.onStale')} info={t('settings.onStaleInfo')}>
-              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={drawerSelectSx}>
+              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={pageSelectSx}
+                MenuProps={compactSelectMenuProps}
+              >
                 <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
                 <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
                 <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
@@ -1977,7 +1991,8 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 displayEmpty
                 disabled={setModelMutation.isPending}
                 onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
-                sx={drawerSelectSx}
+                sx={pageSelectSx}
+                MenuProps={compactSelectMenuProps}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
                 {activeModelConfigs.map((modelConfig) => (
@@ -2178,9 +2193,9 @@ export default function AgentWorkspacePage() {
         actions={<Button size="small" variant="outlined" onClick={() => navigate('/agents')}>{t('workspace.back')}</Button>}
       />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{definition.description ?? definition.agent_key}</Typography>
-      {/* Transverse control + status bar: one place for run mode, checks, tests
-          and the emergency brake, plus the agent's live state — visible on every
-          tab instead of being buried in the Monitor tab. */}
+      {/* Transverse control bar: one place for the run mode, checks, tests and
+          the emergency brake — visible on every tab. Actions only; the agent's
+          read-only facts live in the Monitor tab's "Status" section. */}
       <AgentControlBar agentKey={definition.agent_key} onTest={openTestSection} />
       <Stack spacing={2}>
         <Tabs value={tabs.includes(activeTab) ? activeTab : 'monitor'} onChange={setTab} variant="scrollable" scrollButtons="auto">

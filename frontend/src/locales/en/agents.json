@@ -220,7 +220,16 @@
       "operating_context_leak": "Operating context leak blocked",
       "invalid_or_ungrounded_synthesis": "Invalid or ungrounded synthesis",
       "unknown": "Fallback used ({{reason}})"
-    }
+    },
+    "acknowledge": "Acknowledge",
+    "acknowledgeHint": "Mark this as seen and remove it from the list for good.",
+    "acknowledgeDone": "Acknowledged.",
+    "acknowledgeFailed": "Could not acknowledge this item.",
+    "rerun": "Re-run analysis",
+    "rerunHint": "Ask the agent to look at this one again.",
+    "rerunRunning": "The agent is looking at it again…",
+    "rerunStarted": "The agent is looking at {{target}} again.",
+    "rerunFailed": "Could not start the analysis again."
   },
   "activity": {
     "title": "Agent activity",
@@ -290,7 +299,8 @@
       "poller_cycle_completed_sre": "Alert check",
       "work_item_processing_failed": "Ticket processing failed",
       "work_item_processing_failed_sre": "Alert processing failed",
-      "agent_deleted": "Agent deleted"
+      "agent_deleted": "Agent deleted",
+      "agent_attention_acknowledged": "Attention item acknowledged"
     },
     "checkSummary": {
       "noTickets": "no new tickets",
@@ -321,7 +331,8 @@
     "shownOfTotal": "{{shown}} of {{total}} shown",
     "runStarted": "Started {{value}}",
     "runCompleted": "finished {{value}}",
-    "runDuration": "took {{value}}"
+    "runDuration": "took {{value}}",
+    "noTypesSelected": "Pick at least one activity type to see the timeline."
   },
   "workspace": {
     "back": "Back to agents",
@@ -439,7 +450,13 @@
     "checkNowOffHint": "Turn the agent on first.",
     "checkNowPausedHint": "Lift the pause first.",
     "everyMinutes_one": "Every minute",
-    "everyMinutes_other": "Every {{count}} minutes"
+    "everyMinutes_other": "Every {{count}} minutes",
+    "status": "Status",
+    "modeDescriptions": {
+      "off": "Nothing runs, not even a manual check.",
+      "manual": "Runs only when you ask (Check now, tests).",
+      "watching": "Checks on its own, plus everything Manual does."
+    }
   },
   "performance": {
     "acceptance": "Acceptance",

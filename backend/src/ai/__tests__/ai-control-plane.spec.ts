@@ -10009,6 +10009,330 @@ async function testAgentControlActivityTimelineAndDailyMetrics() {
   assert.equal(today.costEur, 0.25);
 }
 
+// Round-2 UAT: the timeline filters became a multi-select, so a page must be the
+// union of the selected types AND still be gapless when only a subset is asked
+// for (the keyset cursor walks every selected stream, not just the first one).
+async function testAgentActivityMultiTypeFilterAndSubsetPagination() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    { findEnabledTargets: async () => [] } as any,
+    {} as any,
+    queue,
+  );
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const auditRepo = manager.getRepository(AiAgentAuditEvent);
+  const base = Date.now() - 60 * 60_000;
+  const at = (minutes: number) => new Date(base + minutes * 60_000);
+
+  const proposalIds: string[] = [];
+  for (let index = 0; index < 4; index += 1) {
+    const id = randomUUID();
+    proposalIds.push(`action:${id}:proposal`);
+    await actionRepo.save(actionRepo.create({
+      id,
+      tenant_id: context.tenantId,
+      run_id: randomUUID(),
+      tool_execution_id: null,
+      conversation_id: null,
+      user_id: context.userId,
+      preview_id: null,
+      capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+      capability_version: '1.0.0',
+      effect: 'write',
+      status: 'pending',
+      target_type: 'ticket',
+      target_id: null,
+      target_ref: `900${index}`,
+      idempotency_key: `multi-type-${index}`,
+      action_payload_json: { body: 'Proposed reply.' },
+      provider_kind: 'ticketing',
+      provider_key: 'glpi',
+      input_hash: `multi-type-hash-${index}`,
+      input_summary: null,
+      evidence_ids: null,
+      expires_at: null,
+      approved_at: null,
+      rejected_at: null,
+      executed_at: null,
+      error_message: null,
+      metadata_json: { agent_definition_id: bundle.definition.id },
+      created_at: at(index * 2),
+      updated_at: at(index * 2),
+    }));
+  }
+
+  const pauseIds: string[] = [];
+  for (let index = 0; index < 4; index += 1) {
+    const saved = await auditRepo.save(auditRepo.create({
+      tenant_id: context.tenantId,
+      agent_definition_id: bundle.definition.id,
+      work_item_id: null,
+      event_type: 'emergency_pause_created',
+      severity: 'warning',
+      message: 'Pause enabled.',
+      metadata_json: {},
+      created_at: at(index * 2 + 1),
+    }));
+    pauseIds.push(`audit:${saved.id}`);
+  }
+  // Noise the selection must NOT bring back.
+  for (let index = 0; index < 3; index += 1) {
+    await auditRepo.save(auditRepo.create({
+      tenant_id: context.tenantId,
+      agent_definition_id: bundle.definition.id,
+      work_item_id: null,
+      event_type: 'poller_cycle_completed',
+      severity: 'info',
+      message: 'Ticket check completed.',
+      metadata_json: { listed: 0, enqueued: 0 },
+      created_at: at(index * 2 + 20),
+    }));
+  }
+  await auditRepo.save(auditRepo.create({
+    tenant_id: context.tenantId,
+    agent_definition_id: bundle.definition.id,
+    work_item_id: null,
+    event_type: 'agent_config_updated',
+    severity: 'info',
+    message: 'Settings changed.',
+    metadata_json: {},
+    created_at: at(30),
+  }));
+
+  const expected = new Set([...proposalIds, ...pauseIds]);
+  const union = await service.listActivity(context, {
+    agentDefinitionId: bundle.definition.id,
+    types: ['proposal', 'pause'],
+    limit: 50,
+  });
+  assert.deepEqual(new Set(union.items.map((entry) => entry.id)), expected);
+  assert.deepEqual(new Set(union.items.map((entry) => entry.type)), new Set(['proposal', 'pause']));
+  assert.equal(union.total, expected.size);
+  assert.equal(union.nextCursor, null);
+
+  // Same subset, walked three at a time: every entry appears exactly once and the
+  // pages stay strictly newest-first across the cursor boundaries.
+  const paged: string[] = [];
+  let cursor: string | null = null;
+  let guard = 0;
+  do {
+    const page: any = await service.listActivity(context, {
+      agentDefinitionId: bundle.definition.id,
+      types: ['proposal', 'pause'],
+      limit: 3,
+      cursor,
+    });
+    assert.ok(page.items.length <= 3);
+    paged.push(...page.items.map((entry: any) => entry.id));
+    cursor = page.nextCursor ?? null;
+    guard += 1;
+    assert.ok(guard < 10, 'activity pagination did not terminate');
+  } while (cursor);
+  assert.equal(paged.length, expected.size, 'paging dropped or duplicated entries');
+  assert.deepEqual(new Set(paged), expected);
+  assert.deepEqual(paged, union.items.map((entry) => entry.id));
+
+  // Single-type filtering (the legacy `?type=` deep link) still works unchanged.
+  const checksOnly = await service.listActivity(context, {
+    agentDefinitionId: bundle.definition.id,
+    types: ['check'],
+    limit: 50,
+  });
+  assert.equal(checksOnly.items.length, 3);
+  assert.equal(checksOnly.items.every((entry) => entry.type === 'check'), true);
+}
+
+// Round-2 UAT: "Needs attention" rows are cleared by an explicit acknowledgement.
+// It is tenant-scoped, idempotent, and audited so the timeline records who
+// cleared what.
+async function testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    { findEnabledTargets: async () => [] } as any,
+    {} as any,
+    queue,
+  );
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const workItemRepo = manager.getRepository(AiAgentWorkItem);
+
+  const actionId = randomUUID();
+  const otherTenantActionId = randomUUID();
+  const makeAction = (id: string, tenantId: string) => actionRepo.create({
+    id,
+    tenant_id: tenantId,
+    run_id: randomUUID(),
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: context.userId,
+    preview_id: null,
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'dead_letter',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: '4711',
+    idempotency_key: `attention-${id}`,
+    action_payload_json: { body: 'Proposed reply.' },
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: `attention-hash-${id}`,
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: null,
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: 'Provider refused the reply.',
+    metadata_json: { agent_definition_id: bundle.definition.id },
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+  await actionRepo.save(makeAction(actionId, context.tenantId));
+  await actionRepo.save(makeAction(otherTenantActionId, 'tenant-2'));
+
+  const first = await service.acknowledgeAttention(context, { kind: 'action', id: actionId });
+  assert.equal(first.already, false);
+  assert.ok(first.acknowledged_at);
+  const stored = await actionRepo.findOne({ where: { id: actionId, tenant_id: context.tenantId } });
+  assert.equal((stored as any).metadata_json.attention_acknowledged.user_id, context.userId);
+  assert.equal((stored as any).metadata_json.attention_acknowledged.at, first.acknowledged_at);
+  // The agent tag it already carried must survive the stamp.
+  assert.equal((stored as any).metadata_json.agent_definition_id, bundle.definition.id);
+
+  const auditEvents = () => (stores.get(AiAgentAuditEvent.name) ?? [])
+    .filter((event: AiAgentAuditEvent) => event.event_type === 'agent_attention_acknowledged');
+  assert.equal(auditEvents().length, 1);
+  assert.equal(auditEvents()[0].metadata_json.action_request_id, actionId);
+  assert.equal(auditEvents()[0].metadata_json.actor_user_id, context.userId);
+
+  // Idempotent: the second call keeps the first stamp and writes no second audit event.
+  const second = await service.acknowledgeAttention(context, { kind: 'action', id: actionId });
+  assert.equal(second.already, true);
+  assert.equal(second.acknowledged_at, first.acknowledged_at);
+  assert.equal(auditEvents().length, 1);
+
+  // Tenant isolation: another tenant's row is simply not there.
+  await assert.rejects(
+    () => service.acknowledgeAttention(context, { kind: 'action', id: otherTenantActionId }),
+    /not found/i,
+  );
+  const untouched = (stores.get(AiActionRequest.name) ?? []).find((row: any) => row.id === otherTenantActionId);
+  assert.equal(untouched.metadata_json.attention_acknowledged, undefined);
+
+  // Work items are the other kind of attention row.
+  const workItemId = randomUUID();
+  await workItemRepo.save(workItemRepo.create({
+    id: workItemId,
+    tenant_id: context.tenantId,
+    agent_definition_id: bundle.definition.id,
+    trigger_id: null,
+    source_provider_kind: 'ticketing',
+    source_provider_key: 'glpi',
+    source_object_type: 'ticket',
+    source_object_ref: '4711',
+    work_kind: 'ticket_triage',
+    status: 'dead_letter',
+    priority: 100,
+    dedup_key: 'attention-work-item',
+    attempt_count: 3,
+    max_attempts: 3,
+    last_error: 'Provider unreachable.',
+    metadata_json: {},
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+  const workAck = await service.acknowledgeAttention(context, { kind: 'work_item', id: workItemId });
+  assert.equal(workAck.already, false);
+  const storedWorkItem = await workItemRepo.findOne({ where: { id: workItemId, tenant_id: context.tenantId } });
+  assert.ok((storedWorkItem as any).metadata_json.attention_acknowledged.at);
+  assert.equal(auditEvents().length, 2);
+  assert.equal(auditEvents()[1].work_item_id, workItemId);
+
+  // Round-3 UAT: an acknowledgement is a decision, not a configuration change —
+  // it must be classified as such and reachable under the "Decision" chip.
+  for (const event of auditEvents()) {
+    assert.equal(auditActivityType(event), 'decision');
+  }
+  const decisionPage = await service.listActivity(context, { types: ['decision'] });
+  const acknowledgements = decisionPage.items.filter((item: any) => item.eventType === 'agent_attention_acknowledged');
+  assert.equal(acknowledgements.length, 2, 'both acknowledgements must show under the Decision filter');
+  assert.ok(acknowledgements.every((item: any) => item.type === 'decision'));
+  // ...and must no longer be dragged in by the Configuration filter.
+  const configurationPage = await service.listActivity(context, { types: ['configuration'] });
+  assert.equal(
+    configurationPage.items.filter((item: any) => item.eventType === 'agent_attention_acknowledged').length,
+    0,
+    'acknowledgements must not appear under Configuration any more',
+  );
+}
+
+// Round-2 UAT: "Re-run analysis" on an attention row reuses the test-on-a-ticket
+// path, which enqueues with `trigger: 'manual'` — so it works while the agent is
+// in Manual run mode (watching off) instead of being refused.
+async function testAttentionRerunEnqueuesWithManualTrigger() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  const providerKey = (bundle.definition.provider_bindings_json as any).ticketing.provider_key as string;
+  // A custom agent (not the built-in key) takes the agent-scoped enqueue path,
+  // which is the one the Approvals re-run drives.
+  const custom = definitionRepo.create({
+    ...bundle.definition,
+    id: randomUUID(),
+    agent_key: 'helpdesk.custom.rerun',
+    trigger_policy_json: { scheduled_poll: { enabled: false } },
+  });
+  await definitionRepo.save(custom);
+
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      requireSingleEnabledTarget: async () => {
+        throw new Error('The live-test-target registry must not gate agent-scoped re-runs.');
+      },
+    } as any,
+    {} as any,
+    queue,
+  );
+
+  let capturedTrigger: string | null = null;
+  let capturedTicketId: string | null = null;
+  const sentinel = new Error('enqueue-reached');
+  (queue as any).enqueueTicketingScopedTicket = async (_context: unknown, input: any) => {
+    capturedTrigger = input.trigger ?? null;
+    capturedTicketId = input.ticket?.id ?? null;
+    throw sentinel;
+  };
+
+  await assert.rejects(
+    () => service.runTicketingTriage(context, {
+      provider_key: providerKey,
+      target_key: '4711',
+      agent_definition_id: custom.id,
+    }),
+    (error: Error) => error === sentinel,
+  );
+  assert.equal(capturedTrigger, 'manual');
+  assert.equal(capturedTicketId, '4711');
+}
+
 async function testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdits() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
@@ -14722,6 +15046,9 @@ async function run() {
   await testAgentScopedEmergencyPauseBlocksHumanApproveExecute();
   await testAgentControlQueueOverviewReturnsLinkedActionRequests();
   await testAgentControlActivityTimelineAndDailyMetrics();
+  await testAgentActivityMultiTypeFilterAndSubsetPagination();
+  await testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited();
+  await testAttentionRerunEnqueuesWithManualTrigger();
   await testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdits();
   await testAgentConfigRejectsCapabilityBeyondFrame();
   await testAgentConfigAcceptsAllProvisionedHelpdeskCapabilities();

@@ -17,6 +17,7 @@ import {
   isAutomatableAutonomyActionClass,
 } from '../agent/ai-agent-autonomy';
 import {
+  AGENT_ACTIVITY_AUDIT_TYPES,
   AGENT_ACTIVITY_TYPES,
   AgentActivityType,
   auditActivityType,
@@ -5648,7 +5649,10 @@ export class AiAgentControlService {
       }
     }
 
-    if (wantedTypes.has('configuration') || wantedTypes.has('check') || wantedTypes.has('pause') || wantedTypes.has('error')) {
+    // Derived from the classifier's own list so a newly audit-derived type
+    // (e.g. the acknowledgements now filed under "decision") can never be
+    // selected by the filter yet skipped by this gate.
+    if (AGENT_ACTIVITY_AUDIT_TYPES.some((type) => wantedTypes.has(type))) {
       const auditTypeSql = auditActivityTypeSql('event', wantedTypes);
       const auditStream = (withCursor: boolean) => {
         const qb = context.manager.getRepository(AiAgentAuditEvent).createQueryBuilder('event')
@@ -10302,6 +10306,113 @@ export class AiAgentControlService {
       action: serializeActionRequest(responseAction, readiness.get(responseAction.id)),
       approval: serializeApproval(rejected.approval),
       detail: detailRunId ? await this.getRunDetail(context, detailRunId) : null,
+    };
+  }
+
+  /**
+   * Acknowledge a "Needs attention" row: a failed / dead-lettered / expired
+   * proposal or work item the operator has seen and consciously drops.
+   *
+   * The acknowledgement is stamped into the record's own `metadata_json` (zero
+   * migration) and audited, so the timeline shows who cleared what. Idempotent:
+   * re-acknowledging keeps the first stamp and reports `already: true` instead
+   * of rewriting history.
+   */
+  async acknowledgeAttention(
+    context: AiExecutionContextWithManager,
+    input: { kind: 'action' | 'work_item'; id: string },
+  ) {
+    const acknowledgedAt = new Date();
+    const stamp = (metadata: unknown) => {
+      const base = isRecord(metadata) ? { ...metadata } : {};
+      base.attention_acknowledged = {
+        at: acknowledgedAt.toISOString(),
+        user_id: context.userId || null,
+      };
+      return base;
+    };
+    const existingStamp = (metadata: unknown): { at?: unknown } | null => {
+      const record = isRecord(metadata) ? metadata : null;
+      const stamped = record ? record.attention_acknowledged : null;
+      return isRecord(stamped) ? stamped : null;
+    };
+
+    if (input.kind === 'work_item') {
+      const repo = context.manager.getRepository(AiAgentWorkItem);
+      const workItem = await repo.findOne({ where: { id: input.id, tenant_id: context.tenantId } });
+      if (!workItem) {
+        throw new NotFoundException('Work item not found.');
+      }
+      const already = existingStamp(workItem.metadata_json);
+      if (already) {
+        return {
+          kind: 'work_item' as const,
+          id: workItem.id,
+          already: true,
+          acknowledged_at: typeof already.at === 'string' ? already.at : null,
+        };
+      }
+      workItem.metadata_json = stamp(workItem.metadata_json) as any;
+      workItem.updated_at = acknowledgedAt;
+      await repo.save(workItem);
+      await this.agentQueue?.recordAuditEvent(context, {
+        agentDefinitionId: workItem.agent_definition_id ?? null,
+        workItemId: workItem.id,
+        eventType: 'agent_attention_acknowledged',
+        severity: 'info',
+        message: 'Operator acknowledged a work item that needed attention.',
+        metadata: {
+          kind: 'work_item',
+          work_item_id: workItem.id,
+          target_type: workItem.source_object_type ?? null,
+          target_ref: workItem.source_object_ref ?? null,
+          actor_user_id: context.userId || null,
+        },
+      });
+      return {
+        kind: 'work_item' as const,
+        id: workItem.id,
+        already: false,
+        acknowledged_at: acknowledgedAt.toISOString(),
+      };
+    }
+
+    const repo = context.manager.getRepository(AiActionRequest);
+    const action = await repo.findOne({ where: { id: input.id, tenant_id: context.tenantId } });
+    if (!action) {
+      throw new NotFoundException('Action request not found.');
+    }
+    const already = existingStamp(action.metadata_json);
+    if (already) {
+      return {
+        kind: 'action' as const,
+        id: action.id,
+        already: true,
+        acknowledged_at: typeof already.at === 'string' ? already.at : null,
+      };
+    }
+    action.metadata_json = stamp(action.metadata_json) as any;
+    action.updated_at = acknowledgedAt;
+    await repo.save(action);
+    await this.agentQueue?.recordAuditEvent(context, {
+      agentDefinitionId: definitionIdFromMetadata(action.metadata_json),
+      eventType: 'agent_attention_acknowledged',
+      severity: 'info',
+      message: 'Operator acknowledged a proposal that needed attention.',
+      metadata: {
+        kind: 'action',
+        action_request_id: action.id,
+        capability_name: action.capability_name,
+        target_type: action.target_type ?? null,
+        target_ref: action.target_ref ?? null,
+        actor_user_id: context.userId || null,
+      },
+    });
+    return {
+      kind: 'action' as const,
+      id: action.id,
+      already: false,
+      acknowledged_at: acknowledgedAt.toISOString(),
     };
   }
 
