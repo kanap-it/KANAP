@@ -114,7 +114,6 @@
     "todayActions": "Actions today",
     "acceptance": "Acceptance",
     "dismissed": "Dismissed",
-    "costPerTicket": "Cost per ticket",
     "fleet": "Fleet",
     "empty": "No agents are available for this tenant.",
     "noDescription": "No description.",
@@ -133,7 +132,6 @@
     "runsToday": "Runs today",
     "updated": "Updated",
     "newAgent": "New agent",
-    "newAgentEnabled": "Create a draft agent from a safe template.",
     "newAgentDefaultName": "Helpdesk agent",
     "newAgentDescription": "Draft helpdesk agent created from the safe helpdesk triage template.",
     "wizard": {
@@ -171,7 +169,8 @@
       "reviewBodySre": "The agent is created as Not started. Pick the alerts it watches in its settings, test it on an alert, then enable it."
     },
     "newAgentSreDefaultName": "Infrastructure monitoring agent",
-    "newAgentSreDescription": "Draft monitoring agent that reads alerts, correlates them with your KANAP data, and prepares diagnosis notes for review."
+    "newAgentSreDescription": "Draft monitoring agent that reads alerts, correlates them with your KANAP data, and prepares diagnosis notes for review.",
+    "cost": "Cost — today / 7 days"
   },
   "approvals": {
     "title": "Agent approvals",
@@ -182,7 +181,6 @@
     "needsAttention": "Needs attention",
     "recentlyFinished": "Recently finished",
     "emptyDecision": "Nothing needs your decision.",
-    "emptyInProgress": "No agent work is in progress.",
     "emptyAttention": "No agent work needs attention.",
     "emptyFinished": "No recently finished actions.",
     "loading": "Loading approvals.",
@@ -315,9 +313,7 @@
     "testStarted": "Test run started.",
     "testFailed": "Could not start the test run.",
     "providerMissing": "This agent has no ticketing provider binding.",
-    "status": "Status",
     "checkNow": "Check now",
-    "lifecycle": "Lifecycle",
     "watching": "Watching",
     "filtered": "Filtered",
     "allTickets": "All tickets",
@@ -330,7 +326,6 @@
     "inProgress": "In progress",
     "failed": "Failed",
     "pendingApprovals": "Pending approvals",
-    "limits": "Limits",
     "runsToday": "Runs today",
     "tokensToday": "Tokens today",
     "costToday": "Cost today",
@@ -409,7 +404,10 @@
     "diagnosedAt": "Diagnosed {{when}}",
     "openInMonitoringTool": "Open in the monitoring tool",
     "previousDiagnoses": "Previous diagnoses",
-    "noDiagnosisStored": "No stored diagnosis for this alert yet."
+    "noDiagnosisStored": "No stored diagnosis for this alert yet.",
+    "runMode": "Run mode",
+    "checkNowOffHint": "Turn the agent on first.",
+    "checkNowPausedHint": "Lift the pause first."
   },
   "performance": {
     "acceptance": "Acceptance",
@@ -451,8 +449,6 @@
     "identity": "Identity and persona",
     "objectiveCapabilities": "Objective and capabilities",
     "name": "Name",
-    "status": "Status",
-    "manageInMonitor": "Manage in Monitor",
     "archiveAgent": "Archive agent",
     "restoreAgent": "Restore agent",
     "archiveDialog": {

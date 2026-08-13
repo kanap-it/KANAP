@@ -1,13 +1,11 @@
 import React from 'react';
 import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
-import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
+import AgentControlBar from '../../components/agents/AgentControlBar';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
 import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
@@ -27,21 +25,15 @@ import useAutosave, { useAutosaveQueue, useAutosaveRegistry, type AutosaveRegist
 import {
   buildTicketGroups,
   EmptyState,
-  formatDateTime,
   formatNumber,
   formatPercent,
   HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
-  lifecycleStatusKey,
   MetricBlock,
   providerBindingForDefinition,
-  ReasonDialog,
   resolveAgentSummary,
   SaveIndicator,
   Section,
-  statusLabel,
-  StatusText,
-  TargetLabel,
   ticketingProviderKeyForDefinition,
   type TicketWorkGroup,
 } from '../../components/agents/agentControlPrimitives';
@@ -88,10 +80,8 @@ import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAge
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
-// Run-mode control values: off = status disabled; manual = enabled without the
-// scheduled poll (runs only on manual triggers/tests); watching = enabled + poll.
-type RunModeKey = 'off' | 'manual' | 'watching';
-const RUN_MODES: RunModeKey[] = ['off', 'manual', 'watching'];
+// Scroll anchor for the control bar's "Test on a ticket/alert" entry point.
+const AGENT_TEST_SECTION_ID = 'agent-test';
 
 type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis';
 const HELPDESK_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
@@ -423,70 +413,18 @@ function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition
   };
 }
 
-// Inline label·value fact for the consolidated status strip (charter workspace
-// metric strip: one lightweight line, not a grid of metric cards).
-function StatusStripItem({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary, whiteSpace: 'nowrap' })}>
-      {label}
-      {' '}
-      <Typography component="span" sx={(theme) => ({ fontSize: 12, fontWeight: 500, color: theme.palette.kanap.text.primary })}>
-        {value}
-      </Typography>
-    </Typography>
-  );
-}
-
 function MonitorTab({ agentKey }: { agentKey: string }) {
-  const { t, i18n } = useTranslation(['agents']);
-  const navigate = useNavigate();
-  const { hasLevel } = useAuth();
+  const { t } = useTranslation(['agents']);
   const data = useAgentControlData({ targetAgentKey: agentKey });
   const [targetKey, setTargetKey] = React.useState('');
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
-  const summary = resolveAgentSummary(data.queueQuery.data, agentKey);
-  const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
   const isSre = definition?.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
-  // SRE agents have no entry in the helpdesk summaries, so watching / last-check
-  // state comes from the definition itself (trigger policy + the poller's
-  // monitoring_ingestion_state written into metadata_json).
-  const sreWatching = policyObject(policyObject(definition?.trigger_policy_json).scheduled_poll).enabled === true;
-  const sreTargetingPredicateCount = (() => {
-    const predicates = policyObject(policyObject(definition?.scope_policy_json).targeting).predicates;
-    return Array.isArray(predicates) ? predicates.length : 0;
-  })();
-  const sreIngestionState = policyObject(policyObject(definition?.metadata_json).monitoring_ingestion_state);
-  const sreLastPollStatus = stringValue(sreIngestionState.last_poll_status);
-  // Run state vs emergency pause are distinct axes. An agent-scoped pause can be
-  // lifted from here; a tenant/global pause is managed from the fleet overview.
-  const agentPause = summary?.emergencyPause ?? null;
-  const tenantPause = data.settingsQuery.data?.emergency_pause ?? null;
-  const activePause = agentPause ?? tenantPause;
-  // Single run-mode control (off / manual only / watching) collapsing the two
-  // backend axes: definition.status and trigger_policy.scheduled_poll.enabled.
-  // Draft has no selection (a fact, not a choice); archived hides the control —
-  // restore is a deliberate action in Settings.
-  const watching = isSre ? sreWatching : !!summary?.ingestion.enabled;
-  const runMode: RunModeKey | null = definition?.status === 'enabled'
-    ? (watching ? 'watching' : 'manual')
-    : definition?.status === 'disabled'
-      ? 'off'
-      : null;
-  const setRunMode = (mode: RunModeKey) => {
-    if (!definition || mode === runMode) return;
-    data.updateAgentStatusMutation.mutate({
-      id: definition.id,
-      status: mode === 'off' ? 'disabled' : 'enabled',
-      watching: mode === 'watching',
-    });
-  };
+  // Lifecycle, run-mode controls, checks, queue counts and the daily limits all
+  // live in the transverse control bar above the tabs now — this tab is the
+  // agent's work surface only (test run, watched alerts, timeline).
   const grouped = React.useMemo(() => buildTicketGroups(data.queueQuery.data ?? null, data.actionPool, definition?.id ?? null, Date.now()), [data.actionPool, data.queueQuery.data, definition?.id]);
-  const agentGroups = grouped.groups;
-  const failedGroupCount = agentGroups.filter((group) => ['failed', 'dead_letter'].includes(group.queueStatus)).length;
-  const inProgressGroups = agentGroups.filter((group) => ['queued', 'leased', 'running'].includes(group.queueStatus));
-  const monitoringGroups = agentGroups.filter((group) => group.providerKind === 'monitoring');
-  const pollMutation = isSre ? data.pollMonitoringMutation : data.pollMutation;
+  const monitoringGroups = grouped.groups.filter((group) => group.providerKind === 'monitoring');
 
   const triageMutation = useMutation({
     mutationFn: () => {
@@ -529,102 +467,10 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
     [monitoringDiagnosisMutation.data],
   );
 
-  const [pauseDialogOpen, setPauseDialogOpen] = React.useState(false);
-  const submitPause = (reason: string) => {
-    if (!definition) return;
-    data.createPauseMutation.mutate(
-      { scope: 'agent', agent_definition_id: definition.id, reason, expires_in_minutes: null },
-      { onSuccess: () => setPauseDialogOpen(false) },
-    );
-  };
-
   return (
     <Stack spacing={2}>
       {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
       {data.message && <Alert severity="success" onClose={() => data.setMessage(null)}>{data.message}</Alert>}
-      {activePause && <Alert severity="warning">{t('pause.active', { reason: activePause.reason })}</Alert>}
-      <Section
-        title={t('monitor.status')}
-        actions={(
-          <Stack direction="row" spacing={1} alignItems="center">
-            {agentPause ? (
-              <Button size="small" variant="outlined" startIcon={<PlayArrowIcon />} onClick={() => data.revokePauseMutation.mutate(agentPause.id)} disabled={data.revokePauseMutation.isPending}>{t('pause.lift')}</Button>
-            ) : tenantPause ? (
-              <Button size="small" variant="text" onClick={() => navigate('/agents')}>{t('pause.managedForAll')}</Button>
-            ) : definition?.status === 'archived' ? (
-              <Typography variant="caption" color="text.secondary">{t('monitor.archivedNote')}</Typography>
-            ) : (
-              <>
-                {canAdmin && (
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    {RUN_MODES.map((mode) => (
-                      <Chip
-                        key={mode}
-                        clickable
-                        size="small"
-                        color={runMode === mode ? 'primary' : 'default'}
-                        label={t(`monitor.modes.${mode}`)}
-                        disabled={data.updateAgentStatusMutation.isPending}
-                        onClick={() => setRunMode(mode)}
-                      />
-                    ))}
-                  </Stack>
-                )}
-                <Button size="small" color="error" variant="outlined" startIcon={<PauseCircleOutlineIcon />} onClick={() => setPauseDialogOpen(true)}>{t('pause.agent')}</Button>
-              </>
-            )}
-            <Button size="small" variant="outlined" startIcon={pollMutation.isPending ? <CircularProgress size={16} /> : <RefreshIcon />} onClick={() => pollMutation.mutate()} disabled={pollMutation.isPending || !!activePause}>
-              {isSre ? t('monitor.checkForAlerts') : t('monitor.checkNow')}
-            </Button>
-          </Stack>
-        )}
-      >
-        {/* One consolidated status line (plan 38 declutter): the strip carries
-            lifecycle / watching / checks / queue as inline facts so the alerts
-            list stays above the fold. */}
-        <Stack direction="row" spacing={2.75} useFlexGap flexWrap="wrap" alignItems="baseline" sx={{ px: 1.5, py: 1.25 }}>
-          <StatusStripItem
-            label={t('monitor.lifecycle')}
-            value={definition ? t(`lifecycle.${lifecycleStatusKey(definition.status, isSre ? sreWatching : !!summary?.ingestion.enabled, definition.automatic_action_classes?.length ?? 0, !!activePause || !!summary?.ingestion.paused)}`) : t('common.notSet')}
-          />
-          <StatusStripItem
-            label={t('monitor.watching')}
-            value={isSre
-              ? (sreWatching ? (sreTargetingPredicateCount > 0 ? t('monitor.filtered') : t('monitor.allAlerts')) : t('monitor.off'))
-              : (summary?.ingestion.enabled ? (summary.ingestion.entityId || summary.ingestion.categoryId ? t('monitor.filtered') : t('monitor.allTickets')) : t('monitor.off'))}
-          />
-          <StatusStripItem
-            label={t('monitor.lastCheck')}
-            value={isSre
-              ? (sreLastPollStatus ? statusLabel(sreLastPollStatus) : t('common.notSet'))
-              : (summary?.ingestion.lastPollStatus ? statusLabel(summary.ingestion.lastPollStatus) : t('common.notSet'))}
-          />
-          <StatusStripItem label={t('monitor.nextCheck')} value={(isSre ? sreWatching : summary?.ingestion.enabled) ? t('monitor.everyFiveMinutes') : t('common.notSet')} />
-          <StatusStripItem
-            label={t('monitor.queue')}
-            value={t('monitor.queueSummary', {
-              waiting: agentGroups.filter((group) => group.queueStatus === 'waiting_approval').length,
-              inProgress: inProgressGroups.length,
-            })}
-          />
-          {failedGroupCount > 0 && (
-            <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'error.main' }}>
-              {t('overview.failedCount', { count: failedGroupCount })}
-            </Typography>
-          )}
-        </Stack>
-        {inProgressGroups.length > 0 && (
-          <Stack spacing={0.75} sx={{ px: 1.5, pb: 1.5 }}>
-            {inProgressGroups.map((group) => (
-              <Stack key={group.key} direction="row" spacing={1} alignItems="center">
-                <CircularProgress size={12} thickness={5} />
-                <TargetLabel targetType={group.targetType} targetRef={group.targetRef} size="dense" href={group.targetUrl} />
-                <Typography variant="caption" color="text.secondary">{statusLabel(group.queueStatus)}</Typography>
-              </Stack>
-            ))}
-          </Stack>
-        )}
-      </Section>
 
       {isSre && (
         <Section title={t('monitor.alerts')}>
@@ -636,19 +482,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
         </Section>
       )}
 
-      {/* Daily-usage totals come from the helpdesk summaries, which do not cover
-          SRE agents yet — hide the section rather than showing misleading zeros. */}
-      {!isSre && (
-        <Section title={t('monitor.limits')}>
-          <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
-            <MetricBlock label={t('monitor.runsToday')} value={`${summary?.guardrails.daily?.runs ?? 0} / ${summary?.guardrails.daily?.cap.maxRuns ?? '-'}`} />
-            <MetricBlock label={t('monitor.tokensToday')} value={`${formatNumber(summary?.guardrails.daily?.estimatedTokens ?? 0)} / ${formatNumber(summary?.guardrails.daily?.cap.maxTokens)}`} />
-            <MetricBlock label={t('monitor.costToday')} value={`${(summary?.guardrails.daily?.estimatedCostEur ?? 0).toFixed(4)} / ${summary?.guardrails.daily?.cap.maxCostEur ?? '-'} EUR`} />
-          </Box>
-        </Section>
-      )}
-
-      <Section title={isSre ? t('monitor.testAlert') : t('monitor.testTicket')}>
+      <Section id={AGENT_TEST_SECTION_ID} title={isSre ? t('monitor.testAlert') : t('monitor.testTicket')}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
           {isSre ? (
             <>
@@ -701,17 +535,6 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
         <AgentsActivityPage agentKey={agentKey} />
       </Box>
 
-      <ReasonDialog
-        open={pauseDialogOpen}
-        title={t('pause.dialogTitle')}
-        description={t('pause.dialogDescription')}
-        label={t('pause.reasonLabel')}
-        placeholder={t('pause.reasonPlaceholder')}
-        busy={data.createPauseMutation.isPending}
-        saveLabel={t('pause.agent')}
-        onClose={() => setPauseDialogOpen(false)}
-        onSubmit={submitPause}
-      />
     </Stack>
   );
 }
@@ -900,20 +723,6 @@ function SettingsTab({ definition, autosaveRegistry }: {
   const isHelpdesk = definition.agent_type === 'helpdesk';
   const isSre = definition.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
-  const navigate = useNavigate();
-  // Read-only lifecycle display: run state is operated from the Monitor tab only.
-  // Same derivation as the Monitor status strip so the two never disagree.
-  const agentSummary = resolveAgentSummary(data.queueQuery.data, definition.agent_key);
-  const settingsWatching = isSre
-    ? policyObject(policyObject(definition.trigger_policy_json).scheduled_poll).enabled === true
-    : !!agentSummary?.ingestion.enabled;
-  const settingsPause = agentSummary?.emergencyPause ?? data.settingsQuery.data?.emergency_pause ?? null;
-  const settingsLifecycleKey = lifecycleStatusKey(
-    definition.status,
-    settingsWatching,
-    definition.automatic_action_classes?.length ?? 0,
-    !!settingsPause || !!agentSummary?.ingestion.paused,
-  );
   const isArchived = definition.status === 'archived';
   const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
   const autonomyQuery = useQuery({
@@ -1393,17 +1202,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
         )}
       >
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 220px' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.name')}><TextField size="small" value={agentForm.name} onChange={(event) => updateAgent('name', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.status')}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ minHeight: 31 }}>
-                <StatusText status={t(`lifecycle.${settingsLifecycleKey}`)} />
-                <Button size="small" variant="text" sx={actionLinkButtonSx} onClick={() => navigate(`/agents/${definition.agent_key}?tab=monitor`)}>
-                  {t('settings.manageInMonitor')}
-                </Button>
-              </Stack>
-            </SettingsField>
-          </Box>
+          <SettingsField label={t('settings.name')}><TextField size="small" value={agentForm.name} onChange={(event) => updateAgent('name', event.target.value)} /></SettingsField>
           <SettingsField label={t('settings.description')}>
             <TextField
               size="small"
@@ -2029,20 +1828,36 @@ export default function AgentWorkspacePage() {
   // screen instead of vanishing with the tab.
   const autosaveRegistry = useAutosaveRegistry();
   const [flushingTab, setFlushingTab] = React.useState(false);
+  const [pendingAnchor, setPendingAnchor] = React.useState<string | null>(null);
 
-  const setTab = (_: React.SyntheticEvent, next: string) => {
+  const goToTab = React.useCallback((next: string, anchor?: string) => {
     const params = new URLSearchParams(searchParams);
     params.set('tab', next);
-    if (!autosaveRegistry.isBusy()) {
+    const commit = () => {
       setSearchParams(params);
+      if (anchor) setPendingAnchor(anchor);
+    };
+    if (!autosaveRegistry.isBusy()) {
+      commit();
       return;
     }
     setFlushingTab(true);
     void autosaveRegistry.flushAll().then((saved) => {
       setFlushingTab(false);
-      if (saved) setSearchParams(params);
+      if (saved) commit();
     });
-  };
+  }, [autosaveRegistry, searchParams, setSearchParams]);
+
+  const setTab = (_: React.SyntheticEvent, next: string) => goToTab(next);
+  // The control bar's "Test on a ticket/alert" is an entry point, not a second
+  // implementation: it lands on the Monitor tab's test section.
+  const openTestSection = React.useCallback(() => goToTab('monitor', AGENT_TEST_SECTION_ID), [goToTab]);
+
+  React.useEffect(() => {
+    if (!pendingAnchor) return;
+    document.getElementById(pendingAnchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setPendingAnchor(null);
+  }, [pendingAnchor, activeTab]);
 
   if (data.queueQuery.isLoading && !definition) {
     return <Box display="flex" justifyContent="center" py={5}><CircularProgress size={24} /></Box>;
@@ -2068,6 +1883,10 @@ export default function AgentWorkspacePage() {
         actions={<Button size="small" variant="outlined" onClick={() => navigate('/agents')}>{t('workspace.back')}</Button>}
       />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{definition.description ?? definition.agent_key}</Typography>
+      {/* Transverse control + status bar: one place for run mode, checks, tests
+          and the emergency brake, plus the agent's live state — visible on every
+          tab instead of being buried in the Monitor tab. */}
+      <AgentControlBar agentKey={definition.agent_key} onTest={openTestSection} />
       <Stack spacing={2}>
         <Tabs value={tabs.includes(activeTab) ? activeTab : 'monitor'} onChange={setTab} variant="scrollable" scrollButtons="auto">
           {tabs.map((tab) => <Tab key={tab} value={tab} label={t(`workspace.tabs.${tab}`)} disabled={flushingTab} />)}

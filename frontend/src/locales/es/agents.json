@@ -114,7 +114,6 @@
     "todayActions": "Acciones hoy",
     "acceptance": "Aceptación",
     "dismissed": "Descartadas",
-    "costPerTicket": "Coste por ticket",
     "fleet": "Flota",
     "empty": "No hay agentes disponibles para este espacio.",
     "noDescription": "Sin descripción.",
@@ -133,7 +132,6 @@
     "runsToday": "Ejecuciones hoy",
     "updated": "Actualizado",
     "newAgent": "Nuevo agente",
-    "newAgentEnabled": "Crear un agente en borrador a partir de una plantilla segura.",
     "newAgentDefaultName": "Agente helpdesk",
     "newAgentDescription": "Borrador de agente helpdesk creado desde la plantilla segura de triaje de helpdesk.",
     "wizard": {
@@ -171,7 +169,8 @@
       "reviewBodySre": "El agente se crea como No iniciado. Elija en su configuración las alertas que vigilará, pruébelo con una alerta y actívelo después."
     },
     "newAgentSreDefaultName": "Agente de supervisión de infraestructura",
-    "newAgentSreDescription": "Agente de supervisión en borrador: lee alertas, las relaciona con sus datos de KANAP y prepara notas de diagnóstico para revisión."
+    "newAgentSreDescription": "Agente de supervisión en borrador: lee alertas, las relaciona con sus datos de KANAP y prepara notas de diagnóstico para revisión.",
+    "cost": "Coste — hoy / 7 días"
   },
   "approvals": {
     "title": "Aprobaciones de agentes",
@@ -182,7 +181,6 @@
     "needsAttention": "Requiere atención",
     "recentlyFinished": "Finalizadas recientemente",
     "emptyDecision": "Nada requiere tu decisión.",
-    "emptyInProgress": "No hay trabajo de agentes en curso.",
     "emptyAttention": "No hay trabajo de agentes que requiera atención.",
     "emptyFinished": "No hay acciones finalizadas recientemente.",
     "loading": "Cargando aprobaciones.",
@@ -315,9 +313,7 @@
     "testStarted": "Ejecución de prueba iniciada.",
     "testFailed": "No se pudo iniciar la ejecución de prueba.",
     "providerMissing": "Este agente no tiene un proveedor de tickets asociado.",
-    "status": "Estado",
     "checkNow": "Comprobar ahora",
-    "lifecycle": "Ciclo de vida",
     "watching": "Vigilancia",
     "filtered": "Filtrado",
     "allTickets": "Todos los tickets",
@@ -330,7 +326,6 @@
     "inProgress": "En curso",
     "failed": "Fallidos",
     "pendingApprovals": "Aprobaciones pendientes",
-    "limits": "Límites",
     "runsToday": "Ejecuciones hoy",
     "tokensToday": "Tokens hoy",
     "costToday": "Coste hoy",
@@ -409,7 +404,10 @@
     "diagnosedAt": "Diagnosticado {{when}}",
     "openInMonitoringTool": "Abrir en la herramienta de supervisión",
     "previousDiagnoses": "Diagnósticos anteriores",
-    "noDiagnosisStored": "Aún no hay un diagnóstico guardado para esta alerta."
+    "noDiagnosisStored": "Aún no hay un diagnóstico guardado para esta alerta.",
+    "runMode": "Modo de funcionamiento",
+    "checkNowOffHint": "Active primero el agente.",
+    "checkNowPausedHint": "Levante primero la pausa."
   },
   "performance": {
     "acceptance": "Aceptación",
@@ -451,8 +449,6 @@
     "identity": "Identidad y persona",
     "objectiveCapabilities": "Objetivo y capacidades",
     "name": "Nombre",
-    "status": "Estado",
-    "manageInMonitor": "Gestionar en Supervisión",
     "archiveAgent": "Archivar agente",
     "restoreAgent": "Restaurar agente",
     "archiveDialog": {

@@ -2670,6 +2670,9 @@ export class AiCapabilityRegistry {
     await this.agentQueue.enqueueTicketingScopedTicket(context, {
       definition,
       ticket,
+      // Follow-up of a human-approved write, not a cron cycle: it must still
+      // re-queue when the agent runs in Manual mode (watching off).
+      trigger: 'manual',
       providerKind: action.provider_kind,
       providerKey: action.provider_key,
       metadata: {

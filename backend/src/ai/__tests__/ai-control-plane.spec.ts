@@ -14209,6 +14209,129 @@ async function testScheduledAndAlertRoutinesCreateDispatcherAuditRecords() {
   assert.equal((alert.stores.get(AiRun.name) ?? []).length, 1);
 }
 
+// Run modes (plan 39, PR A). Manual = the agent is on but not watching: a
+// manual "Check now" must still run one cycle, while the scheduled cron keeps
+// requiring watching, and an Off agent stays inert with a readable reason.
+async function testHelpdeskManualCheckRunsWithoutWatching() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const nowMs = Date.now();
+  const hoursAgo = (hours: number) => new Date(nowMs - hours * 60 * 60 * 1000).toISOString();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, {
+    enabledAt: hoursAgo(2),
+    hardBackfillHorizonHours: 72,
+  });
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  definition.trigger_policy_json = {
+    ...(definition.trigger_policy_json ?? {}),
+    scheduled_poll: { enabled: false },
+    production_polling_enabled: false,
+  };
+  definition.updated_at = new Date();
+  await definitionRepo.save(definition);
+
+  // The cron path still refuses; the manual trigger resolves the same scope.
+  assert.throws(
+    () => queue.resolveScopeIngestionConfig(definition),
+    (error: unknown) => error instanceof ForbiddenException,
+    'the cron path must keep requiring the scheduled poll',
+  );
+  const manualConfig = queue.resolveScopeIngestionConfig(definition, { trigger: 'manual' });
+  assert.equal(manualConfig.mode, 'new_tickets_only');
+  assert.equal(manualConfig.entityId, 'lohr-helpdesk');
+
+  const processed: string[] = [];
+  const service = createHelpdeskIngestionService({
+    queue,
+    processedWorkItemIds: processed,
+    provider: {
+      listTicketsForScope: async () => ({
+        ok: true,
+        data: {
+          tickets: [{
+            id: 'manual-mode-ticket',
+            title: 'Manual mode ticket',
+            status: 'new',
+            createdAt: hoursAgo(1),
+            updatedAt: hoursAgo(1),
+            scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+          }],
+        },
+        evidence: [],
+      }),
+    },
+  });
+
+  const manualPoll = await service.pollTenant(context);
+  assert.equal(manualPoll.status, 'completed', 'a manual check runs while watching is off');
+  assert.equal(manualPoll.enqueued, 1);
+  assert.equal(manualPoll.processed, 1);
+  assert.deepEqual(
+    (stores.get(AiAgentWorkItem.name) ?? []).map((item: any) => item.source_object_ref),
+    ['manual-mode-ticket'],
+  );
+
+  // Off: the definition is loaded (so the reason is visible) but never runs.
+  const off = await definitionRepo.findOne({ where: { id: definition.id, tenant_id: context.tenantId } });
+  assert.ok(off);
+  off.status = 'disabled';
+  off.updated_at = new Date();
+  await definitionRepo.save(off);
+  const offPoll = await service.pollTenant(context);
+  assert.equal(offPoll.status, 'disabled');
+  assert.match(String(offPoll.reason ?? ''), /turned off/i);
+  assert.equal((stores.get(AiAgentWorkItem.name) ?? []).length, 1, 'an Off agent enqueues nothing');
+}
+
+// Fleet cost tile (plan 39, PR A item 5): today + trailing 7 days across every
+// agent of the tenant, desk AND SRE. Chat runs (no agent definition id) and
+// other tenants' runs must never leak in.
+async function testQueueOverviewExposesFleetCostTotals() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const runRepo = manager.getRepository(AiRun);
+  const now = Date.now();
+  const daysAgo = (days: number) => new Date(now - days * 24 * 60 * 60 * 1000);
+  const addRun = async (input: { tenantId: string; definitionId: string | null; costEur: number; createdAt: Date }) => {
+    await runRepo.save(runRepo.create({
+      id: randomUUID(),
+      tenant_id: input.tenantId,
+      invocation_channel: 'agent',
+      trigger_kind: 'scheduled',
+      status: 'completed',
+      usage_json: { estimated_tokens: 100 },
+      cost_json: { estimated_cost_eur: input.costEur },
+      metadata_json: input.definitionId ? { agent_definition_id: input.definitionId } : {},
+      started_at: input.createdAt,
+      created_at: input.createdAt,
+      updated_at: input.createdAt,
+    }));
+  };
+  await addRun({ tenantId: context.tenantId, definitionId: bundle.definition.id, costEur: 0.25, createdAt: new Date() });
+  // An SRE agent's runs count too — the aggregate is keyed on "carries an agent
+  // definition id", not on the agent type.
+  await addRun({ tenantId: context.tenantId, definitionId: 'sre-definition-id', costEur: 0.5, createdAt: daysAgo(3) });
+  // Outside the 7-day window, a chat run, and another tenant: all excluded.
+  await addRun({ tenantId: context.tenantId, definitionId: bundle.definition.id, costEur: 9, createdAt: daysAgo(30) });
+  await addRun({ tenantId: context.tenantId, definitionId: null, costEur: 4, createdAt: new Date() });
+  await addRun({ tenantId: 'tenant-2', definitionId: 'other-tenant-definition', costEur: 7, createdAt: new Date() });
+
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    { findEnabledTargets: async () => [] } as any,
+    {} as any,
+    queue,
+  );
+  const overview = await service.getQueueOverview(context, { limit: 10 });
+  assert.equal(overview.cost.today_eur, 0.25);
+  assert.equal(overview.cost.last_7_days_eur, 0.75);
+}
+
 async function run() {
   testCapabilityContractRejectsMcpWriteExposure();
   testEvidenceRedactionAndHashing();
@@ -14250,6 +14373,8 @@ async function run() {
   await testMcpDispatcherAttributionAndMaliciousOutputRemainEvidenceOnly();
   await testMcpMalformedInputFailsBeforeHandler();
   testMcpRateLimiterAppliesPerApiKey();
+  await testHelpdeskManualCheckRunsWithoutWatching();
+  await testQueueOverviewExposesFleetCostTotals();
   await testMcpAuditServiceReturnsSummariesWithoutPayloads();
   await testMcpAuditScopeRequired();
   await testExternalMcpBridgeContractsAreWrappedAndHiddenFromMcp();

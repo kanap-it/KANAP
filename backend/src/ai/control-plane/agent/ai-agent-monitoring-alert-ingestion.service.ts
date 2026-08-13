@@ -78,6 +78,12 @@ export const SRE_MONITORING_ALERT_INGESTION_TASK_NAME = 'ai-sre-monitoring-alert
 // ingestion families never serialize against each other on the same tenant.
 const SRE_MONITORING_ALERT_INGESTION_LOCK_PREFIX = 'ai-sre-monitoring-ingestion';
 
+// `manual` marks an operator-triggered "Check for alerts" (as opposed to the
+// cron tick). It bypasses the failed-cycle backoff and lets an agent in Manual
+// run mode — turned on, but not watching — run one cycle on demand. Off agents
+// are still excluded upstream by the status filter in loadDefinitions.
+type MonitoringAlertPollOptions = { ensureDefinition: boolean; manual: boolean };
+
 type MonitoringDefinitionPollState = {
   definition: AiAgentDefinition;
   summary: MonitoringAlertIngestionPollSummary;
@@ -201,9 +207,9 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
     for (const tenant of tenants) {
       try {
         const result = opts?.manager
-          ? await this.runForTenantManager(opts.manager, tenant.id, { ensureDefinition: false })
+          ? await this.runForTenantManager(opts.manager, tenant.id, { ensureDefinition: false, manual: false })
           : await withTenantExecution(this.dataSource, tenant.id, (manager) =>
-            this.runForTenantManager(manager, tenant.id, { ensureDefinition: false }),
+            this.runForTenantManager(manager, tenant.id, { ensureDefinition: false, manual: false }),
           );
         if (result.status === 'disabled' || result.status === 'skipped') {
           summary.tenantsSkipped += 1;
@@ -226,13 +232,13 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
   }
 
   async pollTenant(context: AiExecutionContextWithManager): Promise<MonitoringAlertIngestionPollSummary> {
-    return this.pollTenantContext(context, { ensureDefinition: true });
+    return this.pollTenantContext(context, { ensureDefinition: true, manual: true });
   }
 
   private async runForTenantManager(
     manager: EntityManager,
     tenantId: string,
-    opts: { ensureDefinition: boolean },
+    opts: MonitoringAlertPollOptions,
   ): Promise<MonitoringAlertIngestionPollSummary> {
     await manager.query('SELECT set_config(\'app.current_tenant\', $1, true)', [tenantId]);
     return this.pollTenantContext({
@@ -247,7 +253,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
 
   private async pollTenantContext(
     context: AiExecutionContextWithManager,
-    opts: { ensureDefinition: boolean },
+    opts: MonitoringAlertPollOptions,
   ): Promise<MonitoringAlertIngestionPollSummary> {
     const processingDeadlineMs = Date.now() + parsePositiveIntEnv(
       process.env.AI_AGENT_MONITORING_PROCESS_BUDGET_MS,
@@ -293,7 +299,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
     const definitions = await this.loadDefinitions(context, opts.ensureDefinition);
     if (definitions.length === 0) {
       summary.status = 'disabled';
-      summary.reason = 'No enabled SRE monitoring agent definitions exist yet for this tenant.';
+      summary.reason = 'No monitoring agent is turned on. Set an agent to Manual or Watching first.';
       return summary;
     }
 
@@ -377,7 +383,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
   private async detectDefinition(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
-    opts: { ensureDefinition: boolean },
+    opts: MonitoringAlertPollOptions,
   ): Promise<MonitoringDefinitionPollState> {
     const summary: MonitoringAlertIngestionPollSummary = {
       tenantId: context.tenantId,
@@ -395,7 +401,9 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
     let config: MonitoringIngestionConfig;
     try {
       this.queue.assertSreMonitoringDefinitionRunnable(definition);
-      config = this.queue.resolveMonitoringScopeIngestionConfig(definition);
+      config = this.queue.resolveMonitoringScopeIngestionConfig(definition, {
+        trigger: opts.manual ? 'manual' : 'scheduled',
+      });
     } catch (error) {
       summary.status = 'disabled';
       summary.reason = error instanceof Error ? error.message : String(error);
@@ -404,9 +412,9 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
 
     // Scheduled polls back off after failed cycles (5 min doubling, capped at
     // 6 h) so a down monitoring tool is not hammered every cron tick. Manual
-    // cockpit polls (ensureDefinition=true) bypass the cooldown on purpose: an
-    // operator retry is an explicit decision.
-    if (!opts.ensureDefinition) {
+    // cockpit polls bypass the cooldown on purpose: an operator retry is an
+    // explicit decision.
+    if (!opts.manual) {
       const cooldownUntil = scheduledPollCooldownUntil(definition);
       if (cooldownUntil != null && Date.now() < cooldownUntil) {
         summary.status = 'skipped';
@@ -531,6 +539,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
           definition,
           alert,
           dedupKey,
+          trigger: opts.manual ? 'manual' : 'scheduled',
           providerKind: binding.providerKind,
           providerKey: binding.providerKey,
           metadata: {

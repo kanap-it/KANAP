@@ -36,13 +36,13 @@ import {
   HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
   LEGACY_GLPI_TICKETING_PROVIDER_KEY,
+  LifecycleText,
   lifecycleStatusKey,
   MetricBlock,
   providerBindingForDefinition,
   ReasonDialog,
   Section,
   statusLabel,
-  StatusText,
 } from '../../components/agents/agentControlPrimitives';
 import {
   actionLinkButtonSx,
@@ -126,6 +126,46 @@ function defaultWizardForm(t: (key: string) => string, statusValues: string[] = 
 function positiveNumber(value: string, fallback: number): number {
   const parsed = Number(value.replace(',', '.'));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * Is the built-in desk agent still exactly as the server seeded it?
+ *
+ * Every tenant gets `helpdesk.glpi.triage` auto-seeded, so a tenant that never
+ * touched it (or that only runs its own agents) sees a stranger in the fleet.
+ * It stays in the database — it is the template `createAgentDefinition` copies
+ * bindings from, and the anchor of the fleet statistics — but it is filtered out
+ * of the grid until it has actually been used. Deep links keep working.
+ *
+ * Chosen predicate, cheapest reliable signal available client-side with no
+ * extra request:
+ *  - `metadata_json.user_modified !== true` — the backend stamps this flag on
+ *    EVERY definition write (updateAgent, updateAgentStatus, create), and the
+ *    seeder itself never sets it. Any settings save, run-mode change, archive or
+ *    restore therefore reveals the agent for good.
+ *  - no `helpdesk_ingestion_state` in `metadata_json` — the poller writes that
+ *    block on its first cycle, so an agent that has ever checked stays visible.
+ *  - no work item or target state for it in the overview payload — a test run on
+ *    a ticket creates both, so a tested-but-unedited agent stays visible too.
+ *
+ * `config_version` was the alternative; `user_modified` is strictly better here
+ * because it is a boolean intent flag rather than a counter whose initial value
+ * the frontend would have to hardcode. The SRE built-in is deliberately NOT
+ * covered: it is the real SRE agent, not a template.
+ */
+function isPristineBuiltinDeskAgent(
+  definition: { id: string; agent_key: string; metadata_json?: Record<string, unknown> | null },
+  overview: { work_items?: Array<{ agent_definition_id: string | null }>; target_states?: Array<{ agent_definition_id: string | null }> } | null,
+): boolean {
+  if (definition.agent_key !== HELP_DESK_TICKETING_AGENT_KEY) return false;
+  const metadata = definition.metadata_json && typeof definition.metadata_json === 'object'
+    ? definition.metadata_json as Record<string, unknown>
+    : {};
+  if (metadata.user_modified === true) return false;
+  if (metadata.helpdesk_ingestion_state) return false;
+  if ((overview?.work_items ?? []).some((item) => item.agent_definition_id === definition.id)) return false;
+  if ((overview?.target_states ?? []).some((state) => state.agent_definition_id === definition.id)) return false;
+  return true;
 }
 
 // SRE "watching" source of truth (mirror of the workspace Monitor header's
@@ -447,6 +487,13 @@ export default function AgentsOverviewPage() {
     }
     return map;
   }, [overview?.helpdesk?.summaries, overview?.helpdesk?.summary]);
+  // The seeded desk template is hidden until it is actually used — see
+  // isPristineBuiltinDeskAgent. It stays in `definitions` for everything else
+  // (creation template, stats anchor, deep links).
+  const visibleDefinitions = React.useMemo(
+    () => definitions.filter((definition) => !isPristineBuiltinDeskAgent(definition, overview)),
+    [definitions, overview],
+  );
   const activePause = data.settingsQuery.data?.emergency_pause ?? null;
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [wizardStep, setWizardStep] = React.useState(0);
@@ -588,7 +635,20 @@ export default function AgentsOverviewPage() {
 
   return (
     <Box sx={{ p: 2 }}>
-      <PageHeader title={t('overview.title')} />
+      <PageHeader
+        title={t('overview.title')}
+        actions={canAdmin ? (
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={data.createAgentMutation.isPending}
+            onClick={openWizard}
+          >
+            {t('overview.newAgent')}
+          </Button>
+        ) : undefined}
+      />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('overview.subtitle')}</Typography>
       <Stack spacing={2}>
         {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
@@ -617,7 +677,10 @@ export default function AgentsOverviewPage() {
           <MetricBlock label={t('overview.todayActions')} value={formatNumber(fleetEvaluation?.terminalByStatus.executed ?? 0)} />
           <MetricBlock label={t('overview.acceptance')} value={formatPercent(fleetEvaluation?.acceptanceRate)} />
           <MetricBlock label={t('overview.dismissed')} value={formatPercent(fleetEvaluation?.dismissRate)} />
-          <MetricBlock label={t('overview.costPerTicket')} value={fleetEvaluation?.costPerTicketEur == null ? t('common.notEnoughData') : `${fleetEvaluation.costPerTicketEur.toFixed(4)} EUR`} />
+          <MetricBlock
+            label={t('overview.cost')}
+            value={`${(overview?.cost?.today_eur ?? 0).toFixed(2)} / ${(overview?.cost?.last_7_days_eur ?? 0).toFixed(2)} EUR`}
+          />
         </Stack>
 
         <Section
@@ -637,11 +700,11 @@ export default function AgentsOverviewPage() {
         >
           {data.queueQuery.isLoading ? (
             <Box display="flex" justifyContent="center" py={4}><CircularProgress size={24} /></Box>
-          ) : definitions.length === 0 ? (
+          ) : visibleDefinitions.length === 0 ? (
             <EmptyState>{t('overview.empty')}</EmptyState>
           ) : (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5, p: 1.5, alignItems: 'start' }}>
-              {definitions.map((definition) => {
+              {visibleDefinitions.map((definition) => {
                 const agentHelpdeskSummary = helpdeskSummaryByAgent.get(definition.id) ?? null;
                 // Helpdesk agents watch through the ingestion summary; SRE
                 // agents watch through trigger_policy_json.scheduled_poll —
@@ -676,7 +739,7 @@ export default function AgentsOverviewPage() {
                               <Typography variant="body2" color="text.secondary">{definition.description ?? t('overview.noDescription')}</Typography>
                             </Box>
                             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
-                              <StatusText status={t(`lifecycle.${label}`)} />
+                              <LifecycleText lifecycleKey={label} />
                               {canAdmin && !BUILT_IN_AGENT_KEYS.includes(definition.agent_key) && (
                                 <Tooltip title={t('overview.deleteAgent')}>
                                   <IconButton
@@ -715,19 +778,6 @@ export default function AgentsOverviewPage() {
                   </Card>
                 );
               })}
-              {canAdmin && (
-                <Card variant="outlined" sx={{ borderRadius: 1 }}>
-                  <CardActionArea onClick={openWizard} disabled={data.createAgentMutation.isPending}>
-                    <CardContent>
-                    <Stack spacing={1}>
-                      <AddIcon color="disabled" />
-                      <Typography variant="subtitle2">{t('overview.newAgent')}</Typography>
-                      <Typography variant="body2" color="text.secondary">{t('overview.newAgentEnabled')}</Typography>
-                    </Stack>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              )}
             </Box>
           )}
         </Section>

@@ -375,6 +375,11 @@ export type TargetClaimAcquireResult = {
   reason?: string | null;
 };
 
+// Which trigger is asking for the ingestion scope. 'scheduled' (the default) is
+// the cron tick and requires the agent to be watching; 'manual' is an operator
+// pressing "Check now" and only requires the agent to be turned on.
+export type ScopeIngestionResolveOptions = { trigger?: 'scheduled' | 'manual' };
+
 export type AgentQueueOverview = {
   definitions: AiAgentDefinition[];
   workItems: AiAgentWorkItem[];
@@ -1479,7 +1484,7 @@ export class AiAgentWorkQueueService {
 
   assertHelpdeskTicketingDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
     if (definition.status !== 'enabled') {
-      throw new ForbiddenException('Helpdesk ticket triage agent definition is not enabled.');
+      throw new ForbiddenException('This agent is turned off. Set its run mode to Manual or Watching first.');
     }
     if (definition.agent_type !== 'helpdesk') {
       throw new ForbiddenException('Helpdesk ticket triage agent definition has an invalid type.');
@@ -1554,7 +1559,7 @@ export class AiAgentWorkQueueService {
 
   assertSreMonitoringDefinitionRunnable(definition: AiAgentDefinition): void {
     if (definition.status !== 'enabled') {
-      throw new ForbiddenException('SRE monitoring diagnosis agent definition is not enabled.');
+      throw new ForbiddenException('This agent is turned off. Set its run mode to Manual or Watching first.');
     }
     if (definition.agent_type !== 'sre') {
       throw new ForbiddenException('SRE monitoring diagnosis agent definition has an invalid type.');
@@ -1592,10 +1597,18 @@ export class AiAgentWorkQueueService {
   // greenfield: canonical targeting predicates are the only selection model
   // (no legacy mode blocks); the optional scope_policy_json.ingestion block
   // carries the per-cycle caps.
-  resolveMonitoringScopeIngestionConfig(definition: AiAgentDefinition): MonitoringIngestionConfig {
+  resolveMonitoringScopeIngestionConfig(
+    definition: AiAgentDefinition,
+    opts: ScopeIngestionResolveOptions = {},
+  ): MonitoringIngestionConfig {
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const scopePolicy = policyObject(definition.scope_policy_json);
-    if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
+    // Run modes: Off (status disabled) does nothing, Manual runs on an explicit
+    // "Check for alerts" only, Watching adds the scheduled cron. Only the
+    // scheduled trigger requires scheduled_poll; a manual check is the operator
+    // asking for one cycle right now. Off is still blocked upstream, by the
+    // status filter in the poller's loadDefinitions and by the runnable assert.
+    if (opts.trigger !== 'manual' && !hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
       throw new ForbiddenException('Automatic alert watching is turned off. Enable it in the agent settings.');
     }
     if (triggerPolicy.automatic_writes_enabled === true) {
@@ -1631,7 +1644,10 @@ export class AiAgentWorkQueueService {
   // compatibility storage for enablement timestamps, per-cycle caps, and older
   // agents. The provider fetch is still bounded and every candidate is locally
   // rechecked against the complete predicate set after listing.
-  resolveScopeIngestionConfig(definition: AiAgentDefinition): HelpdeskNewTicketsIngestionConfig {
+  resolveScopeIngestionConfig(
+    definition: AiAgentDefinition,
+    opts: ScopeIngestionResolveOptions = {},
+  ): HelpdeskNewTicketsIngestionConfig {
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const rawScopePolicy = policyObject(definition.scope_policy_json);
     const scopePolicy = policyObject(normalizeServiceDeskScopePolicy(rawScopePolicy));
@@ -1639,7 +1655,11 @@ export class AiAgentWorkQueueService {
     const derivedScope = deriveServiceDeskTargetingFetchConfig(targeting);
     const rawHasTargeting = isRecord(rawScopePolicy.targeting) && Array.isArray(rawScopePolicy.targeting.predicates);
 
-    if (!hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
+    // See resolveMonitoringScopeIngestionConfig: only the scheduled trigger
+    // requires watching to be on. A manual "Check now" is allowed in Manual run
+    // mode (definition enabled, scheduled poll off) and blocked when the agent
+    // is Off by assertHelpdeskTicketingDefinitionRunnable's status check.
+    if (opts.trigger !== 'manual' && !hasEnabledFlag(triggerPolicy, 'scheduled_poll')) {
       throw new ForbiddenException('Automatic ticket watching is turned off. Enable it in the agent settings.');
     }
     if (triggerPolicy.automatic_writes_enabled === true) {
@@ -2186,10 +2206,14 @@ export class AiAgentWorkQueueService {
       providerKind?: string | null;
       providerKey?: string | null;
       metadata?: Record<string, unknown> | null;
+      // Defaults to the cron trigger. Operator-driven enqueues (a manual check,
+      // a test run, an approved-write follow-up) pass 'manual' so an agent in
+      // Manual run mode — on, but not watching — can still be queued.
+      trigger?: 'scheduled' | 'manual';
     },
   ): Promise<{ workItem: AiAgentWorkItem; created: boolean }> {
     this.assertHelpdeskTicketingDefinitionRunnable(input.definition, null);
-    this.resolveScopeIngestionConfig(input.definition);
+    this.resolveScopeIngestionConfig(input.definition, { trigger: input.trigger });
     const binding = requireTicketingBinding(input.definition);
     const providerKind = input.providerKind ?? binding.providerKind;
     const providerKey = input.providerKey ?? binding.providerKey;
@@ -2347,10 +2371,13 @@ export class AiAgentWorkQueueService {
       providerKey?: string | null;
       priority?: number | null;
       metadata?: Record<string, unknown> | null;
+      // See enqueueTicketingScopedTicket: 'manual' lets an operator-driven
+      // enqueue run while the scheduled poll is off.
+      trigger?: 'scheduled' | 'manual';
     },
   ): Promise<{ workItem: AiAgentWorkItem; created: boolean }> {
     this.assertSreMonitoringDefinitionRunnable(input.definition);
-    this.resolveMonitoringScopeIngestionConfig(input.definition);
+    this.resolveMonitoringScopeIngestionConfig(input.definition, { trigger: input.trigger });
     const binding = requireMonitoringBinding(input.definition);
     const providerKind = input.providerKind ?? binding.providerKind;
     const providerKey = input.providerKey ?? binding.providerKey;

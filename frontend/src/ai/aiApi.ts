@@ -687,6 +687,9 @@ export type AiAgentControlQueueOverview = {
   target_links?: AiAgentControlTargetLink[];
   monitoring_diagnoses?: AiAgentControlMonitoringDiagnosisCard[];
   counts: Record<string, number>;
+  // Fleet LLM spend across every agent of the tenant (desk + SRE), today and
+  // over the trailing 7 days.
+  cost?: { today_eur: number; last_7_days_eur: number };
   helpdesk?: {
     summary: AiAgentControlHelpdeskSummary | null;
     summaries?: AiAgentControlHelpdeskSummary[];

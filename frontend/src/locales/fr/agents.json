@@ -114,7 +114,6 @@
     "todayActions": "Actions du jour",
     "acceptance": "Acceptation",
     "dismissed": "Écartées",
-    "costPerTicket": "Coût par ticket",
     "fleet": "Parc d'agents",
     "empty": "Aucun agent n'est disponible pour ce tenant.",
     "noDescription": "Aucune description.",
@@ -133,7 +132,6 @@
     "runsToday": "Exécutions du jour",
     "updated": "Mis à jour",
     "newAgent": "Nouvel agent",
-    "newAgentEnabled": "Créer un agent brouillon depuis un modèle sécurisé.",
     "newAgentDefaultName": "Agent helpdesk",
     "newAgentDescription": "Agent helpdesk brouillon créé depuis le modèle sécurisé de triage helpdesk.",
     "wizard": {
@@ -171,7 +169,8 @@
       "reviewBodySre": "L'agent est créé avec le statut Non démarré. Choisissez les alertes à surveiller dans ses réglages, testez-le sur une alerte, puis activez-le."
     },
     "newAgentSreDefaultName": "Agent de supervision d'infrastructure",
-    "newAgentSreDescription": "Agent de supervision en brouillon : il lit les alertes, les met en relation avec vos données KANAP et prépare des notes de diagnostic à relire."
+    "newAgentSreDescription": "Agent de supervision en brouillon : il lit les alertes, les met en relation avec vos données KANAP et prépare des notes de diagnostic à relire.",
+    "cost": "Coût — aujourd’hui / 7 jours"
   },
   "approvals": {
     "title": "Approbations agents",
@@ -182,7 +181,6 @@
     "needsAttention": "Attention requise",
     "recentlyFinished": "Récemment terminés",
     "emptyDecision": "Rien ne nécessite votre décision.",
-    "emptyInProgress": "Aucun travail agent n'est en cours.",
     "emptyAttention": "Aucun travail agent ne nécessite d'attention.",
     "emptyFinished": "Aucune action récemment terminée.",
     "loading": "Chargement des approbations.",
@@ -315,9 +313,7 @@
     "testStarted": "Exécution de test démarrée.",
     "testFailed": "Impossible de démarrer l'exécution de test.",
     "providerMissing": "Cet agent n'a pas de fournisseur de tickets associé.",
-    "status": "Statut",
     "checkNow": "Contrôler maintenant",
-    "lifecycle": "Cycle de vie",
     "watching": "Surveillance",
     "filtered": "Filtré",
     "allTickets": "Tous les tickets",
@@ -330,7 +326,6 @@
     "inProgress": "En cours",
     "failed": "Échec",
     "pendingApprovals": "Approbations en attente",
-    "limits": "Limites",
     "runsToday": "Exécutions du jour",
     "tokensToday": "Tokens du jour",
     "costToday": "Coût du jour",
@@ -409,7 +404,10 @@
     "diagnosedAt": "Diagnostiqué {{when}}",
     "openInMonitoringTool": "Ouvrir dans l'outil de supervision",
     "previousDiagnoses": "Diagnostics précédents",
-    "noDiagnosisStored": "Aucun diagnostic enregistré pour cette alerte."
+    "noDiagnosisStored": "Aucun diagnostic enregistré pour cette alerte.",
+    "runMode": "Mode de fonctionnement",
+    "checkNowOffHint": "Activez d'abord l'agent.",
+    "checkNowPausedHint": "Levez d'abord la pause."
   },
   "performance": {
     "acceptance": "Acceptation",
@@ -451,8 +449,6 @@
     "identity": "Identité et persona",
     "objectiveCapabilities": "Objectif et capacités",
     "name": "Nom",
-    "status": "Statut",
-    "manageInMonitor": "Gérer dans Surveillance",
     "archiveAgent": "Archiver l'agent",
     "restoreAgent": "Restaurer l'agent",
     "archiveDialog": {

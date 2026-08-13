@@ -5775,6 +5775,61 @@ export class AiAgentControlService {
     return { days: Array.from(byDay.values()) };
   }
 
+  /**
+   * What every agent of this tenant cost in LLM calls today and over the
+   * trailing 7 days. Fleet-wide on purpose: it covers desk AND SRE agents, so
+   * it is keyed on "the run carries an agent definition id" rather than on the
+   * agent type (which would silently drop SRE). Chat/MCP runs carry no agent
+   * definition id and are excluded.
+   *
+   * Aggregated in SQL (one scan of the 7-day window, no per-agent query, no
+   * N+1) and tenant-filtered explicitly on top of RLS. The in-memory fallback
+   * exists for the unit-test manager, which has no raw `query`.
+   */
+  private async agentCostTotals(
+    context: AiExecutionContextWithManager,
+    now = new Date(),
+  ): Promise<{ today_eur: number; last_7_days_eur: number }> {
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const windowStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const runCostSql = "COALESCE((cost_json ->> 'estimated_cost_eur')::numeric, (cost_json ->> 'total_cost_eur')::numeric, (cost_json ->> 'total_cost')::numeric, 0)";
+    if (typeof (context.manager as unknown as { query?: unknown }).query === 'function') {
+      const rows = await context.manager.query(
+        `
+          SELECT
+            COALESCE(SUM(${runCostSql}) FILTER (WHERE created_at >= $2), 0)::float AS today_eur,
+            COALESCE(SUM(${runCostSql}), 0)::float AS last_7_days_eur
+          FROM ai_runs
+          WHERE tenant_id = $1
+            AND created_at >= $3
+            AND metadata_json ->> 'agent_definition_id' IS NOT NULL
+        `,
+        [context.tenantId, todayStart, windowStart],
+      ) as Array<Record<string, unknown>>;
+      const row = rows[0] ?? {};
+      return {
+        today_eur: Number(numericMetadata(row.today_eur).toFixed(6)),
+        last_7_days_eur: Number(numericMetadata(row.last_7_days_eur).toFixed(6)),
+      };
+    }
+    const runs = await context.manager.getRepository(AiRun).find({ where: { tenant_id: context.tenantId } });
+    let today = 0;
+    let week = 0;
+    for (const run of runs) {
+      if (!stringFromMetadata(metadataObject(run.metadata_json).agent_definition_id)) continue;
+      const created = run.created_at instanceof Date ? run.created_at : new Date(run.created_at ?? run.started_at);
+      if (!Number.isFinite(created.getTime()) || created < windowStart) continue;
+      const cost = metadataObject(run.cost_json);
+      const value = numericMetadata(cost.estimated_cost_eur ?? cost.total_cost_eur ?? cost.total_cost);
+      week += value;
+      if (created >= todayStart) today += value;
+    }
+    return {
+      today_eur: Number(today.toFixed(6)),
+      last_7_days_eur: Number(week.toFixed(6)),
+    };
+  }
+
   async getQueueOverview(context: AiExecutionContextWithManager, options: { limit?: number } = {}) {
     if (!this.agentQueue) {
       return {
@@ -5785,6 +5840,7 @@ export class AiAgentControlService {
         target_links: [],
         monitoring_diagnoses: [],
         counts: {},
+        cost: { today_eur: 0, last_7_days_eur: 0 },
         helpdesk: { summary: null, summaries: [], fleet: null, audit_events: [] },
       };
     }
@@ -5859,7 +5915,10 @@ export class AiAgentControlService {
     for (const action of actionRequests) {
       collectTicketRef(action.provider_kind, action.provider_key, action.target_type, action.target_ref);
     }
-    const targetLinks = await this.resolveTicketTargetLinks(context, ticketRefsByProvider);
+    const [targetLinks, cost] = await Promise.all([
+      this.resolveTicketTargetLinks(context, ticketRefsByProvider),
+      this.agentCostTotals(context),
+    ]);
     // Per-agent earned-autonomy summary for the fleet view: which action classes run
     // automatically (an enabled agent-autonomy policy). One query, grouped by agent.
     const automaticByDefinition = new Map<string, string[]>();
@@ -5888,6 +5947,7 @@ export class AiAgentControlService {
       target_links: targetLinks,
       monitoring_diagnoses: overview.monitoringDiagnoses,
       counts: overview.counts,
+      cost,
       helpdesk: {
         summary: overview.helpdesk.summary,
         summaries: overview.helpdesk.summaries,
@@ -6374,6 +6434,8 @@ export class AiAgentControlService {
     }
     const enqueued = await this.agentQueue.enqueueMonitoringScopedAlert(context, {
       definition,
+      // Operator-run test on a single alert: allowed in Manual run mode.
+      trigger: 'manual',
       alert: {
         id: alert.id,
         status: alert.status ?? null,
@@ -7380,6 +7442,8 @@ export class AiAgentControlService {
         // active work item already exists for this ticket, it is reused and re-run.
         const enqueued = await this.agentQueue.enqueueTicketingScopedTicket(context, {
           definition: requestedDefinition,
+          // Operator-run test on a single ticket: allowed in Manual run mode.
+          trigger: 'manual',
           ticket: { id: String(target.external_ref) },
           metadata: {
             source: 'manual_safe_target',

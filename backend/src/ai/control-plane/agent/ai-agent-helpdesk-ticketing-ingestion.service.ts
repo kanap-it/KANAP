@@ -125,6 +125,11 @@ const DEFAULT_INGESTION_PROCESS_BUDGET_MS = 210_000;
 export const HELP_DESK_TICKETING_INGESTION_TASK_NAME = 'ai-helpdesk-glpi-new-ticket-ingestion';
 const HELP_DESK_TICKETING_INGESTION_LOCK_PREFIX = 'ai-helpdesk-glpi-ingestion';
 
+// `manual` marks an operator-triggered "Check now" (as opposed to the cron
+// tick). It bypasses the failed-cycle backoff and lets an agent in Manual run
+// mode — turned on, but not watching — run one cycle on demand.
+type HelpdeskTicketingPollOptions = { ensureDefinition: boolean; manual: boolean };
+
 type HelpdeskTicketingDefinitionPollState = {
   definition: AiAgentDefinition;
   summary: HelpdeskTicketingIngestionPollSummary;
@@ -245,9 +250,9 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
     for (const tenant of tenants) {
       try {
         const result = opts?.manager
-          ? await this.runForTenantManager(opts.manager, tenant.id, { ensureDefinition: false })
+          ? await this.runForTenantManager(opts.manager, tenant.id, { ensureDefinition: false, manual: false })
           : await withTenantExecution(this.dataSource, tenant.id, (manager) =>
-            this.runForTenantManager(manager, tenant.id, { ensureDefinition: false }),
+            this.runForTenantManager(manager, tenant.id, { ensureDefinition: false, manual: false }),
           );
         if (result.status === 'disabled' || result.status === 'skipped') {
           summary.tenantsSkipped += 1;
@@ -270,13 +275,13 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
   }
 
   async pollTenant(context: AiExecutionContextWithManager): Promise<HelpdeskTicketingIngestionPollSummary> {
-    return this.pollTenantContext(context, { ensureDefinition: true });
+    return this.pollTenantContext(context, { ensureDefinition: true, manual: true });
   }
 
   private async runForTenantManager(
     manager: EntityManager,
     tenantId: string,
-    opts: { ensureDefinition: boolean },
+    opts: HelpdeskTicketingPollOptions,
   ): Promise<HelpdeskTicketingIngestionPollSummary> {
     await manager.query('SELECT set_config(\'app.current_tenant\', $1, true)', [tenantId]);
     return this.pollTenantContext({
@@ -291,7 +296,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
 
   private async pollTenantContext(
     context: AiExecutionContextWithManager,
-    opts: { ensureDefinition: boolean },
+    opts: HelpdeskTicketingPollOptions,
   ): Promise<HelpdeskTicketingIngestionPollSummary> {
     const processingDeadlineMs = Date.now() + parsePositiveIntEnv(
       process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS,
@@ -420,7 +425,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
   private async detectDefinition(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
-    opts: { ensureDefinition: boolean },
+    opts: HelpdeskTicketingPollOptions,
   ): Promise<HelpdeskTicketingDefinitionPollState> {
     const summary: HelpdeskTicketingIngestionPollSummary = {
       tenantId: context.tenantId,
@@ -436,7 +441,9 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
     let config: HelpdeskNewTicketsIngestionConfig;
     try {
       this.queue.assertHelpdeskTicketingDefinitionRunnable(definition, null);
-      config = this.queue.resolveScopeIngestionConfig(definition);
+      config = this.queue.resolveScopeIngestionConfig(definition, {
+        trigger: opts.manual ? 'manual' : 'scheduled',
+      });
     } catch (error) {
       summary.status = 'disabled';
       summary.reason = error instanceof Error ? error.message : String(error);
@@ -445,9 +452,9 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
 
     // Scheduled polls back off after failed cycles (5 min doubling, capped at
     // 6 h) so a down ticketing provider is not hammered every cron tick.
-    // Manual cockpit polls (ensureDefinition=true) bypass the cooldown on
-    // purpose: an operator retry is an explicit decision.
-    if (!opts.ensureDefinition) {
+    // Manual cockpit polls bypass the cooldown on purpose: an operator retry is
+    // an explicit decision.
+    if (!opts.manual) {
       const cooldownUntil = scheduledPollCooldownUntil(definition);
       if (cooldownUntil != null && Date.now() < cooldownUntil) {
         summary.status = 'skipped';
@@ -581,6 +588,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
         const result = await this.queue.enqueueTicketingScopedTicket(context, {
           definition,
           ticket,
+          trigger: opts.manual ? 'manual' : 'scheduled',
           providerKind: binding.providerKind,
           providerKey: binding.providerKey,
           metadata: {

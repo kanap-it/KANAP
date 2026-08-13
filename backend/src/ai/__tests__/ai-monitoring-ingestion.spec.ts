@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AiAgentControlService } from '../control-plane/agent-control/ai-agent-control.service';
 import { AiAgentMonitoringAlertIngestionService } from '../control-plane/agent/ai-agent-monitoring-alert-ingestion.service';
 import {
@@ -1054,6 +1054,54 @@ async function testManualDiagnosisTestPath() {
   assert.equal(rerun.status, 'completed');
 }
 
+// Run modes (plan 39, PR A): Off = nothing, Manual = "Check for alerts" only,
+// Watching = cron + manual. A manual check must therefore work while the
+// scheduled poll is off, the cron must still refuse to run it, and an agent
+// that is turned off must stay a no-op with a readable reason.
+async function testManualCheckRunsWithoutWatchingAndOffStaysInert() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableSreMonitoring(context, queue);
+
+  // Manual run mode: enabled, but not watching.
+  definition.trigger_policy_json = {
+    ...(definition.trigger_policy_json ?? {}),
+    scheduled_poll: { enabled: false },
+  };
+  definition.updated_at = new Date();
+  const definitionRepo = manager.getRepository(AiAgentDefinition);
+  await definitionRepo.save(definition);
+
+  // The scheduled (cron) resolution still requires watching...
+  assert.throws(
+    () => queue.resolveMonitoringScopeIngestionConfig(definition),
+    (error: unknown) => error instanceof ForbiddenException,
+    'the cron path must keep requiring the scheduled poll',
+  );
+  // ...while the manual trigger resolves the very same scope.
+  const manualConfig = queue.resolveMonitoringScopeIngestionConfig(definition, { trigger: 'manual' });
+  assert.equal(manualConfig.enabled, true);
+  assert.equal(manualConfig.maxAlertsPerCycle, 10);
+
+  const { provider } = wrapListProvider(new MockMonitoringProvider());
+  const service = createMonitoringIngestionService({ queue, provider });
+  const manualPoll = await service.pollTenant(context);
+  assert.equal(manualPoll.status, 'completed', 'a manual check runs in Manual mode');
+  assert.equal(manualPoll.enqueued, 7);
+  assert.equal((stores.get(AiAgentWorkItem.name) ?? []).length, 7);
+
+  // Off: the agent is excluded entirely and the operator gets a plain reason.
+  const off = await definitionRepo.findOne({ where: { id: definition.id, tenant_id: context.tenantId } });
+  assert.ok(off);
+  off.status = 'disabled';
+  off.updated_at = new Date();
+  await definitionRepo.save(off);
+  const offPoll = await service.pollTenant(context);
+  assert.equal(offPoll.status, 'disabled');
+  assert.match(String(offPoll.reason ?? ''), /turned on/i);
+}
+
 async function run() {
   await testDetectEnqueuesDefaultTargetingSetAndDedups();
   await testOccurrenceToleranceAndEscalation();
@@ -1068,6 +1116,7 @@ async function run() {
   await testEmergencyPauseSkipsProviderWork();
   await testDiagnosisSkeletonEndToEnd();
   await testManualDiagnosisTestPath();
+  await testManualCheckRunsWithoutWatchingAndOffStaysInert();
   console.log('ai-monitoring-ingestion.spec: all tests passed');
 }
 
