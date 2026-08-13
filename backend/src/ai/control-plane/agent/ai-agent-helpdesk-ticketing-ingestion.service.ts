@@ -26,6 +26,10 @@ import {
   ticketMatchesServiceDeskTargeting,
 } from './service-desk-targeting';
 import { requireTicketingBinding } from './ticketing-binding';
+import {
+  checkIntervalMinutesForDefinition,
+  scheduledCheckDue,
+} from './ai-agent-check-interval';
 
 export type HelpdeskTicketingIngestionPollSummary = {
   tenantId: string;
@@ -135,6 +139,9 @@ type HelpdeskTicketingDefinitionPollState = {
   summary: HelpdeskTicketingIngestionPollSummary;
   config: HelpdeskNewTicketsIngestionConfig | null;
   finalizeCycle: boolean;
+  // Not due for a scheduled check yet: no detection this tick, but any work
+  // already queued is still drained (see detectDefinition).
+  detectionSkipped?: boolean;
 };
 
 function parsePositiveIntEnv(value: string | undefined, fallback: number): number {
@@ -359,7 +366,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
     // and the cycle remains healthy because detection already completed.
     for (let index = 0; index < pollStates.length; index += 1) {
       const state = pollStates[index];
-      if (processingBudgetReason || !state.finalizeCycle || !state.config) {
+      if (processingBudgetReason || !state.config || (!state.finalizeCycle && !state.detectionSkipped)) {
         continue;
       }
       try {
@@ -491,6 +498,32 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
       summary.reason = error instanceof Error ? error.message : String(error);
       summary.errors.push(summary.reason);
       return { definition, summary, config: null, finalizeCycle: false };
+    }
+
+    // Placed after the pause and daily-cap guards on purpose: a not-due tick
+    // still drains the queue, and must never do so past an emergency pause or
+    // an exhausted daily budget.
+    if (!opts.manual) {
+      // Skip-until-due: the platform cron is the clock (every 5 minutes), the
+      // agent's own "check every N minutes" is the schedule. A definition whose
+      // interval has not elapsed since its last check is silently passed over —
+      // no audit event, so the timeline stays a record of real checks.
+      const intervalMinutes = checkIntervalMinutesForDefinition(definition);
+      const due = scheduledCheckDue({
+        lastPollAt: ingestionState(definition)?.last_poll_at,
+        intervalMinutes,
+        now: Date.now(),
+      });
+      if (!due.due) {
+        summary.status = 'skipped';
+        summary.reason = due.nextDueAt == null
+          ? `The next check is not due yet (every ${intervalMinutes} minutes).`
+          : `The next check is due at ${new Date(due.nextDueAt).toISOString()} (every ${intervalMinutes} minutes).`;
+        // Detection waits, the queue does not: work enqueued by an earlier
+        // cycle (or left behind by the processing budget) is still drained, so
+        // a long interval never parks approved work for hours.
+        return { definition, summary, config, finalizeCycle: false, detectionSkipped: true };
+      }
     }
 
     const binding = requireTicketingBinding(definition);

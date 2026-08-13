@@ -5952,6 +5952,30 @@ async function testHelpdeskGlpiIngestionBudgetStopsProcessingAfterDetectionPass(
     }
 
     process.env.AI_AGENT_INGESTION_PROCESS_BUDGET_MS = '100000';
+    // Skip-until-due: the cycle above just ran, so the very next cron tick is
+    // not due for a new check. Detection is skipped — but the work it left
+    // queued is still drained, which is the whole point of the split.
+    const listCallsAfterManualPoll = listScopes.length;
+    const notDueResult = await (service as any).pollTenantContext(context, { ensureDefinition: false });
+    assert.equal(notDueResult.status, 'skipped', 'a tick inside the check interval does not check again');
+    assert.equal(listScopes.length, listCallsAfterManualPoll, 'no provider listing on a not-due tick');
+    assert.equal(
+      (stores.get(AiAgentWorkItem.name) ?? []).filter((item) => item.status === 'queued').length,
+      0,
+      'queued work is still drained on a not-due tick',
+    );
+
+    // Once the interval has elapsed, detection resumes.
+    for (const definition of [primaryDefinition, secondDefinition]) {
+      const stored = (stores.get(AiAgentDefinition.name) ?? []).find((entry) => entry.id === definition.id);
+      stored.metadata_json = {
+        ...stored.metadata_json,
+        helpdesk_ingestion_state: {
+          ...stored.metadata_json.helpdesk_ingestion_state,
+          last_poll_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        },
+      };
+    }
     const listCallsBeforeScheduledPoll = listScopes.length;
     const scheduledResult = await (service as any).pollTenantContext(context, { ensureDefinition: false });
     assert.notEqual(scheduledResult.status, 'skipped');
@@ -10085,20 +10109,188 @@ async function testAgentAutonomyGrantRequiresEligibilityAndAllowlist() {
   assert.equal(disabledPolicy.enabled, false);
   assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event: AiAgentAuditEvent) => event.event_type === 'agent_autonomy_demoted'), true);
 
+  // High-tier classes (requester reply) are automatable since the risk-tier
+  // opening — but only with the acknowledgement and its written reason, which is
+  // covered by testAgentAutonomyHighRiskTierAlwaysNeedsAcknowledgement below.
   await seedAgentDecisionHistory(context, {
     agentDefinitionId: definition.id,
     actionClass: 'public_reply',
     capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
   });
+  const publicReply = await service.setAgentAutonomy(context, definition.id, {
+    actionClass: 'public_reply',
+    mode: 'automatic',
+    confirm: true,
+    overrideAcknowledged: true,
+    overrideReason: 'Requester replies reviewed for a month; the operator accepts unattended replies.',
+  });
+  assert.equal(publicReply.items.find((item: any) => item.actionClass === 'public_reply')?.mode, 'automatic');
+}
+
+/**
+ * Risk tiers (PR C): all six action classes can be automated, but the high tier
+ * — requester reply, assignment, participants — always needs an explicit
+ * acknowledgement plus a written reason, whatever the eval gates say. Enforced
+ * server-side; the client dialog only mirrors it.
+ */
+async function testAgentAutonomyHighRiskTierAlwaysNeedsAcknowledgement() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const { queue, definition } = await seedAgentDefinitionForAutonomy(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+
+  // Fully eligible history for every class under test.
+  for (const [actionClass, capabilityName] of [
+    ['public_reply', TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY],
+    ['assignment', TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY],
+    ['status', TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY],
+  ] as const) {
+    await seedAgentDecisionHistory(context, {
+      agentDefinitionId: definition.id,
+      actionClass,
+      capabilityName,
+    });
+  }
+
+  const advisory = await service.getAgentAutonomy(context, definition.id);
+  // The thresholds the UI renders come from the payload now, not a hardcoded 20.
+  assert.equal(advisory.thresholds.minimumDecided, 20);
+  assert.equal(advisory.thresholds.minimumObservationDays, 28);
+  assert.equal(advisory.riskTiers.public_reply, 'high');
+  assert.equal(advisory.riskTiers.internal_note, 'low');
+  const publicReplyRow = advisory.items.find((item: any) => item.actionClass === 'public_reply');
+  assert.equal(publicReplyRow?.riskTier, 'high');
+  assert.equal(publicReplyRow?.acknowledgementRequired, true);
+  // Eligible on the numbers, and no ACTION_CLASS_NOT_ALLOWLISTED blocker any more.
+  assert.equal(publicReplyRow?.eligible, true);
+  assert.equal(publicReplyRow?.reasons.includes('ACTION_CLASS_NOT_ALLOWLISTED'), false);
+  assert.equal(advisory.items.find((item: any) => item.actionClass === 'status')?.acknowledgementRequired, false);
+
+  // 1. High tier, eligible, confirmed — but no acknowledgement: refused.
+  for (const actionClass of ['public_reply', 'assignment'] as const) {
+    await assert.rejects(
+      () => service.setAgentAutonomy(context, definition.id, {
+        actionClass,
+        mode: 'automatic',
+        confirm: true,
+      }),
+      (error: unknown) => error instanceof ForbiddenException
+        && ((error as any).getResponse?.() as any)?.reasons?.includes('HIGH_RISK_ACKNOWLEDGEMENT_REQUIRED') === true,
+      `${actionClass} must refuse an unacknowledged grant`,
+    );
+    // Acknowledged but with no reason: still refused — the reason is the record.
+    await assert.rejects(
+      () => service.setAgentAutonomy(context, definition.id, {
+        actionClass,
+        mode: 'automatic',
+        confirm: true,
+        overrideAcknowledged: true,
+        overrideReason: '   ',
+      }),
+      (error: unknown) => error instanceof ForbiddenException,
+      `${actionClass} must refuse an acknowledgement without a reason`,
+    );
+  }
+
+  // 2. Low tier, eligible: unchanged behaviour, no acknowledgement needed.
+  const lowTier = await service.setAgentAutonomy(context, definition.id, {
+    actionClass: 'status',
+    mode: 'automatic',
+    confirm: true,
+  });
+  assert.equal(lowTier.items.find((item: any) => item.actionClass === 'status')?.mode, 'automatic');
+
+  // 3. High tier with acknowledgement + reason: granted, and the tier is audited.
+  const granted = await service.setAgentAutonomy(context, definition.id, {
+    actionClass: 'public_reply',
+    mode: 'automatic',
+    confirm: true,
+    overrideAcknowledged: true,
+    overrideReason: 'The team accepts unattended requester replies for password resets.',
+  });
+  assert.equal(granted.items.find((item: any) => item.actionClass === 'public_reply')?.mode, 'automatic');
+  const grantEvent = (stores.get(AiAgentAuditEvent.name) ?? [])
+    .filter((event: AiAgentAuditEvent) => event.event_type === 'agent_autonomy_granted')
+    .find((event: AiAgentAuditEvent) => (event.metadata_json as any)?.action_class === 'public_reply');
+  assert.ok(grantEvent, 'the high-tier grant is audited');
+  assert.equal((grantEvent.metadata_json as any).risk_tier, 'high');
+  assert.equal((grantEvent.metadata_json as any).acknowledgement_required, true);
+  assert.equal(
+    (grantEvent.metadata_json as any).acknowledgement_reason,
+    'The team accepts unattended requester replies for password resets.',
+  );
+  const lowTierEvent = (stores.get(AiAgentAuditEvent.name) ?? [])
+    .filter((event: AiAgentAuditEvent) => event.event_type === 'agent_autonomy_granted')
+    .find((event: AiAgentAuditEvent) => (event.metadata_json as any)?.action_class === 'status');
+  assert.equal((lowTierEvent?.metadata_json as any).risk_tier, 'low');
+  const grantPolicy = (stores.get(AiApprovalPolicy.name) ?? [])
+    .find((row: AiApprovalPolicy) => (row.metadata_json as any)?.action_class === 'public_reply');
+  assert.equal((grantPolicy?.metadata_json as any)?.risk_tier, 'high');
+  assert.equal((grantPolicy?.metadata_json as any)?.acknowledgement?.acknowledged, true);
+}
+
+/**
+ * The tier opening never softens a hard block: a capability the agent may not
+ * use, and an open incident, still refuse the grant — acknowledgement or not.
+ */
+async function testAgentAutonomyHardBlocksSurviveTheTierOpening() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const { queue, definition } = await seedAgentDefinitionForAutonomy(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  await seedAgentDecisionHistory(context, {
+    agentDefinitionId: definition.id,
+    actionClass: 'participant',
+    capabilityName: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
+  });
+  await seedAgentDecisionHistory(context, {
+    agentDefinitionId: definition.id,
+    actionClass: 'internal_note',
+  });
+
+  // Capability removed from the agent: hard block for a high-tier class.
+  const repo = context.manager.getRepository(AiAgentDefinition);
+  const stored = await repo.findOne({ where: { id: definition.id, tenant_id: context.tenantId } });
+  stored.allowed_capabilities_json = (stored.allowed_capabilities_json as any[])
+    .filter((entry: any) => entry?.name !== TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY);
+  await repo.save(stored);
+
+  const rows = await service.getAgentAutonomy(context, definition.id);
+  const participant = rows.items.find((item: any) => item.actionClass === 'participant');
+  assert.equal(participant?.reasons.includes('CAPABILITY_NOT_ALLOWED'), true);
+  assert.equal(participant?.hardReasons.includes('CAPABILITY_NOT_ALLOWED'), true);
+  assert.equal(participant?.recommendationOverrideAvailable, false);
   await assert.rejects(
     () => service.setAgentAutonomy(context, definition.id, {
-      actionClass: 'public_reply',
+      actionClass: 'participant',
       mode: 'automatic',
       confirm: true,
       overrideAcknowledged: true,
-      overrideReason: 'Attempt to bypass hard public reply invariant.',
+      overrideReason: 'Attempt to grant a capability the agent is not allowed to use.',
     }),
     (error: unknown) => error instanceof ForbiddenException,
+    'a disallowed capability stays a hard block',
+  );
+
+  // Open incident: hard block for every tier, including the low one.
+  const stored2 = await repo.findOne({ where: { id: definition.id, tenant_id: context.tenantId } });
+  stored2.evaluation_policy_json = { ...(stored2.evaluation_policy_json ?? {}), open_incident: true };
+  await repo.save(stored2);
+  const incidentRows = await service.getAgentAutonomy(context, definition.id);
+  assert.equal(
+    incidentRows.items.every((item: any) => item.hardReasons.includes('OPEN_INCIDENT_FLAG')),
+    true,
+  );
+  await assert.rejects(
+    () => service.setAgentAutonomy(context, definition.id, {
+      actionClass: 'internal_note',
+      mode: 'automatic',
+      confirm: true,
+      overrideAcknowledged: true,
+      overrideReason: 'Attempt to grant automation while an incident is open.',
+    }),
+    (error: unknown) => error instanceof ForbiddenException,
+    'an open incident stays a hard block',
   );
 }
 
@@ -10335,20 +10527,24 @@ async function testAgentAutonomyPolicyRejectsUnsafeClassAndProviderMismatch() {
       action: {
         metadata: {
           agent_definition_id: 'agent-definition-1',
-          action_class: 'public_reply',
+          // Not one of the six automatable action classes: public_reply is a
+          // legitimate (high-tier) grant since the risk-tier opening, so the
+          // "class cannot run automatically" guard is proven with a class that
+          // has no tier at all.
+          action_class: 'ticket_delete',
         },
       },
     });
     await seedPolicyCeilings(context, { environment: 'mock', providerKey: 'mock' });
     await seedApprovalPolicy(context, {
-      policy_key: 'agent-autonomy:agent-definition-1:public_reply',
+      policy_key: 'agent-autonomy:agent-definition-1:ticket_delete',
       trigger_surface: 'internal',
       trigger_kind: 'internal',
       live_test_safety: 'live_write_gated',
       metadata_json: {
         created_by: AGENT_AUTONOMY_POLICY_SOURCE,
         agent_definition_id: 'agent-definition-1',
-        action_class: 'public_reply',
+        action_class: 'ticket_delete',
       },
     });
 
@@ -10358,7 +10554,7 @@ async function testAgentAutonomyPolicyRejectsUnsafeClassAndProviderMismatch() {
     });
     assert.equal(decision.outcome, 'system_rejected');
     assert.equal(decision.reasons.some((reason) => reason.code === 'LIVE_POLICY_NOT_MOCK_ONLY'), true);
-    assert.equal(decision.reasons.some((reason) => reason.code === 'AGENT_AUTONOMY_CLASS_NOT_ALLOWLISTED'), true);
+    assert.equal(decision.reasons.some((reason) => reason.code === 'AGENT_AUTONOMY_CLASS_NOT_AUTOMATABLE'), true);
   }
 
   {
@@ -14531,6 +14727,8 @@ async function run() {
   await testAgentConfigAcceptsAllProvisionedHelpdeskCapabilities();
   await testDeleteAgentDefinitionBlocksBuiltinAndRemovesCustom();
   await testAgentAutonomyGrantRequiresEligibilityAndAllowlist();
+  await testAgentAutonomyHighRiskTierAlwaysNeedsAcknowledgement();
+  await testAgentAutonomyHardBlocksSurviveTheTierOpening();
   await testDisabledAutonomyPolicyRoutesActionBackToHuman();
   await testAgentAutonomyPolicyRequiresMatchingAgentMetadata();
   await testAgentAutonomyPolicyRejectsUnsafeClassAndProviderMismatch();

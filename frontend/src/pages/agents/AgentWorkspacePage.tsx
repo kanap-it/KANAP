@@ -1,10 +1,15 @@
 import React from 'react';
-import { Alert, Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Chip, CircularProgress, Collapse, FormControlLabel, MenuItem, Select, Stack, Switch, Tab, Tabs, TextField, Tooltip, Typography, useTheme } from '@mui/material';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
+import ChartCard from '../../components/reports/ChartCard';
 import AgentControlBar from '../../components/agents/AgentControlBar';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
@@ -14,6 +19,7 @@ import {
   aiModelConfigsApi,
   type AiAgentControlAgentDefinition,
   type AiAgentControlAgentDefinitionInput,
+  type AiAgentControlEvaluationDailyResult,
   type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
   type AiAgentKanapDataSources,
@@ -82,6 +88,7 @@ type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
 // Scroll anchor for the control bar's "Test on a ticket/alert" entry point.
 const AGENT_TEST_SECTION_ID = 'agent-test';
+const EFFECTIVE_PROMPT_OPEN_KEY = 'kanap.agentWorkspace.effectivePromptOpen';
 
 type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis';
 const HELPDESK_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
@@ -100,6 +107,13 @@ function numberField(value: string): number | null {
 const DEFAULT_ACTIVITY_RETENTION_DAYS = 30;
 const MIN_ACTIVITY_RETENTION_DAYS = 7;
 const MAX_ACTIVITY_RETENTION_DAYS = 90;
+
+// Check frequency (minutes). Mirror of the backend bounds in
+// ai-agent-check-interval.ts — stored in trigger_policy_json.scheduled_poll,
+// which every writer here spreads rather than replaces.
+const DEFAULT_CHECK_INTERVAL_MINUTES = 5;
+const MIN_CHECK_INTERVAL_MINUTES = 5;
+const MAX_CHECK_INTERVAL_MINUTES = 1440;
 
 function positiveNumber(value: string, fallback: number): number {
   return numberField(value) ?? fallback;
@@ -175,19 +189,37 @@ function allowedCapabilitiesWithGroup(definition: AiAgentControlAgentDefinition,
   ];
 }
 
-function SettingsField({ label, hint, children }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
-  return <PropertyRow label={label} helperText={hint}>{children}</PropertyRow>;
+/**
+ * Field label with an optional info affordance. Tooltips carry the explanation
+ * (what the setting does, what happens at the limit) so the page is not padded
+ * with permanent hint paragraphs; `hint` stays available for the rare case a
+ * tooltip cannot carry it (live values, error states).
+ */
+function SettingsField({ label, hint, info, children }: {
+  label: React.ReactNode;
+  hint?: React.ReactNode;
+  info?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const labelNode = info
+    ? (
+      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+        {label}
+        <Tooltip title={info} placement="top">
+          <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
+        </Tooltip>
+      </Box>
+    )
+    : label;
+  return <PropertyRow label={labelNode} helperText={hint}>{children}</PropertyRow>;
 }
 
-const agentDescriptionFieldSx = [
-  longFormSurfaceFieldSx,
-  {
-    maxWidth: 'none',
-    '& .MuiInputBase-root': {
-      minHeight: 96,
-    },
-  },
-] as const;
+/** Inline "today: x / cap" context under a daily safety limit. */
+function CapUsage({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography component="span" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{children}</Typography>
+  );
+}
 
 const agentPersonaFieldSx = [
   longFormSurfaceFieldSx,
@@ -220,6 +252,7 @@ type HelpdeskSettingsForm = {
   approvalTtlHours: string;
   onStale: string;
   activityRetentionDays: string;
+  checkIntervalMinutes: string;
 };
 
 const HELPDESK_CAPABILITY_GROUPS = [
@@ -273,6 +306,10 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
     approvalTtlHours: hoursString(approvalTtlSeconds, DEFAULT_APPROVAL_TTL_HOURS),
     onStale: ['re_review', 'cancel', 'apply_anyway'].includes(stringValue(onStale.internal_note)) ? stringValue(onStale.internal_note) : 're_review',
     activityRetentionDays: numberString(queue.activity_retention_days, DEFAULT_ACTIVITY_RETENTION_DAYS),
+    checkIntervalMinutes: numberString(
+      policyObject(policyObject(definition.trigger_policy_json).scheduled_poll).interval_minutes,
+      DEFAULT_CHECK_INTERVAL_MINUTES,
+    ),
   };
 }
 
@@ -325,6 +362,11 @@ function helpdeskDefinitionSettingsPayload(
       scheduled_poll: {
         ...policyObject(trigger.scheduled_poll),
         enabled: watching,
+        interval_minutes: clampNumber(
+          positiveNumber(form.checkIntervalMinutes, DEFAULT_CHECK_INTERVAL_MINUTES),
+          MIN_CHECK_INTERVAL_MINUTES,
+          MAX_CHECK_INTERVAL_MINUTES,
+        ),
       },
       saved_filter: policyObject(trigger.saved_filter).enabled == null ? { enabled: false } : trigger.saved_filter,
       provider_webhook: { enabled: false },
@@ -416,6 +458,7 @@ type SreSettingsForm = {
   maxAlerts: string;
   maxRequests: string;
   activityRetentionDays: string;
+  checkIntervalMinutes: string;
 };
 
 function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition): SreSettingsForm {
@@ -428,6 +471,10 @@ function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition
     activityRetentionDays: numberString(
       policyObject(definition.queue_policy_json).activity_retention_days,
       DEFAULT_ACTIVITY_RETENTION_DAYS,
+    ),
+    checkIntervalMinutes: numberString(
+      policyObject(policyObject(definition.trigger_policy_json).scheduled_poll).interval_minutes,
+      DEFAULT_CHECK_INTERVAL_MINUTES,
     ),
   };
 }
@@ -558,10 +605,252 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
   );
 }
 
+/**
+ * 14-day activity trend. Two charts on purpose: proposals/executions are counts
+ * and cost is euros, and a single plot with two scales would misread — the
+ * second chart stays small and shares the same day axis.
+ */
+function AgentTrendCharts({ days }: { days: AiAgentControlEvaluationDailyResult['days'] }) {
+  const { t } = useTranslation(['agents']);
+  const theme = useTheme();
+  const dark = theme.palette.mode === 'dark';
+  const window = React.useMemo(() => days.slice(-14), [days]);
+
+  const options = React.useMemo(() => {
+    const proposed = dark ? '#60A5FA' : '#3B82F6';
+    const executed = dark ? '#34D399' : '#10B981';
+    return {
+      theme: dark ? 'ag-default-dark' : 'ag-default',
+      background: { fill: 'transparent' },
+      data: window,
+      series: [
+        {
+          type: 'bar' as const,
+          xKey: 'day',
+          yKey: 'proposals',
+          yName: t('performance.proposed'),
+          fill: proposed,
+          stroke: proposed,
+          cornerRadius: 4,
+        },
+        {
+          type: 'bar' as const,
+          xKey: 'day',
+          yKey: 'executed',
+          yName: t('performance.executed'),
+          fill: executed,
+          stroke: executed,
+          cornerRadius: 4,
+        },
+      ],
+      axes: [
+        { type: 'category', position: 'bottom' },
+        { type: 'number', position: 'left', label: { formatter: (p: { value: number }) => formatNumber(p.value) } },
+      ],
+      legend: { enabled: true, position: 'bottom' },
+      padding: { top: 8, right: 12, bottom: 4, left: 4 },
+    };
+  }, [dark, t, window]);
+
+  const costOptions = React.useMemo(() => {
+    const cost = theme.palette.kanap.orange;
+    return {
+      theme: dark ? 'ag-default-dark' : 'ag-default',
+      background: { fill: 'transparent' },
+      data: window,
+      series: [
+        {
+          type: 'line' as const,
+          xKey: 'day',
+          yKey: 'costEur',
+          yName: t('performance.costTrend'),
+          stroke: cost,
+          strokeWidth: 2,
+          marker: { enabled: true, size: 6, fill: cost, stroke: cost },
+        },
+      ],
+      axes: [
+        { type: 'category', position: 'bottom' },
+        { type: 'number', position: 'left', label: { formatter: (p: { value: number }) => `${p.value.toFixed(2)} EUR` } },
+      ],
+      legend: { enabled: false },
+      padding: { top: 8, right: 12, bottom: 4, left: 4 },
+    };
+  }, [dark, t, theme, window]);
+
+  if (window.length === 0) {
+    return <EmptyState>{t('performance.noTrendData')}</EmptyState>;
+  }
+  return (
+    <Stack spacing={2}>
+      <ChartCard title={t('performance.trends')} options={options} height={260} />
+      <ChartCard title={t('performance.costTrend')} options={costOptions} height={180} />
+    </Stack>
+  );
+}
+
+/**
+ * Autonomy ladder. It lives on the Performance tab because turning a class
+ * automatic is a decision taken FROM the agent's track record, not a
+ * configuration knob — the evidence and the switch now sit side by side.
+ */
+function AgentAutonomySection({ definition }: { definition: AiAgentControlAgentDefinition }) {
+  const { t } = useTranslation(['agents']);
+  const data = useAgentControlData();
+  const autonomyQuery = useQuery({
+    queryKey: ['ai-agent-control-autonomy', definition.id],
+    queryFn: () => aiAgentControlApi.getAgentAutonomy(definition.id),
+  });
+  const [autonomyTarget, setAutonomyTarget] = React.useState<{
+    actionClass: string;
+    decided: number;
+    rate: string;
+    days: number;
+    eligible: boolean;
+    riskTier: 'low' | 'high';
+    acknowledgementRequired: boolean;
+    reasons: string[];
+  } | null>(null);
+  const [overrideReason, setOverrideReason] = React.useState('');
+  // The dialog asks for a written reason when the operator overrides the
+  // recommendation OR when the class is high-risk (server-enforced either way).
+  const reasonRequired = !!autonomyTarget && (!autonomyTarget.eligible || autonomyTarget.acknowledgementRequired);
+
+  const closeDialog = () => {
+    setAutonomyTarget(null);
+    setOverrideReason('');
+  };
+
+  return (
+    <>
+      <Section title={t('settings.autonomy')} id="autonomy">
+        <Stack spacing={1} sx={{ p: 1.5 }}>
+          {autonomyQuery.isLoading ? <CircularProgress size={20} /> : (autonomyQuery.data?.items ?? []).map((item) => {
+            const highRisk = item.riskTier === 'high';
+            const enable = () => setAutonomyTarget({
+              actionClass: item.actionClass,
+              decided: item.progress.decided,
+              rate: formatPercent(item.progress.acceptanceRate),
+              days: item.progress.daysActive,
+              eligible: item.eligible,
+              riskTier: item.riskTier ?? 'high',
+              acknowledgementRequired: item.acknowledgementRequired === true,
+              reasons: item.reasons,
+            });
+            const disable = () => data.setAutonomyMutation.mutate({ id: definition.id, actionClass: item.actionClass, mode: 'ask_first' });
+            return (
+              <Stack
+                key={item.actionClass}
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={1}
+                justifyContent="space-between"
+                alignItems={{ xs: 'stretch', md: 'center' }}
+                sx={(theme) => ({
+                  border: '1px solid',
+                  // High-risk rows are visually distinct at rest: the operator
+                  // must never grant one thinking it is an internal note.
+                  borderColor: highRisk ? theme.palette.warning.main : 'divider',
+                  bgcolor: highRisk ? theme.palette.kanap.bg.drawer : undefined,
+                  borderRadius: 1,
+                  p: 1,
+                })}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    {highRisk && <WarningAmberOutlinedIcon sx={{ fontSize: 15, color: 'warning.main' }} />}
+                    <Typography variant="body2" fontWeight={500}>{t(`settings.actionClasses.${item.actionClass}`, { defaultValue: humanize(item.actionClass) })}</Typography>
+                  </Stack>
+                  {highRisk && (
+                    <Typography variant="caption" sx={{ color: 'warning.main', display: 'block' }}>
+                      {t(`settings.autonomyHighRiskNote.${item.actionClass}`, { defaultValue: t('settings.autonomyHighRisk') })}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    {t('settings.autonomyProgress', {
+                      decided: item.progress.decided,
+                      required: item.progress.required,
+                      rate: item.progress.acceptanceRate == null ? '—' : formatPercent(item.progress.acceptanceRate),
+                      requiredRate: formatPercent(item.progress.requiredRate),
+                      days: item.progress.daysActive,
+                      requiredDays: item.progress.requiredDays,
+                    })}
+                  </Typography>
+                  {!item.eligible && <Typography variant="caption" color="text.secondary" display="block">{item.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(' ')}</Typography>}
+                </Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip size="small" color={item.mode === 'automatic' ? 'success' : 'default'} label={item.mode === 'automatic' ? t('settings.automatic') : t('settings.askFirst')} />
+                  {item.mode === 'automatic' ? (
+                    <Button size="small" variant="outlined" onClick={disable} disabled={data.setAutonomyMutation.isPending}>{t('settings.turnOffAutomatic')}</Button>
+                  ) : (
+                    <Button size="small" variant="contained" onClick={enable} disabled={(!item.eligible && item.recommendationOverrideAvailable !== true) || data.setAutonomyMutation.isPending}>{item.eligible ? t('settings.turnOnAutomatic') : t('settings.overrideAutomatic')}</Button>
+                  )}
+                </Stack>
+              </Stack>
+            );
+          })}
+        </Stack>
+      </Section>
+
+      {autonomyTarget && (
+        <KanapDialog
+          open={!!autonomyTarget}
+          title={t('settings.autonomyDialog.title', {
+            actionClass: t(`settings.actionClasses.${autonomyTarget.actionClass}`, { defaultValue: humanize(autonomyTarget.actionClass) }),
+          })}
+          onClose={closeDialog}
+          onSave={() => data.setAutonomyMutation.mutate(
+            {
+              id: definition.id,
+              actionClass: autonomyTarget.actionClass,
+              mode: 'automatic',
+              confirm: true,
+              overrideAcknowledged: reasonRequired,
+              overrideReason: reasonRequired ? overrideReason : null,
+            },
+            { onSuccess: closeDialog },
+          )}
+          saveLabel={t('settings.autonomyDialog.confirm')}
+          saveDisabled={reasonRequired && overrideReason.trim().length < 8}
+          saveLoading={data.setAutonomyMutation.isPending}
+        >
+          <Stack spacing={1.5}>
+            {autonomyTarget.acknowledgementRequired && (
+              <Alert severity="warning">
+                {t(`settings.autonomyDialog.highRisk.${autonomyTarget.actionClass}`, {
+                  defaultValue: t('settings.autonomyDialog.highRiskGeneric'),
+                })}
+              </Alert>
+            )}
+            <Typography variant="body2">
+              {t('settings.autonomyDialog.evidence', { decided: autonomyTarget.decided, rate: autonomyTarget.rate, days: autonomyTarget.days })}
+            </Typography>
+            {!autonomyTarget.eligible && (
+              <>
+                <Alert severity="warning">{t('settings.autonomyDialog.overrideFrame')}</Alert>
+                <Typography variant="body2" color="text.secondary">
+                  {autonomyTarget.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(' ')}
+                </Typography>
+              </>
+            )}
+            {reasonRequired && (
+              <SettingsField
+                label={t('settings.autonomyDialog.reason')}
+                hint={autonomyTarget.acknowledgementRequired ? t('settings.autonomyDialog.reasonHighRiskHint') : undefined}
+              >
+                <TextField size="small" multiline minRows={2} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} />
+              </SettingsField>
+            )}
+            <Typography variant="body2" color="text.secondary">{t('settings.autonomyDialog.frame')}</Typography>
+          </Stack>
+        </KanapDialog>
+      )}
+    </>
+  );
+}
+
 function PerformanceTab({ agentKey }: { agentKey: string }) {
   const { t } = useTranslation(['agents']);
   const data = useAgentControlData();
-  const navigate = useNavigate();
   const definition = data.queueQuery.data?.definitions.find((item) => item.agent_key === agentKey) ?? null;
   const summary = resolveAgentSummary(data.queueQuery.data, agentKey);
   const dailyQuery = useQuery({
@@ -570,9 +859,10 @@ function PerformanceTab({ agentKey }: { agentKey: string }) {
     enabled: !!definition,
   });
   const daily = dailyQuery.data?.days ?? [];
-  const actionClasses = Object.entries(summary?.evaluation.proposalsByActionClass ?? {});
   return (
     <Stack spacing={2}>
+      {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
+      {data.message && <Alert severity="success" onClose={() => data.setMessage(null)}>{data.message}</Alert>}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(6, minmax(0, 1fr))' }, gap: 1 }}>
         <MetricBlock label={t('performance.acceptance')} value={formatPercent(summary?.evaluation.acceptanceRate)} />
         <MetricBlock label={t('performance.dismissed')} value={formatPercent(summary?.evaluation.dismissRate)} />
@@ -581,34 +871,8 @@ function PerformanceTab({ agentKey }: { agentKey: string }) {
         <MetricBlock label={t('performance.costPerTicket')} value={summary?.evaluation.costPerTicketEur == null ? t('common.notSet') : `${summary.evaluation.costPerTicketEur.toFixed(4)} EUR`} />
         <MetricBlock label={t('performance.runsPerTicket')} value={formatNumber(summary?.evaluation.runsPerTicket, 2)} />
       </Box>
-      <Section title={t('performance.trends')}>
-        <Stack spacing={0.75} sx={{ p: 1.5 }}>
-          {daily.slice(-14).map((day) => (
-            <Stack key={day.day} direction="row" spacing={1} alignItems="center">
-              <Typography variant="caption" sx={{ width: 82 }}>{day.day}</Typography>
-              <Box sx={{ flex: 1, height: 8, borderRadius: 1, bgcolor: 'divider', overflow: 'hidden' }}>
-                <Box sx={{ width: `${Math.min(100, day.proposals * 5)}%`, height: '100%', bgcolor: 'primary.main' }} />
-              </Box>
-              <Typography variant="caption">{t('performance.daySummary', { proposals: day.proposals, accepted: day.executed })}</Typography>
-            </Stack>
-          ))}
-        </Stack>
-      </Section>
-      <Section title={t('performance.autonomy')}>
-        <Stack spacing={1} sx={{ p: 1.5 }}>
-          {actionClasses.length === 0 ? <EmptyState>{t('performance.noActionClasses')}</EmptyState> : actionClasses.map(([actionClass, count]) => (
-            <Stack key={actionClass} direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}>
-              <Box>
-                <Typography variant="body2">{t(`settings.actionClasses.${actionClass}`, { defaultValue: humanize(actionClass) })}</Typography>
-                <Typography variant="caption" color="text.secondary">{t('performance.eligibility', { decided: count, required: 20 })}</Typography>
-              </Box>
-              <Button size="small" variant="outlined" onClick={() => navigate(`/agents/${agentKey}?tab=settings`)}>
-                {t('performance.reviewAutonomy')}
-              </Button>
-            </Stack>
-          ))}
-        </Stack>
-      </Section>
+      <AgentTrendCharts days={daily} />
+      {definition && <AgentAutonomySection definition={definition} />}
     </Stack>
   );
 }
@@ -738,26 +1002,16 @@ function SettingsTab({ definition, autosaveRegistry }: {
     if (!patched) void queryClient.invalidateQueries({ queryKey: ['ai-agent-control-queue'] });
   }, [queryClient]);
   const settings = data.settingsQuery.data;
+  // Today's real usage, shown inline next to each daily cap so the caps read as
+  // a budget in use. The control bar keeps the compact runs/tokens/cost facts;
+  // this is the detailed, per-field view of the same source.
+  const dailyUsage = resolveAgentSummary(data.queueQuery.data, definition.agent_key)?.guardrails.daily ?? null;
   const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
   const isHelpdesk = definition.agent_type === 'helpdesk';
   const isSre = definition.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
   const isArchived = definition.status === 'archived';
   const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
-  const autonomyQuery = useQuery({
-    queryKey: ['ai-agent-control-autonomy', definition.id],
-    queryFn: () => aiAgentControlApi.getAgentAutonomy(definition.id),
-  });
-  const [autonomyTarget, setAutonomyTarget] = React.useState<{
-    actionClass: string;
-    decided: number;
-    rate: string;
-    days: number;
-    eligible: boolean;
-    overrideAvailable: boolean;
-    reasons: string[];
-  } | null>(null);
-  const [overrideReason, setOverrideReason] = React.useState('');
   const [pendingPreset, setPendingPreset] = React.useState<TargetingPresetKey | null>(null);
   const sharedContext = personaSharedContext(definition);
   const [agentForm, setAgentForm] = React.useState({
@@ -776,6 +1030,14 @@ function SettingsTab({ definition, autosaveRegistry }: {
   const [sharedContextDraftLines, setSharedContextDraftLines] = React.useState('');
   const effectivePromptTasks = isSre ? SRE_EFFECTIVE_PROMPT_TASKS : HELPDESK_EFFECTIVE_PROMPT_TASKS;
   const [effectivePromptTask, setEffectivePromptTask] = React.useState<EffectivePromptTaskKey>(effectivePromptTasks[0]);
+  // The effective prompt is a diagnostic, not a daily control: collapsed by
+  // default, and the choice is remembered (charter: UI state in localStorage).
+  const [effectivePromptOpen, setEffectivePromptOpen] = React.useState(
+    () => window.localStorage.getItem(EFFECTIVE_PROMPT_OPEN_KEY) === 'true',
+  );
+  React.useEffect(() => {
+    window.localStorage.setItem(EFFECTIVE_PROMPT_OPEN_KEY, String(effectivePromptOpen));
+  }, [effectivePromptOpen]);
   const [form, setForm] = React.useState<HelpdeskSettingsForm>(() => settingsFormFromDefinition(definition));
   const [sreForm, setSreForm] = React.useState<SreSettingsForm>(() => sreSettingsFormFromDefinition(definition));
   const [pendingMonitoringPreset, setPendingMonitoringPreset] = React.useState<{
@@ -1068,6 +1330,11 @@ function SettingsTab({ definition, autosaveRegistry }: {
         scheduled_poll: {
           ...policyObject(trigger.scheduled_poll),
           enabled: watchingNow,
+          interval_minutes: clampNumber(
+            positiveNumber(current.checkIntervalMinutes, DEFAULT_CHECK_INTERVAL_MINUTES),
+            MIN_CHECK_INTERVAL_MINUTES,
+            MAX_CHECK_INTERVAL_MINUTES,
+          ),
         },
         production_polling_enabled: watchingNow,
         automatic_writes_enabled: false,
@@ -1210,237 +1477,6 @@ function SettingsTab({ definition, autosaveRegistry }: {
       {data.error && <Alert severity="error" onClose={() => data.setError(null)}>{data.error}</Alert>}
       {data.message && <Alert severity="success" onClose={() => data.setMessage(null)}>{data.message}</Alert>}
       {isSre && !monitoringBinding && <Alert severity="warning">{t('settings.monitoringNotConnected')}</Alert>}
-      <Section
-        title={t('settings.objectiveCapabilities')}
-        actions={(
-          <Stack direction="row" spacing={1} alignItems="center">
-            {isArchived ? (
-              <Button
-                size="small"
-                variant="action"
-                onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })}
-                disabled={data.updateAgentStatusMutation.isPending}
-              >
-                {t('settings.restoreAgent')}
-              </Button>
-            ) : (
-              <Button size="small" variant="action-danger" onClick={() => setArchiveDialogOpen(true)}>{t('settings.archiveAgent')}</Button>
-            )}
-            <SaveIndicator status={identityAutosave.status} />
-          </Stack>
-        )}
-      >
-        <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <SettingsField label={t('settings.name')}><TextField size="small" value={agentForm.name} onChange={(event) => updateAgent('name', event.target.value)} /></SettingsField>
-          <SettingsField label={t('settings.description')}>
-            <TextField
-              size="small"
-              variant="standard"
-              multiline
-              minRows={3}
-              value={agentForm.description}
-              InputProps={{ disableUnderline: true }}
-              sx={agentDescriptionFieldSx}
-              onChange={(event) => updateAgent('description', event.target.value)}
-            />
-          </SettingsField>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' },
-              gap: { xs: 2, lg: 3 },
-              alignItems: 'start',
-            }}
-          >
-            <Stack spacing={2}>
-            <SettingsField label={t('settings.mission')}>
-              <TextField
-                size="small"
-                variant="standard"
-                multiline
-                minRows={2}
-                maxRows={8}
-                value={agentForm.mission}
-                InputProps={{ disableUnderline: true }}
-                sx={agentPersonaFieldSx}
-                onChange={(event) => updateAgent('mission', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.instructions')}>
-              <TextField
-                size="small"
-                variant="standard"
-                multiline
-                minRows={3}
-                maxRows={20}
-                value={agentForm.instructions}
-                InputProps={{ disableUnderline: true }}
-                sx={agentPersonaFieldSx}
-                onChange={(event) => updateAgent('instructions', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.outputStyle')}>
-              <TextField
-                size="small"
-                variant="standard"
-                value={agentForm.outputStyleTone}
-                placeholder={t('settings.outputStyleTonePlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
-                onChange={(event) => updateAgent('outputStyleTone', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.replyLanguage')}>
-              <Select
-                variant="standard"
-                disableUnderline
-                value={agentForm.outputStyleLanguage}
-                sx={drawerSelectSx}
-                onChange={(event) => updateAgent('outputStyleLanguage', event.target.value)}
-              >
-                {['auto', 'fr', 'en', 'de', 'es'].map((value) => (
-                  <MenuItem key={value} value={value} sx={drawerMenuItemSx}>{t(`settings.outputStyleLanguageOptions.${value}`)}</MenuItem>
-                ))}
-              </Select>
-            </SettingsField>
-            <SettingsField label={t('settings.escalationGuidance')}>
-              <TextField
-                size="small"
-                variant="standard"
-                multiline
-                minRows={2}
-                maxRows={10}
-                value={agentForm.escalationGuidance}
-                InputProps={{ disableUnderline: true }}
-                sx={agentPersonaFieldSx}
-                onChange={(event) => updateAgent('escalationGuidance', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.sharedContext')} hint={t('settings.sharedContextHint')}>
-              <Stack spacing={1}>
-                <FormControlLabel
-                  control={(
-                    <Switch
-                      checked={agentForm.sharedContextEnabled}
-                      onChange={(event) => {
-                        const checked = event.target.checked;
-                        updateAgentPatch({
-                          sharedContextEnabled: checked,
-                          sharedContextProfileId: checked && !agentForm.sharedContextProfileId && sharedContextProfiles[0]
-                            ? sharedContextProfiles[0].id
-                            : agentForm.sharedContextProfileId,
-                        });
-                      }}
-                    />
-                  )}
-                  label={t('settings.sharedContextEnabled')}
-                />
-                <Select
-                  variant="standard"
-                  disableUnderline
-                  value={agentForm.sharedContextProfileId ?? ''}
-                  displayEmpty
-                  disabled={!agentForm.sharedContextEnabled || sharedContextProfiles.length === 0}
-                  sx={drawerSelectSx}
-                  onChange={(event) => updateAgent('sharedContextProfileId', event.target.value || null)}
-                >
-                  <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.sharedContextNoProfile')}</MenuItem>
-                  {sharedContextProfiles.map((profile) => (
-                    <MenuItem key={profile.id} value={profile.id} sx={drawerMenuItemSx}>{profile.name}</MenuItem>
-                  ))}
-                </Select>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                  <Button size="small" variant="text" sx={actionLinkButtonSx} onClick={() => setSharedContextDialogOpen(true)}>
-                    {`+ ${t('settings.sharedContextCreate')}`}
-                  </Button>
-                </Box>
-                <Box
-                  sx={(theme) => ({
-                    minHeight: 72,
-                    maxHeight: 150,
-                    overflow: 'auto',
-                    border: `1px solid ${theme.palette.kanap.border.default}`,
-                    borderRadius: 1,
-                    bgcolor: theme.palette.kanap.bg.composer,
-                    px: 1,
-                    py: 0.75,
-                    fontSize: 13,
-                    color: theme.palette.kanap.text.primary,
-                    whiteSpace: 'pre-wrap',
-                  })}
-                >
-                  {selectedSharedContextLines.length > 0
-                    ? selectedSharedContextLines.join('\n')
-                    : t('settings.sharedContextEmptyPreview')}
-                </Box>
-              </Stack>
-            </SettingsField>
-            </Stack>
-            <Box sx={{ position: { lg: 'sticky' }, top: { lg: 16 }, alignSelf: 'start' }}>
-            <SettingsField
-              label={(
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
-                  <Typography variant="caption" color="text.secondary">{t('settings.effectivePrompt')}</Typography>
-                  <Select
-                    variant="standard"
-                    disableUnderline
-                    value={effectivePromptTask}
-                    onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
-                    sx={[drawerSelectSx, { minWidth: 150 }]}
-                  >
-                    {effectivePromptTasks.map((task) => (
-                      <MenuItem key={task} value={task} sx={drawerMenuItemSx}>{t(`settings.effectivePromptTasks.${task}`)}</MenuItem>
-                    ))}
-                  </Select>
-                </Stack>
-              )}
-              hint={t('settings.effectivePromptHint')}
-            >
-              <Box
-                component="pre"
-                sx={(theme) => ({
-                  m: 0,
-                  minHeight: 320,
-                  maxHeight: { xs: 360, lg: 'calc(100vh - 200px)' },
-                  overflow: 'auto',
-                  border: `1px solid ${theme.palette.kanap.border.default}`,
-                  borderRadius: 1,
-                  bgcolor: theme.palette.kanap.bg.composer,
-                  color: theme.palette.kanap.text.primary,
-                  fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontSize: 12,
-                  lineHeight: 1.55,
-                  p: 1,
-                  whiteSpace: 'pre-wrap',
-                })}
-              >
-                {effectivePromptQuery.isLoading
-                  ? t('settings.effectivePromptLoading')
-                  : effectivePromptText || t('settings.effectivePromptEmpty')}
-              </Box>
-            </SettingsField>
-            </Box>
-          </Box>
-          {isHelpdesk && (
-            <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.5 }}>
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                <Typography variant="body2" fontWeight={500}>{t('settings.capabilities')}</Typography>
-                <SaveIndicator status={capabilitiesAutosave.status} />
-              </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
-                {HELPDESK_CAPABILITY_GROUPS.map((group) => (
-                  <FormControlLabel
-                    key={group.key}
-                    control={<Switch checked={capabilityForm[group.key] === true} onChange={(event) => updateCapability(group.key, event.target.checked)} />}
-                    label={t(`settings.capabilityGroups.${group.key}`, { defaultValue: humanize(group.key) })}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-        </Stack>
-      </Section>
-
       {isHelpdesk && (
         <Section title={t('settings.targeting')} actions={<SaveIndicator status={settingsAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
@@ -1481,91 +1517,273 @@ function SettingsTab({ definition, autosaveRegistry }: {
           </Stack>
         </Section>
       )}
-      {isHelpdesk && <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={settingsAutosave.status} />}>
+
+      <Section
+        title={t('settings.objectiveCapabilities')}
+        actions={(
+          <Stack direction="row" spacing={1} alignItems="center">
+            {isArchived ? (
+              <Button
+                size="small"
+                variant="action"
+                onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })}
+                disabled={data.updateAgentStatusMutation.isPending}
+              >
+                {t('settings.restoreAgent')}
+              </Button>
+            ) : (
+              <Button size="small" variant="action-danger" onClick={() => setArchiveDialogOpen(true)}>{t('settings.archiveAgent')}</Button>
+            )}
+            <SaveIndicator status={identityAutosave.status} />
+          </Stack>
+        )}
+      >
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.model')} hint={t('settings.modelHint')}>
+          {/* What the agent is allowed to do comes first: it frames everything
+              the persona below can ask for. */}
+          {isHelpdesk && (
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="body2" fontWeight={500}>{t('settings.capabilities')}</Typography>
+                  <Tooltip title={t('settings.capabilitiesInfo')} placement="top">
+                    <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
+                  </Tooltip>
+                </Stack>
+                <SaveIndicator status={capabilitiesAutosave.status} />
+              </Stack>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 0.25 }}>
+                {HELPDESK_CAPABILITY_GROUPS.map((group) => (
+                  <FormControlLabel
+                    key={group.key}
+                    control={<Switch checked={capabilityForm[group.key] === true} onChange={(event) => updateCapability(group.key, event.target.checked)} />}
+                    label={t(`settings.capabilityGroups.${group.key}`, { defaultValue: humanize(group.key) })}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {/* Persona, laid out two-up so the six fields read as one block
+              instead of a long column. */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1fr)' },
+              columnGap: 3,
+              rowGap: 1,
+              alignItems: 'start',
+              borderTop: isHelpdesk ? '1px solid' : undefined,
+              borderColor: 'divider',
+              pt: isHelpdesk ? 1.5 : 0,
+            }}
+          >
+            <SettingsField label={t('settings.name')} info={t('settings.nameInfo')}>
+              <TextField size="small" value={agentForm.name} onChange={(event) => updateAgent('name', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.replyLanguage')} info={t('settings.replyLanguageInfo')}>
               <Select
                 variant="standard"
-                value={definition.llm_model_config_id ?? ''}
-                displayEmpty
-                disabled={setModelMutation.isPending}
-                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
+                disableUnderline
+                value={agentForm.outputStyleLanguage}
                 sx={drawerSelectSx}
+                onChange={(event) => updateAgent('outputStyleLanguage', event.target.value)}
               >
-                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
-                {activeModelConfigs.map((modelConfig) => (
-                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
+                {['auto', 'fr', 'en', 'de', 'es'].map((value) => (
+                  <MenuItem key={value} value={value} sx={drawerMenuItemSx}>{t(`settings.outputStyleLanguageOptions.${value}`)}</MenuItem>
                 ))}
               </Select>
-              {modelConfigsQuery.isError && (
-                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
-              )}
             </SettingsField>
-            <SettingsField label={t('settings.agentPriority')}><TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.reviewCooldown')}><TextField size="small" value={form.reviewCooldownHours} onChange={(event) => update('reviewCooldownHours', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.onConflict')}>
-              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={drawerSelectSx}>
-                <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
-                <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
-              </Select>
+            <SettingsField label={t('settings.description')} info={t('settings.descriptionInfo')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={2}
+                maxRows={6}
+                value={agentForm.description}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => updateAgent('description', event.target.value)}
+              />
             </SettingsField>
-            <SettingsField label={t('settings.maxTickets')}><TextField size="small" value={form.maxTickets} onChange={(event) => update('maxTickets', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.maxRequests')}><TextField size="small" value={form.maxRequests} onChange={(event) => update('maxRequests', event.target.value)} /></SettingsField>
+            <SettingsField label={t('settings.outputStyle')} info={t('settings.outputStyleInfo')}>
+              <TextField
+                size="small"
+                variant="standard"
+                value={agentForm.outputStyleTone}
+                placeholder={t('settings.outputStyleTonePlaceholder')}
+                InputProps={{ disableUnderline: true }}
+                sx={editableFieldValueSx}
+                onChange={(event) => updateAgent('outputStyleTone', event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.mission')} info={t('settings.missionInfo')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={2}
+                maxRows={8}
+                value={agentForm.mission}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => updateAgent('mission', event.target.value)}
+              />
+            </SettingsField>
+            <SettingsField label={t('settings.escalationGuidance')} info={t('settings.escalationGuidanceInfo')}>
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={2}
+                maxRows={8}
+                value={agentForm.escalationGuidance}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => updateAgent('escalationGuidance', event.target.value)}
+              />
+            </SettingsField>
+            <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+              <SettingsField label={t('settings.instructions')} info={t('settings.instructionsInfo')}>
+                <TextField
+                  size="small"
+                  variant="standard"
+                  multiline
+                  minRows={3}
+                  maxRows={20}
+                  value={agentForm.instructions}
+                  InputProps={{ disableUnderline: true }}
+                  sx={agentPersonaFieldSx}
+                  onChange={(event) => updateAgent('instructions', event.target.value)}
+                />
+              </SettingsField>
+            </Box>
           </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.approvalTtl')} hint={t('settings.approvalTtlHint')}><TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.activityRetention')} hint={t('settings.activityRetentionHint')}><TextField size="small" value={form.activityRetentionDays} onChange={(event) => update('activityRetentionDays', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.onStale')}>
-              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={drawerSelectSx}>
-                <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
-                <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
-                <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
-              </Select>
-            </SettingsField>
+
+          {/* Shared context: off ⇒ only the switch. The profile picker, the
+              create link and the preview appear once it is actually used. */}
+          <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={agentForm.sharedContextEnabled}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      updateAgentPatch({
+                        sharedContextEnabled: checked,
+                        sharedContextProfileId: checked && !agentForm.sharedContextProfileId && sharedContextProfiles[0]
+                          ? sharedContextProfiles[0].id
+                          : agentForm.sharedContextProfileId,
+                      });
+                    }}
+                  />
+                )}
+                label={t('settings.sharedContextEnabled')}
+              />
+              <Tooltip title={t('settings.sharedContextHint')} placement="top">
+                <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
+              </Tooltip>
+            </Stack>
+            <Collapse in={agentForm.sharedContextEnabled} unmountOnExit>
+              <Stack spacing={1} sx={{ pt: 0.5, maxWidth: 520 }}>
+                <Select
+                  variant="standard"
+                  disableUnderline
+                  value={agentForm.sharedContextProfileId ?? ''}
+                  displayEmpty
+                  disabled={sharedContextProfiles.length === 0}
+                  sx={drawerSelectSx}
+                  onChange={(event) => updateAgent('sharedContextProfileId', event.target.value || null)}
+                >
+                  <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.sharedContextNoProfile')}</MenuItem>
+                  {sharedContextProfiles.map((profile) => (
+                    <MenuItem key={profile.id} value={profile.id} sx={drawerMenuItemSx}>{profile.name}</MenuItem>
+                  ))}
+                </Select>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <Button size="small" variant="text" sx={actionLinkButtonSx} onClick={() => setSharedContextDialogOpen(true)}>
+                    {`+ ${t('settings.sharedContextCreate')}`}
+                  </Button>
+                </Box>
+                <Box
+                  sx={(theme) => ({
+                    minHeight: 60,
+                    maxHeight: 150,
+                    overflow: 'auto',
+                    border: `1px solid ${theme.palette.kanap.border.default}`,
+                    borderRadius: 1,
+                    bgcolor: theme.palette.kanap.bg.composer,
+                    px: 1,
+                    py: 0.75,
+                    fontSize: 13,
+                    color: theme.palette.kanap.text.primary,
+                    whiteSpace: 'pre-wrap',
+                  })}
+                >
+                  {selectedSharedContextLines.length > 0
+                    ? selectedSharedContextLines.join('\n')
+                    : t('settings.sharedContextEmptyPreview')}
+                </Box>
+              </Stack>
+            </Collapse>
           </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(5, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.perRunTokens')}><TextField size="small" value={form.perRunTokens} onChange={(event) => update('perRunTokens', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.perRunCost')} hint={t('settings.costCapHint')}><TextField size="small" value={form.perRunCost} onChange={(event) => update('perRunCost', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.dailyRuns')}><TextField size="small" value={form.dailyRuns} onChange={(event) => update('dailyRuns', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.dailyTokens')}><TextField size="small" value={form.dailyTokens} onChange={(event) => update('dailyTokens', event.target.value)} /></SettingsField>
-            <SettingsField label={t('settings.dailyCost')} hint={t('settings.costCapHint')}><TextField size="small" value={form.dailyCost} onChange={(event) => update('dailyCost', event.target.value)} /></SettingsField>
+
+          {/* Effective prompt: a read-only diagnostic, collapsed by default so
+              it stops dominating the block. The choice is remembered per user. */}
+          <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+            <Button
+              size="small"
+              variant="text"
+              sx={actionLinkButtonSx}
+              endIcon={effectivePromptOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              onClick={() => setEffectivePromptOpen((open) => !open)}
+            >
+              {effectivePromptOpen ? t('settings.effectivePromptHide') : t('settings.effectivePromptShow')}
+            </Button>
+            <Collapse in={effectivePromptOpen} unmountOnExit>
+              <Stack spacing={1} sx={{ pt: 1 }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">{t('settings.effectivePromptHint')}</Typography>
+                  <Select
+                    variant="standard"
+                    disableUnderline
+                    value={effectivePromptTask}
+                    onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
+                    sx={[drawerSelectSx, { minWidth: 150, width: 'auto', flexShrink: 0 }]}
+                  >
+                    {effectivePromptTasks.map((task) => (
+                      <MenuItem key={task} value={task} sx={drawerMenuItemSx}>{t(`settings.effectivePromptTasks.${task}`)}</MenuItem>
+                    ))}
+                  </Select>
+                </Stack>
+                <Box
+                  component="pre"
+                  sx={(theme) => ({
+                    m: 0,
+                    maxHeight: 420,
+                    overflow: 'auto',
+                    border: `1px solid ${theme.palette.kanap.border.default}`,
+                    borderRadius: 1,
+                    bgcolor: theme.palette.kanap.bg.composer,
+                    color: theme.palette.kanap.text.primary,
+                    fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                    p: 1,
+                    whiteSpace: 'pre-wrap',
+                  })}
+                >
+                  {effectivePromptQuery.isLoading
+                    ? t('settings.effectivePromptLoading')
+                    : effectivePromptText || t('settings.effectivePromptEmpty')}
+                </Box>
+              </Stack>
+            </Collapse>
           </Box>
         </Stack>
-      </Section>}
-      {isSre && (
-        <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={sreAutosave.status} />}>
-          <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.model')} hint={t('settings.modelHint')}>
-              <Select
-                variant="standard"
-                value={definition.llm_model_config_id ?? ''}
-                displayEmpty
-                disabled={setModelMutation.isPending}
-                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
-                sx={drawerSelectSx}
-              >
-                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
-                {activeModelConfigs.map((modelConfig) => (
-                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
-                ))}
-              </Select>
-              {modelConfigsQuery.isError && (
-                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
-              )}
-            </SettingsField>
-            <SettingsField label={t('settings.maxAlerts')}>
-              <TextField size="small" value={sreForm.maxAlerts} onChange={(event) => updateSre({ maxAlerts: event.target.value })} />
-            </SettingsField>
-            <SettingsField label={t('settings.maxMonitoringRequests')}>
-              <TextField size="small" value={sreForm.maxRequests} onChange={(event) => updateSre({ maxRequests: event.target.value })} />
-            </SettingsField>
-            <SettingsField label={t('settings.activityRetention')} hint={t('settings.activityRetentionHint')}>
-              <TextField size="small" value={sreForm.activityRetentionDays} onChange={(event) => updateSre({ activityRetentionDays: event.target.value })} />
-            </SettingsField>
-          </Box>
-        </Section>
-      )}
+      </Section>
 
       <Section title={t('settings.knowledgeSources')} actions={<SaveIndicator status={knowledgeAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
@@ -1650,48 +1868,141 @@ function SettingsTab({ definition, autosaveRegistry }: {
         </Stack>
       </Section>
 
-      <Section title={t('settings.autonomy')} id="autonomy">
-        <Stack spacing={1} sx={{ p: 1.5 }}>
-          {autonomyQuery.isLoading ? <CircularProgress size={20} /> : (autonomyQuery.data?.items ?? []).map((item) => {
-            const enable = () => setAutonomyTarget({
-              actionClass: item.actionClass,
-              decided: item.progress.decided,
-              rate: formatPercent(item.progress.acceptanceRate),
-              days: item.progress.daysActive,
-              eligible: item.eligible,
-              overrideAvailable: item.recommendationOverrideAvailable === true,
-              reasons: item.reasons,
-            });
-            const disable = () => data.setAutonomyMutation.mutate({ id: definition.id, actionClass: item.actionClass, mode: 'ask_first' });
-            return (
-              <Stack key={item.actionClass} direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1 }}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="body2" fontWeight={500}>{t(`settings.actionClasses.${item.actionClass}`, { defaultValue: humanize(item.actionClass) })}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('settings.autonomyProgress', {
-                      decided: item.progress.decided,
-                      required: item.progress.required,
-                      rate: item.progress.acceptanceRate == null ? '—' : formatPercent(item.progress.acceptanceRate),
-                      requiredRate: formatPercent(item.progress.requiredRate),
-                      days: item.progress.daysActive,
-                      requiredDays: item.progress.requiredDays,
-                    })}
-                  </Typography>
-                  {!item.eligible && <Typography variant="caption" color="text.secondary" display="block">{item.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(' ')}</Typography>}
-                </Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip size="small" color={item.mode === 'automatic' ? 'success' : 'default'} label={item.mode === 'automatic' ? t('settings.automatic') : t('settings.askFirst')} />
-                  {item.mode === 'automatic' ? (
-                    <Button size="small" variant="outlined" onClick={disable} disabled={data.setAutonomyMutation.isPending}>{t('settings.turnOffAutomatic')}</Button>
-                  ) : (
-                    <Button size="small" variant="contained" onClick={enable} disabled={(!item.eligible && item.recommendationOverrideAvailable !== true) || data.setAutonomyMutation.isPending}>{item.eligible ? t('settings.turnOnAutomatic') : t('settings.overrideAutomatic')}</Button>
-                  )}
-                </Stack>
-              </Stack>
-            );
-          })}
+      {isHelpdesk && <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={settingsAutosave.status} />}>
+        <Stack spacing={1.5} sx={{ p: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label={t('settings.model')} info={t('settings.modelInfo')}>
+              <Select
+                variant="standard"
+                value={definition.llm_model_config_id ?? ''}
+                displayEmpty
+                disabled={setModelMutation.isPending}
+                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
+                sx={drawerSelectSx}
+              >
+                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
+                {activeModelConfigs.map((modelConfig) => (
+                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
+                ))}
+              </Select>
+              {modelConfigsQuery.isError && (
+                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
+              )}
+            </SettingsField>
+            <SettingsField label={t('settings.checkInterval')} info={t('settings.checkIntervalInfo')}>
+              <TextField size="small" value={form.checkIntervalMinutes} onChange={(event) => update('checkIntervalMinutes', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.maxTickets')} info={t('settings.maxTicketsInfo')}>
+              <TextField size="small" value={form.maxTickets} onChange={(event) => update('maxTickets', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.maxRequests')} info={t('settings.maxRequestsInfo')}>
+              <TextField size="small" value={form.maxRequests} onChange={(event) => update('maxRequests', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.reviewCooldown')} info={t('settings.reviewCooldownInfo')}>
+              <TextField size="small" value={form.reviewCooldownHours} onChange={(event) => update('reviewCooldownHours', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.agentPriority')} info={t('settings.agentPriorityInfo')}>
+              <TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.onConflict')} info={t('settings.onConflictInfo')}>
+              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={drawerSelectSx}>
+                <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
+                <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
+              </Select>
+            </SettingsField>
+            <SettingsField label={t('settings.approvalTtl')} info={t('settings.approvalTtlHint')}>
+              <TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} />
+            </SettingsField>
+            <SettingsField label={t('settings.onStale')} info={t('settings.onStaleInfo')}>
+              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={drawerSelectSx}>
+                <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
+                <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
+                <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
+              </Select>
+            </SettingsField>
+            <SettingsField label={t('settings.activityRetention')} info={t('settings.activityRetentionHint')}>
+              <TextField size="small" value={form.activityRetentionDays} onChange={(event) => update('activityRetentionDays', event.target.value)} />
+            </SettingsField>
+          </Box>
+
+          {/* Safety limits: caps that STOP the agent, not estimates. Each daily
+              cap carries today's real usage so the number reads as a budget in
+              use, never as a broken calculation. */}
+          <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.5 }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+              <Typography variant="body2" fontWeight={500}>{t('settings.safetyLimits')}</Typography>
+              <Tooltip title={t('settings.safetyLimitsInfo')} placement="top">
+                <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
+              </Tooltip>
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(5, minmax(0, 1fr))' }, gap: 1.5 }}>
+              <SettingsField label={t('settings.perRunTokens')} info={t('settings.perRunTokensInfo')}>
+                <TextField size="small" value={form.perRunTokens} onChange={(event) => update('perRunTokens', event.target.value)} />
+              </SettingsField>
+              <SettingsField label={t('settings.perRunCost')} info={t('settings.perRunCostInfo')}>
+                <TextField size="small" value={form.perRunCost} onChange={(event) => update('perRunCost', event.target.value)} />
+              </SettingsField>
+              <SettingsField
+                label={t('settings.dailyRuns')}
+                info={t('settings.dailyRunsInfo')}
+                hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: formatNumber(dailyUsage.runs ?? 0) })}</CapUsage> : undefined}
+              >
+                <TextField size="small" value={form.dailyRuns} onChange={(event) => update('dailyRuns', event.target.value)} />
+              </SettingsField>
+              <SettingsField
+                label={t('settings.dailyTokens')}
+                info={t('settings.dailyTokensInfo')}
+                hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: formatNumber(dailyUsage.estimatedTokens ?? 0) })}</CapUsage> : undefined}
+              >
+                <TextField size="small" value={form.dailyTokens} onChange={(event) => update('dailyTokens', event.target.value)} />
+              </SettingsField>
+              <SettingsField
+                label={t('settings.dailyCost')}
+                info={t('settings.dailyCostInfo')}
+                hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: `${(dailyUsage.estimatedCostEur ?? 0).toFixed(4)} EUR` })}</CapUsage> : undefined}
+              >
+                <TextField size="small" value={form.dailyCost} onChange={(event) => update('dailyCost', event.target.value)} />
+              </SettingsField>
+            </Box>
+          </Box>
         </Stack>
-      </Section>
+      </Section>}
+      {isSre && (
+        <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={sreAutosave.status} />}>
+          <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+            <SettingsField label={t('settings.model')} info={t('settings.modelInfo')}>
+              <Select
+                variant="standard"
+                value={definition.llm_model_config_id ?? ''}
+                displayEmpty
+                disabled={setModelMutation.isPending}
+                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
+                sx={drawerSelectSx}
+              >
+                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
+                {activeModelConfigs.map((modelConfig) => (
+                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
+                ))}
+              </Select>
+              {modelConfigsQuery.isError && (
+                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
+              )}
+            </SettingsField>
+            <SettingsField label={t('settings.checkInterval')} info={t('settings.checkIntervalAlertsInfo')}>
+              <TextField size="small" value={sreForm.checkIntervalMinutes} onChange={(event) => updateSre({ checkIntervalMinutes: event.target.value })} />
+            </SettingsField>
+            <SettingsField label={t('settings.maxAlerts')} info={t('settings.maxAlertsInfo')}>
+              <TextField size="small" value={sreForm.maxAlerts} onChange={(event) => updateSre({ maxAlerts: event.target.value })} />
+            </SettingsField>
+            <SettingsField label={t('settings.maxMonitoringRequests')} info={t('settings.maxMonitoringRequestsInfo')}>
+              <TextField size="small" value={sreForm.maxRequests} onChange={(event) => updateSre({ maxRequests: event.target.value })} />
+            </SettingsField>
+            <SettingsField label={t('settings.activityRetention')} info={t('settings.activityRetentionHint')}>
+              <TextField size="small" value={sreForm.activityRetentionDays} onChange={(event) => updateSre({ activityRetentionDays: event.target.value })} />
+            </SettingsField>
+          </Box>
+        </Section>
+      )}
 
       {pendingPreset && (
         <KanapDialog
@@ -1789,55 +2100,6 @@ function SettingsTab({ definition, autosaveRegistry }: {
         </KanapDialog>
       )}
 
-      {autonomyTarget && (
-        <KanapDialog
-          open={!!autonomyTarget}
-          title={t('settings.autonomyDialog.title', {
-            actionClass: t(`settings.actionClasses.${autonomyTarget.actionClass}`, { defaultValue: humanize(autonomyTarget.actionClass) }),
-          })}
-          onClose={() => {
-            setAutonomyTarget(null);
-            setOverrideReason('');
-          }}
-          onSave={() => data.setAutonomyMutation.mutate(
-            {
-              id: definition.id,
-              actionClass: autonomyTarget.actionClass,
-              mode: 'automatic',
-              confirm: true,
-              overrideAcknowledged: !autonomyTarget.eligible,
-              overrideReason: !autonomyTarget.eligible ? overrideReason : null,
-            },
-            {
-              onSuccess: () => {
-                setAutonomyTarget(null);
-                setOverrideReason('');
-              },
-            },
-          )}
-          saveLabel={t('settings.autonomyDialog.confirm')}
-          saveDisabled={!autonomyTarget.eligible && overrideReason.trim().length < 8}
-          saveLoading={data.setAutonomyMutation.isPending}
-        >
-          <Stack spacing={1.5}>
-            <Typography variant="body2">
-              {t('settings.autonomyDialog.evidence', { decided: autonomyTarget.decided, rate: autonomyTarget.rate, days: autonomyTarget.days })}
-            </Typography>
-            {!autonomyTarget.eligible && (
-              <>
-                <Alert severity="warning">{t('settings.autonomyDialog.overrideFrame')}</Alert>
-                <Typography variant="body2" color="text.secondary">
-                  {autonomyTarget.reasons.map((reason) => t(`settings.autonomyReasons.${reason}`, { defaultValue: humanize(reason) })).join(' ')}
-                </Typography>
-                <SettingsField label={t('settings.autonomyDialog.reason')}>
-                  <TextField size="small" multiline minRows={2} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} />
-                </SettingsField>
-              </>
-            )}
-            <Typography variant="body2" color="text.secondary">{t('settings.autonomyDialog.frame')}</Typography>
-          </Stack>
-        </KanapDialog>
-      )}
     </Stack>
   );
 }

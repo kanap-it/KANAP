@@ -10,9 +10,11 @@ import {
   actionClassForCapabilityName,
   agentAutonomyPolicyKey,
   approvedCapabilityForAutonomyActionClass,
+  autonomyGrantRequiresAcknowledgement,
+  autonomyRiskTier,
+  AUTONOMY_RISK_TIER_BY_ACTION_CLASS,
   isAgentAutonomyPolicyMetadata,
-  isLowRiskAutomationActionClass,
-  LOW_RISK_AUTOMATION_ALLOWLIST,
+  isAutomatableAutonomyActionClass,
 } from '../agent/ai-agent-autonomy';
 import {
   AGENT_ACTIVITY_TYPES,
@@ -23,6 +25,11 @@ import {
   mergeActivityPage,
 } from './ai-agent-activity-timeline';
 import { normalizeQueuePolicyRetention } from '../agent/ai-agent-activity-retention';
+import {
+  checkIntervalMinutesForDefinition,
+  checksPerDay,
+  normalizeTriggerPolicyCheckInterval,
+} from '../agent/ai-agent-check-interval';
 import {
   AgentQueueLiveTargetLike,
   AiAgentWorkQueueService,
@@ -4561,13 +4568,25 @@ export class AiAgentControlService {
     const overlapRefs = new Set(overlapStates
       .filter((state) => state.agent_definition_id !== definition.id)
       .map((state) => state.target_ref));
+    // Runs/day is an estimate the operator uses to size the agent, so it must
+    // not promise more than the agent can physically do. Three ceilings apply:
+    // the review cooldown (how often the same ticket may come back), how many
+    // scheduled checks a day the configured interval allows times the
+    // per-check ticket limit, and the daily run cap itself.
+    const cooldownRunsPerDay = (matches.length * 86_400) / this.agentQueue.reviewCooldownSeconds(previewDefinition);
+    const scheduleCeiling = checksPerDay(checkIntervalMinutesForDefinition(previewDefinition)) * config.maxTicketsPerCycle;
+    const dailyRunCap = numericMetadata(
+      metadataObject(metadataObject(metadataObject(definition.queue_policy_json).economic_guardrails).daily).max_agent_runs,
+    );
+    const ceilings = [cooldownRunsPerDay, scheduleCeiling];
+    if (dailyRunCap > 0) ceilings.push(dailyRunCap);
     return {
       preview: {
         matchEstimate: matches.length,
         sampleSize: tickets.length,
         capped: tickets.length >= maxResults,
         overlapEstimate: overlapRefs.size,
-        runsPerDayEstimate: Number(((matches.length * 86_400) / this.agentQueue.reviewCooldownSeconds(previewDefinition)).toFixed(2)),
+        runsPerDayEstimate: Number(Math.min(...ceilings).toFixed(2)),
         resolution: targeting.resolution,
       },
     };
@@ -4779,7 +4798,9 @@ export class AiAgentControlService {
       max_autonomy_level: template?.max_autonomy_level ?? 'A3',
       default_approval_requirement: template?.default_approval_requirement ?? 'human_for_writes',
       agent_priority: cleanAgentPriority(input.agent_priority, cleanAgentPriority(template?.agent_priority, 100)),
-      trigger_policy_json: normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? template?.trigger_policy_json ?? null,
+      trigger_policy_json: normalizeTriggerPolicyCheckInterval(
+        normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? template?.trigger_policy_json ?? null,
+      ),
       scope_policy_json: normalizedScopePolicy,
       queue_policy_json: normalizeQueuePolicyRetention(
         normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
@@ -4855,7 +4876,11 @@ export class AiAgentControlService {
       definition.persona_json = normalizePersona(input.persona_json, definition.persona_json);
     }
     if (Object.prototype.hasOwnProperty.call(input, 'trigger_policy_json')) {
-      definition.trigger_policy_json = normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy');
+      // The check frequency is operator-editable, so its bounds are enforced
+      // here too — never on the client alone.
+      definition.trigger_policy_json = normalizeTriggerPolicyCheckInterval(
+        normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy'),
+      );
     }
     if (Object.prototype.hasOwnProperty.call(input, 'scope_policy_json')) {
       definition.scope_policy_json = normalizeScopePolicyForAgentType(definition.agent_type, normalizedPolicyObject(input.scope_policy_json, 'Scope policy'));
@@ -5047,9 +5072,9 @@ export class AiAgentControlService {
         && policy.metadata_json.agent_definition_id === definition.id
         && policy.metadata_json.action_class === actionClassName) ?? null;
       const reasons: string[] = [];
-      if (!isLowRiskAutomationActionClass(actionClassName)) {
-        reasons.push('ACTION_CLASS_NOT_ALLOWLISTED');
-      }
+      // Every action class is automatable now; the risk tier decides how the
+      // grant is obtained (see ai-agent-autonomy.ts), not whether it is possible,
+      // so there is no ACTION_CLASS_NOT_ALLOWLISTED blocker any more.
       if (!capabilityName || !definitionAllowsCapability(definition, capabilityName)) {
         reasons.push('CAPABILITY_NOT_ALLOWED');
       }
@@ -5070,7 +5095,10 @@ export class AiAgentControlService {
         actionClass: actionClassName,
         capabilityName,
         mode: matchingPolicy && matchingPolicy.enabled && matchingPolicy.status === 'enabled' ? 'automatic' : 'ask_first',
-        allowlisted: isLowRiskAutomationActionClass(actionClassName),
+        riskTier: autonomyRiskTier(actionClassName) ?? 'high',
+        // High-tier grants always need the acknowledgement + written reason, even
+        // when every eval gate passes. Surfaced so the dialog can say so upfront.
+        acknowledgementRequired: autonomyGrantRequiresAcknowledgement(actionClassName),
         eligible: reasons.length === 0,
         recommendationOverrideAvailable: reasons.length > 0 && hardReasons.length === 0,
         hardReasons,
@@ -5166,7 +5194,10 @@ export class AiAgentControlService {
     }
     return {
       agent_definition: serializeAgentDefinition(definition),
-      lowRiskAutomationAllowlist: LOW_RISK_AUTOMATION_ALLOWLIST,
+      riskTiers: AUTONOMY_RISK_TIER_BY_ACTION_CLASS,
+      // The recommendation thresholds the rows are measured against, so the UI
+      // never has to hardcode "20 decisions" again.
+      thresholds: autonomyThresholds(definition),
       items,
     };
   }
@@ -5227,11 +5258,13 @@ export class AiAgentControlService {
     const row = rows.find((candidate) => candidate.actionClass === actionClassName);
     const hardReasons = row?.reasons.filter((reason) => !AUTONOMY_RECOMMENDATION_REASON_CODES.has(reason)) ?? ['ACTION_CLASS_NOT_FOUND'];
     const overrideReason = cleanSingleLine(input.overrideReason, 500);
+    const riskTier = autonomyRiskTier(actionClassName);
+    const acknowledgementRequired = autonomyGrantRequiresAcknowledgement(actionClassName);
+    const acknowledged = input.overrideAcknowledged === true && !!overrideReason;
     const overrideGranted = !!row
       && !row.eligible
       && hardReasons.length === 0
-      && input.overrideAcknowledged === true
-      && !!overrideReason;
+      && acknowledged;
     if (!row || (!row.eligible && !overrideGranted)) {
       throw new ForbiddenException({
         message: 'Automatic mode is not eligible for this action class.',
@@ -5241,9 +5274,23 @@ export class AiAgentControlService {
         progress: row?.progress ?? null,
       });
     }
+    // High-risk classes act in front of the requester or move work between
+    // people. The acknowledgement and its written reason are mandatory for them
+    // whatever the eligibility says — enforced here, never trusted from the
+    // client, which only mirrors this rule in its dialog.
+    if (acknowledgementRequired && !acknowledged) {
+      throw new ForbiddenException({
+        message: 'This action class always requires an explicit acknowledgement and a reason before it can run automatically.',
+        reasons: ['HIGH_RISK_ACKNOWLEDGEMENT_REQUIRED'],
+        hardReasons: [],
+        riskTier,
+        acknowledgementRequired: true,
+        progress: row.progress,
+      });
+    }
     const capabilityName = approvedCapabilityForAutonomyActionClass(actionClassName);
-    if (!capabilityName || !isLowRiskAutomationActionClass(actionClassName)) {
-      throw new ForbiddenException('This action class is not allowlisted for automatic execution.');
+    if (!capabilityName || !isAutomatableAutonomyActionClass(actionClassName)) {
+      throw new ForbiddenException('This action class cannot run automatically.');
     }
     if (!definitionAllowsCapability(definition, capabilityName)) {
       throw new ForbiddenException('The agent definition does not allow this capability.');
@@ -5259,7 +5306,7 @@ export class AiAgentControlService {
       policy_key: policyKey,
       policy_version: nextPolicyVersion,
       name: `${definition.name}: automatic ${actionClassName}`,
-      description: 'Eval-gated agent autonomy grant for a low-risk helpdesk action class.',
+      description: `Eval-gated agent autonomy grant for a ${riskTier}-risk helpdesk action class.`,
       status: 'enabled',
       enabled: true,
       capability_name: capabilityName,
@@ -5291,7 +5338,14 @@ export class AiAgentControlService {
         agent_definition_id: definition.id,
         agent_key: definition.agent_key,
         action_class: actionClassName,
-        allowlist: LOW_RISK_AUTOMATION_ALLOWLIST,
+        risk_tier: riskTier,
+        acknowledgement: acknowledgementRequired ? {
+          required: true,
+          acknowledged: true,
+          reason: overrideReason,
+          granted_by_user_id: context.userId || null,
+          granted_at: now.toISOString(),
+        } : null,
         granted_by_user_id: context.userId || null,
         granted_at: now.toISOString(),
         eligibility: row.progress,
@@ -5316,6 +5370,11 @@ export class AiAgentControlService {
       metadata: {
         actor_user_id: context.userId || null,
         action_class: actionClassName,
+        // The tier is part of the audit record: a high-tier grant is a different
+        // decision from a low-tier one and must read as such months later.
+        risk_tier: riskTier,
+        acknowledgement_required: acknowledgementRequired,
+        acknowledgement_reason: acknowledgementRequired ? overrideReason : null,
         policy_id: policy.id,
         policy_version: policy.policy_version,
         eligibility: row.progress,
@@ -6329,7 +6388,7 @@ export class AiAgentControlService {
       // Hard safety boundary: terminal solve/close is destructive and stays
       // human-approved even when 'status' autonomy is automatic.
       const terminalStatus = isTerminalStatusAction(action);
-      if (terminalStatus || !isLowRiskAutomationActionClass(className) || !policyEnabledForClass(className)) {
+      if (terminalStatus || !isAutomatableAutonomyActionClass(className) || !policyEnabledForClass(className)) {
         executions.push({
           action_request_id: action.id,
           action_class: className,

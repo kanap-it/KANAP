@@ -75,6 +75,13 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
     const predicates = policyObject(policyObject(definition?.scope_policy_json).targeting).predicates;
     return Array.isArray(predicates) ? predicates.length : 0;
   })();
+  // "Next check" follows the agent's own check frequency (trigger policy), not
+  // the platform cron tick. Mirror of the backend clamp in
+  // ai-agent-check-interval.ts — an absent key means the 5-minute default.
+  const storedCheckInterval = policyObject(policyObject(definition?.trigger_policy_json).scheduled_poll).interval_minutes;
+  const checkIntervalMinutes = typeof storedCheckInterval === 'number' && Number.isFinite(storedCheckInterval)
+    ? Math.max(5, Math.min(1440, Math.floor(storedCheckInterval)))
+    : 5;
   const sreIngestionState = policyObject(policyObject(definition?.metadata_json).monitoring_ingestion_state);
   const sreLastPollStatus = typeof sreIngestionState.last_poll_status === 'string' ? sreIngestionState.last_poll_status : '';
   const watching = isSre ? sreWatching : !!summary?.ingestion.enabled;
@@ -175,7 +182,7 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
             />
             <StripFact
               label={t('monitor.nextCheck')}
-              value={watching ? t('monitor.everyFiveMinutes') : t('common.notSet')}
+              value={watching ? t('monitor.everyMinutes', { count: checkIntervalMinutes }) : t('common.notSet')}
             />
             <StripFact
               label={t('monitor.queue')}

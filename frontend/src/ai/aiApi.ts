@@ -502,7 +502,10 @@ export type AiAgentControlAutonomyItem = {
   actionClass: string;
   capabilityName: string | null;
   mode: 'ask_first' | 'automatic';
-  allowlisted: boolean;
+  // Automation risk tier. `high` (requester reply, assignment, participants)
+  // always requires the acknowledgement + reason, even when eligible.
+  riskTier: 'low' | 'high';
+  acknowledgementRequired: boolean;
   eligible: boolean;
   recommendationOverrideAvailable?: boolean;
   hardReasons?: string[];
@@ -529,7 +532,14 @@ export type AiAgentControlAutonomyItem = {
 
 export type AiAgentControlAutonomyResult = {
   agent_definition: AiAgentControlAgentDefinition;
-  lowRiskAutomationAllowlist: string[];
+  riskTiers: Record<string, 'low' | 'high'>;
+  // Recommendation thresholds the rows are measured against — the UI reads them
+  // from here instead of hardcoding "20 decisions".
+  thresholds: {
+    minimumDecided: number;
+    minimumAcceptanceRate: number;
+    minimumObservationDays: number;
+  };
   items: AiAgentControlAutonomyItem[];
 };
 

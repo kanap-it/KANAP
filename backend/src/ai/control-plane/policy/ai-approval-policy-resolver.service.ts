@@ -5,7 +5,7 @@ import { AiExecutionContextWithManager } from '../../ai.types';
 import {
   actionClassForCapabilityName,
   isAgentAutonomyPolicyMetadata,
-  isLowRiskAutomationActionClass,
+  isAutomatableAutonomyActionClass,
 } from '../agent/ai-agent-autonomy';
 import { CapabilityContract, CapabilityExecutionContext, CapabilitySurface } from '../capability/capability-contract';
 import { AiActionRequest } from '../entities/ai-action-request.entity';
@@ -217,7 +217,7 @@ export class AiApprovalPolicyResolverService {
       && !(
         agentAutonomyMetadata
         && policy.live_test_safety === 'live_write_gated'
-        && isLowRiskAutomationActionClass(agentAutonomyMetadata.action_class)
+        && isAutomatableAutonomyActionClass(agentAutonomyMetadata.action_class)
       )
     ) {
       reasons.push({ code: 'LIVE_POLICY_NOT_MOCK_ONLY', detail: 'Phase 6 policy approval is limited to mock-only safety.' });
@@ -298,10 +298,10 @@ export class AiApprovalPolicyResolverService {
           detail: 'Agent autonomy policy does not match the action class.',
         });
       }
-      if (!isLowRiskAutomationActionClass(actionClass)) {
+      if (!isAutomatableAutonomyActionClass(actionClass)) {
         reasons.push({
-          code: 'AGENT_AUTONOMY_CLASS_NOT_ALLOWLISTED',
-          detail: 'Action class is not allowlisted for automatic agent execution.',
+          code: 'AGENT_AUTONOMY_CLASS_NOT_AUTOMATABLE',
+          detail: 'Action class cannot run automatically for agents.',
         });
       }
       if (policy.live_test_safety !== 'live_write_gated') {

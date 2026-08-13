@@ -330,7 +330,7 @@
     "tabs": {
       "monitor": "Suivi",
       "approvals": "Approbations",
-      "performance": "Performance",
+      "performance": "Performance et autonomie",
       "settings": "Paramètres"
     }
   },
@@ -351,7 +351,6 @@
     "off": "Désactivé",
     "lastCheck": "Dernier contrôle",
     "nextCheck": "Prochain contrôle",
-    "everyFiveMinutes": "Toutes les 5 minutes",
     "queue": "File",
     "waiting": "En attente",
     "inProgress": "En cours",
@@ -438,7 +437,9 @@
     "noDiagnosisStored": "Aucun diagnostic enregistré pour cette alerte.",
     "runMode": "Mode de fonctionnement",
     "checkNowOffHint": "Activez d'abord l'agent.",
-    "checkNowPausedHint": "Levez d'abord la pause."
+    "checkNowPausedHint": "Levez d'abord la pause.",
+    "everyMinutes_one": "Toutes les minutes",
+    "everyMinutes_other": "Toutes les {{count}} minutes"
   },
   "performance": {
     "acceptance": "Acceptation",
@@ -448,12 +449,11 @@
     "costPerTicket": "Coût par ticket",
     "runsPerTicket": "Exécutions par ticket",
     "trends": "Tendances",
-    "daySummary": "{{proposals}} proposées, {{accepted}} exécutées",
-    "autonomy": "Échelle d'autonomie",
-    "noActionClasses": "Aucune classe d'action n'a encore assez de données.",
-    "eligibility": "{{decided}} décisions capturées. {{required}} requises pour examiner l'automatisation.",
     "askFirst": "Demander d'abord",
-    "reviewAutonomy": "Examiner"
+    "proposed": "Proposées",
+    "executed": "Exécutées",
+    "costTrend": "Coût par jour",
+    "noTrendData": "Aucune activité enregistrée pour le moment."
   },
   "sharedContext": {
     "title": "Contexte partagé",
@@ -477,7 +477,6 @@
     "archiveBody": "« {{name}} » ne sera plus disponible pour les agents. Tout agent qui l'utilise actuellement fonctionnera sans contexte partagé jusqu'à ce que vous le pointiez vers un autre profil."
   },
   "settings": {
-    "identity": "Identité et persona",
     "objectiveCapabilities": "Objectif et capacités",
     "name": "Nom",
     "archiveAgent": "Archiver l'agent",
@@ -489,7 +488,6 @@
     },
     "description": "Description",
     "mission": "Mission",
-    "tone": "Ton",
     "outputStyle": "Style de sortie",
     "outputStyleTonePlaceholder": "ex. clair et concis",
     "outputStyleVerbosityOptions": {
@@ -506,16 +504,13 @@
     },
     "replyLanguage": "Langue de réponse",
     "instructions": "Instructions",
-    "instructionsHint": "Une instruction par ligne.",
     "escalation": "Escalade",
     "escalationGuidance": "Guidance d'escalade",
-    "sharedContext": "Contexte partagé",
     "sharedContextHint": "Guidance de fond pour cet agent. Ce n'est ni une permission ni une source citable.",
     "sharedContextEnabled": "Utiliser le contexte partagé",
     "sharedContextNoProfile": "Aucun profil sélectionné",
     "sharedContextCreate": "Nouveau profil",
     "sharedContextEmptyPreview": "Aucune ligne de contexte partagé sélectionnée.",
-    "effectivePrompt": "Prompt effectif",
     "effectivePromptHint": "Aperçu en lecture seule de ce que le runtime envoie pour chaque tâche. La guidance ne peut pas remplacer les règles de sécurité.",
     "effectivePromptLoading": "Chargement du prompt…",
     "effectivePromptEmpty": "Aucun aperçu de prompt disponible.",
@@ -618,7 +613,6 @@
       "control_plane_resolved": "Plan de contrôle",
       "unsupported": "Non pris en charge"
     },
-    "pace": "Rythme",
     "operatingSettings": "Paramètres d'exploitation",
     "agentPriority": "Priorité agent",
     "reviewCooldown": "Réviser toutes les (heures)",
@@ -630,7 +624,6 @@
     "maxTickets": "Tickets max par contrôle",
     "maxRequests": "Requêtes fournisseur max",
     "horizon": "Horizon de reprise (heures)",
-    "spending": "Dépenses",
     "perRunTokens": "Tokens par exécution",
     "perRunCost": "Coût par exécution (EUR)",
     "dailyRuns": "Exécutions par jour",
@@ -672,16 +665,23 @@
       "evidence": "Sur la base de {{decided}} décisions avec {{rate}} d'acceptation sur {{days}} jours.",
       "frame": "Les actions automatiques respectent toujours les limites quotidiennes et la pause d'urgence, et reviennent en mode validation si l'acceptation baisse.",
       "overrideFrame": "Ce forçage contourne uniquement les seuils de recommandation. Les limites de sécurité, fraîcheur, fournisseur, budgets, pauses et restrictions de réponse publique restent appliquées.",
-      "reason": "Motif du forçage"
+      "reason": "Motif du forçage",
+      "highRiskGeneric": "Cette action est visible hors de votre équipe ou déplace le travail d’une personne à une autre. L’activer signifie que l’agent la réalise sans relecture préalable.",
+      "highRisk": {
+        "public_reply": "L’agent répondra directement aux demandeurs, sans que personne ne relise la réponse. À n’activer que si ce qu’il a proposé jusqu’ici vous convient.",
+        "assignment": "L’agent réaffectera des tickets à d’autres personnes, sans relecture préalable.",
+        "participant": "L’agent ajoutera et retirera des personnes sur les tickets, sans relecture préalable."
+      },
+      "reasonHighRiskHint": "Obligatoire. Elle est conservée dans l’historique de l’agent pour que votre équipe sache qui a accepté, et pourquoi."
     },
     "autonomyReasons": {
-      "ACTION_CLASS_NOT_ALLOWLISTED": "Ce type d'action ne peut pas s'exécuter automatiquement.",
       "CAPABILITY_NOT_ALLOWED": "Cette action n'est pas activée pour cet agent.",
       "INSUFFICIENT_DECIDED_PROPOSALS": "Pas encore assez de propositions examinées.",
       "ACCEPTANCE_RATE_TOO_LOW": "Le taux d'acceptation est sous le seuil.",
       "OBSERVATION_WINDOW_TOO_SHORT": "Pas encore assez de jours d'activité.",
       "OPEN_INCIDENT_FLAG": "Un incident ouvert bloque l'automatisation.",
-      "ACTION_CLASS_NOT_FOUND": "Ce type d'action n'est pas disponible."
+      "ACTION_CLASS_NOT_FOUND": "Ce type d'action n'est pas disponible.",
+      "HIGH_RISK_ACKNOWLEDGEMENT_REQUIRED": "Cette action exige une confirmation explicite et un motif."
     },
     "autonomyProgress": "{{decided}}/{{required}} décisions, {{rate}}/{{requiredRate}} d'acceptation, {{days}}/{{requiredDays}} jours",
     "automatic": "Automatique",
@@ -752,11 +752,45 @@
     },
     "model": "Modèle IA",
     "modelTenantDefault": "Modèle par défaut de l'organisation",
-    "modelHint": "Le modèle IA sur lequel cet agent s'exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
     "modelListError": "Impossible de charger la liste des modèles ; les choix affichés peuvent être incomplets.",
-    "costCapHint": "Estimé selon les tarifs du modèle assigné. Un modèle gratuit (0 €) n'atteint jamais ce plafond — les plafonds de tokens restent la protection.",
     "activityRetention": "Conserver l'historique d'activité (jours)",
-    "activityRetentionHint": "Durée de conservation du fil d'activité de cet agent. Les entrées plus anciennes sont supprimées automatiquement (7 à 90 jours). Conservez au moins 30 jours si vous comptez activer le mode automatique : le bilan de l'agent est mesuré sur les 28 derniers jours."
+    "activityRetentionHint": "Durée de conservation du fil d'activité de cet agent. Les entrées plus anciennes sont supprimées automatiquement (7 à 90 jours). Conservez au moins 30 jours si vous comptez activer le mode automatique : le bilan de l'agent est mesuré sur les 28 derniers jours.",
+    "safetyLimits": "Limites de sécurité",
+    "safetyLimitsInfo": "Des arrêts fermes, pas des estimations. Lorsque l’agent atteint l’une de ces limites, il s’arrête pour le reste de la journée et vous attend.",
+    "usageToday": "Aujourd'hui : {{value}}",
+    "checkInterval": "Contrôler toutes les (minutes)",
+    "checkIntervalInfo": "Fréquence à laquelle l’agent cherche de nouveaux tickets lorsqu’il surveille. Entre 5 minutes et 24 heures. « Contrôler maintenant » s’exécute toujours immédiatement, quelle que soit cette valeur.",
+    "checkIntervalAlertsInfo": "Fréquence à laquelle l’agent cherche de nouvelles alertes lorsqu’il surveille. Entre 5 minutes et 24 heures. « Chercher de nouvelles alertes » s’exécute toujours immédiatement, quelle que soit cette valeur.",
+    "nameInfo": "Le nom affiché dans KANAP pour cet agent. Il n’a aucun effet sur son comportement.",
+    "descriptionInfo": "Un résumé court pour vos collègues, affiché sous le nom de l’agent.",
+    "missionInfo": "Ce que cet agent est là pour faire, en une ou deux phrases. Il la relit avant chaque ticket.",
+    "instructionsInfo": "Les règles internes que l’agent suit, une par ligne. Elles ne peuvent pas élargir ce que l’agent a le droit de faire.",
+    "outputStyleInfo": "Le ton que l’agent doit adopter lorsqu’il rédige, par exemple clair et concis.",
+    "replyLanguageInfo": "La langue dans laquelle l’agent rédige. « Langue du ticket » le fait répondre dans la langue utilisée par le demandeur.",
+    "escalationGuidanceInfo": "Quand l’agent doit passer la main à une personne plutôt que de proposer quelque chose lui-même.",
+    "capabilitiesInfo": "Ce que cet agent peut préparer. Tout ce qui est désactivé ici n’est jamais proposé, quelles que soient les instructions.",
+    "modelInfo": "Le modèle IA sur lequel cet agent s’exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
+    "maxTicketsInfo": "Le nombre maximum de tickets pris par l’agent à chaque contrôle. Les autres attendent le suivant.",
+    "maxRequestsInfo": "Le nombre maximum d’appels que l’agent adresse à l’outil de ticketing à chaque contrôle, pour ne jamais le saturer.",
+    "maxAlertsInfo": "Le nombre maximum d’alertes diagnostiquées par l’agent à chaque contrôle. Les autres attendent le suivant.",
+    "maxMonitoringRequestsInfo": "Le nombre maximum d’appels que l’agent adresse à l’outil de supervision à chaque contrôle, pour ne jamais le saturer.",
+    "reviewCooldownInfo": "Le délai d’attente avant que l’agent ne reprenne le même ticket, pour éviter qu’il ne se répète.",
+    "agentPriorityInfo": "Quel agent l’emporte lorsque plusieurs visent le même ticket. Plus le nombre est bas, plus la priorité est haute.",
+    "onConflictInfo": "Ce que fait l’agent lorsqu’un autre agent travaille déjà sur le même ticket : s’effacer, ou prendre le relais d’un agent de priorité égale.",
+    "onStaleInfo": "Ce qu’il advient d’une proposition en attente lorsque le ticket change avant votre décision : la réexaminer, l’abandonner ou l’appliquer telle quelle.",
+    "perRunTokensInfo": "Le maximum de mots que l’agent peut consacrer à un ticket. Une fois atteint, ce ticket s’arrête et rien n’est proposé pour lui.",
+    "perRunCostInfo": "Le maximum que l’agent peut dépenser sur un ticket, estimé selon les tarifs du modèle assigné. Un modèle gratuit (0 EUR) ne l’atteint jamais : la limite de mots reste la vraie protection.",
+    "dailyRunsInfo": "Arrête l’agent pour la journée une fois ce nombre de tickets traité. Il repart le lendemain.",
+    "dailyTokensInfo": "Arrête l’agent pour la journée une fois ce nombre de mots dépensé. Il repart le lendemain.",
+    "dailyCostInfo": "Arrête l’agent pour la journée une fois ce montant atteint, estimé selon les tarifs du modèle assigné. Il repart le lendemain.",
+    "effectivePromptShow": "Voir le prompt effectif",
+    "effectivePromptHide": "Masquer le prompt effectif",
+    "autonomyHighRisk": "Le demandeur le voit, ou le travail change de mains.",
+    "autonomyHighRiskNote": {
+      "public_reply": "L’agent répondrait au demandeur sans que personne ne relise avant.",
+      "assignment": "L’agent réaffecterait les tickets sans que personne ne relise avant.",
+      "participant": "L’agent ajouterait ou retirerait des personnes sur les tickets sans que personne ne relise avant."
+    }
   },
   "actions": {
     "internalNote": "Note interne",
