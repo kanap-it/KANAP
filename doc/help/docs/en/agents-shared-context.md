@@ -73,7 +73,7 @@ Archived profiles stay in the list, dimmed and tagged **Archived**, as a record 
 
 ## How a profile connects to an agent
 
-Profiles live here, but they're switched on per agent from that agent's **Settings** tab (see [Agent workspace](agents-workspace.md)). In the agent's **Shared context** section you turn on **Use shared context** and pick a profile. Until you do, the agent shows **No profile selected** and runs without any shared context.
+Profiles live here, but they're switched on per agent from that agent's **Settings** tab, in the **Objective and capabilities** section (see [Agent workspace](agents-workspace.md)). Until you turn on **Use shared context**, that's the only thing you see there — the switch and a one-line description. Turning it on reveals the profile selector, a **+ New profile** shortcut for creating one on the spot, and a preview of the selected profile's lines. Pick a profile and the agent runs on it; leave it at **No profile selected** and the agent runs without any shared context.
 
 Because the link is a reference, one profile can back many agents at once, and updating the profile updates all of them. Detaching an agent — or archiving its profile — simply drops the guidance for that agent; it changes nothing about the profile's other users.
 

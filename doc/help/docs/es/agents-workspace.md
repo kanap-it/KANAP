@@ -1,139 +1,165 @@
 # Agentes IA — Espacio del agente
 
-El espacio del agente es donde vive un único agente: observa lo que hace, revisa sus propuestas, juzga su rendimiento y —si es administrador— configura cada detalle de su funcionamiento. Es la superficie más profunda del área de Agentes IA. Todo lo relativo a un agente que no sea un control aplicable a toda la flota está aquí, repartido en cuatro pestañas.
+El espacio del agente es donde vive un único agente: usted lo maneja, observa lo que hace, revisa sus propuestas, juzga su rendimiento y —si es administrador— configura cada detalle de su funcionamiento. Es la superficie más profunda del área de Agentes IA. Todo lo relativo a un agente que no sea un control aplicable a toda la flota está aquí: una barra de acciones que le acompaña en todas las pestañas y cuatro pestañas debajo de ella.
 
-Abra un agente haciendo clic en su tarjeta en [Agentes IA — Vista general](agents-overview.md). El espacio siempre se abre en **Monitor**; puede enlazar directamente a cualquier pestaña, y los enlaces desde otras partes del producto (por ejemplo, el botón **Revisar** de **Rendimiento**) le llevan a la correcta.
+Abra un agente haciendo clic en su tarjeta en [Agentes IA — Vista general](agents-overview.md). El espacio siempre se abre en **Monitor**; puede enlazar directamente a cualquier pestaña, y los enlaces desde otras partes del producto le llevan a la correcta.
 
 ## Dónde encontrarlo
 
 - **Espacio de trabajo:** Agentes IA
 - **Ruta:** **Agentes IA → Vista general →** abra la tarjeta de un agente
 - **Ruta URL:** `/agents/:agentKey`
-- **Permiso:** la visualización requiere el rol Lector de Agentes IA (`ai_agents:reader`). La pestaña **Configuración** solo aparece para el nivel Administrador de Agentes IA (`ai_agents:admin`); el administrador de Configuración de IA (`ai_settings:admin`) también la desbloquea, junto con los controles **Iniciar agente**, **Desactivar** y **Pausar agente** de **Monitor**.
-- **Disponibilidad:** toda la sección Agentes IA requiere que la IA esté habilitada en la instancia. Si abre un enlace a un agente que no existe en su espacio de trabajo, verá **Agente no encontrado** —«Este agente no está disponible en el espacio actual.»— con una forma de volver a la flota.
+- **Permiso:** la visualización requiere el rol Lector de Agentes IA (`ai_agents:reader`). Ejecutar una comprobación, probar el agente y decidir sobre las propuestas requieren el nivel de colaborador (`ai_agents:contributor`). Cambiar el modo de funcionamiento, pausar el agente y la pestaña **Configuración** requieren el nivel Administrador de Agentes IA (`ai_agents:admin`); el administrador de Configuración de IA (`ai_settings:admin`) también lo desbloquea todo.
+- **Disponibilidad:** toda el área de Agentes IA requiere que la IA esté habilitada en la instancia. Si abre un enlace a un agente que no existe en su espacio de trabajo, verá **Agente no encontrado** —«Este agente no está disponible en el espacio actual.»— con una forma de volver a la flota.
 
-Las pestañas son **Monitor**, **Aprobaciones**, **Rendimiento** y **Configuración**. Los lectores ven las tres primeras; solo los administradores ven **Configuración**.
+Las pestañas son **Monitor**, **Aprobaciones**, **Rendimiento y autonomía** y **Configuración**. Los lectores ven las tres primeras; solo los administradores ven **Configuración**.
+
+---
+
+## La barra de acciones
+
+Justo debajo del nombre del agente hay una barra estrecha de controles, alineada a la derecha, que permanece visible en **todas** las pestañas. Contiene únicamente acciones: las cifras de solo lectura del agente están en la sección **Estado** de la pestaña **Monitor**. La idea es que nunca tenga que abandonar lo que está haciendo para iniciar, detener o probar el agente.
+
+### El control de modo de funcionamiento
+
+El primer control es el agente en sí. Cerrado, muestra su estado real como un punto de color y una etiqueta: **Vigilancia — con aprobación**, **Vigilancia — parcialmente automática**, **Prueba**, **Desactivado**, **Pausado**, **No iniciado** o **Archivado**. Ábralo (los administradores, en un agente que no esté ni pausado ni archivado) y le ofrece los tres modos de funcionamiento:
+
+| Modo | Qué significa |
+| --- | --- |
+| **Apagado** | No se ejecuta nada, ni siquiera una comprobación manual. |
+| **Solo manual** | Solo se ejecuta cuando usted se lo pide: **Comprobar ahora** y las pruebas funcionan, pero el agente nunca mira por su cuenta. |
+| **Vigilancia** | Comprueba por su cuenta con la frecuencia que usted defina, además de todo lo que hace **Solo manual**. |
+
+Lea la etiqueta cerrada como la realidad y el menú como la intención: un agente configurado en **Vigilancia** que está retenido por una pausa muestra **Pausado**, no **Vigilancia**, de modo que el control nunca le dice que el agente está trabajando cuando no lo está.
+
+**Solo manual** es el modo que hace que un agente nuevo se pueda probar sin riesgo. Es donde conviene quedarse mientras ajusta una persona y su segmentación: puede ejecutar el agente tantas veces como quiera sobre tickets reales, pero no ocurre nada si usted no lo pide. Pase a **Vigilancia** solo cuando esté satisfecho con lo que redacta.
+
+### Los demás controles
+
+- **Comprobar ahora** (**Buscar nuevas alertas** en un agente de supervisión) ejecuta una comprobación de inmediato en lugar de esperar a la siguiente programada. Está deshabilitado cuando el agente está en **Apagado** («Active primero el agente.») o pausado («Levante primero la pausa.»), con el motivo en la información sobre herramientas.
+- **Probar en un ticket** (**Probar con una alerta** en un agente de supervisión) le lleva a la sección de prueba de la pestaña **Monitor**, esté en la pestaña que esté.
+- **Pausar agente** es el freno de emergencia rojo, y deliberadamente no es lo mismo que **Apagado**. Pide un motivo y luego retiene las comprobaciones de este agente *y cualquier escritura pendiente* hasta que la levante. Los demás agentes siguen funcionando. Mientras hay una pausa en vigor, un banner de advertencia muestra **Pausa de emergencia activa: {reason}** y el control pasa a ser **Levantar pausa**. Una pausa establecida para todo el espacio de trabajo muestra en su lugar **En pausa para todos los agentes** y le lleva a la vista general de la flota: no puede levantar una pausa de todo el espacio desde un único agente.
+
+Use **Apagado** para dejar un agente en reposo durante un tiempo; use **Pausar agente** cuando algo va mal y quiere congelar también el trabajo pendiente.
+
+Un agente archivado no tiene más controles que una nota: *Archivado — restáurelo desde la pestaña Configuración.*
 
 ---
 
 ## Monitor
 
-Monitor es el panel de estado en vivo de este agente concreto. Se actualiza a medida que el trabajo avanza, por lo que es la pestaña que conviene mantener abierta cuando quiere vigilar la situación.
+Monitor es el panel en vivo de este agente concreto. Se actualiza a medida que el trabajo avanza, por lo que es la pestaña que conviene mantener abierta cuando quiere vigilar la situación.
 
 ### Estado
 
-La tarjeta **Estado** resume el modo actual del agente e incorpora sus controles de ejecución (solo administradores):
+La sección **Estado** es de solo lectura: es donde ahora reside cada dato sobre el estado actual del agente, en una sola línea de cifras.
 
-- **Iniciar agente** cambia un agente no iniciado o desactivado a activado, de modo que empieza a vigilar.
-- **Desactivar** detiene la vigilancia de un agente activado. Conserva su configuración e historial; puede volver a iniciarlo más tarde.
-- **Pausar agente** es el freno de emergencia. Pide un motivo y luego retiene las comprobaciones de este agente y cualquier escritura pendiente hasta que la levante. Los demás agentes siguen funcionando. Cuando hay una pausa activa, verá aquí **Levantar pausa**. Una pausa establecida para todo el espacio de trabajo muestra en su lugar **En pausa para todos los agentes** y le lleva a la vista general de la flota para gestionarla; no puede levantar una pausa de todo el espacio desde un único agente.
-- **Comprobar ahora** ejecuta una comprobación de inmediato en lugar de esperar a la siguiente programada. Está deshabilitado mientras ya se está ejecutando una comprobación o mientras el agente está en pausa.
-
-Bajo los controles, cuatro fichas de solo lectura le indican la situación:
-
-- **Ciclo de vida** — el estado general del agente en términos sencillos: **No iniciado**, **Desactivado**, **Prueba**, **Pausado**, **Archivado** o, cuando está activo, **Vigilancia — con aprobación** / **Vigilancia — parcialmente automática** (esta última cuando al menos un tipo de acción se ha promovido a automático).
-- **Vigilancia** — **Todos los tickets**, **Filtrado** (cuando una categoría o entidad restringe el alcance) o **Desactivado**.
+- El estado del agente, con las mismas palabras que la barra de acciones.
+- **Vigilancia** — **Todos los tickets**, **Filtrado** (cuando su segmentación restringe el alcance) o **Desactivado**. Un agente de supervisión muestra **Todas las alertas**, **Filtrado** o **Desactivado**.
 - **Última comprobación** — el resultado de la comprobación más reciente.
-- **Próxima comprobación** — **Cada 5 minutos** mientras el agente vigila; de lo contrario, **Sin definir**.
-
-### Cola
-
-La tarjeta **Cola** contabiliza el trabajo que el agente tiene actualmente en espera:
-
-- **En espera** — tickets cuyas propuestas esperan su aprobación.
-- **En curso** — tickets en los que el agente está trabajando activamente. Cada ticket en curso también aparece debajo con un indicador de progreso y su estado, para que vea exactamente qué se está moviendo.
-- **Fallidos** — tickets que dieron error o acabaron en **Requiere atención** y no se reintentarán por sí solos.
-- **Aprobaciones pendientes** — el número total de propuestas individuales en todos los tickets en espera (un mismo ticket puede llevar varias).
-
-### Límites
-
-La tarjeta **Límites** muestra el consumo de hoy frente a los topes de seguridad definidos en la pestaña **Configuración**: **Ejecuciones hoy**, **Tokens hoy** y **Coste hoy** (en EUR), cada uno como *usado / tope*. Son techos estrictos: cuando se alcanza un tope, el agente se detiene por el resto del día pase lo que pase, por lo que esta tarjeta es donde notará que un agente está a punto de quedarse en silencio.
+- **Próxima comprobación** — **Cada N minutos**, según el ajuste **Comprobar cada (minutos)**, mientras el agente vigila. En caso contrario, **Sin definir**, porque no hay nada programado.
+- **Cola** — *N en espera · N en curso*: propuestas que esperan su decisión y tickets en los que el agente está trabajando ahora mismo.
+- **N fallidos**, en rojo, cuando algo se atascó y no se reintentará por sí solo. Son los elementos que encontrará en **Requiere atención** en [Aprobaciones](agents-approvals.md).
+- **Ejecuciones hoy**, **Tokens hoy** y **Coste hoy**, cada uno como *usado / tope*. Son los límites de seguridad diarios definidos en **Configuración**, y aquí es donde notará que un agente está a punto de quedarse en silencio por hoy. (Solo agentes de servicio: los agentes de supervisión no se miden así, por lo que las cifras se ocultan en lugar de mostrarse como ceros engañosos.)
 
 ### Probar en un ticket
 
-**Probar en un ticket** ejecuta el agente una vez sobre un único ticket que usted indica: la forma más rápida de ver cómo se comporta antes de dejarlo vigilar por su cuenta, o de comprobar su razonamiento en un caso concreto. Escriba un número de ticket (por ejemplo, `64`) y pulse **Ejecutar prueba**. El agente hace una pasada completa solo sobre ese ticket; todo lo que proponga aparece en la pestaña **Aprobaciones** para su revisión, como cualquier otro trabajo. No se envía nada al solicitante sin aprobación. Esto funciona incluso mientras el agente no está iniciado, lo que la convierte en la compañera natural de la etapa **No iniciado** de un agente nuevo.
+**Probar en un ticket** ejecuta el agente una vez sobre un único ticket que usted indica: la forma más rápida de ver cómo se comporta antes de dejarlo vigilar por su cuenta, o de comprobar su razonamiento en un caso concreto. Escriba un número de ticket (por ejemplo, `64`) y pulse **Ejecutar prueba**. El agente hace una pasada completa solo sobre ese ticket; todo lo que proponga aparece en la pestaña **Aprobaciones** para su revisión, como cualquier otro trabajo. No se envía nada al solicitante sin aprobación.
+
+Un agente de supervisión tiene en su lugar **Probar con una alerta**: indíquele un ID de alerta y su diagnóstico aparece debajo, con la misma disposición de expediente que uno guardado.
+
+Las pruebas funcionan tanto en **Solo manual** como en **Vigilancia**, que es justo la idea: son la compañera natural de un agente en el que todavía no confía.
 
 ### Actividad reciente
 
-La parte inferior de Monitor incorpora una cronología en vivo y de solo lectura de las propuestas, decisiones, ejecuciones, pausas y errores de este agente. Es el mismo flujo que la página completa de [Actividad](agents-activity.md), ya filtrado a este agente. Cada entrada puede abrir una vista de diagnóstico opcional de **Traza técnica** para los administradores que quieran el detalle paso a paso que hay detrás de una comprobación.
+La parte inferior de Monitor incorpora la cronología en vivo de las comprobaciones, propuestas, decisiones, ejecuciones, pausas y errores de este agente. Es el mismo flujo que la página completa de [Actividad](agents-activity.md), ya filtrado a este agente: los mismos conmutadores de categoría, el mismo **Cargar más** y el mismo diálogo de traza.
 
 ---
 
 ## Aprobaciones
 
-La pestaña **Aprobaciones** es la cola de revisión —respuestas, notas y cambios de tickets propuestos que esperan su decisión— acotada solo a este agente. Se comporta exactamente igual que la cola independiente, incluido aprobar o rechazar en bloque y la confirmación de acción terminal. Consulte [Aprobaciones](agents-approvals.md) para la explicación completa de cómo funciona la cola; aquí no cambia nada, salvo que solo ve los elementos de este agente.
+La pestaña **Aprobaciones** es la cola de revisión —respuestas, notas y cambios de tickets propuestos que esperan su decisión— acotada solo a este agente. Se comporta exactamente igual que la cola independiente, incluida la aprobación en bloque, la confirmación de acción terminal y los controles **Dar por visto** y **Repetir el análisis** de las filas de **Requiere atención**. Consulte [Aprobaciones](agents-approvals.md) para la explicación completa; aquí no cambia nada, salvo que solo ve los elementos de este agente.
 
 ---
 
-## Rendimiento
+## Rendimiento y autonomía
 
-Rendimiento le indica si el agente se está ganando más autonomía. La fila de cifras principales cubre, para este agente:
+Esta pestaña responde a una sola pregunta: ¿se está ganando el agente más independencia? Reúne la evidencia y el interruptor uno al lado del otro, para que nunca tenga que juzgar en un sitio y actuar en otro.
+
+### Las cifras principales
 
 - **Aceptación** — la proporción de sus propuestas que usted aprobó. Es la cifra que más influye en si un tipo de acción puede pasar a automático.
-- **Descartadas** — la proporción de propuestas revisadas de este agente que usted apartó en lugar de aprobar o rechazar. Un descarte no penaliza al agente, por lo que esta cifra queda al margen de la aceptación. Lea un valor persistentemente alto como un problema de segmentación —el agente está recogiendo tickets que no debería gestionar— y corríjalo en **Configuración → Segmentación**, en lugar de tratarlo como un problema de calidad de las respuestas.
+- **Descartadas** — la proporción de propuestas revisadas que usted apartó en lugar de aprobar o rechazar. Un descarte no penaliza al agente, por lo que esta cifra queda al margen de la aceptación. Lea un valor persistentemente alto como un problema de segmentación —el agente está recogiendo tickets que no debería gestionar— y corríjalo en **Configuración → Segmentación**, en lugar de tratarlo como un problema de calidad de las respuestas.
 - **Latencia de aprobación** — el tiempo habitual, en minutos, entre la aparición de una propuesta y la decisión de alguien sobre ella. Una cifra en aumento suele significar que la cola necesita más atención de los revisores, no que el agente lo esté haciendo peor.
 - **Tasa de conocimiento** — con qué frecuencia sus respuestas se respaldaron con sus fuentes de conocimiento.
-- **Coste por ticket** — gasto medio por ticket gestionado, en EUR.
+- **Coste por ticket** — gasto medio por ticket gestionado, en EUR. (El coste de toda la flota está en la [Vista general](agents-overview.md).)
 - **Ejecuciones por ticket** — cuántas comprobaciones hicieron falta, de media, para resolver un ticket.
 
-Debajo, una franja de **Tendencias** de 14 días muestra el volumen propuesto frente al ejecutado por día, para que vea de un vistazo cómo el agente va cogiendo ritmo (o un pico).
+### Tendencias
 
-La **Escala de autonomía** enumera cada tipo de acción del que el agente tiene datos, con cuántas decisiones revisadas ha capturado frente al número necesario antes de poder revisar el modo **Automático**. Cuando un tipo de acción tiene evidencia suficiente, use **Revisar** para saltar a la sección **Autonomía** de **Configuración**, donde realmente se realiza la promoción.
+Dos gráficos cubren los últimos 14 días. **Tendencias** representa **Propuestas** frente a **Ejecutadas** por día, para que vea cómo el agente va cogiendo ritmo, un pico o un día en que se quedó en silencio. **Coste por día** aparece debajo, como un gráfico más pequeño sobre el mismo eje de días: los recuentos y los euros deliberadamente no comparten escala. Hasta que el agente haya hecho algo, ambos muestran **Todavía no hay actividad registrada.**
+
+### La escala de autonomía
+
+De forma predeterminada, cada tipo de acción **pregunta primero**: el agente propone y le espera. En esta sección promueve un tipo de acción a **Automático**, uno cada vez, una vez que se lo ha ganado.
+
+Cada fila muestra el tipo de acción, su modo actual (**Preguntar primero** o **Automático**) y una línea de progreso: decisiones capturadas frente a las necesarias, tasa de aceptación frente a la tasa exigida y días de actividad frente a los días requeridos. Cuando una fila aún no es elegible, dice por qué en términos sencillos: *Aún no hay suficientes propuestas revisadas.*, *La tasa de aceptación está por debajo del umbral.*, *Aún no hay suficientes días de actividad.*
+
+**No todos los tipos de acción tienen el mismo riesgo, y la escala ahora lo dice.**
+
+- **Nota interna**, **Actualización de clasificación** y **Actualización de estado** son el nivel de menor riesgo. Nada sale de su equipo y nada cambia de manos. Aquí los umbrales de evidencia son recomendaciones: cuando un tipo es elegible, **Activar** abre una breve confirmación; cuando no lo es, **Anular** le permite concederlo igualmente con un motivo por escrito.
+- **Respuesta al solicitante**, **Asignación** y **Participantes** son el nivel de mayor riesgo, y sus filas están marcadas con un borde de advertencia y un recordatorio de una línea de lo que estaría aceptando: *El agente respondería al solicitante sin que nadie lo lea antes.* Ahora sí pueden automatizarse, cosa que antes no era posible. Pero la concesión requiere **siempre** una confirmación explícita y un motivo por escrito, incluso cuando todos los umbrales ya se cumplen y la fila es elegible. El motivo se conserva en el historial del agente para que su equipo vea quién lo aceptó y por qué.
+
+En ambos casos, la confirmación le recuerda que las acciones automáticas siguen respetando los límites diarios y la pausa de emergencia, y vuelven a preguntar primero si la aceptación baja. **Desactivar** devuelve cualquier tipo de acción automático a preguntar primero, de inmediato.
+
+Dos bloqueos son absolutos y ningún motivo los levanta: un tipo de acción que usted desactivó en **Capacidades** (*Esta acción no está habilitada para este agente.*) y un incidente abierto (*Un incidente abierto bloquea la automatización.*).
+
+Automático nunca significa sin supervisión. Los límites de seguridad estrictos, los presupuestos, las comprobaciones de frescura y las pausas se aplican igual sea cual sea el modo de un tipo de acción.
 
 ---
 
 ## Configuración
 
-La pestaña **Configuración** es solo para administradores y reúne todos los ajustes de configuración del agente. Se **guarda automáticamente**: no hay botones de guardar, y cada sección muestra un pequeño indicador **Guardando…** / **Guardado** en su encabezado a medida que se escriben sus ediciones. Las ediciones se aplican en el sitio, por lo que la página no se recarga ni pierde su posición mientras trabaja.
+La pestaña **Configuración** es solo para administradores y reúne todos los ajustes del agente. Se **guarda automáticamente**: no hay botones de guardar, y cada sección muestra un pequeño indicador **Guardando…** / **Guardado** en su encabezado a medida que se escriben sus ediciones. Si cambia de pestaña con un guardado todavía en curso, primero se completa el guardado; y si falla, el cambio de pestaña se cancela para que el error y su edición sigan en pantalla.
 
-### Objetivo y capacidades
-
-Esta es la persona del agente: quién es y cómo escribe:
-
-- **Nombre** y **Estado**. El estado controla la disponibilidad: **No iniciado**, **Activado**, **Desactivado** o **Archivado**. (Archivar es la forma deliberada de retirar un agente.)
-- **Descripción** — texto libre para su propio equipo.
-- **Misión** — la función del agente en una o dos frases.
-- **Instrucciones** — una instrucción por línea; cada línea se trata como una regla independiente.
-- **Estilo de salida** — el tono con el que escribe el agente (por ejemplo, *claro y conciso*).
-- **Idioma de respuesta** — el idioma de las respuestas dirigidas al solicitante: **Idioma del ticket** (coincide con el idioma en que esté escrito el ticket), **Francés**, **Inglés**, **Alemán** o **Español**.
-- **Guía de escalada** — cuándo y cómo debe el agente pasar un ticket a una persona en lugar de intentar resolverlo.
-- **Contexto compartido** — active **Usar contexto compartido** y elija un perfil para añadir a este agente un contexto reutilizable sobre su entorno, o use **+ Nuevo perfil** para crear uno al momento. Debajo se muestra una vista previa de las líneas del perfil seleccionado. El contexto compartido determina cómo interpreta el agente los tickets y redacta las respuestas, pero nunca es una concesión de permisos y **no** es una fuente citable, a diferencia de las [bibliotecas de conocimiento](knowledge.md), cuyos resultados *sí* se citan en las respuestas. Gestione los perfiles por completo en la página [Contexto compartido](agents-shared-context.md).
-
-Junto al editor de la persona está la vista previa de solo lectura del **Prompt efectivo**: exactamente lo que recibe el runtime del agente, compilado a partir de todo lo anterior más las propias reglas de la plataforma. Use el selector para inspeccionar cada etapa: **Planificador de acciones**, **Planificador** e **Intérprete** son las etapas donde el agente decide *qué hacer*; **Síntesis** es donde redacta la respuesta fundamentada en sus fuentes de conocimiento. La vista previa se actualiza después de cada guardado. Como indica la ayuda, **la guía no puede anular las reglas de seguridad**: nada de lo que escriba en la persona puede relajar los límites estrictos de la plataforma.
-
-### Capacidades
-
-Interruptores para qué tipos de cambio puede llegar a proponer el agente: **Notas internas**, **Respuestas al solicitante**, **Clasificación**, **Cambios de estado**, **Asignación** y **Participantes**. Desactivar uno elimina por completo ese tipo de acción: el agente no puede proponerlo ni puede aparecer en la escala de autonomía. Son el límite exterior; la sección **Autonomía** de abajo decide cuáles de los habilitados siguen preguntando primero.
+Las cuatro secciones siguen el orden en el que realmente se configura un agente: decida qué mira, luego qué es, luego qué sabe y por último cuánto puede trabajar.
 
 ### Segmentación
 
-La segmentación decide qué tickets vigila el agente. El interruptor principal —**Vigilar nuevos tickets** (o **Vigilar tickets automáticamente** en un agente personalizado)— activa o desactiva la vigilancia. Los ajustes rápidos (**Tickets nuevos**, **Todos abiertos**, **Gestionados por este agente**) introducen un conjunto de filtros inicial; si ya tiene filtros, se le pregunta antes de sustituirlos.
+La segmentación decide qué tickets vigila el agente. (Si vigila o no es el modo de funcionamiento de la barra de acciones; la segmentación solo describe el alcance.)
 
-El generador de filtros le permite combinar condiciones: todos los filtros se combinan entre sí, y los valores disponibles proceden directamente del sistema de tickets conectado. Una vista previa en vivo muestra el efecto práctico:
+Los preajustes rápidos —**Tickets nuevos**, **Todos abiertos**, **Gestionados por este agente**— introducen un conjunto de filtros inicial; si ya tiene filtros, se le pregunta antes de sustituirlos. El generador de filtros le permite combinar condiciones: todos los filtros se combinan entre sí, y los valores disponibles proceden directamente del sistema de tickets conectado. Al seleccionar una categoría o una entidad se incluye todo lo que hay por debajo, y el generador así lo indica.
+
+Una vista previa en vivo muestra el efecto práctico:
 
 - **Coincidencias** — cuántos tickets encajan actualmente.
 - **Muestra** — cuántos se inspeccionaron realmente para producir la estimación.
-- **Solape** — tickets que otros agentes también coinciden, para que detecte a dos agentes disputándose el mismo trabajo.
-- **Ejec./día** — el número esperado de comprobaciones por día en este alcance.
+- **Solape** — tickets que otros agentes también recogen, para que detecte a dos agentes disputándose el mismo trabajo.
+- **Ejec./día** — el número esperado de ejecuciones por día con este alcance, ya limitado por su frecuencia de comprobación y sus topes diarios.
 
 Aparece una nota cuando la vista previa está limitada por sus topes por comprobación: el número real de coincidencias puede ser mayor que el que muestra la vista previa.
 
-### Ajustes operativos
+Los agentes de supervisión tienen la misma sección, filtrando en su lugar por estado de la alerta, gravedad, reconocimiento, grupo, dispositivo y tipo de comprobación.
 
-Los controles de ritmo y presupuesto:
+### Objetivo y capacidades
 
-- **Modelo IA** — con qué modelo funciona este agente. **Predeterminado de la organización** es el valor de partida y normalmente el acertado: el agente sigue el modelo que su organización tenga definido como predeterminado y se mueve con él. Elija un modelo concreto por su nombre para fijar este agente a él: un modelo que entienda imágenes para colas con muchas capturas de pantalla, uno local y barato para el triaje de gran volumen. Solo aparecen los modelos activos, se definen en la página [Modelos IA](ai-models.md) y la elección se guarda en el momento en que la hace (este campo concreto no espera al guardado automático de la sección), con efecto en la siguiente ejecución del agente. Un modelo al que hay un agente fijado no puede archivarse a sus espaldas: primero hay que sacar al agente de él. Tenga en cuenta que leer la lista de modelos requiere el permiso de administrador de configuración de Plaid (`ai_settings:admin`), el mismo que da acceso a la página Modelos IA: con el rol **Administrador de Agentes IA** por sí solo, el desplegable únicamente ofrece **Predeterminado de la organización**, lo cual es una carencia de permisos y no un registro vacío.
-- **Prioridad del agente** — se usa junto con **Colisión de ticket** para decidir quién gestiona un ticket que dos agentes quieren.
-- **Revisar cada (horas)** — cuánto espera el agente antes de volver a mirar un ticket que ya ha gestionado.
-- **Colisión de ticket** — qué hacer cuando otro agente ya está en un ticket: **Diferir** (dejarlo en paz) o **Sustituir misma prioridad** (tomar el relevo de un agente de la misma prioridad).
-- **Tickets máximos por comprobación** y **Solicitudes máximas al proveedor** — cuánto trabajo puede asumir una sola comprobación.
-- **Ventana de aprobación (horas)** — cuánto tiempo permanece abierta cada propuesta de un ticket antes de expirar. Todas las propuestas de una misma comprobación comparten esta ventana, por lo que expiran juntas en lugar de por partes.
-- **Si el ticket cambió** — qué hacer si el ticket avanzó entre la propuesta y su aprobación: **Revisar de nuevo**, **Cancelar** o **Aplicar igualmente**.
-- **Tokens por ejecución** / **Coste por ejecución (EUR)** y **Ejecuciones por día** / **Tokens por día** / **Coste por día (EUR)** — los topes de gasto por ejecución y diarios. Las cifras diarias son los mismos topes que vigila en la tarjeta **Límites** de Monitor. Una *ejecución* es una pasada sobre un ticket, no una comprobación: una sola comprobación puede gastar el presupuesto por ejecución una vez por cada ticket que recoge, así que léalos junto a **Tickets máximos por comprobación**.
+Las **Capacidades** van primero, porque enmarcan todo lo demás: interruptores para decidir qué tipos de cambio puede *llegar a* proponer el agente —**Notas internas**, **Respuestas al solicitante**, **Clasificación**, **Cambios de estado**, **Asignación** y **Participantes**—. Desactivar uno elimina por completo ese tipo de acción: el agente no puede proponerlo, digan lo que digan las instrucciones, y no puede promoverse en la escala de autonomía.
 
-Los dos topes de coste se calculan con el **Modelo IA** asignado más arriba, usando los precios registrados para él en la página [Modelos IA](ai-models.md); así lo indica la ayuda bajo cada campo. Esto tiene una consecuencia que conviene conocer: **un modelo gratuito (0 €) nunca alcanza un tope de coste**, porque todo lo que hace cuesta cero. Con el modelo incluido de KANAP, con un modelo local o con cualquier modelo que haya registrado sin precios, los topes de coste quedan inertes y los topes de **tokens** son su única protección real. Ajústelos en consecuencia.
+Debajo está la persona: quién es el agente y cómo escribe:
 
-Los agentes de supervisión, que vigilan alertas en lugar de tickets, tienen el mismo selector **Modelo IA** en su propia sección **Ajustes operativos**, más corta —junto a **Alertas gestionadas por comprobación** y **Solicitudes a la herramienta de supervisión por comprobación**—, y funciona exactamente como se ha descrito.
+- **Nombre** — cómo se llama el agente en todo KANAP. No afecta a lo que hace.
+- **Descripción** — un resumen breve para sus compañeros, mostrado bajo el nombre del agente.
+- **Misión** — para qué está el agente, en una o dos frases. La lee antes de cada ticket.
+- **Instrucciones** — las reglas internas, una por línea. No pueden ampliar lo que el agente tiene permitido hacer.
+- **Estilo de salida** — cómo debe sonar al escribir (por ejemplo, *claro y conciso*).
+- **Idioma de respuesta** — **Idioma del ticket** (responder en el idioma que usó el solicitante), **Francés**, **Inglés**, **Alemán** o **Español**.
+- **Guía de escalada** — cuándo debe el agente pasar un ticket a una persona en lugar de proponer algo él mismo.
+
+**Archivar agente**, en el encabezado de la sección, es la forma deliberada de retirar un agente: deja de vigilar y de ejecutarse, conserva su configuración e historial, y **Restaurar agente** lo devuelve desde el mismo sitio.
+
+**Usar contexto compartido** añade a este agente un contexto reutilizable sobre su entorno. El interruptor es lo único que ve hasta que lo activa; una vez activado, aparecen el selector de perfil, un acceso directo **+ Nuevo perfil** y una vista previa de las líneas del perfil seleccionado. El contexto compartido determina cómo interpreta el agente los tickets y redacta las respuestas, pero nunca es una concesión de permisos y **no** es una fuente citable, a diferencia de las [bibliotecas de conocimiento](knowledge.md), cuyos resultados *sí* se citan en las respuestas. Gestione los perfiles en la página [Contexto compartido](agents-shared-context.md).
+
+**Ver el prompt efectivo** está contraído de forma predeterminada. Expándalo para leer exactamente lo que recibe el runtime del agente, compilado a partir de todo lo anterior más las propias reglas de la plataforma. Use el selector para inspeccionar cada etapa: **Planificador de acciones**, **Planificador** e **Intérprete** son las etapas donde el agente decide *qué hacer*; **Síntesis** es donde redacta la respuesta fundamentada en sus fuentes de conocimiento; un agente de supervisión tiene **Diagnóstico** en su lugar. La vista previa se actualiza después de cada guardado. Como indica la ayuda, **la guía no puede anular las reglas de seguridad**: nada de lo que escriba en la persona puede relajar los límites estrictos de la plataforma.
 
 ### Fuentes de conocimiento y web
 
@@ -143,24 +169,45 @@ De dónde saca el agente sus datos:
 - **Buscar en todas las bibliotecas disponibles**, o desactívelo para elegir **Bibliotecas** concretas: el agente busca entonces solo en esas, dentro de las que puede acceder. Los nombres de las bibliotecas provienen de la sección de Conocimiento.
 - **Buscar en la web** — permite que el agente también consulte la web pública; el conocimiento de KANAP siempre tiene prioridad y los resultados web se citan. Este interruptor solo está disponible si la búsqueda web está habilitada para toda la plataforma. Cuando no lo está, el interruptor aparece deshabilitado y una nota le remite a su administrador; consulte [Configuración de Plaid](ai-settings.md).
 
-### Autonomía
+Los agentes de supervisión tienen aquí **Buscar en los datos de KANAP** en su lugar, que permite al agente consultar su propio inventario de TI —**Aplicaciones**, **Activos**, **Interfaces**, **Conexiones**, **Ubicaciones**— para añadir contexto de negocio a un diagnóstico.
 
-De forma predeterminada, cada tipo de acción **pregunta primero**: el agente propone y espera su decisión. En esta sección promueve un tipo de acción de **Preguntar primero** a **Automático**, tipo por tipo, una vez que se lo ha ganado. Cada fila muestra el modo actual y una línea de elegibilidad: decisiones capturadas, tasa de aceptación y días de actividad, cada uno frente a lo requerido. Cuando un tipo de acción aún no es elegible, la fila explica por qué (por ejemplo, no hay suficientes propuestas revisadas, o la aceptación está por debajo del umbral).
+### Ajustes operativos
 
-- **Activar** aparece cuando un tipo de acción es elegible. Abre una confirmación que resume la evidencia y le recuerda que las acciones automáticas siguen respetando los límites diarios y la pausa de emergencia, y vuelven a preguntar primero si la aceptación baja.
-- **Anular** aparece cuando un tipo de acción no es elegible pero se permite anular. Requiere un motivo por escrito y advierte con claridad de que una anulación omite *solo* los umbrales de recomendación: los límites de seguridad estrictos, las comprobaciones de frescura, el soporte del proveedor, los presupuestos, las pausas y las restricciones de respuestas al solicitante siguen aplicándose.
-- **Desactivar** devuelve cualquier tipo de acción automático a preguntar primero.
+Los controles de ritmo y presupuesto. Cada campo lleva una información sobre herramientas que explica qué hace y qué ocurre cuando se alcanza, de modo que la página se mantiene corta.
 
-Sea cual sea el modo de un tipo de acción, los límites de seguridad estrictos de la plataforma, los presupuestos, las comprobaciones de frescura y las pausas siempre se aplican: automático nunca significa sin supervisión.
+- **Modelo IA** — con qué modelo funciona este agente. **Predeterminado de la organización** es el valor de partida y normalmente el acertado: el agente sigue el modelo que su organización tenga definido como predeterminado y se mueve con él. Elija un modelo concreto por su nombre para fijar este agente a él: un modelo que entienda imágenes para colas con muchas capturas de pantalla, uno local y barato para el triaje de gran volumen. Solo aparecen los modelos activos; se definen en la página [Modelos IA](ai-models.md). Un modelo al que hay un agente fijado no puede archivarse a sus espaldas: primero hay que sacar al agente de él. Tenga en cuenta que leer la lista de modelos requiere el permiso de administrador de configuración de IA (`ai_settings:admin`): con el rol **Administrador de Agentes IA** por sí solo, el desplegable únicamente ofrece **Predeterminado de la organización**, lo cual es una carencia de permisos y no un registro vacío.
+- **Comprobar cada (minutos)** — con qué frecuencia busca el agente tickets nuevos mientras vigila, entre **5** minutos y 24 horas (1440). Es la palanca que más influye en lo ocupado —y lo caro— que resulta un agente en vigilancia. **Comprobar ahora** siempre se ejecuta al momento, diga lo que diga este valor, y esta es la cifra que informa **Próxima comprobación** en la pestaña Monitor.
+- **Tickets máximos por comprobación** y **Solicitudes máximas al proveedor** — el máximo de tickets que el agente toma en una comprobación (el resto espera a la siguiente) y el máximo de llamadas que hace al sistema de tickets en una comprobación, para no saturarlo.
+- **Revisar cada (horas)** — cuánto espera el agente antes de volver a mirar el mismo ticket, para no repetirse.
+- **Prioridad del agente** y **Colisión de ticket** — qué agente gana cuando varios apuntan al mismo ticket (cuanto menor es el número, mayor es la prioridad) y qué hace este cuando otro ya está trabajando en él: **Diferir** (apartarse) o **Sustituir misma prioridad** (relevar a un agente de igual prioridad).
+- **Ventana de aprobación (horas)** — cuánto tiempo permanece abierta cada propuesta de un ticket antes de expirar. Todas las propuestas de una misma comprobación comparten esta ventana, por lo que expiran juntas en lugar de por partes.
+- **Si el ticket cambió** — qué ocurre con una propuesta en espera si el ticket avanza antes de que usted decida: **Revisar de nuevo**, **Cancelar** o **Aplicar igualmente**.
+- **Conservar el historial de actividad (días)** — cuánto tiempo se conserva la cronología de este agente, entre **7** y **90** días, **30** de forma predeterminada. Las entradas, ejecuciones y propuestas finalizadas más antiguas se eliminan automáticamente cada noche. Vea la advertencia más abajo.
+
+#### Límites de seguridad
+
+Los cinco topes económicos ocupan su propio grupo, bajo una advertencia clara: son **paradas en firme, no estimaciones**. Cuando el agente alcanza uno de ellos, deja de trabajar el resto del día y le espera; vuelve a empezar al día siguiente.
+
+- **Tokens por ejecución** y **Coste por ejecución (EUR)** — el máximo que el agente puede gastar en *un solo ticket*. Al alcanzar uno de ellos, ese ticket se detiene y no se propone nada para él. Una *ejecución* es una pasada sobre un ticket, no una comprobación: una sola comprobación puede gastar el presupuesto por ejecución una vez por cada ticket que recoge, así que léalos junto a **Tickets máximos por comprobación**.
+- **Ejecuciones por día**, **Tokens por día** y **Coste por día (EUR)** — los techos diarios. Cada uno de los tres muestra debajo el consumo real de hoy (**Hoy: …**), para que pueda dimensionar un tope según lo que el agente consume realmente en lugar de adivinarlo. Son las mismas cifras que muestra la sección **Estado** de Monitor.
+
+Los dos topes de coste se calculan con el **Modelo IA** asignado más arriba, usando los precios registrados para él en la página [Modelos IA](ai-models.md). Esto tiene una consecuencia que conviene conocer: **un modelo gratuito (0 €) nunca alcanza un tope de coste**, porque todo lo que hace cuesta cero. Con el modelo incluido de KANAP, con un modelo local o con cualquier modelo que haya registrado sin precios, los topes de coste quedan inertes y los topes de **tokens** y de **ejecuciones** son su única protección real. Ajústelos en consecuencia.
+
+Los agentes de supervisión tienen la misma sección en una versión más corta: **Modelo IA**, **Comprobar cada (minutos)**, **Alertas gestionadas por comprobación**, **Solicitudes a la herramienta de supervisión por comprobación** y **Conservar el historial de actividad (días)**.
+
+!!! warning "Conserve al menos 30 días de historial si piensa usar el modo automático"
+    El historial de un agente se mide sobre los últimos **28 días**. Poner **Conservar el historial de actividad (días)** por debajo de 30 elimina justamente la evidencia que cuenta la escala de autonomía, de modo que un agente puede parecer que pierde terreno que ya se había ganado. El valor predeterminado de 30 días está elegido para quedar con holgura por encima de esa ventana; redúzcalo solo en un agente que no tenga intención de promover. Nunca se purga nada que usted todavía tenga que decidir: las propuestas pendientes y las trazas que hay detrás se conservan sea cual sea el ajuste.
 
 ---
 
 ## Consejos
 
-- **Use Probar en un ticket antes de activar.** Una ejecución de prueba le da propuestas reales que juzgar sin que el agente toque nada más. Es la forma honesta de ajustar una persona: ajuste, vuelva a probar, repita.
-- **La tarjeta Límites es su luz de aviso temprano.** Un agente que de repente se queda en silencio suele haber alcanzado un tope diario; revise *Ejecuciones / Tokens / Coste hoy* en Monitor antes de dar por hecho que algo se rompió. Con un modelo gratuito, solo los topes de tokens y de ejecuciones pueden ser la causa.
-- **Ajuste el modelo a la cola, no a la flota.** La asignación es por agente precisamente para que una cola con muchas capturas de pantalla pueda funcionar con un modelo que entienda imágenes mientras una cola de gran volumen y solo texto funciona con algo más barato. Lo que cuesta realmente cada elección aparece en [Uso y costes](ai-usage.md).
-- **Lea el Prompt efectivo tras un cambio en la persona.** Es la verdad de fondo de lo que el agente recibe realmente, y deja claro cuándo una instrucción quedó como usted pretendía.
-- **Aumente la autonomía de un tipo de acción cada vez.** Promueva primero los tipos de bajo riesgo (notas internas) y deje las respuestas al solicitante preguntando primero hasta que la aceptación sea alta de forma constante; la escala no le dejará pasar a automático sin la evidencia, pero usted marca el apetito.
+- **Pase por Solo manual antes de pasar a Vigilancia.** Es la forma honesta de ajustar un agente: ejecútelo manualmente sobre tickets reales, lea lo que redacta, ajuste y repita. No ocurre nada que usted no haya pedido.
+- **Apagado y Pausa son herramientas distintas.** **Apagado** deja al agente en reposo. **Pausar agente** lo congela *y* congela el trabajo que ya está en curso, y pide un motivo que queda registrado: recurra a él cuando algo va mal, no cuando termina la semana.
+- **La frecuencia de comprobación es su mando de coste.** Antes de subir un tope diario, pregúntese si el agente necesita mirar cada cinco minutos. En una cola tranquila, comprobar cada 30 o 60 minutos no cambia nada de la capacidad de respuesta que sus solicitantes vayan a notar, y reduce la factura en consecuencia.
+- **Dimensione los topes con las cifras de «Hoy».** Cada límite diario muestra justo debajo lo que el agente ha consumido realmente hoy. Es una base mucho mejor para fijar un tope que una cifra redonda.
+- **La sección Estado es su luz de aviso temprano.** Un agente que de repente se queda en silencio suele haber alcanzado un tope diario; revise *Ejecuciones / Tokens / Coste hoy* en Monitor antes de dar por hecho que algo se rompió. Con un modelo gratuito, solo los topes de tokens y de ejecuciones pueden ser la causa.
+- **Aumente la autonomía de un tipo de acción cada vez.** Promueva primero los tipos de menor riesgo y deje las respuestas al solicitante preguntando primero hasta que la aceptación sea alta de forma constante. Los tipos de mayor riesgo ya están a su alcance, pero la confirmación está ahí por algo: lea lo que la fila dice que haría el agente antes de aceptarlo.
+- **Lea el prompt efectivo tras un cambio en la persona.** Es la verdad de fondo de lo que el agente recibe realmente, y deja claro cuándo una instrucción quedó como usted pretendía.
 - **Prefiera el contexto compartido para el trasfondo y las bibliotecas para los datos.** El contexto compartido matiza el criterio del agente pero nunca se cita; solo las bibliotecas de conocimiento (y, si está habilitada, la web) aparecen como fuentes en una respuesta.
 - **Vigile el Solape en la vista previa de segmentación.** Un número de solape alto significa que dos agentes compiten por los mismos tickets; restrinja los filtros de un agente, o use **Prioridad del agente** y **Colisión de ticket** para decidir quién gana.

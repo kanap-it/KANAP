@@ -7,7 +7,7 @@ Freigaben ist die tägliche Prüf-Warteschlange für alles, was Ihre KI-Agenten 
 - Arbeitsbereich: **KI-Agenten**
 - Pfad: **KI-Agenten → Freigaben**
 - Route: `/agents/approvals`
-- Berechtigung: Erfordert, dass KI für die Instanz aktiviert ist, sowie die Rolle „AI Agents Reader“ (`ai_agents:reader`)
+- Berechtigung: Erfordert, dass KI für die Instanz aktiviert ist, sowie die Rolle KI-Agenten-Leser (`ai_agents:reader`), um die Warteschlange zu lesen. Über einen Vorschlag zu entscheiden, eine Zeile zur Kenntnis zu nehmen und eine Analyse erneut zu starten setzt die Stufe Mitwirkender (`ai_agents:contributor`) voraus.
 - Dieselbe Warteschlange erscheint, auf einen einzelnen Agenten beschränkt, auf dem Tab **Freigaben** im [Arbeitsbereich](agents-workspace.md) dieses Agenten. Die Seite unter `/agents/approvals` ist die kombinierte Ansicht über alle Agenten hinweg; der Tab im Arbeitsbereich zeigt nur die Vorschläge des Agenten, den Sie gerade betrachten. Layout und Bedienelemente sind identisch.
 
 ---
@@ -35,23 +35,25 @@ Vorschläge sind nach Ticket gruppiert. Jede Gruppe wird angeführt vom Ticket (
 
 ## Die vier Abschnitte
 
-Die Warteschlange ist in vier Abschnitte gegliedert, je nachdem, wo sich ein Element in seinem Lebenszyklus befindet. Jeder hat seine eigene Meldung für den leeren Zustand, damit Sie „nichts vorhanden“ von „wird noch geladen“ unterscheiden können.
+Die Warteschlange ist in vier Abschnitte gegliedert, je nachdem, wo sich ein Element in seinem Lebenszyklus befindet.
 
 ### Benötigt Ihre Entscheidung
 
-Die Vorschläge, die auf Sie warten, nach Ticket gruppiert. Dies ist der einzige Abschnitt, in dem Sie aktiv werden; die anderen drei sind rein informativ. Wenn er leer ist, steht dort *Nichts benötigt Ihre Entscheidung.* Sobald Sie einen Vorschlag entscheiden, wird er innerhalb seiner Ticketgruppe auf eine einzelne Statuszeile reduziert, während die übrigen Vorschläge des Tickets für Sie offen bleiben.
+Die Vorschläge, die auf Sie warten, nach Ticket gruppiert. In diesem Abschnitt findet der Großteil Ihrer Arbeit statt; **In Bearbeitung** und **Kürzlich abgeschlossen** sind rein informativ. Wenn er leer ist, steht dort *Nichts benötigt Ihre Entscheidung.* Sobald Sie einen Vorschlag entscheiden, wird er innerhalb seiner Ticketgruppe auf eine einzelne Statuszeile reduziert, während die übrigen Vorschläge des Tickets für Sie offen bleiben.
 
 ### In Bearbeitung
 
-Arbeit, die bereits läuft und nichts von Ihnen benötigt: Vorschläge, die Sie freigegeben haben und die nun auf das verbundene Ticketsystem angewendet werden, sowie Tickets, die ein Agent gerade prüft. Zeilen zeigen hier einen Live-Status wie **Wartet auf Start**, **Läuft**, **Wird ausgeführt…** oder **Agent arbeitet…**. Wenn nichts läuft, steht dort *Keine Agentenarbeit ist in Bearbeitung.*
+Arbeit, die bereits läuft und nichts von Ihnen benötigt: Vorschläge, die Sie freigegeben haben und die nun auf das verbundene Ticketsystem angewendet werden, sowie Tickets, die ein Agent gerade prüft. Zeilen zeigen hier einen Live-Status wie **Wartet auf Start**, **Läuft**, **Wird ausgeführt…** oder **Agent arbeitet…**. Wenn nichts läuft, wird der Abschnitt gar nicht erst angezeigt — eine leere Liste „in Bearbeitung" sagt Ihnen nichts, was Sie nicht schon am Status des Agenten selbst ablesen können.
 
 ### Aufmerksamkeit erforderlich
 
-Alles, was fehlgeschlagen ist oder blockiert wird — ein Vorschlag, der nicht an das verbundene Ticketsystem gesendet werden konnte, oder eine Prüfung, die mit einem Fehler abgebrochen ist. Jede Zeile trägt eine rote Bildunterschrift, die erklärt, was schiefgelaufen ist, sowie einen **Trace**-Link in die Zeitachse der [Aktivität](agents-activity.md), damit Sie den vollständigen Verlauf sehen können. Wenn er leer ist, steht dort *Keine Agentenarbeit benötigt Aufmerksamkeit.* Dies ist der Abschnitt, den Sie im Auge behalten sollten: Elemente landen hier, wenn eine Änderung freigegeben wurde, das Ticketsystem sie jedoch abgelehnt hat oder nicht abschließen konnte.
+Alles, was fehlgeschlagen ist oder blockiert wird — ein Vorschlag, der nicht an das verbundene Ticketsystem gesendet werden konnte, oder eine Prüfung, die mit einem Fehler abgebrochen ist. Jede Zeile trägt eine rote Bildunterschrift, die erklärt, was schiefgelaufen ist, sowie eine Schaltfläche **Trace**, die den vollständigen Verlauf öffnet, ohne dass Sie die Seite verlassen. Wenn er leer ist, steht dort *Keine Agentenarbeit benötigt Aufmerksamkeit.*
+
+Das ist der Abschnitt, den Sie im Auge behalten sollten, und er ist keine Sackgasse mehr: siehe [Eine Zeile unter Aufmerksamkeit erforderlich abarbeiten](#eine-zeile-unter-aufmerksamkeit-erforderlich-abarbeiten) weiter unten.
 
 ### Kürzlich abgeschlossen
 
-Ein einklappbarer Verlauf der zuletzt abgeschlossenen Elemente — angewendet, abgelehnt, verworfen, übersprungen oder fertig. Er bleibt eingeklappt, bis Sie ihn öffnen, merkt sich diese Wahl und zeigt bis zu etwa 30 Zeilen mit einer Zeile **+N weitere**, falls es mehr sind. Nutzen Sie ihn, um zu bestätigen, dass eine Freigabe tatsächlich durchgelaufen ist, oder um zu prüfen, was ein Agent getan hat, während Sie abwesend waren.
+Ein einklappbarer Verlauf der zuletzt abgeschlossenen Elemente — angewendet, abgelehnt, verworfen, übersprungen oder fertig. Er bleibt eingeklappt, bis Sie ihn öffnen, merkt sich diese Wahl und zeigt bis zu 30 Zeilen mit einer Zeile **+N weitere**, die Ihnen sagt, wie viele ältere Elemente es gibt. Nutzen Sie ihn, um zu bestätigen, dass eine Freigabe tatsächlich durchgelaufen ist, oder um zu prüfen, was ein Agent getan hat, während Sie abwesend waren. Zeilen, die Sie unter **Aufmerksamkeit erforderlich** zur Kenntnis genommen haben, landen ebenfalls hier.
 
 ---
 
@@ -59,13 +61,15 @@ Ein einklappbarer Verlauf der zuletzt abgeschlossenen Elemente — angewendet, a
 
 Jeder offene Vorschlag bietet drei Aktionen.
 
-- **Freigeben** ist die primäre Schaltfläche. Sie zeigt **Freigeben** bei einem Vorschlag, den Sie noch nicht entschieden haben, und **Ausführen** bei einem, den Sie bereits freigegeben haben, der aber noch nicht ausgeführt wurde. In beiden Fällen bewirkt sie dasselbe: Sie sendet die Aktion an Ihr verbundenes Ticketsystem, wo der Agent die Antwort oder Notiz veröffentlicht oder die Änderung anwendet. Die Freigabe ist der Moment, in dem der Anfragende (oder Ihr Team) betroffen sein kann — bis dahin hat nichts KANAP verlassen.
+- **Freigeben** heißt **Freigeben** bei einem Vorschlag, den Sie noch nicht entschieden haben, und **Ausführen** bei einem, den Sie bereits freigegeben haben, der aber noch nicht ausgeführt wurde. In beiden Fällen bewirkt es dasselbe: Es sendet die Aktion an Ihr verbundenes Ticketsystem, wo der Agent die Antwort oder Notiz veröffentlicht oder die Änderung anwendet. Die Freigabe ist der Moment, in dem der Anfragende (oder Ihr Team) betroffen sein kann — bis dahin hat nichts KANAP verlassen.
 - **Ablehnen** wendet die Aktion nicht an. Der Vorschlag wird fallengelassen, bleibt aber im Audit-Trail erhalten, sodass es stets einen Nachweis darüber gibt, was der Agent vorgeschlagen und dass Sie es abgelehnt haben. Das Ablehnen eines einzelnen Vorschlags wird sofort wirksam. Ablehnen ist ein Qualitätssignal: Es belastet die Bewertung des Agenten und seine Annahmequote, weil es dem Agenten mitteilt, dass der Vorschlag falsch war.
 - **Verwerfen** legt den Vorschlag ebenfalls beiseite, ohne etwas zu senden — belastet aber, anders als das Ablehnen, den Agenten **nicht**. Die Annahmequote und die Autonomie-Bilanz des Agenten bleiben unberührt. Verwenden Sie es, wenn der Vorschlag zutreffend ist, aber schlicht nicht hinausgehen soll: ein sensibles Ticket, ein Kollege, der bereits geantwortet hat, ein Duplikat. Es ist ein einziger Klick ohne Grundabfrage, und sein Tooltip lautet *Beiseitelegen, ohne die Bewertung des Agenten zu belasten*. Ein verworfener Vorschlag kann nicht mehr freigegeben werden.
 
 Wenn ein Vorschlag derzeit **blockiert** ist — etwa weil eine Aktualitäts- oder Sicherheitsprüfung nicht mehr zutrifft oder das Ticketsystem die Änderung im Moment nicht akzeptiert —, ist seine primäre Schaltfläche deaktiviert und der Grund erscheint im Tooltip der Schaltfläche. Der Vorschlag bleibt sichtbar, damit Sie sehen können, warum er nicht fortgesetzt werden kann.
 
-**Alle freigeben**, **Alle ablehnen** und **Alle verwerfen** erscheinen bei einer Ticketgruppe, wenn mehr als ein Element zu bearbeiten ist, sodass Sie ein ganzes Ticket in einem Schritt erledigen können. **Alle ablehnen** öffnet einen kurzen Dialog, der bestätigt, wie viele Vorschläge abgelehnt werden, und eine optionale Notiz für den Audit-Trail anbietet; **Alle verwerfen** öffnet einen kurzen Bestätigungsdialog, der angibt, dass nichts gesendet wird und die Bewertung des Agenten unberührt bleibt. Automatische Freigaben pro Aktionstyp erfolgen erst, nachdem genügend Ihrer Entscheidungen erfasst wurden, um diesen Aktionstyp in den [Einstellungen](agents-workspace.md) des Agenten von **Zuerst fragen** auf **Automatisch** hochzustufen; bis dahin — und bei sensibler Arbeit stets — durchläuft jeder Vorschlag diese Warteschlange.
+**Alle freigeben**, **Alle ablehnen** und **Alle verwerfen** erscheinen bei einer Ticketgruppe, wenn mehr als ein Element zu bearbeiten ist, sodass Sie ein ganzes Ticket in einem Schritt erledigen können. **Alle freigeben** ist die farbige, primäre Schaltfläche der Gruppe — ein Ticket mit einer einzigen Entscheidung zu erledigen ist der vorgesehene Rhythmus dieser Seite, und die Schaltflächen der einzelnen Vorschläge sind bewusst zurückhaltender gestaltet, damit das Auge zuerst auf der Gruppe landet. **Alle ablehnen** öffnet einen kurzen Dialog, der bestätigt, wie viele Vorschläge abgelehnt werden, und eine optionale Notiz für den Audit-Trail anbietet; **Alle verwerfen** öffnet einen kurzen Bestätigungsdialog, der angibt, dass nichts gesendet wird und die Bewertung des Agenten unberührt bleibt.
+
+Jeder Vorschlag durchläuft diese Warteschlange, bis genügend Ihrer Entscheidungen erfasst wurden, um diesen Aktionstyp auf der Registerkarte [Leistung und Autonomie](agents-workspace.md) des Agenten von **Zuerst fragen** auf **Automatisch** hochzustufen — und bei den Aktionstypen, die ein Anfragender sehen kann, verlangt die Hochstufung zusätzlich eine ausdrückliche Bestätigung durch einen Administrator.
 
 ### Verwerfen oder ablehnen
 
@@ -102,18 +106,32 @@ Wichtig zu wissen ist: **Das Fehlen dieses Hinweises ist der normale, gesunde Fa
 
 ---
 
+## Eine Zeile unter Aufmerksamkeit erforderlich abarbeiten
+
+Zeilen unter **Aufmerksamkeit erforderlich** waren früher schreibgeschützt — Sie konnten sehen, dass ein Vorschlag abgelaufen oder eine Prüfung fehlgeschlagen war, konnten aber nichts tun, außer ihm beim Liegenbleiben zuzusehen. Jede Zeile trägt jetzt zwei Bedienelemente.
+
+- **Analyse erneut starten** bittet den Agenten, sich dieses Ticket (oder diesen Alarm) noch einmal anzusehen, und zwar sofort. Es läuft genau derselbe Durchgang wie bei **An einem Ticket testen** auf der [Registerkarte Monitor](agents-workspace.md) des Agenten, sodass alles, was dabei herauskommt, als frische Vorschläge zur Prüfung in **Benötigt Ihre Entscheidung** landet. Der Tooltip lautet *Den Agenten bitten, das noch einmal anzusehen.*, und während der Arbeit *Der Agent sieht es sich erneut an …* Das ist der richtige erste Schritt, wenn der Fehler vorübergehender Natur war — ein Verbindungsaussetzer, ein Ticket, das sich mitten im Lauf geändert hat, ein Vorschlag, der abgelaufen ist, bevor jemand dazu kam.
+- **Zur Kenntnis nehmen** räumt die Zeile endgültig weg. Der Tooltip lautet *Als gesehen markieren und dauerhaft aus der Liste entfernen.* Nutzen Sie es, wenn Sie den Fehler verstanden und behoben haben (oder entschieden haben, dass nichts zu tun ist): Die Zeile verschwindet sofort, kommt weder auf einem anderen Gerät noch nach einer Aktualisierung zurück, und die Kenntnisnahme wird in der Zeitachse der [Aktivität](agents-activity.md) als **Entscheidung** festgehalten, samt der Person, die sie erledigt hat, und dem Zeitpunkt. Sie wandert wie jedes andere abgeschlossene Element in **Kürzlich abgeschlossen**.
+
+**Analyse erneut starten** erscheint nur dort, wo ein erneuter Lauf tatsächlich möglich ist — die Zeile muss ein Ticket (oder einen Alarm) benennen, das der Agent noch erreichen kann. Wo das nicht der Fall ist, wird **Zur Kenntnis nehmen** allein angeboten, und das ist das ehrliche Ergebnis: Es gibt nichts zu wiederholen, nur etwas abzuschließen.
+
+Die Paarung ist bewusst gewählt. **Analyse erneut starten** steht für „versuch das noch einmal", **Zur Kenntnis nehmen** für „ich habe es gesehen, es ist erledigt". Zusammen sollten sie **Aufmerksamkeit erforderlich** wieder auf leer bringen, statt es zu einer Liste anwachsen zu lassen, die niemand liest.
+
+---
+
 ## Einen Vorschlag zu seiner Prüfung zurückverfolgen
 
-Jede Ticketgruppe und jede Zeile im Abschnitt „Aufmerksamkeit erforderlich“ trägt einen **Trace**-Link. Er verweist direkt auf den passenden Eintrag in der Zeitachse der [Aktivität](agents-activity.md), wo Sie die vollständige Prüfung nachvollziehen können, die den Vorschlag erzeugt hat — was der Agent geprüft, was er entschieden hat und warum. Nutzen Sie ihn immer dann, wenn ein Entwurf oder eine Aktualisierung überraschend ist und Sie die dahinterstehende Begründung sehen möchten. Für Administratoren, die die Details auf niedriger Ebene benötigen, bietet die Aktivität zudem eine optionale Diagnoseansicht der rohen Verarbeitungsschritte.
+Jede Ticketgruppe und jede Zeile unter „Aufmerksamkeit erforderlich" trägt eine Schaltfläche **Trace**. Sie öffnet den Dialog **Technischer Trace** über der Warteschlange — die Seite darunter bewegt sich nicht, sodass Sie nach dem Schließen des Dialogs genau dort weitermachen, wo Sie waren, mit unveränderter Scrollposition und, im Arbeitsbereich eines Agenten, auf der aktuellen Registerkarte. Darin können Sie die vollständige Prüfung nachvollziehen, die den Vorschlag erzeugt hat: was der Agent angesehen hat, welche Schritte er durchlaufen hat und wie lange jeder gedauert hat, sowie die Belege, die er gesammelt hat. Nutzen Sie ihn immer dann, wenn ein Entwurf oder eine Aktualisierung überraschend ist und Sie die dahinterstehende Begründung sehen möchten. Es ist derselbe Dialog, der auf der Seite [Aktivität](agents-activity.md) beschrieben ist.
 
 ---
 
 ## Tipps
 
-- Arbeiten Sie von oben nach unten: Erledigen Sie **Benötigt Ihre Entscheidung** und werfen Sie dann einen Blick auf **Aufmerksamkeit erforderlich**, um zu sehen, ob etwas das Ticketsystem nicht erreicht hat. Die beiden mittleren Abschnitte erfordern kein Handeln von Ihnen.
+- Arbeiten Sie von oben nach unten: Erledigen Sie **Benötigt Ihre Entscheidung** und räumen Sie dann **Aufmerksamkeit erforderlich** mit **Analyse erneut starten** oder **Zur Kenntnis nehmen** auf. **In Bearbeitung** und **Kürzlich abgeschlossen** erfordern nichts von Ihnen.
 - Nichts hier hat den Anfragenden erreicht, bevor Sie es freigeben. Einen Entwurf zu lesen, ihn zurückzuverfolgen oder ihn in der Warteschlange zu belassen, ändert nichts am Ticket.
 - Lehnen Sie ab, statt zu ignorieren. Ein abgelehnter Vorschlag bleibt mit Ihrer optionalen Notiz im Audit-Trail, was später weit nützlicher ist als ein Vorschlag, der einfach unbeachtet abgelaufen ist.
 - Verwerfen Sie einen Vorschlag, den Sie schlicht nicht senden werden, statt ihn abzulehnen. Ist ein Entwurf zutreffend, soll aber nicht hinausgehen — ein sensibles Ticket, ein Kollege hat bereits geantwortet —, legt **Verwerfen** ihn beiseite, ohne den Agenten zu belasten. **Ablehnen** bleibt Vorschlägen vorbehalten, die wirklich falsch waren.
 - Ein fehlender **Synthesis-Fallback**-Hinweis ist eine gute Nachricht, keine fehlende Information. Widmen Sie Ihre gründlichste Lektüre den Entwürfen, die ihn *tatsächlich* tragen.
-- Wenn eine freigegebene Änderung in **Aufmerksamkeit erforderlich** landet, verraten Ihnen die rote Bildunterschrift und der **Trace**-Link, ob der Agent, eine Sicherheitsprüfung oder das verbundene Ticketsystem sie gestoppt hat — beheben Sie die zugrunde liegende Ursache, statt blind erneut freizugeben.
+- Wenn eine freigegebene Änderung in **Aufmerksamkeit erforderlich** landet, verraten Ihnen die rote Bildunterschrift und die Schaltfläche **Trace**, ob der Agent, eine Sicherheitsprüfung oder das verbundene Ticketsystem sie gestoppt hat — beheben Sie die zugrunde liegende Ursache und starten Sie dann die **Analyse erneut**, statt blind erneut freizugeben.
+- Nehmen Sie nichts zur Kenntnis, nur damit eine Zahl verschwindet. **Zur Kenntnis nehmen** ist der Nachweis, dass sich eine Person den Fehler angesehen hat; eine Warteschlange, die Sie ungelesen leeren, ist weniger wert als eine, die Sie stehen lassen.
 - Die kombinierte Warteschlange unter `/agents/approvals` ist am schnellsten, wenn Sie mehrere Agenten betreiben; wechseln Sie zum eigenen Tab **Freigaben** eines Agenten, wenn Sie sich nur auf diesen konzentrieren möchten.
