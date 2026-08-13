@@ -29,6 +29,7 @@
     "agentCreateFailed": "Could not create the agent.",
     "agentSaved": "Agent saved.",
     "agentSaveFailed": "Could not save the agent.",
+    "sectionSaveFailed": "\"{{section}}\" was not saved. Your change is still on screen — edit it again to try once more.",
     "agentDeleted": "Agent deleted.",
     "agentDeleteFailed": "Could not delete the agent.",
     "autonomySaved": "Autonomy updated.",

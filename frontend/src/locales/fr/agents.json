@@ -29,6 +29,7 @@
     "agentCreateFailed": "Impossible de créer l'agent.",
     "agentSaved": "Agent enregistré.",
     "agentSaveFailed": "Impossible d'enregistrer l'agent.",
+    "sectionSaveFailed": "« {{section}} » n'a pas été enregistré. Votre modification est toujours à l'écran : modifiez-la à nouveau pour réessayer.",
     "agentDeleted": "Agent supprimé.",
     "agentDeleteFailed": "Impossible de supprimer l'agent.",
     "autonomySaved": "Autonomie mise à jour.",
