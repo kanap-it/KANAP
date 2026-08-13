@@ -7,7 +7,7 @@ Approvals is the daily review queue for everything your AI Agents want to do. Be
 - Workspace: **AI Agents**
 - Path: **AI Agents → Approvals**
 - Route: `/agents/approvals`
-- Permission: requires AI to be enabled on the instance and the AI Agents Reader role (`ai_agents:reader`)
+- Permission: requires AI to be enabled on the instance and the AI Agents Reader role (`ai_agents:reader`) to read the queue. Deciding a proposal, acknowledging an attention row, and re-running an analysis need the contributor level (`ai_agents:contributor`).
 - The same queue appears scoped to a single agent on that agent's [workspace](agents-workspace.md) **Approvals** tab. The page at `/agents/approvals` is the combined view across every agent; the workspace tab shows only the proposals from the agent you are looking at. The layout and controls are identical.
 
 ---
@@ -35,23 +35,25 @@ Proposals are grouped by ticket. Each group is headed by the ticket (**Ticket #N
 
 ## The four sections
 
-The queue is organized into four sections by where each item sits in its lifecycle. Each has its own empty-state message so you can tell "nothing here" from "still loading".
+The queue is organized into four sections by where each item sits in its lifecycle.
 
 ### Needs your decision
 
-The proposals waiting on you, grouped by ticket. This is the only section where you take action; the other three are informational. When it is clear, it reads *Nothing needs your decision.* Once you decide a proposal, it collapses to a single status line within its ticket group while the ticket's remaining proposals stay open for you.
+The proposals waiting on you, grouped by ticket. This is the section where most of your work happens; **In progress** and **Recently finished** are purely informational. When it is clear, it reads *Nothing needs your decision.* Once you decide a proposal, it collapses to a single status line within its ticket group while the ticket's remaining proposals stay open for you.
 
 ### In progress
 
-Work that is already moving and needs nothing from you: proposals you approved that are now being applied to the connected ticketing system, and tickets an agent is actively checking. Rows here show live status such as **Waiting to start**, **In progress**, **Executing…**, or **Agent working…**. When idle it reads *No agent work is in progress.*
+Work that is already moving and needs nothing from you: proposals you approved that are now being applied to the connected ticketing system, and tickets an agent is actively checking. Rows here show live status such as **Waiting to start**, **In progress**, **Executing…**, or **Agent working…**. When nothing is moving the section isn't shown at all — an empty "in progress" list tells you nothing you can't already read from the agent's own status.
 
 ### Needs attention
 
-Anything that failed or is blocked — a proposal that could not be sent to the connected ticketing system, or a check that errored out. Each row carries a red caption explaining what went wrong, and a **Trace** link into the [Activity](agents-activity.md) timeline so you can see the full story. When clear it reads *No agent work needs attention.* This is the section to watch: items land here when a change was approved but the ticketing system rejected or could not complete it.
+Anything that failed or is blocked — a proposal that could not be sent to the connected ticketing system, or a check that errored out. Each row carries a red caption explaining what went wrong and a **Trace** button that opens the full story without leaving the page. When clear it reads *No agent work needs attention.*
+
+This is the section to watch, and it is no longer a dead end: see [Clearing an attention row](#clearing-an-attention-row) below.
 
 ### Recently finished
 
-A collapsible history of the most recently completed items — applied, rejected, dismissed, skipped, or done. It stays folded until you open it, remembers that choice, and shows up to about 30 rows with a **+N more** line if there are more. Use it to confirm that an approval actually went through, or to check what an agent did while you were away.
+A collapsible history of the most recently completed items — applied, rejected, dismissed, skipped, or done. It stays folded until you open it, remembers that choice, and shows up to 30 rows with a **+N more** line telling you how many older items exist. Use it to confirm that an approval actually went through, or to check what an agent did while you were away. Rows you acknowledged in **Needs attention** end up here too.
 
 ---
 
@@ -59,13 +61,15 @@ A collapsible history of the most recently completed items — applied, rejected
 
 Every pending proposal offers three actions.
 
-- **Approve** is the primary button. It reads **Approve** on a proposal you have not decided yet, and **Execute** on one you already approved but that has not run. In both cases it does the same thing: it sends the action to your connected ticketing system, where the agent posts the reply or note, or applies the change. Approving is the moment the requester (or your team) can be affected — up to that point nothing has left KANAP.
+- **Approve** reads **Approve** on a proposal you have not decided yet, and **Execute** on one you already approved but that has not run. In both cases it does the same thing: it sends the action to your connected ticketing system, where the agent posts the reply or note, or applies the change. Approving is the moment the requester (or your team) can be affected — up to that point nothing has left KANAP.
 - **Reject** does not apply the action. The proposal is dropped but stays in the audit trail so there is always a record of what the agent suggested and that you declined it. Rejecting a single proposal takes effect immediately. Reject is a quality signal: it counts against the agent's evaluation and its acceptance rate, because it tells the agent the proposal was wrong.
 - **Dismiss** also sets the proposal aside without sending anything — but, unlike Reject, it does **not** count against the agent. The acceptance rate and the agent's autonomy track record are unaffected. Use it when the proposal is accurate but simply should not go out: a sensitive ticket, a colleague who already answered, a duplicate. It is one click with no reason prompt, and its tooltip reads *Set aside without counting against the agent's track record*. A dismissed proposal can no longer be approved.
 
 If a proposal is currently **blocked** — for example a freshness or safety check no longer holds, or the ticketing system will not accept the change right now — its primary button is disabled and the reason appears in the button's tooltip. The proposal remains visible so you can see why it cannot proceed.
 
-**Approve all**, **Reject all**, and **Dismiss all** appear on a ticket group when there is more than one item to act on, so you can clear a whole ticket in one step. **Reject all** opens a short dialog that confirms how many proposals will be rejected and offers an optional note for the audit trail; **Dismiss all** opens a short confirmation dialog stating that nothing will be sent and the agent's track record is not affected. Approvals are made per action type only after enough of your decisions have been captured to promote that action type from **Ask first** to **Automatic** in the agent's [Settings](agents-workspace.md); until then, and always for sensitive work, every proposal comes through this queue.
+**Approve all**, **Reject all**, and **Dismiss all** appear on a ticket group when there is more than one item to act on, so you can clear a whole ticket in one step. **Approve all** is the coloured, primary button on the group — clearing a ticket in one decision is the intended rhythm of this page, and the per-proposal buttons are deliberately quieter so the eye lands on the group first. **Reject all** opens a short dialog that confirms how many proposals will be rejected and offers an optional note for the audit trail; **Dismiss all** opens a short confirmation dialog stating that nothing will be sent and the agent's track record is not affected.
+
+Every proposal comes through this queue until enough of your decisions have been captured to promote that action type from **Ask first** to **Automatic** on the agent's [Performance & autonomy](agents-workspace.md) tab — and for the action types a requester can see, promotion additionally requires an explicit acknowledgement from an administrator.
 
 ### Dismiss vs Reject
 
@@ -102,18 +106,32 @@ The important thing to know is that **the absence of this note is the normal, he
 
 ---
 
+## Clearing an attention row
+
+Rows in **Needs attention** used to be read-only — you could see that a proposal had expired or that a check had failed, but there was nothing to do about it except watch it sit there. Each row now carries two controls.
+
+- **Re-run analysis** asks the agent to look at that ticket (or alert) again, right now. It runs exactly the same pass as **Test on a ticket** on the agent's [Monitor tab](agents-workspace.md), so whatever it comes up with lands back in **Needs your decision** as fresh proposals for you to review. Its tooltip reads *Ask the agent to look at this one again.*, and while it is working, *The agent is looking at it again…* This is the right first move when the failure was transient — a connection blip, a ticket that changed mid-flight, a proposal that expired before anyone got to it.
+- **Acknowledge** clears the row for good. Its tooltip reads *Mark this as seen and remove it from the list for good.* Use it when you have understood the failure and dealt with it (or decided it needs no action): the row disappears immediately, does not come back on another device or after a refresh, and the acknowledgement is recorded in the [Activity](agents-activity.md) timeline as a **Decision**, with who cleared it and when. It ages into **Recently finished** like any other closed item.
+
+**Re-run analysis** only appears where a re-run is actually possible — the row has to name a ticket (or alert) the agent can still reach. Where it can't, **Acknowledge** is offered on its own, which is the honest outcome: there is nothing to retry, only something to close.
+
+The pairing is deliberate. **Re-run** is for "try that again"; **Acknowledge** is for "I've seen it, it's handled". Between them, **Needs attention** should return to empty rather than growing into a list nobody reads.
+
+---
+
 ## Tracing a proposal back to its check
 
-Each ticket group and each attention row carries a **Trace** link. It deep-links straight to the matching entry in the [Activity](agents-activity.md) timeline, where you can follow the full check that produced the proposal — what the agent looked at, what it decided, and why. Use it whenever a draft or an update is surprising and you want the reasoning behind it. For administrators who need the low-level detail, Activity also exposes an optional diagnostics view of the raw processing steps.
+Each ticket group and each attention row carries a **Trace** button. It opens the **Technical trace** dialog over the queue — the page underneath doesn't move, so closing the dialog puts you back exactly where you were, with your scroll position and, in an agent's workspace, your current tab intact. Inside you can follow the full check that produced the proposal: what the agent looked at, the steps it went through and how long each took, and the evidence it gathered. Use it whenever a draft or an update is surprising and you want the reasoning behind it. It is the same dialog described on the [Activity](agents-activity.md) page.
 
 ---
 
 ## Tips
 
-- Work top to bottom: clear **Needs your decision**, then glance at **Needs attention** for anything that failed to reach the ticketing system. The middle two sections need no action from you.
+- Work top to bottom: clear **Needs your decision**, then clear **Needs attention** with **Re-run analysis** or **Acknowledge**. **In progress** and **Recently finished** need nothing from you.
 - Nothing here has reached the requester until you approve it. Reading a draft, tracing it, or leaving it in the queue changes nothing on the ticket.
 - Reject rather than ignore. A rejected proposal stays in the audit trail with your optional note, which is far more useful later than a proposal that simply expired unattended.
 - Dismiss, don't reject, a proposal you simply won't send. If a draft is accurate but shouldn't go out — a sensitive ticket, a colleague already replied — **Dismiss** sets it aside without counting against the agent. Keep **Reject** for proposals that were genuinely wrong.
 - A missing **Synthesis fallback** note is good news, not missing information. Spend your closest reading on the drafts that *do* carry it.
-- If an approved change lands in **Needs attention**, the red caption and the **Trace** link tell you whether it was the agent, a safety check, or the connected ticketing system that stopped it — fix the underlying cause rather than re-approving blindly.
+- If an approved change lands in **Needs attention**, the red caption and the **Trace** button tell you whether it was the agent, a safety check, or the connected ticketing system that stopped it — fix the underlying cause, then **Re-run analysis**, rather than re-approving blindly.
+- Don't acknowledge to make a number go away. **Acknowledge** is a record that a person looked at the failure; a queue you clear without reading is worth less than one you leave alone.
 - The combined queue at `/agents/approvals` is fastest when you run several agents; switch to an agent's own **Approvals** tab when you want to focus on just that one.

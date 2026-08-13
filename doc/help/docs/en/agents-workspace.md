@@ -1,139 +1,165 @@
 # AI Agents — Agent workspace
 
-The agent workspace is where a single agent lives: you watch what it is doing, review its proposals, judge how well it is performing, and — if you are an administrator — configure every detail of how it works. It is the deepest surface in the AI Agents area. Everything about one agent that isn't a fleet-wide control is here, split across four tabs.
+The agent workspace is where a single agent lives: you drive it, watch what it is doing, review its proposals, judge how well it is performing, and — if you are an administrator — configure every detail of how it works. It is the deepest surface in the AI Agents area. Everything about one agent that isn't a fleet-wide control is here: an action bar that stays with you on every tab, and four tabs beneath it.
 
-Open an agent by clicking its card on [AI Agents — Overview](agents-overview.md). The workspace always opens on **Monitor**; you can deep-link to any tab, and links from elsewhere in the product (for example the **Review** button on **Performance**) land you on the right one.
+Open an agent by clicking its card on [AI Agents — Overview](agents-overview.md). The workspace always opens on **Monitor**; you can deep-link to any tab, and links from elsewhere in the product land you on the right one.
 
 ## Where to find it
 
 - **Workspace:** AI Agents
 - **Path:** **AI Agents → Overview →** open an agent's card
 - **Route:** `/agents/:agentKey`
-- **Permission:** viewing needs the AI Agents Reader role (`ai_agents:reader`). The **Settings** tab only appears for the AI Agents Admin level (`ai_agents:admin`); the AI Settings admin (`ai_settings:admin`) also unlocks it, along with the **Start agent**, **Disable**, and **Pause agent** controls on **Monitor**.
+- **Permission:** viewing needs the AI Agents Reader role (`ai_agents:reader`). Running a check, testing the agent, and deciding proposals need the contributor level (`ai_agents:contributor`). Changing the run mode, pausing the agent, and the **Settings** tab need the AI Agents Admin level (`ai_agents:admin`); the AI Settings admin (`ai_settings:admin`) unlocks all of it too.
 - **Availability:** the whole AI Agents area requires AI to be enabled on the instance. If you open a link to an agent that doesn't exist for your tenant, you'll see **Agent not found** — "This agent is not available in the current tenant." — with a way back to the fleet.
 
-The tabs are **Monitor**, **Approvals**, **Performance**, and **Settings**. Readers see the first three; only administrators see **Settings**.
+The tabs are **Monitor**, **Approvals**, **Performance & autonomy**, and **Settings**. Readers see the first three; only administrators see **Settings**.
+
+---
+
+## The action bar
+
+Directly under the agent's name sits a slim bar of controls, right-aligned, that stays visible on **every** tab. It carries actions only — the agent's read-only figures live in the **Status** section of the **Monitor** tab. The point is that you never have to leave what you're doing to start, stop, or test the agent.
+
+### The run mode control
+
+The first control is the agent itself. Closed, it reads the agent's live state as a coloured dot and a label — **Watching — asks first**, **Watching — partly automatic**, **Testing**, **Off**, **Paused**, **Not started**, or **Archived**. Open it (administrators, on an agent that is neither paused nor archived) and it offers the three run modes:
+
+| Mode | What it means |
+| --- | --- |
+| **Off** | Nothing runs, not even a manual check. |
+| **Manual only** | Runs only when you ask — **Check now** and tests work, but the agent never looks on its own. |
+| **Watching** | Checks on its own at the frequency you set, plus everything **Manual only** does. |
+
+Read the closed label as the truth and the menu as the intent: an agent set to **Watching** that is currently held by a pause reads **Paused**, not **Watching**, so the control never tells you the agent is working when it isn't.
+
+**Manual only** is the mode that makes a new agent safe to try. It is where you should sit while you tune a persona and its targeting: you can run the agent as often as you like against real tickets, but nothing happens unless you ask for it. Move to **Watching** only when you're happy with what it drafts.
+
+### The other controls
+
+- **Check now** (**Check for new alerts** on a monitoring agent) runs a check immediately instead of waiting for the next scheduled one. It is disabled when the agent is **Off** ("Turn the agent on first.") or paused ("Lift the pause first."), with the reason in the tooltip.
+- **Test on a ticket** (**Test on an alert** on a monitoring agent) takes you to the test section on the **Monitor** tab, whichever tab you were on.
+- **Pause agent** is the red emergency brake, and it is deliberately not the same thing as **Off**. It asks for a reason, then holds this agent's checks *and any pending writes* until you lift it. Other agents keep running. While a pause is in effect a warning banner reads **Emergency pause active: {reason}** and the control becomes **Lift pause**. A pause set for the whole tenant instead shows **Paused for all agents** and sends you to the fleet overview — you can't lift a tenant-wide pause from a single agent.
+
+Use **Off** to stand an agent down for a while; use **Pause agent** when something is going wrong and you want the pending work frozen too.
+
+An archived agent has no controls beyond a note — *Archived — restore it from the Settings tab.*
 
 ---
 
 ## Monitor
 
-Monitor is the live status board for this one agent. It refreshes as work moves through, so it's the tab to keep open when you're keeping an eye on things.
+Monitor is the live board for this one agent. It refreshes as work moves through, so it's the tab to keep open when you're keeping an eye on things.
 
 ### Status
 
-The **Status** card summarises the agent's current mode and carries its run controls (administrators only):
+The **Status** section is read-only: it is where every fact about the agent's current state now lives, in one line of figures.
 
-- **Start agent** flips a not-started or off agent to enabled, so it begins watching.
-- **Disable** stops an enabled agent from watching. It keeps its configuration and history; you can start it again later.
-- **Pause agent** is the emergency brake. It asks for a reason, then holds this agent's checks and any pending writes until you lift it. Other agents keep running. When a pause is in effect you'll see **Lift pause** here. A pause that was set for the whole tenant instead shows **Paused for all agents** and sends you to the fleet overview to manage it — you can't lift a tenant-wide pause from a single agent.
-- **Check now** runs a check immediately instead of waiting for the next scheduled one. It's disabled while a check is already running or while the agent is paused.
-
-Below the controls, four read-only tiles tell you where things stand:
-
-- **Lifecycle** — the agent's overall state in plain terms: **Not started**, **Off**, **Testing**, **Paused**, **Archived**, or, when it's live, **Watching — asks first** / **Watching — partly automatic** (the latter once at least one action type has been promoted to automatic).
-- **Watching** — **All tickets**, **Filtered** (when a category or entity narrows the scope), or **Off**.
+- The agent's state, in the same words as the action bar.
+- **Watching** — **All tickets**, **Filtered** (when your targeting narrows the scope), or **Off**. A monitoring agent reads **All alerts**, **Filtered**, or **Off**.
 - **Last check** — the outcome of the most recent check.
-- **Next check** — **Every 5 minutes** while the agent is watching; otherwise **Not set**.
-
-### Queue
-
-The **Queue** card counts the work the agent is currently holding:
-
-- **Waiting** — tickets whose proposals are waiting for your approval.
-- **In progress** — tickets the agent is actively working. Each in-progress ticket is also listed underneath with a spinner and its state, so you can see exactly what's moving.
-- **Failed** — tickets that errored or landed in **Needs attention** and won't retry on their own.
-- **Pending approvals** — the total number of individual proposals across all waiting tickets (a single ticket can carry several).
-
-### Limits
-
-The **Limits** card shows today's consumption against the safety caps set on the **Settings** tab: **Runs today**, **Tokens today**, and **Cost today** (in EUR), each as *used / cap*. These are hard ceilings — when a cap is reached the agent stops for the day regardless of anything else, so this card is where you notice an agent that's about to go quiet.
+- **Next check** — **Every N minutes**, following the **Check every (minutes)** setting, while the agent is watching. Otherwise **Not set**, because nothing is scheduled.
+- **Queue** — *N waiting · N in progress*: proposals waiting for your decision, and tickets the agent is working right now.
+- **N failed**, in red, when something stalled and won't retry on its own. These are the items you'll find under **Needs attention** in [Approvals](agents-approvals.md).
+- **Runs today**, **Tokens today**, and **Cost today**, each as *used / cap*. These are the daily safety limits set on **Settings**, and this is where you notice an agent that is about to go quiet for the day. (Desk agents only — monitoring agents don't meter this way, so the figures are hidden rather than shown as misleading zeros.)
 
 ### Test on a ticket
 
-**Test on a ticket** runs the agent once against a single ticket you name — the fastest way to see how it behaves before you let it watch on its own, or to check its reasoning on a specific case. Type a ticket number (for example `64`) and press **Run test**. The agent does a full pass on just that ticket; whatever it proposes lands in the **Approvals** tab for your review like any other work. Nothing is sent to the requester without approval. This works even while the agent is not started, which makes it the natural companion to the **Not started** stage of a new agent.
+**Test on a ticket** runs the agent once against a single ticket you name — the fastest way to see how it behaves before you let it watch on its own, or to check its reasoning on a specific case. Type a ticket number (for example `64`) and press **Run test**. The agent does a full pass on just that ticket; whatever it proposes lands in the **Approvals** tab for your review like any other work. Nothing is sent to the requester without approval.
+
+A monitoring agent gets **Test on an alert** instead: give it an alert ID and its diagnosis appears underneath, in the same dossier layout as a stored one.
+
+Testing works in **Manual only** as well as in **Watching**, which is exactly the point — it is the companion to a not-yet-trusted agent.
 
 ### Recent activity
 
-The bottom of Monitor embeds a live, read-only timeline of this agent's proposals, decisions, executions, pauses, and errors. It's the same feed as the full [Activity](agents-activity.md) page, already filtered to this agent. Each entry can open an optional **Technical trace** diagnostics view for administrators who want the step-by-step detail behind a check.
+The bottom of Monitor embeds the live timeline of this agent's checks, proposals, decisions, executions, pauses, and errors. It is the same feed as the full [Activity](agents-activity.md) page, already filtered to this agent — same category toggles, same **Load more**, same trace dialog.
 
 ---
 
 ## Approvals
 
-The **Approvals** tab is the review queue — proposed replies, notes, and ticket updates waiting for your decision — scoped to just this agent. It behaves exactly like the standalone queue, including approving or rejecting in bulk and the terminal-action confirmation. See [Approvals](agents-approvals.md) for the full explanation of how the queue works; nothing about it changes here except that you only see this agent's items.
+The **Approvals** tab is the review queue — proposed replies, notes, and ticket updates waiting for your decision — scoped to just this agent. It behaves exactly like the standalone queue, including approving in bulk, the terminal-action confirmation, and the **Acknowledge** and **Re-run analysis** controls on **Needs attention** rows. See [Approvals](agents-approvals.md) for the full explanation; nothing about it changes here except that you only see this agent's items.
 
 ---
 
-## Performance
+## Performance & autonomy
 
-Performance tells you whether the agent is earning more autonomy. The row of headline figures covers, for this agent:
+This tab answers one question: is the agent earning more independence? It holds the evidence and the switch side by side, so you never have to judge in one place and act in another.
+
+### The headline figures
 
 - **Acceptance** — the share of its proposals you approved. This is the number that most influences whether an action type can go automatic.
-- **Dismissed** — the share of this agent's reviewed proposals you set aside rather than approved or rejected. A dismissal doesn't count against the agent, so this figure sits apart from acceptance. Read a persistently high value as a targeting problem — the agent is picking up tickets it shouldn't handle — and fix it in **Settings → Targeting**, rather than treating it as an answer-quality issue.
+- **Dismissed** — the share of reviewed proposals you set aside rather than approved or rejected. A dismissal doesn't count against the agent, so this figure sits apart from acceptance. Read a persistently high value as a targeting problem — the agent is picking up tickets it shouldn't handle — and fix it in **Settings → Targeting**, rather than treating it as an answer-quality issue.
 - **Approval latency** — the typical time, in minutes, between a proposal appearing and someone deciding on it. A rising figure usually means the queue needs more reviewer attention, not that the agent is doing worse.
 - **Knowledge hit rate** — how often its replies were backed by your knowledge sources.
-- **Cost per ticket** — average spend per ticket handled, in EUR.
+- **Cost per ticket** — average spend per ticket handled, in EUR. (Fleet-wide cost lives on the [Overview](agents-overview.md).)
 - **Runs per ticket** — how many checks it took, on average, to resolve a ticket.
 
-Below, a 14-day **Trends** strip shows proposed-versus-executed volume per day, so you can see the agent warming up (or a spike) at a glance.
+### Trends
 
-The **Autonomy ladder** lists each action type the agent has data for, with how many reviewed decisions it has captured against the number required before **Automatic** mode can be reviewed. When an action type has enough evidence, use **Review** to jump to the **Autonomy** section on **Settings**, where the promotion is actually done.
+Two charts cover the last 14 days. **Trends** plots **Proposed** against **Executed** per day, so you can see the agent warming up, a spike, or a day it went quiet. **Cost per day** sits beneath it as a smaller chart on the same day axis — counts and euros deliberately don't share a scale. Until the agent has done anything, both read **No activity recorded yet.**
+
+### The autonomy ladder
+
+By default every action type **asks first** — the agent proposes and waits for you. This section is where you promote an action type to **Automatic**, one type at a time, once it has earned it.
+
+Each row shows the action type, its current mode (**Ask first** or **Automatic**), and a progress line: decisions captured against the number required, acceptance rate against the required rate, and days of activity against the required days. When a row isn't eligible yet, it says why in plain terms — *Not enough reviewed proposals yet.*, *Acceptance rate is below the threshold.*, *Not enough days of activity yet.*
+
+**Not every action type carries the same risk, and the ladder now says so.**
+
+- **Internal notes**, **Classification update** and **Status update** are the lower-risk tier. Nothing leaves your team and nothing moves between people. The evidence thresholds are recommendations here: when a type is eligible, **Turn on** opens a short confirmation; when it isn't, **Override** lets you grant it anyway with a written reason.
+- **Requester reply**, **Assignment** and **Participants** are the higher-risk tier, and their rows are marked with a warning border and a one-line reminder of what you would be agreeing to — *The agent would reply to the requester with nobody reading it first.* These can now be automated, which they previously could not. But the grant **always** requires an explicit acknowledgement and a written reason, even when every threshold is already met and the row is eligible. The reason is kept in the agent's history so your team can see who accepted this and why.
+
+In both cases the confirmation reminds you that automatic actions still respect the daily limits and the emergency pause, and return to ask-first if acceptance drops. **Turn off** returns any automatic action type to asking first, immediately.
+
+Two blocks are absolute and no reason will lift them: an action type you switched off under **Capabilities** (*This action isn't enabled for this agent.*), and an open incident (*An open incident is blocking automation.*).
+
+Automatic never means unsupervised. Hard safety limits, budgets, freshness checks and pauses apply the same way whatever an action type's mode.
 
 ---
 
 ## Settings
 
-The **Settings** tab is administrator-only and holds every configuration knob for the agent. It **autosaves**: there are no save buttons, and each section shows a small **Saving…** / **Saved** indicator in its header as your edits are written. Edits are applied in place, so the page doesn't reload or lose your position while you work.
+The **Settings** tab is administrator-only and holds every configuration knob for the agent. It **autosaves**: there are no save buttons, and each section shows a small **Saving…** / **Saved** indicator in its header as your edits are written. If you switch tabs with a save still in flight, the save is completed first — and if it fails, the switch is cancelled so the error and your edit stay on screen.
 
-### Objective and capabilities
-
-This is the agent's persona — who it is and how it writes:
-
-- **Name** and **Status**. Status controls availability: **Not started**, **Enabled**, **Off**, or **Archived**. (Archiving is the deliberate way to retire an agent.)
-- **Description** — free text for your own team.
-- **Mission** — the agent's job in a sentence or two.
-- **Instructions** — one instruction per line; each line is treated as a separate rule.
-- **Output style** — the tone the agent writes in (for example, *clear and concise*).
-- **Reply language** — the language of requester-facing replies: **Ticket language** (match whatever the ticket is written in), **French**, **English**, **German**, or **Spanish**.
-- **Escalation guidance** — when and how the agent should hand a ticket to a human instead of trying to resolve it.
-- **Shared context** — turn on **Use shared context** and pick a profile to layer reusable background about your environment onto this agent, or use **+ New profile** to create one on the spot. A preview of the selected profile's lines is shown beneath. Shared context shapes how the agent interprets tickets and writes replies, but it is never a permission grant and is **not** a citable source — unlike [Knowledge libraries](knowledge.md), whose results *are* cited back in replies. Manage profiles fully on the [Shared context](agents-shared-context.md) page.
-
-Alongside the persona editor sits the read-only **Effective prompt** preview: exactly what the agent's runtime is given, compiled from everything above plus the platform's own rules. Use the selector to inspect each stage — **Action planner**, **Planner**, and **Interpreter** are the stages where the agent decides *what to do*; **Synthesis** is where it drafts the reply grounded in your knowledge sources. The preview updates after each save. As the hint says, **guidance cannot override safety rules** — nothing you write in the persona can loosen the platform's hard limits.
-
-### Capabilities
-
-Switches for which kinds of change the agent may ever propose: **Internal notes**, **Requester replies**, **Classification**, **Status updates**, **Assignment**, and **Participants**. Turning one off removes that action type entirely — the agent can't propose it and it can't appear in the autonomy ladder. These are the outer boundary; the **Autonomy** section below decides which of the enabled ones still ask first.
+The four sections follow the order you actually set an agent up in: decide what it looks at, then what it is, then what it knows, then how hard it may work.
 
 ### Targeting
 
-Targeting decides which tickets the agent watches. The master switch — **Watch new tickets** (or **Watch tickets automatically** on a custom agent) — turns watching on or off. Quick presets (**New tickets**, **All open**, **Handled by this agent**) drop in a starting filter set; if you already have filters, you're asked before they're replaced.
+Targeting decides which tickets the agent watches. (Whether it watches at all is the run mode in the action bar — targeting only describes the scope.)
 
-The filter builder lets you combine conditions — all filters are combined together, and the available values come straight from the connected ticketing system. A live preview shows the practical effect:
+Quick presets — **New tickets**, **All open**, **Handled by this agent** — drop in a starting filter set; if you already have filters, you're asked before they're replaced. The filter builder lets you combine conditions: all filters are combined, and the available values come straight from the connected ticketing system. Selecting a category or an entity includes everything beneath it, and the builder says so.
+
+A live preview shows the practical effect:
 
 - **Matches** — how many tickets currently fit.
 - **Sample** — how many were actually inspected to produce the estimate.
 - **Overlap** — tickets that other agents also match, so you can spot two agents fighting over the same work.
-- **Runs/day** — the expected number of checks per day at this scope.
+- **Runs/day** — the expected number of runs per day at this scope, already clamped by your check frequency and daily caps.
 
 A note appears when the preview is bounded by your per-check limits — the real match count may be larger than the preview shows.
 
-### Operating settings
+Monitoring agents have the same section, filtering on alert state, severity, acknowledgement, group, device and check type instead.
 
-The pace-and-budget controls:
+### Objective and capabilities
 
-- **AI model** — which model this agent runs on. **Organization default** is the starting value and usually the right one: the agent follows whatever model your organization has set as default, and moves with it. Pick a specific model by name to pin this agent to it — a vision-capable model for screenshot-heavy queues, a cheap local one for high-volume triage. Only active models appear, they are defined on the [AI models](ai-models.md) page, and the choice is saved the moment you make it (this one field doesn't wait for the section's autosave), taking effect on the agent's next run. A model an agent is pinned to cannot be archived out from under it — the agent has to be moved off it first. Note that reading the model list needs the AI settings admin permission (`ai_settings:admin`), the same one that opens the AI models page: with the **Agent Admin** role alone the dropdown offers only **Organization default**, which is a permissions gap rather than an empty registry.
-- **Agent priority** — used with **Ticket collision** to decide who handles a ticket two agents both want.
-- **Review every (hours)** — how long the agent waits before it looks again at a ticket it has already handled.
-- **Ticket collision** — what to do when another agent is already on a ticket: **Defer** (leave it alone) or **Supersede equal priority** (take over from an agent of the same priority).
-- **Max tickets per check** and **Max provider requests** — how much work a single check may take on.
-- **Approval window (hours)** — how long every proposal for a ticket stays open before it expires. All proposals from one check share this window, so they expire together rather than piecemeal.
-- **If ticket changed** — what to do if the ticket moved on between the proposal and your approval: **Re-review**, **Cancel**, or **Apply anyway**.
-- **Tokens per run** / **Cost per run (EUR)** and **Runs per day** / **Tokens per day** / **Cost per day (EUR)** — the per-run and daily spending caps. The daily figures are the same caps you watch on the Monitor **Limits** card. A *run* is one pass on one ticket, not one check: a single check can spend the per-run budget once for each ticket it picks up, so read these next to **Max tickets per check**.
+**Capabilities** come first, because they frame everything else: switches for which kinds of change the agent may *ever* propose — **Internal notes**, **Requester replies**, **Classification**, **Status updates**, **Assignment**, and **Participants**. Turning one off removes that action type entirely: the agent can't propose it, whatever the instructions say, and it can't be promoted on the autonomy ladder.
 
-The two cost caps are priced with the **AI model** assigned above, using the prices recorded for it on the [AI models](ai-models.md) page — the hint under each field says so. That has one consequence worth knowing: **a free model (0 €) never reaches a cost cap**, because everything it does costs nothing. On the KANAP included model, on a local model, or on any model you registered without prices, the cost caps are inert and the **token** caps are your only real protection. Set them accordingly.
+Below them sits the persona — who the agent is and how it writes:
 
-Monitoring agents, which watch alerts rather than tickets, have the same **AI model** selector in their own shorter **Operating settings** section — alongside **Alerts handled per check** and **Requests to the monitoring tool per check** — and it works exactly as described above.
+- **Name** — what the agent is called across KANAP. It has no effect on what the agent does.
+- **Description** — a short summary for your colleagues, shown under the agent name.
+- **Mission** — what the agent is here to do, in one or two sentences. It reads this before every ticket.
+- **Instructions** — house rules, one per line. They cannot widen what the agent is allowed to do.
+- **Output style** — how it should sound when it writes (for example, *clear and concise*).
+- **Reply language** — **Ticket language** (answer in whatever language the requester used), **French**, **English**, **German**, or **Spanish**.
+- **Escalation guidance** — when the agent should hand a ticket to a person instead of proposing something itself.
+
+**Archive agent** in the section header is the deliberate way to retire an agent: it stops watching and running, keeps its configuration and history, and **Restore agent** brings it back from the same place.
+
+**Use shared context** layers reusable background about your environment onto this agent. The switch is all you see until you turn it on; once it's on, you get the profile selector, a **+ New profile** shortcut, and a preview of the selected profile's lines. Shared context shapes how the agent interprets tickets and writes replies, but it is never a permission grant and is **not** a citable source — unlike [Knowledge libraries](knowledge.md), whose results *are* cited back in replies. Manage profiles on the [Shared context](agents-shared-context.md) page.
+
+**View effective prompt** is collapsed by default. Expand it to read exactly what the agent's runtime is given, compiled from everything above plus the platform's own rules. Use the selector to inspect each stage — **Action planner**, **Planner**, and **Interpreter** are where the agent decides *what to do*; **Synthesis** is where it drafts the reply grounded in your knowledge sources; a monitoring agent has **Diagnosis** instead. The preview refreshes after each save. As the hint says, **guidance cannot override safety rules** — nothing you write in the persona can loosen the platform's hard limits.
 
 ### Knowledge and web sources
 
@@ -143,24 +169,45 @@ Where the agent gets its facts:
 - **Search all available libraries**, or turn it off to pick specific **Libraries** — the agent then searches only those, within what it's allowed to access. Library names come from the Knowledge section.
 - **Search the web** — lets the agent also consult the public web; KANAP knowledge always takes precedence and web results are cited. This switch is only available if web search is enabled for the whole platform. When it isn't, the switch is disabled and a note points you to your administrator — see [Plaid Settings](ai-settings.md).
 
-### Autonomy
+Monitoring agents get **Search KANAP data** here instead, which lets the agent look up your own IT inventory — **Applications**, **Assets**, **Interfaces**, **Connections**, **Locations** — to add business context to a diagnosis.
 
-By default every action type **asks first** — the agent proposes and waits for you. This section is where you promote an action type from **Ask first** to **Automatic**, per type, once it has earned it. Each row shows the current mode and an eligibility line: decisions captured, acceptance rate, and days of activity, each against what's required. When an action type isn't yet eligible, the row explains why (for example, not enough reviewed proposals, or acceptance below the threshold).
+### Operating settings
 
-- **Turn on** appears once an action type is eligible. It opens a confirmation summarising the evidence and reminding you that automatic actions still respect the daily limits and emergency pause, and drop back to ask-first if acceptance falls.
-- **Override** appears when an action type isn't eligible but overriding is allowed. It requires a written reason and warns clearly that an override bypasses the recommendation thresholds *only* — hard safety limits, freshness checks, provider support, budgets, pauses, and requester-reply restrictions all still apply.
-- **Turn off** returns any automatic action type to asking first.
+The pace-and-budget controls. Every field carries an information tooltip that says what it does and what happens when it is reached, so the page stays short.
 
-Whatever an action type's mode, the platform's hard safety limits, budgets, freshness checks, and pauses always apply — automatic never means unsupervised.
+- **AI model** — which model this agent runs on. **Organization default** is the starting value and usually the right one: the agent follows whatever model your organization has set as default, and moves with it. Pick a specific model by name to pin this agent to it — a vision-capable model for screenshot-heavy queues, a cheap local one for high-volume triage. Only active models appear; they are defined on the [AI models](ai-models.md) page. A model an agent is pinned to cannot be archived out from under it — the agent has to be moved off it first. Note that reading the model list needs the AI settings admin permission (`ai_settings:admin`): with the **Agent Admin** role alone the dropdown offers only **Organization default**, which is a permissions gap rather than an empty registry.
+- **Check every (minutes)** — how often the agent looks for new tickets while it is watching, between **5** minutes and 24 hours (1440). This is the single biggest lever on how busy — and how expensive — a watching agent is. **Check now** always runs straight away, whatever this says, and this is the figure that **Next check** reports on the Monitor tab.
+- **Max tickets per check** and **Max provider requests** — the most tickets the agent picks up in one check (the rest wait for the next one), and the most calls it makes to the ticketing system in one check, so it never floods it.
+- **Review every (hours)** — how long the agent waits before looking at the same ticket again, so it doesn't repeat itself.
+- **Agent priority** and **Ticket collision** — which agent wins when several target the same ticket (lower number = higher priority), and what this one does when another is already working it: **Defer** (stand back) or **Supersede equal priority** (take over from an agent of the same priority).
+- **Approval window (hours)** — how long every proposal for a ticket stays open before it expires. All proposals from one check share this window, so they expire together rather than piecemeal.
+- **If ticket changed** — what happens to a waiting proposal when the ticket moves on before you decide: **Re-review**, **Cancel**, or **Apply anyway**.
+- **Keep activity history (days)** — how long this agent's timeline is kept, between **7** and **90** days, **30** by default. Older entries, runs, and finished proposals are deleted automatically each night. See the caution below.
+
+#### Safety limits
+
+The five economic caps sit in their own group, under a plain warning: these are **hard stops, not estimates**. When the agent reaches one of them it stops working for the rest of the day and waits for you — it starts again the next day.
+
+- **Tokens per run** and **Cost per run (EUR)** — the most the agent may spend on *one ticket*. Reaching one stops that ticket, and nothing is proposed for it. A *run* is one pass on one ticket, not one check: a single check can spend the per-run budget once for each ticket it picks up, so read these next to **Max tickets per check**.
+- **Runs per day**, **Tokens per day**, and **Cost per day (EUR)** — the daily ceilings. Each of the three shows today's real consumption underneath it (**Today: …**), so you can size a cap against what the agent actually uses instead of guessing. These are the same figures as the **Status** section on Monitor.
+
+The two cost caps are priced with the **AI model** assigned above, using the prices recorded for it on the [AI models](ai-models.md) page. That has one consequence worth knowing: **a free model (0 €) never reaches a cost cap**, because everything it does costs nothing. On the KANAP included model, on a local model, or on any model you registered without prices, the cost caps are inert and the **token** and **run** caps are your only real protection. Set them accordingly.
+
+Monitoring agents have the same section in a shorter form: **AI model**, **Check every (minutes)**, **Alerts handled per check**, **Requests to the monitoring tool per check**, and **Keep activity history (days)**.
+
+!!! warning "Keep at least 30 days of history if you plan to use automatic mode"
+    An agent's track record is measured over the last **28 days**. Setting **Keep activity history (days)** below 30 deletes the very evidence the autonomy ladder counts, so an agent can appear to lose ground it had already earned. The 30-day default is chosen to sit safely above that window — shorten it only on an agent you have no intention of promoting. Nothing you still have to decide is ever purged: pending proposals and the traces behind them are kept regardless of the setting.
 
 ---
 
 ## Tips
 
-- **Use Test on a ticket before you enable.** A test run gives you real proposals to judge without the agent touching anything else. It's the honest way to tune a persona: adjust, re-test, repeat.
-- **The Limits card is your early-warning light.** An agent that suddenly goes quiet has usually hit a daily cap — check *Runs / Tokens / Cost today* on Monitor before assuming something broke. On a free model, only the token and run caps can be the cause.
-- **Match the model to the queue, not to the fleet.** Assignment is per agent precisely so a screenshot-heavy queue can run on a vision model while a high-volume, text-only queue runs on something cheaper. What each choice actually costs shows up under [Usage & costs](ai-usage.md).
-- **Read the Effective prompt after a persona change.** It's the ground truth of what the agent actually receives, and it makes it obvious when an instruction landed the way you meant it to.
-- **Grow autonomy one action type at a time.** Promote low-risk types (internal notes) first and leave requester replies asking first until acceptance is consistently high — the ladder won't let you go automatic without the evidence, but you set the appetite.
+- **Sit in Manual only before you sit in Watching.** It's the honest way to tune an agent: run it by hand on real tickets, read what it drafts, adjust, repeat. Nothing happens that you didn't ask for.
+- **Off and Pause are different tools.** **Off** stands the agent down. **Pause agent** freezes it *and* the work already in flight, and it asks for a reason that goes into the record — reach for it when something is going wrong, not when you're done for the week.
+- **Check frequency is your cost dial.** Before raising a daily cap, ask whether the agent needs to look every five minutes. On a quiet queue, checking every 30 or 60 minutes changes nothing about responsiveness that your requesters will notice, and cuts the bill accordingly.
+- **Size the caps against the "Today" figures.** Each daily limit shows what the agent actually consumed today right underneath it. That's a far better basis for a cap than a round number.
+- **The Status section is your early-warning light.** An agent that suddenly goes quiet has usually hit a daily cap — check *Runs / Tokens / Cost today* on Monitor before assuming something broke. On a free model, only the token and run caps can be the cause.
+- **Grow autonomy one action type at a time.** Promote the lower-risk types first and leave requester replies asking first until acceptance is consistently high. The higher-risk types are available to you now, but the acknowledgement is there for a reason: read what the row says the agent would do before you agree to it.
+- **Read the effective prompt after a persona change.** It's the ground truth of what the agent actually receives, and it makes it obvious when an instruction landed the way you meant it to.
 - **Prefer shared context for background, libraries for facts.** Shared context colours the agent's judgement but is never cited; only knowledge libraries (and, if enabled, the web) show up as sources in a reply.
 - **Watch Overlap in the targeting preview.** A high overlap number means two agents are competing for the same tickets — narrow one agent's filters, or use **Agent priority** and **Ticket collision** to decide who wins.

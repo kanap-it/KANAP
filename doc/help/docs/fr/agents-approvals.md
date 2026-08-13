@@ -7,7 +7,7 @@ Les Approbations constituent la file de revue quotidienne de tout ce que vos age
 - Espace de travail : **Agents IA**
 - Chemin : **Agents IA → Approbations**
 - Route : `/agents/approvals`
-- Autorisation : nécessite que l'IA soit activée sur l'instance et le rôle Lecteur des Agents IA (`ai_agents:reader`)
+- Autorisation : nécessite que l'IA soit activée sur l'instance et le rôle Lecteur des Agents IA (`ai_agents:reader`) pour lire la file. Décider d'une proposition, prendre acte d'une ligne d'attention et relancer une analyse nécessitent le niveau contributeur (`ai_agents:contributor`).
 - La même file apparaît, limitée à un seul agent, dans l'onglet **Approbations** de l'[espace de l'agent](agents-workspace.md). La page `/agents/approvals` est la vue combinée de tous les agents ; l'onglet de l'espace n'affiche que les propositions de l'agent que vous consultez. La disposition et les commandes sont identiques.
 
 ---
@@ -35,23 +35,25 @@ Les propositions sont regroupées par ticket. Chaque groupe a pour en-tête le t
 
 ## Les quatre sections
 
-La file est organisée en quatre sections selon la position de chaque élément dans son cycle de vie. Chacune a son propre message d'état vide, afin que vous puissiez distinguer « rien ici » de « chargement en cours ».
+La file est organisée en quatre sections selon la position de chaque élément dans son cycle de vie.
 
 ### Nécessite votre décision
 
-Les propositions qui vous attendent, regroupées par ticket. C'est la seule section où vous agissez ; les trois autres sont informatives. Lorsqu'elle est vide, elle affiche *Rien ne nécessite votre décision.* Une fois que vous avez décidé d'une proposition, elle se réduit à une seule ligne de statut au sein de son groupe de ticket, tandis que les propositions restantes du ticket demeurent ouvertes pour vous.
+Les propositions qui vous attendent, regroupées par ticket. C'est la section où se déroule l'essentiel de votre travail ; **En cours** et **Récemment terminés** sont purement informatives. Lorsqu'elle est vide, elle affiche *Rien ne nécessite votre décision.* Une fois que vous avez décidé d'une proposition, elle se réduit à une seule ligne de statut au sein de son groupe de ticket, tandis que les propositions restantes du ticket demeurent ouvertes pour vous.
 
 ### En cours
 
-Le travail déjà en mouvement et qui ne requiert rien de votre part : les propositions que vous avez approuvées et qui sont en cours d'application sur le système de tickets connecté, ainsi que les tickets qu'un agent est en train de contrôler. Les lignes affichent ici un statut en direct tel que **En attente de démarrage**, **En cours**, **Exécution…** ou **Agent au travail…**. Au repos, elle affiche *Aucun travail agent n'est en cours.*
+Le travail déjà en mouvement et qui ne requiert rien de votre part : les propositions que vous avez approuvées et qui sont en cours d'application sur le système de tickets connecté, ainsi que les tickets qu'un agent est en train de contrôler. Les lignes affichent ici un statut en direct tel que **En attente de démarrage**, **En cours**, **Exécution…** ou **Agent au travail…**. Lorsque rien n'avance, la section n'est pas affichée du tout — une liste « en cours » vide ne vous apprend rien que l'état de l'agent ne vous dise déjà.
 
 ### Attention requise
 
-Tout ce qui a échoué ou est bloqué — une proposition qui n'a pas pu être envoyée au système de tickets connecté, ou un contrôle qui a échoué. Chaque ligne porte une légende rouge expliquant ce qui n'a pas fonctionné, ainsi qu'un lien **Trace** vers la chronologie de l'[Activité](agents-activity.md) pour que vous puissiez voir toute l'histoire. Lorsqu'elle est vide, elle affiche *Aucun travail agent ne nécessite d'attention.* C'est la section à surveiller : les éléments y arrivent lorsqu'un changement a été approuvé mais que le système de tickets l'a refusé ou n'a pas pu le mener à terme.
+Tout ce qui a échoué ou est bloqué — une proposition qui n'a pas pu être envoyée au système de tickets connecté, ou un contrôle qui a échoué. Chaque ligne porte une légende rouge expliquant ce qui n'a pas fonctionné, ainsi qu'un bouton **Trace** qui ouvre toute l'histoire sans quitter la page. Lorsqu'elle est vide, elle affiche *Aucun travail agent ne nécessite d'attention.*
+
+C'est la section à surveiller, et ce n'est plus une impasse : voir [Traiter une ligne d'attention requise](#traiter-une-ligne-dattention-requise) ci-dessous.
 
 ### Récemment terminés
 
-Un historique repliable des éléments les plus récemment terminés — appliqués, rejetés, écartés, ignorés ou effectués. Il reste replié jusqu'à ce que vous l'ouvriez, mémorise ce choix, et affiche jusqu'à une trentaine de lignes avec une ligne **+N autres** s'il y en a davantage. Utilisez-le pour confirmer qu'une approbation a bien abouti, ou pour vérifier ce qu'un agent a fait pendant votre absence.
+Un historique repliable des éléments les plus récemment terminés — appliqués, rejetés, écartés, ignorés ou effectués. Il reste replié jusqu'à ce que vous l'ouvriez, mémorise ce choix, et affiche jusqu'à 30 lignes avec une ligne **+N autres** indiquant combien d'éléments plus anciens existent. Utilisez-le pour confirmer qu'une approbation a bien abouti, ou pour vérifier ce qu'un agent a fait pendant votre absence. Les lignes dont vous avez pris acte dans **Attention requise** aboutissent également ici.
 
 ---
 
@@ -59,13 +61,15 @@ Un historique repliable des éléments les plus récemment terminés — appliqu
 
 Chaque proposition en attente propose trois actions.
 
-- **Approuver** est le bouton principal. Il affiche **Approuver** sur une proposition que vous n'avez pas encore décidée, et **Exécuter** sur une proposition que vous avez déjà approuvée mais qui n'a pas encore été exécutée. Dans les deux cas, il fait la même chose : il envoie l'action à votre système de tickets connecté, où l'agent publie la réponse ou la note, ou applique le changement. L'approbation est le moment où le demandeur (ou votre équipe) peut être affecté — jusque-là, rien n'a quitté KANAP.
+- **Approuver** affiche **Approuver** sur une proposition que vous n'avez pas encore décidée, et **Exécuter** sur une proposition que vous avez déjà approuvée mais qui n'a pas encore été exécutée. Dans les deux cas, il fait la même chose : il envoie l'action à votre système de tickets connecté, où l'agent publie la réponse ou la note, ou applique le changement. L'approbation est le moment où le demandeur (ou votre équipe) peut être affecté — jusque-là, rien n'a quitté KANAP.
 - **Rejeter** n'applique pas l'action. La proposition est abandonnée mais reste dans le journal d'audit, de sorte qu'il existe toujours une trace de ce que l'agent a suggéré et du fait que vous l'avez refusé. Le rejet d'une seule proposition prend effet immédiatement. Le rejet est un signal de qualité : il pénalise l'évaluation de l'agent et son taux d'acceptation, car il indique à l'agent que la proposition était erronée.
 - **Écarter** met également la proposition de côté sans rien envoyer — mais, contrairement au rejet, cela ne pénalise **pas** l'agent. Le taux d'acceptation et le suivi d'autonomie de l'agent ne sont pas affectés. Utilisez cette action lorsque la proposition est juste mais ne doit tout simplement pas partir : un ticket sensible, un collègue qui a déjà répondu, un doublon. Il s'agit d'un seul clic, sans demande de motif, et son infobulle indique *Écarter sans pénaliser l'évaluation de l'agent*. Une proposition écartée ne peut plus être approuvée.
 
 Si une proposition est actuellement **bloquée** — par exemple parce qu'un contrôle de fraîcheur ou de sécurité n'est plus valide, ou parce que le système de tickets n'accepte pas le changement pour le moment — son bouton principal est désactivé et la raison apparaît dans l'infobulle du bouton. La proposition reste visible pour que vous puissiez voir pourquoi elle ne peut pas aboutir.
 
-**Tout approuver**, **Tout rejeter** et **Tout écarter** apparaissent sur un groupe de ticket lorsqu'il y a plus d'un élément à traiter, ce qui vous permet de vider un ticket entier en une seule étape. **Tout rejeter** ouvre une courte boîte de dialogue qui confirme le nombre de propositions qui seront rejetées et propose une note facultative pour le journal d'audit ; **Tout écarter** ouvre une courte boîte de dialogue de confirmation indiquant que rien ne sera envoyé et que l'évaluation de l'agent n'est pas affectée. Le passage en automatique se fait par type d'action, uniquement une fois qu'assez de vos décisions ont été recueillies pour promouvoir ce type d'action de **Demander d'abord** à **Automatique** dans les [Paramètres](agents-workspace.md) de l'agent ; jusque-là, et toujours pour le travail sensible, chaque proposition passe par cette file.
+**Tout approuver**, **Tout rejeter** et **Tout écarter** apparaissent sur un groupe de ticket lorsqu'il y a plus d'un élément à traiter, ce qui vous permet de vider un ticket entier en une seule étape. **Tout approuver** est le bouton principal coloré du groupe — vider un ticket en une seule décision est le rythme voulu de cette page, et les boutons de chaque proposition sont volontairement plus discrets pour que l'œil se pose d'abord sur le groupe. **Tout rejeter** ouvre une courte boîte de dialogue qui confirme le nombre de propositions qui seront rejetées et propose une note facultative pour le journal d'audit ; **Tout écarter** ouvre une courte boîte de dialogue de confirmation indiquant que rien ne sera envoyé et que l'évaluation de l'agent n'est pas affectée.
+
+Chaque proposition passe par cette file tant qu'assez de vos décisions n'ont pas été recueillies pour promouvoir ce type d'action de **Demander d'abord** à **Automatique** dans l'onglet [Performance et autonomie](agents-workspace.md) de l'agent — et pour les types d'action qu'un demandeur peut voir, la promotion exige en outre une confirmation explicite de la part d'un administrateur.
 
 ### Écarter ou rejeter
 
@@ -102,18 +106,32 @@ L'essentiel à retenir est que **l'absence de cette note est le cas normal et sa
 
 ---
 
+## Traiter une ligne d'attention requise
+
+Les lignes d'**Attention requise** étaient auparavant en lecture seule — vous pouviez constater qu'une proposition avait expiré ou qu'un contrôle avait échoué, mais il n'y avait rien à faire d'autre que de la regarder stagner. Chaque ligne porte désormais deux commandes.
+
+- **Relancer l'analyse** demande à l'agent de réexaminer ce ticket (ou cette alerte), tout de suite. Elle exécute exactement la même passe que **Tester sur un ticket** dans l'[onglet Suivi](agents-workspace.md) de l'agent : ce qu'il en tire revient donc dans **Nécessite votre décision** sous forme de nouvelles propositions à examiner. Son infobulle indique *Demander à l'agent de le réexaminer.*, et pendant son travail, *L'agent le réexamine…* C'est le bon premier réflexe lorsque l'échec était passager — une coupure de connexion, un ticket qui a changé en cours de route, une proposition qui a expiré avant que quelqu'un s'en occupe.
+- **Prendre acte** fait disparaître la ligne définitivement. Son infobulle indique *Marquer comme vu et retirer définitivement de la liste.* Utilisez-la lorsque vous avez compris l'échec et l'avez traité (ou décidé qu'il n'appelait aucune action) : la ligne disparaît immédiatement, ne revient ni sur un autre appareil ni après un rafraîchissement, et la prise en compte est consignée dans la chronologie de l'[Activité](agents-activity.md) sous forme de **Décision**, avec qui l'a traitée et quand. Elle vient ensuite s'ajouter à **Récemment terminés** comme tout autre élément clos.
+
+**Relancer l'analyse** n'apparaît que là où une relance est réellement possible — la ligne doit désigner un ticket (ou une alerte) que l'agent peut encore atteindre. Là où ce n'est pas le cas, **Prendre acte** est proposé seul, ce qui est l'issue honnête : il n'y a rien à réessayer, seulement quelque chose à clore.
+
+L'association est délibérée. **Relancer** signifie « essaie encore » ; **Prendre acte** signifie « j'ai vu, c'est traité ». Entre les deux, **Attention requise** devrait revenir à zéro plutôt que de gonfler en une liste que plus personne ne lit.
+
+---
+
 ## Remonter d'une proposition à son contrôle
 
-Chaque groupe de ticket et chaque ligne d'attention porte un lien **Trace**. Il renvoie directement vers l'entrée correspondante dans la chronologie de l'[Activité](agents-activity.md), où vous pouvez suivre le contrôle complet qui a produit la proposition — ce que l'agent a consulté, ce qu'il a décidé et pourquoi. Utilisez-le chaque fois qu'un brouillon ou une mise à jour vous surprend et que vous voulez en connaître le raisonnement. Pour les administrateurs qui ont besoin du détail de bas niveau, l'Activité expose également une vue de diagnostic facultative des étapes de traitement brutes.
+Chaque groupe de ticket et chaque ligne d'attention porte un bouton **Trace**. Il ouvre la boîte de dialogue **Trace technique** par-dessus la file — la page en dessous ne bouge pas, de sorte qu'en fermant la boîte de dialogue vous vous retrouvez exactement où vous étiez, avec votre position de défilement et, dans l'espace d'un agent, votre onglet en cours intacts. À l'intérieur, vous pouvez suivre le contrôle complet qui a produit la proposition : ce que l'agent a consulté, les étapes qu'il a suivies et le temps que chacune a pris, ainsi que les éléments qu'il a rassemblés. Utilisez-la chaque fois qu'un brouillon ou une mise à jour vous surprend et que vous voulez en connaître le raisonnement. C'est la même boîte de dialogue que celle décrite sur la page [Activité](agents-activity.md).
 
 ---
 
 ## Conseils
 
-- Travaillez de haut en bas : videz **Nécessite votre décision**, puis jetez un œil à **Attention requise** pour tout ce qui n'a pas atteint le système de tickets. Les deux sections du milieu ne requièrent aucune action de votre part.
+- Travaillez de haut en bas : videz **Nécessite votre décision**, puis videz **Attention requise** avec **Relancer l'analyse** ou **Prendre acte**. **En cours** et **Récemment terminés** ne requièrent rien de votre part.
 - Rien ici n'a atteint le demandeur tant que vous ne l'avez pas approuvé. Lire un brouillon, le tracer ou le laisser dans la file ne change rien au ticket.
 - Rejetez plutôt que d'ignorer. Une proposition rejetée reste dans le journal d'audit avec votre note facultative, ce qui est bien plus utile par la suite qu'une proposition qui a simplement expiré sans avoir été traitée.
 - Écartez, plutôt que de rejeter, une proposition que vous ne comptez tout simplement pas envoyer. Si un brouillon est juste mais ne doit pas partir — un ticket sensible, un collègue qui a déjà répondu — **Écarter** le met de côté sans pénaliser l'agent. Réservez **Rejeter** aux propositions réellement erronées.
 - L'absence de note **Synthèse de secours** est une bonne nouvelle, pas une information manquante. Réservez votre lecture la plus attentive aux brouillons qui *en* portent une.
-- Si un changement approuvé se retrouve dans **Attention requise**, la légende rouge et le lien **Trace** vous indiquent si c'est l'agent, un contrôle de sécurité ou le système de tickets connecté qui l'a bloqué — corrigez la cause sous-jacente plutôt que de réapprouver à l'aveugle.
+- Si un changement approuvé se retrouve dans **Attention requise**, la légende rouge et le bouton **Trace** vous indiquent si c'est l'agent, un contrôle de sécurité ou le système de tickets connecté qui l'a bloqué — corrigez la cause sous-jacente, puis utilisez **Relancer l'analyse**, plutôt que de réapprouver à l'aveugle.
+- Ne prenez pas acte pour faire disparaître un chiffre. **Prendre acte** atteste qu'une personne a examiné l'échec ; une file que vous videz sans la lire vaut moins qu'une file que vous laissez telle quelle.
 - La file combinée `/agents/approvals` est la plus rapide lorsque vous exécutez plusieurs agents ; passez à l'onglet **Approbations** propre à un agent lorsque vous voulez vous concentrer sur celui-là uniquement.

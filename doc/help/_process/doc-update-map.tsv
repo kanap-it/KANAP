@@ -76,7 +76,11 @@ agents-overview.md	frontend/src/pages/agents/AgentsOverviewPage.tsx
 agents-overview.md	frontend/src/components/agents/**/*.tsx
 agents-workspace.md	frontend/src/pages/agents/AgentWorkspacePage.tsx
 agents-workspace.md	frontend/src/pages/agents/useAgentControlData.ts
+agents-workspace.md	frontend/src/components/agents/AgentControlBar.tsx
+agents-workspace.md	frontend/src/components/agents/AgentStatusStrip.tsx
+agents-workspace.md	frontend/src/components/agents/agentRunState.ts
 agents-approvals.md	frontend/src/pages/agents/AgentsApprovalsPage.tsx
 agents-activity.md	frontend/src/pages/agents/AgentsActivityPage.tsx
+agents-activity.md	frontend/src/components/agents/RunTraceDialog.tsx
 agents-shared-context.md	frontend/src/pages/agents/SharedContextProfilesPage.tsx
 agents-overview.md	frontend/src/components/agents/*.tsx
