@@ -94,6 +94,13 @@ function numberField(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+// Activity-history retention (days). Mirror of the backend bounds in
+// ai-agent-activity-retention.ts — the server clamps too, this only keeps the
+// field from showing a value the save would silently change.
+const DEFAULT_ACTIVITY_RETENTION_DAYS = 30;
+const MIN_ACTIVITY_RETENTION_DAYS = 7;
+const MAX_ACTIVITY_RETENTION_DAYS = 90;
+
 function positiveNumber(value: string, fallback: number): number {
   return numberField(value) ?? fallback;
 }
@@ -212,6 +219,7 @@ type HelpdeskSettingsForm = {
   dailyCost: string;
   approvalTtlHours: string;
   onStale: string;
+  activityRetentionDays: string;
 };
 
 const HELPDESK_CAPABILITY_GROUPS = [
@@ -264,6 +272,7 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
     dailyCost: numberString(daily.max_estimated_cost_eur, DEFAULT_DAILY_COST),
     approvalTtlHours: hoursString(approvalTtlSeconds, DEFAULT_APPROVAL_TTL_HOURS),
     onStale: ['re_review', 'cancel', 'apply_anyway'].includes(stringValue(onStale.internal_note)) ? stringValue(onStale.internal_note) : 're_review',
+    activityRetentionDays: numberString(queue.activity_retention_days, DEFAULT_ACTIVITY_RETENTION_DAYS),
   };
 }
 
@@ -350,6 +359,11 @@ function helpdeskDefinitionSettingsPayload(
     queue_policy_json: {
       ...queue,
       enabled: true,
+      activity_retention_days: clampNumber(
+        positiveNumber(form.activityRetentionDays, DEFAULT_ACTIVITY_RETENTION_DAYS),
+        MIN_ACTIVITY_RETENTION_DAYS,
+        MAX_ACTIVITY_RETENTION_DAYS,
+      ),
       review_cooldown_seconds: positiveNumber(form.reviewCooldownHours, DEFAULT_REVIEW_COOLDOWN_HOURS) * 3600,
       on_conflict: form.onConflict === 'supersede' ? 'supersede' : 'defer',
       approval_ttl_seconds: positiveNumber(form.approvalTtlHours, DEFAULT_APPROVAL_TTL_HOURS) * 3600,
@@ -401,6 +415,7 @@ type SreSettingsForm = {
   filters: MonitoringTargetingFilter[];
   maxAlerts: string;
   maxRequests: string;
+  activityRetentionDays: string;
 };
 
 function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition): SreSettingsForm {
@@ -410,6 +425,10 @@ function sreSettingsFormFromDefinition(definition: AiAgentControlAgentDefinition
     filters: monitoringFiltersFromScope(scope),
     maxAlerts: numberString(ingestion.max_alerts_per_cycle, DEFAULT_SRE_MAX_ALERTS),
     maxRequests: numberString(ingestion.max_provider_requests_per_cycle, DEFAULT_SRE_MAX_REQUESTS),
+    activityRetentionDays: numberString(
+      policyObject(definition.queue_policy_json).activity_retention_days,
+      DEFAULT_ACTIVITY_RETENTION_DAYS,
+    ),
   };
 }
 
@@ -1053,6 +1072,16 @@ function SettingsTab({ definition, autosaveRegistry }: {
         production_polling_enabled: watchingNow,
         automatic_writes_enabled: false,
       },
+      // Spread the stored queue policy: the backend replaces the column
+      // wholesale, so only the retention key may change here.
+      queue_policy_json: {
+        ...policyObject(definitionNow.queue_policy_json),
+        activity_retention_days: clampNumber(
+          positiveNumber(current.activityRetentionDays, DEFAULT_ACTIVITY_RETENTION_DAYS),
+          MIN_ACTIVITY_RETENTION_DAYS,
+          MAX_ACTIVITY_RETENTION_DAYS,
+        ),
+      },
       scope_policy_json: {
         ...scope,
         knowledge_sources: {
@@ -1484,8 +1513,9 @@ function SettingsTab({ definition, autosaveRegistry }: {
             <SettingsField label={t('settings.maxTickets')}><TextField size="small" value={form.maxTickets} onChange={(event) => update('maxTickets', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.maxRequests')}><TextField size="small" value={form.maxRequests} onChange={(event) => update('maxRequests', event.target.value)} /></SettingsField>
           </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
             <SettingsField label={t('settings.approvalTtl')} hint={t('settings.approvalTtlHint')}><TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} /></SettingsField>
+            <SettingsField label={t('settings.activityRetention')} hint={t('settings.activityRetentionHint')}><TextField size="small" value={form.activityRetentionDays} onChange={(event) => update('activityRetentionDays', event.target.value)} /></SettingsField>
             <SettingsField label={t('settings.onStale')}>
               <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={drawerSelectSx}>
                 <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
@@ -1529,6 +1559,9 @@ function SettingsTab({ definition, autosaveRegistry }: {
             </SettingsField>
             <SettingsField label={t('settings.maxMonitoringRequests')}>
               <TextField size="small" value={sreForm.maxRequests} onChange={(event) => updateSre({ maxRequests: event.target.value })} />
+            </SettingsField>
+            <SettingsField label={t('settings.activityRetention')} hint={t('settings.activityRetentionHint')}>
+              <TextField size="small" value={sreForm.activityRetentionDays} onChange={(event) => updateSre({ activityRetentionDays: event.target.value })} />
             </SettingsField>
           </Box>
         </Section>

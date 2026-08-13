@@ -1,28 +1,22 @@
 import React from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
-import KanapDialog from '../../components/design/KanapDialog';
 import {
   aiAgentControlApi,
+  AI_AGENT_CONTROL_ACTIVITY_TYPES,
+  type AiAgentControlActivityCheck,
   type AiAgentControlActivityDetail,
   type AiAgentControlActivityType,
-  type AiAgentControlRunDetail,
 } from '../../ai/aiApi';
 import { EmptyState, formatDateTime, humanize, Section, StatusText, TargetLabel } from '../../components/agents/agentControlPrimitives';
+import RunTraceDialog from '../../components/agents/RunTraceDialog';
 import { useLocale } from '../../i18n/useLocale';
 
-function JsonPreview({ value, emptyLabel }: { value: unknown; emptyLabel: string }) {
-  if (!value) return <Typography variant="body2" color="text.secondary">{emptyLabel}</Typography>;
-  return (
-    <Box component="pre" sx={{ m: 0, maxHeight: 260, overflow: 'auto', p: 1, borderRadius: 1, bgcolor: 'kanap.bg.composer', border: '1px solid', borderColor: 'divider', fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-      {JSON.stringify(value, null, 2)}
-    </Box>
-  );
-}
+const ACTIVITY_PAGE_SIZE = 50;
 
 function hasInlineDetail(detail: AiAgentControlActivityDetail | null | undefined): detail is AiAgentControlActivityDetail {
   return !!detail && !!(
@@ -30,14 +24,19 @@ function hasInlineDetail(detail: AiAgentControlActivityDetail | null | undefined
     || detail.reason
     || detail.rationale
     || detail.evidenceCount
+    || detail.check
     || (detail.changes && detail.changes.length > 0)
   );
 }
 
 // One-line at-a-glance summary so the timeline shows what happened without expanding.
+// Checks carry their summary in the row title already, so they get no preview line.
 function DetailPreview({ detail }: { detail: AiAgentControlActivityDetail }) {
   const { t } = useTranslation(['agents']);
   let text: string | null = null;
+  if (detail.check) {
+    return null;
+  }
   if (detail.changes && detail.changes.length > 0) {
     const change = detail.changes[0];
     const field = t(`activity.fields.${change.field}`, { defaultValue: humanize(change.field) });
@@ -58,12 +57,64 @@ function DetailPreview({ detail }: { detail: AiAgentControlActivityDetail }) {
   );
 }
 
+// What the watcher found on one pass, in the row title: "Ticket check — 3 new
+// tickets, 1 error". The counts were already recorded, they were simply never
+// shown.
+function useCheckSummary() {
+  const { t } = useTranslation(['agents']);
+  return React.useCallback((check: AiAgentControlActivityCheck, isSre: boolean): string | null => {
+    if (check.status && check.status !== 'completed') {
+      const label = t(`activity.checkStatus.${check.status}`, { defaultValue: humanize(check.status) });
+      return check.reason ? `${label} — ${check.reason}` : label;
+    }
+    const parts: string[] = [];
+    parts.push(check.enqueued > 0
+      ? t(isSre ? 'activity.checkSummary.newAlerts' : 'activity.checkSummary.newTickets', { count: check.enqueued })
+      : t(isSre ? 'activity.checkSummary.noAlerts' : 'activity.checkSummary.noTickets'));
+    if (check.deduped > 0) parts.push(t('activity.checkSummary.duplicates', { count: check.deduped }));
+    if (check.errorCount > 0) parts.push(t('activity.checkSummary.errors', { count: check.errorCount }));
+    return parts.join(', ');
+  }, [t]);
+}
+
+function CheckDetail({ check }: { check: AiAgentControlActivityCheck }) {
+  const { t } = useTranslation(['agents']);
+  const rows: Array<[string, string]> = [
+    [t('activity.checkFields.listed'), String(check.listed)],
+    [t('activity.checkFields.enqueued'), String(check.enqueued)],
+    [t('activity.checkFields.deduped'), String(check.deduped)],
+    [t('activity.checkFields.processed'), String(check.processed)],
+  ];
+  return (
+    <Stack spacing={0.5}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 0.75 }}>
+        {rows.map(([label, value]) => (
+          <Box key={label}>
+            <Typography variant="caption" color="text.secondary" component="div">{label}</Typography>
+            <Typography variant="body2">{value}</Typography>
+          </Box>
+        ))}
+      </Box>
+      {check.reason && (
+        <Typography variant="body2">
+          <Box component="span" sx={{ color: 'text.secondary' }}>{t('activity.reason')}: </Box>
+          {check.reason}
+        </Typography>
+      )}
+      {check.errors.map((error, index) => (
+        <Typography key={`${error}-${index}`} variant="caption" color="error">{error}</Typography>
+      ))}
+    </Stack>
+  );
+}
+
 // Full plain-language detail of a single timeline entry (proposed message, field
 // changes, the reason and the reviewer's note, sources cited).
 function ActivityDetail({ detail }: { detail: AiAgentControlActivityDetail }) {
   const { t } = useTranslation(['agents']);
   return (
     <Stack spacing={1} sx={{ mt: 1, p: 1.25, borderRadius: 1, bgcolor: 'kanap.bg.composer', border: '1px solid', borderColor: 'divider' }}>
+      {detail.check && <CheckDetail check={detail.check} />}
       {detail.changes && detail.changes.length > 0 && (
         <Stack spacing={0.25}>
           {detail.changes.map((change, index) => {
@@ -102,73 +153,27 @@ function ActivityDetail({ detail }: { detail: AiAgentControlActivityDetail }) {
   );
 }
 
-// Readable technical trace (steps → tool calls → evidence), with the raw JSON
-// kept one layer down per the IA spec — never the default view.
-function RunAuditDetail({ detail }: { detail: AiAgentControlRunDetail }) {
-  const { t } = useTranslation(['agents']);
-  const [rawOpen, setRawOpen] = React.useState(false);
-  const steps = detail.run_steps ?? [];
-  const tools = detail.tool_executions ?? [];
-  const evidence = detail.evidence ?? [];
-  return (
-    <Stack spacing={1.5}>
-      <Typography variant="body2">{t('activity.runStatus', { status: detail.run.status })}</Typography>
-      {steps.length > 0 && (
-        <Box>
-          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>{t('activity.steps')}</Typography>
-          <Stack spacing={0.5}>
-            {steps.map((step) => (
-              <Stack key={step.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                <Typography variant="caption">{step.step_index}. {humanize(step.capability_name ?? step.kind)}</Typography>
-                <StatusText status={step.status} />
-              </Stack>
-            ))}
-          </Stack>
-        </Box>
-      )}
-      {tools.length > 0 && (
-        <Box>
-          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>{t('activity.tools')}</Typography>
-          <Stack spacing={0.5}>
-            {tools.map((tool) => (
-              <Stack key={tool.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                <Typography variant="caption">{humanize(tool.capability_name)}{tool.duration_ms != null ? ` · ${tool.duration_ms} ms` : ''}</Typography>
-                <StatusText status={tool.status} />
-              </Stack>
-            ))}
-          </Stack>
-        </Box>
-      )}
-      {evidence.length > 0 && (
-        <Box>
-          <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>{t('activity.evidence')}</Typography>
-          <Stack spacing={0.5}>
-            {evidence.map((item) => (
-              <Typography key={item.id} variant="caption" color="text.secondary">
-                {item.summary} · {humanize(item.source_object_type)}
-              </Typography>
-            ))}
-          </Stack>
-        </Box>
-      )}
-      <Box>
-        <Button size="small" variant="text" onClick={() => setRawOpen((open) => !open)}>
-          {rawOpen ? t('activity.hideRaw') : t('activity.showRaw')}
-        </Button>
-        {rawOpen && <JsonPreview value={detail} emptyLabel={t('common.notSet')} />}
-      </Box>
-    </Stack>
-  );
-}
-
 export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) {
   const { t } = useTranslation(['agents']);
   const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const [targetRef, setTargetRef] = React.useState(searchParams.get('targetRef') ?? '');
   const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set());
-  const runId = searchParams.get('runId');
+  // The trace opens in place. Seeded from ?runId= so old deep links still work,
+  // then owned by local state so closing it never navigates the page away.
+  const [traceRunId, setTraceRunId] = React.useState<string | null>(() => searchParams.get('runId'));
   const typeParam = searchParams.get('type') as AiAgentControlActivityType | null;
+  const checkSummary = useCheckSummary();
+
+  const closeTrace = React.useCallback(() => {
+    setTraceRunId(null);
+    setSearchParams((current) => {
+      if (!current.get('runId')) return current;
+      const next = new URLSearchParams(current);
+      next.delete('runId');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const toggleExpanded = (id: string) => {
     setExpanded((current) => {
@@ -200,29 +205,39 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
     for (const definition of queueQuery.data?.definitions ?? []) map.set(definition.agent_key, definition.agent_type ?? 'helpdesk');
     return map;
   }, [queueQuery.data]);
-  const activityTitle = React.useCallback((entry: { agentKey?: string | null; titleKey: string }) => {
+  const activityTitle = React.useCallback((entry: {
+    agentKey?: string | null;
+    titleKey: string;
+    detail?: AiAgentControlActivityDetail | null;
+  }) => {
+    const isSre = !!entry.agentKey && agentTypeByKey.get(entry.agentKey) === 'sre';
     const fallback = t(`activity.titles.${entry.titleKey}`, { defaultValue: humanize(entry.titleKey) });
-    if (entry.agentKey && agentTypeByKey.get(entry.agentKey) === 'sre') {
-      return t(`activity.titles.${entry.titleKey}_sre`, { defaultValue: fallback });
-    }
-    return fallback;
-  }, [agentTypeByKey, t]);
-  const activityQuery = useQuery({
+    const base = isSre ? t(`activity.titles.${entry.titleKey}_sre`, { defaultValue: fallback }) : fallback;
+    const summary = entry.detail?.check ? checkSummary(entry.detail.check, isSre) : null;
+    return summary ? `${base} — ${summary}` : base;
+  }, [agentTypeByKey, checkSummary, t]);
+
+  // Keyset pagination: the query key stays stable (no offset/cursor in the URL),
+  // react-query keeps the loaded pages, and "load more" walks the cursor.
+  const activityQuery = useInfiniteQuery({
     queryKey: ['ai-agent-control-activity', agentDefinition?.id ?? null, searchParams.toString()],
-    queryFn: () => aiAgentControlApi.listActivity({
+    queryFn: ({ pageParam }) => aiAgentControlApi.listActivity({
       agentDefinitionId: agentDefinition?.id ?? null,
       targetRef: searchParams.get('targetRef'),
       types: typeParam ? [typeParam] : null,
-      limit: 75,
+      limit: ACTIVITY_PAGE_SIZE,
+      cursor: pageParam ?? null,
     }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !agentKey || !!agentDefinition,
     refetchInterval: 60_000,
   });
-  const runQuery = useQuery({
-    queryKey: ['ai-agent-control-run', runId],
-    queryFn: () => aiAgentControlApi.getRun(runId as string),
-    enabled: !!runId,
-  });
+  const items = React.useMemo(
+    () => (activityQuery.data?.pages ?? []).flatMap((page) => page.items),
+    [activityQuery.data],
+  );
+  const total = activityQuery.data?.pages?.[0]?.total ?? null;
 
   const applySearch = () => {
     const next = new URLSearchParams(searchParams);
@@ -241,7 +256,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
       )}
       <Stack spacing={2}>
         <Section title={t('activity.filters')}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }} flexWrap="wrap" useFlexGap>
             <TextField
               size="small"
               value={targetRef}
@@ -250,7 +265,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
               onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }}
             />
             <Button size="small" variant="outlined" startIcon={<SearchIcon />} onClick={applySearch}>{t('activity.search')}</Button>
-            {(['proposal', 'decision', 'execution', 'configuration', 'pause', 'error'] as AiAgentControlActivityType[]).map((type) => (
+            {AI_AGENT_CONTROL_ACTIVITY_TYPES.map((type) => (
               <Chip
                 key={type}
                 clickable
@@ -273,76 +288,78 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
             <Box display="flex" justifyContent="center" py={4}><CircularProgress size={24} /></Box>
           ) : activityQuery.isError ? (
             <Alert severity="error">{t('activity.loadFailed')}</Alert>
-          ) : (activityQuery.data?.items ?? []).length === 0 ? (
+          ) : items.length === 0 ? (
             <EmptyState>{t('activity.empty')}</EmptyState>
           ) : (
-            <Stack divider={<Box sx={{ borderTop: '1px solid', borderColor: 'divider' }} />}>
-              {(activityQuery.data?.items ?? []).map((entry) => {
-                const detailAvailable = hasInlineDetail(entry.detail);
-                const isExpanded = expanded.has(entry.id);
-                return (
-                  <Box key={entry.id} sx={{ p: 1.5 }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
-                          <Chip size="small" label={t(`activity.types.${entry.type}`)} />
-                          {entry.actionClass && <Chip size="small" variant="outlined" label={t(`settings.actionClasses.${entry.actionClass}`, { defaultValue: humanize(entry.actionClass) })} />}
-                          {entry.status && <StatusText status={entry.status} />}
-                          {entry.agentKey && <Chip size="small" variant="outlined" label={agentNameByKey.get(entry.agentKey) ?? entry.agentKey} />}
-                          {entry.targetRef && <TargetLabel targetType={entry.targetType} targetRef={entry.targetRef} size="dense" />}
+            <>
+              <Stack divider={<Box sx={{ borderTop: '1px solid', borderColor: 'divider' }} />}>
+                {items.map((entry) => {
+                  const detailAvailable = hasInlineDetail(entry.detail);
+                  const isExpanded = expanded.has(entry.id);
+                  return (
+                    <Box key={entry.id} sx={{ p: 1.5 }}>
+                      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
+                            <Chip size="small" label={t(`activity.types.${entry.type}`)} />
+                            {entry.actionClass && <Chip size="small" variant="outlined" label={t(`settings.actionClasses.${entry.actionClass}`, { defaultValue: humanize(entry.actionClass) })} />}
+                            {entry.status && <StatusText status={entry.status} />}
+                            {entry.agentKey && <Chip size="small" variant="outlined" label={agentNameByKey.get(entry.agentKey) ?? entry.agentKey} />}
+                            {entry.targetRef && <TargetLabel targetType={entry.targetType} targetRef={entry.targetRef} size="dense" />}
+                          </Stack>
+                          <Typography variant="body2" sx={{ mt: 0.75 }}>
+                            {activityTitle(entry)}
+                          </Typography>
+                          {detailAvailable && !isExpanded && <DetailPreview detail={entry.detail!} />}
+                          {entry.errorMessage && <Typography variant="caption" color="error" component="div">{entry.errorMessage}</Typography>}
+                          {detailAvailable && isExpanded && <ActivityDetail detail={entry.detail!} />}
+                        </Box>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                          <Typography variant="caption" color="text.secondary">{formatDateTime(entry.at, locale)}</Typography>
+                          {detailAvailable && (
+                            <Button size="small" variant="text" onClick={() => toggleExpanded(entry.id)}>
+                              {isExpanded ? t('activity.detailsHide') : t('activity.detailsShow')}
+                            </Button>
+                          )}
+                          {entry.runId && (
+                            <Button size="small" variant="text" onClick={() => setTraceRunId(entry.runId as string)}>
+                              {t('activity.trace')}
+                            </Button>
+                          )}
                         </Stack>
-                        <Typography variant="body2" sx={{ mt: 0.75 }}>
-                          {activityTitle(entry)}
-                        </Typography>
-                        {detailAvailable && !isExpanded && <DetailPreview detail={entry.detail!} />}
-                        {entry.errorMessage && <Typography variant="caption" color="error" component="div">{entry.errorMessage}</Typography>}
-                        {detailAvailable && isExpanded && <ActivityDetail detail={entry.detail!} />}
-                      </Box>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-                        <Typography variant="caption" color="text.secondary">{formatDateTime(entry.at, locale)}</Typography>
-                        {detailAvailable && (
-                          <Button size="small" variant="text" onClick={() => toggleExpanded(entry.id)}>
-                            {isExpanded ? t('activity.detailsHide') : t('activity.detailsShow')}
-                          </Button>
-                        )}
-                        {entry.runId && (
-                          <Button
-                            size="small"
-                            variant="text"
-                            onClick={() => {
-                              const next = new URLSearchParams(searchParams);
-                              next.set('runId', entry.runId as string);
-                              setSearchParams(next);
-                            }}
-                          >
-                            {t('activity.trace')}
-                          </Button>
-                        )}
                       </Stack>
-                    </Stack>
-                  </Box>
-                );
-              })}
-            </Stack>
+                    </Box>
+                  );
+                })}
+              </Stack>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ px: 1.5, py: 1, borderTop: '1px solid', borderColor: 'divider' }}
+              >
+                <Typography variant="caption" color="text.secondary" sx={{ flex: 1, minWidth: 0 }}>
+                  {total != null
+                    ? t('activity.shownOfTotal', { shown: items.length, total })
+                    : t('activity.shown', { shown: items.length })}
+                </Typography>
+                {activityQuery.hasNextPage && (
+                  <Button
+                    size="small"
+                    variant="action"
+                    disabled={activityQuery.isFetchingNextPage}
+                    startIcon={activityQuery.isFetchingNextPage ? <CircularProgress size={14} /> : undefined}
+                    onClick={() => { void activityQuery.fetchNextPage(); }}
+                  >
+                    {t('activity.loadMore')}
+                  </Button>
+                )}
+              </Stack>
+            </>
           )}
         </Section>
 
-        <KanapDialog
-          open={!!runId}
-          title={t('activity.technicalTrace')}
-          onClose={() => { const next = new URLSearchParams(searchParams); next.delete('runId'); setSearchParams(next); }}
-          onSave={() => { const next = new URLSearchParams(searchParams); next.delete('runId'); setSearchParams(next); }}
-          saveLabel={t('activity.closeTrace')}
-          showCancel={false}
-        >
-          {runQuery.isLoading ? (
-            <Box display="flex" justifyContent="center" py={4}><CircularProgress size={24} /></Box>
-          ) : runQuery.isError || !runQuery.data ? (
-            <Alert severity="error">{t('activity.traceFailed')}</Alert>
-          ) : (
-            <RunAuditDetail detail={runQuery.data} />
-          )}
-        </KanapDialog>
+        <RunTraceDialog runId={traceRunId} onClose={closeTrace} />
       </Stack>
     </Box>
   );

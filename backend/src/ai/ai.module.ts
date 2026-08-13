@@ -81,6 +81,7 @@ import { AiSharedContextProfileService } from './control-plane/agent-control/ai-
 import { AiTicketNeedRepresentationService } from './control-plane/agent-control/ai-ticket-need-representation.service';
 import { AiAgentApprovalLifecycleSweeperService } from './control-plane/agent/ai-agent-approval-lifecycle-sweeper.service';
 import { AiAgentBuiltinQuotaService } from './control-plane/agent/ai-agent-builtin-quota.service';
+import { AiAgentActivityRetentionService } from './control-plane/agent/ai-agent-activity-retention.service';
 import { AiAgentHelpdeskTicketingIngestionService } from './control-plane/agent/ai-agent-helpdesk-ticketing-ingestion.service';
 import { AiAgentMonitoringAlertIngestionService } from './control-plane/agent/ai-agent-monitoring-alert-ingestion.service';
 import { AiAgentWorkQueueService } from './control-plane/agent/ai-agent-work-queue.service';
@@ -296,6 +297,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityDispatcherService,
     AiEvidenceService,
     AiAgentApprovalLifecycleSweeperService,
+    AiAgentActivityRetentionService,
     AiAgentBuiltinQuotaService,
     AiAgentHelpdeskTicketingIngestionService,
     AiAgentMonitoringAlertIngestionService,
@@ -366,6 +368,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     AiCapabilityDispatcherService,
     AiEvidenceService,
     AiAgentApprovalLifecycleSweeperService,
+    AiAgentActivityRetentionService,
     AiAgentBuiltinQuotaService,
     AiAgentHelpdeskTicketingIngestionService,
     AiAgentMonitoringAlertIngestionService,

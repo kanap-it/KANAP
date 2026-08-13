@@ -40,6 +40,7 @@ import {
   AgentControlTargetingPreviewInput,
   AiAgentControlService,
 } from './ai-agent-control.service';
+import { AGENT_ACTIVITY_TYPES } from './ai-agent-activity-timeline';
 import { SharedContextProfileInput } from './ai-shared-context-profile.service';
 
 function parseLimit(value: unknown, fallback: number): number {
@@ -52,7 +53,7 @@ function parseLimit(value: unknown, fallback: number): number {
 function parseActivityTypes(value: unknown): AgentControlActivityType[] | null {
   if (typeof value !== 'string' && !Array.isArray(value)) return null;
   const rawValues = Array.isArray(value) ? value : value.split(',');
-  const allowed = new Set(['proposal', 'decision', 'execution', 'configuration', 'pause', 'error']);
+  const allowed = new Set<string>(AGENT_ACTIVITY_TYPES);
   const parsed = rawValues
     .map((entry) => String(entry).trim())
     .filter((entry): entry is AgentControlActivityType => allowed.has(entry));
@@ -433,7 +434,7 @@ export class AiAgentControlController {
     @Query('actorUserId') actorUserId?: string,
     @Query('status') status?: string,
     @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+    @Query('cursor') cursor?: string,
   ) {
     const context = this.buildContext(req);
     return this.runRead(context, (tenantContext) => this.control.listActivity(tenantContext, {
@@ -445,7 +446,7 @@ export class AiAgentControlController {
       actorUserId: actorUserId ?? null,
       status: status ?? null,
       limit: parseLimit(limit, 50),
-      offset: parseLimit(offset, 0),
+      cursor: cursor ?? null,
     }));
   }
 

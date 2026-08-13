@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { FindOptionsWhere, In } from 'typeorm';
+import { FindOptionsWhere, In, SelectQueryBuilder } from 'typeorm';
 import { Features } from '../../../config/features';
 import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { AiExecutionContextWithManager } from '../../ai.types';
@@ -14,6 +14,15 @@ import {
   isLowRiskAutomationActionClass,
   LOW_RISK_AUTOMATION_ALLOWLIST,
 } from '../agent/ai-agent-autonomy';
+import {
+  AGENT_ACTIVITY_TYPES,
+  AgentActivityType,
+  auditActivityType,
+  auditActivityTypeSql,
+  decodeActivityCursor,
+  mergeActivityPage,
+} from './ai-agent-activity-timeline';
+import { normalizeQueuePolicyRetention } from '../agent/ai-agent-activity-retention';
 import {
   AgentQueueLiveTargetLike,
   AiAgentWorkQueueService,
@@ -176,7 +185,7 @@ export type AgentControlListActionsOptions = {
   status?: string | null;
 };
 
-export type AgentControlActivityType = 'proposal' | 'decision' | 'execution' | 'configuration' | 'pause' | 'error';
+export type AgentControlActivityType = AgentActivityType;
 
 export type AgentControlActivityOptions = {
   agentDefinitionId?: string | null;
@@ -187,7 +196,9 @@ export type AgentControlActivityOptions = {
   actorUserId?: string | null;
   status?: string | null;
   limit?: number;
-  offset?: number;
+  // Keyset cursor from the previous page's `nextCursor`. Deliberately opaque:
+  // the timeline merges several sources, so a raw offset can't address it.
+  cursor?: string | null;
 };
 
 export type AgentControlMockTriageInput = {
@@ -2807,6 +2818,17 @@ function serializeRunStep(step: AiRunStep) {
 // timeline (KANAP IA spec 23 §4.3) instead of only a generic label. Bounded:
 // long text is truncated; only the proposed content and diffs are exposed.
 const ACTIVITY_DETAIL_BODY_MAX = 1200;
+type ActivityCheckDetail = {
+  listed: number;
+  enqueued: number;
+  deduped: number;
+  processed: number;
+  errorCount: number;
+  errors: string[];
+  status: string | null;
+  reason: string | null;
+};
+
 type ActivityActionDetail = {
   capabilityName: string | null;
   body: string | null;
@@ -2814,7 +2836,41 @@ type ActivityActionDetail = {
   reason: string | null;
   rationale: string | null;
   evidenceCount: number | null;
+  check?: ActivityCheckDetail | null;
 };
+
+// The watcher stores its poll summary as the audit event metadata; the timeline
+// used to throw it away (detail: null) and show a bare "Ticket check completed".
+function activityCheckDetail(event: AiAgentAuditEvent): ActivityActionDetail | null {
+  if (auditActivityType(event) !== 'check') return null;
+  const metadata = metadataObject(event.metadata_json);
+  const count = (value: unknown): number => {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+  };
+  const errors = (Array.isArray(metadata.errors) ? metadata.errors : [])
+    .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    .map((entry) => entry.trim().slice(0, 200));
+  const check: ActivityCheckDetail = {
+    listed: count(metadata.listed),
+    enqueued: count(metadata.enqueued),
+    deduped: count(metadata.deduped),
+    processed: count(metadata.processed),
+    errorCount: errors.length,
+    errors: errors.slice(0, 3),
+    status: stringFromMetadata(metadata.status),
+    reason: stringFromMetadata(metadata.reason),
+  };
+  return {
+    capabilityName: null,
+    body: null,
+    changes: null,
+    reason: null,
+    rationale: null,
+    evidenceCount: null,
+    check,
+  };
+}
 
 function activityActionDetail(action: AiActionRequest): ActivityActionDetail | null {
   const payload = isRecord(action.action_payload_json) ? action.action_payload_json : null;
@@ -4725,7 +4781,9 @@ export class AiAgentControlService {
       agent_priority: cleanAgentPriority(input.agent_priority, cleanAgentPriority(template?.agent_priority, 100)),
       trigger_policy_json: normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? template?.trigger_policy_json ?? null,
       scope_policy_json: normalizedScopePolicy,
-      queue_policy_json: normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
+      queue_policy_json: normalizeQueuePolicyRetention(
+        normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
+      ),
       response_policy_json: normalizeResponsePolicyForConfig(
         normalizedPolicyObject(input.response_policy_json, 'Response policy') ?? template?.response_policy_json ?? null,
       ),
@@ -4810,7 +4868,11 @@ export class AiAgentControlService {
       });
     }
     if (Object.prototype.hasOwnProperty.call(input, 'queue_policy_json')) {
-      definition.queue_policy_json = normalizedPolicyObject(input.queue_policy_json, 'Queue policy');
+      // Retention is operator-editable, so the bounds are enforced here too —
+      // never on the client alone.
+      definition.queue_policy_json = normalizeQueuePolicyRetention(
+        normalizedPolicyObject(input.queue_policy_json, 'Queue policy'),
+      );
     }
     if (Object.prototype.hasOwnProperty.call(input, 'response_policy_json')) {
       definition.response_policy_json = normalizeResponsePolicyForConfig(
@@ -5278,14 +5340,20 @@ export class AiAgentControlService {
 
   async listActivity(context: AiExecutionContextWithManager, options: AgentControlActivityOptions = {}) {
     const limit = safeLimit(options.limit, 50, 100);
-    const offset = Math.max(0, Math.floor(options.offset ?? 0));
-    const fetchLimit = Math.min(400, Math.max(100, (limit + offset) * 4));
-    const allTypes: AgentControlActivityType[] = ['proposal', 'decision', 'execution', 'configuration', 'pause', 'error'];
-    const wantedTypes = new Set(options.types?.length ? options.types : allTypes);
+    // Keyset pagination: every source stream is read in the same (time desc)
+    // order from the cursor, `limit + 1` rows each, so the merged head is
+    // exactly the next page. The former "fetch up to 400 per table, merge, then
+    // slice by offset" silently dropped entries past the first pages.
+    const cursor = decodeActivityCursor(options.cursor);
+    const cursorDate = cursor ? new Date(Date.parse(cursor.at)) : null;
+    const fetchLimit = limit + 1;
+    const wantedTypes = new Set<AgentControlActivityType>(
+      options.types?.length ? options.types : AGENT_ACTIVITY_TYPES,
+    );
     const from = options.from ? new Date(options.from) : null;
     const to = options.to ? new Date(options.to) : null;
-    const fromTime = from && Number.isFinite(from.getTime()) ? from.getTime() : null;
-    const toTime = to && Number.isFinite(to.getTime()) ? to.getTime() : null;
+    const fromDate = from && Number.isFinite(from.getTime()) ? from : null;
+    const toDate = to && Number.isFinite(to.getTime()) ? to : null;
     const targetRef = options.targetRef?.trim() || null;
     const status = options.status?.trim() || null;
     const agentDefinitionId = options.agentDefinitionId?.trim() || null;
@@ -5315,23 +5383,31 @@ export class AiAgentControlService {
     };
 
     const entries: ActivityEntry[] = [];
-    const withinWindow = (value: Date | string | null | undefined): value is Date | string => {
-      if (!value) return false;
-      const time = value instanceof Date ? value.getTime() : Date.parse(String(value));
-      if (!Number.isFinite(time)) return false;
-      if (fromTime !== null && time < fromTime) return false;
-      if (toTime !== null && time > toTime) return false;
-      return true;
-    };
     const iso = (value: Date | string): string => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-    const auditType = (event: AiAgentAuditEvent): AgentControlActivityType => {
-      if (event.event_type.includes('pause')) return 'pause';
-      if (event.severity === 'error' || event.event_type.includes('fail') || event.event_type.includes('error')) return 'error';
-      return 'configuration';
+    // Time window + cursor bound on the column an entry stream is ordered by.
+    // Counting queries reuse the same builder without the cursor bound.
+    const applyWindow = <T extends SelectQueryBuilder<any>>(qb: T, column: string, withCursor: boolean): T => {
+      if (fromDate) qb.andWhere(`${column} >= :windowFrom`, { windowFrom: fromDate });
+      if (toDate) qb.andWhere(`${column} <= :windowTo`, { windowTo: toDate });
+      if (withCursor && cursorDate) qb.andWhere(`${column} <= :windowCursor`, { windowCursor: cursorDate });
+      return qb;
+    };
+    // Total is honest but only computed for the first page — "load more" pages
+    // keep the count the UI already has instead of paying six COUNTs a minute.
+    const countTotals = cursor == null;
+    let total = 0;
+    const readStream = async <E>(
+      build: (withCursor: boolean) => SelectQueryBuilder<E>,
+      orderColumn: string,
+    ): Promise<E[]> => {
+      const rows = await build(true).orderBy(orderColumn, 'DESC').take(fetchLimit).getMany();
+      if (countTotals) {
+        total += await build(false).getCount();
+      }
+      return rows;
     };
 
-    let actionRows: AiActionRequest[] = [];
-    if (wantedTypes.has('proposal') || wantedTypes.has('execution') || wantedTypes.has('error')) {
+    const actionStream = (withCursor: boolean, orderColumn: string): SelectQueryBuilder<AiActionRequest> => {
       const qb = context.manager.getRepository(AiActionRequest).createQueryBuilder('action')
         .where('action.tenant_id = :tenantId', { tenantId: context.tenantId });
       if (agentDefinitionId) {
@@ -5346,76 +5422,116 @@ export class AiAgentControlService {
       if (actorUserId) {
         qb.andWhere('action.user_id = :actorUserId', { actorUserId });
       }
-      actionRows = await qb.orderBy('action.created_at', 'DESC').take(fetchLimit).getMany();
-      for (const action of actionRows) {
-        const actionAgentDefinitionId = definitionIdFromMetadata(action.metadata_json);
-        const base = {
-          agentDefinitionId: actionAgentDefinitionId,
-          agentKey: null,
-          targetType: action.target_type,
-          targetRef: action.target_ref,
-          actorUserId: action.user_id,
-          actionRequestId: action.id,
-          approvalId: null,
-          runId: action.run_id,
-          auditEventId: null,
-          capabilityName: action.capability_name,
-          actionClass: actionClass(action),
-          eventType: null,
-          severity: null,
-          errorMessage: action.error_message,
-          detail: activityActionDetail(action),
-        };
-        if (wantedTypes.has('proposal') && withinWindow(action.created_at)) {
-          entries.push({
-            ...base,
-            id: `action:${action.id}:proposal`,
-            at: iso(action.created_at),
-            type: 'proposal',
-            titleKey: 'proposal_created',
-            status: action.status,
-          });
-        }
-        if (wantedTypes.has('execution') && action.executed_at && withinWindow(action.executed_at)) {
-          entries.push({
-            ...base,
-            id: `action:${action.id}:execution`,
-            at: iso(action.executed_at),
-            type: 'execution',
-            titleKey: 'action_executed',
-            status: action.status,
-          });
-        }
-        if (wantedTypes.has('error') && ['failed', 'provider_error'].includes(action.status) && withinWindow(action.updated_at ?? action.created_at)) {
-          entries.push({
-            ...base,
-            id: `action:${action.id}:error`,
-            at: iso(action.updated_at ?? action.created_at),
-            type: 'error',
-            titleKey: 'action_failed',
-            status: action.status,
-          });
-        }
+      return applyWindow(qb, orderColumn, withCursor);
+    };
+    const actionBase = (action: AiActionRequest) => ({
+      agentDefinitionId: definitionIdFromMetadata(action.metadata_json),
+      agentKey: null,
+      targetType: action.target_type,
+      targetRef: action.target_ref,
+      actorUserId: action.user_id,
+      actionRequestId: action.id,
+      approvalId: null,
+      runId: action.run_id,
+      auditEventId: null,
+      capabilityName: action.capability_name,
+      actionClass: actionClass(action),
+      eventType: null,
+      severity: null,
+      errorMessage: action.error_message,
+      detail: activityActionDetail(action),
+    });
+
+    const actionRows: AiActionRequest[] = [];
+    if (wantedTypes.has('proposal')) {
+      const proposals = await readStream(
+        (withCursor) => actionStream(withCursor, 'action.created_at'),
+        'action.created_at',
+      );
+      actionRows.push(...proposals);
+      for (const action of proposals) {
+        entries.push({
+          ...actionBase(action),
+          id: `action:${action.id}:proposal`,
+          at: iso(action.created_at),
+          type: 'proposal',
+          titleKey: 'proposal_created',
+          status: action.status,
+        });
+      }
+    }
+    if (wantedTypes.has('execution')) {
+      const executions = await readStream(
+        (withCursor) => actionStream(withCursor, 'action.executed_at').andWhere('action.executed_at IS NOT NULL'),
+        'action.executed_at',
+      );
+      actionRows.push(...executions);
+      for (const action of executions) {
+        entries.push({
+          ...actionBase(action),
+          id: `action:${action.id}:execution`,
+          at: iso(action.executed_at as Date),
+          type: 'execution',
+          titleKey: 'action_executed',
+          status: action.status,
+        });
+      }
+    }
+    if (wantedTypes.has('error')) {
+      const failures = await readStream(
+        (withCursor) => actionStream(withCursor, 'COALESCE(action.updated_at, action.created_at)')
+          .andWhere("action.status IN ('failed', 'provider_error')"),
+        'COALESCE(action.updated_at, action.created_at)',
+      );
+      actionRows.push(...failures);
+      for (const action of failures) {
+        entries.push({
+          ...actionBase(action),
+          id: `action:${action.id}:error`,
+          at: iso(action.updated_at ?? action.created_at),
+          type: 'error',
+          titleKey: 'action_failed',
+          status: action.status,
+        });
       }
     }
 
     const actionById = new Map(actionRows.map((action) => [action.id, action]));
     if (wantedTypes.has('decision')) {
-      const qb = context.manager.getRepository(AiApproval).createQueryBuilder('approval')
-        .where('approval.tenant_id = :tenantId', { tenantId: context.tenantId });
-      if (status) {
-        qb.andWhere('approval.status = :status', { status });
-      }
-      if (actorUserId) {
-        qb.andWhere('approval.actor_user_id = :actorUserId', { actorUserId });
-      }
-      if (fromTime !== null) {
-        qb.andWhere('approval.created_at >= :fromDate', { fromDate: new Date(fromTime) });
-      }
-      if (toTime !== null) {
-        qb.andWhere('approval.created_at <= :toDate', { toDate: new Date(toTime) });
-      }
-      const approvals = await qb.orderBy('approval.created_at', 'DESC').take(fetchLimit).getMany();
+      const decisionOrder = 'COALESCE(approval.decided_at, approval.created_at)';
+      // The agent/ticket filters live on the linked action request: pushed down
+      // as EXISTS so the page stays exact instead of being thinned after the
+      // fetch (which would leave holes between pages).
+      const decisionStream = (withCursor: boolean) => {
+        const qb = context.manager.getRepository(AiApproval).createQueryBuilder('approval')
+          .where('approval.tenant_id = :tenantId', { tenantId: context.tenantId });
+        if (status) {
+          qb.andWhere('approval.status = :status', { status });
+        }
+        if (actorUserId) {
+          qb.andWhere('approval.actor_user_id = :actorUserId', { actorUserId });
+        }
+        if (agentDefinitionId) {
+          qb.andWhere(
+            `EXISTS (SELECT 1 FROM ai_action_requests linked
+                      WHERE linked.id = approval.action_request_id
+                        AND linked.tenant_id = approval.tenant_id
+                        AND linked.metadata_json ->> 'agent_definition_id' = :agentDefinitionId)`,
+            { agentDefinitionId },
+          );
+        }
+        if (targetRef) {
+          qb.andWhere(
+            `EXISTS (SELECT 1 FROM ai_action_requests linked
+                      WHERE linked.id = approval.action_request_id
+                        AND linked.tenant_id = approval.tenant_id
+                        AND linked.target_ref ILIKE :targetRef)`,
+            { targetRef: `%${targetRef}%` },
+          );
+        }
+        return applyWindow(qb, decisionOrder, withCursor);
+      };
+      const approvals = await readStream(decisionStream, decisionOrder);
       const missingActionIds = approvals
         .map((approval) => approval.action_request_id)
         .filter((id) => !actionById.has(id));
@@ -5432,10 +5548,7 @@ export class AiAgentControlService {
       }
       for (const approval of approvals) {
         const action = actionById.get(approval.action_request_id) ?? null;
-        if (!withinWindow(approval.decided_at ?? approval.created_at)) continue;
         const actionAgentDefinitionId = action ? definitionIdFromMetadata(action.metadata_json) : null;
-        if (agentDefinitionId && actionAgentDefinitionId !== agentDefinitionId) continue;
-        if (targetRef && !(action?.target_ref ?? '').toLocaleLowerCase().includes(targetRef.toLocaleLowerCase())) continue;
         const actionDetail = action ? activityActionDetail(action) : null;
         const decisionDetail = (actionDetail || approval.reason)
           ? {
@@ -5476,32 +5589,33 @@ export class AiAgentControlService {
       }
     }
 
-    if (wantedTypes.has('configuration') || wantedTypes.has('pause') || wantedTypes.has('error')) {
-      const qb = context.manager.getRepository(AiAgentAuditEvent).createQueryBuilder('event')
-        .where('event.tenant_id = :tenantId', { tenantId: context.tenantId });
-      if (agentDefinitionId) {
-        qb.andWhere('event.agent_definition_id = :agentDefinitionId', { agentDefinitionId });
-      }
-      if (status) {
-        qb.andWhere('(event.severity = :status OR event.event_type = :status)', { status });
-      }
-      if (actorUserId) {
-        qb.andWhere("event.metadata_json ->> 'actor_user_id' = :actorUserId", { actorUserId });
-      }
-      if (fromTime !== null) {
-        qb.andWhere('event.created_at >= :fromDate', { fromDate: new Date(fromTime) });
-      }
-      if (toTime !== null) {
-        qb.andWhere('event.created_at <= :toDate', { toDate: new Date(toTime) });
-      }
-      const auditEvents = await qb.orderBy('event.created_at', 'DESC').take(fetchLimit).getMany();
+    if (wantedTypes.has('configuration') || wantedTypes.has('check') || wantedTypes.has('pause') || wantedTypes.has('error')) {
+      const auditTypeSql = auditActivityTypeSql('event', wantedTypes);
+      const auditStream = (withCursor: boolean) => {
+        const qb = context.manager.getRepository(AiAgentAuditEvent).createQueryBuilder('event')
+          .where('event.tenant_id = :tenantId', { tenantId: context.tenantId });
+        if (agentDefinitionId) {
+          qb.andWhere('event.agent_definition_id = :agentDefinitionId', { agentDefinitionId });
+        }
+        if (status) {
+          qb.andWhere('(event.severity = :status OR event.event_type = :status)', { status });
+        }
+        if (actorUserId) {
+          qb.andWhere("event.metadata_json ->> 'actor_user_id' = :actorUserId", { actorUserId });
+        }
+        // Same classification as auditActivityType, evaluated in SQL so a
+        // filtered page is complete instead of being thinned after the fetch.
+        if (auditTypeSql) {
+          qb.andWhere(auditTypeSql);
+        }
+        return applyWindow(qb, 'event.created_at', withCursor);
+      };
+      const auditEvents = await readStream(auditStream, 'event.created_at');
       for (const event of auditEvents) {
-        const type = auditType(event);
-        if (!wantedTypes.has(type)) continue;
         entries.push({
           id: `audit:${event.id}`,
           at: iso(event.created_at),
-          type,
+          type: auditActivityType(event),
           agentDefinitionId: event.agent_definition_id,
           agentKey: null,
           targetType: stringFromMetadata(metadataObject(event.metadata_json).target_type),
@@ -5520,35 +5634,38 @@ export class AiAgentControlService {
           errorMessage: event.severity === 'error'
             ? (stringFromMetadata(metadataObject(event.metadata_json).error) ?? event.message)
             : null,
-          detail: null,
+          // The poll summary the watcher already stores: how many tickets/alerts
+          // were seen, queued, skipped as duplicates, processed.
+          detail: activityCheckDetail(event),
         });
       }
     }
 
     if (wantedTypes.has('error')) {
-      const qb = context.manager.getRepository(AiRun).createQueryBuilder('run')
-        .where('run.tenant_id = :tenantId', { tenantId: context.tenantId })
-        .andWhere("run.status IN ('failed', 'provider_error')");
-      if (agentDefinitionId) {
-        qb.andWhere("run.metadata_json ->> 'agent_definition_id' = :agentDefinitionId", { agentDefinitionId });
-      }
-      if (actorUserId) {
-        qb.andWhere('run.user_id = :actorUserId', { actorUserId });
-      }
-      if (status) {
-        qb.andWhere('run.status = :status', { status });
-      }
-      if (fromTime !== null) {
-        qb.andWhere('run.created_at >= :fromDate', { fromDate: new Date(fromTime) });
-      }
-      if (toTime !== null) {
-        qb.andWhere('run.created_at <= :toDate', { toDate: new Date(toTime) });
-      }
-      const runs = await qb.orderBy('run.created_at', 'DESC').take(fetchLimit).getMany();
+      const runStream = (withCursor: boolean) => {
+        const qb = context.manager.getRepository(AiRun).createQueryBuilder('run')
+          .where('run.tenant_id = :tenantId', { tenantId: context.tenantId })
+          .andWhere("run.status IN ('failed', 'provider_error')");
+        if (agentDefinitionId) {
+          qb.andWhere("run.metadata_json ->> 'agent_definition_id' = :agentDefinitionId", { agentDefinitionId });
+        }
+        if (actorUserId) {
+          qb.andWhere('run.user_id = :actorUserId', { actorUserId });
+        }
+        if (status) {
+          qb.andWhere('run.status = :status', { status });
+        }
+        if (targetRef) {
+          qb.andWhere(
+            `(run.metadata_json ->> 'target_ref' ILIKE :targetRef OR run.metadata_json ->> 'targetRef' ILIKE :targetRef)`,
+            { targetRef: `%${targetRef}%` },
+          );
+        }
+        return applyWindow(qb, 'run.created_at', withCursor);
+      };
+      const runs = await readStream(runStream, 'run.created_at');
       for (const run of runs) {
         const metadata = metadataObject(run.metadata_json);
-        const runTargetRef = stringFromMetadata(metadata.target_ref ?? metadata.targetRef);
-        if (targetRef && !(runTargetRef ?? '').toLocaleLowerCase().includes(targetRef.toLocaleLowerCase())) continue;
         entries.push({
           id: `run:${run.id}:error`,
           at: iso(run.created_at),
@@ -5556,7 +5673,7 @@ export class AiAgentControlService {
           agentDefinitionId: definitionIdFromMetadata(run.metadata_json),
           agentKey: null,
           targetType: stringFromMetadata(metadata.target_type ?? metadata.targetType),
-          targetRef: runTargetRef,
+          targetRef: stringFromMetadata(metadata.target_ref ?? metadata.targetRef),
           titleKey: 'run_failed',
           status: run.status,
           actorUserId: run.user_id,
@@ -5574,7 +5691,8 @@ export class AiAgentControlService {
       }
     }
 
-    const definitionIds = Array.from(new Set(entries
+    const page = mergeActivityPage(entries, limit, cursor);
+    const definitionIds = Array.from(new Set(page.items
       .map((entry) => entry.agentDefinitionId)
       .filter((id): id is string => !!id)));
     const definitions = definitionIds.length > 0
@@ -5583,18 +5701,15 @@ export class AiAgentControlService {
       })
       : [];
     const definitionKeyById = new Map(definitions.map((definition) => [definition.id, definition.agent_key]));
-    const sorted = entries
-      .map((entry) => ({
-        ...entry,
-        agentKey: entry.agentDefinitionId ? definitionKeyById.get(entry.agentDefinitionId) ?? null : null,
-      }))
-      .sort((left, right) => Date.parse(right.at) - Date.parse(left.at));
 
     return {
-      items: sorted.slice(offset, offset + limit),
-      total: sorted.length,
+      items: page.items.map((entry) => ({
+        ...entry,
+        agentKey: entry.agentDefinitionId ? definitionKeyById.get(entry.agentDefinitionId) ?? null : null,
+      })),
+      total: countTotals ? total : null,
       limit,
-      offset,
+      nextCursor: page.nextCursor,
     };
   }
 

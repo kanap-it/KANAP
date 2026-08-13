@@ -262,6 +262,7 @@
       "decision": "Decision",
       "execution": "Execution",
       "configuration": "Configuration",
+      "check": "Checks",
       "pause": "Pause",
       "error": "Error"
     },
@@ -285,12 +286,42 @@
       "agent_autonomy_demoted": "Automatic mode demoted",
       "agent_autonomy_execution_failed": "Automatic execution failed",
       "per_run_cap_exceeded": "Per-run safety cap reached",
-      "poller_cycle_completed": "Ticket check completed",
-      "poller_cycle_completed_sre": "Alert check completed",
+      "poller_cycle_completed": "Ticket check",
+      "poller_cycle_completed_sre": "Alert check",
       "work_item_processing_failed": "Ticket processing failed",
       "work_item_processing_failed_sre": "Alert processing failed",
       "agent_deleted": "Agent deleted"
-    }
+    },
+    "checkSummary": {
+      "noTickets": "no new tickets",
+      "noAlerts": "no new alerts",
+      "newTickets_one": "{{count}} new ticket",
+      "newTickets_other": "{{count}} new tickets",
+      "newAlerts_one": "{{count}} new alert",
+      "newAlerts_other": "{{count}} new alerts",
+      "duplicates_one": "{{count}} already seen",
+      "duplicates_other": "{{count}} already seen",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errors"
+    },
+    "checkStatus": {
+      "disabled": "Not watching",
+      "paused": "Paused",
+      "skipped": "Skipped",
+      "failed": "Failed"
+    },
+    "checkFields": {
+      "listed": "Seen",
+      "enqueued": "Queued",
+      "deduped": "Already seen",
+      "processed": "Handled"
+    },
+    "loadMore": "Load more",
+    "shown": "{{shown}} shown",
+    "shownOfTotal": "{{shown}} of {{total}} shown",
+    "runStarted": "Started {{value}}",
+    "runCompleted": "finished {{value}}",
+    "runDuration": "took {{value}}"
   },
   "workspace": {
     "back": "Back to agents",
@@ -723,7 +754,9 @@
     "modelTenantDefault": "Organization default",
     "modelHint": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "modelListError": "The model list could not be loaded, so the choices shown may be incomplete.",
-    "costCapHint": "Estimated using the assigned model’s prices. A free model (0 €) never reaches this cap — the token caps remain the protection."
+    "costCapHint": "Estimated using the assigned model’s prices. A free model (0 €) never reaches this cap — the token caps remain the protection.",
+    "activityRetention": "Keep activity history (days)",
+    "activityRetentionHint": "How long this agent's timeline is kept. Older entries are deleted automatically (7 to 90 days). Keep at least 30 days if you plan to turn on automatic mode: the agent's track record is measured over the last 28 days."
   },
   "actions": {
     "internalNote": "Internal note",

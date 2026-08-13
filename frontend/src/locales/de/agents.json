@@ -262,6 +262,7 @@
       "decision": "Entscheidung",
       "execution": "Ausführung",
       "configuration": "Konfiguration",
+      "check": "Prüfungen",
       "pause": "Pause",
       "error": "Fehler"
     },
@@ -285,12 +286,42 @@
       "agent_autonomy_demoted": "Automatikmodus zurückgestuft",
       "agent_autonomy_execution_failed": "Automatische Ausführung fehlgeschlagen",
       "per_run_cap_exceeded": "Sicherheitslimit pro Ausführung erreicht",
-      "poller_cycle_completed": "Ticket-Prüfung abgeschlossen",
-      "poller_cycle_completed_sre": "Alarmprüfung abgeschlossen",
+      "poller_cycle_completed": "Ticket-Prüfung",
+      "poller_cycle_completed_sre": "Alarmprüfung",
       "work_item_processing_failed": "Ticket-Verarbeitung fehlgeschlagen",
       "work_item_processing_failed_sre": "Alarmverarbeitung fehlgeschlagen",
       "agent_deleted": "Agent gelöscht"
-    }
+    },
+    "checkSummary": {
+      "noTickets": "keine neuen Tickets",
+      "noAlerts": "keine neuen Alarme",
+      "newTickets_one": "{{count}} neues Ticket",
+      "newTickets_other": "{{count}} neue Tickets",
+      "newAlerts_one": "{{count}} neuer Alarm",
+      "newAlerts_other": "{{count}} neue Alarme",
+      "duplicates_one": "{{count}} bereits gesehen",
+      "duplicates_other": "{{count}} bereits gesehen",
+      "errors_one": "{{count}} Fehler",
+      "errors_other": "{{count}} Fehler"
+    },
+    "checkStatus": {
+      "disabled": "Überwachung aus",
+      "paused": "Pausiert",
+      "skipped": "Übersprungen",
+      "failed": "Fehlgeschlagen"
+    },
+    "checkFields": {
+      "listed": "Gesehen",
+      "enqueued": "Eingereiht",
+      "deduped": "Bereits gesehen",
+      "processed": "Bearbeitet"
+    },
+    "loadMore": "Mehr laden",
+    "shown": "{{shown}} angezeigt",
+    "shownOfTotal": "{{shown}} von {{total}} angezeigt",
+    "runStarted": "Gestartet {{value}}",
+    "runCompleted": "beendet {{value}}",
+    "runDuration": "Dauer {{value}}"
   },
   "workspace": {
     "back": "Zurück zu Agenten",
@@ -723,7 +754,9 @@
     "modelTenantDefault": "Standard der Organisation",
     "modelHint": "Das KI-Modell, mit dem dieser Agent arbeitet. Modelle werden in der Administration unter KI-Modelle verwaltet.",
     "modelListError": "Die Modellliste konnte nicht geladen werden; die angezeigte Auswahl ist möglicherweise unvollständig.",
-    "costCapHint": "Geschätzt anhand der Preise des zugewiesenen Modells. Ein kostenfreies Modell (0 €) erreicht dieses Limit nie — die Token-Limits bleiben der Schutz."
+    "costCapHint": "Geschätzt anhand der Preise des zugewiesenen Modells. Ein kostenfreies Modell (0 €) erreicht dieses Limit nie — die Token-Limits bleiben der Schutz.",
+    "activityRetention": "Aktivitätsverlauf aufbewahren (Tage)",
+    "activityRetentionHint": "Wie lange der Aktivitätsverlauf dieses Agenten aufbewahrt wird. Ältere Einträge werden automatisch gelöscht (7 bis 90 Tage). Behalten Sie mindestens 30 Tage, wenn Sie den automatischen Modus aktivieren möchten: Die Bilanz des Agenten wird über die letzten 28 Tage gemessen."
   },
   "actions": {
     "internalNote": "Interne Notiz",
