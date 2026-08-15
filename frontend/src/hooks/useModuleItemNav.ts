@@ -37,6 +37,8 @@ export interface ModuleItemNavParams {
   year?: number | string | null;
   /** Additional dynamic params to include in API calls (e.g., assigneeUserId, teamId) */
   extraParams?: Record<string, string | number | undefined>;
+  /** When false, skip the IDs request. Defaults to true. */
+  enabled?: boolean;
 }
 
 /**
@@ -89,7 +91,7 @@ export function useModuleItemNav(
   params: ModuleItemNavParams,
   config: ModuleItemNavConfig
 ): ModuleItemNavResult {
-  const { id, sort, q, filters, year, extraParams: dynamicExtraParams } = params;
+  const { id, sort, q, filters, year, extraParams: dynamicExtraParams, enabled = true } = params;
   const { endpoint, queryKey, defaultSort, extraParams: staticExtraParams } = config;
 
   const effectiveSort = sort || defaultSort;
@@ -122,6 +124,7 @@ export function useModuleItemNav(
         refs: res.data?.refs || [],
       } satisfies ModuleItemNavData;
     },
+    enabled,
     staleTime: 30_000,
   });
 

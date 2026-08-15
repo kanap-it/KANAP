@@ -50,19 +50,23 @@ import { useLocale } from '../../i18n/useLocale';
 import { formatShortDateTime } from '../../lib/dateFormat';
 import { useTenant } from '../../tenant/TenantContext';
 import { StatusDot, useKanapDialogs } from '../../components/design';
-
-const PROJECT_WORKSPACE_TABS = new Set([
-  'summary',
-  'overview',
-  'activity',
-  'team',
-  'timeline',
-  'effort',
-  'tasks',
-  'scoring',
-  'relations',
-  'knowledge',
-]);
+import {
+  PROJECT_ORIGIN_TABS,
+  buildOriginPath,
+  buildTaskBreadcrumbs,
+  originMatchesParent,
+  parseTaskOrigin,
+  remapProjectListContext,
+  type RelatedKind,
+  type TaskParent,
+} from './taskWorkspaceOrigin';
+import {
+  entityTasksEndpoint,
+  entityTasksQueryKey,
+  filterEntityTasks,
+  navFromTaskList,
+  parseEntityTaskListFilters,
+} from './entityTaskList';
 
 interface TaskData {
   id: string;
@@ -107,6 +111,32 @@ interface TaskData {
   updated_at: string;
 }
 
+async function fetchRelatedObjectName(kind: RelatedKind, id: string): Promise<string | null> {
+  switch (kind) {
+    case 'project': {
+      const res = await api.get<{ name?: string | null }>(`/portfolio/projects/${id}`);
+      return res.data?.name?.trim() || null;
+    }
+    case 'spend_item': {
+      const res = await api.get<{ product_name?: string | null }>(`/spend-items/${id}`);
+      return res.data?.product_name?.trim() || null;
+    }
+    case 'capex_item': {
+      const res = await api.get<{ description?: string | null }>(`/capex-items/${id}`);
+      return res.data?.description?.trim() || null;
+    }
+    case 'contract': {
+      const res = await api.get<{ name?: string | null }>(`/contracts/${id}`);
+      return res.data?.name?.trim() || null;
+    }
+  }
+}
+
+function relatedKindFromType(type: TaskData['related_object_type']): RelatedKind | null {
+  if (type === 'project' || type === 'spend_item' || type === 'capex_item' || type === 'contract') return type;
+  return null;
+}
+
 function taskMatchesRoute(task: TaskData | null | undefined, routeId: string): boolean {
   if (!task) return false;
   const raw = String(routeId || '').trim();
@@ -146,39 +176,23 @@ export default function TaskWorkspacePage() {
   const canManage = hasLevel('tasks', 'member');
   const canDelete = hasLevel('tasks', 'admin');
   const canCreateRequest = hasLevel('portfolio_requests', 'member');
-  const originProjectId = cleanedSearchParams.get('projectId');
+  const origin = React.useMemo(() => parseTaskOrigin(cleanedSearchParams), [cleanedSearchParams]);
+  const originProjectId = origin.kind === 'project' ? origin.id : null;
   const createSpendItemId = cleanedSearchParams.get('spendItemId');
   const createCapexItemId = cleanedSearchParams.get('capexItemId');
   const createContractId = cleanedSearchParams.get('contractId');
   const createPhaseId = cleanedSearchParams.get('phaseId');
-  const originProjectTab = React.useMemo(() => {
-    const tab = (cleanedSearchParams.get('projectTab') || '').trim();
-    if (!tab || !PROJECT_WORKSPACE_TABS.has(tab)) return 'tasks';
-    return tab;
-  }, [cleanedSearchParams]);
-  const projectListContextParams = React.useMemo(() => {
-    const sp = new URLSearchParams();
-    const projectSort = cleanedSearchParams.get('projectSort');
-    const projectQ = cleanedSearchParams.get('projectQ');
-    const projectFilters = cleanedSearchParams.get('projectFilters');
-    const projectScope = cleanedSearchParams.get('projectScope');
-    const projectInvolvedUserId = cleanedSearchParams.get('projectInvolvedUserId');
-    const projectInvolvedTeamId = cleanedSearchParams.get('projectInvolvedTeamId');
-    if (projectSort) sp.set('sort', projectSort);
-    if (projectQ) sp.set('q', projectQ);
-    if (projectFilters) sp.set('filters', projectFilters);
-    if (projectScope) sp.set('projectScope', projectScope);
-    if (projectInvolvedUserId) sp.set('involvedUserId', projectInvolvedUserId);
-    if (projectInvolvedTeamId) sp.set('involvedTeamId', projectInvolvedTeamId);
-    return sp;
-  }, [cleanedSearchParams]);
+  const originPath = React.useMemo(
+    () => buildOriginPath(origin, cleanedSearchParams),
+    [origin, cleanedSearchParams],
+  );
   const buildProjectWorkspacePath = React.useCallback((projectId: string, tab?: string) => {
     const requestedTab = (tab || '').trim();
-    const effectiveTab = requestedTab && PROJECT_WORKSPACE_TABS.has(requestedTab) ? requestedTab : originProjectTab;
-    const qs = projectListContextParams.toString();
+    const fallbackTab = origin.kind === 'project' ? (origin.tab || 'tasks') : 'summary';
+    const effectiveTab = requestedTab && PROJECT_ORIGIN_TABS.has(requestedTab) ? requestedTab : fallbackTab;
+    const qs = remapProjectListContext(cleanedSearchParams).toString();
     return `/portfolio/projects/${projectId}/${effectiveTab}${qs ? `?${qs}` : ''}`;
-  }, [originProjectTab, projectListContextParams]);
-  const originProjectPath = originProjectId ? buildProjectWorkspacePath(originProjectId) : null;
+  }, [cleanedSearchParams, origin]);
   const validTaskStatuses = React.useMemo(
     () => new Set<TaskStatus>(TASK_STATUS_OPTIONS.map((option) => option.value)),
     [],
@@ -424,6 +438,35 @@ export default function TaskWorkspacePage() {
   React.useEffect(() => {
     currentTaskDraftRef.current = liveTask;
   }, [liveTask]);
+
+  const breadcrumbParent = React.useMemo<TaskParent>(() => {
+    const source = liveTask || task;
+    const type = relatedKindFromType(source?.related_object_type ?? null);
+    const relatedId = source?.related_object_id;
+    const relatedName = (source?.related_object_name ?? '').trim();
+    if (!type || !relatedId || !relatedName) return null;
+    return { type, id: relatedId, name: relatedName };
+  }, [liveTask, task]);
+  const originMatchesRelated = originMatchesParent(origin, breadcrumbParent);
+  const { data: fetchedOriginName = null } = useQuery({
+    queryKey: ['task-origin-name', origin.kind, origin.kind === 'tasks' ? '' : origin.id],
+    queryFn: () => (origin.kind === 'tasks' ? null : fetchRelatedObjectName(origin.kind, origin.id)),
+    enabled: origin.kind !== 'tasks' && !originMatchesRelated,
+  });
+  const breadcrumbOriginName = originMatchesRelated
+    ? breadcrumbParent?.name ?? fetchedOriginName
+    : (fetchedOriginName || (isCreate ? createRelation.name : null));
+  const breadcrumbLabels = React.useMemo(() => ({
+    tasks: t('portfolio:workspace.task.navigation.tasks'),
+    typeLabel: (kind: RelatedKind) => t(`portfolio:context.${kind}`),
+  }), [t]);
+  const taskCrumbs = React.useMemo(() => buildTaskBreadcrumbs({
+    origin,
+    parent: isCreate ? null : breadcrumbParent,
+    originName: breadcrumbOriginName,
+    search: cleanedSearchParams,
+    labels: breadcrumbLabels,
+  }), [breadcrumbLabels, breadcrumbOriginName, breadcrumbParent, cleanedSearchParams, isCreate, origin]);
 
   React.useEffect(() => {
     if (!location.search.includes('action=') && !location.search.includes('status=')) return;
@@ -826,6 +869,12 @@ export default function TaskWorkspacePage() {
       void queryClient.invalidateQueries({ queryKey: ['project-tasks-time-summary', projectId] });
       void queryClient.invalidateQueries({ queryKey: ['project', projectId] });
     }
+
+    for (const related of [previous, next]) {
+      if (related.type && related.id) {
+        void queryClient.invalidateQueries({ queryKey: entityTasksQueryKey(related.type, related.id) });
+      }
+    }
   }, [queryClient]);
 
   const buildSidebarPatchRequest = React.useCallback((snapshot: TaskData, patch: Record<string, any>) => {
@@ -899,6 +948,9 @@ export default function TaskWorkspacePage() {
           if (previousRelatedType === 'project' || nextType === 'project') {
             void queryClient.invalidateQueries({ queryKey: ['portfolio-project'] });
             void queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
+          }
+          if (nextType && nextId) {
+            void queryClient.invalidateQueries({ queryKey: entityTasksQueryKey(nextType, nextId) });
           }
         }
       } catch (saveError) {
@@ -1120,7 +1172,7 @@ export default function TaskWorkspacePage() {
       await waitForSidebarSaves();
       await api.delete('/tasks/bulk', { data: { ids: [task.id] } });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      navigate('/portfolio/tasks');
+      navigate(originPath);
     } catch (error) {
       setError(getApiErrorMessage(error, t, t('portfolio:workspace.task.messages.deleteFailed')));
     }
@@ -1128,12 +1180,7 @@ export default function TaskWorkspacePage() {
 
   const handleBack = async () => {
     await waitForSidebarSaves();
-    if (originProjectPath) {
-      navigate(originProjectPath);
-      return;
-    }
-    const qs = cleanedSearchParams.toString();
-    navigate(`/portfolio/tasks${qs ? `?${qs}` : ''}`);
+    navigate(originPath);
   };
 
   // Navigation for prev/next
@@ -1154,7 +1201,39 @@ export default function TaskWorkspacePage() {
     return Object.keys(params).length > 0 ? params : undefined;
   }, [assigneeUserId, applicationId, assetId, teamId]);
   const navCurrentId = taskMatchesCurrentRoute ? task?.id || '' : '';
-  const nav = useTaskNav({ id: navCurrentId, sort, q, filters, extraParams: navExtraParams });
+  const entityOrigin = origin.kind === 'tasks' ? null : origin;
+  const entityListQuery = useQuery({
+    queryKey: entityOrigin ? entityTasksQueryKey(entityOrigin.kind, entityOrigin.id) : ['entity-tasks', 'idle'],
+    queryFn: async () => {
+      if (!entityOrigin) return [] as Array<{ id: string; item_number?: number | null; status: string; phase_id?: string | null }>;
+      const res = await api.get<Array<{ id: string; item_number?: number | null; status: string; phase_id?: string | null }>>(
+        entityTasksEndpoint(entityOrigin.kind, entityOrigin.id),
+      );
+      return res.data || [];
+    },
+    enabled: Boolean(entityOrigin) && !isCreate,
+  });
+  const entityListFilters = React.useMemo(
+    () => parseEntityTaskListFilters(cleanedSearchParams),
+    [cleanedSearchParams],
+  );
+  const entityNav = React.useMemo(() => navFromTaskList(
+    navCurrentId,
+    filterEntityTasks(entityListQuery.data || [], {
+      status: entityListFilters.status,
+      phase: origin.kind === 'project' ? entityListFilters.phase : 'all',
+    }),
+    { isLoading: Boolean(entityOrigin) && entityListQuery.isLoading },
+  ), [entityListFilters.phase, entityListFilters.status, entityListQuery.data, entityListQuery.isLoading, entityOrigin, navCurrentId, origin.kind]);
+  const globalNav = useTaskNav({
+    id: navCurrentId,
+    sort,
+    q,
+    filters,
+    extraParams: navExtraParams,
+    enabled: origin.kind === 'tasks' && !isCreate,
+  });
+  const nav = origin.kind === 'tasks' ? globalNav : entityNav;
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
     : nav;
@@ -1274,13 +1353,9 @@ export default function TaskWorkspacePage() {
         }
 
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        if (originProjectId) {
-          queryClient.invalidateQueries({ queryKey: ['project-tasks', originProjectId] });
-          if (originProjectPath) {
-            navigate(originProjectPath, { replace: true });
-          } else {
-            navigate(`/portfolio/projects/${originProjectId}/tasks`, { replace: true });
-          }
+        if (origin.kind === 'project') {
+          queryClient.invalidateQueries({ queryKey: ['project-tasks', origin.id] });
+          navigate(originPath, { replace: true });
           return;
         }
         const qs = cleanedSearchParams.toString();
@@ -1410,7 +1485,7 @@ export default function TaskWorkspacePage() {
                 <ArrowBackIcon />
               </IconButton>
               <Typography variant="body2" color="text.secondary">
-                {t('portfolio:actions.backToTasks')}
+                {taskCrumbs[0]?.label || t('portfolio:workspace.task.navigation.tasks')}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={1}>
@@ -1625,7 +1700,7 @@ export default function TaskWorkspacePage() {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">{t('portfolio:workspace.task.messages.notFound')}</Alert>
-        <Button onClick={handleBack} sx={{ mt: 2 }}>{t('portfolio:actions.backToTasks')}</Button>
+        <Button onClick={handleBack} sx={{ mt: 2 }}>{taskCrumbs[0]?.label || t('portfolio:workspace.task.navigation.tasks')}</Button>
       </Box>
     );
   }
@@ -1636,15 +1711,9 @@ export default function TaskWorkspacePage() {
   const canConvertToRequest = canManageCurrentTask && canCreateRequest;
   const headerRelatedType = effectiveTask.related_object_type;
   const headerRelatedId = effectiveTask.related_object_id;
-  const headerRelatedName = (effectiveTask.related_object_name ?? '').trim();
   const sidebarProjectWorkspaceLink = (
     headerRelatedType === 'project' && headerRelatedId
       ? buildProjectWorkspacePath(headerRelatedId, 'overview')
-      : null
-  );
-  const projectHeaderChip = (
-    headerRelatedType === 'project' && headerRelatedId && headerRelatedName
-      ? { id: headerRelatedId, name: headerRelatedName }
       : null
   );
 
@@ -1687,8 +1756,9 @@ export default function TaskWorkspacePage() {
               : t('portfolio:workspace.task.actions.alreadyConverted'))
             : (!canCreateRequest ? t('portfolio:workspace.task.actions.convertRequiresPermission') : undefined)
         }
-        originProjectName={projectHeaderChip?.name}
-        onBreadcrumbBack={handleBack}
+        crumbs={taskCrumbs}
+        onOriginClick={handleBack}
+        onParentClick={(href) => { void waitForSidebarSaves().then(() => navigate(href)); }}
       />
 
       {error && (
