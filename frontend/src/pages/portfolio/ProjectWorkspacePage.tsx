@@ -752,7 +752,7 @@ export default function ProjectWorkspacePage() {
     const projectScope = searchParams.get('projectScope');
     const involvedUserId = searchParams.get('involvedUserId');
     const involvedTeamId = searchParams.get('involvedTeamId');
-    sp.set('projectId', id);
+    sp.set('projectId', form?.id || id);
     if (sort) sp.set('projectSort', sort);
     if (q) sp.set('projectQ', q);
     if (filters) sp.set('projectFilters', filters);
@@ -761,7 +761,7 @@ export default function ProjectWorkspacePage() {
     if (involvedTeamId) sp.set('projectInvolvedTeamId', involvedTeamId);
     sp.set('projectTab', routeTab || 'tasks');
     return sp;
-  }, [id, routeTab, searchParams]);
+  }, [form?.id, id, routeTab, searchParams]);
 
   const navigateWithTaskWorkspaceContext = React.useCallback((path: string) => {
     if (!path.startsWith('/portfolio/tasks/')) {
@@ -1098,7 +1098,7 @@ export default function ProjectWorkspacePage() {
         {routeTab === 'tasks' && !isCreate && (
           <React.Suspense fallback={<WorkspaceTabLoadingFallback label={t('portfolio:workspace.project.loadingTabs.tasks')} />}>
             <ProjectTasksPanel
-              projectId={id}
+              projectId={form?.id || id}
               phases={form?.phases || []}
               disabled={!canManage}
               onTasksChange={() => {

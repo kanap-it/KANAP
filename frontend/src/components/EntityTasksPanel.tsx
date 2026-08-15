@@ -1,13 +1,12 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Box, Button, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell,
+  Box, Button, IconButton, MenuItem, Select, Stack, Table, TableBody, TableCell,
   TableHead, TableRow, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,9 +18,18 @@ import { getApiErrorMessage } from '../utils/apiErrorMessage';
 import { getDotColor, PRIORITY_COLORS } from '../utils/statusColors';
 import { StatusDot, useKanapDialogs } from './design';
 import { useTheme } from '@mui/material/styles';
+import { buildTaskOriginSearchParams } from '../pages/tasks/taskWorkspaceOrigin';
+import {
+  applyEntityTaskListFilters,
+  filterEntityTasks,
+  parseEntityTaskListFilters,
+  type EntityTaskListFilters,
+} from '../pages/tasks/entityTaskList';
+import { drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
 
 type Task = {
   id: string;
+  item_number?: number | null;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -61,14 +69,6 @@ const ENDPOINTS: Record<EntityType, (id: string) => string> = {
   contract: (id) => `/contracts/${id}/tasks`,
 };
 
-// URL param name for task creation navigation
-const PARAM_NAMES: Record<EntityType, string> = {
-  project: 'projectId',
-  spend_item: 'spendItemId',
-  capex_item: 'capexItemId',
-  contract: 'contractId',
-};
-
 export default function EntityTasksPanel({ entityType, entityId, phases = [], disabled = false, onTasksChange }: Props) {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -78,58 +78,32 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
   const dialogs = useKanapDialogs();
   const locale = useLocale();
   const isProject = entityType === 'project';
-  const projectWorkspaceContextQuery = React.useMemo(() => {
-    if (!isProject) return '';
-
-    const current = new URLSearchParams(location.search);
-    const sp = new URLSearchParams();
-    const sort = current.get('sort');
-    const q = current.get('q');
-    const filters = current.get('filters');
-    const projectScope = current.get('projectScope');
-    const involvedUserId = current.get('involvedUserId');
-    const involvedTeamId = current.get('involvedTeamId');
-    const tabMatch = location.pathname.match(/^\/portfolio\/projects\/[^/]+\/([^/?#]+)/);
-    const projectTab = tabMatch?.[1] || 'tasks';
-
-    if (sort) sp.set('projectSort', sort);
-    if (q) sp.set('projectQ', q);
-    if (filters) sp.set('projectFilters', filters);
-    if (projectScope) sp.set('projectScope', projectScope);
-    if (involvedUserId) sp.set('projectInvolvedUserId', involvedUserId);
-    if (involvedTeamId) sp.set('projectInvolvedTeamId', involvedTeamId);
-    if (projectTab) sp.set('projectTab', projectTab);
-    return sp.toString();
-  }, [isProject, location.pathname, location.search]);
-  const taskWorkspaceContextQuery = React.useMemo(() => {
-    if (!isProject) return '';
-    const sp = new URLSearchParams();
-    sp.set('projectId', entityId);
-    if (projectWorkspaceContextQuery) {
-      const ctx = new URLSearchParams(projectWorkspaceContextQuery);
-      ctx.forEach((value, key) => sp.set(key, value));
-    }
-    return sp.toString();
-  }, [isProject, entityId, projectWorkspaceContextQuery]);
+  const originSearchParams = React.useMemo(
+    () => buildTaskOriginSearchParams(entityType, entityId, { pathname: location.pathname, search: location.search }),
+    [entityId, entityType, location.pathname, location.search],
+  );
   const buildTaskWorkspacePath = React.useCallback(
-    (taskId: string) => `/portfolio/tasks/${taskId}${taskWorkspaceContextQuery ? `?${taskWorkspaceContextQuery}` : ''}`,
-    [taskWorkspaceContextQuery],
+    (taskId: string) => {
+      const qs = originSearchParams.toString();
+      return `/portfolio/tasks/${taskId}${qs ? `?${qs}` : ''}`;
+    },
+    [originSearchParams],
   );
 
-  // Filter state
-  const [filterStatus, setFilterStatus] = React.useState<string>('active');
-  const [filterPhase, setFilterPhase] = React.useState<string>('all');
-  const [showFilters, setShowFilters] = React.useState(false);
+  const listFilters = React.useMemo(
+    () => parseEntityTaskListFilters(new URLSearchParams(location.search)),
+    [location.search],
+  );
+  const replaceListFilters = React.useCallback((next: EntityTaskListFilters) => {
+    const sp = applyEntityTaskListFilters(new URLSearchParams(location.search), next);
+    const qs = sp.toString();
+    navigate({ pathname: location.pathname, search: qs ? `?${qs}` : '' }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const handleCreateTask = (phaseId?: string) => {
-    const params = new URLSearchParams();
-    params.set(PARAM_NAMES[entityType], entityId);
+    const params = new URLSearchParams(originSearchParams);
     if (phaseId && isProject) {
       params.set('phaseId', phaseId);
-    }
-    if (isProject && projectWorkspaceContextQuery) {
-      const ctx = new URLSearchParams(projectWorkspaceContextQuery);
-      ctx.forEach((value, key) => params.set(key, value));
     }
     navigate(`/portfolio/tasks/new/overview?${params.toString()}`);
   };
@@ -168,35 +142,25 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
     return phase?.name || t('portfolio:shared.entityTasksPanel.phase.unknown');
   };
 
-  // Filter tasks
-  const filteredTasks = React.useMemo(() => {
-    return tasks.filter((task) => {
-      // Status filter
-      if (filterStatus === 'active') {
-        if (task.status === 'done' || task.status === 'cancelled') return false;
-      } else if (filterStatus !== 'all') {
-        if (task.status !== filterStatus) return false;
-      }
+  const filteredTasks = React.useMemo(
+    () => filterEntityTasks(tasks, {
+      status: listFilters.status,
+      phase: isProject ? listFilters.phase : 'all',
+    }),
+    [isProject, listFilters.phase, listFilters.status, tasks],
+  );
 
-      // Phase filter (only for projects)
-      if (isProject) {
-        if (filterPhase === 'project-level') {
-          if (task.phase_id !== null) return false;
-        } else if (filterPhase !== 'all') {
-          if (task.phase_id !== filterPhase) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [tasks, filterStatus, filterPhase, isProject]);
-
-  const hasActiveFilters = filterStatus !== 'active' || (isProject && filterPhase !== 'all');
+  const hasActiveFilters = listFilters.status !== 'all' || (isProject && listFilters.phase !== 'all');
 
   const clearFilters = () => {
-    setFilterStatus('active');
-    setFilterPhase('all');
+    replaceListFilters({ status: 'all', phase: 'all' });
   };
+
+  const filterSelectSx = {
+    ...drawerSelectSx,
+    width: 'auto',
+    minWidth: 128,
+  } as const;
 
   const title = filteredTasks.length !== tasks.length
     ? t('portfolio:shared.entityTasksPanel.titleFiltered', { count: filteredTasks.length, total: tasks.length })
@@ -209,14 +173,6 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
           <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
             {title}
           </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setShowFilters(!showFilters)}
-            color={hasActiveFilters ? 'primary' : 'default'}
-            title={t('portfolio:shared.entityTasksPanel.toggleFilters')}
-          >
-            <FilterListIcon fontSize="small" />
-          </IconButton>
           {hasActiveFilters && (
             <IconButton size="small" onClick={clearFilters} title={t('portfolio:shared.entityTasksPanel.clearFilters')}>
               <ClearIcon fontSize="small" />
@@ -230,43 +186,49 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
         )}
       </Stack>
 
-      {showFilters && (
-        <Stack direction="row" spacing={2} sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>{t('portfolio:shared.entityTasksPanel.filters.status')}</InputLabel>
+      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ alignItems: 'center' }}>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <Box sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary, flexShrink: 0 })}>
+            {t('portfolio:shared.entityTasksPanel.filters.status')}
+          </Box>
+          <Select
+            variant="standard"
+            disableUnderline
+            value={listFilters.status}
+            onChange={(e) => replaceListFilters({ ...listFilters, status: e.target.value as EntityTaskListFilters['status'] })}
+            sx={filterSelectSx}
+          >
+            <MenuItem value="all" sx={drawerMenuItemSx}>{t('portfolio:shared.entityTasksPanel.filters.all')}</MenuItem>
+            <MenuItem value="active" sx={drawerMenuItemSx}>{t('portfolio:shared.entityTasksPanel.filters.activeNotDone')}</MenuItem>
+            <MenuItem value="open" sx={drawerMenuItemSx}>{t('portfolio:statuses.task.open')}</MenuItem>
+            <MenuItem value="in_progress" sx={drawerMenuItemSx}>{t('portfolio:statuses.task.in_progress')}</MenuItem>
+            <MenuItem value="pending" sx={drawerMenuItemSx}>{t('portfolio:statuses.task.pending')}</MenuItem>
+            <MenuItem value="in_testing" sx={drawerMenuItemSx}>{t('portfolio:statuses.task.in_testing')}</MenuItem>
+            <MenuItem value="done" sx={drawerMenuItemSx}>{t('portfolio:statuses.task.done')}</MenuItem>
+            <MenuItem value="cancelled" sx={drawerMenuItemSx}>{t('portfolio:statuses.task.cancelled')}</MenuItem>
+          </Select>
+        </Box>
+        {isProject && phases.length > 0 && (
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <Box sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary, flexShrink: 0 })}>
+              {t('portfolio:shared.entityTasksPanel.filters.phase')}
+            </Box>
             <Select
-              value={filterStatus}
-              label={t('portfolio:shared.entityTasksPanel.filters.status')}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              variant="standard"
+              disableUnderline
+              value={listFilters.phase}
+              onChange={(e) => replaceListFilters({ ...listFilters, phase: e.target.value })}
+              sx={filterSelectSx}
             >
-              <MenuItem value="all">{t('portfolio:shared.entityTasksPanel.filters.all')}</MenuItem>
-              <MenuItem value="active">{t('portfolio:shared.entityTasksPanel.filters.activeNotDone')}</MenuItem>
-              <MenuItem value="open">{t('portfolio:statuses.task.open')}</MenuItem>
-              <MenuItem value="in_progress">{t('portfolio:statuses.task.in_progress')}</MenuItem>
-              <MenuItem value="pending">{t('portfolio:statuses.task.pending')}</MenuItem>
-              <MenuItem value="in_testing">{t('portfolio:statuses.task.in_testing')}</MenuItem>
-              <MenuItem value="done">{t('portfolio:statuses.task.done')}</MenuItem>
-              <MenuItem value="cancelled">{t('portfolio:statuses.task.cancelled')}</MenuItem>
+              <MenuItem value="all" sx={drawerMenuItemSx}>{t('portfolio:shared.entityTasksPanel.filters.allPhases')}</MenuItem>
+              <MenuItem value="project-level" sx={drawerMenuItemSx}>{t('portfolio:shared.entityTasksPanel.filters.projectLevel')}</MenuItem>
+              {phases.map((p) => (
+                <MenuItem key={p.id} value={p.id} sx={drawerMenuItemSx}>{p.name}</MenuItem>
+              ))}
             </Select>
-          </FormControl>
-          {isProject && phases.length > 0 && (
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>{t('portfolio:shared.entityTasksPanel.filters.phase')}</InputLabel>
-              <Select
-                value={filterPhase}
-                label={t('portfolio:shared.entityTasksPanel.filters.phase')}
-                onChange={(e) => setFilterPhase(e.target.value)}
-              >
-                <MenuItem value="all">{t('portfolio:shared.entityTasksPanel.filters.allPhases')}</MenuItem>
-                <MenuItem value="project-level">{t('portfolio:shared.entityTasksPanel.filters.projectLevel')}</MenuItem>
-                {phases.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        </Stack>
-      )}
+          </Box>
+        )}
+      </Stack>
 
       {isLoading && <Typography color="text.secondary">{t('portfolio:shared.entityTasksPanel.states.loading')}</Typography>}
 

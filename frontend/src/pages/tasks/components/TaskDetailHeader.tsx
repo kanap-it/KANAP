@@ -15,6 +15,11 @@ import type { PriorityLevel } from '../theme/taskDetailTokens';
 import TaskNavChip from './TaskNavChip';
 import TaskMetadataBar from './TaskMetadataBar';
 import SendLinkButton from '../../../components/workspace/SendLinkButton';
+import type { TaskCrumb } from '../taskWorkspaceOrigin';
+
+function isModifiedClick(event: React.MouseEvent) {
+  return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0;
+}
 
 interface TaskDetailHeaderProps {
   // Task data
@@ -56,8 +61,9 @@ interface TaskDetailHeaderProps {
   convertDisabledTitle?: string;
 
   // Breadcrumb
-  originProjectName?: string | null;
-  onBreadcrumbBack: () => void;
+  crumbs: TaskCrumb[];
+  onOriginClick: () => void;
+  onParentClick: (href: string) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -173,10 +179,13 @@ export default function TaskDetailHeader({
   canDelete,
   canConvertToRequest,
   convertDisabledTitle,
-  originProjectName,
-  onBreadcrumbBack,
+  crumbs,
+  onOriginClick,
+  onParentClick,
 }: TaskDetailHeaderProps) {
   const { t } = useTranslation(['portfolio', 'common']);
+  const originCrumb = crumbs.find((crumb) => crumb.key === 'origin');
+  const parentCrumb = crumbs.find((crumb) => crumb.key === 'parent');
 
   return (
     <Box sx={{ flexShrink: 0 }}>
@@ -195,38 +204,59 @@ export default function TaskDetailHeader({
       >
         <Box
           component="nav"
+          aria-label="breadcrumb"
           sx={{ display: 'flex', alignItems: 'center', gap: taskDetailTokens.breadcrumb.gap, fontSize: '12px', minWidth: 0, overflow: 'hidden' }}
         >
-          <Typography
-            component="a"
-            onClick={(e: React.MouseEvent) => { e.preventDefault(); onBreadcrumbBack(); }}
-            sx={(theme) => ({
-              color: theme.palette.kanap.text.secondary,
-              textDecoration: 'none',
-              cursor: 'pointer',
-              fontSize: '12px',
-              flexShrink: 0,
-              whiteSpace: 'nowrap',
-              '&:hover': { color: theme.palette.kanap.text.primary },
-            })}
-          >
-            ← {t('portfolio:workspace.task.navigation.tasks', 'Tasks')}
-          </Typography>
-          {originProjectName && (
+          {originCrumb && (
+            <Typography
+              component="a"
+              href={originCrumb.href}
+              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                if (isModifiedClick(e)) return;
+                e.preventDefault();
+                onOriginClick();
+              }}
+              sx={(theme) => ({
+                color: theme.palette.kanap.text.secondary,
+                textDecoration: 'none',
+                cursor: 'pointer',
+                fontSize: '12px',
+                flexShrink: 0,
+                maxWidth: parentCrumb ? '46%' : '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                '&:hover': { color: theme.palette.kanap.text.primary },
+              })}
+            >
+              ← {originCrumb.label}
+            </Typography>
+          )}
+          {parentCrumb && (
             <>
               <Box component="span" sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, flexShrink: 0 })}>/</Box>
               <Typography
-                component="span"
+                component="a"
+                href={parentCrumb.href}
+                title={parentCrumb.label}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  if (isModifiedClick(e)) return;
+                  e.preventDefault();
+                  onParentClick(parentCrumb.href);
+                }}
                 sx={(theme) => ({
-                  color: theme.palette.kanap.text.secondary,
+                  color: theme.palette.primary.main,
+                  textDecoration: 'none',
+                  cursor: 'pointer',
                   fontSize: '12px',
                   minWidth: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  '&:hover': { textDecoration: 'underline', textUnderlineOffset: '2px' },
                 })}
               >
-                {originProjectName}
+                {parentCrumb.label}
               </Typography>
             </>
           )}

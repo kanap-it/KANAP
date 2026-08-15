@@ -666,7 +666,8 @@
         "updated": "Aktualisiert am {{date}}"
       },
       "navigation": {
-        "position": "{{index}} von {{total}}"
+        "position": "{{index}} von {{total}}",
+        "tasks": "Aufgaben"
       },
       "priority": {
         "projectPriority": "Projektpriorität",

@@ -667,7 +667,8 @@
         "updated": "Updated {{date}}"
       },
       "navigation": {
-        "position": "{{index}} of {{total}}"
+        "position": "{{index}} of {{total}}",
+        "tasks": "Tasks"
       },
       "priority": {
         "projectPriority": "Project priority",
