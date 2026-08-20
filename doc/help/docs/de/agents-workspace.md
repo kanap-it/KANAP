@@ -130,14 +130,7 @@ Die Zielauswahl entscheidet, welche Tickets der Agent überwacht. (Ob er überha
 
 Schnellvorlagen — **Neue Tickets**, **Alle offenen**, **Von diesem Agenten bearbeitet** — fügen einen anfänglichen Filtersatz ein; wenn Sie bereits Filter haben, werden Sie gefragt, bevor sie ersetzt werden. Mit dem Filter-Baukasten kombinieren Sie Bedingungen: Alle Filter werden zusammen kombiniert, und die verfügbaren Werte stammen direkt aus dem verbundenen Ticketsystem. Wählen Sie eine Kategorie oder eine Entität aus, ist alles darunter eingeschlossen, und der Baukasten sagt das auch.
 
-Eine Live-Vorschau zeigt die praktische Wirkung:
-
-- **Treffer** — wie viele Tickets derzeit passen.
-- **Stichprobe** — wie viele tatsächlich untersucht wurden, um die Schätzung zu erstellen.
-- **Überlappung** — Tickets, die auch andere Agenten treffen, sodass Sie erkennen können, wenn sich zwei Agenten um dieselbe Arbeit streiten.
-- **Läufe/Tag** — die erwartete Anzahl an Läufen pro Tag in diesem Bereich, bereits begrenzt durch Ihre Prüffrequenz und Ihre Tageslimits.
-
-Ein Hinweis erscheint, wenn die Vorschau durch Ihre Limits pro Prüfung begrenzt ist — die tatsächliche Trefferzahl kann größer sein, als die Vorschau zeigt.
+Eine Zeile unter den Filtern sagt, wie viele Tickets derzeit passen. Wenn ein anderer Agent einige dieser Tickets bereits überwacht, wird diese Zahl ebenfalls genannt — das ist das Signal, dass sich zwei Agenten um dieselbe Arbeit streiten könnten. Steht in der Zeile **mindestens N**, ist die echte Warteschlange größer als die Vorschau (Ihre Limits pro Prüfung begrenzen, wie viele Tickets geprüft werden).
 
 Überwachungs-Agenten haben denselben Abschnitt, filtern darin aber stattdessen nach Alarmzustand, Schweregrad, Quittierung, Gruppe, Gerät und Check-Typ.
 
@@ -178,9 +171,9 @@ Die Steuerungen für Tempo und Budget. Jedes Feld trägt einen Informations-Tool
 - **KI-Modell** — mit welchem Modell dieser Agent arbeitet. **Standard der Organisation** ist der Ausgangswert und meist der richtige: Der Agent folgt dem Modell, das Ihre Organisation als Standard gesetzt hat, und zieht mit ihm mit. Wählen Sie ein bestimmtes Modell namentlich aus, um diesen Agenten daran zu binden — ein Modell, das Bilder versteht, für Warteschlangen mit vielen Screenshots; ein günstiges lokales Modell für die Triage großer Mengen. Es erscheinen nur aktive Modelle; sie werden auf der Seite [KI-Modelle](ai-models.md) definiert. Ein Modell, an das ein Agent gebunden ist, kann ihm nicht unter den Händen weg archiviert werden — der Agent muss zuerst davon abgezogen werden. Beachten Sie, dass das Lesen der Modellliste die Berechtigung KI-Einstellungen-Administrator (`ai_settings:admin`) voraussetzt: Allein mit der Rolle **KI-Agenten-Administrator** bietet die Auswahlliste nur **Standard der Organisation** an — das ist eine Berechtigungslücke und kein leeres Modellverzeichnis.
 - **Prüfen alle (Minuten)** — wie oft der Agent nach neuen Tickets sucht, solange er überwacht, zwischen **5** Minuten und 24 Stunden (1440). Das ist der größte einzelne Hebel dafür, wie beschäftigt — und wie teuer — ein überwachender Agent ist. **Jetzt prüfen** läuft immer sofort, unabhängig davon, und dies ist der Wert, den **Nächste Prüfung** auf der Registerkarte Monitor meldet.
 - **Max. Tickets pro Prüfung** und **Max. Provider-Anfragen** — die Höchstzahl der Tickets, die der Agent in einer Prüfung aufnimmt (der Rest wartet auf die nächste), und die Höchstzahl der Aufrufe an das Ticketsystem in einer Prüfung, damit es nie überlastet wird.
-- **Prüfen alle (Stunden)** — wie lange der Agent wartet, bevor er dasselbe Ticket erneut ansieht, damit er sich nicht wiederholt.
+- **Prüfen alle (Stunden)** — wie bald der Agent dasselbe Ticket erneut ansehen darf, sobald nichts mehr wartet (angewendet, abgelehnt, verworfen oder Fenster abgelaufen). Ein wartender Vorschlag belegt das Ticket: Der Agent schreibt kein weiteres Paar, solange dieser Vorschlag offen ist, außer das Ticket selbst hat sich geändert.
 - **Agentenpriorität** und **Ticket-Kollision** — welcher Agent gewinnt, wenn mehrere dasselbe Ticket anvisieren (kleinere Zahl = höhere Priorität), und was dieser Agent tut, wenn bereits ein anderer daran arbeitet: **Zurückstellen** (zurücktreten) oder **Gleiche Priorität ersetzen** (von einem Agenten gleicher Priorität übernehmen).
-- **Genehmigungsfenster (Stunden)** — wie lange jeder Vorschlag für ein Ticket offen bleibt, bevor er abläuft. Alle Vorschläge aus einer Prüfung teilen sich dieses Fenster und laufen daher gemeinsam ab, statt einzeln.
+- **Genehmigungsfenster (Stunden)** — wie lange Sie Zeit zur Genehmigung haben. Alle Vorschläge aus einer Prüfung teilen sich dieses Fenster und laufen gemeinsam ab. Ein offener Vorschlag belegt das Ticket für das gesamte Fenster, daher ist **Prüfen alle (Stunden)** 24 Stunden mit einem Genehmigungsfenster von 168 Stunden ein gültiges Paar: Sie haben eine Woche zum Entscheiden, und der Agent schreibt dazwischen kein weiteres Paar, außer das Ticket ändert sich.
 - **Wenn Ticket geändert wurde** — was mit einem wartenden Vorschlag geschieht, wenn sich das Ticket weiterentwickelt, bevor Sie entscheiden: **Neu prüfen**, **Abbrechen** oder **Trotzdem anwenden**.
 - **Aktivitätsverlauf aufbewahren (Tage)** — wie lange die Zeitachse dieses Agenten aufbewahrt wird, zwischen **7** und **90** Tagen, standardmäßig **30**. Ältere Einträge, Läufe und abgeschlossene Vorschläge werden jede Nacht automatisch gelöscht. Siehe den Warnhinweis weiter unten.
 

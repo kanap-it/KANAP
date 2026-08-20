@@ -72,6 +72,7 @@ import { aiAgentControlApi } from '../../ai/aiApi';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 import { compactSelectMenuProps, dialogBorderedFieldSx, drawerMenuItemSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
 import { useLocale } from '../../i18n/useLocale';
+import { helpdeskScopeFiltered } from '../../components/agents/agentRunState';
 import { useAgentControlData } from './useAgentControlData';
 
 type NewAgentWizardForm = {
@@ -183,9 +184,9 @@ function sreScheduledPollEnabled(triggerPolicy: unknown): boolean {
 // alert selection is configured in the agent's settings after creation (the
 // wizard sends the seed's inert empty targeting placeholder — see
 // newSreAgentPolicies).
-const WIZARD_STEP_KEYS: Record<NewAgentWizardForm['agentType'], Array<'type' | 'connection' | 'watching' | 'limits' | 'review'>> = {
-  helpdesk: ['type', 'connection', 'watching', 'limits', 'review'],
-  sre: ['type', 'connection', 'limits', 'review'],
+const WIZARD_STEP_KEYS: Record<NewAgentWizardForm['agentType'], Array<'type' | 'connection' | 'watching' | 'review'>> = {
+  helpdesk: ['type', 'watching', 'review'],
+  sre: ['type', 'connection', 'review'],
 };
 
 function economicGuardrailsFromForm(form: NewAgentWizardForm) {
@@ -767,7 +768,7 @@ export default function AgentsOverviewPage() {
                           {agentHelpdeskSummary ? (
                             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
                               <MetricBlock label={t('overview.lastCheck')} value={agentHelpdeskSummary.ingestion.lastPollStatus ? statusLabel(agentHelpdeskSummary.ingestion.lastPollStatus) : t('common.notSet')} />
-                              <MetricBlock label={t('overview.scope')} value={agentHelpdeskSummary.ingestion.entityId || agentHelpdeskSummary.ingestion.categoryId ? t('overview.filteredScope') : t('overview.allTickets')} />
+                              <MetricBlock label={t('overview.scope')} value={helpdeskScopeFiltered(definition, agentHelpdeskSummary.ingestion) ? t('overview.filteredScope') : t('overview.allTickets')} />
                               <MetricBlock label={t('overview.runsToday')} value={agentHelpdeskSummary.guardrails.daily?.runs ?? 0} />
                               <MetricBlock label={t('overview.updated')} value={agentHelpdeskSummary.ingestion.lastPollAt ? new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(new Date(agentHelpdeskSummary.ingestion.lastPollAt)) : t('common.notSet')} />
                             </Box>
@@ -844,25 +845,24 @@ export default function AgentsOverviewPage() {
                   onChange={(event) => updateWizard('description', event.target.value)}
                 />
               </PropertyRow>
-            </Stack>
-          )}
-
-          {wizardStepKey === 'connection' && wizardForm.agentType === 'helpdesk' && (
-            <Stack spacing={1.5}>
-              <PropertyRow label={t('overview.wizard.connection')}>
-                <Select
-                  variant="standard"
-                  value={wizardForm.providerKey}
-                  onChange={(event) => updateWizard('providerKey', event.target.value)}
-                  sx={pageSelectSx}
-                  MenuProps={compactSelectMenuProps}
-                >
-                  <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
-                </Select>
-              </PropertyRow>
-              <Button type="button" size="small" variant="action" onClick={() => navigate('/admin/integrations')} sx={{ alignSelf: 'flex-start' }}>
-                {t('overview.wizard.manageConnections')}
-              </Button>
+              {wizardForm.agentType === 'helpdesk' && (
+                <Stack spacing={0.75}>
+                  <PropertyRow label={t('overview.wizard.connection')}>
+                    <Select
+                      variant="standard"
+                      value={wizardForm.providerKey}
+                      onChange={(event) => updateWizard('providerKey', event.target.value)}
+                      sx={pageSelectSx}
+                      MenuProps={compactSelectMenuProps}
+                    >
+                      <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
+                    </Select>
+                  </PropertyRow>
+                  <Button type="button" size="small" variant="action" onClick={() => navigate('/admin/integrations')} sx={{ alignSelf: 'flex-start' }}>
+                    {t('overview.wizard.manageConnections')}
+                  </Button>
+                </Stack>
+              )}
             </Stack>
           )}
 
@@ -925,70 +925,6 @@ export default function AgentsOverviewPage() {
             </Stack>
           )}
 
-          {wizardStepKey === 'limits' && (
-            <Stack spacing={1.5}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-                <PropertyRow label={t('settings.agentPriority')}>
-                  <TextField size="small" variant="standard" value={wizardForm.agentPriority} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('agentPriority', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.reviewCooldown')}>
-                  <TextField size="small" variant="standard" value={wizardForm.reviewCooldownHours} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('reviewCooldownHours', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.onConflict')}>
-                  <Select variant="standard" value={wizardForm.onConflict} onChange={(event) => updateWizard('onConflict', event.target.value)} sx={pageSelectSx}
-                    MenuProps={compactSelectMenuProps}
-                  >
-                    <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
-                    <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
-                  </Select>
-                </PropertyRow>
-                {wizardForm.agentType === 'helpdesk' && (
-                  <PropertyRow label={t('settings.maxTickets')}>
-                    <TextField size="small" variant="standard" value={wizardForm.maxTickets} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('maxTickets', event.target.value)} />
-                  </PropertyRow>
-                )}
-                {wizardForm.agentType === 'helpdesk' && (
-                  <PropertyRow label={t('settings.maxRequests')}>
-                    <TextField size="small" variant="standard" value={wizardForm.maxRequests} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('maxRequests', event.target.value)} />
-                  </PropertyRow>
-                )}
-              </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-                <PropertyRow label={t('settings.approvalTtl')}>
-                  <TextField size="small" variant="standard" value={wizardForm.approvalTtlHours} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('approvalTtlHours', event.target.value)} />
-                </PropertyRow>
-                {wizardForm.agentType === 'helpdesk' && (
-                  <PropertyRow label={t('settings.onStale')}>
-                    <Select variant="standard" value={wizardForm.onStale} onChange={(event) => updateWizard('onStale', event.target.value)} sx={pageSelectSx}
-                      MenuProps={compactSelectMenuProps}
-                    >
-                      <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
-                      <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
-                      <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
-                    </Select>
-                  </PropertyRow>
-                )}
-              </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-                <PropertyRow label={t('settings.perRunTokens')}>
-                  <TextField size="small" variant="standard" value={wizardForm.perRunTokens} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('perRunTokens', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.perRunCost')}>
-                  <TextField size="small" variant="standard" value={wizardForm.perRunCost} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('perRunCost', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.dailyRuns')}>
-                  <TextField size="small" variant="standard" value={wizardForm.dailyRuns} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('dailyRuns', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.dailyTokens')}>
-                  <TextField size="small" variant="standard" value={wizardForm.dailyTokens} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('dailyTokens', event.target.value)} />
-                </PropertyRow>
-                <PropertyRow label={t('settings.dailyCost')}>
-                  <TextField size="small" variant="standard" value={wizardForm.dailyCost} InputProps={{ disableUnderline: true }} sx={[dialogBorderedFieldSx, { width: '100%' }]} onChange={(event) => updateWizard('dailyCost', event.target.value)} />
-                </PropertyRow>
-              </Box>
-            </Stack>
-          )}
-
           {wizardStepKey === 'review' && (
             <Stack spacing={1.5}>
               <Typography sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary })}>
@@ -1014,12 +950,6 @@ export default function AgentsOverviewPage() {
                 {wizardForm.agentType === 'helpdesk' && (
                   <WizardSummaryRow label={t('settings.targetingBuilder.filters')} value={t('overview.wizard.filterCount', { count: wizardForm.filters.length })} />
                 )}
-                {wizardForm.agentType === 'helpdesk' && (
-                  <WizardSummaryRow label={t('settings.maxTickets')} value={wizardForm.maxTickets} />
-                )}
-                <WizardSummaryRow label={t('settings.reviewCooldown')} value={wizardForm.reviewCooldownHours} />
-                <WizardSummaryRow label={t('settings.dailyRuns')} value={wizardForm.dailyRuns} />
-                <WizardSummaryRow label={t('settings.dailyCost')} value={`${wizardForm.dailyCost} EUR`} />
               </Box>
               <Typography variant="body2" color="text.secondary">
                 {t(wizardForm.agentType === 'sre' ? 'overview.wizard.reviewBodySre' : 'overview.wizard.reviewBody')}

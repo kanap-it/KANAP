@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import KanapDialog from '../design/KanapDialog';
 import { aiAgentControlApi, type AiAgentControlRunDetail } from '../../ai/aiApi';
-import { formatDateTime, humanize, StatusText } from './agentControlPrimitives';
+import { capabilityLabelFromName, formatDateTime, humanize, StatusText } from './agentControlPrimitives';
 import { useLocale } from '../../i18n/useLocale';
 
 function JsonPreview({ value, emptyLabel }: { value: unknown; emptyLabel: string }) {
@@ -69,7 +69,7 @@ export function RunAuditDetail({ detail }: { detail: AiAgentControlRunDetail }) 
               return (
                 <Stack key={step.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                   <Typography variant="caption">
-                    {step.step_index}. {humanize(step.capability_name ?? step.kind)}
+                    {step.step_index}. {capabilityLabelFromName(step.capability_name ?? step.kind)}
                     {stepDuration ? ` · ${stepDuration}` : ''}
                   </Typography>
                   <StatusText status={step.status} />
@@ -87,7 +87,7 @@ export function RunAuditDetail({ detail }: { detail: AiAgentControlRunDetail }) 
               const toolDuration = formatDuration(tool.duration_ms ?? durationMs(tool.started_at, tool.completed_at));
               return (
                 <Stack key={tool.id} direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                  <Typography variant="caption">{humanize(tool.capability_name)}{toolDuration ? ` · ${toolDuration}` : ''}</Typography>
+                  <Typography variant="caption">{capabilityLabelFromName(tool.capability_name)}{toolDuration ? ` · ${toolDuration}` : ''}</Typography>
                   <StatusText status={tool.status} />
                 </Stack>
               );

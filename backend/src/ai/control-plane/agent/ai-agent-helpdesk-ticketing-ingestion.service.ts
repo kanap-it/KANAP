@@ -596,10 +596,16 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
         }),
       );
       summary.listed = listedTickets.length;
-      for (const ticket of scopedTickets.slice(0, config.maxTicketsPerCycle)) {
+      const cycleTickets = scopedTickets.slice(0, config.maxTicketsPerCycle);
+      const liveByRef = await this.queue.listLivePendingActionsForTargets(context, {
+        definition,
+        targetRefs: cycleTickets.map((ticket) => ticket.id),
+      });
+      for (const ticket of cycleTickets) {
         const readiness = await this.queue.targetReviewReadiness(context, {
           definition,
           ticket,
+          livePendingActions: liveByRef.get(ticket.id) ?? [],
         });
         if (!readiness.ready) {
           summary.deduped += 1;

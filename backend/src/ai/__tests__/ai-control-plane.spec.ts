@@ -8082,6 +8082,239 @@ async function testPhase135TargetStateSchedulingWakeOnChangeAndSelfWrite() {
   assert.ok(savedState.next_review_at);
 }
 
+async function testPendingProposalOccupancyEmptyRunAndReplaceOnWrite() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, { providerKey: 'glpi' });
+  definition.queue_policy_json = {
+    ...(definition.queue_policy_json ?? {}),
+    review_cooldown_seconds: 60 * 60,
+    approval_ttl_seconds: 7 * 24 * 60 * 60,
+  };
+  await manager.getRepository(AiAgentDefinition).save(definition);
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const workRepo = manager.getRepository(AiAgentWorkItem);
+  const now = Date.now();
+  const seedAction = (overrides: Partial<AiActionRequest> & { id: string; target_ref: string; capability_name: string }) => actionRepo.save(actionRepo.create({
+    tenant_id: context.tenantId,
+    run_id: 'occupancy-run',
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'pending',
+    target_type: 'ticket',
+    provider_kind: 'ticketing',
+    provider_key: 'glpi',
+    input_hash: `${overrides.id}-hash`,
+    expires_at: new Date(now + 7 * 24 * 60 * 60_000),
+    metadata_json: { agent_definition_id: definition.id },
+    created_at: new Date(now),
+    updated_at: new Date(now),
+    ...overrides,
+  }));
+
+  const ticket = {
+    id: 'occupy-ticket',
+    status: 'new',
+    title: 'Occupy ticket',
+    createdAt: new Date(now - 10 * 60_000).toISOString(),
+    updatedAt: new Date(now - 5 * 60_000).toISOString(),
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  const first = await queue.targetReviewReadiness(context, { definition, ticket, now: new Date(now) });
+  assert.equal(first.reason, 'first_review');
+  assert.equal(first.ready, true);
+  await queue.upsertTargetState(context, {
+    agentDefinitionId: definition.id,
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: ticket.id,
+    lastProcessedExternalUpdatedAt: ticket.updatedAt,
+    nextReviewAt: new Date(now + 60 * 60_000),
+  });
+
+  const pendingSolve = await seedAction({
+    id: 'occupy-solve',
+    target_ref: ticket.id,
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    action_payload_json: { transitionKey: 'solved', terminal: true },
+  });
+  const pendingReply = await seedAction({
+    id: 'occupy-reply',
+    target_ref: ticket.id,
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    action_payload_json: { reply_body: 'Merci, au revoir' },
+  });
+
+  const dueButOccupied = await queue.targetReviewReadiness(context, {
+    definition,
+    ticket,
+    now: new Date(now + 2 * 60 * 60_000),
+  });
+  assert.equal(dueButOccupied.ready, false);
+  assert.equal(dueButOccupied.reason, 'pending_proposal');
+
+  const changedWhileOccupied = await queue.targetReviewReadiness(context, {
+    definition,
+    ticket: { ...ticket, updatedAt: new Date(now + 3 * 60 * 60_000).toISOString() },
+    now: new Date(now + 3 * 60 * 60_000),
+  });
+  assert.equal(changedWhileOccupied.ready, true);
+  assert.equal(changedWhileOccupied.reason, 'changed');
+
+  pendingSolve.status = 'expired';
+  pendingSolve.expires_at = new Date(now - 1000);
+  await actionRepo.save(pendingSolve);
+  pendingReply.status = 'expired';
+  pendingReply.expires_at = new Date(now - 1000);
+  await actionRepo.save(pendingReply);
+  const dueAfterWindow = await queue.targetReviewReadiness(context, {
+    definition,
+    ticket,
+    now: new Date(now + 4 * 60 * 60_000),
+  });
+  assert.equal(dueAfterWindow.ready, true);
+  assert.equal(dueAfterWindow.reason, 'scheduled');
+
+  const liveSolve = await seedAction({
+    id: 'empty-run-solve',
+    target_ref: 'empty-run-ticket',
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    action_payload_json: { transitionKey: 'solved', terminal: true },
+    expires_at: new Date(now + 7 * 24 * 60 * 60_000),
+  });
+  const olderWaiting = await workRepo.save(workRepo.create({
+    tenant_id: context.tenantId,
+    agent_definition_id: definition.id,
+    source_provider_kind: 'ticketing',
+    source_provider_key: 'glpi',
+    source_object_type: 'ticket',
+    source_object_ref: 'empty-run-ticket',
+    work_kind: 'ticket_triage',
+    status: 'waiting_approval',
+    priority: 100,
+    dedup_key: 'empty-run-old',
+    last_action_request_ids: [liveSolve.id],
+    created_at: new Date(now),
+    updated_at: new Date(now),
+  }));
+  await queue.holdTargetClaimForPendingProposals(context, {
+    definition,
+    workItem: olderWaiting,
+    actionRequestIds: [liveSolve.id],
+    runId: 'empty-run-old',
+  });
+  const newItem = await workRepo.save(workRepo.create({
+    tenant_id: context.tenantId,
+    agent_definition_id: definition.id,
+    source_provider_kind: 'ticketing',
+    source_provider_key: 'glpi',
+    source_object_type: 'ticket',
+    source_object_ref: 'empty-run-ticket',
+    work_kind: 'ticket_triage',
+    status: 'leased',
+    priority: 100,
+    dedup_key: 'empty-run-new',
+    created_at: new Date(now),
+    updated_at: new Date(now),
+  }));
+  const emptyRun = await queue.recordManualTicketingTriageOutcome(context, {
+    definition,
+    workItem: newItem,
+    runId: 'empty-run-new',
+    actionRequestIds: [],
+    ticket: { id: 'empty-run-ticket', updatedAt: ticket.updatedAt },
+    knowledgeResultCount: 0,
+  });
+  assert.equal(emptyRun.workItem.status, 'completed');
+  assert.equal(emptyRun.workItem.id, newItem.id);
+  const olderAfter = await workRepo.findOne({ where: { id: olderWaiting.id, tenant_id: context.tenantId } });
+  assert.equal(olderAfter.status, 'waiting_approval');
+  const emptyRunState = await manager.getRepository(AiAgentTargetState).findOne({
+    where: { tenant_id: context.tenantId, agent_definition_id: definition.id, target_ref: 'empty-run-ticket' },
+  });
+  assert.ok(emptyRunState);
+  assert.equal(emptyRunState.claim_status, 'claimed');
+  const emptyHoldUntil = emptyRunState.claim_expires_at instanceof Date
+    ? emptyRunState.claim_expires_at
+    : new Date(String(emptyRunState.claim_expires_at));
+  assert.ok(emptyHoldUntil.getTime() > now + 6 * 24 * 60 * 60_000);
+  assert.deepEqual(emptyRunState.claim_owner_action_request_ids, [liveSolve.id]);
+
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+  const priorSolve = await seedAction({
+    id: 'replace-solve',
+    target_ref: 'replace-ticket',
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    action_payload_json: { transitionKey: 'solved', terminal: true },
+  });
+  const priorReply = await seedAction({
+    id: 'replace-reply',
+    target_ref: 'replace-ticket',
+    capability_name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+    action_payload_json: { reply_body: 'Keep me' },
+  });
+  const approvedSolve = await seedAction({
+    id: 'replace-approved-solve',
+    target_ref: 'replace-ticket',
+    capability_name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    status: 'approved',
+    action_payload_json: { transitionKey: 'solved', terminal: true },
+  });
+  const withdrawn = await (service as any).expirePriorPendingSameClass(context, {
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'replace-ticket',
+    capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+    agentDefinitionId: definition.id,
+  });
+  assert.equal(withdrawn, 1);
+  assert.equal((await actionRepo.findOne({ where: { id: priorSolve.id } })).status, 'expired');
+  assert.equal((await actionRepo.findOne({ where: { id: priorReply.id } })).metadata_json.withdrawn_reason ?? null, null);
+  assert.equal((await actionRepo.findOne({ where: { id: priorReply.id } })).status, 'pending');
+  assert.equal((await actionRepo.findOne({ where: { id: approvedSolve.id } })).status, 'approved');
+
+  // Expiry runs AFTER the replacement prepare, so the sweep must skip the freshly
+  // prepared row (by id or by current run) while still expiring older pendings.
+  const stalePrior = await seedAction({
+    id: 'replace-stale-note',
+    target_ref: 'replace-ticket',
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    run_id: 'older-run',
+    action_payload_json: { note_body: 'Old note' },
+  });
+  const freshById = await seedAction({
+    id: 'replace-fresh-note',
+    target_ref: 'replace-ticket',
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    run_id: 'older-run-2',
+    action_payload_json: { note_body: 'New note' },
+  });
+  const freshByRun = await seedAction({
+    id: 'replace-fresh-note-run',
+    target_ref: 'replace-ticket',
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    run_id: 'current-run',
+    action_payload_json: { note_body: 'New note same run' },
+  });
+  const withdrawnWithExclusions = await (service as any).expirePriorPendingSameClass(context, {
+    providerKind: 'ticketing',
+    providerKey: 'glpi',
+    targetType: 'ticket',
+    targetRef: 'replace-ticket',
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    agentDefinitionId: definition.id,
+    excludeActionIds: [freshById.id],
+    excludeRunId: 'current-run',
+  });
+  assert.equal(withdrawnWithExclusions, 1);
+  assert.equal((await actionRepo.findOne({ where: { id: stalePrior.id } })).status, 'expired');
+  assert.equal((await actionRepo.findOne({ where: { id: freshById.id } })).status, 'pending');
+  assert.equal((await actionRepo.findOne({ where: { id: freshByRun.id } })).status, 'pending');
+}
+
 async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -8187,13 +8420,70 @@ async function testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace() 
     where: { tenant_id: context.tenantId, agent_definition_id: equalSupersede.id, target_ref: 'claim-ticket' },
   });
   assert.ok(state);
+  const heldUntil = state.claim_expires_at instanceof Date
+    ? state.claim_expires_at
+    : new Date(String(state.claim_expires_at));
+  assert.ok(Number.isFinite(heldUntil.getTime()) && heldUntil.getTime() > Date.now() + 30 * 60_000, 'hold should track the approval window, not the 10-minute lease');
+  const heldIds = [...(state.claim_owner_action_request_ids ?? [])];
+  const reacquired = await queue.acquireTargetClaim(context, {
+    definition: equalSupersede,
+    targetRef: 'claim-ticket',
+    workItemId: 'equal-supersede-work',
+  });
+  assert.equal(reacquired.acquired, true);
+  const heldAfterReacquire = await manager.getRepository(AiAgentTargetState).findOne({
+    where: { tenant_id: context.tenantId, agent_definition_id: equalSupersede.id, target_ref: 'claim-ticket' },
+  });
+  assert.ok(heldAfterReacquire);
+  const heldAfterUntil = heldAfterReacquire.claim_expires_at instanceof Date
+    ? heldAfterReacquire.claim_expires_at
+    : new Date(String(heldAfterReacquire.claim_expires_at));
+  assert.equal(heldAfterUntil.getTime(), heldUntil.getTime());
+  assert.deepEqual(heldAfterReacquire.claim_owner_action_request_ids, heldIds);
+
   state.claim_expires_at = new Date(Date.now() - 1000);
   await manager.getRepository(AiAgentTargetState).save(state);
   const reconciled = await queue.reconcileTargetClaims(context, { targetRef: 'claim-ticket', now: new Date() });
   assert.equal(reconciled.released, 1);
-  assert.equal(reconciled.expiredActions, 1);
-  const expiredClaimAction = await actionRepo.findOne({ where: { id: claimAction.id, tenant_id: context.tenantId } });
-  assert.equal(expiredClaimAction.status, 'expired');
+  assert.equal(reconciled.expiredActions, 0);
+  const stillLiveClaimAction = await actionRepo.findOne({ where: { id: claimAction.id, tenant_id: context.tenantId } });
+  assert.equal(stillLiveClaimAction.status, 'pending');
+
+  const foreignHeld = await actionRepo.save(actionRepo.create({
+    ...claimAction,
+    id: randomUUID(),
+    target_ref: 'foreign-supersede-ticket',
+    idempotency_key: 'foreign-supersede-action',
+    input_hash: 'foreign-supersede-hash',
+    metadata_json: { agent_definition_id: low.id },
+  }));
+  await queue.acquireTargetClaim(context, { definition: low, targetRef: 'foreign-supersede-ticket', workItemId: 'low-foreign-work' });
+  await queue.holdTargetClaimForPendingProposals(context, {
+    definition: low,
+    workItem: {
+      id: 'low-foreign-work',
+      tenant_id: context.tenantId,
+      agent_definition_id: low.id,
+      source_provider_kind: 'ticketing',
+      source_provider_key: 'mock',
+      source_object_type: 'ticket',
+      source_object_ref: 'foreign-supersede-ticket',
+      last_run_id: 'foreign-run',
+      work_kind: 'ticket_triage',
+      status: 'waiting_approval',
+      dedup_key: 'foreign-supersede-dedup',
+    } as AiAgentWorkItem,
+    actionRequestIds: [foreignHeld.id],
+    runId: 'foreign-run',
+  });
+  const highTakesOver = await queue.acquireTargetClaim(context, {
+    definition: high,
+    targetRef: 'foreign-supersede-ticket',
+    workItemId: 'high-foreign-work',
+  });
+  assert.equal(highTakesOver.acquired, true);
+  const supersededAction = await actionRepo.findOne({ where: { id: foreignHeld.id, tenant_id: context.tenantId } });
+  assert.equal(supersededAction.status, 'expired');
 
   const raceQueue = new AiAgentWorkQueueService();
   const originalUpsert = raceQueue.upsertTargetState.bind(raceQueue);
@@ -8301,12 +8591,12 @@ async function testPhase135SweeperExpiresPendingAndReconcilesClaims() {
   const summary = await sweeper.sweepTenant(context, { limit: 25, now: new Date() });
   assert.equal(summary.expiredActions, 2);
   assert.equal(summary.claimsReleased, 1);
-  assert.equal(summary.claimActionsExpired, 1);
+  assert.equal(summary.claimActionsExpired, 0);
   assert.equal((await actionRepo.findOne({ where: { id: expiredPending.id, tenant_id: context.tenantId } })).status, 'expired');
   const expiredApprovedAfterSweep = await actionRepo.findOne({ where: { id: expiredApproved.id, tenant_id: context.tenantId } });
   assert.equal(expiredApprovedAfterSweep.status, 'expired');
   assert.match(expiredApprovedAfterSweep.error_message, /before execution/);
-  assert.equal((await actionRepo.findOne({ where: { id: claimAction.id, tenant_id: context.tenantId } })).status, 'expired');
+  assert.equal((await actionRepo.findOne({ where: { id: claimAction.id, tenant_id: context.tenantId } })).status, 'pending');
   assert.equal((stores.get(AiAgentAuditEvent.name) ?? []).some((event: AiAgentAuditEvent) => event.event_type === 'approval_lifecycle_swept'), true);
 }
 
@@ -15030,6 +15320,7 @@ async function run() {
   await testPhase136PollerUsesPredicateDerivedScopeInsteadOfLegacyMode();
   await testPhase135TargetingPreviewUsesControlPlaneAgentInvolvedAndRejectsUnbounded();
   await testPhase135TargetStateSchedulingWakeOnChangeAndSelfWrite();
+  await testPendingProposalOccupancyEmptyRunAndReplaceOnWrite();
   await testPhase135CollisionClaimsPrioritySupersedeLeaseExpiryAndRace();
   await testPhase135SweeperExpiresPendingAndReconcilesClaims();
   await testPhase135SweeperHonorsPauseCapsAndClaimRefresh();

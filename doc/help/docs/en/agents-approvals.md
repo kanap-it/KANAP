@@ -22,8 +22,8 @@ Each proposal is one concrete action an agent wants to take on one ticket. There
 | **Internal note** | A note the agent wants to add for your team, not visible to the requester. |
 | **Classification** | A change to the ticket's category, type, urgency, or similar attributes. |
 | **Status** | A move to a different ticket status (for example, from **New** to **Pending**). |
-| **Close ticket** | A terminal status change that closes the ticket — see [Terminal actions](#terminal-actions). |
-| **Solve ticket** | A terminal status change that marks the ticket solved — see [Terminal actions](#terminal-actions). |
+| **Close ticket** | Closes the ticket — see [Closing and solving tickets](#closing-and-solving-tickets). |
+| **Solve ticket** | Marks the ticket solved — see [Closing and solving tickets](#closing-and-solving-tickets). |
 | **Assignment** | A change to who the ticket is assigned to. |
 | **Participants** | A change to the ticket's watchers or requesters. |
 
@@ -82,25 +82,19 @@ Reaching for Dismiss when you really mean "this was wrong" hides a genuine quali
 
 ---
 
-## Terminal actions
+## Closing and solving tickets
 
-**Close ticket** and **Solve ticket** proposals are flagged **Terminal** in red, because they end the ticket and the requester sees the change straight away. These get an extra guard rail.
+**Close ticket** and **Solve ticket** titles are shown in red, because they end the ticket and the requester sees the change straight away. That red title is the only extra flag — there is no separate "terminal" badge.
 
-Approving a terminal proposal — on its own or as part of an **Approve all** where any item is terminal — opens an **Apply terminal action** confirmation. It names the exact action and ticket, warns that the requester will see the change immediately, lists every terminal item in a bulk approval, and gives you a reason field for the record. You confirm with **Apply anyway**. This is deliberate friction: routine replies and notes apply in one click, but closing or solving a ticket always asks you to pause and confirm.
+Approving one of these — on its own or as part of an **Approve all** where any item closes or solves the ticket — opens a confirmation named after the action (**Apply Solve ticket?**). It names the ticket, warns that the requester will see the change immediately, lists every closing item in a bulk approval, and gives you a reason field for the record. You confirm with the action name itself (**Solve ticket** or **Close ticket**). This is deliberate friction: routine replies and notes apply in one click, but closing or solving a ticket always asks you to pause and confirm.
 
 ---
 
 ## Reading drafted replies: the fallback note
 
-When an agent drafts a **Requester reply** or **Internal note**, it normally grounds that draft in your [Knowledge](knowledge.md) libraries and cites the sources it drew on. Occasionally you will see a small **Synthesis fallback** caption on such a proposal. It means the agent could not back this particular draft with cited sources — so treat it as a plain suggestion and read it closely before approving, rather than trusting it as source-verified.
+When an agent drafts a **Requester reply** or **Internal note**, it normally grounds that draft in your [Knowledge](knowledge.md) libraries and cites the sources it drew on. Occasionally you will see **This reply is not backed by your knowledge base.** on such a proposal. It means the agent could not back this particular draft with cited sources — so treat it as a plain suggestion and read it closely before approving, rather than trusting it as source-verified.
 
-The caption names the reason in plain terms, for example:
-
-- **Synthesis error** — something went wrong while composing the grounded reply.
-- **Synthesis disabled** — grounded drafting is turned off for this instance.
-- **Projected over the run cap** — composing the grounded reply would have exceeded the budget for that check.
-- **Operating context leak blocked** — the draft was held back because it risked exposing internal guidance to the requester.
-- **Invalid or ungrounded synthesis** — the draft could not be verified against your sources.
+**Details** opens the technical reason (for support), for example a synthesis error or a blocked leak of internal guidance. You do not need those codes to decide.
 
 The important thing to know is that **the absence of this note is the normal, healthy case.** Most drafts are grounded and carry no caption at all. And a reply can legitimately have no cited sources — an administrative acknowledgement or a purely internal escalation is not meant to be drafted from your knowledge base — without triggering this warning. So do not read a missing fallback note as a problem; it means the draft is either properly grounded or was never meant to be. The note only appears when the agent tried to ground a reply and could not.
 
