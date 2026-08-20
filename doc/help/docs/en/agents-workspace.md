@@ -128,16 +128,9 @@ The four sections follow the order you actually set an agent up in: decide what 
 
 Targeting decides which tickets the agent watches. (Whether it watches at all is the run mode in the action bar — targeting only describes the scope.)
 
-Quick presets — **New tickets**, **All open**, **Handled by this agent** — drop in a starting filter set; if you already have filters, you're asked before they're replaced. The filter builder lets you combine conditions: all filters are combined, and the available values come straight from the connected ticketing system. Selecting a category or an entity includes everything beneath it, and the builder says so.
+Quick presets — **New tickets**, **All open**, **Handled by this agent** — drop in a starting filter set; if you already have filters, you're asked before they're replaced. **New tickets** means tickets opened in the last N hours or days (shown under the preset), not tickets whose status is New. The filter builder lets you combine conditions: all filters are combined, and the available values come straight from the connected ticketing system. Selecting a category or an **Organization / site** includes everything beneath it, and the builder says so. **Inactive for at least** also lets the agent propose closing tickets that have been quiet that long.
 
-A live preview shows the practical effect:
-
-- **Matches** — how many tickets currently fit.
-- **Sample** — how many were actually inspected to produce the estimate.
-- **Overlap** — tickets that other agents also match, so you can spot two agents fighting over the same work.
-- **Runs/day** — the expected number of runs per day at this scope, already clamped by your check frequency and daily caps.
-
-A note appears when the preview is bounded by your per-check limits — the real match count may be larger than the preview shows.
+A live line under the filters tells you how many tickets currently match. If another agent already watches some of those tickets, that count is mentioned too — that is the signal that two agents may fight over the same work. When the line says **at least N**, the real queue is larger than the preview (your per-check limits cap how many tickets are inspected).
 
 Monitoring agents have the same section, filtering on alert state, severity, acknowledgement, group, device and check type instead.
 
@@ -173,14 +166,16 @@ Monitoring agents get **Search KANAP data** here instead, which lets the agent l
 
 ### Operating settings
 
-The pace-and-budget controls. Every field carries an information tooltip that says what it does and what happens when it is reached, so the page stays short.
+The pace-and-budget controls. Four of them sit in the open: **Check every (minutes)**, **Tickets per check**, **Runs per day**, and **Cost per day (EUR)**. Everything else — including the AI model — is behind **More options**. Every field carries an information tooltip that says what it does and what happens when it is reached.
 
-- **AI model** — which model this agent runs on. **Organization default** is the starting value and usually the right one: the agent follows whatever model your organization has set as default, and moves with it. Pick a specific model by name to pin this agent to it — a vision-capable model for screenshot-heavy queues, a cheap local one for high-volume triage. Only active models appear; they are defined on the [AI models](ai-models.md) page. A model an agent is pinned to cannot be archived out from under it — the agent has to be moved off it first. Note that reading the model list needs the AI settings admin permission (`ai_settings:admin`): with the **Agent Admin** role alone the dropdown offers only **Organization default**, which is a permissions gap rather than an empty registry.
 - **Check every (minutes)** — how often the agent looks for new tickets while it is watching, between **5** minutes and 24 hours (1440). This is the single biggest lever on how busy — and how expensive — a watching agent is. **Check now** always runs straight away, whatever this says, and this is the figure that **Next check** reports on the Monitor tab.
-- **Max tickets per check** and **Max provider requests** — the most tickets the agent picks up in one check (the rest wait for the next one), and the most calls it makes to the ticketing system in one check, so it never floods it.
-- **Review every (hours)** — how long the agent waits before looking at the same ticket again, so it doesn't repeat itself.
+- **Tickets per check** — the most tickets the agent picks up in one check (the rest wait for the next one).
+- **Runs per day** and **Cost per day (EUR)** — daily ceilings, each with today's real consumption underneath (**Today: …**). A *run* is one pass on one ticket, not one scheduled check.
+- **AI model** (under **More options**) — which model this agent runs on. **Organization default** is the starting value and usually the right one: the agent follows whatever model your organization has set as default, and moves with it. Pick a specific model by name to pin this agent to it — a vision-capable model for screenshot-heavy queues, a cheap local one for high-volume triage. Only active models appear; they are defined on the [AI models](ai-models.md) page. A model an agent is pinned to cannot be archived out from under it — the agent has to be moved off it first. Note that reading the model list needs the AI settings admin permission (`ai_settings:admin`): with the **Agent Admin** role alone the dropdown offers only **Organization default**, which is a permissions gap rather than an empty registry.
+- **Max provider requests** (under **More options**) — the most calls the agent makes to the ticketing system in one check, so it never floods it.
+- **Review every (hours)** — how soon the agent may look at the same ticket again after there is nothing waiting (applied, rejected, dismissed, or the window ran out). A waiting proposal occupies the ticket: the agent does not write another pair until that proposal is gone, unless the ticket itself changed.
 - **Agent priority** and **Ticket collision** — which agent wins when several target the same ticket (lower number = higher priority), and what this one does when another is already working it: **Defer** (stand back) or **Supersede equal priority** (take over from an agent of the same priority).
-- **Approval window (hours)** — how long every proposal for a ticket stays open before it expires. All proposals from one check share this window, so they expire together rather than piecemeal.
+- **Approval window (hours)** — how long you have to approve. All proposals from one check share this window and expire together. A live proposal occupies the ticket for that whole window, so **Review every** 24 hours with an approval window of 168 hours is a valid pair: you have a week to decide, and the agent does not write another pair in the meantime unless the ticket changes.
 - **If ticket changed** — what happens to a waiting proposal when the ticket moves on before you decide: **Re-review**, **Cancel**, or **Apply anyway**.
 - **Keep activity history (days)** — how long this agent's timeline is kept, between **7** and **90** days, **30** by default. Older entries, runs, and finished proposals are deleted automatically each night. See the caution below.
 
@@ -188,7 +183,7 @@ The pace-and-budget controls. Every field carries an information tooltip that sa
 
 The five economic caps sit in their own group, under a plain warning: these are **hard stops, not estimates**. When the agent reaches one of them it stops working for the rest of the day and waits for you — it starts again the next day.
 
-- **Tokens per run** and **Cost per run (EUR)** — the most the agent may spend on *one ticket*. Reaching one stops that ticket, and nothing is proposed for it. A *run* is one pass on one ticket, not one check: a single check can spend the per-run budget once for each ticket it picks up, so read these next to **Max tickets per check**.
+- **Tokens per run** and **Cost per run (EUR)** — the most the agent may spend on *one ticket*. Reaching one stops that ticket, and nothing is proposed for it. A *run* is one pass on one ticket, not one check: a single check can spend the per-run budget once for each ticket it picks up, so read these next to **Tickets per check**. These two, plus **Tokens per day**, sit under **More options**.
 - **Runs per day**, **Tokens per day**, and **Cost per day (EUR)** — the daily ceilings. Each of the three shows today's real consumption underneath it (**Today: …**), so you can size a cap against what the agent actually uses instead of guessing. These are the same figures as the **Status** section on Monitor.
 
 The two cost caps are priced with the **AI model** assigned above, using the prices recorded for it on the [AI models](ai-models.md) page. That has one consequence worth knowing: **a free model (0 €) never reaches a cost cap**, because everything it does costs nothing. On the KANAP included model, on a local model, or on any model you registered without prices, the cost caps are inert and the **token** and **run** caps are your only real protection. Set them accordingly.

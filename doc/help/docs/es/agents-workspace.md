@@ -130,14 +130,7 @@ La segmentación decide qué tickets vigila el agente. (Si vigila o no es el mod
 
 Los preajustes rápidos —**Tickets nuevos**, **Todos abiertos**, **Gestionados por este agente**— introducen un conjunto de filtros inicial; si ya tiene filtros, se le pregunta antes de sustituirlos. El generador de filtros le permite combinar condiciones: todos los filtros se combinan entre sí, y los valores disponibles proceden directamente del sistema de tickets conectado. Al seleccionar una categoría o una entidad se incluye todo lo que hay por debajo, y el generador así lo indica.
 
-Una vista previa en vivo muestra el efecto práctico:
-
-- **Coincidencias** — cuántos tickets encajan actualmente.
-- **Muestra** — cuántos se inspeccionaron realmente para producir la estimación.
-- **Solape** — tickets que otros agentes también recogen, para que detecte a dos agentes disputándose el mismo trabajo.
-- **Ejec./día** — el número esperado de ejecuciones por día con este alcance, ya limitado por su frecuencia de comprobación y sus topes diarios.
-
-Aparece una nota cuando la vista previa está limitada por sus topes por comprobación: el número real de coincidencias puede ser mayor que el que muestra la vista previa.
+Una línea bajo los filtros indica cuántos tickets coinciden ahora. Si otro agente ya vigila algunos de esos tickets, también se indica ese número: es la señal de que dos agentes pueden disputarse el mismo trabajo. Cuando la línea dice **al menos N**, la cola real es mayor que la vista previa (sus topes por comprobación limitan cuántos tickets se inspeccionan).
 
 Los agentes de supervisión tienen la misma sección, filtrando en su lugar por estado de la alerta, gravedad, reconocimiento, grupo, dispositivo y tipo de comprobación.
 
@@ -178,9 +171,9 @@ Los controles de ritmo y presupuesto. Cada campo lleva una información sobre he
 - **Modelo IA** — con qué modelo funciona este agente. **Predeterminado de la organización** es el valor de partida y normalmente el acertado: el agente sigue el modelo que su organización tenga definido como predeterminado y se mueve con él. Elija un modelo concreto por su nombre para fijar este agente a él: un modelo que entienda imágenes para colas con muchas capturas de pantalla, uno local y barato para el triaje de gran volumen. Solo aparecen los modelos activos; se definen en la página [Modelos IA](ai-models.md). Un modelo al que hay un agente fijado no puede archivarse a sus espaldas: primero hay que sacar al agente de él. Tenga en cuenta que leer la lista de modelos requiere el permiso de administrador de configuración de IA (`ai_settings:admin`): con el rol **Administrador de Agentes IA** por sí solo, el desplegable únicamente ofrece **Predeterminado de la organización**, lo cual es una carencia de permisos y no un registro vacío.
 - **Comprobar cada (minutos)** — con qué frecuencia busca el agente tickets nuevos mientras vigila, entre **5** minutos y 24 horas (1440). Es la palanca que más influye en lo ocupado —y lo caro— que resulta un agente en vigilancia. **Comprobar ahora** siempre se ejecuta al momento, diga lo que diga este valor, y esta es la cifra que informa **Próxima comprobación** en la pestaña Monitor.
 - **Tickets máximos por comprobación** y **Solicitudes máximas al proveedor** — el máximo de tickets que el agente toma en una comprobación (el resto espera a la siguiente) y el máximo de llamadas que hace al sistema de tickets en una comprobación, para no saturarlo.
-- **Revisar cada (horas)** — cuánto espera el agente antes de volver a mirar el mismo ticket, para no repetirse.
+- **Revisar cada (horas)** — cuánto tarda el agente en volver a mirar el mismo ticket cuando ya no hay nada en espera (aplicado, rechazado, descartado o ventana agotada). Una propuesta en espera ocupa el ticket: el agente no escribe otro par hasta que esa propuesta desaparezca, salvo que el propio ticket haya cambiado.
 - **Prioridad del agente** y **Colisión de ticket** — qué agente gana cuando varios apuntan al mismo ticket (cuanto menor es el número, mayor es la prioridad) y qué hace este cuando otro ya está trabajando en él: **Diferir** (apartarse) o **Sustituir misma prioridad** (relevar a un agente de igual prioridad).
-- **Ventana de aprobación (horas)** — cuánto tiempo permanece abierta cada propuesta de un ticket antes de expirar. Todas las propuestas de una misma comprobación comparten esta ventana, por lo que expiran juntas en lugar de por partes.
+- **Ventana de aprobación (horas)** — cuánto tiempo tiene para aprobar. Todas las propuestas de una misma comprobación comparten esta ventana y expiran juntas. Una propuesta activa ocupa el ticket durante toda esa ventana, así que **Revisar cada (horas)** 24 horas con una ventana de aprobación de 168 horas es un par válido: tiene una semana para decidir y el agente no escribe otro par entretanto, salvo que el ticket cambie.
 - **Si el ticket cambió** — qué ocurre con una propuesta en espera si el ticket avanza antes de que usted decida: **Revisar de nuevo**, **Cancelar** o **Aplicar igualmente**.
 - **Conservar el historial de actividad (días)** — cuánto tiempo se conserva la cronología de este agente, entre **7** y **90** días, **30** de forma predeterminada. Las entradas, ejecuciones y propuestas finalizadas más antiguas se eliminan automáticamente cada noche. Vea la advertencia más abajo.
 

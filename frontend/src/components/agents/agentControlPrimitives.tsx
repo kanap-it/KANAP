@@ -320,18 +320,32 @@ export function actionIsTerminalStatus(action: AiAgentControlActionRequest): boo
   return target === 'closed' || target === 'solved';
 }
 
+export function capabilityLabelFromName(name: string | null | undefined): string {
+  if (!name) return agentText('common.notSet', 'Not set');
+  // Dispatch on the exact action-class segment (`ticketing.ticket.<class>.<verb>`):
+  // substring matching mislabeled read-only `*_context.get` lookups as write actions.
+  const segments = name.split('.').filter(Boolean);
+  const actionClass = segments.length >= 2 ? segments[segments.length - 2] : '';
+  switch (actionClass) {
+    case 'internal_note': return agentText('actions.internalNote', 'Internal note');
+    case 'public_reply': return agentText('actions.requesterReply', 'Requester reply');
+    case 'classification_update': return agentText('actions.classification', 'Classification');
+    case 'status_update': return agentText('actions.status', 'Status');
+    case 'assignment_update': return agentText('actions.assignment', 'Assignment');
+    case 'participant_update': return agentText('actions.participants', 'Participants');
+    default: {
+      const fallback = humanize(segments.slice(-2).join(' '));
+      return fallback.charAt(0).toUpperCase() + fallback.slice(1);
+    }
+  }
+}
+
 export function actionLabel(action: AiAgentControlActionRequest): string {
-  if (action.capability_name === INTERNAL_NOTE_CAPABILITY) return agentText('actions.internalNote', 'Internal note');
-  if (action.capability_name === PUBLIC_REPLY_CAPABILITY) return agentText('actions.requesterReply', 'Requester reply');
-  if (action.capability_name === CLASSIFICATION_UPDATE_CAPABILITY) return agentText('actions.classification', 'Classification');
   if (actionIsTerminalStatus(action)) {
     const target = String((isRecord(action.action_payload_json) ? action.action_payload_json.targetStatus : '') ?? '').toLowerCase();
     return target === 'solved' ? agentText('actions.solveTicket', 'Solve ticket') : agentText('actions.closeTicket', 'Close ticket');
   }
-  if (action.capability_name === STATUS_UPDATE_CAPABILITY) return agentText('actions.status', 'Status');
-  if (action.capability_name === ASSIGNMENT_UPDATE_CAPABILITY) return agentText('actions.assignment', 'Assignment');
-  if (action.capability_name === PARTICIPANT_UPDATE_CAPABILITY) return agentText('actions.participants', 'Participants');
-  return humanize(action.capability_name.split('.').slice(-2).join(' '));
+  return capabilityLabelFromName(action.capability_name);
 }
 
 export function actionBody(action: AiAgentControlActionRequest | null | undefined): string | null {
@@ -405,6 +419,14 @@ export function actionCanReject(action: AiAgentControlActionRequest): boolean {
 export function actionCanExecute(action: AiAgentControlActionRequest): boolean {
   if (action.status === 'executing') return false;
   return action.execution_readiness?.can_execute ?? (action.status === 'pending' || action.status === 'approved');
+}
+
+export function executableActions(actions: AiAgentControlActionRequest[]): AiAgentControlActionRequest[] {
+  return actions.filter(actionCanExecute);
+}
+
+export function executableTerminalActions(actions: AiAgentControlActionRequest[]): AiAgentControlActionRequest[] {
+  return actions.filter((action) => actionCanExecute(action) && actionIsTerminalStatus(action));
 }
 
 export function actionBlockedReason(action: AiAgentControlActionRequest): string | null {

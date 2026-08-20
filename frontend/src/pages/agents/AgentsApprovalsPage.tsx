@@ -19,6 +19,7 @@ import {
   actionBody,
   actionCanExecute,
   actionCanReject,
+  executableActions,
   actionHasQueuedExecution,
   actionInProgress,
   actionIsTerminalStatus,
@@ -209,6 +210,35 @@ function synthesisFallbackInfo(action: AiAgentControlActionRequest, t: ReturnTyp
   };
 }
 
+function FallbackNote({ label, detail }: { label: string; detail: string | null }) {
+  const { t } = useTranslation(['agents']);
+  const [open, setOpen] = React.useState(false);
+  return (
+    <Typography sx={(theme) => ({ color: theme.palette.kanap.orange, fontSize: 12, fontWeight: 400, lineHeight: 1.45, mt: 0.75 })}>
+      {t('approvals.fallbackNote')}
+      {(label || detail) && (
+        <>
+          {' '}
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => setOpen((current) => !current)}
+            sx={{ minWidth: 0, px: 0.5, py: 0, fontSize: 12, fontWeight: 400, color: 'kanap.text.tertiary', textTransform: 'none' }}
+          >
+            {t('approvals.fallbackShowDetails')}
+          </Button>
+        </>
+      )}
+      {open && (
+        <Box component="span" sx={(theme) => ({ display: 'block', color: theme.palette.kanap.text.tertiary, mt: 0.25 })}>
+          {label}
+          {detail ? ` — ${detail}` : ''}
+        </Box>
+      )}
+    </Typography>
+  );
+}
+
 function ProposalRow({
   action,
   busy,
@@ -229,18 +259,13 @@ function ProposalRow({
   const terminal = actionIsTerminalStatus(action);
   const fallback = synthesisFallbackInfo(action, t);
   return (
-    <Box sx={{ border: '1px solid', borderColor: terminal ? 'kanap.danger' : 'kanap.border.default', borderRadius: 1, p: 1.25 }}>
+    <Box sx={{ border: '1px solid', borderColor: 'kanap.border.default', borderRadius: 1, p: 1.25 }}>
       <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
           {proposalIcon(action.capability_name)}
           <Typography sx={(theme) => ({ color: terminal ? theme.palette.kanap.danger : theme.palette.kanap.text.primary, fontSize: 13, fontWeight: 500 })}>
             {actionLabel(action)}
           </Typography>
-          {terminal && (
-            <Typography sx={(theme) => ({ color: theme.palette.kanap.danger, fontSize: 12, fontWeight: 500 })}>
-              {t('approvals.terminalAction')}
-            </Typography>
-          )}
           <StatusText status={action.status} />
         </Stack>
         <ActionButtons action={action} busy={busy} onApprove={onApprove} onReject={onReject} onDismiss={onDismiss} />
@@ -253,14 +278,7 @@ function ProposalRow({
         )}
       </Box>
       {fallback && (
-        <Typography sx={(theme) => ({ color: theme.palette.kanap.orange, fontSize: 12, fontWeight: 400, lineHeight: 1.45, mt: 0.75 })}>
-          {t('approvals.fallbackNote')}: {fallback.label}
-          {fallback.detail && (
-            <Box component="span" sx={(theme) => ({ color: theme.palette.kanap.text.tertiary })}>
-              {' - '}{fallback.detail}
-            </Box>
-          )}
-        </Typography>
+        <FallbackNote label={fallback.label} detail={fallback.detail} />
       )}
     </Box>
   );
@@ -733,7 +751,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   });
 
   const approveAll = (group: TicketWorkGroup, reason?: string | null) => {
-    data.approveAllMutation.mutate({ key: group.key, actions: group.pendingActions, reason });
+    data.approveAllMutation.mutate({ key: group.key, actions: executableActions(group.pendingActions), reason });
   };
   const rejectAll = (group: TicketWorkGroup, reason?: string | null) => {
     data.rejectAllMutation.mutate({ key: group.key, actions: group.pendingActions, reason }, {
@@ -753,9 +771,9 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
     data.approveMutation.mutate({ action });
   };
   const handleApproveAll = (group: TicketWorkGroup) => {
-    const executableActions = group.pendingActions.filter(actionCanExecute);
-    if (executableActions.some(actionIsTerminalStatus)) {
-      setTerminalApproval({ group, actions: group.pendingActions, mode: 'bulk' });
+    const executable = executableActions(group.pendingActions);
+    if (executable.some(actionIsTerminalStatus)) {
+      setTerminalApproval({ group, actions: executable, mode: 'bulk' });
       return;
     }
     approveAll(group);
@@ -774,7 +792,9 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
     });
   };
 
-  const terminalActions = terminalApproval?.actions.filter(actionIsTerminalStatus) ?? [];
+  // The dialog approves every action in terminalApproval.actions, so the disclosure
+  // must cover the full set — not just the terminal ones that triggered it.
+  const approvalActions = terminalApproval?.actions ?? [];
   const terminalBusy = terminalApproval?.mode === 'bulk'
     ? data.busyTicketKey === terminalApproval.group.key
     : !!terminalApproval?.actions[0] && data.busyActionId === terminalApproval.actions[0].id;
@@ -798,7 +818,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
           ) : needsDecisionGroups.length === 0 ? (
             <EmptyState>{t('approvals.emptyDecision')}</EmptyState>
           ) : (
-            <Stack divider={<Divider flexItem sx={{ borderColor: 'kanap.border.soft' }} />}>
+            <Stack spacing={2} divider={<Divider flexItem sx={{ borderColor: 'kanap.border.default' }} />}>
               {needsDecisionGroups.map((group) => (
                 <DecisionGroup
                   key={group.key}
@@ -821,7 +841,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
         {/* The workspace control bar already states whether anything is running,
             so this section no longer carries its own status framing: it appears
             only when there are rows to show. */}
-        {!loading && inProgressRows.length > 0 && (
+        {!agentKey && !loading && inProgressRows.length > 0 && (
           <Section title={t('approvals.inProgress')}>
             <Stack>
               {inProgressRows.map((row) => <CompactLifecycleRow key={row.id} row={row} locale={locale} />)}
@@ -829,12 +849,8 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
           </Section>
         )}
 
-        <Section title={t('approvals.needsAttention')} count={attentionRows.length}>
-          {loading ? (
-            <EmptyState>{t('approvals.loading')}</EmptyState>
-          ) : attentionRows.length === 0 ? (
-            <EmptyState>{t('approvals.emptyAttention')}</EmptyState>
-          ) : (
+        {attentionRows.length > 0 && (
+          <Section title={t('approvals.needsAttention')} count={attentionRows.length}>
             <Stack>
               {attentionRows.map((row) => (
                 <CompactLifecycleRow
@@ -852,19 +868,17 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
                 />
               ))}
             </Stack>
-          )}
-        </Section>
+          </Section>
+        )}
 
-        <Section
-          title={t('approvals.recentlyFinished')}
-          count={finishedRows.length}
-          collapsible
-          open={finishedOpen}
-          onToggle={() => setFinishedOpen((current) => !current)}
-        >
-          {visibleFinishedRows.length === 0 ? (
-            <EmptyState>{t('approvals.emptyFinished')}</EmptyState>
-          ) : (
+        {finishedRows.length > 0 && (
+          <Section
+            title={t('approvals.recentlyFinished')}
+            count={finishedRows.length}
+            collapsible
+            open={finishedOpen}
+            onToggle={() => setFinishedOpen((current) => !current)}
+          >
             <Stack>
               {visibleFinishedRows.map((row) => <CompactLifecycleRow key={row.id} row={row} locale={locale} timeMode="absolute" />)}
               {hiddenFinishedCount > 0 && (
@@ -873,8 +887,8 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
                 </Typography>
               )}
             </Stack>
-          )}
-        </Section>
+          </Section>
+        )}
 
         <KanapDialog
           open={!!rejectGroup}
@@ -914,32 +928,41 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
 
         <KanapDialog
           open={!!terminalApproval}
-          title={terminalApproval?.mode === 'bulk' ? t('approvals.terminalConfirmTitleMany') : t('approvals.terminalConfirmTitle')}
+          title={approvalActions.length > 1
+            ? t('approvals.terminalConfirmTitleMany')
+            : t('approvals.terminalConfirmTitle', { action: approvalActions[0] ? actionLabel(approvalActions[0]) : '' })}
           onClose={() => setTerminalApproval(null)}
           onSave={confirmTerminalApproval}
-          saveLabel={t('approvals.applyAnyway')}
+          saveLabel={approvalActions.length === 1 && approvalActions[0] ? actionLabel(approvalActions[0]) : t('approvals.approveAll')}
           saveColor="error"
           saveLoading={terminalBusy}
         >
           <Stack spacing={1.25}>
             <Typography sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: 13, fontWeight: 400 })}>
-              {terminalApproval?.mode === 'bulk'
+              {approvalActions.length > 1
                 ? t('approvals.terminalConfirmBodyMany', {
-                  count: terminalActions.length,
+                  count: approvalActions.length,
                   target: terminalApproval ? groupTargetText(terminalApproval.group) : '',
                 })
                 : t('approvals.terminalConfirmBody', {
-                  action: terminalActions[0] ? actionLabel(terminalActions[0]) : '',
+                  action: approvalActions[0] ? actionLabel(approvalActions[0]) : '',
                   target: terminalApproval ? groupTargetText(terminalApproval.group) : '',
                 })}
             </Typography>
-            {terminalActions.length > 0 && (
+            {approvalActions.length > 1 && (
               <Stack spacing={0.5}>
                 <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500 })}>
                   {t('approvals.terminalActionList')}
                 </Typography>
-                {terminalActions.map((action) => (
-                  <Typography key={action.id} sx={(theme) => ({ color: theme.palette.kanap.text.primary, fontSize: 13, fontWeight: 400 })}>
+                {approvalActions.map((action) => (
+                  <Typography
+                    key={action.id}
+                    sx={(theme) => ({
+                      color: actionIsTerminalStatus(action) ? theme.palette.kanap.danger : theme.palette.kanap.text.primary,
+                      fontSize: 13,
+                      fontWeight: 400,
+                    })}
+                  >
                     {actionLabel(action)}
                   </Typography>
                 ))}

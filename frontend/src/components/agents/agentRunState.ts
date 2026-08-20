@@ -25,6 +25,23 @@ export function policyObject(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
+export function targetingPredicateCount(
+  definition: { scope_policy_json?: unknown } | null | undefined,
+): number {
+  const predicates = policyObject(policyObject(definition?.scope_policy_json).targeting).predicates;
+  return Array.isArray(predicates) ? predicates.length : 0;
+}
+
+// Legacy helpdesk agents can be scoped purely through the ingestion
+// entity/category config (pre-targeting-builder state, still enforced by the
+// backend) with zero scope-policy predicates — both must read as "Filtered".
+export function helpdeskScopeFiltered(
+  definition: { scope_policy_json?: unknown } | null | undefined,
+  ingestion: { entityId?: string | null; categoryId?: string | null } | null | undefined,
+): boolean {
+  return targetingPredicateCount(definition) > 0 || !!(ingestion?.entityId || ingestion?.categoryId);
+}
+
 /**
  * Everything the control bar and the Monitor "Status" section need to describe
  * one agent's live state, derived once so the two surfaces can never disagree
@@ -43,10 +60,11 @@ export function useAgentRunState(agentKey: string) {
   // from the definition itself (trigger policy + the poller's stored state).
   const scheduledPoll = policyObject(policyObject(definition?.trigger_policy_json).scheduled_poll);
   const sreWatching = scheduledPoll.enabled === true;
-  const sreTargetingPredicateCount = (() => {
-    const predicates = policyObject(policyObject(definition?.scope_policy_json).targeting).predicates;
-    return Array.isArray(predicates) ? predicates.length : 0;
-  })();
+  const targetingPredicates = targetingPredicateCount(definition);
+  const sreTargetingPredicateCount = targetingPredicates;
+  const scopeFiltered = isSre
+    ? targetingPredicates > 0
+    : helpdeskScopeFiltered(definition, summary?.ingestion ?? null);
   // "Next check" follows the agent's own check frequency (trigger policy), not
   // the platform cron tick. Mirror of the backend clamp in
   // ai-agent-check-interval.ts — an absent key means the 5-minute default.
@@ -56,6 +74,7 @@ export function useAgentRunState(agentKey: string) {
     : DEFAULT_CHECK_INTERVAL_MINUTES;
   const sreIngestionState = policyObject(policyObject(definition?.metadata_json).monitoring_ingestion_state);
   const sreLastPollStatus = typeof sreIngestionState.last_poll_status === 'string' ? sreIngestionState.last_poll_status : '';
+  const sreLastPollAt = typeof sreIngestionState.last_poll_at === 'string' ? sreIngestionState.last_poll_at : '';
   const watching = isSre ? sreWatching : !!summary?.ingestion.enabled;
 
   const agentPause = summary?.emergencyPause ?? null;
@@ -97,7 +116,10 @@ export function useAgentRunState(agentKey: string) {
     watching,
     sreWatching,
     sreTargetingPredicateCount,
+    targetingPredicates,
+    scopeFiltered,
     sreLastPollStatus,
+    sreLastPollAt,
     checkIntervalMinutes,
     agentPause,
     tenantPause,

@@ -23,6 +23,7 @@ import {
   type AiAgentControlEvaluationDailyResult,
   type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
+  type AiAgentControlTargetingPreview,
   type AiAgentKanapDataSources,
   type AiSharedContextProfile,
 } from '../../ai/aiApi';
@@ -84,12 +85,14 @@ import { AlertDossierBody, AlertOccurrenceList, dossierFromDiagnosisResult } fro
 import AgentsApprovalsPage from './AgentsApprovalsPage';
 import AgentsActivityPage from './AgentsActivityPage';
 import { SHARED_CONTEXT_PROFILES_QUERY_KEY, useAgentControlData } from './useAgentControlData';
+import { useLocalStorageState } from '../../hooks/useLocalStorageState';
 
 type WorkspaceTab = 'monitor' | 'approvals' | 'performance' | 'settings';
 const TABS: WorkspaceTab[] = ['monitor', 'approvals', 'performance', 'settings'];
 // Scroll anchor for the control bar's "Test on a ticket/alert" entry point.
 const AGENT_TEST_SECTION_ID = 'agent-test';
 const EFFECTIVE_PROMPT_OPEN_KEY = 'kanap.agentWorkspace.effectivePromptOpen';
+const OPERATING_MORE_OPEN_KEY = 'kanap.agentWorkspace.operatingMoreOpen';
 
 type EffectivePromptTaskKey = 'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis';
 const HELPDESK_EFFECTIVE_PROMPT_TASKS: EffectivePromptTaskKey[] = ['action_planner', 'planner', 'interpreter', 'synthesis'];
@@ -219,6 +222,48 @@ function SettingsField({ label, hint, info, children }: {
 function CapUsage({ children }: { children: React.ReactNode }) {
   return (
     <Typography component="span" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{children}</Typography>
+  );
+}
+
+/** One-line effect of the current filters. Sample size, run estimates and
+ *  predicate-resolution chips stay off this surface — they are implementation
+ *  detail, not something an operator uses to aim the agent. */
+function TargetingPreviewSummary({
+  loading,
+  error,
+  preview,
+}: {
+  loading: boolean;
+  error: boolean;
+  preview?: AiAgentControlTargetingPreview;
+}) {
+  const { t } = useTranslation(['agents']);
+  if (!preview) {
+    if (error) {
+      return <Typography variant="body2" color="error.main">{t('settings.preview.unavailable')}</Typography>;
+    }
+    if (loading) {
+      return <Typography variant="body2" color="text.secondary">{t('settings.preview.checking')}</Typography>;
+    }
+    return null;
+  }
+  const matches = preview.matchEstimate;
+  const overlap = preview.overlapEstimate;
+  const matchesText = matches === 0
+    ? t('settings.preview.matchesNone')
+    : t(preview.capped ? 'settings.preview.matchesCapped' : 'settings.preview.matches', { count: matches });
+  return (
+    <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
+      {matchesText}
+      {overlap > 0 && matches > 0 ? (
+        <>
+          {' '}
+          <Box component="span" sx={{ color: 'warning.main' }}>
+            {t('settings.preview.overlap', { count: overlap })}
+          </Box>
+        </>
+      ) : null}
+    </Typography>
   );
 }
 
@@ -603,7 +648,7 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
 
       <Box>
         <Typography variant="subtitle2" fontWeight={500} sx={{ mb: 1 }}>{t('monitor.recentActivity')}</Typography>
-        <AgentsActivityPage agentKey={agentKey} />
+        <AgentsActivityPage agentKey={agentKey} compact />
       </Box>
 
     </Stack>
@@ -1037,12 +1082,8 @@ function SettingsTab({ definition, autosaveRegistry }: {
   const [effectivePromptTask, setEffectivePromptTask] = React.useState<EffectivePromptTaskKey>(effectivePromptTasks[0]);
   // The effective prompt is a diagnostic, not a daily control: collapsed by
   // default, and the choice is remembered (charter: UI state in localStorage).
-  const [effectivePromptOpen, setEffectivePromptOpen] = React.useState(
-    () => window.localStorage.getItem(EFFECTIVE_PROMPT_OPEN_KEY) === 'true',
-  );
-  React.useEffect(() => {
-    window.localStorage.setItem(EFFECTIVE_PROMPT_OPEN_KEY, String(effectivePromptOpen));
-  }, [effectivePromptOpen]);
+  const [effectivePromptOpen, setEffectivePromptOpen] = useLocalStorageState(EFFECTIVE_PROMPT_OPEN_KEY, false);
+  const [operatingMoreOpen, setOperatingMoreOpen] = useLocalStorageState(OPERATING_MORE_OPEN_KEY, false);
   const [form, setForm] = React.useState<HelpdeskSettingsForm>(() => settingsFormFromDefinition(definition));
   const [sreForm, setSreForm] = React.useState<SreSettingsForm>(() => sreSettingsFormFromDefinition(definition));
   const [pendingMonitoringPreset, setPendingMonitoringPreset] = React.useState<{
@@ -1095,6 +1136,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
     }),
     enabled: isHelpdesk && !!previewScopeJson,
     staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
   });
   const targetingStatusOptionsQuery = useQuery({
     queryKey: ['ai-agent-targeting-options', definition.id, 'status', ''],
@@ -1476,6 +1518,7 @@ function SettingsTab({ definition, autosaveRegistry }: {
     if (!name || lines.length === 0) return;
     createSharedContextProfileMutation.mutate({ name, lines });
   };
+  const createdWithinFilter = form.filters.find((filter) => filter.field === 'created_at') ?? null;
 
   return (
     <Stack spacing={2}>
@@ -1485,30 +1528,30 @@ function SettingsTab({ definition, autosaveRegistry }: {
       {isHelpdesk && (
         <Section title={t('settings.targeting')} actions={<SaveIndicator status={settingsAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-            {(['new_tickets', 'all_open', 'handled'] as TargetingPresetKey[]).map((preset) => (
-              <Button key={preset} size="small" variant="text" onClick={() => requestTargetingPreset(preset)} disabled={presetStatusValues.length === 0} sx={actionLinkButtonSx}>
-                {t(`settings.targetingPresets.${preset}`)}
-              </Button>
-            ))}
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {(['new_tickets', 'all_open', 'handled'] as TargetingPresetKey[]).map((preset) => (
+                <Button key={preset} size="small" variant="text" onClick={() => requestTargetingPreset(preset)} disabled={presetStatusValues.length === 0} sx={actionLinkButtonSx}>
+                  {t(`settings.targetingPresets.${preset}`)}
+                </Button>
+              ))}
+            </Stack>
+            {createdWithinFilter ? (
+              <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
+                {t(createdWithinFilter.unit === 'days' ? 'settings.targetingBuilder.newTicketsDays' : 'settings.targetingBuilder.newTicketsHours', {
+                  count: Number(createdWithinFilter.amount) || 1,
+                })}
+              </Typography>
+            ) : null}
           </Stack>
           <SettingsField label={t('settings.targetingBuilder.filters')} hint={t('settings.targetingBuilder.hint')}>
             <HelpdeskTargetingFilterBuilder agentId={definition.id} filters={form.filters} onChange={updateFilters} />
           </SettingsField>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
-            <MetricBlock label={t('settings.preview.matches')} value={targetingPreviewQuery.isFetching ? '…' : formatNumber(targetingPreviewQuery.data?.preview.matchEstimate ?? 0)} />
-            <MetricBlock label={t('settings.preview.sample')} value={targetingPreviewQuery.isFetching ? '…' : formatNumber(targetingPreviewQuery.data?.preview.sampleSize ?? 0)} />
-            <MetricBlock label={t('settings.preview.overlap')} value={targetingPreviewQuery.isFetching ? '…' : formatNumber(targetingPreviewQuery.data?.preview.overlapEstimate ?? 0)} />
-            <MetricBlock label={t('settings.preview.runsPerDay')} value={targetingPreviewQuery.isFetching ? '…' : formatNumber(targetingPreviewQuery.data?.preview.runsPerDayEstimate ?? 0)} />
-          </Box>
-          {targetingPreviewQuery.data?.preview.capped && <Typography variant="caption" color="text.secondary">{t('settings.preview.capped')}</Typography>}
-          {targetingPreviewQuery.data?.preview.resolution?.length ? (
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              {targetingPreviewQuery.data.preview.resolution.map((entry, index) => (
-                <Chip key={`${entry.predicate.field}-${index}`} size="small" label={`${entry.predicate.field}: ${t(`settings.predicateResolution.${entry.resolution}`)}`} />
-              ))}
-            </Stack>
-          ) : null}
+          <TargetingPreviewSummary
+            loading={targetingPreviewQuery.isFetching}
+            error={targetingPreviewQuery.isError}
+            preview={targetingPreviewQuery.data?.preview}
+          />
         </Stack>
         </Section>
       )}
@@ -1879,105 +1922,119 @@ function SettingsTab({ definition, autosaveRegistry }: {
 
       {isHelpdesk && <Section title={t('settings.operatingSettings')} actions={<SaveIndicator status={settingsAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-            <SettingsField label={t('settings.model')} info={t('settings.modelInfo')}>
-              <Select
-                variant="standard"
-                value={definition.llm_model_config_id ?? ''}
-                displayEmpty
-                disabled={setModelMutation.isPending}
-                onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
-                sx={pageSelectSx}
-                MenuProps={compactSelectMenuProps}
-              >
-                <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
-                {activeModelConfigs.map((modelConfig) => (
-                  <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
-                ))}
-              </Select>
-              {modelConfigsQuery.isError && (
-                <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
-              )}
-            </SettingsField>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
             <SettingsField label={t('settings.checkInterval')} info={t('settings.checkIntervalInfo')}>
               <TextField size="small" value={form.checkIntervalMinutes} onChange={(event) => update('checkIntervalMinutes', event.target.value)} />
             </SettingsField>
             <SettingsField label={t('settings.maxTickets')} info={t('settings.maxTicketsInfo')}>
               <TextField size="small" value={form.maxTickets} onChange={(event) => update('maxTickets', event.target.value)} />
             </SettingsField>
-            <SettingsField label={t('settings.maxRequests')} info={t('settings.maxRequestsInfo')}>
-              <TextField size="small" value={form.maxRequests} onChange={(event) => update('maxRequests', event.target.value)} />
+            <SettingsField
+              label={t('settings.dailyRuns')}
+              info={t('settings.dailyRunsInfo')}
+              hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: formatNumber(dailyUsage.runs ?? 0) })}</CapUsage> : undefined}
+            >
+              <TextField size="small" value={form.dailyRuns} onChange={(event) => update('dailyRuns', event.target.value)} />
             </SettingsField>
-            <SettingsField label={t('settings.reviewCooldown')} info={t('settings.reviewCooldownInfo')}>
-              <TextField size="small" value={form.reviewCooldownHours} onChange={(event) => update('reviewCooldownHours', event.target.value)} />
-            </SettingsField>
-            <SettingsField label={t('settings.agentPriority')} info={t('settings.agentPriorityInfo')}>
-              <TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} />
-            </SettingsField>
-            <SettingsField label={t('settings.onConflict')} info={t('settings.onConflictInfo')}>
-              <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={pageSelectSx}
-                MenuProps={compactSelectMenuProps}
-              >
-                <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
-                <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
-              </Select>
-            </SettingsField>
-            <SettingsField label={t('settings.approvalTtl')} info={t('settings.approvalTtlHint')}>
-              <TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} />
-            </SettingsField>
-            <SettingsField label={t('settings.onStale')} info={t('settings.onStaleInfo')}>
-              <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={pageSelectSx}
-                MenuProps={compactSelectMenuProps}
-              >
-                <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
-                <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
-                <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
-              </Select>
-            </SettingsField>
-            <SettingsField label={t('settings.activityRetention')} info={t('settings.activityRetentionHint')}>
-              <TextField size="small" value={form.activityRetentionDays} onChange={(event) => update('activityRetentionDays', event.target.value)} />
+            <SettingsField
+              label={t('settings.dailyCost')}
+              info={t('settings.dailyCostInfo')}
+              hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: `${(dailyUsage.estimatedCostEur ?? 0).toFixed(4)} EUR` })}</CapUsage> : undefined}
+            >
+              <TextField size="small" value={form.dailyCost} onChange={(event) => update('dailyCost', event.target.value)} />
             </SettingsField>
           </Box>
-
-          {/* Safety limits: caps that STOP the agent, not estimates. Each daily
-              cap carries today's real usage so the number reads as a budget in
-              use, never as a broken calculation. */}
-          <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.5 }}>
-            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
-              <Typography variant="body2" fontWeight={500}>{t('settings.safetyLimits')}</Typography>
-              <Tooltip title={t('settings.safetyLimitsInfo')} placement="top">
-                <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
-              </Tooltip>
-            </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(5, minmax(0, 1fr))' }, gap: 1.5 }}>
-              <SettingsField label={t('settings.perRunTokens')} info={t('settings.perRunTokensInfo')}>
-                <TextField size="small" value={form.perRunTokens} onChange={(event) => update('perRunTokens', event.target.value)} />
-              </SettingsField>
-              <SettingsField label={t('settings.perRunCost')} info={t('settings.perRunCostInfo')}>
-                <TextField size="small" value={form.perRunCost} onChange={(event) => update('perRunCost', event.target.value)} />
-              </SettingsField>
-              <SettingsField
-                label={t('settings.dailyRuns')}
-                info={t('settings.dailyRunsInfo')}
-                hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: formatNumber(dailyUsage.runs ?? 0) })}</CapUsage> : undefined}
-              >
-                <TextField size="small" value={form.dailyRuns} onChange={(event) => update('dailyRuns', event.target.value)} />
-              </SettingsField>
-              <SettingsField
-                label={t('settings.dailyTokens')}
-                info={t('settings.dailyTokensInfo')}
-                hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: formatNumber(dailyUsage.estimatedTokens ?? 0) })}</CapUsage> : undefined}
-              >
-                <TextField size="small" value={form.dailyTokens} onChange={(event) => update('dailyTokens', event.target.value)} />
-              </SettingsField>
-              <SettingsField
-                label={t('settings.dailyCost')}
-                info={t('settings.dailyCostInfo')}
-                hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: `${(dailyUsage.estimatedCostEur ?? 0).toFixed(4)} EUR` })}</CapUsage> : undefined}
-              >
-                <TextField size="small" value={form.dailyCost} onChange={(event) => update('dailyCost', event.target.value)} />
-              </SettingsField>
-            </Box>
+          <Box>
+            <Button
+              size="small"
+              variant="text"
+              sx={actionLinkButtonSx}
+              aria-label={operatingMoreOpen ? t('settings.hideMoreOptions') : t('settings.moreOptions')}
+              endIcon={operatingMoreOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              onClick={() => setOperatingMoreOpen((open) => !open)}
+            >
+              {operatingMoreOpen ? t('settings.hideMoreOptions') : t('settings.moreOptions')}
+            </Button>
+            <Collapse in={operatingMoreOpen} unmountOnExit>
+              <Stack spacing={1.5} sx={{ pt: 1.5 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+                  <SettingsField label={t('settings.model')} info={t('settings.modelInfo')}>
+                    <Select
+                      variant="standard"
+                      value={definition.llm_model_config_id ?? ''}
+                      displayEmpty
+                      disabled={setModelMutation.isPending}
+                      onChange={(event) => setModelMutation.mutate(event.target.value ? String(event.target.value) : null)}
+                      sx={pageSelectSx}
+                      MenuProps={compactSelectMenuProps}
+                    >
+                      <MenuItem value="" sx={drawerMenuItemSx}>{t('settings.modelTenantDefault')}</MenuItem>
+                      {activeModelConfigs.map((modelConfig) => (
+                        <MenuItem key={modelConfig.id} value={modelConfig.id} sx={drawerMenuItemSx}>{modelConfig.name}</MenuItem>
+                      ))}
+                    </Select>
+                    {modelConfigsQuery.isError && (
+                      <Typography variant="caption" color="error.main">{t('settings.modelListError')}</Typography>
+                    )}
+                  </SettingsField>
+                  <SettingsField label={t('settings.maxRequests')} info={t('settings.maxRequestsInfo')}>
+                    <TextField size="small" value={form.maxRequests} onChange={(event) => update('maxRequests', event.target.value)} />
+                  </SettingsField>
+                  <SettingsField label={t('settings.reviewCooldown')} info={t('settings.reviewCooldownInfo')}>
+                    <TextField size="small" value={form.reviewCooldownHours} onChange={(event) => update('reviewCooldownHours', event.target.value)} />
+                  </SettingsField>
+                  <SettingsField label={t('settings.agentPriority')} info={t('settings.agentPriorityInfo')}>
+                    <TextField size="small" value={form.agentPriority} onChange={(event) => update('agentPriority', event.target.value)} />
+                  </SettingsField>
+                  <SettingsField label={t('settings.onConflict')} info={t('settings.onConflictInfo')}>
+                    <Select variant="standard" value={form.onConflict} onChange={(event) => update('onConflict', event.target.value)} sx={pageSelectSx}
+                      MenuProps={compactSelectMenuProps}
+                    >
+                      <MenuItem value="defer" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.defer')}</MenuItem>
+                      <MenuItem value="supersede" sx={drawerMenuItemSx}>{t('settings.conflictPolicies.supersede')}</MenuItem>
+                    </Select>
+                  </SettingsField>
+                  <SettingsField label={t('settings.approvalTtl')} info={t('settings.approvalTtlHint')}>
+                    <TextField size="small" value={form.approvalTtlHours} onChange={(event) => update('approvalTtlHours', event.target.value)} />
+                  </SettingsField>
+                  <SettingsField label={t('settings.onStale')} info={t('settings.onStaleInfo')}>
+                    <Select variant="standard" value={form.onStale} onChange={(event) => update('onStale', event.target.value)} sx={pageSelectSx}
+                      MenuProps={compactSelectMenuProps}
+                    >
+                      <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
+                      <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
+                      <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
+                    </Select>
+                  </SettingsField>
+                  <SettingsField label={t('settings.activityRetention')} info={t('settings.activityRetentionHint')}>
+                    <TextField size="small" value={form.activityRetentionDays} onChange={(event) => update('activityRetentionDays', event.target.value)} />
+                  </SettingsField>
+                </Box>
+                <Box>
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+                    <Typography variant="body2" fontWeight={500}>{t('settings.safetyLimits')}</Typography>
+                    <Tooltip title={t('settings.safetyLimitsInfo')} placement="top">
+                      <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
+                    </Tooltip>
+                  </Stack>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+                    <SettingsField label={t('settings.perRunTokens')} info={t('settings.perRunTokensInfo')}>
+                      <TextField size="small" value={form.perRunTokens} onChange={(event) => update('perRunTokens', event.target.value)} />
+                    </SettingsField>
+                    <SettingsField label={t('settings.perRunCost')} info={t('settings.perRunCostInfo')}>
+                      <TextField size="small" value={form.perRunCost} onChange={(event) => update('perRunCost', event.target.value)} />
+                    </SettingsField>
+                    <SettingsField
+                      label={t('settings.dailyTokens')}
+                      info={t('settings.dailyTokensInfo')}
+                      hint={dailyUsage ? <CapUsage>{t('settings.usageToday', { value: formatNumber(dailyUsage.estimatedTokens ?? 0) })}</CapUsage> : undefined}
+                    >
+                      <TextField size="small" value={form.dailyTokens} onChange={(event) => update('dailyTokens', event.target.value)} />
+                    </SettingsField>
+                  </Box>
+                </Box>
+              </Stack>
+            </Collapse>
           </Box>
         </Stack>
       </Section>}

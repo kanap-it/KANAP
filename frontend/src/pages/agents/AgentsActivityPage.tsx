@@ -100,22 +100,15 @@ function useCheckSummary() {
 
 function CheckDetail({ check }: { check: AiAgentControlActivityCheck }) {
   const { t } = useTranslation(['agents']);
-  const rows: Array<[string, string]> = [
-    [t('activity.checkFields.listed'), String(check.listed)],
-    [t('activity.checkFields.enqueued'), String(check.enqueued)],
-    [t('activity.checkFields.deduped'), String(check.deduped)],
-    [t('activity.checkFields.processed'), String(check.processed)],
-  ];
   return (
     <Stack spacing={0.5}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 0.75 }}>
-        {rows.map(([label, value]) => (
-          <Box key={label}>
-            <Typography variant="caption" color="text.secondary" component="div">{label}</Typography>
-            <Typography variant="body2">{value}</Typography>
-          </Box>
-        ))}
-      </Box>
+      <Typography variant="body2">
+        {t('activity.checkNarrative', {
+          listed: check.listed,
+          enqueued: check.enqueued,
+          deduped: check.deduped,
+        })}
+      </Typography>
       {check.reason && (
         <Typography variant="body2">
           <Box component="span" sx={{ color: 'text.secondary' }}>{t('activity.reason')}: </Box>
@@ -174,7 +167,9 @@ function ActivityDetail({ detail }: { detail: AiAgentControlActivityDetail }) {
   );
 }
 
-export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) {
+const COMPACT_ACTIVITY_LIMIT = 10;
+
+export default function AgentsActivityPage({ agentKey, compact = false }: { agentKey?: string; compact?: boolean }) {
   const { t } = useTranslation(['agents']);
   const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -270,8 +265,11 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
     refetchInterval: 60_000,
   });
   const items = React.useMemo(
-    () => (activityQuery.data?.pages ?? []).flatMap((page) => page.items),
-    [activityQuery.data],
+    () => {
+      const all = (activityQuery.data?.pages ?? []).flatMap((page) => page.items);
+      return compact ? all.slice(0, COMPACT_ACTIVITY_LIMIT) : all;
+    },
+    [activityQuery.data, compact],
   );
   const total = activityQuery.data?.pages?.[0]?.total ?? null;
 
@@ -291,6 +289,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
         </>
       )}
       <Stack spacing={2}>
+        {!compact && (
         <Section title={t('activity.filters')}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ p: 1.5 }} alignItems={{ xs: 'stretch', sm: 'center' }} flexWrap="wrap" useFlexGap>
             <TextField
@@ -318,6 +317,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
             })}
           </Stack>
         </Section>
+        )}
 
         <Section title={t('activity.timeline')}>
           {selectedTypes.length === 0 ? (
@@ -381,7 +381,7 @@ export default function AgentsActivityPage({ agentKey }: { agentKey?: string }) 
                     ? t('activity.shownOfTotal', { shown: items.length, total })
                     : t('activity.shown', { shown: items.length })}
                 </Typography>
-                {activityQuery.hasNextPage && (
+                {!compact && activityQuery.hasNextPage && (
                   <Button
                     size="small"
                     variant="action"

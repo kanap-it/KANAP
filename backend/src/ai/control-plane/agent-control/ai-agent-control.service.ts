@@ -3873,6 +3873,64 @@ export class AiAgentControlService {
     return `unchanged_${matching.status}_proposal:${matching.id}`;
   }
 
+  // Replace-on-write: expire this agent's earlier *pending* proposal of the same
+  // capability on this ticket before preparing a new one. Suppression above is
+  // intentionally NOT agent-scoped (foreign stacking is the claim/supersede
+  // layer). This expiry IS agent-scoped. Approved-but-unexecuted rows are left
+  // alone — silently withdrawing an operator approval is worse than a rare stack
+  // on manual re-run.
+  private async expirePriorPendingSameClass(
+    context: AiExecutionContextWithManager,
+    input: {
+      providerKind: string;
+      providerKey: string;
+      targetType: string;
+      targetRef: string;
+      capabilityName: string;
+      agentDefinitionId: string | null;
+      // The freshly prepared replacement must survive its own supersede sweep: callers expire
+      // AFTER a successful prepare (so a failed prepare never destroys the prior proposal),
+      // which means the new pending row already exists when this runs.
+      excludeActionIds?: string[];
+      excludeRunId?: string | null;
+    },
+  ): Promise<number> {
+    const candidates = await context.manager.getRepository(AiActionRequest).find({
+      where: {
+        tenant_id: context.tenantId,
+        provider_kind: input.providerKind,
+        provider_key: input.providerKey,
+        target_type: input.targetType,
+        target_ref: input.targetRef,
+        capability_name: input.capabilityName,
+        status: 'pending',
+      },
+    });
+    const excludeIds = new Set(input.excludeActionIds ?? []);
+    const now = new Date();
+    let expired = 0;
+    for (const action of candidates) {
+      if (excludeIds.has(action.id) || (input.excludeRunId && action.run_id === input.excludeRunId)) {
+        continue;
+      }
+      if (input.agentDefinitionId
+        && actionMetadataString(action, 'agent_definition_id') !== input.agentDefinitionId) {
+        continue;
+      }
+      const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
+      action.status = 'expired';
+      action.updated_at = now;
+      action.metadata_json = {
+        ...metadata,
+        withdrawn_reason: 'superseded_by_new_proposal',
+        withdrawn_at: now.toISOString(),
+      };
+      await context.manager.getRepository(AiActionRequest).save(action);
+      expired += 1;
+    }
+    return expired;
+  }
+
   // Safety: planner proposals must not survive a newer plan/profile or a ticket that is no longer
   // eligible for the planned close. Scoped to this agent's proposals for this ticket; returns the
   // number withdrawn.
@@ -8908,6 +8966,7 @@ export class AiAgentControlService {
       targetType: target.target_kind,
       targetRef: ticket.id,
     };
+    const proposalAgentDefinitionId = stringFromMetadata(metadataObject(baseMetadata).agent_definition_id);
     const effectivePlannerActionKeys = new Set(effectivePlannerActions.map((entry) => entry.plannerActionKey));
     await this.withdrawSupersededPlannerProposals(context, {
       ...proposalScope,
@@ -9202,6 +9261,15 @@ export class AiAgentControlService {
         },
       })
       : null;
+    if (proposal && adapterData(proposal.output) != null) {
+      await this.expirePriorPendingSameClass(context, {
+        ...proposalScope,
+        capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+        agentDefinitionId: proposalAgentDefinitionId,
+        excludeActionIds: actionRequestIdsFromCapabilityOutput(proposal.output),
+        excludeRunId: ticketResult.run_id,
+      });
+    }
     const requesterReplyBody = replySynthesisResult
       ? renderSynthesizedRequesterReply(ticket, replySynthesisResult)
       : buildRequesterReply(ticket, enrichedKnowledgeItems, ticketTimeline, webSearchResults);
@@ -9263,6 +9331,15 @@ export class AiAgentControlService {
         },
       })
       : null;
+    if (publicReplyProposal && adapterData(publicReplyProposal.output) != null) {
+      await this.expirePriorPendingSameClass(context, {
+        ...proposalScope,
+        capabilityName: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
+        agentDefinitionId: proposalAgentDefinitionId,
+        excludeActionIds: actionRequestIdsFromCapabilityOutput(publicReplyProposal.output),
+        excludeRunId: ticketResult.run_id,
+      });
+    }
     const classificationProposalHash = classificationUpdateInput
       ? proposalHash({
         action: 'classification_update',
@@ -9311,6 +9388,15 @@ export class AiAgentControlService {
         },
       })
       : null;
+    if (classificationUpdateProposal && adapterData(classificationUpdateProposal.output) != null) {
+      await this.expirePriorPendingSameClass(context, {
+        ...proposalScope,
+        capabilityName: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
+        agentDefinitionId: proposalAgentDefinitionId,
+        excludeActionIds: actionRequestIdsFromCapabilityOutput(classificationUpdateProposal.output),
+        excludeRunId: ticketResult.run_id,
+      });
+    }
     const statusUpdateInput = fallbackStatusUpdateInput;
     const plannerStatusProposalHash = plannerStatusUpdate
       ? plannerProposalHashFor({ ...plannerStatusUpdate, replyBody: null })
@@ -9404,6 +9490,15 @@ export class AiAgentControlService {
         },
       })
       : null;
+    if (statusUpdateProposal && adapterData(statusUpdateProposal.output) != null) {
+      await this.expirePriorPendingSameClass(context, {
+        ...proposalScope,
+        capabilityName: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
+        agentDefinitionId: proposalAgentDefinitionId,
+        excludeActionIds: actionRequestIdsFromCapabilityOutput(statusUpdateProposal.output),
+        excludeRunId: ticketResult.run_id,
+      });
+    }
     const assignmentUpdateProposal = assignmentUpdateInput
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
@@ -9430,6 +9525,15 @@ export class AiAgentControlService {
         },
       })
       : null;
+    if (assignmentUpdateProposal && adapterData(assignmentUpdateProposal.output) != null) {
+      await this.expirePriorPendingSameClass(context, {
+        ...proposalScope,
+        capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+        agentDefinitionId: proposalAgentDefinitionId,
+        excludeActionIds: actionRequestIdsFromCapabilityOutput(assignmentUpdateProposal.output),
+        excludeRunId: ticketResult.run_id,
+      });
+    }
 
     const plannerSkippedActionsWithSuppression = {
       ...plannerSkippedActions,

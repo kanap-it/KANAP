@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildTicketGroups,
+  capabilityLabelFromName,
+  executableActions,
+  executableTerminalActions,
   ticketingProviderKeyForDefinition,
 } from './agentControlPrimitives';
+import { targetingPredicateCount } from './agentRunState';
 import {
   applyOptimisticDecisionOverlay,
   hasAgentControlInFlight,
@@ -194,6 +198,76 @@ describe('buildTicketGroups', () => {
     ], null, nowMs);
 
     expect(result.orphanActions).toEqual([]);
+  });
+});
+
+describe('executable terminal approval filter', () => {
+  const liveReply = action({
+    id: 'live-reply',
+    capability_name: 'ticketing.ticket.public_reply.add_approved',
+    status: 'pending',
+  });
+  const liveSolve = action({
+    id: 'live-solve',
+    capability_name: 'ticketing.ticket.status_update.approved',
+    status: 'pending',
+    action_payload_json: { transitionKey: 'solved', targetStatus: 'solved', terminal: true },
+  });
+  const expiredSolves = [1, 2, 3, 4].map((index) => action({
+    id: `expired-solve-${index}`,
+    capability_name: 'ticketing.ticket.status_update.approved',
+    status: 'expired',
+    action_payload_json: { transitionKey: 'solved', targetStatus: 'solved', terminal: true },
+    execution_readiness: {
+      can_execute: false,
+      can_reject: false,
+      blocked_reason: 'expired',
+      requires_sandbox_write_target: false,
+      sandbox_write_target_ref: null,
+    },
+  }));
+
+  it('lists only the live solve, not expired historical solves', () => {
+    const listed = executableTerminalActions([liveReply, liveSolve, ...expiredSolves]);
+    expect(listed.map((item) => item.id)).toEqual(['live-solve']);
+  });
+
+  it('approve payload is the executable set, not the expired solves', () => {
+    const payload = executableActions([liveReply, liveSolve, ...expiredSolves]);
+    expect(payload.map((item) => item.id)).toEqual(['live-reply', 'live-solve']);
+  });
+});
+
+describe('targetingPredicateCount', () => {
+  it('counts targeting predicates for helpdesk and SRE alike', () => {
+    expect(targetingPredicateCount({
+      scope_policy_json: {
+        targeting: {
+          predicates: [
+            { field: 'status', operator: 'in', value: ['1'] },
+            { field: 'created_at', operator: 'gte', value: '2026-01-01' },
+          ],
+        },
+      },
+    })).toBe(2);
+  });
+
+  it('treats missing targeting as unfiltered', () => {
+    expect(targetingPredicateCount({ scope_policy_json: {} })).toBe(0);
+    expect(targetingPredicateCount(null)).toBe(0);
+  });
+});
+
+describe('capabilityLabelFromName', () => {
+  it('maps provider capability names to action labels', () => {
+    expect(capabilityLabelFromName('ticketing.ticket.public_reply.add_approved')).toBe('Requester reply');
+    expect(capabilityLabelFromName('ticketing.ticket.internal_note.add_approved')).toBe('Internal note');
+    expect(capabilityLabelFromName('ticketing.ticket.status_update.prepare')).toBe('Status');
+  });
+
+  it('does not label read-only context lookups as write actions', () => {
+    expect(capabilityLabelFromName('ticketing.ticket.classification_context.get')).toBe('Classification context get');
+    expect(capabilityLabelFromName('ticketing.ticket.participant_context.get')).toBe('Participant context get');
   });
 });
 

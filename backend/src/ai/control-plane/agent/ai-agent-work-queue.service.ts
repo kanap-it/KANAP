@@ -361,7 +361,7 @@ export type TargetReviewReadiness = {
   ready: boolean;
   changed: boolean;
   due: boolean;
-  reason: 'first_review' | 'changed' | 'scheduled' | 'not_due';
+  reason: 'first_review' | 'changed' | 'scheduled' | 'not_due' | 'pending_proposal';
 };
 
 export type TargetClaimAcquireResult = {
@@ -2937,12 +2937,64 @@ export class AiAgentWorkQueueService {
     return repo.save(state);
   }
 
+  async listLivePendingActionsForTargets(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      targetRefs: string[];
+      now?: Date;
+    },
+  ): Promise<Map<string, AiActionRequest[]>> {
+    const byRef = new Map<string, AiActionRequest[]>();
+    const refs = Array.from(new Set(input.targetRefs
+      .map((ref) => {
+        try {
+          return normalizedTargetRef(ref);
+        } catch {
+          return null;
+        }
+      })
+      .filter((ref): ref is string => !!ref)));
+    if (refs.length === 0) {
+      return byRef;
+    }
+    const binding = requireTicketingBinding(input.definition);
+    const nowMs = (input.now ?? new Date()).getTime();
+    const rows = await this.actionRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        provider_kind: binding.providerKind,
+        provider_key: binding.providerKey,
+        target_type: 'ticket',
+        target_ref: In(refs),
+        status: In(['pending', 'approved']),
+      },
+    });
+    for (const action of rows) {
+      if (definitionIdFromMetadata(action.metadata_json) !== input.definition.id) {
+        continue;
+      }
+      if (!activePendingAction(action, nowMs)) {
+        continue;
+      }
+      const ref = action.target_ref;
+      if (!ref) {
+        continue;
+      }
+      const existing = byRef.get(ref) ?? [];
+      existing.push(action);
+      byRef.set(ref, existing);
+    }
+    return byRef;
+  }
+
   async targetReviewReadiness(
     context: AiExecutionContextWithManager,
     input: {
       definition: AiAgentDefinition;
       ticket: { id: string; updatedAt?: string | null; updated_at?: string | null; createdAt?: string | null };
       now?: Date;
+      livePendingActions?: AiActionRequest[];
     },
   ): Promise<TargetReviewReadiness> {
     const now = input.now ?? new Date();
@@ -2964,7 +3016,24 @@ export class AiAgentWorkQueueService {
     const nextReviewAt = dateFromUnknown(existing?.next_review_at);
     const changed = !!externalUpdatedAt && (!processedAt || externalUpdatedAt.getTime() > processedAt.getTime());
     const due = !nextReviewAt || nextReviewAt.getTime() <= now.getTime();
-    const ready = !existing || changed || due;
+    const livePending = input.livePendingActions
+      ?? (await this.listLivePendingActionsForTargets(context, {
+        definition: input.definition,
+        targetRefs: [targetRef],
+        now,
+      })).get(targetRef)
+      ?? [];
+    const occupied = livePending.some((action) => activePendingAction(action, now.getTime()));
+    const ready = !existing || changed || (due && !occupied);
+    const reason: TargetReviewReadiness['reason'] = !existing
+      ? 'first_review'
+      : changed
+        ? 'changed'
+        : occupied
+          ? 'pending_proposal'
+          : due
+            ? 'scheduled'
+            : 'not_due';
     const state = await this.upsertTargetState(context, {
       agentDefinitionId: input.definition.id,
       providerKind: binding.providerKind,
@@ -2974,7 +3043,7 @@ export class AiAgentWorkQueueService {
       lastSeenExternalUpdatedAt: externalUpdatedAt,
       state: {
         latest_readiness_checked_at: now.toISOString(),
-        latest_readiness_reason: !existing ? 'first_review' : changed ? 'changed' : due ? 'scheduled' : 'not_due',
+        latest_readiness_reason: reason,
       },
     });
     return {
@@ -2982,7 +3051,7 @@ export class AiAgentWorkQueueService {
       ready,
       changed,
       due,
-      reason: !existing ? 'first_review' : changed ? 'changed' : due ? 'scheduled' : 'not_due',
+      reason,
     };
   }
 
@@ -3221,9 +3290,10 @@ export class AiAgentWorkQueueService {
       if (!releaseReason) {
         continue;
       }
-      if (releaseReason === 'claim_lease_expired') {
-        expiredActions += await this.expireClaimOwnerActions(context, state, 'Claim lease expired before the proposal was reviewed.', now, ownerActions);
-      }
+      // Approval window owns proposal lifetime. A lapsed claim lease only
+      // means "I am no longer working this ticket right now" — it must not
+      // expire a pending/approved proposal that is still inside its window.
+      // expireClaimOwnerActions stays for foreign supersede only.
       const releasedState = await this.releaseTargetClaim(context, {
         agentDefinitionId: state.agent_definition_id,
         providerKind: state.provider_kind,
@@ -3284,6 +3354,7 @@ export class AiAgentWorkQueueService {
       targetRef,
       now,
     });
+    const ownClaim = activeClaims.find((claim) => claim.agent_definition_id === input.definition.id) ?? null;
     const foreignClaims = activeClaims.filter((claim) => claim.agent_definition_id !== input.definition.id);
     if (foreignClaims.length > 0) {
       const strongest = [...foreignClaims].sort((left, right) => (right.claim_owner_priority ?? 100) - (left.claim_owner_priority ?? 100))[0];
@@ -3316,6 +3387,11 @@ export class AiAgentWorkQueueService {
     }
 
     try {
+      const leaseExpiry = new Date(now.getTime() + this.targetClaimLeaseSeconds(input.definition) * 1000);
+      const existingHold = dateFromUnknown(ownClaim?.claim_expires_at);
+      const claimExpiresAt = existingHold && existingHold.getTime() > leaseExpiry.getTime()
+        ? existingHold
+        : leaseExpiry;
       const state = await this.upsertTargetState(context, {
         agentDefinitionId: input.definition.id,
         providerKind,
@@ -3323,10 +3399,10 @@ export class AiAgentWorkQueueService {
         targetType,
         targetRef,
         claimStatus: 'claimed',
-        claimExpiresAt: new Date(now.getTime() + this.targetClaimLeaseSeconds(input.definition) * 1000),
-        claimAcquiredAt: now,
-        claimOwnerWorkItemId: input.workItemId ?? null,
-        claimOwnerRunId: input.runId ?? null,
+        claimExpiresAt,
+        claimAcquiredAt: ownClaim?.claim_acquired_at ?? now,
+        claimOwnerWorkItemId: input.workItemId ?? ownClaim?.claim_owner_work_item_id ?? null,
+        claimOwnerRunId: input.runId ?? ownClaim?.claim_owner_run_id ?? null,
         claimOwnerPriority: newPriority,
         claimMetadata: {
           ...(input.metadata ?? {}),
@@ -3469,39 +3545,100 @@ export class AiAgentWorkQueueService {
       },
     });
 
-    const hasActivePendingActions = actions.some(activePendingAction);
-    const workItem = hasActivePendingActions
-      ? await this.markWaitingApproval(context, input.workItem, {
+    const thisRunLive = actions.filter((action) => activePendingAction(action));
+    const outcomeMetadata = {
+      latest_target_state_id: targetState.id,
+      knowledge_result_count: input.knowledgeResultCount,
+      ...(input.metadata ?? {}),
+    };
+    if (thisRunLive.length > 0) {
+      const workItem = await this.markWaitingApproval(context, input.workItem, {
         runId: input.runId,
         actionRequestIds: uniqueActionIds,
-        metadata: {
-          latest_target_state_id: targetState.id,
-          knowledge_result_count: input.knowledgeResultCount,
-          ...(input.metadata ?? {}),
-        },
-      })
-      : await this.completeWorkItem(context, input.workItem, {
-        runId: input.runId,
-        actionRequestIds: [],
-        metadata: {
-          latest_target_state_id: targetState.id,
-          knowledge_result_count: input.knowledgeResultCount,
-          ...(input.metadata ?? {}),
-        },
+        metadata: outcomeMetadata,
       });
-
-    if (hasActivePendingActions) {
       await this.holdTargetClaimForPendingProposals(context, {
         definition: input.definition,
         workItem,
         actionRequestIds: uniqueActionIds,
         runId: input.runId,
       });
-    } else {
-      await this.releaseWorkItemTargetClaim(context, workItem, 'review_completed_without_pending_proposals');
+      return { workItem, targetState };
     }
 
+    const priorTargetRef = input.workItem.source_object_ref;
+    const priorLive = priorTargetRef
+      ? (await this.listLivePendingActionsForTargets(context, {
+        definition: input.definition,
+        targetRefs: [priorTargetRef],
+      })).get(normalizedTargetRef(priorTargetRef)) ?? []
+      : [];
+    if (priorLive.length === 0) {
+      const workItem = await this.completeWorkItem(context, input.workItem, {
+        runId: input.runId,
+        actionRequestIds: [],
+        metadata: outcomeMetadata,
+      });
+      await this.releaseWorkItemTargetClaim(context, workItem, 'review_completed_without_pending_proposals');
+      return { workItem, targetState };
+    }
+
+    const priorLiveIds = new Set(priorLive.map((action) => action.id));
+    const olderWaiting = await this.findOlderWaitingWorkItemForActions(context, {
+      definition: input.definition,
+      workItem: input.workItem,
+      actionIds: priorLiveIds,
+    });
+    const holdOwner = olderWaiting ?? await this.markWaitingApproval(context, input.workItem, {
+      runId: input.runId,
+      actionRequestIds: Array.from(priorLiveIds),
+      metadata: outcomeMetadata,
+    });
+    const workItem = olderWaiting
+      ? await this.completeWorkItem(context, input.workItem, {
+        runId: input.runId,
+        actionRequestIds: [],
+        metadata: {
+          ...outcomeMetadata,
+          empty_run_prior_work_item_id: olderWaiting.id,
+        },
+      })
+      : holdOwner;
+    await this.holdTargetClaimForPendingProposals(context, {
+      definition: input.definition,
+      workItem: holdOwner,
+      actionRequestIds: Array.from(priorLiveIds),
+      runId: input.runId,
+    });
     return { workItem, targetState };
+  }
+
+  private async findOlderWaitingWorkItemForActions(
+    context: AiExecutionContextWithManager,
+    input: {
+      definition: AiAgentDefinition;
+      workItem: AiAgentWorkItem;
+      actionIds: Set<string>;
+    },
+  ): Promise<AiAgentWorkItem | null> {
+    if (!input.workItem.source_object_ref || input.actionIds.size === 0) {
+      return null;
+    }
+    const candidates = await this.workItemRepo(context).find({
+      where: {
+        tenant_id: context.tenantId,
+        agent_definition_id: input.definition.id,
+        source_object_ref: input.workItem.source_object_ref,
+        status: 'waiting_approval',
+      },
+    });
+    return candidates.find((item) => {
+      if (item.id === input.workItem.id) {
+        return false;
+      }
+      const ids = item.last_action_request_ids ?? [];
+      return ids.some((id) => input.actionIds.has(id));
+    }) ?? null;
   }
 
   async recordManualGlpiTriageOutcome(

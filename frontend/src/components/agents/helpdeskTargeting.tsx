@@ -48,7 +48,6 @@ const AVAILABLE_TARGETING_FIELDS: TargetingFilterField[] = [
   'category',
   'entity',
   'created_at',
-  'updated_at',
   'inactivity_age',
 ];
 
@@ -559,9 +558,11 @@ export function HelpdeskTargetingFilterBuilder({
                 {t(`settings.targetingFields.${field}`)}
               </MenuItem>
             ))}
-            <MenuItem value="touched_by" sx={drawerMenuItemSx}>
-              {t('settings.targetingFields.touched_by')}
-            </MenuItem>
+            {(filter.field === 'updated_at' || filter.field === 'touched_by') && (
+              <MenuItem value={filter.field} sx={drawerMenuItemSx}>
+                {t(`settings.targetingFields.${filter.field}`)}
+              </MenuItem>
+            )}
           </Select>
 
           {filter.field === 'status' && (
@@ -633,13 +634,18 @@ export function HelpdeskTargetingFilterBuilder({
           )}
 
           {filter.field === 'entity' && agentId && (
-            <ReferenceCatalogAutocomplete
-              agentId={agentId}
-              field="entity"
-              value={typeof filter.value === 'string' ? filter.value : ''}
-              label={filter.label}
-              onChange={(next) => updateFilter(filter.id, next)}
-            />
+            <Stack spacing={0.25}>
+              <ReferenceCatalogAutocomplete
+                agentId={agentId}
+                field="entity"
+                value={typeof filter.value === 'string' ? filter.value : ''}
+                label={filter.label}
+                onChange={(next) => updateFilter(filter.id, next)}
+              />
+              <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
+                {t('settings.targetingBuilder.entityHint')}
+              </Typography>
+            </Stack>
           )}
 
           {filter.field === 'entity' && !agentId && (
@@ -647,26 +653,33 @@ export function HelpdeskTargetingFilterBuilder({
           )}
 
           {(filter.field === 'created_at' || filter.field === 'updated_at' || filter.field === 'inactivity_age') && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TextField
-                size="small"
-                variant="standard"
-                type="number"
-                value={filter.amount}
-                InputProps={{ disableUnderline: true, inputProps: { min: 1 } }}
-                sx={[editableFieldValueSx, { maxWidth: 92 }]}
-                onChange={(event) => updateFilter(filter.id, { amount: event.target.value })}
-              />
-              <Select
-                variant="standard"
-                value={filter.unit}
-                onChange={(event) => updateFilter(filter.id, { unit: event.target.value as TargetingFilterUnit })}
-                sx={[drawerSelectSx, { maxWidth: 120 }]}
-                MenuProps={compactSelectMenuProps}
-              >
-                <MenuItem value="hours" sx={drawerMenuItemSx}>{t('settings.targetingBuilder.hours')}</MenuItem>
-                <MenuItem value="days" sx={drawerMenuItemSx}>{t('settings.targetingBuilder.days')}</MenuItem>
-              </Select>
+            <Stack spacing={0.25}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                  size="small"
+                  variant="standard"
+                  type="number"
+                  value={filter.amount}
+                  InputProps={{ disableUnderline: true, inputProps: { min: 1 } }}
+                  sx={[editableFieldValueSx, { maxWidth: 92 }]}
+                  onChange={(event) => updateFilter(filter.id, { amount: event.target.value })}
+                />
+                <Select
+                  variant="standard"
+                  value={filter.unit}
+                  onChange={(event) => updateFilter(filter.id, { unit: event.target.value as TargetingFilterUnit })}
+                  sx={[drawerSelectSx, { maxWidth: 120 }]}
+                  MenuProps={compactSelectMenuProps}
+                >
+                  <MenuItem value="hours" sx={drawerMenuItemSx}>{t('settings.targetingBuilder.hours')}</MenuItem>
+                  <MenuItem value="days" sx={drawerMenuItemSx}>{t('settings.targetingBuilder.days')}</MenuItem>
+                </Select>
+              </Stack>
+              {filter.field === 'inactivity_age' && (
+                <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
+                  {t('settings.targetingBuilder.inactivityCloses')}
+                </Typography>
+              )}
             </Stack>
           )}
 

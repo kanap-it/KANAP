@@ -3,6 +3,7 @@ import { Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { formatNumber, LifecycleText, statusLabel } from './agentControlPrimitives';
 import { useAgentRunState } from './agentRunState';
+import { useLocale } from '../../i18n/useLocale';
 
 /**
  * Inline label·value fact (charter workspace metric strip: one lightweight line
@@ -30,45 +31,44 @@ export function StatusStripItem({ label, value }: { label: string; value: React.
  */
 export default function AgentStatusStrip({ agentKey }: { agentKey: string }) {
   const { t } = useTranslation(['agents']);
+  const locale = useLocale();
   const state = useAgentRunState(agentKey);
+  const lastPollAt = state.isSre ? state.sreLastPollAt : (state.summary?.ingestion.lastPollAt ?? '');
+  const lastPollStatus = state.isSre ? state.sreLastPollStatus : (state.summary?.ingestion.lastPollStatus ?? '');
+  const lastLookTime = lastPollAt
+    ? new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(new Date(lastPollAt))
+    : '';
+  const lastLook = [lastLookTime, lastPollStatus ? statusLabel(lastPollStatus) : '']
+    .filter(Boolean)
+    .join(' ') || t('common.notSet');
+  const nextLook = state.watching ? t('monitor.everyMinutes', { count: state.checkIntervalMinutes }) : t('common.notSet');
+  const scope = state.watching
+    ? (state.scopeFiltered
+      ? t('monitor.filtered')
+      : (state.isSre ? t('monitor.allAlerts') : t('monitor.allTickets')))
+    : t('monitor.off');
 
   return (
-    <Stack direction="row" spacing={2.5} useFlexGap flexWrap="wrap" alignItems="center" sx={{ px: 1.5, py: 1.25, minWidth: 0 }}>
-      {state.lifecycleKey && <LifecycleText lifecycleKey={state.lifecycleKey} />}
-      <StatusStripItem
-        label={t('monitor.watching')}
-        value={state.isSre
-          ? (state.sreWatching
-            ? (state.sreTargetingPredicateCount > 0 ? t('monitor.filtered') : t('monitor.allAlerts'))
-            : t('monitor.off'))
-          : (state.summary?.ingestion.enabled
-            ? (state.summary.ingestion.entityId || state.summary.ingestion.categoryId ? t('monitor.filtered') : t('monitor.allTickets'))
-            : t('monitor.off'))}
-      />
-      <StatusStripItem
-        label={t('monitor.lastCheck')}
-        value={state.isSre
-          ? (state.sreLastPollStatus ? statusLabel(state.sreLastPollStatus) : t('common.notSet'))
-          : (state.summary?.ingestion.lastPollStatus ? statusLabel(state.summary.ingestion.lastPollStatus) : t('common.notSet'))}
-      />
-      <StatusStripItem
-        label={t('monitor.nextCheck')}
-        value={state.watching ? t('monitor.everyMinutes', { count: state.checkIntervalMinutes }) : t('common.notSet')}
-      />
-      <StatusStripItem
-        label={t('monitor.queue')}
-        value={t('monitor.queueSummary', { waiting: state.waitingCount, inProgress: state.inProgressCount })}
-      />
-      {state.failedCount > 0 && (
-        <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'error.main', whiteSpace: 'nowrap' }}>
-          {t('overview.failedCount', { count: state.failedCount })}
+    <Stack spacing={0.75} sx={{ px: 1.5, py: 1.25, minWidth: 0 }}>
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+        {state.lifecycleKey && <LifecycleText lifecycleKey={state.lifecycleKey} />}
+        <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>
+          {scope}
+          {' · '}
+          {t('monitor.lastCheck')} {lastLook}
+          {' · '}
+          {t('monitor.nextCheck')} {nextLook}
+          {' · '}
+          {t('monitor.queueSummary', { waiting: state.waitingCount, inProgress: state.inProgressCount })}
         </Typography>
-      )}
-      {/* Daily usage vs the configured caps. The totals only exist for helpdesk
-          agents today, so they are hidden rather than shown as misleading zeros
-          for SRE agents. */}
+        {state.failedCount > 0 && (
+          <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'error.main', whiteSpace: 'nowrap' }}>
+            {t('overview.failedCount', { count: state.failedCount })}
+          </Typography>
+        )}
+      </Stack>
       {!state.isSre && state.daily && (
-        <>
+        <Stack direction="row" spacing={2.5} useFlexGap flexWrap="wrap" alignItems="center">
           <StatusStripItem label={t('monitor.runsToday')} value={`${state.daily.runs ?? 0} / ${state.daily.cap.maxRuns ?? '-'}`} />
           <StatusStripItem
             label={t('monitor.tokensToday')}
@@ -78,7 +78,7 @@ export default function AgentStatusStrip({ agentKey }: { agentKey: string }) {
             label={t('monitor.costToday')}
             value={`${(state.daily.estimatedCostEur ?? 0).toFixed(4)} / ${state.daily.cap.maxCostEur ?? '-'} EUR`}
           />
-        </>
+        </Stack>
       )}
     </Stack>
   );
