@@ -1,6 +1,6 @@
 # Agentes IA — Espacio del agente
 
-El espacio del agente es donde vive un único agente: usted lo maneja, observa lo que hace, revisa sus propuestas, juzga su rendimiento y —si es administrador— configura cada detalle de su funcionamiento. Es la superficie más profunda del área de Agentes IA. Todo lo relativo a un agente que no sea un control aplicable a toda la flota está aquí: una barra de acciones que le acompaña en todas las pestañas y cuatro pestañas debajo de ella.
+El espacio del agente es donde vive un único agente: usted lo maneja, observa lo que hace, revisa sus propuestas, juzga su rendimiento y —si es administrador— configura cada detalle de su funcionamiento. Es la superficie más profunda del área de Agentes IA. Todo lo relativo a un agente que no sea un control aplicable a toda la flota está aquí: una barra de acciones que le acompaña en todas las pestañas y cuatro pestañas debajo de ella. Los administradores pueden hacer clic en el nombre del agente o en la descripción breve debajo para cambiarlo o actualizar ese resumen; ambos siguen apareciendo en la tarjeta del agente en la flota.
 
 Abra un agente haciendo clic en su tarjeta en [Agentes IA — Vista general](agents-overview.md). El espacio siempre se abre en **Monitor**; puede enlazar directamente a cualquier pestaña, y los enlaces desde otras partes del producto le llevan a la correcta.
 
@@ -39,10 +39,9 @@ Lea la etiqueta cerrada como la realidad y el menú como la intención: un agent
 - **Comprobar ahora** (**Buscar nuevas alertas** en un agente de supervisión) ejecuta una comprobación de inmediato en lugar de esperar a la siguiente programada. Está deshabilitado cuando el agente está en **Apagado** («Active primero el agente.») o pausado («Levante primero la pausa.»), con el motivo en la información sobre herramientas.
 - **Probar en un ticket** (**Probar con una alerta** en un agente de supervisión) le lleva a la sección de prueba de la pestaña **Monitor**, esté en la pestaña que esté.
 - **Pausar agente** es el freno de emergencia rojo, y deliberadamente no es lo mismo que **Apagado**. Pide un motivo y luego retiene las comprobaciones de este agente *y cualquier escritura pendiente* hasta que la levante. Los demás agentes siguen funcionando. Mientras hay una pausa en vigor, un banner de advertencia muestra **Pausa de emergencia activa: {reason}** y el control pasa a ser **Levantar pausa**. Una pausa establecida para todo el espacio de trabajo muestra en su lugar **En pausa para todos los agentes** y le lleva a la vista general de la flota: no puede levantar una pausa de todo el espacio desde un único agente.
+- **Archivar agente** (administradores) retira el agente: deja de vigilar y de ejecutarse, conserva su configuración e historial, y pide confirmación primero. Cuando el agente ya está archivado, este control pasa a ser **Restaurar agente** y lo devuelve a **Apagado**.
 
-Use **Apagado** para dejar un agente en reposo durante un tiempo; use **Pausar agente** cuando algo va mal y quiere congelar también el trabajo pendiente.
-
-Un agente archivado no tiene más controles que una nota: *Archivado — restáurelo desde la pestaña Configuración.*
+Use **Apagado** para dejar un agente en reposo durante un tiempo; use **Pausar agente** cuando algo va mal y quiere congelar también el trabajo pendiente; use **Archivar agente** cuando haya terminado con él.
 
 ---
 
@@ -140,19 +139,15 @@ Las **Capacidades** van primero, porque enmarcan todo lo demás: interruptores p
 
 Debajo está la persona: quién es el agente y cómo escribe:
 
-- **Nombre** — cómo se llama el agente en todo KANAP. No afecta a lo que hace.
-- **Descripción** — un resumen breve para sus compañeros, mostrado bajo el nombre del agente.
-- **Misión** — para qué está el agente, en una o dos frases. La lee antes de cada ticket.
-- **Instrucciones** — las reglas internas, una por línea. No pueden ampliar lo que el agente tiene permitido hacer.
-- **Estilo de salida** — cómo debe sonar al escribir (por ejemplo, *claro y conciso*).
+- **Propósito** — para qué está el agente, en una línea. Lo lee en cada ejecución.
+- **Instrucciones** — las reglas internas, una regla por línea. No pueden ampliar lo que el agente tiene permitido hacer. Un contador muestra cuántas de las 16 líneas ha usado (500 caracteres cada una). Por encima de esos límites el campo no se guarda, ni tampoco los demás campos de identidad, hasta que acorte el borrador.
 - **Idioma de respuesta** — **Idioma del ticket** (responder en el idioma que usó el solicitante), **Francés**, **Inglés**, **Alemán** o **Español**.
-- **Guía de escalada** — cuándo debe el agente pasar un ticket a una persona en lugar de proponer algo él mismo.
 
-**Archivar agente**, en el encabezado de la sección, es la forma deliberada de retirar un agente: deja de vigilar y de ejecutarse, conserva su configuración e historial, y **Restaurar agente** lo devuelve desde el mismo sitio.
+El nombre del agente y su descripción breve viven en el título del espacio, no en esta cuadrícula: haga clic para editarlos. Cómo debe sonar el agente, y cuándo debe pasar el trabajo a una persona, pertenecen a **Instrucciones** como reglas ordinarias.
 
-**Usar contexto compartido** añade a este agente un contexto reutilizable sobre su entorno. El interruptor es lo único que ve hasta que lo activa; una vez activado, aparecen el selector de perfil, un acceso directo **+ Nuevo perfil** y una vista previa de las líneas del perfil seleccionado. El contexto compartido determina cómo interpreta el agente los tickets y redacta las respuestas, pero nunca es una concesión de permisos y **no** es una fuente citable, a diferencia de las [bibliotecas de conocimiento](knowledge.md), cuyos resultados *sí* se citan en las respuestas. Gestione los perfiles en la página [Contexto compartido](agents-shared-context.md).
+**Usar contexto compartido** añade a este agente un contexto reutilizable sobre su entorno. El interruptor es lo único que ve hasta que lo activa; una vez activado, aparecen el selector de perfil, un acceso directo **+ Nuevo perfil** y una vista previa de las líneas del perfil seleccionado. El contexto compartido determina cómo interpreta el agente los tickets y redacta las respuestas, pero nunca es una concesión de permisos y **no** es una fuente citable, a diferencia de las [bibliotecas de conocimiento](knowledge.md), cuyos resultados *sí* se citan en las respuestas. Gestione los perfiles en la página [Contexto compartido](agents-shared-context.md). Si un perfil tiene más líneas de las que el agente puede enviar, un aviso indica cuántas líneas de contexto compartido no se envían al modelo: no se omite nada en silencio.
 
-**Ver el prompt efectivo** está contraído de forma predeterminada. Expándalo para leer exactamente lo que recibe el runtime del agente, compilado a partir de todo lo anterior más las propias reglas de la plataforma. Use el selector para inspeccionar cada etapa: **Planificador de acciones**, **Planificador** e **Intérprete** son las etapas donde el agente decide *qué hacer*; **Síntesis** es donde redacta la respuesta fundamentada en sus fuentes de conocimiento; un agente de supervisión tiene **Diagnóstico** en su lugar. La vista previa se actualiza después de cada guardado. Como indica la ayuda, **la guía no puede anular las reglas de seguridad**: nada de lo que escriba en la persona puede relajar los límites estrictos de la plataforma.
+**Ver el prompt efectivo** está contraído de forma predeterminada. Expándalo para leer exactamente lo que recibe el runtime del agente, compilado a partir de todo lo anterior más las propias reglas de la plataforma. Use el selector para inspeccionar cada etapa: **Planificador de acciones**, **Planificador** e **Intérprete** son las etapas donde el agente decide *qué hacer*; **Síntesis** es donde redacta la respuesta fundamentada en sus fuentes de conocimiento; un agente de supervisión tiene **Diagnóstico** en su lugar. La vista previa se actualiza después de cada guardado. Como indica la ayuda, **la guía no puede anular las reglas de seguridad**: nada de lo que escriba en la persona puede relajar los límites estrictos de la plataforma. El mismo aviso de contexto compartido aparece aquí si se omitieron líneas.
 
 ### Fuentes de conocimiento y web
 

@@ -1,6 +1,6 @@
 # KI-Agenten — Agent-Arbeitsbereich
 
-Der Agent-Arbeitsbereich ist der Ort, an dem ein einzelner Agent lebt: Sie steuern ihn, beobachten, was er tut, prüfen seine Vorschläge, beurteilen, wie gut er arbeitet, und — wenn Sie Administrator sind — konfigurieren jedes Detail seiner Arbeitsweise. Es ist die tiefste Oberfläche im Bereich KI-Agenten. Alles zu einem einzelnen Agenten, das keine flottenweite Steuerung ist, befindet sich hier: eine Steuerleiste, die Sie auf jeder Registerkarte begleitet, und darunter vier Registerkarten.
+Der Agent-Arbeitsbereich ist der Ort, an dem ein einzelner Agent lebt: Sie steuern ihn, beobachten, was er tut, prüfen seine Vorschläge, beurteilen, wie gut er arbeitet, und — wenn Sie Administrator sind — konfigurieren jedes Detail seiner Arbeitsweise. Es ist die tiefste Oberfläche im Bereich KI-Agenten. Alles zu einem einzelnen Agenten, das keine flottenweite Steuerung ist, befindet sich hier: eine Steuerleiste, die Sie auf jeder Registerkarte begleitet, und darunter vier Registerkarten. Administratoren können auf den Agentennamen oder die kurze Beschreibung darunter klicken, um ihn umzubenennen oder diese Zusammenfassung zu aktualisieren; beides erscheint weiterhin auf der Agentenkarte in der Flotte.
 
 Öffnen Sie einen Agenten, indem Sie auf seine Karte unter [KI-Agenten — Übersicht](agents-overview.md) klicken. Der Arbeitsbereich öffnet sich immer auf **Monitor**; Sie können jede Registerkarte per Deep-Link direkt aufrufen, und Links von anderen Stellen im Produkt bringen Sie zur richtigen.
 
@@ -39,10 +39,9 @@ Lesen Sie die geschlossene Beschriftung als die Wahrheit und das Menü als die A
 - **Jetzt prüfen** (bei einem Überwachungs-Agenten **Auf neue Alarme prüfen**) führt sofort eine Prüfung aus, statt auf die nächste geplante zu warten. Es ist deaktiviert, wenn der Agent **Aus** ist („Schalten Sie den Agenten zuerst ein.") oder pausiert ist („Heben Sie zuerst die Pause auf."); der Grund steht im Tooltip.
 - **An einem Ticket testen** (bei einem Überwachungs-Agenten **An einem Alarm testen**) bringt Sie zum Testabschnitt auf der Registerkarte **Monitor**, ganz gleich, auf welcher Registerkarte Sie gerade waren.
 - **Agent pausieren** ist die rote Notbremse, und sie ist bewusst nicht dasselbe wie **Aus**. Sie fragt nach einem Grund und hält dann die Prüfungen dieses Agenten *sowie alle ausstehenden Schreibvorgänge* an, bis Sie die Pause aufheben. Andere Agenten laufen weiter. Solange eine Pause aktiv ist, zeigt ein Warnbanner **Notfallpause aktiv: {reason}** an, und das Bedienelement wird zu **Pause aufheben**. Eine für den gesamten Mandanten gesetzte Pause zeigt stattdessen **Für alle Agenten pausiert** an und schickt Sie zur Flottenübersicht — eine mandantenweite Pause können Sie nicht von einem einzelnen Agenten aus aufheben.
+- **Agent archivieren** (Administratoren) stellt den Agenten außer Dienst: Er beobachtet und läuft nicht mehr, behält Konfiguration und Verlauf, und fragt zuerst nach einer Bestätigung. Ist der Agent bereits archiviert, wird dieses Bedienelement zu **Agent wiederherstellen** und holt ihn nach **Aus** zurück.
 
-Verwenden Sie **Aus**, um einen Agenten für eine Weile stillzulegen; greifen Sie zu **Agent pausieren**, wenn etwas schiefläuft und Sie auch die laufende Arbeit einfrieren wollen.
-
-Ein archivierter Agent hat keine Bedienelemente, sondern nur einen Hinweis — *Archiviert — im Tab Einstellungen wiederherstellen.*
+Verwenden Sie **Aus**, um einen Agenten für eine Weile stillzulegen; greifen Sie zu **Agent pausieren**, wenn etwas schiefläuft und Sie auch die laufende Arbeit einfrieren wollen; verwenden Sie **Agent archivieren**, wenn Sie mit ihm fertig sind.
 
 ---
 
@@ -140,19 +139,15 @@ Eine Zeile unter den Filtern sagt, wie viele Tickets derzeit passen. Wenn ein an
 
 Darunter sitzt die Persona — wer der Agent ist und wie er schreibt:
 
-- **Name** — wie der Agent in KANAP heißt. Das hat keine Auswirkung darauf, was er tut.
-- **Beschreibung** — eine kurze Zusammenfassung für Ihre Kolleginnen und Kollegen, unter dem Agentennamen angezeigt.
-- **Mission** — wofür dieser Agent da ist, in ein bis zwei Sätzen. Er liest sie vor jedem Ticket.
-- **Anweisungen** — Hausregeln, eine pro Zeile. Sie können nicht erweitern, was der Agent tun darf.
-- **Ausgabestil** — wie er beim Schreiben klingen soll (zum Beispiel *klar und knapp*).
+- **Zweck** — wofür dieser Agent da ist, in einer Zeile. Er liest sie bei jedem Lauf.
+- **Anweisungen** — Hausregeln, eine Regel je Zeile. Sie können nicht erweitern, was der Agent tun darf. Ein Zähler zeigt, wie viele der 16 Zeilen Sie genutzt haben (je 500 Zeichen). Über diese Grenzen hinaus wird das Feld nicht gespeichert, und die anderen Identitätsfelder auch nicht, bis Sie den Entwurf kürzen.
 - **Antwortsprache** — **Ticketsprache** (in der Sprache antworten, die der Anfragende verwendet hat), **Französisch**, **Englisch**, **Deutsch** oder **Spanisch**.
-- **Eskalationshinweis** — wann der Agent ein Ticket an eine Person übergeben soll, statt selbst etwas vorzuschlagen.
 
-**Agent archivieren** in der Kopfzeile des Abschnitts ist der bewusste Weg, einen Agenten außer Dienst zu stellen: Er beobachtet und läuft nicht mehr, behält aber Konfiguration und Verlauf, und **Agent wiederherstellen** holt ihn an derselben Stelle zurück.
+Name und kurze Beschreibung des Agenten stehen im Titel des Arbeitsbereichs, nicht in diesem Raster: klicken Sie darauf, um sie zu bearbeiten. Wie der Agent klingen soll und wann er die Arbeit an eine Person übergeben soll, gehören als gewöhnliche Regeln in die **Anweisungen**.
 
-**Gemeinsamen Kontext verwenden** legt wiederverwendbare Hintergrundinformationen zu Ihrer Umgebung auf diesen Agenten. Zu sehen ist zunächst nur der Schalter; sobald Sie ihn einschalten, erscheinen die Profilauswahl, eine Verknüpfung **+ Neues Profil** und eine Vorschau der Zeilen des ausgewählten Profils. Gemeinsamer Kontext prägt, wie der Agent Tickets interpretiert und Antworten verfasst, ist aber niemals eine Berechtigung und **keine** zitierbare Quelle — anders als [Wissensbibliotheken](knowledge.md), deren Ergebnisse in Antworten *zitiert* werden. Profile verwalten Sie auf der Seite [Gemeinsamer Kontext](agents-shared-context.md).
+**Gemeinsamen Kontext verwenden** legt wiederverwendbare Hintergrundinformationen zu Ihrer Umgebung auf diesen Agenten. Zu sehen ist zunächst nur der Schalter; sobald Sie ihn einschalten, erscheinen die Profilauswahl, eine Verknüpfung **+ Neues Profil** und eine Vorschau der Zeilen des ausgewählten Profils. Gemeinsamer Kontext prägt, wie der Agent Tickets interpretiert und Antworten verfasst, ist aber niemals eine Berechtigung und **keine** zitierbare Quelle — anders als [Wissensbibliotheken](knowledge.md), deren Ergebnisse in Antworten *zitiert* werden. Profile verwalten Sie auf der Seite [Gemeinsamer Kontext](agents-shared-context.md). Hat ein Profil mehr Zeilen, als der Agent senden kann, warnt ein Hinweis, wie viele Zeilen gemeinsamen Kontexts nicht an das Modell gehen — nichts wird stillschweigend weggelassen.
 
-**Effektiven Prompt anzeigen** ist standardmäßig eingeklappt. Klappen Sie ihn auf, um genau zu lesen, was die Laufzeit des Agenten erhält, zusammengestellt aus allem oben Genannten sowie den eigenen Regeln der Plattform. Verwenden Sie die Auswahl, um jede Stufe zu untersuchen — **Aktionsplanung**, **Planung** und **Interpretation** sind die Stufen, in denen der Agent entscheidet, *was zu tun ist*; in der **Synthese** verfasst er die Antwort, gestützt auf Ihre Wissensquellen; ein Überwachungs-Agent hat stattdessen **Diagnose**. Die Vorschau aktualisiert sich nach jedem Speichern. Wie der Hinweis sagt: **Hinweise können Sicherheitsregeln nicht überschreiben** — nichts, was Sie in der Persona schreiben, kann die harten Grenzen der Plattform lockern.
+**Effektiven Prompt anzeigen** ist standardmäßig eingeklappt. Klappen Sie ihn auf, um genau zu lesen, was die Laufzeit des Agenten erhält, zusammengestellt aus allem oben Genannten sowie den eigenen Regeln der Plattform. Verwenden Sie die Auswahl, um jede Stufe zu untersuchen — **Aktionsplanung**, **Planung** und **Interpretation** sind die Stufen, in denen der Agent entscheidet, *was zu tun ist*; in der **Synthese** verfasst er die Antwort, gestützt auf Ihre Wissensquellen; ein Überwachungs-Agent hat stattdessen **Diagnose**. Die Vorschau aktualisiert sich nach jedem Speichern. Wie der Hinweis sagt: **Hinweise können Sicherheitsregeln nicht überschreiben** — nichts, was Sie in der Persona schreiben, kann die harten Grenzen der Plattform lockern. Dieselbe Warnung zum gemeinsamen Kontext erscheint hier, wenn Zeilen ausgelassen wurden.
 
 ### Wissens- und Webquellen
 

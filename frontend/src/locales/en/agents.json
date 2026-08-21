@@ -334,7 +334,8 @@
       "approvals": "Approvals",
       "performance": "Performance & autonomy",
       "settings": "Settings"
-    }
+    },
+    "descriptionPlaceholder": "e.g., first-response drafts for new work"
   },
   "monitor": {
     "modes": {
@@ -342,7 +343,6 @@
       "manual": "Manual only",
       "watching": "Watching"
     },
-    "archivedNote": "Archived — restore it from the Settings tab.",
     "testStarted": "Test run started.",
     "testFailed": "Could not start the test run.",
     "providerMissing": "This agent has no ticketing provider binding.",
@@ -483,7 +483,6 @@
   },
   "settings": {
     "objectiveCapabilities": "Objective and capabilities",
-    "name": "Name",
     "archiveAgent": "Archive agent",
     "restoreAgent": "Restore agent",
     "archiveDialog": {
@@ -491,15 +490,8 @@
       "body": "{{name}} stops watching and running. Its configuration and history are kept, and you can restore it from here at any time.",
       "confirm": "Archive"
     },
-    "description": "Description",
-    "mission": "Mission",
-    "outputStyle": "Output style",
-    "outputStyleTonePlaceholder": "e.g., clear and concise",
-    "outputStyleVerbosityOptions": {
-      "concise": "Concise",
-      "standard": "Standard",
-      "detailed": "Detailed"
-    },
+    "purpose": "Purpose",
+    "purposePlaceholder": "e.g., draft a first response for new work",
     "outputStyleLanguageOptions": {
       "auto": "Ticket language",
       "fr": "French",
@@ -509,8 +501,13 @@
     },
     "replyLanguage": "Reply language",
     "instructions": "Instructions",
-    "escalation": "Escalation",
-    "escalationGuidance": "Escalation guidance",
+    "instructionsPlaceholder": "e.g., Prefer internal notes when evidence is incomplete.",
+    "instructionsCounter": "{{used}} / {{max}} lines · 500 characters per line",
+    "instructionsTooManyLines": "Instructions can have at most {{max}} lines. Other identity changes are not saved until this is fixed.",
+    "instructionsLineTooLong": "Line {{line}} is over {{max}} characters. Other identity changes are not saved until this is fixed.",
+    "purposeOverLimit": "Purpose must be at most {{max}} characters. Other identity changes are not saved until this is fixed.",
+    "sharedContextClamped": "{{count}} lines of shared context are not being sent to the model.",
+    "instructionsClamped": "{{count}} instruction lines are not being sent to the model.",
     "sharedContextHint": "Background guidance for this agent. It is not a permission grant and not a citable source.",
     "sharedContextEnabled": "Use shared context",
     "sharedContextNoProfile": "No profile selected",
@@ -772,13 +769,9 @@
     "checkInterval": "Check every (minutes)",
     "checkIntervalInfo": "How often the agent looks for new tickets while it is watching. Between 5 minutes and 24 hours. \"Check now\" always runs straight away, whatever this says.",
     "checkIntervalAlertsInfo": "How often the agent looks for new alerts while it is watching. Between 5 minutes and 24 hours. \"Check for new alerts\" always runs straight away, whatever this says.",
-    "nameInfo": "The name shown across KANAP for this agent. It has no effect on what the agent does.",
-    "descriptionInfo": "A short summary for your colleagues, shown under the agent name.",
-    "missionInfo": "What this agent is here to do, in one or two sentences. The agent reads it before every ticket.",
-    "instructionsInfo": "House rules the agent follows, one per line. They cannot widen what the agent is allowed to do.",
-    "outputStyleInfo": "How the agent should sound when it writes, for example clear and concise.",
+    "purposeInfo": "What this agent is here to do, in one line. It reads this on every run.",
+    "instructionsInfo": "House rules the agent follows, one rule per line. They cannot widen what the agent is allowed to do.",
     "replyLanguageInfo": "The language the agent writes in. \"Ticket language\" makes it answer in whatever language the requester used.",
-    "escalationGuidanceInfo": "When the agent should hand the ticket over to a person instead of proposing something itself.",
     "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
     "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "maxTicketsInfo": "The most tickets the agent picks up in a single check. The rest wait for the next one.",

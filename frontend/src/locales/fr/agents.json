@@ -334,7 +334,8 @@
       "approvals": "Approbations",
       "performance": "Performance et autonomie",
       "settings": "Paramètres"
-    }
+    },
+    "descriptionPlaceholder": "ex. premiers brouillons de réponse pour le nouveau travail"
   },
   "monitor": {
     "modes": {
@@ -342,7 +343,6 @@
       "manual": "Manuel uniquement",
       "watching": "Surveillance"
     },
-    "archivedNote": "Archivé — restaurez-le depuis l'onglet Paramètres.",
     "testStarted": "Exécution de test démarrée.",
     "testFailed": "Impossible de démarrer l'exécution de test.",
     "providerMissing": "Cet agent n'a pas de fournisseur de tickets associé.",
@@ -483,7 +483,6 @@
   },
   "settings": {
     "objectiveCapabilities": "Objectif et capacités",
-    "name": "Nom",
     "archiveAgent": "Archiver l'agent",
     "restoreAgent": "Restaurer l'agent",
     "archiveDialog": {
@@ -491,15 +490,8 @@
       "body": "{{name}} cesse de surveiller et de s'exécuter. Sa configuration et son historique sont conservés, et vous pouvez le restaurer ici à tout moment.",
       "confirm": "Archiver"
     },
-    "description": "Description",
-    "mission": "Mission",
-    "outputStyle": "Style de sortie",
-    "outputStyleTonePlaceholder": "ex. clair et concis",
-    "outputStyleVerbosityOptions": {
-      "concise": "Concis",
-      "standard": "Standard",
-      "detailed": "Détaillé"
-    },
+    "purpose": "Objectif",
+    "purposePlaceholder": "ex. rédiger une première réponse pour le nouveau travail",
     "outputStyleLanguageOptions": {
       "auto": "Langue du ticket",
       "fr": "Français",
@@ -509,8 +501,13 @@
     },
     "replyLanguage": "Langue de réponse",
     "instructions": "Instructions",
-    "escalation": "Escalade",
-    "escalationGuidance": "Guidance d'escalade",
+    "instructionsPlaceholder": "ex. Préférer les notes internes lorsque les preuves sont incomplètes.",
+    "instructionsCounter": "{{used}} / {{max}} lignes · 500 caractères par ligne",
+    "instructionsTooManyLines": "Les instructions peuvent compter au plus {{max}} lignes. Les autres modifications d'identité ne sont pas enregistrées tant que ce n'est pas corrigé.",
+    "instructionsLineTooLong": "La ligne {{line}} dépasse {{max}} caractères. Les autres modifications d'identité ne sont pas enregistrées tant que ce n'est pas corrigé.",
+    "purposeOverLimit": "L'objectif peut compter au plus {{max}} caractères. Les autres modifications d'identité ne sont pas enregistrées tant que ce n'est pas corrigé.",
+    "sharedContextClamped": "{{count}} lignes de contexte partagé ne sont pas envoyées au modèle.",
+    "instructionsClamped": "{{count}} lignes d'instructions ne sont pas envoyées au modèle.",
     "sharedContextHint": "Guidance de fond pour cet agent. Ce n'est ni une permission ni une source citable.",
     "sharedContextEnabled": "Utiliser le contexte partagé",
     "sharedContextNoProfile": "Aucun profil sélectionné",
@@ -772,13 +769,9 @@
     "checkInterval": "Contrôler toutes les (minutes)",
     "checkIntervalInfo": "Fréquence à laquelle l’agent cherche de nouveaux tickets lorsqu’il surveille. Entre 5 minutes et 24 heures. « Contrôler maintenant » s’exécute toujours immédiatement, quelle que soit cette valeur.",
     "checkIntervalAlertsInfo": "Fréquence à laquelle l’agent cherche de nouvelles alertes lorsqu’il surveille. Entre 5 minutes et 24 heures. « Chercher de nouvelles alertes » s’exécute toujours immédiatement, quelle que soit cette valeur.",
-    "nameInfo": "Le nom affiché dans KANAP pour cet agent. Il n’a aucun effet sur son comportement.",
-    "descriptionInfo": "Un résumé court pour vos collègues, affiché sous le nom de l’agent.",
-    "missionInfo": "Ce que cet agent est là pour faire, en une ou deux phrases. Il la relit avant chaque ticket.",
-    "instructionsInfo": "Les règles internes que l’agent suit, une par ligne. Elles ne peuvent pas élargir ce que l’agent a le droit de faire.",
-    "outputStyleInfo": "Le ton que l’agent doit adopter lorsqu’il rédige, par exemple clair et concis.",
+    "purposeInfo": "Ce que cet agent est là pour faire, en une ligne. Il le relit à chaque exécution.",
+    "instructionsInfo": "Les règles internes que l’agent suit, une règle par ligne. Elles ne peuvent pas élargir ce que l’agent a le droit de faire.",
     "replyLanguageInfo": "La langue dans laquelle l’agent rédige. « Langue du ticket » le fait répondre dans la langue utilisée par le demandeur.",
-    "escalationGuidanceInfo": "Quand l’agent doit passer la main à une personne plutôt que de proposer quelque chose lui-même.",
     "capabilitiesInfo": "Ce que cet agent peut préparer. Tout ce qui est désactivé ici n’est jamais proposé, quelles que soient les instructions.",
     "modelInfo": "Le modèle IA sur lequel cet agent s’exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
     "maxTicketsInfo": "Le nombre maximum de tickets pris par l’agent à chaque contrôle. Les autres attendent le suivant.",

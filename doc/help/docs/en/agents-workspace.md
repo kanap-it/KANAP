@@ -1,6 +1,6 @@
 # AI Agents — Agent workspace
 
-The agent workspace is where a single agent lives: you drive it, watch what it is doing, review its proposals, judge how well it is performing, and — if you are an administrator — configure every detail of how it works. It is the deepest surface in the AI Agents area. Everything about one agent that isn't a fleet-wide control is here: an action bar that stays with you on every tab, and four tabs beneath it.
+The agent workspace is where a single agent lives: you drive it, watch what it is doing, review its proposals, judge how well it is performing, and — if you are an administrator — configure every detail of how it works. It is the deepest surface in the AI Agents area. Everything about one agent that isn't a fleet-wide control is here: an action bar that stays with you on every tab, and four tabs beneath it. Administrators can click the agent name or the short description under it to rename it or update that summary; both still appear on the agent's card in the fleet.
 
 Open an agent by clicking its card on [AI Agents — Overview](agents-overview.md). The workspace always opens on **Monitor**; you can deep-link to any tab, and links from elsewhere in the product land you on the right one.
 
@@ -39,10 +39,9 @@ Read the closed label as the truth and the menu as the intent: an agent set to *
 - **Check now** (**Check for new alerts** on a monitoring agent) runs a check immediately instead of waiting for the next scheduled one. It is disabled when the agent is **Off** ("Turn the agent on first.") or paused ("Lift the pause first."), with the reason in the tooltip.
 - **Test on a ticket** (**Test on an alert** on a monitoring agent) takes you to the test section on the **Monitor** tab, whichever tab you were on.
 - **Pause agent** is the red emergency brake, and it is deliberately not the same thing as **Off**. It asks for a reason, then holds this agent's checks *and any pending writes* until you lift it. Other agents keep running. While a pause is in effect a warning banner reads **Emergency pause active: {reason}** and the control becomes **Lift pause**. A pause set for the whole tenant instead shows **Paused for all agents** and sends you to the fleet overview — you can't lift a tenant-wide pause from a single agent.
+- **Archive agent** (administrators) retires the agent: it stops watching and running, keeps its configuration and history, and asks you to confirm first. When the agent is already archived, this control becomes **Restore agent** and brings it back to **Off**.
 
-Use **Off** to stand an agent down for a while; use **Pause agent** when something is going wrong and you want the pending work frozen too.
-
-An archived agent has no controls beyond a note — *Archived — restore it from the Settings tab.*
+Use **Off** to stand an agent down for a while; use **Pause agent** when something is going wrong and you want the pending work frozen too; use **Archive agent** when you are done with it.
 
 ---
 
@@ -140,19 +139,15 @@ Monitoring agents have the same section, filtering on alert state, severity, ack
 
 Below them sits the persona — who the agent is and how it writes:
 
-- **Name** — what the agent is called across KANAP. It has no effect on what the agent does.
-- **Description** — a short summary for your colleagues, shown under the agent name.
-- **Mission** — what the agent is here to do, in one or two sentences. It reads this before every ticket.
-- **Instructions** — house rules, one per line. They cannot widen what the agent is allowed to do.
-- **Output style** — how it should sound when it writes (for example, *clear and concise*).
+- **Purpose** — what the agent is here to do, in one line. It reads this on every run.
+- **Instructions** — house rules, one rule per line. They cannot widen what the agent is allowed to do. A counter shows how many of the 16 lines you have used (500 characters each). Past those limits the field is not saved, and neither are the other identity fields, until you shorten the draft.
 - **Reply language** — **Ticket language** (answer in whatever language the requester used), **French**, **English**, **German**, or **Spanish**.
-- **Escalation guidance** — when the agent should hand a ticket to a person instead of proposing something itself.
 
-**Archive agent** in the section header is the deliberate way to retire an agent: it stops watching and running, keeps its configuration and history, and **Restore agent** brings it back from the same place.
+The agent's name and short description live on the workspace title, not in this grid: click them to edit. How the agent should sound, and when it should hand work to a person, belong in **Instructions** as ordinary rules.
 
-**Use shared context** layers reusable background about your environment onto this agent. The switch is all you see until you turn it on; once it's on, you get the profile selector, a **+ New profile** shortcut, and a preview of the selected profile's lines. Shared context shapes how the agent interprets tickets and writes replies, but it is never a permission grant and is **not** a citable source — unlike [Knowledge libraries](knowledge.md), whose results *are* cited back in replies. Manage profiles on the [Shared context](agents-shared-context.md) page.
+**Use shared context** layers reusable background about your environment onto this agent. The switch is all you see until you turn it on; once it's on, you get the profile selector, a **+ New profile** shortcut, and a preview of the selected profile's lines. Shared context shapes how the agent interprets tickets and writes replies, but it is never a permission grant and is **not** a citable source — unlike [Knowledge libraries](knowledge.md), whose results *are* cited back in replies. Manage profiles on the [Shared context](agents-shared-context.md) page. If a profile has more lines than the agent can send, a warning tells you how many lines of shared context are not being sent to the model — nothing is dropped silently.
 
-**View effective prompt** is collapsed by default. Expand it to read exactly what the agent's runtime is given, compiled from everything above plus the platform's own rules. Use the selector to inspect each stage — **Action planner**, **Planner**, and **Interpreter** are where the agent decides *what to do*; **Synthesis** is where it drafts the reply grounded in your knowledge sources; a monitoring agent has **Diagnosis** instead. The preview refreshes after each save. As the hint says, **guidance cannot override safety rules** — nothing you write in the persona can loosen the platform's hard limits.
+**View effective prompt** is collapsed by default. Expand it to read exactly what the agent's runtime is given, compiled from everything above plus the platform's own rules. Use the selector to inspect each stage — **Action planner**, **Planner**, and **Interpreter** are where the agent decides *what to do*; **Synthesis** is where it drafts the reply grounded in your knowledge sources; a monitoring agent has **Diagnosis** instead. The preview refreshes after each save. As the hint says, **guidance cannot override safety rules** — nothing you write in the persona can loosen the platform's hard limits. The same shared-context warning appears here if any lines were left out.
 
 ### Knowledge and web sources
 

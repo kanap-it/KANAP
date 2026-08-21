@@ -63,10 +63,45 @@ async function testBoundsClampInstructionsAndSharedContext() {
     name: 'Large profile',
     lines: Array.from({ length: 45 }, (_entry, index) => `Context line ${index + 1}`),
   });
-  assert.equal(profile.instructions.length, 12);
+  assert.equal(profile.instructions.length, 16);
   assert.equal(profile.shared_context?.lines.length, 30);
   assert.ok(profile.bounds_applied.some((entry) => entry.startsWith('instructions_clamped')));
   assert.ok(profile.bounds_applied.some((entry) => entry.startsWith('shared_context_lines_clamped')));
+}
+
+async function testSixteenInstructionsAreKeptWithoutInstructionClamp() {
+  const compiler = new AiAgentPromptCompilerService();
+  const profile = compiler.compile({
+    mission: 'Support agent',
+    instructions: Array.from({ length: 16 }, (_entry, index) => `Instruction ${index + 1}`),
+  }, null);
+  assert.equal(profile.instructions.length, 16);
+  assert.equal(profile.bounds_applied.some((entry) => entry.startsWith('instructions_clamped')), false);
+}
+
+async function testMaxLegalActionPlannerSliceFitsInsideGuidanceBudget() {
+  const compiler = new AiAgentPromptCompilerService();
+  const line = 'x'.repeat(500);
+  const profile = compiler.compile({
+    mission: 'm'.repeat(500),
+    instructions: Array.from({ length: 16 }, (_entry, index) => {
+      const quoted = index < 8 ? `"${'v'.repeat(200)}" ` : '';
+      return `${quoted}${'x'.repeat(500 - quoted.length)}`;
+    }),
+    output_style: { tone: 't'.repeat(300) },
+    escalation_guidance: 'e'.repeat(500),
+  }, {
+    profile_id: '33333333-3333-4333-8333-333333333333',
+    version: 1,
+    name: 'Large profile',
+    lines: Array.from({ length: 30 }, () => line),
+  });
+  assert.equal(profile.instructions.length, 16);
+  assert.equal(profile.shared_context?.lines.length, 30);
+  const actionPlanner = compiler.sliceFor(profile, 'action_planner');
+  const compactSize = JSON.stringify(guidancePayload(actionPlanner)).length;
+  assert.ok(compactSize < 40_000, `max legal action-planner slice is ${compactSize} chars, must fit under 40000`);
+  assert.equal(actionPlanner.bounds_applied.some((entry) => entry.startsWith('total_guidance_chars_clamped')), false);
 }
 
 async function testActionPlannerSliceCarriesVerbatimCandidates() {
@@ -98,6 +133,8 @@ async function run() {
   await testEmptyGuidanceKeepsFloorVerbatim();
   await testLegacyPersonaRendersBoundedJsonGuidance();
   await testBoundsClampInstructionsAndSharedContext();
+  await testSixteenInstructionsAreKeptWithoutInstructionClamp();
+  await testMaxLegalActionPlannerSliceFitsInsideGuidanceBudget();
   await testActionPlannerSliceCarriesVerbatimCandidates();
 }
 
