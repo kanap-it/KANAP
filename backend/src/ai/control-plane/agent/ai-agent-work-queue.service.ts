@@ -9,14 +9,9 @@ import {
   TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
   TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
-  TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
-  TICKETING_LIFECYCLE_CONTEXT_CAPABILITY,
-  TICKETING_PARTICIPANT_CONTEXT_CAPABILITY,
   TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
   TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
   TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
-  TICKETING_ROUTING_CONTEXT_CAPABILITY,
   TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
   TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
 } from '../capability/capability-contract';
@@ -44,6 +39,19 @@ import { MONITORING_SEVERITY_VALUES } from '../providers/provider-constants';
 import { MonitoringTargetingModel, normalizeMonitoringTargeting } from './monitoring-targeting';
 import { requireMonitoringBinding, resolveMonitoringBinding } from './provider-binding';
 import { requireTicketingBinding, resolveTicketingBinding } from './ticketing-binding';
+import {
+  HELP_DESK_ALLOWED_CAPABILITIES,
+  HELP_DESK_FORBIDDEN_CAPABILITIES,
+  SRE_MONITORING_ALLOWED_CAPABILITIES,
+  SRE_MONITORING_FORBIDDEN_CAPABILITIES,
+} from './agent-definition-defaults';
+
+export {
+  HELP_DESK_ALLOWED_CAPABILITIES,
+  HELP_DESK_FORBIDDEN_CAPABILITIES,
+  SRE_MONITORING_ALLOWED_CAPABILITIES,
+  SRE_MONITORING_FORBIDDEN_CAPABILITIES,
+};
 
 export const HELP_DESK_TICKETING_TRIAGE_AGENT_KEY = 'helpdesk.glpi.triage';
 
@@ -207,107 +215,12 @@ const REQUIRED_HELPDESK_TRIAGE_CAPABILITIES = [
   TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
 ] as const;
 
-const HELP_DESK_ALLOWED_CAPABILITIES = [
-  { name: 'ticketing.ticket.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: TICKETING_LIFECYCLE_CONTEXT_CAPABILITY, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: TICKETING_ROUTING_CONTEXT_CAPABILITY, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: TICKETING_PARTICIPANT_CONTEXT_CAPABILITY, version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'web_search', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-  { name: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-  { name: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-  { name: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-  { name: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-  { name: TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-  {
-    name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
-    version: '1.0.0',
-    effect: 'write',
-    max_autonomy_level: 'A3',
-    approval: 'human',
-  },
-  {
-    name: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
-    version: '1.0.0',
-    effect: 'write',
-    max_autonomy_level: 'A3',
-    approval: 'human',
-  },
-  {
-    name: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
-    version: '1.0.0',
-    effect: 'write',
-    max_autonomy_level: 'A3',
-    approval: 'human',
-  },
-  {
-    name: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-    version: '1.0.0',
-    effect: 'write',
-    max_autonomy_level: 'A3',
-    approval: 'human',
-  },
-  {
-    name: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-    version: '1.0.0',
-    effect: 'write',
-    max_autonomy_level: 'A3',
-    approval: 'human',
-  },
-  {
-    name: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
-    version: '1.0.0',
-    effect: 'write',
-    max_autonomy_level: 'A3',
-    approval: 'human',
-  },
-];
-
-const HELP_DESK_FORBIDDEN_CAPABILITIES = [
-  'ticketing.ticket.close',
-  'ticketing.ticket.delete',
-  'ticketing.ticket.bulk_update',
-  'ticketing.ticket.public_reply.auto_execute',
-  'automation.job.launch_approved',
-  'external_mcp.*',
-  'production_a4',
-];
-
-// Read-only set for the built-in SRE agent: knowledge/web retrieval plus the
-// monitoring provider reads the diagnosis runtime dispatches (WS-A6/WS-A8).
-// Exported as the single source of truth for the SRE capability cap table in
-// ai-agent-control.service.ts (SRE_POSSIBLE_CAPABILITY_CAPS) and the creation
-// wizard's explicit capability list (AgentsOverviewPage.tsx) — keep in sync.
-export const SRE_MONITORING_ALLOWED_CAPABILITIES = [
-  { name: 'monitoring.alert.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'monitoring.sensor.history', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  // WS-A8 evidence-chain reads: current check state + same-device related alerts,
-  // dispatched by the diagnosis runtime so the whole chain is audited.
-  { name: 'monitoring.state.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'monitoring.alert.related.list', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  // Device context read (host address) so the KANAP asset correlation can apply
-  // the documented IP-equality tiebreak on ambiguous device names (§4.5).
-  { name: 'monitoring.object.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-  { name: 'web_search', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-];
+// Capability lists live in agent-definition-defaults.ts and are re-exported above.
 
 const REQUIRED_SRE_DIAGNOSIS_CAPABILITIES = [
   'monitoring.alert.get',
   'monitoring.sensor.history',
 ] as const;
-
-// Applied to the seed AND to UI-created SRE definitions (create endpoint) —
-// same server-side discipline as the helpdesk template's forbidden list.
-export const SRE_MONITORING_FORBIDDEN_CAPABILITIES = [
-  'automation.job.launch_approved',
-  'external_mcp.*',
-  'production_a4',
-];
 
 const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
@@ -317,21 +230,6 @@ const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
   TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
 ];
-
-const HELP_DESK_PHASE_11_UPGRADE_CAPABILITY_NAMES = new Set([
-  TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY,
-  TICKETING_LIFECYCLE_CONTEXT_CAPABILITY,
-  TICKETING_ROUTING_CONTEXT_CAPABILITY,
-  TICKETING_PARTICIPANT_CONTEXT_CAPABILITY,
-  TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
-  TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
-  TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
-  TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
-  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
-]);
 
 export type AgentQueueLiveTargetLike = {
   id: string;
@@ -344,16 +242,6 @@ export type AgentQueueLiveTargetLike = {
   allowed_effect: string;
   safety_label: string;
   enabled: boolean;
-};
-
-export type HelpdeskTicketingDefinitionBundle = {
-  definition: AiAgentDefinition;
-  trigger: AiAgentTrigger;
-};
-
-export type EnqueueManualTicketingSafeTargetResult = HelpdeskTicketingDefinitionBundle & {
-  workItem: AiAgentWorkItem;
-  created: boolean;
 };
 
 export type TargetReviewReadiness = {
@@ -456,21 +344,6 @@ export type HelpdeskNewTicketsIngestionConfig = {
   categoryId?: string | null;
   maxTicketsPerCycle: number;
   maxProviderRequestsPerCycle: number;
-};
-
-export type HelpdeskTicketingIngestionSettingsInput = {
-  ingestion: {
-    enabled: boolean;
-    entityId?: string | null;
-    categoryId?: string | null;
-    maxTicketsPerCycle?: number | null;
-    maxProviderRequestsPerCycle?: number | null;
-    hardBackfillHorizonHours?: number | null;
-  };
-  guardrails?: {
-    perRun?: { maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
-    daily?: { maxAgentRuns?: number | null; maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
-  };
 };
 
 export type HelpdeskTicketingIngestionSettingsView = {
@@ -610,27 +483,6 @@ function capabilityNames(value: unknown): Set<string> {
   return names;
 }
 
-function mergeProductOwnedAllowedCapabilities(current: unknown): unknown[] {
-  const merged = capabilityEntries(current)
-    .filter((entry) => capabilityEntryName(entry) !== null || isRecord(entry))
-    .map((entry) => isRecord(entry) ? { ...entry } : entry);
-  const names = capabilityNames(merged);
-  for (const capability of HELP_DESK_ALLOWED_CAPABILITIES) {
-    if (!names.has(capability.name)) {
-      merged.push(capability);
-      names.add(capability.name);
-    }
-  }
-  return merged;
-}
-
-function pruneProductOwnedForbiddenCapabilityConflicts(current: unknown): unknown[] {
-  return capabilityEntries(current).filter((entry) => {
-    const name = capabilityEntryName(entry);
-    return !name || !HELP_DESK_PHASE_11_UPGRADE_CAPABILITY_NAMES.has(name);
-  });
-}
-
 function policyObject(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
@@ -696,34 +548,6 @@ function numberPolicyOrNull(value: unknown, min: number, max: number): number | 
 
 function positivePolicyNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function trimmedSettingOrNull(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function settingNumberInRange(value: unknown, min: number, max: number, fallback: number, label: string): number {
-  if (value == null) {
-    return fallback;
-  }
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
-    throw new BadRequestException(`${label} must be a number between ${min} and ${max}.`);
-  }
-  return Math.floor(value);
-}
-
-function settingPositiveNumber(value: unknown, current: unknown, fallback: number, label: string): number {
-  if (value == null) {
-    return positivePolicyNumber(current) ?? fallback;
-  }
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    throw new BadRequestException(`${label} must be a positive number.`);
-  }
-  return value;
 }
 
 function defaultEconomicGuardrails(): Record<string, unknown> {
@@ -1007,7 +831,7 @@ export class AiAgentWorkQueueService {
     return context.manager.getRepository(AiEmergencyPause);
   }
 
-  private async defaultTicketingProviderKeyForNewDefinition(context: AiExecutionContextWithManager): Promise<string> {
+  async defaultTicketingProviderKeyForNewDefinition(context: AiExecutionContextWithManager): Promise<string> {
     try {
       // Legacy GLPI settings are the authoritative signal for existing tenants:
       // a tenant with working glpi_* credentials must seed a GLPI-bound agent
@@ -1036,450 +860,6 @@ export class AiAgentWorkQueueService {
       );
       return LEGACY_GLPI_TICKETING_PROVIDER_KEY;
     }
-  }
-
-  async ensureHelpdeskTicketingTriageDefinition(
-    context: AiExecutionContextWithManager,
-  ): Promise<HelpdeskTicketingDefinitionBundle> {
-    if (!context.tenantId) {
-      throw new ForbiddenException('Tenant context is required for agent definitions.');
-    }
-
-    const definitionRepo = this.definitionRepo(context);
-    const triggerRepo = this.triggerRepo(context);
-    let definition = await definitionRepo.findOne({
-      where: {
-        tenant_id: context.tenantId,
-        agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
-      },
-    });
-    if (!definition) {
-      const defaultTicketingProviderKey = await this.defaultTicketingProviderKeyForNewDefinition(context);
-      definition = await definitionRepo.save(definitionRepo.create({
-        tenant_id: context.tenantId,
-        agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
-        name: 'Helpdesk ticket triage agent',
-        description: 'Reads a configured ticketing safe target, searches KANAP knowledge, and prepares approval-gated helpdesk follow-up proposals.',
-        agent_type: 'helpdesk',
-        status: 'enabled',
-        environment: 'sandbox',
-        provider_bindings_json: {
-          ticketing: {
-            provider_kind: 'ticketing',
-            provider_key: defaultTicketingProviderKey,
-          },
-        },
-        allowed_capabilities_json: HELP_DESK_ALLOWED_CAPABILITIES,
-        forbidden_capabilities_json: HELP_DESK_FORBIDDEN_CAPABILITIES,
-        max_autonomy_level: 'A3',
-        default_approval_requirement: 'human_for_writes',
-        agent_priority: 100,
-        trigger_policy_json: {
-          manual_safe_target: { enabled: true },
-          scheduled_poll: { enabled: false },
-          saved_filter: { enabled: false },
-          provider_webhook: { enabled: false },
-          ticket_update: { enabled: false },
-          production_polling_enabled: false,
-          automatic_writes_enabled: false,
-        },
-        scope_policy_json: normalizeServiceDeskScopePolicy({
-          mode: 'manual_safe_target',
-          allowed_modes: ['manual_safe_target', 'new_tickets_only', 'new_plus_agent_touched', 'saved_filter'],
-          provider_kind: 'ticketing',
-          provider_key: defaultTicketingProviderKey,
-          target_kind: 'ticket',
-          required_safe_target_effect: 'read',
-          new_tickets_only: { enabled: false },
-          new_plus_agent_touched: { enabled: false },
-          saved_filter: { enabled: false },
-          all_matching: { enabled: false },
-          freeform_live_object_ids: false,
-          knowledge_sources: {
-            knowledge: { enabled: true, all_libraries: true, library_ids: [] },
-            web: { enabled: false },
-            precedence: 'knowledge_first',
-          },
-        }),
-        queue_policy_json: {
-          enabled: true,
-          dedup_mode: 'active_work_item',
-          lease_ttl_seconds: DEFAULT_LEASE_TTL_SECONDS,
-          max_attempts: DEFAULT_MAX_ATTEMPTS,
-          cooldown_seconds: DEFAULT_COOLDOWN_SECONDS,
-          review_cooldown_seconds: DEFAULT_REVIEW_COOLDOWN_SECONDS,
-          on_conflict: 'defer',
-          approval_ttl_seconds: DEFAULT_APPROVAL_TTL_SECONDS,
-          on_stale_by_action_class: {
-            public_reply: 're_review',
-            internal_note: 're_review',
-            classification: 're_review',
-            status: 're_review',
-          },
-          retry_backoff_seconds: [60, 300, 900],
-          terminal_statuses: ['completed', 'dead_letter'],
-          economic_guardrails: defaultEconomicGuardrails(),
-        },
-        response_policy_json: {
-          prepare_internal_note: true,
-          prepare_public_reply: true,
-          prepare_classification_update: true,
-          prepare_status_update: true,
-          prepare_assignment_update: true,
-          prepare_participant_update: false,
-          automatic_public_reply: false,
-          automatic_ticket_updates: false,
-          require_human_approval_for_writes: true,
-        },
-        evaluation_policy_json: {
-          create_pending_evaluation: true,
-          feedback_required_for_autonomy_promotion: true,
-        },
-        persona_json: {
-          mission: 'Triage helpdesk tickets, gather supporting KANAP knowledge, and prepare safe follow-up proposals for review.',
-          tone: 'Clear, concise, and support-oriented.',
-          instructions: [
-            'Prefer internal notes when evidence is incomplete or the next step needs analyst review.',
-            'Prepare requester replies only when a newer requester message needs a direct response.',
-            'Do not broaden capabilities or execute writes from persona instructions.',
-          ],
-          escalation_text: 'Escalate to a human operator when the request is ambiguous, high-impact, or lacks reliable evidence.',
-        },
-        config_version: 1,
-        updated_by_user_id: null,
-        metadata_json: {
-          product_owned: true,
-          phase: 11,
-          production_polling_enabled: false,
-          production_a4_enabled: false,
-        },
-        created_at: new Date(),
-        updated_at: new Date(),
-      }));
-    } else if (!isRecord(definition.metadata_json) || definition.metadata_json.user_modified !== true) {
-      const currentTriggerPolicy = policyObject(definition.trigger_policy_json);
-      const currentScopePolicy = policyObject(definition.scope_policy_json);
-      const currentQueuePolicy = policyObject(definition.queue_policy_json);
-      const currentTicketingBinding = resolveTicketingBinding(definition);
-      const desiredTicketingProviderKind = currentTicketingBinding?.providerKind ?? 'ticketing';
-      const desiredTicketingProviderKey = currentTicketingBinding?.providerKey
-        ?? await this.defaultTicketingProviderKeyForNewDefinition(context);
-      const currentProviderBindings = isRecord(definition.provider_bindings_json) ? definition.provider_bindings_json : {};
-      const currentTicketingProviderBinding = isRecord(currentProviderBindings.ticketing) ? currentProviderBindings.ticketing : {};
-      const boundedPollingExplicitlyEnabled = hasEnabledFlag(currentTriggerPolicy, 'scheduled_poll')
-        && hasEnabledFlag(currentScopePolicy, 'new_tickets_only');
-      const desiredResponsePolicy = {
-        ...(isRecord(definition.response_policy_json) ? definition.response_policy_json : {}),
-        prepare_internal_note: true,
-        prepare_public_reply: true,
-        prepare_classification_update: true,
-        prepare_status_update: true,
-        prepare_assignment_update: true,
-        prepare_participant_update: false,
-        automatic_public_reply: false,
-        automatic_ticket_updates: false,
-        require_human_approval_for_writes: true,
-      };
-      const desiredMetadata = {
-        ...(isRecord(definition.metadata_json) ? definition.metadata_json : {}),
-        product_owned: true,
-        phase: 11,
-        production_polling_enabled: boundedPollingExplicitlyEnabled,
-        production_a4_enabled: false,
-      };
-      const desiredTriggerPolicy = {
-        ...currentTriggerPolicy,
-        manual_safe_target: { enabled: true },
-        scheduled_poll: isRecord(currentTriggerPolicy.scheduled_poll) ? currentTriggerPolicy.scheduled_poll : { enabled: false },
-        saved_filter: isRecord(currentTriggerPolicy.saved_filter) ? currentTriggerPolicy.saved_filter : { enabled: false },
-        provider_webhook: { enabled: false },
-        ticket_update: { enabled: false },
-        production_polling_enabled: currentTriggerPolicy.production_polling_enabled === true && hasEnabledFlag(currentTriggerPolicy, 'scheduled_poll'),
-        automatic_writes_enabled: false,
-      };
-      const desiredScopePolicy = {
-        ...currentScopePolicy,
-        mode: stringFromPolicy(currentScopePolicy.mode) ?? 'manual_safe_target',
-        allowed_modes: ['manual_safe_target', 'new_tickets_only', 'new_plus_agent_touched', 'saved_filter'],
-        provider_kind: desiredTicketingProviderKind,
-        provider_key: desiredTicketingProviderKey,
-        target_kind: 'ticket',
-        required_safe_target_effect: 'read',
-        new_tickets_only: isRecord(currentScopePolicy.new_tickets_only) ? currentScopePolicy.new_tickets_only : { enabled: false },
-        new_plus_agent_touched: { enabled: false },
-        saved_filter: isRecord(currentScopePolicy.saved_filter) ? currentScopePolicy.saved_filter : { enabled: false },
-        all_matching: { enabled: false },
-        freeform_live_object_ids: false,
-      };
-      const normalizedDesiredScopePolicy = normalizeServiceDeskScopePolicy(desiredScopePolicy);
-      const { approval_ttl_seconds_by_action_class: _legacyApprovalTtl, ...currentQueuePolicyRest } = currentQueuePolicy;
-      const desiredQueuePolicy = {
-        ...currentQueuePolicyRest,
-        enabled: currentQueuePolicy.enabled === false ? false : true,
-        dedup_mode: currentQueuePolicy.dedup_mode ?? 'active_work_item',
-        lease_ttl_seconds: numberFromPolicy(currentQueuePolicy.lease_ttl_seconds, DEFAULT_LEASE_TTL_SECONDS, 30, 86_400),
-        max_attempts: numberFromPolicy(currentQueuePolicy.max_attempts, DEFAULT_MAX_ATTEMPTS, 1, 20),
-        cooldown_seconds: numberFromPolicy(currentQueuePolicy.cooldown_seconds, DEFAULT_COOLDOWN_SECONDS, 1, 86_400),
-        review_cooldown_seconds: numberFromPolicy(currentQueuePolicy.review_cooldown_seconds, DEFAULT_REVIEW_COOLDOWN_SECONDS, 60, 30 * 24 * 60 * 60),
-        on_conflict: currentQueuePolicy.on_conflict === 'supersede' ? 'supersede' : 'defer',
-        approval_ttl_seconds: normalizeApprovalTtlSeconds(currentQueuePolicy),
-        on_stale_by_action_class: isRecord(currentQueuePolicy.on_stale_by_action_class)
-          ? currentQueuePolicy.on_stale_by_action_class
-          : {
-            public_reply: 're_review',
-            internal_note: 're_review',
-            classification: 're_review',
-            status: 're_review',
-          },
-        retry_backoff_seconds: Array.isArray(currentQueuePolicy.retry_backoff_seconds)
-          ? currentQueuePolicy.retry_backoff_seconds
-          : [60, 300, 900],
-        terminal_statuses: Array.isArray(currentQueuePolicy.terminal_statuses)
-          ? currentQueuePolicy.terminal_statuses
-          : ['completed', 'dead_letter'],
-        economic_guardrails: mergeEconomicGuardrails(currentQueuePolicy.economic_guardrails),
-      };
-      const desiredProviderBindings = {
-        ...currentProviderBindings,
-        ticketing: {
-          ...currentTicketingProviderBinding,
-          provider_kind: desiredTicketingProviderKind,
-          provider_key: desiredTicketingProviderKey,
-          connection_id: typeof currentTicketingProviderBinding.connection_id === 'string' && currentTicketingProviderBinding.connection_id.trim()
-            ? currentTicketingProviderBinding.connection_id.trim()
-            : desiredTicketingProviderKey,
-        },
-      };
-      const desiredAllowedCapabilities = mergeProductOwnedAllowedCapabilities(definition.allowed_capabilities_json);
-      const desiredForbiddenCapabilities = pruneProductOwnedForbiddenCapabilityConflicts(definition.forbidden_capabilities_json);
-      const next = {
-        provider_bindings_json: desiredProviderBindings,
-        allowed_capabilities_json: desiredAllowedCapabilities,
-        forbidden_capabilities_json: desiredForbiddenCapabilities,
-        response_policy_json: desiredResponsePolicy,
-        trigger_policy_json: desiredTriggerPolicy,
-        scope_policy_json: normalizedDesiredScopePolicy,
-        queue_policy_json: desiredQueuePolicy,
-        metadata_json: desiredMetadata,
-      };
-      if (
-        hashStableJson(definition.provider_bindings_json) !== hashStableJson(next.provider_bindings_json)
-        || hashStableJson(definition.allowed_capabilities_json) !== hashStableJson(next.allowed_capabilities_json)
-        || hashStableJson(definition.forbidden_capabilities_json) !== hashStableJson(next.forbidden_capabilities_json)
-        || hashStableJson(definition.response_policy_json) !== hashStableJson(next.response_policy_json)
-        || hashStableJson(definition.trigger_policy_json) !== hashStableJson(next.trigger_policy_json)
-        || hashStableJson(definition.scope_policy_json) !== hashStableJson(next.scope_policy_json)
-        || hashStableJson(definition.queue_policy_json) !== hashStableJson(next.queue_policy_json)
-        || hashStableJson(definition.metadata_json) !== hashStableJson(next.metadata_json)
-      ) {
-        definition.provider_bindings_json = next.provider_bindings_json;
-        definition.allowed_capabilities_json = next.allowed_capabilities_json;
-        definition.forbidden_capabilities_json = next.forbidden_capabilities_json;
-        definition.response_policy_json = next.response_policy_json;
-        definition.trigger_policy_json = next.trigger_policy_json;
-        definition.scope_policy_json = next.scope_policy_json;
-        definition.queue_policy_json = next.queue_policy_json;
-        definition.metadata_json = next.metadata_json;
-        definition.updated_at = new Date();
-        definition = await definitionRepo.save(definition);
-      }
-    }
-
-    const definitionTicketingBinding = requireTicketingBinding(definition);
-    let trigger = await triggerRepo.findOne({
-      where: {
-        tenant_id: context.tenantId,
-        agent_definition_id: definition.id,
-        trigger_key: HELP_DESK_TICKETING_TRIAGE_MANUAL_TRIGGER_KEY,
-      },
-    });
-    if (!trigger) {
-      trigger = await triggerRepo.save(triggerRepo.create({
-        tenant_id: context.tenantId,
-        agent_definition_id: definition.id,
-        trigger_key: HELP_DESK_TICKETING_TRIAGE_MANUAL_TRIGGER_KEY,
-        trigger_kind: 'manual',
-        status: 'enabled',
-        enabled: true,
-        trigger_policy_json: {
-          safe_target_required: true,
-          freeform_live_object_ids: false,
-        },
-        scope_policy_json: {
-          mode: 'manual_safe_target',
-          provider_kind: definitionTicketingBinding.providerKind,
-          provider_key: definitionTicketingBinding.providerKey,
-          target_kind: 'ticket',
-          allowed_effect: 'read',
-        },
-        metadata_json: {
-          source: 'agent_control_center',
-          phase: 11,
-        },
-        created_at: new Date(),
-        updated_at: new Date(),
-      }));
-    } else {
-      const triggerScope = policyObject(trigger.scope_policy_json);
-      const desiredTriggerScope = {
-        ...triggerScope,
-        provider_kind: definitionTicketingBinding.providerKind,
-        provider_key: definitionTicketingBinding.providerKey,
-        target_kind: 'ticket',
-      };
-      if (hashStableJson(trigger.scope_policy_json) !== hashStableJson(desiredTriggerScope)) {
-        trigger.scope_policy_json = desiredTriggerScope;
-        trigger.updated_at = new Date();
-        trigger = await triggerRepo.save(trigger);
-      }
-    }
-
-    return { definition, trigger };
-  }
-
-  async ensureHelpdeskGlpiTriageDefinition(
-    context: AiExecutionContextWithManager,
-  ): Promise<HelpdeskTicketingDefinitionBundle> {
-    return this.ensureHelpdeskTicketingTriageDefinition(context);
-  }
-
-  private async enabledMonitoringProviderKeys(context: AiExecutionContextWithManager): Promise<string[]> {
-    const configs = await context.manager.getRepository(AiAdapterConfig).find({
-      where: {
-        tenant_id: context.tenantId,
-        provider_kind: 'monitoring',
-        enabled: true,
-      },
-    });
-    return Array.from(new Set(configs
-      .map((config) => typeof config.provider_key === 'string' ? config.provider_key.trim() : '')
-      .filter(Boolean)));
-  }
-
-  async ensureSreMonitoringDefinition(context: AiExecutionContextWithManager): Promise<AiAgentDefinition | null> {
-    if (!context.tenantId) {
-      throw new ForbiddenException('Tenant context is required for agent definitions.');
-    }
-
-    const definitionRepo = this.definitionRepo(context);
-    let definition = await definitionRepo.findOne({
-      where: {
-        tenant_id: context.tenantId,
-        agent_key: SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
-      },
-    });
-    if (!definition) {
-      // Tenants without an enabled monitoring adapter config get no SRE definition
-      // at all — never seed a dead agent onto the fleet page.
-      const monitoringProviderKeys = await this.enabledMonitoringProviderKeys(context);
-      if (monitoringProviderKeys.length === 0) {
-        return null;
-      }
-      definition = await definitionRepo.save(definitionRepo.create({
-        tenant_id: context.tenantId,
-        agent_key: SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
-        name: 'SRE monitoring diagnosis agent',
-        description: 'Reads alerts from the bound monitoring provider, correlates them with KANAP knowledge and infrastructure data, and prepares diagnostic findings for review.',
-        agent_type: 'sre',
-        // Unlike the helpdesk seed this starts as a draft: an operator enables
-        // monitoring diagnosis deliberately.
-        status: 'draft',
-        environment: 'sandbox',
-        // Bind automatically only when the choice is unambiguous; with several
-        // enabled monitoring configs the operator picks the provider explicitly
-        // (an unbound monitoring agent fails closed, it never guesses).
-        provider_bindings_json: monitoringProviderKeys.length === 1
-          ? {
-            monitoring: {
-              provider_kind: 'monitoring',
-              provider_key: monitoringProviderKeys[0],
-            },
-          }
-          : {},
-        allowed_capabilities_json: SRE_MONITORING_ALLOWED_CAPABILITIES,
-        forbidden_capabilities_json: SRE_MONITORING_FORBIDDEN_CAPABILITIES,
-        max_autonomy_level: 'A1',
-        default_approval_requirement: 'human_for_writes',
-        agent_priority: 100,
-        trigger_policy_json: {
-          scheduled_poll: { enabled: false },
-          provider_webhook: { enabled: false },
-          production_polling_enabled: false,
-          automatic_writes_enabled: false,
-        },
-        scope_policy_json: {
-          knowledge_sources: {
-            knowledge: { enabled: true, all_libraries: true, library_ids: [] },
-            web: { enabled: false },
-            precedence: 'knowledge_first',
-            kanap_data: {
-              enabled: true,
-              domains: {
-                applications: true,
-                assets: true,
-                interfaces: true,
-                connections: true,
-                locations: true,
-              },
-            },
-          },
-          // Inert placeholder until the monitoring targeting module lands: an
-          // empty predicate list round-trips unchanged through the scope-policy
-          // normalizers used by the agent update path.
-          targeting: { schema_version: 1, combinator: 'and', predicates: [] },
-        },
-        queue_policy_json: {
-          enabled: true,
-          dedup_mode: 'active_work_item',
-          lease_ttl_seconds: DEFAULT_LEASE_TTL_SECONDS,
-          max_attempts: DEFAULT_MAX_ATTEMPTS,
-          cooldown_seconds: DEFAULT_COOLDOWN_SECONDS,
-          review_cooldown_seconds: DEFAULT_REVIEW_COOLDOWN_SECONDS,
-          on_conflict: 'defer',
-          approval_ttl_seconds: DEFAULT_APPROVAL_TTL_SECONDS,
-          retry_backoff_seconds: [60, 300, 900],
-          terminal_statuses: ['completed', 'dead_letter'],
-          economic_guardrails: defaultEconomicGuardrails(),
-        },
-        response_policy_json: {
-          require_human_approval_for_writes: true,
-        },
-        evaluation_policy_json: {
-          create_pending_evaluation: true,
-          feedback_required_for_autonomy_promotion: true,
-        },
-        persona_json: {
-          mission: 'Diagnose monitoring alerts with supporting KANAP knowledge and infrastructure context, and prepare clear findings for operator review.',
-        },
-        config_version: 1,
-        updated_by_user_id: null,
-        metadata_json: {
-          product_owned: true,
-          phase: 15,
-        },
-        created_at: new Date(),
-        updated_at: new Date(),
-      }));
-    } else if (
-      (!isRecord(definition.metadata_json) || definition.metadata_json.user_modified !== true)
-      && !resolveMonitoringBinding(definition)
-    ) {
-      // Non-destructive reconcile: backfill the binding once a previously
-      // ambiguous tenant converges on a single enabled monitoring adapter config.
-      const monitoringProviderKeys = await this.enabledMonitoringProviderKeys(context);
-      if (monitoringProviderKeys.length === 1) {
-        definition.provider_bindings_json = {
-          ...(isRecord(definition.provider_bindings_json) ? definition.provider_bindings_json : {}),
-          monitoring: {
-            provider_kind: 'monitoring',
-            provider_key: monitoringProviderKeys[0],
-          },
-        };
-        definition.updated_at = new Date();
-        definition = await definitionRepo.save(definition);
-      }
-    }
-    return definition;
   }
 
   assertHelpdeskTicketingDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
@@ -1551,10 +931,6 @@ export class AiAgentWorkQueueService {
         throw new ForbiddenException('Helpdesk ticket triage manual trigger scope is invalid.');
       }
     }
-  }
-
-  assertHelpdeskGlpiDefinitionRunnable(definition: AiAgentDefinition, trigger?: AiAgentTrigger | null): void {
-    this.assertHelpdeskTicketingDefinitionRunnable(definition, trigger);
   }
 
   assertSreMonitoringDefinitionRunnable(definition: AiAgentDefinition): void {
@@ -1765,148 +1141,6 @@ export class AiAgentWorkQueueService {
     return guardrails;
   }
 
-  async getHelpdeskTicketingIngestionSettings(
-    context: AiExecutionContextWithManager,
-  ): Promise<HelpdeskTicketingIngestionSettingsView> {
-    const { definition } = await this.ensureHelpdeskTicketingTriageDefinition(context);
-    return this.buildIngestionSettingsView(definition);
-  }
-
-  async getHelpdeskGlpiIngestionSettings(
-    context: AiExecutionContextWithManager,
-  ): Promise<HelpdeskTicketingIngestionSettingsView> {
-    return this.getHelpdeskTicketingIngestionSettings(context);
-  }
-
-  async updateHelpdeskTicketingIngestionSettings(
-    context: AiExecutionContextWithManager,
-    input: HelpdeskTicketingIngestionSettingsInput,
-  ): Promise<HelpdeskTicketingIngestionSettingsView> {
-    const { definition } = await this.ensureHelpdeskTicketingTriageDefinition(context);
-    const triggerPolicy = policyObject(definition.trigger_policy_json);
-    const scopePolicy = policyObject(definition.scope_policy_json);
-    const queuePolicy = policyObject(definition.queue_policy_json);
-    const currentIngestion = nestedPolicy(scopePolicy, 'new_tickets_only');
-    const wasEnabled = hasEnabledFlag(triggerPolicy, 'scheduled_poll') && currentIngestion.enabled === true;
-
-    const ingestionInput = input?.ingestion;
-    if (!isRecord(ingestionInput) || typeof ingestionInput.enabled !== 'boolean') {
-      throw new BadRequestException('Ingestion settings require an explicit enabled flag.');
-    }
-    const enabled = ingestionInput.enabled === true;
-    const entityId = trimmedSettingOrNull(ingestionInput.entityId);
-    const categoryId = trimmedSettingOrNull(ingestionInput.categoryId);
-    const maxTicketsPerCycle = settingNumberInRange(
-      ingestionInput.maxTicketsPerCycle, 1, 20, DEFAULT_NEW_TICKET_MAX_PER_CYCLE, 'Max tickets per cycle');
-    const maxProviderRequestsPerCycle = settingNumberInRange(
-      ingestionInput.maxProviderRequestsPerCycle, 1, 100, DEFAULT_NEW_TICKET_RATE_LIMIT_PER_CYCLE, 'Max provider requests per cycle');
-    const hardBackfillHorizonHours = settingNumberInRange(
-      ingestionInput.hardBackfillHorizonHours, 1, 24 * 30, DEFAULT_BACKFILL_HORIZON_HOURS, 'Backfill horizon hours');
-
-    const currentGuardrails = nestedPolicy(queuePolicy, 'economic_guardrails');
-    const currentPerRun = policyObject(currentGuardrails.per_run);
-    const currentDaily = policyObject(currentGuardrails.daily);
-    const guardrailsInput = isRecord(input?.guardrails) ? input.guardrails : {};
-    const perRunInput = policyObject((guardrailsInput as Record<string, unknown>).perRun);
-    const dailyInput = policyObject((guardrailsInput as Record<string, unknown>).daily);
-    const nextGuardrails = {
-      configured: true,
-      per_run: {
-        max_estimated_tokens: settingPositiveNumber(
-          perRunInput.maxEstimatedTokens, currentPerRun.max_estimated_tokens, DEFAULT_PER_RUN_TOKEN_CAP, 'Per-run token cap'),
-        max_estimated_cost_eur: settingPositiveNumber(
-          perRunInput.maxEstimatedCostEur, currentPerRun.max_estimated_cost_eur, DEFAULT_PER_RUN_COST_CAP_EUR, 'Per-run cost cap'),
-      },
-      daily: {
-        max_agent_runs: settingPositiveNumber(
-          dailyInput.maxAgentRuns, currentDaily.max_agent_runs, DEFAULT_DAILY_RUN_CAP, 'Daily run cap'),
-        max_estimated_tokens: settingPositiveNumber(
-          dailyInput.maxEstimatedTokens, currentDaily.max_estimated_tokens, DEFAULT_DAILY_TOKEN_CAP, 'Daily token cap'),
-        max_estimated_cost_eur: settingPositiveNumber(
-          dailyInput.maxEstimatedCostEur, currentDaily.max_estimated_cost_eur, DEFAULT_DAILY_COST_CAP_EUR, 'Daily cost cap'),
-      },
-    };
-
-    // enabled_at is informational (audit/UI) since the catch-up window became
-    // an absolute lookback; re-enabling still refreshes it for traceability.
-    const enabledAt = enabled
-      ? (wasEnabled ? isoFromPolicy(currentIngestion.enabled_at) ?? new Date().toISOString() : new Date().toISOString())
-      : isoFromPolicy(currentIngestion.enabled_at);
-
-    definition.trigger_policy_json = {
-      ...triggerPolicy,
-      scheduled_poll: {
-        ...(isRecord(triggerPolicy.scheduled_poll) ? triggerPolicy.scheduled_poll : {}),
-        enabled,
-      },
-      production_polling_enabled: enabled,
-      // Never operator-editable from this path.
-      automatic_writes_enabled: false,
-    };
-    const targetingPredicates: Array<{ field: string; operator: 'eq' | 'in' | 'gte'; value: unknown }> = [
-      { field: 'created_at', operator: 'gte', value: { relative_hours: hardBackfillHorizonHours } },
-      { field: 'status', operator: 'in', value: OPEN_TICKET_STATUS_VALUES },
-    ];
-    if (entityId) {
-      targetingPredicates.push({ field: 'entity', operator: 'eq', value: entityId });
-    }
-    if (categoryId) {
-      targetingPredicates.push({ field: 'category', operator: 'eq', value: categoryId });
-    }
-
-    definition.scope_policy_json = normalizeServiceDeskScopePolicy({
-      ...scopePolicy,
-      mode: 'new_tickets_only',
-      targeting: {
-        schema_version: 1,
-        combinator: 'and',
-        predicates: targetingPredicates,
-      },
-      new_tickets_only: {
-        enabled,
-        enabled_at: enabledAt,
-        entity_id: entityId,
-        category_id: categoryId,
-        max_tickets_per_cycle: maxTicketsPerCycle,
-        max_provider_requests_per_cycle: maxProviderRequestsPerCycle,
-        hard_backfill_horizon_hours: hardBackfillHorizonHours,
-      },
-    });
-    definition.queue_policy_json = {
-      ...queuePolicy,
-      economic_guardrails: nextGuardrails,
-    };
-    definition.updated_at = new Date();
-    const saved = await this.definitionRepo(context).save(definition);
-
-    await this.recordAuditEvent(context, {
-      agentDefinitionId: saved.id,
-      eventType: 'ingestion_settings_updated',
-      severity: 'info',
-      message: enabled
-        ? 'Helpdesk ticket ingestion settings updated; bounded new-ticket ingestion is enabled.'
-        : 'Helpdesk ticket ingestion settings updated; ingestion is disabled.',
-      metadata: {
-        enabled,
-        entity_id: entityId,
-        category_id: categoryId,
-        max_tickets_per_cycle: maxTicketsPerCycle,
-        max_provider_requests_per_cycle: maxProviderRequestsPerCycle,
-        hard_backfill_horizon_hours: hardBackfillHorizonHours,
-        economic_guardrails: nextGuardrails,
-      },
-    });
-
-    return this.buildIngestionSettingsView(saved);
-  }
-
-  async updateHelpdeskGlpiIngestionSettings(
-    context: AiExecutionContextWithManager,
-    input: HelpdeskTicketingIngestionSettingsInput,
-  ): Promise<HelpdeskTicketingIngestionSettingsView> {
-    return this.updateHelpdeskTicketingIngestionSettings(context, input);
-  }
-
   private buildIngestionSettingsView(definition: AiAgentDefinition): HelpdeskTicketingIngestionSettingsView {
     const triggerPolicy = policyObject(definition.trigger_policy_json);
     const scopePolicy = policyObject(normalizeServiceDeskScopePolicy(definition.scope_policy_json));
@@ -2105,88 +1339,6 @@ export class AiAgentWorkQueueService {
         return rightTime - leftTime;
       })[0] ?? null;
     return existing ? this.refreshResolvedWaitingApproval(context, existing) : null;
-  }
-
-  async enqueueManualTicketingSafeTarget(
-    context: AiExecutionContextWithManager,
-    target: AgentQueueLiveTargetLike,
-    metadata: Record<string, unknown> = {},
-  ): Promise<EnqueueManualTicketingSafeTargetResult> {
-    const bundle = await this.ensureHelpdeskTicketingTriageDefinition(context);
-    this.assertHelpdeskTicketingDefinitionRunnable(bundle.definition, bundle.trigger);
-    const binding = requireTicketingBinding(bundle.definition);
-
-    if (
-      target.provider_kind !== binding.providerKind
-      || target.provider_key !== binding.providerKey
-      || target.target_kind !== 'ticket'
-      || target.allowed_effect !== 'read'
-      || target.enabled !== true
-    ) {
-      throw new ForbiddenException('Manual helpdesk ticket triage requires an enabled read-only ticketing safe target matching the agent provider binding.');
-    }
-
-    const targetRef = normalizedTargetRef(target.external_ref);
-    const dedupKey = this.workItemDedupKey({
-      agentDefinitionId: bundle.definition.id,
-      providerKind: target.provider_kind,
-      providerKey: target.provider_key,
-      objectType: target.target_kind,
-      objectRef: targetRef,
-      workKind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
-    });
-    const existing = await this.findActiveWorkItem(context, bundle.definition, dedupKey);
-    if (existing) {
-      return { ...bundle, workItem: existing, created: false };
-    }
-
-    const repo = this.workItemRepo(context);
-    const now = new Date();
-    const workItem = await repo.save(repo.create({
-      tenant_id: context.tenantId,
-      agent_definition_id: bundle.definition.id,
-      trigger_id: bundle.trigger.id,
-      source_provider_kind: target.provider_kind,
-      source_provider_key: target.provider_key,
-      source_object_type: target.target_kind,
-      source_object_ref: targetRef,
-      source_object_updated_at: null,
-      work_kind: HELP_DESK_TICKETING_TRIAGE_WORK_KIND,
-      status: 'queued',
-      priority: 100,
-      dedup_key: dedupKey,
-      lease_owner: null,
-      leased_until: null,
-      attempt_count: 0,
-      max_attempts: this.queuePolicyNumber(bundle.definition, 'max_attempts', DEFAULT_MAX_ATTEMPTS, 1, 20),
-      next_attempt_at: now,
-      last_run_id: null,
-      last_action_request_ids: null,
-      last_error: null,
-      metadata_json: {
-        source: 'manual_safe_target',
-        target_id: target.id,
-        target_key: target.target_key,
-        target_environment: target.environment,
-        target_safety_label: target.safety_label,
-        ...metadata,
-      },
-      created_at: now,
-      updated_at: now,
-    }));
-
-    return { ...bundle, workItem, created: true };
-  }
-
-  async enqueueManualGlpiSafeTarget(
-    context: AiExecutionContextWithManager,
-    target: AgentQueueLiveTargetLike,
-    metadata: Record<string, unknown> = {},
-  ): Promise<EnqueueManualTicketingSafeTargetResult> {
-    if (target.provider_kind !== 'ticketing' || target.provider_key !== LEGACY_GLPI_TICKETING_PROVIDER_KEY) {
-      throw new ForbiddenException('Manual Helpdesk GLPI triage requires an enabled read-only GLPI ticket safe target.');
-    }
-    return this.enqueueManualTicketingSafeTarget(context, target, metadata);
   }
 
   async enqueueTicketingScopedTicket(
@@ -4013,16 +3165,6 @@ export class AiAgentWorkQueueService {
     context: AiExecutionContextWithManager,
     options: { limit?: number } = {},
   ): Promise<AgentQueueOverview> {
-    await this.ensureHelpdeskTicketingTriageDefinition(context);
-    // Opportunistic built-in SRE seed: a failed adapter-config lookup or write must
-    // never take the agents overview down with it.
-    try {
-      await this.ensureSreMonitoringDefinition(context);
-    } catch (error) {
-      this.logger.warn(
-        `SRE monitoring definition seeding failed; continuing without it: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
     const limit = Math.max(1, Math.min(100, Math.floor(options.limit ?? 50)));
     const definitions = (await this.definitionRepo(context).find({ where: { tenant_id: context.tenantId } }))
       .sort((left, right) => left.agent_key.localeCompare(right.agent_key));
@@ -4049,9 +3191,7 @@ export class AiAgentWorkQueueService {
       return acc;
     }, {});
     const helpdeskDefinitions = definitions.filter((definition) => definition.agent_type === 'helpdesk');
-    const helpdeskDefinition = helpdeskDefinitions.find((definition) => definition.agent_key === HELP_DESK_TICKETING_TRIAGE_AGENT_KEY)
-      ?? helpdeskDefinitions[0]
-      ?? null;
+    const helpdeskDefinition = helpdeskDefinitions[0] ?? null;
     const helpdeskDefinitionIds = helpdeskDefinitions.map((definition) => definition.id);
     // Monitoring inclusion: SRE agents flow through the generic definitions /
     // work items / target states lists above; audit events cover them too so

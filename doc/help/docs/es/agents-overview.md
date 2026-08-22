@@ -77,9 +77,7 @@ Debajo del panel, la sección **Flota** muestra una tarjeta por agente. Cada tar
 
 Al hacer clic en cualquier parte de una tarjeta se abre el [espacio](agents-workspace.md) de ese agente, donde lo maneja, lo monitoriza, revisa sus aprobaciones, consulta su rendimiento y cambia su configuración.
 
-Los administradores también ven un pequeño icono de papelera en las tarjetas de los agentes que crearon: elimina el agente junto con su cola y su historial de vigilancia (los tickets de su sistema de tickets nunca se ven afectados, y esto no se puede deshacer). Los dos agentes integrados —el agente de triaje de helpdesk y el agente de supervisión— no tienen control de eliminación: forman parte de la plataforma y solo pueden desactivarse o archivarse.
-
-**Una nota sobre el agente helpdesk integrado.** No aparece en la cuadrícula de la flota hasta que se ha usado realmente: hasta que alguien edita su configuración, cambia su modo de funcionamiento, lo prueba en un ticket o deja que ejecute una comprobación. Así la flota de un espacio recién creado es honesta: ve los agentes que ha creado, no una plantilla que nunca ha tocado. En cuanto haga algo con él, aparece y se queda. Sigue siendo la plantilla a partir de la cual se crea cada nuevo agente helpdesk, y un enlace directo a él siempre funciona.
+Los administradores también ven un pequeño icono de papelera en cada tarjeta: elimina el agente junto con su cola y su historial de vigilancia (los tickets de su sistema de tickets nunca se ven afectados, y esto no se puede deshacer).
 
 ---
 

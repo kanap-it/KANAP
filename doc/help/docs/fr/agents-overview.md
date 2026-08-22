@@ -77,9 +77,7 @@ Sous le tableau de bord, la section **Parc d'agents** affiche une carte par agen
 
 Cliquer n'importe où sur une carte ouvre l'[espace](agents-workspace.md) de cet agent, où vous le pilotez, le suivez, examinez ses approbations, consultez ses performances et modifiez ses paramètres.
 
-Les administrateurs voient également une petite icône de corbeille sur les cartes des agents qu'ils ont créés — elle supprime l'agent ainsi que sa file et son historique de surveillance (les tickets de votre système de tickets ne sont jamais touchés, et l'action est irréversible). Les deux agents intégrés, l'agent de triage helpdesk et l'agent de supervision, n'ont pas de commande de suppression : ils font partie de la plateforme et ne peuvent qu'être désactivés ou archivés.
-
-**Une remarque sur l'agent helpdesk intégré.** Il reste hors de la grille du parc tant qu'il n'a pas réellement servi — tant que personne n'a modifié ses paramètres, changé son mode de fonctionnement, ne l'a testé sur un ticket ou ne l'a laissé exécuter un contrôle. Le parc d'un tenant tout neuf reste ainsi honnête : vous voyez les agents que vous avez créés, pas un modèle auquel vous n'avez jamais touché. Dès que vous faites quoi que ce soit avec lui, il apparaît et y reste. Il demeure le modèle à partir duquel chaque nouvel agent helpdesk est créé, et un lien direct vers lui fonctionne toujours.
+Les administrateurs voient également une petite icône de corbeille sur chaque carte — elle supprime l'agent ainsi que sa file et son historique de surveillance (les tickets de votre système de tickets ne sont jamais touchés, et l'action est irréversible).
 
 ---
 

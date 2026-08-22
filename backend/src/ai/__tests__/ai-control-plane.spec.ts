@@ -6,6 +6,7 @@ import { AiActionRequestService } from '../control-plane/action-request/ai-actio
 import {
   AiAgentWorkQueueService,
 } from '../control-plane/agent/ai-agent-work-queue.service';
+import { seedTestHelpdeskDefinition } from './agent-definition-test-support';
 import { AGENT_AUTONOMY_POLICY_SOURCE } from '../control-plane/agent/ai-agent-autonomy';
 import { AiApprovalService } from '../control-plane/approval/ai-approval.service';
 import {
@@ -504,7 +505,7 @@ async function enableHelpdeskNewTicketsOnly(
     providerKey?: string;
   },
 ) {
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const definition = bundle.definition;
   const providerKey = overrides?.providerKey ?? 'mock';
   const { targeting: _previousTargeting, ...baseScopePolicy } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
@@ -997,7 +998,7 @@ async function seedPolicyAction(context: any, actions: AiActionRequestService, o
 
 async function seedAgentDefinitionForAutonomy(context: any) {
   const queue = new AiAgentWorkQueueService();
-  const definition = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const definition = await seedTestHelpdeskDefinition(context);
   return { queue, definition: definition.definition };
 }
 
@@ -5235,7 +5236,6 @@ async function testTicketingTriageManualRequiresProviderKeyAndUsesNeutralOptions
   assert.equal(manual.input.target_key, 'mock-ticket-4');
   assert.equal(manual.options.workflow, 'agent_control_center_ticketing_triage');
   assert.equal(manual.options.sourceEndpoint, 'uat/ticketing-triage');
-  assert.equal(manual.options.manualEnqueueMode, 'ticketing');
   assert.equal(manual.options.observationType, 'ticketing_ticket_triage');
   assert.equal(manual.options.recommendationType, 'ticketing_triage_actions');
   assert.equal(manual.options.evaluationType, 'ticketing_triage_uat');
@@ -5249,22 +5249,11 @@ async function testTicketingTriageManualRequiresProviderKeyAndUsesNeutralOptions
   assert.deepEqual(queued.input, { work_item_id: 'work-item-1' });
   assert.equal(queued.options.workflow, 'agent_control_center_ticketing_triage');
   assert.equal(queued.options.sourceEndpoint, 'uat/ticketing-triage');
-  assert.equal(queued.options.manualEnqueueMode, 'ticketing');
   assert.equal(queued.options.observationType, 'ticketing_ticket_triage');
   assert.equal(queued.options.recommendationType, 'ticketing_triage_actions');
   assert.equal(queued.options.evaluationType, 'ticketing_triage_uat');
   assert.equal(queued.options.proposalEvaluationType, 'ticketing_triage_proposal');
 
-  const legacy = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
-  assert.equal(legacy.input.provider_key, 'glpi');
-  assert.equal(legacy.input.target_key, 'glpi-ticket-4');
-  assert.equal(legacy.options.workflow, 'agent_control_center_glpi_triage');
-  assert.equal(legacy.options.sourceEndpoint, 'uat/glpi-triage');
-  assert.equal(legacy.options.manualEnqueueMode, 'glpi');
-  assert.equal(legacy.options.observationType, 'glpi_ticket_triage');
-  assert.equal(legacy.options.recommendationType, 'glpi_triage_actions');
-  assert.equal(legacy.options.evaluationType, 'glpi_triage_uat');
-  assert.equal(legacy.options.proposalEvaluationType, 'glpi_triage_proposal');
 }
 
 function testCapabilityNames(value: unknown): Set<string> {
@@ -5284,284 +5273,23 @@ function testCapabilityNames(value: unknown): Set<string> {
   return names;
 }
 
-async function testAgentWorkQueueUpgradesExistingHelpdeskDefinitionCapabilities() {
-  const { manager } = createMemoryManager();
-  const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-  const definitionRepo = manager.getRepository(AiAgentDefinition);
-  const now = new Date();
-
-  await definitionRepo.save(definitionRepo.create({
-    tenant_id: context.tenantId,
-    agent_key: 'helpdesk.glpi.triage',
-    name: 'Helpdesk GLPI triage agent',
-    description: 'Legacy Phase 10 definition.',
-    agent_type: 'helpdesk',
-    status: 'enabled',
-    environment: 'sandbox',
-    provider_bindings_json: {
-      ticketing: {
-        provider_kind: 'ticketing',
-        provider_key: 'glpi',
-      },
-    },
-    allowed_capabilities_json: [
-      { name: 'ticketing.ticket.get', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-      { name: 'search_knowledge', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-      { name: 'get_document', version: '1.0.0', effect: 'read', max_autonomy_level: 'A1' },
-      { name: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-      { name: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, version: '1.0.0', effect: 'propose', max_autonomy_level: 'A2' },
-    ],
-    forbidden_capabilities_json: [
-      'ticketing.ticket.close',
-      TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
-    ],
-    max_autonomy_level: 'A3',
-    default_approval_requirement: 'human_for_writes',
-    trigger_policy_json: {
-      manual_safe_target: { enabled: true },
-      scheduled_poll: { enabled: false },
-      provider_webhook: { enabled: false },
-      ticket_update: { enabled: false },
-      production_polling_enabled: false,
-      automatic_writes_enabled: false,
-    },
-    scope_policy_json: {
-      mode: 'manual_safe_target',
-      allowed_modes: ['manual_safe_target'],
-      provider_kind: 'ticketing',
-      provider_key: 'glpi',
-      target_kind: 'ticket',
-      all_matching: { enabled: false },
-      freeform_live_object_ids: false,
-    },
-    queue_policy_json: {
-      enabled: true,
-    },
-    response_policy_json: {
-      prepare_internal_note: true,
-      prepare_public_reply: true,
-      automatic_public_reply: false,
-      automatic_ticket_updates: false,
-      require_human_approval_for_writes: true,
-    },
-    evaluation_policy_json: {
-      create_pending_evaluation: true,
-    },
-    metadata_json: {
-      product_owned: true,
-      phase: 10,
-      production_polling_enabled: false,
-      production_a4_enabled: false,
-    },
-    created_at: now,
-    updated_at: now,
-  }));
-
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
-  const allowed = testCapabilityNames(bundle.definition.allowed_capabilities_json);
-  const forbidden = testCapabilityNames(bundle.definition.forbidden_capabilities_json);
-
-  assert.equal(allowed.has(TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY), true);
-  assert.equal(allowed.has(TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY), true);
-  assert.equal(allowed.has(TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY), true);
-  assert.equal(allowed.has(TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY), true);
-  assert.equal(forbidden.has(TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY), false);
-  assert.equal(forbidden.has('ticketing.ticket.close'), true);
-  assert.doesNotThrow(() => queue.assertHelpdeskTicketingDefinitionRunnable(bundle.definition, bundle.trigger));
-  assert.doesNotThrow(() => queue.assertHelpdeskGlpiDefinitionRunnable(bundle.definition, bundle.trigger));
-}
-
-async function testAgentWorkQueueSeedsHelpdeskDefinitionAndDeniesUnsafeDefinitions() {
-  const { manager } = createMemoryManager();
-  const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
-  assert.equal(bundle.definition.agent_key, 'helpdesk.glpi.triage');
-  assert.equal(bundle.definition.status, 'enabled');
-  assert.equal(bundle.definition.max_autonomy_level, 'A3');
-  assert.equal(bundle.trigger.trigger_kind, 'manual');
-  assert.equal(bundle.trigger.enabled, true);
-
-  const enqueued = await queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget());
-  assert.equal(enqueued.created, true);
-  assert.equal(enqueued.workItem.status, 'queued');
-  assert.equal(enqueued.workItem.source_object_ref, '4');
-  assert.equal(enqueued.workItem.work_kind, 'ticket_triage');
-
-  const definitionRepo = manager.getRepository(AiAgentDefinition);
-  bundle.definition.status = 'draft';
-  await definitionRepo.save(bundle.definition);
-  await assert.rejects(
-    () => queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget({ target_key: 'glpi-ticket-5', external_ref: '5' })),
-    (error: unknown) => error instanceof ForbiddenException,
-  );
-
-  bundle.definition.status = 'enabled';
-  bundle.definition.forbidden_capabilities_json = ['ticketing.ticket.get'];
-  await definitionRepo.save(bundle.definition);
-  await assert.rejects(
-    () => queue.enqueueManualGlpiSafeTarget(context, glpiReadSafeTarget({ target_key: 'glpi-ticket-6', external_ref: '6' })),
-    (error: unknown) => error instanceof ForbiddenException,
-  );
-}
-
-async function testAgentWorkQueueSeedsHelpdeskDefinitionFromSingleTicketingAdapterConfig() {
-  const { manager } = createMemoryManager();
-  const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-  const adapterRepo = manager.getRepository(AiAdapterConfig);
-
-  await adapterRepo.save(adapterRepo.create({
-    tenant_id: context.tenantId,
-    provider_kind: 'ticketing',
-    provider_key: 'mock',
-    implementation: 'mock',
-    environment: 'sandbox',
-    enabled: true,
-    credential_ref_json: { kind: 'none' },
-    live_test_safety: 'mock_only',
-    created_at: new Date(),
-    updated_at: new Date(),
-  }));
-
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  const ticketingBinding = bundle.definition.provider_bindings_json?.ticketing;
-  assert.equal(isRecordLike(ticketingBinding) ? ticketingBinding.provider_key : null, 'mock');
-  assert.equal(bundle.definition.scope_policy_json?.provider_key, 'mock');
-  assert.equal(bundle.trigger.scope_policy_json?.provider_key, 'mock');
-}
-
-async function testAgentWorkQueueMaterializesLegacyScopeTicketingBinding() {
-  const { manager } = createMemoryManager();
-  const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-  const definitionRepo = manager.getRepository(AiAgentDefinition);
-  const triggerRepo = manager.getRepository(AiAgentTrigger);
-  const seeded = await queue.ensureHelpdeskGlpiTriageDefinition(context);
-
-  seeded.definition.provider_bindings_json = null;
-  seeded.definition.scope_policy_json = {
-    ...(seeded.definition.scope_policy_json ?? {}),
-    provider_kind: 'ticketing',
-    provider_key: 'mock',
-    target_kind: 'ticket',
-  };
-  await definitionRepo.save(seeded.definition);
-  seeded.trigger.scope_policy_json = {
-    ...(seeded.trigger.scope_policy_json ?? {}),
-    provider_kind: 'ticketing',
-    provider_key: 'glpi',
-    target_kind: 'ticket',
-  };
-  await triggerRepo.save(seeded.trigger);
-
-  const upgraded = await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  const ticketingBinding = upgraded.definition.provider_bindings_json?.ticketing;
-  assert.equal(isRecordLike(ticketingBinding) ? ticketingBinding.provider_key : null, 'mock');
-  assert.equal(upgraded.definition.scope_policy_json?.provider_key, 'mock');
-  assert.equal(upgraded.trigger.scope_policy_json?.provider_key, 'mock');
-  assert.doesNotThrow(() => queue.assertHelpdeskTicketingDefinitionRunnable(upgraded.definition, upgraded.trigger));
-}
-
-async function testAgentWorkQueueUpgradesMissingBindingFromSingleTicketingAdapterConfig() {
-  const { manager } = createMemoryManager();
-  const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-  const definitionRepo = manager.getRepository(AiAgentDefinition);
-  const triggerRepo = manager.getRepository(AiAgentTrigger);
-  const adapterRepo = manager.getRepository(AiAdapterConfig);
-  const seeded = await queue.ensureHelpdeskGlpiTriageDefinition(context);
-
-  await adapterRepo.save(adapterRepo.create({
-    tenant_id: context.tenantId,
-    provider_kind: 'ticketing',
-    provider_key: 'mock',
-    implementation: 'mock',
-    environment: 'sandbox',
-    enabled: true,
-    credential_ref_json: { kind: 'none' },
-    live_test_safety: 'mock_only',
-    created_at: new Date(),
-    updated_at: new Date(),
-  }));
-
-  const scopePolicy = { ...(seeded.definition.scope_policy_json ?? {}) } as Record<string, unknown>;
-  delete scopePolicy.provider_key;
-  seeded.definition.provider_bindings_json = null;
-  seeded.definition.scope_policy_json = scopePolicy;
-  await definitionRepo.save(seeded.definition);
-  await triggerRepo.save(seeded.trigger);
-
-  const upgraded = await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  const ticketingBinding = upgraded.definition.provider_bindings_json?.ticketing;
-  assert.equal(isRecordLike(ticketingBinding) ? ticketingBinding.provider_key : null, 'mock');
-  assert.equal(upgraded.definition.scope_policy_json?.provider_key, 'mock');
-  assert.equal(upgraded.trigger.scope_policy_json?.provider_key, 'mock');
-  assert.doesNotThrow(() => queue.assertHelpdeskTicketingDefinitionRunnable(upgraded.definition, upgraded.trigger));
-}
-
-async function testManualTicketingSafeTargetUsesDefinitionProviderBinding() {
-  const { manager } = createMemoryManager();
-  const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  const definitionRepo = manager.getRepository(AiAgentDefinition);
-  const triggerRepo = manager.getRepository(AiAgentTrigger);
-  bundle.definition.provider_bindings_json = {
-    ...(bundle.definition.provider_bindings_json ?? {}),
-    ticketing: {
-      provider_kind: 'ticketing',
-      provider_key: 'mock',
-      connection_id: 'mock',
-    },
-  };
-  bundle.definition.scope_policy_json = {
-    ...(bundle.definition.scope_policy_json ?? {}),
-    provider_kind: 'ticketing',
-    provider_key: 'mock',
-    target_kind: 'ticket',
-    allowed_effect: 'read',
-  };
-  await definitionRepo.save(bundle.definition);
-  await triggerRepo.delete({ id: bundle.trigger.id });
-  const recreated = await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  assert.equal(recreated.trigger.scope_policy_json?.provider_kind, 'ticketing');
-  assert.equal(recreated.trigger.scope_policy_json?.provider_key, 'mock');
-  assert.equal(recreated.trigger.scope_policy_json?.target_kind, 'ticket');
-
-  const mockTarget = glpiReadSafeTarget({
-    provider_key: 'mock',
-    target_key: 'mock-ticket-4',
-    external_ref: 'mock-4',
-  });
-  const enqueued = await queue.enqueueManualTicketingSafeTarget(context, mockTarget, {
-    source_endpoint: 'uat/ticketing-triage',
-  });
-  assert.equal(enqueued.created, true);
-  assert.equal(enqueued.workItem.source_provider_key, 'mock');
-  assert.equal(enqueued.workItem.source_object_ref, 'mock-4');
-  assert.equal((enqueued.workItem.metadata_json as Record<string, unknown>).source_endpoint, 'uat/ticketing-triage');
-
-  await assert.rejects(
-    () => queue.enqueueManualGlpiSafeTarget(context, mockTarget),
-    (error: unknown) => error instanceof ForbiddenException,
-  );
-  await assert.rejects(
-    () => queue.enqueueManualTicketingSafeTarget(context, glpiReadSafeTarget()),
-    (error: unknown) => error instanceof ForbiddenException,
-  );
-}
-
 async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
   const target = glpiReadSafeTarget();
+  const seeded = await seedTestHelpdeskDefinition(context);
 
-  const first = await queue.enqueueManualTicketingSafeTarget(context, target);
-  const duplicate = await queue.enqueueManualTicketingSafeTarget(context, target);
+  const first = await queue.enqueueTicketingScopedTicket(context, {
+    definition: seeded.definition,
+    trigger: 'manual',
+    ticket: { id: target.external_ref },
+  });
+  const duplicate = await queue.enqueueTicketingScopedTicket(context, {
+    definition: seeded.definition,
+    trigger: 'manual',
+    ticket: { id: target.external_ref },
+  });
   assert.equal(duplicate.created, false);
   assert.equal(duplicate.workItem.id, first.workItem.id);
 
@@ -5603,7 +5331,7 @@ async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
   assert.equal(deadLetter.status, 'dead_letter');
 
   const state = await queue.upsertTargetState(context, {
-    agentDefinitionId: first.definition.id,
+    agentDefinitionId: seeded.definition.id,
     providerKind: 'ticketing',
     providerKey: 'mock',
     targetType: 'ticket',
@@ -5618,7 +5346,11 @@ async function testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState() {
   assert.equal(state.target_ref, '4');
   assert.equal(state.needs_followup, true);
 
-  const afterDeadLetter = await queue.enqueueManualTicketingSafeTarget(context, target);
+  const afterDeadLetter = await queue.enqueueTicketingScopedTicket(context, {
+    definition: seeded.definition,
+    trigger: 'manual',
+    ticket: { id: target.external_ref },
+  });
   assert.equal(afterDeadLetter.created, true);
   assert.notEqual(afterDeadLetter.workItem.id, first.workItem.id);
 }
@@ -5956,7 +5688,7 @@ async function testHelpdeskGlpiIngestionBudgetStopsProcessingAfterDetectionPass(
     // not due for a new check. Detection is skipped — but the work it left
     // queued is still drained, which is the whole point of the split.
     const listCallsAfterManualPoll = listScopes.length;
-    const notDueResult = await (service as any).pollTenantContext(context, { ensureDefinition: false });
+    const notDueResult = await (service as any).pollTenantContext(context, { manual: false });
     assert.equal(notDueResult.status, 'skipped', 'a tick inside the check interval does not check again');
     assert.equal(listScopes.length, listCallsAfterManualPoll, 'no provider listing on a not-due tick');
     assert.equal(
@@ -5977,7 +5709,7 @@ async function testHelpdeskGlpiIngestionBudgetStopsProcessingAfterDetectionPass(
       };
     }
     const listCallsBeforeScheduledPoll = listScopes.length;
-    const scheduledResult = await (service as any).pollTenantContext(context, { ensureDefinition: false });
+    const scheduledResult = await (service as any).pollTenantContext(context, { manual: false });
     assert.notEqual(scheduledResult.status, 'skipped');
     assert.equal(listScopes.length > listCallsBeforeScheduledPoll, true);
   } finally {
@@ -5993,7 +5725,7 @@ async function enableHelpdeskAllOpenStaleClosure(
   context: AiExecutionContextWithManager,
   queue: AiAgentWorkQueueService,
 ) {
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const definition = bundle.definition;
   const { targeting: _previousTargeting, ...baseScopePolicy } = (definition.scope_policy_json ?? {}) as Record<string, unknown>;
   definition.trigger_policy_json = {
@@ -9821,74 +9553,9 @@ async function testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList
   }
 }
 
-async function testHelpdeskTicketingIngestionSettingsUpdateAndEmergencyPauseControls() {
-  const { manager, stores } = createMemoryManager();
+async function testEmergencyPauseCreateFindRevokeAndCrossTenantRejection() {
+  const { manager } = createMemoryManager();
   const context = createContext(manager);
-  const queue = new AiAgentWorkQueueService();
-
-  const initial = await queue.getHelpdeskTicketingIngestionSettings(context);
-  assert.equal(initial.ingestion.enabled, false);
-  assert.equal(initial.ingestion.ready, false);
-  assert.equal(typeof initial.ingestion.readyReason, 'string');
-  assert.equal(initial.guardrails.configured, true);
-
-  // Empty entity/category filters are allowed: they mean "all new tickets",
-  // still bounded by the enablement horizon and per-check limits.
-  const wildcard = await queue.updateHelpdeskTicketingIngestionSettings(context, { ingestion: { enabled: true } });
-  assert.equal(wildcard.ingestion.enabled, true);
-  assert.equal(wildcard.ingestion.ready, true);
-  assert.equal(wildcard.ingestion.entityId, null);
-  assert.equal(wildcard.ingestion.categoryId, null);
-  assert.equal(typeof wildcard.ingestion.effectiveCreatedAfter, 'string');
-
-  await assert.rejects(
-    () => queue.updateHelpdeskTicketingIngestionSettings(context, {
-      ingestion: { enabled: true, entityId: 'lohr-helpdesk', maxTicketsPerCycle: 50 },
-    }),
-    (error: any) => error instanceof BadRequestException,
-  );
-  await assert.rejects(
-    () => queue.updateHelpdeskTicketingIngestionSettings(context, {
-      ingestion: { enabled: true, entityId: 'lohr-helpdesk' },
-      guardrails: { perRun: { maxEstimatedTokens: -5 } },
-    }),
-    (error: any) => error instanceof BadRequestException,
-  );
-
-  const enabled = await queue.updateHelpdeskTicketingIngestionSettings(context, {
-    ingestion: { enabled: true, entityId: 'lohr-helpdesk', categoryId: 'access', maxTicketsPerCycle: 3 },
-    guardrails: { daily: { maxAgentRuns: 2 } },
-  });
-  assert.equal(enabled.ingestion.enabled, true);
-  assert.equal(enabled.ingestion.ready, true);
-  assert.equal(enabled.ingestion.entityId, 'lohr-helpdesk');
-  assert.equal(enabled.ingestion.categoryId, 'access');
-  assert.equal(enabled.ingestion.maxTicketsPerCycle, 3);
-  assert.equal(enabled.guardrails.daily.maxAgentRuns, 2);
-  assert.equal(typeof enabled.ingestion.enabledAt, 'string');
-  assert.equal(typeof enabled.ingestion.effectiveCreatedAfter, 'string');
-  assert.equal(
-    (stores.get(AiAgentAuditEvent.name) ?? []).some((event) => event.event_type === 'ingestion_settings_updated'),
-    true,
-  );
-
-  // The definition upgrade path must preserve operator-set ingestion settings.
-  await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  const afterUpgrade = await queue.getHelpdeskTicketingIngestionSettings(context);
-  assert.equal(afterUpgrade.ingestion.enabled, true);
-  assert.equal(afterUpgrade.ingestion.entityId, 'lohr-helpdesk');
-  assert.equal(afterUpgrade.ingestion.maxTicketsPerCycle, 3);
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
-  const config = queue.resolveNewTicketsIngestionConfig(bundle.definition);
-  assert.equal(config.entityId, 'lohr-helpdesk');
-  assert.equal(config.maxTicketsPerCycle, 3);
-
-  const disabled = await queue.updateHelpdeskTicketingIngestionSettings(context, {
-    ingestion: { enabled: false, entityId: 'lohr-helpdesk', categoryId: 'access' },
-  });
-  assert.equal(disabled.ingestion.enabled, false);
-  assert.equal(disabled.ingestion.ready, false);
-
   const pauseService = new AiEmergencyPauseService({} as any);
   const tenantTwo = createTenantContext(manager, 'tenant-2');
   const pause = await pauseService.createPause(context, { scope: 'tenant', reason: 'UAT pause test' });
@@ -9905,11 +9572,53 @@ async function testHelpdeskTicketingIngestionSettingsUpdateAndEmergencyPauseCont
   assert.equal(await pauseService.findActiveTenantWidePause(context), null);
 }
 
+async function testUpdateAgentDefinitionPersistsHelpdeskIngestionSettings() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const bundle = await seedTestHelpdeskDefinition(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  const saved = await service.updateAgentDefinition(context, bundle.definition.id, {
+    trigger_policy_json: {
+      ...(bundle.definition.trigger_policy_json ?? {}),
+      scheduled_poll: { enabled: true },
+      production_polling_enabled: true,
+    },
+    scope_policy_json: {
+      ...(bundle.definition.scope_policy_json ?? {}),
+      mode: 'new_tickets_only',
+      new_tickets_only: {
+        enabled: true,
+        entity_id: 'lohr-helpdesk',
+        category_id: 'access',
+        max_tickets_per_cycle: 3,
+      },
+    },
+    queue_policy_json: {
+      ...(bundle.definition.queue_policy_json ?? {}),
+      economic_guardrails: {
+        configured: true,
+        per_run: { max_estimated_tokens: 40_000, max_estimated_cost_eur: 1 },
+        daily: { max_agent_runs: 2, max_estimated_tokens: 500_000, max_estimated_cost_eur: 10 },
+      },
+    },
+  });
+  const trigger = saved.agent_definition.trigger_policy_json as Record<string, any>;
+  const scope = saved.agent_definition.scope_policy_json as Record<string, any>;
+  const queuePolicy = saved.agent_definition.queue_policy_json as Record<string, any>;
+  assert.equal(trigger.scheduled_poll.enabled, true);
+  assert.equal(scope.new_tickets_only.enabled, true);
+  assert.equal(scope.new_tickets_only.entity_id, 'lohr-helpdesk');
+  assert.equal(scope.new_tickets_only.category_id, 'access');
+  assert.equal(scope.new_tickets_only.max_tickets_per_cycle, 3);
+  assert.equal(queuePolicy.economic_guardrails.daily.max_agent_runs, 2);
+}
+
 async function testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const definitionRepo = manager.getRepository(AiAgentDefinition);
   const otherDefinition = await definitionRepo.save(definitionRepo.create({
     ...bundle.definition,
@@ -9972,7 +9681,12 @@ async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.enqueueManualTicketingSafeTarget(context, glpiReadSafeTarget());
+  const seeded = await seedTestHelpdeskDefinition(context);
+  const bundle = await queue.enqueueTicketingScopedTicket(context, {
+    definition: seeded.definition,
+    trigger: 'manual',
+    ticket: { id: '4' },
+  });
   const actionRepo = manager.getRepository(AiActionRequest);
   const now = new Date();
   const internalActionId = randomUUID();
@@ -10084,7 +9798,7 @@ async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
     actionRequestIds: [internalActionId, publicActionId, classificationActionId],
   });
   await queue.upsertTargetState(context, {
-    agentDefinitionId: bundle.definition.id,
+    agentDefinitionId: seeded.definition.id,
     providerKind: 'ticketing',
     providerKey: 'glpi',
     targetType: 'ticket',
@@ -10126,9 +9840,9 @@ async function testAgentControlQueueOverviewReturnsLinkedActionRequests() {
   assert.equal((byId.get(internalActionId) as any)?.execution_readiness.can_execute, true);
   assert.equal((byId.get(publicActionId) as any)?.execution_readiness.blocked_reason, null);
   assert.equal((byId.get(classificationActionId) as any)?.execution_readiness.can_execute, true);
-  assert.equal(overview.helpdesk.summary?.agentDefinitionId, bundle.definition.id);
+  assert.equal(overview.helpdesk.summary?.agentDefinitionId, seeded.definition.id);
   assert.equal(overview.helpdesk.summaries.length, 1);
-  assert.equal(overview.helpdesk.summaries[0]?.agentDefinitionId, bundle.definition.id);
+  assert.equal(overview.helpdesk.summaries[0]?.agentDefinitionId, seeded.definition.id);
 
   const workItemRepo = manager.getRepository(AiAgentWorkItem);
   const internalAction = await actionRepo.findOne({ where: { id: internalActionId, tenant_id: context.tenantId } });
@@ -10167,7 +9881,7 @@ async function testAgentControlActivityTimelineAndDailyMetrics() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const service = new AiAgentControlService(
     {} as any,
     {} as any,
@@ -10306,7 +10020,7 @@ async function testAgentActivityMultiTypeFilterAndSubsetPagination() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const service = new AiAgentControlService(
     {} as any,
     {} as any,
@@ -10445,7 +10159,7 @@ async function testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited() 
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const service = new AiAgentControlService(
     {} as any,
     {} as any,
@@ -10576,7 +10290,7 @@ async function testAttentionRerunEnqueuesWithManualTrigger() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const definitionRepo = manager.getRepository(AiAgentDefinition);
   const providerKey = (bundle.definition.provider_bindings_json as any).ticketing.provider_key as string;
   // A custom agent (not the built-in key) takes the agent-scoped enqueue path,
@@ -10657,7 +10371,7 @@ async function testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdit
   assert.equal(executionMetadata.agent_config_version, saved.config_version);
   assert.equal(executionMetadata.agent_updated_by_user_id, context.userId);
 
-  await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  await seedTestHelpdeskDefinition(context);
   const afterEnsure = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
   assert.equal(hashStableJson(afterEnsure.allowed_capabilities_json), beforeAllowed);
   assert.equal(hashStableJson(afterEnsure.forbidden_capabilities_json), beforeForbidden);
@@ -11056,7 +10770,7 @@ async function testAgentScopedEmergencyPauseBlocksHumanApproveExecute() {
   const harness = createRealProviderDispatcher({ pause: pauseHook as any });
   const { dispatcher, context, actions, approvals, stores } = harness;
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const agentId = bundle.definition.id;
 
   const { action } = await seedPolicyAction(context, actions, {
@@ -11194,22 +10908,16 @@ async function testDisabledAutonomyPolicyRoutesActionBackToHuman() {
   );
 }
 
-async function testDeleteAgentDefinitionBlocksBuiltinAndRemovesCustom() {
+async function testDeleteAgentDefinitionRemovesCustomAndAutonomyPolicies() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
-  const { queue, definition: builtin } = await seedAgentDefinitionForAutonomy(context);
+  const { queue, definition: template } = await seedAgentDefinitionForAutonomy(context);
   const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
-
-  // The built-in helpdesk agent cannot be deleted (it would just re-seed).
-  await assert.rejects(
-    () => service.deleteAgentDefinition(context, builtin.id),
-    (error: unknown) => error instanceof BadRequestException,
-  );
 
   // A custom agent and its earned-autonomy policy are removed.
   const definitionRepo = manager.getRepository(AiAgentDefinition);
   const custom = await definitionRepo.save(definitionRepo.create({
-    ...builtin,
+    ...template,
     id: randomUUID(),
     agent_key: 'custom.test.agent',
     name: 'Custom test agent',
@@ -11228,7 +10936,7 @@ async function testDeleteAgentDefinitionBlocksBuiltinAndRemovesCustom() {
   assert.equal(result.deleted, true);
   assert.equal((stores.get(AiAgentDefinition.name) ?? []).some((row: AiAgentDefinition) => row.id === custom.id), false);
   assert.equal((stores.get(AiApprovalPolicy.name) ?? []).some((row: AiApprovalPolicy) => row.id === policy.id), false);
-  assert.equal((stores.get(AiAgentDefinition.name) ?? []).some((row: AiAgentDefinition) => row.id === builtin.id), true);
+  assert.equal((stores.get(AiAgentDefinition.name) ?? []).some((row: AiAgentDefinition) => row.id === template.id), true);
 }
 
 async function testAgentAutonomyPolicyRequiresMatchingAgentMetadata() {
@@ -12309,7 +12017,8 @@ async function testGlpiTriageSkipsFollowupsUntilRequesterAnswers() {
     notes: [],
   });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
   assert.equal(calls.some((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), false);
   assert.equal(calls.some((call) => call.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), false);
@@ -12346,7 +12055,8 @@ async function testGlpiTriageAllowsFollowupsAfterRequesterAnswer() {
     ],
   });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
   assert.equal(calls.some((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), true);
   assert.equal(calls.some((call) => call.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), true);
@@ -12396,7 +12106,8 @@ async function testGlpiTriageUsesProviderNoteTimeToBlockRepeatFollowups() {
     ],
   });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
   assert.equal(calls.some((call) => call.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY), false);
   assert.equal(calls.some((call) => call.capabilityName === TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY), false);
@@ -12901,7 +12612,8 @@ async function testGlpiTriageFallbackDoesNotDumpFullKnowledgeDocument() {
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
   const capabilityNames = calls.map((call) => call.capabilityName);
   assert.equal(capabilityNames[0], 'ticketing.ticket.get');
@@ -12938,7 +12650,7 @@ async function runWp2LlmAccountingTriage(input: { perRunTokenCap?: number } = {}
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   bundle.definition.scope_policy_json = normalizeServiceDeskScopePolicy({
     ...(bundle.definition.scope_policy_json as Record<string, unknown>),
     knowledge_sources: {
@@ -13104,7 +12816,8 @@ async function runWp2LlmAccountingTriage(input: { perRunTokenCap?: number } = {}
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
   return { calls, context, result, stores, visionCalls, needCalls, runId };
 }
 
@@ -13167,7 +12880,7 @@ async function testGlpiTriageLargeKnowledgeDocumentsDoNotConsumeRunCap() {
     const { manager, stores } = createMemoryManager();
     const context = createContext(manager);
     const queue = new AiAgentWorkQueueService();
-    const bundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+    const bundle = await seedTestHelpdeskDefinition(context);
     bundle.definition.scope_policy_json = normalizeServiceDeskScopePolicy({
       ...(bundle.definition.scope_policy_json as Record<string, unknown>),
       knowledge_sources: {
@@ -13365,7 +13078,8 @@ async function testGlpiTriageLargeKnowledgeDocumentsDoNotConsumeRunCap() {
     ) as any;
     service.getRunDetail = async () => ({ action_requests: [] });
 
-    const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+    const triageBundle = await seedTestHelpdeskDefinition(context);
+    const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
     const run = (stores.get(AiRun.name) ?? []).find((candidate: AiRun) => candidate.id === runId);
     assert.ok(run);
     const runUsageTokens = (run.usage_json as any).estimated_tokens;
@@ -13483,7 +13197,8 @@ async function testGlpiTriageFallbackFailsClosedWhenSynthesisFails() {
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-47' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '47', agent_definition_id: triageBundle.definition.id });
 
   const capabilityNames = calls.map((call) => call.capabilityName);
   // Synthesis was actually attempted (not skipped) and failed.
@@ -13595,7 +13310,8 @@ async function testGlpiTriageUnvalidatedCandidatesReachPlannerAndSynthesis() {
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  await service.runGlpiTriage(context, { target_key: 'glpi-ticket-49' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '49', agent_definition_id: triageBundle.definition.id });
 
   // (a) DOC-165 was NOT zeroed; the planner saw it as an unvalidated candidate, not validated.
   assert.equal(plannerUnvalidatedCount >= 1, true);
@@ -13619,7 +13335,7 @@ async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {
   const previousWebReady = Features.AI_WEB_SEARCH_READY;
   (Features as any).AI_WEB_SEARCH_READY = true;
   const queue = new AiAgentWorkQueueService();
-  const definitionBundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const definitionBundle = await seedTestHelpdeskDefinition(context);
   definitionBundle.definition.scope_policy_json = {
     ...(definitionBundle.definition.scope_policy_json ?? {}),
     knowledge_sources: {
@@ -13871,7 +13587,8 @@ async function testGlpiTriageSynthesisRejectsOffTopicKnowledgeAndUsesWeb() {
   service.getRunDetail = async () => ({ action_requests: [] });
 
   try {
-    const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+    const triageBundle = await seedTestHelpdeskDefinition(context);
+    const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
     assert.equal(calls.some((call) => call.capabilityName === 'web_search'), true);
     const webCall = calls.find((call) => call.capabilityName === 'web_search');
@@ -13911,7 +13628,7 @@ async function testGlpiTriageAdministrativeReplyNoteCarriesPlannerRationale() {
   const previousWebReady = Features.AI_WEB_SEARCH_READY;
   (Features as any).AI_WEB_SEARCH_READY = true;
   const queue = new AiAgentWorkQueueService();
-  const definitionBundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const definitionBundle = await seedTestHelpdeskDefinition(context);
   definitionBundle.definition.scope_policy_json = {
     ...(definitionBundle.definition.scope_policy_json ?? {}),
     knowledge_sources: {
@@ -14217,7 +13934,7 @@ async function testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHono
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const definitionBundle = await queue.ensureHelpdeskGlpiTriageDefinition(context);
+  const definitionBundle = await seedTestHelpdeskDefinition(context);
   definitionBundle.definition.persona_json = {
     ...(definitionBundle.definition.persona_json ?? {}),
     output_style: { language: 'fr' },
@@ -14374,7 +14091,8 @@ async function testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHono
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
   assert.equal(publicReplyPrepared, false);
   assert.equal(statusUpdatePrepared, false);
@@ -14650,7 +14368,8 @@ async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
   ) as any;
   service.getRunDetail = async () => ({ action_requests: [] });
 
-  const result = await service.runGlpiTriage(context, { target_key: 'glpi-ticket-4' });
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
 
   assert.ok(
     searchQueries.some((query) => /sucre|dessert|sucr/i.test(query.normalize('NFKD').replace(/[\u0300-\u036f]/g, ''))),
@@ -15293,7 +15012,7 @@ async function testQueueOverviewExposesFleetCostTotals() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
-  const bundle = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const bundle = await seedTestHelpdeskDefinition(context);
   const runRepo = manager.getRepository(AiRun);
   const now = Date.now();
   const daysAgo = (days: number) => new Date(now - days * 24 * 60 * 60 * 1000);
@@ -15334,6 +15053,89 @@ async function testQueueOverviewExposesFleetCostTotals() {
   assert.equal(overview.cost.last_7_days_eur, 0.75);
 }
 
+async function testListAgentDefinitionsOnVirginTenantStaysEmpty() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  const first = await service.listAgentDefinitions(context);
+  assert.deepEqual(first.items, []);
+  const second = await service.listAgentDefinitions(context);
+  assert.deepEqual(second.items, []);
+}
+
+async function testHelpdeskPollOnAgentlessTenantIsDisabled() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const service = createHelpdeskIngestionService({
+    queue,
+    provider: {
+      listTicketsForScope: async () => {
+        throw new Error('agentless poll must not list tickets');
+      },
+    },
+  });
+  const result = await service.pollTenant(context);
+  assert.equal(result.status, 'disabled');
+}
+
+async function testCreateHelpdeskAgentFromCodeDefaultsBindsProviderAndCapabilities() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  const created = await service.createAgentDefinition(context, { name: 'Desk from defaults' });
+  const allowed = created.agent_definition.allowed_capabilities_json;
+  assert.ok(Array.isArray(allowed) && allowed.length > 0, 'helpdesk create must provision capabilities from code defaults');
+  const names = allowed.map((entry: any) => (typeof entry === 'string' ? entry : entry?.name));
+  assert.ok(names.includes('ticketing.ticket.get'));
+  const bindings = created.agent_definition.provider_bindings_json as Record<string, any>;
+  assert.equal(bindings?.ticketing?.provider_kind, 'ticketing');
+  assert.equal(typeof bindings?.ticketing?.provider_key, 'string');
+  assert.ok(String(bindings.ticketing.provider_key).length > 0);
+  assert.equal(created.agent_definition.max_autonomy_level, 'A3');
+}
+
+async function testCreateSreAgentFromCodeDefaultsUsesA1AndCapabilities() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const adapterRepo = manager.getRepository(AiAdapterConfig);
+  await adapterRepo.save(adapterRepo.create({
+    tenant_id: context.tenantId,
+    provider_kind: 'monitoring',
+    provider_key: 'prtg',
+    implementation: 'prtg',
+    environment: 'sandbox',
+    enabled: true,
+    credential_ref_json: { kind: 'none' },
+    live_test_safety: 'mock_only',
+    created_at: new Date(),
+    updated_at: new Date(),
+  }));
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  const created = await service.createAgentDefinition(context, { name: 'SRE from defaults', agent_type: 'sre' });
+  assert.equal(created.agent_definition.max_autonomy_level, 'A1');
+  const allowed = created.agent_definition.allowed_capabilities_json;
+  assert.ok(Array.isArray(allowed) && allowed.length > 0, 'SRE create must provision capabilities from code defaults');
+  const names = allowed.map((entry: any) => (typeof entry === 'string' ? entry : entry?.name));
+  assert.ok(names.includes('monitoring.alert.get'));
+  const bindings = created.agent_definition.provider_bindings_json as Record<string, any>;
+  assert.equal(bindings?.monitoring?.provider_key, 'prtg');
+}
+
+async function testManualTicketingTriageRequiresAgentDefinitionId() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  await assert.rejects(
+    () => service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4' }),
+    (error: unknown) => error instanceof BadRequestException,
+  );
+}
+
 async function run() {
   testCapabilityContractRejectsMcpWriteExposure();
   testEvidenceRedactionAndHashing();
@@ -15359,6 +15161,11 @@ async function run() {
   await testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly();
   await testTicketingReadUatRequiresExplicitProviderKeyAndKeepsGlpiWrapper();
   await testTicketingTriageManualRequiresProviderKeyAndUsesNeutralOptions();
+  await testListAgentDefinitionsOnVirginTenantStaysEmpty();
+  await testHelpdeskPollOnAgentlessTenantIsDisabled();
+  await testCreateHelpdeskAgentFromCodeDefaultsBindsProviderAndCapabilities();
+  await testCreateSreAgentFromCodeDefaultsUsesA1AndCapabilities();
+  await testManualTicketingTriageRequiresAgentDefinitionId();
   await testMockTicketingInternalNoteWriteScenarios();
   await testMockAutomationAwxScenariosAndLiveGate();
   await testProviderRegistryMockProvidersAreAvailable();
@@ -15413,12 +15220,6 @@ async function run() {
   await testEmergencyPauseBlocksAutomationLaunchBeforeProviderCall();
   await testMockDiagnosticWorkflowPersistsObjectsAndResistsMaliciousEvidence();
   await testDiagnosticRecommendationCanProposeInternalNoteAction();
-  await testAgentWorkQueueUpgradesExistingHelpdeskDefinitionCapabilities();
-  await testAgentWorkQueueSeedsHelpdeskDefinitionAndDeniesUnsafeDefinitions();
-  await testAgentWorkQueueSeedsHelpdeskDefinitionFromSingleTicketingAdapterConfig();
-  await testAgentWorkQueueMaterializesLegacyScopeTicketingBinding();
-  await testAgentWorkQueueUpgradesMissingBindingFromSingleTicketingAdapterConfig();
-  await testManualTicketingSafeTargetUsesDefinitionProviderBinding();
   await testAgentWorkQueueDedupLeaseRetryCooldownAndTargetState();
   await testHelpdeskGlpiNewTicketIngestionScopeHorizonDedupAndTenantIsolation();
   await testHelpdeskGlpiIngestionPollsMultipleHelpdeskDefinitions();
@@ -15467,7 +15268,8 @@ async function run() {
   await testQueuedApprovedExecutionReclaimsStaleExecutingAction();
   await testQueuedApprovedExecutionFrozenWhileAgentPaused();
   await testHelpdeskGlpiNewTicketIngestionStopsOnPauseCapAndMalformedList();
-  await testHelpdeskTicketingIngestionSettingsUpdateAndEmergencyPauseControls();
+  await testEmergencyPauseCreateFindRevokeAndCrossTenantRejection();
+  await testUpdateAgentDefinitionPersistsHelpdeskIngestionSettings();
   await testAgentScopedEmergencyPauseOnlyBlocksMatchingAgent();
   await testAgentScopedEmergencyPauseBlocksHumanApproveExecute();
   await testAgentControlQueueOverviewReturnsLinkedActionRequests();
@@ -15480,7 +15282,7 @@ async function run() {
   await testEffectivePromptExposesBoundsApplied();
   await testAgentConfigRejectsCapabilityBeyondFrame();
   await testAgentConfigAcceptsAllProvisionedHelpdeskCapabilities();
-  await testDeleteAgentDefinitionBlocksBuiltinAndRemovesCustom();
+  await testDeleteAgentDefinitionRemovesCustomAndAutonomyPolicies();
   await testAgentAutonomyGrantRequiresEligibilityAndAllowlist();
   await testAgentAutonomyHighRiskTierAlwaysNeedsAcknowledgement();
   await testAgentAutonomyHardBlocksSurviveTheTierOpening();

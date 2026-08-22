@@ -16,6 +16,7 @@ import { AiObservation } from '../control-plane/entities/ai-observation.entity';
 import { AiAdapterConfig } from '../control-plane/providers/adapter-config.entity';
 import { MockMonitoringProvider } from '../control-plane/providers/mocks/mock-monitoring.provider';
 import { AiExecutionContextWithManager } from '../ai.types';
+import { seedTestSreDefinition } from './agent-definition-test-support';
 import { Subscription, SubscriptionStatus } from '../../billing/subscription.entity';
 
 // ---------------------------------------------------------------------------
@@ -268,7 +269,7 @@ async function enableSreMonitoring(
       enabled: true,
     }));
   }
-  const definition = await queue.ensureSreMonitoringDefinition(context);
+  const definition = await seedTestSreDefinition(context);
   assert.ok(definition, 'seed should create the SRE definition once a monitoring adapter config exists');
   definition!.status = 'enabled';
   definition!.trigger_policy_json = {

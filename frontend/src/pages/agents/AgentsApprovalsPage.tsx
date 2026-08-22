@@ -94,7 +94,7 @@ type AttentionSubject = {
 };
 
 type AttentionRerun =
-  | { kind: 'ticket'; providerKey: string; targetRef: string; agentDefinitionId: string | null }
+  | { kind: 'ticket'; providerKey: string; targetRef: string; agentDefinitionId: string }
   | { kind: 'alert'; agentDefinitionId: string; targetRef: string };
 
 /**
@@ -112,7 +112,7 @@ function attentionRerun(subject: AttentionSubject | null | undefined): Attention
       ? { kind: 'alert', agentDefinitionId: subject.agentDefinitionId, targetRef: subject.targetRef }
       : null;
   }
-  if (subject.providerKind === 'ticketing' && subject.providerKey) {
+  if (subject.providerKind === 'ticketing' && subject.providerKey && subject.agentDefinitionId) {
     return {
       kind: 'ticket',
       providerKey: subject.providerKey,
@@ -738,7 +738,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
       await aiAgentControlApi.runTicketingTriage({
         provider_key: rerun.providerKey,
         target_key: rerun.targetRef,
-        agent_definition_id: rerun.agentDefinitionId ?? undefined,
+        agent_definition_id: rerun.agentDefinitionId,
       });
     },
     onMutate: ({ row }) => setRerunningRowId(row.id),

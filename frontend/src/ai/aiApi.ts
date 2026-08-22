@@ -708,6 +708,7 @@ export type AiAgentControlQueueOverview = {
     fleet?: AiAgentControlHelpdeskSummary['evaluation'] | null;
     audit_events: AiAgentControlAuditEvent[];
   };
+  emergency_pause?: AiAgentControlEmergencyPause | null;
 };
 
 export type AiAgentControlHelpdeskContextRead = {
@@ -1186,43 +1187,6 @@ export type AiAgentControlEvaluationDailyResult = {
   }>;
 };
 
-export type AiAgentControlHelpdeskIngestionSettings = {
-  agentDefinitionId: string;
-  ingestion: {
-    enabled: boolean;
-    enabledAt: string | null;
-    entityId: string | null;
-    categoryId: string | null;
-    maxTicketsPerCycle: number | null;
-    maxProviderRequestsPerCycle: number | null;
-    hardBackfillHorizonHours: number;
-    ready: boolean;
-    readyReason: string | null;
-    effectiveCreatedAfter: string | null;
-  };
-  guardrails: {
-    configured: boolean;
-    perRun: { maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
-    daily: { maxAgentRuns: number | null; maxEstimatedTokens: number | null; maxEstimatedCostEur: number | null };
-  };
-  emergency_pause: AiAgentControlEmergencyPause | null;
-};
-
-export type AiAgentControlHelpdeskIngestionSettingsInput = {
-  ingestion: {
-    enabled: boolean;
-    entityId?: string | null;
-    categoryId?: string | null;
-    maxTicketsPerCycle?: number | null;
-    maxProviderRequestsPerCycle?: number | null;
-    hardBackfillHorizonHours?: number | null;
-  };
-  guardrails?: {
-    perRun?: { maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
-    daily?: { maxAgentRuns?: number | null; maxEstimatedTokens?: number | null; maxEstimatedCostEur?: number | null };
-  };
-};
-
 export class ChatStreamRequestError extends Error {
   status: number;
   code: string | null;
@@ -1622,7 +1586,7 @@ export const aiAgentControlApi = {
     const res = await api.post('/ai/admin/control-plane/uat/ticketing-read', payload);
     return res.data;
   },
-  async runTicketingTriage(payload: { work_item_id?: string; provider_key?: string; target_key?: string; agent_definition_id?: string }): Promise<AiAgentControlTicketingTriageResult> {
+  async runTicketingTriage(payload: { work_item_id?: string; provider_key?: string; target_key?: string; agent_definition_id: string }): Promise<AiAgentControlTicketingTriageResult> {
     const res = await api.post('/ai/admin/control-plane/uat/ticketing-triage', payload, { timeout: 600_000 });
     return res.data;
   },
@@ -1652,16 +1616,6 @@ export const aiAgentControlApi = {
     targetRef: string,
   ): Promise<{ diagnoses: AiAgentControlMonitoringAlertDiagnosis[] }> {
     const res = await api.get(`/ai/admin/control-plane/agents/${id}/monitoring-alerts/${encodeURIComponent(targetRef)}/diagnoses`);
-    return res.data;
-  },
-  async getHelpdeskIngestionSettings(): Promise<AiAgentControlHelpdeskIngestionSettings> {
-    const res = await api.get('/ai/admin/control-plane/helpdesk/ticketing-ingestion/settings');
-    return res.data;
-  },
-  async updateHelpdeskIngestionSettings(
-    payload: AiAgentControlHelpdeskIngestionSettingsInput,
-  ): Promise<AiAgentControlHelpdeskIngestionSettings> {
-    const res = await api.post('/ai/admin/control-plane/helpdesk/ticketing-ingestion/settings', payload);
     return res.data;
   },
   async createHelpdeskEmergencyPause(payload: { reason: string; expires_in_minutes?: number | null }): Promise<AiAgentControlEmergencyPause> {

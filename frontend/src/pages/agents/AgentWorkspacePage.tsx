@@ -21,7 +21,6 @@ import {
   type AiAgentControlAgentDefinition,
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlEvaluationDailyResult,
-  type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
   type AiAgentControlTargetingPreview,
   type AiAgentKanapDataSources,
@@ -35,7 +34,6 @@ import {
   EmptyState,
   formatNumber,
   formatPercent,
-  HELP_DESK_TICKETING_AGENT_KEY,
   humanize,
   MetricBlock,
   providerBindingForDefinition,
@@ -707,10 +705,13 @@ function MonitorTab({ agentKey }: { agentKey: string }) {
       if (!data.ticketingProviderKey) {
         throw new Error(t('monitor.providerMissing'));
       }
+      if (!definition?.id) {
+        throw new Error(t('monitor.providerMissing'));
+      }
       return aiAgentControlApi.runTicketingTriage({
         provider_key: data.ticketingProviderKey,
         target_key: targetKey.trim(),
-        agent_definition_id: definition?.id,
+        agent_definition_id: definition.id,
       });
     },
     onSuccess: async () => {
@@ -1219,12 +1220,10 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
     // more): refetch instead of silently leaving the page on a stale definition.
     if (!patched) void queryClient.invalidateQueries({ queryKey: ['ai-agent-control-queue'] });
   }, [queryClient]);
-  const settings = data.settingsQuery.data;
   // Today's real usage, shown inline next to each daily cap so the caps read as
   // a budget in use. The control bar keeps the compact runs/tokens/cost facts;
   // this is the detailed, per-field view of the same source.
   const dailyUsage = resolveAgentSummary(data.queueQuery.data, definition.agent_key)?.guardrails.daily ?? null;
-  const isBuiltInHelpdesk = definition.agent_key === HELP_DESK_TICKETING_AGENT_KEY;
   const isHelpdesk = definition.agent_type === 'helpdesk';
   const isSre = definition.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
@@ -1389,50 +1388,7 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   const capabilityFormRef = React.useRef(capabilityForm);
   capabilityFormRef.current = capabilityForm;
 
-  // Seed the helpdesk settings form once its source first loads (built-in: the
-  // settings query; custom: the definition policy JSON), then leave local edits
-  // authoritative so autosave round-trips never clobber in-flight typing.
-  const settingsSeededRef = React.useRef(false);
-  // True as soon as the user edits a settings field: a late-resolving settings
-  // query must never wholesale-overwrite live edits.
-  const settingsDirtyRef = React.useRef(false);
-  React.useEffect(() => {
-    if (settingsSeededRef.current) return;
-    if (isBuiltInHelpdesk) {
-      if (!settings) return;
-      if (settingsDirtyRef.current || settingsAutosave.isBusy()) {
-        // The user typed before the query resolved — their edits win, and the
-        // form is considered seeded so this never fires again.
-        settingsSeededRef.current = true;
-        return;
-      }
-      const definitionForm = settingsFormFromDefinition(definition);
-      const builtInHorizon = settings.ingestion.hardBackfillHorizonHours ?? DEFAULT_HORIZON_HOURS;
-      const builtInFilters = targetingPresetFilters('new_tickets', builtInHorizon);
-      if (settings.ingestion.entityId) {
-        builtInFilters.push(buildFilter('entity', settings.ingestion.entityId));
-      }
-      if (settings.ingestion.categoryId) {
-        builtInFilters.push(buildFilter('category', settings.ingestion.categoryId));
-      }
-      setForm({
-        ...definitionForm,
-        scopeMode: 'new_tickets_only',
-        filters: builtInFilters,
-        entityId: settings.ingestion.entityId ?? '',
-        categoryId: settings.ingestion.categoryId ?? '',
-        maxTickets: settings.ingestion.maxTicketsPerCycle != null ? String(settings.ingestion.maxTicketsPerCycle) : String(DEFAULT_MAX_TICKETS),
-        maxRequests: settings.ingestion.maxProviderRequestsPerCycle != null ? String(settings.ingestion.maxProviderRequestsPerCycle) : String(DEFAULT_MAX_REQUESTS),
-        horizonHours: String(builtInHorizon),
-        perRunTokens: settings.guardrails.perRun.maxEstimatedTokens != null ? String(settings.guardrails.perRun.maxEstimatedTokens) : String(DEFAULT_PER_RUN_TOKENS),
-        perRunCost: settings.guardrails.perRun.maxEstimatedCostEur != null ? String(settings.guardrails.perRun.maxEstimatedCostEur) : String(DEFAULT_PER_RUN_COST),
-        dailyRuns: settings.guardrails.daily.maxAgentRuns != null ? String(settings.guardrails.daily.maxAgentRuns) : String(DEFAULT_DAILY_RUNS),
-        dailyTokens: settings.guardrails.daily.maxEstimatedTokens != null ? String(settings.guardrails.daily.maxEstimatedTokens) : String(DEFAULT_DAILY_TOKENS),
-        dailyCost: settings.guardrails.daily.maxEstimatedCostEur != null ? String(settings.guardrails.daily.maxEstimatedCostEur) : String(DEFAULT_DAILY_COST),
-      });
-    }
-    settingsSeededRef.current = true;
-  }, [isBuiltInHelpdesk, settings]);
+
 
   React.useEffect(() => {
     if (presetStatusValues.length === 0) return;
@@ -1508,36 +1464,10 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
     // Read the LATEST saved definition (same rule as persistSreSettings): watching
     // is owned by the Monitor run-mode control and must round-trip unchanged.
     const definitionNow = definitionRef.current;
-    const watchingNow = policyObject(policyObject(definitionNow.trigger_policy_json).scheduled_poll).enabled === true;
-    const payload: AiAgentControlHelpdeskIngestionSettingsInput = {
-      ingestion: {
-        enabled: watchingNow,
-        entityId: current.entityId.trim() || null,
-        categoryId: current.categoryId.trim() || null,
-        maxTicketsPerCycle: numberField(current.maxTickets),
-        maxProviderRequestsPerCycle: numberField(current.maxRequests),
-        hardBackfillHorizonHours: numberField(current.horizonHours),
-      },
-      guardrails: {
-        perRun: {
-          maxEstimatedTokens: numberField(current.perRunTokens),
-          maxEstimatedCostEur: numberField(current.perRunCost),
-        },
-        daily: {
-          maxAgentRuns: numberField(current.dailyRuns),
-          maxEstimatedTokens: numberField(current.dailyTokens),
-          maxEstimatedCostEur: numberField(current.dailyCost),
-        },
-      },
-    };
     const definitionPayload = helpdeskDefinitionSettingsPayload(definitionNow, current);
-    if (isBuiltInHelpdesk) {
-      await aiAgentControlApi.updateHelpdeskIngestionSettings(payload);
-      await queryClient.invalidateQueries({ queryKey: ['ai-agent-helpdesk-settings'] });
-    }
     const res = await aiAgentControlApi.updateAgent(definitionNow.id, definitionPayload);
     applySavedDefinition(res.agent_definition);
-  }, [isBuiltInHelpdesk, applySavedDefinition, queryClient]);
+  }, [applySavedDefinition]);
 
   // SRE watch/targeting/pace autosave. The scope patch spreads the stored
   // scope_policy_json so sibling keys survive the round-trip — read from
@@ -1646,13 +1576,11 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
     applyAgentForm(patch);
   };
   const update = <K extends keyof HelpdeskSettingsForm>(field: K, value: HelpdeskSettingsForm[K]) => {
-    settingsDirtyRef.current = true;
     settingsSectionRef.current = 'operating';
     setForm((current) => ({ ...current, [field]: value }));
     settingsAutosave.schedule(persistSettings);
   };
   const updateFilters = (filters: TargetingFilter[]) => {
-    settingsDirtyRef.current = true;
     settingsSectionRef.current = 'targeting';
     setForm((current) => ({
       ...current,
@@ -2397,7 +2325,7 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
 
 export default function AgentWorkspacePage() {
   const { t } = useTranslation(['agents']);
-  const { agentKey = HELP_DESK_TICKETING_AGENT_KEY } = useParams();
+  const { agentKey } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();

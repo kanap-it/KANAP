@@ -20,11 +20,6 @@ import i18n from '../../i18n';
 import { getDotColor } from '../../utils/statusColors';
 import { StatusDot } from '../design';
 
-export const HELP_DESK_TICKETING_AGENT_KEY = 'helpdesk.glpi.triage';
-export const SRE_MONITORING_AGENT_KEY = 'sre.monitoring.diagnosis';
-// Built-in agents are auto-seeded server-side, so deleting them just re-creates
-// them — they can only be disabled or archived.
-export const BUILT_IN_AGENT_KEYS: readonly string[] = [HELP_DESK_TICKETING_AGENT_KEY, SRE_MONITORING_AGENT_KEY];
 export const LEGACY_GLPI_TICKETING_PROVIDER_KEY = 'glpi';
 export const INTERNAL_NOTE_CAPABILITY = 'ticketing.ticket.internal_note.add_approved';
 export const PUBLIC_REPLY_CAPABILITY = 'ticketing.ticket.public_reply.add_approved';

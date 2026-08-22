@@ -86,7 +86,7 @@ const SRE_MONITORING_ALERT_INGESTION_LOCK_PREFIX = 'ai-sre-monitoring-ingestion'
 // cron tick). It bypasses the failed-cycle backoff and lets an agent in Manual
 // run mode — turned on, but not watching — run one cycle on demand. Off agents
 // are still excluded upstream by the status filter in loadDefinitions.
-type MonitoringAlertPollOptions = { ensureDefinition: boolean; manual: boolean };
+type MonitoringAlertPollOptions = { manual: boolean };
 
 type MonitoringDefinitionPollState = {
   definition: AiAgentDefinition;
@@ -214,9 +214,9 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
     for (const tenant of tenants) {
       try {
         const result = opts?.manager
-          ? await this.runForTenantManager(opts.manager, tenant.id, { ensureDefinition: false, manual: false })
+          ? await this.runForTenantManager(opts.manager, tenant.id, { manual: false })
           : await withTenantExecution(this.dataSource, tenant.id, (manager) =>
-            this.runForTenantManager(manager, tenant.id, { ensureDefinition: false, manual: false }),
+            this.runForTenantManager(manager, tenant.id, { manual: false }),
           );
         if (result.status === 'disabled' || result.status === 'skipped') {
           summary.tenantsSkipped += 1;
@@ -239,7 +239,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
   }
 
   async pollTenant(context: AiExecutionContextWithManager): Promise<MonitoringAlertIngestionPollSummary> {
-    return this.pollTenantContext(context, { ensureDefinition: true, manual: true });
+    return this.pollTenantContext(context, { manual: true });
   }
 
   private async runForTenantManager(
@@ -303,7 +303,7 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
       }
     }
 
-    const definitions = await this.loadDefinitions(context, opts.ensureDefinition);
+    const definitions = await this.loadDefinitions(context);
     if (definitions.length === 0) {
       summary.status = 'disabled';
       summary.reason = 'No monitoring agent is turned on. Set an agent to Manual or Watching first.';
@@ -838,15 +838,11 @@ export class AiAgentMonitoringAlertIngestionService implements OnModuleInit {
 
   private async loadDefinitions(
     context: AiExecutionContextWithManager,
-    ensureDefinition: boolean,
   ): Promise<AiAgentDefinition[]> {
-    if (ensureDefinition) {
-      await this.queue.ensureSreMonitoringDefinition(context);
-    }
-    // Only enabled SRE agents poll; drafts (the seed default) stay inert until
-    // an operator turns monitoring diagnosis on deliberately. Unbound enabled
-    // agents surface as per-agent 'disabled' summaries in detectDefinition —
-    // they are loaded here so the skip reason is visible, not silently absent.
+    // Only enabled SRE agents poll; drafts stay inert until an operator turns
+    // monitoring diagnosis on deliberately. Unbound enabled agents surface as
+    // per-agent 'disabled' summaries in detectDefinition — they are loaded here
+    // so the skip reason is visible, not silently absent.
     return context.manager.getRepository(AiAgentDefinition).find({
       where: {
         tenant_id: context.tenantId,
