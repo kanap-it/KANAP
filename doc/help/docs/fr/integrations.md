@@ -28,7 +28,7 @@ La connexion alimente deux workflows que vous activez et pilotez séparément.
 
 ### Utilisé par les Agents IA
 
-Après avoir enregistré ici une connexion fonctionnelle, un administrateur configure les agents dans la section Agents IA — voir [Agents IA — Vue d'ensemble](agents-overview.md). Depuis l'assistant Nouvel agent ou les **Paramètres** d'un agent existant, il choisit cette connexion GLPI comme centre de services surveillé par l'agent. L'agent la consulte et rédige à partir d'elle, mais par défaut il n'envoie jamais rien de lui-même : chaque réponse, note ou changement de statut proposé passe d'abord par la file d'approbation.
+Après avoir enregistré ici une connexion fonctionnelle, un administrateur configure les agents dans la section Agents IA — voir [Agents IA — Vue d'ensemble](agents-overview.md). Depuis **Nouvel agent** ou les **Paramètres** d'un agent existant, il choisit cette connexion GLPI comme centre de services surveillé par l'agent. L'agent la consulte et rédige à partir d'elle, mais par défaut il n'envoie jamais rien de lui-même : chaque réponse, note ou changement de statut proposé passe d'abord par la file d'approbation.
 
 ### Prérequis
 

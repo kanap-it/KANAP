@@ -28,7 +28,7 @@ La conexión alimenta dos flujos de trabajo que se habilitan y gobiernan por sep
 
 ### Usado por los Agentes IA
 
-Después de guardar aquí una conexión que funcione, un administrador configura los agentes en la sección Agentes IA; consulte [Agentes IA — Vista general](agents-overview.md). Desde el asistente de nuevo agente o desde la **Configuración** de un agente existente, elige esta conexión GLPI como el centro de servicios que el agente vigila. El agente lee y redacta borradores sobre ella, pero de forma predeterminada nunca envía nada por su cuenta: cada respuesta, nota o cambio de estado propuesto pasa primero a la cola de revisión.
+Después de guardar aquí una conexión que funcione, un administrador configura los agentes en la sección Agentes IA; consulte [Agentes IA — Vista general](agents-overview.md). Desde **Nuevo agente** o desde la **Configuración** de un agente existente, elige esta conexión GLPI como el centro de servicios que el agente vigila. El agente lee y redacta borradores sobre ella, pero de forma predeterminada nunca envía nada por su cuenta: cada respuesta, nota o cambio de estado propuesto pasa primero a la cola de revisión.
 
 ### Requisitos previos
 

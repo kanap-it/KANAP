@@ -28,7 +28,7 @@ Die Verbindung versorgt zwei Workflows, die Sie separat aktivieren und steuern.
 
 ### Von KI-Agenten genutzt
 
-Nachdem Sie hier eine funktionierende Verbindung gespeichert haben, richtet ein Administrator die Agenten im Bereich KI-Agenten ein – siehe [KI-Agenten – Übersicht](agents-overview.md). Über den Assistenten für neue Agenten oder die **Einstellungen** eines bestehenden Agenten wählt er diese GLPI-Verbindung als den Service-Desk aus, den der Agent überwacht. Der Agent liest daraus und erstellt Entwürfe, sendet aber standardmäßig niemals von sich aus etwas: Jede vorgeschlagene Antwort, Notiz oder Statusänderung landet zunächst in der Freigabe-Warteschlange.
+Nachdem Sie hier eine funktionierende Verbindung gespeichert haben, richtet ein Administrator die Agenten im Bereich KI-Agenten ein – siehe [KI-Agenten – Übersicht](agents-overview.md). Über **Neuer Agent** oder die **Einstellungen** eines bestehenden Agenten wählt er diese GLPI-Verbindung als den Service-Desk aus, den der Agent überwacht. Der Agent liest daraus und erstellt Entwürfe, sendet aber standardmäßig niemals von sich aus etwas: Jede vorgeschlagene Antwort, Notiz oder Statusänderung landet zunächst in der Freigabe-Warteschlange.
 
 ### Voraussetzungen
 
