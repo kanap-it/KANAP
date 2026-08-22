@@ -22,8 +22,8 @@ Cada propuesta es una acción concreta que un agente quiere realizar sobre un ti
 | **Nota interna** | Una nota que el agente quiere añadir para su equipo, no visible para el solicitante. |
 | **Clasificación** | Un cambio en la categoría, el tipo, la urgencia u otros atributos similares del ticket. |
 | **Estado** | Un paso a un estado de ticket diferente (por ejemplo, de **Nuevo** a **Pendiente**). |
-| **Cerrar ticket** | Un cambio de estado terminal que cierra el ticket; consulte [Acciones terminales](#acciones-terminales). |
-| **Resolver ticket** | Un cambio de estado terminal que marca el ticket como resuelto; consulte [Acciones terminales](#acciones-terminales). |
+| **Cerrar ticket** | Cierra el ticket; consulte [Cerrar y resolver tickets](#cerrar-y-resolver-tickets). |
+| **Resolver ticket** | Marca el ticket como resuelto; consulte [Cerrar y resolver tickets](#cerrar-y-resolver-tickets). |
 | **Asignación** | Un cambio de la persona a la que está asignado el ticket. |
 | **Participantes** | Un cambio en los observadores o solicitantes del ticket. |
 
@@ -82,11 +82,11 @@ Recurrir a Descartar cuando en realidad quiere decir «esto estaba mal» oculta 
 
 ---
 
-## Acciones terminales
+## Cerrar y resolver tickets
 
-Las propuestas de **Cerrar ticket** y **Resolver ticket** se marcan como **Terminal** en rojo, porque ponen fin al ticket y el solicitante ve el cambio de inmediato. Estas cuentan con una salvaguarda adicional.
+Los títulos **Cerrar ticket** y **Resolver ticket** se muestran en rojo, porque ponen fin al ticket y el solicitante ve el cambio de inmediato. Ese título rojo es la única marca extra: no hay una insignia «terminal» aparte.
 
-Aprobar una propuesta terminal —por sí sola o como parte de un **Aprobar todo** en el que algún elemento sea terminal— abre una confirmación **Aplicar acción terminal**. Nombra la acción y el ticket exactos, advierte de que el solicitante verá el cambio de inmediato, enumera todos los elementos terminales en una aprobación masiva y le ofrece un campo de motivo para el registro. Usted confirma con **Aplicar de todos modos**. Se trata de una fricción deliberada: las respuestas y notas rutinarias se aplican con un solo clic, pero cerrar o resolver un ticket siempre le pide detenerse y confirmar.
+Aprobar una de estas acciones —por sí sola o como parte de un **Aprobar todo** en el que algún elemento cierre o resuelva el ticket— abre una confirmación con el nombre de la acción (**¿Aplicar Resolver ticket?**). Nombra el ticket, advierte de que el solicitante verá el cambio de inmediato, enumera todos los elementos de cierre en una aprobación masiva y le ofrece un campo de motivo para el registro. Usted confirma con el propio nombre de la acción (**Resolver ticket** o **Cerrar ticket**). Se trata de una fricción deliberada: las respuestas y notas rutinarias se aplican con un solo clic, pero cerrar o resolver un ticket siempre le pide detenerse y confirmar.
 
 ---
 

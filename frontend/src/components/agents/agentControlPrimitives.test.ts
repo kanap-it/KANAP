@@ -6,6 +6,16 @@ import {
   executableTerminalActions,
   ticketingProviderKeyForDefinition,
 } from './agentControlPrimitives';
+import {
+  canPersistIdentity,
+  collectEffectivePromptBounds,
+  droppedSharedContextLineCount,
+  MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS,
+  mergeInstructionsForDisplay,
+  measurePersonaIdentityLimits,
+  personaIdentitySavePatch,
+  truncatedSharedContextLineCount,
+} from './agentPersona';
 import { targetingPredicateCount } from './agentRunState';
 import {
   applyOptimisticDecisionOverlay,
@@ -349,5 +359,129 @@ describe('agent control polling and optimistic overlay helpers', () => {
     expect(pruneConfirmedOptimisticDecisions(approvedOverlay, [{ ...base, status: 'executing' }]).has(base.id)).toBe(false);
     expect(pruneConfirmedOptimisticDecisions(dismissedOverlay, [{ ...base, status: 'dismissed' }]).has(base.id)).toBe(false);
     expect(withoutOptimisticDecisionIds(approvedOverlay, [base.id]).has(base.id)).toBe(false);
+  });
+});
+
+describe('agent persona purpose + instructions helpers', () => {
+  const stored = {
+    mission: 'Triage incoming work.',
+    instructionsStored: 'Prefer internal notes when evidence is incomplete.',
+    instructionsDraft: 'Prefer internal notes when evidence is incomplete.\nHand over when a human must decide.\nClear and concise.',
+    escalationGuidance: 'Hand over when a human must decide.',
+    outputStyleTone: 'Clear and concise.',
+    outputStyleLanguage: 'fr',
+    sharedContextEnabled: false,
+    sharedContextProfileId: null as string | null,
+  };
+
+  it('merges escalation and tone onto instructions for display only', () => {
+    expect(mergeInstructionsForDisplay({
+      instructions: 'Prefer internal notes when evidence is incomplete.',
+      escalationGuidance: 'Hand over when a human must decide.',
+      outputStyleTone: 'Clear and concise.',
+    })).toBe('Prefer internal notes when evidence is incomplete.\nHand over when a human must decide.\nClear and concise.');
+    expect(mergeInstructionsForDisplay({
+      instructions: 'Prefer internal notes when evidence is incomplete.',
+      escalationGuidance: '  ',
+      outputStyleTone: '',
+    })).toBe('Prefer internal notes when evidence is incomplete.');
+  });
+
+  it('keeps legacy escalation and tone on an untouched save', () => {
+    expect(personaIdentitySavePatch({
+      ...stored,
+      instructionsTouched: false,
+    })).toMatchObject({
+      mission: 'Triage incoming work.',
+      instructions: ['Prefer internal notes when evidence is incomplete.'],
+      output_style: { tone: 'Clear and concise.', language: 'fr' },
+      escalation_guidance: 'Hand over when a human must decide.',
+    });
+  });
+
+  it('clears legacy escalation and tone on the first instructions edit', () => {
+    expect(personaIdentitySavePatch({
+      ...stored,
+      instructionsDraft: 'Prefer internal notes when evidence is incomplete.\nAlways cite knowledge.',
+      instructionsTouched: true,
+    })).toMatchObject({
+      instructions: ['Prefer internal notes when evidence is incomplete.', 'Always cite knowledge.'],
+      output_style: { tone: '', language: 'fr' },
+      escalation_guidance: '',
+    });
+  });
+
+  it('counts total cleaned characters the same way the backend does', () => {
+    // Whitespace runs collapse before counting; line count and per-line
+    // length are deliberately unlimited.
+    const manyLongLines = Array.from({ length: 40 }, () => `rule${' '.repeat(10)}${'x'.repeat(200)}`).join('\n');
+    const inRange = measurePersonaIdentityLimits({
+      mission: 'ok',
+      instructionsDraft: manyLongLines,
+    });
+    expect(inRange.instructionsChars).toBe(40 * ('rule x'.length + 200 - 1));
+    expect(inRange.instructionsOverLimit).toBe(false);
+
+    const over = measurePersonaIdentityLimits({
+      mission: 'ok',
+      instructionsDraft: 'x'.repeat(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS + 1),
+    });
+    expect(over.instructionsOverLimit).toBe(true);
+    expect(measurePersonaIdentityLimits({
+      mission: 'ok',
+      instructionsDraft: 'x'.repeat(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS),
+    }).instructionsOverLimit).toBe(false);
+  });
+
+  it('surfaces the counter only near the limit', () => {
+    expect(measurePersonaIdentityLimits({ mission: 'ok', instructionsDraft: 'One rule.' }).instructionsNearLimit).toBe(false);
+    expect(measurePersonaIdentityLimits({
+      mission: 'ok',
+      instructionsDraft: 'x'.repeat(Math.floor(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS * 0.8)),
+    }).instructionsNearLimit).toBe(true);
+    expect(measurePersonaIdentityLimits({ mission: 'x'.repeat(400), instructionsDraft: '' }).purposeNearLimit).toBe(true);
+    expect(measurePersonaIdentityLimits({ mission: 'x'.repeat(399), instructionsDraft: '' }).purposeNearLimit).toBe(false);
+  });
+
+  it('blocks every identity save while the instructions draft is over the limit', () => {
+    const overTotal = 'x'.repeat(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS + 1);
+    expect(canPersistIdentity({
+      mission: 'Triage incoming work.',
+      instructionsDraft: overTotal,
+      instructionsTouched: true,
+    })).toBe(false);
+    expect(canPersistIdentity({
+      mission: 'Triage incoming work.',
+      instructionsDraft: overTotal,
+      instructionsTouched: false,
+    })).toBe(true);
+    expect(canPersistIdentity({
+      mission: 'm'.repeat(501),
+      instructionsDraft: 'One rule.',
+      instructionsTouched: false,
+    })).toBe(false);
+  });
+
+  it('reads dropped and shortened shared-context lines from bounds_applied', () => {
+    expect(droppedSharedContextLineCount(['shared_context_lines_clamped:45->30'])).toBe(15);
+    // Budget-clamp tokens carry their count; the bare legacy token reads as 1;
+    // across slices the worst case wins.
+    expect(droppedSharedContextLineCount([
+      'shared_context_lines_clamped:45->30',
+      'total_guidance_chars_clamped:shared_context:5',
+    ])).toBe(20);
+    expect(droppedSharedContextLineCount([
+      'total_guidance_chars_clamped:shared_context',
+      'total_guidance_chars_clamped:shared_context:3',
+    ])).toBe(3);
+    expect(truncatedSharedContextLineCount([
+      'shared_context_line_2_chars_clamped',
+      'shared_context_line_7_chars_clamped',
+      'shared_context_line_2_chars_clamped',
+    ])).toBe(2);
+    expect(collectEffectivePromptBounds({
+      prompt_profile: { bounds_applied: ['instructions_clamped:20->16'] },
+      tasks: { synthesis: { bounds_applied: ['shared_context_lines_clamped:45->30'] } },
+    })).toEqual(['instructions_clamped:20->16', 'shared_context_lines_clamped:45->30']);
   });
 });

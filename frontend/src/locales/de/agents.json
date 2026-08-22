@@ -334,7 +334,8 @@
       "approvals": "Freigaben",
       "performance": "Leistung und Autonomie",
       "settings": "Einstellungen"
-    }
+    },
+    "descriptionPlaceholder": "z. B. erste Antwortentwürfe für neue Arbeit"
   },
   "monitor": {
     "modes": {
@@ -342,7 +343,6 @@
       "manual": "Nur manuell",
       "watching": "Beobachtung"
     },
-    "archivedNote": "Archiviert — im Tab Einstellungen wiederherstellen.",
     "testStarted": "Testlauf gestartet.",
     "testFailed": "Testlauf konnte nicht gestartet werden.",
     "providerMissing": "Für diesen Agenten ist kein Ticketing-Anbieter gebunden.",
@@ -444,7 +444,8 @@
       "off": "Es läuft nichts, auch keine manuelle Prüfung.",
       "manual": "Läuft nur auf Anfrage (Jetzt prüfen, Tests).",
       "watching": "Prüft selbstständig, zusätzlich zu allem aus dem manuellen Modus."
-    }
+    },
+    "archivedNoteViewer": "Archiviert — eine Administratorin oder ein Administrator kann ihn wiederherstellen."
   },
   "performance": {
     "acceptance": "Annahme",
@@ -482,8 +483,7 @@
     "archiveBody": "„{{name}}“ steht den Agenten nicht mehr zur Verfügung. Jeder Agent, der es derzeit verwendet, läuft ohne gemeinsamen Kontext, bis Sie ihn auf ein anderes Profil verweisen."
   },
   "settings": {
-    "objectiveCapabilities": "Ziel und Fähigkeiten",
-    "name": "Name",
+    "objective": "Ziel",
     "archiveAgent": "Agent archivieren",
     "restoreAgent": "Agent wiederherstellen",
     "archiveDialog": {
@@ -491,15 +491,8 @@
       "body": "{{name}} beobachtet und läuft nicht mehr. Konfiguration und Verlauf bleiben erhalten, und Sie können ihn hier jederzeit wiederherstellen.",
       "confirm": "Archivieren"
     },
-    "description": "Beschreibung",
-    "mission": "Mission",
-    "outputStyle": "Ausgabestil",
-    "outputStyleTonePlaceholder": "z. B. klar und knapp",
-    "outputStyleVerbosityOptions": {
-      "concise": "Knapp",
-      "standard": "Standard",
-      "detailed": "Detailliert"
-    },
+    "purpose": "Zweck",
+    "purposePlaceholder": "z. B. eine erste Antwort für neue Arbeit entwerfen",
     "outputStyleLanguageOptions": {
       "auto": "Ticketsprache",
       "fr": "Französisch",
@@ -509,8 +502,10 @@
     },
     "replyLanguage": "Antwortsprache",
     "instructions": "Anweisungen",
-    "escalation": "Eskalation",
-    "escalationGuidance": "Eskalationshinweis",
+    "instructionsPlaceholder": "z. B. Interne Notizen bevorzugen, wenn die Belege unvollständig sind.",
+    "purposeOverLimit": "Der Zweck ist auf {{max}} Zeichen begrenzt. Dieser Abschnitt wird nicht gespeichert, solange er darüber liegt.",
+    "sharedContextClamped": "{{count}} Zeilen gemeinsamen Kontexts werden nicht an das Modell gesendet.",
+    "instructionsClamped": "{{count}} Anweisungszeilen werden nicht an das Modell gesendet.",
     "sharedContextHint": "Hintergrundhinweise für diesen Agenten. Das ist keine Berechtigung und keine zitierbare Quelle.",
     "sharedContextEnabled": "Gemeinsamen Kontext verwenden",
     "sharedContextNoProfile": "Kein Profil ausgewählt",
@@ -772,13 +767,9 @@
     "checkInterval": "Prüfen alle (Minuten)",
     "checkIntervalInfo": "Wie oft der Agent nach neuen Tickets sucht, solange er überwacht. Zwischen 5 Minuten und 24 Stunden. „Jetzt prüfen“ läuft immer sofort, unabhängig davon.",
     "checkIntervalAlertsInfo": "Wie oft der Agent nach neuen Warnmeldungen sucht, solange er überwacht. Zwischen 5 Minuten und 24 Stunden. „Nach neuen Warnmeldungen suchen“ läuft immer sofort, unabhängig davon.",
-    "nameInfo": "Der Name, unter dem dieser Agent in KANAP erscheint. Er wirkt sich nicht auf das Verhalten aus.",
-    "descriptionInfo": "Eine kurze Zusammenfassung für Ihre Kolleginnen und Kollegen, unter dem Agentennamen angezeigt.",
-    "missionInfo": "Wofür dieser Agent da ist, in ein bis zwei Sätzen. Er liest sie vor jedem Ticket.",
-    "instructionsInfo": "Hausregeln, denen der Agent folgt — eine pro Zeile. Sie können nicht erweitern, was der Agent tun darf.",
-    "outputStyleInfo": "Wie der Agent beim Schreiben klingen soll, zum Beispiel klar und knapp.",
+    "purposeInfo": "Wofür dieser Agent da ist, in einer Zeile. Er liest sie bei jedem Lauf.",
+    "instructionsInfo": "Die Regeln, denen der Agent folgt — frei formuliert, in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf.",
     "replyLanguageInfo": "Die Sprache, in der der Agent schreibt. „Sprache des Tickets“ lässt ihn in der Sprache des Anfragenden antworten.",
-    "escalationGuidanceInfo": "Wann der Agent das Ticket an eine Person übergeben soll, statt selbst etwas vorzuschlagen.",
     "capabilitiesInfo": "Was dieser Agent vorbereiten darf. Alles, was hier aus ist, wird nie vorgeschlagen — unabhängig von den Anweisungen.",
     "modelInfo": "Auf welchem KI-Modell dieser Agent läuft. Modelle werden in der Administration unter KI-Modelle verwaltet.",
     "maxTicketsInfo": "Höchstzahl der Tickets, die der Agent pro Prüfung aufnimmt. Der Rest wartet auf die nächste.",
@@ -801,7 +792,12 @@
       "public_reply": "Der Agent würde dem Anfragenden antworten, ohne dass jemand vorher mitliest.",
       "assignment": "Der Agent würde Tickets neu zuweisen, ohne dass jemand vorher mitliest.",
       "participant": "Der Agent würde Personen auf Tickets hinzufügen oder entfernen, ohne dass jemand vorher mitliest."
-    }
+    },
+    "charCounter": "{{used}} / {{max}} Zeichen",
+    "instructionsOverLimit": "Die Anweisungen sind auf {{max}} Zeichen begrenzt. Darüber hinaus würde ein Teil den Agenten nicht mehr erreichen. Dieser Abschnitt wird nicht gespeichert, solange er darüber liegt.",
+    "personaBlockedSave": "Änderungen nicht gespeichert: Zweck oder Anweisungen überschreiten ihr Limit. Kürzen Sie den Text, um das Speichern fortzusetzen.",
+    "sharedContextTruncated": "{{count}} Zeilen des geteilten Kontexts erreichen das Modell gekürzt (Limit von 500 Zeichen pro Zeile).",
+    "promptCostHint": "Anweisungen und geteilter Kontext belegen etwa {{tokens}} Tokens des Budgets jedes Schritts ({{cap}} pro Lauf)."
   },
   "actions": {
     "internalNote": "Interne Notiz",

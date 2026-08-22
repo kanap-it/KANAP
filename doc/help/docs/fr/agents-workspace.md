@@ -1,6 +1,6 @@
 # Agents IA — Espace de l'agent
 
-L'espace de l'agent est l'endroit où vit un agent en particulier : vous le pilotez, observez ce qu'il fait, examinez ses propositions, jugez de sa performance et — si vous êtes administrateur — configurez chaque détail de son fonctionnement. C'est la surface la plus détaillée de l'espace Agents IA. Tout ce qui concerne un agent donné et qui n'est pas un contrôle à l'échelle du parc s'y trouve : une barre d'actions qui vous suit sur chaque onglet, et quatre onglets en dessous.
+L'espace de l'agent est l'endroit où vit un agent en particulier : vous le pilotez, observez ce qu'il fait, examinez ses propositions, jugez de sa performance et — si vous êtes administrateur — configurez chaque détail de son fonctionnement. C'est la surface la plus détaillée de l'espace Agents IA. Tout ce qui concerne un agent donné et qui n'est pas un contrôle à l'échelle du parc s'y trouve : une barre d'actions qui vous suit sur chaque onglet, et quatre onglets en dessous. Les administrateurs peuvent cliquer sur le nom de l'agent ou sur la courte description sous ce nom pour le renommer ou mettre à jour ce résumé ; les deux apparaissent toujours sur la carte de l'agent dans le parc.
 
 Ouvrez un agent en cliquant sur sa carte dans [Agents IA — Vue d'ensemble](agents-overview.md). L'espace s'ouvre toujours sur **Suivi** ; vous pouvez créer un lien direct vers n'importe quel onglet, et les liens provenant d'autres parties du produit vous amènent directement au bon onglet.
 
@@ -39,10 +39,9 @@ Lisez le libellé fermé comme la vérité et le menu comme l'intention : un age
 - **Contrôler maintenant** (**Vérifier les nouvelles alertes** sur un agent de supervision) lance un contrôle immédiatement au lieu d'attendre le prochain contrôle planifié. La commande est désactivée lorsque l'agent est **Arrêté** (« Activez d'abord l'agent. ») ou en pause (« Levez d'abord la pause. »), avec le motif dans l'infobulle.
 - **Tester sur un ticket** (**Tester sur une alerte** sur un agent de supervision) vous amène à la section de test de l'onglet **Suivi**, quel que soit l'onglet où vous étiez.
 - **Mettre l'agent en pause** est le frein d'urgence rouge, et ce n'est délibérément pas la même chose qu'**Arrêté**. Il demande un motif, puis suspend les contrôles de cet agent *et toute écriture en attente* jusqu'à ce que vous leviez la pause. Les autres agents continuent de fonctionner. Tant qu'une pause est active, une bannière d'avertissement affiche **Pause d'urgence active : {motif}** et la commande devient **Lever la pause**. Une pause définie pour l'ensemble du tenant affiche à la place **En pause pour tous les agents** et vous renvoie vers la vue d'ensemble du parc — vous ne pouvez pas lever une pause à l'échelle du tenant depuis un seul agent.
+- **Archiver l'agent** (administrateurs) met l'agent à la retraite : il cesse de surveiller et de s'exécuter, conserve sa configuration et son historique, et vous demande d'abord de confirmer. Lorsque l'agent est déjà archivé, cette commande devient **Restaurer l'agent** et le ramène à **Arrêté**.
 
-Utilisez **Arrêté** pour mettre un agent au repos pendant un temps ; utilisez **Mettre l'agent en pause** lorsque quelque chose ne va pas et que vous voulez aussi geler le travail en attente.
-
-Un agent archivé n'a aucune commande, seulement une note — *Archivé — restaurez-le depuis l'onglet Paramètres.*
+Utilisez **Arrêté** pour mettre un agent au repos pendant un temps ; utilisez **Mettre l'agent en pause** lorsque quelque chose ne va pas et que vous voulez aussi geler le travail en attente ; utilisez **Archiver l'agent** lorsque vous en avez terminé.
 
 ---
 
@@ -122,7 +121,7 @@ Automatique ne signifie jamais sans supervision. Les limites de sécurité stric
 
 L'onglet **Paramètres** est réservé aux administrateurs et regroupe tous les réglages de configuration de l'agent. Il **s'enregistre automatiquement** : il n'y a pas de boutons d'enregistrement, et chaque section affiche un petit indicateur **Enregistrement…** / **Enregistré** dans son en-tête à mesure que vos modifications sont écrites. Si vous changez d'onglet alors qu'un enregistrement est encore en cours, celui-ci est d'abord mené à son terme — et s'il échoue, le changement d'onglet est annulé pour que l'erreur et votre modification restent à l'écran.
 
-Les quatre sections suivent l'ordre dans lequel on configure réellement un agent : décidez ce qu'il regarde, puis ce qu'il est, puis ce qu'il sait, puis à quel rythme il peut travailler.
+Les sections suivent l'ordre dans lequel on configure réellement un agent : décidez ce qu'il regarde, puis ce qu'il peut faire, puis ce qu'il est, puis ce qu'il sait, puis à quel rythme il peut travailler.
 
 ### Ciblage
 
@@ -134,25 +133,23 @@ Une ligne sous les filtres indique combien de tickets correspondent actuellement
 
 Les agents de supervision disposent de la même section, avec des filtres portant sur l'état de l'alerte, la gravité, l'acquittement, le groupe, l'équipement et le type de contrôle.
 
-### Objectif et capacités
+### Capacités
 
-Les **Capacités** viennent en premier, car elles cadrent tout le reste : des interrupteurs déterminant quels types de modification l'agent peut *un jour* proposer — **Notes internes**, **Réponses demandeur**, **Classification**, **Mises à jour statut**, **Affectation** et **Participants**. En désactiver un supprime entièrement ce type d'action : l'agent ne peut pas le proposer, quoi que disent les instructions, et il ne peut pas être promu dans l'échelle d'autonomie.
+Les capacités viennent en premier, car elles cadrent tout le reste : une rangée de cases à cocher déterminant quels types de modification l'agent peut *un jour* proposer — **Notes internes**, **Réponses demandeur**, **Classification**, **Mises à jour statut**, **Affectation** et **Participants**. En décocher une supprime entièrement ce type d'action : l'agent ne peut pas le proposer, quoi que disent les instructions, et il ne peut pas être promu dans l'échelle d'autonomie. Les agents de supervision n'ont pas cette section.
 
-En dessous se trouve le persona — qui est l'agent et comment il rédige :
+### Objectif
 
-- **Nom** — le nom sous lequel l'agent est désigné dans tout KANAP. Il n'a aucun effet sur ce que fait l'agent.
-- **Description** — un résumé court pour vos collègues, affiché sous le nom de l'agent.
-- **Mission** — ce que l'agent est là pour faire, en une ou deux phrases. Il la relit avant chaque ticket.
-- **Instructions** — les règles internes, une par ligne. Elles ne peuvent pas élargir ce que l'agent a le droit de faire.
-- **Style de sortie** — le ton qu'il doit adopter lorsqu'il rédige (par exemple, *clair et concis*).
+L'objectif, c'est qui est l'agent et comment il rédige :
+
+- **Objectif** — ce que l'agent est là pour faire, en une ligne. Il le relit à chaque exécution.
+- **Instructions** — les règles internes, rédigées librement en lignes ou en paragraphes. Elles ne peuvent pas élargir ce que l'agent a le droit de faire. Une seule limite : 10 000 caractères au total — au-delà, une partie du texte ne serait plus transmise à l'agent. Un compteur discret apparaît à l'approche de la limite ; au-delà, la section n'est pas enregistrée tant que vous n'avez pas raccourci le brouillon.
 - **Langue de réponse** — **Langue du ticket** (répondre dans la langue utilisée par le demandeur), **Français**, **Anglais**, **Allemand** ou **Espagnol**.
-- **Guidance d'escalade** — quand l'agent doit passer un ticket à une personne plutôt que de proposer quelque chose lui-même.
 
-**Archiver l'agent**, dans l'en-tête de la section, est la manière délibérée de retirer un agent : il cesse de surveiller et de s'exécuter, sa configuration et son historique sont conservés, et **Restaurer l'agent** le ramène depuis le même endroit.
+Le nom de l'agent et sa courte description vivent dans le titre de l'espace, pas dans cette grille : cliquez dessus pour les modifier. La façon dont l'agent doit sonner, et le moment où il doit passer la main à une personne, appartiennent aux **Instructions** comme des règles ordinaires.
 
-**Utiliser le contexte partagé** superpose à cet agent un contexte réutilisable sur votre environnement. Vous ne voyez que l'interrupteur tant que vous ne l'avez pas activé ; une fois activé, vous obtenez le sélecteur de profil, un raccourci **+ Nouveau profil** et un aperçu des lignes du profil sélectionné. Le contexte partagé oriente la façon dont l'agent interprète les tickets et rédige ses réponses, mais il ne constitue jamais une autorisation d'accès et n'est **pas** une source citable — contrairement aux [bibliothèques de connaissances](knowledge.md), dont les résultats *sont* cités dans les réponses. Gérez les profils sur la page [Contexte partagé](agents-shared-context.md).
+**Utiliser le contexte partagé** superpose à cet agent un contexte réutilisable sur votre environnement. Vous ne voyez que l'interrupteur tant que vous ne l'avez pas activé ; une fois activé, vous obtenez le sélecteur de profil, un raccourci **+ Nouveau profil** et un aperçu des lignes du profil sélectionné. Le contexte partagé oriente la façon dont l'agent interprète les tickets et rédige ses réponses, mais il ne constitue jamais une autorisation d'accès et n'est **pas** une source citable — contrairement aux [bibliothèques de connaissances](knowledge.md), dont les résultats *sont* cités dans les réponses. Gérez les profils sur la page [Contexte partagé](agents-shared-context.md). Si un profil a plus de lignes que l'agent ne peut en envoyer, un avertissement indique combien de lignes de contexte partagé ne sont pas envoyées au modèle — rien n'est écarté en silence.
 
-**Voir le prompt effectif** est replié par défaut. Dépliez-le pour lire exactement ce qui est fourni au runtime de l'agent, compilé à partir de tout ce qui précède plus les règles propres à la plateforme. Utilisez le sélecteur pour inspecter chaque étape — **Planificateur d'actions**, **Planificateur** et **Interpréteur** sont les étapes où l'agent décide *quoi faire* ; **Synthèse** est celle où il rédige la réponse en s'appuyant sur vos sources de connaissances ; un agent de supervision dispose de **Diagnostic** à la place. L'aperçu se met à jour après chaque enregistrement. Comme l'indique l'aide, **la guidance ne peut pas remplacer les règles de sécurité** — rien de ce que vous écrivez dans le persona ne peut assouplir les limites strictes de la plateforme.
+**Voir le prompt effectif** est replié par défaut. Dépliez-le pour lire exactement ce qui est fourni au runtime de l'agent, compilé à partir de tout ce qui précède plus les règles propres à la plateforme. Utilisez le sélecteur pour inspecter chaque étape — **Planificateur d'actions**, **Planificateur** et **Interpréteur** sont les étapes où l'agent décide *quoi faire* ; **Synthèse** est celle où il rédige la réponse en s'appuyant sur vos sources de connaissances ; un agent de supervision dispose de **Diagnostic** à la place. L'aperçu se met à jour après chaque enregistrement. Comme l'indique l'aide, **la guidance ne peut pas remplacer les règles de sécurité** — rien de ce que vous écrivez dans le persona ne peut assouplir les limites strictes de la plateforme. Le même avertissement sur le contexte partagé apparaît ici si des lignes ont été laissées de côté.
 
 ### Sources de connaissances et web
 

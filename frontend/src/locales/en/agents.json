@@ -334,7 +334,8 @@
       "approvals": "Approvals",
       "performance": "Performance & autonomy",
       "settings": "Settings"
-    }
+    },
+    "descriptionPlaceholder": "e.g., first-response drafts for new work"
   },
   "monitor": {
     "modes": {
@@ -342,7 +343,6 @@
       "manual": "Manual only",
       "watching": "Watching"
     },
-    "archivedNote": "Archived — restore it from the Settings tab.",
     "testStarted": "Test run started.",
     "testFailed": "Could not start the test run.",
     "providerMissing": "This agent has no ticketing provider binding.",
@@ -444,7 +444,8 @@
       "off": "Nothing runs, not even a manual check.",
       "manual": "Runs only when you ask (Check now, tests).",
       "watching": "Checks on its own, plus everything Manual does."
-    }
+    },
+    "archivedNoteViewer": "Archived — an administrator can restore it."
   },
   "performance": {
     "acceptance": "Acceptance",
@@ -482,8 +483,7 @@
     "archiveBody": "\"{{name}}\" will stop being available to agents. Any agent currently using it will run without shared context until you point it at another profile."
   },
   "settings": {
-    "objectiveCapabilities": "Objective and capabilities",
-    "name": "Name",
+    "objective": "Objective",
     "archiveAgent": "Archive agent",
     "restoreAgent": "Restore agent",
     "archiveDialog": {
@@ -491,15 +491,8 @@
       "body": "{{name}} stops watching and running. Its configuration and history are kept, and you can restore it from here at any time.",
       "confirm": "Archive"
     },
-    "description": "Description",
-    "mission": "Mission",
-    "outputStyle": "Output style",
-    "outputStyleTonePlaceholder": "e.g., clear and concise",
-    "outputStyleVerbosityOptions": {
-      "concise": "Concise",
-      "standard": "Standard",
-      "detailed": "Detailed"
-    },
+    "purpose": "Purpose",
+    "purposePlaceholder": "e.g., draft a first response for new work",
     "outputStyleLanguageOptions": {
       "auto": "Ticket language",
       "fr": "French",
@@ -509,8 +502,10 @@
     },
     "replyLanguage": "Reply language",
     "instructions": "Instructions",
-    "escalation": "Escalation",
-    "escalationGuidance": "Escalation guidance",
+    "instructionsPlaceholder": "e.g., Prefer internal notes when evidence is incomplete.",
+    "purposeOverLimit": "Purpose is limited to {{max}} characters. This section is not saved while it is over the limit.",
+    "sharedContextClamped": "{{count}} lines of shared context are not being sent to the model.",
+    "instructionsClamped": "{{count}} instruction lines are not being sent to the model.",
     "sharedContextHint": "Background guidance for this agent. It is not a permission grant and not a citable source.",
     "sharedContextEnabled": "Use shared context",
     "sharedContextNoProfile": "No profile selected",
@@ -772,13 +767,9 @@
     "checkInterval": "Check every (minutes)",
     "checkIntervalInfo": "How often the agent looks for new tickets while it is watching. Between 5 minutes and 24 hours. \"Check now\" always runs straight away, whatever this says.",
     "checkIntervalAlertsInfo": "How often the agent looks for new alerts while it is watching. Between 5 minutes and 24 hours. \"Check for new alerts\" always runs straight away, whatever this says.",
-    "nameInfo": "The name shown across KANAP for this agent. It has no effect on what the agent does.",
-    "descriptionInfo": "A short summary for your colleagues, shown under the agent name.",
-    "missionInfo": "What this agent is here to do, in one or two sentences. The agent reads it before every ticket.",
-    "instructionsInfo": "House rules the agent follows, one per line. They cannot widen what the agent is allowed to do.",
-    "outputStyleInfo": "How the agent should sound when it writes, for example clear and concise.",
+    "purposeInfo": "What this agent is here to do, in one line. It reads this on every run.",
+    "instructionsInfo": "House rules the agent follows — write them freely, as lines or paragraphs. They cannot widen what the agent is allowed to do.",
     "replyLanguageInfo": "The language the agent writes in. \"Ticket language\" makes it answer in whatever language the requester used.",
-    "escalationGuidanceInfo": "When the agent should hand the ticket over to a person instead of proposing something itself.",
     "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
     "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "maxTicketsInfo": "The most tickets the agent picks up in a single check. The rest wait for the next one.",
@@ -801,7 +792,12 @@
       "public_reply": "The agent would reply to the requester with nobody reading it first.",
       "assignment": "The agent would reassign tickets with nobody reading it first.",
       "participant": "The agent would add or remove people on tickets with nobody reading it first."
-    }
+    },
+    "charCounter": "{{used}} / {{max}} characters",
+    "instructionsOverLimit": "Instructions are limited to {{max}} characters. Beyond that, part of them would no longer reach the agent. This section is not saved while it is over the limit.",
+    "personaBlockedSave": "Changes not saved: Purpose or Instructions is over its limit. Shorten the text to resume saving.",
+    "sharedContextTruncated": "{{count}} shared-context lines reach the model shortened (500-character limit per line).",
+    "promptCostHint": "Instructions and shared context use about {{tokens}} tokens of each step’s budget ({{cap}} per run)."
   },
   "actions": {
     "internalNote": "Internal note",

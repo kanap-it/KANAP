@@ -73,7 +73,7 @@ Los perfiles archivados permanecen en la lista, atenuados y con la etiqueta **Ar
 
 ## Cómo se conecta un perfil con un agente
 
-Los perfiles residen aquí, pero se activan por agente desde la pestaña **Configuración** de ese agente, en la sección **Objetivo y capacidades** (consulte [Espacio del agente](agents-workspace.md)). Hasta que active **Usar contexto compartido**, eso es lo único que ve allí: el interruptor y una descripción de una línea. Al activarlo aparecen el selector de perfil, un acceso directo **+ Nuevo perfil** para crear uno al momento y una vista previa de las líneas del perfil seleccionado. Elija un perfil y el agente funciona con él; déjelo en **Ningún perfil seleccionado** y el agente funciona sin ningún contexto compartido.
+Los perfiles residen aquí, pero se activan por agente desde la pestaña **Configuración** de ese agente, en la sección **Objetivo** (consulte [Espacio del agente](agents-workspace.md)). Hasta que active **Usar contexto compartido**, eso es lo único que ve allí: el interruptor y una descripción de una línea. Al activarlo aparecen el selector de perfil, un acceso directo **+ Nuevo perfil** para crear uno al momento y una vista previa de las líneas del perfil seleccionado. Elija un perfil y el agente funciona con él; déjelo en **Ningún perfil seleccionado** y el agente funciona sin ningún contexto compartido.
 
 Como el vínculo es una referencia, un mismo perfil puede respaldar muchos agentes a la vez, y actualizar el perfil los actualiza todos. Desvincular un agente —o archivar su perfil— simplemente elimina la guía para ese agente; no cambia nada respecto a los demás usuarios del perfil.
 

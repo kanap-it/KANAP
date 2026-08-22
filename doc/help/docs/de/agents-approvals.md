@@ -22,8 +22,8 @@ Jeder Vorschlag ist eine konkrete Aktion, die ein Agent an einem Ticket ausführ
 | **Interne Notiz** | Eine Notiz, die der Agent für Ihr Team hinzufügen möchte, für den Anfragenden nicht sichtbar. |
 | **Klassifizierung** | Eine Änderung an Kategorie, Typ, Dringlichkeit oder ähnlichen Attributen des Tickets. |
 | **Status** | Ein Wechsel zu einem anderen Ticketstatus (zum Beispiel von **Neu** zu **Ausstehend**). |
-| **Ticket schließen** | Eine terminale Statusänderung, die das Ticket schließt — siehe [Terminale Aktionen](#terminale-aktionen). |
-| **Ticket lösen** | Eine terminale Statusänderung, die das Ticket als gelöst markiert — siehe [Terminale Aktionen](#terminale-aktionen). |
+| **Ticket schließen** | Schließt das Ticket — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
+| **Ticket lösen** | Markiert das Ticket als gelöst — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
 | **Zuweisung** | Eine Änderung daran, wem das Ticket zugewiesen ist. |
 | **Beteiligte** | Eine Änderung an den Beobachtern oder Anfragenden des Tickets. |
 
@@ -82,11 +82,11 @@ Zum Verwerfen zu greifen, wenn Sie eigentlich „das war falsch" meinen, verschl
 
 ---
 
-## Terminale Aktionen
+## Tickets schließen und lösen
 
-Vorschläge vom Typ **Ticket schließen** und **Ticket lösen** sind in Rot als **Terminal** gekennzeichnet, weil sie das Ticket beenden und der Anfragende die Änderung sofort sieht. Für sie gibt es eine zusätzliche Schutzvorkehrung.
+Die Titel **Ticket schließen** und **Ticket lösen** werden rot angezeigt, weil sie das Ticket beenden und der Anfragende die Änderung sofort sieht. Dieser rote Titel ist das einzige Extra-Kennzeichen — es gibt kein gesondertes „terminales“ Abzeichen.
 
-Das Freigeben eines terminalen Vorschlags — einzeln oder als Teil einer Aktion **Alle freigeben**, bei der ein Element terminal ist — öffnet eine Bestätigung **Terminale Aktion anwenden**. Sie benennt die genaue Aktion und das Ticket, warnt, dass der Anfragende die Änderung sofort sehen wird, listet bei einer Sammelfreigabe jedes terminale Element auf und bietet Ihnen ein Grund-Feld für die Aufzeichnung. Sie bestätigen mit **Trotzdem anwenden**. Dies ist eine bewusste Reibung: Routineantworten und -notizen werden mit einem Klick angewendet, aber das Schließen oder Lösen eines Tickets erfordert von Ihnen stets ein kurzes Innehalten und Bestätigen.
+Das Freigeben einer dieser Aktionen — einzeln oder als Teil von **Alle freigeben**, wenn ein Element das Ticket schließt oder löst — öffnet eine Bestätigung, die nach der Aktion benannt ist (**Ticket lösen anwenden?**). Sie nennt das Ticket, warnt, dass der Anfragende die Änderung sofort sieht, listet bei einer Sammelfreigabe jedes schließende Element auf und bietet ein Grund-Feld für die Aufzeichnung. Sie bestätigen mit dem Aktionsnamen selbst (**Ticket lösen** oder **Ticket schließen**). Dies ist eine bewusste Reibung: Routineantworten und -notizen werden mit einem Klick angewendet, aber das Schließen oder Lösen eines Tickets erfordert von Ihnen stets ein kurzes Innehalten und Bestätigen.
 
 ---
 

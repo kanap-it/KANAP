@@ -10663,6 +10663,141 @@ async function testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdit
   assert.equal(hashStableJson(afterEnsure.forbidden_capabilities_json), beforeForbidden);
 }
 
+async function testAgentPersonaRejectsOverLimitAndClearsEmptyFields() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const { queue, definition } = await seedAgentDefinitionForAutonomy(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+
+  await service.updateAgentDefinition(context, definition.id, {
+    persona_json: {
+      mission: 'Triage incoming work.',
+      instructions: ['Prefer internal notes when evidence is incomplete.'],
+      output_style: { tone: 'Clear and concise.', language: 'fr' },
+      escalation_guidance: 'Hand over when a human must decide.',
+    },
+  });
+
+  // The ONE user-facing instructions limit is total characters. Line count and
+  // per-line length are free.
+  await assert.rejects(
+    () => service.updateAgentDefinition(context, definition.id, {
+      persona_json: {
+        instructions: ['x'.repeat(10_001)],
+      },
+    }),
+    (error: unknown) => error instanceof BadRequestException
+      && (error as BadRequestException).message === 'Instructions are limited to 10 000 characters in total.',
+  );
+  await assert.rejects(
+    () => service.updateAgentDefinition(context, definition.id, {
+      persona_json: {
+        instructions: Array.from({ length: 21 }, () => `paragraph ${'x'.repeat(490)}`),
+      },
+    }),
+    (error: unknown) => error instanceof BadRequestException
+      && (error as BadRequestException).message === 'Instructions are limited to 10 000 characters in total.',
+  );
+  await service.updateAgentDefinition(context, definition.id, {
+    persona_json: {
+      instructions: ['x'.repeat(2_000), ...Array.from({ length: 20 }, (_entry, index) => `Rule ${index + 1}`)],
+    },
+  });
+  const longLineRow = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
+  const longLineInstructions = (longLineRow.persona_json as Record<string, unknown>).instructions as string[];
+  assert.equal(longLineInstructions.length, 21);
+  assert.equal(longLineInstructions[0].length, 2_000);
+  await assert.rejects(
+    () => service.updateAgentDefinition(context, definition.id, {
+      persona_json: {
+        mission: 'm'.repeat(501),
+      },
+    }),
+    (error: unknown) => error instanceof BadRequestException
+      && (error as BadRequestException).message === 'Purpose must be at most 500 characters.',
+  );
+
+  const sixteen = Array.from({ length: 16 }, (_entry, index) => `Rule ${index + 1} ${'x'.repeat(480)}`.slice(0, 500));
+  await service.updateAgentDefinition(context, definition.id, {
+    persona_json: {
+      mission: 'Keep the purpose.',
+      instructions: sixteen,
+      output_style: { tone: 'Clear and concise.', language: 'fr' },
+      escalation_guidance: 'Hand over when a human must decide.',
+    },
+  });
+  let saved = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
+  assert.equal((saved.persona_json as Record<string, unknown>).mission, 'Keep the purpose.');
+  assert.equal(((saved.persona_json as Record<string, unknown>).instructions as string[]).length, 16);
+
+  await service.updateAgentDefinition(context, definition.id, {
+    persona_json: {
+      mission: '',
+      instructions: sixteen,
+      output_style: { tone: '', language: 'fr' },
+      escalation_guidance: '',
+    },
+  });
+  saved = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
+  const persona = saved.persona_json as Record<string, unknown>;
+  assert.equal(Object.prototype.hasOwnProperty.call(persona, 'mission'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(persona, 'escalation_guidance'), false);
+  assert.deepEqual(persona.output_style, { language: 'fr' });
+  assert.equal((persona.instructions as string[]).length, 16);
+
+  // Stored values written out-of-band must pass through untouched: strict
+  // validation applies to client input only, or an over-cap legacy tone would
+  // brick every later save with an error about a field the UI no longer shows.
+  const storedRow = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
+  storedRow.persona_json = {
+    ...(storedRow.persona_json as Record<string, unknown> ?? {}),
+    output_style: { tone: 'x'.repeat(320), language: 'fr' },
+    escalation_guidance: 'y'.repeat(600),
+  };
+  await service.updateAgentDefinition(context, definition.id, {
+    persona_json: {
+      output_style: { language: 'de' },
+    },
+  });
+  saved = (stores.get(AiAgentDefinition.name) ?? []).find((row: AiAgentDefinition) => row.id === definition.id);
+  const passthrough = saved.persona_json as Record<string, unknown>;
+  assert.equal((passthrough.output_style as Record<string, unknown>).tone, 'x'.repeat(320));
+  assert.equal((passthrough.output_style as Record<string, unknown>).language, 'de');
+  assert.equal(passthrough.escalation_guidance, 'y'.repeat(600));
+  // But the same values submitted BY the client are still rejected.
+  await assert.rejects(
+    () => service.updateAgentDefinition(context, definition.id, {
+      persona_json: {
+        output_style: { tone: 'x'.repeat(320) },
+      },
+    }),
+    (error: unknown) => error instanceof BadRequestException
+      && (error as BadRequestException).message === 'Reply tone must be at most 300 characters.',
+  );
+}
+
+async function testEffectivePromptExposesBoundsApplied() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const { queue, definition } = await seedAgentDefinitionForAutonomy(context);
+  const service = new AiAgentControlService({} as any, {} as any, {} as any, {} as any, {} as any, queue);
+  const repo = context.manager.getRepository(AiAgentDefinition);
+  const row = (stores.get(AiAgentDefinition.name) ?? []).find((item: AiAgentDefinition) => item.id === definition.id);
+  // 300 entries exceed the compiler's 256-entry backstop (rows written outside
+  // normalizePersona), so the clamp fires and must be surfaced.
+  row.persona_json = {
+    ...(row.persona_json as Record<string, unknown> ?? {}),
+    instructions: Array.from({ length: 300 }, (_entry, index) => `Instruction ${index + 1}`),
+  };
+  await repo.save(row);
+
+  const preview = await service.getAgentEffectivePrompt(context, definition.id);
+  assert.ok(Array.isArray(preview.bounds_applied));
+  assert.ok(preview.bounds_applied.some((entry: string) => entry.startsWith('instructions_clamped')));
+  assert.ok(preview.tasks.synthesis.bounds_applied.some((entry: string) => entry.startsWith('instructions_clamped')));
+  assert.ok(preview.tasks.planner.bounds_applied.some((entry: string) => entry.startsWith('instructions_clamped')));
+}
+
 async function testAgentAutonomyGrantRequiresEligibilityAndAllowlist() {
   const { manager, stores } = createMemoryManager();
   const context = createContext(manager);
@@ -15341,6 +15476,8 @@ async function run() {
   await testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited();
   await testAttentionRerunEnqueuesWithManualTrigger();
   await testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdits();
+  await testAgentPersonaRejectsOverLimitAndClearsEmptyFields();
+  await testEffectivePromptExposesBoundsApplied();
   await testAgentConfigRejectsCapabilityBeyondFrame();
   await testAgentConfigAcceptsAllProvisionedHelpdeskCapabilities();
   await testDeleteAgentDefinitionBlocksBuiltinAndRemovesCustom();

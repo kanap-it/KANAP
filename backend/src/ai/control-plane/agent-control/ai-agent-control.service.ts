@@ -1620,6 +1620,33 @@ function cleanSingleLine(value: unknown, max: number): string | null {
   return normalized.length > max ? normalized.slice(0, max) : normalized;
 }
 
+function requireBoundedLine(value: unknown, max: number, overLimitMessage: string): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  if (normalized.length > max) {
+    throw new BadRequestException(overLimitMessage);
+  }
+  return normalized;
+}
+
+function hasOwn(record: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+function uniqueBoundsApplied(lists: string[][]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const list of lists) {
+    for (const item of list) {
+      if (seen.has(item)) continue;
+      seen.add(item);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
 function cleanAgentKey(value: unknown): string {
   const key = cleanSingleLine(value, 120);
   if (!key || !/^[a-z0-9][a-z0-9._:-]*$/.test(key) || key.includes('*')) {
@@ -1669,6 +1696,16 @@ function normalizedPolicyObject(value: unknown, label: string): Record<string, u
   return value;
 }
 
+const MAX_PERSONA_MISSION_CHARS = 500;
+const MAX_PERSONA_TONE_CHARS = 300;
+const MAX_PERSONA_ESCALATION_CHARS = 500;
+// The ONE user-facing instructions limit: total characters across all
+// paragraphs. Chosen so a maxed-out persona plus a full shared-context
+// profile stays under the compiler's 40 000-char guidance budget — the cap
+// maps to real prompt truncation, not to an internal convention. Per-line
+// length and line count are deliberately unbounded.
+const MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS = 10_000;
+
 function normalizePersona(value: unknown, fallback: Record<string, unknown> | null = null): Record<string, unknown> | null {
   if (value == null) return fallback;
   if (!isRecord(value)) {
@@ -1678,10 +1715,25 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
   delete base.tone;
   delete base.escalation_text;
   delete base.escalationText;
-  const mission = cleanSingleLine(value.mission, 500);
+  const missionProvided = hasOwn(value, 'mission');
+  const mission = requireBoundedLine(
+    value.mission,
+    MAX_PERSONA_MISSION_CHARS,
+    'Purpose must be at most 500 characters.',
+  );
   const outputStyleInput = isRecord(value.output_style) ? value.output_style : {};
   const fallbackOutputStyle = isRecord(base.output_style) ? base.output_style : {};
-  const tone = cleanSingleLine(outputStyleInput.tone ?? value.tone ?? fallbackOutputStyle.tone, 300);
+  const toneProvided = hasOwn(outputStyleInput, 'tone') || hasOwn(value, 'tone');
+  // Strict validation applies to client input only. Stored values pass through
+  // untouched: a row written out-of-band must never brick every later save
+  // with an error about a field the UI no longer shows.
+  const tone = toneProvided
+    ? requireBoundedLine(
+      outputStyleInput.tone ?? value.tone,
+      MAX_PERSONA_TONE_CHARS,
+      'Reply tone must be at most 300 characters.',
+    )
+    : (typeof fallbackOutputStyle.tone === 'string' && fallbackOutputStyle.tone.trim() ? fallbackOutputStyle.tone : null);
   const language = cleanSingleLine(outputStyleInput.language ?? fallbackOutputStyle.language, 24);
   if (language && language !== 'auto' && !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(language)) {
     throw new BadRequestException('Unsupported output style language.');
@@ -1690,17 +1742,29 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
     ...(tone ? { tone } : {}),
     ...(language ? { language } : {}),
   };
-  const escalationGuidance = cleanSingleLine(value.escalation_guidance ?? value.escalation_text ?? value.escalationText ?? base.escalation_guidance, 500);
-  const instructionsSource = Object.prototype.hasOwnProperty.call(value, 'instructions')
+  const escalationProvided = hasOwn(value, 'escalation_guidance')
+    || hasOwn(value, 'escalation_text')
+    || hasOwn(value, 'escalationText');
+  const escalationGuidance = escalationProvided
+    ? requireBoundedLine(
+      value.escalation_guidance ?? value.escalation_text ?? value.escalationText,
+      MAX_PERSONA_ESCALATION_CHARS,
+      'Escalation guidance must be at most 500 characters.',
+    )
+    : (typeof base.escalation_guidance === 'string' && base.escalation_guidance.trim() ? base.escalation_guidance : null);
+  const instructionsSource = hasOwn(value, 'instructions')
     ? value.instructions
     : base.instructions;
   const instructions = Array.isArray(instructionsSource)
     ? instructionsSource
-      .map((entry) => cleanSingleLine(entry, 500))
-      .filter((entry): entry is string => !!entry)
-      .slice(0, 12)
+      .map((entry) => (typeof entry === 'string' ? entry.replace(/\s+/g, ' ').trim() : ''))
+      .filter((entry) => entry.length > 0)
     : [];
-  const sharedContextInput = Object.prototype.hasOwnProperty.call(value, 'shared_context')
+  const instructionsChars = instructions.reduce((total, entry) => total + entry.length, 0);
+  if (instructionsChars > MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS) {
+    throw new BadRequestException('Instructions are limited to 10 000 characters in total.');
+  }
+  const sharedContextInput = hasOwn(value, 'shared_context')
     ? value.shared_context
     : base.shared_context;
   const sharedContextRecord = isRecord(sharedContextInput) ? sharedContextInput : {};
@@ -1715,15 +1779,25 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
       profile_id: sharedContextProfileId ?? null,
     }
     : null;
-  const persona = {
+  const persona: Record<string, unknown> = {
     ...base,
-    ...(mission ? { mission } : {}),
     instructions,
-    ...(Object.keys(outputStyle).length > 0 ? { output_style: outputStyle } : {}),
-    ...(escalationGuidance ? { escalation_guidance: escalationGuidance } : {}),
     ...(sharedContext ? { shared_context: sharedContext } : {}),
   };
-  if (Object.keys(outputStyle).length === 0) delete persona.output_style;
+  if (missionProvided) {
+    if (mission) persona.mission = mission;
+    else delete persona.mission;
+  } else if (mission) {
+    persona.mission = mission;
+  }
+  if (Object.keys(outputStyle).length > 0) persona.output_style = outputStyle;
+  else delete persona.output_style;
+  if (escalationProvided) {
+    if (escalationGuidance) persona.escalation_guidance = escalationGuidance;
+    else delete persona.escalation_guidance;
+  } else if (escalationGuidance) {
+    persona.escalation_guidance = escalationGuidance;
+  }
   if (!sharedContext) delete persona.shared_context;
   return Object.keys(persona).length > 0 ? persona : null;
 }
@@ -4498,45 +4572,47 @@ export class AiAgentControlService {
     }
     const runtime = await this.compileAgentPromptRuntime(context, definition);
     const compiler = this.agentPromptCompiler();
+    const taskPreview = (floor: string[], guidance: CompiledGuidance) => ({
+      system_prompt: compileSystemPrompt(floor, guidance),
+      guidance_json: compiler.guidancePayload(guidance),
+      bounds_applied: guidance.bounds_applied,
+    });
     // SRE agents run a single LLM stage (monitoring_diagnosis); the helpdesk task
     // prompts never execute for them and must not appear in the settings preview.
     if (definition.agent_type === 'sre') {
       const diagnosisGuidance = compiler.sliceFor(runtime.profile, 'monitoring_diagnosis');
+      const monitoringDiagnosis = taskPreview(RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS, diagnosisGuidance);
       return {
         agent_definition_id: definition.id,
         prompt_profile: runtime.promptProfileSummary,
         shared_context_resolved: runtime.sharedContextResolution.resolved,
         shared_context_resolution_reason: runtime.sharedContextResolution.reason,
+        bounds_applied: uniqueBoundsApplied([monitoringDiagnosis.bounds_applied]),
         tasks: {
-          monitoring_diagnosis: {
-            system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_MONITORING_DIAGNOSIS, diagnosisGuidance),
-            guidance_json: compiler.guidancePayload(diagnosisGuidance),
-          },
+          monitoring_diagnosis: monitoringDiagnosis,
         },
       };
     }
+    const actionPlanner = taskPreview(RUNTIME_SAFETY_FLOOR_ACTION_PLANNER, runtime.actionPlannerGuidance);
+    const planner = taskPreview(RUNTIME_SAFETY_FLOOR_PLANNER, runtime.plannerGuidance);
+    const interpreter = taskPreview(RUNTIME_SAFETY_FLOOR_INTERPRETER, runtime.interpreterGuidance);
+    const synthesis = taskPreview(RUNTIME_SAFETY_FLOOR_SYNTHESIS, runtime.synthesisGuidance);
     return {
       agent_definition_id: definition.id,
       prompt_profile: runtime.promptProfileSummary,
       shared_context_resolved: runtime.sharedContextResolution.resolved,
       shared_context_resolution_reason: runtime.sharedContextResolution.reason,
+      bounds_applied: uniqueBoundsApplied([
+        actionPlanner.bounds_applied,
+        planner.bounds_applied,
+        interpreter.bounds_applied,
+        synthesis.bounds_applied,
+      ]),
       tasks: {
-        action_planner: {
-          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_ACTION_PLANNER, runtime.actionPlannerGuidance),
-          guidance_json: compiler.guidancePayload(runtime.actionPlannerGuidance),
-        },
-        planner: {
-          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_PLANNER, runtime.plannerGuidance),
-          guidance_json: compiler.guidancePayload(runtime.plannerGuidance),
-        },
-        interpreter: {
-          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_INTERPRETER, runtime.interpreterGuidance),
-          guidance_json: compiler.guidancePayload(runtime.interpreterGuidance),
-        },
-        synthesis: {
-          system_prompt: compileSystemPrompt(RUNTIME_SAFETY_FLOOR_SYNTHESIS, runtime.synthesisGuidance),
-          guidance_json: compiler.guidancePayload(runtime.synthesisGuidance),
-        },
+        action_planner: actionPlanner,
+        planner,
+        interpreter,
+        synthesis,
       },
     };
   }

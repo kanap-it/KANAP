@@ -7,6 +7,7 @@ import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
+import KanapDialog from '../design/KanapDialog';
 import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
 import { LifecycleText, ReasonDialog } from './agentControlPrimitives';
 import { RUN_MODES, useAgentRunState, type RunModeKey } from './agentRunState';
@@ -54,6 +55,7 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
 
   const pollMutation = isSre ? data.pollMonitoringMutation : data.pollMutation;
   const [pauseDialogOpen, setPauseDialogOpen] = React.useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
   const submitPause = (reason: string) => {
     if (!definition) return;
     data.createPauseMutation.mutate(
@@ -139,10 +141,6 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
             </Button>
           ) : tenantPause ? (
             <Button size="small" variant="action" onClick={() => navigate('/agents')}>{t('pause.managedForAll')}</Button>
-          ) : isArchived ? (
-            <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
-              {t('monitor.archivedNote')}
-            </Typography>
           ) : null}
 
           {!isArchived && (
@@ -175,6 +173,35 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
               {t('pause.agent')}
             </Button>
           )}
+
+          {canAdmin && isArchived && definition && (
+            <Button
+              size="small"
+              variant="action"
+              disabled={data.updateAgentStatusMutation.isPending}
+              onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })}
+            >
+              {t('settings.restoreAgent')}
+            </Button>
+          )}
+
+          {/* Non-admins have no Restore button, so the bare lifecycle label
+              needs a sentence explaining why every control is gone. */}
+          {!canAdmin && isArchived && (
+            <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>
+              {t('monitor.archivedNoteViewer')}
+            </Typography>
+          )}
+
+          {canAdmin && !isArchived && definition && (
+            <Button
+              size="small"
+              variant="action-danger"
+              onClick={() => setArchiveDialogOpen(true)}
+            >
+              {t('settings.archiveAgent')}
+            </Button>
+          )}
         </Stack>
       </Box>
 
@@ -189,6 +216,25 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
         onClose={() => setPauseDialogOpen(false)}
         onSubmit={submitPause}
       />
+
+      {definition && (
+        <KanapDialog
+          open={archiveDialogOpen}
+          title={t('settings.archiveDialog.title')}
+          onClose={() => setArchiveDialogOpen(false)}
+          onSave={() => data.updateAgentStatusMutation.mutate(
+            { id: definition.id, status: 'archived' },
+            { onSuccess: () => setArchiveDialogOpen(false) },
+          )}
+          saveLabel={t('settings.archiveDialog.confirm')}
+          saveColor="error"
+          saveLoading={data.updateAgentStatusMutation.isPending}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t('settings.archiveDialog.body', { name: definition.name })}
+          </Typography>
+        </KanapDialog>
+      )}
     </Stack>
   );
 }

@@ -29,7 +29,7 @@ import {
 } from '../../ai/aiApi';
 import { useAuth } from '../../auth/AuthContext';
 import { useFeatures } from '../../config/FeaturesContext';
-import useAutosave, { useAutosaveQueue, useAutosaveRegistry, type AutosaveRegistry } from '../../hooks/useAutosave';
+import useAutosave, { useAutosaveQueue, useAutosaveRegistry, type AutosaveQueue, type AutosaveRegistry } from '../../hooks/useAutosave';
 import {
   buildTicketGroups,
   EmptyState,
@@ -45,6 +45,18 @@ import {
   ticketingProviderKeyForDefinition,
   type TicketWorkGroup,
 } from '../../components/agents/agentControlPrimitives';
+import {
+  canPersistIdentity,
+  collectEffectivePromptBounds,
+  droppedInstructionLineCount,
+  droppedSharedContextLineCount,
+  MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS,
+  MAX_PERSONA_PURPOSE_CHARS,
+  mergeInstructionsForDisplay,
+  measurePersonaIdentityLimits,
+  personaIdentitySavePatch,
+  truncatedSharedContextLineCount,
+} from '../../components/agents/agentPersona';
 import {
   actionLinkButtonSx,
   buildFilter,
@@ -218,6 +230,154 @@ function SettingsField({ label, hint, info, children }: {
   return <PropertyRow label={labelNode} helperText={hint}>{children}</PropertyRow>;
 }
 
+function AgentInlineTitle({
+  canEdit,
+  value,
+  onSave,
+}: {
+  canEdit: boolean;
+  value: string;
+  onSave: (next: string) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+  React.useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    setDraft(trimmed || value);
+    setEditing(false);
+  };
+  if (!canEdit || !editing) {
+    return (
+      <Typography
+        variant="h5"
+        component="span"
+        onClick={canEdit ? () => { setDraft(value); setEditing(true); } : undefined}
+        sx={{
+          cursor: canEdit ? 'text' : 'default',
+          '&:hover': canEdit ? { opacity: 0.85 } : undefined,
+        }}
+      >
+        {value}
+      </Typography>
+    );
+  }
+  return (
+    <Box
+      component="input"
+      value={draft}
+      aria-label={value}
+      onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit();
+        }
+        if (event.key === 'Escape') {
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+      autoFocus
+      sx={(theme) => ({
+        font: 'inherit',
+        fontSize: 'inherit',
+        fontWeight: 500,
+        color: 'inherit',
+        bgcolor: 'transparent',
+        border: 'none',
+        borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+        outline: 'none',
+        p: 0,
+        m: 0,
+        width: '100%',
+        minWidth: 160,
+      })}
+    />
+  );
+}
+
+function AgentInlineDescription({
+  canEdit,
+  value,
+  fallback,
+  placeholder,
+  onSave,
+}: {
+  canEdit: boolean;
+  value: string;
+  fallback: string;
+  placeholder: string;
+  onSave: (next: string) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+  React.useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [editing, value]);
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed !== value) onSave(trimmed);
+    setEditing(false);
+  };
+  const display = value || (canEdit ? placeholder : fallback);
+  if (!canEdit || !editing) {
+    return (
+      <Typography
+        variant="body2"
+        onClick={canEdit ? () => { setDraft(value); setEditing(true); } : undefined}
+        sx={(theme) => ({
+          mb: 2,
+          color: value ? 'text.secondary' : theme.palette.kanap.text.tertiary,
+          cursor: canEdit ? 'text' : 'default',
+          '&:hover': canEdit ? { opacity: 0.85 } : undefined,
+        })}
+      >
+        {display}
+      </Typography>
+    );
+  }
+  return (
+    <Box
+      component="textarea"
+      value={draft}
+      aria-label={placeholder}
+      placeholder={placeholder}
+      onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === 'Escape') {
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+      autoFocus
+      rows={2}
+      sx={(theme) => ({
+        display: 'block',
+        width: '100%',
+        font: 'inherit',
+        fontSize: 14,
+        lineHeight: 1.43,
+        color: theme.palette.kanap.text.secondary,
+        bgcolor: 'transparent',
+        border: 'none',
+        borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+        outline: 'none',
+        p: 0,
+        mt: 0,
+        mb: 2,
+        mx: 0,
+        resize: 'none',
+      })}
+    />
+  );
+}
+
 /** Inline "today: x / cap" context under a daily safety limit. */
 function CapUsage({ children }: { children: React.ReactNode }) {
   return (
@@ -276,6 +436,10 @@ const agentPersonaFieldSx = [
     },
   },
 ] as const;
+
+// Feature on/off switches keep the switch shape (they reveal config below)
+// but match the density of the compact capability checkboxes.
+const featureSwitchRowSx = { m: 0, gap: 0.75, '& .MuiFormControlLabel-label': { fontSize: 13 } } as const;
 
 const SCOPE_MODES = ['new_tickets_only', 'all_open', 'agent_involved'] as const;
 
@@ -1018,9 +1182,13 @@ function knowledgeSourcesPayloadFromForm(current: ReturnType<typeof knowledgeFor
   };
 }
 
-function SettingsTab({ definition, autosaveRegistry }: {
+function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   definition: AiAgentControlAgentDefinition;
   autosaveRegistry: AutosaveRegistry;
+  // Shared with the header's inline title/description saves: the backend
+  // update is a whole-entity read-modify-write, so every PATCH to this agent
+  // must go through one queue or concurrent saves clobber each other.
+  saveQueue: AutosaveQueue;
 }) {
   const { t } = useTranslation(['agents']);
   const data = useAgentControlData();
@@ -1060,18 +1228,23 @@ function SettingsTab({ definition, autosaveRegistry }: {
   const isHelpdesk = definition.agent_type === 'helpdesk';
   const isSre = definition.agent_type === 'sre';
   const monitoringBinding = providerBindingForDefinition(definition, 'monitoring');
-  const isArchived = definition.status === 'archived';
-  const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
   const [pendingPreset, setPendingPreset] = React.useState<TargetingPresetKey | null>(null);
   const sharedContext = personaSharedContext(definition);
+  const storedInstructions = personaText(definition, 'instructions');
+  const storedEscalationGuidance = personaEscalationGuidance(definition);
+  const storedOutputStyleTone = personaNestedText(definition, 'output_style', 'tone') || personaText(definition, 'tone');
   const [agentForm, setAgentForm] = React.useState({
-    name: definition.name,
-    description: definition.description ?? '',
     mission: personaText(definition, 'mission'),
-    outputStyleTone: personaNestedText(definition, 'output_style', 'tone') || personaText(definition, 'tone'),
+    outputStyleTone: storedOutputStyleTone,
     outputStyleLanguage: personaNestedText(definition, 'output_style', 'language') || 'auto',
-    instructions: personaText(definition, 'instructions'),
-    escalationGuidance: personaEscalationGuidance(definition),
+    instructions: storedInstructions,
+    instructionsDraft: mergeInstructionsForDisplay({
+      instructions: storedInstructions,
+      escalationGuidance: storedEscalationGuidance,
+      outputStyleTone: storedOutputStyleTone,
+    }),
+    instructionsTouched: false,
+    escalationGuidance: storedEscalationGuidance,
     sharedContextEnabled: sharedContext.enabled,
     sharedContextProfileId: sharedContext.profileId,
   });
@@ -1164,8 +1337,16 @@ function SettingsTab({ definition, autosaveRegistry }: {
   // remember which one the user last edited so the alert points at the right one.
   const settingsSectionRef = React.useRef<'targeting' | 'operating'>('operating');
   const onIdentitySaveError = React.useCallback(
-    (err: unknown) => reportSaveError(err, t('settings.objectiveCapabilities')),
-    [reportSaveError, t],
+    (err: unknown) => {
+      // A limit block is not an API failure: show its own plain-language
+      // message instead of the generic "section failed to save" wording.
+      if (err instanceof Error && (err as Error & { personaLimit?: boolean }).personaLimit) {
+        data.setError(err.message);
+        return;
+      }
+      reportSaveError(err, t('settings.objective'));
+    },
+    [data, reportSaveError, t],
   );
   const onSettingsSaveError = React.useCallback(
     (err: unknown) => reportSaveError(err, t(settingsSectionRef.current === 'targeting' ? 'settings.targeting' : 'settings.operatingSettings')),
@@ -1181,7 +1362,6 @@ function SettingsTab({ definition, autosaveRegistry }: {
   );
   // Every write to this agent goes through one queue: the backend replaces the
   // policy JSON columns wholesale, so overlapping PATCHes lose updates.
-  const saveQueue = useAutosaveQueue();
   const setModelMutation = useMutation({
     mutationFn: (modelConfigId: string | null) => saveQueue.run(async () => {
       const res = await aiAgentControlApi.updateAgent(definitionRef.current.id, { llm_model_config_id: modelConfigId });
@@ -1269,25 +1449,34 @@ function SettingsTab({ definition, autosaveRegistry }: {
 
   const persistIdentity = React.useCallback(async () => {
     const current = agentFormRef.current;
+    if (!canPersistIdentity({
+      mission: current.mission,
+      instructionsDraft: current.instructionsDraft,
+      instructionsTouched: current.instructionsTouched,
+    })) {
+      // Throw, never silently return: a swallowed flush would show "Saved"
+      // while dropping every pending change in this autosave group. The
+      // error state clears on the next schedule, i.e. as soon as the user
+      // edits the text back under the limit.
+      const blocked: Error & { personaLimit?: boolean } = new Error(t('settings.personaBlockedSave'));
+      blocked.personaLimit = true;
+      throw blocked;
+    }
     const res = await aiAgentControlApi.updateAgent(definitionRef.current.id, {
-      name: current.name,
-      description: current.description || null,
-      persona_json: {
+      persona_json: personaIdentitySavePatch({
         mission: current.mission,
-        instructions: current.instructions.split('\n').map((line) => line.trim()).filter(Boolean),
-        output_style: {
-          tone: current.outputStyleTone,
-          language: current.outputStyleLanguage,
-        },
-        escalation_guidance: current.escalationGuidance,
-        shared_context: {
-          enabled: current.sharedContextEnabled,
-          profile_id: current.sharedContextProfileId,
-        },
-      },
+        instructionsStored: current.instructions,
+        instructionsDraft: current.instructionsDraft,
+        instructionsTouched: current.instructionsTouched,
+        escalationGuidance: current.escalationGuidance,
+        outputStyleTone: current.outputStyleTone,
+        outputStyleLanguage: current.outputStyleLanguage,
+        sharedContextEnabled: current.sharedContextEnabled,
+        sharedContextProfileId: current.sharedContextProfileId,
+      }),
     });
     applySavedDefinition(res.agent_definition);
-  }, [applySavedDefinition]);
+  }, [applySavedDefinition, t]);
 
   const createSharedContextProfileMutation = useMutation({
     mutationFn: (payload: { name: string; lines: string[] }) => aiAgentControlApi.createSharedContextProfile({
@@ -1438,13 +1627,23 @@ function SettingsTab({ definition, autosaveRegistry }: {
     await queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy', definitionNow.id] });
   }, [applySavedDefinition, queryClient]);
 
+  const applyAgentForm = (patch: Partial<typeof agentForm>) => {
+    const next = { ...agentFormRef.current, ...patch };
+    agentFormRef.current = next;
+    setAgentForm(next);
+    if (canPersistIdentity({
+      mission: next.mission,
+      instructionsDraft: next.instructionsDraft,
+      instructionsTouched: next.instructionsTouched,
+    })) {
+      identityAutosave.schedule(persistIdentity);
+    }
+  };
   const updateAgent = <K extends keyof typeof agentForm>(field: K, value: typeof agentForm[K]) => {
-    setAgentForm((current) => ({ ...current, [field]: value }));
-    identityAutosave.schedule(persistIdentity);
+    applyAgentForm({ [field]: value } as Partial<typeof agentForm>);
   };
   const updateAgentPatch = (patch: Partial<typeof agentForm>) => {
-    setAgentForm((current) => ({ ...current, ...patch }));
-    identityAutosave.schedule(persistIdentity);
+    applyAgentForm(patch);
   };
   const update = <K extends keyof HelpdeskSettingsForm>(field: K, value: HelpdeskSettingsForm[K]) => {
     settingsDirtyRef.current = true;
@@ -1512,6 +1711,23 @@ function SettingsTab({ definition, autosaveRegistry }: {
   const selectedSharedContextProfile = sharedContextProfiles.find((profile) => profile.id === agentForm.sharedContextProfileId) ?? null;
   const selectedSharedContextLines = sharedContextProfileLines(selectedSharedContextProfile);
   const effectivePromptText = effectivePromptQuery.data?.tasks?.[effectivePromptTask]?.system_prompt ?? '';
+  const personaLimits = measurePersonaIdentityLimits({
+    mission: agentForm.mission,
+    instructionsDraft: agentForm.instructionsDraft,
+  });
+  const promptBounds = collectEffectivePromptBounds(effectivePromptQuery.data);
+  const droppedSharedContextLines = droppedSharedContextLineCount(promptBounds);
+  const droppedInstructionLines = droppedInstructionLineCount(promptBounds);
+  const truncatedSharedContextLines = truncatedSharedContextLineCount(promptBounds);
+  // Cost transparency: guidance ships with every LLM step of a run, so a large
+  // persona + profile spends real per-run budget. ~4 chars/token is close
+  // enough for a heads-up; shown only once it starts to matter.
+  const sharedContextChars = agentForm.sharedContextEnabled
+    ? selectedSharedContextLines.reduce((total, line) => total + line.length, 0)
+    : 0;
+  const guidanceTokens = Math.ceil((personaLimits.purposeChars + personaLimits.instructionsChars + sharedContextChars) / 4);
+  const perRunTokenCap = isHelpdesk ? positiveNumber(form.perRunTokens, DEFAULT_PER_RUN_TOKENS) : null;
+  const guidanceCostVisible = perRunTokenCap != null && guidanceTokens > perRunTokenCap * 0.25;
   const handleCreateSharedContextProfile = () => {
     const name = sharedContextDraftName.trim();
     const lines = sharedContextDraftLines.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -1566,68 +1782,99 @@ function SettingsTab({ definition, autosaveRegistry }: {
         </Section>
       )}
 
+      {/* What the agent is allowed to do comes first: it frames everything
+          the objective below can ask for. */}
+      {isHelpdesk && (
+        <Section
+          title={t('settings.capabilities')}
+          info={t('settings.capabilitiesInfo')}
+          actions={<SaveIndicator status={capabilitiesAutosave.status} />}
+        >
+          <Box sx={{ p: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, columnGap: 2, rowGap: 0.25 }}>
+            {HELPDESK_CAPABILITY_GROUPS.map((group) => {
+              const enabled = capabilityForm[group.key] === true;
+              return (
+                <FormControlLabel
+                  key={group.key}
+                  sx={{ m: 0, gap: 0.75, '& .MuiFormControlLabel-label': { fontSize: 13, color: enabled ? 'kanap.text.primary' : 'kanap.text.tertiary' } }}
+                  control={(
+                    <Checkbox
+                      size="small"
+                      checked={enabled}
+                      onChange={(event) => updateCapability(group.key, event.target.checked)}
+                      sx={{ p: 0.5, '& .MuiSvgIcon-root': { fontSize: 17 } }}
+                    />
+                  )}
+                  label={t(`settings.capabilityGroups.${group.key}`, { defaultValue: humanize(group.key) })}
+                />
+              );
+            })}
+          </Box>
+        </Section>
+      )}
+
       <Section
-        title={t('settings.objectiveCapabilities')}
-        actions={(
-          <Stack direction="row" spacing={1} alignItems="center">
-            {isArchived ? (
-              <Button
-                size="small"
-                variant="action"
-                onClick={() => data.updateAgentStatusMutation.mutate({ id: definition.id, status: 'disabled' })}
-                disabled={data.updateAgentStatusMutation.isPending}
-              >
-                {t('settings.restoreAgent')}
-              </Button>
-            ) : (
-              <Button size="small" variant="action-danger" onClick={() => setArchiveDialogOpen(true)}>{t('settings.archiveAgent')}</Button>
-            )}
-            <SaveIndicator status={identityAutosave.status} />
-          </Stack>
-        )}
+        title={t('settings.objective')}
+        actions={<SaveIndicator status={identityAutosave.status} />}
       >
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
-          {/* What the agent is allowed to do comes first: it frames everything
-              the persona below can ask for. */}
-          {isHelpdesk && (
-            <Box>
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Typography variant="body2" fontWeight={500}>{t('settings.capabilities')}</Typography>
-                  <Tooltip title={t('settings.capabilitiesInfo')} placement="top">
-                    <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary' }} />
-                  </Tooltip>
-                </Stack>
-                <SaveIndicator status={capabilitiesAutosave.status} />
-              </Stack>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 0.25 }}>
-                {HELPDESK_CAPABILITY_GROUPS.map((group) => (
-                  <FormControlLabel
-                    key={group.key}
-                    control={<Switch checked={capabilityForm[group.key] === true} onChange={(event) => updateCapability(group.key, event.target.checked)} />}
-                    label={t(`settings.capabilityGroups.${group.key}`, { defaultValue: humanize(group.key) })}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Persona, laid out two-up so the six fields read as one block
-              instead of a long column. */}
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1fr)' },
-              columnGap: 3,
-              rowGap: 1,
-              alignItems: 'start',
-              borderTop: isHelpdesk ? '1px solid' : undefined,
-              borderColor: 'divider',
-              pt: isHelpdesk ? 1.5 : 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
             }}
           >
-            <SettingsField label={t('settings.name')} info={t('settings.nameInfo')}>
-              <TextField size="small" value={agentForm.name} onChange={(event) => updateAgent('name', event.target.value)} />
+            <SettingsField
+              label={t('settings.purpose')}
+              info={t('settings.purposeInfo')}
+              hint={personaLimits.purposeOverLimit
+                ? <Box component="span" sx={{ color: 'error.main' }}>{t('settings.purposeOverLimit', { max: MAX_PERSONA_PURPOSE_CHARS })}</Box>
+                : personaLimits.purposeNearLimit
+                  ? <span>{t('settings.charCounter', { used: personaLimits.purposeChars, max: MAX_PERSONA_PURPOSE_CHARS })}</span>
+                  : undefined}
+            >
+              {/* Wrapping display of a single logical line: Enter is swallowed
+                  so what the user sees matches what the backend stores. */}
+              <TextField
+                size="small"
+                variant="standard"
+                fullWidth
+                multiline
+                minRows={2}
+                maxRows={4}
+                value={agentForm.mission}
+                placeholder={t('settings.purposePlaceholder')}
+                InputProps={{ disableUnderline: true }}
+                sx={[editableFieldValueSx, personaLimits.purposeOverLimit ? { '& .MuiInputBase-input': { color: 'error.main' } } : null]}
+                onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }}
+                onChange={(event) => updateAgent('mission', event.target.value.replace(/\n/g, ' '))}
+              />
+            </SettingsField>
+            <SettingsField
+              label={t('settings.instructions')}
+              info={t('settings.instructionsInfo')}
+              hint={personaLimits.instructionsOverLimit
+                ? <Box component="span" sx={{ color: 'error.main' }}>{t('settings.instructionsOverLimit', { max: MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS.toLocaleString() })}</Box>
+                : personaLimits.instructionsNearLimit
+                  ? <span>{t('settings.charCounter', { used: personaLimits.instructionsChars.toLocaleString(), max: MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS.toLocaleString() })}</span>
+                  : undefined}
+            >
+              <TextField
+                size="small"
+                variant="standard"
+                multiline
+                minRows={5}
+                maxRows={24}
+                value={agentForm.instructionsDraft}
+                placeholder={t('settings.instructionsPlaceholder')}
+                InputProps={{ disableUnderline: true }}
+                sx={agentPersonaFieldSx}
+                onChange={(event) => applyAgentForm({
+                  instructionsDraft: event.target.value,
+                  instructionsTouched: true,
+                })}
+              />
             </SettingsField>
             <SettingsField label={t('settings.replyLanguage')} info={t('settings.replyLanguageInfo')}>
               <Select
@@ -1643,71 +1890,6 @@ function SettingsTab({ definition, autosaveRegistry }: {
                 ))}
               </Select>
             </SettingsField>
-            <SettingsField label={t('settings.description')} info={t('settings.descriptionInfo')}>
-              <TextField
-                size="small"
-                variant="standard"
-                multiline
-                minRows={2}
-                maxRows={6}
-                value={agentForm.description}
-                InputProps={{ disableUnderline: true }}
-                sx={agentPersonaFieldSx}
-                onChange={(event) => updateAgent('description', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.outputStyle')} info={t('settings.outputStyleInfo')}>
-              <TextField
-                size="small"
-                variant="standard"
-                value={agentForm.outputStyleTone}
-                placeholder={t('settings.outputStyleTonePlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
-                onChange={(event) => updateAgent('outputStyleTone', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.mission')} info={t('settings.missionInfo')}>
-              <TextField
-                size="small"
-                variant="standard"
-                multiline
-                minRows={2}
-                maxRows={8}
-                value={agentForm.mission}
-                InputProps={{ disableUnderline: true }}
-                sx={agentPersonaFieldSx}
-                onChange={(event) => updateAgent('mission', event.target.value)}
-              />
-            </SettingsField>
-            <SettingsField label={t('settings.escalationGuidance')} info={t('settings.escalationGuidanceInfo')}>
-              <TextField
-                size="small"
-                variant="standard"
-                multiline
-                minRows={2}
-                maxRows={8}
-                value={agentForm.escalationGuidance}
-                InputProps={{ disableUnderline: true }}
-                sx={agentPersonaFieldSx}
-                onChange={(event) => updateAgent('escalationGuidance', event.target.value)}
-              />
-            </SettingsField>
-            <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-              <SettingsField label={t('settings.instructions')} info={t('settings.instructionsInfo')}>
-                <TextField
-                  size="small"
-                  variant="standard"
-                  multiline
-                  minRows={3}
-                  maxRows={20}
-                  value={agentForm.instructions}
-                  InputProps={{ disableUnderline: true }}
-                  sx={agentPersonaFieldSx}
-                  onChange={(event) => updateAgent('instructions', event.target.value)}
-                />
-              </SettingsField>
-            </Box>
           </Box>
 
           {/* Shared context: off ⇒ only the switch. The profile picker, the
@@ -1715,8 +1897,10 @@ function SettingsTab({ definition, autosaveRegistry }: {
           <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
             <Stack direction="row" spacing={0.5} alignItems="center">
               <FormControlLabel
+                sx={featureSwitchRowSx}
                 control={(
                   <Switch
+                    size="small"
                     checked={agentForm.sharedContextEnabled}
                     onChange={(event) => {
                       const checked = event.target.checked;
@@ -1780,6 +1964,34 @@ function SettingsTab({ definition, autosaveRegistry }: {
             </Collapse>
           </Box>
 
+          {(droppedSharedContextLines > 0 || droppedInstructionLines > 0 || truncatedSharedContextLines > 0 || guidanceCostVisible) && (
+            <Stack spacing={0.25}>
+              {droppedSharedContextLines > 0 && (
+                <Typography sx={{ fontSize: 12, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <WarningAmberOutlinedIcon sx={{ fontSize: 14 }} />
+                  {t('settings.sharedContextClamped', { count: droppedSharedContextLines })}
+                </Typography>
+              )}
+              {truncatedSharedContextLines > 0 && (
+                <Typography sx={{ fontSize: 12, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <WarningAmberOutlinedIcon sx={{ fontSize: 14 }} />
+                  {t('settings.sharedContextTruncated', { count: truncatedSharedContextLines })}
+                </Typography>
+              )}
+              {droppedInstructionLines > 0 && (
+                <Typography sx={{ fontSize: 12, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <WarningAmberOutlinedIcon sx={{ fontSize: 14 }} />
+                  {t('settings.instructionsClamped', { count: droppedInstructionLines })}
+                </Typography>
+              )}
+              {guidanceCostVisible && (
+                <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>
+                  {t('settings.promptCostHint', { tokens: guidanceTokens.toLocaleString(), cap: (perRunTokenCap ?? 0).toLocaleString() })}
+                </Typography>
+              )}
+            </Stack>
+          )}
+
           {/* Effective prompt: a read-only diagnostic, collapsed by default so
               it stops dominating the block. The choice is remembered per user. */}
           <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
@@ -1794,6 +2006,25 @@ function SettingsTab({ definition, autosaveRegistry }: {
             </Button>
             <Collapse in={effectivePromptOpen} unmountOnExit>
               <Stack spacing={1} sx={{ pt: 1 }}>
+                {(droppedSharedContextLines > 0 || droppedInstructionLines > 0 || truncatedSharedContextLines > 0) && (
+                  <Stack spacing={0.25}>
+                    {droppedSharedContextLines > 0 && (
+                      <Typography sx={{ fontSize: 12, color: 'warning.main' }}>
+                        {t('settings.sharedContextClamped', { count: droppedSharedContextLines })}
+                      </Typography>
+                    )}
+                    {truncatedSharedContextLines > 0 && (
+                      <Typography sx={{ fontSize: 12, color: 'warning.main' }}>
+                        {t('settings.sharedContextTruncated', { count: truncatedSharedContextLines })}
+                      </Typography>
+                    )}
+                    {droppedInstructionLines > 0 && (
+                      <Typography sx={{ fontSize: 12, color: 'warning.main' }}>
+                        {t('settings.instructionsClamped', { count: droppedInstructionLines })}
+                      </Typography>
+                    )}
+                  </Stack>
+                )}
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }}>
                   <Typography variant="caption" color="text.secondary">{t('settings.effectivePromptHint')}</Typography>
                   <Select
@@ -1839,14 +2070,16 @@ function SettingsTab({ definition, autosaveRegistry }: {
       <Section title={t('settings.knowledgeSources')} actions={<SaveIndicator status={knowledgeAutosave.status} />}>
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
           <FormControlLabel
-            control={<Switch checked={knowledgeForm.enabled} onChange={(event) => updateKnowledge({ enabled: event.target.checked })} />}
+            sx={featureSwitchRowSx}
+            control={<Switch size="small" checked={knowledgeForm.enabled} onChange={(event) => updateKnowledge({ enabled: event.target.checked })} />}
             label={t('settings.knowledgeEnabled')}
           />
           <Typography variant="caption" color="text.secondary">{t('settings.knowledgeHint')}</Typography>
           {knowledgeForm.enabled && (
             <>
               <FormControlLabel
-                control={<Switch checked={knowledgeForm.allLibraries} onChange={(event) => updateKnowledge({ allLibraries: event.target.checked })} />}
+                sx={featureSwitchRowSx}
+                control={<Switch size="small" checked={knowledgeForm.allLibraries} onChange={(event) => updateKnowledge({ allLibraries: event.target.checked })} />}
                 label={t('settings.allLibraries')}
               />
               {!knowledgeForm.allLibraries && (
@@ -1879,8 +2112,10 @@ function SettingsTab({ definition, autosaveRegistry }: {
             </>
           )}
           <FormControlLabel
+            sx={featureSwitchRowSx}
             control={(
               <Switch
+                size="small"
                 checked={knowledgeForm.webEnabled && webSearchAvailable}
                 disabled={!webSearchAvailable}
                 onChange={(event) => updateKnowledge({ webEnabled: event.target.checked })}
@@ -1894,7 +2129,8 @@ function SettingsTab({ definition, autosaveRegistry }: {
           {isSre && (
             <>
               <FormControlLabel
-                control={<Switch checked={kanapDataView.enabled} onChange={(event) => updateKanapData({ enabled: event.target.checked })} />}
+                sx={featureSwitchRowSx}
+                control={<Switch size="small" checked={kanapDataView.enabled} onChange={(event) => updateKanapData({ enabled: event.target.checked })} />}
                 label={t('settings.kanapDataEnabled')}
               />
               <Typography variant="caption" color="text.secondary">{t('settings.kanapDataHint')}</Typography>
@@ -1903,11 +2139,13 @@ function SettingsTab({ definition, autosaveRegistry }: {
                   {KANAP_DATA_DOMAINS.map((domain) => (
                     <FormControlLabel
                       key={domain}
+                      sx={featureSwitchRowSx}
                       control={(
                         <Checkbox
                           size="small"
                           checked={kanapDataView.domains[domain]}
                           onChange={(event) => updateKanapDataDomain(domain, event.target.checked)}
+                          sx={{ p: 0.5, '& .MuiSvgIcon-root': { fontSize: 17 } }}
                         />
                       )}
                       label={t(`settings.kanapDataDomains.${domain}`)}
@@ -2114,25 +2352,6 @@ function SettingsTab({ definition, autosaveRegistry }: {
         </KanapDialog>
       )}
 
-      {archiveDialogOpen && (
-        <KanapDialog
-          open={archiveDialogOpen}
-          title={t('settings.archiveDialog.title')}
-          onClose={() => setArchiveDialogOpen(false)}
-          onSave={() => data.updateAgentStatusMutation.mutate(
-            { id: definition.id, status: 'archived' },
-            { onSuccess: () => setArchiveDialogOpen(false) },
-          )}
-          saveLabel={t('settings.archiveDialog.confirm')}
-          saveColor="error"
-          saveLoading={data.updateAgentStatusMutation.isPending}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {t('settings.archiveDialog.body', { name: definition.name })}
-          </Typography>
-        </KanapDialog>
-      )}
-
       {sharedContextDialogOpen && (
         <KanapDialog
           open={sharedContextDialogOpen}
@@ -2182,6 +2401,7 @@ export default function AgentWorkspacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
+  const queryClient = useQueryClient();
   const data = useAgentControlData();
   const activeTab = (searchParams.get('tab') as WorkspaceTab | null) && TABS.includes(searchParams.get('tab') as WorkspaceTab)
     ? searchParams.get('tab') as WorkspaceTab
@@ -2194,6 +2414,11 @@ export default function AgentWorkspacePage() {
   // it fails, the switch is aborted so the error alert (and the edit) stay on
   // screen instead of vanishing with the tab.
   const autosaveRegistry = useAutosaveRegistry();
+  // One queue per agent for EVERY definition PATCH — header inline edits here,
+  // Settings-tab autosaves below — because the backend replaces the row
+  // wholesale on each update.
+  const agentSaveQueue = useAutosaveQueue();
+  const [headerError, setHeaderError] = React.useState<string | null>(null);
   const [flushingTab, setFlushingTab] = React.useState(false);
   const [pendingAnchor, setPendingAnchor] = React.useState<string | null>(null);
 
@@ -2226,6 +2451,31 @@ export default function AgentWorkspacePage() {
     setPendingAnchor(null);
   }, [pendingAnchor, activeTab]);
 
+  const persistHeaderField = React.useCallback(async (payload: { name?: string; description?: string | null }) => {
+    if (!definition) return;
+    try {
+      // Same queue as the Settings tab's autosaves: the backend update is a
+      // whole-entity read-modify-write, so a header PATCH racing a persona
+      // PATCH would clobber whichever landed first.
+      await agentSaveQueue.run(async () => {
+        const res = await aiAgentControlApi.updateAgent(definition.id, payload);
+        let patched = false;
+        queryClient.setQueryData<AiAgentControlQueueOverview>(['ai-agent-control-queue'], (old) => {
+          if (!old?.definitions?.some((item) => item.id === res.agent_definition.id)) return old;
+          patched = true;
+          return {
+            ...old,
+            definitions: old.definitions.map((item) => (item.id === res.agent_definition.id ? res.agent_definition : item)),
+          };
+        });
+        if (!patched) void queryClient.invalidateQueries({ queryKey: ['ai-agent-control-queue'] });
+      });
+      setHeaderError(null);
+    } catch (err) {
+      setHeaderError(getApiErrorMessage(err, t, t('messages.sectionSaveFailed', { section: t('workspace.tabs.settings') })));
+    }
+  }, [agentSaveQueue, definition, queryClient, t]);
+
   if (data.queueQuery.isLoading && !definition) {
     return <Box display="flex" justifyContent="center" py={5}><CircularProgress size={24} /></Box>;
   }
@@ -2246,10 +2496,26 @@ export default function AgentWorkspacePage() {
     <Box sx={{ p: 2 }}>
       <PageHeader
         title={definition.name}
+        titleContent={(
+          <AgentInlineTitle
+            canEdit={canAdmin}
+            value={definition.name}
+            onSave={(name) => { void persistHeaderField({ name }); }}
+          />
+        )}
         breadcrumbTitle={definition.name}
         actions={<Button size="small" variant="outlined" onClick={() => navigate('/agents')}>{t('workspace.back')}</Button>}
       />
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{definition.description ?? definition.agent_key}</Typography>
+      <AgentInlineDescription
+        canEdit={canAdmin}
+        value={definition.description ?? ''}
+        fallback={definition.agent_key}
+        placeholder={t('workspace.descriptionPlaceholder')}
+        onSave={(description) => { void persistHeaderField({ description: description || null }); }}
+      />
+      {headerError && (
+        <Alert severity="error" onClose={() => setHeaderError(null)} sx={{ mb: 1 }}>{headerError}</Alert>
+      )}
       {/* Transverse control bar: one place for the run mode, checks, tests and
           the emergency brake — visible on every tab. Actions only; the agent's
           read-only facts live in the Monitor tab's "Status" section. */}
@@ -2261,7 +2527,7 @@ export default function AgentWorkspacePage() {
         {activeTab === 'monitor' && <MonitorTab agentKey={definition.agent_key} />}
         {activeTab === 'approvals' && <AgentsApprovalsPage agentKey={definition.agent_key} />}
         {activeTab === 'performance' && <PerformanceTab agentKey={definition.agent_key} />}
-        {activeTab === 'settings' && canAdmin && <SettingsTab definition={definition} autosaveRegistry={autosaveRegistry} />}
+        {activeTab === 'settings' && canAdmin && <SettingsTab definition={definition} autosaveRegistry={autosaveRegistry} saveQueue={agentSaveQueue} />}
       </Stack>
     </Box>
   );

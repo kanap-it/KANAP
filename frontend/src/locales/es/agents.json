@@ -334,7 +334,8 @@
       "approvals": "Aprobaciones",
       "performance": "Rendimiento y autonomía",
       "settings": "Configuración"
-    }
+    },
+    "descriptionPlaceholder": "p. ej., primeros borradores de respuesta para trabajo nuevo"
   },
   "monitor": {
     "modes": {
@@ -342,7 +343,6 @@
       "manual": "Solo manual",
       "watching": "Vigilancia"
     },
-    "archivedNote": "Archivado — restáurelo desde la pestaña Configuración.",
     "testStarted": "Ejecución de prueba iniciada.",
     "testFailed": "No se pudo iniciar la ejecución de prueba.",
     "providerMissing": "Este agente no tiene un proveedor de tickets asociado.",
@@ -444,7 +444,8 @@
       "off": "No se ejecuta nada, ni siquiera una comprobación manual.",
       "manual": "Solo se ejecuta cuando lo pides (Comprobar ahora, pruebas).",
       "watching": "Comprueba por su cuenta, además de todo lo del modo manual."
-    }
+    },
+    "archivedNoteViewer": "Archivado — un administrador puede restaurarlo."
   },
   "performance": {
     "acceptance": "Aceptación",
@@ -482,8 +483,7 @@
     "archiveBody": "«{{name}}» dejará de estar disponible para los agentes. Cualquier agente que lo esté usando funcionará sin contexto compartido hasta que lo apunte a otro perfil."
   },
   "settings": {
-    "objectiveCapabilities": "Objetivo y capacidades",
-    "name": "Nombre",
+    "objective": "Objetivo",
     "archiveAgent": "Archivar agente",
     "restoreAgent": "Restaurar agente",
     "archiveDialog": {
@@ -491,15 +491,8 @@
       "body": "{{name}} deja de vigilar y de ejecutarse. Su configuración e historial se conservan, y puede restaurarlo aquí en cualquier momento.",
       "confirm": "Archivar"
     },
-    "description": "Descripción",
-    "mission": "Misión",
-    "outputStyle": "Estilo de salida",
-    "outputStyleTonePlaceholder": "p. ej., claro y conciso",
-    "outputStyleVerbosityOptions": {
-      "concise": "Conciso",
-      "standard": "Estándar",
-      "detailed": "Detallado"
-    },
+    "purpose": "Propósito",
+    "purposePlaceholder": "p. ej., redactar una primera respuesta para trabajo nuevo",
     "outputStyleLanguageOptions": {
       "auto": "Idioma del ticket",
       "fr": "Francés",
@@ -509,8 +502,10 @@
     },
     "replyLanguage": "Idioma de respuesta",
     "instructions": "Instrucciones",
-    "escalation": "Escalada",
-    "escalationGuidance": "Guía de escalada",
+    "instructionsPlaceholder": "p. ej., Prefiera notas internas cuando la evidencia esté incompleta.",
+    "purposeOverLimit": "El objetivo está limitado a {{max}} caracteres. Esta sección no se guarda mientras lo supere.",
+    "sharedContextClamped": "{{count}} líneas de contexto compartido no se envían al modelo.",
+    "instructionsClamped": "{{count}} líneas de instrucciones no se envían al modelo.",
     "sharedContextHint": "Guía de fondo para este agente. No concede permisos y no es una fuente citable.",
     "sharedContextEnabled": "Usar contexto compartido",
     "sharedContextNoProfile": "Ningún perfil seleccionado",
@@ -772,13 +767,9 @@
     "checkInterval": "Comprobar cada (minutos)",
     "checkIntervalInfo": "Con qué frecuencia busca el agente tickets nuevos mientras vigila. Entre 5 minutos y 24 horas. «Comprobar ahora» siempre se ejecuta al momento, sea cual sea este valor.",
     "checkIntervalAlertsInfo": "Con qué frecuencia busca el agente alertas nuevas mientras vigila. Entre 5 minutos y 24 horas. «Buscar alertas nuevas» siempre se ejecuta al momento, sea cual sea este valor.",
-    "nameInfo": "El nombre con el que aparece este agente en KANAP. No afecta a lo que hace.",
-    "descriptionInfo": "Un resumen breve para sus compañeros, mostrado bajo el nombre del agente.",
-    "missionInfo": "Para qué está este agente, en una o dos frases. Las lee antes de cada ticket.",
-    "instructionsInfo": "Las reglas internas que sigue el agente, una por línea. No pueden ampliar lo que el agente tiene permitido hacer.",
-    "outputStyleInfo": "Cómo debe sonar el agente al redactar, por ejemplo claro y conciso.",
+    "purposeInfo": "Para qué está este agente, en una línea. Lo lee en cada ejecución.",
+    "instructionsInfo": "Las reglas que sigue el agente — escríbalas libremente, en líneas o párrafos. No pueden ampliar lo que el agente puede hacer.",
     "replyLanguageInfo": "El idioma en el que escribe el agente. «Idioma del ticket» hace que responda en el idioma que usó el solicitante.",
-    "escalationGuidanceInfo": "Cuándo debe el agente pasar el ticket a una persona en lugar de proponer algo él mismo.",
     "capabilitiesInfo": "Lo que este agente puede preparar. Todo lo que esté desactivado aquí nunca se propone, digan lo que digan las instrucciones.",
     "modelInfo": "Con qué modelo de IA funciona este agente. Los modelos se gestionan en Administración, en Modelos de IA.",
     "maxTicketsInfo": "El máximo de tickets que el agente toma en cada comprobación. El resto espera a la siguiente.",
@@ -801,7 +792,12 @@
       "public_reply": "El agente respondería al solicitante sin que nadie lo lea antes.",
       "assignment": "El agente reasignaría tickets sin que nadie lo revise antes.",
       "participant": "El agente añadiría o quitaría personas en los tickets sin que nadie lo revise antes."
-    }
+    },
+    "charCounter": "{{used}} / {{max}} caracteres",
+    "instructionsOverLimit": "Las instrucciones están limitadas a {{max}} caracteres. Más allá, una parte dejaría de llegar al agente. Esta sección no se guarda mientras lo supere.",
+    "personaBlockedSave": "Cambios sin guardar: el objetivo o las instrucciones superan su límite. Acorte el texto para reanudar el guardado.",
+    "sharedContextTruncated": "{{count}} líneas de contexto compartido llegan recortadas al modelo (límite de 500 caracteres por línea).",
+    "promptCostHint": "Las instrucciones y el contexto compartido ocupan unos {{tokens}} tokens del presupuesto de cada paso ({{cap}} por ejecución)."
   },
   "actions": {
     "internalNote": "Nota interna",

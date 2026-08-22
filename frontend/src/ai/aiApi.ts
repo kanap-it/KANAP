@@ -487,6 +487,7 @@ export type AiSharedContextProfileInput = {
 export type AiAgentEffectivePromptTask = {
   system_prompt: string;
   guidance_json: Record<string, unknown>;
+  bounds_applied?: string[];
 };
 
 export type AiAgentEffectivePrompt = {
@@ -494,6 +495,7 @@ export type AiAgentEffectivePrompt = {
   prompt_profile: Record<string, unknown>;
   shared_context_resolved: boolean;
   shared_context_resolution_reason: string | null;
+  bounds_applied?: string[];
   // Helpdesk agents expose the four triage tasks; SRE agents expose monitoring_diagnosis only.
   tasks: Partial<Record<'action_planner' | 'planner' | 'interpreter' | 'synthesis' | 'monitoring_diagnosis', AiAgentEffectivePromptTask>>;
 };

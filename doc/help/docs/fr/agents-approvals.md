@@ -22,8 +22,8 @@ Chaque proposition correspond à une action concrète qu'un agent souhaite effec
 | **Note interne** | Une note que l'agent souhaite ajouter pour votre équipe, non visible par le demandeur. |
 | **Classification** | Une modification de la catégorie, du type, de l'urgence ou d'attributs similaires du ticket. |
 | **Statut** | Un passage à un autre statut de ticket (par exemple, de **Nouveau** à **En attente**). |
-| **Clôturer le ticket** | Un changement de statut terminal qui clôture le ticket — voir [Actions terminales](#actions-terminales). |
-| **Résoudre le ticket** | Un changement de statut terminal qui marque le ticket comme résolu — voir [Actions terminales](#actions-terminales). |
+| **Clôturer le ticket** | Clôture le ticket — voir [Clôturer et résoudre les tickets](#cloturer-et-resoudre-les-tickets). |
+| **Résoudre le ticket** | Marque le ticket comme résolu — voir [Clôturer et résoudre les tickets](#cloturer-et-resoudre-les-tickets). |
 | **Affectation** | Une modification de la personne à qui le ticket est affecté. |
 | **Participants** | Une modification des observateurs ou des demandeurs du ticket. |
 
@@ -82,11 +82,11 @@ Recourir à l'écartement alors que vous voulez en réalité dire « c'était fa
 
 ---
 
-## Actions terminales
+## Clôturer et résoudre les tickets
 
-Les propositions **Clôturer le ticket** et **Résoudre le ticket** sont signalées **Terminale** en rouge, car elles mettent fin au ticket et le demandeur voit le changement immédiatement. Elles bénéficient d'un garde-fou supplémentaire.
+Les titres **Clôturer le ticket** et **Résoudre le ticket** s'affichent en rouge, car ils mettent fin au ticket et le demandeur voit le changement immédiatement. Ce titre rouge est le seul signal supplémentaire — il n'y a pas de badge « terminal » à part.
 
-L'approbation d'une proposition terminale — seule ou dans le cadre d'un **Tout approuver** où au moins un élément est terminal — ouvre une confirmation **Appliquer l'action terminale**. Elle nomme l'action et le ticket exacts, avertit que le demandeur verra le changement immédiatement, liste chaque élément terminal d'une approbation groupée, et vous fournit un champ de motif pour la trace. Vous confirmez avec **Appliquer quand même**. Il s'agit d'une friction délibérée : les réponses et notes de routine s'appliquent en un clic, mais la clôture ou la résolution d'un ticket vous demande toujours de marquer une pause et de confirmer.
+Approuver l'une de ces actions — seule ou dans le cadre d'un **Tout approuver** où un élément clôture ou résout le ticket — ouvre une confirmation nommée d'après l'action (**Appliquer Résoudre le ticket ?**). Elle nomme le ticket, avertit que le demandeur verra le changement immédiatement, liste chaque élément de clôture d'une approbation groupée, et vous fournit un champ de motif pour la trace. Vous confirmez avec le nom de l'action elle-même (**Résoudre le ticket** ou **Clôturer le ticket**). Il s'agit d'une friction délibérée : les réponses et notes de routine s'appliquent en un clic, mais la clôture ou la résolution d'un ticket vous demande toujours de marquer une pause et de confirmer.
 
 ---
 
