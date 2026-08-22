@@ -19,6 +19,7 @@ import { AiRun } from '../control-plane/entities/ai-run.entity';
 import { AiAdapterConfig } from '../control-plane/providers/adapter-config.entity';
 import { MockMonitoringProvider } from '../control-plane/providers/mocks/mock-monitoring.provider';
 import { AiExecutionContextWithManager } from '../ai.types';
+import { seedTestHelpdeskDefinition, seedTestSreDefinition } from './agent-definition-test-support';
 
 // ---------------------------------------------------------------------------
 // WS-A8 diagnosis pipeline spec: deterministic evidence assembly → KANAP/
@@ -218,7 +219,7 @@ async function enableSreMonitoring(
     implementation: 'mock',
     enabled: true,
   }));
-  const definition = await queue.ensureSreMonitoringDefinition(context);
+  const definition = await seedTestSreDefinition(context);
   assert.ok(definition, 'seed should create the SRE definition once a monitoring adapter config exists');
   definition!.status = 'enabled';
   definition!.trigger_policy_json = {
@@ -1103,7 +1104,7 @@ async function testSreScopePolicyUpdatesRouteThroughMonitoringNormalizer() {
 
   // Helpdesk behavior unchanged: service-desk predicates persist, monitoring
   // predicates are still rejected.
-  const helpdesk = await queue.ensureHelpdeskTicketingTriageDefinition(context);
+  const helpdesk = await seedTestHelpdeskDefinition(context);
   const helpdeskUpdated = await control.updateAgentDefinition(context, helpdesk.definition.id, {
     scope_policy_json: {
       ...(helpdesk.definition.scope_policy_json as Record<string, unknown>),

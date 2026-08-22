@@ -25,7 +25,6 @@ import { AiAgentHelpdeskTicketingIngestionService } from '../agent/ai-agent-help
 import { AiAgentMonitoringAlertIngestionService } from '../agent/ai-agent-monitoring-alert-ingestion.service';
 import {
   AiAgentWorkQueueService,
-  HelpdeskTicketingIngestionSettingsInput,
 } from '../agent/ai-agent-work-queue.service';
 import { AiEmergencyPauseService } from '../pause/ai-emergency-pause.service';
 import {
@@ -478,9 +477,13 @@ export class AiAgentControlController {
     @Query('limit') limit?: string,
   ) {
     const context = this.buildContext(req);
-    return this.runRead(context, (tenantContext) => this.control.getQueueOverview(tenantContext, {
-      limit: parseLimit(limit, 50),
-    }));
+    return this.runRead(context, async (tenantContext) => {
+      const overview = await this.control.getQueueOverview(tenantContext, {
+        limit: parseLimit(limit, 50),
+      });
+      const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
+      return { ...overview, emergency_pause: this.pauseView(activePause) };
+    });
   }
 
   @Post('emergency-pause')
@@ -574,15 +577,6 @@ export class AiAgentControlController {
     return this.runTransaction(context, 'operate', (tenantContext) => this.control.runTicketingRead(tenantContext, body ?? {}));
   }
 
-  @Post('uat/glpi-triage')
-  async runGlpiTriage(
-    @Req() req: any,
-    @Body() body: Pick<AgentControlTicketingTriageInput, 'target_key' | 'work_item_id'> = {},
-  ) {
-    const context = this.buildContext(req);
-    return this.runTransaction(context, 'operate', (tenantContext) => this.control.runGlpiTriage(tenantContext, body ?? {}));
-  }
-
   @Post('uat/ticketing-triage')
   async runTicketingTriage(
     @Req() req: any,
@@ -639,46 +633,6 @@ export class AiAgentControlController {
       agent_definition_id: id,
       target_ref: targetRef,
     }));
-  }
-
-  @Get('helpdesk/glpi-ingestion/settings')
-  async getHelpdeskGlpiIngestionSettings(
-    @Req() req: any,
-  ) {
-    return this.getHelpdeskTicketingIngestionSettings(req);
-  }
-
-  @Get('helpdesk/ticketing-ingestion/settings')
-  async getHelpdeskTicketingIngestionSettings(
-    @Req() req: any,
-  ) {
-    const context = this.buildContext(req);
-    return this.runRead(context, async (tenantContext) => {
-      const settings = await this.workQueue.getHelpdeskTicketingIngestionSettings(tenantContext);
-      const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
-      return { ...settings, emergency_pause: this.pauseView(activePause) };
-    });
-  }
-
-  @Post('helpdesk/glpi-ingestion/settings')
-  async updateHelpdeskGlpiIngestionSettings(
-    @Req() req: any,
-    @Body() body: HelpdeskTicketingIngestionSettingsInput,
-  ) {
-    return this.updateHelpdeskTicketingIngestionSettings(req, body);
-  }
-
-  @Post('helpdesk/ticketing-ingestion/settings')
-  async updateHelpdeskTicketingIngestionSettings(
-    @Req() req: any,
-    @Body() body: HelpdeskTicketingIngestionSettingsInput,
-  ) {
-    const context = this.buildContext(req);
-    return this.runTransaction(context, 'admin', async (tenantContext) => {
-      const settings = await this.workQueue.updateHelpdeskTicketingIngestionSettings(tenantContext, body);
-      const activePause = await this.emergencyPause.findActiveTenantWidePause(tenantContext);
-      return { ...settings, emergency_pause: this.pauseView(activePause) };
-    });
   }
 
   @Post('helpdesk/emergency-pause')

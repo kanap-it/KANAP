@@ -78,7 +78,7 @@ export function useAgentRunState(agentKey: string) {
   const watching = isSre ? sreWatching : !!summary?.ingestion.enabled;
 
   const agentPause = summary?.emergencyPause ?? null;
-  const tenantPause = data.settingsQuery.data?.emergency_pause ?? null;
+  const tenantPause = data.queueQuery.data?.emergency_pause ?? null;
   const activePause = agentPause ?? tenantPause;
 
   // Draft agents have no run-mode selection yet (a fact, not a choice) and

@@ -77,9 +77,7 @@ Unterhalb des Dashboards zeigt der Bereich **Agentenflotte** eine Karte pro Agen
 
 Ein Klick an eine beliebige Stelle auf einer Karte öffnet den [Arbeitsbereich](agents-workspace.md) des Agenten, wo Sie ihn steuern, überwachen, seine Freigaben prüfen, seine Leistung einsehen und seine Einstellungen ändern.
 
-Administratoren sehen außerdem ein kleines Papierkorbsymbol auf den Karten der Agenten, die sie erstellt haben – es löscht den Agenten samt seiner Warteschlange und seinem Überwachungsverlauf (die Tickets in Ihrem Ticketsystem werden dabei nie berührt, und dies kann nicht rückgängig gemacht werden). Die beiden integrierten Agenten, der Helpdesk-Triage-Agent und der Überwachungs-Agent, haben kein Bedienelement zum Löschen: Sie sind Teil der Plattform und können nur ausgeschaltet oder archiviert werden.
-
-**Ein Hinweis zum integrierten Helpdesk-Agenten.** Er bleibt aus dem Flottenraster heraus, bis er tatsächlich genutzt wurde – bis jemand seine Einstellungen bearbeitet, seinen Betriebsmodus ändert, ihn an einem Ticket testet oder ihn eine Prüfung ausführen lässt. Das hält die Flotte eines brandneuen Mandanten ehrlich: Sie sehen die Agenten, die Sie angelegt haben, und nicht eine Vorlage, die Sie nie angerührt haben. Sobald Sie etwas mit ihm tun, erscheint er und bleibt. Er bleibt die Vorlage, aus der jeder neue Helpdesk-Agent erstellt wird, und ein direkter Link auf ihn funktioniert immer.
+Administratoren sehen außerdem ein kleines Papierkorbsymbol auf jeder Karte – es löscht den Agenten samt seiner Warteschlange und seinem Überwachungsverlauf (die Tickets in Ihrem Ticketsystem werden dabei nie berührt, und dies kann nicht rückgängig gemacht werden).
 
 ---
 

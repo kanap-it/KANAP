@@ -5,7 +5,6 @@ import {
   aiAgentControlApi,
   type AiAgentControlActionRequest,
   type AiAgentControlAgentDefinitionInput,
-  type AiAgentControlHelpdeskIngestionSettingsInput,
   type AiAgentControlQueueOverview,
 } from '../../ai/aiApi';
 import {
@@ -173,10 +172,6 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     queryFn: () => aiAgentControlApi.getBadges(),
     refetchInterval: 60_000,
   });
-  const settingsQuery = useQuery({
-    queryKey: ['ai-agent-helpdesk-settings'],
-    queryFn: () => aiAgentControlApi.getHelpdeskIngestionSettings(),
-  });
   const invalidate = React.useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY }),
@@ -186,7 +181,6 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy'] }),
       queryClient.invalidateQueries({ queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-helpdesk-evaluation-daily'] }),
-      queryClient.invalidateQueries({ queryKey: ['ai-agent-helpdesk-settings'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-run'] }),
     ]);
   }, [queryClient]);
@@ -469,15 +463,6 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     onError: (err) => setError(getApiErrorMessage(err, t, t('messages.monitoringPollFailed'))),
   });
 
-  const updateSettingsMutation = useMutation({
-    mutationFn: (payload: AiAgentControlHelpdeskIngestionSettingsInput) => aiAgentControlApi.updateHelpdeskIngestionSettings(payload),
-    onSuccess: async () => {
-      setMessage(t('messages.settingsSaved'));
-      await invalidate();
-    },
-    onError: (err) => setError(getApiErrorMessage(err, t, t('messages.settingsFailed'))),
-  });
-
   const createAgentMutation = useMutation({
     mutationFn: (payload: AiAgentControlAgentDefinitionInput) => aiAgentControlApi.createAgent(payload),
     onSuccess: async () => {
@@ -595,10 +580,8 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
     setError,
     setMessage,
     setAutonomyMutation,
-    settingsQuery,
     ticketingProviderKey,
     updateAgentMutation,
     updateAgentStatusMutation,
-    updateSettingsMutation,
   };
 }

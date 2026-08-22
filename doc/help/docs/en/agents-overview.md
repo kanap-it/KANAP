@@ -77,9 +77,7 @@ Below the dashboard, the **Fleet** section shows one card per agent. Each card c
 
 Clicking anywhere on a card opens that agent's [workspace](agents-workspace.md), where you drive it, monitor it, review its approvals, read its performance, and change its settings.
 
-Admins also see a small trash icon on the cards of agents they created — it deletes the agent along with its queue and watch history (the tickets in your ticketing system are never touched, and this can't be undone). The two built-in agents, the helpdesk triage agent and the monitoring agent, have no delete control: they are part of the platform and can only be turned off or archived.
-
-**A note on the built-in helpdesk agent.** It stays out of the fleet grid until it has actually been used — until someone edits its settings, changes its run mode, tests it on a ticket, or lets it run a check. This keeps a brand-new tenant's fleet honest: you see the agents you made, not a template you never touched. The moment you do anything with it, it appears and stays. It remains the template every new helpdesk agent is created from, and a direct link to it always works.
+Admins also see a small trash icon on every card — it deletes the agent along with its queue and watch history (the tickets in your ticketing system are never touched, and this can't be undone).
 
 ---
 

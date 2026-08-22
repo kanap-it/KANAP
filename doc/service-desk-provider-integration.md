@@ -45,7 +45,7 @@ Known platform gaps you must handle as part of the integration (not blockers, ju
 |---|---|---|
 | No admin UI/API writes `ai_adapter_configs` | Tenant provisioning is script/SQL based | Write `scripts/<provider>-adapter-config-upsert.ts` modeled on `glpi-adapter-config-upsert.ts` (dry-run default + typed confirmation env), or provision by SQL (§6) |
 | `AdminIntegrationsPage` is GLPI-only | No settings UI for the new provider | Acceptable for first customer (operator provisioning). Optional: add a provider section driven by adapter configs |
-| Built-in agent key value is `helpdesk.glpi.triage` | Cosmetic only — a Freshdesk-bound tenant's seeded agent carries a GLPI-named key | Leave it; the rename is a gated migration (plan 36, Theme 2b). Nothing keys behavior on it except legacy compat guards |
+| Leftover `helpdesk.glpi.triage` rows on older tenants | Cosmetic only — the product no longer seeds this key | Ignore or delete from the agent's card. New helpdesk agents get a unique key from the wizard; the GLPI-named leftover is never re-created |
 | New-agent wizard defaults provider to `glpi` | Only relevant when creating extra agents by hand | The seed path auto-binds correctly (§7); fix the wizard default opportunistically |
 | Terminal backstop constants hardcode `solved`/`closed` | Legacy persisted-row backstops in `ai-agent-control.service.ts` (`PLANNER_TERMINAL_TRANSITIONS`) and `ai-capability.registry.ts` (`TICKETING_TERMINAL_TRANSITIONS`) | Use `solved`/`closed` as your terminal transition keys (§4.3) and stamp `terminal: true`; then the backstops align for free |
 

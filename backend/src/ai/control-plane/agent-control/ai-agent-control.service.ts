@@ -35,14 +35,13 @@ import {
   AgentQueueLiveTargetLike,
   AiAgentWorkQueueService,
   DEFAULT_APPROVAL_TTL_SECONDS,
-  HELP_DESK_TICKETING_TRIAGE_AGENT_KEY,
   markWorkItemAttemptFailure,
   monitoringAlertDedupKey,
   SRE_MONITORING_ALLOWED_CAPABILITIES,
-  SRE_MONITORING_DIAGNOSIS_AGENT_KEY,
-  SRE_MONITORING_FORBIDDEN_CAPABILITIES,
 } from '../agent/ai-agent-work-queue.service';
+import { helpdeskAgentDefaults, sreAgentDefaults } from '../agent/agent-definition-defaults';
 import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
+import { AiAdapterConfig } from '../providers/adapter-config.entity';
 import { normalizeMonitoringScopePolicy } from '../agent/monitoring-targeting';
 import { requireMonitoringBinding } from '../agent/provider-binding';
 import { requireTicketingBinding, resolveTicketingBinding } from '../agent/ticketing-binding';
@@ -227,8 +226,8 @@ export type AgentControlTicketingTriageInput = {
   work_item_id?: string | null;
   provider_key?: string | null;
   target_key?: string | null;
-  // Which agent a manual "test on a ticket" run should exercise. Without it the
-  // built-in Helpdesk agent runs (legacy behavior).
+  // Required on the non-work_item_id path: which agent a manual "test on a
+  // ticket" run should exercise.
   agent_definition_id?: string | null;
 };
 
@@ -250,7 +249,6 @@ type RunLlmUsageEstimate = {
 type HelpdeskTicketingTriageRunOptions = {
   workflow?: string;
   sourceEndpoint?: string;
-  manualEnqueueMode?: 'glpi' | 'ticketing';
   observationType?: string;
   recommendationType?: string;
   evaluationType?: string;
@@ -260,21 +258,10 @@ type HelpdeskTicketingTriageRunOptions = {
 const TICKETING_TRIAGE_RUN_OPTIONS: Required<HelpdeskTicketingTriageRunOptions> = {
   workflow: 'agent_control_center_ticketing_triage',
   sourceEndpoint: 'uat/ticketing-triage',
-  manualEnqueueMode: 'ticketing',
   observationType: 'ticketing_ticket_triage',
   recommendationType: 'ticketing_triage_actions',
   evaluationType: 'ticketing_triage_uat',
   proposalEvaluationType: 'ticketing_triage_proposal',
-};
-
-const LEGACY_GLPI_TRIAGE_RUN_OPTIONS: Required<HelpdeskTicketingTriageRunOptions> = {
-  workflow: 'agent_control_center_glpi_triage',
-  sourceEndpoint: 'uat/glpi-triage',
-  manualEnqueueMode: 'glpi',
-  observationType: 'glpi_ticket_triage',
-  recommendationType: 'glpi_triage_actions',
-  evaluationType: 'glpi_triage_uat',
-  proposalEvaluationType: 'glpi_triage_proposal',
 };
 
 // Monitoring mirror of the ticketing run-options bundle. Recommendation and
@@ -809,6 +796,18 @@ function cleanTargetingOptionQuery(value: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function providerKeyFromBindings(
+  bindings: Record<string, unknown> | null | undefined,
+  kind: string,
+): string | null {
+  if (!bindings) return null;
+  const entry = bindings[kind];
+  if (!isRecord(entry)) return null;
+  return typeof entry.provider_key === 'string' && entry.provider_key.trim()
+    ? entry.provider_key.trim()
+    : null;
 }
 
 function adapterData<T>(value: unknown): T | null {
@@ -4495,25 +4494,23 @@ export class AiAgentControlService {
     return candidate;
   }
 
-  // The SRE seed only creates a definition for tenants with an enabled monitoring adapter
-  // config; a failure there (odd adapter state) must never break fleet listing, detail
-  // reads or agent creation, so it degrades to a warning.
-  private async ensureSreMonitoringDefinitionSafely(context: AiExecutionContextWithManager): Promise<void> {
-    if (!this.agentQueue) {
-      return;
-    }
-    try {
-      await this.agentQueue.ensureSreMonitoringDefinition(context);
-    } catch (error) {
-      this.logger.warn(`ensureSreMonitoringDefinition failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
+  private async uniqueEnabledMonitoringProviderKey(
+    context: AiExecutionContextWithManager,
+  ): Promise<string | null> {
+    const configs = await context.manager.getRepository(AiAdapterConfig).find({
+      where: {
+        tenant_id: context.tenantId,
+        provider_kind: 'monitoring',
+        enabled: true,
+      },
+    });
+    const providerKeys = Array.from(new Set(configs
+      .map((config) => typeof config.provider_key === 'string' ? config.provider_key.trim() : '')
+      .filter(Boolean)));
+    return providerKeys.length === 1 ? providerKeys[0] : null;
   }
 
   async listAgentDefinitions(context: AiExecutionContextWithManager) {
-    if (this.agentQueue) {
-      await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
-      await this.ensureSreMonitoringDefinitionSafely(context);
-    }
     const items = await context.manager.getRepository(AiAgentDefinition).find({
       where: { tenant_id: context.tenantId },
       order: { agent_key: 'ASC' },
@@ -4522,10 +4519,6 @@ export class AiAgentControlService {
   }
 
   async getAgentDefinition(context: AiExecutionContextWithManager, id: string) {
-    if (this.agentQueue) {
-      await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
-      await this.ensureSreMonitoringDefinitionSafely(context);
-    }
     const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
       where: { id, tenant_id: context.tenantId },
     });
@@ -4885,10 +4878,6 @@ export class AiAgentControlService {
     context: AiExecutionContextWithManager,
     input: AgentControlAgentDefinitionInput = {},
   ) {
-    if (this.agentQueue) {
-      await this.agentQueue.ensureHelpdeskTicketingTriageDefinition(context);
-      await this.ensureSreMonitoringDefinitionSafely(context);
-    }
     const repo = context.manager.getRepository(AiAgentDefinition);
     const name = cleanSingleLine(input.name, 160);
     if (!name) {
@@ -4901,22 +4890,27 @@ export class AiAgentControlService {
     if (agentType !== 'helpdesk' && agentType !== 'sre') {
       throw new BadRequestException('Only Helpdesk and SRE agents can be created today. Other agent types are not available yet.');
     }
-    const template = agentType === 'helpdesk'
-      ? await repo.findOne({ where: { tenant_id: context.tenantId, agent_key: HELP_DESK_TICKETING_TRIAGE_AGENT_KEY } })
-      : null;
+    const inputBindings = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings');
+    const defaults = agentType === 'sre'
+      ? sreAgentDefaults({
+        monitoringProviderKey: providerKeyFromBindings(inputBindings, 'monitoring')
+          ?? await this.uniqueEnabledMonitoringProviderKey(context),
+      })
+      : helpdeskAgentDefaults({
+        ticketingProviderKey: providerKeyFromBindings(inputBindings, 'ticketing')
+          ?? (this.agentQueue
+            ? await this.agentQueue.defaultTicketingProviderKeyForNewDefinition(context)
+            : LEGACY_GLPI_TICKETING_PROVIDER_KEY),
+      });
     const agentKey = await this.uniqueAgentKey(context, input.agent_key ? cleanAgentKey(input.agent_key) : null, name);
-    const providerBindings = normalizedPolicyObject(input.provider_bindings_json, 'Provider bindings')
-      ?? template?.provider_bindings_json
-      ?? null;
+    const providerBindings = inputBindings ?? defaults.provider_bindings_json;
     const allowedCapabilities = input.allowed_capabilities_json !== undefined
       ? normalizeAllowedCapabilitiesForConfig(input.allowed_capabilities_json, agentType)
-      : template?.allowed_capabilities_json ?? [];
-    // SRE agents have no creation template, so the server applies the seed's
-    // forbidden list itself — same fail-closed discipline as the helpdesk path.
+      : defaults.allowed_capabilities_json;
     const forbiddenCapabilities = input.forbidden_capabilities_json !== undefined
       ? (() => { throw new ForbiddenException('Forbidden capabilities are immutable from this endpoint.'); })()
-      : template?.forbidden_capabilities_json ?? (agentType === 'sre' ? [...SRE_MONITORING_FORBIDDEN_CAPABILITIES] : []);
-    const scopePolicy = normalizedPolicyObject(input.scope_policy_json, 'Scope policy') ?? template?.scope_policy_json ?? null;
+      : [...defaults.forbidden_capabilities_json];
+    const scopePolicy = normalizedPolicyObject(input.scope_policy_json, 'Scope policy') ?? defaults.scope_policy_json;
     const normalizedScopePolicy = normalizeScopePolicyForAgentType(agentType, scopePolicy);
     const now = new Date();
     const definition = await repo.save(repo.create({
@@ -4926,35 +4920,33 @@ export class AiAgentControlService {
       description: cleanSingleLine(input.description, 500),
       agent_type: agentType,
       status: 'draft',
-      environment: cleanAgentEnvironment(input.environment ?? template?.environment ?? 'sandbox'),
+      environment: cleanAgentEnvironment(input.environment ?? defaults.environment),
       provider_bindings_json: providerBindings,
       allowed_capabilities_json: allowedCapabilities,
       forbidden_capabilities_json: forbiddenCapabilities,
-      max_autonomy_level: template?.max_autonomy_level ?? 'A3',
-      default_approval_requirement: template?.default_approval_requirement ?? 'human_for_writes',
-      agent_priority: cleanAgentPriority(input.agent_priority, cleanAgentPriority(template?.agent_priority, 100)),
+      max_autonomy_level: defaults.max_autonomy_level,
+      default_approval_requirement: defaults.default_approval_requirement,
+      agent_priority: cleanAgentPriority(input.agent_priority, defaults.agent_priority),
       trigger_policy_json: normalizeTriggerPolicyCheckInterval(
-        normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? template?.trigger_policy_json ?? null,
+        normalizedPolicyObject(input.trigger_policy_json, 'Trigger policy') ?? defaults.trigger_policy_json,
       ),
       scope_policy_json: normalizedScopePolicy,
       queue_policy_json: normalizeQueuePolicyRetention(
-        normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? template?.queue_policy_json ?? null,
+        normalizedPolicyObject(input.queue_policy_json, 'Queue policy') ?? defaults.queue_policy_json,
       ),
       response_policy_json: normalizeResponsePolicyForConfig(
-        normalizedPolicyObject(input.response_policy_json, 'Response policy') ?? template?.response_policy_json ?? null,
+        normalizedPolicyObject(input.response_policy_json, 'Response policy') ?? defaults.response_policy_json,
       ),
       evaluation_policy_json: normalizedPolicyObject(input.evaluation_policy_json, 'Evaluation policy')
-        ?? template?.evaluation_policy_json
-        ?? { create_pending_evaluation: true, feedback_required_for_autonomy_promotion: true },
-      // A new agent starts with its own (blank) persona — it does NOT inherit the
-      // template/built-in agent's mission/tone/instructions, which are identity-specific.
+        ?? defaults.evaluation_policy_json,
+      // A new agent starts with its own (blank) persona — it does NOT inherit family
+      // identity (mission/tone/instructions).
       persona_json: normalizePersona(input.persona_json, null),
       config_version: 1,
       updated_by_user_id: context.userId || null,
       metadata_json: {
         created_from_ui: true,
         user_modified: true,
-        template_agent_definition_id: template?.id ?? null,
       },
       created_at: now,
       updated_at: now,
@@ -5136,14 +5128,6 @@ export class AiAgentControlService {
     const definition = await repo.findOne({ where: { id, tenant_id: context.tenantId } });
     if (!definition) {
       throw new NotFoundException('Agent definition not found.');
-    }
-    // Built-in agents are auto-seeded on poll/overview load, so deleting them just
-    // re-creates them. Block deletion and steer the user to disable/archive instead.
-    if (definition.agent_key === HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
-      throw new BadRequestException('The built-in Helpdesk agent cannot be deleted. Disable it instead.');
-    }
-    if (definition.agent_key === SRE_MONITORING_DIAGNOSIS_AGENT_KEY) {
-      throw new BadRequestException('The built-in SRE monitoring agent cannot be deleted. Disable or archive it instead.');
     }
     // Remove this agent's earned-autonomy policies (metadata-linked, no FK) so no orphan
     // auto-approval policy survives the agent.
@@ -6151,9 +6135,10 @@ export class AiAgentControlService {
         action_requests: [],
         target_links: [],
         monitoring_diagnoses: [],
-        counts: {},
+        counts: {} as Record<string, number>,
         cost: { today_eur: 0, last_7_days_eur: 0 },
         helpdesk: { summary: null, summaries: [], fleet: null, audit_events: [] },
+        emergency_pause: null,
       };
     }
     const overview = await this.agentQueue.listOverview(context, { limit: safeLimit(options.limit, 50, 100) });
@@ -6266,6 +6251,7 @@ export class AiAgentControlService {
         fleet: overview.helpdesk.fleet,
         audit_events: overview.helpdesk.auditEvents.map(serializeAgentAuditEvent),
       },
+      emergency_pause: null,
     };
   }
 
@@ -6317,8 +6303,8 @@ export class AiAgentControlService {
         tenant_id: context.tenantId,
       },
     });
-    if (!definition || definition.agent_key !== HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
-      throw new BadRequestException('Helpdesk context is only available for the helpdesk ticket triage agent.');
+    if (!definition || definition.agent_type !== 'helpdesk') {
+      throw new BadRequestException('Helpdesk context is only available for a helpdesk ticket triage agent.');
     }
     const binding = requireTicketingBinding(definition, 'Helpdesk context requires a ticketing provider binding.');
     if (
@@ -6660,16 +6646,6 @@ export class AiAgentControlService {
       target_key: input.target_key,
       agent_definition_id: input.agent_definition_id,
     }, TICKETING_TRIAGE_RUN_OPTIONS);
-  }
-
-  async runGlpiTriage(
-    context: AiExecutionContextWithManager,
-    input: Pick<AgentControlTicketingTriageInput, 'target_key' | 'work_item_id'> = {},
-  ) {
-    return this.runHelpdeskTicketingTriage(context, {
-      ...input,
-      provider_key: LEGACY_GLPI_TICKETING_PROVIDER_KEY,
-    }, LEGACY_GLPI_TRIAGE_RUN_OPTIONS);
   }
 
   // Deterministic monitoring-diagnosis skeleton (WS-A6). No LLM calls, no
@@ -7702,90 +7678,66 @@ export class AiAgentControlService {
         throw new BadRequestException('provider_key is required for manual ticketing triage.');
       }
       const requestedDefinitionId = trimmedString(input.agent_definition_id);
-      if (requestedDefinitionId) {
-        requestedDefinition = await context.manager.getRepository(AiAgentDefinition).findOne({
-          where: { id: requestedDefinitionId, tenant_id: context.tenantId },
-        });
-        if (!requestedDefinition) {
-          throw new NotFoundException('Agent definition not found.');
-        }
+      if (!requestedDefinitionId) {
+        throw new BadRequestException('agent_definition_id is required for manual ticketing triage.');
       }
-      if (requestedDefinition) {
-        // Agent-scoped manual run: the operator names the agent and a ticket number, and the
-        // target is built from the agent's own provider binding. The UAT live-test-target
-        // registry (a hand-curated allowlist of a few tickets) is deliberately bypassed — the
-        // scheduled poll already reaches any ticket the targeting matches, so a manual
-        // read-and-propose run on an operator-chosen ticket is no broader.
-        const binding = requireTicketingBinding(requestedDefinition, 'Manual ticket triage requires a ticketing provider binding.');
-        if (binding.providerKind !== 'ticketing' || binding.providerKey !== providerKey) {
-          throw new BadRequestException('Manual ticket triage provider does not match the agent ticketing binding.');
-        }
-        const ticketRef = manualTicketRef(input.target_key);
-        if (!ticketRef) {
-          throw new BadRequestException('A ticket number is required to run an agent on a ticket.');
-        }
-        target = {
-          id: `manual-agent-test:${requestedDefinition.id}:${ticketRef}`,
-          provider_kind: binding.providerKind,
-          provider_key: binding.providerKey,
-          environment: requestedDefinition.environment,
-          target_kind: 'ticket',
-          target_key: `ticket:${ticketRef}`,
-          external_ref: ticketRef,
-          allowed_effect: 'read',
-          safety_label: 'manual_agent_test',
-          enabled: true,
-        };
-      } else {
-        target = await this.liveTargets.requireSingleEnabledTarget(context, {
-          providerKind: 'ticketing',
-          providerKey,
-          allowedEffect: 'read',
-          targetKind: 'ticket',
-          targetKey: trimmedString(input.target_key),
-        });
+      requestedDefinition = await context.manager.getRepository(AiAgentDefinition).findOne({
+        where: { id: requestedDefinitionId, tenant_id: context.tenantId },
+      });
+      if (!requestedDefinition) {
+        throw new NotFoundException('Agent definition not found.');
       }
+      // Agent-scoped manual run: the operator names the agent and a ticket number, and the
+      // target is built from the agent's own provider binding. The UAT live-test-target
+      // registry (a hand-curated allowlist of a few tickets) is deliberately bypassed — the
+      // scheduled poll already reaches any ticket the targeting matches, so a manual
+      // read-and-propose run on an operator-chosen ticket is no broader.
+      const binding = requireTicketingBinding(requestedDefinition, 'Manual ticket triage requires a ticketing provider binding.');
+      if (binding.providerKind !== 'ticketing' || binding.providerKey !== providerKey) {
+        throw new BadRequestException('Manual ticket triage provider does not match the agent ticketing binding.');
+      }
+      const ticketRef = manualTicketRef(input.target_key);
+      if (!ticketRef) {
+        throw new BadRequestException('A ticket number is required to run an agent on a ticket.');
+      }
+      target = {
+        id: `manual-agent-test:${requestedDefinition.id}:${ticketRef}`,
+        provider_kind: binding.providerKind,
+        provider_key: binding.providerKey,
+        environment: requestedDefinition.environment,
+        target_kind: 'ticket',
+        target_key: `ticket:${ticketRef}`,
+        external_ref: ticketRef,
+        allowed_effect: 'read',
+        safety_label: 'manual_agent_test',
+        enabled: true,
+      };
     }
 
     if (!workItemId && this.agentQueue) {
-      if (requestedDefinition && requestedDefinition.agent_key !== HELP_DESK_TICKETING_TRIAGE_AGENT_KEY) {
-        // Manual test of a specific (custom) agent: enqueue against that agent's own
-        // binding so the run exercises its configuration, not the built-in's. If an
-        // active work item already exists for this ticket, it is reused and re-run.
-        const enqueued = await this.agentQueue.enqueueTicketingScopedTicket(context, {
-          definition: requestedDefinition,
-          // Operator-run test on a single ticket: allowed in Manual run mode.
-          trigger: 'manual',
-          ticket: { id: String(target.external_ref) },
-          metadata: {
-            source: 'manual_safe_target',
-            target_id: target.id,
-            target_key: target.target_key,
-            target_environment: target.environment,
-            target_safety_label: target.safety_label,
-            source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
-          },
-        });
-        agentDefinition = requestedDefinition;
-        workItemCreated = enqueued.created;
-        leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
-          leaseOwner: `agent-control-center:${context.userId || 'system'}`,
-        });
-        agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
-      } else {
-        const enqueue = options.manualEnqueueMode === 'glpi'
-          ? this.agentQueue.enqueueManualGlpiSafeTarget.bind(this.agentQueue)
-          : this.agentQueue.enqueueManualTicketingSafeTarget.bind(this.agentQueue);
-        const enqueued = await enqueue(context, serializeLiveTarget(target), {
-          source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
-        });
-        agentDefinition = enqueued.definition;
-        workItemCreated = enqueued.created;
-        leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
-          leaseOwner: `agent-control-center:${context.userId || 'system'}`,
-        });
-        agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
+      if (!requestedDefinition) {
+        throw new BadRequestException('agent_definition_id is required for manual ticketing triage.');
       }
+      const enqueued = await this.agentQueue.enqueueTicketingScopedTicket(context, {
+        definition: requestedDefinition,
+        // Operator-run test on a single ticket: allowed in Manual run mode.
+        trigger: 'manual',
+        ticket: { id: String(target.external_ref) },
+        metadata: {
+          source: 'manual_safe_target',
+          target_id: target.id,
+          target_key: target.target_key,
+          target_environment: target.environment,
+          target_safety_label: target.safety_label,
+          source_endpoint: options.sourceEndpoint ?? TICKETING_TRIAGE_RUN_OPTIONS.sourceEndpoint,
+        },
+      });
+      agentDefinition = requestedDefinition;
+      workItemCreated = enqueued.created;
+      leasedWorkItem = await this.agentQueue.acquireWorkItem(context, enqueued.workItem.id, {
+        leaseOwner: `agent-control-center:${context.userId || 'system'}`,
+      });
+      agentMetadata = this.agentQueue.agentExecutionMetadata(agentDefinition, leasedWorkItem);
     }
     // Lets the LLM client resolve this agent's assigned registry model for
     // every downstream stage without threading the definition through them.

@@ -132,7 +132,7 @@ const HELP_DESK_TICKETING_INGESTION_LOCK_PREFIX = 'ai-helpdesk-glpi-ingestion';
 // `manual` marks an operator-triggered "Check now" (as opposed to the cron
 // tick). It bypasses the failed-cycle backoff and lets an agent in Manual run
 // mode — turned on, but not watching — run one cycle on demand.
-type HelpdeskTicketingPollOptions = { ensureDefinition: boolean; manual: boolean };
+type HelpdeskTicketingPollOptions = { manual: boolean };
 
 type HelpdeskTicketingDefinitionPollState = {
   definition: AiAgentDefinition;
@@ -257,9 +257,9 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
     for (const tenant of tenants) {
       try {
         const result = opts?.manager
-          ? await this.runForTenantManager(opts.manager, tenant.id, { ensureDefinition: false, manual: false })
+          ? await this.runForTenantManager(opts.manager, tenant.id, { manual: false })
           : await withTenantExecution(this.dataSource, tenant.id, (manager) =>
-            this.runForTenantManager(manager, tenant.id, { ensureDefinition: false, manual: false }),
+            this.runForTenantManager(manager, tenant.id, { manual: false }),
           );
         if (result.status === 'disabled' || result.status === 'skipped') {
           summary.tenantsSkipped += 1;
@@ -282,7 +282,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
   }
 
   async pollTenant(context: AiExecutionContextWithManager): Promise<HelpdeskTicketingIngestionPollSummary> {
-    return this.pollTenantContext(context, { ensureDefinition: true, manual: true });
+    return this.pollTenantContext(context, { manual: true });
   }
 
   private async runForTenantManager(
@@ -345,7 +345,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
       }
     }
 
-    const definitions = await this.loadDefinitions(context, opts.ensureDefinition);
+    const definitions = await this.loadDefinitions(context);
     if (definitions.length === 0) {
       summary.status = 'disabled';
       summary.reason = 'No helpdesk ticket triage agent definitions exist yet for this tenant.';
@@ -840,11 +840,7 @@ export class AiAgentHelpdeskTicketingIngestionService implements OnModuleInit {
 
   private async loadDefinitions(
     context: AiExecutionContextWithManager,
-    ensureDefinition: boolean,
   ): Promise<AiAgentDefinition[]> {
-    if (ensureDefinition) {
-      await this.queue.ensureHelpdeskTicketingTriageDefinition(context);
-    }
     return context.manager.getRepository(AiAgentDefinition).find({
       where: {
         tenant_id: context.tenantId,
