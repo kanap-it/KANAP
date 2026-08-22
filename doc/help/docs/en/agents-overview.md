@@ -85,15 +85,13 @@ Admins also see a small trash icon on the cards of agents they created — it de
 
 ## Creating an agent
 
-Admins get a **New agent** button at the top right of the page. It opens a short wizard:
+Admins get a **New agent** button at the top right of the page. It opens a dialog:
 
-1. **Type** — give the agent a **Name** and **Description**, and pick the **Agent type**: **Helpdesk** or **Infrastructure monitoring (SRE)**. The name and description come pre-filled with sensible defaults, which are swapped if you change type and haven't edited them yourself.
-2. **Connection** — the system the agent works against: the ticketing system (**GLPI**) for a helpdesk agent, or the **Monitoring tool** for an SRE one. A **Manage integrations** link jumps to **Admin → Integrations** if the connection isn't set up yet. If no monitoring tool is connected, the agent is still created — it just stays inactive until one is.
-3. **Watching** (helpdesk only) — **Watch new tickets** (off by default) sets whether the agent should eventually watch on its own, and the rest of the step decides which tickets it targets. Presets (**New tickets**, **All open**, **Handled by this agent**) give you a starting point; the filter builder narrows it further, with all filters combined and their values drawn from the connected ticketing system. Either way the agent is created **Not started**, so nothing runs until you set its run mode. A monitoring agent skips this step: you pick the alerts it watches in its settings afterwards.
-4. **Limits** — the safety frame: **Agent priority**, **Review every (hours)**, **Ticket collision** handling, **Max tickets per check** and **Max provider requests**, the **Approval window (hours)**, the **If ticket changed** behaviour, and the per-run and daily caps on **Tokens**, **Cost**, and **Runs**. The template ships sensible defaults; each field is explained on the [Agent workspace](agents-workspace.md) **Settings** tab.
-5. **Review** — a summary of everything above.
+- **Agent type** — **Helpdesk** or **Infrastructure monitoring (SRE)**. Name and description come pre-filled with sensible defaults, which are swapped if you change type and haven't edited them yourself.
+- **Name** and **Description**.
+- **Connection** — the ticketing system (**GLPI**) for a helpdesk agent, or the **Monitoring tool** for an SRE one. **Manage integrations** jumps to **Admin → Integrations** if the connection isn't set up yet. If no monitoring tool is connected, the agent is still created — it just stays inactive until one is.
 
-New agents are always created as **Not started**, and you land on their **Settings** tab. The recommended path is to finish the setup, put the agent in **Manual only** and test it on real tickets, then move it to **Watching** once you trust its output.
+Watching, targeting, and limits are not collected here. **Create** opens the new agent's **Settings** tab on its [workspace](agents-workspace.md), where you finish that setup. The agent is always created as **Not started**, so nothing runs until you set its run mode. The recommended path is to finish Settings, put the agent in **Manual only** and test it on real tickets (or alerts), then move it to **Watching** once you trust its output.
 
 ---
 
@@ -121,6 +119,6 @@ Reusable background guidance you want several agents to share lives on the [Shar
 - **Read the environment chip before you trust a number.** A **Production** agent is touching real tickets and real requesters; **Sandbox**, **Lab**, and **Mock** are safe to experiment with. When you spin up a new agent, keep it off production tickets until its output looks right.
 - **The cost tile is the fleet's honest bill.** It covers every agent you run. If it climbs faster than you expected, the usual cause is an agent checking far more often than its queue warrants — look at **Check every (minutes)** before you look at anything else.
 - **A rising failed count is your early warning.** The **N failed** chip surfaces work that stalled. Open the agent and clear the **Needs attention** items before they pile up — they usually point at a connection issue or a ticket that changed under the agent.
-- **Manual only before Watching.** An agent created by the wizard is intentionally **Not started**. Run it by hand on a handful of representative tickets from its workspace first; only move it to **Watching** once you're happy with what it drafts.
+- **Manual only before Watching.** An agent created from **New agent** is intentionally **Not started**. Run it by hand on a handful of representative tickets from its workspace first; only move it to **Watching** once you're happy with what it drafts.
 - **Automatic is earned, and reversible.** Promoting an action type to automatic doesn't remove any guardrail — the daily and per-run budgets, freshness checks, and pauses still apply, and acceptance that drops off will pull the action type back to ask-first. The action types the requester can see ask for an explicit acknowledgement on top.
 - **Prefer the per-agent pause.** Reach for **Pause all agents** only for a genuine fleet-wide problem. For one noisy agent, the pause in its own workspace keeps the rest of your fleet working.

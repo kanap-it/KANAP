@@ -28,7 +28,7 @@ The connection feeds two workflows that you enable and govern separately.
 
 ### Used by AI Agents
 
-After you save a working connection here, an administrator sets agents up in the AI Agents section — see [AI Agents — Overview](agents-overview.md). From the New-agent wizard or an existing agent's **Settings**, they choose this GLPI connection as the service desk the agent watches. The agent reads and drafts against it, but by default it never sends anything on its own: each proposed reply, note, or status change goes to the review queue first.
+After you save a working connection here, an administrator sets agents up in the AI Agents section — see [AI Agents — Overview](agents-overview.md). From **New agent** or an existing agent's **Settings**, they choose this GLPI connection as the service desk the agent watches. The agent reads and drafts against it, but by default it never sends anything on its own: each proposed reply, note, or status change goes to the review queue first.
 
 ### Prerequisites
 

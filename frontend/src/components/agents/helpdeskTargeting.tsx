@@ -37,7 +37,11 @@ export const DEFAULT_APPROVAL_TTL_HOURS = 24;
 export const DEFAULT_STALE_CLOSURE_TTL_DAYS = 7;
 
 const DEFAULT_STALE_HOURS = 72;
-export const TARGETING_OPTIONS_STALE_TIME_MS = 30_000;
+// Targeting options are provider reference catalogs (statuses, priorities, types,
+// categories, entities) that change on the order of months, not minutes. A short
+// window made every mount of a builder — and of the agents overview, which
+// prefetches the open statuses — pay another provider round-trip.
+export const TARGETING_OPTIONS_STALE_TIME_MS = 5 * 60_000;
 export const TARGETING_LOOKUP_DEBOUNCE_MS = 300;
 // Backend caps targeting-option pages at 50 (TARGETING_OPTIONS_MAX_LIMIT).
 export const TARGETING_CATALOG_OPTIONS_LIMIT = 50;

@@ -12,7 +12,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Switch,
   TextField,
   Tooltip,
   Typography,
@@ -45,7 +44,6 @@ import {
   statusLabel,
 } from '../../components/agents/agentControlPrimitives';
 import {
-  actionLinkButtonSx,
   categoryFromFilters,
   createdHorizonHoursFromFilters,
   DEFAULT_APPROVAL_TTL_HOURS,
@@ -59,22 +57,22 @@ import {
   DEFAULT_PER_RUN_TOKENS,
   DEFAULT_REVIEW_COOLDOWN_HOURS,
   entityFromFilters,
-  HelpdeskTargetingFilterBuilder,
   modeFromFilters,
   openStatusValues,
   statusFilterValues,
+  TARGETING_OPTIONS_STALE_TIME_MS,
   targetingPredicatesFromFilters,
   targetingPresetFilters,
   type TargetingFilter,
-  type TargetingPresetKey,
 } from '../../components/agents/helpdeskTargeting';
 import { aiAgentControlApi } from '../../ai/aiApi';
-import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { compactSelectMenuProps, dialogBorderedFieldSx, drawerMenuItemSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, dialogBorderedFieldSx, drawerMenuItemSx, pageSelectSx } from '../../theme/formSx';
 import { useLocale } from '../../i18n/useLocale';
 import { helpdeskScopeFiltered } from '../../components/agents/agentRunState';
 import { useAgentControlData } from './useAgentControlData';
 
+// Dialog fields plus create-time defaults that are not collected in the UI
+// (watchEnabled stays false; limit/cap fields ship the template values).
 type NewAgentWizardForm = {
   name: string;
   description: string;
@@ -179,15 +177,6 @@ function sreScheduledPollEnabled(triggerPolicy: unknown): boolean {
     ? trigger.scheduled_poll as Record<string, unknown> : {};
   return scheduledPoll.enabled === true;
 }
-
-// Wizard step sequence per agent type. SRE has no "watching" step: monitoring
-// alert selection is configured in the agent's settings after creation (the
-// wizard sends the seed's inert empty targeting placeholder — see
-// newSreAgentPolicies).
-const WIZARD_STEP_KEYS: Record<NewAgentWizardForm['agentType'], Array<'type' | 'connection' | 'watching' | 'review'>> = {
-  helpdesk: ['type', 'watching', 'review'],
-  sre: ['type', 'connection', 'review'],
-};
 
 function economicGuardrailsFromForm(form: NewAgentWizardForm) {
   return {
@@ -382,90 +371,6 @@ function newAgentPolicies(form: NewAgentWizardForm) {
   };
 }
 
-function WizardProgress({ activeStep, steps }: { activeStep: number; steps: string[] }) {
-  return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${steps.length}, minmax(0, 1fr))` }, gap: 0.75 }}>
-      {steps.map((label, index) => (
-        <Box
-          key={label}
-          sx={(theme) => ({
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.75,
-            minHeight: 34,
-            px: 1,
-            borderRadius: '6px',
-            border: `1px solid ${index === activeStep ? theme.palette.kanap.border.default : theme.palette.kanap.border.soft}`,
-            bgcolor: index === activeStep ? theme.palette.kanap.bg.drawer : 'transparent',
-          })}
-        >
-          <Typography
-            component="span"
-            sx={(theme) => ({
-              fontFamily: MONO_FONT_FAMILY,
-              fontSize: 11,
-              color: theme.palette.kanap.text.tertiary,
-              fontVariantNumeric: 'tabular-nums',
-            })}
-          >
-            {index + 1}
-          </Typography>
-          <Typography
-            component="span"
-            sx={(theme) => ({
-              minWidth: 0,
-              fontSize: 12,
-              fontWeight: index === activeStep ? 500 : 400,
-              color: index === activeStep ? theme.palette.kanap.text.primary : theme.palette.kanap.text.secondary,
-              lineHeight: 1.25,
-            })}
-          >
-            {label}
-          </Typography>
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
-function WizardSwitchRow({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <Box
-      sx={(theme) => ({
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 2,
-        minHeight: 38,
-        px: 1.25,
-        py: 0.75,
-        borderRadius: '6px',
-        bgcolor: theme.palette.kanap.bg.drawer,
-      })}
-    >
-      <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary })}>{label}</Typography>
-      <Switch checked={checked} onChange={(event) => onChange(event.target.checked)} />
-    </Box>
-  );
-}
-
-function WizardSummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography sx={(theme) => ({ fontSize: 12, lineHeight: 1.3, color: theme.palette.kanap.text.tertiary })}>{label}</Typography>
-      <Typography sx={(theme) => ({ mt: 0.25, fontSize: 13, lineHeight: 1.4, color: theme.palette.kanap.text.primary })}>{value}</Typography>
-    </Box>
-  );
-}
-
 export default function AgentsOverviewPage() {
   const { t } = useTranslation(['agents']);
   const locale = useLocale();
@@ -497,23 +402,17 @@ export default function AgentsOverviewPage() {
   );
   const activePause = data.settingsQuery.data?.emergency_pause ?? null;
   const [wizardOpen, setWizardOpen] = React.useState(false);
-  const [wizardStep, setWizardStep] = React.useState(0);
   const [wizardForm, setWizardForm] = React.useState<NewAgentWizardForm>(() => defaultWizardForm(t));
   const canAdmin = hasLevel('ai_agents', 'admin') || hasLevel('ai_settings', 'admin');
-  const wizardStepKeys = WIZARD_STEP_KEYS[wizardForm.agentType];
-  const wizardSteps = React.useMemo(
-    () => wizardStepKeys.map((step) => t(`overview.wizard.steps.${step}`)),
-    [t, wizardStepKeys],
-  );
-  const wizardStepKey = wizardStepKeys[Math.min(wizardStep, wizardStepKeys.length - 1)];
   const updateWizard = <K extends keyof NewAgentWizardForm>(field: K, value: NewAgentWizardForm[K]) => {
     setWizardForm((current) => ({ ...current, [field]: value }));
   };
-  // Monitoring connections the wizard can bind to. There is no adapter-config
+  // Monitoring connections the dialog can bind to. There is no adapter-config
   // list endpoint, so this mirrors what the backend seed exposes indirectly:
   // the monitoring bindings already present on the fleet's SRE definitions
   // (the seed binds automatically when exactly one enabled monitoring adapter
   // config exists). Empty means "none known" — the agent is created unbound.
+  // Manage integrations is the escape hatch when that harvested list is empty.
   const monitoringProviderKeys = React.useMemo(() => {
     const keys = new Set<string>();
     for (const definition of definitions) {
@@ -555,10 +454,13 @@ export default function AgentsOverviewPage() {
   );
   const targetingOptionsAgentId = helpdeskTemplateDefinition?.id ?? null;
   const targetingStatusOptionsQuery = useQuery({
-    queryKey: ['ai-agent-targeting-options', targetingOptionsAgentId, 'status', 'wizard'],
+    // Same key as the workspace's status query (AgentWorkspacePage / the targeting
+    // builder), so this prefetch also warms the Settings tab the user lands on.
+    queryKey: ['ai-agent-targeting-options', targetingOptionsAgentId, 'status', ''],
     queryFn: () => aiAgentControlApi.getAgentTargetingOptions(targetingOptionsAgentId || '', 'status', { limit: 50 }),
-    enabled: wizardOpen && !!targetingOptionsAgentId,
-    staleTime: 30_000,
+    // Prefetch on the overview so Create on first paint still has open-status values.
+    enabled: canAdmin && !!targetingOptionsAgentId,
+    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
   });
   const presetStatusValues = React.useMemo(
     () => openStatusValues(targetingStatusOptionsQuery.data?.options ?? []),
@@ -589,24 +491,8 @@ export default function AgentsOverviewPage() {
 
   const openWizard = React.useCallback(() => {
     setWizardForm(defaultWizardForm(t, presetStatusValues));
-    setWizardStep(0);
     setWizardOpen(true);
   }, [presetStatusValues, t]);
-
-  const updateWizardFilters = React.useCallback((filters: TargetingFilter[]) => {
-    setWizardForm((current) => ({
-      ...current,
-      filters,
-      horizonHours: String(createdHorizonHoursFromFilters(filters, current.horizonHours)),
-    }));
-  }, []);
-
-  const applyWizardTargetingPreset = React.useCallback((preset: TargetingPresetKey) => {
-    setWizardForm((current) => ({
-      ...current,
-      filters: targetingPresetFilters(preset, positiveNumber(current.horizonHours, DEFAULT_HORIZON_HOURS), presetStatusValues),
-    }));
-  }, [presetStatusValues]);
 
   const createAgent = React.useCallback(async () => {
     if (!wizardForm.name.trim()) return;
@@ -623,16 +509,6 @@ export default function AgentsOverviewPage() {
       // Mutation handler surfaces the API error.
     }
   }, [data.createAgentMutation, navigate, wizardForm]);
-
-  const wizardScopeMode = modeFromFilters(wizardForm.filters);
-  const wizardPrimaryLabel = wizardStep < wizardSteps.length - 1 ? t('overview.wizard.next') : t('overview.wizard.create');
-  const wizardPrimaryAction = React.useCallback(() => {
-    if (wizardStep < wizardSteps.length - 1) {
-      setWizardStep((step) => Math.min(wizardSteps.length - 1, step + 1));
-      return;
-    }
-    void createAgent();
-  }, [createAgent, wizardStep, wizardSteps.length]);
 
   return (
     <Box sx={{ p: 2 }}>
@@ -787,175 +663,87 @@ export default function AgentsOverviewPage() {
         open={wizardOpen}
         title={t('overview.wizard.title')}
         onClose={() => setWizardOpen(false)}
-        onSave={wizardPrimaryAction}
-        saveLabel={wizardPrimaryLabel}
+        onSave={() => { void createAgent(); }}
+        saveLabel={t('overview.wizard.create')}
         saveDisabled={!wizardForm.name.trim() || data.createAgentMutation.isPending}
-        saveLoading={wizardStep === wizardSteps.length - 1 && data.createAgentMutation.isPending}
+        saveLoading={data.createAgentMutation.isPending}
         cancelLabel={t('overview.wizard.cancel')}
-        sx={{ maxWidth: 860 }}
-        footerLeft={(
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
-              {t('overview.wizard.stepCounter', { current: wizardStep + 1, total: wizardSteps.length })}
-            </Typography>
-            {wizardStep > 0 && (
-              <Button variant="action" onClick={() => setWizardStep((step) => Math.max(0, step - 1))}>
-                {t('overview.wizard.back')}
-              </Button>
-            )}
-          </Stack>
-        )}
       >
-        <Stack spacing={2}>
-          <WizardProgress activeStep={wizardStep} steps={wizardSteps} />
-
-          {wizardStepKey === 'type' && (
-            <Stack spacing={1.5}>
-              <PropertyRow label={t('overview.wizard.name')} required>
-                <TextField
-                  size="small"
-                  variant="standard"
-                  value={wizardForm.name}
-                  InputProps={{ disableUnderline: true }}
-                  sx={[dialogBorderedFieldSx, { width: '100%' }]}
-                  onChange={(event) => updateWizard('name', event.target.value)}
-                />
-              </PropertyRow>
-              <PropertyRow label={t('overview.wizard.type')}>
-                <Select
-                  variant="standard"
-                  value={wizardForm.agentType}
-                  onChange={(event) => changeWizardType(event.target.value as NewAgentWizardForm['agentType'])}
-                  sx={pageSelectSx}
-                  MenuProps={compactSelectMenuProps}
-                >
-                  <MenuItem value="helpdesk" sx={drawerMenuItemSx}>{t('overview.wizard.helpdesk')}</MenuItem>
-                  <MenuItem value="sre" sx={drawerMenuItemSx}>{t('overview.wizard.sre')}</MenuItem>
-                </Select>
-              </PropertyRow>
-              <PropertyRow label={t('overview.wizard.description')}>
-                <TextField
-                  size="small"
-                  variant="standard"
-                  multiline
-                  minRows={3}
-                  value={wizardForm.description}
-                  InputProps={{ disableUnderline: true }}
-                  sx={longFormSurfaceFieldSx}
-                  onChange={(event) => updateWizard('description', event.target.value)}
-                />
-              </PropertyRow>
-              {wizardForm.agentType === 'helpdesk' && (
-                <Stack spacing={0.75}>
-                  <PropertyRow label={t('overview.wizard.connection')}>
-                    <Select
-                      variant="standard"
-                      value={wizardForm.providerKey}
-                      onChange={(event) => updateWizard('providerKey', event.target.value)}
-                      sx={pageSelectSx}
-                      MenuProps={compactSelectMenuProps}
-                    >
-                      <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
-                    </Select>
-                  </PropertyRow>
-                  <Button type="button" size="small" variant="action" onClick={() => navigate('/admin/integrations')} sx={{ alignSelf: 'flex-start' }}>
-                    {t('overview.wizard.manageConnections')}
-                  </Button>
-                </Stack>
-              )}
-            </Stack>
-          )}
-
-          {wizardStepKey === 'connection' && wizardForm.agentType === 'sre' && (
-            <Stack spacing={1.5}>
-              {monitoringProviderKeys.length > 0 ? (
-                <PropertyRow label={t('overview.wizard.monitoringConnection')}>
-                  <Select
-                    variant="standard"
-                    value={wizardForm.providerKey}
-                    onChange={(event) => updateWizard('providerKey', event.target.value)}
-                    sx={pageSelectSx}
-                    MenuProps={compactSelectMenuProps}
-                  >
-                    {monitoringProviderKeys.map((key) => (
-                      <MenuItem key={key} value={key} sx={drawerMenuItemSx}>{key.toUpperCase()}</MenuItem>
-                    ))}
-                  </Select>
-                </PropertyRow>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  {t('overview.wizard.monitoringConnectionHint')}
-                </Typography>
-              )}
-              <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary, lineHeight: 1.4 })}>
-                {t('overview.wizard.sreWatchingLater')}
-              </Typography>
-            </Stack>
-          )}
-
-          {wizardStepKey === 'watching' && (
-            <Stack spacing={1.5}>
-              <WizardSwitchRow
-                checked={wizardForm.watchEnabled}
-                label={t('overview.wizard.watchNewTickets')}
-                onChange={(checked) => updateWizard('watchEnabled', checked)}
-              />
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                {(['new_tickets', 'all_open', 'handled'] as TargetingPresetKey[]).map((preset) => (
-                  <Button
-                    key={preset}
-                    type="button"
-                    size="small"
-                    variant="text"
-                    onClick={() => applyWizardTargetingPreset(preset)}
-                    disabled={presetStatusValues.length === 0}
-                    sx={actionLinkButtonSx}
-                  >
-                    {t(`settings.targetingPresets.${preset}`)}
-                  </Button>
+        <Stack spacing={1.5}>
+          <PropertyRow label={t('overview.wizard.type')}>
+            <Select
+              variant="standard"
+              value={wizardForm.agentType}
+              onChange={(event) => changeWizardType(event.target.value as NewAgentWizardForm['agentType'])}
+              sx={pageSelectSx}
+              MenuProps={compactSelectMenuProps}
+            >
+              <MenuItem value="helpdesk" sx={drawerMenuItemSx}>{t('overview.wizard.helpdesk')}</MenuItem>
+              <MenuItem value="sre" sx={drawerMenuItemSx}>{t('overview.wizard.sre')}</MenuItem>
+            </Select>
+          </PropertyRow>
+          <PropertyRow label={t('overview.wizard.name')} required>
+            <TextField
+              size="small"
+              variant="standard"
+              value={wizardForm.name}
+              InputProps={{ disableUnderline: true }}
+              sx={[dialogBorderedFieldSx, { width: '100%' }]}
+              onChange={(event) => updateWizard('name', event.target.value)}
+            />
+          </PropertyRow>
+          <PropertyRow label={t('overview.wizard.description')}>
+            <TextField
+              size="small"
+              variant="standard"
+              multiline
+              minRows={2}
+              value={wizardForm.description}
+              InputProps={{ disableUnderline: true }}
+              sx={[dialogBorderedFieldSx, { width: '100%', '& .MuiInputBase-root': { alignItems: 'flex-start' } }]}
+              onChange={(event) => updateWizard('description', event.target.value)}
+            />
+          </PropertyRow>
+          {wizardForm.agentType === 'helpdesk' ? (
+            <PropertyRow label={t('overview.wizard.connection')}>
+              <Select
+                variant="standard"
+                value={wizardForm.providerKey}
+                onChange={(event) => updateWizard('providerKey', event.target.value)}
+                sx={pageSelectSx}
+                MenuProps={compactSelectMenuProps}
+              >
+                <MenuItem value={LEGACY_GLPI_TICKETING_PROVIDER_KEY} sx={drawerMenuItemSx}>GLPI</MenuItem>
+              </Select>
+            </PropertyRow>
+          ) : monitoringProviderKeys.length > 0 ? (
+            <PropertyRow label={t('overview.wizard.monitoringConnection')}>
+              <Select
+                variant="standard"
+                value={wizardForm.providerKey}
+                onChange={(event) => updateWizard('providerKey', event.target.value)}
+                sx={pageSelectSx}
+                MenuProps={compactSelectMenuProps}
+              >
+                {monitoringProviderKeys.map((key) => (
+                  <MenuItem key={key} value={key} sx={drawerMenuItemSx}>{key.toUpperCase()}</MenuItem>
                 ))}
-              </Stack>
-              <PropertyRow label={t('settings.targetingBuilder.filters')} helperText={t('settings.targetingBuilder.hint')}>
-                <HelpdeskTargetingFilterBuilder
-                  agentId={targetingOptionsAgentId}
-                  filters={wizardForm.filters}
-                  onChange={updateWizardFilters}
-                />
-              </PropertyRow>
-            </Stack>
+              </Select>
+            </PropertyRow>
+          ) : (
+            <PropertyRow
+              label={t('overview.wizard.monitoringConnection')}
+              helperText={t('overview.wizard.monitoringConnectionHint')}
+            >
+              <Box component="span" sx={{ color: 'kanap.text.tertiary' }}>{t('common.notSet')}</Box>
+            </PropertyRow>
           )}
-
-          {wizardStepKey === 'review' && (
-            <Stack spacing={1.5}>
-              <Typography sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary })}>
-                {wizardForm.name || t('overview.wizard.unnamed')}
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-                <WizardSummaryRow
-                  label={t('overview.wizard.type')}
-                  value={t(wizardForm.agentType === 'sre' ? 'overview.wizard.sre' : 'overview.wizard.helpdesk')}
-                />
-                <WizardSummaryRow
-                  label={t('overview.wizard.connection')}
-                  value={wizardForm.agentType === 'sre'
-                    ? (wizardForm.providerKey ? wizardForm.providerKey.toUpperCase() : t('overview.wizard.notConnected'))
-                    : 'GLPI'}
-                />
-                {wizardForm.agentType === 'helpdesk' && (
-                  <WizardSummaryRow label={t('monitor.watching')} value={wizardForm.watchEnabled ? t('overview.wizard.watchEnabled') : t('overview.wizard.watchDisabled')} />
-                )}
-                {wizardForm.agentType === 'helpdesk' && (
-                  <WizardSummaryRow label={t('settings.scopeMode')} value={t(`settings.scopeModes.${wizardScopeMode}`)} />
-                )}
-                {wizardForm.agentType === 'helpdesk' && (
-                  <WizardSummaryRow label={t('settings.targetingBuilder.filters')} value={t('overview.wizard.filterCount', { count: wizardForm.filters.length })} />
-                )}
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {t(wizardForm.agentType === 'sre' ? 'overview.wizard.reviewBodySre' : 'overview.wizard.reviewBody')}
-              </Typography>
-            </Stack>
-          )}
+          <Button type="button" size="small" variant="action" onClick={() => navigate('/admin/integrations')} sx={{ alignSelf: 'flex-start' }}>
+            {t('overview.wizard.manageConnections')}
+          </Button>
+          <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary, lineHeight: 1.4 })}>
+            {t(wizardForm.agentType === 'sre' ? 'overview.wizard.reviewBodySre' : 'overview.wizard.reviewBody')}
+          </Typography>
         </Stack>
       </KanapDialog>
 
