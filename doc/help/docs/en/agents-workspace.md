@@ -121,7 +121,7 @@ Automatic never means unsupervised. Hard safety limits, budgets, freshness check
 
 The **Settings** tab is administrator-only and holds every configuration knob for the agent. It **autosaves**: there are no save buttons, and each section shows a small **Saving…** / **Saved** indicator in its header as your edits are written. If you switch tabs with a save still in flight, the save is completed first — and if it fails, the switch is cancelled so the error and your edit stay on screen.
 
-The four sections follow the order you actually set an agent up in: decide what it looks at, then what it is, then what it knows, then how hard it may work.
+The sections follow the order you actually set an agent up in: decide what it looks at, then what it may do, then what it is, then what it knows, then how hard it may work.
 
 ### Targeting
 
@@ -133,14 +133,16 @@ A live line under the filters tells you how many tickets currently match. If ano
 
 Monitoring agents have the same section, filtering on alert state, severity, acknowledgement, group, device and check type instead.
 
-### Objective and capabilities
+### Capabilities
 
-**Capabilities** come first, because they frame everything else: switches for which kinds of change the agent may *ever* propose — **Internal notes**, **Requester replies**, **Classification**, **Status updates**, **Assignment**, and **Participants**. Turning one off removes that action type entirely: the agent can't propose it, whatever the instructions say, and it can't be promoted on the autonomy ladder.
+Capabilities come first, because they frame everything else: a row of checkboxes for which kinds of change the agent may *ever* propose — **Internal notes**, **Requester replies**, **Classification**, **Status updates**, **Assignment**, and **Participants**. Unticking one removes that action type entirely: the agent can't propose it, whatever the instructions say, and it can't be promoted on the autonomy ladder. Monitoring agents don't have this section.
 
-Below them sits the persona — who the agent is and how it writes:
+### Objective
+
+The objective is who the agent is and how it writes:
 
 - **Purpose** — what the agent is here to do, in one line. It reads this on every run.
-- **Instructions** — house rules, one rule per line. They cannot widen what the agent is allowed to do. A counter shows how many of the 16 lines you have used (500 characters each). Past those limits the field is not saved, and neither are the other identity fields, until you shorten the draft.
+- **Instructions** — house rules, written freely as lines or paragraphs. They cannot widen what the agent is allowed to do. There is a single limit of 10 000 characters in total — beyond it, part of the text would no longer reach the agent. A quiet counter appears as you approach the limit; past it the section is not saved until you shorten the draft.
 - **Reply language** — **Ticket language** (answer in whatever language the requester used), **French**, **English**, **German**, or **Spanish**.
 
 The agent's name and short description live on the workspace title, not in this grid: click them to edit. How the agent should sound, and when it should hand work to a person, belong in **Instructions** as ordinary rules.

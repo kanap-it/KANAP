@@ -121,7 +121,7 @@ Automatisch bedeutet niemals unbeaufsichtigt. Harte Sicherheitsgrenzen, Budgets,
 
 Die Registerkarte **Einstellungen** ist nur für Administratoren und enthält jeden Konfigurationsregler für den Agenten. Sie **speichert automatisch**: Es gibt keine Speicherschaltflächen, und jeder Abschnitt zeigt in seiner Kopfzeile eine kleine Anzeige **Wird gespeichert…** / **Gespeichert**, während Ihre Änderungen geschrieben werden. Wenn Sie die Registerkarte wechseln, während ein Speichervorgang noch läuft, wird dieser zuerst abgeschlossen — und schlägt er fehl, wird der Wechsel abgebrochen, sodass der Fehler und Ihre Änderung auf dem Bildschirm bleiben.
 
-Die vier Abschnitte folgen der Reihenfolge, in der man einen Agenten tatsächlich einrichtet: Entscheiden Sie zuerst, worauf er schaut, dann, was er ist, dann, was er weiß, und schließlich, wie hart er arbeiten darf.
+Die Abschnitte folgen der Reihenfolge, in der man einen Agenten tatsächlich einrichtet: Entscheiden Sie zuerst, worauf er schaut, dann, was er tun darf, dann, was er ist, dann, was er weiß, und schließlich, wie hart er arbeiten darf.
 
 ### Zielauswahl
 
@@ -133,14 +133,16 @@ Eine Zeile unter den Filtern sagt, wie viele Tickets derzeit passen. Wenn ein an
 
 Überwachungs-Agenten haben denselben Abschnitt, filtern darin aber stattdessen nach Alarmzustand, Schweregrad, Quittierung, Gruppe, Gerät und Check-Typ.
 
-### Ziel und Fähigkeiten
+### Fähigkeiten
 
-**Fähigkeiten** stehen zuerst, denn sie stecken den Rahmen für alles Weitere: Schalter dafür, welche Arten von Änderungen der Agent *überhaupt* vorschlagen darf — **Interne Notizen**, **Antworten an Anfragende**, **Klassifizierung**, **Statusänderungen**, **Zuweisung** und **Beteiligte**. Einen davon auszuschalten entfernt diesen Aktionstyp vollständig: Der Agent kann ihn nicht vorschlagen, ganz gleich, was die Anweisungen sagen, und er kann in den Autonomie-Stufen nicht hochgestuft werden.
+Die Fähigkeiten stehen zuerst, denn sie stecken den Rahmen für alles Weitere: eine Reihe von Kontrollkästchen dafür, welche Arten von Änderungen der Agent *überhaupt* vorschlagen darf — **Interne Notizen**, **Antworten an Anfragende**, **Klassifizierung**, **Statusänderungen**, **Zuweisung** und **Beteiligte**. Ein Kästchen abzuwählen entfernt diesen Aktionstyp vollständig: Der Agent kann ihn nicht vorschlagen, ganz gleich, was die Anweisungen sagen, und er kann in den Autonomie-Stufen nicht hochgestuft werden. Überwachungsagenten haben diesen Abschnitt nicht.
 
-Darunter sitzt die Persona — wer der Agent ist und wie er schreibt:
+### Ziel
+
+Das Ziel beschreibt, wer der Agent ist und wie er schreibt:
 
 - **Zweck** — wofür dieser Agent da ist, in einer Zeile. Er liest sie bei jedem Lauf.
-- **Anweisungen** — Hausregeln, eine Regel je Zeile. Sie können nicht erweitern, was der Agent tun darf. Ein Zähler zeigt, wie viele der 16 Zeilen Sie genutzt haben (je 500 Zeichen). Über diese Grenzen hinaus wird das Feld nicht gespeichert, und die anderen Identitätsfelder auch nicht, bis Sie den Entwurf kürzen.
+- **Anweisungen** — Hausregeln, frei formuliert in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf. Es gibt nur eine Grenze: 10 000 Zeichen insgesamt — darüber hinaus würde ein Teil des Textes den Agenten nicht mehr erreichen. Ein dezenter Zähler erscheint, wenn Sie sich der Grenze nähern; darüber wird der Abschnitt nicht gespeichert, bis Sie den Entwurf kürzen.
 - **Antwortsprache** — **Ticketsprache** (in der Sprache antworten, die der Anfragende verwendet hat), **Französisch**, **Englisch**, **Deutsch** oder **Spanisch**.
 
 Name und kurze Beschreibung des Agenten stehen im Titel des Arbeitsbereichs, nicht in diesem Raster: klicken Sie darauf, um sie zu bearbeiten. Wie der Agent klingen soll und wann er die Arbeit an eine Person übergeben soll, gehören als gewöhnliche Regeln in die **Anweisungen**.

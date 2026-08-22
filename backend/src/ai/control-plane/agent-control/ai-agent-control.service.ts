@@ -1699,8 +1699,12 @@ function normalizedPolicyObject(value: unknown, label: string): Record<string, u
 const MAX_PERSONA_MISSION_CHARS = 500;
 const MAX_PERSONA_TONE_CHARS = 300;
 const MAX_PERSONA_ESCALATION_CHARS = 500;
-const MAX_PERSONA_INSTRUCTIONS = 16;
-const MAX_PERSONA_INSTRUCTION_CHARS = 500;
+// The ONE user-facing instructions limit: total characters across all
+// paragraphs. Chosen so a maxed-out persona plus a full shared-context
+// profile stays under the compiler's 40 000-char guidance budget — the cap
+// maps to real prompt truncation, not to an internal convention. Per-line
+// length and line count are deliberately unbounded.
+const MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS = 10_000;
 
 function normalizePersona(value: unknown, fallback: Record<string, unknown> | null = null): Record<string, unknown> | null {
   if (value == null) return fallback;
@@ -1720,11 +1724,16 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
   const outputStyleInput = isRecord(value.output_style) ? value.output_style : {};
   const fallbackOutputStyle = isRecord(base.output_style) ? base.output_style : {};
   const toneProvided = hasOwn(outputStyleInput, 'tone') || hasOwn(value, 'tone');
-  const tone = requireBoundedLine(
-    toneProvided ? (outputStyleInput.tone ?? value.tone) : fallbackOutputStyle.tone,
-    MAX_PERSONA_TONE_CHARS,
-    'Output style must be at most 300 characters.',
-  );
+  // Strict validation applies to client input only. Stored values pass through
+  // untouched: a row written out-of-band must never brick every later save
+  // with an error about a field the UI no longer shows.
+  const tone = toneProvided
+    ? requireBoundedLine(
+      outputStyleInput.tone ?? value.tone,
+      MAX_PERSONA_TONE_CHARS,
+      'Reply tone must be at most 300 characters.',
+    )
+    : (typeof fallbackOutputStyle.tone === 'string' && fallbackOutputStyle.tone.trim() ? fallbackOutputStyle.tone : null);
   const language = cleanSingleLine(outputStyleInput.language ?? fallbackOutputStyle.language, 24);
   if (language && language !== 'auto' && !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(language)) {
     throw new BadRequestException('Unsupported output style language.');
@@ -1736,27 +1745,24 @@ function normalizePersona(value: unknown, fallback: Record<string, unknown> | nu
   const escalationProvided = hasOwn(value, 'escalation_guidance')
     || hasOwn(value, 'escalation_text')
     || hasOwn(value, 'escalationText');
-  const escalationGuidance = requireBoundedLine(
-    escalationProvided
-      ? (value.escalation_guidance ?? value.escalation_text ?? value.escalationText)
-      : base.escalation_guidance,
-    MAX_PERSONA_ESCALATION_CHARS,
-    'Escalation guidance must be at most 500 characters.',
-  );
+  const escalationGuidance = escalationProvided
+    ? requireBoundedLine(
+      value.escalation_guidance ?? value.escalation_text ?? value.escalationText,
+      MAX_PERSONA_ESCALATION_CHARS,
+      'Escalation guidance must be at most 500 characters.',
+    )
+    : (typeof base.escalation_guidance === 'string' && base.escalation_guidance.trim() ? base.escalation_guidance : null);
   const instructionsSource = hasOwn(value, 'instructions')
     ? value.instructions
     : base.instructions;
   const instructions = Array.isArray(instructionsSource)
     ? instructionsSource
-      .map((entry) => requireBoundedLine(
-        entry,
-        MAX_PERSONA_INSTRUCTION_CHARS,
-        'Each instruction can be at most 500 characters.',
-      ))
-      .filter((entry): entry is string => !!entry)
+      .map((entry) => (typeof entry === 'string' ? entry.replace(/\s+/g, ' ').trim() : ''))
+      .filter((entry) => entry.length > 0)
     : [];
-  if (instructions.length > MAX_PERSONA_INSTRUCTIONS) {
-    throw new BadRequestException('Instructions can have at most 16 lines.');
+  const instructionsChars = instructions.reduce((total, entry) => total + entry.length, 0);
+  if (instructionsChars > MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS) {
+    throw new BadRequestException('Instructions are limited to 10 000 characters in total.');
   }
   const sharedContextInput = hasOwn(value, 'shared_context')
     ? value.shared_context

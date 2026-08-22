@@ -54,40 +54,49 @@ async function testLegacyPersonaRendersBoundedJsonGuidance() {
 
 async function testBoundsClampInstructionsAndSharedContext() {
   const compiler = new AiAgentPromptCompilerService();
+  // 300 entries exceed the 256-entry backstop (only reachable for rows written
+  // outside normalizePersona); shared-context keeps its 30-line cap.
   const profile = compiler.compile({
     mission: 'Support agent',
-    instructions: Array.from({ length: 20 }, (_entry, index) => `Instruction ${index + 1}`),
+    instructions: Array.from({ length: 300 }, (_entry, index) => `Instruction ${index + 1}`),
   }, {
     profile_id: '22222222-2222-4222-8222-222222222222',
     version: 2,
     name: 'Large profile',
     lines: Array.from({ length: 45 }, (_entry, index) => `Context line ${index + 1}`),
   });
-  assert.equal(profile.instructions.length, 16);
+  assert.equal(profile.instructions.length, 256);
   assert.equal(profile.shared_context?.lines.length, 30);
   assert.ok(profile.bounds_applied.some((entry) => entry.startsWith('instructions_clamped')));
   assert.ok(profile.bounds_applied.some((entry) => entry.startsWith('shared_context_lines_clamped')));
 }
 
-async function testSixteenInstructionsAreKeptWithoutInstructionClamp() {
+async function testFreeFormInstructionsAreKeptWithoutClamp() {
   const compiler = new AiAgentPromptCompilerService();
+  // The write-time contract is a 10 000-char total with free line lengths:
+  // a 2 000-char paragraph plus many short rules must pass through untouched.
   const profile = compiler.compile({
     mission: 'Support agent',
-    instructions: Array.from({ length: 16 }, (_entry, index) => `Instruction ${index + 1}`),
+    instructions: ['p'.repeat(2_000), ...Array.from({ length: 39 }, (_entry, index) => `Instruction ${index + 1}`)],
   }, null);
-  assert.equal(profile.instructions.length, 16);
+  assert.equal(profile.instructions.length, 40);
+  assert.equal(profile.instructions[0].length, 2_000);
   assert.equal(profile.bounds_applied.some((entry) => entry.startsWith('instructions_clamped')), false);
+  assert.equal(profile.bounds_applied.some((entry) => entry.startsWith('instruction_')), false);
 }
 
 async function testMaxLegalActionPlannerSliceFitsInsideGuidanceBudget() {
   const compiler = new AiAgentPromptCompilerService();
   const line = 'x'.repeat(500);
+  // Max legal write-time persona: 10 000 chars of instructions (with quoted
+  // segments feeding 8 max-size verbatim candidates), full mission/tone/
+  // escalation, full 30-line shared-context profile.
+  const instructions = Array.from({ length: 8 }, (_entry, index) => `"${'v'.repeat(949)}${index}" ${'x'.repeat(240)}`);
+  const quotedChars = instructions.reduce((total, entry) => total + entry.length, 0);
+  instructions.push('x'.repeat(10_000 - quotedChars));
   const profile = compiler.compile({
     mission: 'm'.repeat(500),
-    instructions: Array.from({ length: 16 }, (_entry, index) => {
-      const quoted = index < 8 ? `"${'v'.repeat(200)}" ` : '';
-      return `${quoted}${'x'.repeat(500 - quoted.length)}`;
-    }),
+    instructions,
     output_style: { tone: 't'.repeat(300) },
     escalation_guidance: 'e'.repeat(500),
   }, {
@@ -96,12 +105,31 @@ async function testMaxLegalActionPlannerSliceFitsInsideGuidanceBudget() {
     name: 'Large profile',
     lines: Array.from({ length: 30 }, () => line),
   });
-  assert.equal(profile.instructions.length, 16);
   assert.equal(profile.shared_context?.lines.length, 30);
+  // The 4 000-char combined verbatim budget keeps 4 of the 8 ~950-char quotes;
+  // the skipped text still reaches the model inside the instructions.
+  assert.equal(profile.verbatim_candidates?.length, 4);
   const actionPlanner = compiler.sliceFor(profile, 'action_planner');
   const compactSize = JSON.stringify(guidancePayload(actionPlanner)).length;
   assert.ok(compactSize < 40_000, `max legal action-planner slice is ${compactSize} chars, must fit under 40000`);
   assert.equal(actionPlanner.bounds_applied.some((entry) => entry.startsWith('total_guidance_chars_clamped')), false);
+}
+
+async function testBudgetClampEmitsCountedTokens() {
+  const compiler = new AiAgentPromptCompilerService();
+  // Force the budget clamp with backstop-legal content: 256 entries of
+  // ~200 chars ≈ 51k chars > 40k. The drop count must survive dedupe, so it
+  // is carried on the token itself.
+  const profile = compiler.compile({
+    mission: 'Support agent',
+    instructions: Array.from({ length: 256 }, (_entry, index) => `Rule ${index + 1} ${'x'.repeat(190)}`),
+  }, null);
+  const synthesis = compiler.sliceFor(profile, 'synthesis');
+  const counted = synthesis.bounds_applied.filter((entry) => /^total_guidance_chars_clamped:instructions:\d+$/.test(entry));
+  assert.equal(counted.length, 1, `expected one counted token, got: ${synthesis.bounds_applied.join(', ')}`);
+  const dropped = Number(counted[0].split(':')[2]);
+  assert.ok(dropped > 1, `expected more than one dropped instruction, got ${dropped}`);
+  assert.equal((synthesis.instructions?.length ?? 0) + dropped, 256);
 }
 
 async function testActionPlannerSliceCarriesVerbatimCandidates() {
@@ -133,8 +161,9 @@ async function run() {
   await testEmptyGuidanceKeepsFloorVerbatim();
   await testLegacyPersonaRendersBoundedJsonGuidance();
   await testBoundsClampInstructionsAndSharedContext();
-  await testSixteenInstructionsAreKeptWithoutInstructionClamp();
+  await testFreeFormInstructionsAreKeptWithoutClamp();
   await testMaxLegalActionPlannerSliceFitsInsideGuidanceBudget();
+  await testBudgetClampEmitsCountedTokens();
   await testActionPlannerSliceCarriesVerbatimCandidates();
 }
 

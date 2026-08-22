@@ -444,7 +444,8 @@
       "off": "Rien ne s’exécute, pas même une vérification manuelle.",
       "manual": "Ne s’exécute que sur demande (Vérifier maintenant, tests).",
       "watching": "Vérifie tout seul, en plus de tout ce que fait le mode manuel."
-    }
+    },
+    "archivedNoteViewer": "Archivé — un administrateur peut le restaurer."
   },
   "performance": {
     "acceptance": "Acceptation",
@@ -482,7 +483,7 @@
     "archiveBody": "« {{name}} » ne sera plus disponible pour les agents. Tout agent qui l'utilise actuellement fonctionnera sans contexte partagé jusqu'à ce que vous le pointiez vers un autre profil."
   },
   "settings": {
-    "objectiveCapabilities": "Objectif et capacités",
+    "objective": "Objectif",
     "archiveAgent": "Archiver l'agent",
     "restoreAgent": "Restaurer l'agent",
     "archiveDialog": {
@@ -502,10 +503,7 @@
     "replyLanguage": "Langue de réponse",
     "instructions": "Instructions",
     "instructionsPlaceholder": "ex. Préférer les notes internes lorsque les preuves sont incomplètes.",
-    "instructionsCounter": "{{used}} / {{max}} lignes · 500 caractères par ligne",
-    "instructionsTooManyLines": "Les instructions peuvent compter au plus {{max}} lignes. Les autres modifications d'identité ne sont pas enregistrées tant que ce n'est pas corrigé.",
-    "instructionsLineTooLong": "La ligne {{line}} dépasse {{max}} caractères. Les autres modifications d'identité ne sont pas enregistrées tant que ce n'est pas corrigé.",
-    "purposeOverLimit": "L'objectif peut compter au plus {{max}} caractères. Les autres modifications d'identité ne sont pas enregistrées tant que ce n'est pas corrigé.",
+    "purposeOverLimit": "L’objectif est limité à {{max}} caractères. Cette section n’est pas enregistrée tant qu’elle dépasse.",
     "sharedContextClamped": "{{count}} lignes de contexte partagé ne sont pas envoyées au modèle.",
     "instructionsClamped": "{{count}} lignes d'instructions ne sont pas envoyées au modèle.",
     "sharedContextHint": "Guidance de fond pour cet agent. Ce n'est ni une permission ni une source citable.",
@@ -770,7 +768,7 @@
     "checkIntervalInfo": "Fréquence à laquelle l’agent cherche de nouveaux tickets lorsqu’il surveille. Entre 5 minutes et 24 heures. « Contrôler maintenant » s’exécute toujours immédiatement, quelle que soit cette valeur.",
     "checkIntervalAlertsInfo": "Fréquence à laquelle l’agent cherche de nouvelles alertes lorsqu’il surveille. Entre 5 minutes et 24 heures. « Chercher de nouvelles alertes » s’exécute toujours immédiatement, quelle que soit cette valeur.",
     "purposeInfo": "Ce que cet agent est là pour faire, en une ligne. Il le relit à chaque exécution.",
-    "instructionsInfo": "Les règles internes que l’agent suit, une règle par ligne. Elles ne peuvent pas élargir ce que l’agent a le droit de faire.",
+    "instructionsInfo": "Les règles que l’agent suit — rédigez-les librement, en lignes ou en paragraphes. Elles ne peuvent pas élargir ce que l’agent a le droit de faire.",
     "replyLanguageInfo": "La langue dans laquelle l’agent rédige. « Langue du ticket » le fait répondre dans la langue utilisée par le demandeur.",
     "capabilitiesInfo": "Ce que cet agent peut préparer. Tout ce qui est désactivé ici n’est jamais proposé, quelles que soient les instructions.",
     "modelInfo": "Le modèle IA sur lequel cet agent s’exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
@@ -794,7 +792,12 @@
       "public_reply": "L’agent répondrait au demandeur sans que personne ne relise avant.",
       "assignment": "L’agent réaffecterait les tickets sans que personne ne relise avant.",
       "participant": "L’agent ajouterait ou retirerait des personnes sur les tickets sans que personne ne relise avant."
-    }
+    },
+    "charCounter": "{{used}} / {{max}} caractères",
+    "instructionsOverLimit": "Les instructions sont limitées à {{max}} caractères. Au-delà, une partie ne serait plus transmise à l’agent. Cette section n’est pas enregistrée tant qu’elle dépasse.",
+    "personaBlockedSave": "Modifications non enregistrées : l’objectif ou les instructions dépassent leur limite. Raccourcissez le texte pour reprendre l’enregistrement.",
+    "sharedContextTruncated": "{{count}} lignes de contexte partagé arrivent raccourcies au modèle (limite de 500 caractères par ligne).",
+    "promptCostHint": "Les instructions et le contexte partagé occupent environ {{tokens}} tokens du budget de chaque étape ({{cap}} par exécution)."
   },
   "actions": {
     "internalNote": "Note interne",

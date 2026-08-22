@@ -121,7 +121,7 @@ Automático nunca significa sin supervisión. Los límites de seguridad estricto
 
 La pestaña **Configuración** es solo para administradores y reúne todos los ajustes del agente. Se **guarda automáticamente**: no hay botones de guardar, y cada sección muestra un pequeño indicador **Guardando…** / **Guardado** en su encabezado a medida que se escriben sus ediciones. Si cambia de pestaña con un guardado todavía en curso, primero se completa el guardado; y si falla, el cambio de pestaña se cancela para que el error y su edición sigan en pantalla.
 
-Las cuatro secciones siguen el orden en el que realmente se configura un agente: decida qué mira, luego qué es, luego qué sabe y por último cuánto puede trabajar.
+Las secciones siguen el orden en el que realmente se configura un agente: decida qué mira, luego qué puede hacer, luego qué es, luego qué sabe y por último cuánto puede trabajar.
 
 ### Segmentación
 
@@ -133,14 +133,16 @@ Una línea bajo los filtros indica cuántos tickets coinciden ahora. Si otro age
 
 Los agentes de supervisión tienen la misma sección, filtrando en su lugar por estado de la alerta, gravedad, reconocimiento, grupo, dispositivo y tipo de comprobación.
 
-### Objetivo y capacidades
+### Capacidades
 
-Las **Capacidades** van primero, porque enmarcan todo lo demás: interruptores para decidir qué tipos de cambio puede *llegar a* proponer el agente —**Notas internas**, **Respuestas al solicitante**, **Clasificación**, **Cambios de estado**, **Asignación** y **Participantes**—. Desactivar uno elimina por completo ese tipo de acción: el agente no puede proponerlo, digan lo que digan las instrucciones, y no puede promoverse en la escala de autonomía.
+Las capacidades van primero, porque enmarcan todo lo demás: una fila de casillas para decidir qué tipos de cambio puede *llegar a* proponer el agente —**Notas internas**, **Respuestas al solicitante**, **Clasificación**, **Cambios de estado**, **Asignación** y **Participantes**—. Desmarcar una elimina por completo ese tipo de acción: el agente no puede proponerlo, digan lo que digan las instrucciones, y no puede promoverse en la escala de autonomía. Los agentes de supervisión no tienen esta sección.
 
-Debajo está la persona: quién es el agente y cómo escribe:
+### Objetivo
+
+El objetivo describe quién es el agente y cómo escribe:
 
 - **Propósito** — para qué está el agente, en una línea. Lo lee en cada ejecución.
-- **Instrucciones** — las reglas internas, una regla por línea. No pueden ampliar lo que el agente tiene permitido hacer. Un contador muestra cuántas de las 16 líneas ha usado (500 caracteres cada una). Por encima de esos límites el campo no se guarda, ni tampoco los demás campos de identidad, hasta que acorte el borrador.
+- **Instrucciones** — las reglas internas, escritas libremente en líneas o párrafos. No pueden ampliar lo que el agente tiene permitido hacer. Hay un único límite: 10 000 caracteres en total — más allá, parte del texto dejaría de llegar al agente. Un contador discreto aparece al acercarse al límite; superado, la sección no se guarda hasta que acorte el borrador.
 - **Idioma de respuesta** — **Idioma del ticket** (responder en el idioma que usó el solicitante), **Francés**, **Inglés**, **Alemán** o **Español**.
 
 El nombre del agente y su descripción breve viven en el título del espacio, no en esta cuadrícula: haga clic para editarlos. Cómo debe sonar el agente, y cuándo debe pasar el trabajo a una persona, pertenecen a **Instrucciones** como reglas ordinarias.

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Button, IconButton, Link as MuiLink, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme, type Theme } from '@mui/material/styles';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -763,6 +764,7 @@ export function LifecycleText({ lifecycleKey, size = 'normal' }: { lifecycleKey:
 
 export function Section({
   title,
+  info,
   actions,
   children,
   id,
@@ -773,6 +775,7 @@ export function Section({
   count,
 }: {
   title: string;
+  info?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
   id?: string;
@@ -801,6 +804,11 @@ export function Section({
         <Typography sx={(theme) => ({ color: theme.palette.kanap.text.primary, fontSize: 16, fontWeight: 500, lineHeight: 1.35 })}>
           {title}
         </Typography>
+        {info && (
+          <Tooltip title={info} placement="top">
+            <InfoOutlinedIcon sx={{ fontSize: 13, color: 'kanap.text.tertiary', alignSelf: 'center' }} />
+          </Tooltip>
+        )}
         {typeof count === 'number' && (
           <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 500, lineHeight: 1.35 })}>
             {count}

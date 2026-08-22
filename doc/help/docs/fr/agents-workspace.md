@@ -121,7 +121,7 @@ Automatique ne signifie jamais sans supervision. Les limites de sécurité stric
 
 L'onglet **Paramètres** est réservé aux administrateurs et regroupe tous les réglages de configuration de l'agent. Il **s'enregistre automatiquement** : il n'y a pas de boutons d'enregistrement, et chaque section affiche un petit indicateur **Enregistrement…** / **Enregistré** dans son en-tête à mesure que vos modifications sont écrites. Si vous changez d'onglet alors qu'un enregistrement est encore en cours, celui-ci est d'abord mené à son terme — et s'il échoue, le changement d'onglet est annulé pour que l'erreur et votre modification restent à l'écran.
 
-Les quatre sections suivent l'ordre dans lequel on configure réellement un agent : décidez ce qu'il regarde, puis ce qu'il est, puis ce qu'il sait, puis à quel rythme il peut travailler.
+Les sections suivent l'ordre dans lequel on configure réellement un agent : décidez ce qu'il regarde, puis ce qu'il peut faire, puis ce qu'il est, puis ce qu'il sait, puis à quel rythme il peut travailler.
 
 ### Ciblage
 
@@ -133,14 +133,16 @@ Une ligne sous les filtres indique combien de tickets correspondent actuellement
 
 Les agents de supervision disposent de la même section, avec des filtres portant sur l'état de l'alerte, la gravité, l'acquittement, le groupe, l'équipement et le type de contrôle.
 
-### Objectif et capacités
+### Capacités
 
-Les **Capacités** viennent en premier, car elles cadrent tout le reste : des interrupteurs déterminant quels types de modification l'agent peut *un jour* proposer — **Notes internes**, **Réponses demandeur**, **Classification**, **Mises à jour statut**, **Affectation** et **Participants**. En désactiver un supprime entièrement ce type d'action : l'agent ne peut pas le proposer, quoi que disent les instructions, et il ne peut pas être promu dans l'échelle d'autonomie.
+Les capacités viennent en premier, car elles cadrent tout le reste : une rangée de cases à cocher déterminant quels types de modification l'agent peut *un jour* proposer — **Notes internes**, **Réponses demandeur**, **Classification**, **Mises à jour statut**, **Affectation** et **Participants**. En décocher une supprime entièrement ce type d'action : l'agent ne peut pas le proposer, quoi que disent les instructions, et il ne peut pas être promu dans l'échelle d'autonomie. Les agents de supervision n'ont pas cette section.
 
-En dessous se trouve le persona — qui est l'agent et comment il rédige :
+### Objectif
+
+L'objectif, c'est qui est l'agent et comment il rédige :
 
 - **Objectif** — ce que l'agent est là pour faire, en une ligne. Il le relit à chaque exécution.
-- **Instructions** — les règles internes, une règle par ligne. Elles ne peuvent pas élargir ce que l'agent a le droit de faire. Un compteur indique combien des 16 lignes vous avez utilisées (500 caractères chacune). Au-delà de ces limites, le champ n'est pas enregistré, pas plus que les autres champs d'identité, tant que vous n'avez pas raccourci le brouillon.
+- **Instructions** — les règles internes, rédigées librement en lignes ou en paragraphes. Elles ne peuvent pas élargir ce que l'agent a le droit de faire. Une seule limite : 10 000 caractères au total — au-delà, une partie du texte ne serait plus transmise à l'agent. Un compteur discret apparaît à l'approche de la limite ; au-delà, la section n'est pas enregistrée tant que vous n'avez pas raccourci le brouillon.
 - **Langue de réponse** — **Langue du ticket** (répondre dans la langue utilisée par le demandeur), **Français**, **Anglais**, **Allemand** ou **Espagnol**.
 
 Le nom de l'agent et sa courte description vivent dans le titre de l'espace, pas dans cette grille : cliquez dessus pour les modifier. La façon dont l'agent doit sonner, et le moment où il doit passer la main à une personne, appartiennent aux **Instructions** comme des règles ordinaires.

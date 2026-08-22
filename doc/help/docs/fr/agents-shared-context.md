@@ -73,7 +73,7 @@ Les profils archivés restent dans la liste, estompés et étiquetés **Archivé
 
 ## Comment un profil se relie à un agent
 
-Les profils résident ici, mais ils s'activent agent par agent depuis l'onglet **Paramètres** de l'agent concerné, dans la section **Objectif et capacités** (voir [Espace de l'agent](agents-workspace.md)). Tant que vous n'avez pas activé **Utiliser le contexte partagé**, c'est la seule chose que vous y voyez — l'interrupteur et une description d'une ligne. L'activer fait apparaître le sélecteur de profil, un raccourci **+ Nouveau profil** pour en créer un sur-le-champ, et un aperçu des lignes du profil sélectionné. Choisissez un profil et l'agent fonctionne avec ; laissez-le sur **Aucun profil sélectionné** et l'agent fonctionne sans aucun contexte partagé.
+Les profils résident ici, mais ils s'activent agent par agent depuis l'onglet **Paramètres** de l'agent concerné, dans la section **Objectif** (voir [Espace de l'agent](agents-workspace.md)). Tant que vous n'avez pas activé **Utiliser le contexte partagé**, c'est la seule chose que vous y voyez — l'interrupteur et une description d'une ligne. L'activer fait apparaître le sélecteur de profil, un raccourci **+ Nouveau profil** pour en créer un sur-le-champ, et un aperçu des lignes du profil sélectionné. Choisissez un profil et l'agent fonctionne avec ; laissez-le sur **Aucun profil sélectionné** et l'agent fonctionne sans aucun contexte partagé.
 
 Comme le lien est une référence, un même profil peut alimenter plusieurs agents à la fois, et mettre à jour le profil les met tous à jour. Détacher un agent — ou archiver son profil — retire simplement la guidance pour cet agent ; cela ne change rien pour les autres utilisateurs du profil.
 

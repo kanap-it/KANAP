@@ -10,10 +10,11 @@ import {
   canPersistIdentity,
   collectEffectivePromptBounds,
   droppedSharedContextLineCount,
-  MAX_PERSONA_INSTRUCTION_CHARS,
+  MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS,
   mergeInstructionsForDisplay,
   measurePersonaIdentityLimits,
   personaIdentitySavePatch,
+  truncatedSharedContextLineCount,
 } from './agentPersona';
 import { targetingPredicateCount } from './agentRunState';
 import {
@@ -410,33 +411,48 @@ describe('agent persona purpose + instructions helpers', () => {
     });
   });
 
-  it('counts cleaned line length the same way the backend does', () => {
-    const padded = `rule${' '.repeat(10)}${'x'.repeat(MAX_PERSONA_INSTRUCTION_CHARS - 5)}`;
+  it('counts total cleaned characters the same way the backend does', () => {
+    // Whitespace runs collapse before counting; line count and per-line
+    // length are deliberately unlimited.
+    const manyLongLines = Array.from({ length: 40 }, () => `rule${' '.repeat(10)}${'x'.repeat(200)}`).join('\n');
     const inRange = measurePersonaIdentityLimits({
       mission: 'ok',
-      instructionsDraft: padded,
+      instructionsDraft: manyLongLines,
     });
-    expect(inRange.instructionLines).toBe(1);
+    expect(inRange.instructionsChars).toBe(40 * ('rule x'.length + 200 - 1));
     expect(inRange.instructionsOverLimit).toBe(false);
 
     const over = measurePersonaIdentityLimits({
       mission: 'ok',
-      instructionsDraft: `${'x'.repeat(MAX_PERSONA_INSTRUCTION_CHARS + 1)}`,
+      instructionsDraft: 'x'.repeat(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS + 1),
     });
-    expect(over.overLongLineIndex).toBe(1);
     expect(over.instructionsOverLimit).toBe(true);
+    expect(measurePersonaIdentityLimits({
+      mission: 'ok',
+      instructionsDraft: 'x'.repeat(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS),
+    }).instructionsOverLimit).toBe(false);
+  });
+
+  it('surfaces the counter only near the limit', () => {
+    expect(measurePersonaIdentityLimits({ mission: 'ok', instructionsDraft: 'One rule.' }).instructionsNearLimit).toBe(false);
+    expect(measurePersonaIdentityLimits({
+      mission: 'ok',
+      instructionsDraft: 'x'.repeat(Math.floor(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS * 0.8)),
+    }).instructionsNearLimit).toBe(true);
+    expect(measurePersonaIdentityLimits({ mission: 'x'.repeat(400), instructionsDraft: '' }).purposeNearLimit).toBe(true);
+    expect(measurePersonaIdentityLimits({ mission: 'x'.repeat(399), instructionsDraft: '' }).purposeNearLimit).toBe(false);
   });
 
   it('blocks every identity save while the instructions draft is over the limit', () => {
-    const seventeen = Array.from({ length: 17 }, (_entry, index) => `Rule ${index + 1}`).join('\n');
+    const overTotal = 'x'.repeat(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS + 1);
     expect(canPersistIdentity({
       mission: 'Triage incoming work.',
-      instructionsDraft: seventeen,
+      instructionsDraft: overTotal,
       instructionsTouched: true,
     })).toBe(false);
     expect(canPersistIdentity({
       mission: 'Triage incoming work.',
-      instructionsDraft: seventeen,
+      instructionsDraft: overTotal,
       instructionsTouched: false,
     })).toBe(true);
     expect(canPersistIdentity({
@@ -446,12 +462,23 @@ describe('agent persona purpose + instructions helpers', () => {
     })).toBe(false);
   });
 
-  it('reads dropped shared-context lines from bounds_applied', () => {
+  it('reads dropped and shortened shared-context lines from bounds_applied', () => {
     expect(droppedSharedContextLineCount(['shared_context_lines_clamped:45->30'])).toBe(15);
+    // Budget-clamp tokens carry their count; the bare legacy token reads as 1;
+    // across slices the worst case wins.
     expect(droppedSharedContextLineCount([
       'shared_context_lines_clamped:45->30',
+      'total_guidance_chars_clamped:shared_context:5',
+    ])).toBe(20);
+    expect(droppedSharedContextLineCount([
       'total_guidance_chars_clamped:shared_context',
-    ])).toBe(16);
+      'total_guidance_chars_clamped:shared_context:3',
+    ])).toBe(3);
+    expect(truncatedSharedContextLineCount([
+      'shared_context_line_2_chars_clamped',
+      'shared_context_line_7_chars_clamped',
+      'shared_context_line_2_chars_clamped',
+    ])).toBe(2);
     expect(collectEffectivePromptBounds({
       prompt_profile: { bounds_applied: ['instructions_clamped:20->16'] },
       tasks: { synthesis: { bounds_applied: ['shared_context_lines_clamped:45->30'] } },

@@ -1,6 +1,12 @@
-export const MAX_PERSONA_INSTRUCTIONS = 16;
-export const MAX_PERSONA_INSTRUCTION_CHARS = 500;
+// The ONE user-facing instructions limit: total characters across all
+// paragraphs (mirrors normalizePersona). Per-line length and line count are
+// deliberately unbounded — the cap maps to real prompt truncation.
+export const MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS = 10_000;
 export const MAX_PERSONA_PURPOSE_CHARS = 500;
+// Counters stay hidden until the text approaches its limit: a gauge nobody is
+// close to is noise, not information.
+export const INSTRUCTIONS_HINT_THRESHOLD = Math.floor(MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS * 0.8);
+export const PURPOSE_HINT_THRESHOLD = Math.floor(MAX_PERSONA_PURPOSE_CHARS * 0.8);
 
 export function cleanPersonaLine(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
@@ -25,8 +31,9 @@ export function mergeInstructionsForDisplay(input: {
 
 export type PersonaIdentityLimits = {
   purposeChars: number;
-  instructionLines: number;
-  overLongLineIndex: number | null;
+  instructionsChars: number;
+  purposeNearLimit: boolean;
+  instructionsNearLimit: boolean;
   purposeOverLimit: boolean;
   instructionsOverLimit: boolean;
 };
@@ -36,20 +43,17 @@ export function measurePersonaIdentityLimits(input: {
   instructionsDraft: string;
 }): PersonaIdentityLimits {
   const purposeChars = cleanPersonaLine(input.mission).length;
-  const lines = parseInstructionLines(input.instructionsDraft);
-  let overLongLineIndex: number | null = null;
-  for (let index = 0; index < lines.length; index += 1) {
-    if (lines[index].length > MAX_PERSONA_INSTRUCTION_CHARS) {
-      overLongLineIndex = index + 1;
-      break;
-    }
-  }
+  // Sum of the cleaned paragraph lengths — the same measure normalizePersona
+  // enforces, so "10 000" means the same thing on both sides.
+  const instructionsChars = parseInstructionLines(input.instructionsDraft)
+    .reduce((total, line) => total + line.length, 0);
   return {
     purposeChars,
-    instructionLines: lines.length,
-    overLongLineIndex,
+    instructionsChars,
+    purposeNearLimit: purposeChars >= PURPOSE_HINT_THRESHOLD,
+    instructionsNearLimit: instructionsChars >= INSTRUCTIONS_HINT_THRESHOLD,
     purposeOverLimit: purposeChars > MAX_PERSONA_PURPOSE_CHARS,
-    instructionsOverLimit: lines.length > MAX_PERSONA_INSTRUCTIONS || overLongLineIndex != null,
+    instructionsOverLimit: instructionsChars > MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS,
   };
 }
 
@@ -96,6 +100,15 @@ export function personaIdentitySavePatch(input: {
   };
 }
 
+// Budget-clamp tokens carry their drop count (`total_guidance_chars_clamped:kind:N`)
+// because bounds_applied is deduplicated across slices; the bare legacy token
+// (no count) is read as 1. Across slices we keep the worst case.
+function budgetDropCount(entry: string, kind: string): number {
+  if (entry === `total_guidance_chars_clamped:${kind}`) return 1;
+  const match = entry.match(new RegExp(`^total_guidance_chars_clamped:${kind}:(\\d+)$`));
+  return match ? Number(match[1]) : 0;
+}
+
 export function droppedSharedContextLineCount(bounds: string[] | undefined | null): number {
   if (!bounds?.length) return 0;
   let fromCap = 0;
@@ -103,7 +116,7 @@ export function droppedSharedContextLineCount(bounds: string[] | undefined | nul
   for (const entry of bounds) {
     const match = entry.match(/^shared_context_lines_clamped:(\d+)->(\d+)$/);
     if (match) fromCap = Math.max(fromCap, Number(match[1]) - Number(match[2]));
-    if (entry === 'total_guidance_chars_clamped:shared_context') fromBudget += 1;
+    fromBudget = Math.max(fromBudget, budgetDropCount(entry, 'shared_context'));
   }
   return fromCap + fromBudget;
 }
@@ -115,9 +128,21 @@ export function droppedInstructionLineCount(bounds: string[] | undefined | null)
   for (const entry of bounds) {
     const match = entry.match(/^instructions_clamped:(\d+)->(\d+)$/);
     if (match) fromCap = Math.max(fromCap, Number(match[1]) - Number(match[2]));
-    if (entry === 'total_guidance_chars_clamped:instructions') fromBudget += 1;
+    fromBudget = Math.max(fromBudget, budgetDropCount(entry, 'instructions'));
   }
   return fromCap + fromBudget;
+}
+
+// Lines that reach the model, but shortened: the compiler hard-truncates
+// shared-context lines at 500 chars and emits one token per affected line.
+export function truncatedSharedContextLineCount(bounds: string[] | undefined | null): number {
+  if (!bounds?.length) return 0;
+  const lines = new Set<number>();
+  for (const entry of bounds) {
+    const match = entry.match(/^shared_context_line_(\d+)_chars_clamped$/);
+    if (match) lines.add(Number(match[1]));
+  }
+  return lines.size;
 }
 
 export function collectEffectivePromptBounds(prompt: {

@@ -444,7 +444,8 @@
       "off": "Nothing runs, not even a manual check.",
       "manual": "Runs only when you ask (Check now, tests).",
       "watching": "Checks on its own, plus everything Manual does."
-    }
+    },
+    "archivedNoteViewer": "Archived — an administrator can restore it."
   },
   "performance": {
     "acceptance": "Acceptance",
@@ -482,7 +483,7 @@
     "archiveBody": "\"{{name}}\" will stop being available to agents. Any agent currently using it will run without shared context until you point it at another profile."
   },
   "settings": {
-    "objectiveCapabilities": "Objective and capabilities",
+    "objective": "Objective",
     "archiveAgent": "Archive agent",
     "restoreAgent": "Restore agent",
     "archiveDialog": {
@@ -502,10 +503,7 @@
     "replyLanguage": "Reply language",
     "instructions": "Instructions",
     "instructionsPlaceholder": "e.g., Prefer internal notes when evidence is incomplete.",
-    "instructionsCounter": "{{used}} / {{max}} lines · 500 characters per line",
-    "instructionsTooManyLines": "Instructions can have at most {{max}} lines. Other identity changes are not saved until this is fixed.",
-    "instructionsLineTooLong": "Line {{line}} is over {{max}} characters. Other identity changes are not saved until this is fixed.",
-    "purposeOverLimit": "Purpose must be at most {{max}} characters. Other identity changes are not saved until this is fixed.",
+    "purposeOverLimit": "Purpose is limited to {{max}} characters. This section is not saved while it is over the limit.",
     "sharedContextClamped": "{{count}} lines of shared context are not being sent to the model.",
     "instructionsClamped": "{{count}} instruction lines are not being sent to the model.",
     "sharedContextHint": "Background guidance for this agent. It is not a permission grant and not a citable source.",
@@ -770,7 +768,7 @@
     "checkIntervalInfo": "How often the agent looks for new tickets while it is watching. Between 5 minutes and 24 hours. \"Check now\" always runs straight away, whatever this says.",
     "checkIntervalAlertsInfo": "How often the agent looks for new alerts while it is watching. Between 5 minutes and 24 hours. \"Check for new alerts\" always runs straight away, whatever this says.",
     "purposeInfo": "What this agent is here to do, in one line. It reads this on every run.",
-    "instructionsInfo": "House rules the agent follows, one rule per line. They cannot widen what the agent is allowed to do.",
+    "instructionsInfo": "House rules the agent follows — write them freely, as lines or paragraphs. They cannot widen what the agent is allowed to do.",
     "replyLanguageInfo": "The language the agent writes in. \"Ticket language\" makes it answer in whatever language the requester used.",
     "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
     "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
@@ -794,7 +792,12 @@
       "public_reply": "The agent would reply to the requester with nobody reading it first.",
       "assignment": "The agent would reassign tickets with nobody reading it first.",
       "participant": "The agent would add or remove people on tickets with nobody reading it first."
-    }
+    },
+    "charCounter": "{{used}} / {{max}} characters",
+    "instructionsOverLimit": "Instructions are limited to {{max}} characters. Beyond that, part of them would no longer reach the agent. This section is not saved while it is over the limit.",
+    "personaBlockedSave": "Changes not saved: Purpose or Instructions is over its limit. Shorten the text to resume saving.",
+    "sharedContextTruncated": "{{count}} shared-context lines reach the model shortened (500-character limit per line).",
+    "promptCostHint": "Instructions and shared context use about {{tokens}} tokens of each step’s budget ({{cap}} per run)."
   },
   "actions": {
     "internalNote": "Internal note",

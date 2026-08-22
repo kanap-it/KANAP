@@ -185,6 +185,14 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
             </Button>
           )}
 
+          {/* Non-admins have no Restore button, so the bare lifecycle label
+              needs a sentence explaining why every control is gone. */}
+          {!canAdmin && isArchived && (
+            <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>
+              {t('monitor.archivedNoteViewer')}
+            </Typography>
+          )}
+
           {canAdmin && !isArchived && definition && (
             <Button
               size="small"

@@ -444,7 +444,8 @@
       "off": "Es läuft nichts, auch keine manuelle Prüfung.",
       "manual": "Läuft nur auf Anfrage (Jetzt prüfen, Tests).",
       "watching": "Prüft selbstständig, zusätzlich zu allem aus dem manuellen Modus."
-    }
+    },
+    "archivedNoteViewer": "Archiviert — eine Administratorin oder ein Administrator kann ihn wiederherstellen."
   },
   "performance": {
     "acceptance": "Annahme",
@@ -482,7 +483,7 @@
     "archiveBody": "„{{name}}“ steht den Agenten nicht mehr zur Verfügung. Jeder Agent, der es derzeit verwendet, läuft ohne gemeinsamen Kontext, bis Sie ihn auf ein anderes Profil verweisen."
   },
   "settings": {
-    "objectiveCapabilities": "Ziel und Fähigkeiten",
+    "objective": "Ziel",
     "archiveAgent": "Agent archivieren",
     "restoreAgent": "Agent wiederherstellen",
     "archiveDialog": {
@@ -502,10 +503,7 @@
     "replyLanguage": "Antwortsprache",
     "instructions": "Anweisungen",
     "instructionsPlaceholder": "z. B. Interne Notizen bevorzugen, wenn die Belege unvollständig sind.",
-    "instructionsCounter": "{{used}} / {{max}} Zeilen · 500 Zeichen je Zeile",
-    "instructionsTooManyLines": "Anweisungen dürfen höchstens {{max}} Zeilen haben. Andere Identitätsänderungen werden erst gespeichert, wenn das behoben ist.",
-    "instructionsLineTooLong": "Zeile {{line}} hat mehr als {{max}} Zeichen. Andere Identitätsänderungen werden erst gespeichert, wenn das behoben ist.",
-    "purposeOverLimit": "Der Zweck darf höchstens {{max}} Zeichen haben. Andere Identitätsänderungen werden erst gespeichert, wenn das behoben ist.",
+    "purposeOverLimit": "Der Zweck ist auf {{max}} Zeichen begrenzt. Dieser Abschnitt wird nicht gespeichert, solange er darüber liegt.",
     "sharedContextClamped": "{{count}} Zeilen gemeinsamen Kontexts werden nicht an das Modell gesendet.",
     "instructionsClamped": "{{count}} Anweisungszeilen werden nicht an das Modell gesendet.",
     "sharedContextHint": "Hintergrundhinweise für diesen Agenten. Das ist keine Berechtigung und keine zitierbare Quelle.",
@@ -770,7 +768,7 @@
     "checkIntervalInfo": "Wie oft der Agent nach neuen Tickets sucht, solange er überwacht. Zwischen 5 Minuten und 24 Stunden. „Jetzt prüfen“ läuft immer sofort, unabhängig davon.",
     "checkIntervalAlertsInfo": "Wie oft der Agent nach neuen Warnmeldungen sucht, solange er überwacht. Zwischen 5 Minuten und 24 Stunden. „Nach neuen Warnmeldungen suchen“ läuft immer sofort, unabhängig davon.",
     "purposeInfo": "Wofür dieser Agent da ist, in einer Zeile. Er liest sie bei jedem Lauf.",
-    "instructionsInfo": "Hausregeln, denen der Agent folgt — eine Regel je Zeile. Sie können nicht erweitern, was der Agent tun darf.",
+    "instructionsInfo": "Die Regeln, denen der Agent folgt — frei formuliert, in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf.",
     "replyLanguageInfo": "Die Sprache, in der der Agent schreibt. „Sprache des Tickets“ lässt ihn in der Sprache des Anfragenden antworten.",
     "capabilitiesInfo": "Was dieser Agent vorbereiten darf. Alles, was hier aus ist, wird nie vorgeschlagen — unabhängig von den Anweisungen.",
     "modelInfo": "Auf welchem KI-Modell dieser Agent läuft. Modelle werden in der Administration unter KI-Modelle verwaltet.",
@@ -794,7 +792,12 @@
       "public_reply": "Der Agent würde dem Anfragenden antworten, ohne dass jemand vorher mitliest.",
       "assignment": "Der Agent würde Tickets neu zuweisen, ohne dass jemand vorher mitliest.",
       "participant": "Der Agent würde Personen auf Tickets hinzufügen oder entfernen, ohne dass jemand vorher mitliest."
-    }
+    },
+    "charCounter": "{{used}} / {{max}} Zeichen",
+    "instructionsOverLimit": "Die Anweisungen sind auf {{max}} Zeichen begrenzt. Darüber hinaus würde ein Teil den Agenten nicht mehr erreichen. Dieser Abschnitt wird nicht gespeichert, solange er darüber liegt.",
+    "personaBlockedSave": "Änderungen nicht gespeichert: Zweck oder Anweisungen überschreiten ihr Limit. Kürzen Sie den Text, um das Speichern fortzusetzen.",
+    "sharedContextTruncated": "{{count}} Zeilen des geteilten Kontexts erreichen das Modell gekürzt (Limit von 500 Zeichen pro Zeile).",
+    "promptCostHint": "Anweisungen und geteilter Kontext belegen etwa {{tokens}} Tokens des Budgets jedes Schritts ({{cap}} pro Lauf)."
   },
   "actions": {
     "internalNote": "Interne Notiz",
