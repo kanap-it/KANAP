@@ -200,6 +200,68 @@ async function expectCrossTenantInsertBlocked(
   results.push({ name, ok: blocked });
 }
 
+async function insertMinimalAgentDefinition(
+  r: QueryRunner,
+  id: string,
+  tenantId: string,
+  agentKey: string,
+) {
+  await r.query(
+    `INSERT INTO ai_agent_definitions (
+       id, tenant_id, agent_key, name, agent_type, status, environment,
+       max_autonomy_level, default_approval_requirement
+     )
+     VALUES ($1, $2, $3, 'Delete-guard agent', 'helpdesk', 'enabled', 'sandbox', 'A3', 'human_for_writes')`,
+    [id, tenantId, agentKey],
+  );
+}
+
+async function insertMinimalWorkItem(
+  r: QueryRunner,
+  input: {
+    id: string;
+    tenantId: string;
+    definitionId: string;
+    triggerId?: string | null;
+    dedupKey: string;
+    objectRef?: string;
+  },
+) {
+  await r.query(
+    `INSERT INTO ai_agent_work_items (
+       id, tenant_id, agent_definition_id, trigger_id, source_provider_kind, source_provider_key,
+       source_object_type, source_object_ref, work_kind, status, dedup_key
+     )
+     VALUES ($1, $2, $3, $4, 'ticketing', 'mock', 'ticket', $5, 'ticket_triage', 'queued', $6)`,
+    [
+      input.id,
+      input.tenantId,
+      input.definitionId,
+      input.triggerId ?? null,
+      input.objectRef ?? 'delete-guard-ticket',
+      input.dedupKey,
+    ],
+  );
+}
+
+async function withSavepoint(
+  r: QueryRunner,
+  results: TestResult[],
+  name: string,
+  fn: () => Promise<void>,
+) {
+  const savepoint = `rls_${name.replace(/[^a-z0-9]/gi, '').slice(0, 20)}_${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+  await r.query(`SAVEPOINT ${savepoint}`);
+  try {
+    await fn();
+    results.push({ name, ok: true });
+  } catch (error) {
+    results.push({ name, ok: false, info: error instanceof Error ? error.message : String(error) });
+  } finally {
+    await r.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+  }
+}
+
 async function seedTenant(runner: QueryRunner, tenantId: string, slug: string, name: string) {
   await runner.query(
     `INSERT INTO tenants (id, slug, name, status, metadata, branding, created_at, updated_at)
@@ -1261,6 +1323,131 @@ async function runAiControlPlaneChecks(
      VALUES ($1, $2, $3, 'cross-work-item', 'warning', 'cross tenant work item link')`,
     [tenantTwoId, agentDefinitionId, agentWorkItemId],
   );
+
+  const tenantTwoDefinitionId = randomUUID();
+  const tenantTwoTriggerId = randomUUID();
+  const tenantTwoWorkItemId = randomUUID();
+  const tenantTwoAuditEventId = randomUUID();
+  await insertMinimalAgentDefinition(r, tenantTwoDefinitionId, tenantTwoId, `t2.delete.guard.${tag}`);
+  await r.query(
+    `INSERT INTO ai_agent_triggers (
+       id, tenant_id, agent_definition_id, trigger_key, trigger_kind, status, enabled
+     )
+     VALUES ($1, $2, $3, 'manual.safe_target', 'manual', 'enabled', true)`,
+    [tenantTwoTriggerId, tenantTwoId, tenantTwoDefinitionId],
+  );
+  await insertMinimalWorkItem(r, {
+    id: tenantTwoWorkItemId,
+    tenantId: tenantTwoId,
+    definitionId: tenantTwoDefinitionId,
+    triggerId: tenantTwoTriggerId,
+    dedupKey: `t2-delete-guard-${tag}`,
+  });
+  await r.query(
+    `INSERT INTO ai_agent_audit_events (
+       id, tenant_id, agent_definition_id, work_item_id, event_type, severity, message
+     )
+     VALUES ($1, $2, $3, $4, 'delete_guard', 'info', 'tenant two audit')`,
+    [tenantTwoAuditEventId, tenantTwoId, tenantTwoDefinitionId, tenantTwoWorkItemId],
+  );
+
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_audit_events: cross-tenant work item assignment update blocked',
+    `UPDATE ai_agent_audit_events SET work_item_id = $1 WHERE id = $2`,
+    [agentWorkItemId, tenantTwoAuditEventId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_audit_events: cross-tenant definition assignment update blocked',
+    `UPDATE ai_agent_audit_events SET agent_definition_id = $1 WHERE id = $2`,
+    [agentDefinitionId, tenantTwoAuditEventId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: cross-tenant trigger assignment update blocked',
+    `UPDATE ai_agent_work_items SET trigger_id = $1 WHERE id = $2`,
+    [agentTriggerId, tenantTwoWorkItemId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: cross-tenant definition assignment update blocked',
+    `UPDATE ai_agent_work_items SET agent_definition_id = $1 WHERE id = $2`,
+    [agentDefinitionId, tenantTwoWorkItemId],
+  );
+  await expectCrossTenantInsertBlocked(
+    r,
+    results,
+    'ai_agent_work_items: cross-tenant run assignment update blocked',
+    `UPDATE ai_agent_work_items SET last_run_id = $1 WHERE id = $2`,
+    [runId, tenantTwoWorkItemId],
+  );
+
+  await withSavepoint(r, results, 'ai_agent_definitions: same-tenant used-agent delete succeeds', async () => {
+    await setTenant(r, tenantOneId);
+    const definitionId = randomUUID();
+    const workItemId = randomUUID();
+    const auditEventId = randomUUID();
+    await insertMinimalAgentDefinition(r, definitionId, tenantOneId, `t1.used.delete.${tag}`);
+    await insertMinimalWorkItem(r, {
+      id: workItemId,
+      tenantId: tenantOneId,
+      definitionId,
+      dedupKey: `t1-used-delete-${tag}`,
+    });
+    await r.query(
+      `INSERT INTO ai_agent_audit_events (
+         id, tenant_id, agent_definition_id, work_item_id, event_type, severity, message
+       )
+       VALUES ($1, $2, $3, $4, 'work_item_processing_failed', 'error', 'used agent delete guard')`,
+      [auditEventId, tenantOneId, definitionId, workItemId],
+    );
+    await r.query(`DELETE FROM ai_agent_definitions WHERE id = $1`, [definitionId]);
+    const leftover = await r.query(
+      `SELECT agent_definition_id, work_item_id FROM ai_agent_audit_events WHERE id = $1`,
+      [auditEventId],
+    );
+    if (leftover.length !== 1) {
+      throw new Error(`expected 1 audit row, got ${leftover.length}`);
+    }
+    if (leftover[0].agent_definition_id != null) {
+      throw new Error('audit agent_definition_id should be SET NULL after agent delete');
+    }
+  });
+  await setTenant(r, tenantTwoId);
+
+  await withSavepoint(r, results, 'ai_agent_definitions: same-tenant delete with trigger_id set succeeds', async () => {
+    await setTenant(r, tenantOneId);
+    const definitionId = randomUUID();
+    const triggerId = randomUUID();
+    const workItemId = randomUUID();
+    await insertMinimalAgentDefinition(r, definitionId, tenantOneId, `t1.trigger.delete.${tag}`);
+    await r.query(
+      `INSERT INTO ai_agent_triggers (
+         id, tenant_id, agent_definition_id, trigger_key, trigger_kind, status, enabled
+       )
+       VALUES ($1, $2, $3, 'manual.safe_target', 'manual', 'enabled', true)`,
+      [triggerId, tenantOneId, definitionId],
+    );
+    await insertMinimalWorkItem(r, {
+      id: workItemId,
+      tenantId: tenantOneId,
+      definitionId,
+      triggerId,
+      dedupKey: `t1-trigger-delete-${tag}`,
+    });
+    await r.query(`DELETE FROM ai_agent_definitions WHERE id = $1`, [definitionId]);
+    const leftover = await r.query(`SELECT 1 FROM ai_agent_definitions WHERE id = $1`, [definitionId]);
+    if (leftover.length !== 0) {
+      throw new Error('definition should be deleted');
+    }
+  });
+  await setTenant(r, tenantTwoId);
+
   await expectCrossTenantInsertBlocked(
     r,
     results,
