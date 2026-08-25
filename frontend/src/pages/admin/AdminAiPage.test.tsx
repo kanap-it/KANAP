@@ -117,6 +117,7 @@ describe('AdminAiPage', () => {
                   status: 'active',
                   is_default: true,
                   used_by: { chat: true, agents: [] },
+                  messages_this_month: 12,
                   validation_errors: [],
                   created_at: '2026-03-21T10:00:00.000Z',
                   updated_at: '2026-03-21T10:00:00.000Z',

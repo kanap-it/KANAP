@@ -33,15 +33,15 @@ The table shows every model your organization has registered, active ones first 
 
 **Columns**:
 
-- **Name** — the name you gave the model, plus a **Default** chip if it is the organization default and **Archived** if it has been retired. A **Configuration incomplete** note appears here when something required is missing — most often a model that needs an API key and has none. Fix it: an incomplete model does not quietly fall back to another one, it just doesn't work.
+- **Default** — a star on every active row. The filled star is the organization default. Click an empty star to move the default there; click the filled star on one of your own models to clear it. Only one model can be the default, so starring a new one un-stars the old one. Archived models have no star.
+- **Name** — the name you gave the model, plus **Archived** if it has been retired. A **Configuration incomplete** note appears here when something required is missing — most often a model that needs an API key and has none. Fix it: an incomplete model does not quietly fall back to another one, it just doesn't work.
 - **Model** — the provider on the first line, the exact model identifier underneath.
 - **Capabilities** — **Images ✓** if the model can read pictures, **Text only** if it cannot. This comes from the **Understands images** switch in the editor.
 - **Input price / M tokens** and **Output price / M tokens** — what you pay per million tokens, in euros. A dash (**—**) means no price is recorded, which KANAP treats as free.
-- **Used by** — everything currently pointing at this model: **Plaid**, the names of the agents assigned to it, or **Not assigned** if nothing uses it. This is the column to read before archiving anything.
+- **Usage** — for a model you added, how many messages it handled this calendar month: Plaid user messages on conversations that used this provider and model, plus one count per agent run that recorded this model. **0 messages this month** means no traffic yet, not that the model is unused as a default. The KANAP included model keeps its own display: the monthly included-message allowance with a progress bar, not this count.
 
 **Row actions** (active models only):
 
-- **Use as default model** / **Stop using as default model** — the star. One click, no dialog. Only one model can be the default, so starring a new one un-stars the old one.
 - **Edit** — opens the editor dialog.
 - **Archive** — retires the model. The button is disabled while anything still uses it, and the tooltip says so: *This model is still assigned and cannot be archived*.
 
@@ -53,9 +53,9 @@ On the hosted service, the first row of the table is always **KANAP included mod
 
 - It costs `0.00 €` in both price columns. It is part of your subscription, not something you are billed per token for.
 - It is **multimodal** — it reads ticket screenshots — and you cannot change that.
-- Instead of a "Used by" list, it shows your **included messages this month** with a progress bar, so you can see how much of the monthly allowance is left. A message is one question asked of Plaid, one request from an external assistant connected over MCP, or one ticket reviewed by an agent — all three draw on the same allowance.
-- It carries the **Default** chip whenever no active model of your own is starred — that is the "nothing configured" fallback in visible form.
-- It has no actions: you can't edit it, archive it, or star it. It is simply always there.
+- In the **Usage** column it shows your **included messages this month** with a progress bar, so you can see how much of the monthly allowance is left. A message is one question asked of Plaid, one request from an external assistant connected over MCP, or one ticket reviewed by an agent — all three draw on the same allowance. That bar is the included-model quota; it is not the same figure as the message counts on the models you add.
+- It shows a filled star in the **Default** column whenever no active model of your own is starred — that is the "nothing configured" fallback in visible form. Click its empty star to clear your current default and fall back to it. You still cannot edit or archive it.
+- It has no edit or archive actions: those belong to the models you add. It is simply always there.
 
 On an on-premise installation this row does not appear at all.
 
@@ -69,22 +69,19 @@ On an on-premise installation this row does not appear at all.
 - **Provider** — who serves the model. The choice changes which of the following fields apply.
 - **Model** — the exact model identifier as the provider spells it (for example `claude-sonnet-5`). This is not a display name; a typo here surfaces as a failed call, not a validation error.
 - **Server address** — only for providers you host or point somewhere specific. When KANAP runs in Docker and the model runs on the same host machine, address the host rather than `localhost`.
-- **API key** — the credential from your provider. It is stored encrypted and never shown again: when you reopen an existing model the field is empty with the hint *Leave empty to keep the current key*, so you only type in it to replace the key. If the instance has no encryption secret configured, a warning at the top of the page explains that keys cannot be stored at all.
+- **API key** — the credential from your provider. It is stored encrypted and never shown again: when you reopen an existing model the field shows a mask (`••••••••`) with the hint *Leave empty to keep the current key*, so you only type in it to replace the key. If the instance has no encryption secret configured, a warning at the top of the page explains that keys cannot be stored at all.
 
 **Capabilities**:
 
-- **Understands images** — turn it off for a text-only model. As the hint says, screenshots attached to tickets are then *skipped* rather than sent, which is what you want: a text-only model that receives an image fails the call instead of doing useful work. Leave it on for a vision-capable model, and your triage agents will use ticket screenshots as evidence.
+- **Understands images** — turn it off for a text-only model. The explanation sits in the info tooltip next to **Capabilities**: screenshots attached to tickets are then *skipped* rather than sent, which is what you want — a text-only model that receives an image fails the call instead of doing useful work. Leave it on for a vision-capable model, and your triage agents will use ticket screenshots as evidence.
 
-**Cost** — *Price per million tokens, as shown on your provider's pricing page*:
+**Cost input** and **Cost output** — the info tooltip next to each label explains *Price per million tokens, as shown on your provider's pricing page*:
 
-- **Input (€ / M tokens)** and **Output (€ / M tokens)** — copy the two numbers straight from your provider's pricing page. They are usually different, and KANAP prices them separately.
+- Copy the two numbers straight from your provider's pricing page. They are usually different, and KANAP prices them separately.
 - **Leave both empty or set them to 0 for a local or self-hosted model.** A model with no prices costs nothing, which is the truth for a model running on your own hardware. Choosing an Ollama provider pre-fills both prices with 0 for exactly that reason.
 - Agent costs are priced as the work happens and then kept, so editing a price changes what agents cost **from now on** and leaves past figures alone. Plaid's cost is worked out differently — see [Usage & costs](ai-usage.md) — and a price change does move its historical figures.
 
-**Advanced settings**:
-
-- **Maximum response time (seconds)** — how long to wait for this model before giving up. Leave it empty to use the standard limit. Local models often need more time, which is why the setting lives per model rather than per installation.
-- **Use as default model** — the same star as in the table, available while you are creating the model.
+**Timeout** — how long to wait for this model, in seconds, before giving up. The explanation sits in the info tooltip next to the label: leave it empty to use the standard limit. Local models often need more time, which is why the setting lives per model rather than per installation. To make this model the organization default, star it in the **Default** column of the list after saving — that choice is not in the editor.
 
 **Test connection** appears once the model has been saved. It makes one tiny call with the settings as stored and reports either *Connection successful* with the round-trip time, or the provider's own error message. It proves that the provider, model identifier, address, and key work together — it does not check your prices, the images switch, or the response-time setting. Run it after adding a model and after rotating a key: a wrong key is otherwise invisible until real work fails, and it fails quietly (a chat answer that errors, or an agent that skips a step and carries on).
 
@@ -98,5 +95,5 @@ On an on-premise installation this row does not appear at all.
 - **Name models by role, not by version.** *Triage model* survives an upgrade from one model version to the next; *Claude Sonnet 4.5* becomes a lie the day you edit it.
 - **Register the same provider twice when the jobs differ.** A cheap text-only model for high-volume triage and a vision model for screenshot-heavy tickets is a normal setup — that is why assignment is per agent.
 - **Get the prices right, or leave them empty.** They are not decoration: they drive the cost figures on [Usage & costs](ai-usage.md) and the per-run **Cost** caps on each agent. A model priced at 0 never reaches a cost cap, so on a free model the token caps are your only protection.
-- **Check Used by before archiving.** The button tells you when a model is still in use, but it is faster to read the column and move the consumers first.
+- **Check the archive button before retiring a model.** It stays disabled while Plaid or an agent is *pinned* to that model (not merely falling back to it as the default). Move those pins first.
 - **Test after every key rotation.** The connection test is free and instant; discovering a stale key through a failed agent run is neither.

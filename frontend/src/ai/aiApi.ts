@@ -129,6 +129,7 @@ export type AiModelConfig = {
   status: 'active' | 'archived';
   is_default: boolean;
   used_by: AiModelConfigUsage;
+  messages_this_month: number;
   validation_errors: string[];
   created_at: string;
   updated_at: string;

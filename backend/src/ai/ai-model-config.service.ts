@@ -28,6 +28,7 @@ export type AiModelConfigView = {
   status: 'active' | 'archived';
   is_default: boolean;
   used_by: AiModelConfigUsage;
+  messages_this_month: number;
   validation_errors: string[];
   created_at: string;
   updated_at: string;
@@ -92,8 +93,14 @@ export class AiModelConfigService {
       .orderBy('config.status', 'ASC')
       .addOrderBy('config.name', 'ASC')
       .getMany();
-    const usage = await this.loadUsage(tenantId, configs.map((config) => config.id), manager);
-    return configs.map((config) => this.toView(config, usage.get(config.id) ?? { chat: false, agents: [] }));
+    const ids = configs.map((config) => config.id);
+    const usage = await this.loadUsage(tenantId, ids, manager);
+    const messageCounts = await this.loadMessageCounts(tenantId, configs, manager);
+    return configs.map((config) => this.toView(
+      config,
+      usage.get(config.id) ?? { chat: false, agents: [] },
+      messageCounts.get(config.id) ?? 0,
+    ));
   }
 
   async getById(tenantId: string, id: string, manager?: EntityManager): Promise<AiModelConfig> {
@@ -254,6 +261,74 @@ export class AiModelConfigService {
     return this.toView(config, usage.get(id) ?? { chat: false, agents: [] });
   }
 
+  /**
+   * This-month message volume per registry entry, matched by provider + model id
+   * (calls do not store the registry config id). Chat counts user messages on
+   * conversations that used that pair; agents count one run as one message when
+   * any cost_json stage recorded `provider:model`. Two configs that share the
+   * same pair therefore show the same number.
+   */
+  async loadMessageCounts(
+    tenantId: string,
+    configs: Pick<AiModelConfig, 'id' | 'provider' | 'model'>[],
+    manager?: EntityManager,
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>(configs.map((config) => [config.id, 0]));
+    if (configs.length === 0) {
+      return counts;
+    }
+    const effectiveManager = manager ?? this.repo.manager;
+    const chatRows: { provider: string | null; model: string | null; messages: string | number }[] =
+      await effectiveManager.query(
+        `
+        SELECT c.provider, c.model, COUNT(*)::int AS messages
+        FROM ai_messages m
+        JOIN ai_conversations c
+          ON c.id = m.conversation_id
+         AND c.tenant_id = m.tenant_id
+        WHERE m.tenant_id = $1
+          AND m.role = 'user'
+          AND m.created_at >= date_trunc('month', now())
+          AND COALESCE(c.provider_source, 'custom') <> 'builtin'
+        GROUP BY c.provider, c.model
+        `,
+        [tenantId],
+      );
+    const agentRows: { model_key: string | null; messages: string | number }[] =
+      await effectiveManager.query(
+        `
+        SELECT s.value->>'model' AS model_key, COUNT(DISTINCT r.id)::int AS messages
+        FROM ai_runs r
+        CROSS JOIN LATERAL jsonb_each(r.cost_json) s
+        WHERE r.tenant_id = $1
+          AND r.started_at >= date_trunc('month', now())
+          AND r.cost_json IS NOT NULL
+          AND jsonb_typeof(s.value) = 'object'
+          AND NULLIF(s.value->>'model', '') IS NOT NULL
+        GROUP BY s.value->>'model'
+        `,
+        [tenantId],
+      );
+    const byKey = new Map<string, number>();
+    const add = (key: string | null | undefined, amount: string | number) => {
+      if (!key) return;
+      const n = Number(amount);
+      if (!Number.isFinite(n) || n <= 0) return;
+      byKey.set(key, (byKey.get(key) ?? 0) + n);
+    };
+    for (const row of chatRows) {
+      if (!row.provider || !row.model) continue;
+      add(`${row.provider}:${row.model}`, row.messages);
+    }
+    for (const row of agentRows) {
+      add(row.model_key, row.messages);
+    }
+    for (const config of configs) {
+      counts.set(config.id, byKey.get(`${config.provider}:${config.model}`) ?? 0);
+    }
+    return counts;
+  }
+
   /** Consumers ("Used by") per config id: Plaid chat assignment + agent assignments. */
   async loadUsage(
     tenantId: string,
@@ -286,7 +361,7 @@ export class AiModelConfigService {
     return usage;
   }
 
-  toView(config: AiModelConfig, usedBy: AiModelConfigUsage): AiModelConfigView {
+  toView(config: AiModelConfig, usedBy: AiModelConfigUsage, messagesThisMonth = 0): AiModelConfigView {
     return {
       id: config.id,
       name: config.name,
@@ -301,6 +376,7 @@ export class AiModelConfigService {
       status: config.status,
       is_default: config.is_default,
       used_by: usedBy,
+      messages_this_month: messagesThisMonth,
       validation_errors: this.providerRegistry.validate({
         llm_provider: config.provider,
         llm_model: config.model,
