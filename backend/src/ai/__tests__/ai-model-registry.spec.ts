@@ -155,6 +155,7 @@ function createManager(state: State) {
       if (entity === AiAgentDefinition) return agentRepo;
       throw new Error(`Unexpected repository request: ${String(entity)}`);
     },
+    query: async () => [],
   };
 }
 
@@ -627,6 +628,36 @@ async function testLlmCostEurMath() {
   assert.equal(llmCostEur(-100, -100, { priceInputEurPerMtok: 2, priceOutputEurPerMtok: 2 }), 0);
 }
 
+async function testLoadMessageCountsSumsChatAndAgentRows() {
+  const state = createState({
+    configs: [
+      createConfig({ id: 'cfg-1', provider: 'openai', model: 'deepseek-v4' }),
+      createConfig({ id: 'cfg-2', provider: 'anthropic', model: 'claude-sonnet-5' }),
+    ],
+  });
+  const manager = createManager(state);
+  (manager as any).query = async (sql: string) => {
+    if (sql.includes('ai_messages')) {
+      return [
+        { provider: 'openai', model: 'deepseek-v4', messages: 4 },
+        { provider: 'anthropic', model: 'claude-sonnet-5', messages: 1 },
+      ];
+    }
+    if (sql.includes('ai_runs')) {
+      return [
+        { model_key: 'openai:deepseek-v4', messages: 7 },
+      ];
+    }
+    return [];
+  };
+  const registry = createRegistryMock();
+  const service = new AiModelConfigService({ manager } as any, registry as any, mockCipher as any);
+
+  const counts = await service.loadMessageCounts('tenant-1', state.configs, manager as any);
+  assert.equal(counts.get('cfg-1'), 11);
+  assert.equal(counts.get('cfg-2'), 1);
+}
+
 async function testEstimatorsPriceByAssignedModel() {
   const prices = { priceInputEurPerMtok: 10, priceOutputEurPerMtok: 20 };
   const input = { systemPrompt: 'x', userPayload: { a: 'b' } };
@@ -659,6 +690,7 @@ async function run() {
     testSetDefaultOnArchivedEntryRejected,
     testSetDefaultDemotesPreviousDefault,
     testEndpointUrlValidation,
+    testLoadMessageCountsSumsChatAndAgentRows,
     testMigrationBackfillOrdering,
   ];
   for (const test of tests) {

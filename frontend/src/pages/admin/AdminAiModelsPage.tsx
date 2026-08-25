@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   LinearProgress,
@@ -20,6 +19,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import UnarchiveIcon from '@mui/icons-material/Unarchive';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import PageHeader from '../../components/PageHeader';
@@ -49,7 +49,6 @@ type DraftState = {
   price_input: string;
   price_output: string;
   timeout_seconds: string;
-  is_default: boolean;
 };
 
 const EMPTY_DRAFT: DraftState = {
@@ -62,7 +61,6 @@ const EMPTY_DRAFT: DraftState = {
   price_input: '',
   price_output: '',
   timeout_seconds: '',
-  is_default: false,
 };
 
 function parsePriceInput(value: string): number | null | undefined {
@@ -83,7 +81,6 @@ function draftFromConfig(config: AiModelConfig): DraftState {
     price_input: config.price_input_eur_per_mtok != null ? String(config.price_input_eur_per_mtok) : '',
     price_output: config.price_output_eur_per_mtok != null ? String(config.price_output_eur_per_mtok) : '',
     timeout_seconds: config.llm_timeout_ms != null ? String(Math.round(config.llm_timeout_ms / 1000)) : '',
-    is_default: config.is_default,
   };
 }
 
@@ -106,6 +103,59 @@ const cellSx = {
   borderColor: 'kanap.border.soft',
   verticalAlign: 'middle' as const,
 };
+
+const API_KEY_MASK = '••••••••';
+
+function LabelWithInfo({ label, info }: { label: string; info: string }) {
+  return (
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+      {label}
+      <Tooltip title={info} placement="top">
+        <Box
+          component="span"
+          sx={{ display: 'inline-flex', color: 'kanap.text.tertiary', lineHeight: 0 }}
+          aria-label={info}
+        >
+          <InfoOutlinedIcon sx={{ fontSize: 13 }} />
+        </Box>
+      </Tooltip>
+    </Box>
+  );
+}
+
+function DefaultStar({
+  isDefault,
+  label,
+  onToggle,
+}: {
+  isDefault: boolean;
+  label: string;
+  onToggle?: () => void;
+}) {
+  const icon = isDefault ? (
+    <StarIcon fontSize="small" sx={{ color: 'kanap.text.primary' }} />
+  ) : (
+    <StarBorderIcon fontSize="small" sx={{ color: 'kanap.text.secondary' }} />
+  );
+
+  if (!onToggle) {
+    return (
+      <Tooltip title={label}>
+        <Box component="span" sx={{ display: 'inline-flex', p: 0.5 }} aria-label={label}>
+          {icon}
+        </Box>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip title={label}>
+      <IconButton size="small" aria-label={label} onClick={onToggle}>
+        {icon}
+      </IconButton>
+    </Tooltip>
+  );
+}
 
 export default function AdminAiModelsPage() {
   const { t } = useTranslation(['admin', 'common']);
@@ -132,6 +182,7 @@ export default function AdminAiModelsPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState<DraftState>(EMPTY_DRAFT);
+  const [hasStoredKey, setHasStoredKey] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [testResult, setTestResult] = React.useState<AiProviderTestResult | null>(null);
 
@@ -180,6 +231,8 @@ export default function AdminAiModelsPage() {
   const secretWritable = modelsQuery.data?.secret_writable !== false;
   const builtinAvailable = config.features.builtinAiProvider;
   const builtinUsage = builtinUsageQuery.data;
+  const tenantDefault = models.find((entry) => entry.is_default && entry.status === 'active') ?? null;
+  const builtinIsDefault = builtinAvailable && !tenantDefault;
 
   const formatPrice = (value: number | null): string => {
     if (value == null) return '—';
@@ -189,6 +242,7 @@ export default function AdminAiModelsPage() {
   const openCreate = () => {
     setEditingId(null);
     setDraft(EMPTY_DRAFT);
+    setHasStoredKey(false);
     setError(null);
     setTestResult(null);
     setDialogOpen(true);
@@ -196,6 +250,7 @@ export default function AdminAiModelsPage() {
   const openEdit = (modelConfig: AiModelConfig) => {
     setEditingId(modelConfig.id);
     setDraft(draftFromConfig(modelConfig));
+    setHasStoredKey(modelConfig.has_api_key);
     setError(null);
     setTestResult(null);
     setDialogOpen(true);
@@ -216,6 +271,7 @@ export default function AdminAiModelsPage() {
   const priceOutput = parsePriceInput(draft.price_output);
   const timeoutSeconds = draft.timeout_seconds.trim() === '' ? null : Number.parseInt(draft.timeout_seconds, 10);
   const timeoutInvalid = timeoutSeconds != null && (!Number.isInteger(timeoutSeconds) || timeoutSeconds <= 0);
+  const showingStoredKey = Boolean(editingId && hasStoredKey && draft.api_key === '');
   const saveDisabled = draft.name.trim() === ''
     || draft.model.trim() === ''
     || priceInput === undefined
@@ -233,7 +289,6 @@ export default function AdminAiModelsPage() {
       price_input_eur_per_mtok: priceInput ?? null,
       price_output_eur_per_mtok: priceOutput ?? null,
       llm_timeout_ms: timeoutSeconds != null ? timeoutSeconds * 1000 : null,
-      is_default: draft.is_default,
     };
     if (draft.api_key.trim() !== '') {
       payload.api_key = draft.api_key.trim();
@@ -266,25 +321,34 @@ export default function AdminAiModelsPage() {
               <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
                 <Box component="thead">
                   <Box component="tr">
+                    <Box component="th" sx={{ ...headerCellSx, width: 72, textAlign: 'center', px: 0.5 }}>
+                      {t('aiModels.columns.default')}
+                    </Box>
                     <Box component="th" sx={headerCellSx}>{t('aiModels.columns.name')}</Box>
                     <Box component="th" sx={headerCellSx}>{t('aiModels.columns.model')}</Box>
                     <Box component="th" sx={headerCellSx}>{t('aiModels.columns.capabilities')}</Box>
                     <Box component="th" sx={{ ...headerCellSx, textAlign: 'right' }}>{t('aiModels.columns.priceInput')}</Box>
                     <Box component="th" sx={{ ...headerCellSx, textAlign: 'right' }}>{t('aiModels.columns.priceOutput')}</Box>
-                    <Box component="th" sx={headerCellSx}>{t('aiModels.columns.usedBy')}</Box>
-                    <Box component="th" sx={{ ...headerCellSx, width: 130 }} aria-label={t('aiModels.columns.actions')} />
+                    <Box component="th" sx={headerCellSx}>{t('aiModels.columns.usage')}</Box>
+                    <Box component="th" sx={{ ...headerCellSx, width: 96 }} aria-label={t('aiModels.columns.actions')} />
                   </Box>
                 </Box>
                 <Box component="tbody">
                   {builtinAvailable && (
                     <Box component="tr">
+                      <Box component="td" sx={{ ...cellSx, textAlign: 'center', px: 0.5 }}>
+                        <DefaultStar
+                          isDefault={builtinIsDefault}
+                          label={builtinIsDefault ? t('aiModels.defaultChip') : t('aiModels.makeDefault')}
+                          onToggle={
+                            builtinIsDefault || !tenantDefault
+                              ? undefined
+                              : () => defaultMutation.mutate({ id: tenantDefault.id, makeDefault: false })
+                          }
+                        />
+                      </Box>
                       <Box component="td" sx={cellSx}>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{t('aiModels.builtin.name')}</Typography>
-                          {models.every((entry) => !entry.is_default || entry.status !== 'active') && (
-                            <Chip size="small" label={t('aiModels.defaultChip')} sx={{ height: 20, fontSize: 11 }} />
-                          )}
-                        </Stack>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{t('aiModels.builtin.name')}</Typography>
                         <Typography variant="caption" color="text.secondary">{t('aiModels.builtin.caption')}</Typography>
                       </Box>
                       <Box component="td" sx={cellSx}>
@@ -317,12 +381,18 @@ export default function AdminAiModelsPage() {
                     const usedBy = usedByLabels(modelConfig);
                     return (
                       <Box component="tr" key={modelConfig.id} sx={{ opacity: archived ? 0.55 : 1, '&:hover': { backgroundColor: 'kanap.bg.hover' } }}>
+                        <Box component="td" sx={{ ...cellSx, textAlign: 'center', px: 0.5 }}>
+                          {!archived && (
+                            <DefaultStar
+                              isDefault={modelConfig.is_default}
+                              label={modelConfig.is_default ? t('aiModels.clearDefault') : t('aiModels.makeDefault')}
+                              onToggle={() => defaultMutation.mutate({ id: modelConfig.id, makeDefault: !modelConfig.is_default })}
+                            />
+                          )}
+                        </Box>
                         <Box component="td" sx={cellSx}>
                           <Stack direction="row" spacing={1} alignItems="center">
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>{modelConfig.name}</Typography>
-                            {modelConfig.is_default && !archived && (
-                              <Chip size="small" label={t('aiModels.defaultChip')} sx={{ height: 20, fontSize: 11 }} />
-                            )}
                             {archived && (
                               <Typography variant="caption" color="text.secondary">{t('aiModels.archivedChip')}</Typography>
                             )}
@@ -349,24 +419,13 @@ export default function AdminAiModelsPage() {
                           {formatPrice(modelConfig.price_output_eur_per_mtok)}
                         </Box>
                         <Box component="td" sx={cellSx}>
-                          {usedBy.length === 0 ? (
-                            <Typography variant="caption" color="text.secondary">{t('aiModels.usedByNone')}</Typography>
-                          ) : (
-                            <Typography variant="body2" sx={{ fontSize: 13 }}>{usedBy.join(', ')}</Typography>
-                          )}
+                          <Typography variant="caption" color="text.secondary">
+                            {t('aiModels.messagesThisMonth', { count: modelConfig.messages_this_month ?? 0 })}
+                          </Typography>
                         </Box>
                         <Box component="td" sx={{ ...cellSx, whiteSpace: 'nowrap', textAlign: 'right' }}>
                           {!archived && (
                             <>
-                              <Tooltip title={modelConfig.is_default ? t('aiModels.clearDefault') : t('aiModels.makeDefault')}>
-                                <IconButton
-                                  size="small"
-                                  aria-label={modelConfig.is_default ? t('aiModels.clearDefault') : t('aiModels.makeDefault')}
-                                  onClick={() => defaultMutation.mutate({ id: modelConfig.id, makeDefault: !modelConfig.is_default })}
-                                >
-                                  {modelConfig.is_default ? <StarIcon fontSize="small" color="primary" /> : <StarBorderIcon fontSize="small" />}
-                                </IconButton>
-                              </Tooltip>
                               <Tooltip title={t('aiModels.edit')}>
                                 <IconButton size="small" aria-label={t('aiModels.edit')} onClick={() => openEdit(modelConfig)}>
                                   <EditIcon fontSize="small" />
@@ -399,7 +458,7 @@ export default function AdminAiModelsPage() {
                   })}
                   {!builtinAvailable && models.length === 0 && (
                     <Box component="tr">
-                      <Box component="td" colSpan={7} sx={{ ...cellSx, borderBottom: 'none' }}>
+                      <Box component="td" colSpan={8} sx={{ ...cellSx, borderBottom: 'none' }}>
                         <EmptyState>{t('aiModels.empty')}</EmptyState>
                       </Box>
                     </Box>
@@ -478,23 +537,32 @@ export default function AdminAiModelsPage() {
               </PropertyRow>
             )}
             {(selectedProvider?.capabilities.requiresApiKey ?? true) && (
-              <PropertyRow
+              <TextField
+                size="small"
+                fullWidth
                 label={t('aiModels.dialog.apiKey')}
-                helperText={editingId ? t('aiModels.dialog.apiKeyKeepHint') : undefined}
-              >
-                <TextField
-                  size="small"
-                  variant="standard"
-                  type="password"
-                  value={draft.api_key}
-                  placeholder={editingId ? '••••••••' : t('aiModels.dialog.apiKeyPlaceholder')}
-                  InputProps={{ disableUnderline: true }}
-                  sx={editableFieldValueSx}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, api_key: event.target.value }))}
-                />
-              </PropertyRow>
+                type={showingStoredKey ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={showingStoredKey ? API_KEY_MASK : draft.api_key}
+                placeholder={showingStoredKey ? undefined : t('aiModels.dialog.apiKeyPlaceholder')}
+                helperText={editingId && hasStoredKey ? t('aiModels.dialog.apiKeyKeepHint') : undefined}
+                onFocus={(event) => {
+                  if (showingStoredKey) event.target.select();
+                }}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setDraft((prev) => ({ ...prev, api_key: next === API_KEY_MASK ? '' : next }));
+                }}
+              />
             )}
-            <PropertyRow label={t('aiModels.dialog.capabilities')}>
+            <PropertyRow
+              label={(
+                <LabelWithInfo
+                  label={t('aiModels.dialog.capabilities')}
+                  info={t('aiModels.dialog.visionHint')}
+                />
+              )}
+            >
               <Stack direction="row" spacing={1} alignItems="center">
                 <Switch
                   size="small"
@@ -503,51 +571,67 @@ export default function AdminAiModelsPage() {
                 />
                 <Typography variant="body2" sx={{ fontSize: 13 }}>{t('aiModels.dialog.visionLabel')}</Typography>
               </Stack>
-              <Typography variant="caption" color="text.secondary">{t('aiModels.dialog.visionHint')}</Typography>
             </PropertyRow>
-            <PropertyRow label={t('aiModels.dialog.pricing')} helperText={t('aiModels.dialog.pricingHint')}>
-              <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              <PropertyRow
+                label={(
+                  <LabelWithInfo
+                    label={t('aiModels.dialog.priceInput')}
+                    info={t('aiModels.dialog.pricingHint')}
+                  />
+                )}
+                sx={{ flex: 1 }}
+              >
                 <TextField
                   size="small"
                   variant="standard"
                   value={draft.price_input}
                   placeholder={t('aiModels.dialog.priceInputPlaceholder')}
-                  label={t('aiModels.dialog.priceInput')}
                   error={priceInput === undefined}
+                  InputProps={{ disableUnderline: true }}
+                  sx={editableFieldValueSx}
                   onChange={(event) => setDraft((prev) => ({ ...prev, price_input: event.target.value }))}
                 />
+              </PropertyRow>
+              <PropertyRow
+                label={(
+                  <LabelWithInfo
+                    label={t('aiModels.dialog.priceOutput')}
+                    info={t('aiModels.dialog.pricingHint')}
+                  />
+                )}
+                sx={{ flex: 1 }}
+              >
                 <TextField
                   size="small"
                   variant="standard"
                   value={draft.price_output}
                   placeholder={t('aiModels.dialog.priceOutputPlaceholder')}
-                  label={t('aiModels.dialog.priceOutput')}
                   error={priceOutput === undefined}
+                  InputProps={{ disableUnderline: true }}
+                  sx={editableFieldValueSx}
                   onChange={(event) => setDraft((prev) => ({ ...prev, price_output: event.target.value }))}
                 />
-              </Stack>
-            </PropertyRow>
-            <PropertyRow label={t('aiModels.dialog.advanced')}>
-              <Stack direction="row" spacing={2} alignItems="flex-end">
-                <TextField
-                  size="small"
-                  variant="standard"
-                  value={draft.timeout_seconds}
-                  placeholder={t('aiModels.dialog.timeoutPlaceholder')}
+              </PropertyRow>
+            </Stack>
+            <PropertyRow
+              label={(
+                <LabelWithInfo
                   label={t('aiModels.dialog.timeout')}
-                  error={timeoutInvalid}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, timeout_seconds: event.target.value }))}
+                  info={t('aiModels.dialog.timeoutHint')}
                 />
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Switch
-                    size="small"
-                    checked={draft.is_default}
-                    onChange={(event) => setDraft((prev) => ({ ...prev, is_default: event.target.checked }))}
-                  />
-                  <Typography variant="body2" sx={{ fontSize: 13 }}>{t('aiModels.dialog.defaultLabel')}</Typography>
-                </Stack>
-              </Stack>
-              <Typography variant="caption" color="text.secondary">{t('aiModels.dialog.timeoutHint')}</Typography>
+              )}
+            >
+              <TextField
+                size="small"
+                variant="standard"
+                value={draft.timeout_seconds}
+                placeholder={t('aiModels.dialog.timeoutPlaceholder')}
+                error={timeoutInvalid}
+                InputProps={{ disableUnderline: true }}
+                sx={editableFieldValueSx}
+                onChange={(event) => setDraft((prev) => ({ ...prev, timeout_seconds: event.target.value }))}
+              />
             </PropertyRow>
             {editingId && (
               <Box>
