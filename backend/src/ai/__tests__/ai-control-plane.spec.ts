@@ -10283,6 +10283,88 @@ async function testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited() 
   );
 }
 
+// A deleted agent leaves its id behind in the proposal's metadata (no FK). The
+// listing must say so, and acknowledging must still write its audit event —
+// with the agent link nulled and the id preserved — instead of failing.
+async function testAttentionAcknowledgementSurvivesDeletedAgent() {
+  const { manager, stores } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    {} as any,
+    { findEnabledTargets: async () => [] } as any,
+    {} as any,
+    queue,
+  );
+  const actionRepo = manager.getRepository(AiActionRequest);
+  const makeAction = (id: string, agentDefinitionId: string) => actionRepo.create({
+    id,
+    tenant_id: context.tenantId,
+    run_id: randomUUID(),
+    tool_execution_id: null,
+    conversation_id: null,
+    user_id: context.userId,
+    preview_id: null,
+    capability_name: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    capability_version: '1.0.0',
+    effect: 'write',
+    status: 'expired',
+    target_type: 'ticket',
+    target_id: null,
+    target_ref: 'FRO-2217',
+    idempotency_key: `orphan-${id}`,
+    action_payload_json: { body: 'Internal note.' },
+    provider_kind: 'ticketing',
+    provider_key: 'mock',
+    input_hash: `orphan-hash-${id}`,
+    input_summary: null,
+    evidence_ids: null,
+    expires_at: null,
+    approved_at: null,
+    rejected_at: null,
+    executed_at: null,
+    error_message: 'Action request expired before review.',
+    metadata_json: { agent_definition_id: agentDefinitionId },
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+
+  const deletedAgentId = randomUUID();
+  const orphanActionId = randomUUID();
+  await actionRepo.save(makeAction(orphanActionId, deletedAgentId));
+  const bundle = await seedTestHelpdeskDefinition(context);
+  const liveActionId = randomUUID();
+  await actionRepo.save(makeAction(liveActionId, bundle.definition.id));
+
+  const listed = await service.listActionRequests(context, { status: 'all' });
+  const orphanRow = listed.items.find((item: any) => item.id === orphanActionId) as any;
+  const liveRow = listed.items.find((item: any) => item.id === liveActionId) as any;
+  assert.equal(orphanRow.agent_definition_id, deletedAgentId);
+  assert.equal(orphanRow.agent_exists, false);
+  assert.equal(liveRow.agent_definition_id, bundle.definition.id);
+  assert.equal(liveRow.agent_exists, true);
+
+  const ack = await service.acknowledgeAttention(context, { kind: 'action', id: orphanActionId });
+  assert.equal(ack.already, false);
+  const stored = (stores.get(AiActionRequest.name) ?? []).find((row: any) => row.id === orphanActionId);
+  assert.ok(stored.metadata_json.attention_acknowledged.at);
+
+  const auditEvents = () => (stores.get(AiAgentAuditEvent.name) ?? [])
+    .filter((event: AiAgentAuditEvent) => event.event_type === 'agent_attention_acknowledged');
+  assert.equal(auditEvents().length, 1);
+  assert.equal(auditEvents()[0].agent_definition_id, null);
+  assert.equal(auditEvents()[0].metadata_json.orphaned_agent_definition_id, deletedAgentId);
+  assert.equal(auditEvents()[0].metadata_json.action_request_id, orphanActionId);
+
+  // A live agent keeps its link untouched.
+  await service.acknowledgeAttention(context, { kind: 'action', id: liveActionId });
+  assert.equal(auditEvents().length, 2);
+  assert.equal(auditEvents()[1].agent_definition_id, bundle.definition.id);
+  assert.equal(auditEvents()[1].metadata_json.orphaned_agent_definition_id, undefined);
+}
+
 // Round-2 UAT: "Re-run analysis" on an attention row reuses the test-on-a-ticket
 // path, which enqueues with `trigger: 'manual'` — so it works while the agent is
 // in Manual run mode (watching off) instead of being refused.
@@ -15276,6 +15358,7 @@ async function run() {
   await testAgentControlActivityTimelineAndDailyMetrics();
   await testAgentActivityMultiTypeFilterAndSubsetPagination();
   await testAttentionAcknowledgementIsIdempotentTenantScopedAndAudited();
+  await testAttentionAcknowledgementSurvivesDeletedAgent();
   await testAttentionRerunEnqueuesWithManualTrigger();
   await testAgentPersonaCannotWidenCapabilityFrameAndSeedingSkipsUserEdits();
   await testAgentPersonaRejectsOverLimitAndClearsEmptyFields();

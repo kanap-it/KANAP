@@ -673,6 +673,52 @@ function definitionIdFromMetadata(value: unknown): string | null {
   return stringFromPolicy(metadata.agent_definition_id);
 }
 
+/**
+ * Audit-event links are real FKs guarded by a fail-closed tenant trigger, but
+ * callers often carry the agent id from metadata (no FK), which survives the
+ * agent's deletion. Resolve both links against the tenant before writing so an
+ * audit row never fails the operator action it records; the original id is
+ * kept in the event metadata for traceability.
+ */
+export async function resolveAuditEventLinks(
+  manager: AiExecutionContextWithManager['manager'],
+  tenantId: string,
+  links: { agentDefinitionId?: string | null; workItemId?: string | null },
+): Promise<{ agentDefinitionId: string | null; workItemId: string | null; orphaned: Record<string, string> }> {
+  const orphaned: Record<string, string> = {};
+  let agentDefinitionId = links.agentDefinitionId ?? null;
+  if (agentDefinitionId) {
+    const definition = await manager.getRepository(AiAgentDefinition).findOne({
+      where: { id: agentDefinitionId, tenant_id: tenantId },
+    });
+    if (!definition) {
+      orphaned.orphaned_agent_definition_id = agentDefinitionId;
+      agentDefinitionId = null;
+    }
+  }
+  let workItemId = links.workItemId ?? null;
+  if (workItemId) {
+    const workItem = await manager.getRepository(AiAgentWorkItem).findOne({
+      where: { id: workItemId, tenant_id: tenantId },
+    });
+    if (!workItem) {
+      orphaned.orphaned_work_item_id = workItemId;
+      workItemId = null;
+    }
+  }
+  return { agentDefinitionId, workItemId, orphaned };
+}
+
+export function withOrphanedAuditLinks(
+  metadata: Record<string, unknown> | null | undefined,
+  orphaned: Record<string, string>,
+): Record<string, unknown> | null {
+  if (Object.keys(orphaned).length === 0) {
+    return metadata ?? null;
+  }
+  return { ...(metadata ?? {}), ...orphaned };
+}
+
 function normalizedTargetRef(value: string): string {
   const normalized = value.trim();
   if (!normalized || normalized.includes('*')) {
@@ -2824,14 +2870,15 @@ export class AiAgentWorkQueueService {
     },
   ): Promise<AiAgentAuditEvent> {
     const repo = this.auditRepo(context);
+    const links = await resolveAuditEventLinks(context.manager, context.tenantId, input);
     return repo.save(repo.create({
       tenant_id: context.tenantId,
-      agent_definition_id: input.agentDefinitionId ?? null,
-      work_item_id: input.workItemId ?? null,
+      agent_definition_id: links.agentDefinitionId,
+      work_item_id: links.workItemId,
       event_type: input.eventType,
       severity: input.severity ?? 'info',
       message: input.message,
-      metadata_json: input.metadata ?? null,
+      metadata_json: withOrphanedAuditLinks(input.metadata, links.orphaned),
       created_at: new Date(),
     }));
   }

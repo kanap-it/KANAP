@@ -37,8 +37,11 @@ import {
   DEFAULT_APPROVAL_TTL_SECONDS,
   markWorkItemAttemptFailure,
   monitoringAlertDedupKey,
+  resolveAuditEventLinks,
   SRE_MONITORING_ALLOWED_CAPABILITIES,
+  withOrphanedAuditLinks,
 } from '../agent/ai-agent-work-queue.service';
+import { AttentionScope, countAttention, stampAttentionAcknowledged } from './ai-agent-attention.util';
 import { helpdeskAgentDefaults, sreAgentDefaults } from '../agent/agent-definition-defaults';
 import { LEGACY_GLPI_TICKETING_PROVIDER_KEY } from '../providers/provider-constants';
 import { AiAdapterConfig } from '../providers/adapter-config.entity';
@@ -3158,7 +3161,13 @@ type ActionExecutionReadiness = {
   sandbox_write_target_ref: string | null;
 };
 
-function serializeActionRequest(action: AiActionRequest, executionReadiness?: ActionExecutionReadiness | null) {
+type ActionAgentLink = { agent_definition_id: string | null; agent_exists: boolean | null };
+
+function serializeActionRequest(
+  action: AiActionRequest,
+  executionReadiness?: ActionExecutionReadiness | null,
+  agentLink?: ActionAgentLink | null,
+) {
   return {
     id: action.id,
     tenant_id: action.tenant_id,
@@ -3188,6 +3197,10 @@ function serializeActionRequest(action: AiActionRequest, executionReadiness?: Ac
     error_message: action.error_message,
     metadata_json: action.metadata_json,
     execution_readiness: executionReadiness ?? null,
+    // The agent is only linked through metadata (no FK), so it can outlive the
+    // agent's deletion; the UI needs to know whether it still resolves.
+    agent_definition_id: agentLink?.agent_definition_id ?? null,
+    agent_exists: agentLink?.agent_exists ?? null,
     created_at: toIso(action.created_at),
     updated_at: toIso(action.updated_at),
   };
@@ -3449,14 +3462,15 @@ export class AiAgentControlService {
       return;
     }
     const repo = context.manager.getRepository(AiAgentAuditEvent);
+    const links = await resolveAuditEventLinks(context.manager, context.tenantId, input);
     await repo.save(repo.create({
       tenant_id: context.tenantId,
-      agent_definition_id: input.agentDefinitionId ?? null,
+      agent_definition_id: links.agentDefinitionId,
       work_item_id: null,
       event_type: input.eventType,
       severity: input.severity ?? 'info',
       message: input.message,
-      metadata_json: input.metadata ?? null,
+      metadata_json: withOrphanedAuditLinks(input.metadata, links.orphaned),
       created_at: new Date(),
     }));
   }
@@ -4444,6 +4458,7 @@ export class AiAgentControlService {
       : [];
 
     const readiness = await this.executionReadinessForActions(context, mergedActionRequests);
+    const agentLinks = await this.agentLinksForActions(context, mergedActionRequests);
     return {
       run: serializeRun(run),
       run_steps: runSteps.map(serializeRunStep),
@@ -4453,9 +4468,33 @@ export class AiAgentControlService {
       recommendations: recommendations.map(serializeRecommendation),
       decisions: decisions.map(serializeDecision),
       evaluations: evaluations.map(serializeEvaluation),
-      action_requests: mergedActionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id))),
+      action_requests: mergedActionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id), agentLinks.get(action.id))),
       approvals: approvals.map(serializeApproval),
     };
+  }
+
+  /** Whether each action's metadata-linked agent still exists in the tenant (one lookup per batch). */
+  private async agentLinksForActions(
+    context: AiExecutionContextWithManager,
+    actions: AiActionRequest[],
+  ): Promise<Map<string, ActionAgentLink>> {
+    const ids = Array.from(new Set(
+      actions.map((action) => definitionIdFromMetadata(action.metadata_json)).filter((id): id is string => !!id),
+    ));
+    const live = new Set<string>();
+    if (ids.length > 0) {
+      const definitions = await context.manager.getRepository(AiAgentDefinition).find({
+        where: { tenant_id: context.tenantId, id: In(ids) },
+      });
+      definitions.forEach((definition) => live.add(definition.id));
+    }
+    return new Map(actions.map((action) => {
+      const agentDefinitionId = definitionIdFromMetadata(action.metadata_json);
+      return [action.id, {
+        agent_definition_id: agentDefinitionId,
+        agent_exists: agentDefinitionId ? live.has(agentDefinitionId) : null,
+      }];
+    }));
   }
 
   async listActionRequests(context: AiExecutionContextWithManager, options: AgentControlListActionsOptions = {}) {
@@ -4473,7 +4512,8 @@ export class AiAgentControlService {
       ? items.filter((action) => actionIsActivePending(action)).slice(0, limit)
       : items;
     const readiness = await this.executionReadinessForActions(context, visibleItems);
-    return { items: visibleItems.map((action) => serializeActionRequest(action, readiness.get(action.id))) };
+    const agentLinks = await this.agentLinksForActions(context, visibleItems);
+    return { items: visibleItems.map((action) => serializeActionRequest(action, readiness.get(action.id), agentLinks.get(action.id))) };
   }
 
   private async uniqueAgentKey(
@@ -5138,12 +5178,23 @@ export class AiAgentControlService {
     if (orphanPolicyIds.length > 0) {
       await policyRepo.delete({ id: In(orphanPolicyIds), tenant_id: context.tenantId });
     }
+    // Its expired/failed proposals are metadata-linked too and would otherwise
+    // pile up in "Needs attention" with nobody left to re-run them.
+    const stamped = await stampAttentionAcknowledged(context.manager, context.tenantId, {
+      agentDefinitionId: definition.id,
+      userId: context.userId || null,
+      reason: 'agent_deleted',
+    });
     await this.recordAgentAuditEvent(context, {
       agentDefinitionId: definition.id,
       eventType: 'agent_deleted',
       severity: 'info',
       message: `Agent ${definition.name} was deleted.`,
-      metadata: { actor_user_id: context.userId || null, agent_key: definition.agent_key },
+      metadata: {
+        actor_user_id: context.userId || null,
+        agent_key: definition.agent_key,
+        acknowledged_actions: stamped.action_ids.length,
+      },
     });
     // FK cascades remove triggers, work items, target states, and agent-scoped pauses;
     // audit events are SET NULL so the deletion record is preserved.
@@ -6189,6 +6240,7 @@ export class AiAgentControlService {
       ...runActionRequests,
     ].map((action) => [action.id, action])).values());
     const readiness = await this.executionReadinessForActions(context, actionRequests);
+    const agentLinks = await this.agentLinksForActions(context, actionRequests);
     const ticketRefsByProvider = new Map<string, Set<string>>();
     const collectTicketRef = (
       providerKind: string | null | undefined,
@@ -6240,7 +6292,7 @@ export class AiAgentControlService {
       })),
       work_items: overview.workItems.map(serializeAgentWorkItem),
       target_states: overview.targetStates.map(serializeAgentTargetState),
-      action_requests: actionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id))),
+      action_requests: actionRequests.map((action) => serializeActionRequest(action, readiness.get(action.id), agentLinks.get(action.id))),
       target_links: targetLinks,
       monitoring_diagnoses: overview.monitoringDiagnoses,
       counts: overview.counts,
@@ -10545,6 +10597,45 @@ export class AiAgentControlService {
       id: action.id,
       already: false,
       acknowledged_at: acknowledgedAt.toISOString(),
+    };
+  }
+
+  /** How many rows currently need attention — the whole backlog, not the page the UI fetched. */
+  async getAttentionSummary(context: AiExecutionContextWithManager, scope: AttentionScope = {}) {
+    return countAttention(context.manager, context.tenantId, scope);
+  }
+
+  /**
+   * Acknowledge every row that needs attention in one go (optionally for one
+   * agent). Same stamp as the single acknowledgement, one audit event for the
+   * batch. Proposals still being retried are left alone — see the util.
+   */
+  async acknowledgeAllAttention(context: AiExecutionContextWithManager, scope: AttentionScope = {}) {
+    const stamped = await stampAttentionAcknowledged(context.manager, context.tenantId, {
+      agentDefinitionId: scope.agentDefinitionId ?? null,
+      userId: context.userId || null,
+    });
+    const acknowledgedActions = stamped.action_ids.length;
+    const acknowledgedWorkItems = stamped.work_item_ids.length;
+    if (acknowledgedActions + acknowledgedWorkItems > 0) {
+      await this.recordAgentAuditEvent(context, {
+        agentDefinitionId: scope.agentDefinitionId ?? null,
+        eventType: 'agent_attention_acknowledged',
+        severity: 'info',
+        message: `Operator acknowledged ${acknowledgedActions} proposal(s) and ${acknowledgedWorkItems} check(s) that needed attention.`,
+        metadata: {
+          kind: 'bulk',
+          acknowledged_actions: acknowledgedActions,
+          acknowledged_work_items: acknowledgedWorkItems,
+          agent_definition_id: scope.agentDefinitionId ?? null,
+          actor_user_id: context.userId || null,
+        },
+      });
+    }
+    return {
+      acknowledged_actions: acknowledgedActions,
+      acknowledged_work_items: acknowledgedWorkItems,
+      total: acknowledgedActions + acknowledgedWorkItems,
     };
   }
 

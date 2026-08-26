@@ -350,8 +350,18 @@ export type AiAgentControlActionRequest = {
     requires_sandbox_write_target: boolean;
     sandbox_write_target_ref: string | null;
   } | null;
+  // The agent is linked through metadata only, so it can outlive the agent's
+  // deletion. `agent_exists` is null when the row carries no agent at all.
+  agent_definition_id?: string | null;
+  agent_exists?: boolean | null;
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type AiAgentControlAttentionSummary = {
+  actions: number;
+  work_items: number;
+  total: number;
 };
 
 export type AiAgentControlAgentDefinition = {
@@ -1671,6 +1681,24 @@ export const aiAgentControlApi = {
     acknowledged_at: string | null;
   }> {
     const res = await api.post(`/ai/admin/control-plane/queue/attention/${kind}/${id}/acknowledge`, {});
+    return res.data;
+  },
+  // The whole "Needs attention" backlog, not just the page the client fetched.
+  async getAttentionSummary(params?: { agent_definition_id?: string | null }): Promise<AiAgentControlAttentionSummary> {
+    const res = await api.get('/ai/admin/control-plane/queue/attention/summary', {
+      params: params?.agent_definition_id ? { agent_definition_id: params.agent_definition_id } : {},
+    });
+    return res.data;
+  },
+  // Server-side: stamps every row that needs attention (optionally one agent's).
+  async acknowledgeAllAttention(body?: { agent_definition_id?: string | null }): Promise<{
+    acknowledged_actions: number;
+    acknowledged_work_items: number;
+    total: number;
+  }> {
+    const res = await api.post('/ai/admin/control-plane/queue/attention/acknowledge-all', {
+      agent_definition_id: body?.agent_definition_id ?? null,
+    });
     return res.data;
   },
   async dismissAction(id: string, payload?: { reason?: string }): Promise<{
