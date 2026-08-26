@@ -6,7 +6,7 @@ import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import KanapDialog from '../../components/design/KanapDialog';
@@ -88,6 +88,8 @@ type CompactRow = {
 type AttentionSubject = {
   kind: 'action' | 'work-item';
   agentDefinitionId: string | null;
+  // false when the agent that produced the row was deleted since.
+  agentExists: boolean | null;
   providerKind: string | null;
   providerKey: string | null;
   targetRef: string | null;
@@ -106,7 +108,7 @@ type AttentionRerun =
  * re-run — Acknowledge alone is the answer there.
  */
 function attentionRerun(subject: AttentionSubject | null | undefined): AttentionRerun | null {
-  if (!subject?.targetRef) return null;
+  if (!subject?.targetRef || subject.agentExists === false) return null;
   if (subject.providerKind === 'monitoring') {
     return subject.agentDefinitionId
       ? { kind: 'alert', agentDefinitionId: subject.agentDefinitionId, targetRef: subject.targetRef }
@@ -324,6 +326,11 @@ function AttentionRowActions({
   const rerun = attentionRerun(row.attention);
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+      {row.attention?.agentExists === false && (
+        <Typography sx={(theme) => ({ color: theme.palette.kanap.text.tertiary, fontSize: 12, fontWeight: 400, px: 0.5 })}>
+          {t('approvals.agentRemoved')}
+        </Typography>
+      )}
       {rerun && (
         <Tooltip title={rerunning ? t('approvals.rerunRunning') : t('approvals.rerunHint')}>
           <span>
@@ -585,7 +592,10 @@ function buildAttentionRows(
         traceRunId: action.run_id ?? group.latestRunId,
         attention: {
           kind: 'action' as const,
-          agentDefinitionId: actionAgentDefinitionId(action) ?? fallbackAgentDefinitionId,
+          agentDefinitionId: action.agent_exists === false
+            ? null
+            : actionAgentDefinitionId(action) ?? fallbackAgentDefinitionId,
+          agentExists: action.agent_exists ?? null,
           providerKind: action.provider_kind ?? group.providerKind,
           providerKey: action.provider_key ?? group.providerKey,
           targetRef: action.target_ref ?? group.targetRef,
@@ -607,6 +617,7 @@ function buildAttentionRows(
         attention: {
           kind: 'work-item' as const,
           agentDefinitionId: workItem.agent_definition_id ?? fallbackAgentDefinitionId,
+          agentExists: true,
           providerKind: workItem.source_provider_kind ?? group.providerKind,
           providerKey: workItem.source_provider_key ?? group.providerKey,
           targetRef: workItem.source_object_ref ?? group.targetRef,
@@ -661,6 +672,7 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
   const [traceRunId, setTraceRunId] = React.useState<string | null>(null);
   const [acknowledgedIds, setAcknowledgedIds] = React.useState<Set<string>>(() => new Set());
   const [rerunningRowId, setRerunningRowId] = React.useState<string | null>(null);
+  const [acknowledgeAllOpen, setAcknowledgeAllOpen] = React.useState(false);
   const [finishedOpen, setFinishedOpen] = React.useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(FINISHED_OPEN_STORAGE_KEY) === 'true';
@@ -698,6 +710,18 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
     () => allAttentionRows.filter((row) => !acknowledgedIds.has(row.id)),
     [acknowledgedIds, allAttentionRows],
   );
+  // The queue only fetches its first 100 rows; the section count and the bulk
+  // acknowledgement speak for the whole backlog, so ask the server for it.
+  const attentionScopeId = agentDefinition?.id ?? null;
+  const attentionSummaryQuery = useQuery({
+    queryKey: ['ai-agent-control-attention-summary', attentionScopeId],
+    queryFn: () => aiAgentControlApi.getAttentionSummary({ agent_definition_id: attentionScopeId }),
+    enabled: !agentKey || !!agentDefinition,
+    staleTime: 15_000,
+  });
+  const attentionTotal = attentionSummaryQuery.data?.total ?? null;
+  const attentionCount = attentionTotal ?? attentionRows.length;
+  const attentionHiddenCount = attentionTotal === null ? 0 : Math.max(0, attentionTotal - attentionRows.length);
   const finishedRows = React.useMemo(() => buildFinishedRows(grouped.groups.filter((group) => group.lifecycle === 'finished'), t), [grouped.groups, t]);
   const visibleFinishedRows = finishedRows.slice(0, FINISHED_ROW_LIMIT);
   const hiddenFinishedCount = Math.max(0, finishedRows.length - visibleFinishedRows.length);
@@ -709,6 +733,8 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
       return aiAgentControlApi.acknowledgeAttention(row.attention.kind, row.id);
     },
     onMutate: (row: CompactRow) => {
+      data.setError(null);
+      data.setMessage(null);
       setAcknowledgedIds((current) => new Set(current).add(row.id));
     },
     onSuccess: async () => {
@@ -741,13 +767,32 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
         agent_definition_id: rerun.agentDefinitionId,
       });
     },
-    onMutate: ({ row }) => setRerunningRowId(row.id),
+    onMutate: ({ row }) => {
+      data.setError(null);
+      data.setMessage(null);
+      setRerunningRowId(row.id);
+    },
     onSuccess: async (_result, { rerun }) => {
       data.setMessage(t('approvals.rerunStarted', { target: rerun.targetRef }));
       await data.invalidate();
     },
     onError: (error) => data.setError(getApiErrorMessage(error, t, t('approvals.rerunFailed'))),
     onSettled: () => setRerunningRowId(null),
+  });
+
+  const acknowledgeAllMutation = useMutation({
+    mutationFn: () => aiAgentControlApi.acknowledgeAllAttention({ agent_definition_id: attentionScopeId }),
+    onMutate: () => {
+      data.setError(null);
+      data.setMessage(null);
+    },
+    onSuccess: async (result) => {
+      setAcknowledgeAllOpen(false);
+      setAcknowledgedIds(new Set());
+      data.setMessage(t('approvals.acknowledgeAllDone', { count: result.total }));
+      await data.invalidate();
+    },
+    onError: (error) => data.setError(getApiErrorMessage(error, t, t('approvals.acknowledgeAllFailed'))),
   });
 
   const approveAll = (group: TicketWorkGroup, reason?: string | null) => {
@@ -849,8 +894,19 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
           </Section>
         )}
 
-        {attentionRows.length > 0 && (
-          <Section title={t('approvals.needsAttention')} count={attentionRows.length}>
+        {(attentionRows.length > 0 || attentionCount > 0) && (
+          <Section
+            title={t('approvals.needsAttention')}
+            count={attentionCount}
+            caption={attentionHiddenCount > 0
+              ? t('approvals.attentionShowing', { shown: attentionRows.length, total: attentionCount })
+              : undefined}
+            actions={attentionCount > 0 ? (
+              <Button variant="action" onClick={() => setAcknowledgeAllOpen(true)}>
+                {t('approvals.acknowledgeAll')}
+              </Button>
+            ) : null}
+          >
             <Stack>
               {attentionRows.map((row) => (
                 <CompactLifecycleRow
@@ -889,6 +945,19 @@ export default function AgentsApprovalsPage({ agentKey }: { agentKey?: string })
             </Stack>
           </Section>
         )}
+
+        <KanapDialog
+          open={acknowledgeAllOpen}
+          title={t('approvals.acknowledgeAllTitle')}
+          onClose={() => setAcknowledgeAllOpen(false)}
+          onSave={() => acknowledgeAllMutation.mutate()}
+          saveLabel={t('approvals.acknowledgeAll')}
+          saveLoading={acknowledgeAllMutation.isPending}
+        >
+          <Typography sx={(theme) => ({ color: theme.palette.kanap.text.secondary, fontSize: 13, fontWeight: 400 })}>
+            {t('approvals.acknowledgeAllBody', { count: attentionCount })}
+          </Typography>
+        </KanapDialog>
 
         <KanapDialog
           open={!!rejectGroup}

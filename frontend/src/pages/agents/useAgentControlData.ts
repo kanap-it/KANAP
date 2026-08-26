@@ -177,6 +177,7 @@ export function useAgentControlData(input: { targetAgentKey?: string | null } = 
       queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-actions'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-badges'] }),
+      queryClient.invalidateQueries({ queryKey: ['ai-agent-control-attention-summary'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-activity'] }),
       queryClient.invalidateQueries({ queryKey: ['ai-agent-control-autonomy'] }),
       queryClient.invalidateQueries({ queryKey: SHARED_CONTEXT_PROFILES_QUERY_KEY }),

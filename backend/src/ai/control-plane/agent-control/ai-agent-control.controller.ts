@@ -43,6 +43,18 @@ import {
 import { AGENT_ACTIVITY_TYPES } from './ai-agent-activity-timeline';
 import { SharedContextProfileInput } from './ai-shared-context-profile.service';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseOptionalUuid(value: unknown, field: string): string | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value.trim())) {
+    throw new BadRequestException(`${field} must be a UUID.`);
+  }
+  return value.trim();
+}
+
 function parseLimit(value: unknown, fallback: number): number {
   if (typeof value !== 'string' || value.trim().length === 0) return fallback;
   const parsed = Number(value);
@@ -528,6 +540,31 @@ export class AiAgentControlController {
     return this.runTransaction(context, 'operate', (tenantContext) => this.control.acknowledgeAttention(
       tenantContext,
       { kind: kind === 'action' ? 'action' : 'work_item', id },
+    ));
+  }
+
+  // The whole backlog count (the page only fetches its first 100 rows).
+  @Get('queue/attention/summary')
+  async getAttentionSummary(
+    @Req() req: any,
+    @Query('agent_definition_id') agentDefinitionId?: string,
+  ) {
+    const context = this.buildContext(req);
+    return this.runRead(context, (tenantContext) => this.control.getAttentionSummary(
+      tenantContext,
+      { agentDefinitionId: parseOptionalUuid(agentDefinitionId, 'agent_definition_id') },
+    ));
+  }
+
+  @Post('queue/attention/acknowledge-all')
+  async acknowledgeAllAttention(
+    @Req() req: any,
+    @Body() body: { agent_definition_id?: string | null } = {},
+  ) {
+    const context = this.buildContext(req);
+    return this.runTransaction(context, 'operate', (tenantContext) => this.control.acknowledgeAllAttention(
+      tenantContext,
+      { agentDefinitionId: parseOptionalUuid(body?.agent_definition_id, 'agent_definition_id') },
     ));
   }
 
