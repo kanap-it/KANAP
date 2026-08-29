@@ -14,9 +14,23 @@ import {
 } from '../i18n/ui';
 import ThemeToggle from './ThemeToggle.astro';
 import LocaleSwitcher from './LocaleSwitcher.astro';
+import { blogHasPosts } from '../lib/blog';
+import type { Locale } from '../i18n/ui';
+
+interface Props {
+  /** Forwarded to the locale switcher (blog articles). */
+  alternates?: Partial<Record<Locale, string>>;
+  fallbackPath?: string;
+}
+
+const { alternates, fallbackPath } = Astro.props;
 
 const locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(locale);
+
+// The Blog entry only appears once at least one article is published, so
+// the structure can ship ahead of the first post. FAQ lives in the footer.
+const showBlog = await blogHasPosts();
 
 // Flat dropdown, Agents first so the hook is visible at the point of
 // navigation (plan §5.2).
@@ -38,7 +52,9 @@ const navLinks = [
   { href: localePath(locale, '/on-premise'), label: t('nav.onPremise') },
   { href: localePath(locale, '/offer'), label: t('nav.offer') },
   { href: localePath(locale, '/security'), label: t('nav.security') },
-  { href: localePath(locale, '/faq'), label: t('nav.faq') },
+  ...(showBlog
+    ? [{ href: localePath(locale, '/blog'), label: t('nav.blog') }]
+    : [{ href: localePath(locale, '/faq'), label: t('nav.faq') }]),
   { href: localePath(locale, '/contact'), label: t('nav.contact') },
 ];
 
@@ -98,7 +114,7 @@ function isActive(href: string): boolean {
     </nav>
 
     <div class="mk-nav__actions">
-      <LocaleSwitcher />
+      <LocaleSwitcher alternates={alternates} fallbackPath={fallbackPath} />
       <ThemeToggle />
       <a href={localePath(locale, '/trial/start')} class="mk-btn mk-btn--primary mk-nav__cta">
         {t('nav.startTrial')}

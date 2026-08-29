@@ -19,13 +19,19 @@ import {
   CTABand,
 } from './sections';
 import HomeHeroVisual from './HomeHeroVisual.astro';
-import { getLocaleFromUrl, localePath } from '../i18n/ui';
+import { getLocaleFromUrl, localePath, useTranslations } from '../i18n/ui';
 import { getHomeContent } from '../content/resolve';
 import { HOME_HERO_SCREENSHOTS } from '../content/screenshots';
 import { organizationLd, softwareApplicationLd } from '../lib/jsonld';
+import { getPostsWithFallback, formatDate } from '../lib/blog';
 
 const locale = getLocaleFromUrl(Astro.url);
 const content = getHomeContent(locale);
+const t = useTranslations(locale);
+
+// "From the blog": up to three latest titles, one line each. Rendered only
+// when there is something to list.
+const latestPosts = (await getPostsWithFallback(locale)).slice(0, 3);
 const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, '');
 
 // Feature cards: prefix module slugs with locale.
@@ -130,6 +136,25 @@ const crossItems = content.crossCutting.items.map((i) => ({
     </Section>
   )}
 
+  {latestPosts.length > 0 && (
+    <Section tone="default" compact>
+      <div class="mk-home__blog">
+        <div class="mk-home__blog-head">
+          <span class="mk-eyebrow">{t('blog.home.eyebrow')}</span>
+          <a href={localePath(locale, '/blog')} class="mk-home__blog-all">{t('blog.home.all')} →</a>
+        </div>
+        <ul class="mk-home__blog-list">
+          {latestPosts.map((item) => (
+            <li>
+              <time datetime={item.post.data.date.toISOString()}>{formatDate(item.post.data.date, locale)}</time>
+              <a href={item.href}>{item.post.data.title}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Section>
+  )}
+
   <Section tone="default" compact>
     <CTABand
       title={content.cta.title}
@@ -154,5 +179,63 @@ const crossItems = content.crossCutting.items.map((i) => ({
     line-height: 1.6;
     color: var(--kanap-text-primary);
     max-width: 640px;
+  }
+
+  .mk-home__blog {
+    max-width: 900px;
+  }
+
+  .mk-home__blog-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-home__blog-all {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .mk-home__blog-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mk-home__blog-list li {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 20px;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-home__blog-list time {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--kanap-text-tertiary);
+    white-space: nowrap;
+  }
+
+  .mk-home__blog-list a {
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-home__blog-list a:hover {
+    color: var(--kanap-teal);
+  }
+
+  @media (max-width: 560px) {
+    .mk-home__blog-list li {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
   }
 </style>
