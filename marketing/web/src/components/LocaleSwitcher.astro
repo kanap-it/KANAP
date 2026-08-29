@@ -10,10 +10,19 @@ import {
   getLocaleFromUrl,
   useTranslations,
   relocatePath,
+  localePath,
   LOCALES,
   LOCALE_LABELS,
   type Locale,
 } from '../i18n/ui';
+
+interface Props {
+  /** Explicit per-locale targets (blog articles). Missing locales go to `fallbackPath`. */
+  alternates?: Partial<Record<Locale, string>>;
+  fallbackPath?: string;
+}
+
+const { alternates, fallbackPath = '/' } = Astro.props;
 
 const currentLocale: Locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(currentLocale);
@@ -21,7 +30,9 @@ const t = useTranslations(currentLocale);
 const items = LOCALES.map((loc) => ({
   loc,
   label: LOCALE_LABELS[loc],
-  href: relocatePath(Astro.url, loc),
+  href: alternates
+    ? (alternates[loc] ?? localePath(loc, fallbackPath))
+    : relocatePath(Astro.url, loc),
   current: loc === currentLocale,
 }));
 ---

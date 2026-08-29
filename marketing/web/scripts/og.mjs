@@ -5,21 +5,74 @@
  * Renders a branded 1200×630 social card per page into public/og/<name>.png.
  * Run after editing the CARDS config below:
  *
- *   node scripts/og.mjs            # generate every card
+ *   node scripts/og.mjs            # generate every page card
  *   node scripts/og.mjs agents     # only the named card(s)
+ *   node scripts/og.mjs blog       # one card per blog article → public/og/blog/<slug>.png
+ *   node scripts/og.mjs blog my-article   # only that article
+ *
+ * Blog cards are read from the article frontmatter (title, description, date)
+ * under src/content/blog/<locale>/<slug>.md; the English file wins when the
+ * same slug exists in several languages. Commit the PNGs with the article.
  *
  * Requirements:
  *   - chromium at /usr/bin/chromium (override with CHROMIUM_PATH)
  */
 
 import puppeteer from 'puppeteer-core';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, basename } from 'node:path';
 
 const CHROME_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = resolve(root, 'public/og');
+const blogDir = resolve(root, 'src/content/blog');
+const BLOG_LOCALES = ['en', 'fr', 'de', 'es'];
+
+/** Minimal frontmatter reader: `key: value` lines between the `---` fences. */
+function readFrontmatter(file) {
+  const src = readFileSync(file, 'utf8');
+  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return {};
+  const out = {};
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = line.match(/^([A-Za-z_]+):\s*(.*)$/);
+    if (!kv) continue;
+    let v = kv[2].replace(/\s+#.*$/, '').trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1);
+    }
+    out[kv[1]] = v;
+  }
+  return out;
+}
+
+/** One card per slug, English first. Drafts are skipped. */
+function blogCards(only) {
+  const cards = {};
+  for (const locale of BLOG_LOCALES) {
+    const dir = resolve(blogDir, locale);
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.md') || f.startsWith('_')) continue;
+      const slug = basename(f, '.md');
+      if (only.length && !only.includes(slug)) continue;
+      if (cards[slug]) continue;
+      const fm = readFrontmatter(resolve(dir, f));
+      if (fm.draft === 'true') continue;
+      const date = fm.date
+        ? new Date(fm.date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+        : '';
+      cards[slug] = {
+        eyebrow: date ? `Blog · ${date}` : 'Blog',
+        title: fm.title ?? slug,
+        sub: fm.description ?? '',
+        url: `kanap.net${locale === 'en' ? '' : '/' + locale}/blog/${slug}`,
+      };
+    }
+  }
+  return cards;
+}
 
 // Brand tokens (dark theme — best contrast for social cards).
 const BG = '#0F1117';
@@ -41,6 +94,9 @@ const CARDS = {
     url: 'kanap.net/features/agents',
   },
 };
+
+const esc = (v) =>
+  String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function cardHtml(c) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
@@ -70,18 +126,30 @@ function cardHtml(c) {
     <div class="glow"></div>
     <div class="brand z"><img src="${logoDataUri}"/><span class="wm">KANAP</span></div>
     <div class="z">
-      <div class="eyebrow">${c.eyebrow}</div>
-      <div class="title">${c.title}</div>
-      <div class="sub">${c.sub}</div>
+      <div class="eyebrow">${esc(c.eyebrow)}</div>
+      <div class="title">${esc(c.title)}</div>
+      <div class="sub">${esc(c.sub)}</div>
     </div>
-    <div class="foot z"><span class="url">${c.url}</span><span class="tag">AGPL v3 · self-host free</span></div>
+    <div class="foot z"><span class="url">${esc(c.url)}</span><span class="tag">AGPL v3 · self-host free</span></div>
   </div></body></html>`;
 }
 
 const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const names = positional.length ? positional.filter((n) => CARDS[n]) : Object.keys(CARDS);
+const isBlog = positional[0] === 'blog';
+const cards = isBlog ? blogCards(positional.slice(1)) : CARDS;
+const targetDir = isBlog ? resolve(outDir, 'blog') : outDir;
+const names = isBlog
+  ? Object.keys(cards)
+  : positional.length
+    ? positional.filter((n) => CARDS[n])
+    : Object.keys(CARDS);
 
-mkdirSync(outDir, { recursive: true });
+if (!names.length) {
+  console.log(isBlog ? 'no published blog article found' : 'no card matched');
+  process.exit(0);
+}
+
+mkdirSync(targetDir, { recursive: true });
 const browser = await puppeteer.launch({
   executablePath: CHROME_PATH,
   headless: 'new',
@@ -91,9 +159,9 @@ try {
   for (const name of names) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
-    await page.setContent(cardHtml(CARDS[name]), { waitUntil: 'networkidle0' });
+    await page.setContent(cardHtml(cards[name]), { waitUntil: 'networkidle0' });
     await new Promise((r) => setTimeout(r, 150));
-    const out = resolve(outDir, `${name}.png`);
+    const out = resolve(targetDir, `${name}.png`);
     await page.screenshot({ path: out });
     console.log('wrote', out);
     await page.close();

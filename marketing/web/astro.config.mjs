@@ -7,6 +7,14 @@ export default defineConfig({
   build: {
     format: 'directory',
   },
+  markdown: {
+    // Blog code blocks: one theme per site theme. The switch itself is CSS in
+    // BlogPostPage.astro (`--shiki-light` / `--shiki-dark` variables).
+    shikiConfig: {
+      themes: { light: 'github-light', dark: 'github-dark-default' },
+      defaultColor: false,
+    },
+  },
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'fr', 'de', 'es'],

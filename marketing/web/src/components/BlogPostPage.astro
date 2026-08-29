@@ -1,0 +1,504 @@
+---
+/**
+ * BlogPostPage — one article.
+ *
+ * A single 680px reading column. Body type is raised to 17px/1.68 for
+ * long-form, the only place the marketing scale changes. Markdown gets four
+ * content blocks beyond text: images in the app's screenshot frame, pull
+ * quotes, code, and an optional `<figure class="stat">` callout. The page
+ * ends on related posts and the product CTA, never on a comment box.
+ */
+
+import { render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Section, CTABand } from './sections';
+import {
+  getLocaleFromUrl,
+  useTranslations,
+  localePath,
+  LOCALE_LABELS,
+  LOCALES,
+  type Locale,
+} from '../i18n/ui';
+import { getTranslations, getRelated, ogImageFor, formatDate, type BlogItem } from '../lib/blog';
+import { breadcrumbLd } from '../lib/jsonld';
+
+interface Props {
+  item: BlogItem;
+}
+
+const { item } = Astro.props;
+const { post } = item;
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, '');
+
+const { Content } = await render(post);
+const translations = await getTranslations(item);
+const related = await getRelated(item, locale);
+
+const alternates: Partial<Record<Locale, string>> = { [item.locale]: item.href };
+for (const l of LOCALES) {
+  const tr = translations[l];
+  if (tr) alternates[l] = tr.href;
+}
+const otherLanguages = LOCALES.filter((l) => l !== item.locale && translations[l]);
+
+const topicLabel = t(`blog.topic.${post.data.topic}`);
+const ogImage = ogImageFor(item);
+const canonical = new URL(item.href, site).href;
+
+const articleLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.date.toISOString(),
+  dateModified: (post.data.updated ?? post.data.date).toISOString(),
+  inLanguage: item.locale,
+  author: { '@type': 'Person', name: post.data.author },
+  publisher: { '@type': 'Organization', name: 'KANAP', url: site, logo: `${site}/logo.svg` },
+  image: new URL(ogImage, site).href,
+  mainEntityOfPage: canonical,
+  url: canonical,
+};
+
+const breadcrumb = breadcrumbLd(site, [
+  { name: 'KANAP', url: localePath(locale, '/') },
+  { name: t('nav.blog'), url: localePath(locale, '/blog') },
+  { name: post.data.title, url: item.href },
+]);
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  canonical={canonical}
+  ogImage={ogImage}
+  ogType="article"
+  alternates={alternates}
+  fallbackPath="/blog"
+>
+  <Fragment slot="head">
+    <meta property="article:published_time" content={post.data.date.toISOString()} />
+    {post.data.updated && (
+      <meta property="article:modified_time" content={post.data.updated.toISOString()} />
+    )}
+    <meta property="article:author" content={post.data.author} />
+    <meta property="article:section" content={topicLabel} />
+    <script type="application/ld+json" set:html={JSON.stringify(articleLd)} />
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+  </Fragment>
+
+  <article class="mk-post">
+    <header class="mk-post__head">
+      <nav class="mk-post__crumb" aria-label="Breadcrumb">
+        <a href={localePath(locale, '/blog')}>{t('nav.blog')}</a>
+        <span aria-hidden="true">/</span>
+        <span>{topicLabel}</span>
+      </nav>
+      <h1 class="mk-post__title">{post.data.title}</h1>
+      <p class="mk-lead mk-post__lead">{post.data.description}</p>
+      <div class="mk-post__meta">
+        <span class="mk-post__author">{post.data.author}</span>
+        {post.data.authorRole && <span>{post.data.authorRole}</span>}
+        <span class="mk-post__dot" aria-hidden="true">·</span>
+        <time datetime={post.data.date.toISOString()} class="mk-post__date">
+          {formatDate(post.data.date, locale)}
+        </time>
+        <span class="mk-post__dot" aria-hidden="true">·</span>
+        <span>{t('blog.minRead').replace('{n}', String(item.readingMinutes))}</span>
+        {post.data.updated && (
+          <>
+            <span class="mk-post__dot" aria-hidden="true">·</span>
+            <span>{t('blog.updated').replace('{date}', formatDate(post.data.updated, locale))}</span>
+          </>
+        )}
+        {otherLanguages.length > 0 && (
+          <>
+            <span class="mk-post__dot" aria-hidden="true">·</span>
+            <span>
+              {t('blog.alsoIn')}{' '}
+              {otherLanguages.map((l, i) => (
+                <>
+                  {i > 0 && ', '}
+                  <a href={translations[l]!.href} hreflang={l} lang={l}>{LOCALE_LABELS[l]}</a>
+                </>
+              ))}
+            </span>
+          </>
+        )}
+      </div>
+    </header>
+
+    <div class="mk-post__body">
+      <Content />
+    </div>
+  </article>
+
+  {related.length > 0 && (
+    <aside class="mk-post__end">
+      <h2 class="mk-post__end-title">{t('blog.continue')}</h2>
+      <ul class="mk-post__next">
+        {related.map((r) => (
+          <li>
+            <a href={r.href}>{r.post.data.title}</a>
+            <div class="mk-post__next-meta">
+              {t('blog.min').replace('{n}', String(r.readingMinutes))} · {t(`blog.topic.${r.post.data.topic}`)}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  )}
+
+  <Section tone="elevated" compact>
+    <CTABand
+      title={t('blog.cta.title')}
+      body={t('blog.cta.body')}
+      primaryHref="https://github.com/kanap-it/kanap"
+      primaryLabel={t('blog.cta.primary')}
+      secondaryHref={localePath(locale, '/trial/start')}
+      secondaryLabel={t('blog.cta.secondary')}
+    />
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-post {
+    max-width: var(--mk-max-prose);
+    margin-inline: auto;
+    padding: clamp(32px, 4.5vw, 56px) var(--mk-gutter) 0;
+  }
+
+  .mk-post__head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mk-post__crumb {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-post__crumb a {
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-post__crumb a:hover {
+    color: var(--kanap-teal);
+  }
+
+  .mk-post__title {
+    font-size: clamp(32px, 3.6vw, 42px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    margin-top: 14px;
+    white-space: normal;
+  }
+
+  .mk-post__lead {
+    margin-top: 16px;
+  }
+
+  .mk-post__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    width: 100%;
+    margin-top: 22px;
+    padding: 14px 0;
+    border-top: 1px solid var(--kanap-border-soft);
+    border-bottom: 1px solid var(--kanap-border-soft);
+    font-size: 13px;
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-post__author {
+    color: var(--kanap-text-primary);
+    font-weight: 500;
+  }
+
+  .mk-post__dot {
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-post__date {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: var(--kanap-text-tertiary);
+  }
+
+  /* ---- Markdown body ---- */
+  .mk-post__body {
+    padding-top: 28px;
+    font-size: 17px;
+    line-height: 1.68;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-post__body :global(p) {
+    margin: 0 0 18px;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-post__body :global(h2) {
+    font-size: 24px;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    margin: 40px 0 14px;
+    white-space: normal;
+  }
+
+  .mk-post__body :global(h3) {
+    font-size: 19px;
+    line-height: 1.3;
+    margin: 30px 0 10px;
+  }
+
+  .mk-post__body :global(h4) {
+    font-size: 16px;
+    margin: 24px 0 8px;
+  }
+
+  .mk-post__body :global(a) {
+    color: var(--kanap-teal);
+    text-decoration: underline;
+    text-decoration-color: var(--kanap-nav-chip-border);
+    text-underline-offset: 3px;
+  }
+
+  .mk-post__body :global(a:hover) {
+    color: var(--kanap-text-primary);
+    text-decoration-color: currentColor;
+  }
+
+  .mk-post__body :global(strong) {
+    font-weight: 500;
+  }
+
+  .mk-post__body :global(ul),
+  .mk-post__body :global(ol) {
+    margin: 0 0 18px;
+    padding-left: 22px;
+  }
+
+  .mk-post__body :global(li) {
+    margin-bottom: 6px;
+  }
+
+  .mk-post__body :global(li > p) {
+    margin-bottom: 6px;
+  }
+
+  .mk-post__body :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--kanap-border-default);
+    margin: 36px 0;
+  }
+
+  /* Pull quote */
+  .mk-post__body :global(blockquote) {
+    position: relative;
+    margin: 34px 0;
+    padding: 0 0 0 28px;
+    font-size: 22px;
+    line-height: 1.4;
+    letter-spacing: -0.015em;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-post__body :global(blockquote::before) {
+    content: '“';
+    position: absolute;
+    left: 0;
+    top: -4px;
+    font-size: 40px;
+    line-height: 1;
+    color: var(--kanap-teal);
+  }
+
+  .mk-post__body :global(blockquote p) {
+    margin: 0;
+  }
+
+  .mk-post__body :global(blockquote p + p) {
+    margin-top: 10px;
+  }
+
+  /* Images: same frame as ScreenshotFrame. Alt text becomes the caption via the title attribute if given. */
+  .mk-post__body :global(p:has(> img:only-child)) {
+    margin: 30px 0;
+  }
+
+  .mk-post__body :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    background: var(--kanap-bg-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .mk-post__body :global(figure) {
+    margin: 30px 0;
+  }
+
+  .mk-post__body :global(figcaption) {
+    font-size: 13px;
+    color: var(--kanap-text-tertiary);
+    margin-top: 10px;
+  }
+
+  /* Stat callout: <figure class="stat"><b>4 in 5</b><span>…</span></figure> */
+  .mk-post__body :global(figure.stat) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: baseline;
+    padding: 20px 0;
+    border-top: 1px solid var(--kanap-border-default);
+    border-bottom: 1px solid var(--kanap-border-default);
+  }
+
+  .mk-post__body :global(figure.stat b) {
+    font-size: 42px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    color: var(--kanap-teal);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mk-post__body :global(figure.stat span) {
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--kanap-text-secondary);
+  }
+
+  /* Code */
+  .mk-post__body :global(code) {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.85em;
+    background: var(--kanap-pill-bg);
+    border: 1px solid var(--kanap-pill-border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .mk-post__body :global(pre) {
+    margin: 24px 0;
+    padding: 14px 16px;
+    background: var(--kanap-bg-primary);
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+
+  .mk-post__body :global(pre code) {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  /* Shiki dual theme: token colors follow the site theme; the frame keeps our surface. */
+  .mk-post__body :global(.astro-code),
+  .mk-post__body :global(.astro-code span) {
+    color: var(--shiki-light);
+    background-color: var(--kanap-bg-primary) !important;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .mk-post__body :global(.astro-code),
+    :root:not([data-theme='light']) .mk-post__body :global(.astro-code span) {
+      color: var(--shiki-dark);
+    }
+  }
+
+  :root[data-theme='dark'] .mk-post__body :global(.astro-code),
+  :root[data-theme='dark'] .mk-post__body :global(.astro-code span) {
+    color: var(--shiki-dark);
+  }
+
+  /* Tables */
+  .mk-post__body :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 24px 0;
+    overflow-wrap: anywhere;
+  }
+
+  .mk-post__body :global(th),
+  .mk-post__body :global(td) {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--kanap-border-default);
+    vertical-align: top;
+  }
+
+  .mk-post__body :global(th) {
+    font-weight: 500;
+    color: var(--kanap-text-tertiary);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* ---- End ---- */
+  .mk-post__end {
+    max-width: var(--mk-max-prose);
+    margin: 48px auto 0;
+    padding: 28px var(--mk-gutter) 44px;
+    border-top: 1px solid var(--kanap-border-default);
+  }
+
+  .mk-post__end-title {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--kanap-text-tertiary);
+    white-space: normal;
+  }
+
+  .mk-post__next {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .mk-post__next a {
+    display: block;
+    font-size: 16px;
+    line-height: 1.35;
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-post__next a:hover {
+    color: var(--kanap-teal);
+  }
+
+  .mk-post__next-meta {
+    font-size: 12px;
+    color: var(--kanap-text-tertiary);
+    margin-top: 4px;
+  }
+
+  @media (max-width: 560px) {
+    .mk-post__next {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

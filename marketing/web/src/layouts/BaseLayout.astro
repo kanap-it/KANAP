@@ -25,6 +25,7 @@ import {
   getLocaleFromUrl,
   useTranslations,
   relocatePath,
+  localePath,
 } from '../i18n/ui';
 
 interface Props {
@@ -38,9 +39,28 @@ interface Props {
   pathWithoutLocale?: string;
   /** Per-page OG/Twitter image path. Defaults to the site-wide card. */
   ogImage?: string;
+  /** `og:type`; articles pass `article`. */
+  ogType?: 'website' | 'article';
+  /**
+   * Where each locale's version of this page lives, when it is not simply the
+   * same route with another prefix (blog articles). Locales missing from the
+   * map get no hreflang; the locale switcher sends them to `fallbackPath`.
+   */
+  alternates?: Partial<Record<Locale, string>>;
+  /** Locale-less path the switcher falls back to for locales absent from `alternates`. */
+  fallbackPath?: string;
 }
 
-const { title, description, canonical, pathWithoutLocale, ogImage } = Astro.props;
+const {
+  title,
+  description,
+  canonical,
+  pathWithoutLocale,
+  ogImage,
+  ogType = 'website',
+  alternates: alternateOverride,
+  fallbackPath,
+} = Astro.props;
 
 const locale: Locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(locale);
@@ -50,12 +70,24 @@ const siteDescription = t('site.description');
 const finalTitle = title ? `${title} · KANAP` : siteTitle;
 const finalDescription = description ?? siteDescription;
 const finalCanonical = canonical ?? Astro.url.href;
-const ogImageUrl = new URL(ogImage ?? '/og-image.png', Astro.site ?? 'https://kanap.net').href;
+const site = Astro.site ?? new URL('https://kanap.net');
+const ogImageUrl = new URL(ogImage ?? '/og-image.png', site).href;
 
-const alternates = LOCALES.map((l) => ({
-  locale: l,
-  href: new URL(relocatePath(Astro.url, l), Astro.site ?? 'https://kanap.net').href,
-}));
+const alternates = alternateOverride
+  ? LOCALES.filter((l) => alternateOverride[l]).map((l) => ({
+      locale: l,
+      href: new URL(alternateOverride[l]!, site).href,
+    }))
+  : LOCALES.map((l) => ({
+      locale: l,
+      href: new URL(relocatePath(Astro.url, l), site).href,
+    }));
+
+const xDefault = alternateOverride
+  ? alternateOverride[DEFAULT_LOCALE]
+    ? new URL(alternateOverride[DEFAULT_LOCALE]!, site).href
+    : null
+  : new URL(relocatePath(Astro.url, DEFAULT_LOCALE), site).href;
 ---
 
 <!doctype html>
@@ -71,17 +103,19 @@ const alternates = LOCALES.map((l) => ({
     {alternates.map((alt) => (
       <link rel="alternate" hreflang={alt.locale} href={alt.href} />
     ))}
+    {xDefault && <link rel="alternate" hreflang="x-default" href={xDefault} />}
     <link
       rel="alternate"
-      hreflang="x-default"
-      href={new URL(relocatePath(Astro.url, DEFAULT_LOCALE), Astro.site ?? 'https://kanap.net').href}
+      type="application/rss+xml"
+      title="KANAP blog"
+      href={new URL(localePath(locale, '/blog/rss.xml'), site).href}
     />
 
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:url" content={finalCanonical} />
     <meta property="og:title" content={finalTitle} />
     <meta property="og:description" content={finalDescription} />
@@ -130,7 +164,7 @@ const alternates = LOCALES.map((l) => ({
   </head>
   <body>
     <a href="#main" class="mk-skip">Skip to content</a>
-    <Nav />
+    <Nav alternates={alternateOverride} fallbackPath={fallbackPath} />
     <main id="main">
       <slot />
     </main>

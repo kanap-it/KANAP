@@ -1,0 +1,263 @@
+---
+/**
+ * BlogIndexPage — /blog for the current locale.
+ *
+ * One column: the newest article featured at full size, the rest as a dated
+ * list that mirrors the changelog's rhythm (mono date left, title right).
+ * Nothing on the page counts anything, so it reads the same at 3 posts
+ * and at 30. Locales without their own posts list the English ones with a
+ * small "English" chip.
+ */
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { PageHeader, Section } from './sections';
+import { getLocaleFromUrl, useTranslations, localePath, DEFAULT_LOCALE } from '../i18n/ui';
+import { getPostsWithFallback, formatDate } from '../lib/blog';
+import { breadcrumbLd } from '../lib/jsonld';
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, '');
+
+const posts = await getPostsWithFallback(locale);
+const [featured, ...rest] = posts;
+
+const topicLabel = (key: string) => t(`blog.topic.${key}`);
+const minutes = (n: number, key: 'blog.minRead' | 'blog.min') => t(key).replace('{n}', String(n));
+
+const breadcrumb = breadcrumbLd(site, [
+  { name: 'KANAP', url: localePath(locale, '/') },
+  { name: t('nav.blog'), url: localePath(locale, '/blog') },
+]);
+---
+
+<BaseLayout
+  title={t('nav.blog')}
+  description={t('blog.metaDescription')}
+  pathWithoutLocale="/blog"
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
+  </Fragment>
+
+  <PageHeader eyebrow={t('blog.eyebrow')} title={t('blog.title')} lead={t('blog.lead')} />
+
+  <Section tone="default">
+    <div class="mk-blog">
+      {featured ? (
+        <article class="mk-blog__featured">
+          <div class="mk-blog__meta">
+            <time datetime={featured.post.data.date.toISOString()} class="mk-blog__date">
+              {formatDate(featured.post.data.date, locale)}
+            </time>
+            <span class="mk-blog__chip">{topicLabel(featured.post.data.topic)}</span>
+            {featured.locale !== locale && featured.locale === DEFAULT_LOCALE && (
+              <span class="mk-blog__chip mk-blog__chip--neutral">{t('blog.inEnglish')}</span>
+            )}
+            <span class="mk-blog__date">{minutes(featured.readingMinutes, 'blog.minRead')}</span>
+          </div>
+          <div class="mk-blog__featured-body">
+            <h2><a href={featured.href}>{featured.post.data.title}</a></h2>
+            <p>{featured.post.data.description}</p>
+            <a class="mk-blog__read" href={featured.href}>{t('blog.readArticle')} →</a>
+          </div>
+        </article>
+      ) : (
+        <p class="mk-blog__empty">{t('blog.empty')}</p>
+      )}
+
+      {rest.length > 0 && (
+        <ul class="mk-blog__list">
+          {rest.map((item) => (
+            <li class="mk-blog__row">
+              <time datetime={item.post.data.date.toISOString()} class="mk-blog__date">
+                {formatDate(item.post.data.date, locale)}
+              </time>
+              <div class="mk-blog__row-body">
+                <h3><a href={item.href}>{item.post.data.title}</a></h3>
+                <p>{item.post.data.description}</p>
+              </div>
+              <div class="mk-blog__tail">
+                <span class="mk-blog__chip">{topicLabel(item.post.data.topic)}</span>
+                {item.locale !== locale && item.locale === DEFAULT_LOCALE && (
+                  <span class="mk-blog__chip mk-blog__chip--neutral">{t('blog.inEnglish')}</span>
+                )}
+                <span>{minutes(item.readingMinutes, 'blog.min')}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div class="mk-blog__subscribe">
+        <span>{t('blog.subscribe')}</span>
+        <a href={localePath(locale, '/blog/rss.xml')}>{t('blog.rss')}</a>
+        <a href="https://www.linkedin.com/company/kanap-it" rel="noopener" target="_blank">{t('blog.linkedin')}</a>
+        <a href="https://github.com/kanap-it/kanap/releases" rel="noopener" target="_blank">{t('blog.github')}</a>
+      </div>
+    </div>
+  </Section>
+</BaseLayout>
+
+<style>
+  .mk-blog {
+    display: flex;
+    flex-direction: column;
+    max-width: 900px;
+  }
+
+  /* Shared bits */
+  .mk-blog__date {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--kanap-text-tertiary);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .mk-blog__chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: var(--kanap-radius-pill);
+    background: var(--kanap-nav-chip-bg);
+    border: 1px solid var(--kanap-nav-chip-border);
+    color: var(--kanap-nav-chip-fg);
+    white-space: nowrap;
+  }
+
+  .mk-blog__chip--neutral {
+    background: var(--kanap-pill-bg);
+    border-color: var(--kanap-pill-border);
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-blog h2 a,
+  .mk-blog h3 a {
+    color: var(--kanap-text-primary);
+  }
+
+  .mk-blog h2 a:hover,
+  .mk-blog h3 a:hover {
+    color: var(--kanap-teal);
+  }
+
+  /* Featured */
+  .mk-blog__featured {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 28px;
+    padding: 8px 0 36px;
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-blog__meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .mk-blog__featured-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mk-blog__featured h2 {
+    font-size: clamp(24px, 2.6vw, 30px);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    max-width: 24ch;
+    white-space: normal;
+  }
+
+  .mk-blog__featured p {
+    margin-top: 12px;
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 60ch;
+  }
+
+  .mk-blog__read {
+    margin-top: 16px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .mk-blog__empty {
+    padding: 8px 0 24px;
+    font-size: 15px;
+    color: var(--kanap-text-secondary);
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  /* List */
+  .mk-blog__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mk-blog__row {
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    gap: 28px;
+    align-items: baseline;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--kanap-border-soft);
+  }
+
+  .mk-blog__row h3 {
+    font-size: 18px;
+    line-height: 1.35;
+    font-weight: 500;
+  }
+
+  .mk-blog__row p {
+    margin-top: 4px;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 60ch;
+  }
+
+  .mk-blog__tail {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--kanap-text-tertiary);
+    white-space: nowrap;
+  }
+
+  .mk-blog__subscribe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    align-items: center;
+    padding-top: 24px;
+    font-size: 13px;
+    color: var(--kanap-text-secondary);
+  }
+
+  @media (max-width: 680px) {
+    .mk-blog__featured,
+    .mk-blog__row {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .mk-blog__meta {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .mk-blog__tail {
+      order: -1;
+    }
+  }
+</style>
