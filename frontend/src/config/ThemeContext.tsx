@@ -95,9 +95,6 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
         InputLabelProps: { shrink: true },
       },
     },
-    MuiSelect: {
-      defaultProps: { variant: 'standard' },
-    },
     MuiAlert: {
       styleOverrides: {
         standardInfo: ({ theme }) => ({
@@ -179,6 +176,20 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           'fontSize': '14px !important' as any,
           'fontWeight': '400 !important' as any,
           'padding': '6px 0 7px !important' as any,
+          // Keep MUI's reserved room for the dropdown arrow (24px icon at right: 0),
+          // which the shorthand above would otherwise wipe out.
+          '&.MuiSelect-select': { paddingRight: '24px !important' },
+        },
+      },
+    },
+    MuiSelect: {
+      defaultProps: { variant: 'standard' },
+      styleOverrides: {
+        icon: {
+          color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280',
+          fontSize: 18,
+          right: 0,
+          top: 'calc(50% - 9px)',
         },
       },
     },

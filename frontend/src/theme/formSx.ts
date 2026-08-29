@@ -75,7 +75,7 @@ export const drawerSelectSx = {
   color: 'kanap.text.primary',
   ...nakedControlHoverSx,
   '& .MuiSelect-select': {
-    padding: '4px 0',
+    padding: '4px 24px 4px 0', // right: room for the dropdown arrow
     fontSize: 13,
     lineHeight: 1.4,
   },
