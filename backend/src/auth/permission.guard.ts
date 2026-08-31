@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import {
@@ -44,6 +44,11 @@ export class PermissionGuard implements CanActivate {
     const manager = (req as any)?.queryRunner?.manager ?? this.dataSource.manager;
     const user = await this.users.findById(userJwt.sub, { manager });
     if (!user) return false;
+    if (user.status !== 'enabled') {
+      // 401 (not 403) so the client goes through refresh → logout; the refresh
+      // endpoint re-checks status too, so the session ends here for good.
+      throw new UnauthorizedException({ code: 'USER_DISABLED', message: 'User disabled' });
+    }
 
     // Load all roles for this user (multi-role support)
     const userRolesRepo = manager.getRepository(UserRole);
@@ -71,6 +76,12 @@ export class PermissionGuard implements CanActivate {
     // If not administrator, check role-based permissions
     if (!isAdmin) {
       const map = await this.perms.listForRoles(Array.from(roleIds), { manager });
+      if (map.size === 0) {
+        // Authenticated user whose roles grant nothing at all (e.g. a JIT-provisioned
+        // SSO user still waiting for access). Distinct body so the frontend can show
+        // a "your account has not been granted access yet" page instead of a generic 403.
+        throw new ForbiddenException({ error: 'NO_ACCESS', message: 'This account has not been granted access yet.' });
+      }
       const hasRequiredLevel = (resource: string, level: string) => {
         const current = map.get(resource);
         if (!current) return false;

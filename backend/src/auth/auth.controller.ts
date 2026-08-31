@@ -236,6 +236,9 @@ export class AuthController {
     const email = body.email.trim().toLowerCase();
     const user = await this.runInRequestTenant(req, (manager) => this.users.findByEmail(email, { manager }));
     if (!user) return { ok: true };
+    // Externally managed accounts (Entra) have no local password. Silent ok:
+    // this endpoint is unauthenticated and must not leak the account type.
+    if (user.external_auth_provider) return { ok: true };
 
     const token = await this.runInRequestTenant(req, (manager) => this.auth.createPasswordResetToken(user, manager));
     const baseUrl = resolveAppBaseUrl(req);

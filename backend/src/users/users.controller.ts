@@ -16,6 +16,7 @@ import { Repository } from 'typeorm';
 import { UserRole } from './user-role.entity';
 import { Role } from '../roles/role.entity';
 import { User } from './user.entity';
+import { AuditService } from '../audit/audit.service';
 
 function canViewUserAdministration(req: any): boolean {
   return req?.isAdmin === true || req?.permissionLevel === 'admin';
@@ -44,6 +45,7 @@ export class UsersController {
     private readonly roleRepo: Repository<Role>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly audit: AuditService,
   ) {}
 
   @Get()
@@ -207,6 +209,9 @@ export class UsersController {
     const user = await userRepo.findOne({ where: { id } });
     if (!user) throw new BadRequestException('User not found');
 
+    // Snapshot current roles for the audit trail before replacing them
+    const previousRoles = await userRoleRepo.find({ where: { user_id: id }, relations: ['role'] });
+
     // Delete existing user roles
     await userRoleRepo.delete({ user_id: id });
 
@@ -223,6 +228,19 @@ export class UsersController {
     // Update user's role_id to the first role (for backwards compatibility)
     user.role_id = roleIds[0];
     await userRepo.save(user);
+
+    // Role assignment changes a user's effective permissions — always audit it.
+    await this.audit.log(
+      {
+        table: 'user_roles',
+        recordId: id,
+        action: 'update',
+        before: { roles: previousRoles.map((ur) => ({ id: ur.role_id, name: ur.role?.role_name ?? null })) },
+        after: { roles: roleIds.map((rid) => ({ id: rid, name: roles.find((r) => r.id === rid)?.role_name ?? null })) },
+        userId: req.user?.sub ?? null,
+      },
+      manager ? { manager } : undefined,
+    );
 
     return this.getUserRoles(id, req);
   }

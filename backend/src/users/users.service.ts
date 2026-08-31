@@ -25,6 +25,7 @@ import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { EmailService } from '../email/email.service';
 import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes } from '../auth/password-reset.util';
 import { PasswordResetToken } from '../auth/password-reset-token.entity';
+import { RefreshToken } from '../auth/refresh-token.entity';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { denormalizeCsvFormulaValue, neutralizeCsvFormulaValue } from '../common/csv/csv-export.service';
@@ -836,6 +837,9 @@ export class UsersService {
     const before = { ...user };
     user.status = 'disabled' as any;
     const saved = await repo.save(user);
+    // Kill live sessions immediately: without this the user could keep refreshing
+    // tokens for the remainder of the sliding refresh-token window.
+    await (opts?.manager ?? repo.manager).getRepository(RefreshToken).delete({ user_id: id });
     if (this.audit) {
       await this.audit.log(
         { table: 'users', recordId: saved.id, action: 'update', before, after: saved, userId: actorId ?? null },
@@ -850,6 +854,11 @@ export class UsersService {
     const user = await repo.findOne({ where: { id }, relations: ['role'] });
     if (!user) throw new BadRequestException('User not found');
     if (!user.email) throw new BadRequestException('User email is missing');
+    if (user.external_auth_provider) {
+      throw new BadRequestException(
+        'This user signs in with Microsoft Entra. Invitations and passwords are managed by the identity provider.',
+      );
+    }
 
     let resolvedBaseUrl = baseUrl?.trim();
     if (!resolvedBaseUrl) {

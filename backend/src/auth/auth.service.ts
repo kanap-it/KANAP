@@ -172,6 +172,16 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token expired');
     }
 
+    const user = storedToken.user;
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (user.status !== 'enabled') {
+      // A disabled user must not be able to mint new access tokens.
+      await repo.delete({ id: storedToken.id });
+      throw new UnauthorizedException({ code: 'USER_DISABLED', message: 'User disabled' });
+    }
+
     // Extend refresh token expiration (sliding window)
     const refreshTtl = process.env.JWT_REFRESH_TOKEN_TTL || DEFAULT_REFRESH_TOKEN_TTL;
     const refreshExpiresInMs = parseDurationMs(refreshTtl);
@@ -183,11 +193,6 @@ export class AuthService {
     const secret = requireJwtSecret();
     const accessTtl = process.env.JWT_ACCESS_TOKEN_TTL || DEFAULT_ACCESS_TOKEN_TTL;
     const accessExpiresInSec = parseDurationSec(accessTtl);
-
-    const user = storedToken.user;
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
 
     const payload = buildAccessTokenPayload({
       id: user.id,
@@ -289,8 +294,11 @@ export class AuthService {
     }
     const roleName = (user.role?.role_name ?? '').toLowerCase();
     const isContactRole = roleName === 'contact';
+    // Accounts managed by an external identity provider (Entra) never hold a local
+    // password; letting them set one would create a second, unmanaged sign-in path.
+    const isExternallyManaged = !!user.external_auth_provider;
     const allowedStatuses = new Set(['enabled', 'invited']);
-    if (isContactRole || !allowedStatuses.has(user.status)) {
+    if (isContactRole || isExternallyManaged || !allowedStatuses.has(user.status)) {
       throw new BadRequestException('user cannot reset password');
     }
     await this.users.updateUser(user.id, { password: nextPassword }, null, { manager: opts?.manager });
