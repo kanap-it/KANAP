@@ -73,6 +73,7 @@
     "all": "All",
     "enabled": "Enabled",
     "disabled": "Disabled",
+    "invited": "Invited",
     "email": "Email",
     "totalWithCount": "Total ({{count}})",
     "noData": "No data",

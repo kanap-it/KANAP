@@ -73,6 +73,7 @@
     "all": "Todos",
     "enabled": "Activos",
     "disabled": "Desactivados",
+    "invited": "Invitados",
     "email": "Correo electrónico",
     "totalWithCount": "Total ({{count}})",
     "noData": "Sin datos",

@@ -345,7 +345,10 @@ export class UsersService {
       'email', 'first_name', 'last_name', 'job_title', 'status', 'created_at', 'updated_at'
     ];
     const where: any = {};
-    if (status) where.status = status;
+    // 'invited' is a users-only lifecycle status, so the shared pagination
+    // parser does not know it; honour it here.
+    const statusScope = String(query?.status ?? '').toLowerCase() === 'invited' ? 'invited' : status;
+    if (statusScope) where.status = statusScope;
     let whereArr: any[] | undefined;
     if (filters && Object.keys(filters).length > 0) {
       Object.assign(where, buildWhereFromAgFilters(filters));
@@ -885,7 +888,11 @@ export class UsersService {
       locale: user.locale,
     });
 
-    if (user.status === 'invited') {
+    if (user.status === 'invited' || user.status === 'enabled') {
+      // Never demote an active account: for an enabled user the invite email is
+      // just a "set your password" onboarding mail. Flipping them to 'invited'
+      // would block their existing password login and hide them from the
+      // default Users view.
       return { ...user, password_hash: undefined } as any;
     }
 
