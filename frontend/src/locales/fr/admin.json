@@ -986,7 +986,7 @@
       "sendInvite": "Envoyer une invitation",
       "sendReset": "Envoyer une réinitialisation de mot de passe",
       "delete": "Supprimer",
-      "deactivate": "Désactiver ({{count}})"
+      "disableSelected": "Désactiver ({{count}})"
     },
     "columns": {
       "lastName": "Nom",
@@ -1021,11 +1021,11 @@
       "inviteFailed": "Impossible d'inviter les utilisateurs sélectionnés",
       "disableConfirm": "{{name}} perdra l'accès et sera déconnecté immédiatement. Désactiver ce compte ?",
       "deleteConfirm": "Supprimer {{name}} ? Cette action est irréversible. Si l'utilisateur est référencé par d'autres enregistrements, désactivez plutôt le compte.",
-      "deactivateConfirm": "Désactiver {{count}} compte(s) ? Ils seront déconnectés immédiatement.",
-      "deactivateResult": "{{success}} désactivé(s) ; {{failed}} en échec",
       "inviteSentOne": "Invitation envoyée à {{email}}",
       "resetSent": "E-mail de réinitialisation envoyé à {{email}}",
-      "rolesSaveFailed": "L'utilisateur a été enregistré mais les rôles n'ont pas pu être mis à jour. Rouvrez l'utilisateur et réessayez."
+      "rolesSaveFailed": "L'utilisateur a été enregistré mais les rôles n'ont pas pu être mis à jour. Rouvrez l'utilisateur et réessayez.",
+      "disableSelectedConfirm": "Désactiver {{count}} compte(s) ? Ils seront déconnectés immédiatement.",
+      "disableSelectedResult": "{{success}} désactivé(s) ; {{failed}} en échec"
     },
     "exportTitle": "Exporter les utilisateurs",
     "importTitle": "Importer les utilisateurs",
@@ -1038,7 +1038,7 @@
       "local": "Local"
     },
     "status": {
-      "enabled": "Actif",
+      "enabled": "Activé",
       "disabled": "Désactivé",
       "invited": "Invité",
       "pending_access": "Accès en attente",

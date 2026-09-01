@@ -120,7 +120,7 @@ export default function UsersPage() {
   const handleDeactivateSelected = async () => {
     if (!selectedRows.length) return;
     const okToGo = await dialogs.confirm({
-      message: t('users.messages.deactivateConfirm', { count: selectedRows.length }),
+      message: t('users.messages.disableSelectedConfirm', { count: selectedRows.length }),
       confirmLabel: t('users.actions.disable'),
       intent: 'danger',
     });
@@ -130,7 +130,7 @@ export default function UsersPage() {
       const results = await Promise.allSettled(selectedRows.map((row) => api.post(`/users/${row.id}/disable`)));
       const success = results.filter((r) => r.status === 'fulfilled').length;
       const failed = results.length - success;
-      if (failed > 0) await dialogs.alert(t('users.messages.deactivateResult', { success, failed }));
+      if (failed > 0) await dialogs.alert(t('users.messages.disableSelectedResult', { success, failed }));
       setRefreshKey((k) => k + 1);
     } finally {
       setDeactivating(false);
@@ -352,7 +352,7 @@ export default function UsersPage() {
           onClick={handleDeactivateSelected}
           disabled={deactivating || selectedRows.length === 0}
         >
-          {t('users.actions.deactivate', { count: selectedRows.length })}
+          {t('users.actions.disableSelected', { count: selectedRows.length })}
         </Button>
       )}
       {canManageUsers && (

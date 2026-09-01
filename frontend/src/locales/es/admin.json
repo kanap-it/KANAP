@@ -986,7 +986,7 @@
       "sendInvite": "Enviar invitación",
       "sendReset": "Enviar restablecimiento de contraseña",
       "delete": "Eliminar",
-      "deactivate": "Desactivar ({{count}})"
+      "disableSelected": "Desactivar ({{count}})"
     },
     "columns": {
       "lastName": "Apellido",
@@ -1021,11 +1021,11 @@
       "inviteFailed": "No se pudieron invitar los usuarios seleccionados",
       "disableConfirm": "{{name}} perderá el acceso y se cerrará su sesión inmediatamente. ¿Desactivar esta cuenta?",
       "deleteConfirm": "¿Eliminar {{name}}? Esta acción no se puede deshacer. Si el usuario está referenciado por otros registros, desactive la cuenta en su lugar.",
-      "deactivateConfirm": "¿Desactivar {{count}} cuenta(s)? Se cerrarán sus sesiones inmediatamente.",
-      "deactivateResult": "{{success}} desactivado(s); {{failed}} con errores",
       "inviteSentOne": "Invitación enviada a {{email}}",
       "resetSent": "Correo de restablecimiento enviado a {{email}}",
-      "rolesSaveFailed": "El usuario se guardó pero los roles no se pudieron actualizar. Vuelva a abrir el usuario e inténtelo de nuevo."
+      "rolesSaveFailed": "El usuario se guardó pero los roles no se pudieron actualizar. Vuelva a abrir el usuario e inténtelo de nuevo.",
+      "disableSelectedConfirm": "¿Desactivar {{count}} cuenta(s)? Se cerrarán sus sesiones inmediatamente.",
+      "disableSelectedResult": "{{success}} desactivado(s); {{failed}} con errores"
     },
     "exportTitle": "Exportar usuarios",
     "importTitle": "Importar usuarios",
@@ -1038,7 +1038,7 @@
       "local": "Local"
     },
     "status": {
-      "enabled": "Activo",
+      "enabled": "Activado",
       "disabled": "Desactivado",
       "invited": "Invitado",
       "pending_access": "Acceso pendiente",
