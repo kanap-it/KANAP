@@ -967,7 +967,8 @@
       "jobTitle": "Poste",
       "lastName": "Nom",
       "mobilePhone": "Téléphone mobile",
-      "roles": "Rôles"
+      "roles": "Rôles",
+      "rolesEmptyHint": "Aucun rôle : l'utilisateur peut se connecter mais n'a accès à rien tant qu'aucun rôle ne lui est attribué."
     }
   },
   "users": {
@@ -977,7 +978,15 @@
       "importCsv": "Importer CSV",
       "exportCsv": "Exporter CSV",
       "invite": "Inviter ({{count}})",
-      "inviting": "Invitation en cours…"
+      "inviting": "Invitation en cours…",
+      "rowMenu": "Actions utilisateur",
+      "edit": "Modifier",
+      "enable": "Activer",
+      "disable": "Désactiver",
+      "sendInvite": "Envoyer une invitation",
+      "sendReset": "Envoyer une réinitialisation de mot de passe",
+      "delete": "Supprimer",
+      "disableSelected": "Désactiver ({{count}})"
     },
     "columns": {
       "lastName": "Nom",
@@ -990,7 +999,10 @@
       "businessPhone": "Téléphone professionnel",
       "mobilePhone": "Téléphone mobile",
       "mfaEnabled": "MFA activé",
-      "created": "Créé"
+      "created": "Créé",
+      "status": "Statut",
+      "accountType": "Type de compte",
+      "roles": "Rôles"
     },
     "mfaValues": {
       "yes": "Oui",
@@ -1006,13 +1018,31 @@
       "emailUnique": "L'adresse e-mail doit être unique.",
       "inviteSuccess": "{{success}} utilisateur(s) invité(s)",
       "invitePartialFail": "{{success}} utilisateur(s) invité(s) ; {{failed}} en échec",
-      "inviteFailed": "Impossible d'inviter les utilisateurs sélectionnés"
+      "inviteFailed": "Impossible d'inviter les utilisateurs sélectionnés",
+      "disableConfirm": "{{name}} perdra l'accès et sera déconnecté immédiatement. Désactiver ce compte ?",
+      "deleteConfirm": "Supprimer {{name}} ? Cette action est irréversible. Si l'utilisateur est référencé par d'autres enregistrements, désactivez plutôt le compte.",
+      "inviteSentOne": "Invitation envoyée à {{email}}",
+      "resetSent": "E-mail de réinitialisation envoyé à {{email}}",
+      "rolesSaveFailed": "L'utilisateur a été enregistré mais les rôles n'ont pas pu être mis à jour. Rouvrez l'utilisateur et réessayez.",
+      "disableSelectedConfirm": "Désactiver {{count}} compte(s) ? Ils seront déconnectés immédiatement.",
+      "disableSelectedResult": "{{success}} désactivé(s) ; {{failed}} en échec"
     },
     "exportTitle": "Exporter les utilisateurs",
     "importTitle": "Importer les utilisateurs",
     "seats": {
       "limited": "Postes {{used}}/{{limit}}",
       "unlimited": "Postes {{used}} (illimité)"
+    },
+    "accountType": {
+      "entra": "Microsoft Entra",
+      "local": "Local"
+    },
+    "status": {
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "invited": "Invité",
+      "pending_access": "Accès en attente",
+      "contact": "Contact"
     }
   },
   "aiModels": {

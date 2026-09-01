@@ -967,7 +967,8 @@
       "jobTitle": "Position",
       "lastName": "Nachname",
       "mobilePhone": "Mobiltelefon",
-      "roles": "Rollen"
+      "roles": "Rollen",
+      "rolesEmptyHint": "Keine Rollen: Der Benutzer kann sich anmelden, hat aber keinen Zugriff, bis eine Rolle zugewiesen wird."
     }
   },
   "users": {
@@ -977,7 +978,15 @@
       "importCsv": "CSV importieren",
       "exportCsv": "CSV exportieren",
       "invite": "Einladen ({{count}})",
-      "inviting": "Wird eingeladen…"
+      "inviting": "Wird eingeladen…",
+      "rowMenu": "Benutzeraktionen",
+      "edit": "Bearbeiten",
+      "enable": "Aktivieren",
+      "disable": "Deaktivieren",
+      "sendInvite": "Einladung senden",
+      "sendReset": "Passwort-Zurücksetzung senden",
+      "delete": "Löschen",
+      "disableSelected": "Deaktivieren ({{count}})"
     },
     "columns": {
       "lastName": "Nachname",
@@ -990,7 +999,10 @@
       "businessPhone": "Geschäftstelefon",
       "mobilePhone": "Mobiltelefon",
       "mfaEnabled": "MFA aktiviert",
-      "created": "Erstellt"
+      "created": "Erstellt",
+      "status": "Status",
+      "accountType": "Kontotyp",
+      "roles": "Rollen"
     },
     "mfaValues": {
       "yes": "Ja",
@@ -1006,13 +1018,31 @@
       "emailUnique": "Die E-Mail-Adresse muss eindeutig sein.",
       "inviteSuccess": "{{success}} Benutzer eingeladen",
       "invitePartialFail": "{{success}} Benutzer eingeladen; {{failed}} fehlgeschlagen",
-      "inviteFailed": "Ausgewählte Benutzer konnten nicht eingeladen werden"
+      "inviteFailed": "Ausgewählte Benutzer konnten nicht eingeladen werden",
+      "disableConfirm": "{{name}} verliert den Zugriff und wird sofort abgemeldet. Dieses Konto deaktivieren?",
+      "deleteConfirm": "{{name}} löschen? Dies kann nicht rückgängig gemacht werden. Wenn der Benutzer von anderen Datensätzen referenziert wird, deaktivieren Sie stattdessen das Konto.",
+      "inviteSentOne": "Einladung an {{email}} gesendet",
+      "resetSent": "E-Mail zum Zurücksetzen des Passworts an {{email}} gesendet",
+      "rolesSaveFailed": "Der Benutzer wurde gespeichert, aber die Rollen konnten nicht aktualisiert werden. Öffnen Sie den Benutzer erneut und versuchen Sie es noch einmal.",
+      "disableSelectedConfirm": "{{count}} Konto/Konten deaktivieren? Sie werden sofort abgemeldet.",
+      "disableSelectedResult": "{{success}} deaktiviert; {{failed}} fehlgeschlagen"
     },
     "exportTitle": "Benutzer exportieren",
     "importTitle": "Benutzer importieren",
     "seats": {
       "limited": "Plätze {{used}}/{{limit}}",
       "unlimited": "Plätze {{used}} (unbegrenzt)"
+    },
+    "accountType": {
+      "entra": "Microsoft Entra",
+      "local": "Lokal"
+    },
+    "status": {
+      "enabled": "Aktiv",
+      "disabled": "Deaktiviert",
+      "invited": "Eingeladen",
+      "pending_access": "Zugriff ausstehend",
+      "contact": "Kontakt"
     }
   },
   "aiModels": {

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, EntityManager, ILike, Repository } from 'typeorm';
+import { Brackets, EntityManager, ILike, In, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from '../roles/role.entity';
 import { RolesService } from '../roles/roles.service';
@@ -26,6 +26,7 @@ import { EmailService } from '../email/email.service';
 import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes } from '../auth/password-reset.util';
 import { PasswordResetToken } from '../auth/password-reset-token.entity';
 import { RefreshToken } from '../auth/refresh-token.entity';
+import { RolePermission } from '../permissions/role-permission.entity';
 import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { denormalizeCsvFormulaValue, neutralizeCsvFormulaValue } from '../common/csv/csv-export.service';
@@ -368,8 +369,55 @@ export class UsersService {
       take: limit,
       relations: opts?.adminView ? ['role', 'company', 'department'] : [],
     });
+
+    // Admin view: batch-load every role of the page rows plus an access flag
+    // (pending_access = enabled but no role grants any permission). Single
+    // queries for the whole page — never per-row lookups.
+    let rolesByUser: Map<string, Array<{ id: string; name: string | null }>> | undefined;
+    let rolesWithPerms: Set<string> | undefined;
+    let adminRoleIds: Set<string> | undefined;
+    if (opts?.adminView && items.length > 0) {
+      const mg = opts?.manager ?? repo.manager;
+      const userRoles = await mg.getRepository(UserRole).find({
+        where: { user_id: In(items.map((u) => u.id)) },
+        relations: ['role'],
+        order: { is_primary: 'DESC', created_at: 'ASC' },
+      });
+      rolesByUser = new Map();
+      adminRoleIds = new Set();
+      const allRoleIds = new Set<string>();
+      for (const u of items) {
+        if (u.role_id) allRoleIds.add(u.role_id);
+        if (u.role_id && (u.role?.role_name ?? '').toLowerCase() === 'administrator') adminRoleIds.add(u.role_id);
+      }
+      for (const ur of userRoles) {
+        allRoleIds.add(ur.role_id);
+        const list = rolesByUser.get(ur.user_id) ?? [];
+        list.push({ id: ur.role_id, name: ur.role?.role_name ?? null });
+        rolesByUser.set(ur.user_id, list);
+        if ((ur.role?.role_name ?? '').toLowerCase() === 'administrator') adminRoleIds.add(ur.role_id);
+      }
+      const permRows: Array<{ role_id: string }> = allRoleIds.size > 0
+        ? await mg.getRepository(RolePermission)
+            .createQueryBuilder('rp')
+            .select('DISTINCT rp.role_id', 'role_id')
+            .where('rp.role_id IN (:...roleIds)', { roleIds: Array.from(allRoleIds) })
+            .getRawMany()
+        : [];
+      rolesWithPerms = new Set(permRows.map((r) => r.role_id));
+    }
+
     const safe = items.map(u => {
-      if (opts?.adminView) return { ...u, password_hash: undefined };
+      if (opts?.adminView) {
+        const roles = rolesByUser?.get(u.id)
+          ?? (u.role_id ? [{ id: u.role_id, name: u.role?.role_name ?? null }] : []);
+        const accessRoleIds = new Set(roles.map((r) => r.id));
+        if (u.role_id) accessRoleIds.add(u.role_id);
+        const hasAccess = Array.from(accessRoleIds).some(
+          (rid) => adminRoleIds?.has(rid) || rolesWithPerms?.has(rid),
+        );
+        return { ...u, password_hash: undefined, roles, pending_access: u.status === 'enabled' && !hasAccess };
+      }
       return {
         id: u.id,
         email: u.email,
