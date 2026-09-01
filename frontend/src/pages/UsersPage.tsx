@@ -261,7 +261,7 @@ export default function UsersPage() {
         enableRowSelection={canManageUsers}
         onSelectionChanged={setSelectedRows}
         onGridApiReady={(api) => { gridApiRef.current = api; }}
-        statusScopeConfig={{ defaultScope: 'enabled' }}
+        statusScopeConfig={{ defaultScope: 'enabled', scopes: ['all', 'enabled', 'invited', 'disabled'] }}
       />
       <FormModal
         title={mode === 'create' ? t('users.dialogs.newUser') : t('users.dialogs.editUser')}

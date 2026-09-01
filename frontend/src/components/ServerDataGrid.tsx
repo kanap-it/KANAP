@@ -37,7 +37,7 @@ import { useLocale } from '../i18n/useLocale';
 
 type ServerResponse<T> = { items: T[]; total: number; page: number; limit: number };
 
-export type StatusScope = 'enabled' | 'disabled' | 'all';
+export type StatusScope = 'enabled' | 'disabled' | 'invited' | 'all';
 
 export type EnhancedColDef<T> = ColDef<T> & {
   required?: boolean; // cannot be hidden
@@ -71,6 +71,7 @@ export type ServerDataGridProps<T> = {
   statusScopeConfig?: {
     columnField?: string;
     defaultScope?: StatusScope;
+    scopes?: StatusScope[]; // radio options, in display order; default ['all', 'enabled', 'disabled']
   };
   enablePagination?: boolean;
   paginationPageSize?: number;
@@ -508,7 +509,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
 
         if (statusScopeConfig) {
           const scope = statusScopeRef.current;
-          if (scope === 'enabled' || scope === 'disabled') {
+          if (scope === 'enabled' || scope === 'disabled' || scope === 'invited') {
             reqParams.status = scope;
           } else if (scope === 'all') {
             reqParams.includeDisabled = '1';
@@ -898,9 +899,14 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
                 onChange={(event) => setStatusScope(event.target.value as StatusScope)}
                 sx={{ '& .MuiFormControlLabel-root': { mr: 1 } }}
               >
-                <FormControlLabel value="all" control={<Radio size="small" />} label={t('common:labels.all')} />
-                <FormControlLabel value="enabled" control={<Radio size="small" />} label={t('common:labels.enabled')} />
-                <FormControlLabel value="disabled" control={<Radio size="small" />} label={t('common:labels.disabled')} />
+                {(statusScopeConfig.scopes ?? ['all', 'enabled', 'disabled']).map((scope) => (
+                  <FormControlLabel
+                    key={scope}
+                    value={scope}
+                    control={<Radio size="small" />}
+                    label={t(`common:labels.${scope}`)}
+                  />
+                ))}
               </RadioGroup>
             </Stack>
           )}

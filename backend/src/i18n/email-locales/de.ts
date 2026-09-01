@@ -164,6 +164,13 @@ export const de: EmailStrings = {
     },
   },
   auth: {
+    ssoUserProvisioned: {
+      subject: 'Neuer Benutzer wartet auf Zugriff',
+      heading: 'Ein neuer Benutzer wartet auf Zugriff',
+      bodyHtml: '<strong>{{userName}}</strong> ({{userEmail}}) hat sich mit Microsoft Entra angemeldet und wurde automatisch hinzugefügt. Diese Person kann KANAP erst verwenden, wenn Sie ihr eine Rolle zuweisen.',
+      text: '{{userName}} ({{userEmail}}) hat sich mit Microsoft Entra angemeldet und wurde automatisch hinzugefügt. Diese Person kann KANAP erst verwenden, wenn Sie ihr eine Rolle zuweisen. Benutzer verwalten: {{url}}',
+      cta: 'Benutzerverwaltung öffnen',
+    },
     activation: {
       subject: 'Bestätigen Sie Ihren KANAP-Workspace',
       intro: 'Vielen Dank für Ihr Interesse an KANAP. Bitte bestätigen Sie Ihre E-Mail-Adresse, damit Ihr Mandant eingerichtet werden kann.',

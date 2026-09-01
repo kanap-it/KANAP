@@ -1,4 +1,4 @@
-import { Body, Controller, Post, BadRequestException, Get, Req, Res, UseGuards, Logger } from '@nestjs/common';
+import { Body, Controller, Post, BadRequestException, Get, Req, Res, UnauthorizedException, UseGuards, Logger } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
@@ -124,6 +124,10 @@ export class AuthController {
     const manager = req?.queryRunner?.manager;
     const user = await this.users.findById(sub, { manager });
     if (!user) throw new BadRequestException({ code: 'USER_NOT_FOUND', message: 'User not found' });
+    if (user.status !== 'enabled') {
+      // A still-valid access token must not keep serving a disabled account.
+      throw new UnauthorizedException({ code: 'USER_DISABLED', message: 'User disabled' });
+    }
     const tenantId = req?.tenant?.id;
     const tenant = tenantId ? await this.tenants.findById(tenantId) : null;
     const tenantAuth = tenant
@@ -236,6 +240,9 @@ export class AuthController {
     const email = body.email.trim().toLowerCase();
     const user = await this.runInRequestTenant(req, (manager) => this.users.findByEmail(email, { manager }));
     if (!user) return { ok: true };
+    // Externally managed accounts (Entra) have no local password. Silent ok:
+    // this endpoint is unauthenticated and must not leak the account type.
+    if (user.external_auth_provider) return { ok: true };
 
     const token = await this.runInRequestTenant(req, (manager) => this.auth.createPasswordResetToken(user, manager));
     const baseUrl = resolveAppBaseUrl(req);

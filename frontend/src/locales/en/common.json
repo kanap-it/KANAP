@@ -73,6 +73,7 @@
     "all": "All",
     "enabled": "Enabled",
     "disabled": "Disabled",
+    "invited": "Invited",
     "email": "Email",
     "totalWithCount": "Total ({{count}})",
     "noData": "No data",
@@ -448,5 +449,10 @@
     "goToBilling": "Go to billing",
     "accountAccessLimited": "Account access is limited. Contact your billing admin.",
     "choosePlanToContinueAction": "Choose a plan to continue"
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "message": "You don't have permission to view this page. If you believe this is a mistake, contact an administrator.",
+    "cta": "Go to dashboard"
   }
 }

@@ -73,6 +73,7 @@
     "all": "Todos",
     "enabled": "Activos",
     "disabled": "Desactivados",
+    "invited": "Invitados",
     "email": "Correo electrónico",
     "totalWithCount": "Total ({{count}})",
     "noData": "Sin datos",
@@ -448,5 +449,10 @@
     "goToBilling": "Ir a facturación",
     "accountAccessLimited": "El acceso a la cuenta está limitado. Contacte a su administrador de facturación.",
     "choosePlanToContinueAction": "Elegir un plan para continuar"
+  },
+  "forbidden": {
+    "title": "Acceso denegado",
+    "message": "No tiene permiso para ver esta página. Si cree que se trata de un error, contacte con un administrador.",
+    "cta": "Ir al panel de control"
   }
 }

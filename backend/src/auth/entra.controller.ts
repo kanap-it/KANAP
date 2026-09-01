@@ -12,6 +12,8 @@ import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { resolveTenantAppBaseUrl } from '../common/url';
 import { isSecureRequest, setRefreshTokenCookie } from './auth-cookie.util';
+import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('auth/entra')
 export class EntraController {
@@ -21,6 +23,8 @@ export class EntraController {
     private readonly auth: AuthService,
     private readonly users: UsersService,
     private readonly dataSource: DataSource,
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private readonly logger = new Logger(EntraController.name);
@@ -229,6 +233,22 @@ export class EntraController {
       } as any,
     });
 
+    await withTenant(this.dataSource, tenantId, (manager) =>
+      this.audit.log(
+        {
+          table: 'tenants',
+          recordId: tenantId,
+          action: 'update',
+          before: null,
+          after: { sso_provider: 'entra', entra_tenant_id: entraTenantId, sso_enabled: true },
+          userId: null,
+          source: 'system',
+          sourceRef: 'entra-setup',
+        },
+        { manager },
+      ),
+    );
+
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);
     const normalized = baseUrl.replace(/\/$/, '');
     res.redirect(`${normalized}/admin/auth?setup=success`);
@@ -252,6 +272,13 @@ export class EntraController {
     if (!email) {
       throw new BadRequestException('Entra user email is missing');
     }
+    // If the token carries an explicit "email not verified" signal, refuse the login:
+    // the email is used below to link existing KANAP accounts, so an unverified
+    // address must never be trusted for account matching.
+    const emailVerified = (claims as any)?.email_verified ?? (claims as any)?.xms_edov;
+    if (emailVerified === false || emailVerified === 'false') {
+      throw new BadRequestException('ENTRA_EMAIL_UNVERIFIED');
+    }
 
     const givenName = (graphProfile?.givenName as string | undefined) || (claims as any)?.given_name;
     const familyName = (graphProfile?.surname as string | undefined) || (claims as any)?.family_name;
@@ -272,6 +299,7 @@ export class EntraController {
     const businessPhone = Array.isArray(graphProfile?.businessPhones) ? graphProfile.businessPhones[0] || null : null;
     const mobilePhone = (graphProfile?.mobilePhone as string | undefined) || null;
 
+    let jitProvisioned = false;
     const userId = await withTenant(this.dataSource, tenantId, async (manager) => {
       const repo = manager.getRepository(User);
 
@@ -296,6 +324,19 @@ export class EntraController {
           found.external_auth_provider = 'entra' as any;
           found.external_subject = oid;
           found = await repo.save(found);
+          await this.audit.log(
+            {
+              table: 'users',
+              recordId: found.id,
+              action: 'update',
+              before: { external_auth_provider: null, external_subject: null },
+              after: { external_auth_provider: 'entra', external_subject: oid, email: found.email },
+              userId: found.id,
+              source: 'system',
+              sourceRef: 'entra-auto-link',
+            },
+            { manager },
+          );
         }
       }
 
@@ -322,6 +363,20 @@ export class EntraController {
         full.external_auth_provider = 'entra' as any;
         full.external_subject = oid;
         found = await repo.save(full);
+        await this.audit.log(
+          {
+            table: 'users',
+            recordId: found.id,
+            action: 'update',
+            before: null,
+            after: { external_auth_provider: 'entra', external_subject: oid, email: found.email },
+            userId: found.id,
+            source: 'system',
+            sourceRef: 'entra-jit-provisioning',
+          },
+          { manager },
+        );
+        jitProvisioned = true;
       }
 
       // Keep Entra as source of truth when it provides a value; keep local when Entra is empty.
@@ -338,6 +393,14 @@ export class EntraController {
 
       return found.id;
     });
+
+    if (jitProvisioned) {
+      // Fire-and-forget: the login redirect must not wait on admin emails.
+      const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || email;
+      this.notifications
+        .notifySsoUserProvisioned({ userName: displayName, userEmail: email, tenantId })
+        .catch((err) => this.logger.warn(`SSO provisioning notification failed: ${err?.message || err}`));
+    }
 
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);
     const normalized = baseUrl.replace(/\/$/, '');

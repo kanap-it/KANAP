@@ -98,6 +98,7 @@ type AuthContextType = {
   refreshMe: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   hasLevel: (resource: string, level: PermissionLevel) => boolean;
+  hasAnyAccess: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -284,9 +285,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return (rank[current] ?? 0) >= (rank[level] ?? 0);
   };
 
+  // False only for a loaded identity whose roles grant no permission at all —
+  // e.g. an SSO user auto-provisioned on first login, awaiting access.
+  const hasAnyAccess = !claims
+    ? true
+    : !!(claims.isGlobalAdmin || claims.isPlatformAdmin || Object.keys(claims.permissions || {}).length > 0);
+
   const value = useMemo(
-    () => ({ token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshMe, refreshAccessToken, hasLevel }),
-    [token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshMe, refreshAccessToken, hasLevel]
+    () => ({ token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshMe, refreshAccessToken, hasLevel, hasAnyAccess }),
+    [token, tokenExpiresAt, isAuthenticating, profile, claims, subscription, tenantAuth, login, logout, refreshMe, refreshAccessToken, hasLevel, hasAnyAccess]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

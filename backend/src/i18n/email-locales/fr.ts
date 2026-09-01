@@ -164,6 +164,13 @@ export const fr: EmailStrings = {
     },
   },
   auth: {
+    ssoUserProvisioned: {
+      subject: "Nouvel utilisateur en attente d'accès",
+      heading: 'Un nouvel utilisateur attend un accès',
+      bodyHtml: "<strong>{{userName}}</strong> ({{userEmail}}) s'est connecté avec Microsoft Entra et a été ajouté automatiquement. Cette personne ne pourra pas utiliser KANAP tant que vous ne lui aurez pas attribué un rôle.",
+      text: "{{userName}} ({{userEmail}}) s'est connecté avec Microsoft Entra et a été ajouté automatiquement. Cette personne ne pourra pas utiliser KANAP tant que vous ne lui aurez pas attribué un rôle. Gérer les utilisateurs : {{url}}",
+      cta: 'Ouvrir la gestion des utilisateurs',
+    },
     activation: {
       subject: 'Confirmez votre espace de travail KANAP',
       intro: "Merci de l'intérêt que vous portez à KANAP. Veuillez confirmer votre e-mail pour provisionner votre tenant.",

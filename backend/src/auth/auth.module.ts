@@ -19,6 +19,8 @@ import { RefreshToken } from './refresh-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { RateLimitGuard } from '../common/rate-limit.guard';
+import { AuditModule } from '../audit/audit.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { RateLimitGuard } from '../common/rate-limit.guard';
     CurrencyModule,
     TenantsModule,
     EntraAuthModule,
+    AuditModule,
+    NotificationsModule,
   ],
   providers: [AuthService, JwtAuthGuard, RolesGuard, PermissionGuard, RateLimitGuard],
   controllers: [AuthController, EntraController, AdminAuthController],
