@@ -449,5 +449,10 @@
     "goToBilling": "Accéder à la facturation",
     "accountAccessLimited": "L'accès au compte est limité. Contactez votre administrateur de facturation.",
     "choosePlanToContinueAction": "Choisir un plan pour continuer"
+  },
+  "forbidden": {
+    "title": "Accès refusé",
+    "message": "Vous n'avez pas la permission de voir cette page. Si vous pensez qu'il s'agit d'une erreur, contactez un administrateur.",
+    "cta": "Aller au tableau de bord"
   }
 }

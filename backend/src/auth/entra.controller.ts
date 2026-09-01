@@ -13,6 +13,7 @@ import { UsersService } from '../users/users.service';
 import { resolveTenantAppBaseUrl } from '../common/url';
 import { isSecureRequest, setRefreshTokenCookie } from './auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('auth/entra')
 export class EntraController {
@@ -23,6 +24,7 @@ export class EntraController {
     private readonly users: UsersService,
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private readonly logger = new Logger(EntraController.name);
@@ -297,6 +299,7 @@ export class EntraController {
     const businessPhone = Array.isArray(graphProfile?.businessPhones) ? graphProfile.businessPhones[0] || null : null;
     const mobilePhone = (graphProfile?.mobilePhone as string | undefined) || null;
 
+    let jitProvisioned = false;
     const userId = await withTenant(this.dataSource, tenantId, async (manager) => {
       const repo = manager.getRepository(User);
 
@@ -373,6 +376,7 @@ export class EntraController {
           },
           { manager },
         );
+        jitProvisioned = true;
       }
 
       // Keep Entra as source of truth when it provides a value; keep local when Entra is empty.
@@ -389,6 +393,14 @@ export class EntraController {
 
       return found.id;
     });
+
+    if (jitProvisioned) {
+      // Fire-and-forget: the login redirect must not wait on admin emails.
+      const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || email;
+      this.notifications
+        .notifySsoUserProvisioned({ userName: displayName, userEmail: email, tenantId })
+        .catch((err) => this.logger.warn(`SSO provisioning notification failed: ${err?.message || err}`));
+    }
 
     const baseUrl = resolveTenantAppBaseUrl(req, tenantSlug);
     const normalized = baseUrl.replace(/\/$/, '');

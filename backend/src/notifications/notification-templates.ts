@@ -1447,3 +1447,37 @@ export function buildNewTenantNotificationEmail(params: {
     `Registered email: ${params.email}\nCountry: ${params.countryIso}`;
   return { subject, html: wrapper.html, text, attachments: wrapper.attachments };
 }
+
+export function buildSsoUserProvisionedEmail(params: {
+  userName: string;
+  userEmail: string;
+  usersUrl: string;
+  branding?: EmailBranding;
+  locale?: string;
+}): EmailContent {
+  const strings = getEmailStrings(params.locale);
+  const s = strings.auth.ssoUserProvisioned;
+  const pc = getPrimaryColor(params.branding);
+
+  const body = `
+    ${buildEmailIntro({
+      title: s.heading,
+      summaryHtml: `<p style="margin:0;">${interpolate(s.bodyHtml, {
+        userName: escapeHtml(params.userName),
+        userEmail: escapeHtml(params.userEmail),
+      })}</p>`,
+    })}
+    ${buildActionButtons([{ label: s.cta, url: params.usersUrl }], pc)}
+  `;
+  const wrapper = emailWrapper(body, { branding: params.branding, locale: params.locale });
+
+  const text = joinTextBlocks([
+    interpolate(s.text, {
+      userName: params.userName,
+      userEmail: params.userEmail,
+      url: params.usersUrl,
+    }),
+  ]);
+
+  return { subject: s.subject, html: wrapper.html, text, attachments: wrapper.attachments };
+}

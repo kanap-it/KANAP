@@ -449,5 +449,10 @@
     "goToBilling": "Zur Abrechnung",
     "accountAccessLimited": "Der Kontozugang ist eingeschränkt. Kontaktieren Sie Ihren Abrechnungsadministrator.",
     "choosePlanToContinueAction": "Plan auswählen, um fortzufahren"
+  },
+  "forbidden": {
+    "title": "Zugriff verweigert",
+    "message": "Sie haben keine Berechtigung, diese Seite anzuzeigen. Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an einen Administrator.",
+    "cta": "Zum Dashboard"
   }
 }

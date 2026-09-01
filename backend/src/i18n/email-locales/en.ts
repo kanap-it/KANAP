@@ -162,6 +162,13 @@ export const en = {
     },
   },
   auth: {
+    ssoUserProvisioned: {
+      subject: 'New user waiting for access',
+      heading: 'A new user is waiting for access',
+      bodyHtml: '<strong>{{userName}}</strong> ({{userEmail}}) signed in with Microsoft Entra and was added automatically. This person cannot use KANAP until you assign them a role.',
+      text: '{{userName}} ({{userEmail}}) signed in with Microsoft Entra and was added automatically. This person cannot use KANAP until you assign them a role. Manage users: {{url}}',
+      cta: 'Open user management',
+    },
     activation: {
       subject: 'Confirm your KANAP workspace',
       intro: 'Thanks for your interest in KANAP. Please confirm your email to provision your tenant.',

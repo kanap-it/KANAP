@@ -1,3 +1,4 @@
+import { Features } from '../config/features';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { DataSource, EntityManager } from 'typeorm';
@@ -17,6 +18,7 @@ import {
   buildTaskAssignedEmail,
   buildExpirationWarningEmail,
   EmailContent,
+  buildSsoUserProvisionedEmail,
 } from './notification-templates';
 import { renderCommentForEmail } from './comment-email-renderer';
 import { renderMarkdownToHtml } from '../common/markdown-to-html';
@@ -945,6 +947,73 @@ export class NotificationsService {
     });
 
     this.sendNotification(itLeadRows[0].email, content);
+  }
+
+  /**
+   * Notify the tenant's user administrators that an SSO user was just
+   * auto-provisioned and is waiting for access (no role, no permissions).
+   * Email only — silently no-ops when no email transport is configured.
+   */
+  async notifySsoUserProvisioned(params: {
+    userName: string;
+    userEmail: string;
+    tenantId: string;
+  }): Promise<void> {
+    if (!Features.EMAIL_ENABLED) return;
+
+    // Recipients: users holding admin on the 'users' resource (legacy role
+    // column or multi-role table) plus Administrator role holders.
+    const admins: Array<{ id: string; email: string; locale: string | null }> = await this.dataSource.query(
+      `SELECT DISTINCT u.id, u.email, u.locale
+       FROM users u
+       WHERE u.tenant_id = $1
+         AND u.status = 'enabled'
+         AND LOWER(u.email) <> LOWER($2)
+         AND (
+           EXISTS (
+             SELECT 1 FROM roles r
+             WHERE r.id = u.role_id AND r.tenant_id = u.tenant_id
+               AND LOWER(r.role_name) = 'administrator'
+           )
+           OR EXISTS (
+             SELECT 1 FROM user_roles ur
+             JOIN roles r2 ON r2.id = ur.role_id AND r2.tenant_id = ur.tenant_id
+             WHERE ur.user_id = u.id AND ur.tenant_id = u.tenant_id
+               AND LOWER(r2.role_name) = 'administrator'
+           )
+           OR EXISTS (
+             SELECT 1 FROM role_permissions rp
+             WHERE rp.tenant_id = u.tenant_id
+               AND rp.resource = 'users' AND rp.level = 'admin'
+               AND (
+                 rp.role_id = u.role_id
+                 OR rp.role_id IN (
+                   SELECT ur2.role_id FROM user_roles ur2
+                   WHERE ur2.user_id = u.id AND ur2.tenant_id = u.tenant_id
+                 )
+               )
+           )
+         )`,
+      [params.tenantId, params.userEmail],
+    );
+    if (admins.length === 0) return;
+
+    const slug = await this.getTenantSlug(params.tenantId);
+    const usersUrl = `${this.buildTenantBaseUrl(slug)}/admin/users`;
+    const branding = await this.resolveBranding(params.tenantId);
+
+    for (const [locale, recipients] of this.groupRecipientsByLocale(admins)) {
+      const content = buildSsoUserProvisionedEmail({
+        userName: params.userName,
+        userEmail: params.userEmail,
+        usersUrl,
+        branding,
+        locale,
+      });
+      for (const recipient of recipients) {
+        this.sendNotification(recipient.email, content);
+      }
+    }
   }
 
   /**

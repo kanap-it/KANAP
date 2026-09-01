@@ -5,6 +5,7 @@ import { useTenant } from '../tenant/TenantContext';
 import { useFeatures } from '../config/FeaturesContext';
 import { Box, CircularProgress } from '@mui/material';
 import { useAiCapabilities } from '../ai/useAiCapabilities';
+import PendingAccessPage from '../pages/PendingAccessPage';
 
 type RouteRequirement = {
   resource: string;
@@ -12,7 +13,7 @@ type RouteRequirement = {
 };
 
 export default function ProtectedRoute() {
-  const { token, isAuthenticating, profile, claims, hasLevel, subscription } = useAuth();
+  const { token, isAuthenticating, profile, claims, hasLevel, hasAnyAccess, subscription } = useAuth();
   const location = useLocation();
   const { isPlatformHost } = useTenant();
   const { config } = useFeatures();
@@ -49,6 +50,12 @@ export default function ProtectedRoute() {
         <CircularProgress />
       </Box>
     );
+  }
+
+  // An authenticated account without a single granted permission gets a
+  // dedicated pending-access page instead of an empty app shell.
+  if (token && claims && profile && !hasAnyAccess) {
+    return <PendingAccessPage />;
   }
 
   // Minimal per-route gating based on path prefix and resource name
