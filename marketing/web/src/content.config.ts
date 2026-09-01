@@ -34,6 +34,18 @@ const blog = defineCollection({
     /** Optional last-revision date, shown when set. */
     updated: z.coerce.date().optional(),
     topic: z.enum(BLOG_TOPICS),
+    /**
+     * Optional series grouping. Posts sharing `series.key` are parts of one
+     * series, ordered by `part`; `title` is written in the post's own
+     * language. The series strip only renders once 2+ parts are published.
+     */
+    series: z
+      .object({
+        key: z.string().min(1),
+        part: z.number().int().positive(),
+        title: z.string().min(1),
+      })
+      .optional(),
     author: z.string().default('KANAP'),
     /** Short role line shown after the author name, e.g. "Founder, CIO". */
     authorRole: z.string().optional(),

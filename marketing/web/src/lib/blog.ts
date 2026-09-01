@@ -114,14 +114,38 @@ export async function getTranslations(item: BlogItem): Promise<Partial<Record<Lo
   return out;
 }
 
-/** Up to `n` other posts to read next: same topic first, then newest. */
+/**
+ * Published parts of `item`'s series as listed from `locale` (own-locale
+ * version preferred, English fallback otherwise), ordered by part number.
+ * Empty when the post belongs to no series.
+ */
+export async function getSeriesParts(item: BlogItem, locale: Locale): Promise<BlogItem[]> {
+  const series = item.post.data.series;
+  if (!series) return [];
+  return (await getPostsWithFallback(locale))
+    .filter((i) => i.post.data.series?.key === series.key)
+    .sort((a, b) => a.post.data.series!.part - b.post.data.series!.part);
+}
+
+/** Up to `n` other posts to read next: same series first (in order), then same topic, then newest. */
 export async function getRelated(item: BlogItem, locale: Locale, n = 2): Promise<BlogItem[]> {
   const pool = (await getPostsWithFallback(locale)).filter(
     (i) => i.translationKey !== item.translationKey,
   );
-  const same = pool.filter((i) => i.post.data.topic === item.post.data.topic);
-  const rest = pool.filter((i) => i.post.data.topic !== item.post.data.topic);
-  return [...same, ...rest].slice(0, n);
+  const seriesKey = item.post.data.series?.key;
+  const sameSeries = seriesKey
+    ? pool
+        .filter((i) => i.post.data.series?.key === seriesKey)
+        .sort((a, b) => a.post.data.series!.part - b.post.data.series!.part)
+    : [];
+  const inSeries = new Set(sameSeries.map((i) => i.translationKey));
+  const sameTopic = pool.filter(
+    (i) => !inSeries.has(i.translationKey) && i.post.data.topic === item.post.data.topic,
+  );
+  const rest = pool.filter(
+    (i) => !inSeries.has(i.translationKey) && i.post.data.topic !== item.post.data.topic,
+  );
+  return [...sameSeries, ...sameTopic, ...rest].slice(0, n);
 }
 
 /** Social card path for an item: explicit `ogImage`, else the generated card if present, else the site default. */

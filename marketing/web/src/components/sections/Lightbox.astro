@@ -1,0 +1,84 @@
+---
+/**
+ * Lightbox — one shared full-viewport image zoom per page.
+ *
+ * Include once from any component whose images should zoom on click. Handles
+ * two trigger kinds: ScreenshotFrame's `.mk-shot__zoom` button (theme-aware,
+ * picks the visible img) and plain images inside a blog article body
+ * (`.mk-post__body img`). Click anywhere or press Escape to close.
+ */
+---
+
+<script>
+  function ensureLightbox(): HTMLDialogElement {
+    let dialog = document.querySelector<HTMLDialogElement>('dialog.mk-lightbox');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.className = 'mk-lightbox';
+      const img = document.createElement('img');
+      img.className = 'mk-lightbox__img';
+      dialog.appendChild(img);
+      dialog.addEventListener('click', () => dialog?.close());
+      document.body.appendChild(dialog);
+    }
+    return dialog;
+  }
+
+  document.addEventListener('click', (event) => {
+    const el = event.target instanceof Element ? event.target : null;
+    if (!el) return;
+    let visible: HTMLImageElement | undefined;
+    const shot = el.closest('.mk-shot__zoom');
+    if (shot) {
+      visible = Array.from(shot.querySelectorAll<HTMLImageElement>('img'))
+        .find((img) => getComputedStyle(img).display !== 'none');
+    } else if (el instanceof HTMLImageElement && el.closest('.mk-post__body')) {
+      visible = el;
+    }
+    if (!visible) return;
+    const dialog = ensureLightbox();
+    const zoomed = dialog.querySelector<HTMLImageElement>('.mk-lightbox__img');
+    if (!zoomed) return;
+    zoomed.src = visible.currentSrc || visible.src;
+    zoomed.alt = visible.alt;
+    dialog.showModal();
+  });
+</script>
+
+<style is:global>
+  .mk-lightbox {
+    padding: 0;
+    border: none;
+    background: transparent;
+    max-width: none;
+    max-height: none;
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+
+  .mk-lightbox[open] {
+    display: flex;
+  }
+
+  body:has(.mk-lightbox[open]) {
+    overflow: hidden;
+  }
+
+  .mk-lightbox::backdrop {
+    background: rgba(15, 23, 32, 0.82);
+  }
+
+  .mk-lightbox__img {
+    max-width: min(1440px, 94vw);
+    max-height: 92vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+    background: #fff;
+  }
+</style>
