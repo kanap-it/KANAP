@@ -193,14 +193,15 @@ export class UsersController {
     const roleRepo = manager ? manager.getRepository(Role) : this.roleRepo;
     const userRepo = manager ? manager.getRepository(User) : this.userRepo;
 
-    // Validate input
-    const roleIds = body?.role_ids;
-    if (!Array.isArray(roleIds) || roleIds.length === 0) {
-      throw new BadRequestException('At least one role must be assigned');
+    // Empty list is allowed: the user keeps no app access and falls back to
+    // the Contact system role (same state as a freshly provisioned SSO user).
+    const roleIds: string[] = Array.isArray(body?.role_ids) ? body.role_ids : [];
+    if (roleIds.length === 0 && req.user?.sub === id) {
+      throw new BadRequestException('You cannot remove your own last role.');
     }
 
     // Validate all roles exist
-    const roles = await roleRepo.find({ where: roleIds.map(rid => ({ id: rid })) });
+    const roles = roleIds.length > 0 ? await roleRepo.find({ where: roleIds.map(rid => ({ id: rid })) }) : [];
     if (roles.length !== roleIds.length) {
       throw new BadRequestException('One or more roles not found');
     }
@@ -225,8 +226,15 @@ export class UsersController {
       }));
     }
 
-    // Update user's role_id to the first role (for backwards compatibility)
-    user.role_id = roleIds[0];
+    // Legacy role_id column is NOT NULL: first role, or the Contact system
+    // role when the list is empty (no roles = no access -> pending).
+    let legacyRoleId = roleIds[0];
+    if (!legacyRoleId) {
+      const contact = await roleRepo.findOne({ where: { role_name: 'Contact' } as any });
+      if (!contact) throw new BadRequestException('Cannot clear roles: the Contact system role is missing.');
+      legacyRoleId = contact.id;
+    }
+    user.role_id = legacyRoleId;
     await userRepo.save(user);
 
     // Role assignment changes a user's effective permissions — always audit it.

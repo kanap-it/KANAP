@@ -967,7 +967,8 @@
       "jobTitle": "Job title",
       "lastName": "Last name",
       "mobilePhone": "Mobile phone",
-      "roles": "Roles"
+      "roles": "Roles",
+      "rolesEmptyHint": "No roles: the user can sign in but has no access until a role is assigned."
     }
   },
   "users": {
@@ -977,7 +978,15 @@
       "importCsv": "Import CSV",
       "exportCsv": "Export CSV",
       "invite": "Invite ({{count}})",
-      "inviting": "Inviting…"
+      "inviting": "Inviting…",
+      "rowMenu": "User actions",
+      "edit": "Edit",
+      "enable": "Enable",
+      "disable": "Disable",
+      "sendInvite": "Send invite",
+      "sendReset": "Send password reset",
+      "delete": "Delete",
+      "deactivate": "Deactivate ({{count}})"
     },
     "columns": {
       "lastName": "Last name",
@@ -990,7 +999,10 @@
       "businessPhone": "Business phone",
       "mobilePhone": "Mobile phone",
       "mfaEnabled": "MFA enabled",
-      "created": "Created"
+      "created": "Created",
+      "status": "Status",
+      "accountType": "Account type",
+      "roles": "Roles"
     },
     "mfaValues": {
       "yes": "Yes",
@@ -1006,13 +1018,31 @@
       "emailUnique": "Email must be unique.",
       "inviteSuccess": "Invited {{success}} user(s)",
       "invitePartialFail": "Invited {{success}} user(s); {{failed}} failed",
-      "inviteFailed": "Failed to invite selected users"
+      "inviteFailed": "Failed to invite selected users",
+      "disableConfirm": "{{name}} will lose access and be signed out immediately. Deactivate this account?",
+      "deleteConfirm": "Delete {{name}}? This cannot be undone. If the user is referenced by other records, deactivate the account instead.",
+      "deactivateConfirm": "Deactivate {{count}} account(s)? They will be signed out immediately.",
+      "deactivateResult": "Deactivated {{success}}; {{failed}} failed",
+      "inviteSentOne": "Invitation sent to {{email}}",
+      "resetSent": "Password reset email sent to {{email}}",
+      "rolesSaveFailed": "The user was saved but the roles could not be updated. Open the user again and retry."
     },
     "exportTitle": "Export users",
     "importTitle": "Import users",
     "seats": {
       "limited": "Seats {{used}}/{{limit}}",
       "unlimited": "Seats {{used}} (unlimited)"
+    },
+    "accountType": {
+      "entra": "Microsoft Entra",
+      "local": "Local"
+    },
+    "status": {
+      "enabled": "Active",
+      "disabled": "Disabled",
+      "invited": "Invited",
+      "pending_access": "Pending access",
+      "contact": "Contact"
     }
   },
   "aiModels": {

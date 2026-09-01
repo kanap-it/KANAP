@@ -63,6 +63,14 @@ export function getPillBg(muiColor: string | undefined, mode: 'light' | 'dark'):
 /*  Unified status color maps (single source of truth)                */
 /* ------------------------------------------------------------------ */
 
+/** User account lifecycle (Users admin page) */
+export const USER_ACCOUNT_STATUS_COLORS: Record<string, string> = {
+  enabled: 'success',
+  invited: 'info',
+  pending_access: 'warning',
+  disabled: 'default',
+};
+
 /** Task statuses */
 export const TASK_STATUS_COLORS: Record<string, string> = {
   open: 'default',

@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import ServerDataGrid, { EnhancedColDef } from '../components/ServerDataGrid';
 import { ICellRendererParams } from 'ag-grid-community';
-import { Button, Stack, Box, Typography } from '@mui/material';
+import { Button, Stack, Box, IconButton, Menu, MenuItem, Typography, useTheme } from '@mui/material';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import CsvExportDialog from '../components/csv/CsvExportDialog';
 import CsvImportDialog from '../components/csv/CsvImportDialog';
 import FormModal from '../components/forms/FormModal';
@@ -15,7 +16,8 @@ import { useLocale } from '../i18n/useLocale';
 import { formatShortDateTime } from '../lib/dateFormat';
 import { useTranslation } from 'react-i18next';
 import ForbiddenPage from './ForbiddenPage';
-import { useKanapDialogs } from '../components/design';
+import { StatusDot, useKanapDialogs } from '../components/design';
+import { getDotColor, USER_ACCOUNT_STATUS_COLORS } from '../utils/statusColors';
 
 export default function UsersPage() {
   const { t } = useTranslation(['admin', 'common']);
@@ -31,6 +33,13 @@ export default function UsersPage() {
   const [submitIntent, setSubmitIntent] = useState<'save' | 'save-invite'>('save');
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
   const [inviting, setInviting] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
+  // Position-anchored (not element-anchored): the AG Grid cell re-renders on
+  // state change, which would detach an element anchor and snap the menu to
+  // the viewport corner.
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [menuRow, setMenuRow] = useState<any>(null);
+  const theme = useTheme();
 
   const queryClient = useQueryClient();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -61,6 +70,72 @@ export default function UsersPage() {
   const enableUser = async (id: string) => { await api.post(`/users/${id}/enable`); setRefreshKey((k)=>k+1); };
   const disableUser = async (id: string) => { await api.post(`/users/${id}/disable`); setRefreshKey((k)=>k+1); };
   const inviteUser = async (id: string) => { await api.post(`/users/${id}/invite`); setRefreshKey((k)=>k+1); };
+
+  const userDisplayName = (row: any) =>
+    `${row?.first_name ?? ''} ${row?.last_name ?? ''}`.trim() || row?.email || '';
+
+  const closeRowMenu = () => setMenuPos(null);
+
+  const handleRowDisable = async (row: any) => {
+    closeRowMenu();
+    const okToGo = await dialogs.confirm({
+      message: t('users.messages.disableConfirm', { name: userDisplayName(row) }),
+      confirmLabel: t('users.actions.disable'),
+      intent: 'danger',
+    });
+    if (!okToGo) return;
+    try { await disableUser(row.id); } catch (e: any) { await dialogs.alert(e?.response?.data?.message || String(e)); }
+  };
+  const handleRowEnable = async (row: any) => {
+    closeRowMenu();
+    try { await enableUser(row.id); } catch (e: any) { await dialogs.alert(e?.response?.data?.message || String(e)); }
+  };
+  const handleRowInvite = async (row: any) => {
+    closeRowMenu();
+    try {
+      await inviteUser(row.id);
+      await dialogs.alert(t('users.messages.inviteSentOne', { email: row.email }));
+    } catch (e: any) { await dialogs.alert(e?.response?.data?.message || String(e)); }
+  };
+  const handleRowReset = async (row: any) => {
+    closeRowMenu();
+    try {
+      await api.post('/auth/password-reset/request', { email: row.email });
+      await dialogs.alert(t('users.messages.resetSent', { email: row.email }));
+    } catch (e: any) { await dialogs.alert(e?.response?.data?.message || String(e)); }
+  };
+  const handleRowDelete = async (row: any) => {
+    closeRowMenu();
+    const okToGo = await dialogs.confirm({
+      message: t('users.messages.deleteConfirm', { name: userDisplayName(row) }),
+      confirmLabel: t('users.actions.delete'),
+      intent: 'danger',
+    });
+    if (!okToGo) return;
+    try {
+      await api.delete(`/users/${row.id}`);
+      setRefreshKey((k) => k + 1);
+    } catch (e: any) { await dialogs.alert(e?.response?.data?.message || String(e)); }
+  };
+  const handleDeactivateSelected = async () => {
+    if (!selectedRows.length) return;
+    const okToGo = await dialogs.confirm({
+      message: t('users.messages.deactivateConfirm', { count: selectedRows.length }),
+      confirmLabel: t('users.actions.disable'),
+      intent: 'danger',
+    });
+    if (!okToGo) return;
+    setDeactivating(true);
+    try {
+      const results = await Promise.allSettled(selectedRows.map((row) => api.post(`/users/${row.id}/disable`)));
+      const success = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - success;
+      if (failed > 0) await dialogs.alert(t('users.messages.deactivateResult', { success, failed }));
+      setRefreshKey((k) => k + 1);
+    } finally {
+      setDeactivating(false);
+    }
+  };
 
   // Per-user permissions removed: managed by role assignments
 
@@ -116,8 +191,13 @@ export default function UsersPage() {
         const createPayload = { ...userPayload, role_id: role_ids[0] ?? null };
         const created = await createItem(createPayload as any);
         // Set roles via dedicated endpoint
-        if (created?.id && role_ids.length > 0) {
-          await api.put(`/users/${created.id}/roles`, { role_ids });
+        if (created?.id) {
+          try {
+            await api.put(`/users/${created.id}/roles`, { role_ids });
+          } catch (roleErr: any) {
+            setServerError(new Error(roleErr?.response?.data?.message || t('users.messages.rolesSaveFailed')));
+            return;
+          }
         }
         if (submitIntent === 'save-invite' && created?.id) {
           try {
@@ -130,9 +210,12 @@ export default function UsersPage() {
       } else if (mode === 'edit' && currentId != null) {
         // Update user basic info
         await updateItem({ id: currentId, payload: userPayload as any });
-        // Update roles via dedicated endpoint
-        if (role_ids.length > 0) {
+        // Update roles via dedicated endpoint (an empty list is allowed: no access)
+        try {
           await api.put(`/users/${currentId}/roles`, { role_ids });
+        } catch (roleErr: any) {
+          setServerError(new Error(roleErr?.response?.data?.message || t('users.messages.rolesSaveFailed')));
+          return;
         }
       }
       setOpen(false);
@@ -165,20 +248,61 @@ export default function UsersPage() {
       {params.valueFormatted ?? params.value}
     </Box>
   );
+  const UserStatusCell: React.FC<ICellRendererParams<any, any>> = (params) => {
+    const row = params.data;
+    if (!row) return null;
+    const key = row.pending_access ? 'pending_access' : row.status;
+    const color = getDotColor(USER_ACCOUNT_STATUS_COLORS[key] ?? 'default', theme.palette.mode);
+    return (
+      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '100%' }}>
+        <StatusDot color={color} />
+        <Box component="span" sx={{ color, fontSize: 12.5, fontWeight: 500 }}>
+          {t(`users.status.${key}`)}
+        </Box>
+      </Box>
+    );
+  };
+  const RowActionsCell: React.FC<ICellRendererParams<any, any>> = (params) => (
+    <IconButton
+      size="small"
+      aria-label={t('users.actions.rowMenu')}
+      onClick={(e) => { setMenuPos({ top: e.clientY, left: e.clientX }); setMenuRow(params.data); }}
+    >
+      <MoreHorizIcon fontSize="small" />
+    </IconButton>
+  );
 
   const columns: EnhancedColDef<any>[] = useMemo(() => [
     { field: 'last_name', headerName: t('users.columns.lastName'), width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'first_name', headerName: t('users.columns.firstName'), width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'email', headerName: t('users.columns.email'), flex: 1, minWidth: 220, required: true, cellRenderer: canManageUsers ? ClickableCell : undefined },
     { field: 'job_title', headerName: t('users.columns.jobTitle'), width: 200, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'role', headerName: t('users.columns.role'), width: 140, valueGetter: (params) => params.data?.role?.role_name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    { field: 'status', headerName: t('users.columns.status'), width: 150, filter: false, cellRenderer: UserStatusCell },
+    {
+      colId: 'roles', headerName: t('users.columns.roles'), width: 200, sortable: false, filter: false,
+      valueGetter: (params) => {
+        const names = Array.isArray(params.data?.roles) && params.data.roles.length > 0
+          ? params.data.roles.map((r: any) => r.name)
+          : [params.data?.role?.role_name];
+        return names.filter(Boolean).join(', ');
+      },
+      cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
+    },
+    {
+      colId: 'account_type', headerName: t('users.columns.accountType'), width: 150, sortable: false, filter: false,
+      valueGetter: (params) => (params.data?.external_auth_provider === 'entra' ? t('users.accountType.entra') : t('users.accountType.local')),
+      cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
+    },
     { field: 'company', headerName: t('users.columns.company'), width: 200, valueGetter: (params) => params.data?.company?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'department', headerName: t('users.columns.department'), width: 200, valueGetter: (params) => params.data?.department?.name || '', cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'business_phone', headerName: t('users.columns.businessPhone'), width: 180, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'mobile_phone', headerName: t('users.columns.mobilePhone'), width: 160, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'mfa_enabled', headerName: t('users.columns.mfaEnabled'), width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? t('users.mfaValues.yes') : t('users.mfaValues.no'), cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'created_at', headerName: t('users.columns.created'), width: 200, valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-  ], [ClickableCell, ClickableCellGeneric, canManageUsers, locale, t]);
+    ...(canManageUsers
+      ? [{ colId: 'row_actions', headerName: '', width: 56, sortable: false, filter: false, resizable: false, pinned: 'right', cellRenderer: RowActionsCell } as EnhancedColDef<any>]
+      : []),
+  ], [ClickableCell, ClickableCellGeneric, UserStatusCell, RowActionsCell, canManageUsers, locale, t]);
 
   if (!hasLevel('users', 'reader')) {
     return <ForbiddenPage />;
@@ -222,6 +346,16 @@ export default function UsersPage() {
         </Button>
       )}
       {canManageUsers && (
+        <Button
+          variant="outlined"
+          color="inherit"
+          onClick={handleDeactivateSelected}
+          disabled={deactivating || selectedRows.length === 0}
+        >
+          {t('users.actions.deactivate', { count: selectedRows.length })}
+        </Button>
+      )}
+      {canManageUsers && (
         <DeleteSelectedButton
           selectedRows={selectedRows}
           endpoint="/users/bulk"
@@ -248,7 +382,7 @@ export default function UsersPage() {
         getRowId={(r) => r.id}
         enableSearch
         refreshKey={refreshKey}
-        columnPreferencesKey="users-v2"
+        columnPreferencesKey="users-v3"
         enableColumnChooser={true}
         requiredColumns={['email']}
         defaultHiddenColumns={['mfa_enabled', 'created_at']}
@@ -263,6 +397,21 @@ export default function UsersPage() {
         onGridApiReady={(api) => { gridApiRef.current = api; }}
         statusScopeConfig={{ defaultScope: 'enabled', scopes: ['all', 'enabled', 'invited', 'disabled'] }}
       />
+      <Menu anchorReference="anchorPosition" anchorPosition={menuPos ?? undefined} open={!!menuPos} onClose={closeRowMenu}>
+        <MenuItem sx={{ fontSize: 13 }} onClick={() => { closeRowMenu(); if (menuRow) void handleEdit(menuRow); }}>{t('users.actions.edit')}</MenuItem>
+        {menuRow?.status === 'enabled' ? (
+          <MenuItem sx={{ fontSize: 13 }} onClick={() => menuRow && handleRowDisable(menuRow)}>{t('users.actions.disable')}</MenuItem>
+        ) : (
+          <MenuItem sx={{ fontSize: 13 }} onClick={() => menuRow && handleRowEnable(menuRow)}>{t('users.actions.enable')}</MenuItem>
+        )}
+        {!menuRow?.external_auth_provider && (
+          <MenuItem sx={{ fontSize: 13 }} onClick={() => menuRow && handleRowInvite(menuRow)}>{t('users.actions.sendInvite')}</MenuItem>
+        )}
+        {!menuRow?.external_auth_provider && menuRow?.status === 'enabled' && (
+          <MenuItem sx={{ fontSize: 13 }} onClick={() => menuRow && handleRowReset(menuRow)}>{t('users.actions.sendReset')}</MenuItem>
+        )}
+        <MenuItem sx={{ fontSize: 13, color: 'error.main' }} onClick={() => menuRow && handleRowDelete(menuRow)}>{t('users.actions.delete')}</MenuItem>
+      </Menu>
       <FormModal
         title={mode === 'create' ? t('users.dialogs.newUser') : t('users.dialogs.editUser')}
         open={open}

@@ -146,7 +146,7 @@ export default function UserForm({
             {t('userForm.entraManagedHint')}
           </Typography>
         )}
-        <TextField label={t('userForm.fields.email')} required {...register('email')} error={!!err.email} helperText={err.email?.message as string} autoComplete="email" InputLabelProps={{ shrink: true }} inputRef={emailRef} />
+        <TextField label={t('userForm.fields.email')} required {...register('email')} error={!!err.email} helperText={err.email?.message as string} autoComplete="email" InputLabelProps={{ shrink: true }} inputRef={emailRef} disabled={managedByEntra} />
         <TextField label={t('userForm.fields.firstName')} {...register('first_name')} autoComplete="off" disabled={managedByEntra} />
         <TextField label={t('userForm.fields.lastName')} {...register('last_name')} autoComplete="off" disabled={managedByEntra} />
         <TextField label={t('userForm.fields.jobTitle')} {...register('job_title')} autoComplete="organization-title" InputLabelProps={{ shrink: true }} disabled={managedByEntra} />
@@ -161,7 +161,8 @@ export default function UserForm({
               value={field.value ?? []}
               onChange={(v) => field.onChange(v)}
               error={!!err.role_ids}
-              helperText={err.role_ids?.message as string}
+              helperText={(err.role_ids?.message as string)
+                || (((field.value ?? []) as string[]).length === 0 ? t('userForm.fields.rolesEmptyHint') : '')}
             />
           )}
         />
