@@ -29,7 +29,7 @@ const locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(locale);
 
 // The Blog entry only appears once at least one article is published, so
-// the structure can ship ahead of the first post. FAQ lives in the footer.
+// the structure can ship ahead of the first post.
 const showBlog = await blogHasPosts();
 
 // Flat dropdown, Agents first so the hook is visible at the point of
@@ -52,9 +52,8 @@ const navLinks = [
   { href: localePath(locale, '/on-premise'), label: t('nav.onPremise') },
   { href: localePath(locale, '/offer'), label: t('nav.offer') },
   { href: localePath(locale, '/security'), label: t('nav.security') },
-  ...(showBlog
-    ? [{ href: localePath(locale, '/blog'), label: t('nav.blog') }]
-    : [{ href: localePath(locale, '/faq'), label: t('nav.faq') }]),
+  { href: localePath(locale, '/faq'), label: t('nav.faq') },
+  ...(showBlog ? [{ href: localePath(locale, '/blog'), label: t('nav.blog') }] : []),
   { href: localePath(locale, '/contact'), label: t('nav.contact') },
 ];
 

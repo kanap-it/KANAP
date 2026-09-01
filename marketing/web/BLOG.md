@@ -51,6 +51,22 @@ Then write the body in plain Markdown. What renders well:
 
 Reading time is computed from the text; you do not write it.
 
+### Multi-part series
+
+To group related articles, add a `series` block to each part's frontmatter:
+
+```yaml
+series:
+  key: opex-budget          # same key on every part, in every locale
+  part: 1                   # 1-based order within the series
+  title: "Preparing the OPEX budget with KANAP"   # in the article's language
+```
+
+Once two or more parts are published, every part shows a series strip under
+the header listing all published parts, and "Continue reading" prefers the
+other parts of the series. With a single part published, nothing is shown —
+so Part 1 can ship alone.
+
 ## 2. Preview it locally
 
 ```bash

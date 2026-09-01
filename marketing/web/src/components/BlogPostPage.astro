@@ -11,6 +11,7 @@
 
 import { render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Lightbox from './sections/Lightbox.astro';
 import { Section, CTABand } from './sections';
 import {
   getLocaleFromUrl,
@@ -20,7 +21,7 @@ import {
   LOCALES,
   type Locale,
 } from '../i18n/ui';
-import { getTranslations, getRelated, ogImageFor, formatDate, type BlogItem } from '../lib/blog';
+import { getTranslations, getRelated, getSeriesParts, ogImageFor, formatDate, type BlogItem } from '../lib/blog';
 import { breadcrumbLd } from '../lib/jsonld';
 
 interface Props {
@@ -36,6 +37,8 @@ const site = (Astro.site ?? new URL('https://kanap.net')).href.replace(/\/$/, ''
 const { Content } = await render(post);
 const translations = await getTranslations(item);
 const related = await getRelated(item, locale);
+const series = post.data.series;
+const seriesParts = await getSeriesParts(item, locale);
 
 const alternates: Partial<Record<Locale, string>> = { [item.locale]: item.href };
 for (const l of LOCALES) {
@@ -131,10 +134,29 @@ const breadcrumb = breadcrumbLd(site, [
       </div>
     </header>
 
+    {series && seriesParts.length > 1 && (
+      <nav class="mk-post__series" aria-label={t('blog.series')}>
+        <div class="mk-post__series-name">{t('blog.series')} · {series.title}</div>
+        <ol>
+          {seriesParts.map((p) => (
+            <li>
+              {p.translationKey === item.translationKey ? (
+                <span aria-current="page">{p.post.data.title}</span>
+              ) : (
+                <a href={p.href}>{p.post.data.title}</a>
+              )}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )}
+
     <div class="mk-post__body">
       <Content />
     </div>
   </article>
+
+  <Lightbox />
 
   {related.length > 0 && (
     <aside class="mk-post__end">
@@ -232,6 +254,47 @@ const breadcrumb = breadcrumbLd(site, [
     font-size: 12.5px;
     letter-spacing: 0.02em;
     color: var(--kanap-text-tertiary);
+  }
+
+  /* ---- Series strip ---- */
+  .mk-post__series {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border: 1px solid var(--kanap-border-default);
+    border-radius: var(--kanap-radius-composer);
+    background: var(--kanap-bg-primary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .mk-post__series-name {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--kanap-text-tertiary);
+  }
+
+  .mk-post__series ol {
+    margin: 8px 0 0;
+    padding-left: 20px;
+  }
+
+  .mk-post__series li {
+    margin: 2px 0;
+  }
+
+  .mk-post__series a {
+    color: var(--kanap-text-secondary);
+  }
+
+  .mk-post__series a:hover {
+    color: var(--kanap-teal);
+  }
+
+  .mk-post__series span[aria-current] {
+    color: var(--kanap-text-primary);
+    font-weight: 500;
   }
 
   /* ---- Markdown body ---- */
@@ -337,6 +400,7 @@ const breadcrumb = breadcrumbLd(site, [
   }
 
   .mk-post__body :global(img) {
+    cursor: zoom-in;
     display: block;
     width: 100%;
     height: auto;
