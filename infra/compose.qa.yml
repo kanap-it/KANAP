@@ -26,13 +26,16 @@ services:
       - api
     ports:
       - "127.0.0.1:8081:80"
-    restart: unless-stopped  
+    restart: unless-stopped
     # nginx serves the built SPA and proxies /api to api:8080
 
   marketing:
     build:
       context: ../marketing
       dockerfile: Dockerfile
+      args:
+        # Same as prod: set PUBLIC_GA_ID in host env to ship gtag (G-JNTR8JXN1Q for kanap.net).
+        PUBLIC_GA_ID: ${PUBLIC_GA_ID:-}
     ports:
       - "127.0.0.1:8082:80"
     restart: unless-stopped
