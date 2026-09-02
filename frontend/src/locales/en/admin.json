@@ -255,7 +255,9 @@
     "messages": {
       "connectStartFailed": "Failed to start the connection flow.",
       "disconnectFailed": "Failed to disconnect single sign-on.",
-      "loadFailed": "Failed to load authentication settings."
+      "loadFailed": "Failed to load authentication settings.",
+      "setupSuccess": "Microsoft Entra ID is now connected to this workspace.",
+      "setupFailed": "Connecting Microsoft Entra ID failed: {{reason}}"
     },
     "title": "Authentication",
     "sync": {

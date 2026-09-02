@@ -255,7 +255,9 @@
     "messages": {
       "connectStartFailed": "No se pudo iniciar el flujo de conexión.",
       "disconnectFailed": "No se pudo desconectar el inicio de sesión único.",
-      "loadFailed": "No se pudo cargar la configuración de autenticación."
+      "loadFailed": "No se pudo cargar la configuración de autenticación.",
+      "setupSuccess": "Microsoft Entra ID ya está conectado a este espacio de trabajo.",
+      "setupFailed": "La conexión con Microsoft Entra ID falló: {{reason}}"
     },
     "title": "Autenticación",
     "sync": {

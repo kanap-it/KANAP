@@ -47,10 +47,15 @@ export default function AdminAuthPage() {
   const locale = useLocale();
   // Landing back from the Microsoft admin-consent screen (?consent=success|error)
   const [consentOutcome] = React.useState<string | null>(() => searchParams.get('consent'));
+  // Landing back from the Microsoft connect handshake (?setup=success|error&reason=…)
+  const [setupOutcome] = React.useState<string | null>(() => searchParams.get('setup'));
+  const [setupReason] = React.useState<string | null>(() => searchParams.get('reason'));
   React.useEffect(() => {
-    if (searchParams.has('consent')) {
+    if (searchParams.has('consent') || searchParams.has('setup') || searchParams.has('reason')) {
       const next = new URLSearchParams(searchParams);
       next.delete('consent');
+      next.delete('setup');
+      next.delete('reason');
       setSearchParams(next, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -149,6 +154,12 @@ export default function AdminAuthPage() {
           <Alert severity="error" sx={{ mb: 2 }}>
             {actionError}
           </Alert>
+        )}
+        {setupOutcome === 'success' && (
+          <Alert severity="success" sx={{ mb: 2 }}>{t('auth.messages.setupSuccess')}</Alert>
+        )}
+        {setupOutcome === 'error' && (
+          <Alert severity="error" sx={{ mb: 2 }}>{t('auth.messages.setupFailed', { reason: setupReason ?? '' })}</Alert>
         )}
         {consentOutcome === 'success' && (
           <Alert severity="success" sx={{ mb: 2 }}>{t('auth.sync.consentSuccess')}</Alert>

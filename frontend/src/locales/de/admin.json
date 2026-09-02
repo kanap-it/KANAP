@@ -255,7 +255,9 @@
     "messages": {
       "connectStartFailed": "Der Verbindungsvorgang konnte nicht gestartet werden.",
       "disconnectFailed": "Single Sign-On konnte nicht getrennt werden.",
-      "loadFailed": "Authentifizierungseinstellungen konnten nicht geladen werden."
+      "loadFailed": "Authentifizierungseinstellungen konnten nicht geladen werden.",
+      "setupSuccess": "Microsoft Entra ID ist jetzt mit diesem Arbeitsbereich verbunden.",
+      "setupFailed": "Die Verbindung mit Microsoft Entra ID ist fehlgeschlagen: {{reason}}"
     },
     "title": "Authentifizierung",
     "sync": {

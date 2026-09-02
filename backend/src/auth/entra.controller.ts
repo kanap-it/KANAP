@@ -109,6 +109,14 @@ export class EntraController {
       return;
     }
 
+    try {
+      await this.completeCallback(req, res);
+    } catch (err: any) {
+      await this.redirectCallbackError(req, res, err);
+    }
+  }
+
+  private async completeCallback(req: any, res: Response) {
     const result = await this.entra.handleCallback({
       code: req.query?.code,
       state: req.query?.state,
@@ -223,6 +231,32 @@ export class EntraController {
       ? handoff.redirectTo
       : '/';
     return { tokens, redirectPath };
+  }
+
+  /**
+   * A failed setup/login callback must land back in the app with a readable
+   * message, not as a JSON error page. Falls back to the default error
+   * response only when no tenant can be derived for the redirect.
+   */
+  private async redirectCallbackError(req: any, res: Response, err: any) {
+    const peek = this.entra.peekState(req.query?.state);
+    const tenant = peek?.tenantId ? await this.tenants.findById(peek.tenantId).catch(() => null) : null;
+    if (!tenant) throw err;
+
+    const message = String(err?.message || 'ENTRA_ERROR');
+    this.logger.warn(`Entra ${peek?.mode ?? 'callback'} failed for tenant ${tenant.slug}: ${message}`);
+    const base = resolveTenantAppBaseUrl(req, tenant.slug).replace(/\/$/, '');
+
+    if (peek?.mode === 'setup') {
+      // Admin-facing: keep the provider detail (e.g. AADSTS codes), truncated.
+      const params = new URLSearchParams({ setup: 'error', reason: message.slice(0, 300) });
+      res.redirect(`${base}/admin/auth?${params.toString()}`);
+      return;
+    }
+    // End-user facing: a short code only, never provider internals.
+    const known = ['ENTRA_EMAIL_UNVERIFIED', 'ENTRA_TENANT_MISMATCH', 'SSO_NOT_CONFIGURED'];
+    const code = known.find((k) => message.includes(k)) ?? 'SSO_FAILED';
+    res.redirect(`${base}/login?ssoError=${encodeURIComponent(code)}`);
   }
 
   private async handleConsentCallback(state: string, req: any, res: Response) {

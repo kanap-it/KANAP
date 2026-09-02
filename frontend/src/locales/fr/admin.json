@@ -255,7 +255,9 @@
     "messages": {
       "connectStartFailed": "Impossible de démarrer le flux de connexion.",
       "disconnectFailed": "Impossible de déconnecter l'authentification unique.",
-      "loadFailed": "Impossible de charger les paramètres d'authentification."
+      "loadFailed": "Impossible de charger les paramètres d'authentification.",
+      "setupSuccess": "Microsoft Entra ID est maintenant connecté à cet espace de travail.",
+      "setupFailed": "La connexion à Microsoft Entra ID a échoué : {{reason}}"
     },
     "title": "Authentification",
     "sync": {

@@ -490,6 +490,20 @@ export class EntraAuthService {
     return Array.isArray(response?.value) ? response.value : [];
   }
 
+  /**
+   * Unverified decode of the state parameter — used only to pick a sensible
+   * error redirect target after a failed callback. Never trust it for auth.
+   */
+  peekState(stateRaw: unknown): { mode?: string; tenantId?: string } | null {
+    if (typeof stateRaw !== 'string' || !stateRaw) return null;
+    try {
+      const decoded = jwt.decode(stateRaw);
+      return decoded && typeof decoded === 'object' ? (decoded as { mode?: string; tenantId?: string }) : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** True when the failure means "admin consent for application permissions is missing". */
   isConsentError(err: unknown): boolean {
     const message = String((err as any)?.message ?? '');
