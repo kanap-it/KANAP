@@ -22,8 +22,13 @@ RUN npm ci --no-audit --no-fund
 # Copy the rest of the Astro project
 COPY web/ ./
 
-# Cloudflare Web Analytics beacon token (cookieless analytics).
-# Astro inlines PUBLIC_* env at build time; leave unset to build without analytics.
+# Astro inlines PUBLIC_* at build time (see BaseLayout.astro).
+# PUBLIC_GA_ID — GA4 measurement ID. Leave unset to omit gtag.
+# Production kanap.net: set to G-JNTR8JXN1Q via host env / secret
+# (infra/compose.*.yml passes it as a build arg). Do not hardcode here.
+# Cloudflare Web Analytics remains edge-injected (zone RUM); separate from GA4.
+ARG PUBLIC_GA_ID=
+ENV PUBLIC_GA_ID=$PUBLIC_GA_ID
 
 # Produce /app/dist/
 RUN npm run build

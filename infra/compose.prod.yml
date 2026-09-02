@@ -33,8 +33,11 @@ services:
     build:
       context: ../marketing
       dockerfile: Dockerfile
-      # Web analytics needs no build config: the Cloudflare edge injects the beacon
-      # (zone RUM "Enable") — see BaseLayout.astro for why there is no snippet in-app.
+      args:
+        # GA4 (BaseLayout gtag). Prod kanap.net: PUBLIC_GA_ID=G-JNTR8JXN1Q
+        # in host env or secrets. Leave unset to omit gtag.
+        # Cloudflare Web Analytics stays edge-injected (zone RUM).
+        PUBLIC_GA_ID: ${PUBLIC_GA_ID:-}
     ports:
       - "127.0.0.1:8082:80"
     restart: unless-stopped
