@@ -257,7 +257,20 @@
       "disconnectFailed": "Single Sign-On konnte nicht getrennt werden.",
       "loadFailed": "Authentifizierungseinstellungen konnten nicht geladen werden."
     },
-    "title": "Authentifizierung"
+    "title": "Authentifizierung",
+    "sync": {
+      "title": "Tägliche Verzeichnissynchronisierung",
+      "description": "KANAP aktualisiert jede Nacht Namen, Titel, Telefonnummern, Abteilungen und Unternehmen aus Microsoft Entra und deaktiviert Konten, die im Verzeichnis entfernt oder deaktiviert wurden. Dafür ist eine einmalige Genehmigung durch einen Microsoft Entra-Administrator erforderlich.",
+      "consentNeeded": "Noch nicht autorisiert. Ein Microsoft Entra-Administrator muss KANAP die Berechtigung erteilen, Verzeichnisbenutzer zu lesen.",
+      "grantAccess": "Zugriff in Microsoft Entra gewähren",
+      "lastSynced": "Zuletzt synchronisiert {{date}} — {{synced}} Konten aktualisiert, {{disabled}} deaktiviert.",
+      "error": "Die letzte Synchronisierung ist fehlgeschlagen: {{message}}",
+      "syncNow": "Jetzt synchronisieren",
+      "syncing": "Synchronisierung…",
+      "consentSuccess": "Zugriff gewährt. Die erste Synchronisierung läuft.",
+      "consentError": "Microsoft hat den Zugriff nicht gewährt. Bitten Sie einen Microsoft Entra-Administrator, die Anfrage zu genehmigen.",
+      "resultOk": "Synchronisierung abgeschlossen: {{synced}} Konten aktualisiert, {{disabled}} deaktiviert."
+    }
   },
   "billing": {
     "actions": {
@@ -970,7 +983,8 @@
       "mobilePhone": "Mobiltelefon",
       "roles": "Rollen",
       "rolesEmptyHint": "Keine Rollen: Der Benutzer kann sich anmelden, hat aber keinen Zugriff, bis eine Rolle zugewiesen wird."
-    }
+    },
+    "entraSyncedAt": "Zuletzt aus Microsoft Entra synchronisiert: {{date}}"
   },
   "users": {
     "title": "Benutzer",
@@ -1003,7 +1017,8 @@
       "created": "Erstellt",
       "status": "Status",
       "accountType": "Kontotyp",
-      "roles": "Rollen"
+      "roles": "Rollen",
+      "lastLogin": "Letzte Anmeldung"
     },
     "mfaValues": {
       "yes": "Ja",
@@ -1044,6 +1059,9 @@
       "invited": "Eingeladen",
       "pending_access": "Zugriff ausstehend",
       "contact": "Kontakt"
+    },
+    "lastLogin": {
+      "never": "Nie"
     }
   },
   "aiModels": {

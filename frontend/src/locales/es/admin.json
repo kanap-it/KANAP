@@ -257,7 +257,20 @@
       "disconnectFailed": "No se pudo desconectar el inicio de sesión único.",
       "loadFailed": "No se pudo cargar la configuración de autenticación."
     },
-    "title": "Autenticación"
+    "title": "Autenticación",
+    "sync": {
+      "title": "Sincronización diaria del directorio",
+      "description": "Cada noche, KANAP actualiza nombres, cargos, teléfonos, departamentos y empresas desde Microsoft Entra, y desactiva las cuentas eliminadas o desactivadas en el directorio. Esto requiere una aprobación única por parte de un administrador de Microsoft Entra.",
+      "consentNeeded": "Aún no autorizado. Un administrador de Microsoft Entra debe conceder a KANAP permiso para leer los usuarios del directorio.",
+      "grantAccess": "Conceder acceso en Microsoft Entra",
+      "lastSynced": "Última sincronización {{date}} — {{synced}} cuentas actualizadas, {{disabled}} desactivadas.",
+      "error": "La última sincronización falló: {{message}}",
+      "syncNow": "Sincronizar ahora",
+      "syncing": "Sincronizando…",
+      "consentSuccess": "Acceso concedido. La primera sincronización está en curso.",
+      "consentError": "Microsoft no concedió el acceso. Pida a un administrador de Microsoft Entra que apruebe la solicitud.",
+      "resultOk": "Sincronización completada: {{synced}} cuentas actualizadas, {{disabled}} desactivadas."
+    }
   },
   "billing": {
     "actions": {
@@ -970,7 +983,8 @@
       "mobilePhone": "Teléfono móvil",
       "roles": "Roles",
       "rolesEmptyHint": "Sin roles: el usuario puede iniciar sesión pero no tiene acceso hasta que se le asigne un rol."
-    }
+    },
+    "entraSyncedAt": "Última sincronización desde Microsoft Entra: {{date}}"
   },
   "users": {
     "title": "Usuarios",
@@ -1003,7 +1017,8 @@
       "created": "Creado",
       "status": "Estado",
       "accountType": "Tipo de cuenta",
-      "roles": "Roles"
+      "roles": "Roles",
+      "lastLogin": "Último inicio de sesión"
     },
     "mfaValues": {
       "yes": "Sí",
@@ -1044,6 +1059,9 @@
       "invited": "Invitado",
       "pending_access": "Acceso pendiente",
       "contact": "Contacto"
+    },
+    "lastLogin": {
+      "never": "Nunca"
     }
   },
   "aiModels": {
