@@ -76,6 +76,12 @@ export class User {
   @Column({ type: 'text', default: 'enabled' })
   status!: string;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  last_login_at!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  external_synced_at!: Date | null;
+
   @Column({ type: 'timestamptz', default: () => 'now()' })
   created_at!: Date;
 

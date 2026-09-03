@@ -30,6 +30,7 @@
     "test:ai:integration": "ts-node src/ai/__tests__/ai-phase0.integration.spec.ts && ts-node src/ai/__tests__/ai-phase1.integration.spec.ts && ts-node src/ai/__tests__/ai-write-capabilities.integration.spec.ts && ts-node src/knowledge/__tests__/knowledge-search.spec.ts && ts-node src/ai/__tests__/search-index-sync.spec.ts && ts-node src/ai/__tests__/ai-agent-delete.integration.spec.ts",
     "test:ai:capabilities": "ts-node src/ai/__tests__/ai-write-capabilities.integration.spec.ts",
     "test:ai": "npm run test:ai:unit && npm run test:ai:integration",
+    "test:auth": "ts-node src/auth/__tests__/entra-directory-sync.util.spec.ts && ts-node src/auth/__tests__/entra.controller.spec.ts",
     "test:security": "ts-node src/common/__tests__/document-export.security.spec.ts && ts-node src/knowledge/__tests__/inline-attachment-access.spec.ts && ts-node src/portfolio/__tests__/inline-attachment-route.spec.ts",
     "test:tenant-isolation": "ts-node ./scripts/tenant-isolation-audit.ts",
     "test:rls": "ts-node ./scripts/rls-self-test.ts",

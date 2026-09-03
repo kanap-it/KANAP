@@ -15,6 +15,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { EntraAuthModule } from './entra-auth.module';
 import { EntraController } from './entra.controller';
 import { AdminAuthController } from './admin-auth.controller';
+import { EntraDirectorySyncService } from './entra-directory-sync.service';
 import { RefreshToken } from './refresh-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -37,7 +38,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AuditModule,
     NotificationsModule,
   ],
-  providers: [AuthService, JwtAuthGuard, RolesGuard, PermissionGuard, RateLimitGuard],
+  providers: [AuthService, JwtAuthGuard, RolesGuard, PermissionGuard, RateLimitGuard, EntraDirectorySyncService],
   controllers: [AuthController, EntraController, AdminAuthController],
   exports: [JwtAuthGuard, RolesGuard, PermissionGuard, AuthService],
 })

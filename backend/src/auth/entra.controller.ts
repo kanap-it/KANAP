@@ -14,6 +14,7 @@ import { resolveTenantAppBaseUrl } from '../common/url';
 import { isSecureRequest, setRefreshTokenCookie } from './auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { EntraDirectorySyncService } from './entra-directory-sync.service';
 
 @Controller('auth/entra')
 export class EntraController {
@@ -25,6 +26,7 @@ export class EntraController {
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly directorySync: EntraDirectorySyncService,
   ) {}
 
   private readonly logger = new Logger(EntraController.name);
@@ -97,6 +99,24 @@ export class EntraController {
 
   @Get('callback')
   async callback(@Req() req: any, @Res() res: Response) {
+    // Admin-consent round trip (application permissions for the directory
+    // sync) reuses this redirect URI; it carries no auth code.
+    const consentState = typeof req.query?.state === 'string' && req.query.state.startsWith('consent:')
+      ? (req.query.state as string)
+      : null;
+    if (consentState) {
+      await this.handleConsentCallback(consentState, req, res);
+      return;
+    }
+
+    try {
+      await this.completeCallback(req, res);
+    } catch (err: any) {
+      await this.redirectCallbackError(req, res, err);
+    }
+  }
+
+  private async completeCallback(req: any, res: Response) {
     const result = await this.entra.handleCallback({
       code: req.query?.code,
       state: req.query?.state,
@@ -199,6 +219,7 @@ export class EntraController {
       if (!user || user.status !== 'enabled' || !user.role) {
         throw new BadRequestException('Entra user is not allowed to sign in');
       }
+      await this.users.touchLastLogin(user.id, { manager });
       return this.auth.signTokens(
         { id: user.id, email: user.email, role: user.role, tenant_id: handoff.tenantId },
         manager,
@@ -210,6 +231,76 @@ export class EntraController {
       ? handoff.redirectTo
       : '/';
     return { tokens, redirectPath };
+  }
+
+  /**
+   * A failed setup/login callback must land back in the app with a readable
+   * message, not as a JSON error page. Falls back to the default error
+   * response only when no tenant can be derived for the redirect.
+   */
+  private async redirectCallbackError(req: any, res: Response, err: any) {
+    const peek = this.entra.peekState(req.query?.state);
+    const tenant = peek?.tenantId ? await this.tenants.findById(peek.tenantId).catch(() => null) : null;
+    if (!tenant) throw err;
+
+    const message = String(err?.message || 'ENTRA_ERROR');
+    this.logger.warn(`Entra ${peek?.mode ?? 'callback'} failed for tenant ${tenant.slug}: ${message}`);
+    const base = resolveTenantAppBaseUrl(req, tenant.slug).replace(/\/$/, '');
+
+    if (peek?.mode === 'setup') {
+      // Admin-facing: keep the provider detail (e.g. AADSTS codes), truncated.
+      const params = new URLSearchParams({ setup: 'error', reason: message.slice(0, 300) });
+      res.redirect(`${base}/admin/auth?${params.toString()}`);
+      return;
+    }
+    // End-user facing: a short code only, never provider internals.
+    const known = ['ENTRA_EMAIL_UNVERIFIED', 'ENTRA_TENANT_MISMATCH', 'SSO_NOT_CONFIGURED'];
+    const code = known.find((k) => message.includes(k)) ?? 'SSO_FAILED';
+    res.redirect(`${base}/login?ssoError=${encodeURIComponent(code)}`);
+  }
+
+  private async handleConsentCallback(state: string, req: any, res: Response) {
+    const tenantId = state.slice('consent:'.length);
+    const tenant = tenantId ? await this.tenants.findById(tenantId) : null;
+    if (!tenant) {
+      throw new BadRequestException('Tenant not found');
+    }
+    const consentedDirectory = typeof req.query?.tenant === 'string' ? req.query.tenant : null;
+    const granted =
+      String(req.query?.admin_consent ?? '').toLowerCase() === 'true'
+      && (!consentedDirectory || consentedDirectory === tenant.entra_tenant_id);
+    const error = typeof req.query?.error_description === 'string'
+      ? req.query.error_description
+      : typeof req.query?.error === 'string' ? req.query.error : null;
+
+    await withTenant(this.dataSource, tenant.id, (manager) =>
+      this.audit.log(
+        {
+          table: 'tenants',
+          recordId: tenant.id,
+          action: 'update',
+          before: null,
+          after: { directory_sync_consent: granted, error, consented_directory: consentedDirectory },
+          userId: null,
+          source: 'system',
+          sourceRef: 'entra-admin-consent',
+        },
+        { manager },
+      ),
+    );
+
+    if (granted) {
+      // A token cached before the grant lacks the new permission.
+      if (tenant.entra_tenant_id) this.entra.invalidateAppToken(tenant.entra_tenant_id);
+      // First sync right away so the settings page reflects the grant.
+      this.directorySync.syncTenant(tenant.id).catch((err) =>
+        this.logger.warn(`Directory sync after consent failed: ${err?.message || err}`),
+      );
+    }
+
+    const baseUrl = resolveTenantAppBaseUrl(req, tenant.slug);
+    const normalized = baseUrl.replace(/\/$/, '');
+    res.redirect(`${normalized}/admin/auth?consent=${granted ? 'success' : 'error'}`);
   }
 
   private async handleSetupCallback(
@@ -379,17 +470,14 @@ export class EntraController {
         jitProvisioned = true;
       }
 
-      // Keep Entra as source of truth when it provides a value; keep local when Entra is empty.
-      let needsSave = false;
-      if (firstName) { found.first_name = firstName; needsSave = true; }
-      if (lastName) { found.last_name = lastName; needsSave = true; }
-      if (jobTitle) { found.job_title = jobTitle; needsSave = true; }
-      if (businessPhone) { found.business_phone = businessPhone; needsSave = true; }
-      if (mobilePhone) { found.mobile_phone = mobilePhone; needsSave = true; }
-
-      if (needsSave) {
-        found = await repo.save(found);
-      }
+      // Directory-owned fields: same merge rules as the scheduled sync
+      // (non-empty Entra value wins, empty never clears, locale only if unset).
+      await this.directorySync.applyDirectoryProfile(
+        found,
+        { ...(graphProfile ?? {}), givenName: firstName || null, surname: lastName || null },
+        manager,
+      );
+      found = await repo.save(found);
 
       return found.id;
     });

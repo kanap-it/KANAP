@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { randomBytes, createPublicKey, KeyObject } from 'crypto';
 import * as https from 'https';
+import { DirectoryProfile } from './entra-directory-sync.util';
 import { URL, URLSearchParams } from 'url';
 import { requireJwtSecret } from '../common/env';
 
@@ -39,13 +40,19 @@ type JwksResponse = {
   keys: Jwk[];
 };
 
-type GraphProfile = {
-  givenName?: string;
-  surname?: string;
-  jobTitle?: string;
-  mobilePhone?: string;
-  businessPhones?: string[];
-};
+type GraphProfile = DirectoryProfile;
+
+/** Fields KANAP reads from a Graph user. accountEnabled needs application permissions. */
+const GRAPH_ME_SELECT = 'id,givenName,surname,displayName,jobTitle,businessPhones,mobilePhone,department,companyName,preferredLanguage';
+const GRAPH_USERS_SELECT = `${GRAPH_ME_SELECT},accountEnabled`;
+
+/** HTTP failure from Microsoft endpoints, with the status kept for classification. */
+export class GraphAccessError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'GraphAccessError';
+  }
+}
 
 @Injectable()
 export class EntraAuthService {
@@ -86,7 +93,7 @@ export class EntraAuthService {
           res.on('end', () => {
             const body = Buffer.concat(chunks).toString('utf8');
             if (status < 200 || status >= 300) {
-              reject(new Error(`${label} request failed (${status})`));
+              reject(new GraphAccessError(`${label} request failed (${status})`, status));
               return;
             }
             try {
@@ -123,7 +130,7 @@ export class EntraAuthService {
             res.on('end', () => {
               const body = Buffer.concat(chunks).toString('utf8');
               if (status < 200 || status >= 300) {
-                reject(new Error(`${label} request failed (${status})`));
+                reject(new GraphAccessError(`${label} request failed (${status})`, status));
                 return;
               }
               try {
@@ -424,6 +431,121 @@ export class EntraAuthService {
     if (!accessToken) {
       throw new BadRequestException('Missing access token for Graph request');
     }
-    return this.fetchJsonWithAuth<GraphProfile>('https://graph.microsoft.com/v1.0/me', 'Graph /me', accessToken);
+    return this.fetchJsonWithAuth<GraphProfile>(
+      `https://graph.microsoft.com/v1.0/me?$select=${GRAPH_ME_SELECT}`,
+      'Graph /me',
+      accessToken,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Application-permission access (scheduled directory sync)
+  // ---------------------------------------------------------------------
+
+  private readonly appTokens = new Map<string, { token: string; expiresAt: number }>();
+
+  /**
+   * Client-credentials token for a customer directory. Requires the customer's
+   * Entra admin to have granted consent for the app's application permissions
+   * (User.Read.All); otherwise the token request or the Graph call fails and
+   * `isConsentError` classifies it.
+   */
+  async acquireAppToken(entraTenantId: string): Promise<string> {
+    const cached = this.appTokens.get(entraTenantId);
+    if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+
+    const clientId = this.getClientId();
+    const clientSecret = this.getClientSecret();
+    if (!clientId || !clientSecret) throw new Error('ENTRA_NOT_CONFIGURED');
+
+    const response = await this.postForm<{
+      access_token?: string;
+      expires_in?: number;
+      error?: string;
+      error_description?: string;
+    }>(
+      `https://login.microsoftonline.com/${encodeURIComponent(entraTenantId)}/oauth2/v2.0/token`,
+      {
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: 'https://graph.microsoft.com/.default',
+      },
+      'Entra app token',
+    );
+    if (!response?.access_token) {
+      throw new GraphAccessError(response?.error_description || response?.error || 'Entra app token missing', 401);
+    }
+    const ttlSec = Number(response.expires_in) > 0 ? Number(response.expires_in) : 3600;
+    this.appTokens.set(entraTenantId, { token: response.access_token, expiresAt: Date.now() + ttlSec * 1000 });
+    return response.access_token;
+  }
+
+  /**
+   * Drop a cached app token — needed right after admin consent (a token issued
+   * before the grant does not carry the new permission until it expires).
+   */
+  invalidateAppToken(entraTenantId: string): void {
+    this.appTokens.delete(entraTenantId);
+  }
+
+  /** Batch lookup by object id. Ids absent from the result are deleted in the directory. */
+  async fetchDirectoryUsers(accessToken: string, objectIds: string[]): Promise<DirectoryProfile[]> {
+    if (objectIds.length === 0) return [];
+    const filter = `id in (${objectIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`;
+    const url = `https://graph.microsoft.com/v1.0/users?$filter=${encodeURIComponent(filter)}&$select=${GRAPH_USERS_SELECT}`;
+    const response = await this.fetchJsonWithAuth<{ value?: DirectoryProfile[] }>(url, 'Graph users lookup', accessToken);
+    return Array.isArray(response?.value) ? response.value : [];
+  }
+
+  /**
+   * Unverified decode of the state parameter — used only to pick a sensible
+   * error redirect target after a failed callback. Never trust it for auth.
+   */
+  peekState(stateRaw: unknown): { mode?: string; tenantId?: string } | null {
+    if (typeof stateRaw !== 'string' || !stateRaw) return null;
+    try {
+      const decoded = jwt.decode(stateRaw);
+      return decoded && typeof decoded === 'object' ? (decoded as { mode?: string; tenantId?: string }) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Cheapest possible check that application permissions were consented:
+   * a token is issued even without consent, only Graph refuses (403).
+   */
+  async probeDirectoryAccess(accessToken: string): Promise<void> {
+    await this.fetchJsonWithAuth<{ value?: unknown[] }>(
+      'https://graph.microsoft.com/v1.0/users?$top=1&$select=id',
+      'Graph directory probe',
+      accessToken,
+    );
+  }
+
+  /** True when the failure means "admin consent for application permissions is missing". */
+  isConsentError(err: unknown): boolean {
+    const message = String((err as any)?.message ?? '');
+    if (err instanceof GraphAccessError && err.status === 403) return true;
+    return /AADSTS65001|AADSTS700016|AADSTS650057|Authorization_RequestDenied/i.test(message);
+  }
+
+  /**
+   * Microsoft admin-consent URL for the tenant. Lands back on the regular SSO
+   * callback with `state=consent:<kanapTenantId>` so no extra redirect URI
+   * needs registering.
+   */
+  buildAdminConsentUrl(entraTenantId: string, kanapTenantId: string): string | null {
+    const clientId = this.getClientId();
+    const redirectUri = this.getRedirectUri();
+    if (!clientId || !redirectUri) return null;
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state: `consent:${kanapTenantId}`,
+      scope: 'https://graph.microsoft.com/.default',
+    });
+    return `https://login.microsoftonline.com/${encodeURIComponent(entraTenantId)}/v2.0/adminconsent?${params.toString()}`;
   }
 }

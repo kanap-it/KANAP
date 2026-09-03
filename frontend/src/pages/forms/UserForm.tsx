@@ -10,6 +10,8 @@ import CompanySelect from '../../components/fields/CompanySelect';
 import DepartmentSelect from '../../components/fields/DepartmentSelect';
 import MultiRoleSelect from '../../components/fields/MultiRoleSelect';
 import StatusSwitch from '../../components/fields/StatusSwitch';
+import { useLocale } from '../../i18n/useLocale';
+import { formatShortDateTime } from '../../lib/dateFormat';
 
 const optStr = (schema = z.string()) =>
   z.preprocess((v) => {
@@ -80,6 +82,8 @@ export default function UserForm({
   managedByEntra?: boolean;
 }) {
   const { t } = useTranslation(['admin', 'validation']);
+  const locale = useLocale();
+  const syncedAt = (defaultValues as any)?.external_synced_at as string | null | undefined;
   const resolvedDefaults = useMemo(() => {
     const d: any = { ...(defaultValues ?? {}) };
     if (typeof d.status === 'string') d.status = d.status === 'enabled';
@@ -144,6 +148,7 @@ export default function UserForm({
         {managedByEntra && (
           <Typography variant="caption" color="text.secondary">
             {t('userForm.entraManagedHint')}
+            {syncedAt ? ` ${t('userForm.entraSyncedAt', { date: formatShortDateTime(syncedAt, locale) })}` : ''}
           </Typography>
         )}
         <TextField label={t('userForm.fields.email')} required {...register('email')} error={!!err.email} helperText={err.email?.message as string} autoComplete="email" InputLabelProps={{ shrink: true }} inputRef={emailRef} disabled={managedByEntra} />

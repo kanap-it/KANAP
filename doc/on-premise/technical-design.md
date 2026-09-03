@@ -235,6 +235,16 @@ Fail fast with a clear error if missing.
 | `portfolio-status-change-report.controller.ts` | 134 | Export base URL | Delegates to `resolveNotificationBaseUrl()` |
 | `feature-gates.ts` | 34 | `MultiTenantOnlyGuard` | Throws 404 when `SINGLE_TENANT` is true |
 
+#### Microsoft Entra (`Features.ENTRA_SSO`)
+
+Optional in both modes: true when `ENTRA_CLIENT_ID` is configured. Per-tenant activation lives on `tenants.sso_provider` / `sso_enabled`; everything below is inert for tenants without Entra.
+
+| File | Line | What | Behavior |
+|------|------|------|----------|
+| `entra-directory-sync.service.ts` | 57 | `entra-directory-sync` scheduled task (default daily 03:00) | Registered in both modes; handler (line 66) returns `skipped` when `ENTRA_SSO` is false, otherwise iterates active tenants with `sso_provider='entra'` under RLS. Tenants whose Entra admin has not granted application consent are reported `consent_required` and keep login-time enrichment only |
+| `admin-auth.controller.ts` | 58 | `POST /admin/auth/directory-sync` | 400 `SSO_NOT_CONFIGURED` when `ENTRA_SSO` is false |
+| `admin-auth.controller.ts` | 42 | `GET /admin/auth/settings` → `directory_sync` | `null` unless the tenant is connected to Entra and `ENTRA_SSO` is true |
+
 #### Billing (`Features.STRIPE_BILLING`)
 
 | File | Line | What | Behavior |

@@ -250,14 +250,29 @@
       "connected": "Connected",
       "disconnectedDescription": "Single sign-on is not connected for this workspace.",
       "tenantId": "Tenant ID",
-      "title": "Microsoft entra ID"
+      "title": "Microsoft Entra ID"
     },
     "messages": {
       "connectStartFailed": "Failed to start the connection flow.",
       "disconnectFailed": "Failed to disconnect single sign-on.",
-      "loadFailed": "Failed to load authentication settings."
+      "loadFailed": "Failed to load authentication settings.",
+      "setupSuccess": "Microsoft Entra ID is now connected to this workspace.",
+      "setupFailed": "Connecting Microsoft Entra ID failed: {{reason}}"
     },
-    "title": "Authentication"
+    "title": "Authentication",
+    "sync": {
+      "title": "Daily directory sync",
+      "description": "Every night, KANAP refreshes names, titles, phones, departments and companies from Microsoft Entra, and disables accounts that were removed or deactivated in the directory. This requires a one-time approval by a Microsoft Entra administrator.",
+      "consentNeeded": "Not authorized yet. A Microsoft Entra administrator must grant KANAP permission to read directory users.",
+      "grantAccess": "Grant access in Microsoft Entra",
+      "lastSynced": "Last synced {{date}} — {{synced}} accounts refreshed, {{disabled}} disabled.",
+      "error": "The last sync failed: {{message}}",
+      "syncNow": "Sync now",
+      "syncing": "Syncing…",
+      "consentSuccess": "Access granted. The first sync is running.",
+      "consentError": "Microsoft did not grant access. Ask a Microsoft Entra administrator to approve the request.",
+      "resultOk": "Sync complete: {{synced}} accounts refreshed, {{disabled}} disabled."
+    }
   },
   "billing": {
     "actions": {
@@ -957,7 +972,7 @@
     "title": "Tenants"
   },
   "userForm": {
-    "entraManagedHint": "This user is managed by Microsoft entra ID and cannot be edited here.",
+    "entraManagedHint": "This user is managed by Microsoft Entra ID. Directory fields cannot be edited here.",
     "fields": {
       "businessPhone": "Business phone",
       "companyOptional": "Company (optional)",
@@ -970,7 +985,8 @@
       "mobilePhone": "Mobile phone",
       "roles": "Roles",
       "rolesEmptyHint": "No roles: the user can sign in but has no access until a role is assigned."
-    }
+    },
+    "entraSyncedAt": "Last synced from Microsoft Entra: {{date}}"
   },
   "users": {
     "title": "Users",
@@ -1003,7 +1019,8 @@
       "created": "Created",
       "status": "Status",
       "accountType": "Account type",
-      "roles": "Roles"
+      "roles": "Roles",
+      "lastLogin": "Last sign-in"
     },
     "mfaValues": {
       "yes": "Yes",
@@ -1044,6 +1061,9 @@
       "invited": "Invited",
       "pending_access": "Pending access",
       "contact": "Contact"
+    },
+    "lastLogin": {
+      "never": "Never"
     }
   },
   "aiModels": {

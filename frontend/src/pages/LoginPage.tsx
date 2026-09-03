@@ -40,6 +40,16 @@ export default function LoginPage() {
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(() =>
     sessionExpired ? 'sessionExpired' : null
   );
+  const [ssoErrorMessage, setSsoErrorMessage] = useState<string | null>(() => {
+    const code = searchParams.get('ssoError');
+    if (!code) return null;
+    const map: Record<string, string> = {
+      ENTRA_EMAIL_UNVERIFIED: 'ssoEmailUnverified',
+      ENTRA_TENANT_MISMATCH: 'ssoTenantMismatch',
+      SSO_NOT_CONFIGURED: 'ssoNotConfigured',
+    };
+    return map[code] ?? 'ssoFailed';
+  });
   const { login } = useAuth();
   const { isPlatformHost } = useTenant();
   const { config } = useFeatures();
@@ -56,6 +66,7 @@ export default function LoginPage() {
     setError(null);
     setInfoMessage(null);
     setSessionExpiredMessage(null);
+    setSsoErrorMessage(null);
     try {
       const res = await api.post('/auth/login', { email: username, password });
       login(res.data as { access_token: string; expires_in: number; refresh_expires_in?: number });
@@ -135,6 +146,11 @@ export default function LoginPage() {
             {sessionExpiredMessage && (
               <Alert severity="warning" role="status">
                 {t(`auth:login.${sessionExpiredMessage}`)}
+              </Alert>
+            )}
+            {ssoErrorMessage && (
+              <Alert severity="error" role="alert">
+                {t(`auth:login.${ssoErrorMessage}`)}
               </Alert>
             )}
 

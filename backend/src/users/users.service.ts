@@ -343,7 +343,7 @@ export class UsersService {
     const repo = this.getRepo(opts?.manager);
     const { page, limit, skip, sort, status, q, filters } = parsePagination(query);
     const allowedSortFields = [
-      'email', 'first_name', 'last_name', 'job_title', 'status', 'created_at', 'updated_at'
+      'email', 'first_name', 'last_name', 'job_title', 'status', 'created_at', 'updated_at', 'last_login_at'
     ];
     const where: any = {};
     // 'invited' is a users-only lifecycle status, so the shared pagination
@@ -362,9 +362,14 @@ export class UsersService {
         { ...where, last_name: like },
       ];
     }
+    const sortField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
+    // "Never signed in" rows sort last in both directions instead of Postgres' NULLS-first-on-DESC.
+    const order = sortField === 'last_login_at'
+      ? { [sortField]: { direction: sort.direction as any, nulls: 'LAST' as const } }
+      : { [sortField]: sort.direction as any };
     const [items, total] = await repo.findAndCount({
       where: whereArr ?? where,
-      order: { [(allowedSortFields.includes(sort.field) ? sort.field : 'created_at')]: sort.direction as any },
+      order: order as any,
       skip,
       take: limit,
       relations: opts?.adminView ? ['role', 'company', 'department'] : [],
@@ -440,6 +445,11 @@ export class UsersService {
       where: { id },
       relations: ['role', 'company', 'department']
     });
+  }
+
+  /** Stamp last_login_at on session creation (not on refresh). Not audited: pure telemetry. */
+  async touchLastLogin(id: string, opts?: { manager?: EntityManager }) {
+    await this.getRepo(opts?.manager).update({ id } as any, { last_login_at: new Date() } as any);
   }
 
   async createUser(params: {
@@ -880,7 +890,11 @@ export class UsersService {
     return { ...saved, password_hash: undefined } as any;
   }
 
-  async disableUser(id: string, actorId?: string | null, opts?: { manager?: EntityManager }) {
+  async disableUser(
+    id: string,
+    actorId?: string | null,
+    opts?: { manager?: EntityManager; sourceRef?: string },
+  ) {
     const repo = this.getRepo(opts?.manager);
     const user = await repo.findOne({ where: { id } });
     if (!user) throw new BadRequestException('User not found');
@@ -893,7 +907,16 @@ export class UsersService {
     await (opts?.manager ?? repo.manager).getRepository(RefreshToken).delete({ user_id: id });
     if (this.audit) {
       await this.audit.log(
-        { table: 'users', recordId: saved.id, action: 'update', before, after: saved, userId: actorId ?? null },
+        {
+          table: 'users',
+          recordId: saved.id,
+          action: 'update',
+          before,
+          after: saved,
+          userId: actorId ?? null,
+          source: opts?.sourceRef ? 'system' : undefined,
+          sourceRef: opts?.sourceRef ?? null,
+        },
         { manager: opts?.manager ?? repo.manager },
       );
     }

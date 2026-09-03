@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { mergeScalarFields, resolveDirectoryNames } from '../entra-directory-sync.util';
 import { EntraController } from '../entra.controller';
 
 function createMockDataSource(repo: any) {
@@ -84,8 +85,16 @@ async function testHandleLoginCallbackRedirectsToTenantSessionHandoff() {
     } as any,
     {} as any,
     {} as any,
-    {} as any,
+    { touchLastLogin: async () => undefined } as any,
     dataSource as any,
+    { log: async () => undefined } as any,
+    { notifySsoUserProvisioned: async () => undefined } as any,
+    {
+      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
+        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
+        user.external_synced_at = new Date();
+      },
+    } as any,
   );
 
   await (controller as any).handleLoginCallback(
@@ -174,8 +183,16 @@ async function testCompleteLoginSessionSignsTokensOnTenantHost() {
         };
       },
     } as any,
-    {} as any,
+    { touchLastLogin: async () => undefined } as any,
     dataSource as any,
+    { log: async () => undefined } as any,
+    { notifySsoUserProvisioned: async () => undefined } as any,
+    {
+      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
+        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
+        user.external_synced_at = new Date();
+      },
+    } as any,
   );
 
   const result = await controller.completeLoginSession(
@@ -239,8 +256,16 @@ async function testStartSetupDoesNotSetNonceCookie() {
     } as any,
     {} as any,
     {} as any,
+    { touchLastLogin: async () => undefined } as any,
     {} as any,
-    {} as any,
+    { log: async () => undefined } as any,
+    { notifySsoUserProvisioned: async () => undefined } as any,
+    {
+      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
+        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
+        user.external_synced_at = new Date();
+      },
+    } as any,
   );
 
   const result = await controller.startSetup(
@@ -283,8 +308,16 @@ async function testStartLoginDoesNotSetNonceCookie() {
       }),
     } as any,
     {} as any,
+    { touchLastLogin: async () => undefined } as any,
     {} as any,
-    {} as any,
+    { log: async () => undefined } as any,
+    { notifySsoUserProvisioned: async () => undefined } as any,
+    {
+      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
+        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
+        user.external_synced_at = new Date();
+      },
+    } as any,
   );
 
   await controller.startLogin(

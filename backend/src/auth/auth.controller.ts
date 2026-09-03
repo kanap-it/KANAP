@@ -106,6 +106,7 @@ export class AuthController {
     if (!body?.email || !body?.password) throw new BadRequestException({ code: 'MISSING_CREDENTIALS', message: 'email and password are required' });
     const tokens = await this.runInRequestTenant(req, async (manager) => {
       const user = await this.auth.validateUser(body.email, body.password, manager);
+      await this.users.touchLastLogin(user.id, { manager });
       void this.fxIngestion.maybeRefreshOnLogin((user as any)?.tenant_id);
       return this.auth.signTokens(
         { id: user.id, email: user.email, role: user.role, tenant_id: (user as any)?.tenant_id },

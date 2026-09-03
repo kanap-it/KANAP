@@ -279,6 +279,11 @@ export default function UsersPage() {
     { field: 'job_title', headerName: t('users.columns.jobTitle'), width: 200, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'status', headerName: t('users.columns.status'), width: 150, filter: false, cellRenderer: UserStatusCell },
     {
+      field: 'last_login_at', headerName: t('users.columns.lastLogin'), width: 160, filter: false,
+      valueFormatter: (p: any) => (p.value ? formatShortDateTime(p.value as string, locale) : t('users.lastLogin.never')),
+      cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
+    },
+    {
       colId: 'roles', headerName: t('users.columns.roles'), width: 200, sortable: false, filter: false,
       valueGetter: (params) => {
         const names = Array.isArray(params.data?.roles) && params.data.roles.length > 0
