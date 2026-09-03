@@ -290,6 +290,8 @@ export class EntraController {
     );
 
     if (granted) {
+      // A token cached before the grant lacks the new permission.
+      if (tenant.entra_tenant_id) this.entra.invalidateAppToken(tenant.entra_tenant_id);
       // First sync right away so the settings page reflects the grant.
       this.directorySync.syncTenant(tenant.id).catch((err) =>
         this.logger.warn(`Directory sync after consent failed: ${err?.message || err}`),

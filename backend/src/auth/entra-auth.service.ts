@@ -481,6 +481,14 @@ export class EntraAuthService {
     return response.access_token;
   }
 
+  /**
+   * Drop a cached app token — needed right after admin consent (a token issued
+   * before the grant does not carry the new permission until it expires).
+   */
+  invalidateAppToken(entraTenantId: string): void {
+    this.appTokens.delete(entraTenantId);
+  }
+
   /** Batch lookup by object id. Ids absent from the result are deleted in the directory. */
   async fetchDirectoryUsers(accessToken: string, objectIds: string[]): Promise<DirectoryProfile[]> {
     if (objectIds.length === 0) return [];
@@ -502,6 +510,18 @@ export class EntraAuthService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Cheapest possible check that application permissions were consented:
+   * a token is issued even without consent, only Graph refuses (403).
+   */
+  async probeDirectoryAccess(accessToken: string): Promise<void> {
+    await this.fetchJsonWithAuth<{ value?: unknown[] }>(
+      'https://graph.microsoft.com/v1.0/users?$top=1&$select=id',
+      'Graph directory probe',
+      accessToken,
+    );
   }
 
   /** True when the failure means "admin consent for application permissions is missing". */

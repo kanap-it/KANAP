@@ -106,7 +106,12 @@ export class EntraDirectorySyncService implements OnModuleInit {
     let token: string;
     try {
       token = await this.entra.acquireAppToken(tenant.entra_tenant_id);
+      // A token is issued even without admin consent; only Graph tells the truth.
+      // Probe once so tenants with no linked users still report consent_required.
+      await this.entra.probeDirectoryAccess(token);
     } catch (err: any) {
+      // Never keep a token that Graph refused: the next run must re-acquire.
+      this.entra.invalidateAppToken(tenant.entra_tenant_id);
       result.status = this.entra.isConsentError(err) ? 'consent_required' : 'error';
       result.message = err?.message || String(err);
       await this.recordStatus(tenant, result);
@@ -147,6 +152,7 @@ export class EntraDirectorySyncService implements OnModuleInit {
         }
       });
     } catch (err: any) {
+      this.entra.invalidateAppToken(tenant.entra_tenant_id);
       result.status = this.entra.isConsentError(err) ? 'consent_required' : 'error';
       result.message = err?.message || String(err);
     }
