@@ -249,6 +249,19 @@ describe('buildTaskBreadcrumbs', () => {
     }]);
   });
 
+  it('shows the incident ref and title without an extra type prefix', () => {
+    const crumbs = buildTaskBreadcrumbs({
+      origin: { kind: 'tasks' },
+      parent: { type: 'incident', id: 'inc-1', name: 'INC-1 · Smoke test: mail outage' },
+      labels,
+    });
+    expect(crumbs[1]).toMatchObject({
+      key: 'parent',
+      label: 'INC-1 · Smoke test: mail outage',
+      href: '/it/incidents/inc-1/overview',
+    });
+  });
+
   it('adds a clickable project parent when opened from the task list', () => {
     const crumbs = buildTaskBreadcrumbs({
       origin: { kind: 'tasks' },

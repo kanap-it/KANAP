@@ -635,7 +635,7 @@ export class TasksUnifiedService {
         [id],
       );
       if (!row) return id;
-      return `INC-${row.item_number}: ${row.title}`;
+      return `INC-${row.item_number} · ${row.title}`;
     }
 
     return id;

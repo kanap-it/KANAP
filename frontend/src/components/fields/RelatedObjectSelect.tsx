@@ -49,8 +49,11 @@ export default function RelatedObjectSelect({
   const { t } = useTranslation('common');
   const [inputValue, setInputValue] = React.useState('');
 
-  // Fetch items based on selected type
-  const { data: items, isLoading } = useQuery({
+  // Fetch items based on selected type. `inputValue` is only updated on actual
+  // typing (`reason === 'input'`): Autocomplete also fires `reset` whenever the
+  // selected label is written into the field, and feeding that label back as `q`
+  // made incident options disappear (title vs `INC-N · title`) in a refetch loop.
+  const { data: items = [], isLoading } = useQuery({
     queryKey: ['related-object-search', relationType, inputValue],
     queryFn: async (): Promise<RelatedOption[]> => {
       if (!relationType) return [];
@@ -100,15 +103,20 @@ export default function RelatedObjectSelect({
     enabled: !!relationType,
   });
 
-  // Find selected item from items list
+  // Find selected item from items list. Always keep the current value in the
+  // options so Autocomplete does not drop it when a typed search omits it.
   const selectedItem = React.useMemo(() => {
     if (!relationId) return null;
-    if (items && items.length > 0) {
-      const match = items.find((i) => i.id === relationId);
-      if (match) return match;
-    }
-    return relationName ? { id: relationId, name: relationName } : null;
+    const match = items.find((i) => i.id === relationId);
+    if (match) return match;
+    return relationName ? { id: relationId, name: relationName } : { id: relationId, name: '' };
   }, [relationId, relationName, items]);
+
+  const options = React.useMemo(() => {
+    if (!selectedItem) return items;
+    if (items.some((item) => item.id === selectedItem.id)) return items;
+    return [selectedItem, ...items];
+  }, [items, selectedItem]);
 
   const handleTypeChange = (value: string) => {
     const newType = value === STANDALONE_VALUE || value === '' ? null : (value as RelatedObjectType);
@@ -144,10 +152,12 @@ export default function RelatedObjectSelect({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
           {!hideLabel && <FieldLabel>{itemLabel}</FieldLabel>}
           <Autocomplete
-          options={items || []}
+          options={options}
           value={selectedItem}
           onChange={handleItemChange}
-          onInputChange={(_, val) => setInputValue(val)}
+          onInputChange={(_, val, reason) => {
+            if (reason === 'input' || reason === 'clear') setInputValue(val);
+          }}
           getOptionLabel={(option) => option?.name || ''}
           isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderOption={(props, option) => (

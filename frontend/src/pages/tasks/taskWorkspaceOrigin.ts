@@ -246,7 +246,8 @@ export function formatParentLabel(
   parent: NonNullable<TaskParent>,
   typeLabel: (kind: RelatedKind) => string,
 ): string {
-  if (parent.type === 'project') return parent.name;
+  // Project and incident names already carry the business ref (PRJ-N / INC-N).
+  if (parent.type === 'project' || parent.type === 'incident') return parent.name;
   return `${typeLabel(parent.type)} · ${parent.name}`;
 }
 
