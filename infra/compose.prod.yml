@@ -1,9 +1,8 @@
-# Project-level env_file (Compose 2.24+): supplies values for ${VAR}
-# interpolation in this file (marketing build.args.PUBLIC_GA_ID, etc.).
-# It is not a substitute for service env_file on api, which still injects
-# the same file into the API container at runtime. Do not copy this file
-# into the marketing runtime container — Astro bakes PUBLIC_* at image build.
-env_file: ../backend/.env.prod
+# ${VAR} interpolation in this file (e.g. marketing build.args.PUBLIC_GA_ID)
+# comes from the Compose project env file passed on the command line:
+#   docker compose --env-file backend/.env.prod -f infra/compose.prod.yml ...
+# (a top-level env_file: key is not part of the Compose spec). The api
+# service still loads backend/.env.prod at runtime via its own env_file.
 
 services:
   api:
