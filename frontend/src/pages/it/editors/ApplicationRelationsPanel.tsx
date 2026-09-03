@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow, RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
 import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
+import IncidentRelationsSection from './IncidentRelationsSection';
 export type ApplicationRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -761,6 +762,8 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
           })}
         </Stack>
       </Stack>
+
+      <IncidentRelationsSection applicationId={id} />
       </Stack>
 
       <KanapDialog

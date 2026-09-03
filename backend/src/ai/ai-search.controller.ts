@@ -23,6 +23,7 @@ const PICKER_ENTITY_TYPES: AiSearchEntityType[] = [
   'contracts',
   'departments',
   'documents',
+  'incidents',
   'interfaces',
   'locations',
   'projects',

@@ -4,7 +4,7 @@ import {
   entityTaskListFiltersSearch,
 } from './entityTaskList';
 
-export type RelatedKind = 'project' | 'spend_item' | 'capex_item' | 'contract';
+export type RelatedKind = 'project' | 'spend_item' | 'capex_item' | 'contract' | 'incident';
 
 export type TaskOrigin =
   | { kind: 'tasks' }
@@ -35,6 +35,7 @@ export const ORIGIN_QUERY_KEYS = [
   'spendItemId',
   'capexItemId',
   'contractId',
+  'incidentId',
   'originTab',
   'phaseId',
   ...ENTITY_TASK_LIST_QUERY_KEYS,
@@ -56,12 +57,14 @@ export const PROJECT_ORIGIN_TABS = new Set([
 export const SPEND_ORIGIN_TABS = new Set(['overview', 'budget', 'allocations', 'relations']);
 export const CAPEX_ORIGIN_TABS = new Set(['overview', 'budget', 'allocations', 'relations']);
 export const CONTRACT_ORIGIN_TABS = new Set(['overview', 'details', 'relations', 'tasks']);
+export const INCIDENT_ORIGIN_TABS = new Set(['overview', 'journal', 'relations', 'documents', 'attachments']);
 
 const ORIGIN_TAB_SETS: Record<RelatedKind, Set<string>> = {
   project: PROJECT_ORIGIN_TABS,
   spend_item: SPEND_ORIGIN_TABS,
   capex_item: CAPEX_ORIGIN_TABS,
   contract: CONTRACT_ORIGIN_TABS,
+  incident: INCIDENT_ORIGIN_TABS,
 };
 
 const ORIGIN_TAB_DEFAULTS: Record<RelatedKind, string> = {
@@ -69,6 +72,7 @@ const ORIGIN_TAB_DEFAULTS: Record<RelatedKind, string> = {
   spend_item: 'overview',
   capex_item: 'overview',
   contract: 'tasks',
+  incident: 'relations',
 };
 
 const ORIGIN_ID_PARAMS: Record<RelatedKind, string> = {
@@ -76,6 +80,7 @@ const ORIGIN_ID_PARAMS: Record<RelatedKind, string> = {
   spend_item: 'spendItemId',
   capex_item: 'capexItemId',
   contract: 'contractId',
+  incident: 'incidentId',
 };
 
 const ORIGIN_PATH_TAB_PATTERNS: Record<RelatedKind, RegExp> = {
@@ -83,6 +88,7 @@ const ORIGIN_PATH_TAB_PATTERNS: Record<RelatedKind, RegExp> = {
   spend_item: /^\/ops\/opex\/[^/]+\/([^/?#]+)/,
   capex_item: /^\/ops\/capex\/[^/]+\/([^/?#]+)/,
   contract: /^\/ops\/contracts\/[^/]+\/([^/?#]+)/,
+  incident: /^\/it\/incidents\/[^/]+\/([^/?#]+)/,
 };
 
 export function sanitizeOriginTab(kind: RelatedKind, tab: string | null | undefined): string {
@@ -110,6 +116,11 @@ export function parseTaskOrigin(search: URLSearchParams): TaskOrigin {
   const contractId = search.get('contractId')?.trim();
   if (contractId) {
     return { kind: 'contract', id: contractId, tab: sanitizeOriginTab('contract', search.get('originTab')) };
+  }
+
+  const incidentId = search.get('incidentId')?.trim();
+  if (incidentId) {
+    return { kind: 'incident', id: incidentId, tab: sanitizeOriginTab('incident', search.get('originTab')) };
   }
 
   return { kind: 'tasks' };
@@ -153,6 +164,7 @@ export function buildOriginPath(origin: TaskOrigin, search: URLSearchParams): st
   const filterQs = entityTaskListFiltersSearch(search);
   if (origin.kind === 'spend_item') return `/ops/opex/${origin.id}/${tab}${filterQs ? `?${filterQs}` : ''}`;
   if (origin.kind === 'capex_item') return `/ops/capex/${origin.id}/${tab}${filterQs ? `?${filterQs}` : ''}`;
+  if (origin.kind === 'incident') return `/it/incidents/${origin.id}/${tab}${filterQs ? `?${filterQs}` : ''}`;
   return `/ops/contracts/${origin.id}/${tab}${filterQs ? `?${filterQs}` : ''}`;
 }
 
@@ -166,6 +178,8 @@ export function buildParentPath(type: RelatedKind, id: string): string {
       return `/ops/capex/${id}/overview`;
     case 'contract':
       return `/ops/contracts/${id}/overview`;
+    case 'incident':
+      return `/it/incidents/${id}/overview`;
   }
 }
 

@@ -68,7 +68,8 @@ export type RelationEntityType =
   | 'tasks'
   | 'locations'
   | 'connections'
-  | 'interfaces';
+  | 'interfaces'
+  | 'incidents';
 export type EntityDocumentListAccess = 'granted' | 'restricted';
 export type EntityDocumentListItem = {
   id: string;
@@ -557,6 +558,12 @@ const RELATION_TABLE_MAP: Record<
     idColumn: 'interface_id',
     targetTable: 'interfaces',
     label: 'interfaces',
+  },
+  incidents: {
+    table: 'document_incidents',
+    idColumn: 'incident_id',
+    targetTable: 'incidents',
+    label: 'incidents',
   },
 };
 
@@ -1156,6 +1163,7 @@ export class KnowledgeService {
     table:
       | 'applications'
       | 'assets'
+      | 'incidents'
       | 'portfolio_categories'
       | 'portfolio_projects'
       | 'portfolio_requests'
@@ -3194,6 +3202,35 @@ export class KnowledgeService {
           })),
         };
       }
+      case 'incidents': {
+        const params: any[] = [];
+        let where = `tenant_id = app_current_tenant()`;
+        if (q) {
+          params.push(`%${q}%`);
+          const textPos = params.length;
+          if (itemNumber != null) {
+            params.push(itemNumber);
+            where += ` AND (title ILIKE $${textPos} OR item_number = $${params.length})`;
+          } else {
+            where += ` AND title ILIKE $${textPos}`;
+          }
+        }
+        params.push(limit);
+        const rows = await manager.query(
+          `SELECT id, title, item_number
+           FROM incidents
+           WHERE ${where}
+           ORDER BY (status IN ('closed', 'cancelled')) ASC, detected_at DESC
+           LIMIT $${params.length}`,
+          params,
+        );
+        return {
+          items: rows.map((row: any) => ({
+            id: row.id,
+            label: `INC-${row.item_number} · ${row.title}`,
+          })),
+        };
+      }
       default:
         throw new BadRequestException('Unsupported relation entity');
     }
@@ -3352,6 +3389,10 @@ export class KnowledgeService {
            FROM document_interfaces di
            JOIN interfaces i ON i.id = di.interface_id AND i.tenant_id = di.tenant_id
            WHERE di.document_id = $1 ORDER BY di.created_at ASC`, [id]),
+        manager.query(
+          `SELECT dinc.incident_id, inc.title, inc.item_number FROM document_incidents dinc
+           JOIN incidents inc ON inc.id = dinc.incident_id AND inc.tenant_id = dinc.tenant_id
+           WHERE dinc.document_id = $1 ORDER BY dinc.created_at ASC`, [id]),
       ]),
       manager.query(
         `SELECT r.id,
@@ -3396,6 +3437,7 @@ export class KnowledgeService {
           id: row.interface_id,
           name: [row.interface_reference || row.interface_code, row.name].filter(Boolean).join(' - ') || row.name || row.interface_id,
         })),
+        incidents: relations[6].map((row: any) => ({ id: row.incident_id, name: `INC-${row.item_number} · ${row.title}` })),
       },
       incoming_references: incomingReferences,
       attachments,
@@ -5920,7 +5962,9 @@ export class KnowledgeService {
         ? 'REQ'
         : entityType === 'projects'
           ? 'PRJ'
-          : null;
+          : entityType === 'incidents'
+            ? 'INC'
+            : null;
     return prefix ? `${prefix}-${Number(itemNumber)}` : null;
   }
 
@@ -6408,12 +6452,21 @@ export class KnowledgeService {
   }
 
   private async getDirectKnowledgeContextGroupDefinitions(
-    entityType: 'tasks' | 'locations' | 'connections' | 'interfaces',
+    entityType: 'tasks' | 'locations' | 'connections' | 'interfaces' | 'incidents',
     entityId: string,
     manager: EntityManager,
   ): Promise<EntityKnowledgeContextGroupDefinition[]> {
     const sourceRows =
-      entityType === 'locations'
+      entityType === 'incidents'
+        ? await manager.query<KnowledgeContextSourceRow[]>(
+            `SELECT i.id AS entity_id, i.item_number, i.title AS name, i.status
+             FROM incidents i
+             WHERE i.id = $1
+               AND i.tenant_id = app_current_tenant()
+             LIMIT 1`,
+            [entityId],
+          )
+      : entityType === 'locations'
         ? await manager.query<KnowledgeContextSourceRow[]>(
             `SELECT l.id AS entity_id,
                     NULL::int AS item_number,

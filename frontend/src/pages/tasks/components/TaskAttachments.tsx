@@ -27,6 +27,8 @@ interface TaskAttachmentsProps {
   onUpload: (file: File) => Promise<void>;
   onDelete: (attachmentId: string) => Promise<void>;
   canManage: boolean;
+  /** API base path of the owning entity; only the download URL depends on it. */
+  basePath?: string;
 }
 
 export default function TaskAttachments({
@@ -34,6 +36,7 @@ export default function TaskAttachments({
   onUpload,
   onDelete,
   canManage,
+  basePath = '/tasks',
 }: TaskAttachmentsProps) {
   const { t } = useTranslation('portfolio');
   const [hover, setHover] = React.useState(false);
@@ -81,7 +84,7 @@ export default function TaskAttachments({
 
   const handleDownload = async (attachment: TaskAttachment) => {
     try {
-      const res = await api.get(`/tasks/attachments/${attachment.id}`, {
+      const res = await api.get(`${basePath}/attachments/${attachment.id}`, {
         responseType: 'blob',
       });
       const blob = new Blob([res.data]);

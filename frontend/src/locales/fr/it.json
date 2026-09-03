@@ -1,5 +1,33 @@
 {
   "pages": {
+    "incidents": {
+      "title": "Registre des incidents",
+      "newIncident": "Nouvel incident",
+      "importCsv": "Importer CSV",
+      "exportCsv": "Exporter CSV",
+      "importTitle": "Importer les incidents",
+      "exportTitle": "Exporter les incidents",
+      "columns": {
+        "reference": "Réf.",
+        "title": "Titre",
+        "category": "Catégorie",
+        "severity": "Gravité",
+        "status": "Statut",
+        "detected": "Détecté",
+        "resolved": "Résolu",
+        "closed": "Clôturé",
+        "owner": "Responsable",
+        "assets": "Actifs",
+        "applications": "Applications",
+        "tasks": "Tâches",
+        "created": "Créé"
+      },
+      "filters": {
+        "noCategory": "(Aucune catégorie)",
+        "noOwner": "(Aucun responsable)",
+        "blank": "(Vide)"
+      }
+    },
     "applications": {
       "title": "Applications",
       "newAppService": "Nouvelle application / Service",
@@ -172,11 +200,137 @@
         "appsInterfaces": {
           "title": "Applications, services et interfaces",
           "subtitle": "Listes utilisées pour les applications, les instances d'application, les interfaces et les liaisons."
+        },
+        "incidents": {
+          "title": "Incidents",
+          "subtitle": "Listes utilisées par le registre des incidents."
         }
       }
     }
   },
   "workspace": {
+    "incident": {
+      "title": "Incident",
+      "newTitle": "Nouvel incident",
+      "untitled": "Incident sans titre",
+      "backLabel": "Registre des incidents",
+      "previous": "Incident précédent",
+      "next": "Incident suivant",
+      "tabs": {
+        "overview": "Vue d'ensemble",
+        "journal": "Journal",
+        "relations": "Relations",
+        "documents": "Documents",
+        "attachments": "Pièces jointes"
+      },
+      "actions": {
+        "changeStatus": "Changer le statut",
+        "useReopen": "Utilisez Rouvrir",
+        "reopen": "Rouvrir",
+        "cancel": "Annuler l'incident"
+      },
+      "dialogs": {
+        "reopenTitle": "Rouvrir l'incident",
+        "reopenMessage": "L'incident repasse au statut En cours. La raison est enregistrée dans le journal.",
+        "reopenPlaceholder": "ex. le problème est réapparu après le correctif",
+        "reopenConfirm": "Rouvrir",
+        "cancelTitle": "Annuler l'incident",
+        "cancelMessage": "L'enregistrement conserve son numéro et est marqué comme annulé. La raison est enregistrée dans le journal.",
+        "cancelPlaceholder": "ex. saisi deux fois, voir INC-12",
+        "cancelConfirm": "Annuler l'incident"
+      },
+      "metadata": {
+        "status": "Statut",
+        "severity": "Gravité",
+        "owner": "Responsable",
+        "ownerMissing": "Responsable manquant",
+        "detected": "Détecté",
+        "duration": "Durée"
+      },
+      "duration": {
+        "days": "{{count}} j",
+        "hours": "{{count}} h",
+        "minutes": "{{count}} min"
+      },
+      "create": {
+        "title": "Titre",
+        "titlePlaceholder": "ex. service de messagerie indisponible sur le site de Lyon",
+        "description": "Description",
+        "titleRequired": "Le titre est obligatoire.",
+        "severityRequired": "La gravité est obligatoire.",
+        "detectedRequired": "La date de détection est obligatoire."
+      },
+      "overview": {
+        "description": "Description",
+        "descriptionPlaceholder": "Ce qui s'est passé, tel qu'observé",
+        "impact": "Impact",
+        "impactPlaceholder": "Services, sites et utilisateurs affectés",
+        "rootCause": "Cause racine",
+        "rootCausePlaceholder": "Pourquoi cela s'est produit",
+        "correctiveActions": "Actions correctives",
+        "correctiveActionsPlaceholder": "Ce qui a été fait pour corriger et prévenir ; suivez les actions de suivi sous forme de tâches liées",
+        "lessonsLearned": "Retour d'expérience",
+        "lessonsLearnedPlaceholder": "Ce qu'il faut retenir de cet incident",
+        "closedBanner": "Clôturé le {{date}}. Rouvrez-le pour le modifier.",
+        "cancelledBanner": "Annulé le {{date}}. Rouvrez-le pour le modifier."
+      },
+      "journal": {
+        "placeholder": "Ajouter une note au journal",
+        "add": "Ajouter",
+        "empty": "Aucune entrée pour l'instant.",
+        "systemAuthor": "Système",
+        "unknownAuthor": "Inconnu",
+        "kinds": {
+          "status_change": "Changement de statut",
+          "severity_change": "Changement de gravité",
+          "reopen": "Rouvert",
+          "link_change": "Liens mis à jour",
+          "system": "Système"
+        },
+        "fields": {
+          "status": "Statut",
+          "severity": "Gravité"
+        }
+      },
+      "relations": {
+        "assets": "Actifs",
+        "assetsPlaceholder": "Rechercher des actifs",
+        "applications": "Applications",
+        "applicationsPlaceholder": "Rechercher des applications"
+      },
+      "drawer": {
+        "category": "Catégorie",
+        "noCategory": "Aucune catégorie",
+        "severity": "Gravité",
+        "selectSeverity": "Sélectionnez une gravité",
+        "status": "Statut",
+        "started": "Début",
+        "detected": "Détecté",
+        "resolved": "Résolu",
+        "closed": "Clôturé",
+        "reporter": "Déclarant",
+        "owner": "Responsable",
+        "sourceRef": "Référence externe",
+        "sourceRefHint": "Numéro de ticket, identifiant d'alerte ou référence de message où cet incident a été signalé pour la première fois",
+        "sourceRefPlaceholder": "ex. ticket #4821",
+        "personalData": "Données personnelles concernées",
+        "authorityRequired": "Notification aux autorités requise",
+        "notifiedOn": "Notifié le",
+        "notifiedParties": "Parties informées",
+        "notifiedPartiesPlaceholder": "ex. régulateur, assureur, clients concernés",
+        "created": "Créé",
+        "updated": "Mis à jour",
+        "notSet": "Non défini"
+      },
+      "messages": {
+        "loadFailed": "Échec du chargement de l'incident",
+        "saveFailed": "Échec de l'enregistrement de l'incident",
+        "createFailed": "Échec de la création de l'incident",
+        "entryFailed": "Échec de l'ajout de l'entrée de journal",
+        "relationsFailed": "Échec de l'enregistrement des liens",
+        "attachmentsFailed": "Échec de la mise à jour des pièces jointes"
+      }
+    },
     "application": {
       "title": "Application / Service",
       "newTitle": "Nouvelle application / Service",
@@ -484,6 +638,18 @@
     }
   },
   "components": {
+    "incidentRelations": {
+      "title": "Incidents",
+      "columns": {
+        "reference": "Réf.",
+        "title": "Titre",
+        "severity": "Gravité",
+        "status": "Statut",
+        "detected": "Détecté"
+      },
+      "empty": "Aucun incident lié pour l'instant. Les incidents se lient depuis l'incident lui-même.",
+      "loadFailed": "Impossible de charger les incidents."
+    },
     "instances": {
       "title": "Instances",
       "description": "Gérez les environnements de déploiement et les détails d'accès.",
@@ -572,6 +738,19 @@
     }
   },
   "enums": {
+    "incidentSeverity": {
+      "critical": "Critique",
+      "major": "Majeure",
+      "minor": "Mineure",
+      "low": "Faible"
+    },
+    "incidentStatus": {
+      "open": "Ouvert",
+      "in_progress": "En cours",
+      "resolved": "Résolu",
+      "closed": "Clôturé",
+      "cancelled": "Annulé"
+    },
     "topology": {
       "serverToServer": "Serveur à serveur",
       "multiServer": "Multi-serveur"

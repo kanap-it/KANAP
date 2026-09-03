@@ -75,6 +75,7 @@ export type ItOpsSettings = {
   domains: DomainOption[];
   ipAddressTypes: ItOpsEnumOption[];
   accessMethods: ItOpsEnumOption[];
+  incidentCategories: ItOpsEnumOption[];
 };
 
 export async function fetchItOpsSettings(): Promise<ItOpsSettings> {

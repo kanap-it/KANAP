@@ -30,6 +30,12 @@
       },
       "title": "Bibliothek erstellen"
     },
+    "deleteLibrary": {
+      "actions": {
+        "confirm": "Bibliothek löschen"
+      },
+      "title": "Bibliothek löschen"
+    },
     "editLibrary": {
       "fields": {
         "accessMode": "Zugriffsmodus",
@@ -55,6 +61,12 @@
     },
     "manageTypes": {
       "title": "Dokumenttypen verwalten"
+    },
+    "resetLibraryAccess": {
+      "actions": {
+        "confirm": "Zugriffsliste leeren"
+      },
+      "title": "Eingeschränkten Zugriff aufheben"
     },
     "selectTemplate": {
       "actions": {
@@ -96,11 +108,12 @@
       "rootActions": "Ordneraktionen"
     },
     "confirmations": {
-      "deleteFolder": "Diesen Ordner löschen? Dokumente werden nach Nicht abgelegt verschoben. Ordner mit Unterordnern können nicht gelöscht werden."
+      "deleteFolder": "\"{{name}}\" löschen? Dokumente werden nach Nicht abgelegt verschoben. Ordner mit Unterordnern können nicht gelöscht werden."
     },
     "dialogs": {
       "createFolderTitle": "Ordner erstellen",
-      "createSubfolderTitle": "Unterordner erstellen"
+      "createSubfolderTitle": "Unterordner erstellen",
+      "deleteFolderTitle": "Ordner löschen"
     },
     "fields": {
       "folderName": "Ordnername",
@@ -242,7 +255,8 @@
         "assets": "Assets",
         "projects": "Projekte",
         "requests": "Anfragen",
-        "tasks": "Aufgaben"
+        "tasks": "Aufgaben",
+        "incidents": "Vorfälle"
       },
       "messages": {
         "saveFirst": "Zuerst speichern, um Verknüpfungen zu erstellen."
@@ -348,6 +362,11 @@
     },
     "create": {
       "title": "Typ erstellen"
+    },
+    "dialogs": {
+      "delete": {
+        "title": "Dokumenttyp löschen"
+      }
     },
     "empty": "Noch keine Dokumenttypen.",
     "fields": {

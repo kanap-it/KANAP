@@ -12,11 +12,12 @@ import {
 
 const labels = {
   tasks: 'Tasks',
-  typeLabel: (kind: 'project' | 'spend_item' | 'capex_item' | 'contract') => ({
+  typeLabel: (kind: 'project' | 'spend_item' | 'capex_item' | 'contract' | 'incident') => ({
     project: 'Project',
     spend_item: 'OPEX',
     capex_item: 'CAPEX',
     contract: 'Contract',
+    incident: 'Incident',
   }[kind]),
 };
 
@@ -59,6 +60,22 @@ describe('parseTaskOrigin', () => {
       id: 'ct-1',
       tab: 'tasks',
     });
+  });
+
+  it('reads incident ids by business ref and defaults to the relations tab', () => {
+    expect(parseTaskOrigin(new URLSearchParams('incidentId=INC-12&originTab=journal'))).toEqual({
+      kind: 'incident',
+      id: 'INC-12',
+      tab: 'journal',
+    });
+    expect(parseTaskOrigin(new URLSearchParams('incidentId=INC-12&originTab=tasks'))).toEqual({
+      kind: 'incident',
+      id: 'INC-12',
+      tab: 'relations',
+    });
+    expect(buildOriginPath({ kind: 'incident', id: 'INC-12', tab: 'journal' }, new URLSearchParams()))
+      .toBe('/it/incidents/INC-12/journal');
+    expect(buildParentPath('incident', 'INC-12')).toBe('/it/incidents/INC-12/overview');
   });
 
   it('prefers projectId when multiple origin ids are present', () => {

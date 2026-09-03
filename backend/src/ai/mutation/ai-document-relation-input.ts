@@ -73,6 +73,12 @@ const RELATION_FIELD_CONFIG: Record<RelationEntityType, RelationFieldConfig> = {
     inputHint: 'Interface reference or exact interface name. Use an array to link multiple interfaces.',
     removalHint: 'Interface reference or exact interface name. Use an array to remove multiple linked interfaces.',
   },
+  incidents: {
+    singular: 'incident',
+    label: 'Linked Incidents',
+    inputHint: 'Incident reference such as INC-12 or an exact incident title. Use an array to link multiple incidents.',
+    removalHint: 'Incident reference such as INC-12 or an exact incident title. Use an array to remove multiple linked incidents.',
+  },
 };
 
 export type AiDocumentRelationInput = Partial<Record<RelationEntityType, string[]>>;

@@ -42,6 +42,7 @@ const ENTITY_TASKS_ENDPOINTS: Record<RelatedKind, (id: string) => string> = {
   spend_item: (id) => `/spend-items/${id}/tasks`,
   capex_item: (id) => `/capex-items/${id}/tasks`,
   contract: (id) => `/contracts/${id}/tasks`,
+  incident: (id) => `/incidents/${id}/tasks`,
 };
 
 export function entityTasksQueryKey(kind: RelatedKind, id: string): [string, string] {

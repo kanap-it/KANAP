@@ -11,6 +11,16 @@ export type ItOpsEnumOption = {
   category?: string;
 };
 
+/** Incident register categories served to tenants that never customised the list (also used by the CSV import). */
+export const DEFAULT_INCIDENT_CATEGORIES: ItOpsEnumOption[] = [
+  { code: 'infrastructure', label: 'Infrastructure' },
+  { code: 'security', label: 'Security' },
+  { code: 'application', label: 'Application' },
+  { code: 'data', label: 'Data' },
+  { code: 'supplier', label: 'Supplier' },
+  { code: 'other', label: 'Other' },
+];
+
 export type OperatingSystemOption = ItOpsEnumOption & {
   standardSupportEnd?: string; // YYYY-MM-DD
   extendedSupportEnd?: string; // YYYY-MM-DD
@@ -74,6 +84,7 @@ export type ItOpsSettings = {
   ipAddressTypes: ItOpsEnumOption[];
   accessMethods: ItOpsEnumOption[];
   pathHopFunctions: ItOpsEnumOption[];
+  incidentCategories: ItOpsEnumOption[];
 };
 
 type ItOpsMetadataShape = {
@@ -99,6 +110,7 @@ type ItOpsMetadataShape = {
   ip_address_types?: ItOpsEnumOption[];
   access_methods?: ItOpsEnumOption[];
   path_hop_functions?: ItOpsEnumOption[];
+  incident_categories?: ItOpsEnumOption[];
 };
 
 @Injectable()
@@ -399,6 +411,8 @@ export class ItOpsSettingsService {
     { code: 'cdn_edge', label: 'CDN edge' },
     { code: 'service_mesh', label: 'Service mesh proxy' },
   ];
+
+  private readonly defaultIncidentCategories: ItOpsEnumOption[] = DEFAULT_INCIDENT_CATEGORIES;
 
   private readonly lockedDomainCodes = new Set(['workgroup', 'n-a']);
 
@@ -889,6 +903,7 @@ export class ItOpsSettingsService {
       (raw as any).path_hop_functions,
       this.defaultPathHopFunctions,
     );
+    const incidentCategories = this.normalizeList(raw.incident_categories, this.defaultIncidentCategories);
     return {
       applicationCategories,
       dataClasses,
@@ -912,6 +927,7 @@ export class ItOpsSettingsService {
       ipAddressTypes,
       accessMethods,
       pathHopFunctions,
+      incidentCategories,
     };
   }
 
@@ -1122,6 +1138,9 @@ export class ItOpsSettingsService {
     if (patch.pathHopFunctions) {
       next.pathHopFunctions = this.normalizeList(patch.pathHopFunctions, this.defaultPathHopFunctions);
     }
+    if (patch.incidentCategories) {
+      next.incidentCategories = this.normalizeList(patch.incidentCategories, this.defaultIncidentCategories);
+    }
 
     const meta: any = tenant.metadata || {};
     const itOps: any = {
@@ -1147,6 +1166,7 @@ export class ItOpsSettingsService {
       ip_address_types: next.ipAddressTypes,
       access_methods: next.accessMethods,
       path_hop_functions: next.pathHopFunctions,
+      incident_categories: next.incidentCategories,
     };
     meta.it_ops = itOps;
     tenant.metadata = meta;

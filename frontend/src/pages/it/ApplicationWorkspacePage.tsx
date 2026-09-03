@@ -47,6 +47,7 @@ import ApplicationRelationsPanel from './editors/ApplicationRelationsPanel';
 import ApplicationCreateEditor, { type ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
 import CreateVersionDialog from './components/CreateVersionDialog';
 import { formatShortDate } from '../../lib/dateFormat';
+import { fetchApplicationIncidentsCount } from '../../utils/workspaceTabCounts';
 import { useLocale } from '../../i18n/useLocale';
 
 type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
@@ -1250,6 +1251,11 @@ export default function ApplicationWorkspacePage() {
     },
     enabled: !isCreate && !!app?.id,
   });
+  const incidentsCountQuery = useQuery({
+    queryKey: ['application-workspace-incidents-count', app?.id],
+    queryFn: () => fetchApplicationIncidentsCount(app!.id),
+    enabled: !isCreate && !!app?.id,
+  });
 
   const connections = React.useMemo(
     () => app ? computeConnections(app, interfacesQuery.data || []) : { type: 'none' } as ConnectionsResult,
@@ -1363,7 +1369,8 @@ export default function ApplicationWorkspacePage() {
   const deployments = app?.deployments || app?.instances || [];
   const deploymentCount = deployments.length;
   const interfaceCount = interfacesQuery.data?.length || 0;
-  const relationCount = relationsCountQuery.data?.total ?? ((app?.links?.length || 0) + (app?.attachments?.length || 0));
+  const relationCount = (relationsCountQuery.data?.total ?? ((app?.links?.length || 0) + (app?.attachments?.length || 0)))
+    + (incidentsCountQuery.data || 0);
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'deployments', label: 'Deployments', badge: deploymentCount, disabled: isCreate },

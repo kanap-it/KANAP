@@ -355,3 +355,14 @@ export function useInterfaceItemNav(params: ModuleItemNavParams): ModuleItemNavR
     defaultSort: 'interface_reference:ASC',
   });
 }
+
+/**
+ * Incident item navigation
+ */
+export function useIncidentItemNav(params: ModuleItemNavParams): ModuleItemNavResult {
+  return useModuleItemNav(params, {
+    endpoint: '/incidents/ids',
+    queryKey: 'incidents-ids',
+    defaultSort: 'detected_at:DESC',
+  });
+}

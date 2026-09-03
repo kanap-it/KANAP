@@ -17,6 +17,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import TaskIcon from '@mui/icons-material/Task';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useRecentlyViewed, ENTITY_TYPE_CONFIG, RecentEntityType } from '../hooks/useRecentlyViewed';
 import { useAuth } from '../../../auth/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +39,7 @@ const ICON_COMPONENTS: Record<string, typeof FolderOpenIcon> = {
   Task: TaskIcon,
   Receipt: ReceiptIcon,
   AccountBalance: AccountBalanceIcon,
+  ReportProblem: ReportProblemIcon,
 };
 
 export default function RecentlyViewedTile({ config }: RecentlyViewedTileProps) {

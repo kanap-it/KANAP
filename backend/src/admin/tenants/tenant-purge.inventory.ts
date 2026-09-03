@@ -4,6 +4,13 @@ export const TENANT_PURGE_TABLES = [
   // Denormalized AI search index first: row triggers on the source tables
   // below would otherwise delete these rows one by one.
   'search_index',
+  // Incident register: children first; before documents, assets, applications and users
+  'incident_entries',
+  'incident_assets',
+  'incident_applications',
+  'document_incidents',
+  'incident_attachments',
+  'incidents',
   // Portfolio: purge in FK order (children before parents)
   'portfolio_project_time_entries',
   'portfolio_project_milestones',
@@ -233,6 +240,7 @@ export const TENANT_PURGE_ATTACHMENT_TABLES = [
   'interface_attachments',
   'document_attachments',
   'asset_attachments',
+  'incident_attachments',
   'ai_message_attachments',
 ] as const;
 

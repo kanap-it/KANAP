@@ -255,7 +255,8 @@
         "assets": "Assets",
         "projects": "Projects",
         "requests": "Requests",
-        "tasks": "Tasks"
+        "tasks": "Tasks",
+        "incidents": "Incidents"
       },
       "messages": {
         "saveFirst": "Save first to create relations."

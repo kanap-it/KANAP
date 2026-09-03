@@ -91,7 +91,7 @@ interface TaskData {
   asset_ids: string[];
   applications?: Array<{ id: string; name?: string | null; sequential_id?: string | null }>;
   assets?: Array<{ id: string; name?: string | null; asset_reference?: string | null; hostname?: string | null }>;
-  related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
+  related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident' | null;
   related_object_id: string | null;
   related_object_name: string | null;
   phase_id: string | null;
@@ -129,11 +129,22 @@ async function fetchRelatedObjectName(kind: RelatedKind, id: string): Promise<st
       const res = await api.get<{ name?: string | null }>(`/contracts/${id}`);
       return res.data?.name?.trim() || null;
     }
+    case 'incident': {
+      const res = await api.get<{ item_number?: number | null; title?: string | null }>(`/incidents/${id}`);
+      return formatIncidentName(res.data?.item_number, res.data?.title);
+    }
   }
 }
 
+// Same shape as the backend's related_object_name for incident tasks ("INC-12: title").
+function formatIncidentName(itemNumber: number | null | undefined, title: string | null | undefined): string | null {
+  const name = (title || '').trim();
+  if (!itemNumber || !name) return name || null;
+  return `INC-${itemNumber}: ${name}`;
+}
+
 function relatedKindFromType(type: TaskData['related_object_type']): RelatedKind | null {
-  if (type === 'project' || type === 'spend_item' || type === 'capex_item' || type === 'contract') return type;
+  if (type === 'project' || type === 'spend_item' || type === 'capex_item' || type === 'contract' || type === 'incident') return type;
   return null;
 }
 
@@ -181,6 +192,7 @@ export default function TaskWorkspacePage() {
   const createSpendItemId = cleanedSearchParams.get('spendItemId');
   const createCapexItemId = cleanedSearchParams.get('capexItemId');
   const createContractId = cleanedSearchParams.get('contractId');
+  const createIncidentId = cleanedSearchParams.get('incidentId');
   const createPhaseId = cleanedSearchParams.get('phaseId');
   const originPath = React.useMemo(
     () => buildOriginPath(origin, cleanedSearchParams),
@@ -628,6 +640,7 @@ export default function TaskWorkspacePage() {
       spendItemId: createSpendItemId || '',
       capexItemId: createCapexItemId || '',
       contractId: createContractId || '',
+      incidentId: createIncidentId || '',
       phaseId: createPhaseId || '',
     });
   }, [
@@ -637,6 +650,7 @@ export default function TaskWorkspacePage() {
     createSpendItemId,
     createCapexItemId,
     createContractId,
+    createIncidentId,
     createPhaseId,
   ]);
 
@@ -672,6 +686,8 @@ export default function TaskWorkspacePage() {
       seedRelation = { type: 'capex_item', id: createCapexItemId, name: t('portfolio:context.capex_item') };
     } else if (createContractId) {
       seedRelation = { type: 'contract', id: createContractId, name: t('portfolio:context.contract') };
+    } else if (createIncidentId) {
+      seedRelation = { type: 'incident', id: createIncidentId, name: t('portfolio:context.incident') };
     }
     setCreateRelation(seedRelation);
     setCreateSaving(false);
@@ -719,6 +735,10 @@ export default function TaskWorkspacePage() {
       api.get<{ id: string; name: string }>(`/contracts/${createContractId}`)
         .then((res) => enrichName('contract', res.data.name))
         .catch(() => {});
+    } else if (createIncidentId) {
+      api.get<{ id: string; item_number: number; title: string }>(`/incidents/${createIncidentId}`)
+        .then((res) => enrichName('incident', formatIncidentName(res.data.item_number, res.data.title)))
+        .catch(() => {});
     }
 
     finishInitialization();
@@ -733,6 +753,7 @@ export default function TaskWorkspacePage() {
     createSpendItemId,
     createCapexItemId,
     createContractId,
+    createIncidentId,
     createPhaseId,
     resetClassificationTouched,
     t,
@@ -1323,6 +1344,9 @@ export default function TaskWorkspacePage() {
             break;
           case 'capex_item':
             endpoint = `/capex-items/${createRelation.id}/tasks`;
+            break;
+          case 'incident':
+            endpoint = `/incidents/${createRelation.id}/tasks`;
             break;
           default:
             throw new Error(t('portfolio:workspace.task.messages.invalidRelationType'));

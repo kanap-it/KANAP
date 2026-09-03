@@ -138,10 +138,11 @@ type EnumListId =
   | 'interfaceFormats'
   | 'interfaceAuthModes'
   | 'ipAddressTypes'
-  | 'accessMethods';
+  | 'accessMethods'
+  | 'incidentCategories';
 
 type ListId = EnumListId | 'operatingSystems' | 'connectionTypes' | 'subnets' | 'domains';
-type GroupId = 'locations' | 'serversConnections' | 'appsInterfaces';
+type GroupId = 'locations' | 'serversConnections' | 'appsInterfaces' | 'incidents';
 
 // ============================================================================
 // Constants
@@ -151,13 +152,14 @@ const enumListIds: EnumListId[] = [
   'applicationCategories', 'dataClasses', 'networkSegments', 'entities', 'serverKinds',
   'serverProviders', 'serverRoles', 'hostingTypes', 'lifecycleStates', 'interfaceProtocols',
   'interfaceDataCategories', 'interfaceTriggerTypes', 'interfacePatterns', 'interfaceFormats',
-  'interfaceAuthModes', 'ipAddressTypes', 'accessMethods',
+  'interfaceAuthModes', 'ipAddressTypes', 'accessMethods', 'incidentCategories',
 ];
 
 const listGroups: { id: GroupId; title: string; subtitle: string }[] = [
   { id: 'locations', title: 'Locations', subtitle: 'Lists used when creating or editing Locations.' },
   { id: 'serversConnections', title: 'Servers & Connections', subtitle: 'Lists used for Servers, Connections, and related risk/endpoint data.' },
   { id: 'appsInterfaces', title: 'Apps, Services & Interfaces', subtitle: 'Lists used across applications, app instances, interfaces, and bindings.' },
+  { id: 'incidents', title: 'Incidents', subtitle: 'Lists used by the incident register.' },
 ];
 
 const listUsage: Record<ListId, string> = {
@@ -182,6 +184,7 @@ const listUsage: Record<ListId, string> = {
   interfaceAuthModes: 'Interface Bindings / Auth',
   ipAddressTypes: 'Assets / IP Addresses',
   accessMethods: 'Applications / Access method selector',
+  incidentCategories: 'Incidents / Category selector',
 };
 
 type EnumSectionConfig = {
@@ -211,6 +214,7 @@ const enumSections: EnumSectionConfig[] = [
   { id: 'interfacePatterns', title: 'Integration Patterns', description: 'Integration patterns used by Interface legs.', group: 'appsInterfaces' },
   { id: 'interfaceFormats', title: 'Interface Data Formats', description: 'Data formats for Interface legs.', group: 'appsInterfaces' },
   { id: 'interfaceAuthModes', title: 'Interface Authentication Modes', description: 'Authentication modes for Interface legs/bindings.', group: 'appsInterfaces' },
+  { id: 'incidentCategories', title: 'Incident categories', description: 'Categories used to classify entries in the incident register.', group: 'incidents' },
 ];
 
 // ============================================================================

@@ -150,6 +150,23 @@ export const CRITICALITY_COLORS: Record<string, string> = {
   business_critical: 'warning',
 };
 
+/** Incident severity (IT incident register) */
+export const INCIDENT_SEVERITY_COLORS: Record<string, string> = {
+  critical: 'error',
+  major: 'warning',
+  minor: 'info',
+  low: 'default',
+};
+
+/** Incident statuses (IT incident register) */
+export const INCIDENT_STATUS_COLORS: Record<string, string> = {
+  open: 'warning',
+  in_progress: 'info',
+  resolved: 'success',
+  closed: 'default',
+  cancelled: 'default',
+};
+
 /** Decision outcomes */
 export const DECISION_COLORS: Record<string, string> = {
   go: 'success',

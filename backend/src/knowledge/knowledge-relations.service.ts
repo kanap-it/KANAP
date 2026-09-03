@@ -11,6 +11,7 @@ const RELATION_ENTITY_TYPES: RelationEntityType[] = [
   'locations',
   'connections',
   'interfaces',
+  'incidents',
 ];
 
 type RelationMutationOptions = {

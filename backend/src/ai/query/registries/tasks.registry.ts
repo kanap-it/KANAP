@@ -95,7 +95,7 @@ export const tasksRegistry: AiEntityFilterRegistry = {
       grid: 'related_object_type',
       type: 'set',
       description: 'Related object family.',
-      values: ['project', 'spend_item', 'contract', 'capex_item'],
+      values: ['project', 'spend_item', 'contract', 'capex_item', 'incident'],
       discoverable: true,
       sortable: true,
       groupable: true,

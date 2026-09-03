@@ -501,6 +501,7 @@ export class DashboardDataService {
           WHEN t.related_object_type = 'contract' THEN c.name
           WHEN t.related_object_type = 'capex_item' THEN ci.description
           WHEN t.related_object_type = 'project' THEN pp.name
+          WHEN t.related_object_type = 'incident' THEN inc.title
           ELSE NULL
         END AS related_object_name,
         GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - t.updated_at)) / 86400))::int AS stale_days
@@ -510,6 +511,7 @@ export class DashboardDataService {
       LEFT JOIN contracts c ON t.related_object_type = 'contract' AND t.related_object_id = c.id
       LEFT JOIN capex_items ci ON t.related_object_type = 'capex_item' AND t.related_object_id = ci.id
       LEFT JOIN portfolio_projects pp ON t.related_object_type = 'project' AND t.related_object_id = pp.id
+      LEFT JOIN incidents inc ON t.related_object_type = 'incident' AND t.related_object_id = inc.id AND inc.tenant_id = t.tenant_id
       WHERE t.status NOT IN ('done', 'cancelled')
         AND t.updated_at < NOW() - ($1 || ' days')::interval
         ${scopeSql}

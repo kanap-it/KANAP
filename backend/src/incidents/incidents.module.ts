@@ -1,0 +1,48 @@
+import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Incident } from './incident.entity';
+import { IncidentEntry } from './incident-entry.entity';
+import { IncidentAsset } from './incident-asset.entity';
+import { IncidentApplication } from './incident-application.entity';
+import { IncidentAttachment } from './incident-attachment.entity';
+import { IncidentsController } from './incidents.controller';
+import { IncidentsTasksController } from './incidents-tasks.controller';
+import { IncidentsCsvService } from './incidents-csv.service';
+import { AuditModule } from '../audit/audit.module';
+import { CommonModule } from '../common/common.module';
+import { CsvModule } from '../common/csv';
+import { PermissionsModule } from '../permissions/permissions.module';
+import { UsersModule } from '../users/users.module';
+import { StorageModule } from '../common/storage/storage.module';
+import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { TasksModule } from '../tasks/tasks.module';
+import {
+  IncidentEntriesService,
+  IncidentRelationsService,
+  IncidentsAttachmentsService,
+  IncidentsService,
+} from './services';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Incident, IncidentEntry, IncidentAsset, IncidentApplication, IncidentAttachment]),
+    CommonModule,
+    CsvModule,
+    AuditModule,
+    PermissionsModule,
+    forwardRef(() => UsersModule),
+    StorageModule,
+    KnowledgeModule,
+    TasksModule,
+  ],
+  controllers: [IncidentsController, IncidentsTasksController],
+  providers: [
+    IncidentsService,
+    IncidentEntriesService,
+    IncidentRelationsService,
+    IncidentsAttachmentsService,
+    IncidentsCsvService,
+  ],
+  exports: [IncidentsService],
+})
+export class IncidentsModule {}

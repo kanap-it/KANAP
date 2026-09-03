@@ -172,6 +172,7 @@ export default function TaskSidebar({
     spend_item: t('workspace.task.sidebar.values.relatedTypes.budget'),
     contract: t('workspace.task.sidebar.values.relatedTypes.contract'),
     capex_item: t('workspace.task.sidebar.values.relatedTypes.capex'),
+    incident: t('workspace.task.sidebar.values.relatedTypes.incident'),
     unknown: t('workspace.task.sidebar.values.relatedTypes.related'),
   }), [t]);
   const priorityOptions = React.useMemo(() => ([
@@ -322,6 +323,8 @@ export default function TaskSidebar({
                       ? relatedTypeLabels.contract
                       : task.related_object_type === 'capex_item'
                       ? relatedTypeLabels.capex_item
+                      : task.related_object_type === 'incident'
+                      ? relatedTypeLabels.incident
                       : relatedTypeLabels.unknown}
                   </Typography>
                   <Typography component="span"> : </Typography>
@@ -331,6 +334,7 @@ export default function TaskSidebar({
                         task.related_object_type === 'spend_item' ? `/ops/opex/${task.related_object_id}` :
                         task.related_object_type === 'contract' ? `/ops/contracts/${task.related_object_id}` :
                         task.related_object_type === 'capex_item' ? `/ops/capex/${task.related_object_id}` :
+                        task.related_object_type === 'incident' ? `/it/incidents/${task.related_object_id}/overview` :
                         '#'}
                     sx={{ color: 'text.primary', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                   >

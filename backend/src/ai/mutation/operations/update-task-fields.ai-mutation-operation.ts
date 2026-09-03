@@ -16,7 +16,7 @@ import { AiTaskMutationSupportService, toDisplayStatus } from '../ai-task-mutati
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const PRIORITIES = ['blocker', 'high', 'normal', 'low', 'optional'] as const;
-const RELATION_TYPES = ['standalone', 'project', 'spend_item', 'capex_item', 'contract'] as const;
+const RELATION_TYPES = ['standalone', 'project', 'spend_item', 'capex_item', 'contract', 'incident'] as const;
 
 type UpdateTaskFieldsInput = {
   ref: string;
@@ -365,7 +365,9 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
       const relationRef = relationPatch.relation_ref === undefined ? task.related_object_id : textOrNull(relationPatch.relation_ref);
       const relation = mode === 'contract'
         ? await this.resolveContractRelation(context, relationRef)
-        : await this.support.resolveCreateTarget(context, mode, relationRef);
+        : mode === 'incident'
+          ? await this.resolveIncidentRelation(context, relationRef)
+          : await this.support.resolveCreateTarget(context, mode, relationRef);
       if (relation.mode === 'project') {
         await this.policy.assertBusinessPermission(context, 'portfolio_projects', 'contributor', context.manager);
       }
@@ -600,10 +602,30 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
     return { mode: 'contract', type: 'contract', id: String(rows[0].id), label: `Contract - ${rows[0].name || rows[0].id}` };
   }
 
+  private async resolveIncidentRelation(
+    context: AiExecutionContextWithManager,
+    ref: string | null,
+  ): Promise<{ mode: 'incident'; type: 'incident'; id: string; label: string }> {
+    const normalized = textOrNull(ref);
+    if (!normalized) throw new BadRequestException('relation_ref is required when relation_type is incident.');
+    const uuid = isUuid(normalized);
+    const itemNumber = normalized.match(/^INC-(\d+)$/i)?.[1] ?? null;
+    const rows = await context.manager.query(
+      `SELECT id, item_number, title FROM incidents
+       WHERE tenant_id = $1
+         AND (${uuid ? 'id = $2 OR ' : ''}($3::int IS NOT NULL AND item_number = $3::int) OR LOWER(title) = LOWER($2::text))
+       ORDER BY item_number LIMIT 6`,
+      [context.tenantId, normalized, itemNumber],
+    );
+    if (rows.length === 0) throw new NotFoundException(`Incident "${normalized}" not found.`);
+    if (rows.length > 1) throw new BadRequestException(`Multiple incidents matched "${normalized}". Use an INC reference.`);
+    return { mode: 'incident', type: 'incident', id: String(rows[0].id), label: `INC-${rows[0].item_number} - ${rows[0].title || rows[0].id}` };
+  }
+
   private async describeRelation(context: AiExecutionContextWithManager, type: RelatedType, id: string | null): Promise<string | null> {
     if (!type || !id) return 'Standalone';
-    const table = type === 'project' ? 'portfolio_projects' : type === 'spend_item' ? 'spend_items' : type === 'capex_item' ? 'capex_items' : 'contracts';
-    const labelColumn = type === 'project' ? "CONCAT('PRJ-', item_number::text, ' - ', name)" : type === 'spend_item' ? 'product_name' : type === 'capex_item' ? 'description' : 'name';
+    const table = type === 'project' ? 'portfolio_projects' : type === 'spend_item' ? 'spend_items' : type === 'capex_item' ? 'capex_items' : type === 'incident' ? 'incidents' : 'contracts';
+    const labelColumn = type === 'project' ? "CONCAT('PRJ-', item_number::text, ' - ', name)" : type === 'spend_item' ? 'product_name' : type === 'capex_item' ? 'description' : type === 'incident' ? "CONCAT('INC-', item_number::text, ' - ', title)" : 'name';
     const rows = await context.manager.query(`SELECT ${labelColumn} AS label FROM ${table} WHERE tenant_id = $1 AND id = $2 LIMIT 1`, [context.tenantId, id]);
     return textOrNull(rows[0]?.label) || id;
   }

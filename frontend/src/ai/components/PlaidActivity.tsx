@@ -34,6 +34,7 @@ const ENTITY_TYPE_FROM_URL_PREFIX: Array<{ prefix: string; entityType: string }>
   { prefix: '/it/locations/', entityType: 'locations' },
   { prefix: '/ops/contracts/', entityType: 'contracts' },
   { prefix: '/ops/capex/', entityType: 'capex_items' },
+  { prefix: '/it/incidents/', entityType: 'incidents' },
   { prefix: '/master-data/companies/', entityType: 'companies' },
   { prefix: '/master-data/contacts/', entityType: 'contacts' },
   { prefix: '/master-data/departments/', entityType: 'departments' },

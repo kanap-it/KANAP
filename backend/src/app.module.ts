@@ -34,6 +34,7 @@ import { TenancyModule } from './common/tenancy';
 import { ApplicationsModule } from './applications/applications.module';
 import { AppInstancesModule } from './app-instances/app-instances.module';
 import { AssetsModule } from './assets/assets.module';
+import { IncidentsModule } from './incidents/incidents.module';
 import { AppAssetAssignmentsModule } from './app-asset-assignments/app-asset-assignments.module';
 import { InterfacesModule } from './interfaces/interfaces.module';
 import { InterfaceBindingsModule } from './interface-bindings/interface-bindings.module';
@@ -118,6 +119,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
     ApplicationsModule,
     AppInstancesModule,
     AssetsModule,
+    IncidentsModule,
     AppAssetAssignmentsModule,
     InterfacesModule,
     InterfaceBindingsModule,

@@ -40,6 +40,7 @@ export const RESOURCES = [
   'budget_ops',
   'billing',
   'locations',
+  'incidents',
   'portfolio_requests',
   'portfolio_projects',
   'portfolio_planning',

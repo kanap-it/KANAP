@@ -170,7 +170,9 @@
       "createTask": "Créer une tâche",
       "taskTitle": "Titre de la tâche",
       "whatNeedsToBeDone": "Que faut-il faire ?",
-      "projectOptional": "Projet (facultatif)"
+      "linkToOptional": "Lier à (facultatif)",
+      "projects": "Projets",
+      "incidents": "Incidents"
     },
     "quickLogTime": {
       "logTime": "Saisir du temps",

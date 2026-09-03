@@ -1,5 +1,33 @@
 {
   "pages": {
+    "incidents": {
+      "title": "Incident register",
+      "newIncident": "New incident",
+      "importCsv": "Import CSV",
+      "exportCsv": "Export CSV",
+      "importTitle": "Import incidents",
+      "exportTitle": "Export incidents",
+      "columns": {
+        "reference": "Ref",
+        "title": "Title",
+        "category": "Category",
+        "severity": "Severity",
+        "status": "Status",
+        "detected": "Detected",
+        "resolved": "Resolved",
+        "closed": "Closed",
+        "owner": "Owner",
+        "assets": "Assets",
+        "applications": "Applications",
+        "tasks": "Tasks",
+        "created": "Created"
+      },
+      "filters": {
+        "noCategory": "(No category)",
+        "noOwner": "(No owner)",
+        "blank": "(Blank)"
+      }
+    },
     "applications": {
       "title": "Applications",
       "newAppService": "New app / service",
@@ -172,11 +200,137 @@
         "appsInterfaces": {
           "title": "Apps, services & interfaces",
           "subtitle": "Lists used across applications, app instances, interfaces, and bindings."
+        },
+        "incidents": {
+          "title": "Incidents",
+          "subtitle": "Lists used by the incident register."
         }
       }
     }
   },
   "workspace": {
+    "incident": {
+      "title": "Incident",
+      "newTitle": "New incident",
+      "untitled": "Untitled incident",
+      "backLabel": "Incident register",
+      "previous": "Previous incident",
+      "next": "Next incident",
+      "tabs": {
+        "overview": "Overview",
+        "journal": "Journal",
+        "relations": "Relations",
+        "documents": "Documents",
+        "attachments": "Attachments"
+      },
+      "actions": {
+        "changeStatus": "Change status",
+        "useReopen": "Use Reopen",
+        "reopen": "Reopen",
+        "cancel": "Cancel incident"
+      },
+      "dialogs": {
+        "reopenTitle": "Reopen incident",
+        "reopenMessage": "The incident goes back to In progress. The reason is recorded in the journal.",
+        "reopenPlaceholder": "e.g., the issue reoccurred after the fix",
+        "reopenConfirm": "Reopen",
+        "cancelTitle": "Cancel incident",
+        "cancelMessage": "The record keeps its number and is marked as cancelled. The reason is recorded in the journal.",
+        "cancelPlaceholder": "e.g., logged twice, see INC-12",
+        "cancelConfirm": "Cancel incident"
+      },
+      "metadata": {
+        "status": "Status",
+        "severity": "Severity",
+        "owner": "Owner",
+        "ownerMissing": "Owner missing",
+        "detected": "Detected",
+        "duration": "Duration"
+      },
+      "duration": {
+        "days": "{{count}}d",
+        "hours": "{{count}}h",
+        "minutes": "{{count}}m"
+      },
+      "create": {
+        "title": "Title",
+        "titlePlaceholder": "e.g., mail service unavailable at the Lyon office",
+        "description": "Description",
+        "titleRequired": "Title is required.",
+        "severityRequired": "Severity is required.",
+        "detectedRequired": "Detected date is required."
+      },
+      "overview": {
+        "description": "Description",
+        "descriptionPlaceholder": "What happened, as observed",
+        "impact": "Impact",
+        "impactPlaceholder": "Services, sites and users affected",
+        "rootCause": "Root cause",
+        "rootCausePlaceholder": "Why it happened",
+        "correctiveActions": "Corrective actions",
+        "correctiveActionsPlaceholder": "What was done to fix it and prevent it; track follow-ups as linked tasks",
+        "lessonsLearned": "Lessons learned",
+        "lessonsLearnedPlaceholder": "What to keep from this incident",
+        "closedBanner": "Closed on {{date}}. Reopen it to make changes.",
+        "cancelledBanner": "Cancelled on {{date}}. Reopen it to make changes."
+      },
+      "journal": {
+        "placeholder": "Add a note to the journal",
+        "add": "Add",
+        "empty": "No entries yet.",
+        "systemAuthor": "System",
+        "unknownAuthor": "Unknown",
+        "kinds": {
+          "status_change": "Status change",
+          "severity_change": "Severity change",
+          "reopen": "Reopened",
+          "link_change": "Links updated",
+          "system": "System"
+        },
+        "fields": {
+          "status": "Status",
+          "severity": "Severity"
+        }
+      },
+      "relations": {
+        "assets": "Assets",
+        "assetsPlaceholder": "Search assets",
+        "applications": "Applications",
+        "applicationsPlaceholder": "Search applications"
+      },
+      "drawer": {
+        "category": "Category",
+        "noCategory": "No category",
+        "severity": "Severity",
+        "selectSeverity": "Select severity",
+        "status": "Status",
+        "started": "Started",
+        "detected": "Detected",
+        "resolved": "Resolved",
+        "closed": "Closed",
+        "reporter": "Reporter",
+        "owner": "Owner",
+        "sourceRef": "External reference",
+        "sourceRefHint": "Ticket number, alert id or mail reference where this incident was first reported",
+        "sourceRefPlaceholder": "e.g., ticket #4821",
+        "personalData": "Personal data affected",
+        "authorityRequired": "Authority notification required",
+        "notifiedOn": "Notified on",
+        "notifiedParties": "Parties informed",
+        "notifiedPartiesPlaceholder": "e.g., regulator, insurer, affected customers",
+        "created": "Created",
+        "updated": "Updated",
+        "notSet": "Not set"
+      },
+      "messages": {
+        "loadFailed": "Failed to load incident",
+        "saveFailed": "Failed to save incident",
+        "createFailed": "Failed to create incident",
+        "entryFailed": "Failed to add the journal entry",
+        "relationsFailed": "Failed to save links",
+        "attachmentsFailed": "Failed to update attachments"
+      }
+    },
     "application": {
       "title": "App / service",
       "newTitle": "New app / service",
@@ -484,6 +638,18 @@
     }
   },
   "components": {
+    "incidentRelations": {
+      "title": "Incidents",
+      "columns": {
+        "reference": "Ref",
+        "title": "Title",
+        "severity": "Severity",
+        "status": "Status",
+        "detected": "Detected"
+      },
+      "empty": "No incidents linked yet. Incidents are linked from the incident itself.",
+      "loadFailed": "Could not load incidents."
+    },
     "instances": {
       "title": "Instances",
       "description": "Manage deployment environments and access details.",
@@ -572,6 +738,19 @@
     }
   },
   "enums": {
+    "incidentSeverity": {
+      "critical": "Critical",
+      "major": "Major",
+      "minor": "Minor",
+      "low": "Low"
+    },
+    "incidentStatus": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "resolved": "Resolved",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
     "topology": {
       "serverToServer": "Server to server",
       "multiServer": "Multi-server"

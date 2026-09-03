@@ -10,6 +10,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  ListSubheader,
   Box,
   Alert,
 } from '@mui/material';
@@ -27,6 +28,15 @@ interface Project {
   name: string;
 }
 
+interface IncidentOption {
+  id: string;
+  item_number: number;
+  title: string;
+}
+
+// The "Link to" select holds one value of the form "<type>:<id>" so projects and incidents share a single control.
+type RelatedValue = '' | `project:${string}` | `incident:${string}`;
+
 export default function QuickCreateTaskModal({
   open,
   onClose,
@@ -34,7 +44,7 @@ export default function QuickCreateTaskModal({
   const queryClient = useQueryClient();
   const { t } = useTranslation('common');
   const [title, setTitle] = useState('');
-  const [projectId, setProjectId] = useState('');
+  const [related, setRelated] = useState<RelatedValue>('');
   const [error, setError] = useState<string | null>(null);
 
   // Fetch projects for dropdown
@@ -50,6 +60,23 @@ export default function QuickCreateTaskModal({
     staleTime: 5 * 60 * 1000,
   });
 
+  // Open incidents only: a quick task is work on something still in progress
+  const { data: incidentsData } = useQuery({
+    queryKey: ['incidents', 'list-simple', 'open'],
+    queryFn: async () => {
+      const res = await api.get('/incidents', {
+        params: {
+          limit: 100,
+          sort: 'detected_at:DESC',
+          filters: JSON.stringify({ status: { filterType: 'set', values: ['open', 'in_progress'] } }),
+        },
+      });
+      return res.data.items as IncidentOption[];
+    },
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const payload: Record<string, unknown> = {
@@ -57,9 +84,10 @@ export default function QuickCreateTaskModal({
         status: 'open',
       };
 
-      if (projectId) {
-        payload.related_object_type = 'project';
-        payload.related_object_id = projectId;
+      if (related) {
+        const [type, id] = related.split(':');
+        payload.related_object_type = type;
+        payload.related_object_id = id;
       }
 
       const res = await api.post('/tasks', payload);
@@ -78,7 +106,7 @@ export default function QuickCreateTaskModal({
 
   const handleClose = () => {
     setTitle('');
-    setProjectId('');
+    setRelated('');
     setError(null);
     onClose();
   };
@@ -113,18 +141,25 @@ export default function QuickCreateTaskModal({
           />
 
           <FormControl fullWidth>
-            <InputLabel>{t('dashboard.quickCreate.projectOptional')}</InputLabel>
+            <InputLabel>{t('dashboard.quickCreate.linkToOptional')}</InputLabel>
             <Select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              label={t('dashboard.quickCreate.projectOptional')}
+              value={related}
+              onChange={(e) => setRelated(e.target.value as RelatedValue)}
+              label={t('dashboard.quickCreate.linkToOptional')}
             >
               <MenuItem value="">
                 <em>{t('labels.none')}</em>
               </MenuItem>
+              {projectsData?.length ? <ListSubheader>{t('dashboard.quickCreate.projects')}</ListSubheader> : null}
               {projectsData?.map((project) => (
-                <MenuItem key={project.id} value={project.id}>
+                <MenuItem key={project.id} value={`project:${project.id}`}>
                   {project.name}
+                </MenuItem>
+              ))}
+              {incidentsData?.length ? <ListSubheader>{t('dashboard.quickCreate.incidents')}</ListSubheader> : null}
+              {incidentsData?.map((incident) => (
+                <MenuItem key={incident.id} value={`incident:${incident.id}`}>
+                  {`INC-${incident.item_number} · ${incident.title}`}
                 </MenuItem>
               ))}
             </Select>

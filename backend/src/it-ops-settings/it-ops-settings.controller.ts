@@ -211,6 +211,14 @@ export class ItOpsSettingsController {
       }));
     }
 
+    if (Array.isArray(body?.incidentCategories)) {
+      patch.incidentCategories = body.incidentCategories.map((row: any) => ({
+        code: String(row?.code ?? '').trim().toLowerCase(),
+        label: String(row?.label ?? '').trim(),
+        deprecated: !!row?.deprecated,
+      }));
+    }
+
     return this.settings.updateSettings(tenantId, patch, { manager: req?.queryRunner?.manager });
   }
 

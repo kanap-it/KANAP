@@ -47,6 +47,7 @@ const ENTITY_RESOURCE: Record<AiSearchEntityType | AiContextEntityType, string> 
   contacts: 'contacts',
   contracts: 'contracts',
   departments: 'departments',
+  incidents: 'incidents',
   interfaces: 'applications',
   locations: 'locations',
   projects: 'portfolio_projects',

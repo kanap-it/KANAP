@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow, RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
 import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
+import IncidentRelationsSection from './IncidentRelationsSection';
 export type AssetRelationsPanelHandle = {
   save: () => Promise<void>;
   reset: () => void;
@@ -1046,6 +1047,8 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
           })}
         </Stack>
       </Stack>
+
+      <IncidentRelationsSection assetId={assetId} />
     </Stack>
 
     <KanapDialog

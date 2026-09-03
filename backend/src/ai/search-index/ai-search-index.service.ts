@@ -29,6 +29,7 @@ export const SEARCH_INDEX_ENTITY_TYPES = [
   'contracts',
   'departments',
   'documents',
+  'incidents',
   'interfaces',
   'locations',
   'projects',

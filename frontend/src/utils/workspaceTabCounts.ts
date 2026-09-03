@@ -13,7 +13,7 @@ function settledItemCount(result: PromiseSettledResult<any>): number {
 }
 
 export async function fetchAssetRelationsCount(assetId: string): Promise<number> {
-  const [assetRelations, opex, capex, contracts, projects, tasks, links, attachments] = await Promise.allSettled([
+  const [assetRelations, opex, capex, contracts, projects, tasks, links, attachments, incidents] = await Promise.allSettled([
     api.get(`/assets/${assetId}/relations`),
     api.get(`/assets/${assetId}/spend-items`),
     api.get(`/assets/${assetId}/capex-items`),
@@ -22,6 +22,7 @@ export async function fetchAssetRelationsCount(assetId: string): Promise<number>
     api.get(`/assets/${assetId}/related-tasks`, { params: { limit: 1 } }),
     api.get(`/assets/${assetId}/links`),
     api.get(`/assets/${assetId}/attachments`),
+    api.get('/incidents', { params: { asset_id: assetId, limit: 1 } }),
   ]);
 
   const structural = assetRelations.status === 'fulfilled'
@@ -35,7 +36,13 @@ export async function fetchAssetRelationsCount(assetId: string): Promise<number>
     + settledItemCount(projects)
     + settledItemCount(tasks)
     + settledItemCount(links)
-    + settledItemCount(attachments);
+    + settledItemCount(attachments)
+    + settledItemCount(incidents);
+}
+
+export async function fetchApplicationIncidentsCount(applicationId: string): Promise<number> {
+  const res = await api.get('/incidents', { params: { application_id: applicationId, limit: 1 } });
+  return itemCount(res.data);
 }
 
 export async function fetchPortfolioRelationsCount(

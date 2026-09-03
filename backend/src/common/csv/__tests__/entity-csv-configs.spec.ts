@@ -13,6 +13,7 @@ import { applicationCsvConfig } from '../../../applications/application-csv.conf
 import { taskCsvConfig } from '../../../tasks/task-csv.config';
 import { portfolioProjectCsvConfig } from '../../../portfolio/portfolio-project-csv.config';
 import { portfolioRequestCsvConfig } from '../../../portfolio/portfolio-request-csv.config';
+import { incidentCsvConfig } from '../../../incidents/incident-csv.config';
 
 const configs: CsvEntityConfig[] = [
   assetCsvConfig,
@@ -20,7 +21,20 @@ const configs: CsvEntityConfig[] = [
   taskCsvConfig,
   portfolioProjectCsvConfig,
   portfolioRequestCsvConfig,
+  incidentCsvConfig,
 ];
+
+function field(config: CsvEntityConfig, csvColumn: string) {
+  const found = config.fields.find((f) => f.csvColumn === csvColumn);
+  assert.ok(found, `${config.entityName}: no field '${csvColumn}'`);
+  return found!;
+}
+
+function transform(config: CsvEntityConfig, csvColumn: string, value: string): any {
+  const f = field(config, csvColumn);
+  assert.ok(f.importTransformFn, `${config.entityName}: field '${csvColumn}' has no importTransformFn`);
+  return f.importTransformFn!(value, {}, {} as any);
+}
 
 function testUniqueCsvColumns() {
   for (const config of configs) {
@@ -124,6 +138,101 @@ async function testTemplateHeadersRoundTripThroughImportValidation() {
   }
 }
 
+async function testIncidentRefAndValueParsing() {
+  // The ref column is the register's identity: identity resolution matches the
+  // RAW cell against item_number, so beforeValidate has to strip the prefix.
+  const rows = [
+    { rowNumber: 2, raw: { ref: 'INC-12' }, parsed: {}, isInsert: true, errors: [], warnings: [] },
+    { rowNumber: 3, raw: { ref: ' inc 7 ' }, parsed: {}, isInsert: true, errors: [], warnings: [] },
+    { rowNumber: 4, raw: { ref: '' }, parsed: {}, isInsert: true, errors: [], warnings: [] },
+  ];
+  await incidentCsvConfig.beforeValidate!(rows as any, {} as any);
+  assert.equal(rows[0].raw.ref, '12', 'INC-12 must be stripped to the item number');
+  assert.equal(rows[1].raw.ref, '7');
+  assert.equal(rows[2].raw.ref, '', 'a blank ref stays blank (row is an insert)');
+
+  assert.equal(transform(incidentCsvConfig, 'ref', 'INC-12'), 12);
+  assert.equal(transform(incidentCsvConfig, 'ref', '12'), 12);
+  assert.equal(transform(incidentCsvConfig, 'ref', '  '), null);
+  assert.throws(() => transform(incidentCsvConfig, 'ref', 'INC-abc'), /Invalid reference/);
+
+  // Severity/status accept the stored code and the label shown in the UI.
+  assert.equal(transform(incidentCsvConfig, 'severity', 'Critical'), 'critical');
+  assert.equal(transform(incidentCsvConfig, 'status', 'In progress'), 'in_progress');
+  assert.equal(transform(incidentCsvConfig, 'status', 'in_progress'), 'in_progress');
+  assert.throws(() => transform(incidentCsvConfig, 'severity', 'blocker'), /Invalid severity/);
+
+  // Timestamps keep their time: ISO (what the export writes) and the European
+  // format Excel produces must both round-trip.
+  const iso = transform(incidentCsvConfig, 'detected_at', '2026-09-02T14:32:00Z') as Date;
+  assert.equal(iso.toISOString(), '2026-09-02T14:32:00.000Z');
+  const euro = transform(incidentCsvConfig, 'detected_at', '02/09/2026 14:32') as Date;
+  assert.equal(euro.getFullYear(), 2026);
+  assert.equal(euro.getMonth(), 8);
+  assert.equal(euro.getDate(), 2);
+  assert.equal(euro.getHours(), 14);
+  assert.equal(euro.getMinutes(), 32);
+  assert.throws(() => transform(incidentCsvConfig, 'detected_at', 'last tuesday'), /Invalid date/);
+}
+
+async function testIncidentImportHooks() {
+  const calls: Array<{ sql: string; params: any[] }> = [];
+  const manager = {
+    query: async (sql: string, params: any[]) => {
+      calls.push({ sql, params });
+      if (/FROM tenants/.test(sql)) {
+        return [{ metadata: { it_ops: { incident_categories: [{ code: 'security', label: 'Security' }] } } }];
+      }
+      if (/item_sequences/.test(sql)) return [{ item_number: 7, first_number: 7 }];
+      return [];
+    },
+  };
+  const context = {
+    tenantId: 't1',
+    manager,
+    params: { dryRun: false, mode: 'replace', operation: 'upsert' },
+    resolverCache: new Map(),
+    userId: 'u1',
+  } as any;
+
+  const inserted: any = { title: 'Storage outage', category: 'Security', severity: 'critical' };
+  const updated: any = { id: 'i1', item_number: 3, title: 'Known', severity: 'major', status: 'closed', detected_at: new Date() };
+  await incidentCsvConfig.beforeCommit!([inserted, updated], context);
+
+  assert.equal(inserted.category, 'security', 'category label must resolve to its code');
+  assert.equal(inserted.item_number, 7, 'a blank ref gets its INC-N allocated');
+  assert.equal(inserted.status, 'open');
+  assert.ok(inserted.detected_at instanceof Date, 'detected_at defaults to now on insert');
+  assert.equal(inserted.personal_data_affected, false);
+  assert.equal(inserted.created_by, 'u1');
+  assert.equal(updated.item_number, 3, 'an existing incident keeps its reference');
+  assert.equal(updated.updated_by, 'u1');
+
+  // Journal: one 'system' entry per imported incident, none for updates.
+  inserted.id = 'new-1';
+  await incidentCsvConfig.afterCommit!([inserted, updated], context);
+  const journal = calls.filter((c) => /INSERT INTO incident_entries/.test(c.sql));
+  assert.equal(journal.length, 1, 'exactly one journal insert');
+  assert.deepEqual(journal[0].params[1], ['new-1'], 'only inserted rows get an entry');
+  assert.equal(journal[0].params[0], 't1', 'journal entries carry the tenant');
+
+  // Re-running afterCommit must not journal the same row twice.
+  await incidentCsvConfig.afterCommit!([inserted, updated], context);
+  assert.equal(calls.filter((c) => /INSERT INTO incident_entries/.test(c.sql)).length, 1);
+
+  // A ref nobody matched is a typo, not a new incident.
+  await assert.rejects(
+    () => incidentCsvConfig.beforeCommit!([{ title: 'x', severity: 'low', item_number: 42 }], context),
+    /INC-42/,
+  );
+
+  // Replace mode must not silently rewrite a NOT NULL column on an update.
+  await assert.rejects(
+    () => incidentCsvConfig.beforeCommit!([{ id: 'i2', item_number: 5, title: 'y', severity: 'low', status: null, detected_at: new Date() }], context),
+    /cannot be cleared/,
+  );
+}
+
 (async () => {
   testUniqueCsvColumns();
   testRequiredFieldsAreImportable();
@@ -132,6 +241,8 @@ async function testTemplateHeadersRoundTripThroughImportValidation() {
   testEnumFieldsHaveValues();
   testFkEntitiesHaveResolvers();
   await testTemplateHeadersRoundTripThroughImportValidation();
+  await testIncidentRefAndValueParsing();
+  await testIncidentImportHooks();
 
   console.log('Entity CSV config invariant tests passed.');
 })().catch((err) => {

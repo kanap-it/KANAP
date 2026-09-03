@@ -30,6 +30,12 @@
       },
       "title": "Créer une bibliothèque"
     },
+    "deleteLibrary": {
+      "actions": {
+        "confirm": "Supprimer la bibliothèque"
+      },
+      "title": "Supprimer la bibliothèque"
+    },
     "editLibrary": {
       "fields": {
         "accessMode": "Mode d'accès",
@@ -55,6 +61,12 @@
     },
     "manageTypes": {
       "title": "Gérer les types de document"
+    },
+    "resetLibraryAccess": {
+      "actions": {
+        "confirm": "Effacer la liste d'accès"
+      },
+      "title": "Supprimer l'accès restreint"
     },
     "selectTemplate": {
       "actions": {
@@ -96,11 +108,12 @@
       "rootActions": "Actions des dossiers"
     },
     "confirmations": {
-      "deleteFolder": "Supprimer ce dossier ? Les documents seront déplacés vers Non classés. Les dossiers contenant des sous-dossiers ne peuvent pas être supprimés."
+      "deleteFolder": "Supprimer \"{{name}}\" ? Les documents seront déplacés vers Non classés. Les dossiers contenant des sous-dossiers ne peuvent pas être supprimés."
     },
     "dialogs": {
       "createFolderTitle": "Créer un dossier",
-      "createSubfolderTitle": "Créer un sous-dossier"
+      "createSubfolderTitle": "Créer un sous-dossier",
+      "deleteFolderTitle": "Supprimer le dossier"
     },
     "fields": {
       "folderName": "Nom du dossier",
@@ -242,7 +255,8 @@
         "assets": "Actifs",
         "projects": "Projets",
         "requests": "Demandes",
-        "tasks": "Tâches"
+        "tasks": "Tâches",
+        "incidents": "Incidents"
       },
       "messages": {
         "saveFirst": "Enregistrez d'abord pour créer des relations."
@@ -348,6 +362,11 @@
     },
     "create": {
       "title": "Créer un type"
+    },
+    "dialogs": {
+      "delete": {
+        "title": "Supprimer le type de document"
+      }
     },
     "empty": "Aucun type de document pour le moment.",
     "fields": {

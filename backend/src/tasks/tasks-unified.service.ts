@@ -17,7 +17,7 @@ import { detectChanges, resolveDisplayNames, TASK_TRACKED_FIELDS, FieldConfig } 
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { ParticipationAccessScope, taskParticipantCondition } from '../auth/business-contributor-scope';
 
-export type RelatedType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
+export type RelatedType = 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident' | null;
 type ProjectDefaults = {
   source_id: string | null;
   category_id: string | null;
@@ -66,8 +66,8 @@ export class TasksUnifiedService {
     return count > 0;
   }
 
-  private isNonProjectLinked(type: RelatedType): type is 'spend_item' | 'contract' | 'capex_item' {
-    return type === 'spend_item' || type === 'contract' || type === 'capex_item';
+  private isNonProjectLinked(type: RelatedType): type is 'spend_item' | 'contract' | 'capex_item' | 'incident' {
+    return type === 'spend_item' || type === 'contract' || type === 'capex_item' || type === 'incident';
   }
 
   private getRelatedProjectId(task: Pick<Task, 'related_object_type' | 'related_object_id'>): string | null {
@@ -629,6 +629,15 @@ export class TasksUnifiedService {
       return `CAPEX: ${row.description}`;
     }
 
+    if (type === 'incident') {
+      const [row] = await manager.query(
+        'SELECT item_number, title FROM incidents WHERE id = $1 LIMIT 1',
+        [id],
+      );
+      if (!row) return id;
+      return `INC-${row.item_number}: ${row.title}`;
+    }
+
     return id;
   }
 
@@ -665,10 +674,11 @@ export class TasksUnifiedService {
       };
     }
 
-    const tableByType: Record<'spend_item' | 'contract' | 'capex_item', { table: string; label: string }> = {
+    const tableByType: Record<'spend_item' | 'contract' | 'capex_item' | 'incident', { table: string; label: string }> = {
       spend_item: { table: 'spend_items', label: 'Spend item' },
       contract: { table: 'contracts', label: 'Contract' },
       capex_item: { table: 'capex_items', label: 'CAPEX item' },
+      incident: { table: 'incidents', label: 'Incident' },
     };
     const targetMeta = tableByType[target.type];
     const [row] = await manager.query(`SELECT id FROM ${targetMeta.table} WHERE id = $1 LIMIT 1`, [target.id]);

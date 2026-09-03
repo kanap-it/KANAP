@@ -62,6 +62,7 @@
     "spend_item": "OPEX",
     "contract": "Contract",
     "capex_item": "CAPEX",
+    "incident": "Incident",
     "standalone": "Standalone"
   },
   "origin": {
@@ -811,6 +812,7 @@
             "budget": "Budget",
             "capex": "CAPEX",
             "contract": "Contract",
+            "incident": "Incident",
             "project": "Project",
             "related": "Related"
           }

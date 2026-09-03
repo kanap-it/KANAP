@@ -76,7 +76,7 @@ export const taskCsvConfig: CsvEntityConfig = {
       csvColumn: 'related_object_type',
       entityProperty: 'related_object_type',
       type: CsvFieldType.ENUM,
-      enumValues: ['spend_item', 'contract', 'capex_item', 'project'],
+      enumValues: ['spend_item', 'contract', 'capex_item', 'project', 'incident'],
       required: false, // Optional for standalone tasks
       defaultExport: true,
       label: 'Related Object Type',
@@ -499,6 +499,7 @@ export const taskCsvConfig: CsvEntityConfig = {
       ['contract', 'contract'],
       ['capex_item', 'capex_item'],
       ['project', 'project'],
+      ['incident', 'incident'],
       // Common labels
       ['spend item', 'spend_item'],
       ['spend', 'spend_item'],
@@ -512,6 +513,7 @@ export const taskCsvConfig: CsvEntityConfig = {
       spend_item: { table: 'spend_items', nameColumn: 'product_name' },
       contract: { table: 'contracts', nameColumn: 'name' },
       capex_item: { table: 'capex_items', nameColumn: 'description' },
+      incident: { table: 'incidents', nameColumn: "'INC-' || item_number::text" },
     };
 
     // First pass: normalize enum values
@@ -570,14 +572,14 @@ export const taskCsvConfig: CsvEntityConfig = {
       const names = items.map((i) => i.name.toLowerCase());
 
       const rows = await context.manager.query(
-        `SELECT id, ${nameColumn} FROM ${table} WHERE tenant_id = $1 AND LOWER(${nameColumn}) = ANY($2)`,
+        `SELECT id, ${nameColumn} AS name FROM ${table} WHERE tenant_id = $1 AND LOWER(${nameColumn}) = ANY($2)`,
         [context.tenantId, names],
       );
 
       // Build lookup map
       const idByName = new Map<string, string>();
       for (const row of rows) {
-        idByName.set(String(row[nameColumn]).toLowerCase(), row.id);
+        idByName.set(String(row.name).toLowerCase(), row.id);
       }
 
       // Resolve each entity
