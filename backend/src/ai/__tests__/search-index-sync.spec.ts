@@ -88,6 +88,7 @@ async function seedTask(
   title: string,
   description: string | null,
   assigneeUserId: string | null = null,
+  related: { type: string; id: string } | null = null,
 ): Promise<string> {
   const taskId = randomUUID();
   await runner.query(
@@ -95,10 +96,26 @@ async function seedTask(
        id, tenant_id, item_number, title, description, status, assignee_user_id,
        related_object_type, related_object_id, labels, owner_ids, viewer_ids, created_at, updated_at
      )
-     VALUES ($1, $2, $3, $4, $5, 'open', $6, null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, now(), now())`,
-    [taskId, tenantId, itemNumber, title, description, assigneeUserId],
+     VALUES ($1, $2, $3, $4, $5, 'open', $6, $7, $8, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, now(), now())`,
+    [taskId, tenantId, itemNumber, title, description, assigneeUserId, related?.type ?? null, related?.id ?? null],
   );
   return taskId;
+}
+
+async function seedIncident(
+  runner: any,
+  tenantId: string,
+  opts: { title: string },
+): Promise<string> {
+  const incidentId = randomUUID();
+  await runner.query(
+    `INSERT INTO incidents (
+       id, tenant_id, item_number, title, severity, status, created_at, updated_at
+     )
+     VALUES ($1, $2, 8801, $3, 'minor', 'open', now(), now())`,
+    [incidentId, tenantId, opts.title],
+  );
+  return incidentId;
 }
 
 async function seedProject(
@@ -216,6 +233,50 @@ async function testRelatedRenameGoesStaleUntilReindex() {
     await runner.query(`SELECT search_index_refresh_tasks($1, NULL)`, [tenantId]);
     row = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
     assert.equal(row.extra_json?.assignee, 'Alicia Martin');
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testTaskIndexesRelatedIncidentTitle() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantId = randomUUID();
+    await seedTenant(runner, tenantId, 'inc-ref');
+    await setCurrentTenant(runner, tenantId);
+
+    const incidentId = await seedIncident(runner, tenantId, { title: 'ZXQFLUTTER panne cluster' });
+    const taskId = await seedTask(
+      runner,
+      tenantId,
+      4103,
+      'Diagnostiquer le cluster',
+      null,
+      null,
+      { type: 'incident', id: incidentId },
+    );
+
+    let row = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
+    assert.ok(row, 'linked task should be indexed on insert');
+    assert.equal(
+      String(row.search_vector).includes('zxqflutter'),
+      true,
+      'task vector matches related incident title',
+    );
+
+    // Renaming the incident is NOT trigger-cascaded → the task entry is stale.
+    await runner.query(`UPDATE incidents SET title = 'ZQYMELON panne cluster' WHERE id = $1`, [incidentId]);
+    row = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
+    assert.equal(String(row.search_vector).includes('zxqflutter'), true, 'rename is not trigger-cascaded');
+    assert.equal(String(row.search_vector).includes('zqymelon'), false, 'stale until reindex');
+
+    await runner.query(`SELECT search_index_refresh_tasks($1, NULL)`, [tenantId]);
+    row = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
+    assert.equal(String(row.search_vector).includes('zxqflutter'), false);
+    assert.equal(String(row.search_vector).includes('zqymelon'), true, 'reindex picks up the new title');
   } finally {
     await runner.rollbackTransaction();
     await runner.release();
@@ -506,6 +567,7 @@ async function run() {
   try {
     await testTriggersKeepIndexInSync();
     await testRelatedRenameGoesStaleUntilReindex();
+    await testTaskIndexesRelatedIncidentTitle();
     await testSearchAllIndexedBehavior();
     await testSpendItemRefMatchesButKeepsNullDtoRef();
     await testParticipationScopeOnIndexedPath();
