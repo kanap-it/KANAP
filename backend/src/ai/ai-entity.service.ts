@@ -3,7 +3,7 @@ import { bilingualDocumentTsQuerySql } from '../common/document-search-tsquery';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
-  AI_QUERY_ENTITY_TYPES,
+  AI_SEARCH_ENTITY_TYPES,
   AiEntityCommentDto,
   AiEntityCommentsDto,
   AiContextEntityType,
@@ -161,6 +161,7 @@ function buildRef(type: AiSearchEntityType | AiContextEntityType, itemNumber?: n
   if (type === 'requests') return `REQ-${itemNumber}`;
   if (type === 'tasks') return `T-${itemNumber}`;
   if (type === 'documents') return `DOC-${itemNumber}`;
+  if (type === 'incidents') return `INC-${itemNumber}`;
   return null;
 }
 
@@ -368,7 +369,7 @@ function aiSearchIndexEnabled(): boolean {
 // OPX prefix that the OPEX revamp renders for spend items. The query prefix is
 // only used to PRIORITIZE the matching entity type (score tier 4); the bare
 // digits still match every type's ref_number, like the legacy path did.
-const INDEXED_REF_QUERY_RE = /^(PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|OPX|COMP|CONT|DEPT|SUP|BP)-?(\d+)$/i;
+const INDEXED_REF_QUERY_RE = /^(PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|OPX|COMP|CONT|DEPT|SUP|BP|INC)-?(\d+)$/i;
 
 const QUERY_PREFIX_TO_INDEX_REF_PREFIX: Record<string, string> = {
   SI: 'OPX',
@@ -397,6 +398,7 @@ const SEARCH_INDEX_METADATA_KEYS: Partial<Record<AiSearchEntityType, string[]>> 
   contacts: ['supplier'],
   contracts: ['company', 'supplier'],
   departments: ['company'],
+  incidents: ['severity', 'category'],
   interfaces: ['source_application', 'target_application', 'business_process'],
   projects: ['business_lead', 'it_lead', 'contributors'],
   requests: ['requestor', 'business_lead', 'it_lead', 'contributors'],
@@ -450,7 +452,7 @@ export class AiEntityService {
   private parseNumericPrefix(query: string): string | null {
     const trimmed = String(query || '').trim();
     if (!trimmed) return null;
-    const match = trimmed.match(/^(?:PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|COMP|CONT|DEPT|SUP|BP)-?(\d+)$/i)
+    const match = trimmed.match(/^(?:PRJ|REQ|T|DOC|APP|AST|CONN|INT|LOC|CTR|CPX|SI|COMP|CONT|DEPT|SUP|BP|INC)-?(\d+)$/i)
       ?? trimmed.match(/^(\d+)$/);
     if (!match) return null;
     const digits = match[1];
@@ -1244,6 +1246,7 @@ export class AiEntityService {
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $4
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $4
        LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $4
+       LEFT JOIN incidents rel_inc ON rel_inc.id = t.related_object_id AND t.related_object_type = 'incident' AND rel_inc.tenant_id = $4
        WHERE t.tenant_id = $4
          ${accessScopeSql}
          AND (
@@ -1264,6 +1267,7 @@ export class AiEntityService {
            OR COALESCE(rel_si.product_name, '') ILIKE $3
            OR COALESCE(rel_ct.name, '') ILIKE $3
            OR COALESCE(rel_cx.description, '') ILIKE $3
+           OR COALESCE(rel_inc.title, '') ILIKE $3
            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(t.labels) AS lbl WHERE lbl ILIKE $3)
          )
        ORDER BY score DESC,
@@ -1423,6 +1427,69 @@ export class AiEntityService {
           metadata: {
             paying_company: row.company_name ?? null,
             supplier: row.supplier_name ?? null,
+          },
+        }, row.summary),
+        _score: row.score ?? 1,
+      })),
+      total: rows.length > 0 ? Math.max(Number(rows[0].total_count) || 0, rows.length) : 0,
+    };
+  }
+
+  private async searchIncidents(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<RankedSearchResult> {
+    const like = `%${query}%`;
+    const ref = this.parseNumericRef(query);
+    const numericPrefix = this.parseNumericPrefix(query);
+    const rows = await context.manager.query<SearchRow[]>(
+      `SELECT i.id,
+              i.item_number,
+              i.title AS label,
+              i.description AS summary,
+              i.status,
+              i.updated_at,
+              i.severity,
+              i.category,
+              COUNT(*) OVER()::int AS total_count,
+              CASE
+                WHEN $1::int IS NOT NULL AND i.item_number = $1 THEN 4
+                WHEN $2::text IS NOT NULL AND i.item_number::text LIKE $2 || '%' THEN 3.5
+                WHEN i.title ILIKE $3 THEN 3
+                ELSE 1
+              END AS score
+       FROM incidents i
+       WHERE i.tenant_id = $4
+         AND (
+           ($1::int IS NOT NULL AND i.item_number = $1)
+           OR ($2::text IS NOT NULL AND i.item_number::text LIKE $2 || '%')
+           OR i.title ILIKE $3
+           OR COALESCE(i.description, '') ILIKE $3
+           OR COALESCE(i.impact, '') ILIKE $3
+           OR COALESCE(i.root_cause, '') ILIKE $3
+           OR COALESCE(i.corrective_actions, '') ILIKE $3
+           OR COALESCE(i.lessons_learned, '') ILIKE $3
+           OR COALESCE(i.source_ref, '') ILIKE $3
+           OR COALESCE(i.severity, '') ILIKE $3
+           OR COALESCE(i.status, '') ILIKE $3
+           OR COALESCE(i.category, '') ILIKE $3
+         )
+       ORDER BY score DESC,
+                CASE WHEN $2::text IS NOT NULL AND i.item_number::text LIKE $2 || '%' THEN i.item_number ELSE NULL END ASC NULLS LAST,
+                i.updated_at DESC,
+                i.title ASC
+       LIMIT $5`,
+      [ref, numericPrefix, like, context.tenantId, limit],
+    );
+
+    return {
+      items: rows.map((row: any) => ({
+        ...toSummary('incidents', {
+          ...row,
+          metadata: {
+            severity: row.severity ?? null,
+            category: row.category ?? null,
           },
         }, row.summary),
         _score: row.score ?? 1,
@@ -1901,7 +1968,7 @@ export class AiEntityService {
       `SELECT t.id, t.item_number, COALESCE(t.title, 'Untitled task') AS label, t.description AS summary, t.status, t.updated_at,
               tt.name AS task_type_name,
               t.related_object_type,
-              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description) AS related_object_name,
+              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, rel_inc.title) AS related_object_name,
               CONCAT_WS(' ', u_assign.first_name, u_assign.last_name) AS assignee_name,
               t.priority_level
        FROM tasks t
@@ -1911,6 +1978,7 @@ export class AiEntityService {
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $1
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $1
        LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $1
+       LEFT JOIN incidents rel_inc ON rel_inc.id = t.related_object_id AND t.related_object_type = 'incident' AND rel_inc.tenant_id = $1
        WHERE t.tenant_id = $1
        ${accessScopeSql}
        ORDER BY t.updated_at DESC, t.created_at DESC`,
@@ -1978,7 +2046,7 @@ export class AiEntityService {
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+      : [...AI_SEARCH_ENTITY_TYPES] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
       return { items: [], total: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
@@ -2185,7 +2253,7 @@ export class AiEntityService {
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+      : [...AI_SEARCH_ENTITY_TYPES] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
       return { items: [], total: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
@@ -2322,7 +2390,7 @@ export class AiEntityService {
   ) {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+      : [...AI_SEARCH_ENTITY_TYPES] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) {
       return { items: [], total: 0, returned: 0, complete: false, entity_types: [] as AiSearchEntityType[] };
@@ -2427,6 +2495,7 @@ export class AiEntityService {
     if (type === 'contacts') return this.searchContacts(context, query, fetchLimit);
     if (type === 'contracts') return this.searchContracts(context, query, fetchLimit);
     if (type === 'departments') return this.searchDepartments(context, query, fetchLimit);
+    if (type === 'incidents') return this.searchIncidents(context, query, fetchLimit);
     if (type === 'interfaces') return this.searchInterfaces(context, query, fetchLimit);
     if (type === 'locations') return this.searchLocations(context, query, fetchLimit);
     if (type === 'projects') return this.searchProjects(context, query, fetchLimit);
@@ -2477,7 +2546,7 @@ export class AiEntityService {
   }> {
     const requested = input.entity_types && input.entity_types.length > 0
       ? input.entity_types
-      : [...AI_QUERY_ENTITY_TYPES] as AiSearchEntityType[];
+      : [...AI_SEARCH_ENTITY_TYPES] as AiSearchEntityType[];
     const allowed = await this.policy.listReadableEntityTypes(context, requested, context.manager) as AiSearchEntityType[];
     if (allowed.length === 0) return { groups: [] };
 
@@ -3183,7 +3252,7 @@ export class AiEntityService {
               phase.planned_end AS phase_planned_end,
               phase.sequence AS phase_sequence,
               tt.name AS task_type_name,
-              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description) AS related_object_name,
+              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, rel_inc.title) AS related_object_name,
               pr.id AS converted_request_id,
               pr.item_number AS converted_request_item_number,
               pr.name AS converted_request_name,
@@ -3199,6 +3268,7 @@ export class AiEntityService {
        LEFT JOIN spend_items rel_si ON rel_si.id = t.related_object_id AND t.related_object_type = 'spend_item' AND rel_si.tenant_id = $2
        LEFT JOIN contracts rel_ct ON rel_ct.id = t.related_object_id AND t.related_object_type = 'contract' AND rel_ct.tenant_id = $2
        LEFT JOIN capex_items rel_cx ON rel_cx.id = t.related_object_id AND t.related_object_type = 'capex_item' AND rel_cx.tenant_id = $2
+       LEFT JOIN incidents rel_inc ON rel_inc.id = t.related_object_id AND t.related_object_type = 'incident' AND rel_inc.tenant_id = $2
        LEFT JOIN portfolio_requests pr ON pr.origin_task_id = t.id AND pr.tenant_id = $2 ${convertedRequestScopeSql}
        WHERE t.id = $1
          AND t.tenant_id = $2

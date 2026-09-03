@@ -40,7 +40,7 @@ type Task = {
   phase_id: string | null;
 };
 
-export type EntityType = 'project' | 'spend_item' | 'capex_item' | 'contract';
+export type EntityType = 'project' | 'spend_item' | 'capex_item' | 'contract' | 'incident';
 
 type Props = {
   entityType: EntityType;
@@ -67,6 +67,7 @@ const ENDPOINTS: Record<EntityType, (id: string) => string> = {
   spend_item: (id) => `/spend-items/${id}/tasks`,
   capex_item: (id) => `/capex-items/${id}/tasks`,
   contract: (id) => `/contracts/${id}/tasks`,
+  incident: (id) => `/incidents/${id}/tasks`,
 };
 
 export default function EntityTasksPanel({ entityType, entityId, phases = [], disabled = false, onTasksChange }: Props) {

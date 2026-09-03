@@ -43,7 +43,7 @@ import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
-type RelationKey = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
+type RelationKey = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'incidents';
 type RelationOption = { id: string; label: string };
 type ContributorAssignments = {
   owner_user_id: string | null;
@@ -72,6 +72,7 @@ const RELATION_BODY_KEYS: Record<RelationKey, string> = {
   projects: 'project_ids',
   requests: 'request_ids',
   tasks: 'task_ids',
+  incidents: 'incident_ids',
 };
 
 const EMPTY_RELATIONS: Record<RelationKey, RelationOption[]> = {
@@ -80,6 +81,7 @@ const EMPTY_RELATIONS: Record<RelationKey, RelationOption[]> = {
   projects: [],
   requests: [],
   tasks: [],
+  incidents: [],
 };
 
 function buildCreateRelationSelections(searchParams: URLSearchParams): Record<RelationKey, RelationOption[]> {
@@ -89,6 +91,7 @@ function buildCreateRelationSelections(searchParams: URLSearchParams): Record<Re
     ['projects', 'project_id'],
     ['requests', 'request_id'],
     ['tasks', 'task_id'],
+    ['incidents', 'incident_id'],
   ];
 
   const next = { ...EMPTY_RELATIONS };
@@ -230,6 +233,7 @@ export default function KnowledgeWorkspacePage() {
     projects: '',
     requests: '',
     tasks: '',
+    incidents: '',
   });
   const [relationSelections, setRelationSelections] = React.useState<Record<RelationKey, RelationOption[]>>(
     () => (isCreate ? createRelationSelections : EMPTY_RELATIONS),
@@ -527,6 +531,18 @@ export default function KnowledgeWorkspacePage() {
     staleTime: 60_000,
   });
 
+  const { data: incidentOptions = EMPTY_RELATION_OPTIONS } = useQuery({
+    queryKey: ['knowledge-relation-options', 'incidents', relationSearch.incidents],
+    queryFn: async () => {
+      const res = await api.get<{ items: Array<{ id: string; label: string }> }>('/knowledge/relation-options/incidents', {
+        params: { q: relationSearch.incidents || undefined, limit: 50 },
+      });
+      return (res.data.items || []).map((row) => ({ id: row.id, label: row.label || row.id }));
+    },
+    enabled: !isCreate && sidebarOpen && canManageDocumentGlobal,
+    staleTime: 60_000,
+  });
+
   const parseLockInfo = React.useCallback((raw: any): EditLockInfo | null => {
     if (!raw || typeof raw !== 'object') return null;
     const holderUserId = String(raw.holder_user_id || '').trim();
@@ -560,6 +576,7 @@ export default function KnowledgeWorkspacePage() {
       projects: (incomingRelations.projects || []).map(mapRelation),
       requests: (incomingRelations.requests || []).map(mapRelation),
       tasks: (incomingRelations.tasks || []).map(mapRelation),
+      incidents: (incomingRelations.incidents || []).map(mapRelation),
     };
 
     const nextClassifications: ClassificationRow[] = Array.isArray(nextDoc.classifications)
@@ -631,6 +648,7 @@ export default function KnowledgeWorkspacePage() {
       projects: Array.from(new Set((selections.projects || []).map((option) => option.id).filter(Boolean))),
       requests: Array.from(new Set((selections.requests || []).map((option) => option.id).filter(Boolean))),
       tasks: Array.from(new Set((selections.tasks || []).map((option) => option.id).filter(Boolean))),
+      incidents: Array.from(new Set((selections.incidents || []).map((option) => option.id).filter(Boolean))),
     }),
     [],
   );
@@ -642,6 +660,7 @@ export default function KnowledgeWorkspacePage() {
       projects: (selections.projects || []).map((option) => ({ id: option.id, name: option.label || option.id })),
       requests: (selections.requests || []).map((option) => ({ id: option.id, name: option.label || option.id })),
       tasks: (selections.tasks || []).map((option) => ({ id: option.id, name: option.label || option.id })),
+      incidents: (selections.incidents || []).map((option) => ({ id: option.id, name: option.label || option.id })),
     }),
     [],
   );
@@ -652,6 +671,7 @@ export default function KnowledgeWorkspacePage() {
     projects: [...(selections.projects || [])],
     requests: [...(selections.requests || [])],
     tasks: [...(selections.tasks || [])],
+    incidents: [...(selections.incidents || [])],
   }), []);
 
   const cloneContributorAssignments = React.useCallback((assignments: ContributorAssignments): ContributorAssignments => ({
@@ -1049,8 +1069,9 @@ export default function KnowledgeWorkspacePage() {
       projects: projectOptions,
       requests: requestOptions,
       tasks: taskOptions,
+      incidents: incidentOptions,
     }),
-    [applicationOptions, assetOptions, projectOptions, requestOptions, taskOptions],
+    [applicationOptions, assetOptions, incidentOptions, projectOptions, requestOptions, taskOptions],
   );
 
   const documentTypeOptionsForForm = React.useMemo(

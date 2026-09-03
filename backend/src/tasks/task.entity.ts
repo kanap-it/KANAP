@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, Index, OneToMany } from 'typeor
 import { TaskApplication } from './task-application.entity';
 import { TaskAsset } from './task-asset.entity';
 
-export type TaskRelatedObjectType = 'spend_item' | 'contract' | 'capex_item' | 'project' | null;
+export type TaskRelatedObjectType = 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident' | null;
 export type TaskPriorityLevel = 'blocker' | 'high' | 'normal' | 'low' | 'optional';
 export type TaskStatus = 'open' | 'in_progress' | 'pending' | 'in_testing' | 'done' | 'cancelled';
 export const TASK_STATUSES: TaskStatus[] = ['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled'];

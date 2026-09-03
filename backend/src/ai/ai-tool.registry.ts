@@ -271,7 +271,7 @@ export class AiToolRegistry {
           description: 'Search across readable KANAP entity families using stable AI DTOs. If complete=true and truncated=false, use the returned results instead of repeating broad searches; if failed_entity_types is non-empty, treat the answer as partial and prefer a specific authoritative tool.',
           inputSchema: SearchAllInputSchema,
           inputSummary: {
-            query: 'Search text or item reference such as PRJ-12, REQ-7, T-42, or DOC-3.',
+            query: 'Search text or item reference such as PRJ-12, REQ-7, T-42, DOC-3, or INC-12.',
             entity_types: 'Optional entity families to include.',
             limit: 'Maximum number of results to return (default 25, max 100). Raise limit or page with offset only when the first page is insufficient. If truncated=true, narrow the query or switch to a more specific tool.',
           },
@@ -375,7 +375,7 @@ export class AiToolRegistry {
           inputSchema: GetEntityDetailInputSchema,
           inputSummary: {
             entity_type: `One of ${QUERY_ENTITY_TYPE_SUMMARY}.`,
-            entity_id: 'The entity UUID, or canonical reference such as PRJ-12, REQ-7, T-42, or DOC-3 when supported.',
+            entity_id: 'The entity UUID, or canonical reference such as PRJ-12, REQ-7, T-42, DOC-3, or INC-12 when supported.',
             year: 'Optional fiscal/calendar year for year-backed metrics on supported entities such as companies and departments.',
           },
           surfaces: ['chat', 'mcp'],

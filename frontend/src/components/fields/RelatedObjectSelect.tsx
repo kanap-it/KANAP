@@ -7,7 +7,7 @@ import EnumAutocomplete from './EnumAutocomplete';
 import { FieldLabel, mergeSx } from '../design';
 import { nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
 
-export type RelatedObjectType = 'project' | 'spend_item' | 'contract' | 'capex_item' | null;
+export type RelatedObjectType = 'project' | 'spend_item' | 'contract' | 'capex_item' | 'incident' | null;
 
 interface RelatedObjectSelectProps {
   relationType: RelatedObjectType;
@@ -33,6 +33,7 @@ const TYPE_OPTIONS = [
   { label: 'Budget (OPEX)', value: 'spend_item' },
   { label: 'Contract', value: 'contract' },
   { label: 'CAPEX', value: 'capex_item' },
+  { label: 'Incident', value: 'incident' },
 ];
 
 export default function RelatedObjectSelect({
@@ -84,6 +85,13 @@ export default function RelatedObjectSelect({
             { params }
           );
           return (res.data?.items || []).map((c) => ({ id: c.id, name: c.description }));
+        }
+        case 'incident': {
+          const res = await api.get<{ items: Array<{ id: string; item_number: number; title: string }> }>(
+            '/incidents',
+            { params: { ...params, limit: 20 } }
+          );
+          return (res.data?.items || []).map((i) => ({ id: i.id, name: `INC-${i.item_number} · ${i.title}` }));
         }
         default:
           return [];

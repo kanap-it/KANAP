@@ -30,6 +30,12 @@
       },
       "title": "Crear biblioteca"
     },
+    "deleteLibrary": {
+      "actions": {
+        "confirm": "Eliminar biblioteca"
+      },
+      "title": "Eliminar biblioteca"
+    },
     "editLibrary": {
       "fields": {
         "accessMode": "Modo de acceso",
@@ -55,6 +61,12 @@
     },
     "manageTypes": {
       "title": "Gestionar tipos de documento"
+    },
+    "resetLibraryAccess": {
+      "actions": {
+        "confirm": "Vaciar la lista de acceso"
+      },
+      "title": "Quitar el acceso restringido"
     },
     "selectTemplate": {
       "actions": {
@@ -96,11 +108,12 @@
       "rootActions": "Acciones de carpeta"
     },
     "confirmations": {
-      "deleteFolder": "¿Eliminar esta carpeta? Los documentos se moverán a Sin clasificar. Las carpetas con subcarpetas no se pueden eliminar."
+      "deleteFolder": "¿Eliminar \"{{name}}\"? Los documentos se moverán a Sin clasificar. Las carpetas con subcarpetas no se pueden eliminar."
     },
     "dialogs": {
       "createFolderTitle": "Crear carpeta",
-      "createSubfolderTitle": "Crear subcarpeta"
+      "createSubfolderTitle": "Crear subcarpeta",
+      "deleteFolderTitle": "Eliminar carpeta"
     },
     "fields": {
       "folderName": "Nombre de la carpeta",
@@ -242,7 +255,8 @@
         "assets": "Activos",
         "projects": "Proyectos",
         "requests": "Solicitudes",
-        "tasks": "Tareas"
+        "tasks": "Tareas",
+        "incidents": "Incidentes"
       },
       "messages": {
         "saveFirst": "Guarde primero para crear relaciones."
@@ -348,6 +362,11 @@
     },
     "create": {
       "title": "Crear tipo"
+    },
+    "dialogs": {
+      "delete": {
+        "title": "Eliminar tipo de documento"
+      }
     },
     "empty": "Aún no hay tipos de documento.",
     "fields": {

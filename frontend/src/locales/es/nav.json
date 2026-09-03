@@ -53,8 +53,10 @@
     "it": {
       "sections": {
         "infrastructure": "Infraestructura",
-        "applications": "Aplicaciones"
+        "applications": "Aplicaciones",
+        "operations": "Operaciones"
       },
+      "incidents": "Incidentes",
       "locations": "Ubicaciones",
       "assets": "Activos",
       "connections": "Conexiones",

@@ -14,7 +14,8 @@ export type RecentEntityType =
   | 'contract'
   | 'task'
   | 'spend_item'
-  | 'capex_item';
+  | 'capex_item'
+  | 'incident';
 
 export interface RecentItem {
   type: RecentEntityType;
@@ -149,5 +150,11 @@ export const ENTITY_TYPE_CONFIG: Record<
     resource: 'capex',
     icon: 'AccountBalance',
     label: 'CAPEX Item',
+  },
+  incident: {
+    route: (id) => `/it/incidents/${id}/overview`,
+    resource: 'incidents',
+    icon: 'ReportProblem',
+    label: 'Incident',
   },
 };

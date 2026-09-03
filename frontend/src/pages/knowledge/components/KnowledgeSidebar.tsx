@@ -59,7 +59,7 @@ const STATUS_OPTIONS = [
   { value: 'obsolete' },
 ];
 
-type RelationKey = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks';
+type RelationKey = 'applications' | 'assets' | 'projects' | 'requests' | 'tasks' | 'incidents';
 type RelationOption = { id: string; label: string };
 type ContributorAssignments = {
   owner_user_id: string | null;
@@ -142,6 +142,7 @@ const RELATION_LABELS: Record<RelationKey, string> = {
   projects: 'Projects',
   requests: 'Requests',
   tasks: 'Tasks',
+  incidents: 'Incidents',
 };
 
 const EMPTY_CLASSIFICATION_ROW: ClassificationRow = { category_id: '', stream_id: null };

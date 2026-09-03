@@ -63,6 +63,18 @@ export const AI_QUERY_ENTITY_TYPES = [
   'users',
 ] as const;
 
+/**
+ * Types the search index covers but the query/aggregate registries do not: they
+ * surface in search_all and the entity picker, and are not listable or
+ * aggregatable from the chat.
+ */
+export const AI_SEARCH_ONLY_ENTITY_TYPES = ['incidents'] as const;
+
+export const AI_SEARCH_ENTITY_TYPES = [
+  ...AI_QUERY_ENTITY_TYPES,
+  ...AI_SEARCH_ONLY_ENTITY_TYPES,
+] as const;
+
 export const AI_CONTEXT_ENTITY_TYPES = [
   'applications',
   'assets',
@@ -71,9 +83,9 @@ export const AI_CONTEXT_ENTITY_TYPES = [
   'tasks',
 ] as const;
 
-export const AiSearchEntityTypeSchema = z.enum(AI_QUERY_ENTITY_TYPES);
+export const AiSearchEntityTypeSchema = z.enum(AI_SEARCH_ENTITY_TYPES);
 
-export const AiQueryEntityTypeSchema = AiSearchEntityTypeSchema;
+export const AiQueryEntityTypeSchema = z.enum(AI_QUERY_ENTITY_TYPES);
 export const AiQueryScopeSchema = z.enum(['me', 'my_team']);
 
 export const AiContextEntityTypeSchema = z.enum(AI_CONTEXT_ENTITY_TYPES);

@@ -74,6 +74,8 @@ import LocationsPage from './pages/it/LocationsPage';
 import LocationWorkspacePage from './pages/it/LocationWorkspacePage';
 import AssetsPage from './pages/it/AssetsPage';
 import AssetWorkspacePage from './pages/it/AssetWorkspacePage';
+import IncidentsPage from './pages/it/IncidentsPage';
+import IncidentWorkspacePage from './pages/it/IncidentWorkspacePage';
 import BusinessProcessesPage from './pages/BusinessProcessesPage';
 import BusinessProcessWorkspacePage from './pages/business-processes/BusinessProcessWorkspacePage';
 import LoginCallbackPage from './pages/LoginCallbackPage';
@@ -235,6 +237,9 @@ function AppRoutes() {
           <Route path="/it/assets" element={<AssetsPage />} />
           <Route path="/it/assets/:id" element={<AssetWorkspacePage />} />
           <Route path="/it/assets/:id/:tab" element={<AssetWorkspacePage />} />
+          <Route path="/it/incidents" element={<IncidentsPage />} />
+          <Route path="/it/incidents/:id" element={<IncidentWorkspacePage />} />
+          <Route path="/it/incidents/:id/:tab" element={<IncidentWorkspacePage />} />
           <Route path="/ops/reports" element={<ReportsLandingPage />} />
           <Route path="/ops/reports/chargeback" element={<Navigate to="/ops/reports/chargeback/global" replace />} />
           <Route path="/ops/reports/chargeback/global" element={<GlobalChargebackReport />} />

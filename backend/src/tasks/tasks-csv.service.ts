@@ -121,22 +121,23 @@ export class TasksCsvService {
     }
 
     // Table mapping
-    const tableMap: Record<string, string> = {
-      project: 'portfolio_projects',
-      spend_item: 'spend_items',
-      contract: 'contracts',
-      capex_item: 'capex_items',
+    const tableMap: Record<string, { table: string; nameColumn: string }> = {
+      project: { table: 'portfolio_projects', nameColumn: 'name' },
+      spend_item: { table: 'spend_items', nameColumn: 'product_name' },
+      contract: { table: 'contracts', nameColumn: 'name' },
+      capex_item: { table: 'capex_items', nameColumn: 'description' },
+      incident: { table: 'incidents', nameColumn: "'INC-' || item_number::text" },
     };
 
     // Load names for each type
     for (const [type, typeTasks] of byType.entries()) {
-      const table = tableMap[type];
-      if (!table) continue;
+      const mapping = tableMap[type];
+      if (!mapping) continue;
 
       const ids = [...new Set(typeTasks.map((t) => t.related_object_id))];
 
       const rows = await manager.query(
-        `SELECT id, name FROM ${table} WHERE id = ANY($1) AND tenant_id = $2`,
+        `SELECT id, ${mapping.nameColumn} AS name FROM ${mapping.table} WHERE id = ANY($1) AND tenant_id = $2`,
         [ids, tenantId],
       );
 
@@ -188,6 +189,7 @@ export class TasksCsvService {
       spend_item: { table: 'spend_items', nameColumn: 'product_name' },
       contract: { table: 'contracts', nameColumn: 'name' },
       capex_item: { table: 'capex_items', nameColumn: 'description' },
+      incident: { table: 'incidents', nameColumn: "'INC-' || item_number::text" },
     };
     const normalizeType = (raw: string): string => {
       const t = raw.trim().toLowerCase().replace(/\s+/g, '_');

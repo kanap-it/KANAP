@@ -15,6 +15,7 @@ import { DocumentClassification } from './document-classification.entity';
 import { DocumentContributor } from './document-contributor.entity';
 import { DocumentEditLock } from './document-edit-lock.entity';
 import { DocumentFolder } from './document-folder.entity';
+import { DocumentIncident } from './document-incident.entity';
 import { IntegratedDocumentBinding } from './integrated-document-binding.entity';
 import { IntegratedDocumentsService } from './integrated-documents.service';
 import { IntegratedDocumentSlotSetting } from './integrated-document-slot-setting.entity';
@@ -56,6 +57,7 @@ import { DocumentTypesController } from './document-types.controller';
       DocumentReference,
       DocumentApplication,
       DocumentAsset,
+      DocumentIncident,
       DocumentProject,
       DocumentRequest,
       DocumentTask,

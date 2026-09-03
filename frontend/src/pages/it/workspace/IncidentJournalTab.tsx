@@ -1,0 +1,202 @@
+import React from 'react';
+import { Alert, Avatar, Box, Button, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { incidentsApi, type IncidentEntry } from '../../../api/endpoints/incidents';
+import { useLocale } from '../../../i18n/useLocale';
+import { formatShortDateTime } from '../../../lib/dateFormat';
+import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { formatRelativeTime } from '../../../utils/portfolioI18n';
+import IncidentDateTimeField from './IncidentDateTimeField';
+import { incidentInitials, incidentSeverityLabel, incidentStatusLabel } from './incidentWorkspace';
+
+type Props = {
+  incidentId: string;
+  canAdd: boolean;
+  onEntryAdded: () => void;
+};
+
+/** Charter composer card: editor area on top, single-line footer with a soft divider. */
+const journalComposerSx = {
+  bgcolor: 'kanap.bg.composer',
+  border: '1px solid',
+  borderColor: 'kanap.border.default',
+  borderRadius: '8px',
+  '&:focus-within': { borderColor: 'kanap.teal' },
+} as const;
+
+const journalEditorSx = {
+  '& .MuiInputBase-root': { p: '14px 16px', fontSize: 14, lineHeight: 1.6, alignItems: 'flex-start' },
+  '& textarea::placeholder': { color: 'kanap.text.tertiary', opacity: 1 },
+} as const;
+
+const journalFooterSx = {
+  borderTop: '1px solid',
+  borderColor: 'kanap.border.soft',
+  p: '10px 16px 12px',
+} as const;
+
+export function incidentEntriesQueryKey(incidentId: string) {
+  return ['incident-entries', incidentId] as const;
+}
+
+export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }: Props) {
+  const { t } = useTranslation('it');
+  const { t: tPortfolio } = useTranslation('portfolio');
+  const locale = useLocale();
+  const queryClient = useQueryClient();
+  const [note, setNote] = React.useState('');
+  const [occurredAt, setOccurredAt] = React.useState<string>(() => new Date().toISOString());
+  const occurredTouchedRef = React.useRef(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const { data: entries = [] } = useQuery({
+    queryKey: incidentEntriesQueryKey(incidentId),
+    queryFn: () => incidentsApi.listEntries(incidentId),
+  });
+
+  const handleNoteChange = (next: string) => {
+    if (!note && next && !occurredTouchedRef.current) setOccurredAt(new Date().toISOString());
+    setNote(next);
+  };
+
+  const submit = async () => {
+    const content = note.trim();
+    if (!content || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await incidentsApi.createEntry(incidentId, { content, occurred_at: occurredAt });
+      setNote('');
+      occurredTouchedRef.current = false;
+      setOccurredAt(new Date().toISOString());
+      await queryClient.invalidateQueries({ queryKey: incidentEntriesQueryKey(incidentId) });
+      onEntryAdded();
+    } catch (e) {
+      setError(getApiErrorMessage(e, t, t('workspace.incident.messages.entryFailed')));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const describeChange = (field: string, change: { from: unknown; to: unknown }) => {
+    const label = t(`workspace.incident.journal.fields.${field}`, { defaultValue: field });
+    const format = (value: unknown) => {
+      if (value == null || value === '' || (Array.isArray(value) && value.length === 0)) return '—';
+      if (Array.isArray(value)) return value.join(', ');
+      if (field === 'status') return incidentStatusLabel(t, String(value));
+      if (field === 'severity') return incidentSeverityLabel(t, String(value));
+      return String(value);
+    };
+    return `${label}: ${format(change.from)} → ${format(change.to)}`;
+  };
+
+  const authorName = (entry: IncidentEntry) => (
+    entry.author_name
+    || (entry.kind === 'system'
+      ? t('workspace.incident.journal.systemAuthor')
+      : t('workspace.incident.journal.unknownAuthor'))
+  );
+
+  return (
+    <Stack spacing="22px" sx={{ pt: 1, maxWidth: 900 }}>
+      {canAdd && (
+        <Box sx={journalComposerSx}>
+          <TextField
+            value={note}
+            onChange={(event) => handleNoteChange(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                void submit();
+              }
+            }}
+            multiline
+            minRows={3}
+            fullWidth
+            variant="standard"
+            placeholder={t('workspace.incident.journal.placeholder')}
+            InputProps={{ disableUnderline: true }}
+            disabled={submitting}
+            sx={journalEditorSx}
+          />
+          <Stack direction="row" alignItems="center" spacing="18px" sx={journalFooterSx}>
+            <Box sx={{ width: 200 }}>
+              <IncidentDateTimeField
+                value={occurredAt}
+                onChange={(next) => {
+                  if (!next) return;
+                  occurredTouchedRef.current = true;
+                  setOccurredAt(next);
+                }}
+                disabled={submitting}
+              />
+            </Box>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => void submit()}
+              disabled={submitting || !note.trim()}
+            >
+              {t('workspace.incident.journal.add')}
+            </Button>
+          </Stack>
+        </Box>
+      )}
+
+      {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+
+      {entries.length === 0 && (
+        <Typography sx={{ fontSize: 13, color: 'kanap.text.tertiary' }}>
+          {t('workspace.incident.journal.empty')}
+        </Typography>
+      )}
+
+      <Stack spacing="22px">
+        {entries.map((entry) => {
+          const name = authorName(entry);
+          // Link changes carry a ready-made sentence; showing the raw before/after lists as well would duplicate it.
+          const changes = entry.changed_fields && entry.kind !== 'link_change' ? Object.entries(entry.changed_fields) : [];
+          return (
+            <Box key={entry.id} sx={{ display: 'flex', gap: '12px' }}>
+              <Avatar sx={{ width: 26, height: 26, fontSize: '10px', fontWeight: 500, bgcolor: 'kanap.teal', color: 'kanap.tealForeground', flexShrink: 0 }}>
+                {incidentInitials(name)}
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack direction="row" spacing={1} alignItems="baseline">
+                  <Typography sx={{ fontSize: 13, fontWeight: 500 }}>{name}</Typography>
+                  <Tooltip title={formatRelativeTime(tPortfolio, entry.occurred_at, locale)}>
+                    <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>
+                      {formatShortDateTime(entry.occurred_at, locale)}
+                    </Typography>
+                  </Tooltip>
+                  {entry.kind !== 'note' && (
+                    <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>
+                      {t(`workspace.incident.journal.kinds.${entry.kind}`, { defaultValue: entry.kind })}
+                    </Typography>
+                  )}
+                </Stack>
+                {changes.length > 0 && (
+                  <Box sx={{ mt: '4px' }}>
+                    {changes.map(([field, change]) => (
+                      <Typography key={field} sx={{ fontSize: 13, lineHeight: 1.55 }}>
+                        {describeChange(field, change)}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+                {entry.content && (
+                  <Typography sx={{ mt: '4px', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                    {entry.content}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          );
+        })}
+      </Stack>
+    </Stack>
+  );
+}

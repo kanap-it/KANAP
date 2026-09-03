@@ -456,6 +456,22 @@ export class KnowledgeController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('knowledge', 'member')
+  @Post(':idOrRef/relations/incidents/bulk-replace')
+  bulkReplaceIncidentRelations(
+    @Param('idOrRef') idOrRef: string,
+    @Body() body: { incident_ids: string[] } | string[],
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const ids = Array.isArray(body) ? body : body?.incident_ids ?? [];
+    return this.relations.bulkReplaceRelations(idOrRef, 'incidents', ids, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+      guardAgainstActiveLock: true,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('knowledge', 'member')
   @Post(':idOrRef/relations/:entity/bulk-replace')
   bulkReplaceGenericRelations(
     @Param('idOrRef') idOrRef: string,
@@ -472,6 +488,7 @@ export class KnowledgeController {
       locations: 'location_ids',
       connections: 'connection_ids',
       interfaces: 'interface_ids',
+      incidents: 'incident_ids',
     };
     const bodyKey = bodyKeyByEntity[entity];
     const ids = Array.isArray(body) ? body : (

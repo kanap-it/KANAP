@@ -65,6 +65,7 @@ const CONTEXT_LABEL_MAP: Record<string, string> = {
   spend_item: 'OPEX',
   contract: 'Contract',
   capex_item: 'CAPEX',
+  incident: 'Incident',
 };
 
 const PRIORITY_COLOR_MAP: Record<string, 'error' | 'warning' | 'default' | 'info' | 'success'> = {
@@ -421,7 +422,7 @@ export default function TasksPage() {
       filterParams: {
         getValues: getTaskFilterValues('related_object_type', {
           labelMap: contextLabelMap,
-          order: [null, 'project', 'spend_item', 'capex_item', 'contract'],
+          order: [null, 'project', 'spend_item', 'capex_item', 'contract', 'incident'],
           emptyLabel: t('tasks.values.standalone'),
         }),
         searchable: false,

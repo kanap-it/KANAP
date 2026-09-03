@@ -50,6 +50,7 @@ export class CsvImportService {
   private readonly DEFAULT_MAX_ITEMS = 4;
   private readonly AUDITED_IMPORT_TABLES = new Set<string>([
     'tasks',
+    'incidents',
     'portfolio_requests',
     'portfolio_projects',
   ]);

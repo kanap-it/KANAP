@@ -170,7 +170,9 @@
       "createTask": "Create task",
       "taskTitle": "Task title",
       "whatNeedsToBeDone": "What needs to be done?",
-      "projectOptional": "Project (optional)"
+      "linkToOptional": "Link to (optional)",
+      "projects": "Projects",
+      "incidents": "Incidents"
     },
     "quickLogTime": {
       "logTime": "Log time",

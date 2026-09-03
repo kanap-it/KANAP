@@ -309,7 +309,7 @@ export class TasksController {
   @Patch(':id/move')
   async move(
     @Param('id') idOrRef: string,
-    @Body() body: { related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | null; related_object_id: string | null },
+    @Body() body: { related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident' | null; related_object_id: string | null },
     @Req() req: any,
   ) {
     const id = await this.resolve(idOrRef, req);
@@ -321,7 +321,7 @@ export class TasksController {
 
     const nextType = (body?.related_object_type ?? null) as RelatedType;
     const nextId = (body?.related_object_id ?? null) as string | null;
-    const allowed: RelatedType[] = ['spend_item', 'contract', 'capex_item', 'project', null];
+    const allowed: RelatedType[] = ['spend_item', 'contract', 'capex_item', 'project', 'incident', null];
     if (!allowed.includes(nextType)) {
       throw new BadRequestException('Invalid related_object_type');
     }

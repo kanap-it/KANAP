@@ -36,7 +36,7 @@ type TaskData = {
   start_date: string | null;
   assignee_user_id: string | null;
   assignee_name: string | null;
-  related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project';
+  related_object_type: 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident';
   related_object_id: string;
   related_object_name: string;
   // Project-specific fields
@@ -65,7 +65,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
   const [assigneeId, setAssigneeId] = React.useState<string | null>(null);
   const [priorityLevel, setPriorityLevel] = React.useState<'blocker' | 'high' | 'normal' | 'low' | 'optional'>('normal');
   const [relatedSearch, setRelatedSearch] = React.useState('');
-  const [selectedRelated, setSelectedRelated] = React.useState<{ id: string; label: string; type: 'spend_item' | 'contract' | 'capex_item' | 'project' } | null>(null);
+  const [selectedRelated, setSelectedRelated] = React.useState<{ id: string; label: string; type: 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident' } | null>(null);
 
   const baselineRef = React.useRef<{
     title: string;
@@ -75,7 +75,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
     start_date: string;
     assignee_user_id: string | null;
     priority_level: string;
-    related_type?: 'spend_item' | 'contract' | 'capex_item' | 'project';
+    related_type?: 'spend_item' | 'contract' | 'capex_item' | 'project' | 'incident';
     related_id?: string;
   }>({ title: '', description: '', status: 'open', due_date: '', start_date: '', assignee_user_id: null, priority_level: 'normal', related_type: undefined, related_id: undefined });
 
@@ -185,6 +185,8 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
         endpoint = `/contracts/${baseId}/tasks`;
       } else if (baseType === 'capex_item') {
         endpoint = `/capex-items/${baseId}/tasks`;
+      } else if (baseType === 'incident') {
+        endpoint = `/incidents/${baseId}/tasks`;
       } else if (baseType === 'project') {
         endpoint = `/portfolio/projects/${baseId}/tasks/${data.id}`;
       } else {
@@ -271,6 +273,7 @@ export default forwardRef<TaskOverviewEditorHandle, Props>(function TaskOverview
           if (type === 'spend_item') return t('portfolio:context.spend_item');
           if (type === 'contract') return t('portfolio:context.contract');
           if (type === 'capex_item') return t('portfolio:context.capex_item');
+          if (type === 'incident') return t('portfolio:context.incident');
           return t('portfolio:workspace.task.values.other');
         }}
         renderInput={(params) => (

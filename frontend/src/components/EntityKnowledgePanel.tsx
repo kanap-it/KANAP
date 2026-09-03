@@ -43,7 +43,8 @@ export type EntityKnowledgeType =
   | 'tasks'
   | 'locations'
   | 'connections'
-  | 'interfaces';
+  | 'interfaces'
+  | 'incidents';
 
 type EntityKnowledgePanelProps = {
   entityType: EntityKnowledgeType;
@@ -140,6 +141,7 @@ const ENTITY_ENDPOINTS: Record<EntityKnowledgeType, string> = {
   locations: '/locations',
   connections: '/connections',
   interfaces: '/interfaces',
+  incidents: '/incidents',
 };
 
 const ENTITY_REF_PREFIXES: Partial<Record<EntityKnowledgeType, string>> = {
@@ -151,6 +153,7 @@ const ENTITY_REF_PREFIXES: Partial<Record<EntityKnowledgeType, string>> = {
   locations: 'LOC',
   connections: 'CONN',
   interfaces: 'INT',
+  incidents: 'INC',
 };
 
 const RELATION_KEYS: Record<EntityKnowledgeType, string> = {
@@ -162,6 +165,7 @@ const RELATION_KEYS: Record<EntityKnowledgeType, string> = {
   locations: 'locations',
   connections: 'connections',
   interfaces: 'interfaces',
+  incidents: 'incidents',
 };
 
 const RELATION_BODY_KEYS: Record<EntityKnowledgeType, string> = {
@@ -173,6 +177,7 @@ const RELATION_BODY_KEYS: Record<EntityKnowledgeType, string> = {
   locations: 'location_ids',
   connections: 'connection_ids',
   interfaces: 'interface_ids',
+  incidents: 'incident_ids',
 };
 
 const TEMPLATE_LIBRARY_SLUG = 'templates';
@@ -233,6 +238,7 @@ function sourceHref(source: KnowledgeContextSource): string {
   if (source.entity_type === 'locations') return `/it/locations/${routeId}/overview`;
   if (source.entity_type === 'connections') return `/it/connections/${routeId}/overview`;
   if (source.entity_type === 'interfaces') return `/it/interfaces/${routeId}/overview`;
+  if (source.entity_type === 'incidents') return `/it/incidents/${routeId}/overview`;
   return `/portfolio/tasks/${routeId}/overview`;
 }
 

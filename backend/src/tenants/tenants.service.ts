@@ -92,7 +92,7 @@ const BUILT_IN_ROLES: Array<{
     name: 'IT Landscape Administrator',
     description: 'Full control over IT landscape including applications, infrastructure, and settings',
     permissions: {
-      applications: 'admin', infrastructure: 'admin', locations: 'admin', settings: 'admin',
+      applications: 'admin', infrastructure: 'admin', locations: 'admin', incidents: 'admin', settings: 'admin',
       tasks: 'member', users: 'reader',
       companies: 'reader', departments: 'reader', suppliers: 'member', contacts: 'member',
       opex: 'reader', capex: 'reader', contracts: 'reader',

@@ -1,5 +1,33 @@
 {
   "pages": {
+    "incidents": {
+      "title": "Vorfallsregister",
+      "newIncident": "Neuer Vorfall",
+      "importCsv": "CSV importieren",
+      "exportCsv": "CSV exportieren",
+      "importTitle": "Vorfälle importieren",
+      "exportTitle": "Vorfälle exportieren",
+      "columns": {
+        "reference": "Ref.",
+        "title": "Titel",
+        "category": "Kategorie",
+        "severity": "Schweregrad",
+        "status": "Status",
+        "detected": "Erkannt",
+        "resolved": "Behoben",
+        "closed": "Geschlossen",
+        "owner": "Verantwortlicher",
+        "assets": "Assets",
+        "applications": "Anwendungen",
+        "tasks": "Aufgaben",
+        "created": "Erstellt"
+      },
+      "filters": {
+        "noCategory": "(Keine Kategorie)",
+        "noOwner": "(Kein Verantwortlicher)",
+        "blank": "(Leer)"
+      }
+    },
     "applications": {
       "title": "Anwendungen",
       "newAppService": "Neue Anwendung / Service",
@@ -172,11 +200,137 @@
         "appsInterfaces": {
           "title": "Anwendungen, Services und Schnittstellen",
           "subtitle": "Listen für Anwendungen, Anwendungsinstanzen, Schnittstellen und Bindungen."
+        },
+        "incidents": {
+          "title": "Vorfälle",
+          "subtitle": "Listen für das Vorfallsregister."
         }
       }
     }
   },
   "workspace": {
+    "incident": {
+      "title": "Vorfall",
+      "newTitle": "Neuer Vorfall",
+      "untitled": "Vorfall ohne Titel",
+      "backLabel": "Vorfallsregister",
+      "previous": "Vorheriger Vorfall",
+      "next": "Nächster Vorfall",
+      "tabs": {
+        "overview": "Übersicht",
+        "journal": "Verlauf",
+        "relations": "Beziehungen",
+        "documents": "Dokumente",
+        "attachments": "Anhänge"
+      },
+      "actions": {
+        "changeStatus": "Status ändern",
+        "useReopen": "Verwenden Sie Wieder öffnen",
+        "reopen": "Wieder öffnen",
+        "cancel": "Vorfall abbrechen"
+      },
+      "dialogs": {
+        "reopenTitle": "Vorfall wieder öffnen",
+        "reopenMessage": "Der Vorfall wechselt zurück auf In Bearbeitung. Der Grund wird im Verlauf festgehalten.",
+        "reopenPlaceholder": "z. B. das Problem trat nach der Behebung erneut auf",
+        "reopenConfirm": "Wieder öffnen",
+        "cancelTitle": "Vorfall abbrechen",
+        "cancelMessage": "Der Eintrag behält seine Nummer und wird als abgebrochen markiert. Der Grund wird im Verlauf festgehalten.",
+        "cancelPlaceholder": "z. B. doppelt erfasst, siehe INC-12",
+        "cancelConfirm": "Vorfall abbrechen"
+      },
+      "metadata": {
+        "status": "Status",
+        "severity": "Schweregrad",
+        "owner": "Verantwortlicher",
+        "ownerMissing": "Verantwortlicher fehlt",
+        "detected": "Erkannt",
+        "duration": "Dauer"
+      },
+      "duration": {
+        "days": "{{count}} T",
+        "hours": "{{count}} Std.",
+        "minutes": "{{count}} Min."
+      },
+      "create": {
+        "title": "Titel",
+        "titlePlaceholder": "z. B. Mailservice am Standort Lyon nicht verfügbar",
+        "description": "Beschreibung",
+        "titleRequired": "Titel ist erforderlich.",
+        "severityRequired": "Schweregrad ist erforderlich.",
+        "detectedRequired": "Erkennungsdatum ist erforderlich."
+      },
+      "overview": {
+        "description": "Beschreibung",
+        "descriptionPlaceholder": "Was passiert ist, wie beobachtet",
+        "impact": "Auswirkung",
+        "impactPlaceholder": "Betroffene Services, Standorte und Benutzer",
+        "rootCause": "Ursache",
+        "rootCausePlaceholder": "Warum es passiert ist",
+        "correctiveActions": "Korrekturmaßnahmen",
+        "correctiveActionsPlaceholder": "Was zur Behebung und Vorbeugung getan wurde; Folgearbeiten als verknüpfte Aufgaben verfolgen",
+        "lessonsLearned": "Erkenntnisse",
+        "lessonsLearnedPlaceholder": "Was aus diesem Vorfall mitzunehmen ist",
+        "closedBanner": "Am {{date}} geschlossen. Öffnen Sie ihn wieder, um Änderungen vorzunehmen.",
+        "cancelledBanner": "Am {{date}} abgebrochen. Öffnen Sie ihn wieder, um Änderungen vorzunehmen."
+      },
+      "journal": {
+        "placeholder": "Notiz zum Verlauf hinzufügen",
+        "add": "Hinzufügen",
+        "empty": "Noch keine Einträge.",
+        "systemAuthor": "System",
+        "unknownAuthor": "Unbekannt",
+        "kinds": {
+          "status_change": "Statusänderung",
+          "severity_change": "Änderung des Schweregrads",
+          "reopen": "Wieder geöffnet",
+          "link_change": "Verknüpfungen aktualisiert",
+          "system": "System"
+        },
+        "fields": {
+          "status": "Status",
+          "severity": "Schweregrad"
+        }
+      },
+      "relations": {
+        "assets": "Assets",
+        "assetsPlaceholder": "Assets suchen",
+        "applications": "Anwendungen",
+        "applicationsPlaceholder": "Anwendungen suchen"
+      },
+      "drawer": {
+        "category": "Kategorie",
+        "noCategory": "Keine Kategorie",
+        "severity": "Schweregrad",
+        "selectSeverity": "Schweregrad auswählen",
+        "status": "Status",
+        "started": "Beginn",
+        "detected": "Erkannt",
+        "resolved": "Behoben",
+        "closed": "Geschlossen",
+        "reporter": "Melder",
+        "owner": "Verantwortlicher",
+        "sourceRef": "Externe Referenz",
+        "sourceRefHint": "Ticketnummer, Alarm-ID oder E-Mail-Referenz, unter der dieser Vorfall zuerst gemeldet wurde",
+        "sourceRefPlaceholder": "z. B. Ticket #4821",
+        "personalData": "Personenbezogene Daten betroffen",
+        "authorityRequired": "Meldung an Behörde erforderlich",
+        "notifiedOn": "Gemeldet am",
+        "notifiedParties": "Informierte Parteien",
+        "notifiedPartiesPlaceholder": "z. B. Aufsichtsbehörde, Versicherer, betroffene Kunden",
+        "created": "Erstellt",
+        "updated": "Aktualisiert",
+        "notSet": "Nicht festgelegt"
+      },
+      "messages": {
+        "loadFailed": "Fehler beim Laden des Vorfalls",
+        "saveFailed": "Fehler beim Speichern des Vorfalls",
+        "createFailed": "Fehler beim Erstellen des Vorfalls",
+        "entryFailed": "Fehler beim Hinzufügen des Verlaufseintrags",
+        "relationsFailed": "Fehler beim Speichern der Verknüpfungen",
+        "attachmentsFailed": "Fehler beim Aktualisieren der Anhänge"
+      }
+    },
     "application": {
       "title": "Anwendung / Service",
       "newTitle": "Neue Anwendung / Service",
@@ -484,6 +638,18 @@
     }
   },
   "components": {
+    "incidentRelations": {
+      "title": "Vorfälle",
+      "columns": {
+        "reference": "Ref.",
+        "title": "Titel",
+        "severity": "Schweregrad",
+        "status": "Status",
+        "detected": "Erkannt"
+      },
+      "empty": "Noch keine Vorfälle verknüpft. Vorfälle werden vom Vorfall selbst aus verknüpft.",
+      "loadFailed": "Vorfälle konnten nicht geladen werden."
+    },
     "instances": {
       "title": "Instanzen",
       "description": "Verwalten Sie Bereitstellungsumgebungen und Zugriffsdetails.",
@@ -572,6 +738,19 @@
     }
   },
   "enums": {
+    "incidentSeverity": {
+      "critical": "Kritisch",
+      "major": "Hoch",
+      "minor": "Mittel",
+      "low": "Niedrig"
+    },
+    "incidentStatus": {
+      "open": "Offen",
+      "in_progress": "In Bearbeitung",
+      "resolved": "Behoben",
+      "closed": "Geschlossen",
+      "cancelled": "Abgebrochen"
+    },
     "topology": {
       "serverToServer": "Server zu Server",
       "multiServer": "Multi-Server"

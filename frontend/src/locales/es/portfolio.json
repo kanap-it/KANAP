@@ -62,6 +62,7 @@
     "spend_item": "OPEX",
     "contract": "Contrato",
     "capex_item": "CAPEX",
+    "incident": "Incidente",
     "standalone": "Independiente"
   },
   "origin": {
@@ -531,6 +532,7 @@
       },
       "originTask": {
         "fallback": "Tarea",
+        "sourceLabel": "Tarea fuente",
         "title": "Tarea de origen",
         "withReference": "{{reference}}"
       },
@@ -810,6 +812,7 @@
             "budget": "Presupuesto",
             "capex": "CAPEX",
             "contract": "Contrato",
+            "incident": "Incidente",
             "project": "Proyecto",
             "related": "Relacionado"
           }

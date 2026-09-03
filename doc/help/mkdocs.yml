@@ -115,6 +115,7 @@ plugins:
             Applications: Applications
             Interfaces: Interfaces
             Interface Map: Carte des interfaces
+            Incidents: Incidents
             Settings: Paramètres
             Knowledge: Base de connaissances
             Budget Management: Gestion budgétaire
@@ -188,6 +189,7 @@ plugins:
             Applications: Anwendungen
             Interfaces: Schnittstellen
             Interface Map: Schnittstellenkarte
+            Incidents: Vorfälle
             Settings: Einstellungen
             Knowledge: Wissensdatenbank
             Budget Management: Budgetverwaltung
@@ -261,6 +263,7 @@ plugins:
             Applications: Aplicaciones
             Interfaces: Interfaces
             Interface Map: Mapa de interfaces
+            Incidents: Incidentes
             Settings: Configuración
             Knowledge: Base de conocimiento
             Budget Management: Gestión presupuestaria
@@ -337,6 +340,7 @@ nav:
       - Applications: applications.md
       - Interfaces: interfaces.md
       - Interface Map: interface-map.md
+    - Incidents: incidents.md
     - Settings: it-ops-settings.md
 
   - Knowledge:

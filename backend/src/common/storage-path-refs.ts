@@ -11,6 +11,7 @@ const ATTACHMENT_TABLES = [
   'spend_attachments',
   'capex_attachments',
   'asset_attachments',
+  'incident_attachments',
 ] as const;
 
 export { ATTACHMENT_TABLES };

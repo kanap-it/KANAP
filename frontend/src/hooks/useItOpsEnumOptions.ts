@@ -21,7 +21,8 @@ type FieldKey =
   | 'operatingSystem'
   | 'domain'
   | 'ipAddressType'
-  | 'accessMethod';
+  | 'accessMethod'
+  | 'incidentCategories';
 
 export function useItOpsEnumOptions() {
   const { data } = useItOpsSettings();
@@ -47,6 +48,7 @@ export function useItOpsEnumOptions() {
     domain: settings?.domains ?? [],
     ipAddressType: settings?.ipAddressTypes ?? [],
     accessMethod: settings?.accessMethods ?? [],
+    incidentCategories: settings?.incidentCategories ?? [],
   }), [settings]);
 
   const labelFor = useCallback((field: FieldKey, code?: string | null): string => {
