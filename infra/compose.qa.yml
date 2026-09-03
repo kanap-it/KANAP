@@ -1,3 +1,10 @@
+# Project-level env_file (Compose 2.24+): supplies values for ${VAR}
+# interpolation in this file (marketing build.args.PUBLIC_GA_ID, etc.).
+# It is not a substitute for service env_file on api, which still injects
+# the same file into the API container at runtime. Do not copy this file
+# into the marketing runtime container — Astro bakes PUBLIC_* at image build.
+env_file: ../backend/.env.qa
+
 services:
   api:
     build:
@@ -34,7 +41,8 @@ services:
       context: ../marketing
       dockerfile: Dockerfile
       args:
-        # Same as prod: set PUBLIC_GA_ID in host env to ship gtag (G-JNTR8JXN1Q for kanap.net).
+        # Interpolated from project-level env_file (backend/.env.qa).
+        # Set PUBLIC_GA_ID there to ship gtag (G-JNTR8JXN1Q for kanap.net).
         PUBLIC_GA_ID: ${PUBLIC_GA_ID:-}
     ports:
       - "127.0.0.1:8082:80"
