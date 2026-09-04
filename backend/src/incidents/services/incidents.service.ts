@@ -52,12 +52,24 @@ const FIELD_EXPRESSIONS: Record<string, string> = {
   owner_name: OWNER_NAME,
   reporter_name: REPORTER_NAME,
   source_ref: 'i.source_ref',
+  personal_data_affected: 'i.personal_data_affected',
+  authority_notification_required: 'i.authority_notification_required',
+  linked_assets: `(SELECT string_agg(TRIM(CONCAT_WS(' ', NULLIF(a.asset_reference, ''), a.name)), ', ' ORDER BY a.name)
+    FROM incident_assets ia
+    JOIN assets a ON a.id = ia.asset_id AND a.tenant_id = ia.tenant_id
+    WHERE ia.incident_id = i.id AND ia.tenant_id = i.tenant_id)`,
+  linked_applications: `(SELECT string_agg(TRIM(CONCAT_WS(' ', NULLIF(app.sequential_id, ''), app.name)), ', ' ORDER BY app.name)
+    FROM incident_applications iap
+    JOIN applications app ON app.id = iap.application_id AND app.tenant_id = iap.tenant_id
+    WHERE iap.incident_id = i.id AND iap.tenant_id = i.tenant_id)`,
   created_at: 'i.created_at',
   updated_at: 'i.updated_at',
   ...COUNT_EXPRESSIONS,
 };
 
 const DATE_FIELDS = new Set(['started_at', 'detected_at', 'resolved_at', 'closed_at', 'created_at', 'updated_at']);
+const NUMBER_FIELDS = new Set(Object.keys(COUNT_EXPRESSIONS));
+const BOOLEAN_FILTER_FIELDS = new Set<string>(['personal_data_affected', 'authority_notification_required']);
 
 const FILTER_VALUE_FIELDS = new Set(['category', 'severity', 'status', 'owner_name', 'reporter_name']);
 
@@ -75,6 +87,17 @@ function toDate(value: string | null | undefined): Date | null {
 function nullableText(value: string | null | undefined): string | null {
   const text = String(value ?? '').trim();
   return text.length === 0 ? null : String(value);
+}
+
+function coerceBooleanFilterValue(value: unknown): boolean | null {
+  if (value === true || value === false) return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const lowered = value.trim().toLowerCase();
+    if (lowered === 'true' || lowered === '1') return true;
+    if (lowered === 'false' || lowered === '0') return false;
+  }
+  return null;
 }
 
 type IncidentWhere = {
@@ -195,8 +218,11 @@ export class IncidentsService extends IncidentsBaseService {
           where += ' AND 1=0';
           continue;
         }
-        const nonNullValues = model.values.filter((v: any) => v !== null && v !== undefined);
         const hasNull = model.values.some((v: any) => v === null || v === undefined);
+        const rawValues = model.values.filter((v: any) => v !== null && v !== undefined);
+        const nonNullValues = BOOLEAN_FILTER_FIELDS.has(field)
+          ? rawValues.map(coerceBooleanFilterValue).filter((v: boolean | null): v is boolean => v !== null)
+          : rawValues;
         const clauses: string[] = [];
         if (nonNullValues.length > 0) {
           const placeholders = nonNullValues.map((value: any) => {
@@ -206,9 +232,11 @@ export class IncidentsService extends IncidentsBaseService {
           clauses.push(`${expression} IN (${placeholders.join(', ')})`);
         }
         if (hasNull) clauses.push(`${expression} IS NULL`);
-        where += ` AND (${clauses.join(' OR ')})`;
+        where += clauses.length > 0 ? ` AND (${clauses.join(' OR ')})` : ' AND 1=0';
       } else if (DATE_FIELDS.has(field) && (model.filterType === 'date' || model.filterType === 'text')) {
         where += this.dateClause(model, `${expression}::date`, params);
+      } else if (NUMBER_FIELDS.has(field) && (model.filterType === 'number' || model.filterType === 'text')) {
+        where += this.numberClause(model, expression, params);
       } else if (model.filterType === 'text' && model.filter) {
         const filterText = String(model.filter);
         const type = model.type || 'contains';
@@ -239,6 +267,26 @@ export class IncidentsService extends IncidentsBaseService {
         i.title ILIKE $${idx}
         OR i.description ILIKE $${idx}
         OR ('INC-' || i.item_number::text) ILIKE $${idx}
+        OR EXISTS (
+          SELECT 1 FROM incident_assets ia
+          JOIN assets a ON a.id = ia.asset_id AND a.tenant_id = ia.tenant_id
+          WHERE ia.incident_id = i.id AND ia.tenant_id = i.tenant_id
+            AND (
+              a.name ILIKE $${idx}
+              OR COALESCE(a.asset_reference, '') ILIKE $${idx}
+              OR COALESCE(a.hostname, '') ILIKE $${idx}
+              OR COALESCE(a.fqdn, '') ILIKE $${idx}
+            )
+        )
+        OR EXISTS (
+          SELECT 1 FROM incident_applications iap
+          JOIN applications app ON app.id = iap.application_id AND app.tenant_id = iap.tenant_id
+          WHERE iap.incident_id = i.id AND iap.tenant_id = i.tenant_id
+            AND (
+              app.name ILIKE $${idx}
+              OR COALESCE(app.sequential_id, '') ILIKE $${idx}
+            )
+        )
       )`;
     }
 
@@ -287,6 +335,38 @@ export class IncidentsService extends IncidentsBaseService {
     };
     const operator = operators[type];
     return operator ? ` AND ${expression} ${operator} ${pushDate(fromRaw)}` : '';
+  }
+
+  /** AG Grid number filter model → SQL fragment. */
+  private numberClause(model: any, expression: string, params: any[]): string {
+    const type = String(model.type || 'equals');
+    if (type === 'blank') return ` AND ${expression} IS NULL`;
+    if (type === 'notBlank') return ` AND ${expression} IS NOT NULL`;
+
+    const fromRaw = model.filter ?? model.value;
+    const toRaw = model.filterTo ?? model.valueTo;
+    const from = Number(fromRaw);
+    if (type === 'inRange') {
+      const to = Number(toRaw);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) return '';
+      params.push(from);
+      const fromIdx = params.length;
+      params.push(to);
+      return ` AND ${expression} BETWEEN $${fromIdx} AND $${params.length}`;
+    }
+    if (!Number.isFinite(from)) return '';
+    const operators: Record<string, string> = {
+      equals: '=',
+      notEqual: '<>',
+      lessThan: '<',
+      lessThanOrEqual: '<=',
+      greaterThan: '>',
+      greaterThanOrEqual: '>=',
+    };
+    const operator = operators[type];
+    if (!operator) return '';
+    params.push(from);
+    return ` AND ${expression} ${operator} $${params.length}`;
   }
 
   // =========================================================================

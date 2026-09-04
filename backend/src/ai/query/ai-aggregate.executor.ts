@@ -13,6 +13,7 @@ import { ConnectionsService } from '../../connections/services';
 import { ContactsService } from '../../contacts/contacts.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { DepartmentsService } from '../../departments/departments.service';
+import { IncidentsService } from '../../incidents/services';
 import { InterfacesService } from '../../interfaces/services';
 import { Document } from '../../knowledge/document.entity';
 import { isDocumentStatus } from '../../knowledge/document-status';
@@ -81,6 +82,7 @@ type SupportedAggregateEntityType =
   | 'contacts'
   | 'contracts'
   | 'departments'
+  | 'incidents'
   | 'interfaces'
   | 'locations'
   | 'projects'
@@ -451,6 +453,7 @@ export class AiAggregateExecutor {
     private readonly contacts: ContactsService,
     private readonly interfaces: InterfacesService,
     private readonly connections: ConnectionsService,
+    private readonly incidents: IncidentsService,
   ) {}
 
   private async normalizePersonFilters(
@@ -898,6 +901,23 @@ export class AiAggregateExecutor {
           manager: context.manager,
           tenantId: context.tenantId,
         },
+      );
+      const ids = result.ids || [];
+      return {
+        ids,
+        total: typeof result.total === 'number' ? result.total : ids.length,
+        scope: null,
+      };
+    }
+
+    if (entityType === 'incidents') {
+      const result = await this.incidents.listIds(
+        {
+          q,
+          limit: AGGREGATE_ID_COLLECTION_LIMIT,
+          filters: adaptedFilters,
+        },
+        { manager: context.manager, tenantId: context.tenantId },
       );
       const ids = result.ids || [];
       return {

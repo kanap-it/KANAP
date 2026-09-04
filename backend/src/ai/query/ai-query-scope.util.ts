@@ -23,6 +23,7 @@ export type ScopedAiEntityType =
   | 'contracts'
   | 'departments'
   | 'documents'
+  | 'incidents'
   | 'interfaces'
   | 'locations'
   | 'projects'

@@ -15,6 +15,7 @@ export type AiQueryEntityType =
   | 'contracts'
   | 'departments'
   | 'documents'
+  | 'incidents'
   | 'interfaces'
   | 'locations'
   | 'projects'

@@ -70,7 +70,7 @@ The list is the register itself: every incident, newest detection first.
 
 **Additional columns** (hidden by default, available via the column chooser): **Closed**, **Applications**, **Created**.
 
-**Filtering**: Category, Severity, Status and Owner offer checkbox filters whose options are computed from the incidents currently in view, so you only see values that exist in the result set. Date columns offer date filters, including a range: filter **Detected** between two dates to produce a quarterly or yearly extract. The search box matches the title, the description and the reference (`INC-14`).
+**Filtering**: Category, Severity, Status and Owner offer checkbox filters whose options are computed from the incidents currently in view, so you only see values that exist in the result set. Date columns offer date filters, including a range: filter **Detected** between two dates to produce a quarterly or yearly extract. The search box matches the title, the description, the reference (`INC-14`), and the names and references of linked assets and applications, so a search for a hostname such as `PAR-ESX-01` lists the incidents on that asset.
 
 **Tip**: combine Severity = Critical, Major with a **Detected** range to build the shortlist most steering committees and audits ask for.
 
@@ -215,6 +215,12 @@ Deadlines and thresholds depend on your jurisdiction and sector. KANAP records t
 Incident categories are yours to define, in **IT Landscape > Settings**, under **Incidents > Incident categories**. KANAP ships with infrastructure, security, application, data, supplier and other.
 
 Keep the list short. Categories are what you will group a year of incidents by, and a list of thirty is a list nobody uses consistently. Rather than deleting a category that is already in use, mark it deprecated: it disappears from the selector for new incidents while the existing ones keep their history.
+
+---
+
+## Ask the assistant
+
+Plaid can query the register in chat, with the same permissions as the rest of the application. Ask it for a count ("How many critical incidents this quarter?"), a filtered list ("List of open incidents on PAR-ESX-01"), or a full record ("Summary of INC-2") — the last includes the journal. Incident references such as `INC-12` in the answer are links to the workspace.
 
 ---
 
