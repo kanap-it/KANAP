@@ -205,8 +205,19 @@ Deadlines and thresholds depend on your jurisdiction and sector. KANAP records t
 - The corrective actions, and the follow-up tasks that prove they were carried out
 - Filtered views by period, severity, category or compliance flag, straight from the list
 - A CSV export of the whole register (**Export CSV** on the list), for auditors and for your own archive
+- A PDF report of a single incident (**Export PDF** in the workspace), for the auditor who wants one record rather than the whole register
 
 **Importing an existing register**: **Import CSV** on the list takes a CSV file. Leave the reference column empty to create incidents (KANAP allocates the next INC numbers), or keep the INC-N reference to update the matching records. Each imported incident gets a journal entry saying it came from a file. Export first if you want the exact column layout.
+
+---
+
+## Export a PDF report for an auditor
+
+Open an incident and click **Export PDF** in the header actions. KANAP downloads a PDF of that record: `INC-12-incident-report.pdf`. The download uses your signed-in session; it is not a public link.
+
+The report follows the language of the interface (English, French, German or Spanish). It includes the header and properties, the overview texts that were filled in, the journal in chronological order, linked assets, applications, tasks and documents, the compliance fields, and the attachments (file name, size and date). Empty sections are left out.
+
+Export is a read. It works on a closed or cancelled incident; the record stays locked. The button is not shown on **New incident**.
 
 ---
 

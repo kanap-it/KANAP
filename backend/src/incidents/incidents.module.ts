@@ -15,10 +15,12 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 import { StorageModule } from '../common/storage/storage.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
+import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { TasksModule } from '../tasks/tasks.module';
 import {
   IncidentEntriesService,
   IncidentRecordService,
+  IncidentReportService,
   IncidentRelationsService,
   IncidentsAttachmentsService,
   IncidentsService,
@@ -34,6 +36,7 @@ import {
     forwardRef(() => UsersModule),
     StorageModule,
     KnowledgeModule,
+    ItOpsSettingsModule,
     TasksModule,
   ],
   controllers: [IncidentsController, IncidentsTasksController],
@@ -43,6 +46,7 @@ import {
     IncidentRelationsService,
     IncidentsAttachmentsService,
     IncidentRecordService,
+    IncidentReportService,
     IncidentsCsvService,
   ],
   exports: [IncidentsService, IncidentRecordService],

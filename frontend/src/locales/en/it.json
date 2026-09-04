@@ -227,7 +227,8 @@
         "changeStatus": "Change status",
         "useReopen": "Use Reopen",
         "reopen": "Reopen",
-        "cancel": "Cancel incident"
+        "cancel": "Cancel incident",
+        "exportPdf": "Export PDF"
       },
       "dialogs": {
         "reopenTitle": "Reopen incident",
@@ -328,7 +329,8 @@
         "createFailed": "Failed to create incident",
         "entryFailed": "Failed to add the journal entry",
         "relationsFailed": "Failed to save links",
-        "attachmentsFailed": "Failed to update attachments"
+        "attachmentsFailed": "Failed to update attachments",
+        "exportPdfFailed": "Could not export the PDF report."
       }
     },
     "application": {

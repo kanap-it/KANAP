@@ -205,8 +205,19 @@ Les délais et les seuils dépendent de votre juridiction et de votre secteur. K
 - Les actions correctives, et les tâches de suivi qui prouvent qu'elles ont été menées
 - Des vues filtrées par période, gravité, catégorie ou indicateur de conformité, directement depuis la liste
 - Un export CSV de tout le registre (**Exporter CSV** dans la liste), pour les auditeurs et pour vos propres archives
+- Un rapport PDF d'un incident (**Exporter en PDF** dans l'espace de travail), pour l'auditeur qui veut une fiche plutôt que tout le registre
 
 **Importer un registre existant** : **Importer CSV** dans la liste accepte un fichier CSV. Laissez la colonne référence vide pour créer des incidents (KANAP attribue les numéros INC suivants), ou conservez la référence INC-N pour mettre à jour les enregistrements correspondants. Chaque incident importé reçoit une entrée de journal indiquant qu'il provient d'un fichier. Exportez d'abord si vous voulez la disposition exacte des colonnes.
+
+---
+
+## Exporter un rapport PDF pour un auditeur
+
+Ouvrez un incident et cliquez sur **Exporter en PDF** dans les actions de l'en-tête. KANAP télécharge un PDF de cet enregistrement : `INC-12-incident-report.pdf`. Le téléchargement utilise votre session connectée ; ce n'est pas un lien public.
+
+Le rapport suit la langue de l'interface (anglais, français, allemand ou espagnol). Il reprend l'en-tête et les propriétés, les textes de la vue d'ensemble qui ont été renseignés, le journal dans l'ordre chronologique, les actifs, applications, tâches et documents liés, les champs de conformité, et les pièces jointes (nom du fichier, taille et date). Les sections vides sont omises.
+
+L'export est une lecture. Il fonctionne sur un incident clôturé ou annulé ; l'enregistrement reste verrouillé. Le bouton n'apparaît pas sur **Nouvel incident**.
 
 ---
 

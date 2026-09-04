@@ -205,8 +205,19 @@ Los plazos y umbrales dependen de su jurisdicción y de su sector. KANAP registr
 - Las acciones correctivas y las tareas de seguimiento que demuestran que se llevaron a cabo
 - Vistas filtradas por periodo, gravedad, categoría o indicador de conformidad, directamente desde la lista
 - Una exportación CSV de todo el registro (**Exportar CSV** en la lista), para los auditores y para su propio archivo
+- Un informe PDF de un solo incidente (**Exportar PDF** en el espacio de trabajo), para el auditor que quiere una ficha en lugar de todo el registro
 
 **Importar un registro existente**: **Importar CSV** en la lista acepta un archivo CSV. Deje la columna de referencia vacía para crear incidentes (KANAP asigna los siguientes números INC), o conserve la referencia INC-N para actualizar los registros correspondientes. Cada incidente importado recibe una entrada de diario que indica que procede de un archivo. Exporte primero si quiere la disposición exacta de las columnas.
+
+---
+
+## Exportar un informe PDF para un auditor
+
+Abra un incidente y haga clic en **Exportar PDF** en las acciones de la cabecera. KANAP descarga un PDF de ese registro: `INC-12-incident-report.pdf`. La descarga usa su sesión iniciada; no es un enlace público.
+
+El informe sigue el idioma de la interfaz (inglés, francés, alemán o español). Incluye la cabecera y las propiedades, los textos de la vista general que se hayan rellenado, el registro en orden cronológico, los activos, aplicaciones, tareas y documentos vinculados, los campos de conformidad y los adjuntos (nombre de archivo, tamaño y fecha). Las secciones vacías se omiten.
+
+La exportación es una lectura. Funciona en un incidente cerrado o cancelado; el registro permanece bloqueado. El botón no aparece en **Nuevo incidente**.
 
 ---
 

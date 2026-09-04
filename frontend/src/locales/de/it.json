@@ -227,7 +227,8 @@
         "changeStatus": "Status ändern",
         "useReopen": "Verwenden Sie Wieder öffnen",
         "reopen": "Wieder öffnen",
-        "cancel": "Vorfall abbrechen"
+        "cancel": "Vorfall abbrechen",
+        "exportPdf": "PDF exportieren"
       },
       "dialogs": {
         "reopenTitle": "Vorfall wieder öffnen",
@@ -328,7 +329,8 @@
         "createFailed": "Fehler beim Erstellen des Vorfalls",
         "entryFailed": "Fehler beim Hinzufügen des Verlaufseintrags",
         "relationsFailed": "Fehler beim Speichern der Verknüpfungen",
-        "attachmentsFailed": "Fehler beim Aktualisieren der Anhänge"
+        "attachmentsFailed": "Fehler beim Aktualisieren der Anhänge",
+        "exportPdfFailed": "Der PDF-Bericht konnte nicht exportiert werden."
       }
     },
     "application": {

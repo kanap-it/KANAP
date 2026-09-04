@@ -227,7 +227,8 @@
         "changeStatus": "Changer le statut",
         "useReopen": "Utilisez Rouvrir",
         "reopen": "Rouvrir",
-        "cancel": "Annuler l'incident"
+        "cancel": "Annuler l'incident",
+        "exportPdf": "Exporter en PDF"
       },
       "dialogs": {
         "reopenTitle": "Rouvrir l'incident",
@@ -328,7 +329,8 @@
         "createFailed": "Échec de la création de l'incident",
         "entryFailed": "Échec de l'ajout de l'entrée de journal",
         "relationsFailed": "Échec de l'enregistrement des liens",
-        "attachmentsFailed": "Échec de la mise à jour des pièces jointes"
+        "attachmentsFailed": "Échec de la mise à jour des pièces jointes",
+        "exportPdfFailed": "Impossible d'exporter le rapport PDF."
       }
     },
     "application": {

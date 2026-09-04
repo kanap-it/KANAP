@@ -57,7 +57,7 @@ jobs:
       - name: Run backend hardening checks (${{ matrix.mode }})
         if: matrix.mode == 'cloud'
         working-directory: backend
-        run: npm run test:auth && npm run test:security && npm run test:tenant-isolation && npm run test:rls && npm run test:capex && npm run test:csv && npm run test:ai
+        run: npm run test:auth && npm run test:security && npm run test:tenant-isolation && npm run test:rls && npm run test:capex && npm run test:incidents && npm run test:csv && npm run test:ai
       - name: Build frontend (${{ matrix.mode }})
         working-directory: frontend
         run: npm ci && npm run build

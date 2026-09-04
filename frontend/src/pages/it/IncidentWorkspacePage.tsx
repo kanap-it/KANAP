@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Box, Button, Menu, MenuItem, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Menu, MenuItem, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,7 @@ import { useLocale } from '../../i18n/useLocale';
 import { formatShortDate } from '../../lib/dateFormat';
 import { dialogBorderedFieldSx, drawerFieldValueSx, drawerMenuItemSx } from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { downloadBlob } from '../../utils/downloadBlob';
 import { formatItemRef } from '../../utils/item-ref';
 import { getDotColor, INCIDENT_STATUS_COLORS } from '../../utils/statusColors';
 import ForbiddenPage from '../ForbiddenPage';
@@ -107,6 +108,7 @@ export function IncidentWorkspacePage() {
   }));
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
+  const [exportingPdf, setExportingPdf] = React.useState(false);
 
   // Normalise a uuid route to the business ref once the incident is known.
   React.useEffect(() => {
@@ -311,6 +313,32 @@ export function IncidentWorkspacePage() {
     }
   }, [canEdit, createForm, createSubmitting, listContextParams, navigate, queryClient, t]);
 
+  const handleExportPdf = React.useCallback(async () => {
+    if (!data || isCreate || exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      const result = await incidentsApi.exportReport(routeId, locale);
+      const fallback = `${formatItemRef('incident', data.item_number)}-incident-report.pdf`;
+      downloadBlob(result.blob, result.filename || fallback);
+    } catch (e) {
+      let message = t('workspace.incident.messages.exportPdfFailed');
+      const blobData = (e as { response?: { data?: unknown } })?.response?.data;
+      if (blobData instanceof Blob) {
+        try {
+          const parsed = JSON.parse(await blobData.text()) as { message?: unknown };
+          if (typeof parsed?.message === 'string' && parsed.message.trim()) message = parsed.message;
+        } catch {
+          // keep the fallback
+        }
+      } else {
+        message = getApiErrorMessage(e, t, message);
+      }
+      await dialogs.alert({ message, intent: 'danger' });
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [data, dialogs, exportingPdf, isCreate, locale, routeId, t]);
+
   if (!canView) return <ForbiddenPage />;
 
   const { total, index, hasPrev, hasNext, prevId, nextId } = navState;
@@ -351,6 +379,17 @@ export function IncidentWorkspacePage() {
           disabled={createSubmitting || !canEdit}
         >
           {t('common:buttons.create')}
+        </Button>
+      )}
+      {!isCreate && data && canView && (
+        <Button
+          variant="action"
+          size="small"
+          onClick={() => void handleExportPdf()}
+          disabled={exportingPdf}
+          startIcon={exportingPdf ? <CircularProgress size={12} /> : undefined}
+        >
+          {t('workspace.incident.actions.exportPdf')}
         </Button>
       )}
       {!isCreate && data && canEdit && !locked && (
