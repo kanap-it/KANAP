@@ -11,6 +11,7 @@ import { ConnectionsService } from '../../connections/services';
 import { ContactsService } from '../../contacts/contacts.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { DepartmentsService } from '../../departments/departments.service';
+import { IncidentRecordService, IncidentsService } from '../../incidents/services';
 import { InterfacesService } from '../../interfaces/services';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { LocationsService } from '../../locations/locations.service';
@@ -62,6 +63,7 @@ function buildRef(
   if (entityType === 'requests') return `REQ-${itemNumber}`;
   if (entityType === 'tasks') return `T-${itemNumber}`;
   if (entityType === 'documents') return `DOC-${itemNumber}`;
+  if (entityType === 'incidents') return `INC-${itemNumber}`;
   return null;
 }
 
@@ -246,6 +248,8 @@ export class AiQueryExecutor {
     private readonly contacts: ContactsService,
     private readonly interfaces: InterfacesService,
     private readonly connections: ConnectionsService,
+    private readonly incidents: IncidentsService,
+    private readonly incidentRecords: IncidentRecordService,
   ) {}
 
   private resolveSort(
@@ -916,6 +920,27 @@ export class AiQueryExecutor {
     });
   }
 
+  private mapIncident(row: any): AiEntitySummaryDto {
+    return toEntitySummary('incidents', {
+      id: row.id,
+      item_number: row.item_number ?? null,
+      label: row.title,
+      status: row.status ?? null,
+      summary: row.description ?? null,
+      updated_at: row.updated_at ?? null,
+      metadata: {
+        severity: scalar(row.severity),
+        category: scalar(row.category),
+        status: scalar(row.status),
+        detected_at: scalar(row.detected_at),
+        resolved_at: scalar(row.resolved_at),
+        owner: scalar(row.owner_name),
+        asset_count: numericScalar(row.asset_count ?? row.counts?.assets),
+        task_count: numericScalar(row.task_count ?? row.counts?.tasks),
+      },
+    });
+  }
+
   private mapDocument(row: any): AiEntitySummaryDto {
     return toEntitySummary('documents', {
       id: row.id,
@@ -1148,6 +1173,26 @@ export class AiQueryExecutor {
       const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
       return {
         items: (result.items || []).map((row: any) => this.mapContract(row)),
+        total: result.total ?? 0,
+        page: resultPage,
+        limit: resultLimit,
+        returned,
+        truncated,
+        complete: isCompleteQueryResult(resultPage, truncated),
+        filters_applied: filtersApplied,
+        filters_ignored: filtersIgnored,
+        scope: null,
+      };
+    }
+
+    if (input.entity_type === 'incidents') {
+      const result = await this.incidents.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
+      const resultPage = result.page ?? page;
+      const resultLimit = result.limit ?? limit;
+      const returned = Array.isArray(result.items) ? result.items.length : 0;
+      const truncated = (result.total ?? 0) > ((resultPage - 1) * resultLimit + returned);
+      return {
+        items: (result.items || []).map((row: any) => this.mapIncident(row)),
         total: result.total ?? 0,
         page: resultPage,
         limit: resultLimit,
@@ -2054,6 +2099,23 @@ export class AiQueryExecutor {
       const document = await this.knowledge.get(entityId, { manager: context.manager, userId: context.userId });
       if (!document) throw new NotFoundException('Document not found.');
       return this.toDetailResult(this.mapDocument(document), document);
+    }
+
+    if (entityType === 'incidents') {
+      const record = await this.incidentRecords.load(entityId, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+        userId: context.userId,
+      });
+      return this.toDetailResult(this.mapIncident(record.incident), {
+        ...record.incident,
+        entries: record.entries,
+        assets: record.assets,
+        applications: record.applications,
+        tasks: record.tasks,
+        documents: record.documents,
+        attachments: record.attachments,
+      });
     }
 
     throw new BadRequestException('Unsupported entity type.');

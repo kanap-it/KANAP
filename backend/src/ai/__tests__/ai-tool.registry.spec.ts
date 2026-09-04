@@ -406,6 +406,8 @@ function createQueryExecutor(overrides?: {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
+    {} as any,
   );
 }
 
@@ -417,6 +419,7 @@ function createAggregateExecutor(overrides?: {
       listIds: async () => ({ ids: [], total: 0 }),
       ...(overrides?.tasks || {}),
     } as any,
+    {} as any,
     {} as any,
     {} as any,
     {} as any,

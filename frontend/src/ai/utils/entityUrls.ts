@@ -17,6 +17,7 @@ const ENTITY_URL_BUILDERS: Record<string, (id: string) => string> = {
   requests: (id) => `/portfolio/requests/${id}`,
   applications: (id) => `/it/applications/${id}`,
   assets: (id) => `/it/assets/${id}`,
+  incidents: (id) => `/it/incidents/${id}`,
   connections: (id) => `/it/connections/${id}`,
   interfaces: (id) => `/it/interfaces/${id}`,
   locations: (id) => `/it/locations/${id}`,
@@ -42,7 +43,7 @@ export function isLinkableEntityType(entityType: string): boolean {
  * Map between KANAP type prefixes (case-insensitive) and the canonical entity_type.
  *
  * Two flavours of prefixes coexist here:
- *   1. "Native ref prefixes" (T, DOC, PRJ, REQ) that the backend's buildRef() turns
+ *   1. "Native ref prefixes" (T, DOC, PRJ, REQ, INC) that the backend's buildRef() turns
  *      into a real entity ref like "T-5" or "DOC-152". These let us also surface
  *      a tier-1 boost on item_number when the user types `@T-5`.
  *   2. "Type tokens" for entities the data model doesn't number (APP, AST, CONN, …).
@@ -59,6 +60,7 @@ const TYPE_PREFIX_TO_ENTITY_TYPE: Record<string, string> = {
   DOC: 'documents',
   PRJ: 'projects',
   REQ: 'requests',
+  INC: 'incidents',
   // Type tokens for entities without a built-in ref
   APP: 'applications',
   AST: 'assets',

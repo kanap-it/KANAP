@@ -70,7 +70,7 @@ Die Liste ist das Register selbst: alle Vorfälle, die zuletzt erkannten zuerst.
 
 **Zusätzliche Spalten** (standardmäßig ausgeblendet, über die Spaltenauswahl verfügbar): **Geschlossen**, **Anwendungen**, **Erstellt**.
 
-**Filtern**: Kategorie, Schweregrad, Status und Verantwortlicher bieten Kontrollkästchenfilter, deren Optionen aus den aktuell angezeigten Vorfällen berechnet werden, Sie sehen also nur Werte, die in der Ergebnismenge vorkommen. Datumsspalten bieten Datumsfilter, auch als Bereich: Filtern Sie **Erkannt** zwischen zwei Daten, um einen Quartals- oder Jahresauszug zu erzeugen. Die Suche erfasst Titel, Beschreibung und Referenz (`INC-14`).
+**Filtern**: Kategorie, Schweregrad, Status und Verantwortlicher bieten Kontrollkästchenfilter, deren Optionen aus den aktuell angezeigten Vorfällen berechnet werden, Sie sehen also nur Werte, die in der Ergebnismenge vorkommen. Datumsspalten bieten Datumsfilter, auch als Bereich: Filtern Sie **Erkannt** zwischen zwei Daten, um einen Quartals- oder Jahresauszug zu erzeugen. Die Suche erfasst Titel, Beschreibung, Referenz (`INC-14`) sowie Namen und Referenzen verknüpfter Assets und Anwendungen: Eine Suche nach einem Hostnamen wie `PAR-ESX-01` listet die Vorfälle zu diesem Asset.
 
 **Tipp**: Kombinieren Sie Schweregrad = Kritisch, Schwerwiegend mit einem Bereich für **Erkannt**, um die Auswahlliste zu erstellen, die die meisten Steuerungsgremien und Prüfungen verlangen.
 
@@ -215,6 +215,12 @@ Fristen und Schwellenwerte hängen von Ihrer Rechtsordnung und Ihrer Branche ab.
 Die Vorfallskategorien gehören Ihnen: Legen Sie sie in **IT-Landschaft > Einstellungen** unter **Vorfälle > Vorfallskategorien** fest. KANAP liefert Infrastruktur, Sicherheit, Anwendung, Daten, Lieferant und Sonstiges mit.
 
 Halten Sie die Liste kurz. Kategorien sind das, wonach Sie ein Jahr an Vorfällen gruppieren werden, und eine Liste mit dreißig Einträgen nutzt niemand einheitlich. Statt eine bereits verwendete Kategorie zu löschen, markieren Sie sie als veraltet: Sie verschwindet aus der Auswahl für neue Vorfälle, während die bestehenden ihre Historie behalten.
+
+---
+
+## Den Assistenten fragen
+
+Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“) — Letzteres enthält das Journal. Vorfallsreferenzen wie `INC-12` in der Antwort sind Links zum Arbeitsbereich.
 
 ---
 

@@ -14,6 +14,7 @@ import { ConnectionsModule } from '../connections/connections.module';
 import { ContactsModule } from '../contacts/contacts.module';
 import { ContractsModule } from '../contracts/contracts.module';
 import { DepartmentsModule } from '../departments/departments.module';
+import { IncidentsModule } from '../incidents/incidents.module';
 import { InterfacesModule } from '../interfaces/interfaces.module';
 import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
 import { KnowledgeModule } from '../knowledge/knowledge.module';
@@ -221,6 +222,7 @@ import { BraveSearchService } from './web-search/brave-search.service';
     ContactsModule,
     ContractsModule,
     DepartmentsModule,
+    IncidentsModule,
     InterfacesModule,
     ItOpsSettingsModule,
     KnowledgeModule,

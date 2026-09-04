@@ -22,14 +22,15 @@ export class IncidentEntriesService extends IncidentsBaseService {
     super(incidentRepo);
   }
 
-  async list(incidentId: string, opts?: ServiceOpts) {
+  async list(incidentId: string, opts?: ServiceOpts & { order?: 'asc' | 'desc' }) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
     await this.ensureIncident(incidentId, mg, tenantId);
+    const direction = opts?.order === 'asc' ? 'ASC' : 'DESC';
     return mg.query(
       `SELECT ${ENTRY_COLUMNS} ${ENTRY_FROM}
        WHERE e.incident_id = $1 AND e.tenant_id = $2
-       ORDER BY e.occurred_at DESC, e.created_at DESC`,
+       ORDER BY e.occurred_at ${direction}, e.created_at ${direction}`,
       [incidentId, tenantId],
     );
   }

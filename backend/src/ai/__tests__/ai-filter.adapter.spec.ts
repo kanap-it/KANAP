@@ -3,6 +3,7 @@ import { adaptFilters, getAppliedFilterNames } from '../query/ai-filter.adapter'
 import { tasksRegistry } from '../query/registries/tasks.registry';
 import { projectsRegistry } from '../query/registries/projects.registry';
 import { requestsRegistry } from '../query/registries/requests.registry';
+import { incidentsRegistry } from '../query/registries/incidents.registry';
 
 function testSetFilterAdaptation() {
   const adapted = adaptFilters(tasksRegistry, {
@@ -57,6 +58,37 @@ function testEmptyInput() {
   assert.deepEqual(getAppliedFilterNames(tasksRegistry, undefined), []);
 }
 
+function testIncidentSeveritySetFilter() {
+  const adapted = adaptFilters(incidentsRegistry, {
+    severity: ['critical', 'major'],
+  });
+  assert.deepEqual(adapted.filters, {
+    severity: { filterType: 'set', values: ['critical', 'major'] },
+  });
+  assert.deepEqual(adapted.applied, ['severity']);
+  assert.deepEqual(adapted.ignored, []);
+}
+
+function testIncidentDetectedAtDateFilter() {
+  const adapted = adaptFilters(incidentsRegistry, {
+    detected_at: { op: 'after', value: '2026-07-01' },
+  });
+  assert.deepEqual(adapted.filters, {
+    detected_at: { filterType: 'date', type: 'greaterThan', dateFrom: '2026-07-01' },
+  });
+  assert.deepEqual(adapted.applied, ['detected_at']);
+  assert.deepEqual(adapted.ignored, []);
+}
+
+function testIncidentUnknownFieldIgnored() {
+  const adapted = adaptFilters(incidentsRegistry, {
+    made_up: ['nope'],
+  } as any);
+  assert.deepEqual(adapted.filters, {});
+  assert.deepEqual(adapted.applied, []);
+  assert.deepEqual(adapted.ignored, ['made_up']);
+}
+
 function run() {
   testSetFilterAdaptation();
   testStringToSetFilterAdaptation();
@@ -64,6 +96,9 @@ function run() {
   testUnknownFieldsAreIgnored();
   testRequestAssigneeFieldIsIgnored();
   testEmptyInput();
+  testIncidentSeveritySetFilter();
+  testIncidentDetectedAtDateFilter();
+  testIncidentUnknownFieldIgnored();
 }
 
 run();

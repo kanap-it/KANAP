@@ -70,7 +70,7 @@ La lista es el registro en sí: todos los incidentes, con la detección más rec
 
 **Columnas adicionales** (ocultas por defecto, disponibles en el selector de columnas): **Cerrado**, **Aplicaciones**, **Creado**.
 
-**Filtrado**: Categoría, Gravedad, Estado y Responsable ofrecen filtros de casillas cuyas opciones se calculan a partir de los incidentes visibles, por lo que solo verá valores presentes en el conjunto de resultados. Las columnas de fecha ofrecen filtros de fecha, incluido un rango: filtre **Detectado** entre dos fechas para obtener un extracto trimestral o anual. La búsqueda cubre el título, la descripción y la referencia (`INC-14`).
+**Filtrado**: Categoría, Gravedad, Estado y Responsable ofrecen filtros de casillas cuyas opciones se calculan a partir de los incidentes visibles, por lo que solo verá valores presentes en el conjunto de resultados. Las columnas de fecha ofrecen filtros de fecha, incluido un rango: filtre **Detectado** entre dos fechas para obtener un extracto trimestral o anual. La búsqueda cubre el título, la descripción, la referencia (`INC-14`) y los nombres y referencias de los activos y aplicaciones vinculados, de modo que una búsqueda por un nombre de host como `PAR-ESX-01` lista los incidentes de ese activo.
 
 **Consejo**: combine Gravedad = Crítica, Mayor con un rango de **Detectado** para construir la lista corta que piden la mayoría de los comités de dirección y las auditorías.
 
@@ -215,6 +215,12 @@ Los plazos y umbrales dependen de su jurisdicción y de su sector. KANAP registr
 Las categorías de incidente son suyas: defínalas en **Panorama IT > Configuración**, en **Incidentes > Categorías de incidente**. KANAP incluye de serie infraestructura, seguridad, aplicación, datos, proveedor y otros.
 
 Mantenga la lista corta. Las categorías son aquello por lo que agrupará un año de incidentes, y una lista de treinta es una lista que nadie usa de forma coherente. En lugar de eliminar una categoría que ya está en uso, márquela como obsoleta: desaparece del selector para los nuevos incidentes mientras los existentes conservan su historial.
+
+---
+
+## Preguntar al asistente
+
+Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 ») — esta última incluye el diario. Las referencias de incidente como `INC-12` en la respuesta son enlaces al espacio de trabajo.
 
 ---
 

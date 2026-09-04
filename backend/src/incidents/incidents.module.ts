@@ -18,6 +18,7 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { TasksModule } from '../tasks/tasks.module';
 import {
   IncidentEntriesService,
+  IncidentRecordService,
   IncidentRelationsService,
   IncidentsAttachmentsService,
   IncidentsService,
@@ -41,8 +42,9 @@ import {
     IncidentEntriesService,
     IncidentRelationsService,
     IncidentsAttachmentsService,
+    IncidentRecordService,
     IncidentsCsvService,
   ],
-  exports: [IncidentsService],
+  exports: [IncidentsService, IncidentRecordService],
 })
 export class IncidentsModule {}

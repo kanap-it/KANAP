@@ -1,6 +1,6 @@
 # Plaid
 
-Plaid is KANAP's built-in chat assistant. It is connected to the same data you already work with — applications, assets, projects, requests, tasks, contracts, knowledge documents, and master data — so you can ask questions in plain language instead of clicking through several screens to find an answer.
+Plaid is KANAP's built-in chat assistant. It is connected to the same data you already work with — applications, assets, incidents, projects, requests, tasks, contracts, knowledge documents, and master data — so you can ask questions in plain language instead of clicking through several screens to find an answer.
 
 Plaid does not replace the rest of the application. It is a faster way to summarise context, locate records, draft text, or prepare changes. Sensitive operations are always shown as previews you must approve before anything is written back into KANAP.
 
@@ -74,7 +74,7 @@ Typing `@` opens the **mention picker** above the composer. It lets you referenc
   - `@T-5` — task with the reference T-5
   - `@DOC` — recent knowledge documents
   - `@APP backup` — applications matching "backup"
-  - `@PRJ`, `@REQ`, `@AST`, `@CONN`, `@INT`, `@LOC`, `@CTR`, `@CPX`, `@COMP`, `@CONT`, `@DEPT`, `@SUP`, `@BP`
+  - `@PRJ`, `@REQ`, `@INC`, `@AST`, `@CONN`, `@INT`, `@LOC`, `@CTR`, `@CPX`, `@COMP`, `@CONT`, `@DEPT`, `@SUP`, `@BP`
 - **Plain text**: anything else (`@payroll`, `@server-2`) runs a cross-type search ranked by relevance.
 
 Use the arrow keys to move through the suggestions, **Enter** or **Tab** to confirm, **Escape** to dismiss the picker. Results are grouped by entity type (Knowledge, Tasks, Projects, Applications, Assets, Contracts, and so on) so you can tell at a glance what kind of record you are about to insert.
@@ -141,7 +141,7 @@ The token usage bar only appears once the conversation has at least one exchange
 
 ## Tips
 
-- **Use prefixes for precision**: `@T-`, `@DOC-`, `@PRJ-`, `@REQ-` map directly to native KANAP references. They are the fastest way to point Plaid at a specific record and they survive copy-paste because they look identical to what you see elsewhere in the application.
+- **Use prefixes for precision**: `@T-`, `@DOC-`, `@PRJ-`, `@REQ-`, `@INC-` map directly to native KANAP references. They are the fastest way to point Plaid at a specific record and they survive copy-paste because they look identical to what you see elsewhere in the application.
 - **Start a new conversation per topic**: keeping unrelated questions in separate conversations makes the context window smaller, the answers faster, and the token bill lower. The conversation list is grouped by date so you can find them again easily.
 - **Approve and reject deliberately**: previews are the only thing standing between Plaid and your live data. Take the extra second to read the diff before clicking **Approve**.
 - **Stop instead of waiting**: if Plaid heads down the wrong path mid-stream, hit the **Stop** button rather than waiting for it to finish. You will save tokens, and your follow-up message can correct the course.

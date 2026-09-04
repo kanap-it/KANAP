@@ -70,7 +70,7 @@ La liste, c'est le registre lui-même : tous les incidents, détection la plus r
 
 **Colonnes supplémentaires** (masquées par défaut, disponibles via le sélecteur de colonnes) : **Clôturé**, **Applications**, **Créé**.
 
-**Filtrage** : Catégorie, Gravité, Statut et Responsable proposent des filtres à cases à cocher dont les options sont calculées à partir des incidents affichés, vous ne voyez donc que les valeurs présentes dans le jeu de résultats. Les colonnes de dates proposent des filtres de date, y compris par plage : filtrez **Détecté** entre deux dates pour produire un extrait trimestriel ou annuel. La recherche porte sur le titre, la description et la référence (`INC-14`).
+**Filtrage** : Catégorie, Gravité, Statut et Responsable proposent des filtres à cases à cocher dont les options sont calculées à partir des incidents affichés, vous ne voyez donc que les valeurs présentes dans le jeu de résultats. Les colonnes de dates proposent des filtres de date, y compris par plage : filtrez **Détecté** entre deux dates pour produire un extrait trimestriel ou annuel. La recherche porte sur le titre, la description, la référence (`INC-14`), ainsi que sur les noms et références des actifs et applications liés : une recherche sur un nom d'hôte tel que `PAR-ESX-01` liste les incidents de cet actif.
 
 **Conseil** : combinez Gravité = Critique, Majeur avec une plage **Détecté** pour construire la liste courte que réclament la plupart des comités de pilotage et des audits.
 
@@ -215,6 +215,12 @@ Les délais et les seuils dépendent de votre juridiction et de votre secteur. K
 Les catégories d'incident vous appartiennent : définissez-les dans **Cartographie SI > Paramètres**, sous **Incidents > Catégories d'incident**. KANAP fournit par défaut infrastructure, sécurité, application, données, fournisseur et autre.
 
 Gardez la liste courte. Les catégories sont ce qui vous servira à regrouper une année d'incidents, et une liste de trente est une liste que personne n'utilise de façon cohérente. Plutôt que de supprimer une catégorie déjà utilisée, marquez-la comme obsolète : elle disparaît du sélecteur pour les nouveaux incidents tandis que les existants conservent leur historique.
+
+---
+
+## Demander à l'assistant
+
+Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 ») — cette dernière inclut le journal. Les références d'incident telles que `INC-12` dans la réponse sont des liens vers l'espace de travail.
 
 ---
 

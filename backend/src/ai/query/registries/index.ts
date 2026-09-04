@@ -12,6 +12,7 @@ import { contactsRegistry } from './contacts.registry';
 import { contractsRegistry } from './contracts.registry';
 import { departmentsRegistry } from './departments.registry';
 import { documentsRegistry } from './documents.registry';
+import { incidentsRegistry } from './incidents.registry';
 import { interfacesRegistry } from './interfaces.registry';
 import { locationsRegistry } from './locations.registry';
 import { projectsRegistry } from './projects.registry';
@@ -35,6 +36,7 @@ export const aiEntityRegistries: Record<AiQueryEntityType, AiEntityFilterRegistr
   contracts: contractsRegistry,
   departments: departmentsRegistry,
   documents: documentsRegistry,
+  incidents: incidentsRegistry,
   interfaces: interfacesRegistry,
   locations: locationsRegistry,
   projects: projectsRegistry,
