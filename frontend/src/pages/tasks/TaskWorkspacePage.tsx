@@ -136,11 +136,12 @@ async function fetchRelatedObjectName(kind: RelatedKind, id: string): Promise<st
   }
 }
 
-// Same shape as the backend's related_object_name for incident tasks ("INC-12: title").
+// Same shape as the backend's related_object_name for incident tasks ("INC-12 · title").
 function formatIncidentName(itemNumber: number | null | undefined, title: string | null | undefined): string | null {
   const name = (title || '').trim();
-  if (!itemNumber || !name) return name || null;
-  return `INC-${itemNumber}: ${name}`;
+  if (!itemNumber) return name || null;
+  const ref = formatItemRef('incident', itemNumber);
+  return name ? `${ref} · ${name}` : ref;
 }
 
 function relatedKindFromType(type: TaskData['related_object_type']): RelatedKind | null {
@@ -1011,6 +1012,12 @@ export default function TaskWorkspacePage() {
     const relationChanged = snapshot
       ? snapshot.related_object_type !== params.type || snapshot.related_object_id !== params.id
       : true;
+    if (!relationChanged) {
+      if (params.name && params.name !== snapshot?.related_object_name) {
+        applyFormPatch({ related_object_name: params.name });
+      }
+      return;
+    }
     const localPatch: Record<string, any> = {
       related_object_type: params.type,
       related_object_id: params.id,

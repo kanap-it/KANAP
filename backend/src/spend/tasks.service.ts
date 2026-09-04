@@ -306,7 +306,10 @@ function buildWhereConditions(
       (t.related_object_type = 'spend_item' AND si.product_name ILIKE $${params.length}) OR
       (t.related_object_type = 'contract' AND c.name ILIKE $${params.length}) OR
       (t.related_object_type = 'project' AND pp.name ILIKE $${params.length}) OR
-      (t.related_object_type = 'incident' AND inc.title ILIKE $${params.length})
+      (t.related_object_type = 'incident' AND (
+        inc.title ILIKE $${params.length}
+        OR ('INC-' || inc.item_number::text) ILIKE $${params.length}
+      ))
     )`;
   }
 
@@ -650,7 +653,7 @@ export class TasksService {
           WHEN t.related_object_type = 'spend_item' THEN si.product_name
           WHEN t.related_object_type = 'contract' THEN c.name
           WHEN t.related_object_type = 'capex_item' THEN ci.description
-          WHEN t.related_object_type = 'incident' THEN inc.title
+          WHEN t.related_object_type = 'incident' THEN 'INC-' || inc.item_number::text || ' · ' || inc.title
           WHEN t.related_object_type = 'project' THEN pp.name
           ELSE ''
         END as related_object_name,
@@ -987,7 +990,7 @@ export class TasksService {
           WHEN t.related_object_type = 'spend_item' THEN si.product_name
           WHEN t.related_object_type = 'contract' THEN c.name
           WHEN t.related_object_type = 'capex_item' THEN ci.description
-          WHEN t.related_object_type = 'incident' THEN inc.title
+          WHEN t.related_object_type = 'incident' THEN 'INC-' || inc.item_number::text || ' · ' || inc.title
           WHEN t.related_object_type = 'project' THEN pp.name
           ELSE ''
         END as related_object_name,
