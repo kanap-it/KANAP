@@ -162,7 +162,9 @@ Utilisez le profil Microsoft 365 uniquement si l'authentification SMTP est autor
 
 ## Optionnel : SSO Entra
 
-Voir le guide dédié : `sso-entra.md`.
+Voir le guide dédié : [SSO Microsoft Entra](sso-entra.md).
+
+Il couvre l'enregistrement d'application, les autorisations déléguées et d'application, ainsi que la synchronisation quotidienne de l'annuaire qui actualise les attributs des utilisateurs et désactive les comptes supprimés de l'annuaire. L'API a besoin d'un accès sortant vers `login.microsoftonline.com` et `graph.microsoft.com`.
 
 ## Optionnel : Avancé
 
@@ -264,7 +266,7 @@ Requis uniquement si la fonctionnalité correspondante est activée.
 | `api.resend.com` | 443 | Email transactionnel | Si `RESEND_API_KEY` est défini |
 | Votre relais SMTP ou fournisseur | 25 / 465 / 587 | Email transactionnel via SMTP | Si `SMTP_HOST` est défini |
 | `login.microsoftonline.com` | 443 | Métadonnées et tokens SSO Entra ID | Si le SSO Entra est configuré |
-| `graph.microsoft.com` | 443 | Enrichissement de profil utilisateur | Si le SSO Entra est configuré |
+| `graph.microsoft.com` | 443 | Enrichissement de profil à la connexion et synchronisation quotidienne de l'annuaire | Si le SSO Entra est configuré |
 | `api.worldbank.org` | 443 | Taux de change annuels | Optionnel |
 | `v6.exchangerate-api.com` | 443 | Taux de change spot | Optionnel |
 
@@ -285,5 +287,9 @@ Ces connexions restent sur le serveur — loopback ou réseau bridge Docker uniq
 Le backend exécute des tâches de fond planifiées pour les notifications email :
 - **Alertes d'expiration** : quotidiennement à 08h00 UTC — alerte les utilisateurs sur les contrats et postes OPEX expirant dans les 30 jours.
 - **Résumé hebdomadaire** : vérification toutes les heures — envoie des résumés hebdomadaires tenant compte des fuseaux horaires aux utilisateurs qui ont opté pour ce service.
+
+Une tâche planifiée supplémentaire s'exécute lorsque le SSO Entra est configuré :
+
+- **Synchronisation de l'annuaire Microsoft Entra** : quotidiennement à 03h00 (heure du serveur) — actualise les attributs des utilisateurs et désactive les comptes supprimés ou désactivés dans l'annuaire. Elle reste inactive tant qu'un administrateur Microsoft Entra ne l'a pas approuvée. Voir [SSO Microsoft Entra](sso-entra.md).
 
 Ces tâches nécessitent que l'API fonctionne comme un **processus long** (pas une fonction serverless). En mode on-premise, `APP_BASE_URL` est utilisé pour les liens email de notification (pas de dérivation de sous-domaine). Si aucun transport email sortant n'est configuré, ces tâches sautent l'envoi de manière transparente.

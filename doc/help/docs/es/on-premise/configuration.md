@@ -162,7 +162,9 @@ Use el perfil de Microsoft 365 solo si SMTP AUTH está permitido para el buzón 
 
 ## Opcional: SSO Entra
 
-Consulte la guía dedicada: `sso-entra.md`.
+Consulte la guía dedicada: [SSO con Microsoft Entra](sso-entra.md).
+
+Cubre el registro de aplicación, los permisos delegados y de aplicación, y la sincronización diaria del directorio que actualiza los atributos de los usuarios y desactiva las cuentas eliminadas del directorio. La API necesita acceso de salida a `login.microsoftonline.com` y `graph.microsoft.com`.
 
 ## Opcional: Avanzado
 
@@ -264,7 +266,7 @@ Solo requerido si la funcionalidad correspondiente está habilitada.
 | `api.resend.com` | 443 | Correo transaccional | Si `RESEND_API_KEY` está establecido |
 | Su relay o proveedor SMTP | 25 / 465 / 587 | Correo transaccional vía SMTP | Si `SMTP_HOST` está establecido |
 | `login.microsoftonline.com` | 443 | Metadatos y tokens de SSO Entra ID | Si SSO Entra está configurado |
-| `graph.microsoft.com` | 443 | Enriquecimiento de perfil de usuario | Si SSO Entra está configurado |
+| `graph.microsoft.com` | 443 | Enriquecimiento del perfil al iniciar sesión y sincronización diaria del directorio | Si SSO Entra está configurado |
 | `api.worldbank.org` | 443 | Tasas FX anuales | Opcional |
 | `v6.exchangerate-api.com` | 443 | Tasas FX spot | Opcional |
 
@@ -285,5 +287,9 @@ Estas conexiones permanecen en el servidor — solo loopback o red bridge Docker
 El backend ejecuta trabajos programados en segundo plano para notificaciones por correo:
 - **Avisos de expiración**: diariamente a las 08:00 UTC — avisa a los usuarios sobre contratos y partidas OPEX que expiran en los próximos 30 días.
 - **Resumen semanal**: verificación cada hora — envía resúmenes semanales conscientes de la zona horaria a los usuarios que han optado por recibirlos.
+
+Hay un trabajo programado más que se ejecuta cuando el SSO Entra está configurado:
+
+- **Sincronización del directorio de Microsoft Entra**: diariamente a las 03:00 hora del servidor — actualiza los atributos de los usuarios y desactiva las cuentas eliminadas o desactivadas en el directorio. Permanece inactiva hasta que un administrador de Microsoft Entra la apruebe. Consulte [SSO con Microsoft Entra](sso-entra.md).
 
 Estos trabajos requieren que la API se ejecute como un **proceso de larga duración** (no una función serverless). En modo local, se usa `APP_BASE_URL` para los enlaces de correo de notificaciones (sin derivación de subdominio). Si no hay transporte de correo saliente configurado, estos trabajos omiten el envío de forma elegante.
