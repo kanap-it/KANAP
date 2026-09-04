@@ -3,6 +3,7 @@ import {
   buildMarkdown,
   labelsFor,
   normalizeReportLang,
+  reportHeading,
   reportPdfFilename,
   type IncidentReportRecord,
 } from '../services/incident-report.service';
@@ -92,8 +93,11 @@ function testNormalizeLang() {
 
 function testFilenameAndHeaderRef() {
   assert.equal(reportPdfFilename(12), 'INC-12-incident-report.pdf');
+  assert.equal(reportHeading(12, 'Mail outage | #1 *urgent*'), 'INC-12 — Mail outage | #1 *urgent*');
+  assert.equal(reportHeading(12, ''), 'INC-12');
   const markdown = buildMarkdown(fixture(), 'en', labelsFor('en'));
-  assert.match(markdown, /^# INC-12 — /);
+  assert.equal(markdown.includes('# INC-12'), false);
+  assert.match(markdown, /^- \*\*Severity:\*\*/);
   assert.doesNotMatch(markdown, new RegExp(UUID));
   assert.equal(markdown.includes(UUID), false);
 }
@@ -102,7 +106,7 @@ function testSectionOrder() {
   const labels = labelsFor('en');
   const markdown = buildMarkdown(fixture(), 'en', labels);
   const positions = [
-    markdown.indexOf('# INC-12'),
+    markdown.indexOf('**Severity:**'),
     headingIndex(markdown, labels.properties),
     headingIndex(markdown, labels.description),
     headingIndex(markdown, labels.journal),
@@ -164,7 +168,6 @@ function testEmptySectionsOmitted() {
 
 function testMarkdownEscaping() {
   const markdown = buildMarkdown(fixture(), 'en', labelsFor('en'));
-  assert.ok(markdown.includes('Mail outage \\| \\#1 \\*urgent\\*'));
   assert.ok(markdown.includes('Failover \\| \\#step \\*done\\*'));
   assert.ok(markdown.includes('screenshot \\| \\#1.png'));
   assert.equal(markdown.includes('\n#1'), false);

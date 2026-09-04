@@ -360,6 +360,13 @@ export function reportPdfFilename(itemNumber: number | string): string {
   return `${incidentRef(Number(itemNumber))}-incident-report.pdf`;
 }
 
+/** Visible PDF heading (Pandoc document title). Not repeated as a Markdown H1. */
+export function reportHeading(itemNumber: number | string, title: string): string {
+  const cleaned = String(title || '').replace(/\s+/g, ' ').trim();
+  const ref = incidentRef(Number(itemNumber));
+  return cleaned ? `${ref} — ${cleaned}` : ref;
+}
+
 export function escapeMd(value: unknown, forTable = false): string {
   let text = value == null ? '' : String(value);
   if (forTable) text = text.replace(/\r?\n+/g, ' ').trim();
@@ -482,13 +489,9 @@ function table(headers: string[], rows: string[][]): string {
 
 export function buildMarkdown(record: IncidentReportRecord, lang: ReportLang, labels: ReportLabels): string {
   const incident = record.incident;
-  const ref = incidentRef(Number(incident.item_number));
-  const title = String(incident.title || '').trim();
   const sections: string[] = [];
 
   const headerLines = [
-    heading(1, title ? `${escapeMd(ref)} — ${escapeMd(title)}` : escapeMd(ref)),
-    '',
     `- **${labels.fieldSeverity}:** ${escapeMd(lookup(labels.severity, incident.severity))}`,
     `- **${labels.fieldStatus}:** ${escapeMd(lookup(labels.status, incident.status))}`,
   ];
@@ -623,11 +626,6 @@ function resolveCategoryLabel(
   return match?.label || value;
 }
 
-function pandocTitle(ref: string, title: string): string {
-  const cleaned = title.replace(/\s+/g, ' ').trim();
-  return cleaned ? `${ref} — ${cleaned}` : ref;
-}
-
 @Injectable()
 export class IncidentReportService {
   constructor(
@@ -650,11 +648,10 @@ export class IncidentReportService {
       locale,
       labels,
     );
-    const ref = incidentRef(Number(record.incident.item_number));
     const exported = await this.documentExport.exportMarkdown(
       markdown,
       'pdf',
-      pandocTitle(ref, String(record.incident.title || '')),
+      reportHeading(record.incident.item_number, String(record.incident.title || '')),
     );
     return { ...exported, filename: reportPdfFilename(record.incident.item_number) };
   }
