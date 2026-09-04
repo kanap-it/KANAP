@@ -9,6 +9,7 @@ import {
   CsvImportService,
 } from '../common/csv';
 import { incidentCsvConfig } from './incident-csv.config';
+import { IncidentViewer, incidentVisibilitySql } from './incident-visibility';
 
 /** Timestamps travel as unambiguous UTC ISO so an export re-imports without losing the time. */
 const isoUtc = (column: string) => `to_char(i.${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ${column}`;
@@ -20,6 +21,7 @@ const EXPORT_COLUMNS = `
   i.reporter_user_id, i.owner_user_id,
   i.description, i.impact, i.root_cause, i.corrective_actions, i.lessons_learned,
   i.source_ref,
+  i.confidential,
   i.personal_data_affected, i.authority_notification_required,
   ${isoUtc('authority_notified_at')}, i.notified_parties`;
 
@@ -39,16 +41,19 @@ export class IncidentsCsvService {
   async export(opts: {
     manager: EntityManager;
     tenantId: string;
+    viewer?: IncidentViewer;
     scope?: 'template' | 'data';
     fields?: string[];
   }): Promise<CsvExportResult> {
-    const { manager, tenantId, scope, fields } = opts;
+    const { manager, tenantId, viewer, scope, fields } = opts;
+    const params: unknown[] = [tenantId];
+    const visibility = incidentVisibilitySql('i', viewer, params);
 
     const rows = scope === 'template'
       ? []
       : await manager.query(
-        `SELECT ${EXPORT_COLUMNS} FROM incidents i WHERE i.tenant_id = $1 ORDER BY i.item_number ASC`,
-        [tenantId],
+        `SELECT ${EXPORT_COLUMNS} FROM incidents i WHERE i.tenant_id = $1${visibility} ORDER BY i.item_number ASC`,
+        params,
       );
 
     return this.exportSvc.export(incidentCsvConfig, rows, { manager, tenantId, scope, fields });
@@ -61,6 +66,7 @@ export class IncidentsCsvService {
       manager: EntityManager;
       tenantId: string;
       userId?: string | null;
+      isAdmin?: boolean;
     },
   ): Promise<CsvImportResult> {
     return this.importSvc.import(incidentCsvConfig, file, params, opts);

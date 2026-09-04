@@ -211,6 +211,15 @@ export const incidentCsvConfig: CsvEntityConfig = {
       group: 'Overview',
       importTransformFn: (value: string) => parseCode(value, INCIDENT_STATUSES, 'status'),
     },
+    {
+      csvColumn: 'confidential',
+      entityProperty: 'confidential',
+      type: CsvFieldType.BOOLEAN,
+      required: false,
+      defaultExport: true,
+      label: 'Restricted to register administrators',
+      group: 'Overview',
+    },
 
     // === TIMELINE ===
     dateTimeField('started_at', 'Started', 'Timeline'),
@@ -331,6 +340,9 @@ export const incidentCsvConfig: CsvEntityConfig = {
       // Booleans have a false default: a blank cell clears them.
       entity.personal_data_affected = entity.personal_data_affected ?? false;
       entity.authority_notification_required = entity.authority_notification_required ?? false;
+      if (!entity.id) {
+        entity.confidential = entity.confidential ?? false;
+      }
 
       if (entity.id) {
         entity.updated_by = context.userId ?? null;
@@ -357,6 +369,21 @@ export const incidentCsvConfig: CsvEntityConfig = {
         `Unknown incident reference(s): ${unknownRefs.join(', ')}. ` +
         `Leave the ref column empty to create new incidents.`,
       );
+    }
+
+    const liftIds = entities
+      .filter((entity) => entity.id && entity.confidential === false)
+      .map((entity) => entity.id);
+    if (liftIds.length > 0 && !context.isAdmin) {
+      const restricted: Array<{ id: string }> = await context.manager.query(
+        `SELECT id FROM incidents WHERE id = ANY($1::uuid[]) AND tenant_id = $2 AND confidential = true`,
+        [liftIds, context.tenantId],
+      );
+      if (restricted.length > 0) {
+        throw new Error(
+          'Only a register administrator can lift the restriction on a confidential incident.',
+        );
+      }
     }
 
     const newEntities = entities.filter((e) => !e.item_number);

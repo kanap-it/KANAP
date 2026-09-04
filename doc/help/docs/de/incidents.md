@@ -43,7 +43,11 @@ Der **Melder** sind standardmäßig Sie. Beide Daten akzeptieren Werte in der Ve
 
 - Ansicht: `incidents:reader`
 - Anlegen, bearbeiten, Journal, Verknüpfungen, Anhänge: `incidents:contributor`
-- Wieder öffnen und abbrechen: `incidents:admin`
+- Wieder öffnen, abbrechen und eine Einschränkung aufheben: `incidents:admin`
+
+Ein eingeschränkter Vorfall ist für alle unsichtbar außer den Registeradministratoren, dem Meldenden und dem Verantwortlichen. Auf einem Standard-Mandanten sind das Administrator und IT-Landschaft-Administrator, plus wer den Vorfall erfasst hat oder dafür verantwortlich ist. Leser und Mitwirkende, die weder Meldender noch Verantwortlicher sind, sehen ihn weder in der Liste, in der Suche, im Chat noch im CSV-Export — das Öffnen über die Referenz liefert dieselbe „nicht gefunden“-Antwort wie eine fehlende Nummer. Verknüpfte Aufgaben behalten die Referenz `INC-N`, aber ohne Titel.
+
+**Auf Registeradministratoren beschränken** steht in der Eigenschaftenleiste unter Klassifizierung. Ein Mitwirkender kann es einschalten, solange er den Datensatz noch sieht; nur ein Administrator kann es ausschalten, auch nach dem Schließen. Die Änderung wird ins Journal geschrieben. Das Prüfprotokoll, Dokument-Beziehungschips und „Kürzlich angesehen“ zeigen den Titel weiterhin denjenigen, die diese Bildschirme schon haben.
 
 ---
 
@@ -97,6 +101,7 @@ Die Leiste bleibt auf jedem Tab sichtbar und speichert während der Bearbeitung.
 - **Kategorie**: aus der in den Einstellungen der IT-Landschaft konfigurierten Liste
 - **Schweregrad**: Kritisch, Schwerwiegend, Geringfügig, Niedrig. Wählen Sie die Stufe, die die geschäftliche Auswirkung zum jeweiligen Zeitpunkt widerspiegelt; jede Änderung wird im Journal festgehalten, ein späteres Anheben oder Absenken ist also normal und nachvollziehbar
 - **Status**: Offen, In Bearbeitung, Behoben, Geschlossen. Der Status bewegt sich nur vorwärts. Der Weg zurück führt über **Wieder öffnen**, damit das Register nicht unbemerkt zurückgedreht werden kann
+- **Auf Registeradministratoren beschränken**: den Vorfall vor anderen Lesern und Mitwirkenden verbergen. Meldender und Verantwortlicher sehen ihn weiter. Nur ein Administrator kann die Einschränkung aufheben, auch nach dem Schließen. Wenn sie aktiv ist, zeigt die Metadatenzeile **Eingeschränkt**
 
 **Daten**:
 
@@ -204,7 +209,7 @@ Fristen und Schwellenwerte hängen von Ihrer Rechtsordnung und Ihrer Branche ab.
 - Die Nachweise selbst, als Anhänge und verknüpfte Dokumente
 - Die Korrekturmaßnahmen und die Folgeaufgaben, die deren Umsetzung belegen
 - Gefilterte Sichten nach Zeitraum, Schweregrad, Kategorie oder Compliance-Merkmal, direkt aus der Liste
-- Ein CSV-Export des gesamten Registers (**CSV exportieren** in der Liste), für Prüfer und für Ihr eigenes Archiv
+- Ein CSV-Export des Registers (**CSV exportieren** in der Liste), für Prüfer und für Ihr eigenes Archiv. Eingeschränkte Vorfälle entfallen, es sei denn, Sie dürfen sie sehen; die Datei enthält eine importierbare Spalte **Auf Registeradministratoren beschränken**
 - Ein PDF-Bericht zu einem einzelnen Vorfall (**PDF exportieren** im Arbeitsbereich), für den Prüfer, der eine Akte statt des gesamten Registers möchte
 
 **Ein bestehendes Register importieren**: **CSV importieren** in der Liste nimmt eine CSV-Datei entgegen. Lassen Sie die Referenzspalte leer, um Vorfälle anzulegen (KANAP vergibt die nächsten INC-Nummern), oder behalten Sie die Referenz INC-N bei, um die passenden Datensätze zu aktualisieren. Jeder importierte Vorfall erhält einen Journaleintrag, der auf die Herkunft aus einer Datei hinweist. Exportieren Sie zuerst, wenn Sie das exakte Spaltenlayout möchten.

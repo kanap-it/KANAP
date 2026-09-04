@@ -105,6 +105,7 @@ export function IncidentWorkspacePage() {
     authority_notification_required: false,
     authority_notified_at: null,
     notified_parties: null,
+    confidential: false,
   }));
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
@@ -212,13 +213,34 @@ export function IncidentWorkspacePage() {
     void patchNow({ title: trimmed });
   }, [data, patchNow]);
 
+  const handleConfidentiality = React.useCallback(async (confidential: boolean) => {
+    if (!data || stale) return;
+    const previous = data;
+    setIncidentCache((current) => ({ ...current, confidential }));
+    setError(null);
+    try {
+      const saved = locked || previous.status === 'closed' || previous.status === 'cancelled'
+        ? await incidentsApi.setConfidentiality(previous.id, confidential)
+        : await incidentsApi.update(previous.id, { confidential });
+      setIncidentCache(() => saved);
+      invalidateEntries(previous.id);
+    } catch (e) {
+      setIncidentCache(() => previous);
+      setError(getApiErrorMessage(e, t, t('workspace.incident.messages.confidentialityFailed')));
+    }
+  }, [data, invalidateEntries, locked, setIncidentCache, stale, t]);
+
   const handleDrawerChange = React.useCallback((patch: IncidentDrawerPatch) => {
+    if (patch.confidential !== undefined) {
+      void handleConfidentiality(patch.confidential);
+      return;
+    }
     const { severity, detected_at, ...rest } = patch;
     const next: UpdateIncidentInput = { ...rest };
     if (severity) next.severity = severity;
     if (detected_at) next.detected_at = detected_at;
     void patchNow(next);
-  }, [patchNow]);
+  }, [handleConfidentiality, patchNow]);
 
   const handleStatusChange = React.useCallback((next: IncidentStatus) => {
     setStatusAnchor(null);
@@ -298,6 +320,7 @@ export function IncidentWorkspacePage() {
         authority_notification_required: createForm.authority_notification_required,
         authority_notified_at: createForm.authority_notified_at,
         notified_parties: createForm.notified_parties,
+        confidential: createForm.confidential,
         description: createForm.description.trim() || null,
       };
       const saved = await incidentsApi.create(payload);
@@ -447,6 +470,7 @@ export function IncidentWorkspacePage() {
       values={createForm}
       isCreate
       disabled={createSubmitting || !canEdit}
+      restrictDisabled={createSubmitting || !canEdit}
       onChange={(patch) => setCreateForm((previous) => ({ ...previous, ...patch }))}
     />
   ) : data ? (
@@ -455,6 +479,7 @@ export function IncidentWorkspacePage() {
       values={data}
       isCreate={false}
       disabled={!editable}
+      restrictDisabled={isAdmin ? false : (!editable || !!data.confidential)}
       onChange={handleDrawerChange}
     />
   ) : (

@@ -29,6 +29,7 @@ export const IncidentFieldsSchema = z.object({
   source_ref: nullableText,
   personal_data_affected: z.boolean(),
   authority_notification_required: z.boolean(),
+  confidential: z.boolean(),
   authority_notified_at: DateTimeString.nullable(),
   notified_parties: nullableText,
 });

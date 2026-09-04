@@ -26,6 +26,7 @@ export interface IncidentRow {
   owner_name: string | null;
   reporter_user_id: string | null;
   reporter_name: string | null;
+  confidential?: boolean;
   asset_count: number;
   application_count: number;
   task_count: number;
@@ -37,6 +38,7 @@ export interface IncidentRow {
  * Full incident (GET /incidents/:id)
  */
 export interface Incident extends IncidentRow {
+  confidential: boolean;
   description: string | null;
   impact: string | null;
   root_cause: string | null;
@@ -83,6 +85,7 @@ export type IncidentEditableFields = Pick<Incident,
   | 'authority_notification_required'
   | 'authority_notified_at'
   | 'notified_parties'
+  | 'confidential'
 >;
 
 export type CreateIncidentInput = Partial<IncidentEditableFields> & {
@@ -169,6 +172,9 @@ export const incidentsApi = {
 
   cancel: (idOrRef: string, reason: string): Promise<Incident> =>
     api.post<Incident>(`/incidents/${idOrRef}/cancel`, { reason }),
+
+  setConfidentiality: (idOrRef: string, confidential: boolean): Promise<Incident> =>
+    api.post<Incident>(`/incidents/${idOrRef}/confidentiality`, { confidential }),
 
   listEntries: (idOrRef: string): Promise<IncidentEntry[]> =>
     api.get<IncidentEntry[]>(`/incidents/${idOrRef}/entries`),

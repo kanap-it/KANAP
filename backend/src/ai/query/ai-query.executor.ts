@@ -12,6 +12,7 @@ import { ContactsService } from '../../contacts/contacts.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { DepartmentsService } from '../../departments/departments.service';
 import { IncidentRecordService, IncidentsService } from '../../incidents/services';
+import { incidentVisibilitySql, resolveIncidentViewer } from '../../incidents/incident-visibility';
 import { InterfacesService } from '../../interfaces/services';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { LocationsService } from '../../locations/locations.service';
@@ -1186,7 +1187,8 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'incidents') {
-      const result = await this.incidents.list(scoped.query, { manager: context.manager, tenantId: context.tenantId });
+      const viewer = await resolveIncidentViewer(context.manager, context.userId);
+      const result = await this.incidents.list(scoped.query, { manager: context.manager, tenantId: context.tenantId, viewer });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
       const returned = Array.isArray(result.items) ? result.items.length : 0;
@@ -2102,10 +2104,12 @@ export class AiQueryExecutor {
     }
 
     if (entityType === 'incidents') {
+      const viewer = await resolveIncidentViewer(context.manager, context.userId);
       const record = await this.incidentRecords.load(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
         userId: context.userId,
+        viewer,
       });
       return this.toDetailResult(this.mapIncident(record.incident), {
         ...record.incident,
@@ -2140,12 +2144,16 @@ export class AiQueryExecutor {
         ? `AND ${participantConditionForAiEntity(entityType, alias, `$${params.length + 1}`)}`
         : '';
       if (accessScopeSql) params.push(accessScope!.userId);
+      const incidentVisibility = entityType === 'incidents'
+        ? incidentVisibilitySql(alias, await resolveIncidentViewer(context.manager, context.userId), params)
+        : '';
       const rows = await context.manager.query(
         `SELECT DISTINCT ${groupField.expression} AS value
          FROM ${registry.aggregate.baseTable} ${alias}
          ${joins}
          WHERE ${alias}.tenant_id = $1
            ${accessScopeSql}
+           ${incidentVisibility}
          ORDER BY value ASC NULLS LAST
          LIMIT 5000`,
         params,

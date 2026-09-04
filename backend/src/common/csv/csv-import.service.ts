@@ -29,6 +29,8 @@ export interface CsvImportOptions {
   tenantId: string;
   /** User ID performing the import */
   userId?: string | null;
+  /** True when the importer may lift a confidential flag. */
+  isAdmin?: boolean;
 }
 
 /**
@@ -109,6 +111,7 @@ export class CsvImportService {
       params,
       resolverCache,
       userId: opts.userId,
+      isAdmin: opts.isAdmin,
     };
 
     // Phase 1: Validate and parse all rows

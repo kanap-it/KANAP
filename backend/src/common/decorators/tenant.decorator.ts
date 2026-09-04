@@ -12,6 +12,10 @@ export interface TenantRequest {
   userId: string;
   /** The user's role names */
   userRoles: string[];
+  /** True when the user has the Administrator role (PermissionGuard). */
+  isAdmin?: boolean;
+  /** Effective permission map for non-administrators (PermissionGuard). */
+  permissions?: Record<string, string>;
   /** The TypeORM query runner with tenant context bound */
   queryRunner?: QueryRunner;
   /** The EntityManager from the query runner (convenience accessor) */
@@ -66,6 +70,8 @@ export const Tenant = createParamDecorator(
       tenantId,
       userId,
       userRoles,
+      isAdmin: request?.isAdmin === true,
+      permissions: request?.permissions && typeof request.permissions === 'object' ? request.permissions : {},
       queryRunner,
       manager,
     };

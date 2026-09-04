@@ -246,7 +246,9 @@
         "owner": "Owner",
         "ownerMissing": "Owner missing",
         "detected": "Detected",
-        "duration": "Duration"
+        "duration": "Duration",
+        "access": "Access",
+        "restricted": "Restricted"
       },
       "duration": {
         "days": "{{count}}d",
@@ -290,8 +292,11 @@
         },
         "fields": {
           "status": "Status",
-          "severity": "Severity"
-        }
+          "severity": "Severity",
+          "confidential": "Access"
+        },
+        "restricted": "Restricted",
+        "unrestricted": "Open to the register"
       },
       "relations": {
         "assets": "Assets",
@@ -305,6 +310,8 @@
         "severity": "Severity",
         "selectSeverity": "Select severity",
         "status": "Status",
+        "restrictAccess": "Restrict to register administrators",
+        "restrictAccessHint": "Only register administrators, the reporter and the owner can open this incident.",
         "started": "Started",
         "detected": "Detected",
         "resolved": "Resolved",
@@ -330,7 +337,8 @@
         "entryFailed": "Failed to add the journal entry",
         "relationsFailed": "Failed to save links",
         "attachmentsFailed": "Failed to update attachments",
-        "exportPdfFailed": "Could not export the PDF report."
+        "exportPdfFailed": "Could not export the PDF report.",
+        "confidentialityFailed": "Failed to update access"
       }
     },
     "application": {

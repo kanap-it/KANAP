@@ -246,7 +246,9 @@
         "owner": "Verantwortlicher",
         "ownerMissing": "Verantwortlicher fehlt",
         "detected": "Erkannt",
-        "duration": "Dauer"
+        "duration": "Dauer",
+        "access": "Zugriff",
+        "restricted": "Eingeschränkt"
       },
       "duration": {
         "days": "{{count}} T",
@@ -290,8 +292,11 @@
         },
         "fields": {
           "status": "Status",
-          "severity": "Schweregrad"
-        }
+          "severity": "Schweregrad",
+          "confidential": "Zugriff"
+        },
+        "restricted": "Eingeschränkt",
+        "unrestricted": "Für das Register sichtbar"
       },
       "relations": {
         "assets": "Assets",
@@ -305,6 +310,8 @@
         "severity": "Schweregrad",
         "selectSeverity": "Schweregrad auswählen",
         "status": "Status",
+        "restrictAccess": "Auf Registeradministratoren beschränken",
+        "restrictAccessHint": "Nur Registeradministratoren, der Meldende und der Verantwortliche können diesen Vorfall öffnen.",
         "started": "Beginn",
         "detected": "Erkannt",
         "resolved": "Behoben",
@@ -330,7 +337,8 @@
         "entryFailed": "Fehler beim Hinzufügen des Verlaufseintrags",
         "relationsFailed": "Fehler beim Speichern der Verknüpfungen",
         "attachmentsFailed": "Fehler beim Aktualisieren der Anhänge",
-        "exportPdfFailed": "Der PDF-Bericht konnte nicht exportiert werden."
+        "exportPdfFailed": "Der PDF-Bericht konnte nicht exportiert werden.",
+        "confidentialityFailed": "Zugriff konnte nicht aktualisiert werden"
       }
     },
     "application": {

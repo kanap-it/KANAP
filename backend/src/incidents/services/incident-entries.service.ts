@@ -25,7 +25,7 @@ export class IncidentEntriesService extends IncidentsBaseService {
   async list(incidentId: string, opts?: ServiceOpts & { order?: 'asc' | 'desc' }) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    await this.ensureIncident(incidentId, mg, tenantId);
+    await this.ensureIncident(incidentId, mg, tenantId, opts?.viewer);
     const direction = opts?.order === 'asc' ? 'ASC' : 'DESC';
     return mg.query(
       `SELECT ${ENTRY_COLUMNS} ${ENTRY_FROM}
@@ -42,7 +42,7 @@ export class IncidentEntriesService extends IncidentsBaseService {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
     const dto = parseCreateEntry(body);
-    const incident = await this.ensureIncident(incidentId, mg, tenantId);
+    const incident = await this.ensureIncident(incidentId, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     const entry = await this.addEntry(mg, incident, {

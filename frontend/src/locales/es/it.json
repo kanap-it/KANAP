@@ -246,7 +246,9 @@
         "owner": "Responsable",
         "ownerMissing": "Falta el responsable",
         "detected": "Detectado",
-        "duration": "Duración"
+        "duration": "Duración",
+        "access": "Acceso",
+        "restricted": "Restringido"
       },
       "duration": {
         "days": "{{count}} d",
@@ -290,8 +292,11 @@
         },
         "fields": {
           "status": "Estado",
-          "severity": "Gravedad"
-        }
+          "severity": "Gravedad",
+          "confidential": "Acceso"
+        },
+        "restricted": "Restringido",
+        "unrestricted": "Abierto al registro"
       },
       "relations": {
         "assets": "Activos",
@@ -305,6 +310,8 @@
         "severity": "Gravedad",
         "selectSeverity": "Seleccione la gravedad",
         "status": "Estado",
+        "restrictAccess": "Restringir a los administradores del registro",
+        "restrictAccessHint": "Solo los administradores del registro, el declarante y el responsable pueden abrir este incidente.",
         "started": "Inicio",
         "detected": "Detectado",
         "resolved": "Resuelto",
@@ -330,7 +337,8 @@
         "entryFailed": "Error al añadir la entrada del registro",
         "relationsFailed": "Error al guardar los vínculos",
         "attachmentsFailed": "Error al actualizar los adjuntos",
-        "exportPdfFailed": "No se ha podido exportar el informe PDF."
+        "exportPdfFailed": "No se ha podido exportar el informe PDF.",
+        "confidentialityFailed": "No se pudo actualizar el acceso"
       }
     },
     "application": {

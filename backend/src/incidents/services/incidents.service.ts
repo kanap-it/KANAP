@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Incident, IncidentStatus } from '../incident.entity';
@@ -8,6 +8,7 @@ import { ItemNumberService } from '../../common/item-number.service';
 import { parsePagination, Sort } from '../../common/pagination';
 import { parseCreateIncident, parseListIncidentsQuery, parseUpdateIncident, UpdateIncidentDto } from '../dto';
 import { IncidentsBaseService, ServiceOpts, incidentRef, userNameSql } from './incidents-base.service';
+import { IncidentViewer, incidentVisibilitySql } from '../incident-visibility';
 
 const DEFAULT_SORT: Sort = { field: 'detected_at', direction: 'DESC' };
 
@@ -80,6 +81,8 @@ const DATE_INPUT_FIELDS = ['started_at', 'resolved_at', 'closed_at', 'authority_
 const USER_FIELDS = ['reporter_user_id', 'owner_user_id'] as const;
 const BOOLEAN_FIELDS = ['personal_data_affected', 'authority_notification_required'] as const;
 
+const CONFIDENTIAL_LIFT_MESSAGE = 'Only a register administrator can lift this restriction.';
+
 function toDate(value: string | null | undefined): Date | null {
   return value ? new Date(value) : null;
 }
@@ -107,6 +110,7 @@ type IncidentWhere = {
   skipField?: string;
   assetId?: string;
   applicationId?: string;
+  viewer?: IncidentViewer;
 };
 
 /**
@@ -131,7 +135,9 @@ export class IncidentsService extends IncidentsBaseService {
     const tenantId = this.ensureTenantId(opts?.tenantId);
     const { asset_id, application_id } = parseListIncidentsQuery(query);
     const { page, limit, skip, sort, q, filters } = parsePagination(query, DEFAULT_SORT);
-    const { where, params } = this.buildWhere({ filters, q, tenantId, assetId: asset_id, applicationId: application_id });
+    const { where, params } = this.buildWhere({
+      filters, q, tenantId, assetId: asset_id, applicationId: application_id, viewer: opts?.viewer,
+    });
 
     const countRows: Array<{ count: number }> = await mg.query(`SELECT COUNT(*)::int AS count ${BASE_FROM} WHERE ${where}`, params);
     const total = countRows[0]?.count || 0;
@@ -154,7 +160,9 @@ export class IncidentsService extends IncidentsBaseService {
     const tenantId = this.ensureTenantId(opts?.tenantId);
     const { asset_id, application_id } = parseListIncidentsQuery(query);
     const { sort, q, filters } = parsePagination(query, DEFAULT_SORT);
-    const { where, params } = this.buildWhere({ filters, q, tenantId, assetId: asset_id, applicationId: application_id });
+    const { where, params } = this.buildWhere({
+      filters, q, tenantId, assetId: asset_id, applicationId: application_id, viewer: opts?.viewer,
+    });
 
     const countRows: Array<{ count: number }> = await mg.query(`SELECT COUNT(*)::int AS count ${BASE_FROM} WHERE ${where}`, params);
     const total = countRows[0]?.count || 0;
@@ -186,7 +194,9 @@ export class IncidentsService extends IncidentsBaseService {
 
     const results: Record<string, Array<string | null>> = {};
     for (const field of fields) {
-      const { where, params } = this.buildWhere({ filters, q, tenantId, skipField: field, assetId: asset_id, applicationId: application_id });
+      const { where, params } = this.buildWhere({
+        filters, q, tenantId, skipField: field, assetId: asset_id, applicationId: application_id, viewer: opts?.viewer,
+      });
       const rows: Array<{ value: string | null }> = await mg.query(
         `SELECT DISTINCT ${FIELD_EXPRESSIONS[field]} AS value ${BASE_FROM}
          WHERE ${where}
@@ -305,6 +315,8 @@ export class IncidentsService extends IncidentsBaseService {
       )`;
     }
 
+    where += incidentVisibilitySql('i', input.viewer, params);
+
     return { where, params };
   }
 
@@ -379,7 +391,7 @@ export class IncidentsService extends IncidentsBaseService {
   async get(id: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    await this.ensureIncident(id, mg, tenantId);
+    await this.ensureIncident(id, mg, tenantId, opts?.viewer);
 
     const [row] = await mg.query(
       `SELECT i.*,
@@ -438,6 +450,7 @@ export class IncidentsService extends IncidentsBaseService {
       corrective_actions: nullableText(dto.corrective_actions),
       lessons_learned: nullableText(dto.lessons_learned),
       source_ref: nullableText(dto.source_ref),
+      confidential: dto.confidential ?? false,
       personal_data_affected: dto.personal_data_affected ?? false,
       authority_notification_required: dto.authority_notification_required ?? false,
       authority_notified_at: toDate(dto.authority_notified_at),
@@ -455,7 +468,7 @@ export class IncidentsService extends IncidentsBaseService {
       { table: 'incidents', recordId: saved.id, action: 'create', before: null, after: saved, userId },
       { manager: mg },
     );
-    return this.get(saved.id, { manager: mg, tenantId });
+    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: false } });
   }
 
   /**
@@ -465,7 +478,7 @@ export class IncidentsService extends IncidentsBaseService {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
     const dto = parseUpdateIncident(body);
-    const incident = await this.ensureIncident(id, mg, tenantId);
+    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     if (dto.status !== undefined && dto.status !== incident.status && STATUS_RANK[dto.status] < STATUS_RANK[incident.status]) {
@@ -474,6 +487,7 @@ export class IncidentsService extends IncidentsBaseService {
     await this.ensureUsers([dto.reporter_user_id, dto.owner_user_id], mg, tenantId);
 
     const before = { ...incident };
+    this.applyConfidentialChange(incident, dto.confidential, opts?.viewer);
     this.applyFields(incident, dto);
     const now = new Date();
     incident.updated_by = userId;
@@ -497,11 +511,19 @@ export class IncidentsService extends IncidentsBaseService {
         author_id: userId,
       });
     }
+    if (before.confidential !== saved.confidential) {
+      await this.addEntry(mg, saved, {
+        kind: 'system',
+        changed_fields: { confidential: { from: before.confidential, to: saved.confidential } },
+        occurred_at: now,
+        author_id: userId,
+      });
+    }
     await this.audit.log(
       { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
       { manager: mg },
     );
-    return this.get(saved.id, { manager: mg, tenantId });
+    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: false } });
   }
 
   /**
@@ -510,7 +532,7 @@ export class IncidentsService extends IncidentsBaseService {
   async reopen(id: string, reason: string, userId: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    const incident = await this.ensureIncident(id, mg, tenantId);
+    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     if (incident.status === 'open' || incident.status === 'in_progress') {
       throw new BadRequestException('Only resolved, closed or cancelled incidents can be reopened.');
     }
@@ -530,7 +552,7 @@ export class IncidentsService extends IncidentsBaseService {
       { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
       { manager: mg },
     );
-    return this.get(saved.id, { manager: mg, tenantId });
+    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
   }
 
   /**
@@ -539,7 +561,7 @@ export class IncidentsService extends IncidentsBaseService {
   async cancel(id: string, reason: string, userId: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    const incident = await this.ensureIncident(id, mg, tenantId);
+    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     const before = { ...incident };
@@ -555,12 +577,63 @@ export class IncidentsService extends IncidentsBaseService {
       { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
       { manager: mg },
     );
-    return this.get(saved.id, { manager: mg, tenantId });
+    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
+  }
+
+  /**
+   * Admin: set or clear the confidential flag, including on a closed record.
+   */
+  async setConfidentiality(
+    id: string,
+    confidential: boolean,
+    userId: string | null,
+    opts?: ServiceOpts,
+  ) {
+    const mg = this.getManager(opts);
+    const tenantId = this.ensureTenantId(opts?.tenantId);
+    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
+    if (incident.confidential === confidential) {
+      return this.get(incident.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
+    }
+    if (incident.confidential && !confidential && !opts?.viewer?.isAdmin) {
+      throw new ForbiddenException(CONFIDENTIAL_LIFT_MESSAGE);
+    }
+
+    const before = { ...incident };
+    const now = new Date();
+    incident.confidential = confidential;
+    incident.updated_by = userId;
+    incident.updated_at = now;
+    const saved = await mg.getRepository(Incident).save(incident);
+
+    await this.addEntry(mg, saved, {
+      kind: 'system',
+      changed_fields: { confidential: { from: before.confidential, to: saved.confidential } },
+      occurred_at: now,
+      author_id: userId,
+    });
+    await this.audit.log(
+      { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
+      { manager: mg },
+    );
+    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
   }
 
   // =========================================================================
   // Helpers
   // =========================================================================
+
+  private applyConfidentialChange(
+    incident: Incident,
+    next: boolean | undefined,
+    viewer?: IncidentViewer,
+  ): void {
+    if (next === undefined || next === incident.confidential) return;
+    if (incident.confidential && !next && !viewer?.isAdmin) {
+      throw new ForbiddenException(CONFIDENTIAL_LIFT_MESSAGE);
+    }
+    incident.confidential = next;
+  }
 
   private applyFields(incident: Incident, dto: UpdateIncidentDto): void {
     if (dto.title !== undefined) incident.title = dto.title;

@@ -106,6 +106,12 @@ export default function IncidentMetadataBar({
         </Box>
       </Popover>
 
+      {incident.confidential && (
+        <PortfolioMetadataItem label={t('workspace.incident.metadata.access')}>
+          {t('workspace.incident.metadata.restricted')}
+        </PortfolioMetadataItem>
+      )}
+
       {incident.resolved_at && (
         <PortfolioMetadataItem label={t('workspace.incident.metadata.duration')}>
           {formatIncidentDuration(t, incident.detected_at, incident.resolved_at)}

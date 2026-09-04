@@ -25,11 +25,14 @@ import { IncidentsCsvService } from './incidents-csv.service';
 import {
   CreateEntryInput,
   CreateIncidentInput,
+  IncidentConfidentialityInput,
   IncidentReasonInput,
   ListIncidentsQueryInput,
   UpdateIncidentInput,
+  parseIncidentConfidentiality,
   parseIncidentReason,
 } from './dto';
+import { incidentViewerFromContext } from './incident-visibility';
 
 @UseGuards(JwtAuthGuard)
 @Controller('incidents')
@@ -50,7 +53,13 @@ export class IncidentsController {
   }
 
   private opts(ctx: TenantRequest) {
-    return { manager: ctx.manager, tenantId: ctx.tenantId };
+    return { manager: ctx.manager, tenantId: ctx.tenantId, viewer: incidentViewerFromContext(ctx) };
+  }
+
+  private async visibleId(idOrRef: string, ctx: TenantRequest): Promise<string> {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    await this.svc.ensureIncident(id, ctx.manager as EntityManager, ctx.tenantId, incidentViewerFromContext(ctx));
+    return id;
   }
 
   // Static routes first: list, ids, filter-values, attachment download/delete
@@ -113,6 +122,7 @@ export class IncidentsController {
     const result = await this.csvSvc.export({
       manager: ctx.manager as EntityManager,
       tenantId: ctx.tenantId,
+      viewer: incidentViewerFromContext(ctx),
       scope,
       fields: fields ? fields.split(',').map((f) => f.trim()) : undefined,
     });
@@ -139,7 +149,12 @@ export class IncidentsController {
     return this.csvSvc.import(
       file,
       { dryRun: dryRun !== 'false', mode, operation },
-      { manager: ctx.manager as EntityManager, tenantId: ctx.tenantId, userId: ctx.userId || null },
+      {
+        manager: ctx.manager as EntityManager,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId || null,
+        isAdmin: incidentViewerFromContext(ctx).isAdmin,
+      },
     );
   }
 
@@ -162,11 +177,12 @@ export class IncidentsController {
     @Res() res: Response,
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     const result = await this.report.exportPdf(id, lang, {
       manager: ctx.manager,
       tenantId: ctx.tenantId,
       userId: ctx.userId || null,
+      viewer: incidentViewerFromContext(ctx),
     });
     res.setHeader('Content-Type', result.mimeType);
     res.setHeader('Content-Disposition', contentDisposition(result.filename));
@@ -179,7 +195,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id/entries')
   async listEntries(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.entries.list(id, this.opts(ctx));
   }
 
@@ -187,7 +203,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'contributor')
   @Post(':id/entries')
   async createEntry(@Param('id') idOrRef: string, @Body() body: CreateEntryInput, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.entries.createNote(id, body, ctx.userId || null, this.opts(ctx));
   }
 
@@ -197,7 +213,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id/assets')
   async listAssets(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.relations.listAssets(id, this.opts(ctx));
   }
 
@@ -209,7 +225,7 @@ export class IncidentsController {
     @Body() body: { asset_ids?: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.relations.bulkReplaceAssets(id, body?.asset_ids ?? [], ctx.userId || null, this.opts(ctx));
   }
 
@@ -217,7 +233,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id/applications')
   async listApplications(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.relations.listApplications(id, this.opts(ctx));
   }
 
@@ -229,7 +245,7 @@ export class IncidentsController {
     @Body() body: { application_ids?: string[] },
     @Tenant() ctx: TenantRequest,
   ) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.relations.bulkReplaceApplications(id, body?.application_ids ?? [], ctx.userId || null, this.opts(ctx));
   }
 
@@ -239,7 +255,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id/knowledge')
   async listDocuments(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.knowledge.listDocumentsForEntity('incidents', id, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
@@ -247,7 +263,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id/knowledge-context')
   async getKnowledgeContext(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.knowledge.getKnowledgeContextForEntity('incidents', id, { manager: ctx.manager, userId: ctx.userId || null });
   }
 
@@ -257,7 +273,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id/attachments')
   async listAttachments(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.attachments.listAttachments(id, this.opts(ctx));
   }
 
@@ -270,7 +286,7 @@ export class IncidentsController {
     @UploadedFile() file: Express.Multer.File,
     @Tenant() ctx: TenantRequest,
   ) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.attachments.uploadAttachment(id, file, ctx.userId || null, this.opts(ctx));
   }
 
@@ -280,7 +296,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'admin')
   @Post(':id/reopen')
   async reopen(@Param('id') idOrRef: string, @Body() body: IncidentReasonInput, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     const { reason } = parseIncidentReason(body);
     return this.svc.reopen(id, reason, ctx.userId || null, this.opts(ctx));
   }
@@ -289,9 +305,22 @@ export class IncidentsController {
   @RequireLevel('incidents', 'admin')
   @Post(':id/cancel')
   async cancel(@Param('id') idOrRef: string, @Body() body: IncidentReasonInput, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     const { reason } = parseIncidentReason(body);
     return this.svc.cancel(id, reason, ctx.userId || null, this.opts(ctx));
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'admin')
+  @Post(':id/confidentiality')
+  async setConfidentiality(
+    @Param('id') idOrRef: string,
+    @Body() body: IncidentConfidentialityInput,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.visibleId(idOrRef, ctx);
+    const { confidential } = parseIncidentConfidentiality(body);
+    return this.svc.setConfidentiality(id, confidential, ctx.userId || null, this.opts(ctx));
   }
 
   // CRUD
@@ -300,7 +329,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'reader')
   @Get(':id')
   async get(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.svc.get(id, this.opts(ctx));
   }
 
@@ -315,7 +344,7 @@ export class IncidentsController {
   @RequireLevel('incidents', 'contributor')
   @Patch(':id')
   async update(@Param('id') idOrRef: string, @Body() body: UpdateIncidentInput, @Tenant() ctx: TenantRequest) {
-    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const id = await this.visibleId(idOrRef, ctx);
     return this.svc.update(id, body, ctx.userId || null, this.opts(ctx));
   }
 }

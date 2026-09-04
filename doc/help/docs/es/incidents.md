@@ -43,7 +43,11 @@ El **Declarante** es usted por defecto. Ambas fechas admiten valores pasados: un
 
 - Consulta: `incidents:reader`
 - Creación, edición, diario, enlaces, archivos adjuntos: `incidents:contributor`
-- Reabrir y cancelar: `incidents:admin`
+- Reabrir, cancelar y levantar una restricción: `incidents:admin`
+
+Un incidente restringido queda oculto para todos excepto los administradores del registro, el declarante y el responsable. En un espacio de trabajo de fábrica eso equivale a Administrador y Administrador de panorama IT, más quien lo registró o es responsable de la ficha. Un lector o colaborador que no sea el declarante ni el responsable no lo ve en la lista, en la búsqueda, en el chat ni en la exportación CSV: abrirlo por su referencia devuelve el mismo «no encontrado» que un número inexistente. Las tareas vinculadas conservan la referencia `INC-N` pero sin el título.
+
+**Restringir a los administradores del registro** está en el cajón de propiedades, bajo Clasificación. Un colaborador puede activarlo mientras aún vea la ficha; solo un administrador puede desactivarlo, también después del cierre. El cambio se escribe en el diario. El registro de auditoría, las pastillas de relación documental y «vistos recientemente» siguen mostrando el título a quienes ya tienen esas pantallas.
 
 ---
 
@@ -97,6 +101,7 @@ El cajón permanece visible en todas las pestañas y guarda a medida que edita.
 - **Categoría**: de la lista configurada en la configuración de Panorama IT
 - **Gravedad**: Crítica, Mayor, Menor, Baja. Elija el nivel que refleje el impacto de negocio en ese momento; cada cambio queda anotado en el diario, así que subirlo o bajarlo después es normal y trazable
 - **Estado**: Abierto, En curso, Resuelto, Cerrado. El estado solo avanza. Volver atrás se hace con **Reabrir**, para que el registro no pueda rebobinarse discretamente
+- **Restringir a los administradores del registro**: ocultar el incidente a los demás lectores y colaboradores. El declarante y el responsable siguen viéndolo. Solo un administrador puede levantar la restricción, también después del cierre. Cuando está activa, la línea de metadatos muestra **Restringido**
 
 **Fechas**:
 
@@ -204,7 +209,7 @@ Los plazos y umbrales dependen de su jurisdicción y de su sector. KANAP registr
 - La evidencia en sí, como archivos adjuntos y documentos enlazados
 - Las acciones correctivas y las tareas de seguimiento que demuestran que se llevaron a cabo
 - Vistas filtradas por periodo, gravedad, categoría o indicador de conformidad, directamente desde la lista
-- Una exportación CSV de todo el registro (**Exportar CSV** en la lista), para los auditores y para su propio archivo
+- Una exportación CSV del registro (**Exportar CSV** en la lista), para los auditores y para su propio archivo. Los incidentes restringidos se omiten salvo que tenga derecho a verlos; el archivo incluye una columna importable **Restringir a los administradores del registro**
 - Un informe PDF de un solo incidente (**Exportar PDF** en el espacio de trabajo), para el auditor que quiere una ficha en lugar de todo el registro
 
 **Importar un registro existente**: **Importar CSV** en la lista acepta un archivo CSV. Deje la columna de referencia vacía para crear incidentes (KANAP asigna los siguientes números INC), o conserve la referencia INC-N para actualizar los registros correspondientes. Cada incidente importado recibe una entrada de diario que indica que procede de un archivo. Exporte primero si quiere la disposición exacta de las columnas.

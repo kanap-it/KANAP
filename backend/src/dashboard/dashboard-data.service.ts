@@ -501,7 +501,7 @@ export class DashboardDataService {
           WHEN t.related_object_type = 'contract' THEN c.name
           WHEN t.related_object_type = 'capex_item' THEN ci.description
           WHEN t.related_object_type = 'project' THEN pp.name
-          WHEN t.related_object_type = 'incident' THEN 'INC-' || inc.item_number::text || ' · ' || inc.title
+          WHEN t.related_object_type = 'incident' THEN CASE WHEN inc.confidential THEN 'INC-' || inc.item_number::text ELSE 'INC-' || inc.item_number::text || ' · ' || inc.title END
           ELSE NULL
         END AS related_object_name,
         GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - t.updated_at)) / 86400))::int AS stale_days

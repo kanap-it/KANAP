@@ -43,7 +43,11 @@ Navigate to **IT Landscape > Incidents** to see the register. Click **New incide
 
 - View: `incidents:reader`
 - Create, edit, journal, links, attachments: `incidents:contributor`
-- Reopen and cancel: `incidents:admin`
+- Reopen, cancel, and lift a restriction: `incidents:admin`
+
+A restricted incident is hidden from everyone except register administrators, the reporter and the owner. On a stock tenant that means Administrator and IT Landscape Administrator, plus whoever logged or owns that record. Readers and contributors who are not the reporter or owner do not see it in the list, in search, in chat or in a CSV export — opening it by reference returns the same “not found” as a missing number. Linked tasks keep the `INC-N` reference but drop the title.
+
+**Restrict to register administrators** is in the properties drawer, under Classification. A contributor can turn it on while they can still see the record; only an administrator can turn it off, including after the incident is closed. The change is written to the journal. The audit log, document relation chips and “recently viewed” still show the title to people who already have those screens.
 
 ---
 
@@ -97,6 +101,7 @@ The drawer stays visible on every tab and saves as you edit.
 - **Category**: from the list configured in IT Landscape settings
 - **Severity**: Critical, Major, Minor, Low. Pick the level that reflects the business impact at the time; every change is journaled, so raising or lowering it later is normal and traceable
 - **Status**: Open, In progress, Resolved, Closed. The status only moves forward. Going back is done with **Reopen**, so the register cannot be quietly rewound
+- **Restrict to register administrators**: hide the incident from other readers and contributors. The reporter and the owner still see it. Only an administrator can lift the restriction, including after close. When it is on, the metadata line shows **Restricted**
 
 **Dates**:
 
@@ -204,7 +209,7 @@ Deadlines and thresholds depend on your jurisdiction and sector. KANAP records t
 - The evidence itself, as attachments and linked documents
 - The corrective actions, and the follow-up tasks that prove they were carried out
 - Filtered views by period, severity, category or compliance flag, straight from the list
-- A CSV export of the whole register (**Export CSV** on the list), for auditors and for your own archive
+- A CSV export of the register (**Export CSV** on the list), for auditors and for your own archive. Restricted incidents are omitted unless you are allowed to see them; the file includes a **Restricted to register administrators** column that can be imported
 - A PDF report of a single incident (**Export PDF** in the workspace), for the auditor who wants one record rather than the whole register
 
 **Importing an existing register**: **Import CSV** on the list takes a CSV file. Leave the reference column empty to create incidents (KANAP allocates the next INC numbers), or keep the INC-N reference to update the matching records. Each imported incident gets a journal entry saying it came from a file. Export first if you want the exact column layout.

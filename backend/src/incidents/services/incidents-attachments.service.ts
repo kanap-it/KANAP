@@ -27,7 +27,7 @@ export class IncidentsAttachmentsService extends IncidentsBaseService {
   async listAttachments(incidentId: string, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    await this.ensureIncident(incidentId, mg, tenantId);
+    await this.ensureIncident(incidentId, mg, tenantId, opts?.viewer);
     return mg.getRepository(IncidentAttachment).find({
       where: { incident_id: incidentId, tenant_id: tenantId, deleted_at: IsNull() },
       order: { uploaded_at: 'DESC' },
@@ -39,7 +39,7 @@ export class IncidentsAttachmentsService extends IncidentsBaseService {
     const tenantId = this.ensureTenantId(opts?.tenantId);
     if (!file) throw new BadRequestException('No file uploaded');
 
-    const incident = await this.ensureIncident(incidentId, mg, tenantId);
+    const incident = await this.ensureIncident(incidentId, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     const buf = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer as any);
@@ -92,6 +92,7 @@ export class IncidentsAttachmentsService extends IncidentsBaseService {
       where: { id: attachmentId, tenant_id: tenantId, deleted_at: IsNull() },
     });
     if (!found) throw new NotFoundException('Attachment not found');
+    await this.ensureIncident(found.incident_id, mg, tenantId, opts?.viewer);
     return found;
   }
 
@@ -102,7 +103,7 @@ export class IncidentsAttachmentsService extends IncidentsBaseService {
     const found = await repo.findOne({ where: { id: attachmentId, tenant_id: tenantId, deleted_at: IsNull() } });
     if (!found) return { ok: true };
 
-    const incident = await this.ensureIncident(found.incident_id, mg, tenantId);
+    const incident = await this.ensureIncident(found.incident_id, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     const before = { ...found };

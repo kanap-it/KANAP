@@ -9,3 +9,4 @@ export { IncidentReportService } from './incident-report.service';
 export type { ReportLang } from './incident-report.service';
 export { INCIDENT_LOCKED_MESSAGE } from './incidents-base.service';
 export type { ServiceOpts } from './incidents-base.service';
+export type { IncidentViewer } from '../incident-visibility';

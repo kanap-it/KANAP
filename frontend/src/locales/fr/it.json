@@ -246,7 +246,9 @@
         "owner": "Responsable",
         "ownerMissing": "Responsable manquant",
         "detected": "Détecté",
-        "duration": "Durée"
+        "duration": "Durée",
+        "access": "Accès",
+        "restricted": "Restreint"
       },
       "duration": {
         "days": "{{count}} j",
@@ -290,8 +292,11 @@
         },
         "fields": {
           "status": "Statut",
-          "severity": "Gravité"
-        }
+          "severity": "Gravité",
+          "confidential": "Accès"
+        },
+        "restricted": "Restreint",
+        "unrestricted": "Ouvert au registre"
       },
       "relations": {
         "assets": "Actifs",
@@ -305,6 +310,8 @@
         "severity": "Gravité",
         "selectSeverity": "Sélectionnez une gravité",
         "status": "Statut",
+        "restrictAccess": "Restreindre aux administrateurs du registre",
+        "restrictAccessHint": "Seuls les administrateurs du registre, le déclarant et le responsable peuvent ouvrir cet incident.",
         "started": "Début",
         "detected": "Détecté",
         "resolved": "Résolu",
@@ -330,7 +337,8 @@
         "entryFailed": "Échec de l'ajout de l'entrée de journal",
         "relationsFailed": "Échec de l'enregistrement des liens",
         "attachmentsFailed": "Échec de la mise à jour des pièces jointes",
-        "exportPdfFailed": "Impossible d'exporter le rapport PDF."
+        "exportPdfFailed": "Impossible d'exporter le rapport PDF.",
+        "confidentialityFailed": "Impossible de mettre à jour l'accès"
       }
     },
     "application": {

@@ -43,7 +43,11 @@ Le **Déclarant** est vous par défaut. Les deux dates acceptent des valeurs pas
 
 - Consultation : `incidents:reader`
 - Création, modification, journal, liens, pièces jointes : `incidents:contributor`
-- Réouverture et annulation : `incidents:admin`
+- Réouverture, annulation et levée d'une restriction : `incidents:admin`
+
+Un incident restreint est masqué pour tout le monde sauf les administrateurs du registre, le déclarant et le responsable. Sur un tenant standard, cela veut dire Administrateur et Administrateur cartographie SI, plus la personne qui a consigné l'incident ou qui en est responsable. Un lecteur ou un contributeur qui n'est ni le déclarant ni le responsable ne le voit pas dans la liste, la recherche, le chat ou l'export CSV — l'ouvrir par sa référence renvoie la même page « introuvable » qu'un numéro inexistant. Les tâches liées gardent la référence `INC-N` mais sans le titre.
+
+**Restreindre aux administrateurs du registre** se trouve dans le tiroir des propriétés, sous Classification. Un contributeur peut l'activer tant qu'il voit encore la fiche ; seul un administrateur peut la désactiver, y compris après clôture. Le changement est écrit dans le journal. Le journal d'audit, les pastilles de relation documentaire et « récemment consultés » continuent d'afficher le titre pour ceux qui ont déjà ces écrans.
 
 ---
 
@@ -97,6 +101,7 @@ Le tiroir reste visible sur chaque onglet et enregistre au fur et à mesure.
 - **Catégorie** : depuis la liste configurée dans les paramètres Cartographie SI
 - **Gravité** : Critique, Majeur, Mineur, Faible. Choisissez le niveau qui reflète l'impact métier du moment ; chaque changement est consigné au journal, la revoir à la hausse ou à la baisse ensuite est donc normal et traçable
 - **Statut** : Ouvert, En cours, Résolu, Clôturé. Le statut n'avance que vers l'avant. Le retour en arrière passe par **Rouvrir**, pour que le registre ne puisse pas être discrètement rembobiné
+- **Restreindre aux administrateurs du registre** : masquer l'incident aux autres lecteurs et contributeurs. Le déclarant et le responsable le voient toujours. Seul un administrateur peut lever la restriction, y compris après clôture. Quand elle est active, la ligne de métadonnées affiche **Restreint**
 
 **Dates** :
 
@@ -204,7 +209,7 @@ Les délais et les seuils dépendent de votre juridiction et de votre secteur. K
 - Les preuves elles-mêmes, sous forme de pièces jointes et de documents liés
 - Les actions correctives, et les tâches de suivi qui prouvent qu'elles ont été menées
 - Des vues filtrées par période, gravité, catégorie ou indicateur de conformité, directement depuis la liste
-- Un export CSV de tout le registre (**Exporter CSV** dans la liste), pour les auditeurs et pour vos propres archives
+- Un export CSV du registre (**Exporter CSV** dans la liste), pour les auditeurs et pour vos propres archives. Les incidents restreints sont omis sauf si vous avez le droit de les voir ; le fichier comporte une colonne **Restreindre aux administrateurs du registre**, importable
 - Un rapport PDF d'un incident (**Exporter en PDF** dans l'espace de travail), pour l'auditeur qui veut une fiche plutôt que tout le registre
 
 **Importer un registre existant** : **Importer CSV** dans la liste accepte un fichier CSV. Laissez la colonne référence vide pour créer des incidents (KANAP attribue les numéros INC suivants), ou conservez la référence INC-N pour mettre à jour les enregistrements correspondants. Chaque incident importé reçoit une entrée de journal indiquant qu'il provient d'un fichier. Exportez d'abord si vous voulez la disposition exacte des colonnes.
