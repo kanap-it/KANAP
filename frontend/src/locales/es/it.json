@@ -227,7 +227,8 @@
         "changeStatus": "Cambiar estado",
         "useReopen": "Utilice Reabrir",
         "reopen": "Reabrir",
-        "cancel": "Cancelar incidente"
+        "cancel": "Cancelar incidente",
+        "exportPdf": "Exportar PDF"
       },
       "dialogs": {
         "reopenTitle": "Reabrir incidente",
@@ -328,7 +329,8 @@
         "createFailed": "Error al crear el incidente",
         "entryFailed": "Error al añadir la entrada del registro",
         "relationsFailed": "Error al guardar los vínculos",
-        "attachmentsFailed": "Error al actualizar los adjuntos"
+        "attachmentsFailed": "Error al actualizar los adjuntos",
+        "exportPdfFailed": "No se ha podido exportar el informe PDF."
       }
     },
     "application": {

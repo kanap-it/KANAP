@@ -205,8 +205,19 @@ Fristen und Schwellenwerte hängen von Ihrer Rechtsordnung und Ihrer Branche ab.
 - Die Korrekturmaßnahmen und die Folgeaufgaben, die deren Umsetzung belegen
 - Gefilterte Sichten nach Zeitraum, Schweregrad, Kategorie oder Compliance-Merkmal, direkt aus der Liste
 - Ein CSV-Export des gesamten Registers (**CSV exportieren** in der Liste), für Prüfer und für Ihr eigenes Archiv
+- Ein PDF-Bericht zu einem einzelnen Vorfall (**PDF exportieren** im Arbeitsbereich), für den Prüfer, der eine Akte statt des gesamten Registers möchte
 
 **Ein bestehendes Register importieren**: **CSV importieren** in der Liste nimmt eine CSV-Datei entgegen. Lassen Sie die Referenzspalte leer, um Vorfälle anzulegen (KANAP vergibt die nächsten INC-Nummern), oder behalten Sie die Referenz INC-N bei, um die passenden Datensätze zu aktualisieren. Jeder importierte Vorfall erhält einen Journaleintrag, der auf die Herkunft aus einer Datei hinweist. Exportieren Sie zuerst, wenn Sie das exakte Spaltenlayout möchten.
+
+---
+
+## Einen PDF-Bericht für einen Prüfer exportieren
+
+Öffnen Sie einen Vorfall und klicken Sie in den Aktionen der Kopfzeile auf **PDF exportieren**. KANAP lädt ein PDF dieses Datensatzes herunter: `INC-12-incident-report.pdf`. Der Download verwendet Ihre angemeldete Sitzung; es ist kein öffentlicher Link.
+
+Der Bericht folgt der Sprache der Oberfläche (Englisch, Französisch, Deutsch oder Spanisch). Er enthält Kopfzeile und Eigenschaften, die ausgefüllten Übersichtstexte, den Verlauf in chronologischer Reihenfolge, verknüpfte Assets, Anwendungen, Aufgaben und Dokumente, die Compliance-Felder sowie die Anhänge (Dateiname, Größe und Datum). Leere Abschnitte entfallen.
+
+Der Export ist ein Lesevorgang. Er funktioniert bei einem geschlossenen oder abgebrochenen Vorfall; der Datensatz bleibt gesperrt. Die Schaltfläche wird auf **Neuer Vorfall** nicht angezeigt.
 
 ---
 

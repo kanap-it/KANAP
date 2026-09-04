@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, CircularProgress, Menu, MenuItem } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { exportDocument, DocumentExportFormat } from '../api/endpoints/export';
+import { downloadBlob } from '../utils/downloadBlob';
 import { useKanapDialogs } from './design';
 
 interface ExportButtonProps {
@@ -26,17 +27,6 @@ function sanitizeFilename(value: string): string {
     .replace(/^_+/, '')
     .replace(/_+$/, '');
   return cleaned || 'document';
-}
-
-function triggerDownload(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
 }
 
 export default function ExportButton({
@@ -68,7 +58,7 @@ export default function ExportButton({
         title,
       });
       const fallbackName = `${sanitizeFilename(title || 'document')}.${format}`;
-      triggerDownload(result.blob, result.filename || fallbackName);
+      downloadBlob(result.blob, result.filename || fallbackName);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Document export failed', error);

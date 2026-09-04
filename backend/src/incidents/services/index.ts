@@ -5,5 +5,7 @@ export type { IncidentLinkedObject } from './incident-relations.service';
 export { IncidentsAttachmentsService } from './incidents-attachments.service';
 export { IncidentRecordService } from './incident-record.service';
 export type { IncidentRecordOpts } from './incident-record.service';
+export { IncidentReportService } from './incident-report.service';
+export type { ReportLang } from './incident-report.service';
 export { INCIDENT_LOCKED_MESSAGE } from './incidents-base.service';
 export type { ServiceOpts } from './incidents-base.service';

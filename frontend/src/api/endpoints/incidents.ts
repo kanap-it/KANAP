@@ -1,4 +1,5 @@
 import { api } from '../client';
+import { extractFilenameFromDisposition } from '../../utils/downloadBlob';
 
 export type IncidentSeverity = 'critical' | 'major' | 'minor' | 'low';
 export type IncidentStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'cancelled';
@@ -198,4 +199,15 @@ export const incidentsApi = {
 
   deleteAttachment: (attachmentId: string): Promise<void> =>
     api.patch<void>(`/incidents/attachments/${attachmentId}/delete`),
+
+  exportReport: async (idOrRef: string, lang: string): Promise<{ blob: Blob; filename: string | null }> => {
+    const response = await api.getAxiosInstance().get<Blob>(`/incidents/${idOrRef}/report`, {
+      params: { lang },
+      responseType: 'blob',
+    });
+    return {
+      blob: response.data,
+      filename: extractFilenameFromDisposition(response.headers?.['content-disposition']),
+    };
+  },
 };

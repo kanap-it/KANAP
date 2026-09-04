@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { EntityManager } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,6 +8,8 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
+import { RATE_LIMITS } from '../common/rate-limit';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { resolveToUuid } from '../common/resolve-item-id';
@@ -14,6 +17,7 @@ import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
   IncidentEntriesService,
   IncidentRelationsService,
+  IncidentReportService,
   IncidentsAttachmentsService,
   IncidentsService,
 } from './services';
@@ -36,6 +40,7 @@ export class IncidentsController {
     private readonly relations: IncidentRelationsService,
     private readonly attachments: IncidentsAttachmentsService,
     private readonly csvSvc: IncidentsCsvService,
+    private readonly report: IncidentReportService,
     private readonly storage: StorageService,
     private readonly knowledge: KnowledgeService,
   ) {}
@@ -143,6 +148,29 @@ export class IncidentsController {
   @Get('csv-fields')
   getCsvFields() {
     return this.csvSvc.getFieldInfo();
+  }
+
+  // PDF fiche (read — works on closed/cancelled records)
+
+  @UseGuards(PermissionGuard, RateLimitGuard)
+  @RequireLevel('incidents', 'reader')
+  @Throttle({ default: RATE_LIMITS.documentExport })
+  @Get(':id/report')
+  async exportReport(
+    @Param('id') idOrRef: string,
+    @Query('lang') lang: string | undefined,
+    @Res() res: Response,
+    @Tenant() ctx: TenantRequest,
+  ): Promise<void> {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    const result = await this.report.exportPdf(id, lang, {
+      manager: ctx.manager,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId || null,
+    });
+    res.setHeader('Content-Type', result.mimeType);
+    res.setHeader('Content-Disposition', contentDisposition(result.filename));
+    res.send(result.buffer);
   }
 
   // Journal
