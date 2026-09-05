@@ -200,14 +200,29 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
         input: { padding: '8.5px 14px' },
       },
     },
+    // Ripple is the Material press-ink that sticks when a Menu/Popover captures
+    // mouseup. KANAP uses a 2px focus ring instead (keyboard only).
+    MuiButtonBase: {
+      defaultProps: { disableRipple: true },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           borderRadius: 8,
           textTransform: 'none' as const,
           fontWeight: 500,
-        },
+          // Native :focus-visible only. MUI's Mui-focusVisible is also set when
+          // a Menu/Popover restores focus after Escape, which looks like a stuck press.
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-focusVisible': {
+            backgroundColor: 'transparent',
+          },
+        }),
         sizeMedium: { height: 36 },
         sizeSmall: { height: 32, fontSize: '0.8125rem' },
         outlined: {
@@ -308,9 +323,23 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
         },
       },
     },
+    MuiIconButton: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-focusVisible': {
+            backgroundColor: 'transparent',
+          },
+        }),
+      },
+    },
     MuiListItemButton: {
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           borderRadius: 6,
           minHeight: 38,
           marginLeft: 8,
@@ -325,18 +354,30 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
               backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB',
             },
           },
-        },
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+          },
+        }),
       },
     },
     MuiTab: {
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           textTransform: 'none' as const,
           fontWeight: 500,
           fontSize: '0.875rem',
           minHeight: 48,
           color: 'inherit',
-        },
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2,
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-focusVisible': {
+            backgroundColor: 'transparent',
+          },
+        }),
       },
     },
     MuiDialog: {
@@ -366,11 +407,13 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
       },
     },
     MuiMenu: {
+      defaultProps: { disableRestoreFocus: true },
       styleOverrides: {
         paper: { borderRadius: 8 },
       },
     },
     MuiPopover: {
+      defaultProps: { disableRestoreFocus: true },
       styleOverrides: {
         paper: { borderRadius: 8 },
       },
@@ -566,6 +609,34 @@ export function usePrintLightMode() {
   }, []);
 }
 
+function useBlurPointerOpenedTriggerOnEscape() {
+  useEffect(() => {
+    let openedByPointer = false;
+    const onPointerDown = () => {
+      openedByPointer = true;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        openedByPointer = false;
+        return;
+      }
+      if (event.key !== 'Escape' || !openedByPointer) return;
+      window.setTimeout(() => {
+        const el = document.activeElement;
+        if (!(el instanceof HTMLElement)) return;
+        if (el.closest('.MuiModal-root, .MuiPopover-root, .MuiMenu-root')) return;
+        if (el.matches('.MuiButtonBase-root')) el.blur();
+      }, 0);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, []);
+}
+
 export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeModePreference>(() => {
     if (typeof window === 'undefined') {
@@ -581,6 +652,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(getInitialSystemPrefersDark);
 
   usePrintLightMode();
+  useBlurPointerOpenedTriggerOnEscape();
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {

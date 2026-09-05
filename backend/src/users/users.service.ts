@@ -1,18 +1,19 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, EntityManager, ILike, In, Repository } from 'typeorm';
+import { Brackets, EntityManager, In, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from '../roles/role.entity';
 import { RolesService } from '../roles/roles.service';
 import { UserRole } from './user-role.entity';
 import * as argon2 from 'argon2';
-import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
+import { parsePagination } from '../common/pagination';
 import {
   buildQuickSearchConditions,
   compileAgFilterCondition,
   createParamNameGenerator,
   FilterTargetConfig,
 } from '../common/ag-grid-filtering';
+import { compileUserListFilters } from './users-list-filters';
 import { AuditService } from '../audit/audit.service';
 import { BillingService } from '../billing/billing.service';
 // import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
@@ -345,35 +346,53 @@ export class UsersService {
     const allowedSortFields = [
       'email', 'first_name', 'last_name', 'job_title', 'status', 'created_at', 'updated_at', 'last_login_at'
     ];
-    const where: any = {};
     // 'invited' is a users-only lifecycle status, so the shared pagination
     // parser does not know it; honour it here.
     const statusScope = String(query?.status ?? '').toLowerCase() === 'invited' ? 'invited' : status;
-    if (statusScope) where.status = statusScope;
-    let whereArr: any[] | undefined;
-    if (filters && Object.keys(filters).length > 0) {
-      Object.assign(where, buildWhereFromAgFilters(filters));
+    const nextParam = createParamNameGenerator('uf');
+    const compiledFilters = compileUserListFilters(filters, nextParam);
+    const quickSearch = q
+      ? buildQuickSearchConditions(q, ['u.email', "COALESCE(u.first_name, '')", "COALESCE(u.last_name, '')"], nextParam)
+      : [];
+
+    const applyFilters = (builder: ReturnType<typeof repo.createQueryBuilder>) => {
+      if (statusScope) {
+        builder.andWhere('u.status = :statusScope', { statusScope });
+      }
+      for (const condition of compiledFilters) {
+        builder.andWhere(condition.sql, condition.params);
+      }
+      if (quickSearch.length > 0) {
+        builder.andWhere(new Brackets((sub) => {
+          quickSearch.forEach((condition, index) => {
+            if (index === 0) sub.where(condition.sql, condition.params);
+            else sub.orWhere(condition.sql, condition.params);
+          });
+        }));
+      }
+    };
+
+    const qb = repo.createQueryBuilder('u');
+    if (opts?.adminView) {
+      qb.leftJoinAndSelect('u.role', 'role')
+        .leftJoinAndSelect('u.company', 'company')
+        .leftJoinAndSelect('u.department', 'department');
+    } else {
+      qb.leftJoin('u.company', 'company')
+        .leftJoin('u.department', 'department');
     }
-    if (q) {
-      const like = ILike(`%${q}%`);
-      whereArr = [
-        { ...where, email: like },
-        { ...where, first_name: like },
-        { ...where, last_name: like },
-      ];
-    }
+    applyFilters(qb);
+
     const sortField = allowedSortFields.includes(sort.field) ? sort.field : 'created_at';
+    const direction = sort.direction === 'ASC' ? 'ASC' : 'DESC';
     // "Never signed in" rows sort last in both directions instead of Postgres' NULLS-first-on-DESC.
-    const order = sortField === 'last_login_at'
-      ? { [sortField]: { direction: sort.direction as any, nulls: 'LAST' as const } }
-      : { [sortField]: sort.direction as any };
-    const [items, total] = await repo.findAndCount({
-      where: whereArr ?? where,
-      order: order as any,
-      skip,
-      take: limit,
-      relations: opts?.adminView ? ['role', 'company', 'department'] : [],
-    });
+    if (sortField === 'last_login_at') {
+      qb.orderBy('u.last_login_at', direction, 'NULLS LAST');
+    } else {
+      qb.orderBy(`u.${sortField}`, direction);
+    }
+    qb.skip(skip).take(limit);
+    const [items, total] = await qb.getManyAndCount();
 
     // Admin view: batch-load every role of the page rows plus an access flag
     // (pending_access = enabled but no role grants any permission). Single
