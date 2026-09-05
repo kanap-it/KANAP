@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Repository, EntityManager, DataSource } from 'typeorm';
 import { ParticipationAccessScope, taskParticipantCondition } from '../auth/business-contributor-scope';
+import { incidentRelatedLabelSql } from '../incidents/incident-visibility';
 
 export interface TaskListItem {
   id: string;
@@ -306,10 +307,7 @@ function buildWhereConditions(
       (t.related_object_type = 'spend_item' AND si.product_name ILIKE $${params.length}) OR
       (t.related_object_type = 'contract' AND c.name ILIKE $${params.length}) OR
       (t.related_object_type = 'project' AND pp.name ILIKE $${params.length}) OR
-      (t.related_object_type = 'incident' AND (
-        (NOT inc.confidential AND inc.title ILIKE $${params.length})
-        OR ('INC-' || inc.item_number::text) ILIKE $${params.length}
-      ))
+      (t.related_object_type = 'incident' AND ${incidentRelatedLabelSql('inc')} ILIKE $${params.length})
     )`;
   }
 
@@ -653,7 +651,7 @@ export class TasksService {
           WHEN t.related_object_type = 'spend_item' THEN si.product_name
           WHEN t.related_object_type = 'contract' THEN c.name
           WHEN t.related_object_type = 'capex_item' THEN ci.description
-          WHEN t.related_object_type = 'incident' THEN CASE WHEN inc.confidential THEN 'INC-' || inc.item_number::text ELSE 'INC-' || inc.item_number::text || ' · ' || inc.title END
+          WHEN t.related_object_type = 'incident' THEN ${incidentRelatedLabelSql('inc')}
           WHEN t.related_object_type = 'project' THEN pp.name
           ELSE ''
         END as related_object_name,
@@ -990,7 +988,7 @@ export class TasksService {
           WHEN t.related_object_type = 'spend_item' THEN si.product_name
           WHEN t.related_object_type = 'contract' THEN c.name
           WHEN t.related_object_type = 'capex_item' THEN ci.description
-          WHEN t.related_object_type = 'incident' THEN CASE WHEN inc.confidential THEN 'INC-' || inc.item_number::text ELSE 'INC-' || inc.item_number::text || ' · ' || inc.title END
+          WHEN t.related_object_type = 'incident' THEN ${incidentRelatedLabelSql('inc')}
           WHEN t.related_object_type = 'project' THEN pp.name
           ELSE ''
         END as related_object_name,

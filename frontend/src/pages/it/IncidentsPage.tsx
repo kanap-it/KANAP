@@ -280,6 +280,15 @@ export default function IncidentsPage() {
       cellRenderer: ClickToWorkspace,
     },
     {
+      headerName: t('pages.incidents.columns.access'),
+      field: 'confidential',
+      width: 120,
+      hide: true,
+      filter: false,
+      valueFormatter: (p) => (p.value ? t('workspace.incident.metadata.restricted') : ''),
+      cellRenderer: ClickToWorkspace,
+    },
+    {
       headerName: t('pages.incidents.columns.assets'),
       field: 'asset_count',
       width: 100,

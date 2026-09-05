@@ -65,6 +65,10 @@ export async function resolveToUuid(
   };
 
   const rows = await manager.query(queries[entityType], [parsed.value]);
-  if (rows.length === 0) throw new NotFoundException('Item not found');
+  if (rows.length === 0) {
+    // Incidents answer "Incident not found" whether the record is missing or
+    // hidden (confidential), so the message never reveals which one it is.
+    throw new NotFoundException(entityType === 'incident' ? 'Incident not found' : 'Item not found');
+  }
   return rows[0].id;
 }

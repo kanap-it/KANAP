@@ -20,7 +20,8 @@
         "assets": "Actifs",
         "applications": "Applications",
         "tasks": "Tâches",
-        "created": "Créé"
+        "created": "Créé",
+        "access": "Accès"
       },
       "filters": {
         "noCategory": "(Aucune catégorie)",

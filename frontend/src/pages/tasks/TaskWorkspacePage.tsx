@@ -1022,7 +1022,8 @@ export default function TaskWorkspacePage() {
       related_object_type: params.type,
       related_object_id: params.id,
       related_object_name: params.name,
-      ...(params.type !== 'project' || relationChanged ? { phase_id: null } : {}),
+      // The relation changed (early return above otherwise): the phase belongs to the old project.
+      phase_id: null,
     };
 
     if (params.type !== null && !params.id) {

@@ -457,7 +457,7 @@ export function IncidentWorkspacePage() {
           size="small"
           onClick={() => void handleExportPdf()}
           disabled={exportingPdf}
-          startIcon={exportingPdf ? <CircularProgress size={12} /> : undefined}
+          startIcon={exportingPdf ? <CircularProgress size={14} /> : undefined}
         >
           {t('workspace.incident.actions.exportPdf')}
         </Button>

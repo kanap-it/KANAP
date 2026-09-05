@@ -20,7 +20,8 @@
         "assets": "Assets",
         "applications": "Applications",
         "tasks": "Tasks",
-        "created": "Created"
+        "created": "Created",
+        "access": "Access"
       },
       "filters": {
         "noCategory": "(No category)",

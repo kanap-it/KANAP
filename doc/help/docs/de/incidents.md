@@ -45,7 +45,7 @@ Der **Melder** sind standardmäßig Sie. Beide Daten akzeptieren Werte in der Ve
 - Anlegen, bearbeiten, Journal, Verknüpfungen, Anhänge: `incidents:contributor`
 - Wieder öffnen, abbrechen und eine Einschränkung aufheben: `incidents:admin`
 
-Ein eingeschränkter Vorfall ist für alle unsichtbar außer den Registeradministratoren, dem Meldenden und dem Verantwortlichen. Auf einem Standard-Mandanten sind das Administrator und IT-Landschaft-Administrator, plus wer den Vorfall erfasst hat oder dafür verantwortlich ist. Leser und Mitwirkende, die weder Meldender noch Verantwortlicher sind, sehen ihn weder in der Liste, in der Suche, im Chat noch im CSV-Export — das Öffnen über die Referenz liefert dieselbe „nicht gefunden“-Antwort wie eine fehlende Nummer. Verknüpfte Aufgaben behalten die Referenz `INC-N`, aber ohne Titel.
+Ein eingeschränkter Vorfall ist für alle unsichtbar außer den Registeradministratoren, dem Meldenden und dem Verantwortlichen. Auf einem Standard-Mandanten sind das Administrator und IT-Landschaft-Administrator, plus wer den Vorfall erfasst hat oder dafür verantwortlich ist. Leser und Mitwirkende, die weder Meldender noch Verantwortlicher sind, sehen ihn weder in der Liste, in der Suche, im Chat noch im CSV-Export. Das Öffnen über die Referenz liefert dieselbe „nicht gefunden“-Antwort wie eine fehlende Nummer. Verknüpfte Aufgaben behalten die Referenz `INC-N`, aber ohne Titel.
 
 **Auf Registeradministratoren beschränken** steht in der Eigenschaftenleiste unter Klassifizierung. Ein Mitwirkender kann es einschalten, solange er den Datensatz noch sieht; nur ein Administrator kann es ausschalten, auch nach dem Schließen. Die Änderung wird ins Journal geschrieben. Das Prüfprotokoll, Dokument-Beziehungschips und „Kürzlich angesehen“ zeigen den Titel weiterhin denjenigen, die diese Bildschirme schon haben.
 
@@ -236,7 +236,7 @@ Halten Sie die Liste kurz. Kategorien sind das, wonach Sie ein Jahr an Vorfälle
 
 ## Den Assistenten fragen
 
-Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“) — Letzteres enthält das Journal. Vorfallsreferenzen wie `INC-12` in der Antwort sind Links zum Arbeitsbereich.
+Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“). Letzteres enthält das Journal. Vorfallsreferenzen wie `INC-12` in der Antwort sind Links zum Arbeitsbereich.
 
 ---
 

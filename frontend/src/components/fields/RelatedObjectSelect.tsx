@@ -109,7 +109,9 @@ export default function RelatedObjectSelect({
     if (!relationId) return null;
     const match = items.find((i) => i.id === relationId);
     if (match) return match;
-    return relationName ? { id: relationId, name: relationName } : { id: relationId, name: '' };
+    // No name yet (the list is still loading): show nothing rather than a
+    // blank option row with a clear button; the name arrives with the task.
+    return relationName ? { id: relationId, name: relationName } : null;
   }, [relationId, relationName, items]);
 
   const options = React.useMemo(() => {

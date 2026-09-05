@@ -206,9 +206,9 @@ export const incidentsApi = {
   deleteAttachment: (attachmentId: string): Promise<void> =>
     api.patch<void>(`/incidents/attachments/${attachmentId}/delete`),
 
-  exportReport: async (idOrRef: string, lang: string): Promise<{ blob: Blob; filename: string | null }> => {
+  exportReport: async (idOrRef: string, lang: string, timeZone?: string): Promise<{ blob: Blob; filename: string | null }> => {
     const response = await api.getAxiosInstance().get<Blob>(`/incidents/${idOrRef}/report`, {
-      params: { lang },
+      params: { lang, tz: timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone },
       responseType: 'blob',
     });
     return {
