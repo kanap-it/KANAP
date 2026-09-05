@@ -29,6 +29,10 @@ export interface CsvImportOptions {
   tenantId: string;
   /** User ID performing the import */
   userId?: string | null;
+  /** True when the importer may lift a confidential flag. */
+  isAdmin?: boolean;
+  /** Register viewer (userId + incidents:admin). */
+  viewer?: { userId: string | null; isAdmin: boolean };
 }
 
 /**
@@ -109,6 +113,8 @@ export class CsvImportService {
       params,
       resolverCache,
       userId: opts.userId,
+      isAdmin: opts.isAdmin,
+      viewer: opts.viewer ?? { userId: opts.userId ?? null, isAdmin: opts.isAdmin === true },
     };
 
     // Phase 1: Validate and parse all rows
@@ -323,16 +329,15 @@ export class CsvImportService {
   ): Promise<CsvImportRow[]> {
     const parsedRows: CsvImportRow[] = [];
 
-    // Call beforeValidate hook if provided
+    const preliminaryRows: CsvImportRow[] = rows.map((raw, i) => ({
+      rowNumber: i + 2,
+      raw,
+      parsed: {},
+      isInsert: true,
+      errors: [],
+      warnings: [],
+    }));
     if (config.beforeValidate) {
-      const preliminaryRows = rows.map((raw, i) => ({
-        rowNumber: i + 2,
-        raw,
-        parsed: {},
-        isInsert: true,
-        errors: [],
-        warnings: [],
-      }));
       await config.beforeValidate(preliminaryRows, context);
     }
 
@@ -348,8 +353,8 @@ export class CsvImportService {
         raw,
         parsed: {},
         isInsert: true,
-        errors: [],
-        warnings: [],
+        errors: [...(preliminaryRows[i]?.errors ?? [])],
+        warnings: [...(preliminaryRows[i]?.warnings ?? [])],
       };
 
       // Parse and validate each field

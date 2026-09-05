@@ -16,6 +16,7 @@ import {
   AiKnowledgeContextDto,
   AiSearchEntityType,
 } from './ai.types';
+import { incidentRelatedTitleSql, incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
 import { AiPolicyService } from './ai-policy.service';
 import {
   participantConditionForAiEntity,
@@ -1267,7 +1268,7 @@ export class AiEntityService {
            OR COALESCE(rel_si.product_name, '') ILIKE $3
            OR COALESCE(rel_ct.name, '') ILIKE $3
            OR COALESCE(rel_cx.description, '') ILIKE $3
-           OR COALESCE(rel_inc.title, '') ILIKE $3
+           OR COALESCE(${incidentRelatedTitleSql('rel_inc')}, '') ILIKE $3
            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(t.labels) AS lbl WHERE lbl ILIKE $3)
          )
        ORDER BY score DESC,
@@ -1443,6 +1444,9 @@ export class AiEntityService {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const numericPrefix = this.parseNumericPrefix(query);
+    const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
+    const params: unknown[] = [ref, numericPrefix, like, context.tenantId, limit];
+    const visibility = incidentVisibilitySql('i', viewer, params);
     const rows = await context.manager.query<SearchRow[]>(
       `SELECT i.id,
               i.item_number,
@@ -1461,6 +1465,7 @@ export class AiEntityService {
               END AS score
        FROM incidents i
        WHERE i.tenant_id = $4
+         ${visibility}
          AND (
            ($1::int IS NOT NULL AND i.item_number = $1)
            OR ($2::text IS NOT NULL AND i.item_number::text LIKE $2 || '%')
@@ -1480,7 +1485,7 @@ export class AiEntityService {
                 i.updated_at DESC,
                 i.title ASC
        LIMIT $5`,
-      [ref, numericPrefix, like, context.tenantId, limit],
+      params,
     );
 
     return {
@@ -1968,7 +1973,7 @@ export class AiEntityService {
       `SELECT t.id, t.item_number, COALESCE(t.title, 'Untitled task') AS label, t.description AS summary, t.status, t.updated_at,
               tt.name AS task_type_name,
               t.related_object_type,
-              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, rel_inc.title) AS related_object_name,
+              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, ${incidentRelatedTitleSql('rel_inc')}) AS related_object_name,
               CONCAT_WS(' ', u_assign.first_name, u_assign.last_name) AS assignee_name,
               t.priority_level
        FROM tasks t
@@ -2157,6 +2162,22 @@ export class AiEntityService {
           WHERE d_acl.id = search_index.entity_id
             AND d_acl.tenant_id = search_index.tenant_id
             AND d_acl.library_id = ANY(${librariesRef}::uuid[])
+        ))`);
+      }
+    }
+
+    if (entityTypes.includes('incidents')) {
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
+      if (!viewer.isAdmin) {
+        const userRef = viewer.userId ? push(viewer.userId) : null;
+        const ownerClause = userRef
+          ? `OR i_acl.reporter_user_id = ${userRef} OR i_acl.owner_user_id = ${userRef}`
+          : '';
+        scopeClauses.push(`AND (search_index.entity_type <> 'incidents' OR EXISTS (
+          SELECT 1 FROM incidents i_acl
+          WHERE i_acl.id = search_index.entity_id
+            AND i_acl.tenant_id = search_index.tenant_id
+            AND (i_acl.confidential = false ${ownerClause})
         ))`);
       }
     }
@@ -3252,7 +3273,7 @@ export class AiEntityService {
               phase.planned_end AS phase_planned_end,
               phase.sequence AS phase_sequence,
               tt.name AS task_type_name,
-              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, rel_inc.title) AS related_object_name,
+              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, ${incidentRelatedTitleSql('rel_inc')}) AS related_object_name,
               pr.id AS converted_request_id,
               pr.item_number AS converted_request_item_number,
               pr.name AS converted_request_name,

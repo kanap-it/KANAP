@@ -69,6 +69,9 @@ export class Incident {
   source_ref!: string | null;
 
   @Column('boolean', { default: false })
+  confidential!: boolean;
+
+  @Column('boolean', { default: false })
   personal_data_affected!: boolean;
 
   @Column('boolean', { default: false })

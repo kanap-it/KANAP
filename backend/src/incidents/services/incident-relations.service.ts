@@ -75,7 +75,7 @@ export class IncidentRelationsService extends IncidentsBaseService {
   private async listLinked(spec: LinkSpec, incidentId: string, opts?: ServiceOpts): Promise<IncidentLinkedObject[]> {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    await this.ensureIncident(incidentId, mg, tenantId);
+    await this.ensureIncident(incidentId, mg, tenantId, opts?.viewer);
     return mg.query(
       `SELECT t.id, t.name, t.${spec.referenceColumn} AS reference
        FROM ${spec.linkTable} l
@@ -95,7 +95,7 @@ export class IncidentRelationsService extends IncidentsBaseService {
   ): Promise<IncidentLinkedObject[]> {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    const incident = await this.ensureIncident(incidentId, mg, tenantId);
+    const incident = await this.ensureIncident(incidentId, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     const nextIds = Array.from(new Set((rawIds || []).map((id) => String(id || '').trim()).filter(Boolean)));

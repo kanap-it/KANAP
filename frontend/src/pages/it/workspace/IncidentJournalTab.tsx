@@ -87,6 +87,11 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
       if (Array.isArray(value)) return value.join(', ');
       if (field === 'status') return incidentStatusLabel(t, String(value));
       if (field === 'severity') return incidentSeverityLabel(t, String(value));
+      if (field === 'confidential') {
+        return value
+          ? t('workspace.incident.journal.restricted')
+          : t('workspace.incident.journal.unrestricted');
+      }
       return String(value);
     };
     return `${label}: ${format(change.from)} → ${format(change.to)}`;

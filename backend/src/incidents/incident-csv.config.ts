@@ -6,6 +6,7 @@ import {
 import { allocateItemNumbers } from '../common/item-number.service';
 import { DEFAULT_INCIDENT_CATEGORIES } from '../it-ops-settings/it-ops-settings.service';
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from './incident.entity';
+import { incidentVisibleToViewer, type IncidentViewer } from './incident-visibility';
 
 /**
  * CSV configuration for the incident register.
@@ -35,6 +36,12 @@ const insertedByImport = new WeakSet<object>();
 function incidentLabel(entity: any): string {
   return entity.item_number ? `INC-${entity.item_number}` : `"${entity.title ?? ''}"`;
 }
+
+function importViewer(context: CsvImportContext): IncidentViewer {
+  return context.viewer ?? { userId: context.userId ?? null, isAdmin: context.isAdmin === true };
+}
+
+const UNKNOWN_REF_HINT = 'Leave the ref column empty to create new incidents.';
 
 /**
  * Accept an incident reference (INC-12), a bare item number, or nothing.
@@ -211,6 +218,15 @@ export const incidentCsvConfig: CsvEntityConfig = {
       group: 'Overview',
       importTransformFn: (value: string) => parseCode(value, INCIDENT_STATUSES, 'status'),
     },
+    {
+      csvColumn: 'confidential',
+      entityProperty: 'confidential',
+      type: CsvFieldType.BOOLEAN,
+      required: false,
+      defaultExport: true,
+      label: 'Restricted to register administrators',
+      group: 'Overview',
+    },
 
     // === TIMELINE ===
     dateTimeField('started_at', 'Started', 'Timeline'),
@@ -286,12 +302,44 @@ export const incidentCsvConfig: CsvEntityConfig = {
    * the existing incidents are loaded. Mutating `raw` here is what the import
    * service then matches and parses.
    */
-  beforeValidate: async (rows) => {
+  beforeValidate: async (rows, context) => {
+    const itemNumbers: number[] = [];
     for (const row of rows) {
       const value = row.raw.ref;
       if (typeof value !== 'string') continue;
       const match = REF_INPUT_RE.exec(value.trim());
-      if (match) row.raw.ref = match[1];
+      if (match) {
+        row.raw.ref = match[1];
+        itemNumbers.push(Number(match[1]));
+      }
+    }
+    if (itemNumbers.length === 0 || !context.manager?.query) return;
+
+    const existing: Array<{
+      item_number: number;
+      confidential: boolean;
+      reporter_user_id: string | null;
+      owner_user_id: string | null;
+    }> = await context.manager.query(
+      `SELECT item_number, confidential, reporter_user_id, owner_user_id
+       FROM incidents WHERE tenant_id = $1 AND item_number = ANY($2::int[])`,
+      [context.tenantId, itemNumbers],
+    );
+    const viewer = importViewer(context);
+    const hidden = new Set(
+      existing
+        .filter((row) => !incidentVisibleToViewer(row, viewer))
+        .map((row) => row.item_number),
+    );
+    if (hidden.size === 0) return;
+    for (const row of rows) {
+      const n = Number(row.raw.ref);
+      if (!hidden.has(n)) continue;
+      row.errors.push({
+        row: row.rowNumber,
+        column: 'ref',
+        message: `Unknown incident reference(s): INC-${n}. ${UNKNOWN_REF_HINT}`,
+      });
     }
   },
 
@@ -331,6 +379,9 @@ export const incidentCsvConfig: CsvEntityConfig = {
       // Booleans have a false default: a blank cell clears them.
       entity.personal_data_affected = entity.personal_data_affected ?? false;
       entity.authority_notification_required = entity.authority_notification_required ?? false;
+      if (!entity.id) {
+        entity.confidential = entity.confidential ?? false;
+      }
 
       if (entity.id) {
         entity.updated_by = context.userId ?? null;
@@ -354,9 +405,54 @@ export const incidentCsvConfig: CsvEntityConfig = {
     const unknownRefs = entities.filter((e) => !e.id && e.item_number).map((e) => `INC-${e.item_number}`);
     if (unknownRefs.length > 0) {
       throw new Error(
-        `Unknown incident reference(s): ${unknownRefs.join(', ')}. ` +
-        `Leave the ref column empty to create new incidents.`,
+        `Unknown incident reference(s): ${unknownRefs.join(', ')}. ${UNKNOWN_REF_HINT}`,
       );
+    }
+
+    const updateEntities = entities.filter((entity) => entity.id);
+    if (updateEntities.length > 0) {
+      const existing: Array<{
+        id: string;
+        item_number: number;
+        confidential: boolean;
+        reporter_user_id: string | null;
+        owner_user_id: string | null;
+      }> = await context.manager.query(
+        `SELECT id, item_number, confidential, reporter_user_id, owner_user_id
+         FROM incidents WHERE id = ANY($1::uuid[]) AND tenant_id = $2`,
+        [updateEntities.map((entity) => entity.id), context.tenantId],
+      );
+      const byId = new Map(existing.map((row) => [row.id, row]));
+      const viewer = importViewer(context);
+      const hidden = updateEntities.filter((entity) => {
+        const row = byId.get(entity.id);
+        return row && !incidentVisibleToViewer(row, viewer);
+      });
+      if (hidden.length > 0) {
+        throw new Error(
+          `Unknown incident reference(s): ${hidden.map((entity) => incidentLabel(entity)).join(', ')}. ${UNKNOWN_REF_HINT}`,
+        );
+      }
+      for (const entity of updateEntities) {
+        if (entity.confidential == null) {
+          entity.confidential = byId.get(entity.id)?.confidential ?? false;
+        }
+      }
+    }
+
+    const liftIds = entities
+      .filter((entity) => entity.id && entity.confidential === false)
+      .map((entity) => entity.id);
+    if (liftIds.length > 0 && !importViewer(context).isAdmin) {
+      const restricted: Array<{ id: string }> = await context.manager.query(
+        `SELECT id FROM incidents WHERE id = ANY($1::uuid[]) AND tenant_id = $2 AND confidential = true`,
+        [liftIds, context.tenantId],
+      );
+      if (restricted.length > 0) {
+        throw new Error(
+          'Only a register administrator can lift the restriction on a confidential incident.',
+        );
+      }
     }
 
     const newEntities = entities.filter((e) => !e.item_number);

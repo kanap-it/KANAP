@@ -38,6 +38,7 @@ export type IncidentDrawerValues = {
   source_ref: string | null;
   personal_data_affected: boolean;
   authority_notification_required: boolean;
+  confidential: boolean;
   authority_notified_at: string | null;
   notified_parties: string | null;
   created_at?: string;
@@ -50,6 +51,8 @@ type Props = {
   values: IncidentDrawerValues;
   isCreate: boolean;
   disabled?: boolean;
+  /** When true, the access switch stays off-limits (contributor cannot lift it). */
+  restrictDisabled?: boolean;
   onChange: (patch: IncidentDrawerPatch) => void;
 };
 
@@ -88,7 +91,13 @@ function DrawerTextField({
   );
 }
 
-export default function IncidentPropertiesDrawer({ values, isCreate, disabled = false, onChange }: Props) {
+export default function IncidentPropertiesDrawer({
+  values,
+  isCreate,
+  disabled = false,
+  restrictDisabled = false,
+  onChange,
+}: Props) {
   const { t } = useTranslation('it');
   const theme = useTheme();
   const locale = useLocale();
@@ -186,6 +195,17 @@ export default function IncidentPropertiesDrawer({ values, isCreate, disabled = 
             </TextField>
           </PropertyRow>
         )}
+        <PropertyRow
+          label={t('workspace.incident.drawer.restrictAccess')}
+          helperText={t('workspace.incident.drawer.restrictAccessHint')}
+        >
+          <Switch
+            size="small"
+            checked={!!values.confidential}
+            onChange={(event) => onChange({ confidential: event.target.checked })}
+            disabled={restrictDisabled}
+          />
+        </PropertyRow>
       </PropertyGroup>
 
       <PropertyGroup>

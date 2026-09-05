@@ -631,11 +631,11 @@ export class TasksUnifiedService {
 
     if (type === 'incident') {
       const [row] = await manager.query(
-        'SELECT item_number, title FROM incidents WHERE id = $1 LIMIT 1',
+        'SELECT item_number, title, confidential FROM incidents WHERE id = $1 LIMIT 1',
         [id],
       );
       if (!row) return id;
-      return `INC-${row.item_number} · ${row.title}`;
+      return row.confidential ? `INC-${row.item_number}` : `INC-${row.item_number} · ${row.title}`;
     }
 
     return id;

@@ -14,6 +14,7 @@ import { ContactsService } from '../../contacts/contacts.service';
 import { ContractsService } from '../../contracts/contracts.service';
 import { DepartmentsService } from '../../departments/departments.service';
 import { IncidentsService } from '../../incidents/services';
+import { resolveIncidentViewer } from '../../incidents/incident-visibility';
 import { InterfacesService } from '../../interfaces/services';
 import { Document } from '../../knowledge/document.entity';
 import { isDocumentStatus } from '../../knowledge/document-status';
@@ -911,13 +912,14 @@ export class AiAggregateExecutor {
     }
 
     if (entityType === 'incidents') {
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
       const result = await this.incidents.listIds(
         {
           q,
           limit: AGGREGATE_ID_COLLECTION_LIMIT,
           filters: adaptedFilters,
         },
-        { manager: context.manager, tenantId: context.tenantId },
+        { manager: context.manager, tenantId: context.tenantId, viewer },
       );
       const ids = result.ids || [];
       return {

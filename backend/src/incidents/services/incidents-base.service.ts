@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { EntityManager, Repository } from 'typeorm';
 import { Incident } from '../incident.entity';
 import { IncidentChangedFields, IncidentEntry, IncidentEntryKind } from '../incident-entry.entity';
+import { IncidentViewer, incidentVisibleToViewer } from '../incident-visibility';
 
 /**
  * Common options for service methods.
@@ -9,6 +10,7 @@ import { IncidentChangedFields, IncidentEntry, IncidentEntryKind } from '../inci
 export interface ServiceOpts {
   manager?: EntityManager;
   tenantId?: string;
+  viewer?: IncidentViewer;
 }
 
 export const INCIDENT_LOCKED_MESSAGE = 'This incident is closed. Reopen it to make changes.';
@@ -40,9 +42,16 @@ export abstract class IncidentsBaseService {
     return normalized;
   }
 
-  async ensureIncident(id: string, manager: EntityManager, tenantId: string): Promise<Incident> {
+  async ensureIncident(
+    id: string,
+    manager: EntityManager,
+    tenantId: string,
+    viewer?: IncidentViewer,
+  ): Promise<Incident> {
     const incident = await manager.getRepository(Incident).findOne({ where: { id, tenant_id: tenantId } });
-    if (!incident) throw new NotFoundException('Incident not found');
+    if (!incident || !incidentVisibleToViewer(incident, viewer)) {
+      throw new NotFoundException('Incident not found');
+    }
     return incident;
   }
 
@@ -59,7 +68,12 @@ export abstract class IncidentsBaseService {
    * Load an incident and refuse when it is locked. Used by every write path.
    */
   async ensureEditable(id: string, opts?: ServiceOpts): Promise<Incident> {
-    const incident = await this.ensureIncident(id, this.getManager(opts), this.ensureTenantId(opts?.tenantId));
+    const incident = await this.ensureIncident(
+      id,
+      this.getManager(opts),
+      this.ensureTenantId(opts?.tenantId),
+      opts?.viewer,
+    );
     this.assertEditable(incident);
     return incident;
   }

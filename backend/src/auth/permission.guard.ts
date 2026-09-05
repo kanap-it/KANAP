@@ -69,6 +69,7 @@ export class PermissionGuard implements CanActivate {
 
     let currentLevel: string | undefined = isAdmin ? 'admin' : undefined;
     let freezeMeta: RequireLevelMeta | undefined = requiredMeta;
+    let permissions: Record<string, string> = {};
     if (isAdmin && !requiredMeta && anyMeta && anyMeta.length > 0) {
       freezeMeta = anyMeta[0];
     }
@@ -102,10 +103,12 @@ export class PermissionGuard implements CanActivate {
           freezeMeta = matchedAny;
         }
       }
+      permissions = Object.fromEntries(map);
     }
 
     req.isAdmin = isAdmin;
     req.permissionLevel = currentLevel;
+    req.permissions = permissions;
 
     // --- Freeze enforcement ---
     if (freezeMeta) {
