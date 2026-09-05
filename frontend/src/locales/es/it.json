@@ -268,15 +268,10 @@
       },
       "overview": {
         "description": "Descripción",
-        "descriptionPlaceholder": "Qué ocurrió, tal como se observó",
-        "impact": "Impacto",
-        "impactPlaceholder": "Servicios, sedes y usuarios afectados",
-        "rootCause": "Causa raíz",
-        "rootCausePlaceholder": "Por qué ocurrió",
-        "correctiveActions": "Acciones correctivas",
-        "correctiveActionsPlaceholder": "Qué se hizo para corregirlo y prevenirlo; haga el seguimiento con tareas vinculadas",
-        "lessonsLearned": "Lecciones aprendidas",
-        "lessonsLearnedPlaceholder": "Qué conviene retener de este incidente",
+        "descriptionPlaceholder": "Resumen del incidente en una o dos frases.",
+        "descriptionHint": "El relato completo se escribe en la revisión del incidente, más abajo.",
+        "review": "Revisión del incidente",
+        "reviewPlaceholder": "Describa el incidente, su impacto, la causa raíz, las acciones correctivas y lo que conviene retener.",
         "closedBanner": "Cerrado el {{date}}. Reábralo para hacer cambios.",
         "cancelledBanner": "Cancelado el {{date}}. Reábralo para hacer cambios."
       },
@@ -299,7 +294,8 @@
           "confidential": "Acceso"
         },
         "restricted": "Restringido",
-        "unrestricted": "Abierto al registro"
+        "unrestricted": "Abierto al registro",
+        "reviewVersion": "Versión {{version}} de la revisión del incidente"
       },
       "relations": {
         "assets": "Activos",
@@ -341,7 +337,8 @@
         "relationsFailed": "Error al guardar los vínculos",
         "attachmentsFailed": "Error al actualizar los adjuntos",
         "exportPdfFailed": "No se ha podido exportar el informe PDF.",
-        "confidentialityFailed": "No se pudo actualizar el acceso"
+        "confidentialityFailed": "No se pudo actualizar el acceso",
+        "reviewSaveFailed": "No se pudo guardar la revisión del incidente"
       }
     },
     "application": {

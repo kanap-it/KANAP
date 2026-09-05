@@ -266,10 +266,8 @@ export const incidentCsvConfig: CsvEntityConfig = {
 
     // === RECORD ===
     textField('description', 'Description', 'Record'),
-    textField('impact', 'Impact', 'Record'),
-    textField('root_cause', 'Root cause', 'Record'),
-    textField('corrective_actions', 'Corrective actions', 'Record'),
-    textField('lessons_learned', 'Lessons learned', 'Record'),
+    // A1: the four narrative columns are gone; the `review` virtual column that
+    // replaces them is phase A3 (planning/incident-review-document.md §3.8).
 
     // === SOURCE ===
     textField('source_ref', 'External reference', 'Source'),

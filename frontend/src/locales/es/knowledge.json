@@ -446,6 +446,7 @@
       "lockExpired": "El bloqueo de edición ha expirado. Vuelva a entrar en modo de edición para continuar.",
       "lockUntil": " hasta {{value}}",
       "lockedByUser": "Este artículo está bloqueado por {{user}}{{until}}. Puede leerlo mientras el bloqueo esté activo.",
+      "managedReadOnly": "Este documento lo gestiona otro elemento. Su edición sigue el estado y los permisos de ese elemento.",
       "noDestinationLibrary": "No hay biblioteca de destino disponible.",
       "readOnlyAccess": "Tiene acceso de solo lectura a este artículo.",
       "requestChangesFailed": "Error al solicitar cambios.",
@@ -463,6 +464,13 @@
       "typeLabel": "Tipo: {{value}}",
       "unassigned": "Sin asignar",
       "untitled": "Documento sin título"
+    },
+    "errors": {
+      "notFoundTitle": "Documento no encontrado o acceso restringido",
+      "notFoundBody": "Puede que se haya eliminado o que ya no tenga acceso.",
+      "loadFailedTitle": "No se pudo cargar este documento",
+      "loadFailedBody": "Compruebe su conexión e inténtelo de nuevo.",
+      "backToLibrary": "Volver a la biblioteca"
     }
   }
 }

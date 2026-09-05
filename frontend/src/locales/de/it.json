@@ -268,15 +268,10 @@
       },
       "overview": {
         "description": "Beschreibung",
-        "descriptionPlaceholder": "Was passiert ist, wie beobachtet",
-        "impact": "Auswirkung",
-        "impactPlaceholder": "Betroffene Services, Standorte und Benutzer",
-        "rootCause": "Ursache",
-        "rootCausePlaceholder": "Warum es passiert ist",
-        "correctiveActions": "Korrekturmaßnahmen",
-        "correctiveActionsPlaceholder": "Was zur Behebung und Vorbeugung getan wurde; Folgearbeiten als verknüpfte Aufgaben verfolgen",
-        "lessonsLearned": "Erkenntnisse",
-        "lessonsLearnedPlaceholder": "Was aus diesem Vorfall mitzunehmen ist",
+        "descriptionPlaceholder": "Zusammenfassung des Vorfalls in ein bis zwei Sätzen.",
+        "descriptionHint": "Die vollständige Schilderung gehört in die Vorfallanalyse weiter unten.",
+        "review": "Vorfallanalyse",
+        "reviewPlaceholder": "Beschreiben Sie den Vorfall, seine Auswirkung, die Ursache, die Korrekturmaßnahmen und die Erkenntnisse.",
         "closedBanner": "Am {{date}} geschlossen. Öffnen Sie ihn wieder, um Änderungen vorzunehmen.",
         "cancelledBanner": "Am {{date}} abgebrochen. Öffnen Sie ihn wieder, um Änderungen vorzunehmen."
       },
@@ -299,7 +294,8 @@
           "confidential": "Zugriff"
         },
         "restricted": "Eingeschränkt",
-        "unrestricted": "Für das Register sichtbar"
+        "unrestricted": "Für das Register sichtbar",
+        "reviewVersion": "Vorfallanalyse, Version {{version}}"
       },
       "relations": {
         "assets": "Assets",
@@ -341,7 +337,8 @@
         "relationsFailed": "Fehler beim Speichern der Verknüpfungen",
         "attachmentsFailed": "Fehler beim Aktualisieren der Anhänge",
         "exportPdfFailed": "Der PDF-Bericht konnte nicht exportiert werden.",
-        "confidentialityFailed": "Zugriff konnte nicht aktualisiert werden"
+        "confidentialityFailed": "Zugriff konnte nicht aktualisiert werden",
+        "reviewSaveFailed": "Vorfallanalyse konnte nicht gespeichert werden"
       }
     },
     "application": {

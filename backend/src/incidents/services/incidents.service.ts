@@ -5,6 +5,7 @@ import { Incident, IncidentStatus } from '../incident.entity';
 import { IncidentChangedFields } from '../incident-entry.entity';
 import { AuditService } from '../../audit/audit.service';
 import { ItemNumberService } from '../../common/item-number.service';
+import { IntegratedDocumentsService } from '../../knowledge/integrated-documents.service';
 import { parsePagination, Sort } from '../../common/pagination';
 import { parseCreateIncident, parseListIncidentsQuery, parseUpdateIncident, UpdateIncidentDto } from '../dto';
 import { IncidentsBaseService, ServiceOpts, incidentRef, userNameSql } from './incidents-base.service';
@@ -76,7 +77,7 @@ const BOOLEAN_FILTER_FIELDS = new Set<string>(['personal_data_affected', 'author
 const FILTER_VALUE_FIELDS = new Set(['category', 'severity', 'status', 'owner_name', 'reporter_name']);
 
 const NULLABLE_TEXT_FIELDS = [
-  'category', 'description', 'impact', 'root_cause', 'corrective_actions', 'lessons_learned', 'source_ref', 'notified_parties',
+  'category', 'description', 'source_ref', 'notified_parties',
 ] as const;
 const DATE_INPUT_FIELDS = ['started_at', 'resolved_at', 'closed_at', 'authority_notified_at'] as const;
 const USER_FIELDS = ['reporter_user_id', 'owner_user_id'] as const;
@@ -123,6 +124,7 @@ export class IncidentsService extends IncidentsBaseService {
     @InjectRepository(Incident) incidentRepo: Repository<Incident>,
     private readonly audit: AuditService,
     private readonly itemNumbers: ItemNumberService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
   ) {
     super(incidentRepo);
   }
@@ -446,10 +448,6 @@ export class IncidentsService extends IncidentsBaseService {
       reporter_user_id: dto.reporter_user_id === undefined ? userId : dto.reporter_user_id,
       owner_user_id: dto.owner_user_id ?? null,
       description: nullableText(dto.description),
-      impact: nullableText(dto.impact),
-      root_cause: nullableText(dto.root_cause),
-      corrective_actions: nullableText(dto.corrective_actions),
-      lessons_learned: nullableText(dto.lessons_learned),
       source_ref: nullableText(dto.source_ref),
       confidential: dto.confidential ?? false,
       personal_data_affected: dto.personal_data_affected ?? false,
@@ -463,6 +461,10 @@ export class IncidentsService extends IncidentsBaseService {
     });
     this.applyStatusTimestamps(incident, now);
     const saved = await repo.save(incident);
+
+    // Same transaction as the insert: the review document exists before anything can
+    // read the incident (planning/incident-review-document.md §3.2).
+    await this.integratedDocuments.provisionForIncident(saved.id, userId, { manager: mg });
 
     await this.addEntry(mg, saved, { kind: 'system', content: 'Incident logged', occurred_at: now, author_id: userId });
     await this.audit.log(

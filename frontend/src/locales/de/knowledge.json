@@ -446,6 +446,7 @@
       "lockExpired": "Die Bearbeitungssperre ist abgelaufen. Wechseln Sie erneut in den Bearbeitungsmodus, um fortzufahren.",
       "lockUntil": " bis {{value}}",
       "lockedByUser": "Dieser Wissensartikel ist von {{user}}{{until}} gesperrt. Sie können ihn lesen, solange die Sperre aktiv ist.",
+      "managedReadOnly": "Dieses Dokument wird von einem anderen Element verwaltet. Die Bearbeitung richtet sich nach dessen Status und Berechtigungen.",
       "noDestinationLibrary": "Keine Zielbibliothek verfügbar.",
       "readOnlyAccess": "Sie haben nur Lesezugriff auf diesen Wissensartikel.",
       "requestChangesFailed": "Änderungsanforderung fehlgeschlagen.",
@@ -463,6 +464,13 @@
       "typeLabel": "Typ: {{value}}",
       "unassigned": "Nicht zugewiesen",
       "untitled": "Unbenanntes Dokument"
+    },
+    "errors": {
+      "notFoundTitle": "Dokument nicht gefunden oder Zugriff eingeschränkt",
+      "notFoundBody": "Es wurde möglicherweise gelöscht, oder Sie haben keinen Zugriff mehr darauf.",
+      "loadFailedTitle": "Dieses Dokument konnte nicht geladen werden",
+      "loadFailedBody": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "backToLibrary": "Zurück zur Bibliothek"
     }
   }
 }

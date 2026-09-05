@@ -1464,6 +1464,14 @@ export class AiEntityService {
                 ELSE 1
               END AS score
        FROM incidents i
+       LEFT JOIN integrated_document_bindings review_b
+         ON review_b.tenant_id = i.tenant_id
+        AND review_b.source_entity_type = 'incidents'
+        AND review_b.source_entity_id = i.id
+        AND review_b.slot_key = 'review'
+       LEFT JOIN documents review_d
+         ON review_d.id = review_b.document_id
+        AND review_d.tenant_id = review_b.tenant_id
        WHERE i.tenant_id = $4
          ${visibility}
          AND (
@@ -1471,10 +1479,7 @@ export class AiEntityService {
            OR ($2::text IS NOT NULL AND i.item_number::text LIKE $2 || '%')
            OR i.title ILIKE $3
            OR COALESCE(i.description, '') ILIKE $3
-           OR COALESCE(i.impact, '') ILIKE $3
-           OR COALESCE(i.root_cause, '') ILIKE $3
-           OR COALESCE(i.corrective_actions, '') ILIKE $3
-           OR COALESCE(i.lessons_learned, '') ILIKE $3
+           OR COALESCE(review_d.content_plain, '') ILIKE $3
            OR COALESCE(i.source_ref, '') ILIKE $3
            OR COALESCE(i.severity, '') ILIKE $3
            OR COALESCE(i.status, '') ILIKE $3

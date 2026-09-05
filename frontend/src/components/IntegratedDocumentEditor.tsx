@@ -24,11 +24,15 @@ import ExportButton from './ExportButton';
 import ImportButton from './ImportButton';
 import { MarkdownContent } from './MarkdownContent';
 import { normalizeMarkdownForRichTextEditor } from '../lib/markdownEditorNormalization';
+import type { AutosaveStatus } from '../hooks/useAutosave';
 
 const MarkdownEditor = React.lazy(() => import('./MarkdownEditor'));
 
-type SourceEntityType = 'requests' | 'projects' | 'interfaces' | 'applications';
-type SlotKey = 'purpose' | 'risks_mitigations' | 'specification' | 'overview';
+type SourceEntityType = 'requests' | 'projects' | 'interfaces' | 'applications' | 'incidents';
+type SlotKey = 'purpose' | 'risks_mitigations' | 'specification' | 'overview' | 'review';
+
+/** Same vocabulary as the debounced field autosave, so a host screen can show one hint. */
+export type IntegratedDocumentSaveStatus = AutosaveStatus;
 
 type EditLockInfo = {
   holder_user_id: string;
@@ -49,6 +53,11 @@ type IntegratedDocumentDetails = {
 
 export type IntegratedDocumentEditorHandle = {
   isDirty: () => boolean;
+  /**
+   * Drains the pending work: an autosave already in flight is awaited first,
+   * then the current draft is saved when it is still dirty. Returns false when
+   * anything failed, so the caller can abort its transition and keep the draft.
+   */
   save: () => Promise<boolean>;
   reset: () => Promise<void>;
 };
@@ -77,6 +86,12 @@ type IntegratedDocumentEditorProps = {
   autosaveDelayMs?: number;
   surface?: boolean;
   hideToolbarUntilFocus?: boolean;
+  /**
+   * Opt-in: reports the save state so a host screen can render its own
+   * "Saving… / Saved" hint next to a section label (used when the document
+   * controls are hidden).
+   */
+  onSaveStateChange?: (status: IntegratedDocumentSaveStatus, error: string | null) => void;
 };
 
 const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
@@ -84,6 +99,7 @@ const ENTITY_ENDPOINTS: Record<SourceEntityType, string> = {
   projects: '/portfolio/projects',
   interfaces: '/interfaces',
   applications: '/applications',
+  incidents: '/incidents',
 };
 
 function MarkdownEditorLoadingFallback({ minRows }: { minRows: number }) {
@@ -131,6 +147,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     autosaveDelayMs = 1800,
     surface = false,
     hideToolbarUntilFocus = false,
+    onSaveStateChange,
   },
   ref,
 ) {
@@ -146,13 +163,57 @@ export const IntegratedDocumentEditor = React.forwardRef<
   const [dirty, setDirty] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [editMode, setEditMode] = React.useState(false);
-  const [lockToken, setLockToken] = React.useState<string | null>(null);
+  const [lockToken, setLockTokenState] = React.useState<string | null>(null);
   const [lockExpiresAt, setLockExpiresAt] = React.useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = React.useState<IntegratedDocumentSaveStatus>('idle');
   const [activeLockInfo, setActiveLockInfo] = React.useState<EditLockInfo | null>(null);
   const [importInteractionActive, setImportInteractionActive] = React.useState(false);
   const [contentResetNonce, setContentResetNonce] = React.useState(0);
   const [contentFocusNonce, setContentFocusNonce] = React.useState(0);
   const startEditPendingRef = React.useRef(false);
+
+  // Mirrors read by the save pipeline: a save started from an imperative handle
+  // must use the very latest draft/lock, not the values captured by the render
+  // that created the callback.
+  const formRef = React.useRef(form);
+  formRef.current = form;
+  const dirtyRef = React.useRef(dirty);
+  dirtyRef.current = dirty;
+  // Last content the server acknowledged. Refs settle immediately, unlike the
+  // `dirty` state, so a save started right after another one completed knows
+  // whether there is anything left to persist.
+  const savedContentRef = React.useRef('');
+  const hasUnsavedContent = React.useCallback(
+    () => String(formRef.current.content_markdown || '') !== savedContentRef.current,
+    [],
+  );
+  const lockTokenRef = React.useRef<string | null>(lockToken);
+  const setLockToken = React.useCallback((next: string | null) => {
+    lockTokenRef.current = next;
+    setLockTokenState(next);
+  }, []);
+  const savedStatusTimerRef = React.useRef<number | null>(null);
+  const markSaveStatus = React.useCallback((next: IntegratedDocumentSaveStatus) => {
+    if (savedStatusTimerRef.current != null) {
+      window.clearTimeout(savedStatusTimerRef.current);
+      savedStatusTimerRef.current = null;
+    }
+    setSaveStatus(next);
+    if (next !== 'saved') return;
+    savedStatusTimerRef.current = window.setTimeout(() => {
+      savedStatusTimerRef.current = null;
+      setSaveStatus('idle');
+    }, 1500);
+  }, []);
+  React.useEffect(() => () => {
+    if (savedStatusTimerRef.current != null) window.clearTimeout(savedStatusTimerRef.current);
+  }, []);
+
+  const onSaveStateChangeRef = React.useRef(onSaveStateChange);
+  onSaveStateChangeRef.current = onSaveStateChange;
+  React.useEffect(() => {
+    onSaveStateChangeRef.current?.(saveStatus, error);
+  }, [error, saveStatus]);
 
   const isDraftMode = !entityId;
   const canEdit = !disabled;
@@ -191,6 +252,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
 
   React.useEffect(() => {
     if (isDraftMode || !doc || dirty || editMode) return;
+    savedContentRef.current = doc.content_markdown || '';
     setForm({
       content_markdown: doc.content_markdown || '',
       revision: Number(doc.revision || 1),
@@ -282,39 +344,50 @@ export const IntegratedDocumentEditor = React.forwardRef<
       if (isDraftMode || !entityId) {
         throw new Error('Managed document is not available until the source item is created');
       }
+      const sentContent = String(formRef.current.content_markdown || '');
       const res = await api.patch(
         endpointBase,
         {
-          content_markdown: normalizeMarkdownForRichTextEditor(form.content_markdown),
-          revision: form.revision,
+          content_markdown: normalizeMarkdownForRichTextEditor(sentContent),
+          revision: formRef.current.revision,
           save_mode: mode,
         },
         {
-          headers: lockToken ? { 'X-Lock-Token': lockToken } : undefined,
+          headers: lockTokenRef.current ? { 'X-Lock-Token': lockTokenRef.current } : undefined,
         },
       );
-      return { mode, data: res.data as IntegratedDocumentDetails };
+      return { mode, sentContent, data: res.data as IntegratedDocumentDetails };
     },
     onSuccess: async (result) => {
       setError(null);
-      setDirty(false);
+      savedContentRef.current = result.sentContent;
+      // Typing while the request was in flight must survive: the draft stays
+      // dirty and the newer text is never overwritten by the server echo.
+      const changedDuringSave = hasUnsavedContent();
+      setDirty(changedDuringSave);
+      markSaveStatus(changedDuringSave ? 'pending' : 'saved');
       qc.setQueryData(docQueryKey, result.data);
-      if (result.mode === 'autosave') {
+      if (result.mode === 'autosave' || changedDuringSave) {
         setForm((prev) => ({
           ...prev,
           revision: Number(result.data?.revision || prev.revision + 1),
         }));
         return;
       }
+      // The editor now shows the stored (normalized) text: align the baseline so
+      // the next flush does not resend an unchanged document.
+      const storedContent = result.data?.content_markdown || '';
+      savedContentRef.current = storedContent;
       setForm({
-        content_markdown: result.data?.content_markdown || '',
-        revision: Number(result.data?.revision || form.revision + 1),
+        content_markdown: storedContent,
+        revision: Number(result.data?.revision || formRef.current.revision + 1),
       });
       await qc.invalidateQueries({ queryKey: docQueryKey });
     },
     onError: (e: any, mode: 'manual' | 'autosave') => {
       const status = Number(e?.response?.status || 0);
       const lockInfo = parseLockInfoFromError(e);
+      markSaveStatus('error');
       if ((status === 410 || status === 423) && mode === 'autosave') {
         setEditMode(false);
         setLockToken(null);
@@ -341,6 +414,43 @@ export const IntegratedDocumentEditor = React.forwardRef<
     },
   });
 
+  // Saves are strictly serialized: two overlapping PATCHes would both carry the
+  // same revision, so the second one would either be rejected or silently drop
+  // the first one's result.
+  const saveMutationRef = React.useRef(saveMutation);
+  saveMutationRef.current = saveMutation;
+  const saveChainRef = React.useRef<Promise<boolean>>(Promise.resolve(true));
+  const savesInFlightRef = React.useRef(0);
+
+  const enqueueSave = React.useCallback((mode: 'manual' | 'autosave'): Promise<boolean> => {
+    savesInFlightRef.current += 1;
+    const run = async (): Promise<boolean> => {
+      markSaveStatus('saving');
+      try {
+        await saveMutationRef.current.mutateAsync(mode);
+        return true;
+      } catch {
+        // Reported through the mutation's onError (alert + status).
+        return false;
+      } finally {
+        savesInFlightRef.current -= 1;
+      }
+    };
+    const next = saveChainRef.current.then(run, run);
+    saveChainRef.current = next;
+    return next;
+  }, [markSaveStatus]);
+
+  /** Awaits every queued/in-flight save. False when any of them failed. */
+  const drainSaves = React.useCallback(async (): Promise<boolean> => {
+    let ok = true;
+    while (savesInFlightRef.current > 0) {
+      // eslint-disable-next-line no-await-in-loop
+      ok = (await saveChainRef.current) && ok;
+    }
+    return ok;
+  }, []);
+
   React.useEffect(() => {
     if (isDraftMode || !editMode || !lockToken) return;
     const timer = window.setInterval(async () => {
@@ -364,7 +474,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     if (!autosaveEnabled) return;
     if (isDraftMode || !editMode || !dirty || !lockToken || saveMutation.isPending) return;
     const timer = window.setTimeout(() => {
-      void saveMutation.mutateAsync('autosave').catch(() => undefined);
+      void enqueueSave('autosave');
     }, autosaveDelayMs);
     return () => window.clearTimeout(timer);
   }, [
@@ -372,6 +482,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
     autosaveEnabled,
     dirty,
     editMode,
+    enqueueSave,
     form.content_markdown,
     form.revision,
     isDraftMode,
@@ -386,27 +497,31 @@ export const IntegratedDocumentEditor = React.forwardRef<
   }, [releaseLock]);
 
   const save = React.useCallback(async (): Promise<boolean> => {
-    if (isDraftMode || !dirty) return true;
-    if (!lockToken) {
+    if (isDraftMode) return true;
+    // An autosave may already be running: the caller must wait for it even when
+    // the editor no longer looks dirty.
+    if (!(await drainSaves())) return false;
+    if (!hasUnsavedContent()) {
+      if (dirtyRef.current) setDirty(false);
+      return true;
+    }
+    if (!lockTokenRef.current) {
       try {
         await startEdit();
       } catch {
         return false;
       }
+      if (!lockTokenRef.current) return false;
     }
-    try {
-      await saveMutation.mutateAsync('manual');
-      return true;
-    } catch {
-      return false;
-    }
-  }, [dirty, isDraftMode, lockToken, saveMutation, startEdit]);
+    return enqueueSave('manual');
+  }, [drainSaves, enqueueSave, hasUnsavedContent, isDraftMode, startEdit]);
 
   const reset = React.useCallback(async () => {
     if (isDraftMode) return;
     const result = await refetch();
     const latest = result.data || doc;
     if (latest) {
+      savedContentRef.current = latest.content_markdown || '';
       setForm({
         content_markdown: latest.content_markdown || '',
         revision: Number(latest.revision || 1),
@@ -415,14 +530,15 @@ export const IntegratedDocumentEditor = React.forwardRef<
     setDirty(false);
     setError(null);
     setEditMode(false);
+    markSaveStatus('idle');
     await releaseLock();
-  }, [doc, isDraftMode, refetch, releaseLock]);
+  }, [doc, isDraftMode, markSaveStatus, refetch, releaseLock]);
 
   React.useImperativeHandle(ref, () => ({
-    isDirty: () => dirty,
+    isDirty: () => dirtyRef.current || savesInFlightRef.current > 0,
     save,
     reset,
-  }), [dirty, reset, save]);
+  }), [reset, save]);
 
   const discardChanges = React.useCallback(async () => {
     await reset();
@@ -502,11 +618,12 @@ export const IntegratedDocumentEditor = React.forwardRef<
     setError(null);
     setForm((prev) => ({ ...prev, content_markdown: result.markdown }));
     setDirty(true);
+    markSaveStatus('pending');
     setContentResetNonce((prev) => prev + 1);
     window.setTimeout(() => {
       setContentFocusNonce((prev) => prev + 1);
     }, 0);
-  }, []);
+  }, [markSaveStatus]);
 
   const handleBlurCapture = React.useCallback(() => {
     if (showDocumentControls) return;
@@ -741,6 +858,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
             onChange={(value) => {
               setForm((prev) => ({ ...prev, content_markdown: value }));
               setDirty(true);
+              markSaveStatus('pending');
             }}
             placeholder={placeholder}
             minRows={minRows}

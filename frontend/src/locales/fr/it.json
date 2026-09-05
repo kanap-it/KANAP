@@ -268,15 +268,10 @@
       },
       "overview": {
         "description": "Description",
-        "descriptionPlaceholder": "Ce qui s'est passé, tel qu'observé",
-        "impact": "Impact",
-        "impactPlaceholder": "Services, sites et utilisateurs affectés",
-        "rootCause": "Cause racine",
-        "rootCausePlaceholder": "Pourquoi cela s'est produit",
-        "correctiveActions": "Actions correctives",
-        "correctiveActionsPlaceholder": "Ce qui a été fait pour corriger et prévenir ; suivez les actions de suivi sous forme de tâches liées",
-        "lessonsLearned": "Retour d'expérience",
-        "lessonsLearnedPlaceholder": "Ce qu'il faut retenir de cet incident",
+        "descriptionPlaceholder": "Résumé de l'incident en une ou deux phrases.",
+        "descriptionHint": "Le constat complet se rédige dans la revue d'incident ci-dessous.",
+        "review": "Revue d'incident",
+        "reviewPlaceholder": "Décrivez l'incident, son impact, la cause racine, les actions correctives et ce qu'il faut en retenir.",
         "closedBanner": "Clôturé le {{date}}. Rouvrez-le pour le modifier.",
         "cancelledBanner": "Annulé le {{date}}. Rouvrez-le pour le modifier."
       },
@@ -299,7 +294,8 @@
           "confidential": "Accès"
         },
         "restricted": "Restreint",
-        "unrestricted": "Ouvert au registre"
+        "unrestricted": "Ouvert au registre",
+        "reviewVersion": "Version {{version}} de la revue d'incident"
       },
       "relations": {
         "assets": "Actifs",
@@ -341,7 +337,8 @@
         "relationsFailed": "Échec de l'enregistrement des liens",
         "attachmentsFailed": "Échec de la mise à jour des pièces jointes",
         "exportPdfFailed": "Impossible d'exporter le rapport PDF.",
-        "confidentialityFailed": "Impossible de mettre à jour l'accès"
+        "confidentialityFailed": "Impossible de mettre à jour l'accès",
+        "reviewSaveFailed": "Échec de l'enregistrement de la revue d'incident"
       }
     },
     "application": {

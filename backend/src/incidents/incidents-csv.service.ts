@@ -19,7 +19,7 @@ const EXPORT_COLUMNS = `
   i.title, i.category, i.severity, i.status,
   ${isoUtc('started_at')}, ${isoUtc('detected_at')}, ${isoUtc('resolved_at')}, ${isoUtc('closed_at')},
   i.reporter_user_id, i.owner_user_id,
-  i.description, i.impact, i.root_cause, i.corrective_actions, i.lessons_learned,
+  i.description,
   i.source_ref,
   i.confidential,
   i.personal_data_affected, i.authority_notification_required,

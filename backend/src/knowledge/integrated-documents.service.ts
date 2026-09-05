@@ -22,8 +22,9 @@ import {
   IntegratedDocumentSlotKey,
 } from './integrated-document.constants';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
+import { incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
 
-type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces' | 'applications';
+type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces' | 'applications' | 'incidents';
 type SourceAccessMode = 'read' | 'edit';
 type SourceDescriptor = {
   id: string;
@@ -162,11 +163,11 @@ const PERMISSION_RANK: Record<PermissionLevel, number> = {
 const SOURCE_ENTITY_CONFIG: Record<
   SourceScopedEntityType,
   {
-    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces' | 'applications';
-    relationTable: 'document_requests' | 'document_projects' | null;
-    relationIdColumn: 'request_id' | 'project_id' | null;
-    permissionResource: 'portfolio_requests' | 'portfolio_projects' | 'applications';
-    referencePrefix: 'REQ' | 'PRJ' | null;
+    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces' | 'applications' | 'incidents';
+    relationTable: 'document_requests' | 'document_projects' | 'document_incidents' | null;
+    relationIdColumn: 'request_id' | 'project_id' | 'incident_id' | null;
+    permissionResource: 'portfolio_requests' | 'portfolio_projects' | 'applications' | 'incidents';
+    referencePrefix: 'REQ' | 'PRJ' | 'INC' | null;
     readLevel: PermissionLevel;
     editLevel: PermissionLevel;
   }
@@ -207,6 +208,17 @@ const SOURCE_ENTITY_CONFIG: Record<
     readLevel: 'reader',
     editLevel: 'member',
   },
+  // Same levels as PATCH /incidents/:id. Row visibility (confidential incidents) is
+  // enforced on top of the permission, in assertSourceEntityExists.
+  incidents: {
+    sourceTable: 'incidents',
+    relationTable: 'document_incidents',
+    relationIdColumn: 'incident_id',
+    permissionResource: 'incidents',
+    referencePrefix: 'INC',
+    readLevel: 'reader',
+    editLevel: 'contributor',
+  },
 };
 
 const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<SourceScopedEntityType, Set<string>>>(
@@ -216,6 +228,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
       || definition.sourceEntityType === 'projects'
       || definition.sourceEntityType === 'interfaces'
       || definition.sourceEntityType === 'applications'
+      || definition.sourceEntityType === 'incidents'
     ) {
       acc[definition.sourceEntityType].add(definition.slotKey);
     }
@@ -226,6 +239,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
     projects: new Set<string>(),
     interfaces: new Set<string>(),
     applications: new Set<string>(),
+    incidents: new Set<string>(),
   },
 );
 
@@ -304,6 +318,8 @@ export class IntegratedDocumentsService {
         ? 'Imported from legacy interface fields'
       : sourceEntityType === 'applications'
         ? 'Imported from legacy application description'
+      : sourceEntityType === 'incidents'
+        ? 'Imported from legacy incident fields'
       : 'Imported from legacy project field';
   }
 
@@ -413,6 +429,10 @@ export class IntegratedDocumentsService {
     sourceEntityType: SourceScopedEntityType,
     slotKey: IntegratedDocumentSlotKey,
   ): 'purpose' | 'risks' | 'description' {
+    if (sourceEntityType === 'incidents') {
+      // The review has never had a mirror column on `incidents`.
+      throw new BadRequestException(`Legacy source field not defined for ${sourceEntityType}:${slotKey}`);
+    }
     if (sourceEntityType === 'applications' && slotKey === 'overview') {
       return 'description';
     }
@@ -430,6 +450,11 @@ export class IntegratedDocumentsService {
     relationIdColumn: 'request_id' | 'project_id';
     routePrefix: '/portfolio/requests/inline/' | '/portfolio/projects/inline/';
   } {
+    if (sourceEntityType === 'incidents') {
+      // Incidents never had portfolio inline attachments; falling through to the
+      // project table would read another entity's rows.
+      throw new BadRequestException(`Legacy inline attachments are not defined for ${sourceEntityType}`);
+    }
     if (sourceEntityType === 'requests') {
       return {
         tableName: 'portfolio_request_attachments',
@@ -513,6 +538,31 @@ export class IntegratedDocumentsService {
         [sourceEntityId],
       );
       return this.normalizeOptionalUserId(rows[0]?.user_id);
+    }
+
+    if (sourceEntityType === 'incidents') {
+      const rows = await manager.query<Array<{
+        owner_user_id: string | null;
+        reporter_user_id: string | null;
+        created_by: string | null;
+      }>>(
+        `SELECT owner_user_id::text AS owner_user_id,
+                reporter_user_id::text AS reporter_user_id,
+                created_by::text AS created_by
+         FROM incidents
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        return null;
+      }
+      return this.firstNonEmpty([
+        rows[0].owner_user_id,
+        rows[0].reporter_user_id,
+        rows[0].created_by,
+      ]);
     }
 
     if (sourceEntityType === 'requests') {
@@ -648,6 +698,41 @@ export class IntegratedDocumentsService {
           reference_label: String(row.interface_reference || row.interface_id || '').trim() || row.id,
         },
         ownerUserId: await this.loadPreferredOwnerUserId('interfaces', row.id, manager),
+        tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
+      };
+    }
+
+    if (sourceEntityType === 'incidents') {
+      const rows = await manager.query<Array<{
+        id: string;
+        tenant_id: string;
+        item_number: number | null;
+        name: string;
+      }>>(
+        `SELECT id::text AS id,
+                tenant_id::text AS tenant_id,
+                item_number,
+                title AS name
+         FROM incidents
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        throw new NotFoundException('incident not found');
+      }
+
+      const row = rows[0];
+      return {
+        source: {
+          id: row.id,
+          tenant_id: row.tenant_id,
+          item_number: row.item_number,
+          name: row.name,
+          reference_label: row.item_number ? `INC-${row.item_number}` : row.id,
+        },
+        ownerUserId: await this.loadPreferredOwnerUserId('incidents', row.id, manager),
         tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
       };
     }
@@ -941,6 +1026,33 @@ export class IntegratedDocumentsService {
       const row = await this.loadInterfaceBackfillRow(sourceEntityId, manager);
       return {
         content: this.buildInterfaceSpecificationMarkdown(row),
+        source: 'legacy',
+        unresolvedLegacyInlineAttachmentIds: [],
+      };
+    }
+
+    if (sourceEntityType === 'incidents') {
+      const rows = await manager.query<Array<{ status: string }>>(
+        `SELECT status
+         FROM incidents
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        throw new NotFoundException('incident not found');
+      }
+      // A closed or cancelled incident whose review is missing is an integrity fault.
+      // A read, a PDF export or the chat must never mint a fresh review from today's
+      // template for a frozen record; run `npm run integrated-docs:backfill` instead.
+      if (rows[0].status === 'closed' || rows[0].status === 'cancelled') {
+        throw new NotFoundException(
+          `Integrated document missing for a ${rows[0].status} incident and cannot be recreated automatically (${sourceEntityType}:${slotKey}:${sourceEntityId})`,
+        );
+      }
+      return {
+        content: null,
         source: 'legacy',
         unresolvedLegacyInlineAttachmentIds: [],
       };
@@ -1448,7 +1560,13 @@ export class IntegratedDocumentsService {
     userId: string | null | undefined,
     manager: EntityManager,
   ): Promise<void> {
-    if (sourceEntityType === 'interfaces' || sourceEntityType === 'applications') {
+    // Interfaces, applications and incidents keep no per-edit entry: the incident
+    // journal records lifecycle events, not review content edits.
+    if (
+      sourceEntityType === 'interfaces'
+      || sourceEntityType === 'applications'
+      || sourceEntityType === 'incidents'
+    ) {
       return;
     }
 
@@ -2008,12 +2126,41 @@ export class IntegratedDocumentsService {
     }
   }
 
+  /**
+   * Existence plus, for incidents, row visibility: a confidential incident the caller
+   * cannot see is a 404 here, not only in the controller. The service never relies on
+   * the controller having resolved a visible id first.
+   */
   private async assertSourceEntityExists(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     manager: EntityManager,
+    userId?: string | null,
   ): Promise<void> {
     const config = SOURCE_ENTITY_CONFIG[sourceEntityType];
+
+    if (sourceEntityType === 'incidents') {
+      const tenantRows = await manager.query<Array<{ tenant_id: string | null }>>(
+        `SELECT app_current_tenant()::text AS tenant_id`,
+      );
+      const viewer = await resolveIncidentViewer(manager, userId ?? null, tenantRows[0]?.tenant_id ?? null);
+      const params: unknown[] = [sourceEntityId];
+      const visibility = incidentVisibilitySql('i', viewer, params);
+      const rows = await manager.query(
+        `SELECT i.id
+         FROM incidents i
+         WHERE i.id = $1
+           AND i.tenant_id = app_current_tenant()
+           ${visibility}
+         LIMIT 1`,
+        params,
+      );
+      if (!rows.length) {
+        throw new NotFoundException('incident not found');
+      }
+      return;
+    }
+
     const rows = await manager.query(
       `SELECT id
        FROM ${config.sourceTable}
@@ -2037,7 +2184,7 @@ export class IntegratedDocumentsService {
   ): Promise<string> {
     this.assertSupportedSlot(sourceEntityType, slotKey);
     await this.assertSourcePermission(sourceEntityType, accessMode, userId, manager);
-    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager);
+    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager, userId);
 
     let binding = await this.findBinding(
       sourceEntityType,
@@ -2118,10 +2265,10 @@ export class IntegratedDocumentsService {
         document_type_id: slotSetting.document_type_id,
         template_document_id: slotSetting.template_document_id,
         status: 'published',
-        relationEntityType: sourceEntityType === 'projects' || sourceEntityType === 'requests'
-          ? sourceEntityType as Extract<RelationEntityType, 'projects' | 'requests'>
+        relationEntityType: SOURCE_ENTITY_CONFIG[sourceEntityType].relationTable
+          ? sourceEntityType as Extract<RelationEntityType, 'projects' | 'requests' | 'incidents'>
           : undefined,
-        relationIds: sourceEntityType === 'projects' || sourceEntityType === 'requests'
+        relationIds: SOURCE_ENTITY_CONFIG[sourceEntityType].relationTable
           ? [source.id]
           : undefined,
         change_note: opts?.changeNote ?? null,
@@ -2213,6 +2360,26 @@ export class IntegratedDocumentsService {
     await this.ensureBoundDocument('interfaces', source, 'specification', explicitContent, userId, manager, {
       ownerUserId,
       useTemplateWhenBlank: false,
+    });
+  }
+
+  /**
+   * Eager provisioning of the `incidents:review` document, from the configured
+   * template. Called inside the incident create transaction and by the CSV import
+   * create path, so a review always exists before anything tries to read it.
+   *
+   * Takes the incident id (not a descriptor) because the CSV commit path only has
+   * the id at hand; the reference and title are read back here.
+   */
+  async provisionForIncident(
+    incidentId: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    const manager = this.getManager(opts);
+    const context = await this.loadSourceRecoveryContext('incidents', incidentId, manager);
+    await this.ensureBoundDocument('incidents', context.source, 'review', null, userId, manager, {
+      ownerUserId: context.ownerUserId,
     });
   }
 
@@ -2524,6 +2691,10 @@ export class IntegratedDocumentsService {
       };
     }
 
+    if (sourceEntityType === 'incidents') {
+      return this.repairIncidentReviewSlot(sourceEntityId, slotKey, actorUserId, manager);
+    }
+
     const context = await this.loadSourceRecoveryContext(sourceEntityType, sourceEntityId, manager);
     const recovered = await this.loadRecoveredSlotContent(sourceEntityType, sourceEntityId, slotKey, manager);
 
@@ -2595,6 +2766,94 @@ export class IntegratedDocumentsService {
       repairedRelation,
       recoveredFrom: recovered.source,
       unresolvedLegacyInlineAttachmentIds: recovered.unresolvedLegacyInlineAttachmentIds,
+    };
+  }
+
+  /**
+   * A review document that lost its binding but is still reachable through
+   * `document_incidents` — same folder, same managed type, not bound elsewhere.
+   */
+  private async findUnboundIncidentReviewDocumentId(
+    incidentId: string,
+    slotKey: IntegratedDocumentSlotKey,
+    manager: EntityManager,
+  ): Promise<string | null> {
+    const slotSetting = await this.getSlotSetting('incidents', slotKey, manager);
+    const rows = await manager.query<Array<{ id: string }>>(
+      `SELECT d.id::text AS id
+       FROM document_incidents di
+       JOIN documents d ON d.id = di.document_id AND d.tenant_id = di.tenant_id
+       WHERE di.tenant_id = app_current_tenant()
+         AND di.incident_id = $1
+         AND d.folder_id = $2
+         AND d.document_type_id = $3
+         AND NOT EXISTS (
+           SELECT 1 FROM integrated_document_bindings b
+           WHERE b.document_id = d.id
+             AND b.tenant_id = d.tenant_id
+         )
+       ORDER BY d.created_at ASC, d.id ASC
+       LIMIT 1`,
+      [incidentId, slotSetting.folder_id, slotSetting.document_type_id],
+    );
+    return rows[0]?.id ? String(rows[0].id) : null;
+  }
+
+  /**
+   * Lazy repair for `incidents:review`.
+   *
+   * Recovering the document through the owning relation comes first and never
+   * replaces its content. Otherwise only an open incident gets a fresh document from
+   * the template: for a closed or cancelled one, `loadRecoveredSlotContent` raises,
+   * because a frozen record must not gain a brand-new review on a mere read.
+   */
+  private async repairIncidentReviewSlot(
+    incidentId: string,
+    slotKey: IntegratedDocumentSlotKey,
+    actorUserId: string | null,
+    manager: EntityManager,
+  ): Promise<RepairSourceSlotResult> {
+    const context = await this.loadSourceRecoveryContext('incidents', incidentId, manager);
+
+    const recoveredDocumentId = await this.findUnboundIncidentReviewDocumentId(incidentId, slotKey, manager);
+    if (recoveredDocumentId) {
+      const bindingsRepo = manager.getRepository(IntegratedDocumentBinding);
+      await bindingsRepo.save(bindingsRepo.create({
+        tenant_id: context.source.tenant_id,
+        source_entity_type: 'incidents',
+        source_entity_id: incidentId,
+        slot_key: slotKey,
+        document_id: recoveredDocumentId,
+        hidden_from_entity_knowledge: true,
+      }));
+      return {
+        slotKey,
+        documentId: recoveredDocumentId,
+        created: false,
+        repairedRelation: false,
+        recoveredFrom: null,
+        unresolvedLegacyInlineAttachmentIds: [],
+      };
+    }
+
+    await this.loadRecoveredSlotContent('incidents', incidentId, slotKey, manager);
+    await this.ensureBoundDocument('incidents', context.source, slotKey, null, actorUserId, manager, {
+      ownerUserId: context.ownerUserId,
+      useTemplateWhenBlank: true,
+    });
+
+    const binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    if (!binding) {
+      throw new NotFoundException(`Integrated document repair failed for incidents:${slotKey}:${incidentId}`);
+    }
+    const repairedRelation = await this.ensureOwningRelationRow('incidents', incidentId, binding.document_id, manager);
+    return {
+      slotKey,
+      documentId: binding.document_id,
+      created: true,
+      repairedRelation,
+      recoveredFrom: null,
+      unresolvedLegacyInlineAttachmentIds: [],
     };
   }
 
@@ -2727,6 +2986,12 @@ export class IntegratedDocumentsService {
       if (!matchingOwner) {
         throw new Error(`Managed document owner contributor mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
       }
+    }
+
+    // Incidents have no legacy column to compare against: the review document is the
+    // only source of truth, so the structural checks above are the whole contract.
+    if (sourceEntityType === 'incidents') {
+      return;
     }
 
     const recovered = await this.loadRecoveredSlotContent(sourceEntityType, context.source.id, slotKey, manager);
@@ -3200,7 +3465,7 @@ export class IntegratedDocumentsService {
     const normalizedUserId = this.normalizeUserId(userId);
     this.assertSupportedSlot(sourceEntityType, slotKey);
     await this.assertSourcePermission(sourceEntityType, 'edit', normalizedUserId, manager);
-    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager);
+    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager, normalizedUserId);
 
     const buffer = readUploadedFileBuffer(file);
     const released = await opts.releaseConnection(

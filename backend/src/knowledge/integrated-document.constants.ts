@@ -3,46 +3,83 @@ export type IntegratedDocumentSourceEntityType =
   | 'projects'
   | 'interfaces'
   | 'applications'
-  | 'assets';
+  | 'assets'
+  | 'incidents';
 
 export type ManagedDocsFolderSystemKey =
   | 'integrated_requests'
   | 'integrated_projects'
   | 'integrated_interfaces'
   | 'integrated_applications'
-  | 'integrated_assets';
+  | 'integrated_assets'
+  | 'integrated_incidents';
 
-export type IntegratedDocumentSlotKey = 'purpose' | 'risks_mitigations' | 'specification' | 'overview';
+export type IntegratedDocumentSlotKey =
+  | 'purpose'
+  | 'risks_mitigations'
+  | 'specification'
+  | 'overview'
+  | 'review';
+
+/** Source entity types that actually declare a slot below. */
+export type IntegratedDocumentSlottedEntityType = Extract<
+  IntegratedDocumentSourceEntityType,
+  'requests' | 'projects' | 'interfaces' | 'applications' | 'incidents'
+>;
 
 export const MANAGED_DOCS_LIBRARY_NAME = 'Managed Docs';
 export const MANAGED_DOCS_LIBRARY_SLUG = 'managed-docs';
 export const MANAGED_DOCS_LIBRARY_DISPLAY_ORDER = 2;
 
-export const MANAGED_DOCS_FOLDER_DEFINITIONS: Array<{
+export type ManagedDocsFolderDefinition = {
   sourceEntityType: IntegratedDocumentSourceEntityType;
   systemKey: ManagedDocsFolderSystemKey;
   name: string;
   displayOrder: number;
-}> = [
-  { sourceEntityType: 'requests', systemKey: 'integrated_requests', name: 'Requests', displayOrder: 0 },
-  { sourceEntityType: 'projects', systemKey: 'integrated_projects', name: 'Projects', displayOrder: 1 },
-  { sourceEntityType: 'interfaces', systemKey: 'integrated_interfaces', name: 'Interfaces', displayOrder: 2 },
-  { sourceEntityType: 'applications', systemKey: 'integrated_applications', name: 'Applications', displayOrder: 3 },
-  { sourceEntityType: 'assets', systemKey: 'integrated_assets', name: 'Assets', displayOrder: 4 },
-];
+};
 
-export const INTEGRATED_DOCUMENT_SLOT_DEFINITIONS: Array<{
-  sourceEntityType: Extract<IntegratedDocumentSourceEntityType, 'requests' | 'projects' | 'interfaces' | 'applications'>;
+export type IntegratedDocumentSlotDefinition = {
+  sourceEntityType: IntegratedDocumentSlottedEntityType;
   slotKey: IntegratedDocumentSlotKey;
   displayName: string;
   folderSystemKey: ManagedDocsFolderSystemKey;
   documentTypeName: string;
   documentTypeSystemKey: string;
   documentTypeDescription: string;
+  /** Defaults to `100 + index` in the seeded list; set it to keep a stable order across partial seeds. */
+  documentTypeDisplayOrder?: number;
   templateTitle: string;
   templateSummary: string;
   templateContentMarkdown?: string;
-}> = [
+};
+
+export const MANAGED_DOCS_FOLDER_DEFINITIONS: ManagedDocsFolderDefinition[] = [
+  { sourceEntityType: 'requests', systemKey: 'integrated_requests', name: 'Requests', displayOrder: 0 },
+  { sourceEntityType: 'projects', systemKey: 'integrated_projects', name: 'Projects', displayOrder: 1 },
+  { sourceEntityType: 'interfaces', systemKey: 'integrated_interfaces', name: 'Interfaces', displayOrder: 2 },
+  { sourceEntityType: 'applications', systemKey: 'integrated_applications', name: 'Applications', displayOrder: 3 },
+  { sourceEntityType: 'assets', systemKey: 'integrated_assets', name: 'Assets', displayOrder: 4 },
+  { sourceEntityType: 'incidents', systemKey: 'integrated_incidents', name: 'Incidents', displayOrder: 5 },
+];
+
+/**
+ * Incident review body: the five sections the incident register used to hold as
+ * plain-text columns. Seeded in English for every tenant (no tenant language).
+ */
+export const INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN = [
+  '## Description',
+  '',
+  '## Impact',
+  '',
+  '## Root cause',
+  '',
+  '## Corrective actions',
+  '',
+  '## Lessons learned',
+  '',
+].join('\n');
+
+export const INTEGRATED_DOCUMENT_SLOT_DEFINITIONS: IntegratedDocumentSlotDefinition[] = [
   {
     sourceEntityType: 'applications',
     slotKey: 'overview',
@@ -117,10 +154,23 @@ export const INTEGRATED_DOCUMENT_SLOT_DEFINITIONS: Array<{
       '',
     ].join('\n'),
   },
+  {
+    sourceEntityType: 'incidents',
+    slotKey: 'review',
+    displayName: 'Incident review',
+    folderSystemKey: 'integrated_incidents',
+    documentTypeName: 'Incident review',
+    documentTypeSystemKey: 'integrated_incident_review',
+    documentTypeDescription: 'Managed document type for incident review integrated docs',
+    documentTypeDisplayOrder: 105,
+    templateTitle: 'Incident Review Template',
+    templateSummary: 'Managed template for incident review integrated documents',
+    templateContentMarkdown: INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN,
+  },
 ];
 
 export function getIntegratedDocumentSlotKey(
-  sourceEntityType: Extract<IntegratedDocumentSourceEntityType, 'requests' | 'projects' | 'interfaces' | 'applications'>,
+  sourceEntityType: IntegratedDocumentSlottedEntityType,
   slotKey: IntegratedDocumentSlotKey,
 ): string {
   return `${sourceEntityType}:${slotKey}`;

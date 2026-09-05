@@ -3633,7 +3633,7 @@ export class KnowledgeService {
       document_type_id: string;
       template_document_id?: string | null;
       status?: DocumentStatus;
-      relationEntityType?: Extract<RelationEntityType, 'projects' | 'requests'>;
+      relationEntityType?: Extract<RelationEntityType, 'projects' | 'requests' | 'incidents'>;
       relationIds?: string[];
       change_note?: string | null;
       activity_content?: string | null;

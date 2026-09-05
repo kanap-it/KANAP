@@ -2,39 +2,50 @@ import React from 'react';
 import { Box, Stack, TextField, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import type { Incident } from '../../../api/endpoints/incidents';
+import IntegratedDocumentEditor, {
+  type IntegratedDocumentEditorHandle,
+  type IntegratedDocumentSaveStatus,
+} from '../../../components/IntegratedDocumentEditor';
 import { incidentComposerSx, incidentSectionLabelSx } from './incidentWorkspace';
-
-type TextFieldKey = 'description' | 'impact' | 'root_cause' | 'corrective_actions' | 'lessons_learned';
-
-const TEXT_FIELDS: Array<{ key: TextFieldKey; label: string; placeholder: string }> = [
-  { key: 'description', label: 'description', placeholder: 'descriptionPlaceholder' },
-  { key: 'impact', label: 'impact', placeholder: 'impactPlaceholder' },
-  { key: 'root_cause', label: 'rootCause', placeholder: 'rootCausePlaceholder' },
-  { key: 'corrective_actions', label: 'correctiveActions', placeholder: 'correctiveActionsPlaceholder' },
-  { key: 'lessons_learned', label: 'lessonsLearned', placeholder: 'lessonsLearnedPlaceholder' },
-];
 
 type Props = {
   incident: Incident;
   readOnly: boolean;
   lockedBanner: string | null;
+  /** Saving/Saved hint of the short description autosave. */
   savingHint: string | null;
+  /** Saving/Saved hint of the incident review document. */
+  reviewHint: string | null;
+  reviewEditorRef: React.RefObject<IntegratedDocumentEditorHandle>;
+  onReviewSaveStateChange: (status: IntegratedDocumentSaveStatus, error: string | null) => void;
   onPatchDebounced: (patch: Partial<Incident>) => void;
 };
 
-export default function IncidentOverviewTab({ incident, readOnly, lockedBanner, savingHint, onPatchDebounced }: Props) {
-  const { t } = useTranslation('it');
-  const [texts, setTexts] = React.useState<Record<TextFieldKey, string>>(() => ({
-    description: incident.description || '',
-    impact: incident.impact || '',
-    root_cause: incident.root_cause || '',
-    corrective_actions: incident.corrective_actions || '',
-    lessons_learned: incident.lessons_learned || '',
-  }));
+function SectionLabel({ label, hint }: { label: string; hint: string | null }) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <Typography component="label" sx={incidentSectionLabelSx}>{label}</Typography>
+      {hint && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>{hint}</Typography>}
+    </Box>
+  );
+}
 
-  const handleChange = (key: TextFieldKey, value: string) => {
-    setTexts((prev) => ({ ...prev, [key]: value }));
-    onPatchDebounced({ [key]: value.trim().length > 0 ? value : null });
+export default function IncidentOverviewTab({
+  incident,
+  readOnly,
+  lockedBanner,
+  savingHint,
+  reviewHint,
+  reviewEditorRef,
+  onReviewSaveStateChange,
+  onPatchDebounced,
+}: Props) {
+  const { t } = useTranslation('it');
+  const [description, setDescription] = React.useState(incident.description || '');
+
+  const handleDescriptionChange = (value: string) => {
+    setDescription(value);
+    onPatchDebounced({ description: value.trim().length > 0 ? value : null });
   };
 
   return (
@@ -42,31 +53,49 @@ export default function IncidentOverviewTab({ incident, readOnly, lockedBanner, 
       {lockedBanner && (
         <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>{lockedBanner}</Typography>
       )}
-      {TEXT_FIELDS.map((field, index) => (
-        <Box key={field.key}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Typography component="label" sx={incidentSectionLabelSx}>
-              {t(`workspace.incident.overview.${field.label}`)}
-            </Typography>
-            {index === 0 && savingHint && (
-              <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>{savingHint}</Typography>
-            )}
-          </Box>
-          <TextField
-            value={texts[field.key]}
-            onChange={(event) => handleChange(field.key, event.target.value)}
-            multiline
-            minRows={field.key === 'description' ? 4 : 3}
-            fullWidth
-            variant="standard"
-            placeholder={readOnly
-              ? t('workspace.incident.drawer.notSet')
-              : t(`workspace.incident.overview.${field.placeholder}`)}
-            InputProps={{ disableUnderline: true, readOnly }}
-            sx={incidentComposerSx}
-          />
-        </Box>
-      ))}
+
+      <Box>
+        <SectionLabel label={t('workspace.incident.overview.description')} hint={savingHint} />
+        <TextField
+          value={description}
+          onChange={(event) => handleDescriptionChange(event.target.value)}
+          multiline
+          minRows={2}
+          maxRows={4}
+          fullWidth
+          variant="standard"
+          placeholder={readOnly
+            ? t('workspace.incident.drawer.notSet')
+            : t('workspace.incident.overview.descriptionPlaceholder')}
+          InputProps={{ disableUnderline: true, readOnly }}
+          sx={incidentComposerSx}
+        />
+        <Typography sx={{ mt: '6px', fontSize: 11, color: 'kanap.text.tertiary' }}>
+          {t('workspace.incident.overview.descriptionHint')}
+        </Typography>
+      </Box>
+
+      <Box>
+        <SectionLabel label={t('workspace.incident.overview.review')} hint={reviewHint} />
+        <IntegratedDocumentEditor
+          ref={reviewEditorRef}
+          entityType="incidents"
+          entityId={incident.id}
+          slotKey="review"
+          label={t('workspace.incident.overview.review')}
+          hideHeaderLabel
+          showManagedDocChip={false}
+          showDocumentControls={false}
+          editModeBehavior="auto"
+          autosaveEnabled
+          surface
+          hideToolbarUntilFocus
+          disabled={readOnly}
+          minRows={10}
+          placeholder={t('workspace.incident.overview.reviewPlaceholder')}
+          onSaveStateChange={onReviewSaveStateChange}
+        />
+      </Box>
     </Stack>
   );
 }

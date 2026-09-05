@@ -30,6 +30,17 @@ type BatchOutcome = {
   lastCursor: string | null;
 };
 
+/** Entity families this script repairs, in processing order. */
+const SUPPORTED_SOURCE_ENTITY_TYPES = ['requests', 'projects', 'incidents'] as const;
+type SupportedSourceEntityType = (typeof SUPPORTED_SOURCE_ENTITY_TYPES)[number];
+type SourceTableName = 'portfolio_requests' | 'portfolio_projects' | 'incidents';
+
+const SOURCE_TABLES: Record<SupportedSourceEntityType, SourceTableName> = {
+  requests: 'portfolio_requests',
+  projects: 'portfolio_projects',
+  incidents: 'incidents',
+};
+
 const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_BATCH_PAUSE_MS = 0;
 
@@ -90,7 +101,7 @@ async function seedTenantAssets(dataSource: DataSource, tenantId: string): Promi
 
 async function loadEntityIdBatch(
   manager: EntityManager,
-  tableName: 'portfolio_requests' | 'portfolio_projects',
+  tableName: SourceTableName,
   batchSize: number,
   cursorId: string | null,
 ): Promise<EntityIdRow[]> {
@@ -132,10 +143,10 @@ async function processBatch(
   tenant: TenantRow,
   batchSize: number,
   cursorId: string | null,
-  sourceEntityType: 'requests' | 'projects',
+  sourceEntityType: SupportedSourceEntityType,
   integratedDocs: IntegratedDocumentsService,
 ): Promise<BatchOutcome> {
-  const tableName = sourceEntityType === 'requests' ? 'portfolio_requests' : 'portfolio_projects';
+  const tableName = SOURCE_TABLES[sourceEntityType];
   const ids = await withTenant(dataSource, tenant.id, async (manager) => (
     loadEntityIdBatch(manager, tableName, batchSize, cursorId)
   ));
@@ -196,8 +207,11 @@ async function main() {
     console.log(`Repairing integrated docs for tenants: ${tenants.map((tenant) => tenant.slug || tenant.id).join(', ')}`);
     console.log(`Batch size: ${batchSize}${batchPauseMs > 0 ? `, pause: ${batchPauseMs}ms` : ''}`);
 
-    let totalRequestRows = 0;
-    let totalProjectRows = 0;
+    const totalRowsByType: Record<SupportedSourceEntityType, number> = {
+      requests: 0,
+      projects: 0,
+      incidents: 0,
+    };
     let totalSlotsCreated = 0;
     let totalSlotsExisting = 0;
     let totalRelationsRepaired = 0;
@@ -211,69 +225,38 @@ async function main() {
 
       await seedTenantAssets(dataSource, tenant.id);
 
-      let requestCursor: string | null = null;
-      while (true) {
-        const batchResult = await processBatch(
-          dataSource,
-          tenant,
-          batchSize,
-          requestCursor,
-          'requests',
-          integratedDocs,
-        );
+      for (const sourceEntityType of SUPPORTED_SOURCE_ENTITY_TYPES) {
+        let cursor: string | null = null;
+        while (true) {
+          const batchResult = await processBatch(
+            dataSource,
+            tenant,
+            batchSize,
+            cursor,
+            sourceEntityType,
+            integratedDocs,
+          );
 
-        if (batchResult.rowsScanned === 0) {
-          break;
-        }
+          if (batchResult.rowsScanned === 0) {
+            break;
+          }
 
-        totalRequestRows += batchResult.rowsScanned;
-        totalSlotsCreated += batchResult.slotsCreated;
-        totalSlotsExisting += batchResult.slotsExisting;
-        totalRelationsRepaired += batchResult.relationsRepaired;
-        totalAuditRecovered += batchResult.auditRecovered;
-        totalUnresolvedInlineImages += batchResult.unresolvedInlineImages;
-        totalErrors += batchResult.errors;
-        requestCursor = batchResult.lastCursor;
+          totalRowsByType[sourceEntityType] += batchResult.rowsScanned;
+          totalSlotsCreated += batchResult.slotsCreated;
+          totalSlotsExisting += batchResult.slotsExisting;
+          totalRelationsRepaired += batchResult.relationsRepaired;
+          totalAuditRecovered += batchResult.auditRecovered;
+          totalUnresolvedInlineImages += batchResult.unresolvedInlineImages;
+          totalErrors += batchResult.errors;
+          cursor = batchResult.lastCursor;
 
-        console.log(
-          `  requests batch: rows=${batchResult.rowsScanned}, created_slots=${batchResult.slotsCreated}, existing_slots=${batchResult.slotsExisting}, repaired_relations=${batchResult.relationsRepaired}, audit_recovered=${batchResult.auditRecovered}, unresolved_inline_images=${batchResult.unresolvedInlineImages}, errors=${batchResult.errors}`,
-        );
+          console.log(
+            `  ${sourceEntityType} batch: rows=${batchResult.rowsScanned}, created_slots=${batchResult.slotsCreated}, existing_slots=${batchResult.slotsExisting}, repaired_relations=${batchResult.relationsRepaired}, audit_recovered=${batchResult.auditRecovered}, unresolved_inline_images=${batchResult.unresolvedInlineImages}, errors=${batchResult.errors}`,
+          );
 
-        if (batchPauseMs > 0) {
-          await sleep(batchPauseMs);
-        }
-      }
-
-      let projectCursor: string | null = null;
-      while (true) {
-        const batchResult = await processBatch(
-          dataSource,
-          tenant,
-          batchSize,
-          projectCursor,
-          'projects',
-          integratedDocs,
-        );
-
-        if (batchResult.rowsScanned === 0) {
-          break;
-        }
-
-        totalProjectRows += batchResult.rowsScanned;
-        totalSlotsCreated += batchResult.slotsCreated;
-        totalSlotsExisting += batchResult.slotsExisting;
-        totalRelationsRepaired += batchResult.relationsRepaired;
-        totalAuditRecovered += batchResult.auditRecovered;
-        totalUnresolvedInlineImages += batchResult.unresolvedInlineImages;
-        totalErrors += batchResult.errors;
-        projectCursor = batchResult.lastCursor;
-
-        console.log(
-          `  projects batch: rows=${batchResult.rowsScanned}, created_slots=${batchResult.slotsCreated}, existing_slots=${batchResult.slotsExisting}, repaired_relations=${batchResult.relationsRepaired}, audit_recovered=${batchResult.auditRecovered}, unresolved_inline_images=${batchResult.unresolvedInlineImages}, errors=${batchResult.errors}`,
-        );
-
-        if (batchPauseMs > 0) {
-          await sleep(batchPauseMs);
+          if (batchPauseMs > 0) {
+            await sleep(batchPauseMs);
+          }
         }
       }
     }
@@ -282,8 +265,9 @@ async function main() {
     await dataSource.query('ANALYZE integrated_document_bindings');
 
     console.log('\nIntegrated-doc repair complete.');
-    console.log(`  request rows scanned: ${totalRequestRows}`);
-    console.log(`  project rows scanned: ${totalProjectRows}`);
+    for (const sourceEntityType of SUPPORTED_SOURCE_ENTITY_TYPES) {
+      console.log(`  ${sourceEntityType} rows scanned: ${totalRowsByType[sourceEntityType]}`);
+    }
     console.log(`  slots created: ${totalSlotsCreated}`);
     console.log(`  slots already present: ${totalSlotsExisting}`);
     console.log(`  relation rows repaired: ${totalRelationsRepaired}`);

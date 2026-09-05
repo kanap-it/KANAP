@@ -50,20 +50,12 @@ export class Incident {
   @Column('uuid', { nullable: true })
   owner_user_id!: string | null;
 
+  /**
+   * Short summary. The full incident review lives in the `incidents:review`
+   * integrated document (planning/incident-review-document.md).
+   */
   @Column('text', { nullable: true })
   description!: string | null;
-
-  @Column('text', { nullable: true })
-  impact!: string | null;
-
-  @Column('text', { nullable: true })
-  root_cause!: string | null;
-
-  @Column('text', { nullable: true })
-  corrective_actions!: string | null;
-
-  @Column('text', { nullable: true })
-  lessons_learned!: string | null;
 
   @Column('text', { nullable: true })
   source_ref!: string | null;

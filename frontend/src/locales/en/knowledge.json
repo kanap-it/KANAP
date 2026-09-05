@@ -446,6 +446,7 @@
       "lockExpired": "Editing lock expired. Re-enter edit mode to continue.",
       "lockUntil": " until {{value}}",
       "lockedByUser": "This knowledge article is locked by {{user}}{{until}}. You can read it while the lock is active.",
+      "managedReadOnly": "This document is managed by another item. Editing follows that item's status and permissions.",
       "noDestinationLibrary": "No destination library available.",
       "readOnlyAccess": "You have read-only access to this knowledge article.",
       "requestChangesFailed": "Failed to request changes.",
@@ -463,6 +464,13 @@
       "typeLabel": "Type: {{value}}",
       "unassigned": "Unassigned",
       "untitled": "Untitled knowledge"
+    },
+    "errors": {
+      "notFoundTitle": "Document not found or access restricted",
+      "notFoundBody": "It may have been deleted, or you no longer have access to it.",
+      "loadFailedTitle": "This document could not be loaded",
+      "loadFailedBody": "Check your connection and try again.",
+      "backToLibrary": "Back to the library"
     }
   }
 }
