@@ -89,7 +89,7 @@ Lors de la navigation dans la bibliothèque **Modèles**, les administrateurs pe
 
 ### Documents managés
 
-Certains articles de la base de connaissances sont créés depuis des Demandes, Projets, Applications, Actifs ou Tâches. Ils apparaissent comme des documents **Intégrés**.
+Certains articles de la base de connaissances sont créés depuis des Demandes, Projets, Applications, Actifs, Tâches ou Incidents. Ils apparaissent comme des documents **Intégrés**, regroupés dans la bibliothèque **Documents managés** par espace de travail d'origine.
 
 Les documents managés conservent l'expérience d'écriture au sein de la base de connaissances, mais l'espace de travail source continue de contrôler une partie de leurs métadonnées. En pratique, cela signifie que :
 - le statut peut être contrôlé par l'objet source
@@ -100,6 +100,8 @@ Les documents managés conservent l'expérience d'écriture au sein de la base d
 - les documents managés ne peuvent pas être déplacés hors de la base de connaissances ni supprimés depuis la liste de la base de connaissances
 
 Cela protège le lien entre le document et l'enregistrement opérationnel qui le possède.
+
+L'accès suit lui aussi l'objet source. Le cas le plus net est le dossier **Incidents** : une revue d'incident ne peut être ouverte que par une personne autorisée à voir cet incident, quelles que soient ses autorisations sur la base de connaissances ; elle passe en lecture seule dès que l'incident est clôturé ou annulé ; et elle disparaît des listes, de la recherche, des exports et de l'assistant pour toute personne écartée d'un incident restreint. Voir [Incidents](incidents.md).
 
 ## Travailler avec la liste de la base de connaissances
 

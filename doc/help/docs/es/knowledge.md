@@ -89,7 +89,7 @@ Al navegar por la biblioteca **Plantillas**, los administradores pueden abrir el
 
 ### Documentos gestionados
 
-Algunos artículos de la Base de conocimiento se crean a partir de Solicitudes, Proyectos, Aplicaciones, Activos o Tareas. Estos aparecen como documentos **Integrados**.
+Algunos artículos de la Base de conocimiento se crean a partir de Solicitudes, Proyectos, Aplicaciones, Activos, Tareas o Incidentes. Estos aparecen como documentos **Integrados**, agrupados en la biblioteca **Documentos gestionados** por el espacio de trabajo del que proceden.
 
 Los documentos gestionados mantienen la experiencia de escritura dentro de la Base de conocimiento, pero el espacio de trabajo de origen sigue controlando parte de sus metadatos. En la práctica, esto significa:
 - el estado puede estar controlado por el objeto de origen
@@ -100,6 +100,8 @@ Los documentos gestionados mantienen la experiencia de escritura dentro de la Ba
 - los documentos gestionados no pueden moverse fuera de la Base de conocimiento ni eliminarse de la lista de la Base de conocimiento
 
 Esto protege el vínculo entre el documento y el registro operativo que lo posee.
+
+El acceso también sigue al objeto de origen. El caso más claro es la carpeta **Incidentes**: una revisión del incidente solo puede abrirla quien tenga derecho a ver ese incidente, sean cuales sean sus permisos sobre la Base de conocimiento; pasa a ser de solo lectura en cuanto el incidente se cierra o se cancela, y desaparece de las listas, la búsqueda, las exportaciones y el asistente para cualquiera excluido de un incidente restringido. Consulte [Incidentes](incidents.md).
 
 ## Trabajar con la lista de la Base de conocimiento
 
