@@ -13,7 +13,11 @@ import { applicationCsvConfig } from '../../../applications/application-csv.conf
 import { taskCsvConfig } from '../../../tasks/task-csv.config';
 import { portfolioProjectCsvConfig } from '../../../portfolio/portfolio-project-csv.config';
 import { portfolioRequestCsvConfig } from '../../../portfolio/portfolio-request-csv.config';
-import { incidentCsvConfig } from '../../../incidents/incident-csv.config';
+import {
+  hasPendingIncidentReview,
+  incidentCsvConfig,
+  takePendingIncidentReview,
+} from '../../../incidents/incident-csv.config';
 
 const configs: CsvEntityConfig[] = [
   assetCsvConfig,
@@ -183,6 +187,68 @@ async function testIncidentRefAndValueParsing() {
   assert.throws(() => transform(incidentCsvConfig, 'detected_at', 'last tuesday'), /Invalid date/);
 }
 
+/**
+ * The register's Record group: a short description plus the single `review`
+ * column that replaced the four narrative columns
+ * (planning/incident-review-document.md §3.8).
+ */
+function testIncidentRecordColumns() {
+  const recordColumns = incidentCsvConfig.fields
+    .filter((f) => f.group === 'Record')
+    .map((f) => f.csvColumn);
+  assert.deepEqual(recordColumns, ['description', 'review']);
+
+  for (const gone of ['impact', 'root_cause', 'corrective_actions', 'lessons_learned']) {
+    assert.equal(
+      incidentCsvConfig.fields.some((f) => f.csvColumn === gone || f.entityProperty === gone),
+      false,
+      `${gone} must no longer be a CSV column`,
+    );
+  }
+
+  const review = field(incidentCsvConfig, 'review');
+  assert.equal(review.label, 'Incident review');
+  assert.equal(review.defaultExport, true);
+  assert.notEqual(review.importable, false);
+  assert.notEqual(review.exportable, false);
+
+  // Markdown is validated at parse time, so a dry run reports a bad cell
+  // without provisioning or writing anything.
+  assert.equal(transform(incidentCsvConfig, 'review', '## Impact\n\nMail down'), '## Impact\n\nMail down');
+  assert.equal(transform(incidentCsvConfig, 'review', '   '), '');
+  assert.throws(
+    () => transform(incidentCsvConfig, 'review', '<script>alert(1)</script>'),
+    /must be Markdown/,
+  );
+}
+
+async function testIncidentReviewIsVirtual() {
+  const manager = {
+    query: async (sql: string) => {
+      if (/FROM tenants/.test(sql)) return [{ metadata: {} }];
+      if (/item_sequences/.test(sql)) return [{ item_number: 9, first_number: 9 }];
+      return [];
+    },
+  };
+  const context = {
+    tenantId: 't1',
+    manager,
+    params: { dryRun: false, mode: 'replace', operation: 'upsert' },
+    resolverCache: new Map(),
+    userId: 'u1',
+  } as any;
+
+  const entity: any = {
+    id: 'i9', item_number: 9, title: 'Outage', severity: 'major',
+    status: 'open', detected_at: new Date(), review: '## Impact\n\nMail down',
+  };
+  await incidentCsvConfig.beforeCommit!([entity], context);
+  assert.equal('review' in entity, false, 'the virtual column must never reach repo.save');
+  assert.equal(hasPendingIncidentReview(entity), true);
+  assert.equal(takePendingIncidentReview(entity), '## Impact\n\nMail down');
+  assert.equal(hasPendingIncidentReview(entity), false, 'the pending body is consumed once');
+}
+
 async function testIncidentImportHooks() {
   const calls: Array<{ sql: string; params: any[] }> = [];
   const manager = {
@@ -250,6 +316,8 @@ async function testIncidentImportHooks() {
   testFkEntitiesHaveResolvers();
   await testTemplateHeadersRoundTripThroughImportValidation();
   await testIncidentRefAndValueParsing();
+  testIncidentRecordColumns();
+  await testIncidentReviewIsVirtual();
   await testIncidentImportHooks();
 
   console.log('Entity CSV config invariant tests passed.');

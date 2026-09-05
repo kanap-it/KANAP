@@ -37,7 +37,7 @@
     "test:capex": "ts-node src/capex/__tests__/capex-backend-contract.spec.ts",
     "test:incidents": "ts-node src/incidents/__tests__/incident-report.service.spec.ts && ts-node src/incidents/__tests__/incident-visibility.spec.ts && ts-node src/incidents/__tests__/incident-csv.config.spec.ts",
     "test:integrated-docs": "ts-node src/knowledge/__tests__/integrated-document-seed.spec.ts",
-    "test:incident-review-access": "ts-node src/knowledge/__tests__/incident-review-access.integration.spec.ts",
+    "test:incident-review-access": "ts-node src/knowledge/__tests__/incident-review-access.integration.spec.ts && ts-node src/incidents/__tests__/incident-review-csv.integration.spec.ts",
     "test:incident-review-migration": "ts-node src/incidents/__tests__/incident-review-migration.spec.ts",
     "test:csv": "ts-node src/common/csv/__tests__/csv-import.service.spec.ts && ts-node src/common/csv/__tests__/csv-export.service.spec.ts && ts-node src/common/csv/__tests__/csv-resolver.service.spec.ts && ts-node src/common/csv/__tests__/entity-csv-configs.spec.ts && ts-node src/contracts/__tests__/contracts.service.csv.spec.ts",
     "stripe:migrate": "typeorm-ts-node-commonjs -d src/data-source.ts migration:generate --dr --pretty"

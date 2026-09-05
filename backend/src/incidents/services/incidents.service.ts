@@ -85,6 +85,19 @@ const BOOLEAN_FIELDS = ['personal_data_affected', 'authority_notification_requir
 
 const CONFIDENTIAL_LIFT_MESSAGE = 'Only a register administrator can lift this restriction.';
 
+/** Statuses that freeze the record, and with it the incident review. */
+const FROZEN_STATUSES = new Set<IncidentStatus>(['closed', 'cancelled']);
+
+/** Change note stored on the review version kept by a closure or a cancellation. */
+const CLOSURE_CHANGE_NOTES: Record<string, string> = {
+  closed: 'Incident closed',
+  cancelled: 'Incident cancelled',
+};
+
+function isFrozenStatus(status: IncidentStatus | null | undefined): boolean {
+  return !!status && FROZEN_STATUSES.has(status);
+}
+
 function toDate(value: string | null | undefined): Date | null {
   return value ? new Date(value) : null;
 }
@@ -466,7 +479,20 @@ export class IncidentsService extends IncidentsBaseService {
     // read the incident (planning/incident-review-document.md §3.2).
     await this.integratedDocuments.provisionForIncident(saved.id, userId, { manager: mg });
 
-    await this.addEntry(mg, saved, { kind: 'system', content: 'Incident logged', occurred_at: now, author_id: userId });
+    // Created directly closed or cancelled (API or CSV): the creation entry is
+    // the transition entry, so it carries the review version (§3.3). No
+    // explicit row lock: the INSERT above already holds it in this transaction.
+    const reviewVersion = isFrozenStatus(saved.status)
+      ? await this.captureReviewVersion(mg, saved.id, saved.status, userId)
+      : null;
+
+    await this.addEntry(mg, saved, {
+      kind: 'system',
+      content: 'Incident logged',
+      changed_fields: reviewVersion ? { review_version: reviewVersion } : null,
+      occurred_at: now,
+      author_id: userId,
+    });
     await this.audit.log(
       { table: 'incidents', recordId: saved.id, action: 'create', before: null, after: saved, userId },
       { manager: mg },
@@ -481,6 +507,10 @@ export class IncidentsService extends IncidentsBaseService {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
     const dto = parseUpdateIncident(body);
+    // §3.3: lock the row, then re-read rights and status under that lock. This
+    // patch can change the status, the confidential flag, the owner or the
+    // reporter, all of which have to be serialised with the review mutations.
+    await this.lockIncidentRow(mg, id, tenantId);
     const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
@@ -496,12 +526,21 @@ export class IncidentsService extends IncidentsBaseService {
     incident.updated_by = userId;
     incident.updated_at = now;
     this.applyStatusTimestamps(incident, now);
+
+    // Closing or cancelling through the patch freezes the review: snapshot it
+    // before the status flips, in this same transaction (§3.3).
+    const reviewVersion = isFrozenStatus(incident.status) && !isFrozenStatus(before.status)
+      ? await this.captureReviewVersion(mg, incident.id, incident.status, userId)
+      : null;
+
     const saved = await mg.getRepository(Incident).save(incident);
 
     if (before.status !== saved.status) {
+      const changed: IncidentChangedFields = { status: { from: before.status, to: saved.status } };
+      if (reviewVersion) changed.review_version = reviewVersion;
       await this.addEntry(mg, saved, {
         kind: 'status_change',
-        changed_fields: { status: { from: before.status, to: saved.status } },
+        changed_fields: changed,
         occurred_at: now,
         author_id: userId,
       });
@@ -536,6 +575,9 @@ export class IncidentsService extends IncidentsBaseService {
   async reopen(id: string, reason: string, userId: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
+    // Status transition: same lock ordering as the other paths (§3.3). Reopening
+    // keeps every stored review version and its journal reference untouched.
+    await this.lockIncidentRow(mg, id, tenantId);
     const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     if (incident.status === 'open' || incident.status === 'in_progress') {
       throw new BadRequestException('Only resolved, closed or cancelled incidents can be reopened.');
@@ -565,6 +607,7 @@ export class IncidentsService extends IncidentsBaseService {
   async cancel(id: string, reason: string, userId: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
+    await this.lockIncidentRow(mg, id, tenantId);
     const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
@@ -573,9 +616,16 @@ export class IncidentsService extends IncidentsBaseService {
     incident.status = 'cancelled';
     incident.updated_by = userId;
     incident.updated_at = now;
+
+    // Freeze the review with the cancellation, in the same transaction (§3.3).
+    const reviewVersion = await this.captureReviewVersion(mg, incident.id, 'cancelled', userId);
+
     const saved = await mg.getRepository(Incident).save(incident);
 
-    const changed: IncidentChangedFields = { status: { from: before.status, to: saved.status } };
+    const changed: IncidentChangedFields = {
+      status: { from: before.status, to: saved.status },
+      review_version: reviewVersion,
+    };
     await this.addEntry(mg, saved, { kind: 'status_change', content: reason, changed_fields: changed, occurred_at: now, author_id: userId });
     await this.audit.log(
       { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
@@ -595,6 +645,9 @@ export class IncidentsService extends IncidentsBaseService {
   ) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
+    // A confidentiality change can revoke access to the review: serialise it
+    // with the review mutations under the incident row lock (§3.3).
+    await this.lockIncidentRow(mg, id, tenantId);
     const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
     if (incident.confidential === confidential) {
       return this.get(incident.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
@@ -627,6 +680,41 @@ export class IncidentsService extends IncidentsBaseService {
   // =========================================================================
   // Helpers
   // =========================================================================
+
+  /**
+   * §3.3 serialisation: the incident row lock is taken **first**, before the
+   * document lock the review snapshot takes. Every path that mutates the
+   * status, the confidential flag, the owner or the reporter goes through it,
+   * and re-reads the row (rights, status) under the lock afterwards.
+   */
+  private async lockIncidentRow(manager: EntityManager, id: string, tenantId: string): Promise<void> {
+    await manager.query(
+      'SELECT id FROM incidents WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
+      [id, tenantId],
+    );
+  }
+
+  /**
+   * Freeze the current review as a version, in the same transaction as the
+   * status change and its journal entry, and return the reference to store in
+   * `incident_entries.changed_fields.review_version`. Built server-side only.
+   *
+   * Refuses with 423 when another user holds an edit lock on the review; the
+   * register admin can clear it through the force-release route.
+   */
+  private async captureReviewVersion(
+    manager: EntityManager,
+    incidentId: string,
+    status: IncidentStatus,
+    userId: string | null,
+  ): Promise<{ from: null; to: { document_id: string; version_number: number; revision: number } }> {
+    const snapshot = await this.integratedDocuments.snapshotReviewForIncidentTransition(
+      incidentId,
+      userId,
+      { manager, changeNote: CLOSURE_CHANGE_NOTES[status] ?? 'Incident closed' },
+    );
+    return { from: null, to: snapshot };
+  }
 
   private applyConfidentialChange(
     incident: Incident,

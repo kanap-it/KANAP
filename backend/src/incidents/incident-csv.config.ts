@@ -4,6 +4,7 @@ import {
   CsvImportContext,
 } from '../common/csv';
 import { allocateItemNumbers } from '../common/item-number.service';
+import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { DEFAULT_INCIDENT_CATEGORIES } from '../it-ops-settings/it-ops-settings.service';
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from './incident.entity';
 import { incidentVisibleToViewer, type IncidentViewer } from './incident-visibility';
@@ -16,7 +17,7 @@ import { incidentVisibleToViewer, type IncidentViewer } from './incident-visibil
  * - Overview: title, category, severity, status
  * - Timeline: started / detected / resolved / closed
  * - People: reporter, owner
- * - Record: description, impact, root cause, corrective actions, lessons learned
+ * - Record: description, incident review (the integrated document, virtual column)
  * - Source: source reference
  * - Compliance: personal data, authority notification, notified parties
  *
@@ -32,6 +33,37 @@ const IMPORT_ENTRY_CONTENT = 'Imported from CSV';
 
 /** Rows inserted by the current import, marked in beforeCommit, journalled in afterCommit. */
 const insertedByImport = new WeakSet<object>();
+
+/**
+ * `review` is a virtual column. It is parsed onto the entity like any other
+ * field, then moved off it in `beforeCommit` into this map, so `repo.save`
+ * (and the audit snapshot it feeds) never sees a column `incidents` does not
+ * have. `IncidentsCsvService` drains it in `afterCommit`.
+ */
+export const REVIEW_ENTITY_PROPERTY = 'review';
+const pendingReviewByEntity = new WeakMap<object, string | null>();
+
+/** Status the row had before the import, for the closure snapshot in afterCommit. */
+const previousStatusByEntity = new WeakMap<object, string | null>();
+
+/** True when the row carried a `review` cell (even an empty one). */
+export function hasPendingIncidentReview(entity: object): boolean {
+  return pendingReviewByEntity.has(entity);
+}
+
+/** Reads and clears the pending review body for one imported row. */
+export function takePendingIncidentReview(entity: object): string | null {
+  const value = pendingReviewByEntity.get(entity) ?? null;
+  pendingReviewByEntity.delete(entity);
+  return value;
+}
+
+/** Status of the row before this import: null for an inserted incident. */
+export function takePreviousIncidentStatus(entity: object): string | null {
+  const value = previousStatusByEntity.get(entity) ?? null;
+  previousStatusByEntity.delete(entity);
+  return value;
+}
 
 function incidentLabel(entity: any): string {
   return entity.item_number ? `INC-${entity.item_number}` : `"${entity.title ?? ''}"`;
@@ -266,8 +298,22 @@ export const incidentCsvConfig: CsvEntityConfig = {
 
     // === RECORD ===
     textField('description', 'Description', 'Record'),
-    // A1: the four narrative columns are gone; the `review` virtual column that
-    // replaces them is phase A3 (planning/incident-review-document.md §3.8).
+    // Virtual column: the review lives in the `incidents:review` integrated
+    // document, not on `incidents` (§3.8). `beforeCommit` moves it off the
+    // entity so nothing tries to save a `review` column, and the CSV service
+    // writes it through the dedicated import primitive after the upsert.
+    // The Markdown is validated here, so a dry run reports a bad cell without
+    // provisioning or writing anything.
+    {
+      csvColumn: 'review',
+      entityProperty: REVIEW_ENTITY_PROPERTY,
+      type: CsvFieldType.STRING,
+      required: false,
+      defaultExport: true,
+      label: 'Incident review',
+      group: 'Record',
+      importTransformFn: (value: string) => normalizeMarkdownRichText(value, { fieldName: 'review' }) ?? '',
+    },
 
     // === SOURCE ===
     textField('source_ref', 'External reference', 'Source'),
@@ -346,6 +392,14 @@ export const incidentCsvConfig: CsvEntityConfig = {
    * INC-N for every new row in one bulk sequence bump.
    */
   beforeCommit: async (entities: any[], context: CsvImportContext) => {
+    // Virtual column: move `review` off the entity before anything saves it.
+    for (const entity of entities) {
+      if (!Object.prototype.hasOwnProperty.call(entity, REVIEW_ENTITY_PROPERTY)) continue;
+      const value = entity[REVIEW_ENTITY_PROPERTY];
+      pendingReviewByEntity.set(entity, value == null ? null : String(value));
+      delete entity[REVIEW_ENTITY_PROPERTY];
+    }
+
     const tenantRows = await context.manager.query(
       `SELECT metadata FROM tenants WHERE id = $1 LIMIT 1`,
       [context.tenantId],
@@ -409,15 +463,22 @@ export const incidentCsvConfig: CsvEntityConfig = {
 
     const updateEntities = entities.filter((entity) => entity.id);
     if (updateEntities.length > 0) {
+      // §3.8: the row lock is taken here, and every right (visibility, the
+      // confidentiality transition) is decided on that locked initial state,
+      // before any part of the row is applied. It is also the incident half of
+      // the §3.3 "incident row first, document second" ordering: the review
+      // writes happen later in the same transaction.
       const existing: Array<{
         id: string;
         item_number: number;
+        status: string;
         confidential: boolean;
         reporter_user_id: string | null;
         owner_user_id: string | null;
       }> = await context.manager.query(
-        `SELECT id, item_number, confidential, reporter_user_id, owner_user_id
-         FROM incidents WHERE id = ANY($1::uuid[]) AND tenant_id = $2`,
+        `SELECT id, item_number, status, confidential, reporter_user_id, owner_user_id
+         FROM incidents WHERE id = ANY($1::uuid[]) AND tenant_id = $2
+         FOR UPDATE`,
         [updateEntities.map((entity) => entity.id), context.tenantId],
       );
       const byId = new Map(existing.map((row) => [row.id, row]));
@@ -431,25 +492,20 @@ export const incidentCsvConfig: CsvEntityConfig = {
           `Unknown incident reference(s): ${hidden.map((entity) => incidentLabel(entity)).join(', ')}. ${UNKNOWN_REF_HINT}`,
         );
       }
-      for (const entity of updateEntities) {
-        if (entity.confidential == null) {
-          entity.confidential = byId.get(entity.id)?.confidential ?? false;
-        }
-      }
-    }
-
-    const liftIds = entities
-      .filter((entity) => entity.id && entity.confidential === false)
-      .map((entity) => entity.id);
-    if (liftIds.length > 0 && !importViewer(context).isAdmin) {
-      const restricted: Array<{ id: string }> = await context.manager.query(
-        `SELECT id FROM incidents WHERE id = ANY($1::uuid[]) AND tenant_id = $2 AND confidential = true`,
-        [liftIds, context.tenantId],
+      const lifts = updateEntities.filter(
+        (entity) => entity.confidential === false && byId.get(entity.id)?.confidential === true,
       );
-      if (restricted.length > 0) {
+      if (lifts.length > 0 && !viewer.isAdmin) {
         throw new Error(
           'Only a register administrator can lift the restriction on a confidential incident.',
         );
+      }
+      for (const entity of updateEntities) {
+        const row = byId.get(entity.id);
+        if (entity.confidential == null) {
+          entity.confidential = row?.confidential ?? false;
+        }
+        previousStatusByEntity.set(entity, row?.status ?? null);
       }
     }
 

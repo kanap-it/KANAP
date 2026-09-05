@@ -50,6 +50,7 @@ import {
   isDocumentIncidentVisible,
   isDocumentIncidentWritable,
   loadDocumentIncidentBinding,
+  lockIncidentRowForDocument,
   resolveDocumentIncidentViewer,
   sourceContextMatchesBinding,
 } from './document-entity-visibility';
@@ -963,6 +964,12 @@ export class KnowledgeService {
       String(opts?.knownLibraryId || '').trim()
       || await this.getDocumentLibraryId(documentId, manager)
     );
+    // §3.3 lock ordering: on a write, the owning incident row is locked before
+    // the binding is read, so the status seen here is the committed one and a
+    // concurrent closure cannot land between this check and the mutation.
+    if (mode === 'write') {
+      await lockIncidentRowForDocument(manager, documentId, opts?.tenantId ?? null);
+    }
     const binding = await loadDocumentIncidentBinding(manager, documentId, opts?.tenantId ?? null);
     const normalizedUserId = String(userId || '').trim();
     const sourceContext = opts?.sourceContext ?? null;

@@ -280,6 +280,53 @@ export async function loadDocumentIncidentBinding(
   return rows[0] ?? null;
 }
 
+/**
+ * §3.3 lock ordering, entered from the document side (phase A3).
+ *
+ * Takes the transactional row lock on the incident that owns `documentId`,
+ * **before** the binding and the document are read or written. The incident
+ * services take the same lock first on every status / confidentiality / owner /
+ * reporter change, so the order is always incident → document and a closure can
+ * neither slip between the freeze check and the write, nor land after an
+ * ordinary save that was authorised before it.
+ *
+ * A no-op (zero rows, no lock) for a document that is not an incident review.
+ * Outside a transaction the lock is released immediately, which is the
+ * pre-existing behaviour of every other write on that path.
+ */
+export async function lockIncidentRowForDocument(
+  manager: EntityManager,
+  documentId: string,
+  tenantId?: string | null,
+): Promise<void> {
+  const normalizedDocumentId = normalizeId(documentId);
+  if (!normalizedDocumentId || !isUuid(normalizedDocumentId)) return;
+
+  const params: unknown[] = [normalizedDocumentId];
+  let tenantClause = 'app_current_tenant()';
+  const tenant = normalizeId(tenantId);
+  if (tenant) {
+    params.push(tenant);
+    tenantClause = `$${params.length}::uuid`;
+  }
+
+  await manager.query(
+    `SELECT i.id
+     FROM incidents i
+     WHERE i.tenant_id = ${tenantClause}
+       AND i.id = (
+         SELECT b.source_entity_id
+         FROM integrated_document_bindings b
+         WHERE b.document_id = $1
+           AND b.tenant_id = ${tenantClause}
+           AND b.source_entity_type = '${INCIDENT_SOURCE_ENTITY_TYPE}'
+         LIMIT 1
+       )
+     FOR UPDATE`,
+    params,
+  );
+}
+
 /** True when the context describes exactly this binding (tenant, entity, slot, document). */
 export function sourceContextMatchesBinding(
   context: DocumentSourceAccessContext | null | undefined,

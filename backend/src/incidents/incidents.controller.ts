@@ -1,18 +1,28 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res,
+  UploadedFile, UseGuards, UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
-import { EntityManager } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
-import { attachmentMulterOptions, csvImportMulterOptions } from '../common/upload';
+import {
+  attachmentMulterOptions,
+  csvImportMulterOptions,
+  documentImportMulterOptions,
+  inlineImageMulterOptions,
+} from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
+import { createRequestReleaseConnection } from '../common/import-connection';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { RateLimitGuard } from '../common/rate-limit.guard';
 import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { resolveToUuid } from '../common/resolve-item-id';
+import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
   IncidentEntriesService,
@@ -46,6 +56,8 @@ export class IncidentsController {
     private readonly report: IncidentReportService,
     private readonly storage: StorageService,
     private readonly knowledge: KnowledgeService,
+    private readonly integratedDocuments: IntegratedDocumentsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private resolveId(id: string, manager: EntityManager): Promise<string> {
@@ -59,6 +71,17 @@ export class IncidentsController {
   private async visibleId(idOrRef: string, ctx: TenantRequest): Promise<string> {
     const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
     await this.svc.ensureIncident(id, ctx.manager as EntityManager, ctx.tenantId, incidentViewerFromContext(ctx));
+    return id;
+  }
+
+  /**
+   * Visibility + closure lock as a fast fail. Never the only protection: the
+   * document service re-evaluates permissions, visibility and the freeze under
+   * the transactional lock (planning/incident-review-document.md §3.3/§3.7).
+   */
+  private async editableId(idOrRef: string, ctx: TenantRequest): Promise<string> {
+    const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
+    await this.svc.ensureEditable(id, this.opts(ctx));
     return id;
   }
 
@@ -178,6 +201,7 @@ export class IncidentsController {
     @Query('lang') lang: string | undefined,
     @Query('tz') tz: string | undefined,
     @Res() res: Response,
+    @Req() req: any,
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
     const id = await this.visibleId(idOrRef, ctx);
@@ -186,6 +210,8 @@ export class IncidentsController {
       tenantId: ctx.tenantId,
       userId: ctx.userId || null,
       viewer: incidentViewerFromContext(ctx),
+      // Inline images of the review are served by an authenticated route.
+      imageFetchCookie: req?.headers?.cookie ?? null,
     }, tz);
     res.setHeader('Content-Type', result.mimeType);
     res.setHeader('Content-Disposition', contentDisposition(result.filename));
@@ -268,6 +294,226 @@ export class IncidentsController {
   async getKnowledgeContext(@Param('id') idOrRef: string, @Tenant() ctx: TenantRequest) {
     const id = await this.visibleId(idOrRef, ctx);
     return this.knowledge.getKnowledgeContextForEntity('incidents', id, { manager: ctx.manager, userId: ctx.userId || null });
+  }
+
+  // Integrated documents (the `incidents:review` slot, §3.4)
+  //
+  // `visibleId`/`editableId` resolve INC-N and fail fast; `ctx.userId` is the
+  // only identity ever forwarded (never anything read from the body), and the
+  // service builds the §3.7 source access context itself.
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'reader')
+  @Get(':id/integrated-documents/:slotKey')
+  async getIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.visibleId(idOrRef, ctx);
+    return this.integratedDocuments.getBySource('incidents', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/locks')
+  async acquireIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.acquireLockBySource('incidents', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/locks/heartbeat')
+  async heartbeatIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.heartbeatLockBySource(
+      'incidents',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  /**
+   * Releasing one's own lock stays possible after closure: it does not modify
+   * the document (§3.3). Hence `visibleId`, not `editableId`.
+   */
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Delete(':id/integrated-documents/:slotKey/locks')
+  async releaseIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.visibleId(idOrRef, ctx);
+    return this.integratedDocuments.releaseLockBySource(
+      'incidents',
+      id,
+      slotKey,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  /** Administrative unlock: register admin only, on top of the route level. */
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'admin')
+  @Delete(':id/integrated-documents/:slotKey/locks/force')
+  async forceReleaseIntegratedDocumentLock(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.visibleId(idOrRef, ctx);
+    return this.integratedDocuments.forceReleaseLockBySource('incidents', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Patch(':id/integrated-documents/:slotKey')
+  async updateIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: any,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.updateBySource(
+      'incidents',
+      id,
+      slotKey,
+      body,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline')
+  @UseInterceptors(FileInterceptor('file', inlineImageMulterOptions))
+  async uploadIntegratedDocumentInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.uploadInlineAttachmentBySource(
+      'incidents',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/attachments/inline/import')
+  async importIntegratedDocumentInlineAttachment(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Body() body: { source_url?: string },
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.importInlineAttachmentBySourceUrl(
+      'incidents',
+      id,
+      slotKey,
+      body?.source_url || '',
+      ctx.userId || null,
+      { manager: ctx.manager },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @UseGuards(RateLimitGuard)
+  @Throttle({ default: RATE_LIMITS.documentImport })
+  @Post(':id/integrated-documents/:slotKey/import')
+  @UseInterceptors(FileInterceptor('file', documentImportMulterOptions))
+  async importIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.importDocumentBySource(
+      'incidents',
+      id,
+      slotKey,
+      file,
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      {
+        manager: ctx.manager,
+        releaseConnection: createRequestReleaseConnection(req, this.dataSource, ctx.tenantId),
+      },
+    );
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'reader')
+  @Get(':id/integrated-documents/:slotKey/versions')
+  async listIntegratedDocumentVersions(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.visibleId(idOrRef, ctx);
+    return this.integratedDocuments.listVersionsBySource('incidents', id, slotKey, ctx.userId || null, {
+      manager: ctx.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('incidents', 'contributor')
+  @Post(':id/integrated-documents/:slotKey/revert/:versionNumber')
+  async revertIntegratedDocument(
+    @Param('id') idOrRef: string,
+    @Param('slotKey') slotKey: string,
+    @Param('versionNumber') versionNumber: string,
+    @Req() req: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    const id = await this.editableId(idOrRef, ctx);
+    return this.integratedDocuments.revertBySource(
+      'incidents',
+      id,
+      slotKey,
+      Number(versionNumber),
+      ctx.userId || null,
+      req?.headers?.['x-lock-token'],
+      { manager: ctx.manager },
+    );
   }
 
   // Attachments

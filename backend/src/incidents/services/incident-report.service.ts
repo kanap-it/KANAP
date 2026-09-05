@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DocumentExportService } from '../../common/document-export.service';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN } from '../../knowledge/integrated-document.constants';
 import { incidentRef } from './incidents-base.service';
 import { IncidentRecordOpts, IncidentRecordService } from './incident-record.service';
 
@@ -26,10 +27,7 @@ export type ReportLabels = {
   created: string;
   updated: string;
   description: string;
-  impact: string;
-  rootCause: string;
-  correctiveActions: string;
-  lessonsLearned: string;
+  reviewVersion: string;
   journal: string;
   occurredAt: string;
   recordedAt: string;
@@ -72,10 +70,6 @@ export type IncidentReportIncident = {
   owner_name?: string | null;
   source_ref?: string | null;
   description?: string | null;
-  impact?: string | null;
-  root_cause?: string | null;
-  corrective_actions?: string | null;
-  lessons_learned?: string | null;
   personal_data_affected?: boolean | string | number | null;
   authority_notification_required?: boolean | string | number | null;
   authority_notified_at?: Date | string | null;
@@ -102,8 +96,16 @@ export type IncidentReportAttachment = {
   uploaded_at?: Date | string | null;
 };
 
+/** The `incidents:review` integrated document, as `IncidentRecordService.load` returns it. */
+export type IncidentReportReview = {
+  document_id?: string | null;
+  item_number?: number | string | null;
+  content_markdown?: string | null;
+};
+
 export type IncidentReportRecord = {
   incident: IncidentReportIncident;
+  review?: IncidentReportReview | null;
   entries?: IncidentReportEntry[];
   assets?: IncidentReportLinked[];
   applications?: IncidentReportLinked[];
@@ -140,10 +142,7 @@ const LABELS: Record<ReportLang, ReportLabels> = {
     created: 'Created',
     updated: 'Updated',
     description: 'Description',
-    impact: 'Impact',
-    rootCause: 'Root cause',
-    correctiveActions: 'Corrective actions',
-    lessonsLearned: 'Lessons learned',
+    reviewVersion: 'Incident review version {version}',
     journal: 'Journal',
     occurredAt: 'Occurred at',
     recordedAt: 'Recorded at',
@@ -196,10 +195,7 @@ const LABELS: Record<ReportLang, ReportLabels> = {
     created: 'Créé',
     updated: 'Modifié',
     description: 'Description',
-    impact: 'Impact',
-    rootCause: 'Cause racine',
-    correctiveActions: 'Actions correctives',
-    lessonsLearned: "Retour d'expérience",
+    reviewVersion: "Revue d'incident version {version}",
     journal: 'Journal',
     occurredAt: 'Survenu le',
     recordedAt: 'Enregistré le',
@@ -252,10 +248,7 @@ const LABELS: Record<ReportLang, ReportLabels> = {
     created: 'Erstellt',
     updated: 'Aktualisiert',
     description: 'Beschreibung',
-    impact: 'Auswirkung',
-    rootCause: 'Ursache',
-    correctiveActions: 'Korrekturmaßnahmen',
-    lessonsLearned: 'Erkenntnisse',
+    reviewVersion: 'Vorfallanalyse Version {version}',
     journal: 'Verlauf',
     occurredAt: 'Eingetreten am',
     recordedAt: 'Erfasst am',
@@ -308,10 +301,7 @@ const LABELS: Record<ReportLang, ReportLabels> = {
     created: 'Creado',
     updated: 'Actualizado',
     description: 'Descripción',
-    impact: 'Impacto',
-    rootCause: 'Causa raíz',
-    correctiveActions: 'Acciones correctivas',
-    lessonsLearned: 'Lecciones aprendidas',
+    reviewVersion: 'Revisión del incidente versión {version}',
     journal: 'Registro',
     occurredAt: 'Ocurrido el',
     recordedAt: 'Registrado el',
@@ -472,11 +462,47 @@ function describeChange(field: string, change: { from: unknown; to: unknown }, l
   return `${label}: ${format(change.from)} → ${format(change.to)}`;
 }
 
-function journalContent(entry: IncidentReportEntry, labels: ReportLabels): string {
+/**
+ * `changed_fields.review_version` carries `{ document_id, version_number, revision }`
+ * (§3.3). It is rendered as a readable version reference in the four report
+ * languages, with the DOC-N business reference — never the document UUID.
+ */
+function describeReviewVersion(
+  change: { from: unknown; to: unknown },
+  labels: ReportLabels,
+  review?: IncidentReportReview | null,
+): string | null {
+  const to = change?.to;
+  if (!to || typeof to !== 'object' || Array.isArray(to)) return null;
+  const value = to as Record<string, unknown>;
+  const version = Number(value.version_number);
+  if (!Number.isFinite(version) || version <= 0) return null;
+
+  const label = labels.reviewVersion.replace('{version}', String(version));
+  const documentId = String(value.document_id ?? '').trim();
+  const reviewDocumentId = String(review?.document_id ?? '').trim();
+  const itemNumber = Number(review?.item_number);
+  if (documentId && reviewDocumentId && documentId === reviewDocumentId && Number.isFinite(itemNumber) && itemNumber > 0) {
+    return `${label} (DOC-${itemNumber})`;
+  }
+  return label;
+}
+
+function journalContent(
+  entry: IncidentReportEntry,
+  labels: ReportLabels,
+  review?: IncidentReportReview | null,
+): string {
   const parts: string[] = [];
   if (entry.kind !== 'link_change' && entry.changed_fields) {
     for (const [field, change] of Object.entries(entry.changed_fields)) {
-      if (change && typeof change === 'object') parts.push(describeChange(field, change, labels));
+      if (!change || typeof change !== 'object') continue;
+      if (field === 'review_version') {
+        const rendered = describeReviewVersion(change, labels, review);
+        if (rendered) parts.push(rendered);
+        continue;
+      }
+      parts.push(describeChange(field, change, labels));
     }
   }
   if (hasText(entry.content)) parts.push(String(entry.content));
@@ -510,6 +536,32 @@ function propertyRow(label: string, value: string | null | undefined): string | 
 
 function heading(level: number, text: string): string {
   return `${'#'.repeat(level)} ${text}`;
+}
+
+/** The five system H2 headings of the §3.2 template, in order. */
+const SYSTEM_REVIEW_TEMPLATE_LINES = INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN
+  .split('\n')
+  .map((line) => line.trim())
+  .filter((line) => line.length > 0);
+
+export function normalizeReviewMarkdown(value: string | null | undefined): string {
+  return String(value ?? '').replace(/\r\n?/g, '\n');
+}
+
+/**
+ * True when the review carries nothing an author wrote: either blank, or
+ * exactly the five system headings of the §3.2 template, in the same order and
+ * with nothing else. Headings are never stripped to decide this — a free
+ * heading such as `## Main router outage` is real content — and the current
+ * library template is never consulted: it may have changed since the incident
+ * was created.
+ */
+export function isSystemTemplateOnlyReview(markdown: string | null | undefined): boolean {
+  const text = normalizeReviewMarkdown(markdown);
+  if (!text.trim()) return true;
+  const lines = text.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
+  if (lines.length !== SYSTEM_REVIEW_TEMPLATE_LINES.length) return false;
+  return lines.every((line, index) => line === SYSTEM_REVIEW_TEMPLATE_LINES[index]);
 }
 
 function bulletList(items: string[]): string {
@@ -565,16 +617,16 @@ export function buildMarkdown(
     sections.push(`${heading(2, labels.properties)}\n\n${propertyRows.join('\n')}`);
   }
 
-  const overview: Array<[string, unknown]> = [
-    [labels.description, incident.description],
-    [labels.impact, incident.impact],
-    [labels.rootCause, incident.root_cause],
-    [labels.correctiveActions, incident.corrective_actions],
-    [labels.lessonsLearned, incident.lessons_learned],
-  ];
-  for (const [label, value] of overview) {
-    if (!hasText(value)) continue;
-    sections.push(`${heading(2, label)}\n\n${escapeMd(value)}`);
+  // Short description: still a plain-text column, so it stays escaped.
+  if (hasText(incident.description)) {
+    sections.push(`${heading(2, labels.description)}\n\n${escapeMd(incident.description)}`);
+  }
+
+  // The review document is Markdown authored in the editor: inserted as-is
+  // (images included), never escaped, never wrapped in an extra heading.
+  const reviewMarkdown = normalizeReviewMarkdown(record.review?.content_markdown);
+  if (!isSystemTemplateOnlyReview(reviewMarkdown)) {
+    sections.push(reviewMarkdown.trim());
   }
 
   const entries = record.entries || [];
@@ -584,7 +636,7 @@ export function buildMarkdown(
       when(entry.created_at) || '',
       authorName(entry, labels),
       lookup(labels.kind, entry.kind || 'note'),
-      journalContent(entry, labels),
+      journalContent(entry, labels, record.review),
     ]);
     sections.push(
       `${heading(2, labels.journal)}\n\n${table(
@@ -669,6 +721,9 @@ function resolveCategoryLabel(
   return match?.label || value;
 }
 
+/** Record options plus the request cookie, forwarded to inline image fetches. */
+export type IncidentReportOpts = IncidentRecordOpts & { imageFetchCookie?: string | null };
+
 @Injectable()
 export class IncidentReportService {
   constructor(
@@ -677,7 +732,7 @@ export class IncidentReportService {
     private readonly itOps: ItOpsSettingsService,
   ) {}
 
-  async exportPdf(id: string, lang: string | undefined, opts: IncidentRecordOpts, timeZone?: string) {
+  async exportPdf(id: string, lang: string | undefined, opts: IncidentReportOpts, timeZone?: string) {
     const locale = normalizeReportLang(lang);
     const labels = labelsFor(locale);
     const record = await this.records.load(id, {
@@ -693,10 +748,17 @@ export class IncidentReportService {
       labels,
       timeZone,
     );
+    // The review can embed inline images served by `/knowledge/inline/...`,
+    // which needs the caller's session cookie — same contract as
+    // `KnowledgeService.exportDocument`. The export service applies its own
+    // allowed-host list on top.
     const exported = await this.documentExport.exportMarkdown(
       markdown,
       'pdf',
       reportHeading(record.incident.item_number, String(record.incident.title || '')),
+      opts.imageFetchCookie
+        ? { imageFetchHeaders: { Cookie: opts.imageFetchCookie } }
+        : undefined,
     );
     return { ...exported, filename: reportPdfFilename(record.incident.item_number) };
   }

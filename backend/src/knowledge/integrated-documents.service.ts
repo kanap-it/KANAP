@@ -2488,7 +2488,7 @@ export class IntegratedDocumentsService {
     content: string | null | undefined,
     userId: string | null | undefined,
     opts?: { manager?: EntityManager; changeNote?: string | null; activityContent?: string | null },
-  ): Promise<{ document_id: string; changed: boolean; version_number: number | null }> {
+  ): Promise<{ document_id: string; changed: boolean; version_number: number | null; revision: number | null }> {
     const manager = this.getManager(opts);
     const normalizedUserId = this.normalizeUserId(userId);
     const slotKey: IntegratedDocumentSlotKey = 'review';
@@ -2515,7 +2515,7 @@ export class IntegratedDocumentsService {
     const existing = await this.getDocumentOrThrow(documentId, manager);
     const nextContent = normalizeMarkdownRichText(content, { fieldName: 'content_markdown' }) || '';
     if (existing.content_markdown === nextContent) {
-      return { document_id: documentId, changed: false, version_number: null };
+      return { document_id: documentId, changed: false, version_number: null, revision: null };
     }
 
     const importContext = await this.buildSourceAccessContext(
@@ -2539,10 +2539,13 @@ export class IntegratedDocumentsService {
     );
 
     const saved = await this.getDocumentOrThrow(documentId, manager);
+    // `revision` completes the `changed_fields.review_version` shape the CSV
+    // import journals (phase A3, §3.8) — same object as the closure snapshot.
     return {
       document_id: documentId,
       changed: true,
       version_number: Number(saved.current_version_number) || null,
+      revision: Number(saved.revision) || null,
     };
   }
 
@@ -3531,6 +3534,37 @@ export class IntegratedDocumentsService {
       sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
     );
     return this.knowledge.releaseLock(documentId, normalizedUserId, lockToken, { manager, sourceContext });
+  }
+
+  /**
+   * Administrative unlock from the entity route (phase A3, §3.4).
+   *
+   * Resolved as a read so it still works on a closed incident; the entry route
+   * carries its own level (`incidents:admin`) and `KnowledgeService.forceReleaseLock`
+   * additionally requires `incidents:admin` for a review.
+   */
+  async forceReleaseLockBySource(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const normalizedUserId = this.normalizeUserId(userId);
+    const managedSlotKey = slotKey as IntegratedDocumentSlotKey;
+    const documentId = await this.resolveManagedDocumentId(
+      sourceEntityType,
+      sourceEntityId,
+      managedSlotKey,
+      'read',
+      normalizedUserId,
+      manager,
+    );
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.forceReleaseLock(documentId, { manager, userId: normalizedUserId, sourceContext });
   }
 
   async updateBySource(

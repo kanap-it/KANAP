@@ -1,6 +1,11 @@
 import * as assert from 'node:assert/strict';
 import { CsvImportContext, CsvImportRow } from '../../common/csv';
-import { incidentCsvConfig } from '../incident-csv.config';
+import {
+  hasPendingIncidentReview,
+  incidentCsvConfig,
+  takePendingIncidentReview,
+  takePreviousIncidentStatus,
+} from '../incident-csv.config';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const HIDDEN_ID = '22222222-2222-2222-2222-222222222222';
@@ -24,11 +29,16 @@ const visibleRestrictedRow = {
   owner_user_id: null,
 };
 
-function mockContext(existing: Array<typeof hiddenRow>, viewer?: CsvImportContext['viewer']): CsvImportContext {
+function mockContext(
+  existing: Array<typeof hiddenRow>,
+  viewer?: CsvImportContext['viewer'],
+  sqlLog?: string[],
+): CsvImportContext {
   return {
     tenantId: TENANT,
     manager: {
       query: async (sql: string, params: unknown[]) => {
+        sqlLog?.push(sql);
         if (sql.includes('FROM tenants')) return [{ metadata: {} }];
         if (sql.includes('item_number = ANY')) {
           const wanted = params[1] as number[];
@@ -102,6 +112,46 @@ async function testHiddenUpdateIsRefusedOnCommit(): Promise<void> {
   );
 }
 
+/**
+ * §3.8: the existing rows are locked before any right is evaluated, and the
+ * pre-image status is kept so the closure snapshot knows this is a transition.
+ */
+async function testUpdateRowsAreLockedAndPreImageKept(): Promise<void> {
+  const sqlLog: string[] = [];
+  const entity: any = {
+    id: VISIBLE_ID,
+    item_number: 13,
+    title: 'Mail outage',
+    status: 'open',
+    detected_at: new Date(),
+  };
+  await incidentCsvConfig.beforeCommit!(
+    [entity],
+    mockContext([{ ...visibleRestrictedRow, status: 'in_progress' } as any], undefined, sqlLog),
+  );
+  const lockQuery = sqlLog.find((sql) => sql.includes('id = ANY'));
+  assert.ok(lockQuery, 'the existing rows must be loaded');
+  assert.match(lockQuery!, /FOR UPDATE/, 'the initial state must be read under a row lock');
+  assert.match(lockQuery!, /status/, 'the pre-image status must be selected');
+  assert.equal(takePreviousIncidentStatus(entity), 'in_progress');
+}
+
+/** A blank cell is recorded as pending-but-empty: the service leaves the review untouched. */
+async function testBlankReviewCellIsRecordedAsEmpty(): Promise<void> {
+  const entity: any = {
+    id: VISIBLE_ID,
+    item_number: 13,
+    title: 'Mail outage',
+    status: 'open',
+    detected_at: new Date(),
+    review: null,
+  };
+  await incidentCsvConfig.beforeCommit!([entity], mockContext([visibleRestrictedRow]));
+  assert.equal('review' in entity, false);
+  assert.equal(hasPendingIncidentReview(entity), true);
+  assert.equal(takePendingIncidentReview(entity), null);
+}
+
 async function run(): Promise<void> {
   assert.ok(incidentCsvConfig.beforeValidate);
   assert.ok(incidentCsvConfig.beforeCommit);
@@ -109,6 +159,8 @@ async function run(): Promise<void> {
   await testVisibleRestrictedRefIsAllowed();
   await testEmptyConfidentialCellIsUnchangedOnUpdate();
   await testHiddenUpdateIsRefusedOnCommit();
+  await testUpdateRowsAreLockedAndPreImageKept();
+  await testBlankReviewCellIsRecordedAsEmpty();
   console.log('incident-csv.config.spec.ts: ok');
 }
 

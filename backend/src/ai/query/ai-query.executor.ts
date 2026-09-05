@@ -2127,8 +2127,16 @@ export class AiQueryExecutor {
         userId: context.userId,
         viewer,
       });
+      // The four narrative columns are gone: the review document carries them
+      // now (planning/incident-review-document.md §3.6). The record service
+      // already applied the incident permissions and row visibility, and the
+      // business reference is exposed, never the document UUID.
       return this.toDetailResult(this.mapIncident(record.incident), {
         ...record.incident,
+        review_markdown: record.review?.content_markdown ?? null,
+        review_document_ref: record.review?.item_number != null
+          ? `DOC-${Number(record.review.item_number)}`
+          : null,
         entries: record.entries,
         assets: record.assets,
         applications: record.applications,
