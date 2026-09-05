@@ -101,6 +101,12 @@ export function compileAgFilterCondition(
   }
 
   if (filterCategory === 'date') {
+    if (type === 'blank' || type === 'empty') {
+      return { sql: `${baseExpr} IS NULL`, params: {} };
+    }
+    if (type === 'notBlank' || type === 'notEmpty') {
+      return { sql: `${baseExpr} IS NOT NULL`, params: {} };
+    }
     const fromRaw = model.dateFrom ?? model.filter ?? model.value;
     const toRaw = model.dateTo ?? model.filterTo ?? model.valueTo;
     const expr = `CAST(${baseExpr} AS DATE)`;

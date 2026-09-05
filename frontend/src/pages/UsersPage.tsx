@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 import ForbiddenPage from './ForbiddenPage';
 import { StatusDot, useKanapDialogs } from '../components/design';
 import { getDotColor, USER_ACCOUNT_STATUS_COLORS } from '../utils/statusColors';
+import CheckboxSetFilter from '../components/CheckboxSetFilter';
+import CheckboxSetFloatingFilter from '../components/CheckboxSetFloatingFilter';
 
 export default function UsersPage() {
   const { t } = useTranslation(['admin', 'common']);
@@ -272,19 +274,67 @@ export default function UsersPage() {
     </IconButton>
   );
 
+  const dateFilterParams = useMemo(() => ({
+    suppressAndOrCondition: true,
+    maxNumConditions: 1,
+    buttons: ['clear'],
+    filterOptions: ['equals', 'notEqual', 'lessThan', 'greaterThan', 'inRange', 'blank', 'notBlank'],
+  }), []);
+
+  const getRoleFilterValues = useCallback(async () => {
+    try {
+      const res = await api.get('/roles');
+      return (res.data?.items ?? []).map((role: { id: string; role_name?: string }) => ({
+        value: role.id,
+        label: role.role_name || role.id,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
   const columns: EnhancedColDef<any>[] = useMemo(() => [
     { field: 'last_name', headerName: t('users.columns.lastName'), width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'first_name', headerName: t('users.columns.firstName'), width: 150, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'email', headerName: t('users.columns.email'), flex: 1, minWidth: 220, required: true, cellRenderer: canManageUsers ? ClickableCell : undefined },
     { field: 'job_title', headerName: t('users.columns.jobTitle'), width: 200, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'status', headerName: t('users.columns.status'), width: 150, filter: false, cellRenderer: UserStatusCell },
     {
-      field: 'last_login_at', headerName: t('users.columns.lastLogin'), width: 160, filter: false,
+      field: 'status',
+      headerName: t('users.columns.status'),
+      width: 150,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        values: [
+          { value: 'enabled', label: t('users.status.enabled') },
+          { value: 'pending_access', label: t('users.status.pending_access') },
+          { value: 'invited', label: t('users.status.invited') },
+          { value: 'disabled', label: t('users.status.disabled') },
+        ],
+        searchable: false,
+      },
+      cellRenderer: UserStatusCell,
+    },
+    {
+      field: 'last_login_at',
+      headerName: t('users.columns.lastLogin'),
+      width: 160,
+      filter: 'agDateColumnFilter',
+      filterParams: dateFilterParams,
       valueFormatter: (p: any) => (p.value ? formatShortDateTime(p.value as string, locale) : t('users.lastLogin.never')),
       cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
     },
     {
-      colId: 'roles', headerName: t('users.columns.roles'), width: 200, sortable: false, filter: false,
+      colId: 'roles',
+      headerName: t('users.columns.roles'),
+      width: 200,
+      sortable: false,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        getValues: getRoleFilterValues,
+        searchable: true,
+      },
       valueGetter: (params) => {
         const names = Array.isArray(params.data?.roles) && params.data.roles.length > 0
           ? params.data.roles.map((r: any) => r.name)
@@ -294,7 +344,19 @@ export default function UsersPage() {
       cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
     },
     {
-      colId: 'account_type', headerName: t('users.columns.accountType'), width: 150, sortable: false, filter: false,
+      colId: 'account_type',
+      headerName: t('users.columns.accountType'),
+      width: 150,
+      sortable: false,
+      filter: CheckboxSetFilter,
+      floatingFilterComponent: CheckboxSetFloatingFilter,
+      filterParams: {
+        values: [
+          { value: 'local', label: t('users.accountType.local') },
+          { value: 'entra', label: t('users.accountType.entra') },
+        ],
+        searchable: false,
+      },
       valueGetter: (params) => (params.data?.external_auth_provider === 'entra' ? t('users.accountType.entra') : t('users.accountType.local')),
       cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
     },
@@ -303,11 +365,20 @@ export default function UsersPage() {
     { field: 'business_phone', headerName: t('users.columns.businessPhone'), width: 180, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'mobile_phone', headerName: t('users.columns.mobilePhone'), width: 160, defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
     { field: 'mfa_enabled', headerName: t('users.columns.mfaEnabled'), width: 120, defaultHidden: true, valueGetter: (params) => params.data?.mfa_enabled ? t('users.mfaValues.yes') : t('users.mfaValues.no'), cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
-    { field: 'created_at', headerName: t('users.columns.created'), width: 200, valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale), defaultHidden: true, cellRenderer: canManageUsers ? ClickableCellGeneric : undefined },
+    {
+      field: 'created_at',
+      headerName: t('users.columns.created'),
+      width: 200,
+      filter: 'agDateColumnFilter',
+      filterParams: dateFilterParams,
+      valueFormatter: (p: any) => formatShortDateTime(p.value as string | null, locale),
+      defaultHidden: true,
+      cellRenderer: canManageUsers ? ClickableCellGeneric : undefined,
+    },
     ...(canManageUsers
       ? [{ colId: 'row_actions', headerName: '', width: 56, sortable: false, filter: false, resizable: false, pinned: 'right', cellRenderer: RowActionsCell } as EnhancedColDef<any>]
       : []),
-  ], [ClickableCell, ClickableCellGeneric, UserStatusCell, RowActionsCell, canManageUsers, locale, t]);
+  ], [ClickableCell, ClickableCellGeneric, UserStatusCell, RowActionsCell, canManageUsers, dateFilterParams, getRoleFilterValues, locale, t]);
 
   if (!hasLevel('users', 'reader')) {
     return <ForbiddenPage />;
