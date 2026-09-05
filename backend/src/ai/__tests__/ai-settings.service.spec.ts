@@ -168,6 +168,25 @@ async function testGlpiUrlNormalizesApiEndpointToBaseUrl() {
   assert.equal(updated.glpi_url, 'https://glpi.internal/helpdesk');
 }
 
+async function testGlpiUrlNormalizesCopiedApiRoutes() {
+  for (const root of ['https://glpi.internal', 'https://glpi.internal/HelpDesk']) {
+    for (const suffix of ['', '/', '/apirest.php/', '/apirest.php/initsession', '/apirest.php/initSession/', '/apirest.php/Ticket/42', '/api.php/v1', '/api.php/v1/initSession/']) {
+      const service = createService(createMockSettings());
+      const updated = await service.update('tenant-1', {
+        glpi_url: `${root}${suffix}?get_full_session=true#documentation`,
+      });
+      assert.equal(updated.glpi_url, new URL(root).toString(), `${root}${suffix}`);
+    }
+  }
+  // Only complete legacy API path segments are stripped.
+  for (const path of ['/my-apirest.php', '/apirest.php-backup', '/api.php/v10', '/api.php/v2']) {
+    const service = createService(createMockSettings());
+    const url = `https://glpi.internal${path}`;
+    const updated = await service.update('tenant-1', { glpi_url: url });
+    assert.equal(updated.glpi_url, url);
+  }
+}
+
 // F1 SSRF: in multi-tenant (default here), saving an internal-IP outbound URL is rejected.
 async function testRejectsInternalGlpiUrlInCloud() {
   const service = createService(createMockSettings());
@@ -195,6 +214,7 @@ async function run() {
   await testEnablingGlpiRequiresUrlAndToken();
   await testGlpiSecretsAreStoredEncryptedAndHiddenInView();
   await testGlpiUrlNormalizesApiEndpointToBaseUrl();
+  await testGlpiUrlNormalizesCopiedApiRoutes();
   await testRejectsInternalGlpiUrlInCloud();
   await testRejectsInternalLlmEndpointInCloud();
 }

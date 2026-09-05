@@ -8,6 +8,7 @@ import { AiModelConfig } from './ai-model-config.entity';
 import { AiModelResolverService } from './ai-model-resolver.service';
 import { AiSettings } from './ai-settings.entity';
 import { AiSecretCipherService } from './ai-secret-cipher.service';
+import { normalizeGlpiPathname } from './glpi/glpi-url';
 import { PlatformAiConfigService } from './platform/platform-ai-config.service';
 import { AiProviderRegistry } from './providers/ai-provider-registry.service';
 
@@ -60,17 +61,6 @@ function normalizeNullableString(value: string | null | undefined): string | nul
   if (value == null) return null;
   const normalized = String(value).trim();
   return normalized === '' ? null : normalized;
-}
-
-function normalizeGlpiPathname(pathname: string): string {
-  const trimmed = (pathname || '/').replace(/\/+$/, '') || '/';
-  if (trimmed === '/apirest.php') {
-    return '/';
-  }
-  if (trimmed.endsWith('/apirest.php')) {
-    return trimmed.slice(0, -'/apirest.php'.length) || '/';
-  }
-  return trimmed;
 }
 
 function normalizeHttpUrl(value: string | null | undefined, fieldName: string): string | null {

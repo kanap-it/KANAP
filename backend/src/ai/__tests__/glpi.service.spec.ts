@@ -86,6 +86,61 @@ async function testInitSessionNormalizesApiEndpointBaseUrl() {
   }
 }
 
+async function testConnectionNormalizesCopiedApiUrls() {
+  const originalFetch = global.fetch;
+  const jsonResponse = (payload: unknown) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+  try {
+    for (const root of ['https://glpi.internal', 'https://glpi.internal/HelpDesk']) {
+      for (const suffix of ['/apirest.php/initsession', '/apirest.php/initSession/', '/api.php/v1', '/api.php/v1/initSession/']) {
+        for (const useOverride of [false, true]) {
+          const configuredUrl = `${root}${suffix}?get_full_session=true#documentation`;
+          const service = createService(useOverride ? 'https://unused.internal' : configuredUrl);
+          const requests: { url: string; headers: Headers }[] = [];
+          global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            requests.push({ url, headers: new Headers(init?.headers) });
+            if (url === `${root}/apirest.php/initSession`) {
+              return jsonResponse({ session_token: 'session-1' });
+            }
+            if (url === `${root}/apirest.php/getFullSession`) {
+              return jsonResponse({ session: { glpiID: 42 } });
+            }
+            if (url === `${root}/apirest.php/killSession`) {
+              return jsonResponse(true);
+            }
+            return new Response(JSON.stringify(['ERROR_SESSION_TOKEN_MISSING', 'Missing session token']), {
+              status: 401,
+              headers: { 'content-type': 'application/json' },
+            });
+          }) as typeof fetch;
+
+          const result = await service.testConnection('tenant-1', useOverride ? { glpi_url: configuredUrl } : undefined, {} as any);
+          assert.equal(result.ok, true, `${configuredUrl}: ${result.message}`);
+          assert.deepEqual(requests.map(({ url }) => url), [
+            `${root}/apirest.php/initSession`,
+            `${root}/apirest.php/getFullSession`,
+            `${root}/apirest.php/killSession`,
+          ]);
+          assert.equal(requests[0].headers.get('authorization'), 'user_token user-token');
+          assert.equal(requests[0].headers.get('session-token'), null);
+          for (const request of requests.slice(1)) {
+            assert.equal(request.headers.get('session-token'), 'session-1');
+            assert.equal(request.headers.get('authorization'), null);
+          }
+          for (const request of requests) {
+            assert.equal(request.headers.get('app-token'), 'app-token');
+          }
+        }
+      }
+    }
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls() {
   const service = createService('https://glpi.internal/helpdesk');
   const originalFetch = global.fetch;
@@ -1007,6 +1062,7 @@ async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
   await testInitSessionNormalizesApiEndpointBaseUrl();
+  await testConnectionNormalizesCopiedApiUrls();
   await testFetchDocumentUsesDocumentApiDownloadForDocumentSendUrls();
   await testFetchDocumentRejectsCrossOriginTargets();
   await testGetTicketExtractsDescriptionImageTargets();

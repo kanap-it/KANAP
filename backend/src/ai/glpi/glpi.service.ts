@@ -6,6 +6,7 @@ import { assertPublicHttpTarget } from '../../common/ssrf-guard';
 import { Features } from '../../config/features';
 import { AiSecretCipherService } from '../ai-secret-cipher.service';
 import { AiSettingsService } from '../ai-settings.service';
+import { normalizeGlpiPathname } from './glpi-url';
 import {
   GlpiConnectionOverrides,
   GlpiDocument,
@@ -50,17 +51,6 @@ function textOrNull(value: unknown): string | null {
 
 function decodeGlpiPlainTextField(value: string | null): string | null {
   return value == null ? null : decodeNumericHtmlEntities(value);
-}
-
-function normalizeGlpiPathname(pathname: string): string {
-  const trimmed = (pathname || '/').replace(/\/+$/, '') || '/';
-  if (trimmed === '/apirest.php') {
-    return '/';
-  }
-  if (trimmed.endsWith('/apirest.php')) {
-    return trimmed.slice(0, -'/apirest.php'.length) || '/';
-  }
-  return trimmed;
 }
 
 function normalizeBaseUrl(value: string | null | undefined): string | null {
