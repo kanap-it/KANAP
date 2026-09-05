@@ -162,7 +162,9 @@ Use the Microsoft 365 profile only if SMTP AUTH is allowed for the mailbox and t
 
 ## Optional: Entra SSO
 
-See the dedicated guide: `sso-entra.md`.
+See the dedicated guide: [Microsoft Entra SSO](sso-entra.md).
+
+It covers the app registration, the delegated and application permissions, and the daily directory sync that refreshes user attributes and disables accounts removed from the directory. The API needs outbound access to `login.microsoftonline.com` and `graph.microsoft.com`.
 
 ## Optional: Advanced
 
@@ -264,7 +266,7 @@ Only required if the corresponding feature is enabled.
 | `api.resend.com` | 443 | Transactional email | If `RESEND_API_KEY` is set |
 | Your SMTP relay or provider | 25 / 465 / 587 | Transactional email via SMTP | If `SMTP_HOST` is set |
 | `login.microsoftonline.com` | 443 | Entra ID SSO metadata & tokens | If Entra SSO is configured |
-| `graph.microsoft.com` | 443 | User profile enrichment | If Entra SSO is configured |
+| `graph.microsoft.com` | 443 | Profile enrichment at sign-in and the daily directory sync | If Entra SSO is configured |
 | `api.worldbank.org` | 443 | Annual FX rates | Optional |
 | `v6.exchangerate-api.com` | 443 | Spot FX rates | Optional |
 
@@ -285,5 +287,9 @@ These connections stay on the server — loopback or Docker bridge network only.
 The backend runs scheduled background jobs for email notifications:
 - **Expiration warnings**: daily at 08:00 UTC — alerts users about contracts and OPEX items expiring within 30 days.
 - **Weekly review digest**: hourly check — sends timezone-aware weekly summaries to users who have opted in.
+
+One more scheduled job runs when Entra SSO is configured:
+
+- **Microsoft Entra directory sync**: daily at 03:00 server time — refreshes user attributes and disables accounts removed or deactivated in the directory. It stays inactive until a Microsoft Entra administrator approves it. See [Microsoft Entra SSO](sso-entra.md).
 
 These jobs require the API to run as a **long-running process** (not a serverless function). In on-premise mode, `APP_BASE_URL` is used for notification email links (no subdomain derivation). If no outbound email transport is configured, these jobs skip sending gracefully.

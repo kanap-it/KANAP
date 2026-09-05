@@ -162,7 +162,9 @@ Verwenden Sie das Microsoft 365-Profil nur, wenn SMTP AUTH für das Postfach und
 
 ## Optional: Entra SSO
 
-Siehe den dedizierten Leitfaden: `sso-entra.md`.
+Siehe den dedizierten Leitfaden: [Microsoft Entra SSO](sso-entra.md).
+
+Er behandelt die App-Registrierung, die delegierten Berechtigungen und die Anwendungsberechtigung sowie die tägliche Verzeichnissynchronisierung, die Benutzerattribute aktualisiert und Konten deaktiviert, die aus dem Verzeichnis entfernt wurden. Die API benötigt ausgehenden Zugriff auf `login.microsoftonline.com` und `graph.microsoft.com`.
 
 ## Optional: Erweitert
 
@@ -264,7 +266,7 @@ Nur erforderlich, wenn die entsprechende Funktion aktiviert ist.
 | `api.resend.com` | 443 | Transaktions-E-Mail | Wenn `RESEND_API_KEY` gesetzt ist |
 | Ihr SMTP-Relay oder Provider | 25 / 465 / 587 | Transaktions-E-Mail über SMTP | Wenn `SMTP_HOST` gesetzt ist |
 | `login.microsoftonline.com` | 443 | Entra ID SSO-Metadaten & Tokens | Wenn Entra SSO konfiguriert ist |
-| `graph.microsoft.com` | 443 | Benutzerprofil-Anreicherung | Wenn Entra SSO konfiguriert ist |
+| `graph.microsoft.com` | 443 | Profilanreicherung bei der Anmeldung und tägliche Verzeichnissynchronisierung | Wenn Entra SSO konfiguriert ist |
 | `api.worldbank.org` | 443 | Jährliche FX-Kurse | Optional |
 | `v6.exchangerate-api.com` | 443 | Kassakurse | Optional |
 
@@ -285,5 +287,9 @@ Diese Verbindungen bleiben auf dem Server -- Loopback oder Docker-Bridge-Netzwer
 Das Backend führt geplante Hintergrundjobs für E-Mail-Benachrichtigungen aus:
 - **Ablaufwarnungen**: täglich um 08:00 UTC -- warnt Benutzer vor Verträgen und OPEX-Positionen, die innerhalb von 30 Tagen ablaufen.
 - **Wöchentlicher Zusammenfassungs-Digest**: stündliche Prüfung -- sendet zeitzonenbewusste wöchentliche Zusammenfassungen an Benutzer, die sich dafür entschieden haben.
+
+Ein weiterer geplanter Job läuft, wenn Entra SSO konfiguriert ist:
+
+- **Microsoft Entra-Verzeichnissynchronisierung**: täglich um 03:00 Uhr Serverzeit -- aktualisiert Benutzerattribute und deaktiviert Konten, die im Verzeichnis entfernt oder deaktiviert wurden. Sie bleibt inaktiv, bis ein Microsoft Entra-Administrator sie genehmigt. Siehe [Microsoft Entra SSO](sso-entra.md).
 
 Diese Jobs erfordern, dass die API als **dauerhaft laufender Prozess** läuft (nicht als Serverless-Funktion). Im On-Premise-Modus wird `APP_BASE_URL` für Benachrichtigungs-E-Mail-Links verwendet (keine Subdomain-Ableitung). Wenn kein ausgehender E-Mail-Transport konfiguriert ist, überspringen diese Jobs das Senden problemlos.

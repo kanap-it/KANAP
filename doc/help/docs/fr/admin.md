@@ -80,6 +80,14 @@ La page Journal d'audit affiche l'historique des modifications au niveau du tena
 - La grille utilise une pagination explicite avec **100 lignes par page**.
 - Les filtres et la recherche s'appliquent à l'ensemble des données, pas seulement à la page actuelle.
 
+### Comprendre la source et l'acteur
+
+- **Source = user** : modification déclenchée par l'action d'un utilisateur authentifié.
+- **Source = webhook** : modification déclenchée par un webhook externe (par exemple des événements de synchronisation de facturation). Utilisez **Réf. source** pour faire le lien avec les identifiants d'événements en amont.
+- **Source = system** : processus interne de la plateforme, sans acteur utilisateur direct.
+
+Si un compte utilisateur n'est plus identifiable dans le contexte actuel, la colonne Utilisateur peut afficher un UUID de repli (`Unknown (xxxx...)`) au lieu d'un e-mail.
+
 ---
 
 ## Utilisateurs et accès
@@ -91,27 +99,54 @@ Gérez qui peut accéder à KANAP et ce qu'ils peuvent faire.
 **Colonnes par défaut** :
 - **Nom** / **Prénom** : Nom de l'utilisateur
 - **Adresse e-mail** : Adresse e-mail de connexion
-- **Intitulé de poste** : Leur rôle dans l'organisation
-- **Rôle** : Rôle principal assigné
+- **Poste** : Leur rôle dans l'organisation
+- **Statut** : Une pastille colorée indiquant l'état du compte. Voir ci-dessous.
+- **Dernière connexion** : Quand la personne s'est connectée pour la dernière fois, ou **Jamais**
+- **Rôles** : tous les rôles assignés à l'utilisateur
+- **Type de compte** : **Local** pour les comptes qui se connectent avec une adresse e-mail et un mot de passe, **Microsoft Entra** pour les comptes qui se connectent avec Microsoft
 - **Société** / **Département** : Affectation organisationnelle de l'utilisateur
 
 **Colonnes supplémentaires** (via le sélecteur de colonnes) :
-- **Tél. professionnel** / **Tél. mobile** : Numéros de contact
+- **Téléphone professionnel** / **Téléphone mobile** : Numéros de contact
 - **MFA activé** : Si l'authentification multi-facteur est active
 - **Créé** : Quand l'utilisateur a été créé
 
-La grille affiche par défaut les utilisateurs **activés**. Utilisez la bascule de périmètre pour basculer entre **Activé**, **Désactivé** et **Tous**.
+**Valeurs de statut** :
+
+| Statut | Signification |
+|--------|---------------|
+| **Activé** | Le compte peut se connecter et utiliser KANAP. |
+| **Désactivé** | Le compte est conservé avec tout son historique, mais ne peut pas se connecter. |
+| **Invité** | Une invitation a été envoyée et n'a pas encore été acceptée. |
+| **Accès en attente** | La personne peut se connecter mais n'a aucun rôle, elle ne peut donc rien ouvrir. Assignez-lui un rôle pour lui donner accès. |
+| **Contact** | Une simple entrée de répertoire. La personne ne se connecte pas. |
+
+La grille affiche par défaut les utilisateurs **Activés**. Utilisez la bascule **Afficher** pour basculer entre **Tous**, **Activés**, **Invités** et **Désactivés**.
 
 ### Actions de gestion des utilisateurs
 
+Actions de la barre d'outils :
+
 | Action | Description | Autorisation |
 |--------|-------------|-------------|
-| **Nouveau** | Créer un nouvel utilisateur | `users:member` |
-| **Modifier** | Modifier les détails de l'utilisateur (cliquez sur n'importe quelle ligne) | `users:member` |
-| **Import CSV** | Import en masse d'utilisateurs | `users:admin` |
-| **Export CSV** | Exporter la liste des utilisateurs | `users:admin` |
+| **Nouveau** | Créer un nouvel utilisateur | `users:admin` |
+| **Importer CSV** | Import en masse d'utilisateurs | `users:admin` |
+| **Exporter CSV** | Exporter la liste des utilisateurs | `users:admin` |
 | **Inviter** | Envoyer des invitations de connexion aux utilisateurs sélectionnés | `users:admin` |
+| **Désactiver** | Désactiver les utilisateurs sélectionnés. Ils sont déconnectés immédiatement. | `users:admin` |
 | **Supprimer** | Supprimer définitivement les utilisateurs sélectionnés | `users:admin` |
+
+`users:reader` suffit pour ouvrir la page et consulter la liste. Toutes les actions ci-dessus, ainsi que les actions de ligne ci-dessous, nécessitent `users:admin`.
+
+Actions de ligne, depuis le menu au bout de chaque ligne :
+
+| Action | Description |
+|--------|-------------|
+| **Modifier** | Ouvrir l'utilisateur pour le modifier. Cliquer sur la ligne fait la même chose. |
+| **Activer** / **Désactiver** | Activer ou désactiver le compte. La désactivation déconnecte la personne immédiatement. |
+| **Envoyer une invitation** | Envoyer une invitation de connexion par e-mail. Masqué pour les comptes Microsoft Entra. |
+| **Envoyer une réinitialisation de mot de passe** | Envoyer un lien de réinitialisation de mot de passe par e-mail. Affiché uniquement pour les comptes locaux activés. |
+| **Supprimer** | Supprimer définitivement l'utilisateur. Désactivez plutôt le compte si d'autres enregistrements le référencent. |
 
 ### Créer un utilisateur
 
@@ -131,6 +166,8 @@ La grille affiche par défaut les utilisateurs **activés**. Utilisez la bascule
 
 Les utilisateurs peuvent se voir assigner plusieurs rôles. Leurs autorisations effectives sont la combinaison de tous les rôles assignés -- si un rôle donne accès à une ressource, l'utilisateur a cet accès.
 
+Retirer tous les rôles ne supprime pas le compte. L'utilisateur revient au rôle système **Contact**, ne conserve aucun accès et apparaît avec le statut **Accès en attente** dans la grille. Vous ne pouvez pas retirer votre propre dernier rôle, vous ne pouvez donc pas vous bloquer l'accès.
+
 ### Gestion des sièges
 
 L'abonnement hébergé inclut un nombre **illimité d'utilisateurs** — il n'y a pas de limite de sièges à gérer :
@@ -139,9 +176,34 @@ L'abonnement hébergé inclut un nombre **illimité d'utilisateurs** — il n'y 
 - Le compteur dans la barre d'outils affiche le nombre d'utilisateurs activés
 - Basculez le commutateur **Activé** lors de la modification d'un utilisateur pour contrôler l'accès
 
-### Utilisateurs gérés par SSO
+### Utilisateurs gérés par Microsoft Entra
 
-Lorsque Microsoft Entra ID (SSO) est connecté, les champs de profil utilisateur (nom, intitulé de poste, téléphone) sont synchronisés depuis Entra à la connexion et ne peuvent pas être modifiés dans KANAP. Vous pouvez toujours gérer les rôles et les affectations organisationnelles.
+Les comptes dont le type de compte est **Microsoft Entra** appartiennent à votre annuaire. Leur profil est actualisé depuis Entra à deux moments :
+
+- **À chaque connexion**, depuis le profil Microsoft de la personne
+- **Chaque nuit**, par la synchronisation quotidienne de l'annuaire, si un administrateur Microsoft Entra l'a approuvée. Voir [Authentification](#authentification).
+
+Les deux actualisent les mêmes champs : prénom, nom, poste, téléphone professionnel, téléphone mobile, ainsi que le département et la société, rapprochés par leur nom des enregistrements qui existent déjà dans KANAP. Les valeurs vides de l'annuaire n'effacent jamais ce qui est stocké dans KANAP.
+
+Lors de la modification d'un de ces utilisateurs, les champs e-mail, nom, poste et téléphone sont verrouillés, avec la mention :
+
+> Cet utilisateur est géré par Microsoft Entra ID et ne peut pas être modifié ici. Dernière synchronisation depuis Microsoft Entra : {date}
+
+Vous pouvez toujours gérer ses rôles, sa société, son département et le commutateur Activé.
+
+Les comptes Microsoft Entra n'ont jamais de mot de passe KANAP. Ils ne peuvent recevoir ni invitation ni réinitialisation de mot de passe.
+
+Si une personne est supprimée de votre annuaire, ou si son compte d'annuaire est désactivé, la synchronisation nocturne désactive son compte KANAP. Elle est déconnectée immédiatement et ses données sont conservées.
+
+### Connexion à la volée avec Microsoft
+
+Lorsque le single sign-on est connecté, une personne qui se connecte avec Microsoft pour la première fois obtient automatiquement un compte KANAP. Si un compte avec la même adresse e-mail existe déjà, il est lié à son identité Microsoft à la place.
+
+Un nouveau compte démarre avec le rôle système **Contact** et aucune autorisation. La personne voit une page indiquant :
+
+> Votre compte n'a pas encore reçu l'accès à KANAP. Demandez à votre administrateur de vous accorder l'accès.
+
+Les administrateurs reçoivent un e-mail lorsque cela se produit. Pour donner l'accès à la personne, ouvrez **Administration > Utilisateurs**, repérez-la à son statut **Accès en attente**, puis assignez-lui un rôle.
 
 ---
 
@@ -269,6 +331,8 @@ Le rôle **Contact** est un rôle système spécial pour les utilisateurs qui ap
 
 Si une personne avec le rôle Contact a besoin d'utiliser activement KANAP, changez son rôle vers un rôle classique (ex. : Lecteur, Member) et invitez-la.
 
+Une exception : une personne créée automatiquement lors de sa première connexion Microsoft porte aussi le rôle Contact. Elle peut se connecter, mais elle n'atteint que la page d'accès en attente tant que vous ne lui avez pas assigné de rôle. La grille l'affiche avec le statut **Accès en attente**.
+
 ### Gérer les rôles
 
 La page Rôles a une disposition à deux panneaux :
@@ -313,10 +377,14 @@ Pour les abonnements actifs (pas les essais locaux), des détails supplémentair
 - **Moyen de paiement** : Détails de la carte ou Virement bancaire
 - **Dernière synchro Stripe** : Quand les données d'abonnement ont été mises à jour depuis Stripe
 
+Si l'abonnement est en période d'essai, le nombre de jours d'essai restants est affiché.
+
 ### Actions
 
 - **Choisir un plan** / **Changer de plan** : Ouvrir la boîte de dialogue du plan pour souscrire ou basculer entre facturation mensuelle et annuelle. Nécessite l'admin facturation.
 - **Gérer l'abonnement** : Ouvrir le portail client Stripe pour mettre à jour les moyens de paiement, annuler ou effectuer d'autres modifications. Disponible uniquement lorsqu'un abonnement Stripe existe.
+
+Si votre abonnement n'est pas en règle (essai expiré, paiement en retard, etc.), la boîte de dialogue de sélection du plan s'ouvre automatiquement lorsque vous visitez la page Facturation.
 
 ### Historique des factures
 
@@ -326,6 +394,8 @@ Les factures passées sont affichées sous la carte d'abonnement :
 - Montant et devise
 - **Voir** : Ouvrir la facture dans le lecteur hébergé de Stripe
 - **Télécharger** : Télécharger le PDF de la facture
+
+Par défaut, les cinq factures les plus récentes sont affichées. Cliquez sur **Afficher plus de factures** pour voir tout l'historique.
 
 ### Informations client
 
@@ -339,17 +409,21 @@ Mettez à jour les coordonnées associées à votre enregistrement client Stripe
 
 Coordonnées séparées utilisées spécifiquement sur les factures. Cliquez sur **Copier depuis le client** pour pré-remplir depuis les informations client ci-dessus.
 
+Les champs sont les mêmes que dans la section Informations client : nom du destinataire, société, e-mail, téléphone, numéro de TVA et adresse complète.
+
+Cliquez sur **Enregistrer les modifications** pour mettre à jour à la fois les informations client et les informations de facturation. Utilisez **Réinitialiser** pour abandonner les modifications non enregistrées.
+
 ---
 
 ## Authentification
 
 Configurez le single sign-on (SSO) pour votre organisation. Cette page n'est disponible que lorsque la fonctionnalité SSO est activée et n'est pas accessible depuis l'hôte platform-admin.
 
-### Microsoft Entra ID (Azure AD)
+### Microsoft Entra ID
 
 Connectez KANAP à votre tenant Microsoft Entra ID pour le SSO :
 
-1. Cliquez sur **Connecter Microsoft Entra**
+1. Cliquez sur **Connecter**
 2. Connectez-vous avec un compte administrateur Microsoft
 3. Accordez les autorisations demandées
 4. Les utilisateurs peuvent maintenant se connecter avec leurs comptes Microsoft
@@ -363,10 +437,28 @@ Connectez KANAP à votre tenant Microsoft Entra ID pour le SSO :
 
 | Action | Description |
 |--------|-------------|
-| **Connecter Microsoft Entra** | Lancer le flux de configuration Microsoft Entra |
-| **Reconnecter Microsoft Entra** | Relancer le flux de configuration (affiché lorsque déjà connecté) |
-| **Tester la connexion Microsoft** | Tester la connexion SSO avec votre compte Microsoft |
+| **Connecter** | Lancer le flux de configuration Microsoft Entra |
+| **Reconnecter** | Relancer le flux de configuration (affiché lorsque déjà connecté) |
+| **Tester la connexion** | Tester la connexion SSO avec votre compte Microsoft |
 | **Déconnecter** | Supprimer la configuration SSO (revient à l'auth locale) |
+
+### Synchronisation quotidienne de l'annuaire
+
+Ce bloc apparaît sous la carte Entra une fois le single sign-on connecté. Chaque nuit à 03h00 (heure du serveur), KANAP actualise les noms, postes, téléphones, départements et sociétés depuis Microsoft Entra, et désactive les comptes supprimés ou désactivés dans l'annuaire.
+
+Les départements et les sociétés sont rapprochés par leur nom des enregistrements qui existent déjà dans KANAP. Rien n'est créé automatiquement. Les valeurs vides de l'annuaire n'effacent jamais ce qui est déjà stocké dans KANAP.
+
+La synchronisation nécessite une approbation unique par un administrateur Microsoft Entra. Tant qu'elle n'est pas accordée, le bloc affiche **Pas encore autorisé. Un administrateur Microsoft Entra doit autoriser KANAP à lire les utilisateurs de l'annuaire.**
+
+| État ou action | Signification |
+|----------------|---------------|
+| **Pas encore autorisé...** | Aucun administrateur Microsoft Entra n'a approuvé la synchronisation, ou l'autorisation requise manque dans l'enregistrement d'application. |
+| **Autoriser dans Microsoft Entra** | Vous envoie vers la page d'approbation de Microsoft. Affiché tant que la synchronisation n'est pas autorisée. Vous revenez avec **Accès accordé. La première synchronisation est en cours.** |
+| **Dernière synchronisation {date} — N comptes actualisés, N désactivés.** | Résultat de la dernière exécution réussie. |
+| **La dernière synchronisation a échoué : {message}** | La dernière exécution ne s'est pas terminée. Le message provient de Microsoft. |
+| **Synchroniser maintenant** | Lance la synchronisation immédiatement au lieu d'attendre la nuit. Affiche **Synchronisation terminée : N comptes actualisés, N désactivés.** |
+
+Les étapes de configuration de l'enregistrement d'application Entra sont décrites dans [SSO Microsoft Entra](on-premise/sso-entra.md).
 
 ---
 

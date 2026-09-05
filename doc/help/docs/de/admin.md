@@ -99,8 +99,11 @@ Verwalten Sie, wer auf KANAP zugreifen kann und was die jeweiligen Personen tun 
 **Standardspalten**:
 - **Nachname** / **Vorname**: Name des Benutzers
 - **E-Mail-Adresse**: Anmelde-E-Mail-Adresse
-- **Berufsbezeichnung**: Rolle in der Organisation
-- **Rolle**: Primär zugewiesene Rolle
+- **Position**: Rolle in der Organisation
+- **Status**: Ein farbiger Punkt mit dem Kontozustand. Siehe unten.
+- **Letzte Anmeldung**: Wann die Person sich zuletzt angemeldet hat, oder **Nie**
+- **Rollen**: Alle dem Benutzer zugewiesenen Rollen
+- **Kontotyp**: **Lokal** für Konten, die sich mit E-Mail und Passwort anmelden, **Microsoft Entra** für Konten, die sich mit Microsoft anmelden
 - **Unternehmen** / **Abteilung**: Organisatorische Zuordnung des Benutzers
 
 **Zusätzliche Spalten** (über Spaltenauswahl):
@@ -108,18 +111,42 @@ Verwalten Sie, wer auf KANAP zugreifen kann und was die jeweiligen Personen tun 
 - **MFA aktiviert**: Ob Multi-Faktor-Authentifizierung aktiv ist
 - **Erstellt**: Wann der Benutzer erstellt wurde
 
-Das Grid zeigt standardmäßig **aktivierte** Benutzer. Verwenden Sie den Bereichsumschalter, um zwischen **Aktiviert**, **Deaktiviert** und **Alle** zu wechseln.
+**Statuswerte**:
+
+| Status | Bedeutung |
+|--------|-----------|
+| **Aktiv** | Das Konto kann sich anmelden und KANAP nutzen. |
+| **Deaktiviert** | Das Konto bleibt mit seiner gesamten Historie erhalten, kann sich aber nicht anmelden. |
+| **Eingeladen** | Eine Einladung wurde gesendet und noch nicht angenommen. |
+| **Zugriff ausstehend** | Die Person kann sich anmelden, hat aber keine Rolle und kann daher nichts öffnen. Weisen Sie eine Rolle zu, um Zugriff zu geben. |
+| **Kontakt** | Nur ein Verzeichniseintrag. Die Person meldet sich nicht an. |
+
+Das Grid zeigt standardmäßig **aktive** Benutzer. Verwenden Sie den Umschalter **Anzeigen**, um zwischen **Alle**, **Aktiv**, **Eingeladen** und **Deaktiviert** zu wechseln.
 
 ### Benutzerverwaltungsaktionen
 
+Aktionen in der Symbolleiste:
+
 | Aktion | Beschreibung | Berechtigung |
 |--------|--------------|--------------|
-| **Neu** | Neuen Benutzer erstellen | `users:member` |
-| **Bearbeiten** | Benutzerdetails ändern (beliebige Zeile anklicken) | `users:member` |
+| **Neu** | Neuen Benutzer erstellen | `users:admin` |
 | **CSV importieren** | Massenimport von Benutzern | `users:admin` |
 | **CSV exportieren** | Benutzerliste exportieren | `users:admin` |
 | **Einladen** | Anmeldeeinladungen an ausgewählte Benutzer senden | `users:admin` |
+| **Deaktivieren** | Die ausgewählten Benutzer deaktivieren. Sie werden sofort abgemeldet. | `users:admin` |
 | **Löschen** | Ausgewählte Benutzer dauerhaft entfernen | `users:admin` |
+
+`users:reader` genügt, um die Seite zu öffnen und die Liste zu lesen. Alle Aktionen oben und die folgenden Zeilenaktionen erfordern `users:admin`.
+
+Zeilenaktionen über das Menü am Ende jeder Zeile:
+
+| Aktion | Beschreibung |
+|--------|--------------|
+| **Bearbeiten** | Öffnet den Benutzer zur Bearbeitung. Ein Klick auf die Zeile bewirkt dasselbe. |
+| **Aktivieren** / **Deaktivieren** | Schaltet das Konto ein oder aus. Beim Deaktivieren wird die Person sofort abgemeldet. |
+| **Einladung senden** | Sendet eine Anmeldeeinladung per E-Mail. Für Microsoft Entra-Konten ausgeblendet. |
+| **Passwort-Zurücksetzung senden** | Sendet einen Link zum Zurücksetzen des Passworts per E-Mail. Nur für aktive lokale Konten sichtbar. |
+| **Löschen** | Entfernt den Benutzer dauerhaft. Deaktivieren Sie das Konto stattdessen, wenn andere Datensätze darauf verweisen. |
 
 ### Benutzer erstellen
 
@@ -139,6 +166,8 @@ Das Grid zeigt standardmäßig **aktivierte** Benutzer. Verwenden Sie den Bereic
 
 Benutzern können mehrere Rollen zugewiesen werden. Ihre effektiven Berechtigungen sind die Kombination aller zugewiesenen Rollen -- wenn eine Rolle Zugriff auf eine Ressource gewährt, hat der Benutzer diesen Zugriff.
 
+Das Entfernen aller Rollen löscht das Konto nicht. Der Benutzer fällt auf die Systemrolle **Kontakt** zurück, behält keinen Zugriff und erscheint im Grid mit dem Status **Zugriff ausstehend**. Sie können Ihre eigene letzte Rolle nicht entfernen und sperren sich damit nicht selbst aus.
+
 ### Platzverwaltung
 
 Das gehostete Abonnement umfasst **unbegrenzte Nutzer** — es gibt kein Platzlimit zu verwalten:
@@ -147,9 +176,34 @@ Das gehostete Abonnement umfasst **unbegrenzte Nutzer** — es gibt kein Platzli
 - Der Zähler in der Symbolleiste zeigt die Anzahl der aktivierten Benutzer
 - Schalten Sie den **Aktiviert**-Schalter beim Bearbeiten eines Benutzers um, um den Zugriff zu steuern
 
-### SSO-verwaltete Benutzer
+### Von Microsoft Entra verwaltete Benutzer
 
-Wenn Microsoft Entra ID (SSO) verbunden ist, werden Benutzerprofilfelder (Name, Berufsbezeichnung, Telefon) bei der Anmeldung aus Entra synchronisiert und können in KANAP nicht bearbeitet werden. Sie können weiterhin Rollen und organisatorische Zuordnungen verwalten.
+Konten mit dem Kontotyp **Microsoft Entra** gehören Ihrem Verzeichnis. Ihr Profil wird zu zwei Zeitpunkten aus Entra aktualisiert:
+
+- **Bei jeder Anmeldung**, aus dem eigenen Microsoft-Profil der Person
+- **Jede Nacht**, durch die tägliche Verzeichnissynchronisierung, sofern ein Microsoft Entra-Administrator sie genehmigt hat. Siehe [Authentifizierung](#authentifizierung).
+
+Beide aktualisieren dieselben Felder: Vorname, Nachname, Position, Geschäftstelefon, Mobiltelefon sowie Abteilung und Unternehmen, die nach Namen mit bereits in KANAP vorhandenen Datensätzen abgeglichen werden. Leere Werte im Verzeichnis löschen niemals das, was in KANAP gespeichert ist.
+
+Beim Bearbeiten eines solchen Benutzers sind die Felder E-Mail, Name, Position und Telefon gesperrt, mit dem Hinweis:
+
+> Dieser Benutzer wird von Microsoft Entra ID verwaltet und kann hier nicht bearbeitet werden. Zuletzt aus Microsoft Entra synchronisiert: {Datum}
+
+Rollen, Unternehmen, Abteilung und den Aktiviert-Schalter können Sie weiterhin verwalten.
+
+Microsoft Entra-Konten haben nie ein KANAP-Passwort. An sie kann weder eine Einladung noch eine Passwort-Zurücksetzung gesendet werden.
+
+Wenn jemand aus Ihrem Verzeichnis entfernt wird oder sein Verzeichniskonto deaktiviert wird, deaktiviert die nächtliche Synchronisierung sein KANAP-Konto. Die Person wird sofort abgemeldet und ihre Daten bleiben erhalten.
+
+### Just-in-time-Anmeldung mit Microsoft
+
+Wenn Single Sign-On verbunden ist, erhält eine Person, die sich zum ersten Mal mit Microsoft anmeldet, automatisch ein KANAP-Konto. Existiert bereits ein Konto mit derselben E-Mail-Adresse, wird stattdessen dieses mit ihrer Microsoft-Identität verknüpft.
+
+Ein neues Konto startet mit der Systemrolle **Kontakt** und ohne Berechtigungen. Die Person sieht eine Seite mit dem Hinweis:
+
+> Ihr Konto hat noch keinen Zugriff auf KANAP erhalten. Bitten Sie Ihren Administrator, Ihnen Zugriff zu gewähren.
+
+Administratoren erhalten in diesem Fall eine E-Mail. Um der Person Zugriff zu geben, öffnen Sie **Administration > Benutzer**, suchen Sie sie über den Status **Zugriff ausstehend** und weisen Sie eine Rolle zu.
 
 ---
 
@@ -277,6 +331,8 @@ Die Rolle **Kontakt** ist eine spezielle Systemrolle für Benutzer, die in Dropd
 
 Wenn jemand mit der Kontakt-Rolle KANAP aktiv nutzen muss, ändern Sie die Rolle zu einer regulären Rolle (z. B. Leser, Mitglied) und laden Sie die Person ein.
 
+Eine Ausnahme: Auch eine Person, die bei ihrer ersten Microsoft-Anmeldung automatisch angelegt wird, hat die Kontakt-Rolle. Sie kann sich anmelden, erreicht aber nur die Seite mit dem ausstehenden Zugriff, bis Sie ihr eine Rolle zuweisen. Im Grid erscheint sie als **Zugriff ausstehend**.
+
 ### Rollen verwalten
 
 Die Rollenseite hat ein zweispaltiges Layout:
@@ -363,11 +419,11 @@ Klicken Sie auf **Änderungen speichern**, um Kunden- und Rechnungsdaten zu aktu
 
 Konfigurieren Sie Single Sign-On (SSO) für Ihre Organisation. Diese Seite ist nur verfügbar, wenn das SSO-Feature aktiviert ist, und ist vom Plattform-Admin-Host aus nicht zugänglich.
 
-### Microsoft Entra ID (Azure AD)
+### Microsoft Entra ID
 
 Verbinden Sie KANAP mit Ihrem Microsoft Entra ID-Mandanten für SSO:
 
-1. Klicken Sie auf **Microsoft Entra verbinden**
+1. Klicken Sie auf **Verbinden**
 2. Melden Sie sich mit einem Microsoft-Administratorkonto an
 3. Erteilen Sie die angeforderten Berechtigungen
 4. Benutzer können sich jetzt mit ihren Microsoft-Konten anmelden
@@ -381,10 +437,28 @@ Verbinden Sie KANAP mit Ihrem Microsoft Entra ID-Mandanten für SSO:
 
 | Aktion | Beschreibung |
 |--------|--------------|
-| **Microsoft Entra verbinden** | Microsoft Entra-Einrichtungsablauf starten |
-| **Microsoft Entra erneut verbinden** | Einrichtungsablauf erneut durchführen (wird angezeigt, wenn bereits verbunden) |
-| **Microsoft-Anmeldung testen** | SSO-Anmeldung mit Ihrem Microsoft-Konto testen |
+| **Verbinden** | Microsoft Entra-Einrichtungsablauf starten |
+| **Erneut verbinden** | Einrichtungsablauf erneut durchführen (wird angezeigt, wenn bereits verbunden) |
+| **Anmeldung testen** | SSO-Anmeldung mit Ihrem Microsoft-Konto testen |
 | **Trennen** | SSO-Konfiguration entfernen (kehrt zur lokalen Authentifizierung zurück) |
+
+### Tägliche Verzeichnissynchronisierung
+
+Dieser Block erscheint unterhalb der Entra-Karte, sobald Single Sign-On verbunden ist. Jede Nacht um 03:00 Uhr Serverzeit aktualisiert KANAP Namen, Titel, Telefonnummern, Abteilungen und Unternehmen aus Microsoft Entra und deaktiviert Konten, die im Verzeichnis entfernt oder deaktiviert wurden.
+
+Abteilungen und Unternehmen werden nach Namen mit bereits in KANAP vorhandenen Datensätzen abgeglichen. Es wird nichts automatisch angelegt. Leere Werte im Verzeichnis löschen niemals das, was bereits in KANAP gespeichert ist.
+
+Die Synchronisierung erfordert eine einmalige Genehmigung durch einen Microsoft Entra-Administrator. Bis sie erteilt ist, zeigt der Block **Noch nicht autorisiert. Ein Microsoft Entra-Administrator muss KANAP die Berechtigung erteilen, Verzeichnisbenutzer zu lesen.**
+
+| Zustand oder Aktion | Was er bedeutet |
+|---------------------|-----------------|
+| **Noch nicht autorisiert...** | Kein Microsoft Entra-Administrator hat die Synchronisierung genehmigt, oder die erforderliche Berechtigung fehlt in der App-Registrierung. |
+| **Zugriff in Microsoft Entra gewähren** | Führt Sie zur Genehmigungsseite von Microsoft. Wird angezeigt, solange die Synchronisierung nicht autorisiert ist. Sie kehren zurück mit **Zugriff gewährt. Die erste Synchronisierung läuft.** |
+| **Zuletzt synchronisiert {Datum} — N Konten aktualisiert, N deaktiviert.** | Ergebnis des letzten erfolgreichen Laufs. |
+| **Die letzte Synchronisierung ist fehlgeschlagen: {Meldung}** | Der letzte Lauf wurde nicht abgeschlossen. Die Meldung stammt von Microsoft. |
+| **Jetzt synchronisieren** | Startet die Synchronisierung sofort, statt auf die kommende Nacht zu warten. Meldet **Synchronisierung abgeschlossen: N Konten aktualisiert, N deaktiviert.** |
+
+Die Einrichtungsschritte für die Entra-App-Registrierung finden Sie unter [Microsoft Entra SSO](on-premise/sso-entra.md).
 
 ---
 

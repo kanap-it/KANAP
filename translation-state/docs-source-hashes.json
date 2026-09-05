@@ -1,6 +1,6 @@
 {
   "files": {
-    "admin.md": "c5f20838caa64a1354c2c4bb71822fb7",
+    "admin.md": "20f4b02133909d4c97fe78c8afe64adf",
     "agents-activity.md": "b34017d2899defb00d1a4b0e4455d75d",
     "agents-approvals.md": "ede93b37385780cf3835c7b0066149c8",
     "agents-overview.md": "26607a780b60fc9a1ec39f0444ab6853",
@@ -39,13 +39,13 @@
     "locations.md": "68c59ee4eeed18a5ccb832853bc9dee9",
     "master-data-operations.md": "d53d269ee19d0ba432787fbfa6754cf4",
     "my-dashboard.md": "e9b830a2a0e0f3ebf739bf16a2435407",
-    "on-premise/configuration.md": "0a6f1bf8151ca4f385abeb759605fbb8",
+    "on-premise/configuration.md": "fdb3b7e62265291b3d9fad179e0cb525",
     "on-premise/index.md": "2ebc7caf6566d78bdff5d517e1b34700",
     "on-premise/installation-ai.md": "c1287475fc3ccfa953ff4aa1e6276ec8",
     "on-premise/installation-example.md": "05157a107d5720b319476677ef2de1e8",
     "on-premise/installation.md": "020439f214e17209aa4975b73bd096b4",
     "on-premise/operations.md": "ba26f5c7262aaafedbd764b94d202118",
-    "on-premise/sso-entra.md": "df38c5c6cef41a13b2b3ff53f21a6729",
+    "on-premise/sso-entra.md": "4e730bcbc90df6331617f102728130bf",
     "operations-dashboard.md": "3542ec8ca14baadccff87fb3edc21215",
     "opex.md": "d9e4e9f13057aaeafacfd49619fe1265",
     "portfolio-planning.md": "90a8528b994c5c562148b8f069a0701e",

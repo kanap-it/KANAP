@@ -21,7 +21,7 @@ Jeder On-Premise-Kunde **muss seine eigene Entra-Anwendung registrieren** und de
 - Fähigkeit, eine App-Registrierung zu erstellen und Admin-Zustimmung in Entra zu erteilen
 - Ausgehende Konnektivität vom KANAP-API-Container zu:
   - `login.microsoftonline.com` (OIDC-Metadaten, Token-Austausch, JWKS)
-  - `graph.microsoft.com` (optionale Profilanreicherung)
+  - `graph.microsoft.com` (Profilanreicherung bei der Anmeldung und tägliche Verzeichnissynchronisierung)
 
 ## Schritt 1: App-Registrierung erstellen (Entra)
 
@@ -42,18 +42,50 @@ Jeder On-Premise-Kunde **muss seine eigene Entra-Anwendung registrieren** und de
 
 ## Schritt 3: API-Berechtigungen
 
-KANAP fordert während der Entra-Anmeldung folgende Bereiche an:
+KANAP benötigt zwei Arten von Berechtigungen: delegierte Berechtigungen für die interaktive Anmeldung und eine Anwendungsberechtigung für die tägliche Verzeichnissynchronisierung.
 
-- `openid profile email offline_access`
-- `User.Read` (Microsoft Graph, für Profilanreicherung)
+### Delegierte Berechtigungen (Anmeldung)
 
-Stellen Sie sicher, dass **Microsoft Graph > User.Read (Delegiert)** erlaubt ist, und erteilen Sie bei Bedarf Admin-Zustimmung.
+Jede Anmeldeanfrage fordert bei Entra genau diese Bereiche an:
 
-Wenn Sie Graph-Aufrufe nicht zulassen möchten, setzen Sie:
+```
+openid profile email offline_access User.Read
+```
+
+Fügen Sie alle fünf als **konfigurierte** Berechtigungen der App-Registrierung hinzu:
+
+1. Öffnen Sie **App-Registrierungen > Ihre KANAP-App > API-Berechtigungen**
+2. **Berechtigung hinzufügen > Microsoft Graph > Delegierte Berechtigungen**
+3. Wählen Sie `openid`, `profile`, `email`, `offline_access` und `User.Read`
+4. Klicken Sie auf **Berechtigungen hinzufügen**
+
+`User.Read` erlaubt KANAP, das eigene Profil der angemeldeten Person aus Microsoft Graph zu lesen, um Name, Position, Telefonnummern, Abteilung und Unternehmen zu füllen. Behalten Sie diese Berechtigung. Sie ist eine eigenständige Berechtigung neben `User.Read.All` und keine ältere Version davon. Ohne sie werden Benutzer bei jeder Anmeldung zur Zustimmung aufgefordert oder die Anmeldung schlägt fehl.
+
+!!! warning "Fügen Sie die OIDC-Bereiche hinzu, bevor Sie die Admin-Zustimmung erteilen"
+    Eine mandantenweite Admin-Zustimmung überschreibt die Berechtigungsgewährung der App mit der Liste der **konfigurierten** Berechtigungen. `openid`, `profile`, `email` und `offline_access` stehen üblicherweise unter "Andere gewährte Berechtigungen" und sind nicht standardmäßig konfiguriert. Eine mandantenweite Zustimmung würde sie also entfernen und bestehende Anmeldungen unterbrechen. Das Azure-Portal zeigt diese Warnung selbst an. Fügen Sie zuerst die vier Bereiche als konfigurierte delegierte Berechtigungen hinzu und erteilen Sie dann die Zustimmung.
+
+### Anwendungsberechtigung (tägliche Verzeichnissynchronisierung)
+
+Die nächtliche Verzeichnissynchronisierung läuft ohne angemeldeten Benutzer und benötigt daher eine Anwendungsberechtigung:
+
+1. **API-Berechtigungen > Berechtigung hinzufügen > Microsoft Graph > Anwendungsberechtigungen**
+2. Wählen Sie **`User.Read.All`**
+3. Klicken Sie auf **Berechtigungen hinzufügen**
+
+Die neue Zeile zeigt nun den Status **Nicht gewährt** mit einer orangefarbenen Warnung. Das ist zu erwarten. Die Berechtigung wird nutzbar, sobald ein Microsoft Entra-Administrator die mandantenweite Zustimmung erteilt. Das geschieht aus KANAP heraus in [Schritt 7](#schritt-7-die-tagliche-verzeichnissynchronisierung-autorisieren).
+
+Wer macht was:
+
+- **Gehostetes KANAP**: Der KANAP-Betreiber verwaltet die App-Registrierung und fügt die Berechtigung hinzu. Der Entra-Administrator des Kunden erteilt nur die Zustimmung.
+- **On-Premise**: Die IT des Kunden verwaltet die App-Registrierung selbst, fügt also die Berechtigung hinzu und erteilt die Zustimmung.
+
+### Wenn Sie keine Graph-Aufrufe bei der Anmeldung möchten
 
 ```
 ENTRA_ENRICH_PROFILE=false
 ```
+
+Damit wird nur der Microsoft Graph `/me`-Aufruf während der Anmeldung übersprungen. Namen und andere Profilfelder stammen dann allein aus dem ID-Token. Die tägliche Verzeichnissynchronisierung wird dadurch nicht deaktiviert, sie nutzt ihre eigene Anwendungsberechtigung.
 
 ## Schritt 4: KANAP-Umgebungsvariablen konfigurieren
 
@@ -80,16 +112,52 @@ Nach der Aktualisierung von `.env` starten Sie Ihre Container neu, damit die API
 
 1. Als Admin anmelden
 2. Gehen Sie zu **Administration > Authentifizierung**
-3. Klicken Sie auf **Microsoft Entra verbinden**
+3. Klicken Sie in der Karte **Microsoft Entra ID** auf **Verbinden**
 4. Zustimmung in Entra erteilen
 5. Verwenden Sie **Anmeldung testen**, um die End-to-End-Anmeldung zu bestätigen
 
+## Schritt 7: Die tägliche Verzeichnissynchronisierung autorisieren
+
+Der Block **Tägliche Verzeichnissynchronisierung** erscheint unter **Administration > Authentifizierung**, sobald Entra verbunden ist. Bis ein Microsoft Entra-Administrator ihn genehmigt, zeigt der Block:
+
+> Noch nicht autorisiert. Ein Microsoft Entra-Administrator muss KANAP die Berechtigung erteilen, Verzeichnisbenutzer zu lesen.
+
+So genehmigen Sie sie:
+
+1. Melden Sie sich bei KANAP als Admin an, der zugleich Microsoft Entra-Administrator ist
+2. Gehen Sie zu **Administration > Authentifizierung > Tägliche Verzeichnissynchronisierung**
+3. Klicken Sie auf **Zugriff in Microsoft Entra gewähren**
+4. Genehmigen Sie die Anfrage auf der Zustimmungsseite von Microsoft
+
+Sie kehren zu KANAP zurück und sehen die Meldung **Zugriff gewährt. Die erste Synchronisierung läuft.** Die Zeile "Noch nicht autorisiert" verschwindet.
+
+Sie können die Zustimmung auch im Azure-Portal mit **Administratorzustimmung für &lt;Mandant&gt; erteilen** auf der Seite mit den API-Berechtigungen erteilen. KANAP bemerkt das dann erst bei der nächsten Synchronisierung. Klicken Sie auf **Jetzt synchronisieren**, um sofort zu prüfen. Da KANAP sein Microsoft-Token zwischenspeichert, kann der erste Versuch direkt nach einer Zustimmung im Portal noch "nicht autorisiert" melden. Klicken Sie erneut auf **Jetzt synchronisieren** und es funktioniert. Der nächtliche Lauf erholt sich in jedem Fall von selbst.
+
+## Die tägliche Verzeichnissynchronisierung
+
+Nach der Autorisierung kontaktiert KANAP jede Nacht um 03:00 Uhr Serverzeit Microsoft Graph und führt für jeden mit Entra verknüpften Benutzer Folgendes aus:
+
+- Aktualisiert Vorname, Nachname, Position, Geschäftstelefon, Mobiltelefon
+- Gleicht Abteilung und Unternehmen aus dem Verzeichnis **nach Namen** mit bestehenden KANAP-Datensätzen ab. Es wird nichts automatisch angelegt, und ein Name ohne Treffer lässt die Zuordnung unverändert.
+- Setzt die Oberflächensprache nur, wenn die Person keine gewählt hat
+- Deaktiviert das KANAP-Konto, wenn die Person aus dem Verzeichnis entfernt wurde oder ihr Verzeichniskonto deaktiviert wurde (`accountEnabled` ist false)
+
+Leere Verzeichniswerte löschen niemals Daten, die bereits in KANAP vorhanden sind.
+
+Das Deaktivieren eines Kontos meldet die Person sofort ab und verhindert jede weitere Anmeldung. Ihre Daten und ihr Verlauf bleiben erhalten.
+
+Der Block unter **Administration > Authentifizierung** meldet das Ergebnis: **Zuletzt synchronisiert {Datum} — N Konten aktualisiert, N deaktiviert.** nach einem erfolgreichen Lauf, sonst **Die letzte Synchronisierung ist fehlgeschlagen: {Meldung}**. **Jetzt synchronisieren** startet denselben Vorgang bei Bedarf.
+
 ## Fehlerbehebung
 
-- **SSO_NOT_CONFIGURED**: Entra-Umgebungsvariablen fehlen oder Mandant ist nicht verbunden.
-- **ENTRA_TENANT_MISMATCH**: Sie haben einen Mandanten verbunden, versuchen sich aber von einem anderen anzumelden.
+- **SSO_NOT_CONFIGURED**: Entra-Umgebungsvariablen fehlen oder Mandant ist nicht verbunden. Benutzer sehen "Die Anmeldung mit Microsoft ist für diesen Arbeitsbereich nicht eingerichtet."
+- **ENTRA_TENANT_MISMATCH**: Sie haben einen Mandanten verbunden, versuchen sich aber von einem anderen anzumelden. Benutzer sehen "Dieses Microsoft-Konto gehört zu einer anderen Organisation als der mit diesem Arbeitsbereich verbundenen."
+- **ENTRA_EMAIL_UNVERIFIED**: Die E-Mail-Adresse des Microsoft-Kontos ist nicht verifiziert und kann daher nicht zur Anmeldung verwendet werden.
 - **Invalid Entra state / nonce**: Der Anmeldestatus ist abgelaufen oder die Entra-Weiterleitung ist nicht zur konfigurierten Callback-URL zurückgekehrt. Versuchen Sie die Anmeldung erneut und prüfen Sie, dass `ENTRA_REDIRECT_URI` exakt mit der Entra-App-Registrierung übereinstimmt.
 - **Fehlerhafte Umleitung nach Anmeldung**: Prüfen Sie `APP_BASE_URL` und Reverse-Proxy-Header (`Host`, `X-Forwarded-Proto`).
+- **"Noch nicht autorisiert" bei der Verzeichnissynchronisierung**: Entweder wurde die Anwendungsberechtigung `User.Read.All` nie zur App-Registrierung hinzugefügt, oder ein Microsoft Entra-Administrator hat die mandantenweite Zustimmung noch nicht erteilt. Prüfen Sie beides und klicken Sie dann auf **Jetzt synchronisieren**.
+- **Anmeldungen schlagen direkt nach dem Erteilen der Admin-Zustimmung fehl**: Die Zustimmung hat die Berechtigungsgewährung der App durch die Liste der konfigurierten Berechtigungen ersetzt und dabei `openid`, `profile`, `email` und `offline_access` entfernt. Fügen Sie diese als konfigurierte delegierte Berechtigungen hinzu und erteilen Sie die Zustimmung erneut.
+- **Abgelaufenes Client-Secret**: Microsoft gibt `AADSTS7000222` zurück. Benutzer sehen auf der Anmeldeseite nur die allgemeine Meldung "Die Anmeldung mit Microsoft wurde nicht abgeschlossen. Versuchen Sie es erneut oder wenden Sie sich an Ihren Administrator." Um die Ursache zu bestätigen, sehen Sie unter **Administration > Authentifizierung > Tägliche Verzeichnissynchronisierung** nach: Die Fehlerzeile nennt den Microsoft-Fehlercode. Ein erneutes **Verbinden** zeigt ihn ebenfalls. Erstellen Sie ein neues Client-Secret unter **Zertifikate & Geheimnisse**, aktualisieren Sie `ENTRA_CLIENT_SECRET` und starten Sie die API neu.
 
 ## Sicherheitshinweise
 

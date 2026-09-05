@@ -98,28 +98,55 @@ Gestione quién puede acceder a KANAP y qué puede hacer.
 
 **Columnas predeterminadas**:
 - **Apellido** / **Nombre**: Nombre del usuario
-- **Dirección de correo electrónico**: Correo de inicio de sesión
-- **Puesto de trabajo**: Su cargo en la organización
-- **Rol**: Rol principal asignado
+- **Correo electrónico**: Correo de inicio de sesión
+- **Cargo**: Su cargo en la organización
+- **Estado**: Un punto de color con el estado de la cuenta. Vea más abajo.
+- **Último inicio de sesión**: Cuándo inició sesión la persona por última vez, o **Nunca**
+- **Roles**: todos los roles asignados al usuario
+- **Tipo de cuenta**: **Local** para las cuentas que inician sesión con correo y contraseña, **Microsoft Entra** para las que inician sesión con Microsoft
 - **Empresa** / **Departamento**: Asignación organizacional del usuario
 
 **Columnas adicionales** (mediante el selector de columnas):
-- **Teléfono profesional** / **Teléfono móvil**: Números de contacto
+- **Teléfono de empresa** / **Teléfono móvil**: Números de contacto
 - **MFA habilitado**: Si la autenticación multifactor está activa
 - **Creado**: Cuándo se creó el usuario
 
-La cuadrícula muestra por defecto los usuarios **habilitados**. Utilice el conmutador de alcance para alternar entre **Habilitados**, **Deshabilitados** y **Todos**.
+**Valores de estado**:
+
+| Estado | Significado |
+|--------|-------------|
+| **Activado** | La cuenta puede iniciar sesión y usar KANAP. |
+| **Desactivado** | La cuenta se conserva con todo su historial, pero no puede iniciar sesión. |
+| **Invitado** | Se envió una invitación y todavía no ha sido aceptada. |
+| **Acceso pendiente** | La persona puede iniciar sesión pero no tiene ningún rol, así que no puede abrir nada. Asígnele un rol para darle acceso. |
+| **Contacto** | Solo una entrada del directorio. La persona no inicia sesión. |
+
+La cuadrícula muestra por defecto los usuarios **Activos**. Utilice el conmutador **Mostrar** para alternar entre **Todos**, **Activos**, **Invitados** y **Desactivados**.
 
 ### Acciones de gestión de usuarios
 
+Acciones de la barra de herramientas:
+
 | Acción | Descripción | Permiso |
 |--------|-------------|---------|
-| **Nuevo** | Crear un nuevo usuario | `users:member` |
-| **Editar** | Modificar datos del usuario (haga clic en cualquier fila) | `users:member` |
+| **Nuevo** | Crear un nuevo usuario | `users:admin` |
 | **Importar CSV** | Importación masiva de usuarios | `users:admin` |
 | **Exportar CSV** | Exportar lista de usuarios | `users:admin` |
 | **Invitar** | Enviar invitaciones de inicio de sesión a los usuarios seleccionados | `users:admin` |
+| **Desactivar** | Desactivar los usuarios seleccionados. Se cierra su sesión de inmediato. | `users:admin` |
 | **Eliminar** | Eliminar permanentemente los usuarios seleccionados | `users:admin` |
+
+`users:reader` basta para abrir la página y consultar la lista. Todas las acciones anteriores, y las acciones de fila siguientes, requieren `users:admin`.
+
+Acciones de fila, desde el menú al final de cada fila:
+
+| Acción | Descripción |
+|--------|-------------|
+| **Editar** | Abrir el usuario para editarlo. Hacer clic en la fila tiene el mismo efecto. |
+| **Activar** / **Desactivar** | Activar o desactivar la cuenta. Al desactivarla se cierra la sesión de la persona de inmediato. |
+| **Enviar invitación** | Enviar por correo una invitación de inicio de sesión. Oculta para las cuentas de Microsoft Entra. |
+| **Enviar restablecimiento de contraseña** | Enviar por correo un enlace de restablecimiento de contraseña. Se muestra solo para cuentas locales activadas. |
+| **Eliminar** | Eliminar el usuario permanentemente. Desactive la cuenta en su lugar si otros registros la referencian. |
 
 ### Crear un usuario
 
@@ -139,6 +166,8 @@ La cuadrícula muestra por defecto los usuarios **habilitados**. Utilice el conm
 
 Se pueden asignar múltiples roles a los usuarios. Sus permisos efectivos son la combinación de todos los roles asignados: si cualquier rol otorga acceso a un recurso, el usuario tiene ese acceso.
 
+Quitar todos los roles no elimina la cuenta. El usuario pasa al rol de sistema **Contacto**, se queda sin acceso y aparece como **Acceso pendiente** en la cuadrícula. No puede quitarse su propio último rol, así que no puede bloquearse a sí mismo.
+
 ### Gestión de puestos
 
 La suscripción alojada incluye **usuarios ilimitados** — no hay límite de puestos que gestionar:
@@ -147,9 +176,34 @@ La suscripción alojada incluye **usuarios ilimitados** — no hay límite de pu
 - El contador en la barra de herramientas muestra el número de usuarios habilitados
 - Active o desactive el interruptor **Habilitado** al editar un usuario para controlar el acceso
 
-### Usuarios gestionados por SSO
+### Usuarios gestionados por Microsoft Entra
 
-Cuando Microsoft Entra ID (SSO) está conectado, los campos del perfil del usuario (nombre, puesto de trabajo, teléfono) se sincronizan desde Entra al iniciar sesión y no pueden editarse en KANAP. Aún puede gestionar roles y asignaciones organizacionales.
+Las cuentas con el tipo de cuenta **Microsoft Entra** pertenecen a su directorio. Su perfil se actualiza desde Entra en dos momentos:
+
+- **En cada inicio de sesión**, desde el perfil de Microsoft de la propia persona
+- **Cada noche**, mediante la sincronización diaria del directorio, si un administrador de Microsoft Entra la ha aprobado. Consulte [Autenticación](#autenticacion).
+
+Ambos actualizan los mismos campos: nombre, apellido, cargo, teléfono de empresa, teléfono móvil, y el departamento y la empresa, comparados por nombre con los registros que ya existen en KANAP. Los valores vacíos del directorio nunca borran lo que está almacenado en KANAP.
+
+Al editar uno de estos usuarios, los campos de correo, nombre, cargo y teléfono están bloqueados, con la nota:
+
+> Este usuario es gestionado por Microsoft Entra ID y no puede ser editado aquí. Última sincronización desde Microsoft Entra: {fecha}
+
+Aún puede gestionar sus roles, empresa, departamento y el interruptor Habilitado.
+
+Las cuentas de Microsoft Entra nunca tienen una contraseña de KANAP. No se les puede enviar una invitación ni un restablecimiento de contraseña.
+
+Si alguien es eliminado de su directorio, o su cuenta del directorio es desactivada, la sincronización nocturna desactiva su cuenta de KANAP. Se cierra su sesión de inmediato y sus datos se conservan.
+
+### Inicio de sesión inmediato con Microsoft
+
+Cuando el inicio de sesión único está conectado, una persona que inicia sesión con Microsoft por primera vez obtiene automáticamente una cuenta de KANAP. Si ya existe una cuenta con la misma dirección de correo, se vincula a su identidad de Microsoft en lugar de crear otra.
+
+Una cuenta nueva empieza con el rol de sistema **Contacto** y sin permisos. La persona ve una página que dice:
+
+> Su cuenta aún no tiene acceso a KANAP. Pida a su administrador que le conceda acceso.
+
+Los administradores reciben un correo cuando esto ocurre. Para dar acceso a la persona, abra **Administración > Usuarios**, búsquela con el estado **Acceso pendiente** y asígnele un rol.
 
 ---
 
@@ -277,6 +331,8 @@ El rol de **Contacto** es un rol especial del sistema para usuarios que aparecen
 
 Si alguien con el rol de Contacto necesita usar activamente KANAP, cambie su rol a un rol regular (p. ej., Lector, Miembro) e invítelo.
 
+Hay una excepción: la persona creada automáticamente en su primer inicio de sesión con Microsoft también tiene el rol de Contacto. Puede iniciar sesión, pero solo llega a la página de acceso pendiente hasta que le asigne un rol. La cuadrícula la muestra como **Acceso pendiente**.
+
 ### Gestión de roles
 
 La página de Roles tiene un diseño de dos paneles:
@@ -363,11 +419,11 @@ Haga clic en **Guardar cambios** para actualizar tanto los datos del cliente com
 
 Configure el inicio de sesión único (SSO) para su organización. Esta página solo está disponible cuando la funcionalidad SSO está habilitada y no es accesible desde el host de administración de la plataforma.
 
-### Microsoft Entra ID (Azure AD)
+### Microsoft Entra ID
 
 Conecte KANAP a su inquilino de Microsoft Entra ID para SSO:
 
-1. Haga clic en **Conectar Microsoft Entra**
+1. Haga clic en **Conectar**
 2. Inicie sesión con una cuenta de administrador de Microsoft
 3. Conceda los permisos solicitados
 4. Los usuarios ahora pueden iniciar sesión con sus cuentas de Microsoft
@@ -381,10 +437,28 @@ Conecte KANAP a su inquilino de Microsoft Entra ID para SSO:
 
 | Acción | Descripción |
 |--------|-------------|
-| **Conectar Microsoft Entra** | Iniciar el flujo de configuración de Microsoft Entra |
-| **Reconectar Microsoft Entra** | Volver a ejecutar el flujo de configuración (se muestra cuando ya está conectado) |
-| **Probar inicio de sesión de Microsoft** | Probar el inicio de sesión SSO con su cuenta de Microsoft |
+| **Conectar** | Iniciar el flujo de configuración de Microsoft Entra |
+| **Reconectar** | Volver a ejecutar el flujo de configuración (se muestra cuando ya está conectado) |
+| **Probar inicio de sesión** | Probar el inicio de sesión SSO con su cuenta de Microsoft |
 | **Desconectar** | Eliminar la configuración SSO (vuelve a autenticación local) |
+
+### Sincronización diaria del directorio
+
+Este bloque aparece debajo de la tarjeta de Entra una vez conectado el inicio de sesión único. Cada noche a las 03:00 hora del servidor, KANAP actualiza nombres, cargos, teléfonos, departamentos y empresas desde Microsoft Entra, y desactiva las cuentas eliminadas o desactivadas en el directorio.
+
+Los departamentos y las empresas se comparan por nombre con los registros que ya existen en KANAP. No se crea nada automáticamente. Los valores vacíos del directorio nunca borran lo que ya está almacenado en KANAP.
+
+La sincronización necesita una aprobación única por parte de un administrador de Microsoft Entra. Hasta que se otorgue, el bloque muestra **Aún no autorizado. Un administrador de Microsoft Entra debe conceder a KANAP permiso para leer los usuarios del directorio.**
+
+| Estado o acción | Qué significa |
+|-----------------|---------------|
+| **Aún no autorizado...** | Ningún administrador de Microsoft Entra ha aprobado la sincronización, o falta el permiso requerido en el registro de aplicación. |
+| **Conceder acceso en Microsoft Entra** | Le lleva a la página de aprobación de Microsoft. Se muestra mientras la sincronización no está autorizada. Vuelve con **Acceso concedido. La primera sincronización está en curso.** |
+| **Última sincronización {fecha} — N cuentas actualizadas, N desactivadas.** | Resultado de la última ejecución correcta. |
+| **La última sincronización falló: {mensaje}** | La última ejecución no se completó. El mensaje proviene de Microsoft. |
+| **Sincronizar ahora** | Ejecuta la sincronización de inmediato en lugar de esperar a esta noche. Informa **Sincronización completada: N cuentas actualizadas, N desactivadas.** |
+
+Los pasos de configuración del registro de aplicación de Entra están en [SSO con Microsoft Entra](on-premise/sso-entra.md).
 
 ---
 
