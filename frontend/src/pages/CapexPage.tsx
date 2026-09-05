@@ -203,6 +203,7 @@ export default function CapexPage() {
       const rc = typeof totals.reportingCurrency === 'string' ? totals.reportingCurrency : 'EUR';
       setReportingCurrency(rc);
       const pinned = {
+        id: '__capex_totals__',
         description: t('shared.total'),
         versions: {
           yMinus1: {
@@ -686,7 +687,7 @@ export default function CapexPage() {
         columns={columns as any}
         endpoint="/capex-items/summary"
         queryKey="capex-summary"
-        getRowId={(r) => r.id}
+        getRowId={(r) => r.id || '__capex_totals__'}
         enableSearch
         pinnedBottomRowData={pinnedTotals}
         defaultSort={{ field: 'yBudget', direction: 'DESC' }}

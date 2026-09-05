@@ -61,6 +61,16 @@ function isPlainLeftClick(event: React.MouseEvent): boolean {
   );
 }
 
+function colIsRightAligned(colDef: ICellRendererParams['colDef']): boolean {
+  if (!colDef) return false;
+  const type = colDef.type;
+  if (type === 'rightAligned') return true;
+  if (Array.isArray(type) && type.includes('rightAligned')) return true;
+  const cellClass = colDef.cellClass;
+  if (typeof cellClass === 'string' && cellClass.split(/\s+/).includes('ag-right-aligned-cell')) return true;
+  return false;
+}
+
 /**
  * Get value from a nested field path
  */
@@ -126,7 +136,13 @@ export function LinkCellRenderer<T = unknown>(
     maxWidth,
     linkSx,
     valueFormatted,
+    colDef,
   } = props;
+
+  const rightAligned = colIsRightAligned(colDef);
+  const alignSx = rightAligned
+    ? { width: '100%', textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' as const }
+    : undefined;
 
   // Get display text
   const displayText = labelField && data
@@ -139,7 +155,7 @@ export function LinkCellRenderer<T = unknown>(
 
   if (!displayText) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="text.secondary" sx={alignSx}>
         {emptyText}
       </Typography>
     );
@@ -159,7 +175,7 @@ export function LinkCellRenderer<T = unknown>(
   // If no href, render as plain text
   if (!href) {
     return (
-      <Typography variant="body2">
+      <Typography variant="body2" sx={alignSx}>
         {displayText}
       </Typography>
     );
@@ -187,7 +203,10 @@ export function LinkCellRenderer<T = unknown>(
       sx={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: rightAligned ? 'flex-end' : 'flex-start',
         gap: 0.5,
+        width: '100%',
+        minWidth: 0,
         maxWidth: maxWidth,
       }}
     >
@@ -202,6 +221,8 @@ export function LinkCellRenderer<T = unknown>(
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          textAlign: rightAligned ? 'right' : undefined,
+          fontVariantNumeric: rightAligned ? 'tabular-nums' : undefined,
           color: isExternal ? undefined : 'inherit',
           textDecoration: 'none',
           cursor: 'pointer',
