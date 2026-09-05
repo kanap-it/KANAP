@@ -1187,7 +1187,7 @@ export class AiQueryExecutor {
     }
 
     if (input.entity_type === 'incidents') {
-      const viewer = await resolveIncidentViewer(context.manager, context.userId);
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
       const result = await this.incidents.list(scoped.query, { manager: context.manager, tenantId: context.tenantId, viewer });
       const resultPage = result.page ?? page;
       const resultLimit = result.limit ?? limit;
@@ -2104,7 +2104,7 @@ export class AiQueryExecutor {
     }
 
     if (entityType === 'incidents') {
-      const viewer = await resolveIncidentViewer(context.manager, context.userId);
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
       const record = await this.incidentRecords.load(entityId, {
         manager: context.manager,
         tenantId: context.tenantId,
@@ -2145,7 +2145,7 @@ export class AiQueryExecutor {
         : '';
       if (accessScopeSql) params.push(accessScope!.userId);
       const incidentVisibility = entityType === 'incidents'
-        ? incidentVisibilitySql(alias, await resolveIncidentViewer(context.manager, context.userId), params)
+        ? incidentVisibilitySql(alias, await resolveIncidentViewer(context.manager, context.userId, context.tenantId), params)
         : '';
       const rows = await context.manager.query(
         `SELECT DISTINCT ${groupField.expression} AS value

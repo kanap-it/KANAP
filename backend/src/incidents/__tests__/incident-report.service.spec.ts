@@ -1,6 +1,7 @@
 import * as assert from 'node:assert/strict';
 import {
   buildMarkdown,
+  IncidentReportService,
   labelsFor,
   normalizeReportLang,
   reportHeading,
@@ -216,7 +217,33 @@ function testLinkChangeUsesContentOnly() {
   assert.equal(markdown.includes(UUID), false);
 }
 
-function run() {
+async function testExportPdfForwardsViewer() {
+  const captured: Array<{ viewer?: unknown }> = [];
+  const records = {
+    load: async (_id: string, opts: { viewer?: unknown }) => {
+      captured.push(opts);
+      return fixture();
+    },
+  };
+  const documentExport = {
+    exportMarkdown: async () => ({ buffer: Buffer.from('pdf'), contentType: 'application/pdf' }),
+  };
+  const itOps = {
+    getSettings: async () => ({ incidentCategories: [] }),
+  };
+  const service = new IncidentReportService(records as any, documentExport as any, itOps as any);
+  const viewer = { userId: 'u1', isAdmin: false };
+  await service.exportPdf(UUID, 'en', {
+    manager: {} as any,
+    tenantId: 'tenant-1',
+    userId: 'u1',
+    viewer,
+  });
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].viewer, viewer);
+}
+
+async function run() {
   testNormalizeLang();
   testFilenameAndHeaderRef();
   testSectionOrder();
@@ -226,6 +253,11 @@ function run() {
   testRestrictedDocumentsOmitted();
   testFrenchChangeLabels();
   testLinkChangeUsesContentOnly();
+  await testExportPdfForwardsViewer();
+  console.log('incident-report.service.spec.ts: ok');
 }
 
-run();
+void run().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

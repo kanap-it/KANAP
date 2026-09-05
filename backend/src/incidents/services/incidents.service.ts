@@ -468,7 +468,7 @@ export class IncidentsService extends IncidentsBaseService {
       { table: 'incidents', recordId: saved.id, action: 'create', before: null, after: saved, userId },
       { manager: mg },
     );
-    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: false } });
+    return this.get(saved.id, { manager: mg, tenantId, viewer: { userId, isAdmin: true } });
   }
 
   /**
@@ -518,12 +518,13 @@ export class IncidentsService extends IncidentsBaseService {
         occurred_at: now,
         author_id: userId,
       });
+      await this.refreshLinkedTaskSearchIndex(mg, tenantId, saved.id);
     }
     await this.audit.log(
       { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
       { manager: mg },
     );
-    return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: false } });
+    return this.get(saved.id, { manager: mg, tenantId, viewer: { userId, isAdmin: true } });
   }
 
   /**
@@ -616,6 +617,7 @@ export class IncidentsService extends IncidentsBaseService {
       { table: 'incidents', recordId: saved.id, action: 'update', before, after: saved, userId },
       { manager: mg },
     );
+    await this.refreshLinkedTaskSearchIndex(mg, tenantId, saved.id);
     return this.get(saved.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
   }
 
@@ -662,6 +664,20 @@ export class IncidentsService extends IncidentsBaseService {
     if (incident.status === 'closed' && !incident.closed_at) {
       incident.closed_at = now;
     }
+  }
+
+  private async refreshLinkedTaskSearchIndex(
+    manager: EntityManager,
+    tenantId: string,
+    incidentId: string,
+  ): Promise<void> {
+    await manager.query(
+      `SELECT search_index_refresh_tasks(
+         $1,
+         ARRAY(SELECT id FROM tasks WHERE tenant_id = $1 AND related_object_type = 'incident' AND related_object_id = $2)
+       )`,
+      [tenantId, incidentId],
+    );
   }
 
   private async ensureUsers(ids: Array<string | null | undefined>, manager: EntityManager, tenantId: string): Promise<void> {

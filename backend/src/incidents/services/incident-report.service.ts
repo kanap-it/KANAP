@@ -641,6 +641,7 @@ export class IncidentReportService {
       manager: opts.manager,
       tenantId: opts.tenantId,
       userId: opts.userId ?? null,
+      viewer: opts.viewer,
     });
     const settings = await this.itOps.getSettings(String(opts.tenantId), { manager: opts.manager });
     const markdown = buildMarkdown(

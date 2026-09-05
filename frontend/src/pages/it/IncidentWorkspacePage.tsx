@@ -126,8 +126,50 @@ export function IncidentWorkspacePage() {
     void queryClient.invalidateQueries({ queryKey: incidentEntriesQueryKey(incidentId) });
   }, [queryClient]);
 
+  const listContextParams = React.useMemo(() => {
+    const sp = new URLSearchParams();
+    for (const key of ['sort', 'q', 'filters']) {
+      const value = searchParams.get(key);
+      if (value) sp.set(key, value);
+    }
+    return sp;
+  }, [searchParams]);
+
+  const viewerLosesAccess = React.useCallback((next: {
+    confidential?: boolean;
+    reporter_user_id?: string | null;
+    owner_user_id?: string | null;
+  }) => {
+    if (isAdmin || !profile?.id) return false;
+    const confidential = next.confidential ?? (isCreate ? createForm.confidential : data?.confidential) ?? false;
+    if (!confidential) return false;
+    const reporter = next.reporter_user_id !== undefined
+      ? next.reporter_user_id
+      : (isCreate ? createForm.reporter_user_id : data?.reporter_user_id);
+    const owner = next.owner_user_id !== undefined
+      ? next.owner_user_id
+      : (isCreate ? createForm.owner_user_id : data?.owner_user_id);
+    return reporter !== profile.id && owner !== profile.id;
+  }, [createForm.confidential, createForm.owner_user_id, createForm.reporter_user_id, data, isAdmin, isCreate, profile?.id]);
+
+  const confirmLoseAccess = React.useCallback(async () => {
+    return dialogs.confirm({
+      title: t('workspace.incident.dialogs.loseAccessTitle'),
+      message: t('workspace.incident.dialogs.loseAccessMessage'),
+      confirmLabel: t('common:buttons.continue'),
+      intent: 'danger',
+    });
+  }, [dialogs, t]);
+
+  const leaveRegister = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['incidents-ids'] });
+    const qs = listContextParams.toString();
+    navigate(`/it/incidents${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [listContextParams, navigate, queryClient]);
+
   const patchNow = React.useCallback(async (patch: UpdateIncidentInput) => {
     if (!data || stale) return;
+    if (viewerLosesAccess(patch) && !(await confirmLoseAccess())) return;
     const previous = data;
     setIncidentCache((current) => ({ ...current, ...patch }));
     setError(null);
@@ -135,11 +177,12 @@ export function IncidentWorkspacePage() {
       const saved = await incidentsApi.update(previous.id, patch);
       setIncidentCache(() => saved);
       if ('status' in patch || 'severity' in patch) invalidateEntries(previous.id);
+      if (viewerLosesAccess(saved)) leaveRegister();
     } catch (e) {
       setIncidentCache(() => previous);
       setError(getApiErrorMessage(e, t, t('workspace.incident.messages.saveFailed')));
     }
-  }, [data, invalidateEntries, setIncidentCache, stale, t]);
+  }, [confirmLoseAccess, data, invalidateEntries, leaveRegister, setIncidentCache, stale, t, viewerLosesAccess]);
 
   // Debounced autosave for long-form text: the cache is patched immediately so
   // the page never redraws from a server round-trip.
@@ -169,15 +212,6 @@ export function IncidentWorkspacePage() {
     pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
     scheduleSave(flushPending);
   }, [editable, flushPending, scheduleSave, setIncidentCache]);
-
-  const listContextParams = React.useMemo(() => {
-    const sp = new URLSearchParams();
-    for (const key of ['sort', 'q', 'filters']) {
-      const value = searchParams.get(key);
-      if (value) sp.set(key, value);
-    }
-    return sp;
-  }, [searchParams]);
 
   const handleClose = React.useCallback(async () => {
     if (!(await flushSave())) return;
@@ -215,6 +249,7 @@ export function IncidentWorkspacePage() {
 
   const handleConfidentiality = React.useCallback(async (confidential: boolean) => {
     if (!data || stale) return;
+    if (viewerLosesAccess({ confidential }) && !(await confirmLoseAccess())) return;
     const previous = data;
     setIncidentCache((current) => ({ ...current, confidential }));
     setError(null);
@@ -224,11 +259,12 @@ export function IncidentWorkspacePage() {
         : await incidentsApi.update(previous.id, { confidential });
       setIncidentCache(() => saved);
       invalidateEntries(previous.id);
+      if (viewerLosesAccess(saved)) leaveRegister();
     } catch (e) {
       setIncidentCache(() => previous);
       setError(getApiErrorMessage(e, t, t('workspace.incident.messages.confidentialityFailed')));
     }
-  }, [data, invalidateEntries, locked, setIncidentCache, stale, t]);
+  }, [confirmLoseAccess, data, invalidateEntries, leaveRegister, locked, setIncidentCache, stale, t, viewerLosesAccess]);
 
   const handleDrawerChange = React.useCallback((patch: IncidentDrawerPatch) => {
     if (patch.confidential !== undefined) {
@@ -304,6 +340,13 @@ export function IncidentWorkspacePage() {
       setCreateError(t('workspace.incident.create.detectedRequired'));
       return;
     }
+    if (viewerLosesAccess({
+      confidential: createForm.confidential,
+      reporter_user_id: createForm.reporter_user_id,
+      owner_user_id: createForm.owner_user_id,
+    }) && !(await confirmLoseAccess())) {
+      return;
+    }
     setCreateSubmitting(true);
     setCreateError(null);
     try {
@@ -324,9 +367,13 @@ export function IncidentWorkspacePage() {
         description: createForm.description.trim() || null,
       };
       const saved = await incidentsApi.create(payload);
+      void queryClient.invalidateQueries({ queryKey: ['incidents-ids'] });
+      if (viewerLosesAccess(saved)) {
+        leaveRegister();
+        return;
+      }
       const savedRef = formatItemRef('incident', saved.item_number);
       queryClient.setQueryData<Incident>(['incident', savedRef], saved);
-      void queryClient.invalidateQueries({ queryKey: ['incidents-ids'] });
       const qs = listContextParams.toString();
       navigate(`/it/incidents/${savedRef}/overview${qs ? `?${qs}` : ''}`, { replace: true });
     } catch (e) {
@@ -334,7 +381,7 @@ export function IncidentWorkspacePage() {
     } finally {
       setCreateSubmitting(false);
     }
-  }, [canEdit, createForm, createSubmitting, listContextParams, navigate, queryClient, t]);
+  }, [canEdit, confirmLoseAccess, createForm, createSubmitting, leaveRegister, listContextParams, navigate, queryClient, t, viewerLosesAccess]);
 
   const handleExportPdf = React.useCallback(async () => {
     if (!data || isCreate || exportingPdf) return;

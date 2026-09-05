@@ -238,7 +238,9 @@
         "cancelTitle": "Annuler l'incident",
         "cancelMessage": "L'enregistrement conserve son numéro et est marqué comme annulé. La raison est enregistrée dans le journal.",
         "cancelPlaceholder": "ex. saisi deux fois, voir INC-12",
-        "cancelConfirm": "Annuler l'incident"
+        "cancelConfirm": "Annuler l'incident",
+        "loseAccessTitle": "Vous ne verrez plus cet incident",
+        "loseAccessMessage": "Après cette modification, seuls les administrateurs du registre, le déclarant et le responsable pourront l'ouvrir. Vous serez renvoyé vers le registre."
       },
       "metadata": {
         "status": "Statut",

@@ -238,7 +238,9 @@
         "cancelTitle": "Vorfall abbrechen",
         "cancelMessage": "Der Eintrag behält seine Nummer und wird als abgebrochen markiert. Der Grund wird im Verlauf festgehalten.",
         "cancelPlaceholder": "z. B. doppelt erfasst, siehe INC-12",
-        "cancelConfirm": "Vorfall abbrechen"
+        "cancelConfirm": "Vorfall abbrechen",
+        "loseAccessTitle": "Sie sehen diesen Vorfall anschließend nicht mehr",
+        "loseAccessMessage": "Nach dieser Änderung können nur noch Registeradministratoren, der Melder und der Verantwortliche ihn öffnen. Sie werden zum Register zurückgeführt."
       },
       "metadata": {
         "status": "Status",

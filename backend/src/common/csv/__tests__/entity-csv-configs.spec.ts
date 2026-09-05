@@ -146,7 +146,15 @@ async function testIncidentRefAndValueParsing() {
     { rowNumber: 3, raw: { ref: ' inc 7 ' }, parsed: {}, isInsert: true, errors: [], warnings: [] },
     { rowNumber: 4, raw: { ref: '' }, parsed: {}, isInsert: true, errors: [], warnings: [] },
   ];
-  await incidentCsvConfig.beforeValidate!(rows as any, {} as any);
+  await incidentCsvConfig.beforeValidate!(rows as any, {
+    tenantId: 'tenant-1',
+    manager: { query: async () => [] },
+    params: { dryRun: true, mode: 'replace', operation: 'upsert' },
+    resolverCache: new Map(),
+    userId: null,
+    isAdmin: false,
+    viewer: { userId: null, isAdmin: false },
+  } as any);
   assert.equal(rows[0].raw.ref, '12', 'INC-12 must be stripped to the item number');
   assert.equal(rows[1].raw.ref, '7');
   assert.equal(rows[2].raw.ref, '', 'a blank ref stays blank (row is an insert)');

@@ -5,6 +5,7 @@ import {
   incidentVisibilitySql,
   incidentVisibleToViewer,
   incidentViewerFromContext,
+  resolveIncidentViewer,
   type IncidentViewer,
 } from '../incident-visibility';
 
@@ -62,6 +63,20 @@ function testViewerFromContext(): void {
   );
 }
 
+async function testResolveViewerRequiresTenant(): Promise<void> {
+  let queried = false;
+  const manager = { query: async () => { queried = true; return [{ is_admin: true }]; } };
+  const noTenant = await resolveIncidentViewer(manager as any, 'user-1', '');
+  assert.equal(noTenant.userId, 'user-1');
+  assert.equal(noTenant.isAdmin, false);
+  assert.equal(queried, false, 'must not query without tenant_id');
+
+  const noUser = await resolveIncidentViewer(manager as any, '', 'tenant-1');
+  assert.equal(noUser.userId, null);
+  assert.equal(noUser.isAdmin, false);
+  assert.equal(queried, false);
+}
+
 function testRelatedLabelSql(): void {
   assert.match(incidentRelatedLabelSql('inc'), /inc\.confidential/);
   assert.match(incidentRelatedLabelSql('inc'), /INC-.*item_number/);
@@ -71,12 +86,16 @@ function testRelatedLabelSql(): void {
   );
 }
 
-function run(): void {
+async function run(): Promise<void> {
   testVisibleToViewer();
   testVisibilitySql();
   testViewerFromContext();
   testRelatedLabelSql();
+  await testResolveViewerRequiresTenant();
   console.log('incident-visibility.spec.ts: ok');
 }
 
-run();
+void run().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

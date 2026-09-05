@@ -78,31 +78,33 @@ export function incidentRelatedTitleSql(alias: string): string {
 export async function resolveIncidentViewer(
   manager: EntityManager,
   userId: string | null | undefined,
+  tenantId: string | null | undefined,
 ): Promise<IncidentViewer> {
   const normalized = String(userId || '').trim();
-  if (!normalized) return { userId: null, isAdmin: false };
+  const tenant = String(tenantId || '').trim();
+  if (!normalized || !tenant) return { userId: normalized || null, isAdmin: false };
   const rows: Array<{ is_admin: boolean | string }> = await manager.query(
     `SELECT (
         EXISTS (
           SELECT 1 FROM users u
           JOIN roles r ON r.id = u.role_id AND r.tenant_id = u.tenant_id
-          WHERE u.id = $1 AND lower(r.role_name) = 'administrator'
+          WHERE u.id = $1 AND u.tenant_id = $2 AND lower(r.role_name) = 'administrator'
         )
         OR EXISTS (
           SELECT 1 FROM user_roles ur
           JOIN roles r ON r.id = ur.role_id AND r.tenant_id = ur.tenant_id
-          WHERE ur.user_id = $1 AND lower(r.role_name) = 'administrator'
+          WHERE ur.user_id = $1 AND ur.tenant_id = $2 AND lower(r.role_name) = 'administrator'
         )
         OR EXISTS (
           SELECT 1 FROM role_permissions rp
-          WHERE rp.resource = 'incidents' AND rp.level = 'admin'
+          WHERE rp.resource = 'incidents' AND rp.level = 'admin' AND rp.tenant_id = $2
             AND (
-              rp.role_id = (SELECT u.role_id FROM users u WHERE u.id = $1)
-              OR rp.role_id IN (SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = $1)
+              rp.role_id = (SELECT u.role_id FROM users u WHERE u.id = $1 AND u.tenant_id = $2)
+              OR rp.role_id IN (SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = $1 AND ur.tenant_id = $2)
             )
         )
       ) AS is_admin`,
-    [normalized],
+    [normalized, tenant],
   );
   const raw = rows[0]?.is_admin;
   return { userId: normalized, isAdmin: raw === true || raw === 't' || raw === 'true' };

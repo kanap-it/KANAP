@@ -146,6 +146,7 @@ export class IncidentsController {
     @Query('operation') operation: 'upsert' | 'update_only' | 'insert_only' = 'upsert',
     @Tenant() ctx: TenantRequest,
   ) {
+    const viewer = incidentViewerFromContext(ctx);
     return this.csvSvc.import(
       file,
       { dryRun: dryRun !== 'false', mode, operation },
@@ -153,7 +154,8 @@ export class IncidentsController {
         manager: ctx.manager as EntityManager,
         tenantId: ctx.tenantId,
         userId: ctx.userId || null,
-        isAdmin: incidentViewerFromContext(ctx).isAdmin,
+        isAdmin: viewer.isAdmin,
+        viewer,
       },
     );
   }

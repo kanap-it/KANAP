@@ -912,7 +912,7 @@ export class AiAggregateExecutor {
     }
 
     if (entityType === 'incidents') {
-      const viewer = await resolveIncidentViewer(context.manager, context.userId);
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
       const result = await this.incidents.listIds(
         {
           q,

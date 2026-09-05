@@ -562,6 +562,93 @@ async function testRlsIsolatesSearchIndex() {
   }
 }
 
+async function testConfidentialIncidentReaderVsAdmin() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantId = randomUUID();
+    await seedTenant(runner, tenantId, 'inc-acl');
+    await setCurrentTenant(runner, tenantId);
+
+    const adminRoleId = await seedRole(runner, tenantId, 'Administrator');
+    const memberRoleId = await seedRole(runner, tenantId, 'Member');
+    const adminId = await seedUser(runner, tenantId, adminRoleId, 'Admin', 'Viewer');
+    const readerId = await seedUser(runner, tenantId, memberRoleId, 'Reader', 'Viewer');
+
+    const secretTitle = 'ZXQCONFIDENTIAL mail outage';
+    const incidentId = await seedIncident(runner, tenantId, { title: secretTitle });
+    const taskId = await seedTask(
+      runner,
+      tenantId,
+      4104,
+      'Diagnose mail',
+      null,
+      null,
+      { type: 'incident', id: incidentId },
+    );
+
+    let taskRow = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
+    assert.equal(
+      String(taskRow.search_vector).includes('zxqconfidential'),
+      true,
+      'public related title is indexed on the task',
+    );
+
+    await runner.query(
+      `UPDATE incidents SET confidential = true, reporter_user_id = $2, owner_user_id = $2 WHERE id = $1 AND tenant_id = $3`,
+      [incidentId, adminId, tenantId],
+    );
+
+    taskRow = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
+    assert.equal(
+      String(taskRow.search_vector).includes('zxqconfidential'),
+      true,
+      'flipping confidential does not refresh the task index by itself',
+    );
+
+    await runner.query(
+      `SELECT search_index_refresh_tasks(
+         $1,
+         ARRAY(SELECT id FROM tasks WHERE tenant_id = $1 AND related_object_type = 'incident' AND related_object_id = $2)
+       )`,
+      [tenantId, incidentId],
+    );
+    taskRow = await fetchIndexRow(runner, tenantId, 'tasks', taskId);
+    assert.equal(
+      String(taskRow.search_vector).includes('zxqconfidential'),
+      false,
+      'refresh after the flag drop must omit the confidential title',
+    );
+
+    const service = createEntityService();
+    const readerSearch = await service.searchAll(createContext(runner, tenantId, readerId) as any, {
+      query: 'ZXQCONFIDENTIAL',
+      entity_types: ['incidents'],
+      limit: 10,
+    });
+    assert.equal(
+      readerSearch.items.some((item: any) => item.id === incidentId),
+      false,
+      'a reader must not see a confidential incident',
+    );
+
+    const adminSearch = await service.searchAll(createContext(runner, tenantId, adminId) as any, {
+      query: 'ZXQCONFIDENTIAL',
+      entity_types: ['incidents'],
+      limit: 10,
+    });
+    assert.equal(
+      adminSearch.items.some((item: any) => item.id === incidentId),
+      true,
+      'an administrator still sees the confidential incident',
+    );
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 async function run() {
   await dataSource.initialize();
   try {
@@ -573,6 +660,7 @@ async function run() {
     await testParticipationScopeOnIndexedPath();
     await testDocumentLibraryAclOnIndexedPath();
     await testRlsIsolatesSearchIndex();
+    await testConfidentialIncidentReaderVsAdmin();
   } finally {
     await dataSource.destroy();
   }

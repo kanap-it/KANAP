@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import { validate as isUuid } from 'uuid';
+import { incidentVisibilitySql, resolveIncidentViewer } from '../../../incidents/incident-visibility';
 import { Task, TASK_STATUSES, TaskStatus } from '../../../tasks/task.entity';
 import { RelatedType, TasksUnifiedService } from '../../../tasks/tasks-unified.service';
 import { AiMutationPreview } from '../../ai-mutation-preview.entity';
@@ -610,16 +611,24 @@ export class UpdateTaskFieldsAiMutationOperation implements AiMutationOperation<
     if (!normalized) throw new BadRequestException('relation_ref is required when relation_type is incident.');
     const uuid = isUuid(normalized);
     const itemNumber = normalized.match(/^INC-(\d+)$/i)?.[1] ?? null;
+    const params: unknown[] = [context.tenantId, normalized, itemNumber];
+    const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
+    const visibility = incidentVisibilitySql('i', viewer, params);
     const rows = await context.manager.query(
-      `SELECT id, item_number, title FROM incidents
-       WHERE tenant_id = $1
-         AND (${uuid ? 'id = $2 OR ' : ''}($3::int IS NOT NULL AND item_number = $3::int) OR LOWER(title) = LOWER($2::text))
-       ORDER BY item_number LIMIT 6`,
-      [context.tenantId, normalized, itemNumber],
+      `SELECT i.id, i.item_number,
+              CASE WHEN i.confidential THEN CONCAT('INC-', i.item_number::text)
+                   ELSE CONCAT('INC-', i.item_number::text, ' - ', i.title)
+              END AS label
+       FROM incidents i
+       WHERE i.tenant_id = $1
+         AND (${uuid ? 'i.id = $2 OR ' : ''}($3::int IS NOT NULL AND i.item_number = $3::int) OR LOWER(i.title) = LOWER($2::text))
+         ${visibility}
+       ORDER BY i.item_number LIMIT 6`,
+      params,
     );
     if (rows.length === 0) throw new NotFoundException(`Incident "${normalized}" not found.`);
     if (rows.length > 1) throw new BadRequestException(`Multiple incidents matched "${normalized}". Use an INC reference.`);
-    return { mode: 'incident', type: 'incident', id: String(rows[0].id), label: `INC-${rows[0].item_number} - ${rows[0].title || rows[0].id}` };
+    return { mode: 'incident', type: 'incident', id: String(rows[0].id), label: String(rows[0].label || rows[0].id) };
   }
 
   private async describeRelation(context: AiExecutionContextWithManager, type: RelatedType, id: string | null): Promise<string | null> {

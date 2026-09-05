@@ -242,6 +242,8 @@ export interface CsvImportContext {
   userId?: string | null;
   /** True when the importer is incidents:admin (or Administrator). */
   isAdmin?: boolean;
+  /** Register viewer (userId + incidents:admin). Used to hide confidential incidents. */
+  viewer?: { userId: string | null; isAdmin: boolean };
 }
 
 /**

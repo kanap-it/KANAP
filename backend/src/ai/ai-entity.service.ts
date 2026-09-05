@@ -1444,7 +1444,7 @@ export class AiEntityService {
     const like = `%${query}%`;
     const ref = this.parseNumericRef(query);
     const numericPrefix = this.parseNumericPrefix(query);
-    const viewer = await resolveIncidentViewer(context.manager, context.userId);
+    const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
     const params: unknown[] = [ref, numericPrefix, like, context.tenantId, limit];
     const visibility = incidentVisibilitySql('i', viewer, params);
     const rows = await context.manager.query<SearchRow[]>(
@@ -2167,7 +2167,7 @@ export class AiEntityService {
     }
 
     if (entityTypes.includes('incidents')) {
-      const viewer = await resolveIncidentViewer(context.manager, context.userId);
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
       if (!viewer.isAdmin) {
         const userRef = viewer.userId ? push(viewer.userId) : null;
         const ownerClause = userRef

@@ -425,6 +425,28 @@ async function testFormulaApostropheIsStrippedOnImport() {
   assert.equal(savedTask.description, '+plus prefix');
 }
 
+async function testBeforeValidateErrorsSurviveDryRun() {
+  const resolver = new CsvResolverService();
+  const validators = new CsvJsonValidators();
+  const service = new CsvImportService(resolver, validators);
+  const config = createTestConfig();
+  config.beforeValidate = async (rows) => {
+    rows[0].errors.push({ row: rows[0].rowNumber, column: 'title', message: 'blocked by hook' });
+  };
+
+  const csv = `id;title;description;status;due_date;priority
+;Hooked task;desc;open;;`;
+
+  const result = await service.import(config, createMockFile(csv), { ...defaultParams, dryRun: true }, {
+    manager: createMockManager({ tasks: [] }),
+    tenantId: 't1',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.updated, 0);
+  assert.equal(result.errors.some((error) => error.message === 'blocked by hook'), true);
+}
+
 // ===== Run tests =====
 
 (async () => {
@@ -443,6 +465,7 @@ async function testFormulaApostropheIsStrippedOnImport() {
   await testMissingHeaderError();
   await testCaseInsensitiveEnumMatching();
   await testFormulaApostropheIsStrippedOnImport();
+  await testBeforeValidateErrorsSurviveDryRun();
 
   console.log('CSV import service tests passed.');
 })().catch((err) => {

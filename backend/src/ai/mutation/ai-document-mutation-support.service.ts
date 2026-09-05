@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { validate as isUuid } from 'uuid';
+import { incidentVisibilitySql, resolveIncidentViewer } from '../../incidents/incident-visibility';
 import { KnowledgeService, RelationEntityType } from '../../knowledge/knowledge.service';
 import { AiExecutionContextWithManager } from '../ai.types';
 import {
@@ -181,6 +182,10 @@ export class AiDocumentMutationSupportService {
         const match = normalized.match(/^(?:T-|task\s+#?|ticket\s+#?|#)?(\d+)$/i);
         return match ? Number(match[1]) : null;
       }
+      case 'incidents': {
+        const match = normalized.match(/^(?:INC[-\s]?)?(\d+)$/i);
+        return match ? Number(match[1]) : null;
+      }
       default:
         return null;
     }
@@ -199,6 +204,8 @@ export class AiDocumentMutationSupportService {
         return `REQ-${numeric}`;
       case 'tasks':
         return `T-${numeric}`;
+      case 'incidents':
+        return `INC-${numeric}`;
       default:
         return null;
     }
@@ -330,6 +337,9 @@ export class AiDocumentMutationSupportService {
     idOrRefOrName: string,
   ): Promise<AiDocumentRelationItem> {
     const normalized = String(idOrRefOrName || '').trim();
+    if (entityType === 'incidents') {
+      return this.getExactIncidentRelationTarget(context, normalized);
+    }
     const config = RELATION_QUERY_CONFIG[entityType];
 
     let rows: Array<Record<string, unknown>> = [];
@@ -376,6 +386,9 @@ export class AiDocumentMutationSupportService {
     limit = 5,
   ): Promise<AiRelationResolutionCandidate[]> {
     const normalized = String(query || '').trim();
+    if (entityType === 'incidents') {
+      return this.searchIncidentRelationCandidates(context, normalized, limit);
+    }
     const config = RELATION_QUERY_CONFIG[entityType];
     const like = `%${normalized}%`;
     const prefix = `${normalized}%`;
@@ -416,6 +429,104 @@ export class AiDocumentMutationSupportService {
       const item = this.toRelationItem(entityType, row);
       return {
         entityType,
+        id: item.id,
+        ref: item.ref,
+        label: item.label,
+        name: row.name == null ? null : String(row.name),
+        updated_at: row.updated_at ? new Date(String(row.updated_at)).toISOString() : null,
+      };
+    });
+  }
+
+  private incidentRelationLabelSql(alias: string): string {
+    return `CASE WHEN ${alias}.confidential THEN CONCAT('INC-', ${alias}.item_number::text) ELSE CONCAT('INC-', ${alias}.item_number::text, ' - ', ${alias}.title) END`;
+  }
+
+  private async getExactIncidentRelationTarget(
+    context: AiExecutionContextWithManager,
+    idOrRefOrName: string,
+  ): Promise<AiDocumentRelationItem> {
+    const params: unknown[] = [context.tenantId];
+    const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
+    let identitySql = '';
+    if (isUuid(idOrRefOrName)) {
+      params.push(idOrRefOrName);
+      identitySql = `i.id = $${params.length}`;
+    } else {
+      const itemNumber = this.parseRelationItemNumber('incidents', idOrRefOrName);
+      if (itemNumber == null) {
+        throw new NotFoundException(`No incident found matching "${idOrRefOrName}".`);
+      }
+      params.push(itemNumber);
+      identitySql = `i.item_number = $${params.length}`;
+    }
+    const visibility = incidentVisibilitySql('i', viewer, params);
+    const rows = await context.manager.query(
+      `SELECT i.id,
+              i.title AS name,
+              i.item_number,
+              i.updated_at,
+              ${this.incidentRelationLabelSql('i')} AS label
+       FROM incidents i
+       WHERE i.tenant_id = $1
+         AND ${identitySql}
+         ${visibility}
+       LIMIT 1`,
+      params,
+    );
+    if (rows.length === 0) {
+      throw new NotFoundException(`No incident found matching "${idOrRefOrName}".`);
+    }
+    return this.toRelationItem('incidents', rows[0]);
+  }
+
+  private async searchIncidentRelationCandidates(
+    context: AiExecutionContextWithManager,
+    query: string,
+    limit: number,
+  ): Promise<AiRelationResolutionCandidate[]> {
+    const like = `%${query}%`;
+    const prefix = `${query}%`;
+    const itemNumber = this.parseRelationItemNumber('incidents', query);
+    const params: unknown[] = [context.tenantId, like, query, prefix];
+    let itemNumberSql = '';
+    if (itemNumber != null) {
+      params.push(itemNumber);
+      itemNumberSql = ` OR i.item_number = $${params.length}`;
+    }
+    const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
+    const visibility = incidentVisibilitySql('i', viewer, params);
+    params.push(Math.min(Math.max(limit, 1), 10));
+
+    const rows = await context.manager.query(
+      `SELECT i.id,
+              i.title AS name,
+              i.item_number,
+              i.updated_at,
+              ${this.incidentRelationLabelSql('i')} AS label
+       FROM incidents i
+       WHERE i.tenant_id = $1
+         AND (
+           COALESCE(i.title, '') ILIKE $2
+           ${itemNumberSql}
+         )
+         ${visibility}
+       ORDER BY
+         CASE
+           WHEN lower(COALESCE(i.title, '')) = lower($3) THEN 0
+           WHEN COALESCE(i.title, '') ILIKE $4 THEN 1
+           WHEN COALESCE(i.title, '') ILIKE $2 THEN 2
+           ELSE 3
+         END ASC,
+         i.updated_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
+
+    return rows.map((row: Record<string, unknown>) => {
+      const item = this.toRelationItem('incidents', row);
+      return {
+        entityType: 'incidents',
         id: item.id,
         ref: item.ref,
         label: item.label,

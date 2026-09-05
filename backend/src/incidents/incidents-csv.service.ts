@@ -67,6 +67,7 @@ export class IncidentsCsvService {
       tenantId: string;
       userId?: string | null;
       isAdmin?: boolean;
+      viewer?: IncidentViewer;
     },
   ): Promise<CsvImportResult> {
     return this.importSvc.import(incidentCsvConfig, file, params, opts);
